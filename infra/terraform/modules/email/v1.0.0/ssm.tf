@@ -26,7 +26,7 @@ resource "aws_ssm_parameter" "smtp_host" {
 
 resource "aws_ssm_parameter" "ses_access_key" {
   name     = "/${local.ses}/access_key"
-  type     = "String"
+  type     = "SecureString"
   value    = aws_iam_access_key.ses_user_key.id
 }
 
@@ -38,12 +38,12 @@ resource "aws_ssm_parameter" "ses_secret_key" {
 
 resource "aws_ssm_parameter" "ses_from_address" {
   name     = "/${local.ses}/from_address"
-  type     = "SecureString"
+  type     = "String"
   value    = "support@${local.email_zonename}"
 }
 
 resource "aws_ssm_parameter" "ses_replyto_address" {
   name     = "/${local.ses}/replyto_address"
-  type     = "SecureString"
+  type     = "String"
   value    = "support@${local.email_zonename}"
 }
