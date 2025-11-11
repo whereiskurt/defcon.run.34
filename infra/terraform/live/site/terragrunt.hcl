@@ -3,7 +3,7 @@ locals {
 }
 
 include "global_providers" {
-  path   = "../../modules/providers/global.hcl"
+  path   = "../../providers/global.hcl"
 }
 
 include "site_module" {
@@ -16,8 +16,8 @@ terraform {
 }
 
 inputs = merge(
-  local.site_vars.locals,
-  local
+  local.site_vars.locals
+  # local
 )
 
 errors {

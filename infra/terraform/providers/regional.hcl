@@ -1,7 +1,7 @@
 locals {
-  resource = read_terragrunt_config("resource.hcl")
-  region = try(local.resource.locals.region, "us-east-1")
-  region_label = try(local.resource.locals.region_label, "use1")
+  resource  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  region = try(local.resource.locals.region.full, "us-east-1")
+  region_label = try(local.resource.locals.region.label, "use1")
 }
 
 #######
@@ -17,6 +17,11 @@ generate "provider" {
   path      = "provider.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
+    provider "aws" {
+      ##Not alias means this is the default provider when not provided
+      region = "${local.region}"
+      profile = "application"
+    }
     provider "aws" {
       alias   = "application"
       region = "${local.region}"
