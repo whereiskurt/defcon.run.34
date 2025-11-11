@@ -10,3 +10,16 @@ output "global_waf_webacl_arn" {
   value     = var.waf.enabled ? "aws_wafv2_web_acl.this[0].arn": null
   sensitive = false
 }
+
+output "cert_map" {
+  value = {
+    for _, cert in aws_acm_certificate.env_certs :
+    cert.domain_name => {
+      arn                       = cert.arn
+      domain_name               = cert.domain_name
+      subject_alternative_names = cert.subject_alternative_names
+      validation_method         = cert.validation_method
+    }
+  }
+  sensitive = false
+}
