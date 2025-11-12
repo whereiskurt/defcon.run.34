@@ -1,7 +1,9 @@
-locals {
-  ses = "${var.site.label}/${var.region.label}/ses"
-  region_zonename = "${var.region.label}.${var.email.zonename}"
-  smtp_zonename = "${var.email.smtp_prefix}.${var.region.label}.${var.email.zonename}"
+variable "use_smtp_region" {
+  default = false
+}
+
+variable "use_smtp_site" {
+  default = false
 }
 
 resource "random_id" "rnd" {

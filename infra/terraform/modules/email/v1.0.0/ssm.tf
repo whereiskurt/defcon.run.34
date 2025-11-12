@@ -1,3 +1,7 @@
+locals {
+  ses = "${var.site.label}/${var.region.label}/ses/"
+}
+
 resource "aws_ssm_parameter" "email_zonename" {
   name     = "/${local.ses}/zonename"
   type     = "String"
@@ -39,11 +43,11 @@ resource "aws_ssm_parameter" "ses_secret_key" {
 resource "aws_ssm_parameter" "ses_from_address" {
   name     = "/${local.ses}/from_address"
   type     = "String"
-  value    = "support@${local.region_zonename}"
+  value    = "support@${var.email.zonename}"
 }
 
 resource "aws_ssm_parameter" "ses_replyto_address" {
   name     = "/${local.ses}/replyto_address"
   type     = "String"
-  value    = "support@${local.region_zonename}"
+  value    = "reply-to@${var.email.zonename}"
 }

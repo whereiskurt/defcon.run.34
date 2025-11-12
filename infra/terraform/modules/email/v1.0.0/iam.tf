@@ -1,5 +1,5 @@
 resource "aws_iam_user" "ses_user" {
-  name     = "${local.smtp_zonename}"
+  name     = substr("${var.email.smtp_prefix}.${var.region.label}.${var.email.zonename}", 0, 63)
 }
 
 resource "aws_iam_user_policy" "ses_policy" {
