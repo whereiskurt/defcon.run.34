@@ -2,17 +2,17 @@ locals {
   site_vars  = read_terragrunt_config("site.hcl")
 }
 
-include "global_providers" {
-  path   = "../../providers/global.hcl"
+include "providers" {
+  path   = "${find_in_parent_folders("providers")}/global.hcl"
 }
 
-include "site_module" {
-  path   = "../../modules/site/config.hcl"
+include "module" {
+  path   = "${find_in_parent_folders("modules")}/site/config.hcl"
   expose = true
 }
 
 terraform {
-  source = "${include.site_module.locals.module_path}/v1.0.0"
+  source = "${include.module.locals.module_path}/v1.0.0"
 }
 
 inputs = merge(

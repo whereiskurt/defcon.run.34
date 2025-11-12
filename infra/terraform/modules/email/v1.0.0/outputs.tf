@@ -40,5 +40,14 @@ output "from_address" {
 output "replyto_address" {
   description = "SSM parameter for SES reply-to address"
   value       = nonsensitive(aws_ssm_parameter.ses_replyto_address.value)
+}
 
+output "received_emails_bucket_name" {
+  description = "Name of the S3 bucket for received emails"
+  value       = aws_s3_bucket.received_emails.id
+}
+
+output "received_emails_bucket_arn" {
+  description = "ARN of the S3 bucket for received emails"
+  value       = aws_s3_bucket.received_emails.arn
 }

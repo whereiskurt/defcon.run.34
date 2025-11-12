@@ -1,5 +1,5 @@
 dependency "site" {
-  config_path = dirname(find_in_parent_folders("site.hcl"))
+  config_path  = dirname(find_in_parent_folders("site.hcl"))
 }
 
 include "module" {

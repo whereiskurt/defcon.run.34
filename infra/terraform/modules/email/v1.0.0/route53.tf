@@ -52,3 +52,13 @@ resource "aws_route53_record" "dmarc_record" {
   ]
   provider = aws.global-application
 }
+
+# MX record for receiving emails via SES
+resource "aws_route53_record" "receive_mx" {
+  zone_id  = data.aws_route53_zone.email_zonename.zone_id
+  name     = local.email_zonename
+  type     = "MX"
+  ttl      = 600
+  records  = ["10 inbound-smtp.${var.region.full}.amazonaws.com"]
+  provider = aws.global-application
+}
