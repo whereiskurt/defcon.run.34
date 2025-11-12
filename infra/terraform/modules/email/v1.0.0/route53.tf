@@ -143,15 +143,6 @@ resource "aws_route53_record" "ses_verification_record_mgmt" {
   records  = [aws_ses_domain_identity.mgmt.verification_token]
   provider = aws.global-management
 }
-resource "aws_route53_record" "spf_mgmt" {
-  zone_id  = data.aws_route53_zone.mgmt.zone_id
-  name     = aws_ses_domain_mail_from.mgmt.mail_from_domain
-  type     = "TXT"
-  ttl      = 600
-  records  = ["v=spf1 include:amazonses.com ~all"]
-  provider = aws.global-management
-}
-
 
 # DKIM records for root domain (emaildefcon.run)
 resource "aws_route53_record" "ses_dkim_records_mgmt" {
@@ -167,12 +158,22 @@ resource "aws_route53_record" "ses_dkim_records_mgmt" {
 # MX record for receiving emails at root domain (email.defcon.run)
 resource "aws_route53_record" "receive_mx_mgmt" {
   zone_id  = data.aws_route53_zone.mgmt.zone_id
-  name     = "${var.email.smtp_prefix}.${var.dns.zonename}"
+  name     = "${var.dns.zonename}"
   type     = "MX"
   ttl      = 600
   records  = ["10 inbound-smtp.${var.region.full}.amazonaws.com"]
   provider = aws.global-management
 }
+
+resource "aws_route53_record" "spf_mgmt" {
+  zone_id  = data.aws_route53_zone.mgmt.zone_id
+  name     = aws_ses_domain_mail_from.mgmt.mail_from_domain
+  type     = "TXT"
+  ttl      = 600
+  records  = ["v=spf1 include:amazonses.com ~all"]
+  provider = aws.global-management
+}
+
 
 resource "aws_route53_record" "dmarc_record_mgmt" {
   zone_id  = data.aws_route53_zone.mgmt.zone_id
