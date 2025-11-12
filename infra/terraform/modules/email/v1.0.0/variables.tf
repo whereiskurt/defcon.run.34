@@ -1,6 +1,6 @@
 locals {
   ses = "${var.site.label}/${var.region.label}/ses"
-  email_zonename = "${var.region.label}.${var.email.zonename}"
+  region_zonename = "${var.region.label}.${var.email.zonename}"
   smtp_zonename = "${var.email.smtp_prefix}.${var.region.label}.${var.email.zonename}"
 }
 
@@ -12,6 +12,16 @@ variable "site" {
   type = object({
     label  = string
   })
+}
+
+
+variable "dns" {
+  type = object({
+    zonename  = string
+    subdomains = list(string)
+    ttl        = optional(number, 300)
+  })
+  description = "DNS/Host configuration"
 }
 
 variable "region" {

@@ -39,11 +39,11 @@ resource "aws_ssm_parameter" "ses_secret_key" {
 resource "aws_ssm_parameter" "ses_from_address" {
   name     = "/${local.ses}/from_address"
   type     = "String"
-  value    = "support@${local.email_zonename}"
+  value    = "support@${local.region_zonename}"
 }
 
 resource "aws_ssm_parameter" "ses_replyto_address" {
   name     = "/${local.ses}/replyto_address"
   type     = "String"
-  value    = "support@${local.email_zonename}"
+  value    = "support@${local.region_zonename}"
 }
