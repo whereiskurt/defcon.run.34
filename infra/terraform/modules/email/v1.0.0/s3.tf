@@ -2,7 +2,7 @@ data "aws_caller_identity" "current" { }
 
 # S3 bucket for storing received emails
 resource "aws_s3_bucket" "received_emails" {
-  bucket   = "ses-inbox-${var.site.label}-${random_id.rnd.hex}"
+  bucket   = substr("ses-inbox-${var.site.label}-${random_id.rnd.hex}", 0, 63)
   force_destroy = true
 }
 

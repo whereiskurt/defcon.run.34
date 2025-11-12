@@ -1,12 +1,10 @@
 resource "aws_ses_domain_identity" "this" {
   domain   = local.email_zonename
-  provider = aws.application
 }
 
 resource "aws_ses_domain_dkim" "this" {
   depends_on = [aws_ses_domain_identity.this]
   domain     = local.email_zonename
-  provider   = aws.application
 }
 
 resource "aws_ses_domain_mail_from" "this" {
@@ -14,19 +12,16 @@ resource "aws_ses_domain_mail_from" "this" {
   domain                 = local.email_zonename
   mail_from_domain       = local.smtp_zonename
   behavior_on_mx_failure = "UseDefaultValue"
-  provider               = aws.application
 }
 
 # Receipt rule set for receiving emails
 resource "aws_ses_receipt_rule_set" "main" {
   rule_set_name = "${var.site.label}-${var.email.zonename}"
-  provider      = aws.application
 }
 
 # Activate the receipt rule set
 resource "aws_ses_active_receipt_rule_set" "main" {
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
-  provider      = aws.application
 }
 
 # Receipt rule for support@
@@ -36,11 +31,10 @@ resource "aws_ses_receipt_rule" "support" {
   recipients    = ["support@${local.email_zonename}"]
   enabled       = true
   scan_enabled  = true
-  provider      = aws.application
 
   s3_action {
     bucket_name       = aws_s3_bucket.received_emails.id
-    object_key_prefix = "emails/"
+    object_key_prefix = "emails/support/"
     position          = 1
   }
 
