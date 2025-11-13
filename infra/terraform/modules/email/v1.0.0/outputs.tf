@@ -1,6 +1,6 @@
-output "email_zonename" {
-  description = "SSM parameter for email zone name"
-  value       = aws_ssm_parameter.email_zonename.value
+output "email_zonenames" {
+  description = "SSM parameter for email zone names"
+  value       = aws_ssm_parameter.email_zonenames.value
   sensitive   = true
 }
 

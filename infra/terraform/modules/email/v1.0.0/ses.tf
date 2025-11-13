@@ -1,6 +1,7 @@
 # Data source for Route53 zones
-data "aws_route53_zone" "email_zonename" {
-  name     = var.email.zonename
+data "aws_route53_zone" "email_zonenames" {
+  for_each = toset(var.email.zonenames)
+  name     = each.value
   provider = aws.global-application
 }
 
@@ -11,7 +12,7 @@ data "aws_route53_zone" "mgmt" {
 
 # Receipt rule set for receiving emails
 resource "aws_ses_receipt_rule_set" "main" {
-  rule_set_name = "${var.site.label}-${var.email.zonename}"
+  rule_set_name = "${var.site.label}-email"
 }
 
 # Activate the receipt rule set
@@ -19,25 +20,25 @@ resource "aws_ses_active_receipt_rule_set" "main" {
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
 }
 
-# Root SES Domain (email.defcon.run, run.defcon.run, etc...)
+# Root SES Domains (email.defcon.run, run.defcon.run, etc...)
 module "ses_root" {
+  for_each = toset(var.email.zonenames)
   source = "./ses-domain"
 
-  domain_name         = var.email.zonename
-  mail_from_domain    = "${var.email.smtp_prefix}.${var.email.zonename}"
-  route53_zone_id     = data.aws_route53_zone.email_zonename.zone_id
+  domain_name         = each.value
+  mail_from_domain    = "${var.email.smtp_prefix}.${each.value}"
+  route53_zone_id     = data.aws_route53_zone.email_zonenames[each.key].zone_id
   region              = var.region.full
   enable_mail_from_mx = true
   enable_receive_mx   = true
   s3_bucket_id        = aws_s3_bucket.received_emails.id
   rule_set_name       = aws_ses_receipt_rule_set.main.rule_set_name
-  # primary_domain_identity    = module.ses_regional.domain_identity
 
   receipt_rule_config = {
     enabled           = true
-    rule_name         = var.email.zonename
-    recipient_address = var.email.zonename
-    s3_key_prefix     = "inbox/${var.email.zonename}/"
+    rule_name         = each.value
+    recipient_address = each.value
+    s3_key_prefix     = "inbox/${each.value}/"
   }
 
   depends_on = [aws_s3_bucket_policy.received_emails]
@@ -48,13 +49,13 @@ module "ses_root" {
   }
 }
 
-# Regional SES Domain (use1.email.defcon.run)
+# Regional SES Domains (use1.email.defcon.run, use1.run.defcon.run, etc...)
 module "ses_regional" {
-  count               = var.use_smtp_region ? 1 : 0
+  for_each            = var.use_smtp_region ? toset(var.email.zonenames) : []
   source              = "./ses-domain"
-  domain_name         = "${var.region.label}.${var.email.zonename}"
-  mail_from_domain    = "${var.email.smtp_prefix}.${var.region.label}.${var.email.zonename}"
-  route53_zone_id     = data.aws_route53_zone.email_zonename.zone_id
+  domain_name         = "${var.region.label}.${each.value}"
+  mail_from_domain    = "${var.email.smtp_prefix}.${var.region.label}.${each.value}"
+  route53_zone_id     = data.aws_route53_zone.email_zonenames[each.key].zone_id
   region              = var.region.full
   enable_mail_from_mx = true
   enable_receive_mx   = true
@@ -63,9 +64,9 @@ module "ses_regional" {
 
   receipt_rule_config = {
     enabled           = true
-    rule_name         = "${var.region.label}.${var.email.zonename}"
-    recipient_address = "${var.region.label}.${var.email.zonename}"
-    s3_key_prefix     = "inbox/${var.region.label}.${var.email.zonename}/"
+    rule_name         = "${var.region.label}.${each.value}"
+    recipient_address = "${var.region.label}.${each.value}"
+    s3_key_prefix     = "inbox/${var.region.label}.${each.value}/"
   }
 
   depends_on = [aws_s3_bucket_policy.received_emails]
@@ -87,7 +88,6 @@ module "ses_mgmt" {
   enable_receive_mx   = true
   s3_bucket_id        = aws_s3_bucket.received_emails.id
   rule_set_name       = aws_ses_receipt_rule_set.main.rule_set_name
-  # primary_domain_identity    = module.ses_regional.domain_identity
 
   receipt_rule_config = {
     enabled           = true

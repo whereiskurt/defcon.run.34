@@ -34,7 +34,7 @@ variable "region" {
 
 variable "email" {
   type = object({
-    zonename  = string
+    zonenames  = list(string)
     smtp_prefix  = string
   })
   description = "SMTP/email configuration"
