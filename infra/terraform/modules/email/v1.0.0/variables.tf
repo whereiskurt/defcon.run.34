@@ -16,7 +16,6 @@ variable "site" {
   })
 }
 
-
 variable "dns" {
   type = object({
     zonename  = string

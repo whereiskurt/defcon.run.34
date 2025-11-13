@@ -1,11 +1,22 @@
 locals {
-  ses = "${var.site.label}/${var.region.label}/ses/"
+  ses = "${var.site.label}/${var.email.zonename}/ses/"
 }
 
 resource "aws_ssm_parameter" "email_zonename" {
   name     = "/${local.ses}/zonename"
   type     = "String"
   value    = var.email.zonename
+}
+
+resource "aws_ssm_parameter" "use_smtp_region" {
+  name     = "/${local.ses}/use_smtp_region"
+  type     = "String"
+  value    = var.use_smtp_region
+}
+resource "aws_ssm_parameter" "use_smtp_site" {
+  name     = "/${local.ses}/use_smtp_site"
+  type     = "String"
+  value    = var.use_smtp_site
 }
 
 resource "aws_ssm_parameter" "aws_emailuri" {
