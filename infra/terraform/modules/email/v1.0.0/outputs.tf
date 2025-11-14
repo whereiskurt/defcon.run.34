@@ -51,3 +51,21 @@ output "received_emails_bucket_arn" {
   description = "ARN of the S3 bucket for received emails"
   value       = aws_s3_bucket.received_emails.arn
 }
+
+output "smtp_credential_usernames" {
+  description = "Map of email addresses to their SMTP credential usernames (IAM access key IDs)"
+  value       = { for email in var.smtp_credentials : email => aws_ssm_parameter.smtp_credential_username[email].value }
+  sensitive   = true
+}
+
+output "smtp_credential_passwords" {
+  description = "Map of email addresses to their SMTP credential passwords (SES SMTP passwords)"
+  value       = { for email in var.smtp_credentials : email => aws_ssm_parameter.smtp_credential_password[email].value }
+  sensitive   = true
+}
+
+output "smtp_credential_urls" {
+  description = "Map of email addresses to their SMTP connection URLs"
+  value       = { for email in var.smtp_credentials : email => aws_ssm_parameter.smtp_credential_url[email].value }
+  sensitive   = true
+}

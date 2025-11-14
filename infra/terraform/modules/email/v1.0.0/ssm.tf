@@ -62,3 +62,36 @@ resource "aws_ssm_parameter" "ses_replyto_address" {
   type     = "String"
   value    = "reply-to@${var.email.zonenames[0]}"
 }
+
+# SMTP credentials for individual email addresses
+resource "aws_ssm_parameter" "smtp_credential_username" {
+  for_each = toset(var.smtp_credentials)
+  name     = "/${local.ses}/smtp/${split("@", each.value)[1]}/${split("@", each.value)[0]}/username"
+  type     = "SecureString"
+  value    = aws_iam_access_key.smtp_credential_keys[each.key].id
+  tags = {
+    Email = each.value
+  }
+}
+
+resource "aws_ssm_parameter" "smtp_credential_password" {
+  for_each = toset(var.smtp_credentials)
+  name     = "/${local.ses}/smtp/${split("@", each.value)[1]}/${split("@", each.value)[0]}/password"
+  type     = "SecureString"
+  value    = aws_iam_access_key.smtp_credential_keys[each.key].ses_smtp_password_v4
+  tags = {
+    Email = each.value
+  }
+}
+
+resource "aws_ssm_parameter" "smtp_credential_url" {
+  for_each = toset(var.smtp_credentials)
+  name     = "/${local.ses}/smtp/${split("@", each.value)[1]}/${split("@", each.value)[0]}/url"
+  type     = "SecureString"
+  ##The replace is necessary because an IAM access key ID cannot contain slashes
+  ##Slashes aren't URL friendly. Other chars like + are handled fine by most URL parsers but the '/' is not.
+  value    = "smtp://${aws_iam_access_key.smtp_credential_keys[each.key].id}:${replace(aws_iam_access_key.smtp_credential_keys[each.key].ses_smtp_password_v4, "/", "%2F")}@email-smtp.${var.region.full}.amazonaws.com:587"
+  tags = {
+    Email = each.value
+  }
+}

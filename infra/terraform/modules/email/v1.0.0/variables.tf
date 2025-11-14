@@ -39,3 +39,9 @@ variable "email" {
   })
   description = "SMTP/email configuration"
 }
+
+variable "smtp_credentials" {
+  type = list(string)
+  description = "List of email addresses to create SMTP credentials for"
+  default = []
+}
