@@ -46,7 +46,7 @@ resource "aws_lambda_permission" "allow_ses" {
 # IAM role for Lambda function
 resource "aws_iam_role" "email_forwarder" {
   count = length(var.email_forwarding) > 0 ? 1 : 0
-  name  = "${var.site.label}-email-forwarder-lambda"
+  name  = "${var.site.label}-${var.region.label}-email-fwd-lambda"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"

@@ -8,6 +8,7 @@ locals {
     primary_region = "us-east-1"
   }
 
+
   smtp_credentials = [
     "support@run.defcon.run",
     "run@defcon.run"

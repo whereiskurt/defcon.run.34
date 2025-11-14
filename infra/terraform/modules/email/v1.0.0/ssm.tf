@@ -8,15 +8,21 @@ resource "aws_ssm_parameter" "email_zonenames" {
   value    = join(",", var.email.zonenames)
 }
 
-resource "aws_ssm_parameter" "use_smtp_region" {
-  name     = "/${local.ses}/use_smtp_region"
+resource "aws_ssm_parameter" "make_regional_domains" {
+  name     = "/${local.ses}/make_regional_domains"
   type     = "String"
-  value    = var.use_smtp_region
+  value    = var.conf.make_regional_domains
 }
-resource "aws_ssm_parameter" "use_smtp_site" {
-  name     = "/${local.ses}/use_smtp_site"
+resource "aws_ssm_parameter" "make_site_domain" {
+  name     = "/${local.ses}/make_site_domain"
   type     = "String"
-  value    = var.use_smtp_site
+  value    = var.conf.make_site_domain
+}
+
+resource "aws_ssm_parameter" "make_domains" {
+  name     = "/${local.ses}/make_domains"
+  type     = "String"
+  value    = var.conf.make_domains
 }
 
 resource "aws_ssm_parameter" "aws_emailuri" {

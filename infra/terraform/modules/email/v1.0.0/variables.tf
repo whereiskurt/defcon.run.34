@@ -1,9 +1,23 @@
-variable "use_smtp_region" {
-  default = false
-}
+variable "conf" {
 
-variable "use_smtp_site" {
-  default = false
+  type = object({
+    ## The full name - controls when to create mail records.
+    primary_region = optional(string, "us-east-1")
+    ## example.com
+    make_site_domain = optional(bool, false)
+    ## use1.example.com
+    make_regional_domains = optional(bool, false)
+    # email.example.com
+    make_domains   = optional(bool, false)
+
+  })
+  default = {
+    make_site_domain      = true
+    make_regional_domains = true
+    make_domains          = true
+    primary_region        = "us-east-1"
+  }
+  description = "SMTP configuration settings"
 }
 
 resource "random_id" "rnd" {
@@ -12,13 +26,13 @@ resource "random_id" "rnd" {
 
 variable "site" {
   type = object({
-    label  = string
+    label = string
   })
 }
 
 variable "dns" {
   type = object({
-    zonename  = string
+    zonename   = string
     subdomains = list(string)
     ttl        = optional(number, 300)
   })
@@ -27,23 +41,23 @@ variable "dns" {
 
 variable "region" {
   type = object({
-    label  = string
+    label = string
     full  = string
   })
 }
 
 variable "email" {
   type = object({
-    zonenames  = list(string)
-    smtp_prefix  = string
+    zonenames   = list(string)
+    smtp_prefix = string
   })
   description = "SMTP/email configuration"
 }
 
 variable "smtp_credentials" {
-  type = list(string)
+  type        = list(string)
   description = "List of email addresses to create SMTP credentials for"
-  default = []
+  default     = []
 }
 
 variable "email_forwarding" {

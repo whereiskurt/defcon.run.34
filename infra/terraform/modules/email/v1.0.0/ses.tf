@@ -22,7 +22,7 @@ resource "aws_ses_active_receipt_rule_set" "main" {
 
 # Root SES Domains (email.defcon.run, run.defcon.run, etc...)
 module "ses_root" {
-  for_each = toset(var.email.zonenames)
+  for_each = var.conf.make_domains && var.region.full == var.conf.primary_region ? toset(var.email.zonenames) : []
   source = "./ses-domain"
 
   domain_name         = each.value
@@ -51,7 +51,7 @@ module "ses_root" {
 
 # Regional SES Domains (use1.email.defcon.run, use1.run.defcon.run, etc...)
 module "ses_regional" {
-  for_each            = var.use_smtp_region ? toset(var.email.zonenames) : []
+  for_each            = var.conf.make_regional_domains ? toset(var.email.zonenames) : []
   source              = "./ses-domain"
   domain_name         = "${var.region.label}.${each.value}"
   mail_from_domain    = "${var.email.smtp_prefix}.${var.region.label}.${each.value}"
@@ -78,7 +78,7 @@ module "ses_regional" {
 
 # Management SES Domain (defcon.run)
 module "ses_mgmt" {
-  count               = var.use_smtp_site ? 1 : 0
+  count               = var.conf.make_site_domain && var.region.full == var.conf.primary_region  ? 1 : 0
   source              = "./ses-domain"
   domain_name         = var.dns.zonename
   mail_from_domain    = "${var.email.smtp_prefix}.${var.dns.zonename}"
@@ -104,3 +104,30 @@ module "ses_mgmt" {
   }
 }
 
+# Management SES Domain (use1.defcon.run)
+module "ses_mgmt_regional" {
+  count               = var.conf.make_site_domain == true && var.region.full == var.conf.primary_region && var.conf.make_regional_domains == true ? 1 : 0
+  source              = "./ses-domain"
+  domain_name         = "${var.region.label}.${var.dns.zonename}"
+  mail_from_domain    = "${var.email.smtp_prefix}.${var.region.label}.${var.dns.zonename}"
+  route53_zone_id     = data.aws_route53_zone.mgmt.zone_id
+  region              = var.region.full
+  enable_mail_from_mx = true
+  enable_receive_mx   = true
+  s3_bucket_id        = aws_s3_bucket.received_emails.id
+  rule_set_name       = aws_ses_receipt_rule_set.main.rule_set_name
+
+  receipt_rule_config = {
+    enabled           = true
+    rule_name         = "${var.region.label}.${var.dns.zonename}"
+    recipient_address = "${var.region.label}.${var.dns.zonename}"
+    s3_key_prefix     = "inbox/${var.region.label}.${var.dns.zonename}/"
+  }
+
+  depends_on = [aws_s3_bucket_policy.received_emails]
+
+  providers = {
+    aws.application       = aws.application
+    aws.global-management = aws.global-management
+  }
+}

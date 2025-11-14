@@ -27,7 +27,7 @@ resource "aws_iam_access_key" "ses_user_key" {
 # SMTP credential users for individual email addresses
 resource "aws_iam_user" "smtp_credential_users" {
   for_each = toset(var.smtp_credentials)
-  name     = substr("ses-smtp-${replace(each.value, "@", "-at-")}", 0, 63)
+  name     = substr("ses-smtp-${var.region.label}-${replace(each.value, "@", "-at-")}", 0, 63)
   tags = {
     Email = each.value
   }
