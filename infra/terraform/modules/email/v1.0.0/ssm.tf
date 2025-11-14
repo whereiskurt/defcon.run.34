@@ -95,3 +95,15 @@ resource "aws_ssm_parameter" "smtp_credential_url" {
     Email = each.value
   }
 }
+
+# Email forwarding configuration
+resource "aws_ssm_parameter" "email_forwarding_rules" {
+  count = length(var.email_forwarding) > 0 ? 1 : 0
+  name  = "/${local.ses}/forwarding/rules"
+  type  = "String"
+  value = jsonencode({
+    for rule in var.email_forwarding :
+    rule.from_address => rule.to_address
+  })
+  description = "Email forwarding rules mapping custom domain addresses to external addresses"
+}

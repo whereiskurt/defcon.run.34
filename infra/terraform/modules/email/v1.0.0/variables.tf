@@ -45,3 +45,12 @@ variable "smtp_credentials" {
   description = "List of email addresses to create SMTP credentials for"
   default = []
 }
+
+variable "email_forwarding" {
+  type = list(object({
+    from_address = string
+    to_address   = string
+  }))
+  description = "List of email forwarding rules. Each rule forwards from a custom domain address to a Gmail/public address."
+  default     = []
+}
