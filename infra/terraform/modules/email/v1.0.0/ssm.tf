@@ -50,9 +50,26 @@ resource "aws_ssm_parameter" "ses_replyto_address" {
 }
 
 # SMTP credentials for individual email addresses
+# Supports both email format (user@domain.com) and simple usernames (strapi)
+locals {
+  # Create a map with the proper path structure for each user
+  smtp_user_paths = {
+    for user in var.smtp_iam_users :
+    user => contains(split("", user), "@") ? {
+      domain   = split("@", user)[1]
+      username = split("@", user)[0]
+      path     = "${split("@", user)[1]}/${split("@", user)[0]}"
+    } : {
+      domain   = "default"
+      username = user
+      path     = "default/${user}"
+    }
+  }
+}
+
 resource "aws_ssm_parameter" "smtp_credential_username" {
   for_each = toset(var.smtp_iam_users)
-  name     = "/${local.ses}/smtp/${split("@", each.value)[1]}/${split("@", each.value)[0]}/username"
+  name     = "/${local.ses}/smtp/${local.smtp_user_paths[each.value].path}/username"
   type     = "SecureString"
   value    = aws_iam_access_key.smtp_credential_keys[each.key].id
   tags = {
@@ -62,7 +79,7 @@ resource "aws_ssm_parameter" "smtp_credential_username" {
 
 resource "aws_ssm_parameter" "smtp_credential_password" {
   for_each = toset(var.smtp_iam_users)
-  name     = "/${local.ses}/smtp/${split("@", each.value)[1]}/${split("@", each.value)[0]}/password"
+  name     = "/${local.ses}/smtp/${local.smtp_user_paths[each.value].path}/password"
   type     = "SecureString"
   value    = aws_iam_access_key.smtp_credential_keys[each.key].ses_smtp_password_v4
   tags = {
@@ -72,7 +89,7 @@ resource "aws_ssm_parameter" "smtp_credential_password" {
 
 resource "aws_ssm_parameter" "smtp_credential_url" {
   for_each = toset(var.smtp_iam_users)
-  name     = "/${local.ses}/smtp/${split("@", each.value)[1]}/${split("@", each.value)[0]}/url"
+  name     = "/${local.ses}/smtp/${local.smtp_user_paths[each.value].path}/url"
   type     = "SecureString"
   ##The replace is necessary because an IAM access key ID cannot contain slashes
   ##Slashes aren't URL friendly. Other chars like + are handled fine by most URL parsers but the '/' is not.

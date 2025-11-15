@@ -5,23 +5,23 @@ locals {
 
   dns = {
     zonename   = "defcon.run"
-    subdomains = ["run", "ctf", "strapi", "mqtt", "email"]
+    subdomains = ["email", "run", "strapi", "ctf", "mqtt"]
     ttl        = 300
   }
 
   email = {
     primary_region = "us-east-1"
     zonenames      = ["email.defcon.run", "run.defcon.run"]
+    smtp_prefix    = "s"
     
     make_site_domain      = true
     make_regional_domains = true
     make_domains          = true
-
-    smtp_prefix    = "s"
     
     smtp_iam_users = [
       "support@run.defcon.run",
-      "run@defcon.run"
+      "run@defcon.run",
+      "strapi"
     ]
 
     fwd_rules = [
