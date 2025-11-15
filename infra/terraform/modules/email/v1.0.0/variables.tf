@@ -1,21 +1,18 @@
 variable "conf" {
 
   type = object({
-    ## The full name - controls when to create mail records.
-    primary_region = optional(string, "us-east-1")
     ## example.com
     make_site_domain = optional(bool, false)
     ## use1.example.com
     make_regional_domains = optional(bool, false)
     # email.example.com
-    make_domains   = optional(bool, false)
+    make_domains = optional(bool, false)
 
   })
   default = {
     make_site_domain      = true
     make_regional_domains = true
     make_domains          = true
-    primary_region        = "us-east-1"
   }
   description = "SMTP configuration settings"
 }
@@ -26,7 +23,8 @@ resource "random_id" "rnd" {
 
 variable "site" {
   type = object({
-    label = string
+    label          = string
+    primary_region = string
   })
 }
 
@@ -54,16 +52,16 @@ variable "email" {
   description = "SMTP/email configuration"
 }
 
-variable "smtp_credentials" {
+variable "smtp_iam_users" {
   type        = list(string)
   description = "List of email addresses to create SMTP credentials for"
   default     = []
 }
 
-variable "email_forwarding" {
+variable "fwd_rules" {
   type = list(object({
-    from_address = string
-    to_address   = string
+    match   = string
+    send_to = string
   }))
   description = "List of email forwarding rules. Each rule forwards from a custom domain address to a Gmail/public address."
   default     = []

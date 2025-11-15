@@ -1,6 +1,6 @@
 # Lambda function for email forwarding
 data "archive_file" "email_forwarder" {
-  count       = length(var.email_forwarding) > 0 ? 1 : 0
+  count       = length(var.fwd_rules) > 0 ? 1 : 0
   type        = "zip"
   output_path = "${path.module}/lambda/email-forwarder.zip"
 
@@ -11,7 +11,7 @@ data "archive_file" "email_forwarder" {
 }
 
 resource "aws_lambda_function" "email_forwarder" {
-  count            = length(var.email_forwarding) > 0 ? 1 : 0
+  count            = length(var.fwd_rules) > 0 ? 1 : 0
   filename         = data.archive_file.email_forwarder[0].output_path
   function_name    = "${var.site.label}-email-forwarder"
   role             = aws_iam_role.email_forwarder[0].arn
@@ -23,11 +23,11 @@ resource "aws_lambda_function" "email_forwarder" {
   environment {
     variables = {
       FORWARDING_RULES = jsonencode({
-        for rule in var.email_forwarding :
-        rule.from_address => rule.to_address
+        for rule in var.fwd_rules :
+        rule.match => rule.send_to
       })
-      FROM_DOMAIN  = var.email.zonenames[0]
-      S3_BUCKET    = aws_s3_bucket.received_emails.id
+      FROM_DOMAIN   = var.email.zonenames[0]
+      S3_BUCKET     = aws_s3_bucket.received_emails.id
       S3_KEY_PREFIX = "forwarding/"
     }
   }
@@ -35,7 +35,7 @@ resource "aws_lambda_function" "email_forwarder" {
 
 # Lambda permission for SES to invoke the function
 resource "aws_lambda_permission" "allow_ses" {
-  count          = length(var.email_forwarding) > 0 ? 1 : 0
+  count          = length(var.fwd_rules) > 0 ? 1 : 0
   statement_id   = "AllowExecutionFromSES"
   action         = "lambda:InvokeFunction"
   function_name  = aws_lambda_function.email_forwarder[0].function_name
@@ -45,7 +45,7 @@ resource "aws_lambda_permission" "allow_ses" {
 
 # IAM role for Lambda function
 resource "aws_iam_role" "email_forwarder" {
-  count = length(var.email_forwarding) > 0 ? 1 : 0
+  count = length(var.fwd_rules) > 0 ? 1 : 0
   name  = "${var.site.label}-${var.region.label}-email-fwd-lambda"
 
   assume_role_policy = jsonencode({
@@ -64,7 +64,7 @@ resource "aws_iam_role" "email_forwarder" {
 
 # IAM policy for Lambda to send emails via SES and read from S3
 resource "aws_iam_role_policy" "email_forwarder" {
-  count = length(var.email_forwarding) > 0 ? 1 : 0
+  count = length(var.fwd_rules) > 0 ? 1 : 0
   name  = "email-forwarder-policy"
   role  = aws_iam_role.email_forwarder[0].id
 
@@ -94,6 +94,13 @@ resource "aws_iam_role_policy" "email_forwarder" {
           "s3:GetObject"
         ]
         Resource = "${aws_s3_bucket.received_emails.arn}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = aws_s3_bucket.received_emails.arn
       }
     ]
   })
@@ -101,17 +108,17 @@ resource "aws_iam_role_policy" "email_forwarder" {
 
 # SES receipt rules for email forwarding
 resource "aws_ses_receipt_rule" "forwarding" {
-  for_each      = { for idx, rule in var.email_forwarding : rule.from_address => rule }
-  name          = "forward-${replace(each.value.from_address, "@", "-at-")}"
+  for_each      = { for idx, rule in var.fwd_rules : rule.match => rule }
+  name          = "forward-${replace(each.value.match, "@", "-at-")}"
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
-  recipients    = [each.value.from_address]
+  recipients    = [each.value.match]
   enabled       = true
   scan_enabled  = true
 
   # Store in S3 first
   s3_action {
     bucket_name       = aws_s3_bucket.received_emails.id
-    object_key_prefix = "forwarding/${each.value.from_address}/"
+    object_key_prefix = "forwarding/${each.value.match}/"
     position          = 1
   }
 

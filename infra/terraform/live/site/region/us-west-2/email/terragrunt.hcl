@@ -1,5 +1,5 @@
 dependency "site" {
-  config_path  = dirname(find_in_parent_folders("site.hcl"))
+  config_path = dirname(find_in_parent_folders("site.hcl"))
 }
 
 include "module" {
@@ -10,7 +10,7 @@ include "module" {
 ## NOTE: Nested includes are not supported by terragrunt.
 ##       otherwise we'd consider moving this into module
 include "providers" {
-  path   = "${find_in_parent_folders("providers")}/regional.hcl"
+  path = "${find_in_parent_folders("providers")}/regional.hcl"
 }
 
 terraform {

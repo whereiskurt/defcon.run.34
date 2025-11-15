@@ -10,7 +10,7 @@ This module supports automatic email forwarding from custom domain addresses to 
 
 ## Configuration
 
-Add the `email_forwarding` variable to your module configuration:
+Add the `fwd_rules` variable to your module configuration:
 
 ```hcl
 module "email" {
@@ -18,7 +18,7 @@ module "email" {
 
   # ... other variables ...
 
-  email_forwarding = [
+  fwd_rules = [
     {
       from_address = "support@example.com"
       to_address   = "your-gmail@gmail.com"

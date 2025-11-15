@@ -7,7 +7,7 @@ output "zone_map" {
 }
 
 output "global_waf_webacl_arn" {
-  value     = var.waf.enabled ? "aws_wafv2_web_acl.this[0].arn": null
+  value     = var.waf.enabled ? "aws_wafv2_web_acl.this[0].arn" : null
   sensitive = false
 }
 

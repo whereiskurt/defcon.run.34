@@ -22,8 +22,8 @@ resource "aws_ses_active_receipt_rule_set" "main" {
 
 # Root SES Domains (email.defcon.run, run.defcon.run, etc...)
 module "ses_root" {
-  for_each = var.conf.make_domains && var.region.full == var.conf.primary_region ? toset(var.email.zonenames) : []
-  source = "./ses-domain"
+  for_each = var.conf.make_domains && var.region.full == var.site.primary_region ? toset(var.email.zonenames) : []
+  source   = "./ses-domain"
 
   domain_name         = each.value
   mail_from_domain    = "${var.email.smtp_prefix}.${each.value}"
@@ -78,7 +78,7 @@ module "ses_regional" {
 
 # Management SES Domain (defcon.run)
 module "ses_mgmt" {
-  count               = var.conf.make_site_domain && var.region.full == var.conf.primary_region  ? 1 : 0
+  count               = var.conf.make_site_domain && var.region.full == var.site.primary_region ? 1 : 0
   source              = "./ses-domain"
   domain_name         = var.dns.zonename
   mail_from_domain    = "${var.email.smtp_prefix}.${var.dns.zonename}"
@@ -106,7 +106,7 @@ module "ses_mgmt" {
 
 # Management SES Domain (use1.defcon.run)
 module "ses_mgmt_regional" {
-  count               = var.conf.make_site_domain == true && var.region.full == var.conf.primary_region && var.conf.make_regional_domains == true ? 1 : 0
+  count               = var.conf.make_site_domain == true && var.region.full == var.site.primary_region && var.conf.make_regional_domains == true ? 1 : 0
   source              = "./ses-domain"
   domain_name         = "${var.region.label}.${var.dns.zonename}"
   mail_from_domain    = "${var.email.smtp_prefix}.${var.region.label}.${var.dns.zonename}"

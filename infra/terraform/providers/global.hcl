@@ -1,6 +1,6 @@
 locals {
   ## Global resource state/lock terraform location
-  region = "us-east-1"
+  region       = "us-east-1"
   region_label = "use1"
 }
 

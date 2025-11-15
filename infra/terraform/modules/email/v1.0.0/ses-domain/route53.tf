@@ -43,11 +43,11 @@ resource "aws_route53_record" "mail_from_txt" {
 
 # DMARC Record (uses route53 provider)
 resource "aws_route53_record" "dmarc" {
-  zone_id  = var.route53_zone_id
-  name     = "_dmarc.${var.domain_name}"
-  type     = "TXT"
-  ttl      = 600
-  records  = [
+  zone_id = var.route53_zone_id
+  name    = "_dmarc.${var.domain_name}"
+  type    = "TXT"
+  ttl     = 600
+  records = [
     "v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@${var.domain_name}; ruf=mailto:dmarc-failures@${var.domain_name}; sp=none; aspf=r; adkim=r;"
   ]
   provider = aws.global-management

@@ -1,9 +1,9 @@
 locals {
-  site_vars  = read_terragrunt_config("site.hcl")
+  site_vars = read_terragrunt_config("site.hcl")
 }
 
 include "providers" {
-  path   = "${find_in_parent_folders("providers")}/global.hcl"
+  path = "${find_in_parent_folders("providers")}/global.hcl"
 }
 
 include "module" {

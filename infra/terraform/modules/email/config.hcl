@@ -1,6 +1,6 @@
 locals {
-  site_vars  = read_terragrunt_config(find_in_parent_folders("site.hcl"))
-  region_vars  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  site_vars   = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
   email_vars  = read_terragrunt_config("email.hcl")
 
   module_path = "${find_in_parent_folders("modules/")}/email"

@@ -1,14 +1,14 @@
-data "aws_caller_identity" "current" { }
+data "aws_caller_identity" "current" {}
 
 # S3 bucket for storing received emails
 resource "aws_s3_bucket" "received_emails" {
-  bucket   = substr("ses-inbox-${var.site.label}-${random_id.rnd.hex}", 0, 63)
+  bucket        = substr("ses-inbox-${var.site.label}-${random_id.rnd.hex}", 0, 63)
   force_destroy = true
 }
 
 # Enable versioning for the bucket
 resource "aws_s3_bucket_versioning" "received_emails" {
-  bucket   = aws_s3_bucket.received_emails.id
+  bucket = aws_s3_bucket.received_emails.id
   versioning_configuration {
     status = "Enabled"
   }
@@ -16,7 +16,7 @@ resource "aws_s3_bucket_versioning" "received_emails" {
 
 # Block public access
 resource "aws_s3_bucket_public_access_block" "received_emails" {
-  bucket   = aws_s3_bucket.received_emails.id
+  bucket                  = aws_s3_bucket.received_emails.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
@@ -25,7 +25,7 @@ resource "aws_s3_bucket_public_access_block" "received_emails" {
 
 # Lifecycle policy for 90-day retention
 resource "aws_s3_bucket_lifecycle_configuration" "received_emails" {
-  bucket   = aws_s3_bucket.received_emails.id
+  bucket = aws_s3_bucket.received_emails.id
   rule {
     id     = "delete-after-90-days"
     status = "Enabled"
@@ -42,7 +42,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "received_emails" {
 
 # Server-side encryption
 resource "aws_s3_bucket_server_side_encryption_configuration" "received_emails" {
-  bucket   = aws_s3_bucket.received_emails.id
+  bucket = aws_s3_bucket.received_emails.id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -53,7 +53,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "received_emails" 
 
 # Bucket policy to allow SES to write emails
 resource "aws_s3_bucket_policy" "received_emails" {
-  bucket   = aws_s3_bucket.received_emails.id
+  bucket = aws_s3_bucket.received_emails.id
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -64,7 +64,7 @@ resource "aws_s3_bucket_policy" "received_emails" {
         Principal = {
           Service = "ses.amazonaws.com"
         }
-        Action = "s3:PutObject"
+        Action   = "s3:PutObject"
         Resource = "${aws_s3_bucket.received_emails.arn}/*"
         Condition = {
           StringEquals = {

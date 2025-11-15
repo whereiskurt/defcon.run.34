@@ -4,13 +4,13 @@ resource "random_id" "rnd" {
 
 variable "site" {
   type = object({
-    label  = string
+    label = string
   })
 }
 
 variable "dns" {
   type = object({
-    zonename  = string
+    zonename   = string
     subdomains = list(string)
     ttl        = optional(number, 300)
   })

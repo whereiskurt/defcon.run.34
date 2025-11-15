@@ -34,13 +34,36 @@ def lambda_handler(event, context):
     recipients = receipt['recipients']
     # logger.info(f"Recipients: {recipients}")
 
-    # Find the forwarding destination
+    # Find the forwarding destination using flexible matching
     forward_to = None
     original_recipient = None
+    matched_rule = None
+
     for recipient in recipients:
+        # Try exact match first
         if recipient in forwarding_rules:
             forward_to = forwarding_rules[recipient]
             original_recipient = recipient
+            matched_rule = recipient
+            break
+
+        # Try pattern matching
+        for rule_pattern, destination in forwarding_rules.items():
+            # Domain matching: if pattern is a domain (no @) and recipient ends with @domain
+            if '@' not in rule_pattern and recipient.endswith(f'@{rule_pattern}'):
+                forward_to = destination
+                original_recipient = recipient
+                matched_rule = rule_pattern
+                break
+
+            # Contains matching: if pattern is in the recipient
+            if rule_pattern in recipient:
+                forward_to = destination
+                original_recipient = recipient
+                matched_rule = rule_pattern
+                break
+
+        if forward_to:
             break
 
     if not forward_to:
@@ -50,7 +73,7 @@ def lambda_handler(event, context):
             'body': 'No forwarding rule found'
         }
 
-    # logger.info(f"Forwarding email from {original_recipient} to {forward_to}")
+    logger.info(f"Matched rule '{matched_rule}' for {original_recipient}, forwarding to {forward_to}")
 
     # Get the original email from S3
     # When Lambda is invoked as a receipt rule action, the S3 action happens first
@@ -59,10 +82,11 @@ def lambda_handler(event, context):
     s3_prefix = os.environ.get('S3_KEY_PREFIX', 'forwarding/')
 
     # Construct the key based on the S3 action configuration in the receipt rule
-    # The key format is: {prefix}/{from_address}/{messageId}
-    key = f"{s3_prefix}{original_recipient}/{message_id}"
+    # The key format is: {prefix}/{matched_rule}/{messageId}
+    # Use matched_rule (not original_recipient) because that's what the SES rule uses for the S3 prefix
+    key = f"{s3_prefix}{matched_rule}/{message_id}"
 
-    # logger.info(f"Retrieving email from s3://{bucket}/{key}")
+    logger.info(f"Retrieving email from s3://{bucket}/{key}")
 
     try:
         response = s3.get_object(Bucket=bucket, Key=key)

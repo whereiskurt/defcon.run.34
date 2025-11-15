@@ -1,6 +1,6 @@
 locals {
-  resource  = read_terragrunt_config(find_in_parent_folders("region.hcl"))
-  region = try(local.resource.locals.region.full, "us-east-1")
+  resource     = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  region       = try(local.resource.locals.region.full, "us-east-1")
   region_label = try(local.resource.locals.region.label, "use1")
 }
 

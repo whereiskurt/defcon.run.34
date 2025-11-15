@@ -4,24 +4,19 @@ locals {
     smtp_prefix = "s"
   }
 
-  conf = {
-    primary_region = "us-east-1"
-  }
-
-
-  smtp_credentials = [
+  smtp_iam_users = [
     "support@run.defcon.run",
     "run@defcon.run"
   ]
 
-  email_forwarding = [
+  fwd_rules = [
     {
-      from_address = "kurt@defcon.run"
-      to_address   = "whereiskurt+defcon.run@gmail.com"
+      match   = "kurt@defcon.run"
+      send_to = "whereiskurt+defcon.run@gmail.com"
     },
     {
-      from_address = "kurt@run.defcon.run"
-      to_address   = "whereiskurt+run.defcon.run@gmail.com"
+      match   = "kurt@run.defcon.run"
+      send_to = "whereiskurt+run.defcon.run@gmail.com"
     }
-  ]  
+  ]
 }
