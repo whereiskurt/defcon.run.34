@@ -20,7 +20,6 @@ locals {
     
     smtp_iam_users = [
       "support@run.defcon.run",
-      "run@defcon.run",
       "strapi"
     ]
 
