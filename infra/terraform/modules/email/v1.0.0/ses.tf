@@ -92,7 +92,7 @@ module "ses_mgmt" {
   }
 }
 
-# Management SES Domain (use1.defcon.run)
+# Management SES Domain (use1.defcon.run, cac1.defcon.run)
 module "ses_mgmt_regional" {
   count               = var.email.make_site_domain == true && var.email.make_regional_domains == true ? 1 : 0
   source              = "./ses-domain"
