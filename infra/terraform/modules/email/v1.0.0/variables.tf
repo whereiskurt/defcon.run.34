@@ -17,6 +17,15 @@ variable "dns" {
   description = "DNS/Host configuration"
 }
 
+variable "zone_map" {
+  type = map(object({
+    zone_id      = string
+    name         = string
+    name_servers = list(string)
+  }))
+  description = "Map of Route53 zone information from site module"
+}
+
 variable "region" {
   type = object({
     label = string
@@ -58,13 +67,4 @@ variable "fwd_rules" {
   }))
   description = "List of email forwarding rules. Each rule forwards from a custom domain address to a Gmail/public address."
   default     = []
-}
-
-variable "zone_map" {
-  type = map(object({
-    zone_id      = string
-    name         = string
-    name_servers = list(string)
-  }))
-  description = "Map of Route53 zone information from site module"
 }
