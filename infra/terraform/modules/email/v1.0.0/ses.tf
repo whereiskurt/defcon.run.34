@@ -94,7 +94,7 @@ module "ses_mgmt" {
 
 # Management SES Domain (use1.defcon.run)
 module "ses_mgmt_regional" {
-  count               = var.email.make_site_domain == true && var.region.full == var.email.primary_region && var.email.make_regional_domains == true ? 1 : 0
+  count               = var.email.make_site_domain == true && var.email.make_regional_domains == true ? 1 : 0
   source              = "./ses-domain"
   domain_name         = "${var.region.label}.${var.dns.zonename}"
   mail_from_domain    = "${var.email.smtp_prefix}.${var.region.label}.${var.dns.zonename}"
