@@ -1,15 +1,3 @@
-# Data source for Route53 zones
-data "aws_route53_zone" "email_zonenames" {
-  for_each = toset(var.email.zonenames)
-  name     = each.value
-  provider = aws.global-application
-}
-
-data "aws_route53_zone" "mgmt" {
-  name     = var.dns.zonename
-  provider = aws.global-management
-}
-
 # Receipt rule set for receiving emails
 resource "aws_ses_receipt_rule_set" "main" {
   rule_set_name = "${var.site.label}-email"
@@ -22,12 +10,12 @@ resource "aws_ses_active_receipt_rule_set" "main" {
 
 # Root SES Domains (email.defcon.run, run.defcon.run, etc...)
 module "ses_root" {
-  for_each = var.conf.make_domains && var.region.full == var.site.primary_region ? toset(var.email.zonenames) : []
+  for_each = var.email.make_domains && var.region.full == var.email.primary_region ? toset(var.email.zonenames) : []
   source   = "./ses-domain"
 
   domain_name         = each.value
   mail_from_domain    = "${var.email.smtp_prefix}.${each.value}"
-  route53_zone_id     = data.aws_route53_zone.email_zonenames[each.key].zone_id
+  route53_zone_id     = var.zone_map[each.value].zone_id
   region              = var.region.full
   enable_mail_from_mx = true
   enable_receive_mx   = true
@@ -51,11 +39,11 @@ module "ses_root" {
 
 # Regional SES Domains (use1.email.defcon.run, use1.run.defcon.run, etc...)
 module "ses_regional" {
-  for_each            = var.conf.make_regional_domains ? toset(var.email.zonenames) : []
+  for_each            = var.email.make_regional_domains ? toset(var.email.zonenames) : []
   source              = "./ses-domain"
   domain_name         = "${var.region.label}.${each.value}"
   mail_from_domain    = "${var.email.smtp_prefix}.${var.region.label}.${each.value}"
-  route53_zone_id     = data.aws_route53_zone.email_zonenames[each.key].zone_id
+  route53_zone_id     = var.zone_map[each.value].zone_id
   region              = var.region.full
   enable_mail_from_mx = true
   enable_receive_mx   = true
@@ -78,11 +66,11 @@ module "ses_regional" {
 
 # Management SES Domain (defcon.run)
 module "ses_mgmt" {
-  count               = var.conf.make_site_domain && var.region.full == var.site.primary_region ? 1 : 0
+  count               = var.email.make_site_domain && var.region.full == var.email.primary_region ? 1 : 0
   source              = "./ses-domain"
   domain_name         = var.dns.zonename
   mail_from_domain    = "${var.email.smtp_prefix}.${var.dns.zonename}"
-  route53_zone_id     = data.aws_route53_zone.mgmt.zone_id
+  route53_zone_id     = var.zone_map[var.dns.zonename].zone_id
   region              = var.region.full
   enable_mail_from_mx = true
   enable_receive_mx   = true
@@ -106,11 +94,11 @@ module "ses_mgmt" {
 
 # Management SES Domain (use1.defcon.run)
 module "ses_mgmt_regional" {
-  count               = var.conf.make_site_domain == true && var.region.full == var.site.primary_region && var.conf.make_regional_domains == true ? 1 : 0
+  count               = var.email.make_site_domain == true && var.region.full == var.email.primary_region && var.email.make_regional_domains == true ? 1 : 0
   source              = "./ses-domain"
   domain_name         = "${var.region.label}.${var.dns.zonename}"
   mail_from_domain    = "${var.email.smtp_prefix}.${var.region.label}.${var.dns.zonename}"
-  route53_zone_id     = data.aws_route53_zone.mgmt.zone_id
+  route53_zone_id     = var.zone_map[var.dns.zonename].zone_id
   region              = var.region.full
   enable_mail_from_mx = true
   enable_receive_mx   = true

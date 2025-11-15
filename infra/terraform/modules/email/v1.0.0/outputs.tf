@@ -9,27 +9,9 @@ output "aws_emailuri" {
   value       = nonsensitive(aws_ssm_parameter.aws_emailuri.value)
 }
 
-output "smtp_url_with_v4" {
-  description = "SSM parameter for SMTP URL with SigV4 password"
-  value       = aws_ssm_parameter.smtp_url_with_v4.value
-  sensitive   = true
-}
-
 output "smtp_host" {
   description = "SSM parameter for SMTP host"
   value       = nonsensitive(aws_ssm_parameter.smtp_host.value)
-}
-
-output "ses_access_key" {
-  description = "SSM parameter for SES access key"
-  value       = aws_ssm_parameter.ses_access_key.value
-  sensitive   = true
-}
-
-output "ses_secret_key" {
-  description = "SSM parameter for SES secret key"
-  value       = aws_ssm_parameter.ses_secret_key.value
-  sensitive   = true
 }
 
 output "from_address" {

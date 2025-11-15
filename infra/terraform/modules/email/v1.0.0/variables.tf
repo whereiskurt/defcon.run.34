@@ -1,30 +1,10 @@
-variable "conf" {
-
-  type = object({
-    ## example.com
-    make_site_domain = optional(bool, false)
-    ## use1.example.com
-    make_regional_domains = optional(bool, false)
-    # email.example.com
-    make_domains = optional(bool, false)
-
-  })
-  default = {
-    make_site_domain      = true
-    make_regional_domains = true
-    make_domains          = true
-  }
-  description = "SMTP configuration settings"
-}
-
 resource "random_id" "rnd" {
   byte_length = 12
 }
 
 variable "site" {
   type = object({
-    label          = string
-    primary_region = string
+    label = string
   })
 }
 
@@ -46,10 +26,23 @@ variable "region" {
 
 variable "email" {
   type = object({
-    zonenames   = list(string)
-    smtp_prefix = string
+    ## example.com
+    make_site_domain = optional(bool, true)
+    ## use1.example.com
+    make_regional_domains = optional(bool, true)
+    # email.example.com
+    make_domains = optional(bool, true)
+
+    primary_region = string
+    zonenames      = list(string)
+    smtp_prefix    = string
+    smtp_iam_users = list(string)
+    fwd_rules = list(object({
+      match   = string
+      send_to = string
+    }))
   })
-  description = "SMTP/email configuration"
+  description = "Email configuration from site level"
 }
 
 variable "smtp_iam_users" {
@@ -65,4 +58,13 @@ variable "fwd_rules" {
   }))
   description = "List of email forwarding rules. Each rule forwards from a custom domain address to a Gmail/public address."
   default     = []
+}
+
+variable "zone_map" {
+  type = map(object({
+    zone_id      = string
+    name         = string
+    name_servers = list(string)
+  }))
+  description = "Map of Route53 zone information from site module"
 }

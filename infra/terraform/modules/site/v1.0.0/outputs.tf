@@ -1,8 +1,17 @@
 output "zone_map" {
-  value = {
-    for _, v in aws_route53_zone.account_zonenames :
-    v.name => { "zone_id" : v.zone_id, "name" : v.name, "name_servers" : v.name_servers }
-  }
+  value = merge(
+    {
+      for _, v in aws_route53_zone.account_zonenames :
+      v.name => { "zone_id" : v.zone_id, "name" : v.name, "name_servers" : v.name_servers }
+    },
+    {
+      (data.aws_route53_zone.mgmt.name) = {
+        "zone_id" : data.aws_route53_zone.mgmt.zone_id,
+        "name" : data.aws_route53_zone.mgmt.name,
+        "name_servers" : data.aws_route53_zone.mgmt.name_servers
+      }
+    }
+  )
   sensitive = false
 }
 
