@@ -5,6 +5,7 @@ import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 from email.utils import parseaddr, formataddr
 import logging
 
@@ -146,6 +147,7 @@ Original Subject: {original_subject}
             for part in original_msg.walk():
                 content_type = part.get_content_type()
                 content_disposition = str(part.get("Content-Disposition", ""))
+                content_id = part.get("Content-ID", "")
 
                 if content_type == "text/plain" and "attachment" not in content_disposition:
                     body_text += part.get_payload(decode=True).decode('utf-8', errors='ignore')
@@ -153,8 +155,18 @@ Original Subject: {original_subject}
                     # Add HTML part
                     html_content = part.get_payload(decode=True).decode('utf-8', errors='ignore')
                     new_msg.attach(MIMEText(html_content, 'html'))
+                elif content_type.startswith('image/') and content_id:
+                    # Handle inline images with Content-ID (used in HTML)
+                    image_data = part.get_payload(decode=True)
+                    image_subtype = content_type.split('/')[-1]  # e.g., 'png', 'jpeg'
+                    mime_image = MIMEImage(image_data, _subtype=image_subtype)
+                    # Preserve the Content-ID so HTML references work
+                    mime_image.add_header('Content-ID', content_id)
+                    if part.get_filename():
+                        mime_image.add_header('Content-Disposition', 'inline', filename=part.get_filename())
+                    new_msg.attach(mime_image)
                 elif "attachment" in content_disposition or content_type.startswith('image/'):
-                    # Forward attachments
+                    # Forward regular attachments (including images without Content-ID)
                     attachment = MIMEApplication(part.get_payload(decode=True))
                     attachment.add_header('Content-Disposition', 'attachment',
                                         filename=part.get_filename())
