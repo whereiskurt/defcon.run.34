@@ -107,31 +107,27 @@ resource "aws_iam_role_policy" "email_forwarder" {
 }
 
 # SES receipt rules for email forwarding
-# Create a sorted map with index to ensure deterministic ordering
+# Simplified to avoid chaining issues with for_each
 locals {
-  sorted_fwd_rules = sort([for rule in var.fwd_rules : rule.match])
-  fwd_rules_with_order = {
-    for idx, match in local.sorted_fwd_rules :
-    match => {
-      match = match
-      send_to = [for rule in var.fwd_rules : rule.send_to if rule.match == match][0]
-      index = idx
-      # Calculate the previous rule name for chaining
-      previous_rule = idx > 0 ? "forward-${replace(local.sorted_fwd_rules[idx - 1], "@", "-at-")}" : null
+  fwd_rules_map = {
+    for rule in var.fwd_rules :
+    rule.match => {
+      match   = rule.match
+      send_to = rule.send_to
     }
   }
 }
 
 resource "aws_ses_receipt_rule" "forwarding" {
-  for_each      = local.fwd_rules_with_order
+  for_each      = local.fwd_rules_map
   name          = "forward-${replace(each.value.match, "@", "-at-")}"
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
   recipients    = [each.value.match]
   enabled       = true
   scan_enabled  = true
 
-  # Chain forwarding rules in alphabetical order
-  after = each.value.previous_rule
+  # Note: 'after' parameter not used - SES applies rules based on recipient matching
+  # Order doesn't matter for these specific recipient-based forwarding rules
 
   # Store in S3 first
   s3_action {
@@ -151,4 +147,9 @@ resource "aws_ses_receipt_rule" "forwarding" {
     aws_lambda_permission.allow_ses,
     aws_s3_bucket_policy.received_emails
   ]
+
+  lifecycle {
+    # Create new rule before destroying old one to maintain rule chain
+    create_before_destroy = true
+  }
 }

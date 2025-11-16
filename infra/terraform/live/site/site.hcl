@@ -13,11 +13,24 @@ locals {
     primary_region = "us-east-1"
     zonenames      = ["email.defcon.run", "run.defcon.run"]
     smtp_prefix    = "s"
-    
+
     make_site_domain      = true
     make_regional_domains = true
     make_domains          = true
-    
+
+    # Cross-region S3 bucket replication
+    # Each region will replicate its bucket to all other regions in this list
+    replica_regions = [
+      {
+        label = "use1"
+        full  = "us-east-1"
+      },
+      {
+        label = "cac1"
+        full  = "ca-central-1"
+      }
+    ]
+
     smtp_iam_users = [
       "support@run.defcon.run",
       "strapi"

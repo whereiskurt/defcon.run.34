@@ -50,6 +50,10 @@ variable "email" {
       match   = string
       send_to = string
     }))
+    replica_regions = optional(list(object({
+      label = string
+      full  = string
+    })), [])
   })
   description = "Email configuration from site level"
 }

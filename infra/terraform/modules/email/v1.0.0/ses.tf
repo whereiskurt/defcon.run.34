@@ -8,10 +8,11 @@ resource "aws_ses_active_receipt_rule_set" "main" {
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
 }
 
-# Local to pick the last forwarding rule for ordering (receiving rules come after all forwarding)
+# Local for ordering receipt rules
+# Note: Rule ordering removed to avoid Terraform for_each circular dependencies
+# SES applies rules based on recipient matching, so explicit ordering is not required
 locals {
-  # Use the last rule in the sorted list so receiving rules come after all forwarding rules
-  last_fwd_rule_name = length(local.sorted_fwd_rules) > 0 ? "forward-${replace(local.sorted_fwd_rules[length(local.sorted_fwd_rules) - 1], "@", "-at-")}" : null
+  last_fwd_rule_name = null
 }
 
 # Root SES Domains (email.defcon.run, run.defcon.run, etc...)

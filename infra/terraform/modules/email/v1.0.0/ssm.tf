@@ -110,3 +110,41 @@ resource "aws_ssm_parameter" "fwd_rules_rules" {
   })
   description = "Email forwarding rules mapping custom domain addresses to external addresses"
 }
+
+# S3 bucket information for cross-region replication
+# Store this bucket's info in the current region's SSM
+resource "aws_ssm_parameter" "s3_bucket_name" {
+  name        = "/${local.ses}/s3/${var.region.label}/bucket_name"
+  type        = "String"
+  value       = aws_s3_bucket.received_emails.id
+  description = "S3 bucket name for received emails in ${var.region.full}"
+}
+
+resource "aws_ssm_parameter" "s3_bucket_arn" {
+  name        = "/${local.ses}/s3/${var.region.label}/bucket_arn"
+  type        = "String"
+  value       = aws_s3_bucket.received_emails.arn
+  description = "S3 bucket ARN for received emails in ${var.region.full}"
+}
+
+# Cross-region bucket information cache
+# Store information about OTHER regions' buckets in THIS region for easy lookup
+# This allows each region to know about all buckets without cross-region API calls
+resource "aws_ssm_parameter" "replica_bucket_name" {
+  for_each = local.can_configure_replication ? local.replication_destinations_map : {}
+
+  name  = "/${local.ses}/s3/${each.value.label}/bucket_name"
+  type  = "String"
+  # Extract bucket name from ARN: arn:aws:s3:::bucket-name -> bucket-name
+  value = local.replica_bucket_arns[each.key] != "" ? replace(local.replica_bucket_arns[each.key], "arn:aws:s3:::", "") : ""
+  description = "Cached S3 bucket name for received emails in ${each.value.full} (replica)"
+}
+
+resource "aws_ssm_parameter" "replica_bucket_arn" {
+  for_each = local.can_configure_replication ? local.replication_destinations_map : {}
+
+  name        = "/${local.ses}/s3/${each.value.label}/bucket_arn"
+  type        = "String"
+  value       = local.replica_bucket_arns[each.key]
+  description = "Cached S3 bucket ARN for received emails in ${each.value.full} (replica)"
+}
