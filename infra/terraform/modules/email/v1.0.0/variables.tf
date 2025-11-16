@@ -58,6 +58,8 @@ variable "email" {
   description = "Email configuration from site level"
 }
 
+# These are extracted from var.email and passed separately by config.hcl
+# to allow merging from site and region levels
 variable "smtp_iam_users" {
   type        = list(string)
   description = "List of email addresses to create SMTP credentials for"
