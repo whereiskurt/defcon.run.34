@@ -8,12 +8,8 @@ resource "aws_ses_active_receipt_rule_set" "main" {
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
 }
 
-# Local for ordering receipt rules
-# Note: Rule ordering removed to avoid Terraform for_each circular dependencies
+# Note: Receipt rule ordering removed to avoid Terraform for_each circular dependencies
 # SES applies rules based on recipient matching, so explicit ordering is not required
-locals {
-  last_fwd_rule_name = null
-}
 
 # Root SES Domains (email.defcon.run, run.defcon.run, etc...)
 module "ses_root" {
@@ -35,8 +31,6 @@ module "ses_root" {
     recipient_address = each.value
     s3_key_prefix     = "inbox/${each.value}/"
   }
-
-  receipt_rule_after = local.last_fwd_rule_name
 
   depends_on = [
     aws_s3_bucket_policy.received_emails,
@@ -69,8 +63,6 @@ module "ses_regional" {
     s3_key_prefix     = "inbox/${var.region.label}.${each.value}/"
   }
 
-  receipt_rule_after = local.last_fwd_rule_name
-
   depends_on = [
     aws_s3_bucket_policy.received_emails,
     aws_ses_receipt_rule.forwarding
@@ -100,8 +92,6 @@ module "ses_mgmt" {
     recipient_address = var.dns.zonename
     s3_key_prefix     = "inbox/${var.dns.zonename}/"
   }
-
-  receipt_rule_after = local.last_fwd_rule_name
 
   depends_on = [
     aws_s3_bucket_policy.received_emails,
@@ -133,8 +123,6 @@ module "ses_mgmt_regional" {
     recipient_address = "${var.region.label}.${var.dns.zonename}"
     s3_key_prefix     = "inbox/${var.region.label}.${var.dns.zonename}/"
   }
-
-  receipt_rule_after = local.last_fwd_rule_name
 
   depends_on = [
     aws_s3_bucket_policy.received_emails,
