@@ -4,7 +4,8 @@ resource "random_id" "rnd" {
 
 variable "site" {
   type = object({
-    label = string
+    label         = string
+    random_suffix = optional(string, "")
   })
 }
 

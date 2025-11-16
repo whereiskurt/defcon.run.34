@@ -2,6 +2,10 @@ data "aws_caller_identity" "current" {}
 
 # Cross-region replication configuration
 locals {
+  # Use site-level random suffix if provided, otherwise use per-region random
+  # Site-level suffix allows deterministic bucket names across regions (single-apply replication)
+  bucket_suffix = var.site.random_suffix != "" ? var.site.random_suffix : random_id.rnd.hex
+
   # Filter out the current region from replica_regions to get only OTHER regions to replicate to
   replication_destinations = [
     for region in var.email.replica_regions :
@@ -16,45 +20,21 @@ locals {
 
   # Check if replication is enabled (has other regions to replicate to)
   replication_enabled = length(local.replication_destinations) > 0
-}
 
-# Attempt to read bucket ARNs from other regions' SSM parameters
-# This will fail on first run (before buckets exist), which is expected
-# Use terraform import or a second apply to configure replication
-data "external" "replica_bucket_check" {
-  for_each = local.replication_destinations_map
-  program = ["bash", "-c", <<-EOF
-    # Try to get the SSM parameter, return empty if it doesn't exist
-    result=$(aws ssm get-parameter --name "/${var.site.label}/ses/s3/${each.value.label}/bucket_arn" --region ${each.value.full} --query 'Parameter.Value' --output text 2>/dev/null || echo "")
-    if [ -z "$result" ]; then
-      echo '{"exists":"false","arn":""}'
-    else
-      echo "{\"exists\":\"true\",\"arn\":\"$result\"}"
-    fi
-  EOF
-  ]
-}
-
-locals {
-  # Only enable replication if ALL replica buckets exist
-  can_configure_replication = local.replication_enabled && alltrue([
+  # Compute replica bucket ARNs deterministically when using site-level random suffix
+  # This allows replication to work in a single apply without needing external data sources
+  replica_bucket_arns = var.site.random_suffix != "" ? {
     for region_label, region_data in local.replication_destinations_map :
-    try(data.external.replica_bucket_check[region_label].result.exists, "false") == "true"
-  ])
-}
+    region_label => "arn:aws:s3:::ses-inbox-${var.site.label}-${region_label}-${local.bucket_suffix}"
+  } : {}
 
-# Map of replica bucket ARNs (from external data source)
-locals {
-  replica_bucket_arns = {
-    for region_label, region_data in local.replication_destinations_map :
-    region_label => data.external.replica_bucket_check[region_label].result.arn
-    if local.can_configure_replication
-  }
+  # Replication is enabled immediately if we have deterministic bucket names
+  can_configure_replication = local.replication_enabled && var.site.random_suffix != ""
 }
 
 # S3 bucket for storing received emails
 resource "aws_s3_bucket" "received_emails" {
-  bucket        = substr("ses-inbox-${var.site.label}-${var.region.label}-${random_id.rnd.hex}", 0, 63)
+  bucket        = substr("ses-inbox-${var.site.label}-${var.region.label}-${local.bucket_suffix}", 0, 63)
   force_destroy = true
 }
 

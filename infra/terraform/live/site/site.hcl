@@ -1,6 +1,7 @@
 locals {
   site = {
-    label = "dc34"
+    label         = "dc34"
+    random_suffix = get_env("SGUID", "80a6b349")
   }
 
   dns = {

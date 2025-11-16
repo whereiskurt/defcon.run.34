@@ -136,7 +136,7 @@ resource "aws_ssm_parameter" "replica_bucket_name" {
   name  = "/${local.ses}/s3/${each.value.label}/bucket_name"
   type  = "String"
   # Extract bucket name from ARN: arn:aws:s3:::bucket-name -> bucket-name
-  value = local.replica_bucket_arns[each.key] != "" ? replace(local.replica_bucket_arns[each.key], "arn:aws:s3:::", "") : ""
+  value = replace(local.replica_bucket_arns[each.key], "arn:aws:s3:::", "")
   description = "Cached S3 bucket name for received emails in ${each.value.full} (replica)"
 }
 
