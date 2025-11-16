@@ -64,3 +64,9 @@ variable "primary_domain_identity" {
   type        = any
   default     = null
 }
+
+variable "receipt_rule_after" {
+  description = "Name of the receipt rule that this rule should come after"
+  type        = string
+  default     = null
+}

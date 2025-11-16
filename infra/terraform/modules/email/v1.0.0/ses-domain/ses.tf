@@ -41,6 +41,7 @@ resource "aws_ses_receipt_rule" "support" {
   enabled       = var.receipt_rule_config.enabled
   scan_enabled  = true
   provider      = aws.application
+  after         = var.receipt_rule_after
 
   s3_action {
     bucket_name       = var.s3_bucket_id

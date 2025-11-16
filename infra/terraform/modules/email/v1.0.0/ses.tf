@@ -8,6 +8,12 @@ resource "aws_ses_active_receipt_rule_set" "main" {
   rule_set_name = aws_ses_receipt_rule_set.main.rule_set_name
 }
 
+# Local to pick the last forwarding rule for ordering (receiving rules come after all forwarding)
+locals {
+  # Use the last rule in the sorted list so receiving rules come after all forwarding rules
+  last_fwd_rule_name = length(local.sorted_fwd_rules) > 0 ? "forward-${replace(local.sorted_fwd_rules[length(local.sorted_fwd_rules) - 1], "@", "-at-")}" : null
+}
+
 # Root SES Domains (email.defcon.run, run.defcon.run, etc...)
 module "ses_root" {
   for_each = var.email.make_domains && var.region.full == var.email.primary_region ? toset(var.email.zonenames) : []
@@ -29,7 +35,12 @@ module "ses_root" {
     s3_key_prefix     = "inbox/${each.value}/"
   }
 
-  depends_on = [aws_s3_bucket_policy.received_emails]
+  receipt_rule_after = local.last_fwd_rule_name
+
+  depends_on = [
+    aws_s3_bucket_policy.received_emails,
+    aws_ses_receipt_rule.forwarding
+  ]
 
   providers = {
     aws.application       = aws.application
@@ -57,7 +68,12 @@ module "ses_regional" {
     s3_key_prefix     = "inbox/${var.region.label}.${each.value}/"
   }
 
-  depends_on = [aws_s3_bucket_policy.received_emails]
+  receipt_rule_after = local.last_fwd_rule_name
+
+  depends_on = [
+    aws_s3_bucket_policy.received_emails,
+    aws_ses_receipt_rule.forwarding
+  ]
   providers = {
     aws.application       = aws.application
     aws.global-management = aws.global-application
@@ -84,7 +100,12 @@ module "ses_mgmt" {
     s3_key_prefix     = "inbox/${var.dns.zonename}/"
   }
 
-  depends_on = [aws_s3_bucket_policy.received_emails]
+  receipt_rule_after = local.last_fwd_rule_name
+
+  depends_on = [
+    aws_s3_bucket_policy.received_emails,
+    aws_ses_receipt_rule.forwarding
+  ]
 
   providers = {
     aws.application       = aws.application
@@ -112,7 +133,12 @@ module "ses_mgmt_regional" {
     s3_key_prefix     = "inbox/${var.region.label}.${var.dns.zonename}/"
   }
 
-  depends_on = [aws_s3_bucket_policy.received_emails]
+  receipt_rule_after = local.last_fwd_rule_name
+
+  depends_on = [
+    aws_s3_bucket_policy.received_emails,
+    aws_ses_receipt_rule.forwarding
+  ]
 
   providers = {
     aws.application       = aws.application
