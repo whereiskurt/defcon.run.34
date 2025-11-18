@@ -21,14 +21,24 @@ output "global_waf_webacl_arn" {
 }
 
 output "cert_map" {
-  value = {
-    for _, cert in aws_acm_certificate.env_certs :
-    cert.domain_name => {
-      arn                       = cert.arn
-      domain_name               = cert.domain_name
-      subject_alternative_names = cert.subject_alternative_names
-      validation_method         = cert.validation_method
+  value = merge(
+    {
+      (aws_acm_certificate.primary_zone_cert.domain_name) = {
+        arn                       = aws_acm_certificate.primary_zone_cert.arn
+        domain_name               = aws_acm_certificate.primary_zone_cert.domain_name
+        subject_alternative_names = aws_acm_certificate.primary_zone_cert.subject_alternative_names
+        validation_method         = aws_acm_certificate.primary_zone_cert.validation_method
+      }
+    },
+    {
+      for _, cert in aws_acm_certificate.env_certs :
+      cert.domain_name => {
+        arn                       = cert.arn
+        domain_name               = cert.domain_name
+        subject_alternative_names = cert.subject_alternative_names
+        validation_method         = cert.validation_method
+      }
     }
-  }
+  )
   sensitive = false
 }

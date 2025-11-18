@@ -16,6 +16,17 @@ locals {
   }
 }
 
+# Create ACM certificate for primary zone with all subdomains as SANs
+resource "aws_acm_certificate" "primary_zone_cert" {
+  provider          = aws.global-application
+  validation_method = "DNS"
+  domain_name       = var.dns.zonename
+  subject_alternative_names = [
+    for subdomain in var.dns.subdomains :
+    "${subdomain}.${var.dns.zonename}"
+  ]
+}
+
 # Create ACM certificates for each domain in var.domains
 resource "aws_acm_certificate" "env_certs" {
   provider                  = aws.global-application
@@ -23,6 +34,26 @@ resource "aws_acm_certificate" "env_certs" {
   validation_method         = "DNS"
   domain_name               = "${each.key}.${var.dns.zonename}"
   subject_alternative_names = ["*.${each.key}.${var.dns.zonename}"]
+}
+
+# Create Route 53 validation records for primary zone certificate
+resource "aws_route53_record" "primary_zone_validation" {
+  provider = aws.global-management
+
+  for_each = {
+    for dvo in aws_acm_certificate.primary_zone_cert.domain_validation_options :
+    dvo.domain_name => {
+      name   = dvo.resource_record_name
+      type   = dvo.resource_record_type
+      record = dvo.resource_record_value
+    }
+  }
+
+  zone_id = data.aws_route53_zone.mgmt.zone_id
+  name    = each.value.name
+  type    = each.value.type
+  records = [each.value.record]
+  ttl     = 60
 }
 
 # Create Route 53 validation records for each domain's validation options
@@ -45,6 +76,16 @@ resource "aws_route53_record" "validation" {
   records = [[for v in each.value.validations : v.resource_record_value][0]]
 
   ttl = 60
+}
+
+# Validate primary zone ACM certificate
+resource "aws_acm_certificate_validation" "primary_zone_cert_validation" {
+  provider        = aws.global-application
+  certificate_arn = aws_acm_certificate.primary_zone_cert.arn
+
+  validation_record_fqdns = [
+    for validation in aws_route53_record.primary_zone_validation : validation.fqdn
+  ]
 }
 
 # Validate ACM certificates
