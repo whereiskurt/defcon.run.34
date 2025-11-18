@@ -68,7 +68,7 @@ remote_state {
   config = {
     encrypt        = true
     bucket         = get_env(upper("TG_BUCKET_${local.region_label}"), "")
-    key            = "${local.region_label}/tf.tfstate"
+    key            = "${local.region_label}/${path_relative_to_include()}/terraform.tfstate"
     region         = local.region
     dynamodb_table = get_env(upper("TG_TABLE_${local.region_label}"), "")
     profile        = "terraform"
