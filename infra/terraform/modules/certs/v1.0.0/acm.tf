@@ -15,7 +15,7 @@ resource "aws_acm_certificate" "primary_zone_cert" {
   validation_method = "DNS"
   domain_name       = var.dns.zonename
   subject_alternative_names = [
-    for subdomain in var.dns.subdomains :
+    for subdomain in concat(["*"], ["${var.region.label}"], ["*.${var.region.label}"], var.dns.subdomains) :
     "${subdomain}.${var.dns.zonename}"
   ]
 }

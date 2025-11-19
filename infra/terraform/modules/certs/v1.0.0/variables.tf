@@ -20,3 +20,11 @@ variable "make_site_cert" {
   default     = true
   description = "Whether to create a certificate for var.dns.zonename with all subdomains as SANs"
 }
+
+variable "region" {
+  type = object({
+    label = string
+    full  = string
+  })
+  description = "Region configuration with label and full name"
+}

@@ -29,7 +29,8 @@ include "module" {
 }
 
 include "providers" {
-  path = "${find_in_parent_folders("providers")}/regional.hcl"
+  path   = "${find_in_parent_folders("providers")}/regional.hcl"
+  expose = true
 }
 
 terraform {
@@ -41,5 +42,9 @@ inputs = merge(
   {
     zone_map       = dependency.site.outputs.zone_map
     make_site_cert = true
+    region = {
+      label = include.providers.locals.region_label
+      full  = include.providers.locals.region
+    }
   }
 )
