@@ -41,11 +41,11 @@ locals {
     }
 
     vpc_endpoints = {
-      enabled = true
+      enabled = false
     }
 
     alb = {
-      enabled                    = false
+      enabled                    = true
       enable_deletion_protection = false
       ssl_policy                 = "ELBSecurityPolicy-TLS13-1-2-2021-06"
       logs_force_destroy         = true
