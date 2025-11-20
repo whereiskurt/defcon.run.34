@@ -1,0 +1,30 @@
+dependency "network" {
+  config_path = "../network"
+
+  mock_outputs = {
+    alb_dns_name = "mock-alb.us-east-1.elb.amazonaws.com"
+    alb_zone_id  = "Z35SXDOTRQ7X7K"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
+include "module" {
+  path   = "${find_in_parent_folders("modules")}/cloudfront-assets/config.hcl"
+  expose = true
+}
+
+include "providers" {
+  path = "${find_in_parent_folders("providers")}/regional.hcl"
+}
+
+terraform {
+  source = "${include.module.locals.module_path}/v1.0.0"
+}
+
+inputs = merge(
+  include.module.locals.merged_inputs,
+  {
+    # Regional S3 bucket will be created here
+    # Outputs will be consumed by the site-level CloudFront distribution
+  }
+)

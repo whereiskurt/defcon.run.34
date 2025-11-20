@@ -45,7 +45,7 @@ resource "aws_lb_listener" "https" {
     type = "fixed-response"
     fixed_response {
       content_type = "text/plain"
-      message_body = "404 Not Found"
+      message_body = "404 page not found - ${var.region.label}.${var.dns.zonename}"
       status_code  = "404"
     }
   }

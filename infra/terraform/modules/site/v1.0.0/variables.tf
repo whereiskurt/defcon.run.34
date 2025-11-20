@@ -1,5 +1,5 @@
 resource "random_id" "rnd" {
-  byte_length = 12
+  byte_length = 8
 }
 
 variable "site" {

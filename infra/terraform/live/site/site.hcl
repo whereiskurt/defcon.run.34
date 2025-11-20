@@ -58,4 +58,38 @@ locals {
     log_mode = "standard" # standard | realtime
     rule_set = "default"  # optional: which rule set to use
   }
+
+  cloudfront = {
+    enabled = true
+
+    # Domains that will be served by CloudFront
+    # These will be combined with dns.zonename to create full domains
+    # e.g., "run" becomes "run.defcon.run"
+    domains = ["run"]
+
+    # Regions that will provide ALB and S3 bucket origins
+    # Each region will contribute:
+    # - An ALB origin for /{region_label}/*
+    # - An S3 bucket origin for /{region_label}/assets/*
+    regions = [
+      {
+        label = "use1"
+        full  = "us-east-1"
+      },
+      {
+        label = "cac1"
+        full  = "ca-central-1"
+      }
+    ]
+
+    # CloudFront logging configuration
+    logging = {
+      enabled = true
+      include_cookies = true
+    }
+
+    # Price class for CloudFront distribution
+    # Options: PriceClass_All, PriceClass_200, PriceClass_100
+    price_class = "PriceClass_100"
+  }
 }

@@ -58,7 +58,11 @@ resource "aws_route53_record" "validation" {
     for domain, cert in aws_acm_certificate.subdomain_certs :
     domain => {
       validations = cert.domain_validation_options
-      zone_id     = local.zone_records[cert.domain_name].zone_id
+      # Use the subdomain's zone if it exists, otherwise use the parent zone
+      zone_id = try(
+        local.zone_records[cert.domain_name].zone_id,
+        local.zone_records[var.dns.zonename].zone_id
+      )
     }
   }
 
