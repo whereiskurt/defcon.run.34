@@ -23,6 +23,23 @@ variable "dns" {
   })
 }
 
+variable "cloudfront" {
+  description = "CloudFront configuration"
+  type = object({
+    enabled = bool
+    domains = list(string)
+    regions = list(object({
+      label = string
+      full  = string
+    }))
+    logging = object({
+      enabled         = bool
+      include_cookies = bool
+    })
+    price_class = string
+  })
+}
+
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)

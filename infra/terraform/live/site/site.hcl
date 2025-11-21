@@ -65,7 +65,7 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.defcon.run"
-    domains = ["run"]
+    domains = ["run", "mqtt"]
 
     # Regions that will provide ALB and S3 bucket origins
     # Each region will contribute:

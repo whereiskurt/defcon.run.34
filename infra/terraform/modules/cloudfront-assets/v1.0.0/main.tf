@@ -5,25 +5,35 @@ resource "random_id" "rnd" {
   byte_length = 8
 }
 
-# S3 bucket for CloudFront assets
+# Local to create a set of domains for for_each loops
+locals {
+  domain_set = toset(var.cloudfront.domains)
+}
+
+# S3 bucket for CloudFront assets - one per domain
 resource "aws_s3_bucket" "cf_assets" {
-  bucket        = "cf-assets-${var.region.label}-${replace(var.dns.zonename, ".", "-")}-${random_id.rnd.hex}"
+  for_each = local.domain_set
+
+  bucket        = "cf-assets-${each.key}-${var.region.label}-${replace(var.dns.zonename, ".", "-")}-${random_id.rnd.hex}"
   force_destroy = var.force_destroy
 
   tags = merge(
     var.tags,
     {
-      Name        = "${var.region.label}-cf-assets"
+      Name        = "${each.key}-${var.region.label}-cf-assets"
       Region      = var.region.full
       Purpose     = "CloudFront Assets"
       Environment = var.site.label
+      Domain      = "${each.key}.${var.dns.zonename}"
     }
   )
 }
 
 # Enable versioning for the assets bucket
 resource "aws_s3_bucket_versioning" "cf_assets_versioning" {
-  bucket = aws_s3_bucket.cf_assets.id
+  for_each = local.domain_set
+
+  bucket = aws_s3_bucket.cf_assets[each.key].id
   versioning_configuration {
     status = var.enable_versioning ? "Enabled" : "Suspended"
   }
@@ -31,7 +41,9 @@ resource "aws_s3_bucket_versioning" "cf_assets_versioning" {
 
 # Server-side encryption
 resource "aws_s3_bucket_server_side_encryption_configuration" "cf_assets_encryption" {
-  bucket = aws_s3_bucket.cf_assets.id
+  for_each = local.domain_set
+
+  bucket = aws_s3_bucket.cf_assets[each.key].id
 
   rule {
     apply_server_side_encryption_by_default {
@@ -42,7 +54,9 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "cf_assets_encrypt
 
 # Block public access
 resource "aws_s3_bucket_public_access_block" "cf_assets_public_access_block" {
-  bucket = aws_s3_bucket.cf_assets.id
+  for_each = local.domain_set
+
+  bucket = aws_s3_bucket.cf_assets[each.key].id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -52,7 +66,9 @@ resource "aws_s3_bucket_public_access_block" "cf_assets_public_access_block" {
 
 # CORS configuration for CloudFront
 resource "aws_s3_bucket_cors_configuration" "cf_assets_cors" {
-  bucket = aws_s3_bucket.cf_assets.id
+  for_each = local.domain_set
+
+  bucket = aws_s3_bucket.cf_assets[each.key].id
 
   cors_rule {
     allowed_headers = ["*"]
@@ -65,8 +81,9 @@ resource "aws_s3_bucket_cors_configuration" "cf_assets_cors" {
 
 # Lifecycle rules for asset management
 resource "aws_s3_bucket_lifecycle_configuration" "cf_assets_lifecycle" {
-  count  = var.enable_lifecycle_rules ? 1 : 0
-  bucket = aws_s3_bucket.cf_assets.id
+  for_each = var.enable_lifecycle_rules ? local.domain_set : toset([])
+
+  bucket = aws_s3_bucket.cf_assets[each.key].id
 
   rule {
     id     = "delete-old-versions"
@@ -87,28 +104,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "cf_assets_lifecycle" {
   }
 }
 
-# S3 bucket policy to allow CloudFront access (only created if CloudFront ARN is provided)
-resource "aws_s3_bucket_policy" "cf_access" {
-  count  = var.cloudfront_distribution_arn != "" ? 1 : 0
-  bucket = aws_s3_bucket.cf_assets.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "AllowCloudFrontServicePrincipal"
-        Effect = "Allow"
-        Principal = {
-          Service = "cloudfront.amazonaws.com"
-        }
-        Action   = "s3:GetObject"
-        Resource = "${aws_s3_bucket.cf_assets.arn}/*"
-        Condition = {
-          StringEquals = {
-            "AWS:SourceArn" = var.cloudfront_distribution_arn
-          }
-        }
-      }
-    ]
-  })
-}
+# Note: S3 bucket policies for CloudFront access are not needed here
+# because Origin Access Control (OAC) is configured in the CloudFront module
+# The OAC provides more secure access control than bucket policies

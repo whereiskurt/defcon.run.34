@@ -3,10 +3,19 @@ dependency "use1_cloudfront" {
   config_path = "../region/us-east-1/cloudfront"
 
   mock_outputs = {
-    bucket_id                      = "mock-cf-assets-use1"
-    bucket_arn                     = "arn:aws:s3:::mock-cf-assets-use1"
-    bucket_regional_domain_name    = "mock-cf-assets-use1.s3.us-east-1.amazonaws.com"
-    region_label                   = "use1"
+    bucket_ids = {
+      run  = "mock-cf-assets-run-use1"
+      mqtt = "mock-cf-assets-mqtt-use1"
+    }
+    bucket_arns = {
+      run  = "arn:aws:s3:::mock-cf-assets-run-use1"
+      mqtt = "arn:aws:s3:::mock-cf-assets-mqtt-use1"
+    }
+    bucket_regional_domain_names = {
+      run  = "mock-cf-assets-run-use1.s3.us-east-1.amazonaws.com"
+      mqtt = "mock-cf-assets-mqtt-use1.s3.us-east-1.amazonaws.com"
+    }
+    region_label = "use1"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -15,10 +24,19 @@ dependency "cac1_cloudfront" {
   config_path = "../region/ca-central-1/cloudfront"
 
   mock_outputs = {
-    bucket_id                      = "mock-cf-assets-cac1"
-    bucket_arn                     = "arn:aws:s3:::mock-cf-assets-cac1"
-    bucket_regional_domain_name    = "mock-cf-assets-cac1.s3.ca-central-1.amazonaws.com"
-    region_label                   = "cac1"
+    bucket_ids = {
+      run  = "mock-cf-assets-run-cac1"
+      mqtt = "mock-cf-assets-mqtt-cac1"
+    }
+    bucket_arns = {
+      run  = "arn:aws:s3:::mock-cf-assets-run-cac1"
+      mqtt = "arn:aws:s3:::mock-cf-assets-mqtt-cac1"
+    }
+    bucket_regional_domain_names = {
+      run  = "mock-cf-assets-run-cac1.s3.ca-central-1.amazonaws.com"
+      mqtt = "mock-cf-assets-mqtt-cac1.s3.ca-central-1.amazonaws.com"
+    }
+    region_label = "cac1"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -93,30 +111,32 @@ locals {
 inputs = merge(
   local.site_vars.locals,
   {
-    # Build the regional_origins map from regional dependencies
-    regional_origins = {
-      use1 = {
-        alb_dns_name                   = dependency.use1_network.outputs.alb_dns_name
-        alb_zone_id                    = dependency.use1_network.outputs.alb_zone_id
-        s3_bucket_id                   = dependency.use1_cloudfront.outputs.bucket_id
-        s3_bucket_arn                  = dependency.use1_cloudfront.outputs.bucket_arn
-        s3_bucket_regional_domain_name = dependency.use1_cloudfront.outputs.bucket_regional_domain_name
-      }
-      cac1 = {
-        alb_dns_name                   = dependency.cac1_network.outputs.alb_dns_name
-        alb_zone_id                    = dependency.cac1_network.outputs.alb_zone_id
-        s3_bucket_id                   = dependency.cac1_cloudfront.outputs.bucket_id
-        s3_bucket_arn                  = dependency.cac1_cloudfront.outputs.bucket_arn
-        s3_bucket_regional_domain_name = dependency.cac1_cloudfront.outputs.bucket_regional_domain_name
+    # Build per-domain regional origins by combining domains and regions
+    # Structure: regional_origins_by_domain[domain][region] = { alb_*, s3_* }
+    regional_origins_by_domain = {
+      for domain in local.site_vars.locals.cloudfront.domains : domain => {
+        use1 = {
+          alb_dns_name                   = dependency.use1_network.outputs.alb_dns_name
+          alb_zone_id                    = dependency.use1_network.outputs.alb_zone_id
+          s3_bucket_id                   = dependency.use1_cloudfront.outputs.bucket_ids[domain]
+          s3_bucket_arn                  = dependency.use1_cloudfront.outputs.bucket_arns[domain]
+          s3_bucket_regional_domain_name = dependency.use1_cloudfront.outputs.bucket_regional_domain_names[domain]
+        }
+        cac1 = {
+          alb_dns_name                   = dependency.cac1_network.outputs.alb_dns_name
+          alb_zone_id                    = dependency.cac1_network.outputs.alb_zone_id
+          s3_bucket_id                   = dependency.cac1_cloudfront.outputs.bucket_ids[domain]
+          s3_bucket_arn                  = dependency.cac1_cloudfront.outputs.bucket_arns[domain]
+          s3_bucket_regional_domain_name = dependency.cac1_cloudfront.outputs.bucket_regional_domain_names[domain]
+        }
       }
     }
 
-    # Route53 zone ID for DNS records
-    # zone_id = dependency.site.outputs.zone_map[local.site_vars.locals.dns.zonename].zone_id
-    zone_id = dependency.site.outputs.zone_map["${local.site_vars.locals.cloudfront.domains[0]}.${local.site_vars.locals.dns.zonename}"].zone_id
+    # Route53 zone map for DNS record lookups
+    zone_map = dependency.site.outputs.zone_map
 
-    # ACM Certificate ARN from us-east-1 certs (CloudFront requires cert in us-east-1)
-    certificate_arn = dependency.use1_certs.outputs.cert_map["${local.site_vars.locals.cloudfront.domains[0]}.${local.site_vars.locals.dns.zonename}"].arn
+    # ACM Certificate map from us-east-1 certs (CloudFront requires cert in us-east-1)
+    cert_map = dependency.use1_certs.outputs.cert_map
 
     # Optional WAF Web ACL ARN (empty string if WAF not enabled)
     waf_web_acl_arn = ""
