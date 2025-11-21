@@ -92,4 +92,39 @@ locals {
     # Options: PriceClass_All, PriceClass_200, PriceClass_100
     price_class = "PriceClass_100"
   }
+
+  dynamodb = {
+    table_name = "dc34-app-data"
+
+    # Table type: "standard" or "electro"
+    # standard: 1 GSI (gsi1pk-gsi1sk-index)
+    # electro: 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
+    # Set to null to use custom attributes and indexes
+    table_type = "electro"
+
+    # Multi-region global table configuration
+    # The first region in the list is the primary region where the table is created
+    # All other regions are replicas
+    replica_regions = [
+      {
+        label = "use1"
+        full  = "us-east-1"
+      },
+      {
+        label = "cac1"
+        full  = "ca-central-1"
+      }
+    ]
+
+    # Table configuration
+    billing_mode     = "PAY_PER_REQUEST"
+    hash_key         = "pk"
+    range_key        = "sk"
+    stream_enabled   = true
+    stream_view_type = "NEW_AND_OLD_IMAGES"
+
+    # TTL configuration (optional)
+    ttl_enabled        = false
+    ttl_attribute_name = ""
+  }
 }
