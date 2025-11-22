@@ -1,0 +1,15 @@
+{
+  "[terraform]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "hashicorp.terraform"
+  },
+  "[terraform-vars]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "hashicorp.terraform"
+  },
+  "files.associations": {
+    "*.hcl": "terragrunt"
+  },
+  "terraform.languageServer.enable": true,
+  "terraform.experimentalFeatures.validateOnSave": true
+}

@@ -1,0 +1,29 @@
+locals {
+  site_vars   = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  region_vars = read_terragrunt_config(find_in_parent_folders("region.hcl"))
+  email_vars  = read_terragrunt_config("email.hcl")
+
+  module_path = "${find_in_parent_folders("modules/")}/email"
+
+  # Merge smtp_iam_users from site and region levels
+  merged_smtp_iam_users = concat(
+    try(local.site_vars.locals.email.smtp_iam_users, []),
+    try(local.email_vars.locals.smtp_iam_users, [])
+  )
+
+  # Merge fwd_rules from site and region levels
+  merged_fwd_rules = concat(
+    try(local.site_vars.locals.email.fwd_rules, []),
+    try(local.email_vars.locals.fwd_rules, [])
+  )
+
+  merged_inputs = merge(
+    local.site_vars.locals,
+    local.region_vars.locals,
+    local.email_vars.locals,
+    {
+      smtp_iam_users = local.merged_smtp_iam_users
+      fwd_rules      = local.merged_fwd_rules
+    }
+  )
+}
