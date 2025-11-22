@@ -161,9 +161,8 @@ locals {
   }
 
   ec2spots = [
-    # 3 EC2 spot instances in us-east-1
     {
-      count                  = 3
+      count                  = 0
       region                 = "us-east-1"
       zone_name              = "run.defcon.run"
       create_dns_records     = true
@@ -175,9 +174,8 @@ locals {
       ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
       githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
     },
-    # 1 EC2 spot instance in ca-central-1
     {
-      count                  = 1
+      count                  = 0
       region                 = "ca-central-1"
       zone_name              = "run.defcon.run"
       create_dns_records     = true
@@ -188,6 +186,30 @@ locals {
       ec2key_name_prefix     = "ec2spot"
       ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
       githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
+    }
+  ]
+
+  ecs_clusters = [
+    # App cluster in us-east-1
+    {
+      name            = "app"
+      region          = "us-east-1"
+      enable_insights = false
+      cluster_type    = "FARGATE"
+    },
+    # AI cluster in us-east-1 (for future GPU workloads)
+    {
+      name            = "ai"
+      region          = "us-east-1"
+      enable_insights = false
+      cluster_type    = "FARGATE" # Will be EC2_GPU when GPU instances are needed
+    },
+    # App cluster in ca-central-1
+    {
+      name            = "app"
+      region          = "ca-central-1"
+      enable_insights = false
+      cluster_type    = "FARGATE"
     }
   ]
 }
