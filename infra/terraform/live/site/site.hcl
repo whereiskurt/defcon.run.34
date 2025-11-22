@@ -97,7 +97,7 @@ locals {
     tables = [
       # Electro table with multi-region replication
       {
-        table_name = "dc34-app-data"
+        table_name = "electro"
 
         # Table type: "standard" or "electro"
         # standard: 1 GSI (gsi1pk-gsi1sk-index)
@@ -132,7 +132,7 @@ locals {
       },
       # Standard table without replication
       {
-        table_name = "dc34-sessions"
+        table_name = "auth"
 
         table_type = "standard"
 

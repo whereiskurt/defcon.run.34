@@ -49,7 +49,7 @@ locals {
   tables = {
     for table in var.dynamodb.tables : table.table_name => {
       config              = table
-      table_name          = "${table.table_name}-${var.site.label}-${local.table_suffix}"
+      table_name          = "${var.site.label}-${table.table_name}-${local.table_suffix}"
       is_primary_region   = var.region.full == table.replica_regions[0].full
       enable_global_table = var.region.full == table.replica_regions[0].full && length(table.replica_regions) > 1
 
@@ -86,10 +86,10 @@ locals {
   # Compute unique attributes and GSIs for each table
   table_configs = {
     for name, table in local.tables_in_region : name => {
-      table_name               = table.table_name
-      is_primary_region        = table.is_primary_region
-      enable_global_table      = table.enable_global_table
-      config                   = table.config
+      table_name          = table.table_name
+      is_primary_region   = table.is_primary_region
+      enable_global_table = table.enable_global_table
+      config              = table.config
 
       # Combine default attributes with schema attributes
       all_attributes = concat(
@@ -196,18 +196,18 @@ locals {
       table_name = config.table_name
       table_arn = config.is_primary_region ? (
         aws_dynamodb_table.this[name].arn
-      ) : (
+        ) : (
         data.aws_dynamodb_table.this[name].arn
       )
       table_id = config.is_primary_region ? (
         aws_dynamodb_table.this[name].id
-      ) : (
+        ) : (
         data.aws_dynamodb_table.this[name].name
       )
       stream_arn = config.config.stream_enabled ? (
         config.is_primary_region ? (
           aws_dynamodb_table.this[name].stream_arn
-        ) : (
+          ) : (
           data.aws_dynamodb_table.this[name].stream_arn
         )
       ) : ""
