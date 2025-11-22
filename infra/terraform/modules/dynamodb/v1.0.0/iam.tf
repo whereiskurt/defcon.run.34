@@ -1,24 +1,31 @@
-# IAM user for accessing the DynamoDB table
+# IAM user for accessing each DynamoDB table
 resource "aws_iam_user" "dynamodb_user" {
-  name = "dynamodb-${var.site.label}-${var.region.label}-${local.table_suffix}"
+  for_each = local.table_configs
+
+  name = "dynamodb-${each.key}-${var.site.label}-${var.region.label}-${local.table_suffix}"
 
   tags = {
-    Name        = "DynamoDB User - ${var.region.label}"
-    Description = "IAM user for accessing DynamoDB table ${local.table_name}"
+    Name        = "DynamoDB User - ${each.key} - ${var.region.label}"
+    Description = "IAM user for accessing DynamoDB table ${each.value.table_name}"
     Site        = var.site.label
     Region      = var.region.label
+    TableName   = each.key
   }
 }
 
-# Access key for the IAM user
+# Access key for each IAM user
 resource "aws_iam_access_key" "dynamodb_user" {
-  user = aws_iam_user.dynamodb_user.name
+  for_each = aws_iam_user.dynamodb_user
+
+  user = each.value.name
 }
 
-# IAM policy for DynamoDB access
+# IAM policy for DynamoDB access for each table
 resource "aws_iam_policy" "dynamodb_access" {
-  name        = "dynamodb-access-${var.site.label}-${var.region.label}-${local.table_suffix}"
-  description = "Policy for accessing DynamoDB table ${local.table_name}"
+  for_each = local.table_configs
+
+  name        = "dynamodb-access-${each.key}-${var.site.label}-${var.region.label}-${local.table_suffix}"
+  description = "Policy for accessing DynamoDB table ${each.value.table_name}"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -43,17 +50,19 @@ resource "aws_iam_policy" "dynamodb_access" {
           "dynamodb:ListStreams"
         ]
         Resource = [
-          local.table_arn,
-          "${local.table_arn}/index/*",
-          "${local.table_arn}/stream/*"
+          local.tables_output[each.key].table_arn,
+          "${local.tables_output[each.key].table_arn}/index/*",
+          "${local.tables_output[each.key].table_arn}/stream/*"
         ]
       }
     ]
   })
 }
 
-# Attach policy to user
+# Attach policy to each user
 resource "aws_iam_user_policy_attachment" "dynamodb_user" {
-  user       = aws_iam_user.dynamodb_user.name
-  policy_arn = aws_iam_policy.dynamodb_access.arn
+  for_each = aws_iam_user.dynamodb_user
+
+  user       = each.value.name
+  policy_arn = aws_iam_policy.dynamodb_access[each.key].arn
 }

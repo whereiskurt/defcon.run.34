@@ -94,37 +94,69 @@ locals {
   }
 
   dynamodb = {
-    table_name = "dc34-app-data"
-
-    # Table type: "standard" or "electro"
-    # standard: 1 GSI (gsi1pk-gsi1sk-index)
-    # electro: 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
-    # Set to null to use custom attributes and indexes
-    table_type = "electro"
-
-    # Multi-region global table configuration
-    # The first region in the list is the primary region where the table is created
-    # All other regions are replicas
-    replica_regions = [
+    tables = [
+      # Electro table with multi-region replication
       {
-        label = "use1"
-        full  = "us-east-1"
+        table_name = "dc34-app-data"
+
+        # Table type: "standard" or "electro"
+        # standard: 1 GSI (gsi1pk-gsi1sk-index)
+        # electro: 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
+        # Set to null to use custom attributes and indexes
+        table_type = "electro"
+
+        # Multi-region global table configuration
+        # The first region in the list is the primary region where the table is created
+        # All other regions are replicas
+        replica_regions = [
+          {
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          }
+        ]
+
+        # Table configuration
+        billing_mode     = "PAY_PER_REQUEST"
+        hash_key         = "pk"
+        range_key        = "sk"
+        stream_enabled   = true
+        stream_view_type = "NEW_AND_OLD_IMAGES"
+
+        # TTL configuration (optional)
+        ttl_enabled        = false
+        ttl_attribute_name = ""
       },
+      # Standard table without replication
       {
-        label = "cac1"
-        full  = "ca-central-1"
+        table_name = "dc34-sessions"
+
+        table_type = "standard"
+
+        # Single region only (no replication)
+        replica_regions = [
+          {
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          }
+        ]
+
+        billing_mode     = "PAY_PER_REQUEST"
+        hash_key         = "pk"
+        range_key        = "sk"
+        stream_enabled   = true
+        stream_view_type = "NEW_AND_OLD_IMAGES"
+
+        ttl_enabled        = true
+        ttl_attribute_name = "ttl"
       }
     ]
-
-    # Table configuration
-    billing_mode     = "PAY_PER_REQUEST"
-    hash_key         = "pk"
-    range_key        = "sk"
-    stream_enabled   = true
-    stream_view_type = "NEW_AND_OLD_IMAGES"
-
-    # TTL configuration (optional)
-    ttl_enabled        = false
-    ttl_attribute_name = ""
   }
 }

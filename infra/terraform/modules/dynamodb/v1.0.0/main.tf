@@ -5,12 +5,6 @@ locals {
   # Use site-level random suffix if provided, otherwise use per-region random
   table_suffix = var.site.random_suffix != "" ? var.site.random_suffix : random_id.rnd.hex
 
-  # Primary region is the current region
-  is_primary_region = var.region.full == var.dynamodb.replica_regions[0].full
-
-  # Table name with region and suffix
-  table_name = "${var.dynamodb.table_name}-${var.site.label}-${local.table_suffix}"
-
   # Predefined table schemas
   table_schemas = {
     standard = {
@@ -51,64 +45,89 @@ locals {
     }
   }
 
-  # Select schema based on table_type
-  selected_schema = var.dynamodb.table_type != null ? local.table_schemas[var.dynamodb.table_type] : {
-    attributes               = var.dynamodb.attributes
-    global_secondary_indexes = var.dynamodb.global_secondary_indexes
+  # Create a map of tables with computed properties
+  tables = {
+    for table in var.dynamodb.tables : table.table_name => {
+      config              = table
+      table_name          = "${table.table_name}-${var.site.label}-${local.table_suffix}"
+      is_primary_region   = var.region.full == table.replica_regions[0].full
+      enable_global_table = var.region.full == table.replica_regions[0].full && length(table.replica_regions) > 1
+
+      # Select schema based on table_type
+      selected_schema = table.table_type != null ? local.table_schemas[table.table_type] : {
+        attributes               = table.attributes
+        global_secondary_indexes = table.global_secondary_indexes
+      }
+
+      # Default attributes (pk, sk)
+      default_attributes = concat(
+        [
+          {
+            name = table.hash_key
+            type = "S"
+          }
+        ],
+        table.range_key != "" ? [
+          {
+            name = table.range_key
+            type = "S"
+          }
+        ] : []
+      )
+    }
   }
 
-  # Default attributes (pk, sk)
-  default_attributes = concat(
-    [
-      {
-        name = var.dynamodb.hash_key
-        type = "S"
-      }
-    ],
-    var.dynamodb.range_key != "" ? [
-      {
-        name = var.dynamodb.range_key
-        type = "S"
-      }
-    ] : []
-  )
-
-  # Combine default attributes with schema attributes
-  all_attributes = concat(
-    local.default_attributes,
-    local.selected_schema.attributes
-  )
-
-  # Create a unique set of attributes by name
-  unique_attributes = {
-    for attr in local.all_attributes :
-    attr.name => attr
+  # Filter tables to only include those that should exist in the current region
+  tables_in_region = {
+    for name, table in local.tables : name => table
+    if contains([for r in table.config.replica_regions : r.full], var.region.full)
   }
 
-  # Global secondary indexes from selected schema
-  global_secondary_indexes = local.selected_schema.global_secondary_indexes
+  # Compute unique attributes and GSIs for each table
+  table_configs = {
+    for name, table in local.tables_in_region : name => {
+      table_name               = table.table_name
+      is_primary_region        = table.is_primary_region
+      enable_global_table      = table.enable_global_table
+      config                   = table.config
 
-  # Check if global table replication should be enabled
-  # Only enable in primary region and only if there are replica regions
-  enable_global_table = local.is_primary_region && length(var.dynamodb.replica_regions) > 1
+      # Combine default attributes with schema attributes
+      all_attributes = concat(
+        table.default_attributes,
+        table.selected_schema.attributes
+      )
+
+      # Create a unique set of attributes by name
+      unique_attributes = {
+        for attr in concat(table.default_attributes, table.selected_schema.attributes) :
+        attr.name => attr
+      }
+
+      # Global secondary indexes from selected schema
+      global_secondary_indexes = table.selected_schema.global_secondary_indexes
+    }
+  }
 }
 
 # DynamoDB Global Table
 # This is only created in the primary region (first region in the list)
 # The global table automatically replicates to all specified regions
 resource "aws_dynamodb_table" "this" {
-  count = local.is_primary_region ? 1 : 0
+  for_each = {
+    for name, config in local.table_configs :
+    name => config if config.is_primary_region
+  }
 
-  name             = local.table_name
-  billing_mode     = var.dynamodb.billing_mode
-  hash_key         = var.dynamodb.hash_key
-  range_key        = var.dynamodb.range_key != "" ? var.dynamodb.range_key : null
-  stream_enabled   = var.dynamodb.stream_enabled
-  stream_view_type = var.dynamodb.stream_enabled ? var.dynamodb.stream_view_type : null
+  name             = each.value.table_name
+  billing_mode     = each.value.config.billing_mode
+  hash_key         = each.value.config.hash_key
+  range_key        = each.value.config.range_key != "" ? each.value.config.range_key : null
+  stream_enabled   = each.value.config.stream_enabled
+  stream_view_type = each.value.config.stream_enabled ? each.value.config.stream_view_type : null
 
   # Define all attributes (only those used in keys or indexes)
   dynamic "attribute" {
-    for_each = local.unique_attributes
+    for_each = each.value.unique_attributes
     content {
       name = attribute.value.name
       type = attribute.value.type
@@ -117,7 +136,7 @@ resource "aws_dynamodb_table" "this" {
 
   # Global Secondary Indexes
   dynamic "global_secondary_index" {
-    for_each = local.global_secondary_indexes
+    for_each = each.value.global_secondary_indexes
     content {
       name            = global_secondary_index.value.name
       hash_key        = global_secondary_index.value.hash_key
@@ -128,17 +147,17 @@ resource "aws_dynamodb_table" "this" {
 
   # TTL configuration
   dynamic "ttl" {
-    for_each = var.dynamodb.ttl_enabled ? [1] : []
+    for_each = each.value.config.ttl_enabled ? [1] : []
     content {
       enabled        = true
-      attribute_name = var.dynamodb.ttl_attribute_name
+      attribute_name = each.value.config.ttl_attribute_name
     }
   }
 
   # Replica configuration for Global Tables v2
   dynamic "replica" {
-    for_each = local.enable_global_table ? [
-      for region in var.dynamodb.replica_regions :
+    for_each = each.value.enable_global_table ? [
+      for region in each.value.config.replica_regions :
       region if region.full != var.region.full
     ] : []
     content {
@@ -147,7 +166,8 @@ resource "aws_dynamodb_table" "this" {
   }
 
   tags = {
-    Name        = local.table_name
+    Name        = each.value.table_name
+    TableType   = each.key
     Site        = var.site.label
     Region      = var.region.label
     Environment = "production"
@@ -158,20 +178,40 @@ resource "aws_dynamodb_table" "this" {
 # In non-primary regions, the table is created automatically by the global table
 # We just need to reference it
 data "aws_dynamodb_table" "this" {
-  count = local.is_primary_region ? 0 : 1
-  name  = local.table_name
+  for_each = {
+    for name, config in local.table_configs :
+    name => config if !config.is_primary_region
+  }
+
+  name = each.value.table_name
 
   # Wait for the global table to be replicated
   depends_on = []
 }
 
-# Local reference that works in both primary and non-primary regions
+# Create unified output map for tables
 locals {
-  table_arn = local.is_primary_region ? aws_dynamodb_table.this[0].arn : data.aws_dynamodb_table.this[0].arn
-  table_id  = local.is_primary_region ? aws_dynamodb_table.this[0].id : data.aws_dynamodb_table.this[0].name
-  stream_arn = local.is_primary_region ? (
-    var.dynamodb.stream_enabled ? aws_dynamodb_table.this[0].stream_arn : ""
-  ) : (
-    var.dynamodb.stream_enabled ? data.aws_dynamodb_table.this[0].stream_arn : ""
-  )
+  tables_output = {
+    for name, config in local.table_configs : name => {
+      table_name = config.table_name
+      table_arn = config.is_primary_region ? (
+        aws_dynamodb_table.this[name].arn
+      ) : (
+        data.aws_dynamodb_table.this[name].arn
+      )
+      table_id = config.is_primary_region ? (
+        aws_dynamodb_table.this[name].id
+      ) : (
+        data.aws_dynamodb_table.this[name].name
+      )
+      stream_arn = config.config.stream_enabled ? (
+        config.is_primary_region ? (
+          aws_dynamodb_table.this[name].stream_arn
+        ) : (
+          data.aws_dynamodb_table.this[name].stream_arn
+        )
+      ) : ""
+      is_primary_region = config.is_primary_region
+    }
+  }
 }

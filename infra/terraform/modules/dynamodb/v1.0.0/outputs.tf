@@ -1,56 +1,50 @@
-output "table_name" {
-  description = "The name of the DynamoDB table"
-  value       = local.table_name
+output "tables" {
+  description = "Map of all DynamoDB tables with their details"
+  value = {
+    for name, table in local.tables_output : name => {
+      table_name        = table.table_name
+      table_arn         = table.table_arn
+      table_id          = table.table_id
+      stream_arn        = table.stream_arn
+      is_primary_region = table.is_primary_region
+    }
+  }
 }
 
-output "table_arn" {
-  description = "The ARN of the DynamoDB table"
-  value       = local.table_arn
+output "iam_users" {
+  description = "Map of IAM users for DynamoDB access, keyed by table name"
+  value = {
+    for name, user in aws_iam_user.dynamodb_user : name => {
+      name = user.name
+      arn  = user.arn
+    }
+  }
 }
 
-output "table_id" {
-  description = "The ID of the DynamoDB table"
-  value       = local.table_id
+output "access_keys" {
+  description = "Map of access key IDs for IAM users, keyed by table name"
+  value = {
+    for name, key in aws_iam_access_key.dynamodb_user : name => key.id
+  }
+  sensitive = true
 }
 
-output "stream_arn" {
-  description = "The ARN of the DynamoDB stream (if enabled)"
-  value       = var.dynamodb.stream_enabled ? local.stream_arn : null
+output "secret_access_keys" {
+  description = "Map of secret access keys for IAM users, keyed by table name"
+  value = {
+    for name, key in aws_iam_access_key.dynamodb_user : name => key.secret
+  }
+  sensitive = true
 }
 
-output "iam_user_name" {
-  description = "The name of the IAM user for DynamoDB access"
-  value       = aws_iam_user.dynamodb_user.name
-}
-
-output "iam_user_arn" {
-  description = "The ARN of the IAM user for DynamoDB access"
-  value       = aws_iam_user.dynamodb_user.arn
-}
-
-output "access_key_id" {
-  description = "The access key ID for the IAM user"
-  value       = aws_iam_access_key.dynamodb_user.id
-  sensitive   = true
-}
-
-output "secret_access_key" {
-  description = "The secret access key for the IAM user"
-  value       = aws_iam_access_key.dynamodb_user.secret
-  sensitive   = true
-}
-
-output "ssm_prefix" {
-  description = "The SSM parameter store prefix for DynamoDB configuration"
-  value       = local.ssm_prefix
+output "ssm_prefixes" {
+  description = "Map of SSM parameter store prefixes for each table"
+  value = {
+    for name, config in local.table_configs : name => "/${var.site.label}/dynamodb/${var.region.label}/${config.table_name}"
+  }
 }
 
 output "region" {
-  description = "The AWS region where the table is deployed"
+  description = "The AWS region where the tables are deployed"
   value       = var.region.full
-}
-
-output "is_primary_region" {
-  description = "Whether this is the primary region for the global table"
-  value       = local.is_primary_region
 }
