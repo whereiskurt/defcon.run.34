@@ -197,19 +197,134 @@ locals {
       enable_insights = false
       cluster_type    = "FARGATE"
     },
-    # AI cluster in us-east-1 (for future GPU workloads)
     {
       name            = "ai"
       region          = "us-east-1"
       enable_insights = false
       cluster_type    = "FARGATE" # Will be EC2_GPU when GPU instances are needed
     },
-    # App cluster in ca-central-1
     {
       name            = "app"
       region          = "ca-central-1"
       enable_insights = false
       cluster_type    = "FARGATE"
+    }
+  ]
+
+  ecs_tasks = [
+    {
+      name         = "auth"
+      regions      = ["us-east-1", "ca-central-1"]
+      cluster_name = "app"
+      task_cpu     = 512
+      task_memory  = 1024
+
+      containers = [
+        {
+          name               = "auth-nginx"
+          image              = "auth-nginx:latest"  # Module will construct full ECR URL
+          cpu                = 256
+          memory             = 512
+          memory_reservation = 256
+          essential          = true
+          command            = ["nginx", "-g", "daemon off;"]
+
+          environment = [
+            {
+              name  = "APP_URL"
+              value = "https://run.defcon.run"
+            }
+          ]
+
+          port_mappings = [
+            {
+              container_port = 443
+              host_port      = 443
+            }
+          ]
+
+          health_check = {
+            command      = ["CMD-SHELL", "curl -k -f https://localhost/hello || exit 1"]
+            interval     = 60
+            timeout      = 5
+            retries      = 3
+            start_period = 120
+          }
+
+          log_stream_prefix = "nginx"
+        },
+        {
+          name               = "auth-app"
+          image              = "auth-app:latest"  # Module will construct full ECR URL
+          cpu                = 256
+          memory             = 512
+          memory_reservation = 256
+          essential          = true
+          command            = ["npm", "run", "start"]
+
+          environment = [
+            {
+              name  = "NODE_ENV"
+              value = "production"
+            },
+            {
+              name  = "NEXTAUTH_URL"
+              value = "https://run.defcon.run"
+            }
+          ]
+
+          secrets = [
+            {
+              name      = "AUTH_SECRET"
+              valueFrom = "/defcon-run/auth/secret"
+            },
+            {
+              name      = "AUTH_DYNAMODB_ID"
+              valueFrom = "/use1.defcon.run/next-auth/access_key"
+            },
+            {
+              name      = "AUTH_DYNAMODB_SECRET"
+              valueFrom = "/use1.defcon.run/next-auth/secret_key"
+            }
+          ]
+
+          port_mappings = [
+            {
+              container_port = 3000
+              host_port      = 3000
+            }
+          ]
+
+          health_check = {
+            command      = ["CMD-SHELL", "curl -f -k http://localhost:3000/hello || exit 1"]
+            interval     = 30
+            timeout      = 5
+            retries      = 3
+            start_period = 120
+          }
+
+          log_stream_prefix = "app"
+        }
+      ]
+    }
+  ]
+
+  ecr = [
+    {
+      name    = "auth-nginx"
+      regions = ["us-east-1", "ca-central-1"]
+      lifecycle_policy = {
+        max_image_count = 10
+        expire_days     = 30
+      }
+    },
+    {
+      name    = "auth-app"
+      regions = ["us-east-1", "ca-central-1"]
+      lifecycle_policy = {
+        max_image_count = 10
+        expire_days     = 30
+      }
     }
   ]
 }
