@@ -159,4 +159,35 @@ locals {
       }
     ]
   }
+
+  ec2spots = [
+    # 3 EC2 spot instances in us-east-1
+    {
+      count                  = 3
+      region                 = "us-east-1"
+      zone_name              = "run.defcon.run"
+      create_dns_records     = true
+      instance_type          = "t4g.medium"
+      spot_price_multiplier  = 1.00
+      spot_price_offset      = 0.0005
+      block_duration_minutes = 0
+      ec2key_name_prefix     = "ec2spot"
+      ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
+      githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
+    },
+    # 1 EC2 spot instance in ca-central-1
+    {
+      count                  = 1
+      region                 = "ca-central-1"
+      zone_name              = "run.defcon.run"
+      create_dns_records     = true
+      instance_type          = "t4g.medium"
+      spot_price_multiplier  = 1.00
+      spot_price_offset      = 0.0005
+      block_duration_minutes = 0
+      ec2key_name_prefix     = "ec2spot"
+      ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
+      githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
+    }
+  ]
 }
