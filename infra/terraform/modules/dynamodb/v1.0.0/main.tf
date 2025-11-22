@@ -43,6 +43,20 @@ locals {
         }
       ]
     }
+    nextauth = {
+      attributes = [
+        { name = "GSI1PK", type = "S" },
+        { name = "GSI1SK", type = "S" }
+      ]
+      global_secondary_indexes = [
+        {
+          name            = "GSI1"
+          hash_key        = "GSI1PK"
+          range_key       = "GSI1SK"
+          projection_type = "ALL"
+        }
+      ]
+    }
   }
 
   # Create a map of tables with computed properties
