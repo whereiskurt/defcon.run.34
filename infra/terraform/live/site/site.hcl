@@ -337,7 +337,7 @@ locals {
       desired_count = 1
 
       service_discovery = {
-        name           = "webapp"
+        name           = "auth"
         container_name = "auth-app"
       }
 

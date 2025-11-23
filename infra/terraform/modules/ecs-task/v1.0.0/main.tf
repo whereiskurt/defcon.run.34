@@ -145,6 +145,12 @@ resource "aws_iam_role_policy" "ssm_access" {
 resource "aws_ecs_task_definition" "task" {
   for_each = local.tasks_map
 
+  # Ensure IAM roles are fully propagated before creating task definition
+  depends_on = [
+    aws_iam_role_policy_attachment.execution_role_policy,
+    aws_iam_role_policy.ssm_access
+  ]
+
   family                   = each.value.family
   network_mode             = each.value.network_mode
   requires_compatibilities = ["FARGATE"]
