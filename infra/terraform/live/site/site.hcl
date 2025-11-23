@@ -61,16 +61,13 @@ locals {
   }
 
   cloudfront = {
-    enabled = true
+    enabled = false
 
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.defcon.run"
     domains = ["run", "auth"]
 
-    # WAF ruleset mapping per domain
-    # Map each domain to a WAF ruleset name from waf.hcl
-    # If not specified or empty string, no WAF will be attached
     waf_rulesets = {
       "run"  = "default" # Use the 'default' ruleset from waf.hcl
       "auth" = "api"     # Use the 'api' ruleset from waf.hcl
@@ -171,24 +168,27 @@ locals {
     ]
   }
 
-  ecr = [
-    {
-      name    = "auth-nginx"
-      regions = ["us-east-1", "ca-central-1"]
-      lifecycle_policy = {
-        max_image_count = 10
-        expire_days     = 30
+  ecr = {
+    enabled = false # Set to false to disable ECR repositories
+    repositories = [
+      {
+        name    = "auth-nginx"
+        regions = ["us-east-1", "ca-central-1"]
+        lifecycle_policy = {
+          max_image_count = 10
+          expire_days     = 30
+        }
+      },
+      {
+        name    = "auth-app"
+        regions = ["us-east-1", "ca-central-1"]
+        lifecycle_policy = {
+          max_image_count = 10
+          expire_days     = 30
+        }
       }
-    },
-    {
-      name    = "auth-app"
-      regions = ["us-east-1", "ca-central-1"]
-      lifecycle_policy = {
-        max_image_count = 10
-        expire_days     = 30
-      }
-    }
-  ]
+    ]
+  }
 
   ec2spots = {
     enabled = false # Set to true to enable EC2 spot instances
@@ -223,7 +223,7 @@ locals {
   }
 
   ecs_clusters = {
-    enabled = true # Set to false to disable ECS clusters
+    enabled = false # Set to false to disable ECS clusters
     clusters = [
       # App cluster in us-east-1
       {
@@ -248,7 +248,7 @@ locals {
   }
 
   ecs_tasks = {
-    enabled = true # Set to false to disable ECS tasks
+    enabled = false # Set to false to disable ECS tasks
     tasks = [
       {
         name         = "auth"
@@ -349,7 +349,7 @@ locals {
   }
 
   ecs_services = {
-    enabled = true # Set to false to disable ECS services
+    enabled = false # Set to false to disable ECS services
     services = [
       {
         name          = "auth"

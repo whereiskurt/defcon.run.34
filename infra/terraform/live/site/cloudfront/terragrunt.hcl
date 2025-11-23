@@ -1,3 +1,11 @@
+# Read site config to check if cloudfront is enabled
+locals {
+  site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+}
+
+# Skip if cloudfront is disabled
+skip = !local.site_vars.locals.cloudfront.enabled
+
 # Dependencies on regional cloudfront-assets modules
 dependency "use1_cloudfront" {
   config_path = "../region/us-east-1/cloudfront"
@@ -5,15 +13,15 @@ dependency "use1_cloudfront" {
   mock_outputs = {
     bucket_ids = {
       run  = "mock-cf-assets-run-use1"
-      mqtt = "mock-cf-assets-mqtt-use1"
+      auth = "mock-cf-assets-auth-use1"
     }
     bucket_arns = {
       run  = "arn:aws:s3:::mock-cf-assets-run-use1"
-      mqtt = "arn:aws:s3:::mock-cf-assets-mqtt-use1"
+      auth = "arn:aws:s3:::mock-cf-assets-auth-use1"
     }
     bucket_regional_domain_names = {
       run  = "mock-cf-assets-run-use1.s3.us-east-1.amazonaws.com"
-      mqtt = "mock-cf-assets-mqtt-use1.s3.us-east-1.amazonaws.com"
+      auth = "mock-cf-assets-auth-use1.s3.us-east-1.amazonaws.com"
     }
     region_label = "use1"
   }
@@ -26,15 +34,15 @@ dependency "cac1_cloudfront" {
   mock_outputs = {
     bucket_ids = {
       run  = "mock-cf-assets-run-cac1"
-      mqtt = "mock-cf-assets-mqtt-cac1"
+      auth = "mock-cf-assets-auth-cac1"
     }
     bucket_arns = {
       run  = "arn:aws:s3:::mock-cf-assets-run-cac1"
-      mqtt = "arn:aws:s3:::mock-cf-assets-mqtt-cac1"
+      auth = "arn:aws:s3:::mock-cf-assets-auth-cac1"
     }
     bucket_regional_domain_names = {
       run  = "mock-cf-assets-run-cac1.s3.ca-central-1.amazonaws.com"
-      mqtt = "mock-cf-assets-mqtt-cac1.s3.ca-central-1.amazonaws.com"
+      auth = "mock-cf-assets-auth-cac1.s3.ca-central-1.amazonaws.com"
     }
     region_label = "cac1"
   }
@@ -112,10 +120,6 @@ terraform {
   source = "${include.module.locals.module_path}/v1.0.0"
 }
 
-locals {
-  site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
-}
-
 inputs = merge(
   local.site_vars.locals,
   {
@@ -124,15 +128,15 @@ inputs = merge(
     regional_origins_by_domain = {
       for domain in local.site_vars.locals.cloudfront.domains : domain => {
         use1 = {
-          alb_dns_name                   = dependency.use1_network.outputs.alb_dns_name
-          alb_zone_id                    = dependency.use1_network.outputs.alb_zone_id
+          alb_dns_name                   = try(dependency.use1_network.outputs.alb_dns_name, "")
+          alb_zone_id                    = try(dependency.use1_network.outputs.alb_zone_id, "")
           s3_bucket_id                   = dependency.use1_cloudfront.outputs.bucket_ids[domain]
           s3_bucket_arn                  = dependency.use1_cloudfront.outputs.bucket_arns[domain]
           s3_bucket_regional_domain_name = dependency.use1_cloudfront.outputs.bucket_regional_domain_names[domain]
         }
         cac1 = {
-          alb_dns_name                   = dependency.cac1_network.outputs.alb_dns_name
-          alb_zone_id                    = dependency.cac1_network.outputs.alb_zone_id
+          alb_dns_name                   = try(dependency.cac1_network.outputs.alb_dns_name, "")
+          alb_zone_id                    = try(dependency.cac1_network.outputs.alb_zone_id, "")
           s3_bucket_id                   = dependency.cac1_cloudfront.outputs.bucket_ids[domain]
           s3_bucket_arn                  = dependency.cac1_cloudfront.outputs.bucket_arns[domain]
           s3_bucket_regional_domain_name = dependency.cac1_cloudfront.outputs.bucket_regional_domain_names[domain]

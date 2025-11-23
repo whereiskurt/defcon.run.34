@@ -4,6 +4,15 @@ include "skip" {
   expose = true
 }
 
+# Read site config to check if ecr is enabled
+locals {
+  site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  ecr_vars  = read_terragrunt_config("ecr.hcl")
+}
+
+# Skip if ecr is disabled OR if region should be skipped
+skip = !local.site_vars.locals.ecr.enabled || include.skip.locals.should_skip
+
 include "module" {
   path   = "${find_in_parent_folders("modules")}/ecr/config.hcl"
   expose = true
@@ -15,10 +24,6 @@ include "providers" {
 
 terraform {
   source = "${include.module.locals.module_path}/v1.0.0"
-}
-
-locals {
-  ecr_vars = read_terragrunt_config("ecr.hcl")
 }
 
 inputs = merge(

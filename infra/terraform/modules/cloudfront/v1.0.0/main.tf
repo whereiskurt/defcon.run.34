@@ -8,6 +8,26 @@ resource "random_id" "rnd" {
 locals {
   # Create a set from the domains list for for_each
   domain_set = toset(var.cloudfront.domains)
+
+  # For each domain, determine the default origin to use
+  # Prefer ALB if available, fall back to S3 if no ALB origins exist
+  default_origin_per_domain = {
+    for domain in var.cloudfront.domains :
+    domain => (
+      # Check if any ALB origins exist for this domain
+      length([
+        for region_key, region_value in var.regional_origins_by_domain[domain] :
+        region_key if region_value.alb_dns_name != ""
+      ]) > 0
+      # If ALB origins exist, use the first ALB
+      ? "alb-${[
+        for region_key, region_value in var.regional_origins_by_domain[domain] :
+        region_key if region_value.alb_dns_name != ""
+      ][0]}"
+      # Otherwise, fall back to first S3 origin
+      : "s3-${keys(var.regional_origins_by_domain[domain])[0]}"
+    )
+  }
 }
 
 # S3 bucket for CloudFront logs (in us-east-1 with CloudFront)
@@ -88,8 +108,13 @@ resource "aws_cloudfront_distribution" "main" {
   depends_on = [aws_s3_bucket_acl.cloudfront_logs_acl]
 
   # Dynamic origins for ALBs - use this domain's regional origins
+  # Only create ALB origins where alb_dns_name is not empty
   dynamic "origin" {
-    for_each = var.regional_origins_by_domain[each.key]
+    for_each = {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.alb_dns_name != ""
+    }
     content {
       domain_name = origin.value.alb_dns_name
       origin_id   = "alb-${origin.key}"
@@ -118,9 +143,9 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
-  # Default cache behavior - routes to first region's ALB for this domain
+  # Default cache behavior - routes to first available origin (ALB preferred, S3 fallback)
   default_cache_behavior {
-    target_origin_id       = "alb-${keys(var.regional_origins_by_domain[each.key])[0]}"
+    target_origin_id       = local.default_origin_per_domain[each.key]
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods         = ["GET", "HEAD"]
@@ -149,8 +174,13 @@ resource "aws_cloudfront_distribution" "main" {
 
   # Ordered cache behaviors for regional ALB routing
   # Pattern: /{region_label}/* routes to ALB for this domain
+  # Only create ALB behaviors where alb_dns_name is not empty
   dynamic "ordered_cache_behavior" {
-    for_each = var.regional_origins_by_domain[each.key]
+    for_each = {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.alb_dns_name != ""
+    }
     content {
       path_pattern           = "/${ordered_cache_behavior.key}/*"
       target_origin_id       = "alb-${ordered_cache_behavior.key}"

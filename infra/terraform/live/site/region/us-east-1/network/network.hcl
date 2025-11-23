@@ -30,11 +30,11 @@ locals {
     }
 
     nat_gateway = {
-      enabled = true
+      enabled = false
     }
 
     vpc_flow_logs = {
-      enabled                  = true
+      enabled                  = false
       traffic_type             = "ALL"
       max_aggregation_interval = 60
       force_destroy            = true
@@ -45,7 +45,7 @@ locals {
     }
 
     alb = {
-      enabled                    = true
+      enabled                    = false
       enable_deletion_protection = false
       ssl_policy                 = "ELBSecurityPolicy-TLS13-1-2-2021-06"
       logs_force_destroy         = true
