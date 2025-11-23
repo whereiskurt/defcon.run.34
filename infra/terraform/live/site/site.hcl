@@ -57,7 +57,6 @@ locals {
   waf = {
     enabled  = false
     log_mode = "standard" # standard | realtime
-    rule_set = "default"  # optional: which rule set to use
   }
 
   cloudfront = {
@@ -85,13 +84,21 @@ locals {
 
     # CloudFront logging configuration
     logging = {
-      enabled = true
+      enabled         = true
       include_cookies = true
     }
 
     # Price class for CloudFront distribution
     # Options: PriceClass_All, PriceClass_200, PriceClass_100
     price_class = "PriceClass_100"
+
+    # WAF ruleset mapping per domain
+    # Map each domain to a WAF ruleset name from waf.hcl
+    # If not specified or empty string, no WAF will be attached
+    waf_rulesets = {
+      "run"  = "default" # Use the 'default' ruleset from waf.hcl
+      "auth" = "api"     # Use the 'api' ruleset from waf.hcl
+    }
   }
 
   dynamodb = {

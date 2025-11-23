@@ -189,8 +189,8 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
-  # WAF Web ACL
-  web_acl_id = var.waf_web_acl_arn
+  # WAF Web ACL - lookup ARN for this specific domain
+  web_acl_id = lookup(var.waf_web_acl_arns, each.key, "")
 
   tags = merge(
     var.tags,

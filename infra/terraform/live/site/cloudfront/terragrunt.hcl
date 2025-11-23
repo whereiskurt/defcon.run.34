@@ -62,7 +62,7 @@ dependency "cac1_network" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
-# Dependency on site module for Route53 zone
+# Dependency on site module for Route53 zone and WAF
 dependency "site" {
   config_path = ".."
 
@@ -71,6 +71,14 @@ dependency "site" {
       "defcon.run" = {
         zone_id = "Z1234567890ABC"
         name    = "defcon.run"
+      }
+    }
+    waf = {
+      default = {
+        web_acl_arn = "arn:aws:wafv2:us-east-1:123456789012:global/webacl/mock-default/mock-id"
+      }
+      api = {
+        web_acl_arn = "arn:aws:wafv2:us-east-1:123456789012:global/webacl/mock-api/mock-id"
       }
     }
   }
@@ -138,8 +146,17 @@ inputs = merge(
     # ACM Certificate map from us-east-1 certs (CloudFront requires cert in us-east-1)
     cert_map = dependency.use1_certs.outputs.cert_map
 
-    # Optional WAF Web ACL ARN (empty string if WAF not enabled)
-    waf_web_acl_arn = ""
+    # WAF Web ACL ARNs per domain
+    # Map domain names to their corresponding WAF ruleset ARNs
+    # Based on waf_rulesets configuration in site.hcl
+    # Only populate if WAF is enabled in site.hcl
+    waf_web_acl_arns = local.site_vars.locals.waf.enabled ? {
+      for domain in local.site_vars.locals.cloudfront.domains :
+      domain => try(
+        dependency.site.outputs.waf[local.site_vars.locals.cloudfront.waf_rulesets[domain]].web_acl_arn,
+        ""
+      )
+    } : {}
 
     # Tags
     tags = {

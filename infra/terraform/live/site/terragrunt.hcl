@@ -1,5 +1,6 @@
 locals {
   site_vars = read_terragrunt_config("site.hcl")
+  waf_vars  = read_terragrunt_config("waf.hcl")
 }
 
 include "providers" {
@@ -16,7 +17,15 @@ terraform {
 }
 
 inputs = merge(
-  local.site_vars.locals
+  local.site_vars.locals,
+  {
+    waf = merge(
+      local.site_vars.locals.waf,
+      {
+        rulesets = local.waf_vars.locals.waf_rulesets
+      }
+    )
+  }
   # local
 )
 
