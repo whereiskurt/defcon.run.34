@@ -12,6 +12,9 @@ output "clusters" {
       service_namespace_id   = aws_service_discovery_private_dns_namespace.namespace[name].id
       service_namespace_name = aws_service_discovery_private_dns_namespace.namespace[name].name
       service_namespace_arn  = aws_service_discovery_private_dns_namespace.namespace[name].arn
+      # Aliases for ecs-service module compatibility
+      namespace_id           = aws_service_discovery_private_dns_namespace.namespace[name].id
+      namespace_name         = aws_service_discovery_private_dns_namespace.namespace[name].name
       ecs_task_role_arn      = aws_iam_role.ecs_task_role[name].arn
       ecs_task_role_name     = aws_iam_role.ecs_task_role[name].name
       region                 = var.region.full

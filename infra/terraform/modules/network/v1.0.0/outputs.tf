@@ -65,6 +65,26 @@ output "security_groups" {
   }
 }
 
+# Default security group list for ECS services
+output "security_group_ids" {
+  description = "List of default security group IDs for ECS services"
+  value = [
+    aws_security_group.sshhttps.id,
+    aws_security_group.http_only.id
+  ]
+}
+
+# Subnet aliases for compatibility
+output "private_subnet_ids" {
+  description = "Alias for private_subnets (for compatibility)"
+  value       = aws_subnet.private_subnet[*].id
+}
+
+output "public_subnet_ids" {
+  description = "Alias for public_subnets (for compatibility)"
+  value       = aws_subnet.public_subnet[*].id
+}
+
 # Load Balancer Outputs
 output "alb_arn" {
   description = "ARN of the Application Load Balancer (if enabled)"

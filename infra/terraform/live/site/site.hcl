@@ -327,4 +327,62 @@ locals {
       }
     }
   ]
+
+  # ECS Service definitions
+  # Services instantiate task definitions and connect them to load balancers
+  ecs_services = [
+    # Auth/WebApp service
+    {
+      name          = "auth"
+      regions       = ["us-east-1", "ca-central-1"]
+      cluster_name  = "app"
+      task_family   = "auth"  # Must match task definition family from ecs_tasks
+      desired_count = 1
+
+      service_discovery = {
+        name           = "webapp"
+        container_name = "auth-app"
+      }
+
+      load_balancers = [
+        {
+          type                  = "alb"
+          container_name        = "auth-nginx"
+          container_port        = 443
+          target_group_protocol = "HTTPS"
+          health_check_path     = "/hello"
+          health_check_protocol = "HTTPS"
+
+          health_check = {
+            healthy_threshold   = 2
+            unhealthy_threshold = 2
+            timeout             = 5
+            interval            = 30
+            matcher             = "200-499"
+          }
+
+          listener = {
+            port         = 443
+            protocol     = "HTTPS"
+            host_headers = ["run.defcon.run", "*.run.defcon.run"]
+          }
+        }
+      ]
+
+      autoscaling = {
+        enabled      = false
+        min_capacity = 1
+        max_capacity = 2
+
+        cpu_target = {
+          scale_out_threshold = 75
+          scale_in_threshold  = 25
+          evaluation_periods  = 2
+          period              = 60
+          cooldown            = 120
+        }
+      }
+    }
+    # Add more services here (mqtt, strapi, etherpad, etc.)
+  ]
 }
