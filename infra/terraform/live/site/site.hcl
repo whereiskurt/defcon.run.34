@@ -2,17 +2,18 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
+    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
   }
 
   dns = {
     zonename   = "defcon.run"
-    subdomains = ["email", "run", "strapi", "ctf", "mqtt"]
+    subdomains = ["email", "run", "auth"]
     ttl        = 300
   }
 
   email = {
     primary_region = "us-east-1"
-    zonenames      = ["email.defcon.run", "run.defcon.run"]
+    zonenames      = ["email.defcon.run", "run.defcon.run", "auth.defcon.run"]
     smtp_prefix    = "s"
 
     make_site_domain      = true
@@ -33,8 +34,8 @@ locals {
     ]
 
     smtp_iam_users = [
-      "support@run.defcon.run",
-      "strapi"
+      "run.defcon.run",
+      "auth.defcon.run"
     ]
 
     fwd_rules = [
@@ -47,8 +48,8 @@ locals {
         send_to = "whereiskurt+kurt-at-run.defcon.run@gmail.com"
       },
       {
-        match   = "run.defcon.run"
-        send_to = "whereiskurt+run.defcon.run@gmail.com"
+        match   = "defcon.run"
+        send_to = "whereiskurt+defcon.run@gmail.com"
       },
     ]
   }
@@ -65,7 +66,7 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.defcon.run"
-    domains = ["run", "mqtt"]
+    domains = ["run", "auth"]
 
     # Regions that will provide ALB and S3 bucket origins
     # Each region will contribute:
@@ -159,6 +160,25 @@ locals {
       }
     ]
   }
+
+  ecr = [
+    {
+      name    = "auth-nginx"
+      regions = ["us-east-1", "ca-central-1"]
+      lifecycle_policy = {
+        max_image_count = 10
+        expire_days     = 30
+      }
+    },
+    {
+      name    = "auth-app"
+      regions = ["us-east-1", "ca-central-1"]
+      lifecycle_policy = {
+        max_image_count = 10
+        expire_days     = 30
+      }
+    }
+  ]
 
   ec2spots = [
     {
@@ -306,25 +326,6 @@ locals {
           log_stream_prefix = "app"
         }
       ]
-    }
-  ]
-
-  ecr = [
-    {
-      name    = "auth-nginx"
-      regions = ["us-east-1", "ca-central-1"]
-      lifecycle_policy = {
-        max_image_count = 10
-        expire_days     = 30
-      }
-    },
-    {
-      name    = "auth-app"
-      regions = ["us-east-1", "ca-central-1"]
-      lifecycle_policy = {
-        max_image_count = 10
-        expire_days     = 30
-      }
     }
   ]
 

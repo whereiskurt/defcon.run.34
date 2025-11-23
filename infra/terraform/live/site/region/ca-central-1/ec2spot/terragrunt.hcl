@@ -1,3 +1,9 @@
+# Include skip check for regional resources
+include "skip" {
+  path   = "${find_in_parent_folders("region")}/skip.hcl"
+  expose = true
+}
+
 dependency "network" {
   config_path = "../network"
 

@@ -172,7 +172,7 @@ resource "aws_dynamodb_table" "this" {
   dynamic "replica" {
     for_each = each.value.enable_global_table ? [
       for region in each.value.config.replica_regions :
-      region if region.full != var.region.full
+      region if region.full != var.region.full && !contains(var.site.skip_regions, region.full)
     ] : []
     content {
       region_name = replica.value.full

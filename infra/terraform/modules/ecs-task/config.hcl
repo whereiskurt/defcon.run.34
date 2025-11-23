@@ -4,6 +4,9 @@ locals {
 
   module_path = "${find_in_parent_folders("modules/")}/ecs-task"
 
+  # Check if current region should be skipped
+  skip_region = contains(local.site_vars.locals.site.skip_regions, local.region_vars.locals.region.full)
+
   merged_inputs = merge(
     local.site_vars.locals,
     local.region_vars.locals
