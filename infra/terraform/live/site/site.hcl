@@ -67,6 +67,14 @@ locals {
     # e.g., "run" becomes "run.defcon.run"
     domains = ["run", "auth"]
 
+    # WAF ruleset mapping per domain
+    # Map each domain to a WAF ruleset name from waf.hcl
+    # If not specified or empty string, no WAF will be attached
+    waf_rulesets = {
+      "run"  = "default" # Use the 'default' ruleset from waf.hcl
+      "auth" = "api"     # Use the 'api' ruleset from waf.hcl
+    }
+
     # Regions that will provide ALB and S3 bucket origins
     # Each region will contribute:
     # - An ALB origin for /{region_label}/*
@@ -92,13 +100,6 @@ locals {
     # Options: PriceClass_All, PriceClass_200, PriceClass_100
     price_class = "PriceClass_100"
 
-    # WAF ruleset mapping per domain
-    # Map each domain to a WAF ruleset name from waf.hcl
-    # If not specified or empty string, no WAF will be attached
-    waf_rulesets = {
-      "run"  = "default" # Use the 'default' ruleset from waf.hcl
-      "auth" = "api"     # Use the 'api' ruleset from waf.hcl
-    }
   }
 
   dynamodb = {
