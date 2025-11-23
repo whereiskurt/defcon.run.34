@@ -9,6 +9,10 @@ locals {
 
   merged_inputs = merge(
     local.site_vars.locals,
-    local.region_vars.locals
+    local.region_vars.locals,
+    {
+      # Extract the tasks list from the new ecs_tasks object structure
+      ecs_tasks = local.site_vars.locals.ecs_tasks.tasks
+    }
   )
 }

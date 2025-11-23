@@ -4,6 +4,14 @@ include "skip" {
   expose = true
 }
 
+# Read site config to check if email is enabled
+locals {
+  site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+}
+
+# Skip if email is disabled OR if region should be skipped
+skip = !local.site_vars.locals.email.enabled || include.skip.locals.should_skip
+
 dependency "site" {
   config_path = dirname(find_in_parent_folders("site.hcl"))
 

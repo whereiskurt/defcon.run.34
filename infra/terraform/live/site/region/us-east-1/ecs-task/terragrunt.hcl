@@ -4,6 +4,15 @@ include "skip" {
   expose = true
 }
 
+# Read site config to check if ecs_tasks is enabled
+locals {
+  site_vars     = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  ecs_task_vars = read_terragrunt_config("ecs-task.hcl")
+}
+
+# Skip if ecs_tasks is disabled OR if region should be skipped
+skip = !local.site_vars.locals.ecs_tasks.enabled || include.skip.locals.should_skip
+
 dependency "ecs_cluster" {
   config_path = "../ecs-cluster"
 
@@ -28,10 +37,6 @@ include "providers" {
 
 terraform {
   source = "${include.module.locals.module_path}/v1.0.0"
-}
-
-locals {
-  ecs_task_vars = read_terragrunt_config("ecs-task.hcl")
 }
 
 inputs = merge(

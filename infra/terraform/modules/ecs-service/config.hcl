@@ -7,7 +7,8 @@ locals {
     site           = local.site_config.locals.site
     region         = local.region_config.locals.region
     dns            = local.site_config.locals.dns
-    ecs_services   = local.site_config.locals.ecs_services
+    # Extract the services list from the new ecs_services object structure
+    ecs_services   = local.site_config.locals.ecs_services.services
   }
 
   region_config = read_terragrunt_config(find_in_parent_folders("region.hcl"))

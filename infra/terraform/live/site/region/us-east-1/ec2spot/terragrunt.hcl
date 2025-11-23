@@ -4,6 +4,12 @@ include "skip" {
   expose = true
 }
 
+# Read site config to check if ec2spots is enabled
+# Note: locals block consolidated with ec2spot_vars below
+
+# Skip if ec2spots is disabled OR if region should be skipped
+skip = !local.site_vars.locals.ec2spots.enabled || include.skip.locals.should_skip
+
 dependency "network" {
   config_path = "../network"
 
@@ -49,6 +55,7 @@ terraform {
 }
 
 locals {
+  site_vars    = read_terragrunt_config(find_in_parent_folders("site.hcl"))
   ec2spot_vars = read_terragrunt_config("ec2spot.hcl")
 }
 

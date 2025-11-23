@@ -6,6 +6,10 @@ locals {
 
   merged_inputs = merge(
     local.site_vars.locals,
-    local.region_vars.locals
+    local.region_vars.locals,
+    {
+      # Extract the clusters list from the new ecs_clusters object structure
+      ecs_clusters = local.site_vars.locals.ecs_clusters.clusters
+    }
   )
 }

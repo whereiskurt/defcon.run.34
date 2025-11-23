@@ -4,6 +4,15 @@ include "skip" {
   expose = true
 }
 
+# Read site config to check if ecs_clusters is enabled
+locals {
+  site_vars        = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  ecs_cluster_vars = read_terragrunt_config("ecs-cluster.hcl")
+}
+
+# Skip if ecs_clusters is disabled OR if region should be skipped
+skip = !local.site_vars.locals.ecs_clusters.enabled || include.skip.locals.should_skip
+
 dependency "network" {
   config_path = "../network"
 
@@ -24,10 +33,6 @@ include "providers" {
 
 terraform {
   source = "${include.module.locals.module_path}/v1.0.0"
-}
-
-locals {
-  ecs_cluster_vars = read_terragrunt_config("ecs-cluster.hcl")
 }
 
 inputs = merge(

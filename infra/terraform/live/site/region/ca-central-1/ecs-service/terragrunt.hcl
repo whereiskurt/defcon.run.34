@@ -4,6 +4,14 @@ include "skip" {
   expose = true
 }
 
+# Read site config to check if ecs_services is enabled
+locals {
+  site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+}
+
+# Skip if ecs_services is disabled OR if region should be skipped
+skip = !local.site_vars.locals.ecs_services.enabled || include.skip.locals.should_skip
+
 dependency "ecs_task" {
   config_path = "../ecs-task"
 
