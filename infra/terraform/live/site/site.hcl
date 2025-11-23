@@ -328,10 +328,7 @@ locals {
     }
   ]
 
-  # ECS Service definitions
-  # Services instantiate task definitions and connect them to load balancers
   ecs_services = [
-    # Auth/WebApp service
     {
       name          = "auth"
       regions       = ["us-east-1", "ca-central-1"]
@@ -383,6 +380,5 @@ locals {
         }
       }
     }
-    # Add more services here (mqtt, strapi, etherpad, etc.)
   ]
 }
