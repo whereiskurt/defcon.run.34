@@ -1,6 +1,6 @@
 locals {
   site_vars = read_terragrunt_config("site.hcl")
-  waf_vars  = read_terragrunt_config("waf.hcl")
+  waf_vars  = read_terragrunt_config("global/waf/waf.hcl")
 }
 
 include "providers" {

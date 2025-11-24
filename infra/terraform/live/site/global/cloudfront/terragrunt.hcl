@@ -8,7 +8,7 @@ skip = !local.site_vars.locals.cloudfront.enabled
 
 # Dependencies on regional cloudfront-assets modules
 dependency "use1_cloudfront" {
-  config_path = "../region/us-east-1/cloudfront"
+  config_path = "../../region/us-east-1/cloudfront"
 
   mock_outputs = {
     bucket_ids = {
@@ -29,7 +29,7 @@ dependency "use1_cloudfront" {
 }
 
 dependency "cac1_cloudfront" {
-  config_path = "../region/ca-central-1/cloudfront"
+  config_path = "../../region/ca-central-1/cloudfront"
 
   mock_outputs = {
     bucket_ids = {
@@ -51,7 +51,7 @@ dependency "cac1_cloudfront" {
 
 # Dependencies on regional network modules for ALB info
 dependency "use1_network" {
-  config_path = "../region/us-east-1/network"
+  config_path = "../../region/us-east-1/network"
 
   mock_outputs = {
     alb_dns_name = "mock-alb-use1.us-east-1.elb.amazonaws.com"
@@ -61,7 +61,7 @@ dependency "use1_network" {
 }
 
 dependency "cac1_network" {
-  config_path = "../region/ca-central-1/network"
+  config_path = "../../region/ca-central-1/network"
 
   mock_outputs = {
     alb_dns_name = "mock-alb-cac1.ca-central-1.elb.amazonaws.com"
@@ -72,7 +72,7 @@ dependency "cac1_network" {
 
 # Dependency on site module for Route53 zone and WAF
 dependency "site" {
-  config_path = ".."
+  config_path = "../.."
 
   mock_outputs = {
     zone_map = {
@@ -95,7 +95,7 @@ dependency "site" {
 
 # Dependency on us-east-1 certs for CloudFront certificate (must be in us-east-1)
 dependency "use1_certs" {
-  config_path = "../region/us-east-1/certs"
+  config_path = "../../region/us-east-1/certs"
 
   mock_outputs = {
     cert_map = {

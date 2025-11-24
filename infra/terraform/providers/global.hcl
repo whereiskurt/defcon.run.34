@@ -2,6 +2,18 @@ locals {
   ## Global resource state/lock terraform location
   region       = "us-east-1"
   region_label = "use1"
+
+  # AWS profile prefix from environment variable TF_VAR_profile_prefix
+  # Can be set via: export TF_VAR_profile_prefix="dc" or export TF_VAR_profile_prefix="gr"
+  # If not set or empty, no prefix is used
+  profile_prefix = get_env("TF_VAR_profile_prefix", "")
+
+  # Construct profile names with optional prefix
+  # If prefix is empty or "", returns profile name as-is
+  # Otherwise returns "prefix-profile"
+  application_profile = local.profile_prefix != "" ? "${local.profile_prefix}-application" : "application"
+  management_profile  = local.profile_prefix != "" ? "${local.profile_prefix}-management" : "management"
+  terraform_profile   = "terraform"  # terraform profile never gets a prefix
 }
 
 generate "provider" {
@@ -11,22 +23,22 @@ generate "provider" {
     provider "aws" {
       # Default provider for global resources
       region = "us-east-1"
-      profile = "application"
+      profile = "${local.application_profile}"
     }
     provider "aws" {
       alias   = "global-application"
       region = "us-east-1"
-      profile = "application"
+      profile = "${local.application_profile}"
     }
     provider "aws" {
       alias   = "global-management"
       region = "us-east-1"
-      profile = "management"
+      profile = "${local.management_profile}"
     }
     provider "aws" {
       alias   = "terraform"
       region = "${local.region}"
-      profile = "teraform"
+      profile = "${local.terraform_profile}"
     }
     terraform {
       required_providers {
