@@ -12,6 +12,9 @@ resource "aws_flow_log" "vpc_flow_logs" {
   vpc_id                   = aws_vpc.vpc.id
   max_aggregation_interval = var.vpc_flow_logs.max_aggregation_interval
 
+  # Ensure bucket policy is created and propagated before flow log
+  depends_on = [aws_s3_bucket_policy.vpc_flow_logs_bucket_policy]
+
   tags = merge(
     var.vpc.tags,
     {
@@ -41,12 +44,28 @@ resource "aws_s3_bucket_policy" "vpc_flow_logs_bucket_policy" {
     Version = "2012-10-17",
     Statement = [
       {
+        Sid    = "AWSLogDeliveryWrite",
         Effect = "Allow",
         Principal = {
-          Service = "vpc-flow-logs.amazonaws.com"
+          Service = "delivery.logs.amazonaws.com"
         },
         Action   = "s3:PutObject",
         Resource = "arn:aws:s3:::${aws_s3_bucket.vpc_flow_logs[0].bucket}/*",
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl"      = "bucket-owner-full-control",
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
+      },
+      {
+        Sid    = "AWSLogDeliveryAclCheck",
+        Effect = "Allow",
+        Principal = {
+          Service = "delivery.logs.amazonaws.com"
+        },
+        Action   = "s3:GetBucketAcl",
+        Resource = "arn:aws:s3:::${aws_s3_bucket.vpc_flow_logs[0].bucket}",
         Condition = {
           StringEquals = {
             "aws:SourceAccount" = data.aws_caller_identity.current.account_id

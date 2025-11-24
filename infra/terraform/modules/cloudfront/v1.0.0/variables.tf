@@ -58,10 +58,10 @@ variable "cert_map" {
   }))
 }
 
-variable "waf_web_acl_arn" {
-  description = "ARN of the WAF Web ACL to attach to CloudFront"
-  type        = string
-  default     = ""
+variable "waf_web_acl_arns" {
+  description = "Map of WAF Web ACL ARNs by domain name (e.g., 'run' => 'arn:...')"
+  type        = map(string)
+  default     = {}
 }
 
 variable "tags" {

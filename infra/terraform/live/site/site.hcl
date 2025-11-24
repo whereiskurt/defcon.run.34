@@ -2,17 +2,23 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
+    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
+
+    # AWS profile prefix - prepended to provider profile names
+    # Examples: "dc" creates "dc-application", "gr" creates "gr-application"
+    profile_prefix = ""  # Set to "dc", "gr", or "" for no prefix
   }
 
   dns = {
     zonename   = "defcon.run"
-    subdomains = ["email", "run", "strapi", "ctf", "mqtt"]
+    subdomains = ["email", "run", "auth"]
     ttl        = 300
   }
 
   email = {
+    enabled        = true
     primary_region = "us-east-1"
-    zonenames      = ["email.defcon.run", "run.defcon.run"]
+    zonenames      = ["email.defcon.run", "run.defcon.run", "auth.defcon.run"]
     smtp_prefix    = "s"
 
     make_site_domain      = true
@@ -33,8 +39,8 @@ locals {
     ]
 
     smtp_iam_users = [
-      "support@run.defcon.run",
-      "strapi"
+      "run.defcon.run",
+      "auth.defcon.run"
     ]
 
     fwd_rules = [
@@ -47,8 +53,8 @@ locals {
         send_to = "whereiskurt+kurt-at-run.defcon.run@gmail.com"
       },
       {
-        match   = "run.defcon.run"
-        send_to = "whereiskurt+run.defcon.run@gmail.com"
+        match   = "defcon.run"
+        send_to = "whereiskurt+defcon.run@gmail.com"
       },
     ]
   }
@@ -56,7 +62,6 @@ locals {
   waf = {
     enabled  = false
     log_mode = "standard" # standard | realtime
-    rule_set = "default"  # optional: which rule set to use
   }
 
   cloudfront = {
@@ -65,7 +70,12 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.defcon.run"
-    domains = ["run", "mqtt"]
+    domains = ["run", "auth"]
+
+    waf_rulesets = {
+      "run"  = "default" # Use the 'default' ruleset from waf.hcl
+      "auth" = "api"     # Use the 'api' ruleset from waf.hcl
+    }
 
     # Regions that will provide ALB and S3 bucket origins
     # Each region will contribute:
@@ -84,17 +94,19 @@ locals {
 
     # CloudFront logging configuration
     logging = {
-      enabled = true
+      enabled         = true
       include_cookies = true
     }
 
     # Price class for CloudFront distribution
     # Options: PriceClass_All, PriceClass_200, PriceClass_100
     price_class = "PriceClass_100"
+
   }
 
   dynamodb = {
-    tables = [
+    enabled = true
+    tables  = [
       # Electro table with multi-region replication
       {
         table_name = "electro"
@@ -160,10 +172,33 @@ locals {
     ]
   }
 
-  ec2spots = [
-    # 3 EC2 spot instances in us-east-1
-    {
-      count                  = 3
+  ecr = {
+    enabled = true # Set to false to disable ECR repositories
+    repositories = [
+      {
+        name    = "auth-nginx"
+        regions = ["us-east-1", "ca-central-1"]
+        lifecycle_policy = {
+          max_image_count = 10
+          expire_days     = 30
+        }
+      },
+      {
+        name    = "auth-app"
+        regions = ["us-east-1", "ca-central-1"]
+        lifecycle_policy = {
+          max_image_count = 10
+          expire_days     = 30
+        }
+      }
+    ]
+  }
+
+  ec2spots = {
+    enabled = false # Set to true to enable EC2 spot instances
+    instances = [
+      {
+      count                  = 0
       region                 = "us-east-1"
       zone_name              = "run.defcon.run"
       create_dns_records     = true
@@ -175,9 +210,8 @@ locals {
       ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
       githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
     },
-    # 1 EC2 spot instance in ca-central-1
     {
-      count                  = 1
+      count                  = 0
       region                 = "ca-central-1"
       zone_name              = "run.defcon.run"
       create_dns_records     = true
@@ -189,5 +223,189 @@ locals {
       ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
       githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
     }
-  ]
+    ]
+  }
+
+  ecs_clusters = {
+    enabled = true # Set to false to disable ECS clusters
+    clusters = [
+      # App cluster in us-east-1
+      {
+        name            = "app"
+        region          = "us-east-1"
+        enable_insights = false
+        cluster_type    = "FARGATE"
+      },
+      {
+        name            = "ai"
+        region          = "us-east-1"
+        enable_insights = false
+        cluster_type    = "FARGATE" # Will be EC2_GPU when GPU instances are needed
+      },
+      {
+        name            = "app"
+        region          = "ca-central-1"
+        enable_insights = false
+        cluster_type    = "FARGATE"
+      }
+    ]
+  }
+
+  ecs_tasks = {
+    enabled = true # Set to false to disable ECS tasks
+    tasks = [
+      {
+        name         = "auth"
+        regions      = ["us-east-1", "ca-central-1"]
+        cluster_name = "app"
+        task_cpu     = 512
+        task_memory  = 1024
+
+        containers = [
+          {
+            name               = "auth-nginx"
+            image              = "auth-nginx:latest"  # Module will construct full ECR URL
+            cpu                = 256
+            memory             = 512
+            memory_reservation = 256
+            essential          = true
+            command            = ["nginx", "-g", "daemon off;"]
+
+            environment = [
+              {
+                name  = "APP_URL"
+                value = "https://run.defcon.run"
+              }
+            ]
+
+            port_mappings = [
+              {
+                container_port = 443
+                host_port      = 443
+              }
+            ]
+
+            health_check = {
+              command      = ["CMD-SHELL", "curl -k -f https://localhost/hello || exit 1"]
+              interval     = 60
+              timeout      = 5
+              retries      = 3
+              start_period = 120
+            }
+
+            log_stream_prefix = "nginx"
+          },
+          {
+            name               = "auth-app"
+            image              = "auth-app:latest"  # Module will construct full ECR URL
+            cpu                = 256
+            memory             = 512
+            memory_reservation = 256
+            essential          = true
+            command            = ["npm", "run", "start"]
+
+            environment = [
+              {
+                name  = "NODE_ENV"
+                value = "production"
+              },
+              {
+                name  = "NEXTAUTH_URL"
+                value = "https://run.defcon.run"
+              }
+            ]
+
+            secrets = [
+              {
+                name      = "AUTH_SECRET"
+                valueFrom = "/defcon-run/auth/secret"
+              },
+              {
+                name      = "AUTH_DYNAMODB_ID"
+                valueFrom = "/use1.defcon.run/next-auth/access_key"
+              },
+              {
+                name      = "AUTH_DYNAMODB_SECRET"
+                valueFrom = "/use1.defcon.run/next-auth/secret_key"
+              }
+            ]
+
+            port_mappings = [
+              {
+                container_port = 3000
+                host_port      = 3000
+              }
+            ]
+
+            health_check = {
+              command      = ["CMD-SHELL", "curl -f -k http://localhost:3000/hello || exit 1"]
+              interval     = 30
+              timeout      = 5
+              retries      = 3
+              start_period = 120
+            }
+
+            log_stream_prefix = "app"
+          }
+        ]
+      }
+    ]
+  }
+
+  ecs_services = {
+    enabled = true # Set to false to disable ECS services
+    services = [
+      {
+        name          = "auth"
+        regions       = ["us-east-1", "ca-central-1"]
+        cluster_name  = "app"
+        task_family   = "auth"  # Must match task definition family from ecs_tasks
+        desired_count = 1
+
+        service_discovery = {
+          name           = "auth"
+          container_name = "auth-app"
+        }
+
+        load_balancers = [
+          {
+            type                  = "alb"
+            container_name        = "auth-nginx"
+            container_port        = 443
+            target_group_protocol = "HTTPS"
+            health_check_path     = "/hello"
+            health_check_protocol = "HTTPS"
+
+            health_check = {
+              healthy_threshold   = 2
+              unhealthy_threshold = 2
+              timeout             = 5
+              interval            = 30
+              matcher             = "200-499"
+            }
+
+            listener = {
+              port         = 443
+              protocol     = "HTTPS"
+              host_headers = ["run.defcon.run", "*.run.defcon.run"]
+            }
+          }
+        ]
+
+        autoscaling = {
+          enabled      = false
+          min_capacity = 1
+          max_capacity = 2
+
+          cpu_target = {
+            scale_out_threshold = 75
+            scale_in_threshold  = 25
+            evaluation_periods  = 2
+            period              = 60
+            cooldown            = 120
+          }
+        }
+      }
+    ]
+  }
 }

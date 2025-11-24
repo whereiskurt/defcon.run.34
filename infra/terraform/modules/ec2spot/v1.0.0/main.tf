@@ -1,18 +1,3 @@
-# terraform {
-#   required_version = ">= 1.0"
-#   required_providers {
-#     aws = {
-#       source                = "hashicorp/aws"
-#       version               = ">= 5.0"
-#       configuration_aliases = [aws.application, aws.global-management]
-#     }
-#     tls = {
-#       source  = "hashicorp/tls"
-#       version = ">= 4.0"
-#     }
-#   }
-# }
-
 locals {
   # Filter EC2 spot instances for the current region
   region_ec2spots = [

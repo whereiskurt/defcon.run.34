@@ -43,6 +43,20 @@ locals {
         }
       ]
     }
+    nextauth = {
+      attributes = [
+        { name = "GSI1PK", type = "S" },
+        { name = "GSI1SK", type = "S" }
+      ]
+      global_secondary_indexes = [
+        {
+          name            = "GSI1"
+          hash_key        = "GSI1PK"
+          range_key       = "GSI1SK"
+          projection_type = "ALL"
+        }
+      ]
+    }
   }
 
   # Create a map of tables with computed properties
@@ -158,7 +172,7 @@ resource "aws_dynamodb_table" "this" {
   dynamic "replica" {
     for_each = each.value.enable_global_table ? [
       for region in each.value.config.replica_regions :
-      region if region.full != var.region.full
+      region if region.full != var.region.full && !contains(var.site.skip_regions, region.full)
     ] : []
     content {
       region_name = replica.value.full

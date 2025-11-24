@@ -21,9 +21,29 @@ variable "waf" {
   type = object({
     enabled  = bool
     log_mode = string
-    rule_set = optional(string, "default")
+    rulesets = optional(map(object({
+      enabled = optional(bool, true)
+      managed_rules = optional(list(object({
+        name                = string
+        vendor_name         = string
+        priority            = number
+        override_action     = optional(string, "none")
+        excluded_rules      = optional(list(string), [])
+        scope_down_statement = optional(any, null)
+      })), [])
+      custom_rules = optional(list(object({
+        name            = string
+        priority        = number
+        action          = string
+        statement       = any
+        visibility_config = optional(object({
+          cloudwatch_metrics_enabled = optional(bool, true)
+          sampled_requests_enabled   = optional(bool, true)
+        }), {})
+      })), [])
+    })), {})
   })
-  description = "WAF configuration"
+  description = "WAF configuration with multiple rulesets"
 
   validation {
     condition     = contains(["standard", "realtime"], var.waf.log_mode)

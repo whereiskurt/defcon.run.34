@@ -15,7 +15,17 @@ output "zone_map" {
   sensitive = false
 }
 
-output "global_waf_webacl_arn" {
-  value     = var.waf.enabled ? "aws_wafv2_web_acl.this[0].arn" : null
+output "waf" {
+  description = "Map of WAF Web ACL rulesets for CloudFront integration"
+  value = var.waf.enabled ? {
+    for ruleset_name, ruleset in module.waf : ruleset_name => {
+      web_acl_id       = ruleset.web_acl_id
+      web_acl_arn      = ruleset.web_acl_arn
+      web_acl_name     = ruleset.web_acl_name
+      web_acl_capacity = ruleset.web_acl_capacity
+      managed_rules    = ruleset.managed_rules
+      custom_rules     = ruleset.custom_rules
+    }
+  } : {}
   sensitive = false
 }

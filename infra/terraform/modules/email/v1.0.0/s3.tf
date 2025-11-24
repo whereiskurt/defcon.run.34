@@ -6,10 +6,10 @@ locals {
   # Site-level suffix allows deterministic bucket names across regions (single-apply replication)
   bucket_suffix = var.site.random_suffix != "" ? var.site.random_suffix : random_id.rnd.hex
 
-  # Filter out the current region from replica_regions to get only OTHER regions to replicate to
+  # Filter out the current region AND skipped regions from replica_regions
   replication_destinations = [
     for region in var.email.replica_regions :
-    region if region.full != var.region.full
+    region if region.full != var.region.full && !contains(var.site.skip_regions, region.full)
   ]
 
   # Convert to map for for_each

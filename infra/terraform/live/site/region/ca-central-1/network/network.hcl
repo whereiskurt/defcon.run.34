@@ -34,7 +34,7 @@ locals {
     }
 
     vpc_flow_logs = {
-      enabled                  = true
+      enabled                  = false
       traffic_type             = "ALL"
       max_aggregation_interval = 60
       force_destroy            = true
