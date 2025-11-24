@@ -2,7 +2,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
+    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
   }
 
   dns = {
@@ -12,7 +12,7 @@ locals {
   }
 
   email = {
-    enabled        = false
+    enabled        = true
     primary_region = "us-east-1"
     zonenames      = ["email.defcon.run", "run.defcon.run", "auth.defcon.run"]
     smtp_prefix    = "s"
@@ -61,7 +61,7 @@ locals {
   }
 
   cloudfront = {
-    enabled = false
+    enabled = true
 
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
@@ -101,7 +101,7 @@ locals {
   }
 
   dynamodb = {
-    enabled = false
+    enabled = true
     tables  = [
       # Electro table with multi-region replication
       {
@@ -169,7 +169,7 @@ locals {
   }
 
   ecr = {
-    enabled = false # Set to false to disable ECR repositories
+    enabled = true # Set to false to disable ECR repositories
     repositories = [
       {
         name    = "auth-nginx"
@@ -223,7 +223,7 @@ locals {
   }
 
   ecs_clusters = {
-    enabled = false # Set to false to disable ECS clusters
+    enabled = true # Set to false to disable ECS clusters
     clusters = [
       # App cluster in us-east-1
       {
@@ -248,7 +248,7 @@ locals {
   }
 
   ecs_tasks = {
-    enabled = false # Set to false to disable ECS tasks
+    enabled = true # Set to false to disable ECS tasks
     tasks = [
       {
         name         = "auth"
@@ -349,7 +349,7 @@ locals {
   }
 
   ecs_services = {
-    enabled = false # Set to false to disable ECS services
+    enabled = true # Set to false to disable ECS services
     services = [
       {
         name          = "auth"

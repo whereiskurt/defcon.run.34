@@ -30,7 +30,7 @@ locals {
     }
 
     nat_gateway = {
-      enabled = false
+      enabled = true
     }
 
     vpc_flow_logs = {
@@ -45,7 +45,7 @@ locals {
     }
 
     alb = {
-      enabled                    = false
+      enabled                    = true
       enable_deletion_protection = false
       ssl_policy                 = "ELBSecurityPolicy-TLS13-1-2-2021-06"
       logs_force_destroy         = true
