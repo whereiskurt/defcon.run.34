@@ -1,0 +1,19 @@
+FROM nginx:latest
+
+COPY certs/nginx-selfsigned.crt /etc/nginx/ssl/nginx-selfsigned.crt
+COPY certs/nginx-selfsigned.key /etc/nginx/ssl/nginx-selfsigned.key
+
+COPY nginx.conf /etc/nginx/nginx.conf
+
+RUN mkdir /etc/nginx/html
+COPY index.html /etc/nginx/html/index.html
+
+EXPOSE 443
+
+HEALTHCHECK --interval=5m --timeout=3s \
+  CMD curl -k -f https://localhost/ || exit 1
+
+ENV NGINX_ENTRYPOINT_QUIET_LOGS=1
+
+CMD ["nginx", "-g", "daemon off;"]
+

@@ -40,6 +40,18 @@ generate "provider" {
       region = "${local.region}"
       profile = "${local.terraform_profile}"
     }
+    # Regional providers for S3 bucket policy operations
+    # (bucket policies must be applied via the correct regional endpoint)
+    provider "aws" {
+      alias   = "use1"
+      region  = "us-east-1"
+      profile = "${local.application_profile}"
+    }
+    provider "aws" {
+      alias   = "cac1"
+      region  = "ca-central-1"
+      profile = "${local.application_profile}"
+    }
     terraform {
       required_providers {
         random = {

@@ -4,9 +4,6 @@ locals {
     random_suffix = get_env("SGUID", "80a6b349")
     skip_regions  = []  # Set to ["ca-central-1"] to skip that region
 
-    # AWS profile prefix - prepended to provider profile names
-    # Examples: "dc" creates "dc-application", "gr" creates "gr-application"
-    profile_prefix = ""  # Set to "dc", "gr", or "" for no prefix
   }
 
   dns = {

@@ -1,0 +1,37 @@
+#FROM node:20-alpine
+FROM node:current-alpine as builder
+
+RUN apk update && apk add --no-cache \
+      sudo \
+      curl \
+      build-base \
+      g++ \
+      libpng \
+      libpng-dev \
+      jpeg-dev \
+      pango-dev \
+      cairo-dev \
+      giflib-dev \
+      python3 \
+      ;
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+# Production stage
+FROM node:current-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+# Only copy what's needed
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+USER node
+EXPOSE 3000
+CMD ["node", "server.js"]
