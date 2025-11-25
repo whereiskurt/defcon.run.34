@@ -1,5 +1,5 @@
 #FROM node:20-alpine
-FROM node:current-alpine as builder
+FROM node:current-alpine AS builder
 
 RUN apk update && apk add --no-cache \
       sudo \
