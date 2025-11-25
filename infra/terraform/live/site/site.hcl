@@ -107,11 +107,6 @@ locals {
       # Electro table with multi-region replication
       {
         table_name = "electro"
-
-        # Table type: "standard" or "electro"
-        # standard: 1 GSI (gsi1pk-gsi1sk-index)
-        # electro: 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
-        # Set to null to use custom attributes and indexes
         table_type = "electro"
 
         # Multi-region global table configuration
@@ -142,7 +137,6 @@ locals {
       # Standard table without replication
       {
         table_name = "auth"
-
         table_type = "standard"
 
         # Single region only (no replication)
@@ -261,7 +255,7 @@ locals {
         containers = [
           {
             name               = "auth-nginx"
-            image              = "auth-nginx:latest"  # Module will construct full ECR URL
+            image              = "auth-nginx:v0.0.1"  # Module will construct full ECR URL
             cpu                = 256
             memory             = 512
             memory_reservation = 256
@@ -294,12 +288,12 @@ locals {
           },
           {
             name               = "auth-app"
-            image              = "auth-app:latest"  # Module will construct full ECR URL
+            image              = "auth-app:v0.0.1"  # Module will construct full ECR URL
             cpu                = 256
             memory             = 512
             memory_reservation = 256
             essential          = true
-            command            = ["npm", "run", "start"]
+            command            = ["node", "server.js"]
 
             environment = [
               {
@@ -314,16 +308,12 @@ locals {
 
             secrets = [
               {
-                name      = "AUTH_SECRET"
-                valueFrom = "/defcon-run/auth/secret"
-              },
-              {
                 name      = "AUTH_DYNAMODB_ID"
-                valueFrom = "/use1.defcon.run/next-auth/access_key"
+                valueFrom = "/dc34/dynamodb/use1/dc34-auth/access_key_id"
               },
               {
                 name      = "AUTH_DYNAMODB_SECRET"
-                valueFrom = "/use1.defcon.run/next-auth/secret_key"
+                valueFrom = "/dc34/dynamodb/use1/dc34-auth/secret_access_key"
               }
             ]
 
