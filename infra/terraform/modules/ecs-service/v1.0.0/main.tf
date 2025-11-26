@@ -273,11 +273,8 @@ resource "aws_ecs_service" "service" {
   deployment_minimum_healthy_percent = each.value.deployment_minimum_healthy_percent
   health_check_grace_period_seconds  = length(each.value.load_balancers) > 0 ? each.value.health_check_grace_period_seconds : null
 
-  lifecycle {
-    ignore_changes = [
-      task_definition,
-    ]
-  }
+  # Task definition changes are managed via VERSION files in apps/
+  # Terraform will deploy new task definition revisions when version changes
 
   tags = {
     Name    = each.value.service_name

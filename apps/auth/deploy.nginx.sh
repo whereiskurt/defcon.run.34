@@ -4,7 +4,8 @@ export PAGER=${PAGER:-}
 export AWS_PROFILE=${AWS_PROFILE:-application}
 export AWS_REGION=${AWS_REGION:-"us-east-1"}
 export AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query "Account" --output text)}
-export IMAGE_TAG=${IMAGE_TAG:-"v0.0.1"}
+export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export IMAGE_TAG=${IMAGE_TAG:-$(cat "${SCRIPT_DIR}/nginx/VERSION" | tr -d '[:space:]')}
 
 export REPO_NAME="dc34-auth-nginx"
 

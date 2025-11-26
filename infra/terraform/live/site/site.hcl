@@ -1,4 +1,8 @@
 locals {
+  # Read VERSION files from apps directory (trimspace removes newlines)
+  auth_nginx_version = trimspace(file("${get_repo_root()}/apps/auth/nginx/VERSION"))
+  auth_app_version   = trimspace(file("${get_repo_root()}/apps/auth/webapp/VERSION"))
+
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
@@ -167,16 +171,18 @@ locals {
     enabled = true # Set to false to disable ECR repositories
     repositories = [
       {
-        name    = "auth-nginx"
-        regions = ["us-east-1", "ca-central-1"]
+        name                 = "auth-nginx"
+        regions              = ["us-east-1", "ca-central-1"]
+        image_tag_mutability = "IMMUTABLE"
         lifecycle_policy = {
           max_image_count = 10
           expire_days     = 30
         }
       },
       {
-        name    = "auth-app"
-        regions = ["us-east-1", "ca-central-1"]
+        name                 = "auth-app"
+        regions              = ["us-east-1", "ca-central-1"]
+        image_tag_mutability = "IMMUTABLE"
         lifecycle_policy = {
           max_image_count = 10
           expire_days     = 30
@@ -249,7 +255,7 @@ locals {
         containers = [
           {
             name               = "auth-nginx"
-            image              = "auth-nginx:v0.0.1"  # Module will construct full ECR URL
+            image              = "auth-nginx:${local.auth_nginx_version}"  # Version from apps/auth/nginx/VERSION
             cpu                = 256
             memory             = 512
             memory_reservation = 256
@@ -282,7 +288,7 @@ locals {
           },
           {
             name               = "auth-app"
-            image              = "auth-app:v0.0.1"  # Module will construct full ECR URL
+            image              = "auth-app:${local.auth_app_version}"  # Version from apps/auth/webapp/VERSION
             cpu                = 256
             memory             = 512
             memory_reservation = 256
