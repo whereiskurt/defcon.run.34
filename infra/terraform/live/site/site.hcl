@@ -276,8 +276,6 @@ locals {
               timeout      = 5
               retries      = 3
               start_period = 120
-              matcher      = "200-499"
-
             }
 
             log_stream_prefix = "nginx"
@@ -295,6 +293,10 @@ locals {
               {
                 name  = "NODE_ENV"
                 value = "production"
+              },
+              {
+                name  = "HOSTNAME"
+                value = "0.0.0.0"
               },
               {
                 name  = "NEXTAUTH_URL"
@@ -321,12 +323,11 @@ locals {
             ]
 
             health_check = {
-              command      = ["CMD-SHELL", "curl -f -k http://localhost:3000/hello || exit 1"]
+              command      = ["CMD-SHELL", "curl -f -k http://localhost:3000/ || exit 1"]
               interval     = 30
               timeout      = 5
               retries      = 3
               start_period = 120
-              matcher      = "200-499"
             }
 
             log_stream_prefix = "app"
@@ -389,6 +390,156 @@ locals {
             cooldown            = 120
           }
         }
+      }
+    ]
+  }
+
+  # GitHub OIDC for Actions-based deployments
+  # Replaces SSO-based authentication for CI/CD pipelines
+  github_oidc = {
+    enabled     = true
+    github_org  = "whereiskurt"      # Your GitHub org/user
+    github_repo = "defcon.run.34"    # Your repository name
+
+    # Management account for cross-account Route53 access
+    # Set this to your management account ID to get the trust policy output
+    # After deploying, create the delegate role in the management account
+    management_account_id = null  # e.g., "123456789012"
+
+    roles = [
+      # Terragrunt role - for infrastructure deployments
+      # Equivalent to your local "terraform" profile + management profile
+      {
+        name                 = "terragrunt"
+        description          = "Terragrunt infrastructure deployments"
+        branch_restriction   = "main"  # Only main branch can assume this role
+        max_session_duration = 3600
+
+        # Full admin for now - scope down for production
+        policy_arns = [
+          "arn:aws:iam::aws:policy/AdministratorAccess"
+        ]
+
+        # Cross-account access to management account for Route53
+        # Uncomment after creating the delegate role in management account:
+        # cross_account_arns = [
+        #   "arn:aws:iam::MGMT_ACCOUNT_ID:role/dc34-github-delegate"
+        # ]
+      },
+
+      # Application role - for app deployments (ECR, S3, ECS)
+      # Equivalent to your local "application" profile
+      {
+        name                   = "application"
+        description            = "Application deployments (ECR, S3, ECS)"
+        environment_restriction = "production"  # Only production environment
+        max_session_duration   = 3600
+
+        # Scoped permissions for app deployment
+        inline_policies = [
+          {
+            name = "ecr-push"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "ECRAuth"
+                  Effect = "Allow"
+                  Action = [
+                    "ecr:GetAuthorizationToken"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "ECRPush"
+                  Effect = "Allow"
+                  Action = [
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:PutImage",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:UploadLayerPart",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:DescribeRepositories",
+                    "ecr:ListImages"
+                  ]
+                  Resource = "arn:aws:ecr:*:*:repository/dc34-*"
+                }
+              ]
+            })
+          },
+          {
+            name = "s3-assets"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "S3Assets"
+                  Effect = "Allow"
+                  Action = [
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucket"
+                  ]
+                  Resource = [
+                    "arn:aws:s3:::dc34-*",
+                    "arn:aws:s3:::dc34-*/*"
+                  ]
+                }
+              ]
+            })
+          },
+          {
+            name = "ecs-deploy"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "ECSUpdate"
+                  Effect = "Allow"
+                  Action = [
+                    "ecs:UpdateService",
+                    "ecs:DescribeServices",
+                    "ecs:DescribeClusters",
+                    "ecs:DescribeTaskDefinition"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
+          },
+          {
+            name = "ssm-read"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "SSMRead"
+                  Effect = "Allow"
+                  Action = [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters"
+                  ]
+                  Resource = "arn:aws:ssm:*:*:parameter/dc34/*"
+                }
+              ]
+            })
+          }
+        ]
+      },
+
+      # Read-only role for PR plan previews
+      {
+        name               = "readonly"
+        description        = "Read-only for PR plan previews"
+        # No branch/environment restriction - all PRs can use this
+        max_session_duration = 3600
+
+        policy_arns = [
+          "arn:aws:iam::aws:policy/ReadOnlyAccess"
+        ]
       }
     ]
   }

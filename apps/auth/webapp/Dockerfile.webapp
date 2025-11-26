@@ -27,6 +27,9 @@ FROM node:current-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
+# Install curl for health checks
+RUN apk add --no-cache curl
+
 # Only copy what's needed
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

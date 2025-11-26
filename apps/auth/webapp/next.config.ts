@@ -1,5 +1,5 @@
 //@ts-check
-const WEBAPP_ORIGIN = process.env.WEBAPP_ORIGIN || 'run.defcon.run';
+const WEBAPP_ORIGIN = process.env.WEBAPP_ORIGIN || 'auth.defcon.run';
 const WEBAPP_PREFIX = process.env.WEBAPP_PREFIX || 'use1/assets';
 
 const sharedConfig = {
