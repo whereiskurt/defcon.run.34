@@ -9,23 +9,29 @@ locals {
   # Create a set from the domains list for for_each
   domain_set = toset(var.cloudfront.domains)
 
+  # Region labels in order from the regions list (e.g., ["use1", "cac1"])
+  # This preserves the user-defined order for determining defaults
+  region_labels = [for r in var.cloudfront.regions : r.label]
+
   # For each domain, determine the default origin to use
-  # Prefer ALB if available, fall back to S3 if no ALB origins exist
+  # Prefer ALB if available (in region list order), fall back to S3 (in region list order)
   default_origin_per_domain = {
     for domain in var.cloudfront.domains :
     domain => (
-      # Check if any ALB origins exist for this domain
+      # Find the first region (in list order) that has an ALB
       length([
-        for region_key, region_value in var.regional_origins_by_domain[domain] :
-        region_key if region_value.alb_dns_name != ""
+        for region_label in local.region_labels :
+        region_label
+        if try(var.regional_origins_by_domain[domain][region_label].alb_dns_name, "") != ""
       ]) > 0
-      # If ALB origins exist, use the first ALB
+      # If ALB origins exist, use the first ALB (in region list order)
       ? "alb-${[
-        for region_key, region_value in var.regional_origins_by_domain[domain] :
-        region_key if region_value.alb_dns_name != ""
+        for region_label in local.region_labels :
+        region_label
+        if try(var.regional_origins_by_domain[domain][region_label].alb_dns_name, "") != ""
       ][0]}"
-      # Otherwise, fall back to first S3 origin
-      : "s3-${keys(var.regional_origins_by_domain[domain])[0]}"
+      # Otherwise, fall back to first S3 origin (in region list order)
+      : "s3-${local.region_labels[0]}"
     )
   }
 }
@@ -233,4 +239,72 @@ resource "aws_cloudfront_distribution" "main" {
   )
 
   provider = aws.global-application
+}
+
+# S3 bucket policies to allow CloudFront OAC access
+# Bucket policy API calls must be made to the correct regional endpoint
+# We use separate resources per region with the appropriate provider
+
+# Bucket policies for us-east-1 (use1) region
+resource "aws_s3_bucket_policy" "cf_oac_access_use1" {
+  for_each = {
+    for domain in var.cloudfront.domains : domain => var.regional_origins_by_domain[domain]["use1"]
+    if contains(keys(var.regional_origins_by_domain[domain]), "use1")
+  }
+
+  bucket = each.value.s3_bucket_id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontOACAccess"
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${each.value.s3_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.main[each.key].arn
+          }
+        }
+      }
+    ]
+  })
+
+  provider = aws.use1
+}
+
+# Bucket policies for ca-central-1 (cac1) region
+resource "aws_s3_bucket_policy" "cf_oac_access_cac1" {
+  for_each = {
+    for domain in var.cloudfront.domains : domain => var.regional_origins_by_domain[domain]["cac1"]
+    if contains(keys(var.regional_origins_by_domain[domain]), "cac1")
+  }
+
+  bucket = each.value.s3_bucket_id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowCloudFrontOACAccess"
+        Effect    = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${each.value.s3_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.main[each.key].arn
+          }
+        }
+      }
+    ]
+  })
+
+  provider = aws.cac1
 }

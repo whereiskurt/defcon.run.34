@@ -1,0 +1,37 @@
+name: auth-defcon-run-local
+
+services:
+  
+  auth-nginx:
+    container_name: auth-nginx-defcon-run
+    build:
+      context: ./nginx/
+      dockerfile: Dockerfile.nginx
+    ports:
+      - "443:443"
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost/"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
+  auth-app:
+    container_name: auth-app-defcon-run
+    network_mode: "service:auth-nginx"
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile.webapp
+    environment:
+      - HOSTNAME=0.0.0.0
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+    command: 
+      - node
+      - server.js
+    
+    # command: 
+    #   - npm
+    #   - run
+    #   - dev

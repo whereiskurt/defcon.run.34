@@ -70,8 +70,5 @@ variable "cors_allowed_origins" {
   default     = ["*"]
 }
 
-variable "cloudfront_distribution_arn" {
-  description = "ARN of CloudFront distribution to grant access (optional, for bucket policy)"
-  type        = string
-  default     = ""
-}
+# Note: cloudfront_distribution_arns variable removed - bucket policies are now
+# created in the global/cloudfront module using regional provider aliases

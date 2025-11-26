@@ -32,7 +32,5 @@ terraform {
 inputs = merge(
   include.module.locals.merged_inputs,
   {
-    # Regional S3 bucket will be created here
-    # Outputs will be consumed by the site-level CloudFront distribution
   }
 )

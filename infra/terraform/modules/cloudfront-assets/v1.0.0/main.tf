@@ -104,6 +104,6 @@ resource "aws_s3_bucket_lifecycle_configuration" "cf_assets_lifecycle" {
   }
 }
 
-# Note: S3 bucket policies for CloudFront access are not needed here
-# because Origin Access Control (OAC) is configured in the CloudFront module
-# The OAC provides more secure access control than bucket policies
+# Note: S3 bucket policies for CloudFront OAC access are created in the
+# global/cloudfront module using regional provider aliases (aws.use1, aws.cac1)
+# since bucket policy API calls must be made to the correct regional endpoint.

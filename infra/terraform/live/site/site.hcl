@@ -2,11 +2,8 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
+    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
 
-    # AWS profile prefix - prepended to provider profile names
-    # Examples: "dc" creates "dc-application", "gr" creates "gr-application"
-    profile_prefix = ""  # Set to "dc", "gr", or "" for no prefix
   }
 
   dns = {
@@ -70,7 +67,7 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.defcon.run"
-    domains = ["run", "auth"]
+    domains = ["auth"]
 
     waf_rulesets = {
       "run"  = "default" # Use the 'default' ruleset from waf.hcl
@@ -110,11 +107,6 @@ locals {
       # Electro table with multi-region replication
       {
         table_name = "electro"
-
-        # Table type: "standard" or "electro"
-        # standard: 1 GSI (gsi1pk-gsi1sk-index)
-        # electro: 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
-        # Set to null to use custom attributes and indexes
         table_type = "electro"
 
         # Multi-region global table configuration
@@ -145,7 +137,6 @@ locals {
       # Standard table without replication
       {
         table_name = "auth"
-
         table_type = "standard"
 
         # Single region only (no replication)
@@ -237,12 +228,6 @@ locals {
         cluster_type    = "FARGATE"
       },
       {
-        name            = "ai"
-        region          = "us-east-1"
-        enable_insights = false
-        cluster_type    = "FARGATE" # Will be EC2_GPU when GPU instances are needed
-      },
-      {
         name            = "app"
         region          = "ca-central-1"
         enable_insights = false
@@ -264,7 +249,7 @@ locals {
         containers = [
           {
             name               = "auth-nginx"
-            image              = "auth-nginx:latest"  # Module will construct full ECR URL
+            image              = "auth-nginx:v0.0.1"  # Module will construct full ECR URL
             cpu                = 256
             memory             = 512
             memory_reservation = 256
@@ -297,17 +282,21 @@ locals {
           },
           {
             name               = "auth-app"
-            image              = "auth-app:latest"  # Module will construct full ECR URL
+            image              = "auth-app:v0.0.1"  # Module will construct full ECR URL
             cpu                = 256
             memory             = 512
             memory_reservation = 256
             essential          = true
-            command            = ["npm", "run", "start"]
+            command            = ["node", "server.js"]
 
             environment = [
               {
                 name  = "NODE_ENV"
                 value = "production"
+              },
+              {
+                name  = "HOSTNAME"
+                value = "0.0.0.0"
               },
               {
                 name  = "NEXTAUTH_URL"
@@ -317,16 +306,12 @@ locals {
 
             secrets = [
               {
-                name      = "AUTH_SECRET"
-                valueFrom = "/defcon-run/auth/secret"
-              },
-              {
                 name      = "AUTH_DYNAMODB_ID"
-                valueFrom = "/use1.defcon.run/next-auth/access_key"
+                valueFrom = "/dc34/dynamodb/use1/auth/access_key_id"
               },
               {
                 name      = "AUTH_DYNAMODB_SECRET"
-                valueFrom = "/use1.defcon.run/next-auth/secret_key"
+                valueFrom = "/dc34/dynamodb/use1/auth/secret_access_key"
               }
             ]
 
@@ -338,7 +323,7 @@ locals {
             ]
 
             health_check = {
-              command      = ["CMD-SHELL", "curl -f -k http://localhost:3000/hello || exit 1"]
+              command      = ["CMD-SHELL", "curl -f -k http://localhost:3000/ || exit 1"]
               interval     = 30
               timeout      = 5
               retries      = 3
@@ -387,7 +372,7 @@ locals {
             listener = {
               port         = 443
               protocol     = "HTTPS"
-              host_headers = ["run.defcon.run", "*.run.defcon.run"]
+              host_headers = ["auth.defcon.run", "*.auth.defcon.run"]
             }
           }
         ]
@@ -405,6 +390,156 @@ locals {
             cooldown            = 120
           }
         }
+      }
+    ]
+  }
+
+  # GitHub OIDC for Actions-based deployments
+  # Replaces SSO-based authentication for CI/CD pipelines
+  github_oidc = {
+    enabled     = true
+    github_org  = "whereiskurt"      # Your GitHub org/user
+    github_repo = "defcon.run.34"    # Your repository name
+
+    # Management account for cross-account Route53 access
+    # Set this to your management account ID to get the trust policy output
+    # After deploying, create the delegate role in the management account
+    management_account_id = null  # e.g., "123456789012"
+
+    roles = [
+      # Terragrunt role - for infrastructure deployments
+      # Equivalent to your local "terraform" profile + management profile
+      {
+        name                 = "terragrunt"
+        description          = "Terragrunt infrastructure deployments"
+        branch_restriction   = "main"  # Only main branch can assume this role
+        max_session_duration = 3600
+
+        # Full admin for now - scope down for production
+        policy_arns = [
+          "arn:aws:iam::aws:policy/AdministratorAccess"
+        ]
+
+        # Cross-account access to management account for Route53
+        # Uncomment after creating the delegate role in management account:
+        # cross_account_arns = [
+        #   "arn:aws:iam::MGMT_ACCOUNT_ID:role/dc34-github-delegate"
+        # ]
+      },
+
+      # Application role - for app deployments (ECR, S3, ECS)
+      # Equivalent to your local "application" profile
+      {
+        name                   = "application"
+        description            = "Application deployments (ECR, S3, ECS)"
+        environment_restriction = "production"  # Only production environment
+        max_session_duration   = 3600
+
+        # Scoped permissions for app deployment
+        inline_policies = [
+          {
+            name = "ecr-push"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "ECRAuth"
+                  Effect = "Allow"
+                  Action = [
+                    "ecr:GetAuthorizationToken"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "ECRPush"
+                  Effect = "Allow"
+                  Action = [
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:PutImage",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:UploadLayerPart",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:DescribeRepositories",
+                    "ecr:ListImages"
+                  ]
+                  Resource = "arn:aws:ecr:*:*:repository/dc34-*"
+                }
+              ]
+            })
+          },
+          {
+            name = "s3-assets"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "S3Assets"
+                  Effect = "Allow"
+                  Action = [
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucket"
+                  ]
+                  Resource = [
+                    "arn:aws:s3:::dc34-*",
+                    "arn:aws:s3:::dc34-*/*"
+                  ]
+                }
+              ]
+            })
+          },
+          {
+            name = "ecs-deploy"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "ECSUpdate"
+                  Effect = "Allow"
+                  Action = [
+                    "ecs:UpdateService",
+                    "ecs:DescribeServices",
+                    "ecs:DescribeClusters",
+                    "ecs:DescribeTaskDefinition"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
+          },
+          {
+            name = "ssm-read"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "SSMRead"
+                  Effect = "Allow"
+                  Action = [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters"
+                  ]
+                  Resource = "arn:aws:ssm:*:*:parameter/dc34/*"
+                }
+              ]
+            })
+          }
+        ]
+      },
+
+      # Read-only role for PR plan previews
+      {
+        name               = "readonly"
+        description        = "Read-only for PR plan previews"
+        # No branch/environment restriction - all PRs can use this
+        max_session_duration = 3600
+
+        policy_arns = [
+          "arn:aws:iam::aws:policy/ReadOnlyAccess"
+        ]
       }
     ]
   }

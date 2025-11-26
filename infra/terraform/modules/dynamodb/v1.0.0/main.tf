@@ -63,7 +63,7 @@ locals {
   tables = {
     for table in var.dynamodb.tables : table.table_name => {
       config              = table
-      table_name          = "${var.site.label}-${table.table_name}-${local.table_suffix}"
+      table_name          = "${table.table_name}"
       is_primary_region   = var.region.full == table.replica_regions[0].full
       enable_global_table = var.region.full == table.replica_regions[0].full && length(table.replica_regions) > 1
 
