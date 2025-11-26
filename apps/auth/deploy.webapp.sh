@@ -7,7 +7,7 @@ export AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query "A
 export IMAGE_TAG=${IMAGE_TAG:-"v0.0.1"}
 export REPO_NAME="dc34-auth-app"
 export WEBAPP_ORIGIN="auth.defcon.run"
-export WEBAPP_PREFIX=${WEBAPP_PREFIX:-"www"}
+export WEBAPP_PREFIX=${WEBAPP_PREFIX:-"use1/assets"}
 export REGION_SHORT=${REGION_SHORT:-"use1"}
 export WEBAPP_ORIGIN_BUCKET=$(aws ssm get-parameter --name "/dc34/cloudfront-assets/${REGION_SHORT}/auth/bucket_name" --region "${AWS_REGION}" --query "Parameter.Value" --output text)
 

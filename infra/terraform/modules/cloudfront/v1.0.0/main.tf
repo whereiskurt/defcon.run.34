@@ -9,23 +9,29 @@ locals {
   # Create a set from the domains list for for_each
   domain_set = toset(var.cloudfront.domains)
 
+  # Region labels in order from the regions list (e.g., ["use1", "cac1"])
+  # This preserves the user-defined order for determining defaults
+  region_labels = [for r in var.cloudfront.regions : r.label]
+
   # For each domain, determine the default origin to use
-  # Prefer ALB if available, fall back to S3 if no ALB origins exist
+  # Prefer ALB if available (in region list order), fall back to S3 (in region list order)
   default_origin_per_domain = {
     for domain in var.cloudfront.domains :
     domain => (
-      # Check if any ALB origins exist for this domain
+      # Find the first region (in list order) that has an ALB
       length([
-        for region_key, region_value in var.regional_origins_by_domain[domain] :
-        region_key if region_value.alb_dns_name != ""
+        for region_label in local.region_labels :
+        region_label
+        if try(var.regional_origins_by_domain[domain][region_label].alb_dns_name, "") != ""
       ]) > 0
-      # If ALB origins exist, use the first ALB
+      # If ALB origins exist, use the first ALB (in region list order)
       ? "alb-${[
-        for region_key, region_value in var.regional_origins_by_domain[domain] :
-        region_key if region_value.alb_dns_name != ""
+        for region_label in local.region_labels :
+        region_label
+        if try(var.regional_origins_by_domain[domain][region_label].alb_dns_name, "") != ""
       ][0]}"
-      # Otherwise, fall back to first S3 origin
-      : "s3-${keys(var.regional_origins_by_domain[domain])[0]}"
+      # Otherwise, fall back to first S3 origin (in region list order)
+      : "s3-${local.region_labels[0]}"
     )
   }
 }

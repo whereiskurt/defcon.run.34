@@ -2,7 +2,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
+    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
 
   }
 
@@ -67,7 +67,7 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.defcon.run"
-    domains = ["run", "auth"]
+    domains = ["auth"]
 
     waf_rulesets = {
       "run"  = "default" # Use the 'default' ruleset from waf.hcl
@@ -228,12 +228,6 @@ locals {
         cluster_type    = "FARGATE"
       },
       {
-        name            = "ai"
-        region          = "us-east-1"
-        enable_insights = false
-        cluster_type    = "FARGATE" # Will be EC2_GPU when GPU instances are needed
-      },
-      {
         name            = "app"
         region          = "ca-central-1"
         enable_insights = false
@@ -282,6 +276,8 @@ locals {
               timeout      = 5
               retries      = 3
               start_period = 120
+              matcher      = "200-499"
+
             }
 
             log_stream_prefix = "nginx"
@@ -309,11 +305,11 @@ locals {
             secrets = [
               {
                 name      = "AUTH_DYNAMODB_ID"
-                valueFrom = "/dc34/dynamodb/use1/dc34-auth/access_key_id"
+                valueFrom = "/dc34/dynamodb/use1/auth/access_key_id"
               },
               {
                 name      = "AUTH_DYNAMODB_SECRET"
-                valueFrom = "/dc34/dynamodb/use1/dc34-auth/secret_access_key"
+                valueFrom = "/dc34/dynamodb/use1/auth/secret_access_key"
               }
             ]
 
@@ -330,6 +326,7 @@ locals {
               timeout      = 5
               retries      = 3
               start_period = 120
+              matcher      = "200-499"
             }
 
             log_stream_prefix = "app"
@@ -374,7 +371,7 @@ locals {
             listener = {
               port         = 443
               protocol     = "HTTPS"
-              host_headers = ["run.defcon.run", "*.run.defcon.run"]
+              host_headers = ["auth.defcon.run", "*.auth.defcon.run"]
             }
           }
         ]
