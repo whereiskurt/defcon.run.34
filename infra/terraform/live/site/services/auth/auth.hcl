@@ -1,10 +1,4 @@
-# Auth Service Definition
-# This file defines the auth service, its tasks, and container versions
-# Version changes here trigger ECS deployments
-
 locals {
-  # Container image versions for the auth service
-  # Update VERSION.nginx and VERSION.app files to deploy new versions
   versions = {
     nginx = trimspace(file("${get_terragrunt_dir()}/VERSION.nginx"))
     app   = trimspace(file("${get_terragrunt_dir()}/VERSION.app"))
