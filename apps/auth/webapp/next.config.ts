@@ -6,6 +6,7 @@ const sharedConfig = {
   images: {
     remotePatterns: [new URL(`https://*.defcon.run/**`)],
   },
+  allowedDevOrigins: ['local://*', '*.local', '192.168.*.*'],
   async redirects() {
     return [
       {
@@ -13,7 +14,7 @@ const sharedConfig = {
         destination: 'https://github.com/whereiskurt/meshtk',
         permanent: true,
       }
-    ];  
+    ];
   }
 };
 

@@ -106,7 +106,9 @@ resource "aws_iam_role_policy" "ecs_task_policy" {
           "cloudwatchlogs:*",
           "cloudtrail:*",
           "kms:*",
-          "secretsmanager:*"
+          "secretsmanager:*",
+          "ses:SendEmail",
+          "ses:SendRawEmail"
         ]
         Resource = "*"
       }

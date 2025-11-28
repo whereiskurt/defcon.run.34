@@ -16,6 +16,8 @@
   "dependencies": {
     "@auth/dynamodb-adapter": "^2.11.1",
     "@aws-sdk/client-dynamodb": "^3.939.0",
+    "@aws-sdk/client-ses": "^3.940.0",
+    "@aws-sdk/client-sesv2": "^3.940.0",
     "@aws-sdk/lib-dynamodb": "^3.939.0",
     "@heroui/button": "^2.2.27",
     "@heroui/card": "^2.2.25",
@@ -60,6 +62,8 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24",
+    "@types/nodemailer": "^7.0.4",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

@@ -140,7 +140,7 @@ locals {
       # Standard table without replication
       {
         table_name = "auth"
-        table_type = "standard"
+        table_type = "nextauth"
 
         # Single region only (no replication)
         replica_regions = [

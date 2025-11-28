@@ -7,12 +7,42 @@ locals {
   # Check if current region should be skipped
   skip_region = contains(local.site_vars.locals.site.skip_regions, local.region_vars.locals.region.full)
 
+  # Transform tasks to replace placeholders:
+  #   {{REGION_LABEL}} -> region label (use1, cac1)
+  #   {{REGION}}       -> full region name (us-east-1, ca-central-1)
+  #   {{SITE_LABEL}}   -> site label (dc34)
+  tasks_with_region_placeholders = [
+    for task in local.site_vars.locals.ecs_tasks.tasks :
+    merge(task, {
+      containers = [
+        for container in task.containers :
+        merge(container, {
+          environment = try(container.environment, null) != null ? [
+            for env in container.environment :
+            merge(env, {
+              value = replace(env.value, "{{REGION}}", local.region_vars.locals.region.full)
+            })
+          ] : null
+          secrets = try(container.secrets, null) != null ? [
+            for secret in container.secrets :
+            merge(secret, {
+              valueFrom = replace(
+                replace(secret.valueFrom, "{{REGION_LABEL}}", local.region_vars.locals.region.label),
+                "{{SITE_LABEL}}", local.site_vars.locals.site.label
+              )
+            })
+          ] : null
+        })
+      ]
+    })
+  ]
+
   merged_inputs = merge(
     local.site_vars.locals,
     local.region_vars.locals,
     {
-      # Extract the tasks list from the new ecs_tasks object structure
-      ecs_tasks = local.site_vars.locals.ecs_tasks.tasks
+      # Use transformed tasks with region-specific placeholders replaced
+      ecs_tasks = local.tasks_with_region_placeholders
     }
   )
 }

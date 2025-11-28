@@ -59,7 +59,7 @@ locals {
         ]
 
         health_check = {
-          command      = ["CMD-SHELL", "curl -k -f https://localhost/hello || exit 1"]
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -k -f https://localhost/hello || exit 1"]
           interval     = 60
           timeout      = 5
           retries      = 3
@@ -88,18 +88,58 @@ locals {
           },
           {
             name  = "NEXTAUTH_URL"
-            value = "https://run.defcon.run"
+            value = "https://auth.defcon.run"
+          },
+          {
+            name  = "AWS_REGION"
+            value = "{{REGION}}"
+          },
+          {
+            name  = "AUTH_SES_REGION"
+            value = "{{REGION}}"
           }
         ]
 
         secrets = [
           {
+            name      = "AUTH_SECRET"
+            valueFrom = "/defcon.run/auth/secret"
+          },
+          {
             name      = "AUTH_DYNAMODB_ID"
-            valueFrom = "/dc34/dynamodb/use1/auth/access_key_id"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth/access_key_id"
           },
           {
             name      = "AUTH_DYNAMODB_SECRET"
-            valueFrom = "/dc34/dynamodb/use1/auth/secret_access_key"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth/secret_access_key"
+          },
+          {
+            name      = "AUTH_DYNAMODB_DBNAME"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth/table_name"
+          },
+          {
+            name      = "AUTH_GITHUB_ID"
+            valueFrom = "/defcon.run/auth/github/id"
+          },
+          {
+            name      = "AUTH_GITHUB_SECRET"
+            valueFrom = "/defcon.run/auth/github/secret"
+          },
+          {
+            name      = "AUTH_STRAVA_CLIENT_ID"
+            valueFrom = "/defcon.run/auth/strava/id"
+          },
+          {
+            name      = "AUTH_STRAVA_CLIENT_SECRET"
+            valueFrom = "/defcon.run/auth/strava/secret"
+          },
+          {
+            name      = "AUTH_DISCORD_CLIENT_ID"
+            valueFrom = "/defcon.run/auth/discord/id"
+          },
+          {
+            name      = "AUTH_DISCORD_CLIENT_SECRET"
+            valueFrom = "/defcon.run/auth/discord/secret"
           }
         ]
 
@@ -111,7 +151,7 @@ locals {
         ]
 
         health_check = {
-          command      = ["CMD-SHELL", "curl -f -k http://localhost:3000/ || exit 1"]
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/login/auth || exit 1"]
           interval     = 30
           timeout      = 5
           retries      = 3
