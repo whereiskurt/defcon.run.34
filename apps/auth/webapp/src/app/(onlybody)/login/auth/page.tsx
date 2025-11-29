@@ -23,6 +23,7 @@ import { useTheme } from 'next-themes';
 import { useState } from 'react';
 import { getCsrfToken } from "next-auth/react"
 import { useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 import { FaDiscord, FaGithub } from 'react-icons/fa';
 import { signIn } from 'next-auth/react';
@@ -38,6 +39,10 @@ function ClientOnlyForm() {
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const { resolvedTheme } = useTheme();
+  const searchParams = useSearchParams();
+
+  // Check for OIDC interaction ID in URL params
+  const oidcInteraction = searchParams?.get('oidc');
 
   useEffect(() => {
     setMounted(true);
@@ -76,7 +81,11 @@ function ClientOnlyForm() {
         const errorData = await res.json()
         throw new Error(errorData.error)
       } else {
-        window.location.href = `/login/verify?email=${email}`; // This will perform a full page reload
+        // Include OIDC interaction ID if present (for OIDC flow)
+        const verifyUrl = oidcInteraction
+          ? `/login/verify?email=${email}&oidc=${oidcInteraction}`
+          : `/login/verify?email=${email}`;
+        window.location.href = verifyUrl;
       }
     } catch (error: any) {
       setError(error.message)
@@ -197,7 +206,11 @@ function ClientOnlyForm() {
                   <Link
                     size="lg"
                     href="#"
-                    onPress={() => signIn('discord', { callbackUrl: '/dashboard' })}
+                    onPress={() => signIn('discord', {
+                      callbackUrl: oidcInteraction
+                        ? `/api/oidc/interaction/${oidcInteraction}`
+                        : '/dashboard'
+                    })}
                     >
                     &nbsp; <FaDiscord />
                     Discord
@@ -206,7 +219,11 @@ function ClientOnlyForm() {
                   <Link
                     size="lg"
                     href="#"
-                    onPress={() => signIn('github', { callbackUrl: '/dashboard' })}
+                    onPress={() => signIn('github', {
+                      callbackUrl: oidcInteraction
+                        ? `/api/oidc/interaction/${oidcInteraction}`
+                        : '/dashboard'
+                    })}
                     >
                     &nbsp; <FaGithub />
                     Github

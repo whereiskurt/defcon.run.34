@@ -7,21 +7,24 @@ import type { Provider } from "next-auth/providers";
 import { createTransport } from "nodemailer";
 
 import NextAuth, { type DefaultSession } from "next-auth";
+import { upsertAuthProfile, getAuthProfile } from "@/entities/auth-profile";
 
 declare module "next-auth" {
   interface Session {
     user: {
-      // theme: string;
-      // hasStrava: boolean;
+      id: string;
+      services: string[];
     } & DefaultSession["user"];
+  }
+  interface User {
+    services?: string[];
   }
 }
 
 declare module "@auth/core/jwt" {
   interface JWT {
     userId: string;
-    // stravaId: string;
-    // theme: string;
+    services: string[];
   }
 }
 
@@ -178,33 +181,115 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return false;
     },
 
-    async jwt({ token, account, profile, trigger, session }) {
+    async jwt({ token, account, profile, trigger, session, user }) {
       if (trigger === "update") {
         // token.theme = session.user.theme;
         // token.stravaId = session.user.hasStrava;
       } else if (account && profile) {
+        // Get the user ID from the user object or token (ensure it's a string)
+        const userId = (typeof user?.id === "string" && user.id)
+          || (typeof token.sub === "string" && token.sub)
+          || (typeof token.userId === "string" && token.userId);
+
         if (account.provider === "discord") {
           token.name = `${profile.global_name}`;
           token.picture = `${profile.image_url}`;
+
+          // Persist Discord profile to AuthProfile entity
+          if (userId) {
+            upsertAuthProfile(userId, "discord", {
+              email: profile.email as string | undefined,
+              discord: {
+                id: String(profile.id),
+                username: String(profile.username),
+                globalName: profile.global_name as string | undefined,
+                discriminator: profile.discriminator as string | undefined,
+                avatarUrl: profile.image_url as string | undefined,
+                email: profile.email as string | undefined,
+              },
+              // Store the full raw profile for later use
+              discordProfile: profile as Record<string, unknown>,
+            }).catch((err) => console.error("Failed to upsert Discord profile:", err));
+          }
         } else if (account.provider === "github") {
           token.name = `${profile.login}`;
           token.picture = `${profile.avatar_url}`;
+
+          // Persist GitHub profile to AuthProfile entity
+          if (userId) {
+            upsertAuthProfile(userId, "github", {
+              email: profile.email as string | undefined,
+              github: {
+                id: Number(profile.id),
+                login: String(profile.login),
+                name: profile.name as string | undefined,
+                avatarUrl: profile.avatar_url as string | undefined,
+                email: profile.email as string | undefined,
+              },
+              // Store the full raw profile for later use
+              githubProfile: profile as Record<string, unknown>,
+            }).catch((err) => console.error("Failed to upsert GitHub profile:", err));
+          }
         } else if (account.provider === "strava" && token.email != "") {
           token.name = `${profile.username}`;
           token.picture = `${profile.profile_medium}`;
+
+          // Persist Strava profile to AuthProfile entity
+          if (userId) {
+            upsertAuthProfile(userId, "strava", {
+              strava: {
+                id: Number(profile.id),
+                username: profile.username as string | undefined,
+                firstName: profile.firstname as string | undefined,
+                lastName: profile.lastname as string | undefined,
+                profileMedium: profile.profile_medium as string | undefined,
+                city: profile.city as string | undefined,
+                state: profile.state as string | undefined,
+                country: profile.country as string | undefined,
+              },
+              // Store the full raw profile for later use
+              stravaProfile: profile as Record<string, unknown>,
+            }).catch((err) => console.error("Failed to upsert Strava profile:", err));
+          }
         }
       } else if (account && account.provider === "nodemailer") {
         // There is no ${profile} for nodemailer.
+        // Persist email profile to AuthProfile entity
+        const userId = (typeof user?.id === "string" && user.id)
+          || (typeof token.sub === "string" && token.sub)
+          || (typeof token.userId === "string" && token.userId);
+        if (userId && token.email) {
+          upsertAuthProfile(userId, "email", {
+            email: token.email as string,
+          }).catch((err) => console.error("Failed to upsert email profile:", err));
+        }
       }
+
+      // Fetch services from AuthProfile and store in token
+      // This runs on every JWT refresh, so services will be updated
+      const userId = (typeof user?.id === "string" && user.id)
+        || (typeof token.sub === "string" && token.sub)
+        || (typeof token.userId === "string" && token.userId);
+      if (userId) {
+        try {
+          const profile = await getAuthProfile(userId);
+          token.services = profile?.services;
+        } catch (err) {
+          console.error("Failed to fetch services for token:", err);
+          token.services = token.services;
+        }
+      } else {
+        token.services = token.services;
+      }
+
       return token;
     },
 
     session({ session, token }) {
-      // session.user.hasStrava = token.stravaId ? true : (false as boolean);
-      // session.user.theme = token.theme as string;
       session.user.name = token.name as string;
       session.user.id = token.userId as string;
       session.user.email = token.email as string;
+      session.user.services = token.services as string[];
       return session;
     },
   },

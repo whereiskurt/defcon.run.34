@@ -7,9 +7,11 @@ export function PathnameBinder() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Add pathname as data attribute to body
-    document.body.setAttribute('data-pathname', pathname);
-    
+    if (pathname) {
+      // Add pathname as data attribute to body
+      document.body.setAttribute('data-pathname', pathname);
+    }
+
     return () => {
       // Clean up on unmount
       document.body.removeAttribute('data-pathname');

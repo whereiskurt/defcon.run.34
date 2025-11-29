@@ -22,7 +22,9 @@ const productionConfig = {
   ...sharedConfig,
   output: 'standalone',
   assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}`, // rewrites <script> / <link> tags
-  turbopack: {},
+  turbopack: {
+    root: __dirname, // Silence the workspace root warning
+  },
 };
 
 export default process.env.NODE_ENV === 'production' ? productionConfig : sharedConfig
