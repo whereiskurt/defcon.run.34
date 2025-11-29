@@ -17,10 +17,12 @@ import BlurPulseBackground from '@/components/BlurPulseBackground';
 import { RainbowText } from '@/components/text-effects';
 import { Text, Heading } from '@components/text-effects/Common';
 
-import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers } from 'lucide-react';
+import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown } from 'lucide-react';
 
 function DashboardContent() {
   const [mounted, setMounted] = useState(false);
+  const [isClaimsOpen, setIsClaimsOpen] = useState(false);
+  const [isRawSessionOpen, setIsRawSessionOpen] = useState(false);
   const { resolvedTheme } = useTheme();
   const { data: session, status } = useSession();
 
@@ -126,11 +128,22 @@ function DashboardContent() {
 
             {/* Session Details */}
             <div className="space-y-3">
-              <Heading level={4} className={isDarkTheme ? 'text-white' : 'text-black'}>
-                User Claims
-              </Heading>
+              <button
+                onClick={() => setIsClaimsOpen(!isClaimsOpen)}
+                className={`flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity`}
+              >
+                {isClaimsOpen ? (
+                  <ChevronDown className={`w-5 h-5 ${isDarkTheme ? 'text-white' : 'text-black'}`} />
+                ) : (
+                  <ChevronRight className={`w-5 h-5 ${isDarkTheme ? 'text-white' : 'text-black'}`} />
+                )}
+                <Heading level={4} className={isDarkTheme ? 'text-white' : 'text-black'}>
+                  User Claims
+                </Heading>
+              </button>
 
-              <div className="space-y-2">
+              {isClaimsOpen && (
+                <div className="space-y-2">
                 {user?.id && (
                   <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
                     <Shield className={`w-5 h-5 ${isDarkTheme ? 'text-blue-400' : 'text-blue-600'}`} />
@@ -215,16 +228,30 @@ function DashboardContent() {
                   </div>
                 </div>
               </div>
+              )
+            }
             </div>
 
             {/* Raw Session Data */}
             <div className="space-y-2">
-              <Heading level={4} className={isDarkTheme ? 'text-white' : 'text-black'}>
-                Raw Session Object
-              </Heading>
-              <pre className={`p-3 rounded-md text-xs overflow-x-auto ${isDarkTheme ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-800'}`}>
-                {JSON.stringify(session, null, 2)}
-              </pre>
+              <button
+                onClick={() => setIsRawSessionOpen(!isRawSessionOpen)}
+                className={`flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity`}
+              >
+                {isRawSessionOpen ? (
+                  <ChevronDown className={`w-5 h-5 ${isDarkTheme ? 'text-white' : 'text-black'}`} />
+                ) : (
+                  <ChevronRight className={`w-5 h-5 ${isDarkTheme ? 'text-white' : 'text-black'}`} />
+                )}
+                <Heading level={4} className={isDarkTheme ? 'text-white' : 'text-black'}>
+                  Raw Session Object
+                </Heading>
+              </button>
+              {isRawSessionOpen && (
+                <pre className={`p-3 rounded-md text-xs overflow-x-auto ${isDarkTheme ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-800'}`}>
+                  {JSON.stringify(session, null, 2)}
+                </pre>
+              )}
             </div>
           </CardBody>
           <Divider />

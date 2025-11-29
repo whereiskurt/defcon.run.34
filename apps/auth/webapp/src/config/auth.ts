@@ -273,13 +273,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (userId) {
         try {
           const profile = await getAuthProfile(userId);
-          token.services = profile?.services;
+          // Use profile services if available, otherwise keep existing token services or default to empty
+          token.services = profile?.services ?? token.services ?? [];
         } catch (err) {
           console.error("Failed to fetch services for token:", err);
-          token.services = token.services;
+          // Keep existing services on error
+          token.services = token.services ?? [];
         }
       } else {
-        token.services = token.services;
+        token.services = token.services ?? [];
       }
 
       return token;
@@ -287,9 +289,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     session({ session, token }) {
       session.user.name = token.name as string;
-      session.user.id = token.userId as string;
+      session.user.id = (token.sub ?? token.userId) as string;
       session.user.email = token.email as string;
-      session.user.services = token.services as string[];
+      session.user.services = (token.services ?? []) as string[];
       return session;
     },
   },

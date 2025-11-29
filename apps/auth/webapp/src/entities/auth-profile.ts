@@ -215,6 +215,8 @@ export async function upsertAuthProfile(
   const payload: Record<string, any> = {
     userId,
     lastProvider: provider,
+    // Preserve existing services, or use default if this is a new profile
+    services: existing.data?.services ?? [],
     ...(data.email ? { email: data.email, emailVerified: true } : {}),
     ...(name ? { name } : {}),
     ...(picture ? { picture } : {}),

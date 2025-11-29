@@ -22,6 +22,9 @@ dependency "ecs_cluster" {
         cluster_arn = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-defcon-run"
       }
     }
+    task_role_arns = {
+      "app" = "arn:aws:iam::123456789012:role/ecs-task-role-app-use1-defcon-run"
+    }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -42,7 +45,12 @@ terraform {
 inputs = merge(
   include.module.locals.merged_inputs,
   {
-    # Task role and execution role can come from ecs-cluster dependency
-    # or be specified in site.hcl per task
+    # Inject task_role_arn from ecs-cluster for each task based on its cluster_name
+    ecs_tasks = [
+      for task in include.module.locals.merged_inputs.ecs_tasks :
+      merge(task, {
+        task_role_arn = try(dependency.ecs_cluster.outputs.task_role_arns[task.cluster_name], task.task_role_arn)
+      })
+    ]
   }
 )

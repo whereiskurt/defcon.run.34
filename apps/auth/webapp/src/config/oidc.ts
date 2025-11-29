@@ -169,7 +169,7 @@ const configuration: Configuration = {
 
           // Services claims - list of services the user can access
           if (scope.includes("services")) {
-            result.services = profile.services || ["auth", "run"];
+            result.services = profile.services || [];
           }
         }
 
