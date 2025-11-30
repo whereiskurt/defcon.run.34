@@ -179,6 +179,69 @@ locals {
     ]
   }
 
+  # DynamoDB tables for the auth service
+  dynamodb = {
+    tables = [
+      # Electro table with multi-region replication
+      {
+        table_name = "electro"
+        table_type = "electro"
+
+        # Multi-region global table configuration
+        # The first region in the list is the primary region where the table is created
+        # All other regions are replicas
+        replica_regions = [
+          {
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          }
+        ]
+
+        # Table configuration
+        billing_mode     = "PAY_PER_REQUEST"
+        hash_key         = "pk"
+        range_key        = "sk"
+        stream_enabled   = true
+        stream_view_type = "NEW_AND_OLD_IMAGES"
+
+        # TTL configuration (optional)
+        ttl_enabled        = false
+        ttl_attribute_name = ""
+      },
+      # Standard table without replication
+
+      {
+        table_name = "auth"
+        table_type = "nextauth"
+
+        # Single region only (no replication)
+        replica_regions = [
+          {
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          }
+        ]
+
+        billing_mode     = "PAY_PER_REQUEST"
+        hash_key         = "pk"
+        range_key        = "sk"
+        stream_enabled   = true
+        stream_view_type = "NEW_AND_OLD_IMAGES"
+
+        ttl_enabled        = true
+        ttl_attribute_name = "ttl"
+      }
+    ]
+  }
+
   # ECS Service definition for the auth service
   service = {
     name          = "auth"

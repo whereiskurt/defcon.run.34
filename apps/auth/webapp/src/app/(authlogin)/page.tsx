@@ -50,7 +50,7 @@ function DashboardContent() {
   if (status === 'unauthenticated' || !session) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <BlurPulseBackground imagePath={`/login/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+        <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
         <div className="z-10 w-full max-w-md">
           <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
             <CardHeader>
@@ -83,7 +83,7 @@ function DashboardContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <BlurPulseBackground imagePath={`/login/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+      <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
       <div className="z-10 w-full max-w-lg">
         <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
           <CardHeader>

@@ -99,7 +99,7 @@ function ClientOnlyForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <BlurPulseBackground imagePath={`/login/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+      <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
       <div className="z-10 w-full max-w-md" >
         <form onSubmit={handleSubmit} className="w-full">
           <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>

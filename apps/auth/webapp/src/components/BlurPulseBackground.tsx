@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
+// In production, assets are served from CloudFront S3 origin with regional prefix
+const ASSET_PREFIX = process.env.NEXT_PUBLIC_ASSET_PREFIX || '';
+
 interface TileProps {
   imagePath: string;
   style: React.CSSProperties;
@@ -17,7 +20,7 @@ const BackgroundTile: React.FC<TileProps> = ({ imagePath, style, className = '' 
     <div
       className={`absolute z-0 animate-blurPulse ${className}`}
       style={{
-        backgroundImage: `url('${imagePath}')`,
+        backgroundImage: `url('${ASSET_PREFIX}${imagePath}')`,
         backgroundSize: 'contain',
         backgroundRepeat: 'no-repeat',
         backgroundPosition: 'center',

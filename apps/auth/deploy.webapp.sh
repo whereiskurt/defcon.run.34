@@ -12,10 +12,13 @@ export WEBAPP_PREFIX=${WEBAPP_PREFIX:-"use1/assets"}
 export REGION_SHORT=${REGION_SHORT:-"use1"}
 export WEBAPP_ORIGIN_BUCKET=$(aws ssm get-parameter --name "/dc34/cloudfront-assets/${REGION_SHORT}/auth/bucket_name" --region "${AWS_REGION}" --query "Parameter.Value" --output text)
 
+
 cd webapp
+export NEXT_PUBLIC_ASSET_PREFIX=${WEBAPP_PREFIX}/public
 npm run build
 AWS_PROFILE=application aws s3 sync .next/static s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/_next/static --cache-control 'public,max-age=31536000,immutable' --delete --exclude '*.map'
 AWS_PROFILE=application aws s3 cp .next/server/app/index.html s3://${WEBAPP_ORIGIN_BUCKET}/index.html --cache-control 'public,max-age=31536000,immutable'
+AWS_PROFILE=application aws s3 sync public s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/public --cache-control 'public,max-age=31536000,immutable' --delete
 cd ..
 
 docker buildx build --platform=linux/amd64 -t $REPO_NAME:$IMAGE_TAG -f webapp/Dockerfile.webapp ./webapp/
