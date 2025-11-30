@@ -209,7 +209,7 @@ function ClientOnlyForm() {
                     onPress={() => signIn('discord', {
                       callbackUrl: oidcInteraction
                         ? `/api/oidc/interaction/${oidcInteraction}`
-                        : '/dashboard'
+                        : '/'
                     })}
                     >
                     &nbsp; <FaDiscord />
@@ -222,7 +222,7 @@ function ClientOnlyForm() {
                     onPress={() => signIn('github', {
                       callbackUrl: oidcInteraction
                         ? `/api/oidc/interaction/${oidcInteraction}`
-                        : '/dashboard'
+                        : '/'
                     })}
                     >
                     &nbsp; <FaGithub />

@@ -25,7 +25,7 @@ function OAuthButtons({ oidcInteraction }: { oidcInteraction: string | null }) {
     if (oidcInteraction) {
       return `/api/oidc/interaction/${oidcInteraction}`;
     }
-    return '/dashboard';
+    return '/';
   };
 
   return (

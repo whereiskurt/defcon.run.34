@@ -10,7 +10,7 @@ import { oidc, isSessionNotFound } from "@/config/oidc";
  *
  * Flow:
  * 1. User visits /api/oidc/auth (from relying party)
- * 2. oidc-provider redirects to /login/auth?oidc={uid}
+ * 2. oidc-provider redirects to /login?oidc={uid}
  * 3. User authenticates via Auth.js (email OTP, Discord, GitHub)
  * 4. After Auth.js callback, user is redirected here
  * 5. We verify Auth.js session and complete the OIDC interaction
@@ -24,7 +24,7 @@ export default async function handler(
   const { uid } = req.query;
 
   if (!uid || typeof uid !== "string") {
-    return res.redirect("/login/auth?error=invalid_interaction");
+    return res.redirect("/login?error=invalid_interaction");
   }
 
   // Get the Auth.js session
@@ -34,7 +34,7 @@ export default async function handler(
   if (!session?.user?.id && !session?.user?.email) {
     // Not logged in - redirect back to login with the interaction ID
     console.log("OIDC Interaction: No session, redirecting to login");
-    return res.redirect(`/login/auth?oidc=${uid}`);
+    return res.redirect(`/login?oidc=${uid}`);
   }
 
   try {
@@ -43,7 +43,7 @@ export default async function handler(
 
     if (!interactionDetails) {
       console.error("OIDC Interaction: Interaction not found for uid:", uid);
-      return res.redirect("/login/auth?error=interaction_expired");
+      return res.redirect("/login?error=interaction_expired");
     }
 
     // Determine the account ID (prefer explicit ID, fall back to email)
@@ -107,9 +107,9 @@ export default async function handler(
     console.error("OIDC Interaction error:", error);
 
     if (isSessionNotFound(error)) {
-      return res.redirect("/login/auth?error=session_expired");
+      return res.redirect("/login?error=session_expired");
     }
 
-    return res.redirect("/login/auth?error=oidc_error");
+    return res.redirect("/login?error=oidc_error");
   }
 }

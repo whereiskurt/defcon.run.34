@@ -65,7 +65,7 @@ function DashboardContent() {
             <CardBody className="flex justify-center">
               <Button
                 as="a"
-                href="/login/auth"
+                href="/login"
                 variant="solid"
                 color="primary"
                 className="text-lg font-semibold"
@@ -261,7 +261,7 @@ function DashboardContent() {
               color="danger"
               className="text-lg font-semibold"
               startContent={<LogOut className="w-5 h-5" />}
-              onPress={() => signOut({ callbackUrl: '/login/auth' })}
+              onPress={() => signOut({ callbackUrl: '/login' })}
             >
               Sign Out
             </Button>

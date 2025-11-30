@@ -154,7 +154,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
   adapter,
   pages: {
-    signIn: "/login/auth",
+    signIn: "/login",
     verifyRequest: "/login/verify",
   },
   callbacks: {
@@ -337,7 +337,7 @@ export function signupHTML(params: {
   token: string;
 }) {
   const { host, theme, token, email } = params;
-  const url = `${process.env.NEXTAUTH_URL}/api/auth/callback/nodemailer?token=${token}&email=${email}&callbackUrl=/dashboard`;
+  const url = `${process.env.NEXTAUTH_URL}/api/auth/callback/nodemailer?token=${token}&email=${email}&callbackUrl=/`;
   const escapedHost = host.replace(/\./g, "&#8203;.");
 
   const brandColor = "#686EA0";

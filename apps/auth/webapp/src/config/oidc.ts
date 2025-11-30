@@ -115,8 +115,8 @@ const configuration: Configuration = {
   interactions: {
     url(ctx, interaction) {
       // Redirect to the existing Auth.js login page with OIDC interaction ID
-      // After login, /login/auth will redirect to /api/oidc/interaction/{uid}
-      return `/login/auth?oidc=${interaction.uid}`;
+      // After login, /login will redirect to /api/oidc/interaction/{uid}
+      return `/login?oidc=${interaction.uid}`;
     },
   },
 
@@ -230,7 +230,7 @@ const configuration: Configuration = {
     <h1>Authentication Error</h1>
     <p><code>${out.error}</code></p>
     <p>${out.error_description || "An error occurred during authentication."}</p>
-    <a href="/login/auth">Try Again</a>
+    <a href="/login">Try Again</a>
   </div>
 </body>
 </html>`;
