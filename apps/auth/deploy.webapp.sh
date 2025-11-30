@@ -15,7 +15,7 @@ export WEBAPP_ORIGIN_BUCKET=$(aws ssm get-parameter --name "/dc34/cloudfront-ass
 cd webapp
 npm run build
 AWS_PROFILE=application aws s3 sync .next/static s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/_next/static --cache-control 'public,max-age=31536000,immutable' --delete --exclude '*.map'
-AWS_PROFILE=application aws s3 cp .next/server/app/index.html s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/index.html --cache-control 'public,max-age=31536000,immutable'
+AWS_PROFILE=application aws s3 cp .next/server/app/index.html s3://${WEBAPP_ORIGIN_BUCKET}/index.html --cache-control 'public,max-age=31536000,immutable'
 cd ..
 
 docker buildx build --platform=linux/amd64 -t $REPO_NAME:$IMAGE_TAG -f webapp/Dockerfile.webapp ./webapp/

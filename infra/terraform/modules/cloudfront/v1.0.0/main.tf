@@ -106,7 +106,7 @@ resource "aws_cloudfront_distribution" "main" {
   enabled             = true
   is_ipv6_enabled     = true
   comment             = "Multi-region distribution for ${each.key}.${var.dns.zonename}"
-  default_root_object = ""
+  default_root_object = "index.html"
   price_class         = var.cloudfront.price_class
   aliases             = ["${each.key}.${var.dns.zonename}"]
 
@@ -159,6 +159,18 @@ resource "aws_cloudfront_distribution" "main" {
 
     cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
     origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewerExceptHostHeader
+  }
+
+  # Cache behavior for /index.html - routes to use1 S3 origin
+  ordered_cache_behavior {
+    path_pattern           = "/index.html"
+    target_origin_id       = "s3-use1"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
   }
 
   # Ordered cache behaviors for regional S3 asset routing
