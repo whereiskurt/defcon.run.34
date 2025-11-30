@@ -102,6 +102,10 @@ locals {
 
         secrets = [
           {
+            name      = "AUTH_SES_SMTP_FROM"
+            valueFrom = "/{{SITE_LABEL}}/ses/from_address"
+          },
+          {
             name      = "AUTH_SECRET"
             valueFrom = "/defcon.run/auth/secret"
           },
@@ -116,6 +120,18 @@ locals {
           {
             name      = "AUTH_DYNAMODB_DBNAME"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth/table_name"
+          },
+          {
+            name      = "AUTH_ELECTRO_ID"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/electro/access_key_id"
+          },
+          {
+            name      = "AUTH_ELECTRO_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/electro/secret_access_key"
+          },
+          {
+            name      = "AUTH_ELECTRO_DBNAME"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/electro/table_name"
           },
           {
             name      = "AUTH_GITHUB_ID"

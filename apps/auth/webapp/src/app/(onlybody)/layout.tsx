@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { Providers } from "@/app/providers";
 import { siteConfig } from "@site";
 import { fontSans } from "@fonts";
+import { SessionProvider } from "next-auth/react";
 
 export const metadata: Metadata = {
   title: {
@@ -38,13 +39,15 @@ export default function AuthLayout({
         )}
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-          <div className="relative flex flex-col h-screen">
-            <main className="container mx-auto h-screen flex items-center justify-center">
-              <div className="w-full max-w-md">
-                {children}
-              </div>
-            </main>
-          </div>
+          <SessionProvider>
+            <div className="relative flex flex-col h-screen">
+              <main className="container mx-auto h-screen flex items-center justify-center">
+                <div className="w-full max-w-md">
+                  {children}
+                </div>
+              </main>
+            </div>
+          </SessionProvider>
         </Providers>
       </body>
     </html>

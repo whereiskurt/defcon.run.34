@@ -138,6 +138,7 @@ locals {
         ttl_attribute_name = ""
       },
       # Standard table without replication
+    
       {
         table_name = "auth"
         table_type = "nextauth"

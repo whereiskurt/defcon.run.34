@@ -19,11 +19,47 @@ import { signIn } from 'next-auth/react';
 import { Text } from '@components/text-effects/Common';
 import { Heading } from '@components/text-effects/Common';
 
+// OAuth buttons component that handles OIDC redirects
+function OAuthButtons({ oidcInteraction }: { oidcInteraction: string | null }) {
+  const getCallbackUrl = () => {
+    if (oidcInteraction) {
+      return `/api/oidc/interaction/${oidcInteraction}`;
+    }
+    return '/dashboard';
+  };
+
+  return (
+    <Text variant="large" className="pt-2">
+      No email? Try{' '}
+      <Link
+        size="lg"
+        href="#"
+        onPress={() => signIn('discord', { callbackUrl: getCallbackUrl() })}
+      >
+        &nbsp; <FaDiscord />
+        Discord
+      </Link>{' '}
+      or
+      <Link
+        size="lg"
+        href="#"
+        onPress={() => signIn('github', { callbackUrl: getCallbackUrl() })}
+      >
+        &nbsp; <FaGithub />
+        Github
+      </Link>
+    </Text>
+  );
+}
+
 // Separate client component to handle search params
 function EmailVerificationForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState<string>('');
   const [code, setCode] = useState<string>('');
+
+  // Check for OIDC interaction ID in URL params
+  const oidcInteraction = searchParams?.get('oidc');
 
   useEffect(() => {
     addToast({
@@ -34,16 +70,27 @@ function EmailVerificationForm() {
     });
 
     const emailQuery = searchParams
-      .get('email')
+      ?.get('email')
       ?.replace(' ', '%2B')
       .replace('+', '%2B');
 
     setEmail(emailQuery || '');
   }, [searchParams]);
 
+  // Determine the callback URL based on whether this is an OIDC flow
+  const getCallbackUrl = () => {
+    if (oidcInteraction) {
+      // OIDC flow: redirect to complete the interaction
+      return `/api/oidc/interaction/${oidcInteraction}`;
+    }
+    // Normal flow: redirect to home
+    return '/';
+  };
+
   const handleValidation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const url = `/api/auth/callback/nodemailer?token=${code}&email=${email}&callbackUrl=/`;
+    const callbackUrl = encodeURIComponent(getCallbackUrl());
+    const url = `/api/auth/callback/nodemailer?token=${code}&email=${email}&callbackUrl=${callbackUrl}`;
     window.location.href = url;
     return false;
   };
@@ -53,7 +100,8 @@ function EmailVerificationForm() {
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
     }
-    const url = `/api/auth/callback/nodemailer?token=${code}&email=${email}&callbackUrl=/`;
+    const callbackUrl = encodeURIComponent(getCallbackUrl());
+    const url = `/api/auth/callback/nodemailer?token=${code}&email=${email}&callbackUrl=${callbackUrl}`;
     window.location.href = url;
   };
 
@@ -88,6 +136,7 @@ function EmailVerificationForm() {
           <Heading level={4}>Validate</Heading>
         </Button>
       </form>
+      <OAuthButtons oidcInteraction={oidcInteraction ?? null} />
     </>
   );
 }
@@ -105,27 +154,6 @@ export default function EmailLogin() {
         <Suspense fallback={<Text variant="large">Check account</Text>}>
           <EmailVerificationForm />
         </Suspense>
-
-        <Text variant="large" className="pt-2">
-          No email? Try{' '}
-          <Link
-            size="lg"
-            href="#"
-            onPress={() => signIn('discord', { callbackUrl: '/dashboard' })}
-          >
-            &nbsp; <FaDiscord />
-            Discord
-          </Link>{' '}
-          or
-          <Link
-            size="lg"
-            href="#"
-            onPress={() => signIn('github', { callbackUrl: '/dashboard' })}
-          >
-            &nbsp; <FaGithub />
-            Github
-          </Link>
-        </Text>
       </div>
     </div>
   );
