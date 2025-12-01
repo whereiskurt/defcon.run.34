@@ -32,22 +32,22 @@ variable "managed_rules" {
 }
 
 variable "custom_rules" {
-  description = "List of custom WAF rules"
-  type = list(object({
-    name            = string
-    priority        = number
-    action          = string # "allow", "block", "count"
-    statement       = any
-    visibility_config = optional(object({
-      cloudwatch_metrics_enabled = optional(bool, true)
-      sampled_requests_enabled   = optional(bool, true)
-    }), {})
-  }))
-  default = []
+  description = "List of custom WAF rules with heterogeneous statement types"
+  type        = any
+  default     = []
 }
 
 variable "enabled" {
   description = "Whether this WAF ruleset is enabled"
   type        = bool
   default     = true
+}
+
+variable "custom_response_bodies" {
+  description = "Map of custom response bodies for blocked requests"
+  type = map(object({
+    content      = string
+    content_type = string # TEXT_PLAIN, TEXT_HTML, APPLICATION_JSON
+  }))
+  default = {}
 }

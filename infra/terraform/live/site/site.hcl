@@ -5,7 +5,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
+    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
 
   }
 
@@ -60,7 +60,7 @@ locals {
   }
 
   waf = {
-    enabled  = false
+    enabled  = true
     log_mode = "standard" # standard | realtime
   }
 
@@ -72,9 +72,10 @@ locals {
     # e.g., "run" becomes "run.defcon.run"
     domains = ["auth"]
 
+    ##Map fronted domain "auth.defcon.run" to the ruleset called "auth"
     waf_rulesets = {
-      "run"  = "default" # Use the 'default' ruleset from waf.hcl
-      "auth" = "api"     # Use the 'api' ruleset from waf.hcl
+      "auth" = "auth"     # Use the 'api' ruleset from waf.hcl
+      # "run"  = "default" # Use the 'default' ruleset from waf.hcl
     }
 
     # Regions that will provide ALB and S3 bucket origins
@@ -106,7 +107,9 @@ locals {
 
   dynamodb = {
     enabled = true
-    tables  = local.ecs_auth_service.locals.dynamodb.tables
+    tables  = concat(
+      local.ecs_auth_service.locals.dynamodb.tables,
+    )
   }
 
   ec2spots = {

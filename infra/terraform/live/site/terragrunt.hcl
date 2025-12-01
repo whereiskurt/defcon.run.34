@@ -22,7 +22,8 @@ inputs = merge(
     waf = merge(
       local.site_vars.locals.waf,
       {
-        rulesets = local.waf_vars.locals.waf_rulesets
+        # Use jsondecode(jsonencode()) to normalize types for heterogeneous rulesets
+        rulesets = jsondecode(jsonencode(local.waf_vars.locals.waf_rulesets))
       }
     )
   }

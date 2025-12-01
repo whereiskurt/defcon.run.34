@@ -18,32 +18,8 @@ variable "dns" {
 }
 
 variable "waf" {
-  type = object({
-    enabled  = bool
-    log_mode = string
-    rulesets = optional(map(object({
-      enabled = optional(bool, true)
-      managed_rules = optional(list(object({
-        name                = string
-        vendor_name         = string
-        priority            = number
-        override_action     = optional(string, "none")
-        excluded_rules      = optional(list(string), [])
-        scope_down_statement = optional(any, null)
-      })), [])
-      custom_rules = optional(list(object({
-        name            = string
-        priority        = number
-        action          = string
-        statement       = any
-        visibility_config = optional(object({
-          cloudwatch_metrics_enabled = optional(bool, true)
-          sampled_requests_enabled   = optional(bool, true)
-        }), {})
-      })), [])
-    })), {})
-  })
-  description = "WAF configuration with multiple rulesets"
+  type = any
+  description = "WAF configuration with multiple rulesets. Each ruleset should contain: enabled (bool), managed_rules (list), custom_rules (list), custom_response_bodies (map)"
 
   validation {
     condition     = contains(["standard", "realtime"], var.waf.log_mode)

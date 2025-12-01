@@ -3,15 +3,16 @@
 # Multiple rulesets can be defined, each creating a separate Web ACL
 
 module "waf" {
-  for_each = var.waf.enabled ? var.waf.rulesets : {}
+  for_each = var.waf.enabled ? toset(keys(var.waf.rulesets)) : toset([])
   source   = "./waf"
 
-  site_label    = var.site.label
-  ruleset_name  = each.key
-  log_mode      = var.waf.log_mode
-  enabled       = each.value.enabled
-  managed_rules = each.value.managed_rules
-  custom_rules  = each.value.custom_rules
+  site_label             = var.site.label
+  ruleset_name           = each.key
+  log_mode               = var.waf.log_mode
+  enabled                = var.waf.rulesets[each.key].enabled
+  managed_rules          = var.waf.rulesets[each.key].managed_rules
+  custom_rules           = var.waf.rulesets[each.key].custom_rules
+  custom_response_bodies = var.waf.rulesets[each.key].custom_response_bodies
 
   providers = {
     aws.global-application = aws.global-application
