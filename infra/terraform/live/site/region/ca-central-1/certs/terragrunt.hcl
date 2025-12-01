@@ -24,6 +24,11 @@ dependency "site" {
         name         = "run.defcon.run"
         name_servers = ["ns-0.awsdns-00.com"]
       }
+      "auth.defcon.run" = {
+        zone_id      = "Z0000000000000000003"
+        name         = "auth.defcon.run"
+        name_servers = ["ns-0.awsdns-00.com"]
+      }
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]

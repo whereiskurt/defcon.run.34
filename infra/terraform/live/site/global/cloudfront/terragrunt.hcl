@@ -80,6 +80,10 @@ dependency "site" {
         zone_id = "Z1234567890ABC"
         name    = "defcon.run"
       }
+      "auth.defcon.run" = {
+        zone_id = "Z1234567890ABD"
+        name    = "auth.defcon.run"
+      }
     }
     waf = {
       default = {
@@ -101,6 +105,9 @@ dependency "use1_certs" {
     cert_map = {
       "run.defcon.run" = {
         arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-id"
+      }
+      "auth.defcon.run" = {
+        arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-auth-id"
       }
     }
   }

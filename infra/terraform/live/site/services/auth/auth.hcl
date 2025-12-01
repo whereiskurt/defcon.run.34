@@ -184,7 +184,7 @@ locals {
     tables = [
       # Electro table with multi-region replication
       {
-        table_name = "electro"
+        table_name = "auth-electro"
         table_type = "electro"
 
         # Multi-region global table configuration
@@ -215,7 +215,7 @@ locals {
       # Standard table without replication
 
       {
-        table_name = "auth"
+        table_name = "auth-authjs"
         table_type = "nextauth"
 
         # Single region only (no replication)
