@@ -111,27 +111,27 @@ locals {
           },
           {
             name      = "AUTH_DYNAMODB_ID"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth/access_key_id"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/access_key_id"
           },
           {
             name      = "AUTH_DYNAMODB_SECRET"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth/secret_access_key"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/secret_access_key"
           },
           {
             name      = "AUTH_DYNAMODB_DBNAME"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth/table_name"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/table_name"
           },
           {
             name      = "AUTH_ELECTRO_ID"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/electro/access_key_id"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/access_key_id"
           },
           {
             name      = "AUTH_ELECTRO_SECRET"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/electro/secret_access_key"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/secret_access_key"
           },
           {
             name      = "AUTH_ELECTRO_DBNAME"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/electro/table_name"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/table_name"
           },
           {
             name      = "AUTH_GITHUB_ID"
