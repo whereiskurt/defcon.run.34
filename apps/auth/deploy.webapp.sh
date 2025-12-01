@@ -12,12 +12,9 @@ export WEBAPP_PREFIX=${WEBAPP_PREFIX:-"use1/assets"}
 export REGION_SHORT=${REGION_SHORT:-"use1"}
 export WEBAPP_ORIGIN_BUCKET=$(aws ssm get-parameter --name "/dc34/cloudfront-assets/${REGION_SHORT}/auth/bucket_name" --region "${AWS_REGION}" --query "Parameter.Value" --output text)
 
-
-export NEXT_PUBLIC_ASSET_PREFIX="/${WEBAPP_PREFIX}/public"
-
 # Build Docker image (amd64 for ECS)
 docker buildx build --platform=linux/amd64 \
-  --build-arg NEXT_PUBLIC_ASSET_PREFIX="${NEXT_PUBLIC_ASSET_PREFIX}" \
+  --build-arg NEXT_PUBLIC_ASSET_PREFIX="/${WEBAPP_PREFIX}/public" \
   --build-arg WEBAPP_PREFIX="${WEBAPP_PREFIX}" \
   --build-arg WEBAPP_ORIGIN="${WEBAPP_ORIGIN}" \
   -t $REPO_NAME:$IMAGE_TAG -f webapp/Dockerfile.webapp ./webapp/
@@ -33,7 +30,6 @@ docker rm $CONTAINER_ID
 AWS_PROFILE=application aws s3 sync /tmp/next-static s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/_next/static --cache-control 'public,max-age=31536000,immutable' --delete --exclude '*.map'
 AWS_PROFILE=application aws s3 cp /tmp/next-static/index.html s3://${WEBAPP_ORIGIN_BUCKET}/index.html --cache-control 'public,max-age=31536000,immutable'
 AWS_PROFILE=application aws s3 sync /tmp/next-public s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/public --cache-control 'public,max-age=31536000,immutable' --delete
-
 
 aws ecr get-login-password --region ${AWS_REGION} \
   | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
