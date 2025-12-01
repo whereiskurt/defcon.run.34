@@ -216,7 +216,7 @@ export async function upsertAuthProfile(
     userId,
     lastProvider: provider,
     // Preserve existing services, or use default if this is a new profile
-    services: existing.data?.services ?? [],
+    services: existing.data?.services ?? ['auth', 'run'],
     ...(data.email ? { email: data.email, emailVerified: true } : {}),
     ...(name ? { name } : {}),
     ...(picture ? { picture } : {}),
