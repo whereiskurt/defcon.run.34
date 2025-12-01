@@ -23,7 +23,7 @@ export const verifyCsrfToken = async (csrf: string): Promise<boolean> => {
       throw new Error("2. Mismatch token or no hash");
     }
 
-    const secrets = (process.env.AUTH_SECRET || "").split(",");
+    const secrets = (process.env.AUTH_JWT_SECRET || "").split(",");
     for (const secret of secrets) {
       if (!secret) continue;
 

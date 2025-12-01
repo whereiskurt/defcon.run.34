@@ -405,7 +405,7 @@ locals {
       custom_response_bodies = {
         "auth-blocked" = {
           content_type = "APPLICATION_JSON"
-          content      = "{\"error\":\"forbidden\",\"message\":\"This endpoint is not available.\",\"code\":\"AUTH_WAF_BLOCKED\"}"
+          content      = "{\"error\":\"Blocked\",\"message\":\"This endpoint is not available or unauthorized.\",\"code\":\"BLOCKED\"}"
         }
       }
     }

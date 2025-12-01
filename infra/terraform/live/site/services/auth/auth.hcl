@@ -106,7 +106,7 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/ses/from_address"
           },
           {
-            name      = "AUTH_SECRET"
+            name      = "AUTH_JWT_SECRET"
             valueFrom = "/defcon.run/auth/secret"
           },
           {

@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     // Use the custom cookie name "sess" that's configured in auth.ts
     const token = await getToken({
       req: request,
-      secret: process.env.AUTH_SECRET?.split(","),
+      secret: process.env.AUTH_JWT_SECRET?.split(",")[0],
       cookieName: "sess",
     });
 

@@ -1,5 +1,5 @@
 import Provider, { Configuration, errors, ClientMetadata } from "oidc-provider";
-import { OIDCAdapter } from "./oidc-adapter";
+import { OIDCAdapter } from "../entities/oidc-adapter";
 import { getAuthProfile } from "@/entities/auth-profile";
 
 /**

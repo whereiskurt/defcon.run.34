@@ -1,5 +1,5 @@
 import { Entity } from "electrodb";
-import { electroClient, ELECTRO_TABLE } from "../entities/client";
+import { electroClient, ELECTRO_TABLE } from "./client";
 
 /**
  * ElectroDB entity for storing OIDC provider models

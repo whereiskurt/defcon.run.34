@@ -55,7 +55,7 @@ This file contains examples of how to configure different app types in `site.hcl
       ]
 
       secrets = [
-        { name = "AUTH_SECRET", valueFrom = "/defcon-run/auth/secret" },
+        { name = "AUTH_JWT_SECRET", valueFrom = "/defcon-run/auth/secret" },
         { name = "AUTH_DYNAMODB_ID", valueFrom = "/use1.defcon.run/next-auth/access_key" }
       ]
 
