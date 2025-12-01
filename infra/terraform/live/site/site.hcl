@@ -69,7 +69,7 @@ locals {
 
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
-    # e.g., "run" becomes "run.defcon.run"
+    # e.g., "run" becomes "auth.defcon.run"
     domains = ["auth"]
 
     ##Map fronted domain "auth.defcon.run" to the ruleset called "auth"
@@ -93,7 +93,6 @@ locals {
       }
     ]
 
-    # CloudFront logging configuration
     logging = {
       enabled         = true
       include_cookies = true
@@ -113,7 +112,7 @@ locals {
   }
 
   ec2spots = {
-    enabled = false # Set to true to enable EC2 spot instances
+    enabled = false
     instances = [
       {
       count                  = 0
@@ -145,19 +144,15 @@ locals {
   }
 
   ecr = {
-    enabled = true # Set to false to disable ECR repositories
-    # Repositories are aggregated from service definitions
+    enabled = true
     repositories = concat(
       local.ecs_auth_service.locals.ecr_repositories,
-      # Add more service repositories here as needed:
-      # local.other_service.locals.ecr_repositories,
     )
   }
 
   ecs_clusters = {
-    enabled = true # Set to false to disable ECS clusters
+    enabled = true
     clusters = [
-      # App cluster in us-east-1
       {
         name            = "app"
         region          = "us-east-1"
@@ -174,14 +169,14 @@ locals {
   }
 
   ecs_tasks = {
-    enabled = true # Set to false to disable ECS tasks
+    enabled = true
     tasks = [
       local.ecs_auth_service.locals.task,
     ]
   }
 
   ecs_services = {
-    enabled = true # Set to false to disable ECS services
+    enabled = true
     services = [
       local.ecs_auth_service.locals.service,
     ]
