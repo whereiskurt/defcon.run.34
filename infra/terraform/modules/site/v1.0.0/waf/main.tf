@@ -47,7 +47,7 @@ resource "aws_wafv2_web_acl" "this" {
       visibility_config {
         cloudwatch_metrics_enabled = true
         metric_name                = "${var.site_label}-${var.ruleset_name}-${rule.value.name}"
-        sampled_requests_enabled   = var.log_mode == "realtime"
+        sampled_requests_enabled   = true # Free - always enable for debugging
       }
     }
   }
@@ -244,7 +244,7 @@ resource "aws_wafv2_web_acl" "this" {
       visibility_config {
         cloudwatch_metrics_enabled = try(rule.value.visibility_config.cloudwatch_metrics_enabled, true)
         metric_name                = "${var.site_label}-${var.ruleset_name}-${rule.value.name}"
-        sampled_requests_enabled   = try(rule.value.visibility_config.sampled_requests_enabled, var.log_mode == "realtime")
+        sampled_requests_enabled   = true # Free - always enable for debugging
       }
     }
   }
@@ -252,7 +252,7 @@ resource "aws_wafv2_web_acl" "this" {
   visibility_config {
     cloudwatch_metrics_enabled = true
     metric_name                = "${var.site_label}-${var.ruleset_name}-webacl"
-    sampled_requests_enabled   = var.log_mode == "realtime"
+    sampled_requests_enabled   = true # Free - always enable for debugging
   }
 
   tags = {
