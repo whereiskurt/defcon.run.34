@@ -29,9 +29,15 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const versionApp = process.env.NEXT_PUBLIC_VERSION_APP || 'unknown';
+  const versionNginx = process.env.NEXT_PUBLIC_VERSION_NGINX || 'unknown';
+
   return (
     <html suppressHydrationWarning lang="en">
-      <head />
+      <head>
+        <meta name="version-app" content={versionApp} />
+        <meta name="version-nginx" content={versionNginx} />
+      </head>
       <body
         className={clsx(
           "min-h-screen bg-background font-sans antialiased",

@@ -1,5 +1,16 @@
 import { Entity } from "electrodb";
+import { randomBytes } from "crypto";
 import { electroClient, ELECTRO_TABLE } from "./client";
+
+const DEFAULT_SERVICES = ["auth", "run", "strava"];
+
+/**
+ * Generate a random username like "rabbit_A1B2"
+ */
+function generateUsername(): string {
+  const hex = randomBytes(2).toString("hex").toUpperCase();
+  return `rabbit_${hex}`;
+}
 
 /**
  * AuthProfile Entity
@@ -26,6 +37,11 @@ export const AuthProfile = new Entity(
       userId: {
         type: "string",
         required: true,
+      },
+      // Generated username (e.g., "rabbit_A1B2")
+      // Created on first login, never changes
+      username: {
+        type: "string",
       },
       // Primary email address
       email: {
@@ -105,7 +121,6 @@ export const AuthProfile = new Entity(
       services: {
         type: "list",
         items: { type: "string" },
-        default: ["auth", "run"],
       },
       // Timestamps
       createdAt: {
@@ -216,7 +231,9 @@ export async function upsertAuthProfile(
     userId,
     lastProvider: provider,
     // Preserve existing services, or use default if this is a new profile
-    services: existing.data?.services ?? ['auth', 'run'],
+    ...(!existing.data ? { services: DEFAULT_SERVICES } : {}),
+    // Generate username only on first login (new profile)
+    ...(!existing.data ? { username: generateUsername() } : {}),
     ...(data.email ? { email: data.email, emailVerified: true } : {}),
     ...(name ? { name } : {}),
     ...(picture ? { picture } : {}),

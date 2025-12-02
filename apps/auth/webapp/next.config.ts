@@ -1,8 +1,28 @@
 //@ts-check
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
+
 const WEBAPP_ORIGIN = process.env.WEBAPP_ORIGIN || 'auth.defcon.run';
 const WEBAPP_PREFIX = process.env.WEBAPP_PREFIX || 'use1/assets';
 
+// Read VERSION files at build time
+const readVersion = (path: string): string => {
+  try {
+    if (existsSync(path)) {
+      return readFileSync(path, 'utf-8').trim();
+    }
+  } catch {}
+  return 'unknown';
+};
+
+const VERSION_APP = readVersion(resolve(__dirname, 'VERSION'));
+const VERSION_NGINX = readVersion(resolve(__dirname, '../nginx/VERSION'));
+
 const sharedConfig = {
+  env: {
+    NEXT_PUBLIC_VERSION_APP: VERSION_APP,
+    NEXT_PUBLIC_VERSION_NGINX: VERSION_NGINX,
+  },
   images: {
     remotePatterns: [new URL(`https://*.defcon.run/**`)],
   },

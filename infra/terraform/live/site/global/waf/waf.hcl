@@ -278,21 +278,20 @@ locals {
             regex_match_statement = null
           }
         },
-        # ALLOW: /login pages
+        # ALLOW: /login and /strava pages
         {
           name            = "AllowLoginPages"
           priority        = 51
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement = null
-            byte_match_statement = {
-              search_string         = "/login"
-              positional_constraint = "STARTS_WITH"
-              field_to_match        = { uri_path = {}, method = null }
-              text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+            rate_based_statement  = null
+            byte_match_statement  = null
+            regex_match_statement = {
+              regex_string         = "^/(login|strava)"
+              field_to_match       = { uri_path = {}, method = null }
+              text_transformations = [{ priority = 0, type = "LOWERCASE" }]
             }
-            regex_match_statement = null
           }
         },
         # ALLOW: Root path /

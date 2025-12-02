@@ -13,18 +13,23 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      username?: string;
       services: string[];
+      hasStrava: boolean;
     } & DefaultSession["user"];
   }
   interface User {
     services?: string[];
+    username?: string;
   }
 }
 
 declare module "@auth/core/jwt" {
   interface JWT {
     userId: string;
+    username?: string;
     services: string[];
+    stravaId?: string;
   }
 }
 
@@ -233,6 +238,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         } else if (account.provider === "strava" && token.email != "") {
           token.name = `${profile.username}`;
           token.picture = `${profile.profile_medium}`;
+          token.stravaId = `${profile.id}`;
 
           // Persist Strava profile to AuthProfile entity
           if (userId) {
@@ -265,7 +271,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       }
 
-      // Fetch services from AuthProfile and store in token
+      // Fetch services and strava status from AuthProfile and store in token
       // This runs on every JWT refresh, so services will be updated
       const userId = (typeof user?.id === "string" && user.id)
         || (typeof token.sub === "string" && token.sub)
@@ -275,6 +281,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const profile = await getAuthProfile(userId);
           // Use profile services if available, otherwise keep existing token services or default to empty
           token.services = profile?.services ?? token.services ?? [];
+          // Store the rabbit username in the token
+          token.username = profile?.username ?? token.username;
+          // Store stravaId if linked (check AuthProfile strava data)
+          if (profile?.strava?.id) {
+            token.stravaId = `${profile.strava.id}`;
+          }
         } catch (err) {
           console.error("Failed to fetch services for token:", err);
           // Keep existing services on error
@@ -288,10 +300,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     session({ session, token }) {
-      session.user.name = token.name as string;
       session.user.id = (token.sub ?? token.userId) as string;
       session.user.email = token.email as string;
+      session.user.username = token.username as string | undefined;
       session.user.services = (token.services ?? []) as string[];
+      session.user.hasStrava = !!token.stravaId;
       return session;
     },
   },

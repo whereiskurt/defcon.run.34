@@ -9,6 +9,7 @@ import {
   Divider,
   Link,
   Input,
+  Avatar,
 } from '@heroui/react';
 
 import type React from 'react';
@@ -18,10 +19,10 @@ import { GlitchLabel, RainbowText } from '@/components/text-effects';
 import { Text } from '@components/text-effects/Common';
 import { Heading } from '@components/text-effects/Common';
 
-import { Key, Wand } from 'lucide-react';
+import { Key, Wand, RefreshCw, ArrowRight } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useState } from 'react';
-import { getCsrfToken } from "next-auth/react"
+import { getCsrfToken, useSession, signOut } from "next-auth/react"
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
@@ -38,8 +39,10 @@ function ClientOnlyForm() {
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
   const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
 
   // Check for OIDC interaction ID in URL params
   const oidcInteraction = searchParams?.get('oidc');
@@ -53,6 +56,12 @@ function ClientOnlyForm() {
     fetchCsrfToken();
     setIsSubmitting(false);
   }, []);
+
+  const handleSwitchUser = async () => {
+    setIsSwitching(true);
+    await signOut({ redirect: false });
+    setIsSwitching(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -96,6 +105,76 @@ function ClientOnlyForm() {
 
   // Use a safe default in case we're rendering on the server
   const isDarkTheme = mounted && resolvedTheme === 'dark';
+
+  // Show logged-in view if user has a session
+  if (status === 'authenticated' && session) {
+    const continueUrl = oidcInteraction
+      ? `/api/oidc/interaction/${oidcInteraction}`
+      : '/';
+
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
+        <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+        <div className="z-10 w-full max-w-md">
+          <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
+            <CardHeader>
+              <div className="flex flex-col">
+                <Heading level={1}>
+                  <RainbowText text="Logged In" />
+                </Heading>
+                <Text variant="small" className={isDarkTheme ? 'text-gray-300' : 'text-black'}>
+                  You are currently signed in
+                </Text>
+              </div>
+            </CardHeader>
+            <Divider />
+            <CardBody className="space-y-4">
+              <div className="flex items-center gap-4 p-3 rounded-lg bg-default-100">
+                <Avatar
+                  src={session.user?.image || undefined}
+                  name={session.user?.name || session.user?.email || 'U'}
+                  size="lg"
+                  isBordered
+                  color="primary"
+                />
+                <div className="flex flex-col">
+                  <span className={`text-lg font-semibold ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                    {session.user?.name || 'User'}
+                  </span>
+                  <span className={`text-sm ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {session.user?.email}
+                  </span>
+                </div>
+              </div>
+            </CardBody>
+            <Divider />
+            <CardFooter className="flex flex-col gap-3">
+              <Button
+                as="a"
+                href={continueUrl}
+                variant="solid"
+                color="primary"
+                className="text-lg font-semibold w-full"
+                endContent={<ArrowRight className="w-5 h-5" />}
+              >
+                Continue as {session.user?.name?.split(' ')[0] || 'User'}
+              </Button>
+              <Button
+                variant="flat"
+                color="default"
+                className="w-full"
+                startContent={<RefreshCw className="w-5 h-5" />}
+                onPress={handleSwitchUser}
+                isLoading={isSwitching}
+              >
+                Switch User
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
