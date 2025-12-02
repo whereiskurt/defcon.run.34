@@ -79,7 +79,7 @@ locals {
     #   - POST /api/login           Email magic link initiation
     #   - GET/OPTIONS /api/session/validate   Cross-domain session validation
     #   - GET/POST /api/oidc/*      OIDC provider endpoints
-    #   - GET /login                Login page
+    #   - GET /login|strava                Login page
     #   - GET /login/verify         OTP verification page
     #   - GET /                     Dashboard/home
     #   - GET /hello                Health check
