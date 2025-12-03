@@ -129,7 +129,7 @@ function StravaLinkContent() {
                 )}
               </div>
               <Text variant="small" className={isDarkTheme ? 'text-gray-300' : 'text-black'}>
-                Connect your Strava account to track your activities
+                Connect your Strava account
               </Text>
             </div>
           </CardHeader>
@@ -155,8 +155,7 @@ function StravaLinkContent() {
             </div>
 
             {/* Strava Info Section */}
-            <div className={`p-4 rounded-lg ${isDarkTheme ? 'bg-gray-800/50' : 'bg-gray-100'}`}>
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-3">
                 <FaStrava className={`w-8 h-8 ${isDarkTheme ? 'text-orange-400' : 'text-orange-500'}`} />
                 <div>
                   <h3 className={`font-semibold ${isDarkTheme ? 'text-white' : 'text-black'}`}>
@@ -169,15 +168,6 @@ function StravaLinkContent() {
                   </p>
                 </div>
               </div>
-
-              {!hasStravaLinked && (
-                <ul className={`text-sm space-y-1 ml-11 ${isDarkTheme ? 'text-gray-300' : 'text-gray-700'}`}>
-                  <li>- Track your DEFCON activities</li>
-                  <li>- Sync runs, walks, and rides</li>
-                  <li>- Only reads activity data</li>
-                </ul>
-              )}
-            </div>
           </CardBody>
           <Divider />
           <CardBody className="flex flex-col items-center gap-3">

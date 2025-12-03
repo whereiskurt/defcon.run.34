@@ -90,7 +90,7 @@ function DashboardContent() {
             <div className="flex flex-col w-full">
               <div className="flex items-center justify-between w-full">
                 <Heading level={1}>
-                  <RainbowText text="Session Info" />
+                  <RainbowText text="Session" />
                 </Heading>
                 <Chip
                   color="success"

@@ -1,22 +1,22 @@
-name: auth-defcon-run-local
+name: run-defcon-run-local
 
 services:
   
-  auth-nginx:
-    container_name: auth-nginx-defcon-run
+  web-nginx:
+    container_name: run-nginx-defcon-run
     build:
       context: ./nginx/
       dockerfile: Dockerfile.nginx
     ports:
-      - "443:443"
+      - "11443:443"
     healthcheck:
       test: ["CMD", "curl", "-k", "-f", "-A", "HealthChecker", "https://localhost/"]
       interval: 60s
       timeout: 5s
       retries: 3
 
-  auth-app:
-    container_name: auth-app-defcon-run
+  web-app:
+    container_name: run-app-defcon-run
     network_mode: "service:auth-nginx"
     depends_on:
       dynamodb-local:
@@ -31,26 +31,18 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
-      - AUTH_DYNAMODB_DBNAME=${AUTH_DYNAMODB_DBNAME:-}
+      - AUTH_DYNAMODB_ENDPOINT=${AUTH_DYNAMODB_ENDPOINT:-http://localhost:8000}
       - AUTH_DYNAMODB_ID=${AUTH_DYNAMODB_ID:-}
       - AUTH_DYNAMODB_SECRET=${AUTH_DYNAMODB_SECRET:-}
       - AUTH_DYNAMODB_REGION=${AUTH_DYNAMODB_REGION:-}
-      - AUTH_DYNAMODB_ENDPOINT=${AUTH_DYNAMODB_ENDPOINT:-}
-      - AUTH_ELECTRO_ID=${AUTH_ELECTRO_ID:-}
-      - AUTH_ELECTRO_SECRET=${AUTH_ELECTRO_SECRET:-}
-      - AUTH_ELECTRO_DBNAME=${AUTH_ELECTRO_DBNAME:-}
-      - AUTH_ELECTRO_ENDPOINT=${AUTH_ELECTRO_ENDPOINT:-}
+      - AUTH_DYNAMODB_DBNAME=${AUTH_DYNAMODB_DBNAME:-}
+      - AUTH_SES_ACCESS_KEY_ID=${AUTH_SES_ACCESS_KEY_ID:-}
+      - AUTH_SES_SECRET_ACCESS_KEY=${AUTH_SES_SECRET_ACCESS_KEY:-}
       - AUTH_SES_REGION=${AUTH_SES_REGION:-}
       - AUTH_SES_SMTP_FROM=${AUTH_SES_SMTP_FROM:-}
-      - AUTH_GITHUB_ID=${AUTH_GITHUB_ID:-}
-      - AUTH_GITHUB_SECRET=${AUTH_GITHUB_SECRET:-}
-      - AUTH_STRAVA_CLIENT_ID=${AUTH_STRAVA_CLIENT_ID:-}
-      - AUTH_STRAVA_CLIENT_SECRET=${AUTH_STRAVA_CLIENT_SECRET:-}
-      - AUTH_DISCORD_CLIENT_ID=${AUTH_DISCORD_CLIENT_ID:-}
-      - AUTH_DISCORD_CLIENT_SECRET=${AUTH_DISCORD_CLIENT_SECRET:-}
+      - AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN:-}
       - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-}
-      - OIDC_COOKIE_KEYS=${OIDC_COOKIE_KEYS:-}
-      - OIDC_CLIENT_SECRET_RUN=${OIDC_CLIENT_SECRET_RUN:-}
+      - AUTH_ALLOWED_EMAILS=${AUTH_ALLOWED_EMAILS:-}
 
     command: 
       - node
@@ -61,7 +53,7 @@ services:
     image: "amazon/dynamodb-local:latest"
     container_name: dynamodb-local
     ports:
-      - "8989:8000"
+      - "18989:8000"
     working_dir: /home/dynamodblocal
     healthcheck:
       test: ["CMD-SHELL", "curl -s -A 'HealthChecker' http://localhost:8000 || exit 1"]
