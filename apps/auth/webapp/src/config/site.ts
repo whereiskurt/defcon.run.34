@@ -1,7 +1,7 @@
 export type SiteConfig = typeof siteConfig;
 
 export const siteConfig = {
-  name: "run.defcon.run",
+  name: "auth.defcon.run",
   description: "Annual defcon.run event",
   links: {
     github: "https://github.com/heroui-inc/heroui",
