@@ -6,6 +6,8 @@ export AWS_REGION=${AWS_REGION:-"us-east-1"}
 export AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query "Account" --output text)}
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export IMAGE_TAG=${IMAGE_TAG:-$(cat "${SCRIPT_DIR}/webapp/VERSION" | tr -d '[:space:]')}
+export VERSION_NGINX=${VERSION_NGINX:-$(cat "${SCRIPT_DIR}/nginx/VERSION" | tr -d '[:space:]')}
+export VERSION_WEBAPP=${VERSION_WEBAPP:-$(cat "${SCRIPT_DIR}/webapp/VERSION" | tr -d '[:space:]')}
 export REPO_NAME="dc34-auth-app"
 export WEBAPP_ORIGIN="auth.defcon.run"
 export WEBAPP_PREFIX=${WEBAPP_PREFIX:-"use1/assets"}
@@ -17,6 +19,8 @@ docker buildx build --platform=linux/amd64 \
   --build-arg NEXT_PUBLIC_ASSET_PREFIX="/${WEBAPP_PREFIX}/public" \
   --build-arg WEBAPP_PREFIX="${WEBAPP_PREFIX}" \
   --build-arg WEBAPP_ORIGIN="${WEBAPP_ORIGIN}" \
+  --build-arg VERSION_NGINX="${VERSION_NGINX}" \
+  --build-arg VERSION_WEBAPP="${VERSION_WEBAPP}" \
   -t $REPO_NAME:$IMAGE_TAG -f webapp/Dockerfile.webapp ./webapp/
 
 # Extract static assets from Docker image and sync to S3
