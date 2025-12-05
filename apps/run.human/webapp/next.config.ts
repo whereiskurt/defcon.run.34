@@ -1,7 +1,50 @@
-import type { NextConfig } from "next";
+//@ts-check
+import { readFileSync, existsSync } from 'fs';
+import { resolve } from 'path';
 
-const nextConfig: NextConfig = {
-  /* config options here */
+const WEBAPP_ORIGIN = process.env.WEBAPP_ORIGIN || 'auth.defcon.run';
+const WEBAPP_PREFIX = process.env.WEBAPP_PREFIX || 'use1/assets';
+
+// Read VERSION files at build time
+const readVersion = (path: string): string => {
+  try {
+    if (existsSync(path)) {
+      return readFileSync(path, 'utf-8').trim();
+    }
+  } catch {}
+  return 'unknown';
 };
 
-export default nextConfig;
+const VERSION_APP = process.env.NEXT_PUBLIC_VERSION_APP || readVersion(resolve(__dirname, 'VERSION'));
+const VERSION_NGINX = process.env.NEXT_PUBLIC_VERSION_NGINX || readVersion(resolve(__dirname, '../nginx/VERSION'));
+
+const sharedConfig = {
+  env: {
+    NEXT_PUBLIC_VERSION_APP: VERSION_APP,
+    NEXT_PUBLIC_VERSION_NGINX: VERSION_NGINX,
+  },
+  images: {
+    remotePatterns: [new URL(`https://*.defcon.run/**`)],
+  },
+  allowedDevOrigins: ['local://*', '*.local', '192.168.*.*'],
+  async redirects() {
+    return [
+      {
+        source: '/meshtk',
+        destination: 'https://github.com/whereiskurt/meshtk',
+        permanent: true,
+      }
+    ];
+  }
+};
+
+const productionConfig = {
+  ...sharedConfig,
+  output: 'standalone',
+  assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}`, // rewrites <script> / <link> tags
+  turbopack: {
+    root: __dirname, // Silence the workspace root warning
+  },
+};
+
+export default process.env.NODE_ENV === 'production' ? productionConfig : sharedConfig

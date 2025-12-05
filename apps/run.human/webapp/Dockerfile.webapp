@@ -1,0 +1,52 @@
+#FROM node:20-alpine
+FROM node:current-alpine AS builder
+
+RUN apk update && apk add --no-cache \
+      sudo \
+      curl \
+      build-base \
+      g++ \
+      libpng \
+      libpng-dev \
+      jpeg-dev \
+      pango-dev \
+      cairo-dev \
+      giflib-dev \
+      python3 \
+      ;
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+ARG NEXT_PUBLIC_ASSET_PREFIX=""
+ARG WEBAPP_PREFIX="use1/assets"
+ARG WEBAPP_ORIGIN="run.defcon.run"
+ARG VERSION_NGINX="unknown"
+ARG VERSION_WEBAPP="unknown"
+ENV NEXT_PUBLIC_ASSET_PREFIX=$NEXT_PUBLIC_ASSET_PREFIX
+ENV WEBAPP_PREFIX=$WEBAPP_PREFIX
+ENV WEBAPP_ORIGIN=$WEBAPP_ORIGIN
+ENV NEXT_PUBLIC_VERSION_NGINX=$VERSION_NGINX
+ENV NEXT_PUBLIC_VERSION_APP=$VERSION_WEBAPP
+
+RUN npm run build
+
+# Production stage
+FROM node:current-alpine AS runner
+WORKDIR /app
+# ENV NODE_ENV=production
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Only copy what's needed
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+USER node
+EXPOSE 3000
+CMD ["node", "server.js"]

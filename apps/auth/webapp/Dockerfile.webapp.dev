@@ -1,0 +1,27 @@
+#FROM node:20-alpine
+FROM node:current-alpine
+
+RUN apk update && apk add --no-cache \
+      sudo \
+      curl \
+      build-base \
+      g++ \
+      libpng \
+      libpng-dev \
+      jpeg-dev \
+      pango-dev \
+      cairo-dev \
+      giflib-dev \
+      python3 \
+      ;
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+RUN chown -R node:node /app
+USER node
+
+CMD ["npm","run","dev"]

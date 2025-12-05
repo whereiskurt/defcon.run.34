@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Use dynamodb-local hostname when running in Docker, localhost:8989 when running locally
-ENDPOINT_URL="${DYNAMODB_ENDPOINT:-http://dynamodb-local:8000}"
+ENDPOINT_URL="${DYNAMODB_ENDPOINT:-http://localhost:8000}"
 
 # Wait for DynamoDB Local to be ready
 echo "Waiting for DynamoDB Local at $ENDPOINT_URL..."
@@ -60,11 +60,11 @@ aws dynamodb create-table \
 
 echo "Created 'electro' table"
 
-# Create the 'auth' table
+# Create the 'human.run' table
 # Schema: pk/sk with 1 GSI (gsi1pk-gsi1sk-index), TTL enabled on 'ttl' attribute
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name auth \
+    --table-name human.run \
     --attribute-definitions \
         AttributeName=pk,AttributeType=S \
         AttributeName=sk,AttributeType=S \
@@ -92,15 +92,15 @@ aws dynamodb create-table \
             }
         ]'
 
-echo "Created 'auth' table"
+echo "Created 'human.run' table"
 
 # Enable TTL on the 'auth' table
 aws dynamodb update-time-to-live \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name auth \
+    --table-name human.run \
     --time-to-live-specification "Enabled=true, AttributeName=ttl"
 
-echo "Enabled TTL on 'auth' table"
+echo "Enabled TTL on 'human.auth' table"
 
 echo "All tables created successfully!"
 aws dynamodb list-tables --endpoint-url "$ENDPOINT_URL"

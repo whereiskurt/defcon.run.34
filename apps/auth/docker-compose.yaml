@@ -9,6 +9,8 @@ services:
       dockerfile: Dockerfile.nginx
     ports:
       - "443:443"
+      - "3000:3000"
+      - "8989:8000"
     healthcheck:
       test: ["CMD", "curl", "-k", "-f", "-A", "HealthChecker", "https://localhost/"]
       interval: 60s
@@ -23,45 +25,27 @@ services:
         condition: service_healthy
     build:
       context: ./webapp
-      dockerfile: Dockerfile.webapp
+      dockerfile: Dockerfile.webapp.dev
+    
+    env_file:
+      - ./webapp/.env.development
     environment:
-      - HOSTNAME=0.0.0.0
-      - NEXTAUTH_URL=http://localhost:3000
+      - NODE_ENV=development
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
-      - AUTH_DYNAMODB_DBNAME=${AUTH_DYNAMODB_DBNAME:-}
-      - AUTH_DYNAMODB_ID=${AUTH_DYNAMODB_ID:-}
-      - AUTH_DYNAMODB_SECRET=${AUTH_DYNAMODB_SECRET:-}
-      - AUTH_DYNAMODB_REGION=${AUTH_DYNAMODB_REGION:-}
-      - AUTH_DYNAMODB_ENDPOINT=${AUTH_DYNAMODB_ENDPOINT:-}
-      - AUTH_ELECTRO_ID=${AUTH_ELECTRO_ID:-}
-      - AUTH_ELECTRO_SECRET=${AUTH_ELECTRO_SECRET:-}
-      - AUTH_ELECTRO_DBNAME=${AUTH_ELECTRO_DBNAME:-}
-      - AUTH_ELECTRO_ENDPOINT=${AUTH_ELECTRO_ENDPOINT:-}
-      - AUTH_SES_REGION=${AUTH_SES_REGION:-}
-      - AUTH_SES_SMTP_FROM=${AUTH_SES_SMTP_FROM:-}
-      - AUTH_GITHUB_ID=${AUTH_GITHUB_ID:-}
-      - AUTH_GITHUB_SECRET=${AUTH_GITHUB_SECRET:-}
-      - AUTH_STRAVA_CLIENT_ID=${AUTH_STRAVA_CLIENT_ID:-}
-      - AUTH_STRAVA_CLIENT_SECRET=${AUTH_STRAVA_CLIENT_SECRET:-}
-      - AUTH_DISCORD_CLIENT_ID=${AUTH_DISCORD_CLIENT_ID:-}
-      - AUTH_DISCORD_CLIENT_SECRET=${AUTH_DISCORD_CLIENT_SECRET:-}
-      - AUTH_JWT_SECRET=${AUTH_JWT_SECRET:-}
-      - OIDC_COOKIE_KEYS=${OIDC_COOKIE_KEYS:-}
-      - OIDC_CLIENT_SECRET_RUN=${OIDC_CLIENT_SECRET_RUN:-}
-
+      - AUTH_DEBUG=true
     command: 
-      - node
-      - server.js
+      - npm
+      - run
+      - dev
       
   dynamodb-local:
     command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
     image: "amazon/dynamodb-local:latest"
     container_name: dynamodb-local
-    ports:
-      - "8989:8000"
+    network_mode: "service:auth-nginx"
     working_dir: /home/dynamodblocal
     healthcheck:
       test: ["CMD-SHELL", "curl -s -A 'HealthChecker' http://localhost:8000 || exit 1"]
@@ -72,6 +56,7 @@ services:
   dynamodb-init:
     image: amazon/aws-cli:latest
     container_name: dynamodb-init
+    network_mode: "service:auth-nginx"
     depends_on:
       dynamodb-local:
         condition: service_healthy
