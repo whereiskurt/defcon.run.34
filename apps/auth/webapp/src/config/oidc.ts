@@ -22,6 +22,8 @@ const clients: ClientMetadata[] = [
       "http://localhost:3001",
       "https://localhost:3000",
       "https://localhost:3001",
+      "https://localhost",
+      "http://localhost",
     ],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
