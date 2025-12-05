@@ -30,12 +30,13 @@ services:
     env_file:
       - ./webapp/.env.development
     environment:
+      - HOSTNAME=0.0.0.0
       - NODE_ENV=development
+      - NEXTAUTH_URL=https://localhost:3000
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
-      - AUTH_DEBUG=true
     command: 
       - npm
       - run

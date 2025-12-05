@@ -27,9 +27,9 @@ services:
       context: ../run.human/webapp
       dockerfile: Dockerfile.webapp.dev
     environment:
-      - NODE_ENV=development
       - HOSTNAME=0.0.0.0
-      - NEXTAUTH_URL=http://localhost:3000
+      - NODE_ENV=development
+      - NEXTAUTH_URL=https://localhost:11443
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
