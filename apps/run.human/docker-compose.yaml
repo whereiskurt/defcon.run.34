@@ -9,6 +9,7 @@ services:
       dockerfile: Dockerfile.nginx
     ports:
       - "11443:443"
+      - "13000:3000"
       - "18989:8000"
 
     healthcheck:
