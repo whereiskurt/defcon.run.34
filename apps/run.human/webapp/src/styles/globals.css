@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+}
+
+darkmap {
+  filter: invert(1) hue-rotate(180deg) brightness(1.25);
+}

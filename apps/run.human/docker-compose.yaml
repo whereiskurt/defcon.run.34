@@ -30,7 +30,7 @@ services:
     environment:
       - HOSTNAME=0.0.0.0
       - NODE_ENV=development
-      - NEXTAUTH_URL=https://localhost:11443
+      #- NEXTAUTH_URL=https://localhost:11443
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}

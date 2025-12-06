@@ -14,6 +14,7 @@ const clients: ClientMetadata[] = [
       "https://run.defcon.run/api/auth/callback/defcon",
       "http://localhost:3000/api/auth/callback/defcon", // Local development
       "http://localhost:3001/api/auth/callback/defcon", // Local development
+      "http://localhost:3002/api/auth/callback/defcon", // Local development
       "https://localhost/api/auth/callback/defcon", // Local development
     ],
     post_logout_redirect_uris: [
@@ -22,6 +23,8 @@ const clients: ClientMetadata[] = [
       "http://localhost:3001",
       "https://localhost:3000",
       "https://localhost:3001",
+      "https://localhost:3002",
+      "http://localhost:3002",
       "https://localhost",
       "http://localhost",
     ],
@@ -30,21 +33,40 @@ const clients: ClientMetadata[] = [
     scope: "openid profile email services",
     token_endpoint_auth_method: "client_secret_post",
   },
-  // Add additional clients here as needed
-  // Example:
-  // {
-  //   client_id: "another-app",
-  //   client_secret: process.env.OIDC_CLIENT_SECRET_ANOTHER!,
-  //   redirect_uris: ["https://another.defcon.run/callback"],
-  //   ...
-  // },
+  // run.human webapp client
+  {
+    client_id: "run-human",
+    client_secret: process.env.OIDC_CLIENT_SECRET_RUN_HUMAN!,
+    redirect_uris: [
+      "https://human.defcon.run/api/auth/callback/run.defcon.run",
+      "http://localhost:3000/api/auth/callback/run.defcon.run", // Local development
+      "http://localhost:3001/api/auth/callback/run.defcon.run", // Local development
+      "http://localhost:3002/api/auth/callback/run.defcon.run", // Local development
+      "https://localhost/api/auth/callback/run.defcon.run", // Local development (https)
+    ],
+    post_logout_redirect_uris: [
+      "https://human.defcon.run",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "https://localhost",
+      "http://localhost",
+    ],
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
+    scope: "openid profile email services",
+    token_endpoint_auth_method: "client_secret_post",
+  },
 ];
 
 const isDev = process.env.NODE_ENV !== "production";
 // Note: Using /api/oidc path for Pages Router
 const issuer = isDev
-  ? "http://localhost:3000/api/oidc"
+  ? "http://localhost:3002/api/oidc"  // Auth server runs on port 3002
   : "https://auth.defcon.run/api/oidc";
+
+// Route prefix for all OIDC endpoints (must match Next.js pages router path)
+const routePrefix = "/api/oidc";
 
 /**
  * OIDC Provider Configuration
@@ -56,6 +78,22 @@ const configuration: Configuration = {
 
   // Static client registration
   clients,
+
+  // Route paths - prefixed with /api/oidc to match our Next.js pages router setup
+  routes: {
+    authorization: `${routePrefix}/auth`,
+    backchannel_authentication: `${routePrefix}/backchannel`,
+    code_verification: `${routePrefix}/device`,
+    device_authorization: `${routePrefix}/device/auth`,
+    end_session: `${routePrefix}/session/end`,
+    introspection: `${routePrefix}/token/introspection`,
+    jwks: `${routePrefix}/jwks`,
+    pushed_authorization_request: `${routePrefix}/request`,
+    registration: `${routePrefix}/reg`,
+    revocation: `${routePrefix}/token/revocation`,
+    token: `${routePrefix}/token`,
+    userinfo: `${routePrefix}/me`,
+  },
 
   // Claims available for tokens
   claims: {

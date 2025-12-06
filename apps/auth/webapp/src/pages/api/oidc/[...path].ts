@@ -34,11 +34,11 @@ export default async function handler(
 ) {
   // Get the path segments after /api/oidc/
   const pathSegments = req.query.path as string[];
-  const path = "/" + (pathSegments?.join("/") || "");
+  // Build the full path including /api/oidc prefix (oidc-provider routes are configured with this prefix)
+  const path = "/api/oidc/" + (pathSegments?.join("/") || "");
 
   // Rewrite the URL to what oidc-provider expects
-  // oidc-provider paths are relative to issuer (e.g., /auth, /token, /.well-known/openid-configuration)
-  const originalUrl = req.url;
+  // Since routes are configured with /api/oidc prefix, we pass the full path
   req.url = path + (req.url?.includes("?") ? req.url.substring(req.url.indexOf("?")) : "");
 
   try {

@@ -23,6 +23,9 @@ const sharedConfig = {
     NEXT_PUBLIC_VERSION_APP: VERSION_APP,
     NEXT_PUBLIC_VERSION_NGINX: VERSION_NGINX,
   },
+  turbopack: {
+    root: __dirname, // Silence the workspace root warning
+  },
   images: {
     remotePatterns: [new URL(`https://*.defcon.run/**`)],
   },
