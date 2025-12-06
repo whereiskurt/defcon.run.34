@@ -310,7 +310,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   cookies: {
     sessionToken: {
-      name: "sess",
+      name: "sess_auth",
       options: {
         domain: cookieDomain,
         path: "/",
@@ -320,7 +320,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     },
     csrfToken: {
-      name: "csrf",
+      name: "csrf_auth",
       options: {
         domain: cookieDomain,
         path: "/",
@@ -330,7 +330,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     },
     callbackUrl: {
-      name: "callback",
+      name: "callback_auth",
       options: {
         domain: cookieDomain,
         path: "/",
