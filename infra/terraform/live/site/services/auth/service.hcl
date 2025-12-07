@@ -47,7 +47,7 @@ locals {
         environment = [
           {
             name  = "APP_URL"
-            value = "https://run.defcon.run"
+            value = "https://auth.defcon.run"
           }
         ]
 

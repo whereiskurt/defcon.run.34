@@ -1,6 +1,7 @@
 locals {
   # Load service definitions from infra/services/
-  ecs_auth_service = read_terragrunt_config("./services/auth/auth.hcl")
+  ecs_auth_service = read_terragrunt_config("./services/auth/service.hcl")
+  ecs_run_human_service = read_terragrunt_config("./services/run-human/service.hcl")
 
   site = {
     label         = "dc34"
@@ -103,13 +104,6 @@ locals {
 
   }
 
-  dynamodb = {
-    enabled = true
-    tables  = concat(
-      local.ecs_auth_service.locals.dynamodb.tables,
-    )
-  }
-
   ec2spots = {
     enabled = false
     instances = [
@@ -142,13 +136,6 @@ locals {
     ]
   }
 
-  ecr = {
-    enabled = true
-    repositories = concat(
-      local.ecs_auth_service.locals.ecr_repositories,
-    )
-  }
-
   ecs_clusters = {
     enabled = true
     clusters = [
@@ -167,10 +154,27 @@ locals {
     ]
   }
 
+  dynamodb = {
+    enabled = true
+    tables  = concat(
+      local.ecs_auth_service.locals.dynamodb.tables,
+      local.ecs_run_human_service.locals.dynamodb.tables
+    )
+  }
+
+  ecr = {
+    enabled = true
+    repositories = concat(
+      local.ecs_auth_service.locals.ecr_repositories,
+      local.ecs_run_human_service.locals.ecr_repositories
+    )
+  }
+
   ecs_tasks = {
     enabled = true
     tasks = [
       local.ecs_auth_service.locals.task,
+      local.ecs_run_human_service.locals.task
     ]
   }
 
@@ -178,6 +182,7 @@ locals {
     enabled = true
     services = [
       local.ecs_auth_service.locals.service,
+      local.ecs_run_human_service.locals.service
     ]
   }
 
