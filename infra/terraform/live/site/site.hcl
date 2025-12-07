@@ -5,8 +5,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
-
+    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
   }
 
   dns = {
@@ -60,7 +59,7 @@ locals {
   }
 
   waf = {
-    enabled  = true
+    enabled  = false
     log_mode = "standard" # standard | realtime
   }
 
@@ -183,7 +182,7 @@ locals {
   }
 
   github_oidc = {
-    enabled     = true
+    enabled     = false
     github_org  = "whereiskurt"      # Your GitHub org/user
     github_repo = "defcon.run.34"    # Your repository name
 

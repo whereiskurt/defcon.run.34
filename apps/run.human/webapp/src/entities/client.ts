@@ -1,17 +1,17 @@
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 
-const dynamodbEndpoint = process.env.AUTH_DYNAMODB_ENDPOINT;
-const electroEndpoint = process.env.AUTH_ELECTRO_ENDPOINT;
+const dynamodbEndpoint = process.env.RUN_DYNAMODB_ENDPOINT;
+const electroEndpoint = process.env.RUN_ELECTRO_ENDPOINT;
 
 // Auth.js/NextAuth DynamoDB client - for session/user management
 export const dynamodbClient = DynamoDBDocument.from(
   new DynamoDB({
     credentials: {
-      accessKeyId: process.env.AUTH_DYNAMODB_ID!,
-      secretAccessKey: process.env.AUTH_DYNAMODB_SECRET!,
+      accessKeyId: process.env.RUN_DYNAMODB_ID!,
+      secretAccessKey: process.env.RUN_DYNAMODB_SECRET!,
     },
-    region: process.env.AWS_REGION,
+    region: process.env.RUN_DYNAMODB_REGION,
     ...(dynamodbEndpoint ? { endpoint: dynamodbEndpoint } : {}),
   }),
   {
@@ -23,14 +23,14 @@ export const dynamodbClient = DynamoDBDocument.from(
   }
 );
 
-// ElectroDB client - for profile/services data
+// ElectroDB client - for run user/profile data
 export const electroClient = DynamoDBDocument.from(
   new DynamoDB({
     credentials: {
-      accessKeyId: process.env.AUTH_ELECTRO_ID!,
-      secretAccessKey: process.env.AUTH_ELECTRO_SECRET!,
+      accessKeyId: process.env.RUN_ELECTRO_ID!,
+      secretAccessKey: process.env.RUN_ELECTRO_SECRET!,
     },
-    region: process.env.AWS_REGION,
+    region: process.env.RUN_DYNAMODB_REGION,
     ...(electroEndpoint ? { endpoint: electroEndpoint } : {}),
   }),
   {
@@ -42,5 +42,5 @@ export const electroClient = DynamoDBDocument.from(
   }
 );
 
-export const DYNAMODB_TABLE = process.env.AUTH_DYNAMODB_DBNAME || "auth-authjs";
-export const ELECTRO_TABLE = process.env.AUTH_ELECTRO_DBNAME || "auth-electro";
+export const DYNAMODB_TABLE = process.env.RUN_DYNAMODB_DBNAME || "run-authjs";
+export const ELECTRO_TABLE = process.env.RUN_ELECTRO_DBNAME || "run-electro";

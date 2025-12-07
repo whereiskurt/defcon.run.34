@@ -14,7 +14,7 @@ echo "DynamoDB Local is ready!"
 # Schema: pk/sk with 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name electro \
+    --table-name run-electro \
     --attribute-definitions \
         AttributeName=pk,AttributeType=S \
         AttributeName=sk,AttributeType=S \
@@ -64,7 +64,7 @@ echo "Created 'electro' table"
 # Schema: pk/sk with 1 GSI (gsi1pk-gsi1sk-index), TTL enabled on 'ttl' attribute
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name human.run \
+    --table-name run-auth \
     --attribute-definitions \
         AttributeName=pk,AttributeType=S \
         AttributeName=sk,AttributeType=S \

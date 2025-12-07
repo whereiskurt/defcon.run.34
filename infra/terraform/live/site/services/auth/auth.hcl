@@ -156,6 +156,18 @@ locals {
           {
             name      = "AUTH_DISCORD_CLIENT_SECRET"
             valueFrom = "/defcon.run/auth/discord/secret"
+          },
+          {
+            name      = "OIDC_COOKIE_KEYS"
+            valueFrom = "/defcon.run/auth/oidc/secret"
+          },
+          {
+            name      = "OIDC_RUNHUMAN_CLIENT_ID"
+            valueFrom = "/defcon.run/auth/runhuman/id"
+          },
+          {
+            name      = "OIDC_RUNHUMAN_SECRET"
+            valueFrom = "/defcon.run/auth/runhuman/secret"
           }
         ]
 

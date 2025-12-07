@@ -4,6 +4,7 @@ import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import type { Provider } from "next-auth/providers";
 
 import NextAuth, { type DefaultSession } from "next-auth";
+import { upsertRunUser } from "@/entities/run-user";
 
 declare module "next-auth" {
   interface Session {
@@ -36,14 +37,14 @@ if (process.env.NODE_ENV !== "production") {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
-const endpoint: string = process.env["AUTH_DYNAMODB_ENDPOINT"]!;
+const endpoint: string = process.env["RUN_DYNAMODB_ENDPOINT"]!;
 
 const config: DynamoDBClientConfig = {
   credentials: {
-    accessKeyId: process.env.AUTH_DYNAMODB_ID!,
-    secretAccessKey: process.env.AUTH_DYNAMODB_SECRET!,
+    accessKeyId: process.env.RUN_DYNAMODB_ID!,
+    secretAccessKey: process.env.RUN_DYNAMODB_SECRET!,
   },
-  region: process.env.AUTH_DYNAMODB_REGION,
+  region: process.env.RUN_DYNAMODB_REGION,
   ...(endpoint ? { endpoint } : {}),
 };
 const client = DynamoDBDocument.from(new DynamoDB(config), {
@@ -54,7 +55,7 @@ const client = DynamoDBDocument.from(new DynamoDB(config), {
   },
 });
 const adapter = DynamoDBAdapter(client, {
-  tableName: process.env.AUTH_DYNAMODB_DBNAME,
+  tableName: process.env.RUN_DYNAMODB_DBNAME,
 });
 
 // OIDC provider for authentication via auth.defcon.run (or localhost in dev)
@@ -70,7 +71,7 @@ const providers: Provider[] = [
     type: "oidc",
     issuer: authServerUrl,
     clientId: process.env.AUTH_OIDC_CLIENT_ID || "run-human",
-    clientSecret: process.env.AUTH_OIDC_CLIENT_SECRET!,
+    clientSecret: process.env.OIDC_RUNHUMAN_SECRET!,
     authorization: {
       params: {
         scope: "openid profile email services",
@@ -109,8 +110,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
   adapter,
   pages: {
-    signIn: "/login",
-    verifyRequest: "/login/verify",
+    signIn: "/",
   },
   callbacks: {
     signIn({ user, profile, account }) {
@@ -134,34 +134,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           if (userId) {
             token.userId = userId;
+
+            // Create/update RunUser record after successful OIDC login
+            try {
+              await upsertRunUser(userId, {
+                services: token.services as string[],
+              });
+            } catch (err) {
+              console.error("Failed to upsert RunUser:", err);
+            }
           }
-        } 
+        }
       }
 
-      // Fetch services and strava status from AuthProfile and store in token
-      // This runs on every JWT refresh, so services will be updated
-      const userId = (typeof user?.id === "string" && user.id)
-        || (typeof token.sub === "string" && token.sub)
-        || (typeof token.userId === "string" && token.userId);
-      if (userId) {
-        try {
-          // const profile = await getAuthProfile(userId);
-          // // Use profile services if available, otherwise keep existing token services or default to empty
-          // token.services = profile?.services ?? token.services ?? [];
-          // // Store the rabbit username in the token
-          // token.username = profile?.username ?? token.username;
-          // // Store stravaId if linked (check AuthProfile strava data)
-          // if (profile?.strava?.id) {
-          //   token.stravaId = `${profile.strava.id}`;
-          // }
-        } catch (err) {
-          console.error("Failed to fetch services for token:", err);
-          // Keep existing services on error
-          token.services = token.services ?? [];
-        }
-      } else {
-        token.services = token.services ?? [];
-      }
+      // Ensure services is always set
+      token.services = token.services ?? [];
 
       return token;
     },

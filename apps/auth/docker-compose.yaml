@@ -5,7 +5,7 @@ services:
   auth-nginx:
     container_name: auth-nginx-defcon-run
     build:
-      context: ./nginx/
+      context: apps/auth/nginx/
       dockerfile: Dockerfile.nginx
     ports:
       - "443:443"
@@ -24,11 +24,11 @@ services:
       dynamodb-local:
         condition: service_healthy
     build:
-      context: ./webapp
+      context: apps/auth/webapp
       dockerfile: Dockerfile.webapp.dev
     
     env_file:
-      - ./webapp/.env.development
+      - apps/auth/webapp/.env.development
     environment:
       - HOSTNAME=0.0.0.0
       - NODE_ENV=development
@@ -66,7 +66,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=local
       - AWS_DEFAULT_REGION=us-east-1
     volumes:
-      - ./dynamo-local/init-local-db.sh:/init-local-db.sh:ro
+      - ./apps/auth/dynamo-local/init-local-db.sh:/init-local-db.sh:ro
     entrypoint: ["/bin/bash", "/init-local-db.sh"]
 
 

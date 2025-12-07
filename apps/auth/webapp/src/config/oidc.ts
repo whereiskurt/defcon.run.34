@@ -7,38 +7,12 @@ import { getAuthProfile } from "@/entities/auth-profile";
  * Each client represents an application that can authenticate users via auth.defcon.run
  */
 const clients: ClientMetadata[] = [
-  {
-    client_id: "run-defcon-run",
-    client_secret: process.env.OIDC_CLIENT_SECRET_RUN!,
-    redirect_uris: [
-      "https://run.defcon.run/api/auth/callback/defcon",
-      "http://localhost:3000/api/auth/callback/defcon", // Local development
-      "http://localhost:3001/api/auth/callback/defcon", // Local development
-      "http://localhost:3002/api/auth/callback/defcon", // Local development
-      "https://localhost/api/auth/callback/defcon", // Local development
-    ],
-    post_logout_redirect_uris: [
-      "https://run.defcon.run",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "https://localhost:3000",
-      "https://localhost:3001",
-      "https://localhost:3002",
-      "http://localhost:3002",
-      "https://localhost",
-      "http://localhost",
-    ],
-    grant_types: ["authorization_code", "refresh_token"],
-    response_types: ["code"],
-    scope: "openid profile email services",
-    token_endpoint_auth_method: "client_secret_post",
-  },
   // run.human webapp client
   {
-    client_id: "run-human",
-    client_secret: process.env.OIDC_CLIENT_SECRET_RUN_HUMAN!,
+    client_id:  process.env.OIDC_RUNHUMAN_CLIENT_ID!,
+    client_secret: process.env.OIDC_RUNHUMAN_SECRET!,
     redirect_uris: [
-      "https://human.defcon.run/api/auth/callback/run.defcon.run",
+      "https://run.defcon.run/api/auth/callback/run.defcon.run",
       "http://localhost:3000/api/auth/callback/run.defcon.run", // Local development
       "http://localhost:3001/api/auth/callback/run.defcon.run", // Local development
       "http://localhost:3002/api/auth/callback/run.defcon.run", // Local development
