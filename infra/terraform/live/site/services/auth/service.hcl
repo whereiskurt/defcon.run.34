@@ -91,6 +91,10 @@ locals {
             value = "https://auth.defcon.run"
           },
           {
+            name  = "AUTH_COOKIE_DOMAIN"
+            value = "auth.defcon.run"
+          },
+          {
             name  = "AWS_REGION"
             value = "{{REGION}}"
           },
@@ -179,7 +183,7 @@ locals {
         ]
 
         health_check = {
-          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/login || exit 1"]
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/ || exit 1"]
           interval     = 30
           timeout      = 5
           retries      = 3

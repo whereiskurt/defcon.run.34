@@ -95,6 +95,10 @@ locals {
             value = "{{REGION}}"
           },
           {
+            name  = "AUTH_COOKIE_DOMAIN"
+            value = "run.defcon.run"
+          },
+          {
             name  = "RUN_SES_REGION"
             value = "{{REGION}}"
           }
@@ -151,7 +155,7 @@ locals {
         ]
 
         health_check = {
-          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/login || exit 1"]
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/ || exit 1"]
           interval     = 30
           timeout      = 5
           retries      = 3

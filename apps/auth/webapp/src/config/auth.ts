@@ -144,6 +144,10 @@ const randomString = (length: number, alphabet: string): string =>
 const cookieDomain =
   process.env.NODE_ENV === "production" ? process.env.AUTH_COOKIE_DOMAIN  : "localhost";
 
+// In production behind a load balancer that terminates TLS, use secure cookies.
+// The `trustHost: true` setting tells NextAuth to trust X-Forwarded-Proto headers.
+const useSecureCookies = process.env.NODE_ENV === "production";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // debug: true,
   trustHost: true,
@@ -316,7 +320,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        secure: true,
+        secure: useSecureCookies,
       },
     },
     csrfToken: {
@@ -326,7 +330,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         path: "/",
         httpOnly: false,
         sameSite: "lax",
-        secure: true,
+        secure: useSecureCookies,
       },
     },
     callbackUrl: {
@@ -336,7 +340,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         path: "/",
         httpOnly: false,
         sameSite: "lax",
-        secure: true,
+        secure: useSecureCookies,
       },
     },
   },

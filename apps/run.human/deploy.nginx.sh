@@ -7,7 +7,7 @@ export AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query "A
 export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export IMAGE_TAG=${IMAGE_TAG:-$(cat "${SCRIPT_DIR}/nginx/VERSION" | tr -d '[:space:]')}
 
-export REPO_NAME="dc34-run-nginx"
+export REPO_NAME="dc34-run-human-nginx"
 
 aws ecr get-login-password --region "$AWS_REGION" \
  | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"

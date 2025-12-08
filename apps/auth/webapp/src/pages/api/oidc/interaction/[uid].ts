@@ -30,9 +30,10 @@ export default async function handler(
 
   // Get the Auth.js JWT token (works with Pages Router)
   // Note: getToken expects a different request type, so we cast it
+  // Secret must match the format used in auth.ts (split by comma for key rotation)
   const token = await getToken({
     req: req as any,
-    secret: process.env.AUTH_JWT_SECRET,
+    secret: process.env.AUTH_JWT_SECRET?.split(","),
     cookieName: "sess_auth",
   });
 

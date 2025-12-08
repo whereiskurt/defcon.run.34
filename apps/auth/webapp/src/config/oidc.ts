@@ -267,6 +267,12 @@ const configuration: Configuration = {
 // Create the OIDC provider instance
 export const oidc = new Provider(issuer, configuration);
 
+// Trust proxy headers (X-Forwarded-Proto, X-Forwarded-Host) when behind load balancer/CloudFront
+// This ensures endpoints are advertised with https:// instead of http://
+if (!isDev) {
+  oidc.proxy = true;
+}
+
 // Re-export errors for use in route handlers
 export { errors as OIDCErrors };
 
