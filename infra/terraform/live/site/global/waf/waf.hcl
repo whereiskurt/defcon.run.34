@@ -131,16 +131,37 @@ locals {
 
       # --- Custom Rules ---
       # Priority ordering:
+      #   0:      Static asset allowlist (must run BEFORE managed rules)
       #   10-49:  Rate limiting rules (most important to evaluate first)
       #   50-99:  Path allowlist rules
       #   100:    Default deny rule (catch-all)
       custom_rules = [
+        # ALLOW: Regional S3 assets (priority 0 to run BEFORE managed rules)
+        # This prevents managed rules from blocking Next.js static assets
+        {
+          name            = "AllowRegionalAssetsEarly"
+          priority        = 0
+          action          = "allow"
+          custom_response = null
+          statement = {
+            rate_based_statement = null
+            byte_match_statement = null
+            regex_match_statement = {
+              regex_string         = "^/(use1|cac1)/assets/"
+              field_to_match       = { uri_path = {}, method = null }
+              text_transformations = [{ priority = 0, type = "LOWERCASE" }]
+            }
+          }
+        },
         # Rate Limiting: POST /api/login (10 req/5min) - Prevents brute-force (AWS minimum is 10)
         {
           name            = "RateLimitLoginEndpoint"
           priority        = 10
           action          = "block"
-          custom_response = null
+          custom_response = {
+            response_code            = 469
+            custom_response_body_key = "auth-blocked"
+          }
           statement = {
             rate_based_statement = {
               limit              = 10
@@ -178,7 +199,10 @@ locals {
           name            = "RateLimitSessionValidate"
           priority        = 11
           action          = "block"
-          custom_response = null
+          custom_response = {
+            response_code            = 469
+            custom_response_body_key = "auth-blocked"
+          }
           statement = {
             rate_based_statement = {
               limit              = 100
@@ -202,7 +226,10 @@ locals {
           name            = "RateLimitAuthEndpoints"
           priority        = 12
           action          = "block"
-          custom_response = null
+          custom_response = {
+            response_code            = 469
+            custom_response_body_key = "auth-blocked"
+          }
           statement = {
             rate_based_statement = {
               limit              = 50
@@ -226,7 +253,10 @@ locals {
           name            = "RateLimitOidcEndpoints"
           priority        = 13
           action          = "block"
-          custom_response = null
+          custom_response = {
+            response_code            = 469
+            custom_response_body_key = "auth-blocked"
+          }
           statement = {
             rate_based_statement = {
               limit              = 50
@@ -250,7 +280,10 @@ locals {
           name            = "RateLimitGlobal"
           priority        = 14
           action          = "block"
-          custom_response = null
+          custom_response = {
+            response_code            = 469
+            custom_response_body_key = "auth-blocked"
+          }
           statement = {
             rate_based_statement = {
               limit                = 200
@@ -328,23 +361,6 @@ locals {
             regex_match_statement = null
           }
         },
-        # ALLOW: Next.js static /_next/*
-        {
-          name            = "AllowNextStatic"
-          priority        = 54
-          action          = "allow"
-          custom_response = null
-          statement = {
-            rate_based_statement = null
-            byte_match_statement = {
-              search_string         = "/_next/"
-              positional_constraint = "STARTS_WITH"
-              field_to_match        = { uri_path = {}, method = null }
-              text_transformations  = [{ priority = 0, type = "NONE" }]
-            }
-            regex_match_statement = null
-          }
-        },
         # ALLOW: Favicon
         {
           name            = "AllowFavicon"
@@ -360,22 +376,6 @@ locals {
               text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
             }
             regex_match_statement = null
-          }
-        },
-        # ALLOW: Regional S3 assets
-        {
-          name            = "AllowRegionalAssets"
-          priority        = 56
-          action          = "allow"
-          custom_response = null
-          statement = {
-            rate_based_statement = null
-            byte_match_statement = null
-            regex_match_statement = {
-              regex_string         = "^/(use1|cac1)/assets/"
-              field_to_match       = { uri_path = {}, method = null }
-              text_transformations = [{ priority = 0, type = "LOWERCASE" }]
-            }
           }
         },
         # DEFAULT DENY: Block everything else

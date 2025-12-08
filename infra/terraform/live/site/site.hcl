@@ -1,12 +1,12 @@
 locals {
   # Load service definitions from infra/services/
-  ecs_auth_service = read_terragrunt_config("./services/auth/auth.hcl")
+  ecs_auth_service = read_terragrunt_config("./services/auth/service.hcl")
+  ecs_run_human_service = read_terragrunt_config("./services/run-human/service.hcl")
 
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
-
+    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
   }
 
   dns = {
@@ -60,7 +60,7 @@ locals {
   }
 
   waf = {
-    enabled  = true
+    enabled  = false
     log_mode = "standard" # standard | realtime
   }
 
@@ -70,7 +70,7 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "auth.defcon.run"
-    domains = ["auth"]
+    domains = ["auth", "run"]
 
     ##Map fronted domain "auth.defcon.run" to the ruleset called "auth"
     waf_rulesets = {
@@ -102,13 +102,6 @@ locals {
     # Options: PriceClass_All, PriceClass_200, PriceClass_100
     price_class = "PriceClass_100"
 
-  }
-
-  dynamodb = {
-    enabled = true
-    tables  = concat(
-      local.ecs_auth_service.locals.dynamodb.tables,
-    )
   }
 
   ec2spots = {
@@ -143,13 +136,6 @@ locals {
     ]
   }
 
-  ecr = {
-    enabled = true
-    repositories = concat(
-      local.ecs_auth_service.locals.ecr_repositories,
-    )
-  }
-
   ecs_clusters = {
     enabled = true
     clusters = [
@@ -168,10 +154,27 @@ locals {
     ]
   }
 
+  dynamodb = {
+    enabled = true
+    tables  = concat(
+      local.ecs_auth_service.locals.dynamodb.tables,
+      local.ecs_run_human_service.locals.dynamodb.tables
+    )
+  }
+
+  ecr = {
+    enabled = true
+    repositories = concat(
+      local.ecs_auth_service.locals.ecr_repositories,
+      local.ecs_run_human_service.locals.ecr_repositories
+    )
+  }
+
   ecs_tasks = {
     enabled = true
     tasks = [
       local.ecs_auth_service.locals.task,
+      local.ecs_run_human_service.locals.task
     ]
   }
 
@@ -179,11 +182,12 @@ locals {
     enabled = true
     services = [
       local.ecs_auth_service.locals.service,
+      local.ecs_run_human_service.locals.service
     ]
   }
 
   github_oidc = {
-    enabled     = true
+    enabled     = false
     github_org  = "whereiskurt"      # Your GitHub org/user
     github_repo = "defcon.run.34"    # Your repository name
 

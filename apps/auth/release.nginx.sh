@@ -29,5 +29,3 @@ NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
 
 echo "$NEW_VERSION" > "$VERSION_FILE"
 echo "Updated version: $NEW_VERSION"
-
-./deploy.nginx.sh

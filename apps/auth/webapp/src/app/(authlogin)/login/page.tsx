@@ -106,11 +106,37 @@ function ClientOnlyForm() {
   // Use a safe default in case we're rendering on the server
   const isDarkTheme = mounted && resolvedTheme === 'dark';
 
+  // Auto-redirect to complete OIDC flow when authenticated with an OIDC interaction
+  useEffect(() => {
+    if (status === 'authenticated' && session && oidcInteraction) {
+      // Redirect to complete the OIDC interaction
+      window.location.href = `/api/oidc/interaction/${oidcInteraction}`;
+    }
+  }, [status, session, oidcInteraction]);
+
   // Show logged-in view if user has a session
   if (status === 'authenticated' && session) {
     const continueUrl = oidcInteraction
       ? `/api/oidc/interaction/${oidcInteraction}`
       : '/';
+
+    // If there's an OIDC interaction, show a "redirecting" message while the useEffect handles the redirect
+    if (oidcInteraction) {
+      return (
+        <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
+          <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+          <div className="z-10 w-full max-w-md">
+            <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
+              <CardBody className="flex justify-center items-center py-8">
+                <Text variant="large" className={isDarkTheme ? 'text-white' : 'text-black'}>
+                  Completing login...
+                </Text>
+              </CardBody>
+            </Card>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">

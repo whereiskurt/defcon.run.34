@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { auth } from "@/config/auth";
+import { getToken } from "next-auth/jwt";
 import { oidc, isSessionNotFound } from "@/config/oidc";
 
 /**
@@ -24,17 +24,24 @@ export default async function handler(
   const { uid } = req.query;
 
   if (!uid || typeof uid !== "string") {
-    return res.redirect("/login?error=invalid_interaction");
+    res.redirect("/login?error=invalid_interaction");
+    return;
   }
 
-  // Get the Auth.js session
-  // Note: auth() from next-auth v5 works with Pages Router too
-  const session = await auth();
+  // Get the Auth.js JWT token (works with Pages Router)
+  // Note: getToken expects a different request type, so we cast it
+  // Secret must match the format used in auth.ts (split by comma for key rotation)
+  const token = await getToken({
+    req: req as any,
+    secret: process.env.AUTH_JWT_SECRET?.split(","),
+    cookieName: "sess_auth",
+  });
 
-  if (!session?.user?.id && !session?.user?.email) {
+  if (!token?.sub && !token?.email) {
     // Not logged in - redirect back to login with the interaction ID
     console.log("OIDC Interaction: No session, redirecting to login");
-    return res.redirect(`/login?oidc=${uid}`);
+    res.redirect(`/login?oidc=${uid}`);
+    return;
   }
 
   try {
@@ -43,11 +50,12 @@ export default async function handler(
 
     if (!interactionDetails) {
       console.error("OIDC Interaction: Interaction not found for uid:", uid);
-      return res.redirect("/login?error=interaction_expired");
+      res.redirect("/login?error=interaction_expired");
+      return;
     }
 
-    // Determine the account ID (prefer explicit ID, fall back to email)
-    const accountId = session.user.id || session.user.email!;
+    // Determine the account ID (prefer explicit ID from sub, fall back to email)
+    const accountId = (token.sub || token.email) as string;
 
     // Check what the interaction needs
     const { prompt } = interactionDetails;
@@ -102,14 +110,15 @@ export default async function handler(
     );
 
     // Redirect to continue the OIDC flow
-    return res.redirect(redirectTo);
+    res.redirect(redirectTo);
   } catch (error) {
     console.error("OIDC Interaction error:", error);
 
     if (isSessionNotFound(error)) {
-      return res.redirect("/login?error=session_expired");
+      res.redirect("/login?error=session_expired");
+      return;
     }
 
-    return res.redirect("/login?error=oidc_error");
+    res.redirect("/login?error=oidc_error");
   }
 }

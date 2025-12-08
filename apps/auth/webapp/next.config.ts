@@ -15,8 +15,8 @@ const readVersion = (path: string): string => {
   return 'unknown';
 };
 
-const VERSION_APP = readVersion(resolve(__dirname, 'VERSION'));
-const VERSION_NGINX = readVersion(resolve(__dirname, '../nginx/VERSION'));
+const VERSION_APP = process.env.NEXT_PUBLIC_VERSION_APP || readVersion(resolve(__dirname, 'VERSION'));
+const VERSION_NGINX = process.env.NEXT_PUBLIC_VERSION_NGINX || readVersion(resolve(__dirname, '../nginx/VERSION'));
 
 const sharedConfig = {
   env: {

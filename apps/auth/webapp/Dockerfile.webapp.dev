@@ -1,0 +1,31 @@
+#FROM node:20-alpine
+FROM node:current-alpine
+
+RUN apk update && apk add --no-cache \
+      sudo \
+      curl \
+      build-base \
+      g++ \
+      libpng \
+      libpng-dev \
+      jpeg-dev \
+      pango-dev \
+      cairo-dev \
+      giflib-dev \
+      python3 \
+      ;
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+RUN chown node:node /app
+RUN chown -R node:node /app/.dockerignore
+RUN chown -R node:node /app/src
+RUN chown -R node:node /app/public
+
+USER node
+
+CMD ["npm","run","dev"]

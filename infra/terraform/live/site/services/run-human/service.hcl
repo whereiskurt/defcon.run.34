@@ -7,7 +7,7 @@ locals {
   # ECR repositories for this service
   ecr_repositories = [
     {
-      name                 = "auth-nginx"
+      name                 = "run-human-nginx"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -16,7 +16,7 @@ locals {
       }
     },
     {
-      name                 = "auth-app"
+      name                 = "run-human-app"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -26,9 +26,9 @@ locals {
     }
   ]
 
-  # ECS Task definition for the auth service
+  # ECS Task definition for the run-human service
   task = {
-    name         = "auth"
+    name         = "run-human"
     regions      = ["us-east-1", "ca-central-1"]
     cluster_name = "app"
     task_cpu     = 512
@@ -36,8 +36,8 @@ locals {
 
     containers = [
       {
-        name               = "auth-nginx"
-        image              = "auth-nginx:${local.versions.nginx}"
+        name               = "run-human-nginx"
+        image              = "run-human-nginx:${local.versions.nginx}"
         cpu                = 256
         memory             = 512
         memory_reservation = 256
@@ -69,8 +69,8 @@ locals {
         log_stream_prefix = "nginx"
       },
       {
-        name               = "auth-app"
-        image              = "auth-app:${local.versions.app}"
+        name               = "run-human-app"
+        image              = "run-human-app:${local.versions.app}"
         cpu                = 256
         memory             = 512
         memory_reservation = 256
@@ -88,21 +88,25 @@ locals {
           },
           {
             name  = "NEXTAUTH_URL"
-            value = "https://auth.defcon.run"
+            value = "https://run.defcon.run"
           },
           {
             name  = "AWS_REGION"
             value = "{{REGION}}"
           },
           {
-            name  = "AUTH_SES_REGION"
+            name  = "AUTH_COOKIE_DOMAIN"
+            value = "run.defcon.run"
+          },
+          {
+            name  = "RUN_SES_REGION"
             value = "{{REGION}}"
           }
         ]
 
         secrets = [
           {
-            name      = "AUTH_SES_SMTP_FROM"
+            name      = "RUN_SES_SMTP_FROM"
             valueFrom = "/{{SITE_LABEL}}/ses/from_address"
           },
           {
@@ -110,52 +114,36 @@ locals {
             valueFrom = "/defcon.run/auth/secret"
           },
           {
-            name      = "AUTH_DYNAMODB_ID"
+            name      = "RUN_DYNAMODB_ID"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/access_key_id"
           },
           {
-            name      = "AUTH_DYNAMODB_SECRET"
+            name      = "RUN_DYNAMODB_SECRET"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/secret_access_key"
           },
           {
-            name      = "AUTH_DYNAMODB_DBNAME"
+            name      = "RUN_DYNAMODB_DBNAME"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/table_name"
           },
           {
-            name      = "AUTH_ELECTRO_ID"
+            name      = "RUN_ELECTRO_ID"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/access_key_id"
           },
           {
-            name      = "AUTH_ELECTRO_SECRET"
+            name      = "RUN_ELECTRO_SECRET"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/secret_access_key"
           },
           {
-            name      = "AUTH_ELECTRO_DBNAME"
+            name      = "RUN_ELECTRO_DBNAME"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/table_name"
           },
           {
-            name      = "AUTH_GITHUB_ID"
-            valueFrom = "/defcon.run/auth/github/id"
+            name      = "OIDC_RUNHUMAN_CLIENT_ID"
+            valueFrom = "/defcon.run/auth/runhuman/id"
           },
           {
-            name      = "AUTH_GITHUB_SECRET"
-            valueFrom = "/defcon.run/auth/github/secret"
-          },
-          {
-            name      = "AUTH_STRAVA_CLIENT_ID"
-            valueFrom = "/defcon.run/auth/strava/id"
-          },
-          {
-            name      = "AUTH_STRAVA_CLIENT_SECRET"
-            valueFrom = "/defcon.run/auth/strava/secret"
-          },
-          {
-            name      = "AUTH_DISCORD_CLIENT_ID"
-            valueFrom = "/defcon.run/auth/discord/id"
-          },
-          {
-            name      = "AUTH_DISCORD_CLIENT_SECRET"
-            valueFrom = "/defcon.run/auth/discord/secret"
+            name      = "OIDC_RUNHUMAN_SECRET"
+            valueFrom = "/defcon.run/auth/runhuman/secret"
           }
         ]
 
@@ -167,7 +155,7 @@ locals {
         ]
 
         health_check = {
-          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/login || exit 1"]
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/ || exit 1"]
           interval     = 30
           timeout      = 5
           retries      = 3
@@ -184,7 +172,7 @@ locals {
     tables = [
       # Electro table with multi-region replication
       {
-        table_name = "auth-electro"
+        table_name = "run-human-electro"
         table_type = "electro"
 
         # Multi-region global table configuration
@@ -215,7 +203,7 @@ locals {
       # Standard table without replication
 
       {
-        table_name = "auth-authjs"
+        table_name = "run-human-authjs"
         table_type = "nextauth"
 
         # Single region only (no replication)
@@ -244,21 +232,21 @@ locals {
 
   # ECS Service definition for the auth service
   service = {
-    name          = "auth"
+    name          = "run-human"
     regions       = ["us-east-1", "ca-central-1"]
     cluster_name  = "app"
-    task_family   = "auth"  # Must match task definition family from task above
+    task_family   = "run-human"  # Must match task definition family from task above
     desired_count = 1
 
     service_discovery = {
-      name           = "auth"
-      container_name = "auth-app"
+      name           = "run-human"
+      container_name = "run-human-app"
     }
 
     load_balancers = [
       {
         type                  = "alb"
-        container_name        = "auth-nginx"
+        container_name        = "run-human-nginx"
         container_port        = 443
         target_group_protocol = "HTTPS"
         health_check_path     = "/hello"
@@ -275,7 +263,7 @@ locals {
         listener = {
           port         = 443
           protocol     = "HTTPS"
-          host_headers = ["auth.defcon.run", "*.auth.defcon.run"]
+          host_headers = ["run.defcon.run", "*.run.defcon.run"]
         }
       }
     ]

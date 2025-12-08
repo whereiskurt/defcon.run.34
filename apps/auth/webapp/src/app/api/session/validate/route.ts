@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     const token = await getToken({
       req: request,
       secret: process.env.AUTH_JWT_SECRET?.split(",")[0],
-      cookieName: "sess",
+      cookieName: "sess_auth",
     });
 
     if (!token) {

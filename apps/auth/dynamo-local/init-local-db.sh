@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Use dynamodb-local hostname when running in Docker, localhost:8989 when running locally
-ENDPOINT_URL="${DYNAMODB_ENDPOINT:-http://dynamodb-local:8000}"
+ENDPOINT_URL="${DYNAMODB_ENDPOINT:-http://localhost:8000}"
 
 # Wait for DynamoDB Local to be ready
 echo "Waiting for DynamoDB Local at $ENDPOINT_URL..."
