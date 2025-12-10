@@ -1,0 +1,31 @@
+services:
+  dynamodb-localhost:
+    #command: "-jar DynamoDBLocal.jar -sharedDb -disableTelemetry -dbPath ./data "
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory -disableTelemetry"
+    image: "amazon/dynamodb-local:latest"
+    container_name: dynamodb-localhost
+    ports:
+      - "8888:8000"
+    #volumes:
+    #  - "./docker/dynamodb:/home/dynamodblocal/data"
+    working_dir: /home/dynamodblocal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -A 'HealthChecker' http://localhost:8000 || exit 1"]
+      interval: 5s
+      timeout: 2s
+      retries: 1
+
+  dynamodb-init-localhost:
+    image: amazon/aws-cli:latest
+    container_name: dynamodb-init-localhost
+    network_mode: "service:dynamodb-localhost"
+    depends_on:
+      dynamodb-localhost:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=local
+      - AWS_SECRET_ACCESS_KEY=local
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ./init-local-db.sh:/init-local-db.sh:ro
+    entrypoint: ["/bin/bash", "/init-local-db.sh"]

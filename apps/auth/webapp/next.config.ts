@@ -26,6 +26,9 @@ const sharedConfig = {
   images: {
     remotePatterns: [new URL(`https://*.defcon.run/**`)],
   },
+  turbopack: {
+    root: __dirname,
+  },
   allowedDevOrigins: ['local://*', '*.local', '192.168.*.*'],
   async redirects() {
     return [
