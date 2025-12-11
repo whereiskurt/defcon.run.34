@@ -85,6 +85,37 @@ const configuration: Configuration = {
     // Enable refresh tokens
     revocation: { enabled: true },
 
+    // Enable RP-initiated logout with auto-confirm (no confirmation page)
+    rpInitiatedLogout: {
+      enabled: true,
+      logoutSource: async (ctx, form) => {
+        // Auto-submit the logout form without user confirmation
+        // The form contains the necessary CSRF token and logout parameters
+        ctx.body = `<!DOCTYPE html>
+<html>
+<head><title>Logging out...</title></head>
+<body onload="document.forms[0].submit()">
+  ${form}
+  <noscript>
+    <p>JavaScript is required. Click the button to logout:</p>
+    <button type="submit" form="op.logoutForm">Logout</button>
+  </noscript>
+</body>
+</html>`;
+      },
+      postLogoutSuccessSource: async (ctx) => {
+        // After OIDC logout succeeds, redirect to custom logout endpoint to clear Auth.js session
+        // This avoids CSRF requirements of Auth.js's /api/auth/signout
+        const paramValue = ctx.oidc.params?.post_logout_redirect_uri;
+        const postLogoutRedirectUri = (typeof paramValue === 'string' ? paramValue : null)
+          || (isDev ? 'http://localhost:3001' : 'https://run.defcon.run');
+
+        // Redirect to our custom logout endpoint which clears sess_auth and redirects
+        const logoutUrl = `/api/logout?callbackUrl=${encodeURIComponent(postLogoutRedirectUri)}`;
+        ctx.redirect(logoutUrl);
+      },
+    },
+
     // Disable features we don't need yet
     resourceIndicators: { enabled: false },
     userinfo: { enabled: true },

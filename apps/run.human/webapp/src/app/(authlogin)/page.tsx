@@ -12,7 +12,8 @@ import {
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession, signIn } from 'next-auth/react';
+import { useLogout } from '@/hooks/useLogout';
 import BlurPulseBackground from '@/components/BlurPulseBackground';
 import { RainbowText } from '@/components/text-effects';
 import { Text, Heading } from '@components/text-effects/Common';
@@ -25,6 +26,7 @@ function DashboardContent() {
   const [isRawSessionOpen, setIsRawSessionOpen] = useState(false);
   const { resolvedTheme } = useTheme();
   const { data: session, status } = useSession();
+  const { logout } = useLogout();
 
   useEffect(() => {
     setMounted(true);
@@ -260,7 +262,7 @@ function DashboardContent() {
               color="danger"
               className="text-lg font-semibold"
               startContent={<LogOut className="w-5 h-5" />}
-              onPress={() => signOut({ callbackUrl: '/login' })}
+              onPress={() => logout('/')}
             >
               Sign Out
             </Button>

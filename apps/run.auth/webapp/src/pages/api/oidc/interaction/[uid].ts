@@ -64,10 +64,12 @@ export default async function handler(
 
     if (prompt.name === "login") {
       // User just logged in, complete the login prompt
+      // Note: remember: false ensures the OIDC session is tied to the browser session
+      // and will be properly cleared on logout
       result = {
         login: {
           accountId,
-          remember: true,
+          remember: false,
         },
       };
     } else if (prompt.name === "consent") {
@@ -96,7 +98,7 @@ export default async function handler(
       result = {
         login: {
           accountId,
-          remember: true,
+          remember: false,
         },
       };
     }
