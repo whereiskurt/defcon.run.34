@@ -25,6 +25,7 @@ RUN chown node:node /app
 RUN chown -R node:node /app/.dockerignore
 RUN chown -R node:node /app/src
 RUN chown -R node:node /app/public
+RUN chown -R node:node /app/next*
 
 USER node
 

@@ -1,0 +1,119 @@
+name: run-defcon-run-local
+
+services:
+  
+  human-run-localhost:
+    container_name: human-run-localhost
+
+    build:
+      context: run.human/webapp
+      dockerfile: Dockerfile.webapp.dev
+    
+    ports:
+      - "3001:3001"
+      - "3002:3002"
+      - "8000:8000"
+
+    environment:
+      - PORT=3001
+      - HOSTNAME=0.0.0.0
+      - NODE_ENV=development
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - NEXTAUTH_URL=http://localhost:3001
+      - AUTH_JWT_SECRET=devdevdev
+      - RUN_DYNAMODB_ID=local
+      - RUN_DYNAMODB_SECRET=local
+      - RUN_DYNAMODB_REGION=us-east-1
+      - RUN_DYNAMODB_ENDPOINT=http://localhost:8000
+      - RUN_DYNAMODB_DBNAME=run-auth
+      - RUN_ELECTRO_ID=local
+      - RUN_ELECTRO_SECRET=local
+      - RUN_ELECTRO_ENDPOINT=http://localhost:8000
+      - RUN_ELECTRO_DBNAME=run-electro
+      - OIDC_RUNHUMAN_CLIENT_ID=run-human
+      - OIDC_RUNHUMAN_SECRET=run-human-dev-secret-12345
+      - RUN_SES_REGION=us-east-1
+      - RUN_SES_SMTP_FROM=no-reply@run.defcon.run
+
+    command:
+      - npm
+      - run
+      - dev
+      - -p "3001"
+
+  human-auth-localhost:
+    container_name: human-auth-localhost
+    network_mode: "service:human-run-localhost"
+    depends_on:
+      dynamodb-web-local:
+        condition: service_healthy
+
+    build:
+      context: run.auth/webapp
+      dockerfile: Dockerfile.webapp.dev
+
+    environment:
+      - PORT=3002
+      - HOSTNAME=0.0.0.0
+      - NODE_ENV=development
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+      - NEXTAUTH_URL=http://localhost:3002
+      - AUTH_JWT_SECRET=devdevdev
+      - AUTH_DYNAMODB_ID=local
+      - AUTH_DYNAMODB_SECRET=local
+      - AUTH_DYNAMODB_REGION=us-east-1
+      - AUTH_DYNAMODB_ENDPOINT=http://localhost:8000
+      - AUTH_DYNAMODB_DBNAME=auth
+      - AUTH_ELECTRO_ID=local
+      - AUTH_ELECTRO_SECRET=local
+      - AUTH_ELECTRO_DBNAME=electro
+      - AUTH_ELECTRO_ENDPOINT=http://localhost:8000
+      - OIDC_RUNHUMAN_CLIENT_ID=run-human
+      - OIDC_COOKIE_KEYS=oidc-dev-secret-key-1,oidc-dev-secret-key-2
+      - OIDC_RUNHUMAN_SECRET=run-human-dev-secret-12345
+      - AUTH_SES_REGION=us-east-1
+      - AUTH_SES_SMTP_FROM=no-reply@auth.defcon.run
+
+    env_file:
+      - run.auth/webapp/.env.local
+
+    command:
+      - npm
+      - run
+      - dev
+      - -p "3002"
+
+  dynamodb-web-local:
+    network_mode: "service:human-run-localhost"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory -disableTelemetry"
+    image: "amazon/dynamodb-local:latest"
+    container_name: dynamodb-web-local
+    working_dir: /home/dynamodblocal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -A 'HealthChecker' http://localhost:8000 || exit 1"]
+      interval: 60s
+      timeout: 5s
+      retries: 2
+      start_interval: 500ms
+      start_period:  5s
+  
+  dynamodb-web-init:
+    image: amazon/aws-cli:latest
+    container_name: dynamodb-web-init
+    network_mode: "service:human-run-localhost"
+    depends_on:
+      dynamodb-web-local:
+        condition: service_healthy
+    environment:
+      - AWS_ACCESS_KEY_ID=local
+      - AWS_SECRET_ACCESS_KEY=local
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ./local/dynamodb/init-local-db.sh:/init-local-db.sh:ro
+    entrypoint: ["/bin/bash", "/init-local-db.sh"]
