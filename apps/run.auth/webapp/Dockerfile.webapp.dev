@@ -1,5 +1,4 @@
-#FROM node:20-alpine
-FROM node:current-alpine
+FROM node:current-alpine@sha256:fd164609b5ab0c6d49bac138ae06c347e72261ec6ae1de32b6aa9f5ee2271110
 
 RUN apk update && apk add --no-cache \
       sudo \
