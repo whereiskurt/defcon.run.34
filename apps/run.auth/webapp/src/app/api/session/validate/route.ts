@@ -46,6 +46,7 @@ export type SessionValidateResponse =
         name: string | null;
         picture: string | null;
         services: string[];
+        linkedProviders: string[];
       };
       expires: string;
     }
@@ -57,7 +58,13 @@ export type SessionValidateResponse =
 
 function corsHeaders(origin: string | null) {
   const headers: Record<string, string> = {};
-  if (origin && origin.endsWith(".defcon.run")) {
+  const isDev = process.env.NODE_ENV !== "production";
+  // Allow *.defcon.run in production, and localhost in development
+  const isAllowed = origin && (
+    origin.endsWith(".defcon.run") ||
+    (isDev && (origin.startsWith("http://localhost") || origin.startsWith("https://localhost")))
+  );
+  if (isAllowed) {
     headers["Access-Control-Allow-Origin"] = origin;
     headers["Access-Control-Allow-Credentials"] = "true";
     headers["Access-Control-Allow-Methods"] = "GET, OPTIONS";
@@ -94,15 +101,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the full profile including services
+    // Get the full profile including services and linked providers
     const userId = (token.sub || token.email) as string | undefined;
     let services: string[] = [];
+    let linkedProviders: string[] = [];
 
     if (userId) {
       const profile = await getAuthProfile(userId);
       if (profile?.services) {
         services = profile.services;
       }
+      // Build linked providers list
+      if (profile?.discord?.id) linkedProviders.push("discord");
+      if (profile?.github?.id) linkedProviders.push("github");
+      if (profile?.strava?.id) linkedProviders.push("strava");
     }
 
     // Check if a specific service is required
@@ -132,6 +144,7 @@ export async function GET(request: NextRequest) {
           name: (token.name as string) || null,
           picture: (token.picture as string) || null,
           services,
+          linkedProviders,
         },
         expires,
       } as SessionValidateResponse,

@@ -37,6 +37,8 @@ services:
       - OIDC_RUNHUMAN_SECRET=run-human-dev-secret-12345
       - RUN_SES_REGION=us-east-1
       - RUN_SES_SMTP_FROM=no-reply@run.defcon.run
+      - AUTH_INTERNAL_SECRET=your-secret-here-make-it-long-and-random 
+
 
     command:
       - npm
@@ -79,6 +81,7 @@ services:
       - OIDC_RUNHUMAN_SECRET=run-human-dev-secret-12345
       - AUTH_SES_REGION=us-east-1
       - AUTH_SES_SMTP_FROM=no-reply@auth.defcon.run
+      - AUTH_INTERNAL_SECRET=your-secret-here-make-it-long-and-random 
 
     env_file:
       - run.auth/webapp/.env.local

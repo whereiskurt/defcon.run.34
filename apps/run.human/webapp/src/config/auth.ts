@@ -12,7 +12,10 @@ declare module "next-auth" {
       id: string;
       username?: string;
       services: string[];
+      linkedProviders: string[];
       hasStrava: boolean;
+      hasDiscord: boolean;
+      hasGithub: boolean;
     } & DefaultSession["user"];
   }
   interface User {
@@ -24,9 +27,11 @@ declare module "next-auth" {
 declare module "@auth/core/jwt" {
   interface JWT {
     userId: string;
+    authUserId?: string; // The user ID from auth.defcon.run (for fetching claims)
     username?: string;
     services: string[];
-    stravaId?: string;
+    linkedProviders: string[];
+    lastRefresh?: number;
   }
 }
 
@@ -64,6 +69,50 @@ const authServerUrl = isDev
   ? "http://localhost:3002/api/oidc"  // Auth server runs on port 3002
   : "https://auth.defcon.run/api/oidc";
 
+// Auth server base URL (without /api/oidc) for session validation
+const authServerBaseUrl = isDev
+  ? "http://localhost:3002"
+  : "https://auth.defcon.run";
+
+/**
+ * Fetch fresh claims from auth.defcon.run session validate endpoint
+ */
+async function fetchFreshClaims(userId: string): Promise<{
+  services: string[];
+  linkedProviders: string[];
+} | null> {
+  try {
+    // Call the auth server's internal API to get fresh claims
+    // This is a server-to-server call, so we pass the userId directly
+    const response = await fetch(`${authServerBaseUrl}/api/session/validate/user/${userId}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        // Use a shared secret for server-to-server auth
+        "X-Internal-Secret": process.env.AUTH_INTERNAL_SECRET || "",
+      },
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error("[run.human] Failed to fetch claims:", response.status, "URL:", `${authServerBaseUrl}/api/session/validate/user/${userId}`, "Response:", text);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data.valid && data.user) {
+      return {
+        services: data.user.services || [],
+        linkedProviders: data.user.linkedProviders || [],
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error("[run.human] Error fetching fresh claims:", error);
+    return null;
+  }
+}
+
 const providers: Provider[] = [
   {
     id: "run.defcon.run",
@@ -100,8 +149,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   session: {
     strategy: "jwt",
-    maxAge: 1 * 24 * 60 * 60, // 1 days in seconds
-    updateAge: 5 * 60, // 15mins in seconds
+    maxAge: 1 * 24 * 60 * 60, // 1 day in seconds
+    updateAge: 60, // 1 minute - triggers JWT callback to refresh claims
   },
   theme: {
     colorScheme: "dark",
@@ -118,11 +167,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     async jwt({ token, account, profile, trigger, session, user }) {
+      const now = Date.now();
+      const REFRESH_INTERVAL = 5 * 60 * 1000; // 1 minute in milliseconds
+
       if (trigger === "update") {
-        // token.theme = session.user.theme;
-        // token.stravaId = session.user.hasStrava;
+        // Manual session update trigger - force refresh claims from auth server
+        console.log("[run.human] Manual update trigger - forcing claims refresh");
+        const authUserId = token.authUserId as string;
+        if (authUserId) {
+          const freshClaims = await fetchFreshClaims(authUserId);
+          if (freshClaims) {
+            token.services = freshClaims.services;
+            token.linkedProviders = freshClaims.linkedProviders;
+            console.log("[run.human] Manual refresh - updated claims:", freshClaims);
+          }
+        }
+        token.lastRefresh = now;
       } else if (account && profile) {
-        // Get the user ID from the user object or token (ensure it's a string)
+        // Initial login - extract claims from OIDC profile
         const userId = (typeof user?.id === "string" && user.id)
           || (typeof token.sub === "string" && token.sub)
           || (typeof token.userId === "string" && token.userId);
@@ -131,6 +193,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.name = profile.name as string;
           token.picture = profile.picture as string;
           token.services = (profile.services as string[]) ?? [];
+          token.linkedProviders = (profile.linked_providers as string[]) ?? [];
+          token.lastRefresh = now;
+          // Store the auth.defcon.run user ID (profile.sub) for fetching claims
+          token.authUserId = profile.sub as string;
 
           if (userId) {
             token.userId = userId;
@@ -145,20 +211,48 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
           }
         }
+      } else {
+        // Token refresh - check if we should re-query for updated claims
+        // If lastRefresh is not set (old token), treat it as needing immediate refresh
+        const lastRefresh = (token.lastRefresh as number) || 0;
+        const timeSinceRefresh = lastRefresh === 0 ? REFRESH_INTERVAL : (now - lastRefresh);
+        console.log("[run.human] Token refresh check - lastRefresh:", lastRefresh, "timeSinceRefresh:", timeSinceRefresh, "interval:", REFRESH_INTERVAL);
+
+        if (timeSinceRefresh >= REFRESH_INTERVAL) {
+          // Fetch fresh claims from auth.defcon.run using the auth user ID
+          const authUserId = token.authUserId as string;
+          if (authUserId) {
+            const freshClaims = await fetchFreshClaims(authUserId);
+            if (freshClaims) {
+              token.services = freshClaims.services;
+              token.linkedProviders = freshClaims.linkedProviders;
+            } else {
+              console.log("[run.human] Failed to fetch fresh claims, keeping existing");
+            }
+          }
+          token.lastRefresh = now;
+        } else {
+          console.log("[run.human] Skipping refresh, not enough time passed");
+        }
       }
 
-      // Ensure services is always set
+      // Ensure services and linkedProviders are always set
       token.services = token.services ?? [];
+      token.linkedProviders = token.linkedProviders ?? [];
 
       return token;
     },
 
     session({ session, token }) {
+      const linkedProviders = (token.linkedProviders ?? []) as string[];
       session.user.id = (token.sub ?? token.userId) as string;
       session.user.email = token.email as string;
       session.user.username = token.username as string | undefined;
       session.user.services = (token.services ?? []) as string[];
-      session.user.hasStrava = !!token.stravaId;
+      session.user.linkedProviders = linkedProviders;
+      session.user.hasStrava = linkedProviders.includes("strava");
+      session.user.hasDiscord = linkedProviders.includes("discord");
+      session.user.hasGithub = linkedProviders.includes("github");
       return session;
     },
   },

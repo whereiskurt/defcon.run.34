@@ -12,20 +12,22 @@ import {
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession, signIn, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import BlurPulseBackground from '@/components/BlurPulseBackground';
 import { RainbowText } from '@/components/text-effects';
 import { Text, Heading } from '@components/text-effects/Common';
 
-import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown } from 'lucide-react';
+import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown, Link2, RefreshCw } from 'lucide-react';
+import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 
 function DashboardContent() {
   const [mounted, setMounted] = useState(false);
   const [isClaimsOpen, setIsClaimsOpen] = useState(false);
   const [isRawSessionOpen, setIsRawSessionOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { resolvedTheme } = useTheme();
-  const { data: session, status } = useSession();
+  const { data: session, status, update } = useSession();
   const { logout } = useLogout();
 
   useEffect(() => {
@@ -34,8 +36,23 @@ function DashboardContent() {
 
   const isDarkTheme = mounted && resolvedTheme === 'dark';
 
-  // Services are now included in the session directly
+  const handleRefreshClaims = async () => {
+    setIsRefreshing(true);
+    try {
+      // Pass an object to trigger the "update" trigger in the JWT callback
+      // This forces a refresh regardless of the time interval
+      await update({ refreshClaims: true });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Services and linked providers are now included in the session directly
   const services = (session?.user as { services?: string[] })?.services || [];
+  const linkedProviders = (session?.user as { linkedProviders?: string[] })?.linkedProviders || [];
+  const hasStrava = (session?.user as { hasStrava?: boolean })?.hasStrava || false;
+  const hasDiscord = (session?.user as { hasDiscord?: boolean })?.hasDiscord || false;
+  const hasGithub = (session?.user as { hasGithub?: boolean })?.hasGithub || false;
 
   if (status === 'loading') {
     return (
@@ -93,13 +110,26 @@ function DashboardContent() {
                 <Heading level={1}>
                   <RainbowText text="Session" />
                 </Heading>
-                <Chip
-                  color="success"
-                  variant="flat"
-                  startContent={<CheckCircle className="w-4 h-4" />}
-                >
-                  Authenticated
-                </Chip>
+                <div className="flex items-center gap-2">
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="flat"
+                    color="primary"
+                    isLoading={isRefreshing}
+                    onPress={handleRefreshClaims}
+                    title="Refresh claims from auth server"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                  <Chip
+                    color="success"
+                    variant="flat"
+                    startContent={<CheckCircle className="w-4 h-4" />}
+                  >
+                    Authenticated
+                  </Chip>
+                </div>
               </div>
               <Text variant="small" className={isDarkTheme ? 'text-gray-300' : 'text-black'}>
                 Proof of successful login - debug view
@@ -224,6 +254,47 @@ function DashboardContent() {
                     ) : (
                       <span className={`text-sm ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
                         No services assigned
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Linked Providers */}
+                <div className="flex items-start gap-3 p-2 rounded-md bg-default-50">
+                  <Link2 className={`w-5 h-5 mt-0.5 ${isDarkTheme ? 'text-indigo-400' : 'text-indigo-600'}`} />
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className={`text-xs uppercase tracking-wide ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Linked Providers
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        color={hasStrava ? 'warning' : 'default'}
+                        startContent={<SiStrava className="w-3 h-3" />}
+                      >
+                        Strava {hasStrava ? '✓' : '✗'}
+                      </Chip>
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        color={hasDiscord ? 'secondary' : 'default'}
+                        startContent={<SiDiscord className="w-3 h-3" />}
+                      >
+                        Discord {hasDiscord ? '✓' : '✗'}
+                      </Chip>
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        color={hasGithub ? 'success' : 'default'}
+                        startContent={<SiGithub className="w-3 h-3" />}
+                      >
+                        GitHub {hasGithub ? '✓' : '✗'}
+                      </Chip>
+                    </div>
+                    {linkedProviders.length === 0 && (
+                      <span className={`text-xs mt-1 ${isDarkTheme ? 'text-gray-500' : 'text-gray-400'}`}>
+                        No OAuth providers linked yet
                       </span>
                     )}
                   </div>

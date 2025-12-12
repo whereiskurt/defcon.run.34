@@ -18,14 +18,6 @@ const clients: ClientMetadata[] = [
       "http://localhost:3002/api/auth/callback/run.defcon.run", // Local development
       "https://localhost/api/auth/callback/run.defcon.run", // Local development (https)
     ],
-    post_logout_redirect_uris: [
-      "https://human.defcon.run",
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:3002",
-      "https://localhost",
-      "http://localhost",
-    ],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
     scope: "openid profile email services",
@@ -70,12 +62,17 @@ const configuration: Configuration = {
   },
 
   // Claims available for tokens
+  // Note: By default claims go to userinfo. To include in ID token, we use conformIdTokenClaims: false
   claims: {
     openid: ["sub"],
     profile: ["name", "picture", "updated_at"],
     email: ["email", "email_verified"],
-    services: ["services"],
+    services: ["services", "linked_providers"],
   },
+
+  // Include all requested claims in the ID token (not just userinfo)
+  // This allows NextAuth to receive services and linked_providers directly
+  conformIdTokenClaims: false,
 
   // Enabled features
   features: {
@@ -172,11 +169,20 @@ const configuration: Configuration = {
   async findAccount(ctx, sub) {
     // sub is the Auth.js user ID
     // Fetch the AuthProfile from DynamoDB for rich claims
+    console.log("[OIDC findAccount] Looking up profile for sub:", sub);
     const profile = await getAuthProfile(sub);
+    console.log("[OIDC findAccount] Profile found:", profile ? "yes" : "no");
+    if (profile) {
+      console.log("[OIDC findAccount] Profile services:", profile.services);
+      console.log("[OIDC findAccount] Profile discord:", profile.discord?.id);
+      console.log("[OIDC findAccount] Profile strava:", profile.strava?.id);
+      console.log("[OIDC findAccount] Profile github:", profile.github?.id);
+    }
 
     return {
       accountId: sub,
       async claims(use: string, scope: string, claims: Record<string, unknown>, rejected: string[]) {
+        console.log("[OIDC claims] use:", use, "scope:", scope);
         // sub is required by AccountClaims type
         const result: { sub: string; [key: string]: unknown } = { sub };
 
@@ -215,9 +221,18 @@ const configuration: Configuration = {
           // Services claims - list of services the user can access
           if (scope.includes("services")) {
             result.services = profile.services || [];
+
+            // Include linked OAuth providers so run.defcon.run can check Strava status
+            const linkedProviders: string[] = [];
+            if (profile.discord?.id) linkedProviders.push("discord");
+            if (profile.github?.id) linkedProviders.push("github");
+            if (profile.strava?.id) linkedProviders.push("strava");
+            result.linked_providers = linkedProviders;
+            console.log("[OIDC claims] Adding linked_providers:", linkedProviders);
           }
         }
 
+        console.log("[OIDC claims] Returning result:", JSON.stringify(result));
         return result;
       },
     };
