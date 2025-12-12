@@ -11,5 +11,7 @@
     "*.hcl": "terragrunt"
   },
   "terraform.languageServer.enable": true,
-  "terraform.experimentalFeatures.validateOnSave": true
+  "terraform.experimentalFeatures.validateOnSave": true,
+  "docker.lsp.experimental.vulnerabilityScanning": false,
+  "docker.lsp.experimental.scout.criticalHighVulnerabilities": false
 }

@@ -28,4 +28,4 @@ RUN chown -R node:node /app/next*
 
 USER node
 
-CMD ["npm","run","start"]
+CMD ["npm","run","dev"]

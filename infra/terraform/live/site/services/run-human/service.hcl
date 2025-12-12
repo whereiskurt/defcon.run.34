@@ -144,6 +144,10 @@ locals {
           {
             name      = "OIDC_RUNHUMAN_SECRET"
             valueFrom = "/defcon.run/auth/runhuman/secret"
+          },
+          {
+            name      = "AUTH_INTERNAL_SECRET"
+            valueFrom = "/defcon.run/auth/internal_secret"
           }
         ]
 
