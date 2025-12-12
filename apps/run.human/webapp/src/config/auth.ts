@@ -121,6 +121,7 @@ const providers: Provider[] = [
     issuer: authServerUrl,
     clientId: process.env.AUTH_OIDC_CLIENT_ID || "run-human",
     clientSecret: process.env.OIDC_RUNHUMAN_SECRET!,
+    allowDangerousEmailAccountLinking: true,
     authorization: {
       params: {
         scope: "openid profile email services",
