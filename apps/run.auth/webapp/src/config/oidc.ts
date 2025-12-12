@@ -18,6 +18,11 @@ const clients: ClientMetadata[] = [
       "http://localhost:3002/api/auth/callback/run.defcon.run", // Local development
       "https://localhost/api/auth/callback/run.defcon.run", // Local development (https)
     ],
+    post_logout_redirect_uris: [
+      "https://run.defcon.run",
+      "http://localhost:3001/",
+      "http://localhost:3002",
+    ],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
     scope: "openid profile email services",

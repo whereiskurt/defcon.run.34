@@ -41,18 +41,27 @@ export async function GET(request: NextRequest) {
 
   // Clear OIDC provider cookies (these should already be cleared by end_session,
   // but clear them explicitly to be safe)
+  // In production, these are set with domain: ".defcon.run" so we must clear with same domain
+  const oidcCookieDomain = isDev ? undefined : ".defcon.run";
   const oidcCookies = [
     "_session",
+    "_session.sig",
     "_session.legacy",
+    "_session.legacy.sig",
     "_interaction",
+    "_interaction.sig",
     "_interaction.legacy",
+    "_interaction.legacy.sig",
     "_interaction_resume",
+    "_interaction_resume.sig",
     "_interaction_resume.legacy",
+    "_interaction_resume.legacy.sig",
   ];
 
   for (const name of oidcCookies) {
     cookieStore.set(name, "", {
       path: "/",
+      domain: oidcCookieDomain,
       maxAge: 0,
     });
   }
