@@ -174,15 +174,7 @@ const configuration: Configuration = {
   async findAccount(ctx, sub) {
     // sub is the Auth.js user ID
     // Fetch the AuthProfile from DynamoDB for rich claims
-    console.log("[OIDC findAccount] Looking up profile for sub:", sub);
     const profile = await getAuthProfile(sub);
-    console.log("[OIDC findAccount] Profile found:", profile ? "yes" : "no");
-    if (profile) {
-      console.log("[OIDC findAccount] Profile services:", profile.services);
-      console.log("[OIDC findAccount] Profile discord:", profile.discord?.id);
-      console.log("[OIDC findAccount] Profile strava:", profile.strava?.id);
-      console.log("[OIDC findAccount] Profile github:", profile.github?.id);
-    }
 
     return {
       accountId: sub,
@@ -227,25 +219,19 @@ const configuration: Configuration = {
           if (scope.includes("services")) {
             result.services = profile.services || [];
 
-            // Include linked OAuth providers so run.defcon.run can check Strava status
             const linkedProviders: string[] = [];
             if (profile.discord?.id) linkedProviders.push("discord");
             if (profile.github?.id) linkedProviders.push("github");
             if (profile.strava?.id) linkedProviders.push("strava");
             result.linked_providers = linkedProviders;
-            console.log("[OIDC claims] Adding linked_providers:", linkedProviders);
           }
         }
 
-        console.log("[OIDC claims] Returning result:", JSON.stringify(result));
         return result;
       },
     };
   },
 
-  /**
-   * Custom error rendering
-   */
   renderError: async (ctx, out, error) => {
     console.error("OIDC Error:", error);
     ctx.type = "html";
@@ -301,12 +287,10 @@ const configuration: Configuration = {
 </html>`;
   },
 
-  // PKCE configuration
   pkce: {
-    required: () => false, // Set to true for stricter security
+    required: () => false,
   },
 
-  // Rotate refresh tokens on use
   rotateRefreshToken: true,
 
   // Extra access token claims
@@ -318,8 +302,6 @@ const configuration: Configuration = {
 // Create the OIDC provider instance
 export const oidc = new Provider(issuer, configuration);
 
-// Trust proxy headers (X-Forwarded-Proto, X-Forwarded-Host) when behind load balancer/CloudFront
-// This ensures endpoints are advertised with https:// instead of http://
 if (!isDev) {
   oidc.proxy = true;
 }
@@ -327,9 +309,6 @@ if (!isDev) {
 // Re-export errors for use in route handlers
 export { errors as OIDCErrors };
 
-/**
- * Helper to check if an error is an OIDC session not found error
- */
 export function isSessionNotFound(error: unknown): boolean {
   return error instanceof errors.SessionNotFound;
 }
