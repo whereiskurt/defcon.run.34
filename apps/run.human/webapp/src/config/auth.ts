@@ -10,7 +10,7 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      username?: string;
+      displayName?: string;
       services: string[];
       linkedProviders: string[];
       hasStrava: boolean;
@@ -20,7 +20,6 @@ declare module "next-auth" {
   }
   interface User {
     services?: string[];
-    username?: string;
   }
 }
 
@@ -28,7 +27,7 @@ declare module "@auth/core/jwt" {
   interface JWT {
     userId: string;
     authUserId?: string; // The user ID from auth.defcon.run (for fetching claims)
-    username?: string;
+    displayName?: string;
     services: string[];
     linkedProviders: string[];
     lastRefresh?: number;
@@ -204,7 +203,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             // Create/update RunUser record after successful OIDC login
             try {
-              await upsertRunUser(userId);
+              const runUser = await upsertRunUser(userId);
+              token.displayName = runUser?.displayName;
             } catch (err) {
               console.error("Failed to upsert RunUser:", err);
             }
@@ -246,7 +246,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const linkedProviders = (token.linkedProviders ?? []) as string[];
       session.user.id = (token.sub ?? token.userId) as string;
       session.user.email = token.email as string;
-      session.user.username = token.username as string | undefined;
+      session.user.displayName = token.displayName as string | undefined;
       session.user.services = (token.services ?? []) as string[];
       session.user.linkedProviders = linkedProviders;
       session.user.hasStrava = linkedProviders.includes("strava");

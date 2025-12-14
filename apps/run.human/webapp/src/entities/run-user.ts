@@ -1,5 +1,10 @@
 import { Entity } from "electrodb";
 import { electroClient, ELECTRO_TABLE } from "./client";
+import crypto, { createHash, generateKeyPairSync } from "crypto";
+import * as qr from "qrcode";
+
+// Seed for MQTT credential generation (should be set in environment)
+const creationSeed: string = process.env.RUN_USER_CREATION_SEED || "default-seed";
 
 /**
  * RunUser Entity
@@ -8,7 +13,7 @@ import { electroClient, ELECTRO_TABLE } from "./client";
  * This entity is created after successful OIDC authentication from auth.defcon.run.
  *
  * The profile data (name, picture, etc.) is retrieved from the auth service endpoint.
- * This table only stores the userId, services, and run-specific profile data.
+ * This table stores the userId, run-specific profile data, and unique identifiers for QR-based interactions.
  */
 export const RunUser = new Entity(
   {
@@ -30,6 +35,58 @@ export const RunUser = new Entity(
       bio: {
         type: "string",
       },
+
+      // Unique identifiers for QR-based interactions
+      seed: {
+        type: "string", // Random seed for hash generation
+      },
+      hash: {
+        type: "string", // SHA256 hash for QR code lookup (derived from rsapubSHA + seed)
+      },
+      eqr: {
+        type: "string", // QR code data URL
+      },
+
+      // RSA key pair hashes (for regeneration capability)
+      rsapubSHA: {
+        type: "string", // SHA256 hash of RSA public key
+      },
+      rsaprivSHA: {
+        type: "string", // SHA256 hash of RSA private key
+      },
+
+      // MQTT credentials
+      mqttUsername: {
+        type: "string",
+      },
+      mqttPassword: {
+        type: "string",
+      },
+      mqttUsertype: {
+        type: ["rabbit", "admin", "wildhare", "og"] as const,
+      },
+
+      // Meshtastic radio registrations
+      meshtasticRadios: {
+        type: "list",
+        items: {
+          type: "map",
+          properties: {
+            id: { type: "string" },
+            nodeId: { type: "string" },
+            privateKey: { type: "string" },
+            impersonate: { type: "boolean" },
+            verificationCode: { type: "string" },
+            verified: { type: "boolean" },
+            createdAt: { type: "number" },
+            verifiedAt: { type: "number" },
+            verificationAttempts: { type: "number" },
+            resendAttempts: { type: "number" },
+          },
+        },
+        default: () => [],
+      },
+
       // User preferences
       preferences: {
         type: "map",
@@ -37,8 +94,10 @@ export const RunUser = new Entity(
           theme: { type: "string" }, // "dark" | "light" | "system"
           units: { type: "string" }, // "metric" | "imperial"
           privacyLevel: { type: "string" }, // "public" | "friends" | "private"
+          checkinPreference: { type: "string" }, // "public" | "private"
         },
       },
+
       // Timestamps
       createdAt: {
         type: "number",
@@ -60,40 +119,131 @@ export const RunUser = new Entity(
         pk: { field: "pk", composite: ["userId"] },
         sk: { field: "sk", composite: [] },
       },
+      // GSI for looking up users by their QR hash
+      byHash: {
+        index: "gsi1pk-gsi1sk-index",
+        pk: { field: "gsi1pk", composite: ["hash"] },
+        sk: { field: "gsi1sk", composite: ["userId"] },
+      },
     },
   },
   { client: electroClient, table: ELECTRO_TABLE }
 );
 
-export async function upsertRunUser(userId: string): Promise<void> {
+/**
+ * Get an existing user or create a new one if not found.
+ * This is the primary entry point for user creation/retrieval.
+ *
+ * For new users:
+ * - Generates a unique displayName (rabbit_XXXX)
+ * - Generates RSA key pair and stores SHA256 hashes
+ * - Creates seed and hash (from rsapubSHA + seed) for QR-based lookup
+ * - Generates QR code data URL
+ * - Generates MQTT credentials
+ * - Sets default preferences
+ */
+export async function upsertRunUser(userId: string) {
   // First try to get existing user
-  const existing = await RunUser.get({ userId }).go();
+  const existing = await getRunUser(userId);
+  if (existing) {
+    return existing;
+  }
 
-  const now = Date.now();
+  // Generate unique identifiers for new user
+  const displayName = `rabbit_${userId.slice(0, 4)}`;
 
-  // Build update payload
-  const payload: Record<string, unknown> = {
+  // Generate RSA key pair
+  const { publicKey, privateKey } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+  });
+
+  const rsapub = publicKey
+    .export({ type: "spki", format: "der" })
+    .toString("base64");
+  const rsapriv = privateKey
+    .export({ type: "pkcs8", format: "der" })
+    .toString("base64");
+
+  // Generate SHA256 hashes of the keys
+  const rsapubSHA = createHash("sha256").update(rsapub).digest("hex");
+  const rsaprivSHA = createHash("sha256").update(rsapriv).digest("hex");
+
+  // Generate random seed and hash for QR code (using rsapubSHA for regeneration capability)
+  const seed = crypto.randomBytes(16).toString("hex");
+  const hash = createHash("sha256").update(`${rsapubSHA}${seed}`).digest("hex");
+
+  // Generate QR code data URL
+  const eqr = await qr.toDataURL(`https://run.defcon.run/r?h=${hash}`, {
+    errorCorrectionLevel: "H",
+    width: 300,
+  });
+
+  // Generate MQTT credentials
+  const mqttUsername = createHash("sha256")
+    .update(userId + creationSeed)
+    .digest("hex")
+    .slice(0, 12)
+    .toLowerCase();
+
+  const mqttPassword = createHash("sha256")
+    .update(mqttUsername + creationSeed)
+    .digest("hex")
+    .slice(0, 12)
+    .toLowerCase();
+
+  const newUser = {
     userId,
-    lastLoginAt: now,
-  };
-
-  // Set default preferences for new users
-  if (!existing.data) {
-    payload.preferences = {
+    displayName,
+    seed,
+    hash,
+    eqr,
+    rsapubSHA,
+    rsaprivSHA,
+    mqttUsername,
+    mqttPassword,
+    mqttUsertype: "rabbit" as const,
+    preferences: {
       theme: "system",
       units: "metric",
       privacyLevel: "public",
-    };
-  }
+      checkinPreference: "public",
+    },
+    lastLoginAt: Date.now(),
+  };
 
-  await RunUser.upsert(payload).go();
+  const result = await RunUser.create(newUser).go();
+  return result.data;
 }
 
+/**
+ * Get a user by userId (returns null if not found)
+ */
 export async function getRunUser(userId: string) {
   const result = await RunUser.get({ userId }).go();
   return result.data;
 }
 
+/**
+ * Get a user by their QR hash (for scanning interactions)
+ */
+export async function getUserByHash(hash: string) {
+  const result = await RunUser.query.byHash({ hash }).go();
+  if (result.data.length === 0) {
+    return null;
+  }
+  return result.data[0];
+}
+
+/**
+ * Update user's last login timestamp
+ */
+export async function updateLastLogin(userId: string): Promise<void> {
+  await RunUser.patch({ userId }).set({ lastLoginAt: Date.now() }).go();
+}
+
+/**
+ * Update user profile data
+ */
 export async function updateRunUserProfile(
   userId: string,
   data: {
@@ -103,10 +253,47 @@ export async function updateRunUserProfile(
       theme?: string;
       units?: string;
       privacyLevel?: string;
+      checkinPreference?: string;
     };
   }
 ): Promise<void> {
-  await RunUser.patch({ userId })
-    .set(data)
-    .go();
+  await RunUser.patch({ userId }).set(data).go();
 }
+
+// Type definitions
+export type MeshtasticRadio = {
+  id: string;
+  nodeId: string;
+  privateKey: string;
+  impersonate?: boolean;
+  verificationCode: string;
+  verified: boolean;
+  createdAt: number;
+  verifiedAt?: number;
+  verificationAttempts?: number;
+  resendAttempts?: number;
+};
+
+export type RunUserItem = {
+  userId: string;
+  displayName?: string;
+  bio?: string;
+  seed?: string;
+  hash?: string;
+  eqr?: string;
+  rsapubSHA?: string;
+  rsaprivSHA?: string;
+  mqttUsername?: string;
+  mqttPassword?: string;
+  mqttUsertype?: "rabbit" | "admin" | "wildhare" | "og";
+  meshtasticRadios?: MeshtasticRadio[];
+  preferences?: {
+    theme?: string;
+    units?: string;
+    privacyLevel?: string;
+    checkinPreference?: string;
+  };
+  createdAt?: number;
+  updatedAt?: number;
+  lastLoginAt?: number;
+};
