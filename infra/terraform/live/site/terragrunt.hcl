@@ -35,16 +35,16 @@ errors {
     retryable_errors = concat(
       get_default_retryable_errors(), [
         "(?s).*dial tcp .*: i/o timeout.*",
-        "(?s).*dial tcp.*: no such host.*",
         "(?s).*no such host.*",
         "(?s).*connection reset by peer.*",
         "(?s).*context deadline exceeded.*",
         "(?s).*request send failed.*",
         "(?s).*[aA]ccess [dD]enied for [lL]og[dD]estination.*",
+        "(?s).*bucket must exist.*",
       ]
     )
 
-    max_attempts       = 5
+    max_attempts       = 6
     sleep_interval_sec = 10
   }
 }
