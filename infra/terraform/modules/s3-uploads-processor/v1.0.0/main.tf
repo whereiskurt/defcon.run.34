@@ -12,9 +12,9 @@ locals {
   resolved_processors = [
     for processor in local.region_processors :
     merge(processor, {
-      # Look up bucket details from user_uploads_buckets by user_upload_name
-      bucket_id  = var.user_uploads_buckets[processor.user_upload_name].name
-      bucket_arn = var.user_uploads_buckets[processor.user_upload_name].arn
+      # Look up bucket details from s3_uploads_buckets by user_upload_name
+      bucket_id  = var.s3_uploads_buckets[processor.user_upload_name].name
+      bucket_arn = var.s3_uploads_buckets[processor.user_upload_name].arn
 
       # Look up table details from dynamodb_tables by dynamodb_table_ref
       dynamodb_table_name = var.dynamodb_tables[processor.dynamodb_table_ref].table_name

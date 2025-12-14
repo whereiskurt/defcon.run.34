@@ -345,7 +345,7 @@ locals {
         memory_size = 256
       }
 
-      processor_lambda = {
+      on_process_lambda = {
         timeout     = 30
         memory_size = 256
       }

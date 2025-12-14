@@ -13,7 +13,7 @@ locals {
 skip = !local.site_vars.locals.upload_processors.enabled || include.skip.locals.should_skip
 
 include "module" {
-  path   = "${find_in_parent_folders("modules")}/upload-processor/config.hcl"
+  path   = "${find_in_parent_folders("modules")}/s3-uploads-processor/config.hcl"
   expose = true
 }
 
@@ -25,16 +25,16 @@ terraform {
   source = "${include.module.locals.module_path}/v1.0.0"
 }
 
-# Dependencies - must have user-uploads bucket and dynamodb tables created first
-dependency "user_uploads" {
-  config_path = "../user-uploads"
+# Dependencies - must have s3-uploads bucket and dynamodb tables created first
+dependency "s3_uploads" {
+  config_path = "../s3-uploads"
 
   mock_outputs = {
     buckets = {
       "run-human" = {
         name   = "mock-bucket"
         arn    = "arn:aws:s3:::mock-bucket"
-        region = "us-east-1"
+        region = "ca-central-1"
       }
     }
   }
@@ -49,10 +49,10 @@ dependency "dynamodb" {
     tables = {
       "run-human-electro" = {
         table_name        = "mock-table"
-        table_arn         = "arn:aws:dynamodb:us-east-1:123456789012:table/mock-table"
+        table_arn         = "arn:aws:dynamodb:ca-central-1:123456789012:table/mock-table"
         table_id          = "mock-table-id"
-        stream_arn        = "arn:aws:dynamodb:us-east-1:123456789012:table/mock-table/stream/2024-01-01T00:00:00.000"
-        is_primary_region = true
+        stream_arn        = "arn:aws:dynamodb:ca-central-1:123456789012:table/mock-table/stream/2024-01-01T00:00:00.000"
+        is_primary_region = false
       }
     }
   }
@@ -64,7 +64,7 @@ inputs = merge(
   include.module.locals.merged_inputs,
   {
     # Pass actual bucket/table details from dependencies
-    user_uploads_buckets = dependency.user_uploads.outputs.buckets
+    s3_uploads_buckets = dependency.s3_uploads.outputs.buckets
     dynamodb_tables      = dependency.dynamodb.outputs.tables
   }
 )

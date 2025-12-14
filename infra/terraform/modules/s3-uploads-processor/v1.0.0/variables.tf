@@ -34,7 +34,7 @@ variable "upload_processors" {
       memory_size = optional(number, 256)
     }))
 
-    processor_lambda = optional(object({
+    on_process_lambda = optional(object({
       timeout     = optional(number, 300)
       memory_size = optional(number, 1024)
     }))
@@ -42,9 +42,9 @@ variable "upload_processors" {
   default = []
 }
 
-# Dependency outputs from user-uploads module
-variable "user_uploads_buckets" {
-  description = "Bucket outputs from user-uploads module"
+# Dependency outputs from s3-uploads module
+variable "s3_uploads_buckets" {
+  description = "Bucket outputs from s3-uploads module"
   type = map(object({
     name   = string
     arn    = string

@@ -1,11 +1,11 @@
 # Changelog
 
-All notable changes to the upload-processor module will be documented in this file.
+All notable changes to the s3-uploads-processor module will be documented in this file.
 
 ## [v1.0.0] - 2024-12-13
 
 ### Added
-- Initial release of upload-processor module
+- Initial release of s3-uploads-processor module (renamed from upload-processor)
 - SNS topic for S3 upload notifications
 - S3 bucket notification configuration for uploads/ prefix
 - on-upload Lambda function:

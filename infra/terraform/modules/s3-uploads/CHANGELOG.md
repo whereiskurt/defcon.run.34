@@ -1,11 +1,11 @@
 # Changelog
 
-All notable changes to the user-uploads module will be documented in this file.
+All notable changes to the s3-uploads module will be documented in this file.
 
 ## [v1.0.0] - 2024-12-13
 
 ### Added
-- Initial release of user-uploads module
+- Initial release of s3-uploads module (renamed from user-uploads)
 - S3 bucket creation with configurable naming (`uploads-{site}-{name}-{region}-{suffix}`)
 - Two-folder structure:
   - `uploads/` - For user uploads with auto-expiration

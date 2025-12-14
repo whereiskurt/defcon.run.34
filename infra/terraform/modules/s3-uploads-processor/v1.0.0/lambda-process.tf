@@ -6,8 +6,8 @@ data "archive_file" "processor" {
   for_each = local.processors_map
 
   type        = "zip"
-  source_dir  = "${path.module}/lambda/processor"
-  output_path = "${path.module}/lambda/processor-${each.key}.zip"
+  source_dir  = "${path.module}/lambda/on-process"
+  output_path = "${path.module}/lambda/on-process-${each.key}.zip"
 }
 
 # Lambda function
@@ -22,8 +22,8 @@ resource "aws_lambda_function" "processor" {
   filename         = data.archive_file.processor[each.key].output_path
   source_code_hash = data.archive_file.processor[each.key].output_base64sha256
 
-  timeout     = try(each.value.processor_lambda.timeout, 300)
-  memory_size = try(each.value.processor_lambda.memory_size, 1024)
+  timeout     = try(each.value.on_process_lambda.timeout, 300)
+  memory_size = try(each.value.on_process_lambda.memory_size, 1024)
 
   environment {
     variables = {

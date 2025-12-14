@@ -13,7 +13,7 @@ locals {
 skip = !local.site_vars.locals.user_uploads.enabled || include.skip.locals.should_skip
 
 include "module" {
-  path   = "${find_in_parent_folders("modules")}/user-uploads/config.hcl"
+  path   = "${find_in_parent_folders("modules")}/s3-uploads/config.hcl"
   expose = true
 }
 
