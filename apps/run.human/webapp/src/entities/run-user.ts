@@ -70,9 +70,6 @@ export const RunUser = new Entity(
   { client: electroClient, table: ELECTRO_TABLE }
 );
 
-/**
- * Create or update a RunUser after OIDC authentication
- */
 export async function upsertRunUser(
   userId: string,
   data: {
@@ -107,17 +104,11 @@ export async function upsertRunUser(
   await RunUser.upsert(payload).go();
 }
 
-/**
- * Get a RunUser by user ID
- */
 export async function getRunUser(userId: string) {
   const result = await RunUser.get({ userId }).go();
   return result.data;
 }
 
-/**
- * Update RunUser profile data
- */
 export async function updateRunUserProfile(
   userId: string,
   data: {

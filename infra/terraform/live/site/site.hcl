@@ -186,6 +186,22 @@ locals {
     ]
   }
 
+  user_uploads = {
+    enabled = true
+    buckets = concat(
+      try(local.ecs_run_human_service.locals.user_uploads, [])
+      # Future: local.ecs_run_gpx_service.locals.user_uploads
+    )
+  }
+
+  upload_processors = {
+    enabled = true
+    processors = concat(
+      try(local.ecs_run_human_service.locals.upload_processors, [])
+      # Future: local.ecs_run_gpx_service.locals.upload_processors
+    )
+  }
+
   github_oidc = {
     enabled     = false
     github_org  = "whereiskurt"      # Your GitHub org/user

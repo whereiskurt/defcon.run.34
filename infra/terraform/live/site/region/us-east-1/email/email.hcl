@@ -17,4 +17,7 @@ locals {
       send_to = "whereiskurt+${local.region_label}.${local.dns_zonename}@gmail.com"
     },
   ]
+
+  # Path to email forwarder Lambda source code
+  forwarder_lambda_source_path = "${get_repo_root()}/infra/terraform/live/site/region/us-east-1/email/lambdas/email-forwarder"
 }

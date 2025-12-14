@@ -47,6 +47,7 @@ esac
 export PAGER=${PAGER:-}
 export AWS_PROFILE=${AWS_PROFILE:-application}
 export AWS_REGION=${AWS_REGION:-"us-east-1"}
+export REGION_SHORT=${REGION_SHORT:-"use1"}
 export AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query "Account" --output text)}
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -77,8 +78,7 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   export IMAGE_TAG=${IMAGE_TAG:-$(cat "${APP_DIR}/webapp/VERSION" | tr -d '[:space:]')}
   export VERSION_NGINX=${VERSION_NGINX:-$(cat "${APP_DIR}/nginx/VERSION" | tr -d '[:space:]')}
   export VERSION_WEBAPP=${VERSION_WEBAPP:-$(cat "${APP_DIR}/webapp/VERSION" | tr -d '[:space:]')}
-  export WEBAPP_PREFIX=${WEBAPP_PREFIX:-"use1/assets"}
-  export REGION_SHORT=${REGION_SHORT:-"use1"}
+  export WEBAPP_PREFIX=${WEBAPP_PREFIX:-"${REGION_SHORT}/assets"}
   export WEBAPP_ORIGIN_BUCKET=$(aws ssm get-parameter --name "/dc34/cloudfront-assets/${REGION_SHORT}/${SSM_PATH_SEGMENT}/bucket_name" --region "${AWS_REGION}" --query "Parameter.Value" --output text)
 
   # Build Docker image (amd64 for ECS)

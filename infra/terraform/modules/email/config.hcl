@@ -22,8 +22,9 @@ locals {
     local.region_vars.locals,
     local.email_vars.locals,
     {
-      smtp_iam_users = local.merged_smtp_iam_users
-      fwd_rules      = local.merged_fwd_rules
+      smtp_iam_users               = local.merged_smtp_iam_users
+      fwd_rules                    = local.merged_fwd_rules
+      forwarder_lambda_source_path = try(local.email_vars.locals.forwarder_lambda_source_path, "")
     }
   )
 }

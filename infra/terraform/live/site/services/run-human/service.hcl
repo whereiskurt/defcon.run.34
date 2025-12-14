@@ -115,27 +115,27 @@ locals {
           },
           {
             name      = "RUN_DYNAMODB_ID"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/access_key_id"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-authjs/access_key_id"
           },
           {
             name      = "RUN_DYNAMODB_SECRET"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/secret_access_key"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-authjs/secret_access_key"
           },
           {
             name      = "RUN_DYNAMODB_DBNAME"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-authjs/table_name"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-authjs/table_name"
           },
           {
             name      = "RUN_ELECTRO_ID"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/access_key_id"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-electro/access_key_id"
           },
           {
             name      = "RUN_ELECTRO_SECRET"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/secret_access_key"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-electro/secret_access_key"
           },
           {
             name      = "RUN_ELECTRO_DBNAME"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/auth-electro/table_name"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-electro/table_name"
           },
           {
             name      = "OIDC_RUNHUMAN_CLIENT_ID"
@@ -148,6 +148,23 @@ locals {
           {
             name      = "AUTH_INTERNAL_SECRET"
             valueFrom = "/defcon.run/auth/internal_secret"
+          },
+          # S3 Upload bucket credentials for presigned URLs
+          {
+            name      = "S3_UPLOADS_ACCESS_KEY"
+            valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-human/access_key_id"
+          },
+          {
+            name      = "S3_UPLOADS_SECRET_KEY"
+            valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-human/secret_access_key"
+          },
+          {
+            name      = "S3_UPLOADS_BUCKET"
+            valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-human/bucket_name"
+          },
+          {
+            name      = "S3_UPLOADS_REGION"
+            valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-human/bucket_region"
           }
         ]
 
@@ -286,4 +303,54 @@ locals {
       }
     }
   }
+
+  # User upload S3 bucket configuration
+  user_uploads = [
+    {
+      name         = "run-human"
+      service_name = "run-human"
+      regions      = ["us-east-1", "ca-central-1"]
+
+      lifecycle = {
+        uploads_expire_days   = 7  # Clean up uploads after 7 days
+        processed_expire_days = 0  # Never expire processed files
+        enable_versioning     = true
+      }
+
+      replication = {
+        enabled = true
+        replica_regions = [
+          { label = "use1", full = "us-east-1" },
+          { label = "cac1", full = "ca-central-1" }
+        ]
+      }
+    }
+  ]
+
+  # Upload processor Lambda configuration
+  # Processes uploads when files are added to S3 bucket
+  upload_processors = [
+    {
+      name         = "run-human"
+      service_name = "run-human"
+      regions      = ["us-east-1", "ca-central-1"]
+
+      # Reference to user_uploads bucket (by name from user_uploads config)
+      user_upload_name = "run-human"
+
+      dynamodb_table_ref = "run-human-electro"
+
+      on_upload_lambda = {
+        source_path = "${get_repo_root()}/infra/terraform/live/site/services/run-human/lambdas/on-upload"
+        timeout     = 30
+        memory_size = 256
+      }
+
+      on_process_lambda = {
+        source_path = "${get_repo_root()}/infra/terraform/live/site/services/run-human/lambdas/on-process"
+        timeout     = 300
+        memory_size = 1024
+      }
+    }
+  ]
 }
