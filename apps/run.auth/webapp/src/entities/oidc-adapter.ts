@@ -81,7 +81,7 @@ export class OIDCAdapter {
    * Find a record by ID
    */
   async find(id: string): Promise<any | undefined> {
-    const result = await OIDCModel.get({ modelName: this.name, id }).go();
+    const result = await OIDCModel.get({ modelName: this.name, id }).go({ params: { ConsistentRead: true } });
     if (!result.data) return undefined;
 
     // Check expiration
@@ -110,12 +110,19 @@ export class OIDCAdapter {
 
   /**
    * Find by UID (interactions)
+   * Note: GSIs don't support consistent reads, so we query the GSI then fetch from primary
    */
   async findByUid(uid: string): Promise<any | undefined> {
-    const result = await OIDCModel.query.byUid({ uid }).go();
-    if (!result.data?.[0]) return undefined;
+    // First, query the GSI to get the primary key
+    const gsiResult = await OIDCModel.query.byUid({ uid }).go();
+    if (!gsiResult.data?.[0]) return undefined;
 
-    const item = result.data[0];
+    // Then fetch from primary index with consistent read
+    const { modelName, id } = gsiResult.data[0];
+    const result = await OIDCModel.get({ modelName, id }).go({ params: { ConsistentRead: true } });
+    if (!result.data) return undefined;
+
+    const item = result.data;
     // Check expiration
     if (item.expiresAt && item.expiresAt < Math.floor(Date.now() / 1000)) {
       return undefined;

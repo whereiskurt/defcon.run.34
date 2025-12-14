@@ -204,9 +204,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             // Create/update RunUser record after successful OIDC login
             try {
-              await upsertRunUser(userId, {
-                services: token.services as string[],
-              });
+              await upsertRunUser(userId);
             } catch (err) {
               console.error("Failed to upsert RunUser:", err);
             }

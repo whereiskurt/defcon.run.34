@@ -45,6 +45,11 @@ export default async function handler(
   }
 
   try {
+    // Debug: Log cookies to diagnose SessionNotFound issues
+    const cookies = req.headers.cookie || '';
+    const hasInteractionCookie = cookies.includes('_interaction');
+    console.log(`OIDC Interaction [${uid}]: cookies present: _interaction=${hasInteractionCookie}`);
+
     // Get the OIDC interaction details
     const interactionDetails = await oidc.interactionDetails(req as any, res as any);
 

@@ -13,9 +13,22 @@ import {
   type UploadType,
 } from "@/lib/s3-client";
 import { createUpload } from "@/entities/user-upload";
+import {
+  tryConsumeQuota,
+  quotaExceededResponse,
+  handleQuotaError,
+  type QuotaId,
+  type QuotaErrorResponse,
+} from "@/lib/quota-middleware";
+import { restoreQuota, getUserTier } from "@/services/quota";
 
 // URL expiration time in seconds (1 hour)
 const PRESIGN_EXPIRES_IN = 3600;
+
+interface QuotaInfo {
+  fileUploadRemaining: number;
+  typeUploadRemaining: number;
+}
 
 interface PresignResponse {
   uploadUrl: string;
@@ -27,6 +40,7 @@ interface PresignResponse {
   maxSize: number;
   contentTypes: string[];
   uploadType: UploadType;
+  quotaInfo: QuotaInfo;
 }
 
 interface ErrorResponse {
@@ -55,7 +69,7 @@ interface ErrorResponse {
  *   - maxSize: Maximum file size in bytes
  *   - contentTypes: Allowed content types
  */
-export async function GET(request: NextRequest): Promise<NextResponse<PresignResponse | ErrorResponse>> {
+export async function GET(request: NextRequest): Promise<NextResponse<PresignResponse | ErrorResponse | QuotaErrorResponse>> {
   try {
     // Check authentication
     const session = await auth();
@@ -87,9 +101,33 @@ export async function GET(request: NextRequest): Promise<NextResponse<PresignRes
 
     const uploadConfig = UPLOAD_TYPES[type];
 
+    // Determine user's quota tier from their services
+    const userServices = session.user.services ?? [];
+    const userTier = getUserTier(userServices);
+
+    // Determine which quota to consume based on upload type
+    const typeQuotaId: QuotaId = type === "gpx" ? "gpx_upload" : "photo_upload";
+
+    // Consume general file_upload quota first (with tier for initialization)
+    const fileQuotaResult = await tryConsumeQuota(userId, "file_upload", 1, userTier);
+    if (!fileQuotaResult.success) {
+      return quotaExceededResponse("file_upload", fileQuotaResult.remaining, 1);
+    }
+
+    // Consume type-specific quota
+    const typeQuotaResult = await tryConsumeQuota(userId, typeQuotaId, 1, userTier);
+    if (!typeQuotaResult.success) {
+      // Rollback the file_upload quota we already consumed
+      await restoreQuota(userId, "file_upload", 1);
+      return quotaExceededResponse(typeQuotaId, typeQuotaResult.remaining, 1);
+    }
+
     // Validate content type if provided
     const allowedContentTypes = uploadConfig.contentTypes as readonly string[];
     if (contentType && !allowedContentTypes.includes(contentType)) {
+      // Restore consumed quotas on validation failure
+      await restoreQuota(userId, "file_upload", 1);
+      await restoreQuota(userId, typeQuotaId, 1);
       return NextResponse.json(
         {
           error: "Invalid content type",
@@ -124,7 +162,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<PresignRes
     // Create the upload record in DynamoDB with status="pending"
     await createUpload(userId, uploadId, type, S3_UPLOADS_BUCKET, key, filename || undefined);
 
-    // Return the presigned URL and metadata
+    // Return the presigned URL and metadata with quota info
     const response: PresignResponse = {
       uploadUrl,
       key,
@@ -135,10 +173,18 @@ export async function GET(request: NextRequest): Promise<NextResponse<PresignRes
       maxSize: uploadConfig.maxSize,
       contentTypes: [...uploadConfig.contentTypes],
       uploadType: type,
+      quotaInfo: {
+        fileUploadRemaining: fileQuotaResult.remaining,
+        typeUploadRemaining: typeQuotaResult.remaining,
+      },
     };
 
     return NextResponse.json(response);
   } catch (error) {
+    // Handle quota errors specifically
+    const quotaError = handleQuotaError(error);
+    if (quotaError) return quotaError;
+
     console.error("[presign] Error generating presigned URL:", error);
     return NextResponse.json(
       {
