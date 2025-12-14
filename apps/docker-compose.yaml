@@ -37,8 +37,12 @@ services:
       - OIDC_RUNHUMAN_SECRET=run-human-dev-secret-12345
       - RUN_SES_REGION=us-east-1
       - RUN_SES_SMTP_FROM=no-reply@run.defcon.run
-      - AUTH_INTERNAL_SECRET=your-secret-here-make-it-long-and-random 
-
+      - AUTH_INTERNAL_SECRET=your-secret-here-make-it-long-and-random
+      # S3 Upload bucket credentials (use real AWS creds for local dev, or localstack)
+      - S3_UPLOADS_ACCESS_KEY=${AWS_ACCESS_KEY_ID:-local}
+      - S3_UPLOADS_SECRET_KEY=${AWS_SECRET_ACCESS_KEY:-local}
+      - S3_UPLOADS_BUCKET=${S3_UPLOADS_BUCKET:-uploads-local-dev}
+      - S3_UPLOADS_REGION=${AWS_REGION:-us-east-1}
 
     command:
       - npm
