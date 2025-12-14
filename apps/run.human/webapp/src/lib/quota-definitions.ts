@@ -16,6 +16,23 @@
 export type ResetPolicy = "none" | "daily" | "weekly" | "monthly" | "event";
 
 /**
+ * User tiers for quota limits
+ * - zero: Users who haven't been granted upload access (zero uploads)
+ * - upload: Regular authenticated users with standard upload limits
+ * - admin: Administrators with elevated limits
+ */
+export type QuotaTier = "zero" | "upload" | "admin";
+
+/**
+ * Quota limits per tier
+ */
+export interface TierLimits {
+  zero: number;
+  upload: number;
+  admin: number;
+}
+
+/**
  * Quota definition structure
  */
 export interface QuotaDefinition {
@@ -25,10 +42,8 @@ export interface QuotaDefinition {
   name: string;
   /** Description for display */
   description: string;
-  /** Initial/default quota amount */
-  initialAmount: number;
-  /** Maximum amount when restored (can't exceed this) */
-  maxAmount: number;
+  /** Quota limits per tier */
+  tierLimits: TierLimits;
   /** When the quota resets */
   resetPolicy: ResetPolicy;
   /** Whether this quota is currently active */
@@ -39,6 +54,7 @@ export interface QuotaDefinition {
  * All quota definitions
  *
  * Add new quota types here. Each quota must have a unique id.
+ * Tier limits: zero=0 (blocked), upload=standard, admin=elevated
  */
 export const QUOTA_DEFINITIONS = {
   // General file upload limit (applies to all upload types)
@@ -46,8 +62,11 @@ export const QUOTA_DEFINITIONS = {
     id: "file_upload",
     name: "File Uploads",
     description: "Total file uploads (GPX or photo)",
-    initialAmount: 100,
-    maxAmount: 100,
+    tierLimits: {
+      zero: 0,
+      upload: 100,
+      admin: 1000,
+    },
     resetPolicy: "none" as const,
     enabled: true,
   },
@@ -57,8 +76,11 @@ export const QUOTA_DEFINITIONS = {
     id: "gpx_upload",
     name: "GPX Uploads",
     description: "GPX track file uploads",
-    initialAmount: 50,
-    maxAmount: 50,
+    tierLimits: {
+      zero: 0,
+      upload: 50,
+      admin: 500,
+    },
     resetPolicy: "none" as const,
     enabled: true,
   },
@@ -68,12 +90,48 @@ export const QUOTA_DEFINITIONS = {
     id: "photo_upload",
     name: "Photo Uploads",
     description: "Photo file uploads",
-    initialAmount: 100,
-    maxAmount: 100,
+    tierLimits: {
+      zero: 0,
+      upload: 100,
+      admin: 1000,
+    },
     resetPolicy: "none" as const,
     enabled: true,
   },
 } as const;
+
+/**
+ * Determine user's quota tier from their services array
+ * Priority: admin > upload > zero
+ */
+export function getUserTier(services: string[]): QuotaTier {
+  if (services.includes("admin")) {
+    return "admin";
+  }
+  if (services.includes("run") || services.includes("human")) {
+    return "upload";
+  }
+  return "zero";
+}
+
+/**
+ * Get the initial amount for a quota based on user's tier
+ */
+export function getInitialAmountForTier(
+  quotaId: QuotaId,
+  tier: QuotaTier
+): number {
+  const definition = QUOTA_DEFINITIONS[quotaId];
+  return definition.tierLimits[tier];
+}
+
+/**
+ * Get the max amount for a quota based on user's tier
+ */
+export function getMaxAmountForTier(quotaId: QuotaId, tier: QuotaTier): number {
+  // Max amount equals initial amount for the tier
+  return getInitialAmountForTier(quotaId, tier);
+}
 
 /**
  * Type-safe quota IDs derived from QUOTA_DEFINITIONS keys

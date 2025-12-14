@@ -9,11 +9,12 @@ import {
   checkQuota,
   consumeQuota,
   type QuotaId,
+  type QuotaTier,
   type QuotaConsumeResult,
 } from "@/services/quota";
 
 // Re-export for convenience
-export type { QuotaId, QuotaConsumeResult };
+export type { QuotaId, QuotaTier, QuotaConsumeResult };
 
 /**
  * Custom error for quota exceeded scenarios.
@@ -84,7 +85,7 @@ export function quotaExceededResponse(
  *   if (!session?.user?.id) return NextResponse.json({...}, {status: 401});
  *
  *   // This throws QuotaExceededError if insufficient
- *   await requireQuota(session.user.id, "file_upload");
+ *   await requireQuota(session.user.id, "file_upload", 1, "human");
  *
  *   // Continue with logic...
  * }
@@ -93,9 +94,10 @@ export function quotaExceededResponse(
 export async function requireQuota(
   userId: string,
   quotaId: QuotaId,
-  amount: number = 1
+  amount: number = 1,
+  tier: QuotaTier = "zero"
 ): Promise<void> {
-  const result = await checkQuota(userId, quotaId, amount);
+  const result = await checkQuota(userId, quotaId, amount, tier);
 
   if (!result.allowed) {
     throw new QuotaExceededError(quotaId, result.remaining, result.requested);
@@ -108,7 +110,7 @@ export async function requireQuota(
  *
  * @example
  * ```ts
- * const quotaResult = await tryConsumeQuota(userId, "file_upload");
+ * const quotaResult = await tryConsumeQuota(userId, "file_upload", 1, "human");
  * if (!quotaResult.success) {
  *   return quotaExceededResponse(quotaResult.quotaId, quotaResult.remaining, 1);
  * }
@@ -118,9 +120,10 @@ export async function requireQuota(
 export async function tryConsumeQuota(
   userId: string,
   quotaId: QuotaId,
-  amount: number = 1
+  amount: number = 1,
+  tier: QuotaTier = "zero"
 ): Promise<QuotaConsumeResult> {
-  return consumeQuota(userId, quotaId, amount);
+  return consumeQuota(userId, quotaId, amount, tier);
 }
 
 /**
@@ -130,7 +133,7 @@ export async function tryConsumeQuota(
  * @example
  * ```ts
  * try {
- *   await requireAndConsumeQuota(userId, "file_upload");
+ *   await requireAndConsumeQuota(userId, "file_upload", 1, "human");
  *   // Quota consumed, proceed with action
  * } catch (error) {
  *   const quotaError = handleQuotaError(error);
@@ -142,9 +145,10 @@ export async function tryConsumeQuota(
 export async function requireAndConsumeQuota(
   userId: string,
   quotaId: QuotaId,
-  amount: number = 1
+  amount: number = 1,
+  tier: QuotaTier = "zero"
 ): Promise<void> {
-  const result = await consumeQuota(userId, quotaId, amount);
+  const result = await consumeQuota(userId, quotaId, amount, tier);
 
   if (!result.success) {
     throw new QuotaExceededError(quotaId, result.remaining, amount);

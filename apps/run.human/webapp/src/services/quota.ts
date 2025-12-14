@@ -6,17 +6,25 @@
  */
 
 import { UserQuota, type UserQuotaItem } from "@/entities/user-quota";
+import {
+  UserUpload,
+  updateUploadStatus,
+  type UploadTypeValue,
+} from "@/entities/user-upload";
 import { electroClient, ELECTRO_TABLE } from "@/entities/client";
 import {
-  QUOTA_DEFINITIONS,
   getQuotaDefinition,
+  getInitialAmountForTier,
+  getAllQuotaIds,
+  getUserTier,
   type QuotaId,
+  type QuotaTier,
   type ResetPolicy,
 } from "@/lib/quota-definitions";
 
 // Re-export types for convenience
-export type { QuotaId };
-export { getQuotaDefinition };
+export type { QuotaId, QuotaTier };
+export { getQuotaDefinition, getUserTier, getInitialAmountForTier };
 
 /**
  * Result of a quota check (read-only, no consumption)
@@ -81,11 +89,16 @@ function needsReset(quota: UserQuotaItem): boolean {
 
 /**
  * Get or initialize a user's quota.
- * Auto-creates quota record on first access with default values.
+ * Auto-creates quota record on first access with tier-based limits.
+ *
+ * @param userId - The user's ID
+ * @param quotaId - The quota type to get/initialize
+ * @param tier - The user's tier (required for initialization, defaults to "zero")
  */
 export async function getOrInitQuota(
   userId: string,
-  quotaId: QuotaId
+  quotaId: QuotaId,
+  tier: QuotaTier = "zero"
 ): Promise<UserQuotaItem> {
   const definition = getQuotaDefinition(quotaId);
 
@@ -95,21 +108,22 @@ export async function getOrInitQuota(
   if (result.data) {
     // Check if needs automatic reset
     if (needsReset(result.data)) {
-      await resetQuota(userId, quotaId);
+      await resetQuotaToTier(userId, quotaId, tier);
       const refreshed = await UserQuota.get({ userId, quotaId }).go();
       return refreshed.data!;
     }
     return result.data;
   }
 
-  // Initialize new quota record
+  // Initialize new quota record with tier-based limits
+  const initialAmount = getInitialAmountForTier(quotaId, tier);
   const nextResetAt = calculateNextReset(definition.resetPolicy);
 
   const newQuota = {
     userId,
     quotaId,
-    remaining: definition.initialAmount,
-    initialAmount: definition.initialAmount,
+    remaining: initialAmount,
+    initialAmount: initialAmount,
     totalConsumed: 0,
     consumptionCount: 0,
     lastResetAt: Date.now(),
@@ -138,11 +152,17 @@ export async function getOrInitQuota(
 /**
  * Check if user has sufficient quota without consuming.
  * Use this for read-only checks before showing UI options.
+ *
+ * @param userId - The user's ID
+ * @param quotaId - The quota type to check
+ * @param amount - Amount to check for (default 1)
+ * @param tier - The user's tier (for initialization if needed)
  */
 export async function checkQuota(
   userId: string,
   quotaId: QuotaId,
-  amount: number = 1
+  amount: number = 1,
+  tier: QuotaTier = "zero"
 ): Promise<QuotaCheckResult> {
   const definition = getQuotaDefinition(quotaId);
 
@@ -156,7 +176,7 @@ export async function checkQuota(
     };
   }
 
-  const quota = await getOrInitQuota(userId, quotaId);
+  const quota = await getOrInitQuota(userId, quotaId, tier);
 
   return {
     allowed: quota.remaining >= amount,
@@ -172,11 +192,17 @@ export async function checkQuota(
  * Returns success only if quota was available and consumed.
  *
  * Uses raw DynamoDB update for atomic conditional decrement.
+ *
+ * @param userId - The user's ID
+ * @param quotaId - The quota type to consume
+ * @param amount - Amount to consume (default 1)
+ * @param tier - The user's tier (for initialization if needed)
  */
 export async function consumeQuota(
   userId: string,
   quotaId: QuotaId,
-  amount: number = 1
+  amount: number = 1,
+  tier: QuotaTier = "zero"
 ): Promise<QuotaConsumeResult> {
   const definition = getQuotaDefinition(quotaId);
 
@@ -191,7 +217,7 @@ export async function consumeQuota(
   }
 
   // Ensure quota exists (auto-init if needed)
-  await getOrInitQuota(userId, quotaId);
+  await getOrInitQuota(userId, quotaId, tier);
 
   // Build ElectroDB-compatible keys
   // ElectroDB key format: $service#attribute_value
@@ -238,7 +264,7 @@ export async function consumeQuota(
       error instanceof Error &&
       error.name === "ConditionalCheckFailedException"
     ) {
-      const quota = await getOrInitQuota(userId, quotaId);
+      const quota = await getOrInitQuota(userId, quotaId, tier);
       return {
         success: false,
         remaining: quota.remaining,
@@ -253,18 +279,18 @@ export async function consumeQuota(
 
 /**
  * Restore quota (for refunds/rollbacks).
- * Won't exceed maxAmount from definition.
+ * Won't exceed the user's initialAmount (stored in their quota record).
  */
 export async function restoreQuota(
   userId: string,
   quotaId: QuotaId,
   amount: number = 1
 ): Promise<{ success: boolean; remaining: number }> {
-  const definition = getQuotaDefinition(quotaId);
   const quota = await getOrInitQuota(userId, quotaId);
 
-  // Calculate new remaining (capped at maxAmount)
-  const newRemaining = Math.min(quota.remaining + amount, definition.maxAmount);
+  // Calculate new remaining (capped at user's initialAmount)
+  const maxAmount = quota.initialAmount;
+  const newRemaining = Math.min(quota.remaining + amount, maxAmount);
 
   await UserQuota.patch({ userId, quotaId })
     .set({
@@ -280,19 +306,21 @@ export async function restoreQuota(
 }
 
 /**
- * Reset quota to initial amount.
+ * Reset quota to the user's stored initial amount.
  * Called automatically when nextResetAt is reached, or manually by admin.
+ * Uses the initialAmount stored in the user's quota record.
  */
 export async function resetQuota(
   userId: string,
   quotaId: QuotaId
 ): Promise<{ success: boolean; remaining: number }> {
   const definition = getQuotaDefinition(quotaId);
+  const quota = await getOrInitQuota(userId, quotaId);
   const nextResetAt = calculateNextReset(definition.resetPolicy);
 
   await UserQuota.patch({ userId, quotaId })
     .set({
-      remaining: definition.initialAmount,
+      remaining: quota.initialAmount,
       lastResetAt: Date.now(),
       ...(nextResetAt ? { nextResetAt } : {}),
     })
@@ -300,7 +328,35 @@ export async function resetQuota(
 
   return {
     success: true,
-    remaining: definition.initialAmount,
+    remaining: quota.initialAmount,
+  };
+}
+
+/**
+ * Reset quota to tier-based amount.
+ * Used when user's tier changes or for tier-aware resets.
+ */
+export async function resetQuotaToTier(
+  userId: string,
+  quotaId: QuotaId,
+  tier: QuotaTier
+): Promise<{ success: boolean; remaining: number }> {
+  const definition = getQuotaDefinition(quotaId);
+  const initialAmount = getInitialAmountForTier(quotaId, tier);
+  const nextResetAt = calculateNextReset(definition.resetPolicy);
+
+  await UserQuota.patch({ userId, quotaId })
+    .set({
+      remaining: initialAmount,
+      initialAmount: initialAmount,
+      lastResetAt: Date.now(),
+      ...(nextResetAt ? { nextResetAt } : {}),
+    })
+    .go();
+
+  return {
+    success: true,
+    remaining: initialAmount,
   };
 }
 
@@ -319,13 +375,14 @@ export async function getUserQuotas(userId: string): Promise<UserQuotaItem[]> {
  */
 export async function checkMultipleQuotas(
   userId: string,
-  quotas: Array<{ quotaId: QuotaId; amount: number }>
+  quotas: Array<{ quotaId: QuotaId; amount: number }>,
+  tier: QuotaTier = "zero"
 ): Promise<{
   allAllowed: boolean;
   results: QuotaCheckResult[];
 }> {
   const results = await Promise.all(
-    quotas.map(({ quotaId, amount }) => checkQuota(userId, quotaId, amount))
+    quotas.map(({ quotaId, amount }) => checkQuota(userId, quotaId, amount, tier))
   );
 
   return {
@@ -344,7 +401,8 @@ export async function setUserQuotaLimit(
   newLimit: number,
   resetToNewLimit: boolean = true
 ): Promise<void> {
-  const quota = await getOrInitQuota(userId, quotaId);
+  // Ensure quota exists first
+  await getOrInitQuota(userId, quotaId);
   const definition = getQuotaDefinition(quotaId);
 
   const updateData: Record<string, number> = {
@@ -361,4 +419,120 @@ export async function setUserQuotaLimit(
   }
 
   await UserQuota.patch({ userId, quotaId }).set(updateData).go();
+}
+
+/**
+ * Upgrade a user's quotas to a new tier.
+ * Updates all quotas to the new tier's limits.
+ */
+export async function upgradeUserToTier(
+  userId: string,
+  newTier: QuotaTier,
+  quotaIds?: QuotaId[]
+): Promise<void> {
+  const idsToUpgrade = quotaIds ?? getAllQuotaIds();
+
+  await Promise.all(
+    idsToUpgrade.map((quotaId) => resetQuotaToTier(userId, quotaId, newTier))
+  );
+}
+
+/**
+ * Result of stale upload cleanup
+ */
+export interface StaleUploadCleanupResult {
+  processed: number;
+  restored: number;
+  errors: number;
+  details: Array<{
+    userId: string;
+    uploadId: string;
+    uploadType: string;
+    restored: boolean;
+    error?: string;
+  }>;
+}
+
+/**
+ * Clean up stale uploads and restore quotas.
+ *
+ * Finds uploads that have been in "pending" status for longer than the
+ * specified threshold and marks them as "expired", restoring the consumed
+ * quotas back to the user.
+ *
+ * This should be run periodically (e.g., every hour) via a cron job or Lambda.
+ *
+ * @param maxAgeMs - Maximum age in milliseconds for pending uploads (default: 2 hours)
+ * @param limit - Maximum number of uploads to process per run (default: 100)
+ */
+export async function cleanupStaleUploads(
+  maxAgeMs: number = 2 * 60 * 60 * 1000, // 2 hours default
+  limit: number = 100
+): Promise<StaleUploadCleanupResult> {
+  const result: StaleUploadCleanupResult = {
+    processed: 0,
+    restored: 0,
+    errors: 0,
+    details: [],
+  };
+
+  const cutoffTime = Date.now() - maxAgeMs;
+
+  // Scan for pending uploads older than cutoff
+  // Note: This is a scan operation - in production, consider using a GSI
+  // or a scheduled process that queries by time ranges
+  try {
+    const scanResult = await UserUpload.scan
+      .where(({ status, createdAt }, { eq, lt }) =>
+        `${eq(status, "pending")} AND ${lt(createdAt, cutoffTime)}`
+      )
+      .go({ limit });
+
+    const staleUploads = scanResult.data;
+
+    for (const upload of staleUploads) {
+      result.processed++;
+
+      try {
+        // Determine which quotas to restore based on upload type
+        const uploadType = upload.uploadType as UploadTypeValue;
+        const typeQuotaId: QuotaId =
+          uploadType === "gpx" ? "gpx_upload" : "photo_upload";
+
+        // Restore both quotas
+        await restoreQuota(upload.userId, "file_upload", 1);
+        await restoreQuota(upload.userId, typeQuotaId, 1);
+
+        // Mark the upload as expired
+        await updateUploadStatus(
+          upload.userId,
+          upload.uploadId,
+          "failed",
+          "Expired: presigned URL was not used within the allowed time"
+        );
+
+        result.restored++;
+        result.details.push({
+          userId: upload.userId,
+          uploadId: upload.uploadId,
+          uploadType: uploadType,
+          restored: true,
+        });
+      } catch (error) {
+        result.errors++;
+        result.details.push({
+          userId: upload.userId,
+          uploadId: upload.uploadId,
+          uploadType: upload.uploadType,
+          restored: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    }
+  } catch (error) {
+    console.error("[cleanupStaleUploads] Scan error:", error);
+    throw error;
+  }
+
+  return result;
 }

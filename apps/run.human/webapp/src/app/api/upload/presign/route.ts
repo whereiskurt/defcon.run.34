@@ -20,10 +20,15 @@ import {
   type QuotaId,
   type QuotaErrorResponse,
 } from "@/lib/quota-middleware";
-import { restoreQuota } from "@/services/quota";
+import { restoreQuota, getUserTier } from "@/services/quota";
 
 // URL expiration time in seconds (1 hour)
 const PRESIGN_EXPIRES_IN = 3600;
+
+interface QuotaInfo {
+  fileUploadRemaining: number;
+  typeUploadRemaining: number;
+}
 
 interface PresignResponse {
   uploadUrl: string;
@@ -35,6 +40,7 @@ interface PresignResponse {
   maxSize: number;
   contentTypes: string[];
   uploadType: UploadType;
+  quotaInfo: QuotaInfo;
 }
 
 interface ErrorResponse {
@@ -95,17 +101,21 @@ export async function GET(request: NextRequest): Promise<NextResponse<PresignRes
 
     const uploadConfig = UPLOAD_TYPES[type];
 
+    // Determine user's quota tier from their services
+    const userServices = session.user.services ?? [];
+    const userTier = getUserTier(userServices);
+
     // Determine which quota to consume based on upload type
     const typeQuotaId: QuotaId = type === "gpx" ? "gpx_upload" : "photo_upload";
 
-    // Consume general file_upload quota first
-    const fileQuotaResult = await tryConsumeQuota(userId, "file_upload");
+    // Consume general file_upload quota first (with tier for initialization)
+    const fileQuotaResult = await tryConsumeQuota(userId, "file_upload", 1, userTier);
     if (!fileQuotaResult.success) {
       return quotaExceededResponse("file_upload", fileQuotaResult.remaining, 1);
     }
 
     // Consume type-specific quota
-    const typeQuotaResult = await tryConsumeQuota(userId, typeQuotaId);
+    const typeQuotaResult = await tryConsumeQuota(userId, typeQuotaId, 1, userTier);
     if (!typeQuotaResult.success) {
       // Rollback the file_upload quota we already consumed
       await restoreQuota(userId, "file_upload", 1);
@@ -152,7 +162,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<PresignRes
     // Create the upload record in DynamoDB with status="pending"
     await createUpload(userId, uploadId, type, S3_UPLOADS_BUCKET, key, filename || undefined);
 
-    // Return the presigned URL and metadata
+    // Return the presigned URL and metadata with quota info
     const response: PresignResponse = {
       uploadUrl,
       key,
@@ -163,6 +173,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<PresignRes
       maxSize: uploadConfig.maxSize,
       contentTypes: [...uploadConfig.contentTypes],
       uploadType: type,
+      quotaInfo: {
+        fileUploadRemaining: fileQuotaResult.remaining,
+        typeUploadRemaining: typeQuotaResult.remaining,
+      },
     };
 
     return NextResponse.json(response);
