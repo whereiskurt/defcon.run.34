@@ -76,3 +76,9 @@ variable "fwd_rules" {
   description = "List of email forwarding rules. Each rule forwards from a custom domain address to a Gmail/public address."
   default     = []
 }
+
+variable "forwarder_lambda_source_path" {
+  type        = string
+  description = "Path to directory containing the email forwarder Lambda code (index.py). Required if fwd_rules is not empty."
+  default     = ""
+}

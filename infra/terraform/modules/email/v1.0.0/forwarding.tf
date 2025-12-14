@@ -1,13 +1,10 @@
 # Lambda function for email forwarding
+# Source code is provided by the region's email.hcl configuration
 data "archive_file" "email_forwarder" {
   count       = length(var.fwd_rules) > 0 ? 1 : 0
   type        = "zip"
-  output_path = "${path.module}/lambda/email-forwarder.zip"
-
-  source {
-    content  = file("${path.module}/lambda/email-forwarder.py")
-    filename = "index.py"
-  }
+  source_dir  = var.forwarder_lambda_source_path
+  output_path = "${path.module}/.lambda-zips/email-forwarder.zip"
 }
 
 resource "aws_lambda_function" "email_forwarder" {

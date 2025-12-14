@@ -1,13 +1,13 @@
 # Lambda function for on-upload processing
 # Triggered by SNS when files are uploaded to S3
 
-# Package the Lambda code
+# Package the Lambda code from service-provided source path
 data "archive_file" "on_upload" {
   for_each = local.processors_map
 
   type        = "zip"
-  source_dir  = "${path.module}/lambda/on-upload"
-  output_path = "${path.module}/lambda/on-upload-${each.key}.zip"
+  source_dir  = each.value.on_upload_lambda.source_path
+  output_path = "${path.module}/.lambda-zips/on-upload-${each.key}.zip"
 }
 
 # Lambda function

@@ -1,13 +1,13 @@
 # Lambda function for processing uploads
 # Triggered by DynamoDB Streams when status changes to "uploaded"
 
-# Package the Lambda code
+# Package the Lambda code from service-provided source path
 data "archive_file" "processor" {
   for_each = local.processors_map
 
   type        = "zip"
-  source_dir  = "${path.module}/lambda/on-process"
-  output_path = "${path.module}/lambda/on-process-${each.key}.zip"
+  source_dir  = each.value.on_process_lambda.source_path
+  output_path = "${path.module}/.lambda-zips/on-process-${each.key}.zip"
 }
 
 # Lambda function
