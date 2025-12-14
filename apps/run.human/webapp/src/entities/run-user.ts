@@ -23,11 +23,6 @@ export const RunUser = new Entity(
         type: "string",
         required: true,
       },
-      // Services the user has access to (copied from auth on login)
-      services: {
-        type: "list",
-        items: { type: "string" },
-      },
       // Run-specific profile data (user can customize)
       displayName: {
         type: "string",
@@ -70,12 +65,7 @@ export const RunUser = new Entity(
   { client: electroClient, table: ELECTRO_TABLE }
 );
 
-export async function upsertRunUser(
-  userId: string,
-  data: {
-    services?: string[];
-  }
-): Promise<void> {
+export async function upsertRunUser(userId: string): Promise<void> {
   // First try to get existing user
   const existing = await RunUser.get({ userId }).go();
 
@@ -86,11 +76,6 @@ export async function upsertRunUser(
     userId,
     lastLoginAt: now,
   };
-
-  // Update services if provided
-  if (data.services) {
-    payload.services = data.services;
-  }
 
   // Set default preferences for new users
   if (!existing.data) {
