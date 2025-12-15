@@ -21,7 +21,7 @@ import { Heading } from '@components/text-effects/Common';
 
 import { Key, Wand, RefreshCw, ArrowRight } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { getCsrfToken, useSession, signOut } from "next-auth/react"
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -40,12 +40,27 @@ function ClientOnlyForm() {
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [altchaToken, setAltchaToken] = useState<string | null>(null);
+  const [altchaVerified, setAltchaVerified] = useState(false);
   const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
 
   // Check for OIDC interaction ID in URL params
   const oidcInteraction = searchParams?.get('oidc');
+
+  // Handle Altcha verification events
+  const handleAltchaStateChange = useCallback((ev: CustomEvent) => {
+    if (ev.detail?.state === 'verified' && ev.detail?.payload) {
+      setAltchaToken(ev.detail.payload);
+      setAltchaVerified(true);
+    } else if (ev.detail?.state === 'verifying') {
+      setAltchaVerified(false);
+    } else if (ev.detail?.state === 'error' || ev.detail?.state === 'expired') {
+      setAltchaVerified(false);
+      setAltchaToken(null);
+    }
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -55,6 +70,9 @@ function ClientOnlyForm() {
     };
     fetchCsrfToken();
     setIsSubmitting(false);
+
+    // Dynamically import Altcha widget (Web Component)
+    import('altcha').catch(console.error);
   }, []);
 
   const handleSwitchUser = async () => {
@@ -77,6 +95,10 @@ function ClientOnlyForm() {
       setError("Provide the invite code.")
       return
     }
+    if (!altchaToken || !altchaVerified) {
+      setError("Please complete the verification challenge first.")
+      return
+    }
     try {
       setIsSubmitting(true)
       const res = await fetch("/api/login", {
@@ -84,7 +106,7 @@ function ClientOnlyForm() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ inviteCode, email, csrfToken }),
+        body: JSON.stringify({ inviteCode, email, csrfToken, altcha: altchaToken }),
       })
       if (!res.ok || res.status != 200) {
         const errorData = await res.json()
@@ -281,8 +303,19 @@ function ClientOnlyForm() {
                     disabled={isSubmitting}
                   />
                 </div>
-              {error && <div><p className="error text-red-600 text-center text-xl" >{error}</p></div>}
               </div>
+
+              {/* Altcha proof-of-work verification */}
+              <div className="flex justify-center w-full pt-2">
+                <altcha-widget
+                  challengeurl="/api/captcha/challenge"
+                  onstatechange={handleAltchaStateChange}
+                  hidefooter
+                  hidelogo
+                />
+              </div>
+
+              {error && <div><p className="error text-red-600 text-center text-xl" >{error}</p></div>}
             </CardBody>
             <Divider className="mt-2" />
             <CardFooter className="justify-center">
@@ -291,7 +324,7 @@ function ClientOnlyForm() {
                 variant="solid"
                 color="primary"
                 className="text-lg font-semibold w-full"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !altchaVerified}
               >
                 {isSubmitting ? (
                   <GlitchLabel className={fontMuseo.className}>
