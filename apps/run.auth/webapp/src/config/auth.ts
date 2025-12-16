@@ -13,21 +13,20 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      username?: string;
+      displayName?: string;
       services: string[];
       hasStrava: boolean;
     } & DefaultSession["user"];
   }
   interface User {
     services?: string[];
-    username?: string;
   }
 }
 
 declare module "@auth/core/jwt" {
   interface JWT {
     userId: string;
-    username?: string;
+    displayName?: string;
     services: string[];
     stravaId?: string;
   }
@@ -285,8 +284,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           const profile = await getAuthProfile(userId);
           // Use profile services if available, otherwise keep existing token services or default to empty
           token.services = profile?.services ?? token.services ?? [];
-          // Store the rabbit username in the token
-          token.username = profile?.username ?? token.username;
+          // Store the rabbit displayName in the token
+          token.displayName = profile?.displayName ?? token.displayName;
           // Store stravaId if linked (check AuthProfile strava data)
           if (profile?.strava?.id) {
             token.stravaId = `${profile.strava.id}`;
@@ -306,7 +305,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     session({ session, token }) {
       session.user.id = (token.sub ?? token.userId) as string;
       session.user.email = token.email as string;
-      session.user.username = token.username as string | undefined;
+      session.user.displayName = token.displayName as string | undefined;
       session.user.services = (token.services ?? []) as string[];
       session.user.hasStrava = !!token.stravaId;
       return session;

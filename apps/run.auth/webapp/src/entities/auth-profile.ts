@@ -5,9 +5,9 @@ import { electroClient, ELECTRO_TABLE } from "./client";
 const DEFAULT_SERVICES = ["auth", "run", "strava"];
 
 /**
- * Generate a random username like "rabbit_A1B2"
+ * Generate a random displayName like "rabbit_A1B2"
  */
-function generateUsername(): string {
+function generateDisplayName(): string {
   const hex = randomBytes(2).toString("hex").toUpperCase();
   return `rabbit_${hex}`;
 }
@@ -38,9 +38,9 @@ export const AuthProfile = new Entity(
         type: "string",
         required: true,
       },
-      // Generated username (e.g., "rabbit_A1B2")
+      // Generated displayName (e.g., "rabbit_A1B2")
       // Created on first login, never changes
-      username: {
+      displayName: {
         type: "string",
       },
       // Primary email address
@@ -232,8 +232,8 @@ export async function upsertAuthProfile(
     lastProvider: provider,
     // Preserve existing services, or use default if this is a new profile
     ...(!existing.data ? { services: DEFAULT_SERVICES } : {}),
-    // Generate username only on first login (new profile)
-    ...(!existing.data ? { username: generateUsername() } : {}),
+    // Generate displayName only on first login (new profile)
+    ...(!existing.data ? { displayName: generateDisplayName() } : {}),
     ...(data.email ? { email: data.email, emailVerified: true } : {}),
     ...(name ? { name } : {}),
     ...(picture ? { picture } : {}),

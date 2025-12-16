@@ -158,15 +158,15 @@ function DashboardContent() {
                   </div>
                 )}
 
-                {user?.username && (
+                {user?.displayName && (
                   <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
                     <User className={`w-5 h-5 ${isDarkTheme ? 'text-green-400' : 'text-green-600'}`} />
                     <div className="flex flex-col flex-1 min-w-0">
                       <span className={`text-xs uppercase tracking-wide ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Username
+                        Display Name
                       </span>
                       <span className={`text-sm truncate ${isDarkTheme ? 'text-white' : 'text-black'}`}>
-                        {user.username}
+                        {user.displayName}
                       </span>
                     </div>
                   </div>
