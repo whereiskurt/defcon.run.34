@@ -73,61 +73,50 @@ locals {
     # =========================================================================
     # This ruleset uses a "deny by default" approach - only explicitly allowed
     # paths are permitted. All other requests are blocked with a custom response.
-    #
-    # Allowed Endpoints:
-    #   - GET/POST /api/auth/*      NextAuth (signin, signout, session, csrf, callbacks)
-    #   - POST /api/login           Email magic link initiation
-    #   - GET/OPTIONS /api/session/validate   Cross-domain session validation
-    #   - GET/POST /api/oidc/*      OIDC provider endpoints
-    #   - GET /login|strava                Login page
-    #   - GET /login/verify         OTP verification page
-    #   - GET /                     Dashboard/home
-    #   - GET /hello                Health check
-    #   - GET /_next/*              Next.js static assets
-    #   - GET /favicon.ico          Favicon
     # =========================================================================
     auth = {
       enabled = true
 
-      # --- Managed Rules (Bot Detection & Common Threats) ---
-      # Priorities 2-7: Managed rules run AFTER custom early-allow rules (0-1)
       managed_rules = [
-        {
-          name            = "AWSManagedRulesBotControlRuleSet"
-          vendor_name     = "AWS"
-          priority        = 2
-          override_action = "none"
-        },
-        {
-          name            = "AWSManagedRulesAmazonIpReputationList"
-          vendor_name     = "AWS"
-          priority        = 3
-          override_action = "none"
-        },
-        {
-          name            = "AWSManagedRulesAnonymousIpList"
-          vendor_name     = "AWS"
-          priority        = 4
-          override_action = "none"
-        },
-        {
-          name            = "AWSManagedRulesCommonRuleSet"
-          vendor_name     = "AWS"
-          priority        = 5
-          override_action = "none"
-        },
-        {
-          name            = "AWSManagedRulesKnownBadInputsRuleSet"
-          vendor_name     = "AWS"
-          priority        = 6
-          override_action = "none"
-        },
-        {
-          name            = "AWSManagedRulesSQLiRuleSet"
-          vendor_name     = "AWS"
-          priority        = 7
-          override_action = "none"
-        }
+        ## NOTE: Because we have a 'deny all' default rule, the only benefit is potentially failing sooner.
+        ##.      There are also rules that prevent .* files etc which interfere w/ .next and _next deployments.
+        ##.      
+        # {
+        #   name            = "AWSManagedRulesBotControlRuleSet"
+        #   vendor_name     = "AWS"
+        #   priority        = 2
+        #   override_action = "none"
+        # },
+        # {
+        #   name            = "AWSManagedRulesAmazonIpReputationList"
+        #   vendor_name     = "AWS"
+        #   priority        = 3
+        #   override_action = "none"
+        # },
+        # {
+        #   name            = "AWSManagedRulesAnonymousIpList"
+        #   vendor_name     = "AWS"
+        #   priority        = 4
+        #   override_action = "none"
+        # },
+        # {
+        #   name            = "AWSManagedRulesCommonRuleSet"
+        #   vendor_name     = "AWS"
+        #   priority        = 5
+        #   override_action = "none"
+        # },
+        # {
+        #   name            = "AWSManagedRulesKnownBadInputsRuleSet"
+        #   vendor_name     = "AWS"
+        #   priority        = 6
+        #   override_action = "none"
+        # },
+        # {
+        #   name            = "AWSManagedRulesSQLiRuleSet"
+        #   vendor_name     = "AWS"
+        #   priority        = 7
+        #   override_action = "none"
+        # }
       ]
 
       custom_rules = [
@@ -259,8 +248,7 @@ locals {
             regex_match_statement = null
           }
         },
-        # Rate Limiting: GET /api/captcha/challenge (50 req/5min) - Prevents challenge generation abuse
-        # Should match login rate limit since each login attempt needs one challenge
+        # Rate Limiting: GET /api/captcha/challenge - Prevents challenge generation abuse
         {
           name            = "RateLimitCaptchaChallenge"
           priority        = 11
@@ -301,9 +289,9 @@ locals {
             regex_match_statement = null
           }
         },
-        # Rate Limiting: /api/session/validate (100 req/5min)
+        # Rate Limiting: /api/session/validate - OPTIONS requests
         {
-          name            = "RateLimitSessionValidate"
+          name            = "RateLimitSessionValidateOptions"
           priority        = 12
           action          = "block"
           custom_response = {
@@ -315,23 +303,86 @@ locals {
               limit              = 150
               aggregate_key_type = "IP"
               scope_down_statement = {
-                and_statement = null
-                byte_match_statement = {
-                  search_string         = "/api/session/validate"
-                  positional_constraint = "STARTS_WITH"
-                  field_to_match        = { uri_path = {}, method = null }
-                  text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                and_statement = {
+                  statements = [
+                    {
+                      byte_match_statement = {
+                        search_string         = "/api/session/validate"
+                        positional_constraint = "EXACTLY"
+                        field_to_match        = { uri_path = {}, method = null }
+                        text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                      }
+                    },
+                    {
+                      byte_match_statement = {
+                        search_string         = "OPTIONS"
+                        positional_constraint = "EXACTLY"
+                        field_to_match        = { uri_path = null, method = {} }
+                        text_transformations  = [{ priority = 0, type = "NONE" }]
+                      }
+                    }
+                  ]
                 }
+                byte_match_statement = null
               }
             }
             byte_match_statement  = null
             regex_match_statement = null
           }
         },
-        # Rate Limiting: /api/auth/* (50 req/5min)
+        # Rate Limiting: /api/session/validate - GET requests with sess_auth cookie
+        {
+          name            = "RateLimitSessionValidateGet"
+          priority        = 13
+          action          = "block"
+          custom_response = {
+            response_code            = 469
+            custom_response_body_key = "auth-blocked"
+          }
+          statement = {
+            rate_based_statement = {
+              limit              = 150
+              aggregate_key_type = "IP"
+              scope_down_statement = {
+                and_statement = {
+                  statements = [
+                    {
+                      byte_match_statement = {
+                        search_string         = "/api/session/validate"
+                        positional_constraint = "EXACTLY"
+                        field_to_match        = { uri_path = {}, method = null }
+                        text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                      }
+                    },
+                    {
+                      byte_match_statement = {
+                        search_string         = "GET"
+                        positional_constraint = "EXACTLY"
+                        field_to_match        = { uri_path = null, method = {} }
+                        text_transformations  = [{ priority = 0, type = "NONE" }]
+                      }
+                    },
+                    {
+                      byte_match_statement = {
+                        search_string         = "sess_auth"
+                        positional_constraint = "CONTAINS"
+                        field_to_match        = { uri_path = null, method = null, single_header = { name = "cookie" } }
+                        text_transformations  = [{ priority = 0, type = "NONE" }]
+                      }
+                    }
+                  ]
+                }
+                byte_match_statement = null
+              }
+            }
+            byte_match_statement  = null
+            regex_match_statement = null
+          }
+        },
+        # Rate Limiting: /api/auth/*
         {
           name            = "RateLimitAuthEndpoints"
-          priority        = 13
+          priority        = 14
           action          = "block"
           custom_response = {
             response_code            = 469
@@ -358,7 +409,7 @@ locals {
         # Rate Limiting: /api/oidc/* (50 req/5min)
         {
           name            = "RateLimitOidcEndpoints"
-          priority        = 14
+          priority        = 15
           action          = "block"
           custom_response = {
             response_code            = 469
@@ -385,7 +436,7 @@ locals {
         # Global Rate Limit (200 req/5min)
         {
           name            = "RateLimitGlobal"
-          priority        = 15
+          priority        = 16
           action          = "block"
           custom_response = {
             response_code            = 469

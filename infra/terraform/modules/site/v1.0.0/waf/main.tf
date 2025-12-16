@@ -150,6 +150,12 @@ resource "aws_wafv2_web_acl" "this" {
                                 for_each = try(byte_match_statement.value.field_to_match.method, null) != null ? [1] : []
                                 content {}
                               }
+                              dynamic "single_header" {
+                                for_each = try(byte_match_statement.value.field_to_match.single_header, null) != null ? [byte_match_statement.value.field_to_match.single_header] : []
+                                content {
+                                  name = single_header.value.name
+                                }
+                              }
                             }
                             dynamic "text_transformation" {
                               for_each = byte_match_statement.value.text_transformations
@@ -160,6 +166,7 @@ resource "aws_wafv2_web_acl" "this" {
                             }
                           }
                         }
+
                       }
                     }
                   }

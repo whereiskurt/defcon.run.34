@@ -82,7 +82,10 @@ export class OIDCAdapter {
    */
   async find(id: string): Promise<any | undefined> {
     const result = await OIDCModel.get({ modelName: this.name, id }).go({ params: { ConsistentRead: true } });
-    if (!result.data) return undefined;
+
+    if (!result.data) {
+      return undefined;
+    }
 
     // Check expiration
     if (
@@ -109,18 +112,45 @@ export class OIDCAdapter {
   }
 
   /**
-   * Find by UID (interactions)
-   * Note: GSIs don't support consistent reads, so we query the GSI then fetch from primary
+   * Find by UID (interactions and sessions)
+   *
+   * For Interaction models, the uid IS the id, so we can do a direct primary key lookup
+   * with ConsistentRead instead of using the GSI (which has eventual consistency issues).
+   * This fixes SessionNotFound errors when DynamoDB GSI replication lags behind.
+   *
+   * For Session models, we also try direct lookup since uid might equal id in some cases.
+   * Falls back to GSI lookup for other model types.
    */
   async findByUid(uid: string): Promise<any | undefined> {
-    // First, query the GSI to get the primary key
+    // Try direct lookup first using the adapter's model name (uid might === id)
+    // This is faster and uses ConsistentRead, avoiding GSI eventual consistency issues
+    const directResult = await OIDCModel.get({ modelName: this.name, id: uid })
+      .go({ params: { ConsistentRead: true } });
+
+    if (directResult.data) {
+      const item = directResult.data;
+      // Check expiration
+      if (item.expiresAt && item.expiresAt < Math.floor(Date.now() / 1000)) {
+        return undefined;
+      }
+      return {
+        ...item.payload,
+        ...(item.consumedAt ? { consumed: true } : {}),
+      };
+    }
+
+    // Fall back to GSI lookup for models where uid != id
     const gsiResult = await OIDCModel.query.byUid({ uid }).go();
-    if (!gsiResult.data?.[0]) return undefined;
+    if (!gsiResult.data?.[0]) {
+      return undefined;
+    }
 
     // Then fetch from primary index with consistent read
     const { modelName, id } = gsiResult.data[0];
     const result = await OIDCModel.get({ modelName, id }).go({ params: { ConsistentRead: true } });
-    if (!result.data) return undefined;
+    if (!result.data) {
+      return undefined;
+    }
 
     const item = result.data;
     // Check expiration

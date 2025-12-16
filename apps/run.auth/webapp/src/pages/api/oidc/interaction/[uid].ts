@@ -45,11 +45,6 @@ export default async function handler(
   }
 
   try {
-    // Debug: Log cookies to diagnose SessionNotFound issues
-    const cookies = req.headers.cookie || '';
-    const hasInteractionCookie = cookies.includes('_interaction');
-    console.log(`OIDC Interaction [${uid}]: cookies present: _interaction=${hasInteractionCookie}`);
-
     // Get the OIDC interaction details
     const interactionDetails = await oidc.interactionDetails(req as any, res as any);
 
@@ -122,7 +117,10 @@ export default async function handler(
     console.error("OIDC Interaction error:", error);
 
     if (isSessionNotFound(error)) {
-      res.redirect("/login?error=session_expired");
+      // The interaction was already completed (consumed/deleted) or never existed.
+      // Since the user is authenticated, the OIDC flow likely already succeeded.
+      // Redirect to the main app instead of showing an error.
+      res.redirect("https://run.defcon.run");
       return;
     }
 

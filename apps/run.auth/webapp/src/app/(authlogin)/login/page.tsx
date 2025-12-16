@@ -129,6 +129,7 @@ function ClientOnlyForm() {
   const isDarkTheme = mounted && resolvedTheme === 'dark';
 
   // Auto-redirect to complete OIDC flow when authenticated with an OIDC interaction
+  // This handles the case where user completes OAuth and returns to /login?oidc=...
   useEffect(() => {
     if (status === 'authenticated' && session && oidcInteraction) {
       // Redirect to complete the OIDC interaction
@@ -345,8 +346,11 @@ function ClientOnlyForm() {
                     size="lg"
                     href="#"
                     onPress={() => signIn('discord', {
+                      // Always redirect back to login page with oidc param preserved
+                      // The login page will then redirect to the interaction endpoint
+                      // This prevents race conditions with duplicate requests
                       callbackUrl: oidcInteraction
-                        ? `/api/oidc/interaction/${oidcInteraction}`
+                        ? `/login?oidc=${oidcInteraction}`
                         : '/'
                     })}
                     >
@@ -358,8 +362,11 @@ function ClientOnlyForm() {
                     size="lg"
                     href="#"
                     onPress={() => signIn('github', {
+                      // Always redirect back to login page with oidc param preserved
+                      // The login page will then redirect to the interaction endpoint
+                      // This prevents race conditions with duplicate requests
                       callbackUrl: oidcInteraction
-                        ? `/api/oidc/interaction/${oidcInteraction}`
+                        ? `/login?oidc=${oidcInteraction}`
                         : '/'
                     })}
                     >
