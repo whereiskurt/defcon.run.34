@@ -69,7 +69,7 @@ function DashboardContent() {
   if (status === 'unauthenticated' || !session) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+        <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
         <div className="z-10 w-full max-w-md">
           <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
             <CardHeader>
@@ -101,7 +101,7 @@ function DashboardContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+      <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
       <div className="z-10 w-full max-w-lg">
         <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
           <CardHeader>
@@ -189,7 +189,7 @@ function DashboardContent() {
                   </div>
                 )}
 
-                {user?.username && (
+                {user?.displayName && (
                   <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
                     <User className={`w-5 h-5 ${isDarkTheme ? 'text-green-400' : 'text-green-600'}`} />
                     <div className="flex flex-col flex-1 min-w-0">
@@ -197,7 +197,7 @@ function DashboardContent() {
                         Username
                       </span>
                       <span className={`text-sm truncate ${isDarkTheme ? 'text-white' : 'text-black'}`}>
-                        {user.username}
+                        {user.displayName}
                       </span>
                     </div>
                   </div>

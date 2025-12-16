@@ -146,7 +146,7 @@ function ClientOnlyForm() {
     if (oidcInteraction) {
       return (
         <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-          <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+          <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
           <div className="z-10 w-full max-w-md">
             <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
               <CardBody className="flex justify-center items-center py-8">
@@ -162,7 +162,7 @@ function ClientOnlyForm() {
 
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+        <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
         <div className="z-10 w-full max-w-md">
           <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
             <CardHeader>
@@ -226,7 +226,7 @@ function ClientOnlyForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <BlurPulseBackground imagePath={`/assets/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
+      <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
       <div className="z-10 w-full max-w-md" >
         <form onSubmit={handleSubmit} className="w-full">
           <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>

@@ -60,7 +60,7 @@ locals {
   }
 
   waf = {
-    enabled  = false
+    enabled  = true
     log_mode = "standard" # standard | realtime
   }
 
@@ -75,7 +75,7 @@ locals {
     ##Map fronted domain "auth.defcon.run" to the ruleset called "auth"
     waf_rulesets = {
       "auth" = "auth"     # Use the 'api' ruleset from waf.hcl
-      # "run"  = "default" # Use the 'default' ruleset from waf.hcl
+      #"run"  = "default" # Use the 'default' ruleset from waf.hcl
     }
 
     # Regions that will provide ALB and S3 bucket origins
@@ -95,7 +95,7 @@ locals {
 
     logging = {
       enabled         = true
-      include_cookies = true
+      include_cookies = false
     }
 
     # Price class for CloudFront distribution

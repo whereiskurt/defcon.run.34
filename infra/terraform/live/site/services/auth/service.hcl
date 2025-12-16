@@ -176,6 +176,10 @@ locals {
           {
             name      = "AUTH_INTERNAL_SECRET"
             valueFrom = "/defcon.run/auth/internal_secret"
+          },
+          {
+            name      = "ALTCHA_HMAC_KEY"
+            valueFrom = "/defcon.run/auth/altcha/secret"
           }
         ]
 

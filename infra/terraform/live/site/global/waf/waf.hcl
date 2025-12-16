@@ -90,57 +90,73 @@ locals {
       enabled = true
 
       # --- Managed Rules (Bot Detection & Common Threats) ---
+      # Priorities 2-7: Managed rules run AFTER custom early-allow rules (0-1)
       managed_rules = [
         {
           name            = "AWSManagedRulesBotControlRuleSet"
-          vendor_name     = "AWS"
-          priority        = 1
-          override_action = "none"
-        },
-        {
-          name            = "AWSManagedRulesAmazonIpReputationList"
           vendor_name     = "AWS"
           priority        = 2
           override_action = "none"
         },
         {
-          name            = "AWSManagedRulesAnonymousIpList"
+          name            = "AWSManagedRulesAmazonIpReputationList"
           vendor_name     = "AWS"
           priority        = 3
           override_action = "none"
         },
         {
-          name            = "AWSManagedRulesCommonRuleSet"
+          name            = "AWSManagedRulesAnonymousIpList"
           vendor_name     = "AWS"
           priority        = 4
           override_action = "none"
         },
         {
-          name            = "AWSManagedRulesKnownBadInputsRuleSet"
+          name            = "AWSManagedRulesCommonRuleSet"
           vendor_name     = "AWS"
           priority        = 5
           override_action = "none"
         },
         {
-          name            = "AWSManagedRulesSQLiRuleSet"
+          name            = "AWSManagedRulesKnownBadInputsRuleSet"
           vendor_name     = "AWS"
           priority        = 6
+          override_action = "none"
+        },
+        {
+          name            = "AWSManagedRulesSQLiRuleSet"
+          vendor_name     = "AWS"
+          priority        = 7
           override_action = "none"
         }
       ]
 
-      # --- Custom Rules ---
-      # Priority ordering:
-      #   0:      Static asset allowlist (must run BEFORE managed rules)
-      #   10-49:  Rate limiting rules (most important to evaluate first)
-      #   50-99:  Path allowlist rules
-      #   100:    Default deny rule (catch-all)
       custom_rules = [
-        # ALLOW: Regional S3 assets (priority 0 to run BEFORE managed rules)
+        # ALLOW: All OIDC endpoints (priority 0 to run BEFORE managed rules)
+        # OIDC endpoints are blocked by AWS managed rules:
+        # - .well-known paths trigger hidden file/directory patterns
+        # - POST /token with auth params triggers SQLi/bad input rules
+        # Must allow all /api/oidc/ paths before managed rules block them
+        {
+          name            = "AllowOidcEndpoints"
+          priority        = 0
+          action          = "allow"
+          custom_response = null
+          statement = {
+            rate_based_statement = null
+            byte_match_statement = {
+              search_string         = "/api/oidc/"
+              positional_constraint = "STARTS_WITH"
+              field_to_match        = { uri_path = {}, method = null }
+              text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+            }
+            regex_match_statement = null
+          }
+        },
+        # ALLOW: Regional S3 assets (priority 1 to run BEFORE managed rules)
         # This prevents managed rules from blocking Next.js static assets
         {
           name            = "AllowRegionalAssetsEarly"
-          priority        = 0
+          priority        = 1
           action          = "allow"
           custom_response = null
           statement = {
@@ -153,7 +169,56 @@ locals {
             }
           }
         },
-        # Rate Limiting: POST /api/login (10 req/5min) - Prevents brute-force (AWS minimum is 10)
+
+        # Block POST /api/login without altcha proof-of-work in body
+        # This prevents bots from hitting the login endpoint without solving the challenge
+        {
+          name     = "RequireAltchaOnLogin"
+          priority = 9
+          action   = "block"
+          custom_response = {
+            response_code            = 469
+            custom_response_body_key = "auth-blocked"
+          }
+          statement = {
+            rate_based_statement  = null
+            byte_match_statement  = null
+            regex_match_statement = null
+            and_statement = {
+              statements = [
+                {
+                  byte_match_statement = {
+                    search_string         = "POST"
+                    positional_constraint = "EXACTLY"
+                    field_to_match        = { method = {} }
+                    text_transformations  = [{ priority = 0, type = "NONE" }]
+                  }
+                },
+                {
+                  byte_match_statement = {
+                    search_string         = "/api/login"
+                    positional_constraint = "EXACTLY"
+                    field_to_match        = { uri_path = {} }
+                    text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                  }
+                },
+                {
+                  not_statement = {
+                    statement = {
+                      regex_match_statement = {
+                        regex_string         = "\"altcha\"\\s*:\\s*\"[^\"]+\""
+                        field_to_match       = { body = {} }
+                        text_transformations = [{ priority = 0, type = "NONE" }]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+
+        # Rate Limiting: POST /api/login (50 req/5min) - Prevents brute-force
         {
           name            = "RateLimitLoginEndpoint"
           priority        = 10
@@ -164,7 +229,7 @@ locals {
           }
           statement = {
             rate_based_statement = {
-              limit              = 10
+              limit              = 50
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement = {
@@ -194,9 +259,10 @@ locals {
             regex_match_statement = null
           }
         },
-        # Rate Limiting: /api/session/validate (100 req/5min)
+        # Rate Limiting: GET /api/captcha/challenge (50 req/5min) - Prevents challenge generation abuse
+        # Should match login rate limit since each login attempt needs one challenge
         {
-          name            = "RateLimitSessionValidate"
+          name            = "RateLimitCaptchaChallenge"
           priority        = 11
           action          = "block"
           custom_response = {
@@ -205,7 +271,48 @@ locals {
           }
           statement = {
             rate_based_statement = {
-              limit              = 100
+              limit              = 50
+              aggregate_key_type = "IP"
+              scope_down_statement = {
+                and_statement = {
+                  statements = [
+                    {
+                      byte_match_statement = {
+                        search_string         = "/api/captcha/challenge"
+                        positional_constraint = "EXACTLY"
+                        field_to_match        = { uri_path = {}, method = null }
+                        text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                      }
+                    },
+                    {
+                      byte_match_statement = {
+                        search_string         = "GET"
+                        positional_constraint = "EXACTLY"
+                        field_to_match        = { uri_path = null, method = {} }
+                        text_transformations  = [{ priority = 0, type = "NONE" }]
+                      }
+                    }
+                  ]
+                }
+                byte_match_statement = null
+              }
+            }
+            byte_match_statement  = null
+            regex_match_statement = null
+          }
+        },
+        # Rate Limiting: /api/session/validate (100 req/5min)
+        {
+          name            = "RateLimitSessionValidate"
+          priority        = 12
+          action          = "block"
+          custom_response = {
+            response_code            = 469
+            custom_response_body_key = "auth-blocked"
+          }
+          statement = {
+            rate_based_statement = {
+              limit              = 50
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement = null
@@ -224,7 +331,7 @@ locals {
         # Rate Limiting: /api/auth/* (50 req/5min)
         {
           name            = "RateLimitAuthEndpoints"
-          priority        = 12
+          priority        = 13
           action          = "block"
           custom_response = {
             response_code            = 469
@@ -251,7 +358,7 @@ locals {
         # Rate Limiting: /api/oidc/* (50 req/5min)
         {
           name            = "RateLimitOidcEndpoints"
-          priority        = 13
+          priority        = 14
           action          = "block"
           custom_response = {
             response_code            = 469
@@ -278,7 +385,7 @@ locals {
         # Global Rate Limit (200 req/5min)
         {
           name            = "RateLimitGlobal"
-          priority        = 14
+          priority        = 15
           action          = "block"
           custom_response = {
             response_code            = 469
@@ -378,8 +485,6 @@ locals {
             regex_match_statement = null
           }
         },
-        # DEFAULT DENY: Block everything else
-        # Uses byte_match with empty string and CONTAINS to match all requests
         {
           name     = "DefaultDenyAll"
           priority = 100
