@@ -218,7 +218,7 @@ locals {
           }
         },
 
-        # Rate Limiting: POST /api/login (50 req/5min) - Prevents brute-force
+        # Rate Limiting: POST /api/login - Prevents brute-force
         {
           name            = "RateLimitLoginEndpoint"
           priority        = 10
@@ -229,7 +229,7 @@ locals {
           }
           statement = {
             rate_based_statement = {
-              limit              = 50
+              limit              = 150
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement = {
@@ -271,7 +271,7 @@ locals {
           }
           statement = {
             rate_based_statement = {
-              limit              = 50
+              limit              = 150
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement = {
@@ -312,7 +312,7 @@ locals {
           }
           statement = {
             rate_based_statement = {
-              limit              = 50
+              limit              = 150
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement = null
@@ -339,7 +339,7 @@ locals {
           }
           statement = {
             rate_based_statement = {
-              limit              = 50
+              limit              = 150
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement = null
@@ -366,7 +366,7 @@ locals {
           }
           statement = {
             rate_based_statement = {
-              limit              = 50
+              limit              = 150
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement = null
