@@ -202,6 +202,86 @@ locals {
     )
   }
 
+  # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)
+  # Values loaded from .secrets.json file (gitignored) or TF_VAR_secret_values env var
+  secrets = {
+    enabled = true
+
+    # Set to true to use Secrets Manager with automatic replication
+    # Set to false to use SSM Parameter Store (created in each region)
+    use_secrets_manager = false
+
+    # Primary region for Secrets Manager (only used when use_secrets_manager = true)
+    primary_region = "us-east-1"
+
+    # Regions to replicate to (only used when use_secrets_manager = true)
+    replica_regions = [
+      {
+        label = "cac1"
+        full  = "ca-central-1"
+      }
+    ]
+
+    # Path prefix templates - supports {{SITE_LABEL}}, {{REGION_LABEL}}, {{REGION}}
+    # SSM: includes region since each region has its own parameters
+    ssm_prefix = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}"
+    # Secrets Manager: no region since it replicates automatically
+    sm_prefix = "/{{SITE_LABEL}}/secrets"
+
+    # Secret structure definitions - values come from .secrets.json or env var
+    definitions = {
+      strava = {
+        description = "Strava OAuth credentials"
+        keys        = ["client_id", "client_secret"]
+      }
+      github = {
+        description = "GitHub OAuth credentials"
+        keys        = ["client_id", "client_secret"]
+      }
+      discord = {
+        description = "Discord OAuth credentials"
+        keys        = ["client_id", "client_secret"]
+      }
+      jwt = {
+        description = "JWT signing secrets"
+        keys        = ["secret", "internal_secret"]
+      }
+      oidc = {
+        description = "OIDC cookie encryption keys"
+        keys        = ["cookie_keys"]
+      }
+      runhuman = {
+        description = "RunHuman OIDC client credentials"
+        keys        = ["client_id", "client_secret"]
+      }
+      altcha = {
+        description = "ALTCHA proof-of-work secret"
+        keys        = ["secret"]
+      }
+    }
+  }
+
+  # Load secret values - priority order:
+  # 1. TF_VAR_secret_values env var (for CI/CD)
+  # 2. .secrets.sops.json (SOPS encrypted - recommended)
+  # 3. .secrets.json (plaintext - not recommended)
+  #
+  # To create encrypted secrets:
+  #   1. Create .secrets.json from .secrets.json.example
+  #   2. Run: sops --encrypt .secrets.json > .secrets.sops.json
+  #   3. Delete .secrets.json (plaintext)
+  #   4. Commit .secrets.sops.json to git (safe - encrypted with KMS)
+  #
+  secret_values = jsondecode(
+    # Try SOPS encrypted file first (decrypt on the fly)
+    fileexists("${get_terragrunt_dir()}/.secrets.sops.json")
+    ? run_cmd("--terragrunt-quiet", "sops", "--decrypt", "${get_terragrunt_dir()}/.secrets.sops.json")
+    # Fall back to plaintext file
+    : fileexists("${get_terragrunt_dir()}/.secrets.json")
+      ? file("${get_terragrunt_dir()}/.secrets.json")
+      : "{}"
+  )
+
   github_oidc = {
     enabled     = false
     github_org  = "whereiskurt"      # Your GitHub org/user

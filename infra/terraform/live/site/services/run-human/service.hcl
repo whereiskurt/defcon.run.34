@@ -106,12 +106,24 @@ locals {
 
         secrets = [
           {
-            name      = "RUN_SES_SMTP_FROM"
-            valueFrom = "/{{SITE_LABEL}}/ses/from_address"
+            name      = "AUTH_JWT_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/secret"
           },
           {
-            name      = "AUTH_JWT_SECRET"
-            valueFrom = "/defcon.run/auth/secret"
+            name      = "OIDC_RUNHUMAN_CLIENT_ID"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/runhuman/client_id"
+          },
+          {
+            name      = "OIDC_RUNHUMAN_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/runhuman/client_secret"
+          },
+          {
+            name      = "AUTH_INTERNAL_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
+          },
+          {
+            name      = "RUN_SES_SMTP_FROM"
+            valueFrom = "/{{SITE_LABEL}}/ses/from_address"
           },
           {
             name      = "RUN_DYNAMODB_ID"
@@ -137,19 +149,6 @@ locals {
             name      = "RUN_ELECTRO_DBNAME"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-electro/table_name"
           },
-          {
-            name      = "OIDC_RUNHUMAN_CLIENT_ID"
-            valueFrom = "/defcon.run/auth/runhuman/id"
-          },
-          {
-            name      = "OIDC_RUNHUMAN_SECRET"
-            valueFrom = "/defcon.run/auth/runhuman/secret"
-          },
-          {
-            name      = "AUTH_INTERNAL_SECRET"
-            valueFrom = "/defcon.run/auth/internal_secret"
-          },
-          # S3 Upload bucket credentials for presigned URLs
           {
             name      = "S3_UPLOADS_ACCESS_KEY"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-human/access_key_id"

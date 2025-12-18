@@ -34,3 +34,10 @@ out
 
 .env.*
 .env*
+
+# Secrets files (Terraform)
+# Plaintext secrets - NEVER commit
+.secrets.json
+
+# Note: .secrets.sops.json IS safe to commit (SOPS encrypted)
+!.secrets.sops.json
