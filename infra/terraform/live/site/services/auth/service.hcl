@@ -111,7 +111,7 @@ locals {
           },
           {
             name      = "AUTH_JWT_SECRET"
-            valueFrom = "/defcon.run/auth/secret"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/secret"
           },
           {
             name      = "AUTH_DYNAMODB_ID"
@@ -139,47 +139,47 @@ locals {
           },
           {
             name      = "AUTH_GITHUB_ID"
-            valueFrom = "/defcon.run/auth/github/id"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/github/client_id"
           },
           {
             name      = "AUTH_GITHUB_SECRET"
-            valueFrom = "/defcon.run/auth/github/secret"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/github/client_secret"
           },
           {
             name      = "AUTH_STRAVA_CLIENT_ID"
-            valueFrom = "/defcon.run/auth/strava/id"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strava/client_id"
           },
           {
             name      = "AUTH_STRAVA_CLIENT_SECRET"
-            valueFrom = "/defcon.run/auth/strava/secret"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strava/client_secret"
           },
           {
             name      = "AUTH_DISCORD_CLIENT_ID"
-            valueFrom = "/defcon.run/auth/discord/id"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/discord/client_id"
           },
           {
             name      = "AUTH_DISCORD_CLIENT_SECRET"
-            valueFrom = "/defcon.run/auth/discord/secret"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/discord/client_secret"
           },
           {
             name      = "OIDC_COOKIE_KEYS"
-            valueFrom = "/defcon.run/auth/oidc/secret"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/oidc/cookie_keys"
           },
           {
             name      = "OIDC_RUNHUMAN_CLIENT_ID"
-            valueFrom = "/defcon.run/auth/runhuman/id"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/runhuman/client_id"
           },
           {
             name      = "OIDC_RUNHUMAN_SECRET"
-            valueFrom = "/defcon.run/auth/runhuman/secret"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/runhuman/client_secret"
           },
           {
             name      = "AUTH_INTERNAL_SECRET"
-            valueFrom = "/defcon.run/auth/internal_secret"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
           },
           {
             name      = "ALTCHA_HMAC_KEY"
-            valueFrom = "/defcon.run/auth/altcha/secret"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/altcha/secret"
           }
         ]
 
