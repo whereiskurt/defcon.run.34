@@ -129,6 +129,31 @@ resource "aws_wafv2_web_acl" "this" {
                   }
                 }
 
+                # Regex match for scope down (for pattern matching paths)
+                dynamic "regex_match_statement" {
+                  for_each = try(scope_down_statement.value.regex_match_statement, null) != null ? [scope_down_statement.value.regex_match_statement] : []
+                  content {
+                    regex_string = regex_match_statement.value.regex_string
+                    field_to_match {
+                      dynamic "uri_path" {
+                        for_each = try(regex_match_statement.value.field_to_match.uri_path, null) != null ? [1] : []
+                        content {}
+                      }
+                      dynamic "method" {
+                        for_each = try(regex_match_statement.value.field_to_match.method, null) != null ? [1] : []
+                        content {}
+                      }
+                    }
+                    dynamic "text_transformation" {
+                      for_each = regex_match_statement.value.text_transformations
+                      content {
+                        priority = text_transformation.value.priority
+                        type     = text_transformation.value.type
+                      }
+                    }
+                  }
+                }
+
                 # AND statement for scope down (e.g., path AND method)
                 dynamic "and_statement" {
                   for_each = try(scope_down_statement.value.and_statement, null) != null ? [scope_down_statement.value.and_statement] : []
@@ -159,6 +184,31 @@ resource "aws_wafv2_web_acl" "this" {
                             }
                             dynamic "text_transformation" {
                               for_each = byte_match_statement.value.text_transformations
+                              content {
+                                priority = text_transformation.value.priority
+                                type     = text_transformation.value.type
+                              }
+                            }
+                          }
+                        }
+
+                        # Regex match within and_statement inside scope_down_statement
+                        dynamic "regex_match_statement" {
+                          for_each = try(statement.value.regex_match_statement, null) != null ? [statement.value.regex_match_statement] : []
+                          content {
+                            regex_string = regex_match_statement.value.regex_string
+                            field_to_match {
+                              dynamic "uri_path" {
+                                for_each = try(regex_match_statement.value.field_to_match.uri_path, null) != null ? [1] : []
+                                content {}
+                              }
+                              dynamic "method" {
+                                for_each = try(regex_match_statement.value.field_to_match.method, null) != null ? [1] : []
+                                content {}
+                              }
+                            }
+                            dynamic "text_transformation" {
+                              for_each = regex_match_statement.value.text_transformations
                               content {
                                 priority = text_transformation.value.priority
                                 type     = text_transformation.value.type

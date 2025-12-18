@@ -41,3 +41,7 @@ out
 
 # Note: .secrets.sops.json IS safe to commit (SOPS encrypted)
 !.secrets.sops.json
+
+# Generated Lambda@Edge zip files
+*.lambda.zip
+lambda_*.zip

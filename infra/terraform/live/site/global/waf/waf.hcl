@@ -80,7 +80,7 @@ locals {
       managed_rules = [
         ## NOTE: Because we have a 'deny all' default rule, the only benefit is potentially failing sooner.
         ##.      There are also rules that prevent .* files etc which interfere w/ .next and _next deployments.
-        ##.      
+        ##.
         # {
         #   name            = "AWSManagedRulesBotControlRuleSet"
         #   vendor_name     = "AWS"
@@ -131,14 +131,14 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement = null
+            rate_based_statement  = null
+            regex_match_statement = null
             byte_match_statement = {
               search_string         = "/api/oidc/"
               positional_constraint = "STARTS_WITH"
               field_to_match        = { uri_path = {}, method = null }
               text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
             }
-            regex_match_statement = null
           }
         },
         # ALLOW: Regional S3 assets (priority 1 to run BEFORE managed rules)
@@ -241,7 +241,8 @@ locals {
                     }
                   ]
                 }
-                byte_match_statement = null
+                byte_match_statement  = null
+                regex_match_statement = null
               }
             }
             byte_match_statement  = null
@@ -282,7 +283,8 @@ locals {
                     }
                   ]
                 }
-                byte_match_statement = null
+                byte_match_statement  = null
+                regex_match_statement = null
               }
             }
             byte_match_statement  = null
@@ -323,7 +325,8 @@ locals {
                     }
                   ]
                 }
-                byte_match_statement = null
+                byte_match_statement  = null
+                regex_match_statement = null
               }
             }
             byte_match_statement  = null
@@ -372,7 +375,8 @@ locals {
                     }
                   ]
                 }
-                byte_match_statement = null
+                byte_match_statement  = null
+                regex_match_statement = null
               }
             }
             byte_match_statement  = null
@@ -393,7 +397,8 @@ locals {
               limit              = 150
               aggregate_key_type = "IP"
               scope_down_statement = {
-                and_statement = null
+                and_statement        = null
+                regex_match_statement = null
                 byte_match_statement = {
                   search_string         = "/api/auth/"
                   positional_constraint = "STARTS_WITH"
@@ -406,7 +411,7 @@ locals {
             regex_match_statement = null
           }
         },
-        # Rate Limiting: /api/oidc/* (50 req/5min)
+        # Rate Limiting: /api/oidc/*
         {
           name            = "RateLimitOidcEndpoints"
           priority        = 15
@@ -420,7 +425,8 @@ locals {
               limit              = 150
               aggregate_key_type = "IP"
               scope_down_statement = {
-                and_statement = null
+                and_statement        = null
+                regex_match_statement = null
                 byte_match_statement = {
                   search_string         = "/api/oidc/"
                   positional_constraint = "STARTS_WITH"
@@ -459,14 +465,14 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement = null
+            rate_based_statement  = null
+            regex_match_statement = null
             byte_match_statement = {
               search_string         = "/api/"
               positional_constraint = "STARTS_WITH"
               field_to_match        = { uri_path = {}, method = null }
               text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
             }
-            regex_match_statement = null
           }
         },
         # ALLOW: /login and /strava pages
@@ -492,14 +498,14 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement = null
+            rate_based_statement  = null
+            regex_match_statement = null
             byte_match_statement = {
               search_string         = "/"
               positional_constraint = "EXACTLY"
               field_to_match        = { uri_path = {}, method = null }
               text_transformations  = [{ priority = 0, type = "NONE" }]
             }
-            regex_match_statement = null
           }
         },
         # ALLOW: Health check /hello
@@ -509,14 +515,14 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement = null
+            rate_based_statement  = null
+            regex_match_statement = null
             byte_match_statement = {
               search_string         = "/hello"
               positional_constraint = "EXACTLY"
               field_to_match        = { uri_path = {}, method = null }
               text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
             }
-            regex_match_statement = null
           }
         },
         # ALLOW: Favicon
@@ -526,14 +532,14 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement = null
+            rate_based_statement  = null
+            regex_match_statement = null
             byte_match_statement = {
               search_string         = "/favicon"
               positional_constraint = "STARTS_WITH"
               field_to_match        = { uri_path = {}, method = null }
               text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
             }
-            regex_match_statement = null
           }
         },
         {
