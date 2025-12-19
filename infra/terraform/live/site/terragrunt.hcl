@@ -41,6 +41,7 @@ errors {
         "(?s).*request send failed.*",
         "(?s).*[aA]ccess [dD]enied for [lL]og[dD]estination.*",
         "(?s).*bucket must exist.*",
+        "(?s).*bucket must have versioning enabled.*",
       ]
     )
 

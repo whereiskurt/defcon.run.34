@@ -297,6 +297,78 @@ resource "aws_wafv2_web_acl" "this" {
           }
         }
 
+        # NOT statement (for negation at top level)
+        # Used for "block if header NOT present" type rules (e.g., origin verification)
+        dynamic "not_statement" {
+          for_each = try(rule.value.statement.not_statement, null) != null ? [rule.value.statement.not_statement] : []
+          content {
+            statement {
+              # Byte match inside not_statement
+              dynamic "byte_match_statement" {
+                for_each = try(not_statement.value.statement.byte_match_statement, null) != null ? [not_statement.value.statement.byte_match_statement] : []
+                content {
+                  search_string         = byte_match_statement.value.search_string
+                  positional_constraint = byte_match_statement.value.positional_constraint
+                  field_to_match {
+                    dynamic "uri_path" {
+                      for_each = try(byte_match_statement.value.field_to_match.uri_path, null) != null ? [1] : []
+                      content {}
+                    }
+                    dynamic "method" {
+                      for_each = try(byte_match_statement.value.field_to_match.method, null) != null ? [1] : []
+                      content {}
+                    }
+                    dynamic "single_header" {
+                      for_each = try(byte_match_statement.value.field_to_match.single_header, null) != null ? [byte_match_statement.value.field_to_match.single_header] : []
+                      content {
+                        name = single_header.value.name
+                      }
+                    }
+                  }
+                  dynamic "text_transformation" {
+                    for_each = byte_match_statement.value.text_transformations
+                    content {
+                      priority = text_transformation.value.priority
+                      type     = text_transformation.value.type
+                    }
+                  }
+                }
+              }
+
+              # Regex match inside not_statement
+              dynamic "regex_match_statement" {
+                for_each = try(not_statement.value.statement.regex_match_statement, null) != null ? [not_statement.value.statement.regex_match_statement] : []
+                content {
+                  regex_string = regex_match_statement.value.regex_string
+                  field_to_match {
+                    dynamic "uri_path" {
+                      for_each = try(regex_match_statement.value.field_to_match.uri_path, null) != null ? [1] : []
+                      content {}
+                    }
+                    dynamic "method" {
+                      for_each = try(regex_match_statement.value.field_to_match.method, null) != null ? [1] : []
+                      content {}
+                    }
+                    dynamic "single_header" {
+                      for_each = try(regex_match_statement.value.field_to_match.single_header, null) != null ? [regex_match_statement.value.field_to_match.single_header] : []
+                      content {
+                        name = single_header.value.name
+                      }
+                    }
+                  }
+                  dynamic "text_transformation" {
+                    for_each = regex_match_statement.value.text_transformations
+                    content {
+                      priority = text_transformation.value.priority
+                      type     = text_transformation.value.type
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
         # AND statement (for combining multiple conditions at top level)
         dynamic "and_statement" {
           for_each = try(rule.value.statement.and_statement, null) != null ? [rule.value.statement.and_statement] : []
