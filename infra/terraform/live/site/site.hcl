@@ -258,6 +258,10 @@ locals {
         description = "ALTCHA proof-of-work secret"
         keys        = ["secret"]
       }
+      origin_verify = {
+        description = "CloudFront origin verification secret for multi-region routing"
+        keys        = ["secret"]
+      }
     }
   }
 
