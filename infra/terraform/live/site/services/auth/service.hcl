@@ -87,12 +87,16 @@ locals {
             value = "0.0.0.0"
           },
           {
+            name  = "REGION_SHORT"
+            value = "{{REGION_LABEL}}"
+          },
+          {
             name  = "NEXTAUTH_URL"
-            value = "https://auth.defcon.run"
+            value = "https://auth.defcon.run/{{REGION_LABEL}}"
           },
           {
             name  = "AUTH_COOKIE_DOMAIN"
-            value = "auth.defcon.run"
+            value = ".defcon.run"
           },
           {
             name  = "AWS_REGION"
@@ -191,7 +195,9 @@ locals {
         ]
 
         health_check = {
-          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/ || exit 1"]
+          # Health check path includes region prefix because Next.js basePath is /{region}
+          # {{REGION_LABEL}} is substituted by ecs-task module (e.g., use1, cac1)
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/{{REGION_LABEL}}/ || exit 1"]
           interval     = 30
           timeout      = 5
           retries      = 3

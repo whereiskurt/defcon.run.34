@@ -99,6 +99,38 @@ resource "aws_cloudfront_origin_access_control" "cf_oac" {
   provider = aws.global-application
 }
 
+# CloudFront Function to redirect root path to default region
+# Redirects "/" to "/use1/" (first region in list)
+resource "aws_cloudfront_function" "root_redirect" {
+  name    = "${var.site.label}-root-redirect"
+  runtime = "cloudfront-js-2.0"
+  comment = "Redirects root path to default region prefix"
+  publish = true
+
+  code = <<-EOF
+    function handler(event) {
+      var request = event.request;
+      var uri = request.uri;
+
+      // Redirect root path to default region
+      if (uri === '/' || uri === '') {
+        return {
+          statusCode: 302,
+          statusDescription: 'Found',
+          headers: {
+            'location': { value: '/${local.region_labels[0]}/' },
+            'cache-control': { value: 'no-cache, no-store, must-revalidate' }
+          }
+        };
+      }
+
+      return request;
+    }
+  EOF
+
+  provider = aws.global-application
+}
+
 # CloudFront Distribution - one per domain
 resource "aws_cloudfront_distribution" "main" {
   for_each = local.domain_set
@@ -159,6 +191,12 @@ resource "aws_cloudfront_distribution" "main" {
 
     cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
     origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewerExceptHostHeader
+
+    # CloudFront Function to redirect root path to default region
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.root_redirect.arn
+    }
   }
 
   # Cache behavior for /index.html - routes to use1 S3 origin

@@ -64,14 +64,17 @@ const adapter = DynamoDBAdapter(client, {
 
 // OIDC provider for authentication via auth.defcon.run (or localhost in dev)
 const isDev = process.env.NODE_ENV !== "production";
+const REGION_SHORT = process.env.REGION_SHORT || "use1";
+
+// Auth server OIDC issuer URL (includes region prefix for multi-region deployment)
 const authServerUrl = isDev
   ? "http://localhost:3002/api/oidc"  // Auth server runs on port 3002
-  : "https://auth.defcon.run/api/oidc";
+  : `https://auth.defcon.run/${REGION_SHORT}/api/oidc`;
 
-// Auth server base URL (without /api/oidc) for session validation
+// Auth server base URL (with region prefix) for session validation
 const authServerBaseUrl = isDev
   ? "http://localhost:3002"
-  : "https://auth.defcon.run";
+  : `https://auth.defcon.run/${REGION_SHORT}`;
 
 /**
  * Fetch fresh claims from auth.defcon.run session validate endpoint
@@ -112,19 +115,34 @@ async function fetchFreshClaims(userId: string): Promise<{
   }
 }
 
+// Auth.js redirectProxyUrl forces the callback URL to include the region prefix
+// This is needed for CloudFront to route the callback to the correct regional backend
+const redirectProxyUrl = isDev
+  ? "http://localhost:3001/api/auth"
+  : `https://run.defcon.run/${REGION_SHORT}/api/auth`;
+
+// Debug: Log what redirectProxyUrl is set to
+console.log("[run.human] Auth config - REGION_SHORT:", REGION_SHORT, "redirectProxyUrl:", redirectProxyUrl);
+
 const providers: Provider[] = [
   {
     id: "run.defcon.run",
     name: "DEFCON.run",
     type: "oidc",
     issuer: authServerUrl,
-    clientId: process.env.AUTH_OIDC_CLIENT_ID || "run-human",
+    // Set redirectProxyUrl at provider level to ensure callback URL includes region prefix
+    redirectProxyUrl: redirectProxyUrl,
+    clientId: process.env.OIDC_RUNHUMAN_CLIENT_ID || "run-human",
     clientSecret: process.env.OIDC_RUNHUMAN_SECRET!,
     allowDangerousEmailAccountLinking: true,
     authorization: {
+      url: `${authServerUrl}/auth`,
       params: {
         scope: "openid profile email services",
       },
+    },
+    token: {
+      url: `${authServerUrl}/token`,
     },
     checks: ["state"],
     client: {
@@ -144,9 +162,16 @@ const providers: Provider[] = [
 const cookieDomain =
   process.env.NODE_ENV === "production" ? process.env.AUTH_COOKIE_DOMAIN  : "localhost";
 
+// Auth.js basePath - relative path for route matching (Next.js already strips its basePath)
+// URL construction uses NEXTAUTH_URL which includes the region prefix
+const authBasePath = "/api/auth";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // debug: true,
   trustHost: true,
+  basePath: authBasePath,
+  // redirectProxyUrl forces callback URLs to include region prefix for CloudFront routing
+  redirectProxyUrl,
   session: {
     strategy: "jwt",
     maxAge: 1 * 24 * 60 * 60, // 1 day in seconds
@@ -160,6 +185,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter,
   pages: {
     signIn: "/",
+    error: isDev ? "/auth/error" : `/${REGION_SHORT}/auth/error`,
   },
   callbacks: {
     signIn({ user, profile, account }) {

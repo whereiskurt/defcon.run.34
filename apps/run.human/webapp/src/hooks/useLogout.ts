@@ -3,9 +3,26 @@
 import { signOut } from 'next-auth/react';
 
 const isDev = process.env.NODE_ENV !== 'production';
-const authServerUrl = isDev
-  ? 'http://localhost:3002/api/oidc'
-  : 'https://auth.defcon.run/api/oidc';
+
+/**
+ * Extract the region prefix from the current URL path.
+ * E.g., /use1/dashboard -> use1, /cac1/profile -> cac1
+ */
+function getRegionFromPath(): string {
+  if (typeof window === 'undefined') return 'use1';
+  const match = window.location.pathname.match(/^\/(use1|cac1)/);
+  return match ? match[1] : 'use1';
+}
+
+/**
+ * Get the auth server OIDC URL based on the current region.
+ * In production, the auth server is at auth.defcon.run/{region}/api/oidc
+ */
+function getAuthServerUrl(): string {
+  if (isDev) return 'http://localhost:3002/api/oidc';
+  const region = getRegionFromPath();
+  return `https://auth.defcon.run/${region}/api/oidc`;
+}
 
 /**
  * Custom logout handler that properly terminates both:
@@ -22,11 +39,17 @@ export async function fullLogout(callbackUrl: string = '/'): Promise<void> {
 
   // Step 2: Redirect to OIDC end_session endpoint to terminate the OIDC session
   // This will clear the oidc-provider session cookies and redirect back to us
+  const authServerUrl = getAuthServerUrl();
   const endSessionUrl = new URL(`${authServerUrl}/session/end`);
 
   // Get the current origin for the post-logout redirect
+  // Include the region prefix in the callback URL
+  const region = getRegionFromPath();
+  const fullCallbackUrl = callbackUrl.startsWith('/') && !callbackUrl.startsWith(`/${region}`)
+    ? `/${region}${callbackUrl}`
+    : callbackUrl;
   const postLogoutRedirectUri = typeof window !== 'undefined'
-    ? `${window.location.origin}${callbackUrl}`
+    ? `${window.location.origin}${fullCallbackUrl}`
     : callbackUrl;
 
   endSessionUrl.searchParams.set('post_logout_redirect_uri', postLogoutRedirectUri);

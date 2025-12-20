@@ -4,6 +4,7 @@ import { resolve } from 'path';
 
 const WEBAPP_ORIGIN = process.env.WEBAPP_ORIGIN || 'run.defcon.run';
 const WEBAPP_PREFIX = process.env.WEBAPP_PREFIX || 'use1/assets';
+const REGION_SHORT = process.env.REGION_SHORT || 'use1';
 
 // Read VERSION files at build time
 const readVersion = (path: string): string => {
@@ -22,6 +23,7 @@ const sharedConfig = {
   env: {
     NEXT_PUBLIC_VERSION_APP: VERSION_APP,
     NEXT_PUBLIC_VERSION_NGINX: VERSION_NGINX,
+    NEXT_PUBLIC_REGION_SHORT: REGION_SHORT,
   },
   turbopack: {
     root: __dirname, // Silence the workspace root warning
@@ -44,6 +46,7 @@ const sharedConfig = {
 const productionConfig = {
   ...sharedConfig,
   output: 'standalone',
+  basePath: `/${REGION_SHORT}`, // Mount app at /{region} path (e.g., /use1 or /cac1)
   assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}`, // rewrites <script> / <link> tags
   turbopack: {
     root: __dirname, // Silence the workspace root warning

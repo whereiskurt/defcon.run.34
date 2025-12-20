@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 const isDev = process.env.NODE_ENV !== "production";
+const REGION_SHORT = process.env.REGION_SHORT || "use1";
 const cookieDomain = isDev ? "localhost" : process.env.AUTH_COOKIE_DOMAIN;
 
 /**
@@ -11,8 +12,8 @@ const cookieDomain = isDev ? "localhost" : process.env.AUTH_COOKIE_DOMAIN;
  * GET /api/logout?callbackUrl=http://localhost:3001
  */
 export async function GET(request: NextRequest) {
-  const callbackUrl = request.nextUrl.searchParams.get("callbackUrl")
-    || (isDev ? "http://localhost:3001" : "https://run.defcon.run");
+  const defaultRedirect = isDev ? "http://localhost:3001" : `https://run.defcon.run/${REGION_SHORT}`;
+  const callbackUrl = request.nextUrl.searchParams.get("callbackUrl") || defaultRedirect;
 
   const cookieStore = await cookies();
 

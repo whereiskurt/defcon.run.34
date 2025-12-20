@@ -125,6 +125,7 @@ locals {
         # - .well-known paths trigger hidden file/directory patterns
         # - POST /token with auth params triggers SQLi/bad input rules
         # Must allow all /api/oidc/ paths before managed rules block them
+        # Supports optional region prefix: /api/oidc/, /use1/api/oidc/, /cac1/api/oidc/
         {
           name            = "AllowOidcEndpoints"
           priority        = 0
@@ -132,12 +133,11 @@ locals {
           custom_response = null
           statement = {
             rate_based_statement  = null
-            regex_match_statement = null
-            byte_match_statement = {
-              search_string         = "/api/oidc/"
-              positional_constraint = "STARTS_WITH"
-              field_to_match        = { uri_path = {}, method = null }
-              text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+            byte_match_statement  = null
+            regex_match_statement = {
+              regex_string         = "^(/(use1|cac1))?/api/oidc/"
+              field_to_match       = { uri_path = {}, method = null }
+              text_transformations = [{ priority = 0, type = "LOWERCASE" }]
             }
           }
         },
@@ -161,6 +161,7 @@ locals {
 
         # Block POST /api/login without altcha proof-of-work in body
         # This prevents bots from hitting the login endpoint without solving the challenge
+        # Supports optional region prefix: /api/login, /use1/api/login, /cac1/api/login
         {
           name     = "RequireAltchaOnLogin"
           priority = 9
@@ -184,11 +185,10 @@ locals {
                   }
                 },
                 {
-                  byte_match_statement = {
-                    search_string         = "/api/login"
-                    positional_constraint = "EXACTLY"
-                    field_to_match        = { uri_path = {} }
-                    text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                  regex_match_statement = {
+                    regex_string         = "^(/(use1|cac1))?/api/login$"
+                    field_to_match       = { uri_path = {} }
+                    text_transformations = [{ priority = 0, type = "LOWERCASE" }]
                   }
                 },
                 {
@@ -208,6 +208,7 @@ locals {
         },
 
         # Rate Limiting: POST /api/login - Prevents brute-force
+        # Supports optional region prefix: /api/login, /use1/api/login, /cac1/api/login
         {
           name            = "RateLimitLoginEndpoint"
           priority        = 10
@@ -224,11 +225,10 @@ locals {
                 and_statement = {
                   statements = [
                     {
-                      byte_match_statement = {
-                        search_string         = "/api/login"
-                        positional_constraint = "STARTS_WITH"
-                        field_to_match        = { uri_path = {}, method = null }
-                        text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                      regex_match_statement = {
+                        regex_string         = "^(/(use1|cac1))?/api/login"
+                        field_to_match       = { uri_path = {}, method = null }
+                        text_transformations = [{ priority = 0, type = "LOWERCASE" }]
                       }
                     },
                     {
@@ -250,6 +250,7 @@ locals {
           }
         },
         # Rate Limiting: GET /api/captcha/challenge - Prevents challenge generation abuse
+        # Supports optional region prefix
         {
           name            = "RateLimitCaptchaChallenge"
           priority        = 11
@@ -266,11 +267,10 @@ locals {
                 and_statement = {
                   statements = [
                     {
-                      byte_match_statement = {
-                        search_string         = "/api/captcha/challenge"
-                        positional_constraint = "EXACTLY"
-                        field_to_match        = { uri_path = {}, method = null }
-                        text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                      regex_match_statement = {
+                        regex_string         = "^(/(use1|cac1))?/api/captcha/challenge$"
+                        field_to_match       = { uri_path = {}, method = null }
+                        text_transformations = [{ priority = 0, type = "LOWERCASE" }]
                       }
                     },
                     {
@@ -292,6 +292,7 @@ locals {
           }
         },
         # Rate Limiting: /api/session/validate - OPTIONS requests
+        # Supports optional region prefix
         {
           name            = "RateLimitSessionValidateOptions"
           priority        = 12
@@ -308,11 +309,10 @@ locals {
                 and_statement = {
                   statements = [
                     {
-                      byte_match_statement = {
-                        search_string         = "/api/session/validate"
-                        positional_constraint = "EXACTLY"
-                        field_to_match        = { uri_path = {}, method = null }
-                        text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                      regex_match_statement = {
+                        regex_string         = "^(/(use1|cac1))?/api/session/validate"
+                        field_to_match       = { uri_path = {}, method = null }
+                        text_transformations = [{ priority = 0, type = "LOWERCASE" }]
                       }
                     },
                     {
@@ -334,6 +334,7 @@ locals {
           }
         },
         # Rate Limiting: /api/session/validate - GET requests with sess_auth cookie
+        # Supports optional region prefix
         {
           name            = "RateLimitSessionValidateGet"
           priority        = 13
@@ -350,11 +351,10 @@ locals {
                 and_statement = {
                   statements = [
                     {
-                      byte_match_statement = {
-                        search_string         = "/api/session/validate"
-                        positional_constraint = "EXACTLY"
-                        field_to_match        = { uri_path = {}, method = null }
-                        text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                      regex_match_statement = {
+                        regex_string         = "^(/(use1|cac1))?/api/session/validate"
+                        field_to_match       = { uri_path = {}, method = null }
+                        text_transformations = [{ priority = 0, type = "LOWERCASE" }]
                       }
                     },
                     {
@@ -384,6 +384,7 @@ locals {
           }
         },
         # Rate Limiting: /api/auth/*
+        # Supports optional region prefix
         {
           name            = "RateLimitAuthEndpoints"
           priority        = 14
@@ -398,12 +399,11 @@ locals {
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement        = null
-                regex_match_statement = null
-                byte_match_statement = {
-                  search_string         = "/api/auth/"
-                  positional_constraint = "STARTS_WITH"
-                  field_to_match        = { uri_path = {}, method = null }
-                  text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                byte_match_statement = null
+                regex_match_statement = {
+                  regex_string         = "^(/(use1|cac1))?/api/auth/"
+                  field_to_match       = { uri_path = {}, method = null }
+                  text_transformations = [{ priority = 0, type = "LOWERCASE" }]
                 }
               }
             }
@@ -412,6 +412,7 @@ locals {
           }
         },
         # Rate Limiting: /api/oidc/*
+        # Supports optional region prefix
         {
           name            = "RateLimitOidcEndpoints"
           priority        = 15
@@ -426,12 +427,11 @@ locals {
               aggregate_key_type = "IP"
               scope_down_statement = {
                 and_statement        = null
-                regex_match_statement = null
-                byte_match_statement = {
-                  search_string         = "/api/oidc/"
-                  positional_constraint = "STARTS_WITH"
-                  field_to_match        = { uri_path = {}, method = null }
-                  text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+                byte_match_statement = null
+                regex_match_statement = {
+                  regex_string         = "^(/(use1|cac1))?/api/oidc/"
+                  field_to_match       = { uri_path = {}, method = null }
+                  text_transformations = [{ priority = 0, type = "LOWERCASE" }]
                 }
               }
             }
@@ -459,6 +459,7 @@ locals {
           }
         },
         # ALLOW: /api/* paths
+        # Supports optional region prefix
         {
           name            = "AllowApiPaths"
           priority        = 50
@@ -466,16 +467,16 @@ locals {
           custom_response = null
           statement = {
             rate_based_statement  = null
-            regex_match_statement = null
-            byte_match_statement = {
-              search_string         = "/api/"
-              positional_constraint = "STARTS_WITH"
-              field_to_match        = { uri_path = {}, method = null }
-              text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+            byte_match_statement  = null
+            regex_match_statement = {
+              regex_string         = "^(/(use1|cac1))?/api/"
+              field_to_match       = { uri_path = {}, method = null }
+              text_transformations = [{ priority = 0, type = "LOWERCASE" }]
             }
           }
         },
         # ALLOW: /login and /strava pages
+        # Supports optional region prefix
         {
           name            = "AllowLoginPages"
           priority        = 51
@@ -485,13 +486,14 @@ locals {
             rate_based_statement  = null
             byte_match_statement  = null
             regex_match_statement = {
-              regex_string         = "^/(login|strava)"
+              regex_string         = "^(/(use1|cac1))?/(login|strava)"
               field_to_match       = { uri_path = {}, method = null }
               text_transformations = [{ priority = 0, type = "LOWERCASE" }]
             }
           }
         },
-        # ALLOW: Root path /
+        # ALLOW: Root path / or /{region}/
+        # Supports optional region prefix
         {
           name            = "AllowRootPath"
           priority        = 52
@@ -499,16 +501,15 @@ locals {
           custom_response = null
           statement = {
             rate_based_statement  = null
-            regex_match_statement = null
-            byte_match_statement = {
-              search_string         = "/"
-              positional_constraint = "EXACTLY"
-              field_to_match        = { uri_path = {}, method = null }
-              text_transformations  = [{ priority = 0, type = "NONE" }]
+            byte_match_statement  = null
+            regex_match_statement = {
+              regex_string         = "^(/(use1|cac1))?/?$"
+              field_to_match       = { uri_path = {}, method = null }
+              text_transformations = [{ priority = 0, type = "NONE" }]
             }
           }
         },
-        # ALLOW: Health check /hello
+        # ALLOW: Health check /hello (nginx health check - no region prefix)
         {
           name            = "AllowHealthCheck"
           priority        = 53
@@ -526,6 +527,7 @@ locals {
           }
         },
         # ALLOW: Favicon
+        # Supports optional region prefix
         {
           name            = "AllowFavicon"
           priority        = 55
@@ -533,12 +535,11 @@ locals {
           custom_response = null
           statement = {
             rate_based_statement  = null
-            regex_match_statement = null
-            byte_match_statement = {
-              search_string         = "/favicon"
-              positional_constraint = "STARTS_WITH"
-              field_to_match        = { uri_path = {}, method = null }
-              text_transformations  = [{ priority = 0, type = "LOWERCASE" }]
+            byte_match_statement  = null
+            regex_match_statement = {
+              regex_string         = "^(/(use1|cac1))?/favicon"
+              field_to_match       = { uri_path = {}, method = null }
+              text_transformations = [{ priority = 0, type = "LOWERCASE" }]
             }
           }
         },

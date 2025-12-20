@@ -176,17 +176,31 @@ resource "aws_ecs_task_definition" "task" {
       essential         = container.essential
       command           = length(container.command) > 0 ? container.command : null
 
+      # Substitute template variables in environment values
       environment = length(container.environment) > 0 ? [
         for env in container.environment : {
-          name  = env.name
-          value = env.value
+          name = env.name
+          value = replace(
+            replace(
+              replace(env.value, "{{REGION_LABEL}}", var.region.label),
+              "{{REGION}}", var.region.full
+            ),
+            "{{SITE_LABEL}}", var.site.label
+          )
         }
       ] : null
 
+      # Substitute template variables in secret paths
       secrets = length(container.secrets) > 0 ? [
         for secret in container.secrets : {
-          name      = secret.name
-          valueFrom = secret.valueFrom
+          name = secret.name
+          valueFrom = replace(
+            replace(
+              replace(secret.valueFrom, "{{REGION_LABEL}}", var.region.label),
+              "{{REGION}}", var.region.full
+            ),
+            "{{SITE_LABEL}}", var.site.label
+          )
         }
       ] : null
 
@@ -206,7 +220,17 @@ resource "aws_ecs_task_definition" "task" {
       ] : null
 
       healthCheck = container.health_check != null ? {
-        command     = container.health_check.command
+        # Substitute template variables in health check command
+        command = [
+          for cmd in container.health_check.command :
+          replace(
+            replace(
+              replace(cmd, "{{REGION_LABEL}}", var.region.label),
+              "{{REGION}}", var.region.full
+            ),
+            "{{SITE_LABEL}}", var.site.label
+          )
+        ]
         interval    = container.health_check.interval
         timeout     = container.health_check.timeout
         retries     = container.health_check.retries

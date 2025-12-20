@@ -77,6 +77,14 @@ const sesClient = new SESv2Client({
   region: process.env.AUTH_SES_REGION || "us-east-1",
 });
 
+const isDev = process.env.NODE_ENV !== "production";
+const REGION_SHORT = process.env.REGION_SHORT || "use1";
+
+// Base URL for constructing callback URLs - must include region prefix
+const baseUrl = isDev
+  ? "http://localhost:3002"
+  : `https://auth.defcon.run/${REGION_SHORT}`;
+
 const providers: Provider[] = [
   Email({
     server: {}, // Required by nodemailer provider, but unused since we use custom sendVerificationRequest
@@ -118,19 +126,56 @@ const providers: Provider[] = [
     clientSecret: process.env.AUTH_GITHUB_SECRET,
     allowDangerousEmailAccountLinking: true,
     checks: ["none"],
+    authorization: {
+      url: "https://github.com/login/oauth/authorize",
+      params: {
+        redirect_uri: `${baseUrl}/api/auth/callback/github`,
+      },
+    },
+    token: {
+      url: "https://github.com/login/oauth/access_token",
+      params: {
+        redirect_uri: `${baseUrl}/api/auth/callback/github`,
+      },
+    },
   }),
   Strava({
     clientId: process.env.AUTH_STRAVA_CLIENT_ID,
     clientSecret: process.env.AUTH_STRAVA_CLIENT_SECRET,
     allowDangerousEmailAccountLinking: true,
-    authorization: { params: { scope: "activity:read" } }, //Allows public and follower content
     checks: ["none"],
+    authorization: {
+      url: "https://www.strava.com/oauth/authorize",
+      params: {
+        scope: "activity:read",
+        redirect_uri: `${baseUrl}/api/auth/callback/strava`,
+      },
+    },
+    token: {
+      url: "https://www.strava.com/oauth/token",
+      params: {
+        redirect_uri: `${baseUrl}/api/auth/callback/strava`,
+      },
+    },
   }),
   Discord({
     clientId: process.env.AUTH_DISCORD_CLIENT_ID,
     clientSecret: process.env.AUTH_DISCORD_CLIENT_SECRET,
     allowDangerousEmailAccountLinking: true,
     checks: ["none"],
+    authorization: {
+      url: "https://discord.com/api/oauth2/authorize",
+      params: {
+        scope: "identify email",
+        redirect_uri: `${baseUrl}/api/auth/callback/discord`,
+      },
+    },
+    token: {
+      url: "https://discord.com/api/oauth2/token",
+      params: {
+        redirect_uri: `${baseUrl}/api/auth/callback/discord`,
+      },
+    },
   }),
 ];
 
@@ -147,9 +192,14 @@ const cookieDomain =
 // The `trustHost: true` setting tells NextAuth to trust X-Forwarded-Proto headers.
 const useSecureCookies = process.env.NODE_ENV === "production";
 
+// Auth.js basePath - relative to the Next.js app root (Next.js basePath is already handled)
+// This is used for matching incoming request paths after Next.js strips its basePath
+const authBasePath = "/api/auth";
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // debug: true,
   trustHost: true,
+  basePath: authBasePath,
   session: {
     strategy: "jwt",
     maxAge: 15 * 24 * 60 * 60, // 15 days
@@ -162,8 +212,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers,
   adapter,
   pages: {
-    signIn: "/login",
-    verifyRequest: "/login/verify",
+    // Pages must include region prefix for multi-region deployment
+    // Note: These are relative to the app, but Auth.js uses them for redirects
+    signIn: isDev ? "/login" : `/${REGION_SHORT}/login`,
+    verifyRequest: isDev ? "/login/verify" : `/${REGION_SHORT}/login/verify`,
   },
   callbacks: {
     signIn({ user, profile, account }) {
@@ -353,7 +405,9 @@ export function signupHTML(params: {
   token: string;
 }) {
   const { host, theme, token, email } = params;
-  const url = `${process.env.NEXTAUTH_URL}/api/auth/callback/nodemailer?token=${token}&email=${email}&callbackUrl=/`;
+  // Construct callback URL with region prefix for multi-region deployment
+  const callbackPath = isDev ? "/" : `/${REGION_SHORT}/`;
+  const url = `${baseUrl}/api/auth/callback/nodemailer?token=${token}&email=${email}&callbackUrl=${encodeURIComponent(callbackPath)}`;
   const escapedHost = host.replace(/\./g, "&#8203;.");
 
   const brandColor = "#686EA0";

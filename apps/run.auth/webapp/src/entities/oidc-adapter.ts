@@ -65,6 +65,20 @@ export class OIDCAdapter {
       ? Math.floor(Date.now() / 1000) + expiresIn
       : undefined;
 
+    console.log(`[OIDCAdapter] upsert ${this.name}:${id} grantId=${payload.grantId || 'none'}`);
+
+    // Log full payload for AuthorizationCode to debug redirect_uri issues
+    if (this.name === "AuthorizationCode") {
+      console.log(`[OIDCAdapter] Creating AuthorizationCode with:`, JSON.stringify({
+        redirectUri: payload.redirectUri,
+        clientId: payload.clientId,
+        grantId: payload.grantId,
+        scope: payload.scope,
+        codeChallenge: payload.codeChallenge, // PKCE
+        codeChallengeMethod: payload.codeChallengeMethod, // PKCE
+      }));
+    }
+
     await OIDCModel.upsert({
       modelName: this.name,
       id,
@@ -81,9 +95,11 @@ export class OIDCAdapter {
    * Find a record by ID
    */
   async find(id: string): Promise<any | undefined> {
+    console.log(`[OIDCAdapter] find ${this.name}:${id}`);
     const result = await OIDCModel.get({ modelName: this.name, id }).go({ params: { ConsistentRead: true } });
 
     if (!result.data) {
+      console.log(`[OIDCAdapter] find ${this.name}:${id} - NOT FOUND`);
       return undefined;
     }
 
@@ -92,7 +108,23 @@ export class OIDCAdapter {
       result.data.expiresAt &&
       result.data.expiresAt < Math.floor(Date.now() / 1000)
     ) {
+      console.log(`[OIDCAdapter] find ${this.name}:${id} - EXPIRED`);
       return undefined;
+    }
+
+    console.log(`[OIDCAdapter] find ${this.name}:${id} - FOUND, consumed=${!!result.data.consumedAt}`);
+
+    // Log full payload for AuthorizationCode to debug redirect_uri issues
+    if (this.name === "AuthorizationCode") {
+      const payload = result.data.payload;
+      console.log(`[OIDCAdapter] AuthorizationCode payload:`, JSON.stringify({
+        redirectUri: payload.redirectUri,
+        clientId: payload.clientId,
+        grantId: payload.grantId,
+        scope: payload.scope,
+        codeChallenge: payload.codeChallenge, // PKCE
+        codeChallengeMethod: payload.codeChallengeMethod, // PKCE
+      }));
     }
 
     return {
