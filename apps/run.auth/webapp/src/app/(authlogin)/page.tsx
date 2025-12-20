@@ -19,6 +19,11 @@ import { Text, Heading } from '@components/text-effects/Common';
 
 import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown } from 'lucide-react';
 
+// Get the basePath for production multi-region deployment
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
+
 function DashboardContent() {
   const [mounted, setMounted] = useState(false);
   const [isClaimsOpen, setIsClaimsOpen] = useState(false);
@@ -65,7 +70,7 @@ function DashboardContent() {
             <CardBody className="flex justify-center">
               <Button
                 as="a"
-                href="/login"
+                href={`${basePath}/login`}
                 variant="solid"
                 color="primary"
                 className="text-lg font-semibold"
@@ -261,7 +266,7 @@ function DashboardContent() {
               color="danger"
               className="text-lg font-semibold"
               startContent={<LogOut className="w-5 h-5" />}
-              onPress={() => signOut({ callbackUrl: '/login' })}
+              onPress={() => signOut({ callbackUrl: `${basePath}/login` })}
             >
               Sign Out
             </Button>

@@ -99,12 +99,12 @@ resource "aws_cloudfront_origin_access_control" "cf_oac" {
   provider = aws.global-application
 }
 
-# CloudFront Function to redirect root path to default region
-# Redirects "/" to "/use1/" (first region in list)
+# CloudFront Function to handle root and region path redirects
+# Redirects "/" to "/use1/" and "/use1" to "/use1/", etc.
 resource "aws_cloudfront_function" "root_redirect" {
   name    = "${var.site.label}-root-redirect"
   runtime = "cloudfront-js-2.0"
-  comment = "Redirects root path to default region prefix"
+  comment = "Redirects root and region paths to include trailing slash"
   publish = true
 
   code = <<-EOF
@@ -122,6 +122,14 @@ resource "aws_cloudfront_function" "root_redirect" {
             'cache-control': { value: 'no-cache, no-store, must-revalidate' }
           }
         };
+      }
+
+      // Rewrite bare region paths (e.g., /use1, /cac1, /use1/, /cac1/) to index.html
+      // This allows S3 to serve the index.html for the region root
+      // Pattern: 3 lowercase letters followed by 1 digit, with optional trailing slash
+      if (/^\/[a-z]{3}\d\/?$/.test(uri)) {
+        request.uri = uri.replace(/\/?$/, '/index.html');
+        return request;
       }
 
       return request;
@@ -199,16 +207,56 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
-  # Cache behavior for /index.html - routes to use1 S3 origin
+  # Cache behavior for /index.html - routes to first region's S3 origin
   ordered_cache_behavior {
     path_pattern           = "/index.html"
-    target_origin_id       = "s3-use1"
+    target_origin_id       = "s3-${local.region_labels[0]}"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]
     cached_methods         = ["GET", "HEAD"]
     compress               = true
 
     cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+  }
+
+  # Ordered cache behaviors for regional index.html routing
+  # Pattern: /{region_label}/index.html routes to S3 for this domain
+  # IMPORTANT: This must come BEFORE the ALB wildcard patterns
+  dynamic "ordered_cache_behavior" {
+    for_each = var.regional_origins_by_domain[each.key]
+    content {
+      path_pattern           = "/${ordered_cache_behavior.key}/index.html"
+      target_origin_id       = "s3-${ordered_cache_behavior.key}"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+    }
+  }
+
+  # Ordered cache behaviors for bare region paths (no trailing slash)
+  # Pattern: /{region_label} routes to S3 with URI rewrite to index.html
+  # IMPORTANT: This must come BEFORE the ALB wildcard patterns
+  dynamic "ordered_cache_behavior" {
+    for_each = var.regional_origins_by_domain[each.key]
+    content {
+      path_pattern           = "/${ordered_cache_behavior.key}"
+      target_origin_id       = "s3-${ordered_cache_behavior.key}"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+
+      # Rewrite /use1 to /use1/index.html
+      function_association {
+        event_type   = "viewer-request"
+        function_arn = aws_cloudfront_function.root_redirect.arn
+      }
+    }
   }
 
   # Ordered cache behaviors for regional S3 asset routing

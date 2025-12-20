@@ -115,7 +115,10 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   docker rm "$CONTAINER_ID"
 
   AWS_PROFILE=application aws s3 sync "${TMP_STATIC}" "s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/_next/static" --cache-control 'public,max-age=31536000,immutable' --delete --exclude '*.map'
+
+  ##TODO: Replace the top-level index.html with a path that does the CloudFront redirect logic and sets a cookie
   AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/index.html" --cache-control 'public,max-age=31536000,immutable'
+  AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/index.html" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 sync "${TMP_PUBLIC}" "s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/public" --cache-control 'public,max-age=31536000,immutable' --delete
 
   # Cleanup temp dir

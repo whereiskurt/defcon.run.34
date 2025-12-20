@@ -81,7 +81,7 @@ function StravaLinkContent() {
               </Text>
               <Button
                 as="a"
-                href="/login"
+                href="${basePath}/login"
                 variant="solid"
                 color="primary"
                 className="text-lg font-semibold"

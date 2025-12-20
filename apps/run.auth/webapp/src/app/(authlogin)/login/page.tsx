@@ -109,7 +109,7 @@ function ClientOnlyForm() {
     }
     try {
       setIsSubmitting(true)
-      const res = await fetch("/api/login", {
+      const res = await fetch(`${basePath}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -122,8 +122,8 @@ function ClientOnlyForm() {
       } else {
         // Include OIDC interaction ID if present (for OIDC flow)
         const verifyUrl = oidcInteraction
-          ? `/login/verify?email=${email}&oidc=${oidcInteraction}`
-          : `/login/verify?email=${email}`;
+          ? `${basePath}/login/verify?email=${email}&oidc=${oidcInteraction}`
+          : `${basePath}/login/verify?email=${email}`;
         window.location.href = verifyUrl;
       }
     } catch (error: any) {
