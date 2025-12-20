@@ -111,6 +111,7 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   mkdir -p "${TMP_DIR}"
   docker cp "$CONTAINER_ID:/app/.next/static" "${TMP_STATIC}"
   docker cp "$CONTAINER_ID:/app/.next/server/app/index.html" "${TMP_STATIC}"
+  docker cp "$CONTAINER_ID:/app/.next/server/app/favicon.ico" "${TMP_STATIC}"
   docker cp "$CONTAINER_ID:/app/public" "${TMP_PUBLIC}"
   docker rm "$CONTAINER_ID"
 
@@ -119,6 +120,8 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   ##TODO: Replace the top-level index.html with a path that does the CloudFront redirect logic and sets a cookie
   AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/index.html" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/index.html" --cache-control 'public,max-age=31536000,immutable'
+  AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
+  AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 sync "${TMP_PUBLIC}" "s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/public" --cache-control 'public,max-age=31536000,immutable' --delete
 
   # Cleanup temp dir

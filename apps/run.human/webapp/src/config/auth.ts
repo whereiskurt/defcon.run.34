@@ -121,9 +121,6 @@ const redirectProxyUrl = isDev
   ? "http://localhost:3001/api/auth"
   : `https://run.defcon.run/${REGION_SHORT}/api/auth`;
 
-// Debug: Log what redirectProxyUrl is set to
-console.log("[run.human] Auth config - REGION_SHORT:", REGION_SHORT, "redirectProxyUrl:", redirectProxyUrl);
-
 const providers: Provider[] = [
   {
     id: "run.defcon.run",
@@ -159,8 +156,14 @@ const providers: Provider[] = [
   },
 ];
 
+// Cookie domain: in production use the configured domain, in dev omit to use current origin
+// Setting domain to "localhost" explicitly can cause issues in some browsers
 const cookieDomain =
-  process.env.NODE_ENV === "production" ? process.env.AUTH_COOKIE_DOMAIN  : "localhost";
+  process.env.NODE_ENV === "production" ? process.env.AUTH_COOKIE_DOMAIN : undefined;
+
+// In production behind a load balancer that terminates TLS, use secure cookies.
+// The `trustHost: true` setting tells NextAuth to trust X-Forwarded-Proto headers.
+const useSecureCookies = process.env.NODE_ENV === "production";
 
 // Auth.js basePath - relative path for route matching (Next.js already strips its basePath)
 // URL construction uses NEXTAUTH_URL which includes the region prefix
@@ -194,18 +197,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     async jwt({ token, account, profile, trigger, session, user }) {
       const now = Date.now();
-      const REFRESH_INTERVAL = 5 * 60 * 1000; // 1 minute in milliseconds
+      const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
       if (trigger === "update") {
         // Manual session update trigger - force refresh claims from auth server
-        console.log("[run.human] Manual update trigger - forcing claims refresh");
         const authUserId = token.authUserId as string;
         if (authUserId) {
           const freshClaims = await fetchFreshClaims(authUserId);
           if (freshClaims) {
             token.services = freshClaims.services;
             token.linkedProviders = freshClaims.linkedProviders;
-            console.log("[run.human] Manual refresh - updated claims:", freshClaims);
           }
         }
         token.lastRefresh = now;
@@ -241,7 +242,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // If lastRefresh is not set (old token), treat it as needing immediate refresh
         const lastRefresh = (token.lastRefresh as number) || 0;
         const timeSinceRefresh = lastRefresh === 0 ? REFRESH_INTERVAL : (now - lastRefresh);
-        console.log("[run.human] Token refresh check - lastRefresh:", lastRefresh, "timeSinceRefresh:", timeSinceRefresh, "interval:", REFRESH_INTERVAL);
 
         if (timeSinceRefresh >= REFRESH_INTERVAL) {
           // Fetch fresh claims from auth.defcon.run using the auth user ID
@@ -251,13 +251,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (freshClaims) {
               token.services = freshClaims.services;
               token.linkedProviders = freshClaims.linkedProviders;
-            } else {
-              console.log("[run.human] Failed to fetch fresh claims, keeping existing");
             }
           }
           token.lastRefresh = now;
-        } else {
-          console.log("[run.human] Skipping refresh, not enough time passed");
         }
       }
 
@@ -285,31 +281,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     sessionToken: {
       name: "sess_run",
       options: {
-        domain: cookieDomain,
+        ...(cookieDomain ? { domain: cookieDomain } : {}),
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        secure: true,
+        secure: useSecureCookies,
       },
     },
     csrfToken: {
       name: "csrf_run",
       options: {
-        domain: cookieDomain,
+        ...(cookieDomain ? { domain: cookieDomain } : {}),
         path: "/",
         httpOnly: false,
         sameSite: "lax",
-        secure: true,
+        secure: useSecureCookies,
       },
     },
     callbackUrl: {
       name: "callback_run",
       options: {
-        domain: cookieDomain,
+        ...(cookieDomain ? { domain: cookieDomain } : {}),
         path: "/",
         httpOnly: false,
         sameSite: "lax",
-        secure: true,
+        secure: useSecureCookies,
+      },
+    },
+    // State cookie for OIDC state verification - must be non-secure in dev
+    state: {
+      name: "state_run",
+      options: {
+        ...(cookieDomain ? { domain: cookieDomain } : {}),
+        path: "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: useSecureCookies,
+        maxAge: 900, // 15 minutes
       },
     },
   },

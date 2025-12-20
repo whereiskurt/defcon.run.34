@@ -203,7 +203,6 @@ const configuration: Configuration = {
     return {
       accountId: sub,
       async claims(use: string, scope: string, claims: Record<string, unknown>, rejected: string[]) {
-        console.log("[OIDC claims] use:", use, "scope:", scope);
         // sub is required by AccountClaims type
         const result: { sub: string; [key: string]: unknown } = { sub };
 

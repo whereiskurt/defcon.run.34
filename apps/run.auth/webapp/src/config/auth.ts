@@ -125,7 +125,7 @@ const providers: Provider[] = [
     clientId: process.env.AUTH_GITHUB_ID,
     clientSecret: process.env.AUTH_GITHUB_SECRET,
     allowDangerousEmailAccountLinking: true,
-    checks: ["none"],
+    checks: ["state"],
     authorization: {
       url: "https://github.com/login/oauth/authorize",
       params: {
@@ -143,7 +143,7 @@ const providers: Provider[] = [
     clientId: process.env.AUTH_STRAVA_CLIENT_ID,
     clientSecret: process.env.AUTH_STRAVA_CLIENT_SECRET,
     allowDangerousEmailAccountLinking: true,
-    checks: ["none"],
+    checks: ["state"],
     authorization: {
       url: "https://www.strava.com/oauth/authorize",
       params: {
@@ -162,7 +162,7 @@ const providers: Provider[] = [
     clientId: process.env.AUTH_DISCORD_CLIENT_ID,
     clientSecret: process.env.AUTH_DISCORD_CLIENT_SECRET,
     allowDangerousEmailAccountLinking: true,
-    checks: ["none"],
+    checks: ["state"],
     authorization: {
       url: "https://discord.com/api/oauth2/authorize",
       params: {
@@ -358,6 +358,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.id = (token.sub ?? token.userId) as string;
       session.user.email = token.email as string;
       session.user.displayName = token.displayName as string | undefined;
+      session.user.name = session.user.displayName
       session.user.services = (token.services ?? []) as string[];
       session.user.hasStrava = !!token.stravaId;
       return session;

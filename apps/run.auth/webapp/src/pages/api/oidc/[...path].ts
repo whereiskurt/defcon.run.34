@@ -49,11 +49,6 @@ export default async function handler(
   // Routes are configured with full paths (e.g., /use1/api/oidc/auth in production)
   req.url = path + (req.url?.includes("?") ? req.url.substring(req.url.indexOf("?")) : "");
 
-  // Debug logging for token endpoint
-  if (pathSegments?.includes("token") && req.method === "POST") {
-    console.log("[OIDC Token] Request received - method:", req.method, "path:", path);
-  }
-
   try {
     // Intercept redirects to add region prefix for CloudFront routing
     // Auth.js doesn't include Next.js basePath in callback URLs, so we need to fix them
@@ -64,12 +59,10 @@ export default async function handler(
       // Only fix redirects to /api/auth/callback that are missing the region prefix (e.g., /use1/, /cac1/)
       // Pattern matches URLs with /api/auth/callback NOT preceded by a region prefix like /use1/ or /cac1/
       if (!isDev && url && url.includes("/api/auth/callback") && !/\/[a-z]{3}\d\/api\/auth\/callback/.test(url)) {
-        const fixed = url.replace(
+        return url.replace(
           "/api/auth/callback",
           `/${REGION_SHORT}/api/auth/callback`
         );
-        console.log("[OIDC] Fixed redirect URL:", url, "->", fixed);
-        return fixed;
       }
       return url;
     };

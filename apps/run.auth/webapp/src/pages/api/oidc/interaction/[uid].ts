@@ -43,7 +43,6 @@ export default async function handler(
 
   if (!token?.sub && !token?.email) {
     // Not logged in - redirect back to login with the interaction ID
-    console.log("OIDC Interaction: No session, redirecting to login");
     res.redirect(`${loginPath}?oidc=${uid}`);
     return;
   }
@@ -69,8 +68,6 @@ export default async function handler(
     // Helper function to create and save a grant
     // A Grant is always required for the authorization_code flow to work
     const createGrant = async () => {
-      console.log("[OIDC Interaction] Creating grant for accountId:", accountId, "clientId:", interactionDetails.params.client_id);
-
       const grant = new oidc.Grant({
         accountId,
         clientId: interactionDetails.params.client_id as string,
@@ -79,16 +76,12 @@ export default async function handler(
       // Grant all requested scopes
       if (interactionDetails.params.scope) {
         grant.addOIDCScope(interactionDetails.params.scope as string);
-        console.log("[OIDC Interaction] Added scopes:", interactionDetails.params.scope);
       }
 
       // Save the grant and return the ID
       const grantId = await grant.save();
-      console.log("[OIDC Interaction] Grant saved with ID:", grantId);
       return grantId;
     };
-
-    console.log("[OIDC Interaction] Prompt name:", prompt.name, "uid:", uid);
 
     if (prompt.name === "login") {
       // User just logged in, complete the login prompt
@@ -108,7 +101,6 @@ export default async function handler(
           grantId,
         },
       };
-      console.log("[OIDC Interaction] Login result with grantId:", grantId);
     } else if (prompt.name === "consent") {
       // Handle consent (grant all requested scopes for now)
       // In a full implementation, you'd show a consent screen
@@ -135,7 +127,6 @@ export default async function handler(
     }
 
     // Complete the interaction and get the redirect URL
-    console.log("[OIDC Interaction] Submitting result:", JSON.stringify(result));
     const redirectTo = await oidc.interactionResult(
       req as any,
       res as any,
@@ -143,7 +134,6 @@ export default async function handler(
       { mergeWithLastSubmission: true }
     );
 
-    console.log("[OIDC Interaction] Redirect URL:", redirectTo);
     // Redirect to continue the OIDC flow
     res.redirect(redirectTo);
   } catch (error) {
