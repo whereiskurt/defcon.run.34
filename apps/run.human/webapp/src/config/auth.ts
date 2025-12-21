@@ -1,9 +1,7 @@
-import { DynamoDBAdapter } from "@auth/dynamodb-adapter";
-import { DynamoDB, DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import type { Provider } from "next-auth/providers";
 
 import NextAuth, { type DefaultSession } from "next-auth";
+import { dynamodbAdapter } from "@/entities/client";
 import { upsertRunUser } from "@/entities/run-user";
 
 declare module "next-auth" {
@@ -36,45 +34,41 @@ declare module "@auth/core/jwt" {
 
 import "@auth/core/jwt"; // Import the module augmentation
 
+const isDev = process.env.NODE_ENV !== "production";
+
 // In development, allow self-signed certificates for OIDC provider
-if (process.env.NODE_ENV !== "production") {
+if (isDev) {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 }
 
-const endpoint: string = process.env["RUN_DYNAMODB_ENDPOINT"]!;
-
-const config: DynamoDBClientConfig = {
-  credentials: {
-    accessKeyId: process.env.RUN_DYNAMODB_ID!,
-    secretAccessKey: process.env.RUN_DYNAMODB_SECRET!,
-  },
-  region: process.env.RUN_DYNAMODB_REGION,
-  ...(endpoint ? { endpoint } : {}),
-};
-const client = DynamoDBDocument.from(new DynamoDB(config), {
-  marshallOptions: {
-    convertEmptyValues: true,
-    removeUndefinedValues: true,
-    convertClassInstanceToMap: true,
-  },
-});
-const adapter = DynamoDBAdapter(client, {
-  tableName: process.env.RUN_DYNAMODB_DBNAME,
-});
-
-// OIDC provider for authentication via auth.defcon.run (or localhost in dev)
-const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
 
-// Auth server OIDC issuer URL (includes region prefix for multi-region deployment)
-const authServerUrl = isDev
-  ? "http://localhost:3002/api/oidc"  // Auth server runs on port 3002
-  : `https://auth.defcon.run/${REGION_SHORT}/api/oidc`;
+// Auth.js basePath - relative path for route matching (Next.js already strips its basePath)
+// URL construction uses NEXTAUTH_URL which includes the region prefix
+const authBasePath = "/api/auth";
 
-// Auth server base URL (with region prefix) for session validation
-const authServerBaseUrl = isDev
+// Auth server base URL (with region prefix) for OIDC and session validation
+const publicAuthServerUrl = isDev
   ? "http://localhost:3002"
   : `https://auth.defcon.run/${REGION_SHORT}`;
+
+const privateAuthServerUrl = isDev
+  ? "http://localhost:3002"
+  : `https://auth.app-${REGION_SHORT}-defcon-run.local`;
+
+const privateValidateUserUrl = `${privateAuthServerUrl}/api/session/validate/user`
+
+// Auth.js redirectProxyUrl forces the callback URL to include the region prefix
+// This is needed for CloudFront to route the callback to the correct regional backend
+const redirectProxyUrl = isDev
+  ? `http://localhost:3001${authBasePath}`
+  : `https://run.defcon.run/${REGION_SHORT}${authBasePath}`;
+
+// Cookie domain: in production use the configured domain, in dev omit to use current origin
+// Setting domain to "localhost" explicitly can cause issues in some browsers
+const cookieDomain = isDev ? undefined : process.env.AUTH_COOKIE_DOMAIN;
+
+const useSecureCookies = !isDev;
 
 /**
  * Fetch fresh claims from auth.defcon.run session validate endpoint
@@ -86,7 +80,7 @@ async function fetchFreshClaims(userId: string): Promise<{
   try {
     // Call the auth server's internal API to get fresh claims
     // This is a server-to-server call, so we pass the userId directly
-    const response = await fetch(`${authServerBaseUrl}/api/session/validate/user/${userId}`, {
+    const response = await fetch(`${privateValidateUserUrl}/${userId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -97,7 +91,7 @@ async function fetchFreshClaims(userId: string): Promise<{
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("[run.human] Failed to fetch claims:", response.status, "URL:", `${authServerBaseUrl}/api/session/validate/user/${userId}`, "Response:", text);
+      console.error("[run.human] Failed to fetch claims:", response.status, "URL:", `${publicAuthServerUrl}/api/session/validate/user/${userId}`, "Response:", text);
       return null;
     }
 
@@ -115,31 +109,25 @@ async function fetchFreshClaims(userId: string): Promise<{
   }
 }
 
-// Auth.js redirectProxyUrl forces the callback URL to include the region prefix
-// This is needed for CloudFront to route the callback to the correct regional backend
-const redirectProxyUrl = isDev
-  ? "http://localhost:3001/api/auth"
-  : `https://run.defcon.run/${REGION_SHORT}/api/auth`;
-
 const providers: Provider[] = [
   {
     id: "run.defcon.run",
     name: "DEFCON.run",
     type: "oidc",
-    issuer: authServerUrl,
+    issuer: `${publicAuthServerUrl}/api/oidc`,
     // Set redirectProxyUrl at provider level to ensure callback URL includes region prefix
     redirectProxyUrl: redirectProxyUrl,
     clientId: process.env.OIDC_RUNHUMAN_CLIENT_ID || "run-human",
     clientSecret: process.env.OIDC_RUNHUMAN_SECRET!,
     allowDangerousEmailAccountLinking: true,
     authorization: {
-      url: `${authServerUrl}/auth`,
+      url: `${publicAuthServerUrl}/api/oidc/auth`,
       params: {
         scope: "openid profile email services",
       },
     },
     token: {
-      url: `${authServerUrl}/token`,
+      url: `${publicAuthServerUrl}/api/oidc/token`,
     },
     checks: ["state"],
     client: {
@@ -155,19 +143,6 @@ const providers: Provider[] = [
     },
   },
 ];
-
-// Cookie domain: in production use the configured domain, in dev omit to use current origin
-// Setting domain to "localhost" explicitly can cause issues in some browsers
-const cookieDomain =
-  process.env.NODE_ENV === "production" ? process.env.AUTH_COOKIE_DOMAIN : undefined;
-
-// In production behind a load balancer that terminates TLS, use secure cookies.
-// The `trustHost: true` setting tells NextAuth to trust X-Forwarded-Proto headers.
-const useSecureCookies = process.env.NODE_ENV === "production";
-
-// Auth.js basePath - relative path for route matching (Next.js already strips its basePath)
-// URL construction uses NEXTAUTH_URL which includes the region prefix
-const authBasePath = "/api/auth";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // debug: true,
@@ -185,7 +160,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   secret: process.env.AUTH_JWT_SECRET?.split(","),
   providers,
-  adapter,
+  adapter: dynamodbAdapter,
   pages: {
     signIn: "/",
     error: isDev ? "/auth/error" : `/${REGION_SHORT}/auth/error`,
@@ -308,7 +283,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         secure: useSecureCookies,
       },
     },
-    // State cookie for OIDC state verification - must be non-secure in dev
     state: {
       name: "state_run",
       options: {
