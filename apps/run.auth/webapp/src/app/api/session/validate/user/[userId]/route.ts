@@ -10,7 +10,7 @@ import { getAuthProfile } from "@/entities/auth-profile";
  * This is protected by a shared secret (X-Internal-Secret header).
  *
  * Usage:
- *   GET https://auth.defcon.run/api/session/validate/user/{userId}
+ *   GET https://auth.defcon.run/use1/api/session/validate/user/{userId}
  *   Headers: X-Internal-Secret: <shared-secret>
  *
  * Response:

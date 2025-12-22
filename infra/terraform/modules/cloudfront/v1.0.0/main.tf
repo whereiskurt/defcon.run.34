@@ -104,7 +104,7 @@ resource "aws_cloudfront_origin_access_control" "cf_oac" {
 resource "aws_cloudfront_function" "root_redirect" {
   name    = "${var.site.label}-root-redirect"
   runtime = "cloudfront-js-2.0"
-  comment = "Redirects root and region paths to include trailing slash"
+  comment = "Rewrites bare region paths to index.html"
   publish = true
 
   code = <<-EOF
@@ -112,23 +112,16 @@ resource "aws_cloudfront_function" "root_redirect" {
       var request = event.request;
       var uri = request.uri;
 
-      // Redirect root path to default region
-      if (uri === '/' || uri === '') {
-        return {
-          statusCode: 302,
-          statusDescription: 'Found',
-          headers: {
-            'location': { value: '/${local.region_labels[0]}/' },
-            'cache-control': { value: 'no-cache, no-store, must-revalidate' }
-          }
-        };
+      // Rewrite bare region paths (e.g., /use1, /cac1) to /use1/index.html
+      // Pattern: exactly /xxx# where x is lowercase letter and # is digit
+      if (/^\/[a-z]{3}[0-9]$/.test(uri)) {
+        request.uri = uri + '/index.html';
+        return request;
       }
 
-      // Rewrite bare region paths (e.g., /use1, /cac1, /use1/, /cac1/) to index.html
-      // This allows S3 to serve the index.html for the region root
-      // Pattern: 3 lowercase letters followed by 1 digit, with optional trailing slash
-      if (/^\/[a-z]{3}\d\/?$/.test(uri)) {
-        request.uri = uri.replace(/\/?$/, '/index.html');
+      // Rewrite region paths with trailing slash (e.g., /use1/, /cac1/) to /use1/index.html
+      if (/^\/[a-z]{3}[0-9]\/$/.test(uri)) {
+        request.uri = uri + 'index.html';
         return request;
       }
 
@@ -210,6 +203,18 @@ resource "aws_cloudfront_distribution" "main" {
   # Cache behavior for /index.html - routes to first region's S3 origin
   ordered_cache_behavior {
     path_pattern           = "/index.html"
+    target_origin_id       = "s3-${local.region_labels[0]}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD"]
+    compress               = true
+
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+  }
+
+  # Cache behavior for /favicon.ico - routes to first region's S3 origin
+  ordered_cache_behavior {
+    path_pattern           = "/favicon.ico"
     target_origin_id       = "s3-${local.region_labels[0]}"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD", "OPTIONS"]

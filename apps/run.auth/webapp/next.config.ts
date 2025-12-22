@@ -40,6 +40,18 @@ const sharedConfig = {
         permanent: true,
       }
     ];
+  },
+  // Rewrite API routes without trailing slash to avoid 308 redirects
+  // (next-auth calls /session, /csrf etc. without trailing slash)
+  async rewrites() {
+    return {
+      beforeFiles: [
+        {
+          source: '/api/auth/:path((?!.*/).*)',  // Match /api/auth/* without trailing slash
+          destination: '/api/auth/:path/',
+        },
+      ],
+    };
   }
 };
 

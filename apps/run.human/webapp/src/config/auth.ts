@@ -3,6 +3,7 @@ import type { Provider } from "next-auth/providers";
 import NextAuth, { type DefaultSession } from "next-auth";
 import { dynamodbAdapter } from "@/entities/client";
 import { upsertRunUser } from "@/entities/run-user";
+import { config } from "@/config";
 
 declare module "next-auth" {
   interface Session {
@@ -34,42 +35,6 @@ declare module "@auth/core/jwt" {
 
 import "@auth/core/jwt"; // Import the module augmentation
 
-const isDev = process.env.NODE_ENV !== "production";
-
-// In development, allow self-signed certificates for OIDC provider
-if (isDev) {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-}
-
-const REGION_SHORT = process.env.REGION_SHORT || "use1";
-
-// Auth.js basePath - relative path for route matching (Next.js already strips its basePath)
-// URL construction uses NEXTAUTH_URL which includes the region prefix
-const authBasePath = "/api/auth";
-
-// Auth server base URL (with region prefix) for OIDC and session validation
-const publicAuthServerUrl = isDev
-  ? "http://localhost:3002"
-  : `https://auth.defcon.run/${REGION_SHORT}`;
-
-const privateAuthServerUrl = isDev
-  ? "http://localhost:3002"
-  : `https://auth.app-${REGION_SHORT}-defcon-run.local`;
-
-const privateValidateUserUrl = `${privateAuthServerUrl}/api/session/validate/user`
-
-// Auth.js redirectProxyUrl forces the callback URL to include the region prefix
-// This is needed for CloudFront to route the callback to the correct regional backend
-const redirectProxyUrl = isDev
-  ? `http://localhost:3001${authBasePath}`
-  : `https://run.defcon.run/${REGION_SHORT}${authBasePath}`;
-
-// Cookie domain: in production use the configured domain, in dev omit to use current origin
-// Setting domain to "localhost" explicitly can cause issues in some browsers
-const cookieDomain = isDev ? undefined : process.env.AUTH_COOKIE_DOMAIN;
-
-const useSecureCookies = !isDev;
-
 /**
  * Fetch fresh claims from auth.defcon.run session validate endpoint
  */
@@ -77,21 +42,22 @@ async function fetchFreshClaims(userId: string): Promise<{
   services: string[];
   linkedProviders: string[];
 } | null> {
+  const validateUrl = `${config.urls.privateAuthServer}/api/session/validate/user`;
   try {
     // Call the auth server's internal API to get fresh claims
     // This is a server-to-server call, so we pass the userId directly
-    const response = await fetch(`${privateValidateUserUrl}/${userId}`, {
+    const response = await fetch(`${validateUrl}/${userId}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
         // Use a shared secret for server-to-server auth
-        "X-Internal-Secret": process.env.AUTH_INTERNAL_SECRET || "",
+        "X-Internal-Secret": config.auth.internalSecret,
       },
     });
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("[run.human] Failed to fetch claims:", response.status, "URL:", `${publicAuthServerUrl}/api/session/validate/user/${userId}`, "Response:", text);
+      console.error("[run.human] Failed to fetch claims:", response.status, "URL:", `${config.urls.publicAuthServer}/api/session/validate/user/${userId}`, "Response:", text);
       return null;
     }
 
@@ -114,20 +80,20 @@ const providers: Provider[] = [
     id: "run.defcon.run",
     name: "DEFCON.run",
     type: "oidc",
-    issuer: `${publicAuthServerUrl}/api/oidc`,
+    issuer: `${config.urls.publicAuthServer}/api/oidc`,
     // Set redirectProxyUrl at provider level to ensure callback URL includes region prefix
-    redirectProxyUrl: redirectProxyUrl,
-    clientId: process.env.OIDC_RUNHUMAN_CLIENT_ID || "run-human",
-    clientSecret: process.env.OIDC_RUNHUMAN_SECRET!,
+    redirectProxyUrl: config.urls.redirectProxy,
+    clientId: config.oidc.clientId,
+    clientSecret: config.oidc.clientSecret,
     allowDangerousEmailAccountLinking: true,
     authorization: {
-      url: `${publicAuthServerUrl}/api/oidc/auth`,
+      url: `${config.urls.publicAuthServer}/api/oidc/auth`,
       params: {
         scope: "openid profile email services",
       },
     },
     token: {
-      url: `${publicAuthServerUrl}/api/oidc/token`,
+      url: `${config.urls.publicAuthServer}/api/oidc/token`,
     },
     checks: ["state"],
     client: {
@@ -144,26 +110,35 @@ const providers: Provider[] = [
   },
 ];
 
+// Cookie options helper
+const cookieOptions = (httpOnly: boolean, maxAge?: number) => ({
+  ...(config.auth.cookieDomain ? { domain: config.auth.cookieDomain } : {}),
+  path: "/",
+  httpOnly,
+  sameSite: "lax" as const,
+  secure: config.auth.secureCookies,
+  ...(maxAge ? { maxAge } : {}),
+});
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // debug: true,
   trustHost: true,
-  basePath: authBasePath,
-  // redirectProxyUrl forces callback URLs to include region prefix for CloudFront routing
-  redirectProxyUrl,
+  basePath: config.auth.basePath,
+  redirectProxyUrl: config.urls.redirectProxy,
   session: {
     strategy: "jwt",
-    maxAge: 1 * 24 * 60 * 60, // 1 day in seconds
-    updateAge: 60, // 1 minute - triggers JWT callback to refresh claims
+    maxAge: config.session.maxAge,
+    updateAge: config.session.updateAge,
   },
   theme: {
     colorScheme: "dark",
   },
-  secret: process.env.AUTH_JWT_SECRET?.split(","),
+  secret: config.auth.jwtSecret,
   providers,
   adapter: dynamodbAdapter,
   pages: {
     signIn: "/",
-    error: isDev ? "/auth/error" : `/${REGION_SHORT}/auth/error`,
+    error: config.urls.errorPage,
   },
   callbacks: {
     signIn({ user, profile, account }) {
@@ -172,7 +147,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
     async jwt({ token, account, profile, trigger, session, user }) {
       const now = Date.now();
-      const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
       if (trigger === "update") {
         // Manual session update trigger - force refresh claims from auth server
@@ -216,9 +190,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Token refresh - check if we should re-query for updated claims
         // If lastRefresh is not set (old token), treat it as needing immediate refresh
         const lastRefresh = (token.lastRefresh as number) || 0;
-        const timeSinceRefresh = lastRefresh === 0 ? REFRESH_INTERVAL : (now - lastRefresh);
+        const timeSinceRefresh = lastRefresh === 0 ? config.session.refreshInterval : (now - lastRefresh);
 
-        if (timeSinceRefresh >= REFRESH_INTERVAL) {
+        if (timeSinceRefresh >= config.session.refreshInterval) {
           // Fetch fresh claims from auth.defcon.run using the auth user ID
           const authUserId = token.authUserId as string;
           if (authUserId) {
@@ -254,45 +228,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   cookies: {
     sessionToken: {
-      name: "sess_run",
-      options: {
-        ...(cookieDomain ? { domain: cookieDomain } : {}),
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-        secure: useSecureCookies,
-      },
+      name: config.cookies.session.name,
+      options: cookieOptions(true),
     },
     csrfToken: {
-      name: "csrf_run",
-      options: {
-        ...(cookieDomain ? { domain: cookieDomain } : {}),
-        path: "/",
-        httpOnly: false,
-        sameSite: "lax",
-        secure: useSecureCookies,
-      },
+      name: config.cookies.csrf.name,
+      options: cookieOptions(false),
     },
     callbackUrl: {
-      name: "callback_run",
-      options: {
-        ...(cookieDomain ? { domain: cookieDomain } : {}),
-        path: "/",
-        httpOnly: false,
-        sameSite: "lax",
-        secure: useSecureCookies,
-      },
+      name: config.cookies.callback.name,
+      options: cookieOptions(false),
     },
     state: {
-      name: "state_run",
-      options: {
-        ...(cookieDomain ? { domain: cookieDomain } : {}),
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-        secure: useSecureCookies,
-        maxAge: 900, // 15 minutes
-      },
+      name: config.cookies.state.name,
+      options: cookieOptions(true, config.cookies.state.maxAge),
     },
   },
 });

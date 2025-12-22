@@ -8,6 +8,7 @@ import { createTransport } from "nodemailer";
 
 import NextAuth, { type DefaultSession } from "next-auth";
 import { upsertAuthProfile, getAuthProfile } from "@/entities/auth-profile";
+import { config } from "@/config";
 
 declare module "next-auth" {
   interface Session {
@@ -39,56 +40,35 @@ import Discord from "next-auth/providers/discord";
 import Github from "next-auth/providers/github";
 import Strava from "next-auth/providers/strava";
 
-const endpoint: string = process.env["AUTH_DYNAMODB_ENDPOINT"]!;
-
-const config: DynamoDBClientConfig = {
-  credentials: {
-    accessKeyId: process.env.AUTH_DYNAMODB_ID!,
-    secretAccessKey: process.env.AUTH_DYNAMODB_SECRET!,
-  },
-  region: process.env.AUTH_DYNAMODB_REGION,
-  ...(endpoint ? { endpoint } : {}),
+// DynamoDB client configuration
+const dynamoConfig: DynamoDBClientConfig = {
+  credentials: config.dynamodb.credentials,
+  region: config.dynamodb.region,
+  ...(config.dynamodb.endpoint ? { endpoint: config.dynamodb.endpoint } : {}),
 };
-const client = DynamoDBDocument.from(new DynamoDB(config), {
+
+const client = DynamoDBDocument.from(new DynamoDB(dynamoConfig), {
   marshallOptions: {
     convertEmptyValues: true,
     removeUndefinedValues: true,
     convertClassInstanceToMap: true,
   },
 });
+
 const adapter = DynamoDBAdapter(client, {
-  tableName: process.env.AUTH_DYNAMODB_DBNAME,
+  tableName: config.dynamodb.tableName,
 });
 
+// SES client configuration
 const sesClient = new SESv2Client({
-  // Use explicit credentials if provided, otherwise fall back to default credential chain
-  // (supports SSO, environment variables, ~/.aws/credentials, IAM roles, etc.)
-  ...(process.env.AUTH_SES_ACCESS_KEY_ID && process.env.AUTH_SES_SECRET_ACCESS_KEY
-    ? {
-        credentials: {
-          accessKeyId: process.env.AUTH_SES_ACCESS_KEY_ID,
-          secretAccessKey: process.env.AUTH_SES_SECRET_ACCESS_KEY,
-          ...(process.env.AUTH_SES_SESSION_TOKEN
-            ? { sessionToken: process.env.AUTH_SES_SESSION_TOKEN }
-            : {}),
-        },
-      }
-    : {}),
-  region: process.env.AUTH_SES_REGION || "us-east-1",
+  ...(config.ses.credentials ? { credentials: config.ses.credentials } : {}),
+  region: config.ses.region,
 });
-
-const isDev = process.env.NODE_ENV !== "production";
-const REGION_SHORT = process.env.REGION_SHORT || "use1";
-
-// Base URL for constructing callback URLs - must include region prefix
-const baseUrl = isDev
-  ? "http://localhost:3002"
-  : `https://auth.defcon.run/${REGION_SHORT}`;
 
 const providers: Provider[] = [
   Email({
     server: {}, // Required by nodemailer provider, but unused since we use custom sendVerificationRequest
-    from: process.env.AUTH_SES_SMTP_FROM,
+    from: config.ses.from,
     async sendVerificationRequest({
       identifier: email,
       url,
@@ -122,58 +102,58 @@ const providers: Provider[] = [
     },
   }),
   Github({
-    clientId: process.env.AUTH_GITHUB_ID,
-    clientSecret: process.env.AUTH_GITHUB_SECRET,
+    clientId: config.providers.github.clientId,
+    clientSecret: config.providers.github.clientSecret,
     allowDangerousEmailAccountLinking: true,
     checks: ["state"],
     authorization: {
       url: "https://github.com/login/oauth/authorize",
       params: {
-        redirect_uri: `${baseUrl}/api/auth/callback/github`,
+        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/github`,
       },
     },
     token: {
       url: "https://github.com/login/oauth/access_token",
       params: {
-        redirect_uri: `${baseUrl}/api/auth/callback/github`,
+        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/github`,
       },
     },
   }),
   Strava({
-    clientId: process.env.AUTH_STRAVA_CLIENT_ID,
-    clientSecret: process.env.AUTH_STRAVA_CLIENT_SECRET,
+    clientId: config.providers.strava.clientId,
+    clientSecret: config.providers.strava.clientSecret,
     allowDangerousEmailAccountLinking: true,
     checks: ["state"],
     authorization: {
       url: "https://www.strava.com/oauth/authorize",
       params: {
         scope: "activity:read",
-        redirect_uri: `${baseUrl}/api/auth/callback/strava`,
+        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/strava`,
       },
     },
     token: {
       url: "https://www.strava.com/oauth/token",
       params: {
-        redirect_uri: `${baseUrl}/api/auth/callback/strava`,
+        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/strava`,
       },
     },
   }),
   Discord({
-    clientId: process.env.AUTH_DISCORD_CLIENT_ID,
-    clientSecret: process.env.AUTH_DISCORD_CLIENT_SECRET,
+    clientId: config.providers.discord.clientId,
+    clientSecret: config.providers.discord.clientSecret,
     allowDangerousEmailAccountLinking: true,
     checks: ["state"],
     authorization: {
       url: "https://discord.com/api/oauth2/authorize",
       params: {
         scope: "identify email",
-        redirect_uri: `${baseUrl}/api/auth/callback/discord`,
+        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/discord`,
       },
     },
     token: {
       url: "https://discord.com/api/oauth2/token",
       params: {
-        redirect_uri: `${baseUrl}/api/auth/callback/discord`,
+        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/discord`,
       },
     },
   }),
@@ -185,41 +165,37 @@ const randomString = (length: number, alphabet: string): string =>
     () => alphabet[Math.floor(Math.random() * alphabet.length)]
   ).join("");
 
-const cookieDomain =
-  process.env.NODE_ENV === "production" ? process.env.AUTH_COOKIE_DOMAIN  : "localhost";
-
-// In production behind a load balancer that terminates TLS, use secure cookies.
-// The `trustHost: true` setting tells NextAuth to trust X-Forwarded-Proto headers.
-const useSecureCookies = process.env.NODE_ENV === "production";
-
-// Auth.js basePath - relative to the Next.js app root (Next.js basePath is already handled)
-// This is used for matching incoming request paths after Next.js strips its basePath
-const authBasePath = "/api/auth";
+// Cookie options helper
+const cookieOptions = (httpOnly: boolean) => ({
+  domain: config.auth.cookieDomain,
+  path: "/",
+  httpOnly,
+  sameSite: "lax" as const,
+  secure: config.auth.secureCookies,
+});
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   // debug: true,
   trustHost: true,
-  basePath: authBasePath,
+  basePath: config.auth.basePath,
   session: {
     strategy: "jwt",
-    maxAge: 15 * 24 * 60 * 60, // 15 days
-    updateAge: 24 * 60 * 60, // 24 hours
+    maxAge: config.session.maxAge,
+    updateAge: config.session.updateAge,
   },
   theme: {
     colorScheme: "dark",
   },
-  secret: process.env.AUTH_JWT_SECRET?.split(","),
+  secret: config.auth.jwtSecret,
   providers,
   adapter,
   pages: {
-    // Pages must include region prefix for multi-region deployment
-    // Note: These are relative to the app, but Auth.js uses them for redirects
-    signIn: isDev ? "/login" : `/${REGION_SHORT}/login`,
-    verifyRequest: isDev ? "/login/verify" : `/${REGION_SHORT}/login/verify`,
+    signIn: config.urls.loginPage,
+    verifyRequest: config.urls.verifyPage,
   },
   callbacks: {
     signIn({ user, profile, account }) {
-      const emails = process.env.AUTH_ALLOWED_EMAILS?.split(",");
+      const emails = config.auth.allowedEmails;
       const email = user?.email ?? profile?.email!;
       //Strava is not a login provider, but rather linking.
       //NOTE: Strava has no email by design.
@@ -366,34 +342,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   cookies: {
     sessionToken: {
-      name: "sess_auth",
-      options: {
-        domain: cookieDomain,
-        path: "/",
-        httpOnly: true,
-        sameSite: "lax",
-        secure: useSecureCookies,
-      },
+      name: config.cookies.session.name,
+      options: cookieOptions(true),
     },
     csrfToken: {
-      name: "csrf_auth",
-      options: {
-        domain: cookieDomain,
-        path: "/",
-        httpOnly: false,
-        sameSite: "lax",
-        secure: useSecureCookies,
-      },
+      name: config.cookies.csrf.name,
+      options: cookieOptions(false),
     },
     callbackUrl: {
-      name: "callback_auth",
-      options: {
-        domain: cookieDomain,
-        path: "/",
-        httpOnly: false,
-        sameSite: "lax",
-        secure: useSecureCookies,
-      },
+      name: config.cookies.callback.name,
+      options: cookieOptions(false),
     },
   },
 });
@@ -407,8 +365,7 @@ export function signupHTML(params: {
 }) {
   const { host, theme, token, email } = params;
   // Construct callback URL with region prefix for multi-region deployment
-  const callbackPath = isDev ? "/" : `/${REGION_SHORT}/`;
-  const url = `${baseUrl}/api/auth/callback/nodemailer?token=${token}&email=${email}&callbackUrl=${encodeURIComponent(callbackPath)}`;
+  const url = `${config.urls.baseUrl}/api/auth/callback/nodemailer?token=${token}&email=${email}&callbackUrl=${encodeURIComponent(config.urls.callbackPath)}`;
   const escapedHost = host.replace(/\./g, "&#8203;.");
 
   const brandColor = "#686EA0";

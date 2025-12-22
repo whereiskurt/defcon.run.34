@@ -1,9 +1,7 @@
 import Provider, { Configuration, errors, ClientMetadata } from "oidc-provider";
 import { OIDCAdapter } from "../entities/oidc-adapter";
 import { getAuthProfile } from "@/entities/auth-profile";
-
-const isDev = process.env.NODE_ENV !== "production";
-const REGION_SHORT = process.env.REGION_SHORT || "use1";
+import { config } from "@/config";
 
 /**
  * Registered OIDC clients (relying parties)
@@ -14,8 +12,8 @@ const REGION_SHORT = process.env.REGION_SHORT || "use1";
 const clients: ClientMetadata[] = [
   // run.human webapp client
   {
-    client_id:  process.env.OIDC_RUNHUMAN_CLIENT_ID!,
-    client_secret: process.env.OIDC_RUNHUMAN_SECRET!,
+    client_id: config.oidc.clients.runHuman.clientId,
+    client_secret: config.oidc.clients.runHuman.clientSecret,
     redirect_uris: [
       // Production URLs - Auth.js doesn't include Next.js basePath in callback URLs
       // so we need both prefixed and non-prefixed versions
@@ -47,16 +45,6 @@ const clients: ClientMetadata[] = [
   },
 ];
 
-// Note: Using /api/oidc path for Pages Router
-// Issuer includes region prefix for multi-region deployment
-const issuer = isDev
-  ? "http://localhost:3002/api/oidc"  // Auth server runs on port 3002
-  : `https://auth.defcon.run/${REGION_SHORT}/api/oidc`;
-
-// Route prefix - oidc-provider constructs URLs as host + route, NOT issuer + route
-// So routes must include the full path from the host root
-const routePrefix = isDev ? "/api/oidc" : `/${REGION_SHORT}/api/oidc`;
-
 /**
  * OIDC Provider Configuration
  * @see https://github.com/panva/node-oidc-provider/blob/main/docs/README.md
@@ -72,18 +60,18 @@ const configuration: Configuration = {
   // In production: /{region}/api/oidc/auth, /{region}/api/oidc/token, etc.
   // In dev: /api/oidc/auth, /api/oidc/token, etc.
   routes: {
-    authorization: `${routePrefix}/auth`,
-    backchannel_authentication: `${routePrefix}/backchannel`,
-    code_verification: `${routePrefix}/device`,
-    device_authorization: `${routePrefix}/device/auth`,
-    end_session: `${routePrefix}/session/end`,
-    introspection: `${routePrefix}/token/introspection`,
-    jwks: `${routePrefix}/jwks`,
-    pushed_authorization_request: `${routePrefix}/request`,
-    registration: `${routePrefix}/reg`,
-    revocation: `${routePrefix}/token/revocation`,
-    token: `${routePrefix}/token`,
-    userinfo: `${routePrefix}/me`,
+    authorization: `${config.oidc.routePrefix}/auth`,
+    backchannel_authentication: `${config.oidc.routePrefix}/backchannel`,
+    code_verification: `${config.oidc.routePrefix}/device`,
+    device_authorization: `${config.oidc.routePrefix}/device/auth`,
+    end_session: `${config.oidc.routePrefix}/session/end`,
+    introspection: `${config.oidc.routePrefix}/token/introspection`,
+    jwks: `${config.oidc.routePrefix}/jwks`,
+    pushed_authorization_request: `${config.oidc.routePrefix}/request`,
+    registration: `${config.oidc.routePrefix}/reg`,
+    revocation: `${config.oidc.routePrefix}/token/revocation`,
+    token: `${config.oidc.routePrefix}/token`,
+    userinfo: `${config.oidc.routePrefix}/me`,
   },
 
   // Claims available for tokens
@@ -129,12 +117,12 @@ const configuration: Configuration = {
         // After OIDC logout succeeds, redirect to custom logout endpoint to clear Auth.js session
         // This avoids CSRF requirements of Auth.js's /api/auth/signout
         const paramValue = ctx.oidc.params?.post_logout_redirect_uri;
-        const defaultRedirect = isDev ? 'http://localhost:3001' : `https://run.defcon.run/${REGION_SHORT}`;
+        const defaultRedirect = config.isDev ? 'http://localhost:3001' : `https://run.defcon.run/${config.region}`;
         const postLogoutRedirectUri = (typeof paramValue === 'string' ? paramValue : null) || defaultRedirect;
 
         // Redirect to our custom logout endpoint which clears sess_auth and redirects
         // URL must include region prefix for multi-region deployment
-        const logoutPath = isDev ? "/api/logout" : `/${REGION_SHORT}/api/logout`;
+        const logoutPath = config.isDev ? "/api/logout" : `/${config.region}/api/logout`;
         const logoutUrl = `${logoutPath}?callbackUrl=${encodeURIComponent(postLogoutRedirectUri)}`;
         ctx.redirect(logoutUrl);
       },
@@ -148,32 +136,32 @@ const configuration: Configuration = {
 
   // Cookie configuration
   cookies: {
-    keys: process.env.OIDC_COOKIE_KEYS?.split(",") || ["oidc-dev-key-change-me"],
+    keys: config.oidc.cookieKeys,
     short: {
       signed: true,
       path: "/",
       httpOnly: true,
       sameSite: "lax" as const,
-      ...(isDev ? {} : { secure: true, domain: ".defcon.run" }),
+      ...(config.isDev ? {} : { secure: true, domain: ".defcon.run" }),
     },
     long: {
       signed: true,
       path: "/",
       httpOnly: true,
       sameSite: "lax" as const,
-      ...(isDev ? {} : { secure: true, domain: ".defcon.run" }),
+      ...(config.isDev ? {} : { secure: true, domain: ".defcon.run" }),
     },
   },
 
   // Token Time-To-Live configuration
   ttl: {
-    AccessToken: 60 * 60, // 1 hour
-    AuthorizationCode: 10 * 60, // 10 minutes
-    IdToken: 60 * 60, // 1 hour
-    RefreshToken: 14 * 24 * 60 * 60, // 14 days
-    Interaction: 60 * 60, // 1 hour for login flow
-    Session: 15 * 24 * 60 * 60, // 15 days (matches Auth.js session)
-    Grant: 14 * 24 * 60 * 60, // 14 days
+    AccessToken: config.oidc.ttl.accessToken,
+    AuthorizationCode: config.oidc.ttl.authorizationCode,
+    IdToken: config.oidc.ttl.idToken,
+    RefreshToken: config.oidc.ttl.refreshToken,
+    Interaction: config.oidc.ttl.interaction,
+    Session: config.oidc.ttl.session,
+    Grant: config.oidc.ttl.grant,
   },
 
   /**
@@ -185,9 +173,7 @@ const configuration: Configuration = {
     url(ctx, interaction) {
       // Redirect to the existing Auth.js login page with OIDC interaction ID
       // After login, /login will redirect to /api/oidc/interaction/{uid}
-      // URL must include region prefix for multi-region deployment
-      const loginPath = isDev ? "/login" : `/${REGION_SHORT}/login`;
-      return `${loginPath}?oidc=${interaction.uid}`;
+      return `${config.urls.loginPage}?oidc=${interaction.uid}`;
     },
   },
 
@@ -304,7 +290,7 @@ const configuration: Configuration = {
     <h1>Authentication Error</h1>
     <p><code>${out.error}</code></p>
     <p>${out.error_description || "An error occurred during authentication."}</p>
-    <a href="${isDev ? '/login' : `/${REGION_SHORT}/login`}">Try Again</a>
+    <a href="${config.urls.loginPage}">Try Again</a>
   </div>
 </body>
 </html>`;
@@ -323,9 +309,9 @@ const configuration: Configuration = {
 };
 
 // Create the OIDC provider instance
-export const oidc = new Provider(issuer, configuration);
+export const oidc = new Provider(config.oidc.issuer, configuration);
 
-if (!isDev) {
+if (!config.isDev) {
   oidc.proxy = true;
 }
 
