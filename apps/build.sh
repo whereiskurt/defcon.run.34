@@ -115,7 +115,12 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   docker rm "$CONTAINER_ID"
 
   AWS_PROFILE=application aws s3 sync "${TMP_STATIC}" "s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/_next/static" --cache-control 'public,max-age=31536000,immutable' --delete --exclude '*.map'
-  AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/index.html" --cache-control 'public,max-age=31536000,immutable'
+
+  # Upload custom root index.html (handles region routing via cookie)
+  AWS_PROFILE=application aws s3 cp "${APP_DIR}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/index.html" --cache-control 'no-cache, no-store, must-revalidate'
+  AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/index.html" --cache-control 'public,max-age=31536000,immutable'
+  AWS_PROFILE=application aws s3 cp "${TMP_PUBLIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
+  AWS_PROFILE=application aws s3 cp "${TMP_PUBLIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 sync "${TMP_PUBLIC}" "s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/public" --cache-control 'public,max-age=31536000,immutable' --delete
 
   # Cleanup temp dir

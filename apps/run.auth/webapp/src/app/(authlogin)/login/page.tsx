@@ -21,13 +21,18 @@ import { Heading } from '@components/text-effects/Common';
 
 import { Key, Wand, RefreshCw, ArrowRight } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { getCsrfToken, useSession, signOut } from "next-auth/react"
 import { useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 
 import { FaDiscord, FaGithub } from 'react-icons/fa';
 import { signIn } from 'next-auth/react';
+
+// Get the basePath for production multi-region deployment
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
 
 // Separate component for client-side only rendering
 function ClientOnlyForm() {
@@ -48,6 +53,9 @@ function ClientOnlyForm() {
 
   // Check for OIDC interaction ID in URL params
   const oidcInteraction = searchParams?.get('oidc');
+
+  // Guard to prevent multiple redirects to the interaction endpoint
+  const hasRedirectedRef = useRef(false);
 
   // Handle Altcha verification events
   const handleAltchaStateChange = useCallback((ev: CustomEvent) => {
@@ -101,7 +109,7 @@ function ClientOnlyForm() {
     }
     try {
       setIsSubmitting(true)
-      const res = await fetch("/api/login", {
+      const res = await fetch(`${basePath}/api/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -114,8 +122,8 @@ function ClientOnlyForm() {
       } else {
         // Include OIDC interaction ID if present (for OIDC flow)
         const verifyUrl = oidcInteraction
-          ? `/login/verify?email=${email}&oidc=${oidcInteraction}`
-          : `/login/verify?email=${email}`;
+          ? `${basePath}/login/verify?email=${email}&oidc=${oidcInteraction}`
+          : `${basePath}/login/verify?email=${email}`;
         window.location.href = verifyUrl;
       }
     } catch (error: any) {
@@ -131,17 +139,19 @@ function ClientOnlyForm() {
   // Auto-redirect to complete OIDC flow when authenticated with an OIDC interaction
   // This handles the case where user completes OAuth and returns to /login?oidc=...
   useEffect(() => {
-    if (status === 'authenticated' && session && oidcInteraction) {
+    if (status === 'authenticated' && session && oidcInteraction && !hasRedirectedRef.current) {
+      // Mark that we've initiated the redirect to prevent double submissions
+      hasRedirectedRef.current = true;
       // Redirect to complete the OIDC interaction
-      window.location.href = `/api/oidc/interaction/${oidcInteraction}`;
+      window.location.href = `${basePath}/api/oidc/interaction/${oidcInteraction}`;
     }
   }, [status, session, oidcInteraction]);
 
   // Show logged-in view if user has a session
   if (status === 'authenticated' && session) {
     const continueUrl = oidcInteraction
-      ? `/api/oidc/interaction/${oidcInteraction}`
-      : '/';
+      ? `${basePath}/api/oidc/interaction/${oidcInteraction}`
+      : `${basePath}/`;
 
     // If there's an OIDC interaction, show a "redirecting" message while the useEffect handles the redirect
     if (oidcInteraction) {
@@ -309,7 +319,7 @@ function ClientOnlyForm() {
               {/* Altcha proof-of-work verification */}
               <div className="flex justify-center w-full pt-2">
                 <altcha-widget
-                  challengeurl="/api/captcha/challenge"
+                  challengeurl={`${basePath}/api/captcha/challenge`}
                   onstatechange={handleAltchaStateChange}
                   hidefooter
                   hidelogo
@@ -350,8 +360,8 @@ function ClientOnlyForm() {
                       // The login page will then redirect to the interaction endpoint
                       // This prevents race conditions with duplicate requests
                       callbackUrl: oidcInteraction
-                        ? `/login?oidc=${oidcInteraction}`
-                        : '/'
+                        ? `${basePath}/login?oidc=${oidcInteraction}`
+                        : `${basePath}/`
                     })}
                     >
                     &nbsp; <FaDiscord />
@@ -366,8 +376,8 @@ function ClientOnlyForm() {
                       // The login page will then redirect to the interaction endpoint
                       // This prevents race conditions with duplicate requests
                       callbackUrl: oidcInteraction
-                        ? `/login?oidc=${oidcInteraction}`
-                        : '/'
+                        ? `${basePath}/login?oidc=${oidcInteraction}`
+                        : `${basePath}/`
                     })}
                     >
                     &nbsp; <FaGithub />

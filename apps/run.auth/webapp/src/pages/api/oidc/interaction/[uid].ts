@@ -2,6 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { oidc, isSessionNotFound } from "@/config/oidc";
 
+const isDev = process.env.NODE_ENV !== "production";
+const REGION_SHORT = process.env.REGION_SHORT || "use1";
+const loginPath = isDev ? "/login" : `/${REGION_SHORT}/login`;
+
 /**
  * OIDC Interaction Completion Route (Pages Router)
  *
@@ -24,7 +28,7 @@ export default async function handler(
   const { uid } = req.query;
 
   if (!uid || typeof uid !== "string") {
-    res.redirect("/login?error=invalid_interaction");
+    res.redirect(`${loginPath}?error=invalid_interaction`);
     return;
   }
 
@@ -39,8 +43,7 @@ export default async function handler(
 
   if (!token?.sub && !token?.email) {
     // Not logged in - redirect back to login with the interaction ID
-    console.log("OIDC Interaction: No session, redirecting to login");
-    res.redirect(`/login?oidc=${uid}`);
+    res.redirect(`${loginPath}?oidc=${uid}`);
     return;
   }
 
@@ -50,7 +53,7 @@ export default async function handler(
 
     if (!interactionDetails) {
       console.error("OIDC Interaction: Interaction not found for uid:", uid);
-      res.redirect("/login?error=interaction_expired");
+      res.redirect(`${loginPath}?error=interaction_expired`);
       return;
     }
 
@@ -62,19 +65,9 @@ export default async function handler(
 
     let result: Record<string, unknown>;
 
-    if (prompt.name === "login") {
-      // User just logged in, complete the login prompt
-      // Note: remember: false ensures the OIDC session is tied to the browser session
-      // and will be properly cleared on logout
-      result = {
-        login: {
-          accountId,
-          remember: false,
-        },
-      };
-    } else if (prompt.name === "consent") {
-      // Handle consent (grant all requested scopes for now)
-      // In a full implementation, you'd show a consent screen
+    // Helper function to create and save a grant
+    // A Grant is always required for the authorization_code flow to work
+    const createGrant = async () => {
       const grant = new oidc.Grant({
         accountId,
         clientId: interactionDetails.params.client_id as string,
@@ -85,8 +78,33 @@ export default async function handler(
         grant.addOIDCScope(interactionDetails.params.scope as string);
       }
 
-      // Save the grant
+      // Save the grant and return the ID
       const grantId = await grant.save();
+      return grantId;
+    };
+
+    if (prompt.name === "login") {
+      // User just logged in, complete the login prompt
+      // Note: remember: false ensures the OIDC session is tied to the browser session
+      // and will be properly cleared on logout
+      //
+      // IMPORTANT: We also create a Grant here because oidc-provider requires one
+      // for the token exchange. Without a grant, the /token endpoint returns invalid_grant.
+      const grantId = await createGrant();
+
+      result = {
+        login: {
+          accountId,
+          remember: false,
+        },
+        consent: {
+          grantId,
+        },
+      };
+    } else if (prompt.name === "consent") {
+      // Handle consent (grant all requested scopes for now)
+      // In a full implementation, you'd show a consent screen
+      const grantId = await createGrant();
 
       result = {
         consent: {
@@ -94,11 +112,16 @@ export default async function handler(
         },
       };
     } else {
-      // Unknown prompt, just do login
+      // Unknown prompt - create grant and complete login
+      const grantId = await createGrant();
+
       result = {
         login: {
           accountId,
           remember: false,
+        },
+        consent: {
+          grantId,
         },
       };
     }
@@ -120,10 +143,11 @@ export default async function handler(
       // The interaction was already completed (consumed/deleted) or never existed.
       // Since the user is authenticated, the OIDC flow likely already succeeded.
       // Redirect to the main app instead of showing an error.
-      res.redirect("https://run.defcon.run");
+      const redirectUrl = isDev ? "http://localhost:3001" : `https://run.defcon.run/${REGION_SHORT}`;
+      res.redirect(redirectUrl);
       return;
     }
 
-    res.redirect("/login?error=oidc_error");
+    res.redirect(`${loginPath}?error=oidc_error`);
   }
 }

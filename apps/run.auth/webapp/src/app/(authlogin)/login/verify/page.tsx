@@ -19,13 +19,18 @@ import { signIn } from 'next-auth/react';
 import { Text } from '@components/text-effects/Common';
 import { Heading } from '@components/text-effects/Common';
 
+// Get the basePath for production multi-region deployment
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
+
 // OAuth buttons component that handles OIDC redirects
 function OAuthButtons({ oidcInteraction }: { oidcInteraction: string | null }) {
   const getCallbackUrl = () => {
     if (oidcInteraction) {
-      return `/api/oidc/interaction/${oidcInteraction}`;
+      return `${basePath}/api/oidc/interaction/${oidcInteraction}`;
     }
-    return '/';
+    return `${basePath}/`;
   };
 
   return (
@@ -81,16 +86,16 @@ function EmailVerificationForm() {
   const getCallbackUrl = () => {
     if (oidcInteraction) {
       // OIDC flow: redirect to complete the interaction
-      return `/api/oidc/interaction/${oidcInteraction}`;
+      return `${basePath}/api/oidc/interaction/${oidcInteraction}`;
     }
     // Normal flow: redirect to home
-    return '/';
+    return `${basePath}/`;
   };
 
   const handleValidation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const callbackUrl = encodeURIComponent(getCallbackUrl());
-    const url = `/api/auth/callback/nodemailer?token=${code}&email=${email}&callbackUrl=${callbackUrl}`;
+    const url = `${basePath}/api/auth/callback/nodemailer?token=${code}&email=${email}&callbackUrl=${callbackUrl}`;
     window.location.href = url;
     return false;
   };
@@ -101,7 +106,7 @@ function EmailVerificationForm() {
       e.preventDefault();
     }
     const callbackUrl = encodeURIComponent(getCallbackUrl());
-    const url = `/api/auth/callback/nodemailer?token=${code}&email=${email}&callbackUrl=${callbackUrl}`;
+    const url = `${basePath}/api/auth/callback/nodemailer?token=${code}&email=${email}&callbackUrl=${callbackUrl}`;
     window.location.href = url;
   };
 
