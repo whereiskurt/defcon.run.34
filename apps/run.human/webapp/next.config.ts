@@ -21,6 +21,7 @@ const VERSION_NGINX = process.env.NEXT_PUBLIC_VERSION_NGINX || readVersion(resol
 
 const sharedConfig = {
   trailingSlash: true,
+  skipTrailingSlashRedirect: true,
   env: {
     NEXT_PUBLIC_VERSION_APP: VERSION_APP,
     NEXT_PUBLIC_VERSION_NGINX: VERSION_NGINX,
@@ -42,18 +43,6 @@ const sharedConfig = {
       }
     ];
   },
-  // Rewrite API routes without trailing slash to avoid 308 redirects
-  // (next-auth calls /session, /csrf etc. without trailing slash)
-  async rewrites() {
-    return {
-      beforeFiles: [
-        {
-          source: '/api/auth/:path((?!.*/).*)',  // Match /api/auth/* without trailing slash
-          destination: '/api/auth/:path/',
-        },
-      ],
-    };
-  }
 };
 
 const productionConfig = {
