@@ -5,12 +5,18 @@ import { Providers } from "@/app/providers";
 import { siteConfig } from "@site";
 import { fontSans } from "@fonts";
 import { SessionProvider } from "next-auth/react";
+import { Header } from "@header";
+import { Footer } from "@/components/footer";
+import { auth } from "@auth";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
 // SessionProvider basePath - full path for client-side browser requests
 // (includes Next.js basePath because browser needs the complete URL)
 const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
+
+// Version tooltip
+const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
 export const metadata: Metadata = {
   title: {
@@ -30,13 +36,14 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function ProtectedRootLayout({
+export default async function ProtectedRootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const versionApp = process.env.NEXT_PUBLIC_VERSION_APP || 'unknown';
   const versionNginx = process.env.NEXT_PUBLIC_VERSION_NGINX || 'unknown';
+  const session = await auth();
 
   return (
     <html suppressHydrationWarning lang="en">
@@ -52,7 +59,15 @@ export default function ProtectedRootLayout({
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
-            {children}
+            <div className="relative flex flex-col min-h-screen">
+              <div className="flex-shrink-0">
+                <Header session={session} />
+              </div>
+              <main className="container mx-auto max-w-7xl px-6 flex-grow max-w-[900px] pt-4 pb-2">
+                {children}
+              </main>
+              <Footer versionTooltip={APP_VERSION_TOOLTIP} />
+            </div>
           </SessionProvider>
         </Providers>
       </body>

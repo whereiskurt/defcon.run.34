@@ -98,6 +98,90 @@ export const QUOTA_DEFINITIONS = {
     resetPolicy: "none" as const,
     enabled: true,
   },
+
+  // Strava sync limit
+  strava_sync: {
+    id: "strava_sync",
+    name: "Strava Syncs",
+    description: "Number of Strava activity syncs",
+    tierLimits: {
+      zero: 0,
+      upload: 16,
+      admin: 100,
+    },
+    resetPolicy: "none" as const,
+    enabled: true,
+  },
+
+  // GPS check-in limit
+  checkin: {
+    id: "checkin",
+    name: "GPS Check-ins",
+    description: "GPS location check-ins",
+    tierLimits: {
+      zero: 0,
+      upload: 50,
+      admin: 500,
+    },
+    resetPolicy: "none" as const,
+    enabled: true,
+  },
+
+  // Meshtastic radio registration limit
+  meshtastic_radio: {
+    id: "meshtastic_radio",
+    name: "Meshtastic Radios",
+    description: "Meshtastic radio registrations",
+    tierLimits: {
+      zero: 0,
+      upload: 5,
+      admin: 20,
+    },
+    resetPolicy: "none" as const,
+    enabled: true,
+  },
+
+  // QR scan limit (for scanning other users)
+  qr_scan: {
+    id: "qr_scan",
+    name: "QR Scans",
+    description: "QR code scans for social connections",
+    tierLimits: {
+      zero: 0,
+      upload: 100,
+      admin: 1000,
+    },
+    resetPolicy: "none" as const,
+    enabled: true,
+  },
+
+  // Display name change limit
+  displayname_change: {
+    id: "displayname_change",
+    name: "Display Name Changes",
+    description: "Display name changes per event",
+    tierLimits: {
+      zero: 0,
+      upload: 3,
+      admin: 10,
+    },
+    resetPolicy: "event" as const,
+    enabled: true,
+  },
+
+  // QR sheet generation limit
+  qr_sheet: {
+    id: "qr_sheet",
+    name: "QR Sheet Downloads",
+    description: "QR code sheet PDF downloads",
+    tierLimits: {
+      zero: 0,
+      upload: 10,
+      admin: 100,
+    },
+    resetPolicy: "none" as const,
+    enabled: true,
+  },
 } as const;
 
 /**
