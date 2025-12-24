@@ -6,7 +6,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
+    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
   }
 
   dns = {
@@ -82,6 +82,7 @@ locals {
     # Each region will contribute:
     # - An ALB origin for /{region_label}/*
     # - An S3 bucket origin for /{region_label}/assets/*
+    #                           /{region_label}/index.html
     regions = [
       {
         label = "use1"
@@ -265,17 +266,6 @@ locals {
     }
   }
 
-  # Load secret values - priority order:
-  # 1. TF_VAR_secret_values env var (for CI/CD)
-  # 2. .secrets.sops.json (SOPS encrypted - recommended)
-  # 3. .secrets.json (plaintext - not recommended)
-  #
-  # To create encrypted secrets:
-  #   1. Create .secrets.json from .secrets.json.example
-  #   2. Run: sops --encrypt .secrets.json > .secrets.sops.json
-  #   3. Delete .secrets.json (plaintext)
-  #   4. Commit .secrets.sops.json to git (safe - encrypted with KMS)
-  #
   secret_values = jsondecode(
     # Try SOPS encrypted file first (decrypt on the fly)
     fileexists("${get_terragrunt_dir()}/.secrets.sops.json")

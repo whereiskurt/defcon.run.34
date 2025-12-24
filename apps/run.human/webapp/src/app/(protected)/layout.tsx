@@ -30,7 +30,7 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function AuthLayout({
+export default function ProtectedRootLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -52,13 +52,7 @@ export default function AuthLayout({
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
-            <div className="relative flex flex-col h-screen">
-              <main className="container mx-auto h-screen flex items-center justify-center">
-                <div className="w-full max-w-md">
-                  {children}
-                </div>
-              </main>
-            </div>
+            {children}
           </SessionProvider>
         </Providers>
       </body>
