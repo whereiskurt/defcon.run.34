@@ -31,11 +31,13 @@ export type InternalValidateResponse =
         id: string;
         services: string[];
         linkedProviders: string[];
+        sessionVersion: number;
+        lockedOut: boolean;
       };
     }
   | {
       valid: false;
-      error: "unauthorized" | "user_not_found";
+      error: "unauthorized" | "user_not_found" | "user_locked";
     };
 
 export async function GET(
@@ -78,12 +80,17 @@ export async function GET(
     if (profile.github?.id) linkedProviders.push("github");
     if (profile.strava?.id) linkedProviders.push("strava");
 
+    const lockedOut = profile.lockedOut ?? false;
+    const sessionVersion = profile.sessionVersion ?? 1;
+
     return NextResponse.json({
       valid: true,
       user: {
         id: userId,
         services: profile.services || [],
         linkedProviders,
+        sessionVersion,
+        lockedOut,
       },
     } as InternalValidateResponse);
   } catch (error) {

@@ -12,13 +12,13 @@ import {
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import BlurPulseBackground from '@/components/BlurPulseBackground';
 import { RainbowText } from '@/components/text-effects';
 import { Text, Heading } from '@components/text-effects/Common';
 
-import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown, Link2, RefreshCw } from 'lucide-react';
+import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown, Link2, RefreshCw, Hash, Timer } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 
 export default function DashboardPage() {
@@ -39,7 +39,14 @@ export default function DashboardPage() {
   const handleRefreshClaims = async () => {
     setIsRefreshing(true);
     try {
-      await update({ refreshClaims: true });
+      const result = await update({ refreshClaims: true });
+      // If update returns null/undefined or session is invalidated, force logout
+      if (!result) {
+        await signOut({ callbackUrl: '/' });
+      }
+    } catch {
+      // Session was invalidated (error thrown from session callback)
+      await signOut({ callbackUrl: '/' });
     } finally {
       setIsRefreshing(false);
     }
@@ -192,6 +199,34 @@ export default function DashboardPage() {
                       </span>
                       <span className={`text-sm truncate ${isDarkTheme ? 'text-white' : 'text-black'}`}>
                         {new Date(session.expires).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Session Version */}
+                <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
+                  <Hash className={`w-5 h-5 ${isDarkTheme ? 'text-pink-400' : 'text-pink-600'}`} />
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className={`text-xs uppercase tracking-wide ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Session Version
+                    </span>
+                    <span className={`text-sm font-mono ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                      {user.sessionVersion ?? 1}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Last Refresh */}
+                {user.lastRefresh && (
+                  <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
+                    <Timer className={`w-5 h-5 ${isDarkTheme ? 'text-teal-400' : 'text-teal-600'}`} />
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className={`text-xs uppercase tracking-wide ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Last Claims Refresh
+                      </span>
+                      <span className={`text-sm truncate ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                        {new Date(user.lastRefresh).toLocaleString()}
                       </span>
                     </div>
                   </div>
