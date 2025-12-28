@@ -7,22 +7,23 @@ on:
       - 'infra/terraform/**'
       - '.github/workflows/terragrunt-plan.yml'
 
-env:
-  AWS_REGION: us-east-1
-  TG_BUCKET_USE1: tf-defcon-run-use1-80a6b349
-  TG_TABLE_USE1: tf-defcon-run-use1-80a6b349
-  TG_BUCKET_CAC1: tf-defcon-run-cac1-80a6b349
-  TG_TABLE_CAC1: tf-defcon-run-cac1-80a6b349
-  SGUID: 80a6b349
-
 jobs:
   plan:
     name: Terragrunt Plan
     runs-on: ubuntu-latest
+    environment: terraform-plan
     permissions:
       id-token: write
       contents: read
       pull-requests: write
+
+    env:
+      AWS_REGION: us-east-1
+      TG_BUCKET_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
+      TG_TABLE_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
+      TG_BUCKET_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
+      TG_TABLE_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
+      SGUID: ${{ vars.SGUID }}
 
     steps:
       - name: Checkout
@@ -47,7 +48,7 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::427284555693:role/dc34-github-readonly
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-readonly
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
