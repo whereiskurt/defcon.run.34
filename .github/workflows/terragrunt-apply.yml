@@ -1,0 +1,191 @@
+name: Terragrunt Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "apply" to confirm you want to run terragrunt apply'
+        required: true
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  TG_BUCKET_USE1: tf-defcon-run-use1-80a6b349
+  TG_TABLE_USE1: tf-defcon-run-use1-80a6b349
+  TG_BUCKET_CAC1: tf-defcon-run-cac1-80a6b349
+  TG_TABLE_CAC1: tf-defcon-run-cac1-80a6b349
+  SGUID: 80a6b349
+
+jobs:
+  apply:
+    name: Terragrunt Apply
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'apply'
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Terragrunt and SOPS
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/bin/terragrunt
+            /usr/local/bin/sops
+          key: tools-${{ runner.os }}-terragrunt-v0.77.10-sops-v3.9.4
+
+      - name: Cache Terragrunt Provider Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.terragrunt-cache
+          key: terragrunt-providers-${{ runner.os }}-${{ hashFiles('infra/terraform/**/*.tf') }}
+          restore-keys: |
+            terragrunt-providers-${{ runner.os }}-
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::427284555693:role/dc34-github-admin
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          if [ ! -f /usr/local/bin/terragrunt ]; then
+            curl -Lo /usr/local/bin/terragrunt \
+              "https://github.com/gruntwork-io/terragrunt/releases/download/v0.77.10/terragrunt_linux_amd64"
+            chmod +x /usr/local/bin/terragrunt
+          fi
+          terragrunt --version
+
+      - name: Setup SOPS
+        run: |
+          if [ ! -f /usr/local/bin/sops ]; then
+            curl -Lo /usr/local/bin/sops \
+              "https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64"
+            chmod +x /usr/local/bin/sops
+          fi
+          sops --version
+
+      - name: Terragrunt Apply
+        id: apply
+        working-directory: infra/terraform/live/site
+        env:
+          TERRAGRUNT_PROVIDER_CACHE: "1"
+        run: |
+          terragrunt run-all apply -no-color --terragrunt-non-interactive -auto-approve 2>&1 | tee apply_output.txt
+          exit_code=${PIPESTATUS[0]}
+
+          # Truncate if too long for summary (max ~65k chars)
+          if [ $(wc -c < apply_output.txt) -gt 60000 ]; then
+            echo "Apply output truncated (too large for summary)" > apply_summary.txt
+            head -c 30000 apply_output.txt >> apply_summary.txt
+            echo -e "\n\n... (truncated) ...\n\n" >> apply_summary.txt
+            tail -c 30000 apply_output.txt >> apply_summary.txt
+          else
+            cp apply_output.txt apply_summary.txt
+          fi
+
+          exit $exit_code
+        continue-on-error: true
+
+      # ============================================================
+      # RETRY LOGIC - Uncomment when ready to enable retries
+      # ============================================================
+      # - name: Retry Terragrunt Apply (Attempt 2)
+      #   id: apply_retry_2
+      #   if: steps.apply.outcome == 'failure'
+      #   working-directory: infra/terraform/live/site
+      #   env:
+      #     TERRAGRUNT_PROVIDER_CACHE: "1"
+      #   run: |
+      #     echo "::warning::First apply attempt failed, retrying (attempt 2 of 3)..."
+      #     sleep 30
+      #
+      #     terragrunt run-all apply -no-color --terragrunt-non-interactive -auto-approve 2>&1 | tee apply_output.txt
+      #     exit_code=${PIPESTATUS[0]}
+      #
+      #     if [ $(wc -c < apply_output.txt) -gt 60000 ]; then
+      #       echo "Apply output truncated (too large for summary)" > apply_summary.txt
+      #       head -c 30000 apply_output.txt >> apply_summary.txt
+      #       echo -e "\n\n... (truncated) ...\n\n" >> apply_summary.txt
+      #       tail -c 30000 apply_output.txt >> apply_summary.txt
+      #     else
+      #       cp apply_output.txt apply_summary.txt
+      #     fi
+      #
+      #     exit $exit_code
+      #   continue-on-error: true
+      #
+      # - name: Retry Terragrunt Apply (Attempt 3)
+      #   id: apply_retry_3
+      #   if: steps.apply.outcome == 'failure' && steps.apply_retry_2.outcome == 'failure'
+      #   working-directory: infra/terraform/live/site
+      #   env:
+      #     TERRAGRUNT_PROVIDER_CACHE: "1"
+      #   run: |
+      #     echo "::warning::Second apply attempt failed, retrying (attempt 3 of 3)..."
+      #     sleep 60
+      #
+      #     terragrunt run-all apply -no-color --terragrunt-non-interactive -auto-approve 2>&1 | tee apply_output.txt
+      #     exit_code=${PIPESTATUS[0]}
+      #
+      #     if [ $(wc -c < apply_output.txt) -gt 60000 ]; then
+      #       echo "Apply output truncated (too large for summary)" > apply_summary.txt
+      #       head -c 30000 apply_output.txt >> apply_summary.txt
+      #       echo -e "\n\n... (truncated) ...\n\n" >> apply_summary.txt
+      #       tail -c 30000 apply_output.txt >> apply_summary.txt
+      #     else
+      #       cp apply_output.txt apply_summary.txt
+      #     fi
+      #
+      #     exit $exit_code
+      #   continue-on-error: true
+      # ============================================================
+
+      - name: Upload Apply Output
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: terragrunt-apply
+          path: infra/terraform/live/site/apply_output.txt
+          retention-days: 30
+
+      - name: Write Job Summary
+        if: always()
+        run: |
+          # Determine final status (check retries when enabled)
+          # When retries are enabled, update this to check all retry steps:
+          # FINAL_OUTCOME="${{ steps.apply_retry_3.outcome || steps.apply_retry_2.outcome || steps.apply.outcome }}"
+          FINAL_OUTCOME="${{ steps.apply.outcome }}"
+
+          STATUS=$([[ "$FINAL_OUTCOME" == "success" ]] && echo "✅" || echo "❌")
+          echo "## ${STATUS} Terragrunt Apply" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "<details>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>Click to expand apply output</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```hcl' >> $GITHUB_STEP_SUMMARY
+          cat infra/terraform/live/site/apply_summary.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if apply failed
+        run: |
+          # When retries are enabled, update this condition:
+          # if [[ "${{ steps.apply_retry_3.outcome || steps.apply_retry_2.outcome || steps.apply.outcome }}" == "failure" ]]; then
+          if [[ "${{ steps.apply.outcome }}" == "failure" ]]; then
+            echo "::error::Terragrunt apply failed"
+            exit 1
+          fi
