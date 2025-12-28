@@ -12,10 +12,12 @@
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "mounts": [
-    "source=${localEnv:HOME}/.aws,target=/home/node/.aws,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.aws,target=/home/node/.aws,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude,target=/home/node/.claude,type=bind,consistency=cached"
   ],
   "containerEnv": {
-    "AWS_PROFILE": "application"
+    "AWS_PROFILE": "application",
+    "AWS_REGION": "us-east-1"
   },
   "postCreateCommand": ".devcontainer/post-create.sh",
   "customizations": {
@@ -34,9 +36,9 @@
       }
     }
   },
-  "forwardPorts": [3000, 3001],
+  "forwardPorts": [3001, 3002],
   "portsAttributes": {
-    "3000": {
+    "3002": {
       "label": "run.auth",
       "onAutoForward": "notify"
     },

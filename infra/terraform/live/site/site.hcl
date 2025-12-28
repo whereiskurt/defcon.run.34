@@ -277,7 +277,7 @@ locals {
   )
 
   github_oidc = {
-    enabled     = false
+    enabled     = true
     github_org  = "whereiskurt"      # Your GitHub org/user
     github_repo = "defcon.run.34"    # Your repository name
 
@@ -310,10 +310,10 @@ locals {
       # Application role - for app deployments (ECR, S3, ECS)
       # Equivalent to your local "application" profile
       {
-        name                   = "application"
-        description            = "Application deployments (ECR, S3, ECS)"
-        environment_restriction = "production"  # Only production environment
-        max_session_duration   = 3600
+        name                 = "application"
+        description          = "Application deployments (ECR, S3, ECS)"
+        branch_restriction   = "main"  # Only main branch can deploy
+        max_session_duration = 3600
 
         # Scoped permissions for app deployment
         inline_policies = [

@@ -23,5 +23,9 @@ RUN curl -Lo /usr/local/bin/sops \
 # Install jq for JSON processing
 RUN apt-get update && apt-get install -y jq uuid-runtime && rm -rf /var/lib/apt/lists/*
 
+# Create mount target directories for bind mounts
+RUN mkdir -p /home/node/.aws /home/node/.claude \
+    && chown -R node:node /home/node/.aws /home/node/.claude
+
 # Set working directory
 WORKDIR /workspaces/defcon.run.34

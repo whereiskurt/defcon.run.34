@@ -1,0 +1,154 @@
+name: Terragrunt Plan
+
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/**'
+      - '.github/workflows/terragrunt-plan.yml'
+
+env:
+  AWS_REGION: us-east-1
+  TG_BUCKET_USE1: tf-defcon-run-use1-80a6b349
+  TG_TABLE_USE1: tf-defcon-run-use1-80a6b349
+  TG_BUCKET_CAC1: tf-defcon-run-cac1-80a6b349
+  TG_TABLE_CAC1: tf-defcon-run-cac1-80a6b349
+  SGUID: 80a6b349
+
+jobs:
+  plan:
+    name: Terragrunt Plan
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Terraform Providers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            infra/terraform/live/site/**/.terraform
+          key: terraform-${{ runner.os }}-${{ hashFiles('infra/terraform/**/*.tf') }}
+          restore-keys: |
+            terraform-${{ runner.os }}-
+
+      - name: Cache Terragrunt
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/terragrunt
+          key: terragrunt-${{ runner.os }}-v0.77.10
+
+      - name: Configure Terraform Plugin Cache
+        run: |
+          mkdir -p ~/.terraform.d/plugin-cache
+          echo 'plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"' > ~/.terraformrc
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::427284555693:role/dc34-github-readonly
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          if [ ! -f /usr/local/bin/terragrunt ]; then
+            curl -Lo /usr/local/bin/terragrunt \
+              "https://github.com/gruntwork-io/terragrunt/releases/download/v0.77.10/terragrunt_linux_amd64"
+            chmod +x /usr/local/bin/terragrunt
+          fi
+          terragrunt --version
+
+      - name: Terragrunt Plan
+        id: plan
+        working-directory: infra/terraform/live/site
+        run: |
+          # Run plan and capture output
+          terragrunt run-all plan -no-color 2>&1 | tee plan_output.txt
+
+          # Check exit code
+          exit_code=${PIPESTATUS[0]}
+
+          # Truncate if too long for PR comment (max ~65k chars)
+          if [ $(wc -c < plan_output.txt) -gt 60000 ]; then
+            echo "Plan output truncated (too large for PR comment)" > plan_summary.txt
+            head -c 30000 plan_output.txt >> plan_summary.txt
+            echo -e "\n\n... (truncated) ...\n\n" >> plan_summary.txt
+            tail -c 30000 plan_output.txt >> plan_summary.txt
+          else
+            cp plan_output.txt plan_summary.txt
+          fi
+
+          exit $exit_code
+        continue-on-error: true
+
+      - name: Upload Plan Output
+        uses: actions/upload-artifact@v4
+        with:
+          name: terragrunt-plan
+          path: infra/terraform/live/site/plan_output.txt
+          retention-days: 7
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const planOutput = fs.readFileSync('infra/terraform/live/site/plan_summary.txt', 'utf8');
+            const planExitCode = '${{ steps.plan.outcome }}';
+
+            const status = planExitCode === 'success' ? '✅' : '❌';
+            const body = `## ${status} Terragrunt Plan
+
+            <details>
+            <summary>Click to expand plan output</summary>
+
+            \`\`\`hcl
+            ${planOutput}
+            \`\`\`
+
+            </details>
+
+            *Plan generated from commit ${{ github.sha }}*
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Terragrunt Plan')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
