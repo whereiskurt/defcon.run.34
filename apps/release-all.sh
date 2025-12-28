@@ -21,7 +21,8 @@ set -e
 
 # Default configuration
 APPS="run.auth,run.human"
-REGIONS="use1,cac1"
+# REGIONS="use1,cac1"
+REGIONS="use1"
 SKIP_BUMP=false
 SKIP_BUILD=false
 SKIP_DEPLOY=false

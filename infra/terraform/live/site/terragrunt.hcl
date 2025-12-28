@@ -42,6 +42,10 @@ errors {
         "(?s).*[aA]ccess [dD]enied for [lL]og[dD]estination.*",
         "(?s).*bucket must exist.*",
         "(?s).*bucket must have versioning enabled.*",
+        # S3 eventual consistency - CORS config not immediately readable after bucket creation
+        "(?s).*reading S3 Bucket CORS Configuration.*couldn't find resource.*",
+        # AWS provider bug - resource created but identity not returned
+        "(?s).*Missing Resource Identity After Create.*",
       ]
     )
 

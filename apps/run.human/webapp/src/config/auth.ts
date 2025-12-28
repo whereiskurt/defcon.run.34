@@ -15,6 +15,8 @@ declare module "next-auth" {
       hasStrava: boolean;
       hasDiscord: boolean;
       hasGithub: boolean;
+      sessionVersion: number;
+      lastRefresh?: number;
     } & DefaultSession["user"];
   }
   interface User {
@@ -30,18 +32,27 @@ declare module "@auth/core/jwt" {
     services: string[];
     linkedProviders: string[];
     lastRefresh?: number;
+    sessionVersion?: number; // For session invalidation
+    invalidated?: boolean; // Set to true when session should be terminated
   }
 }
 
 import "@auth/core/jwt"; // Import the module augmentation
 
 /**
- * Fetch fresh claims from auth.defcon.run session validate endpoint
+ * Result from fetching fresh claims from auth server
  */
-async function fetchFreshClaims(userId: string): Promise<{
+type FreshClaimsResult = {
   services: string[];
   linkedProviders: string[];
-} | null> {
+  sessionVersion: number;
+  lockedOut: boolean;
+} | null;
+
+/**
+ * Fetch fresh claims from auth.defcon.run session validate endpoint
+ */
+async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
   const validateUrl = `${config.urls.privateAuthServer}/api/session/validate/user`;
   try {
     // Call the auth server's internal API to get fresh claims
@@ -66,6 +77,8 @@ async function fetchFreshClaims(userId: string): Promise<{
       return {
         services: data.user.services || [],
         linkedProviders: data.user.linkedProviders || [],
+        sessionVersion: data.user.sessionVersion ?? 1,
+        lockedOut: data.user.lockedOut ?? false,
       };
     }
     return null;
@@ -148,14 +161,44 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, account, profile, trigger, session, user }) {
       const now = Date.now();
 
+      /**
+       * Helper to check lockout and session version, returns null if session should be invalidated
+       */
+      const validateAndUpdateClaims = async (authUserId: string): Promise<boolean> => {
+        const freshClaims = await fetchFreshClaims(authUserId);
+        if (!freshClaims) {
+          return true; // Network error - keep existing session
+        }
+
+        // Check if user is locked out
+        if (freshClaims.lockedOut) {
+          console.log(`[run.human] User ${authUserId} is locked out, invalidating session`);
+          return false;
+        }
+
+        // Check if session version changed (user signed out elsewhere or admin invalidated)
+        const tokenVersion = typeof token.sessionVersion === 'number' ? token.sessionVersion : 1;
+        if (freshClaims.sessionVersion > tokenVersion) {
+          console.log(`[run.human] Session version mismatch for ${authUserId}: token=${tokenVersion}, server=${freshClaims.sessionVersion}`);
+          return false;
+        }
+
+        // Update token with fresh claims
+        token.services = freshClaims.services;
+        token.linkedProviders = freshClaims.linkedProviders;
+        token.sessionVersion = freshClaims.sessionVersion;
+        return true;
+      };
+
       if (trigger === "update") {
         // Manual session update trigger - force refresh claims from auth server
         const authUserId = token.authUserId as string;
         if (authUserId) {
-          const freshClaims = await fetchFreshClaims(authUserId);
-          if (freshClaims) {
-            token.services = freshClaims.services;
-            token.linkedProviders = freshClaims.linkedProviders;
+          const isValid = await validateAndUpdateClaims(authUserId);
+          if (!isValid) {
+            // Mark token as invalidated - session callback will handle logout
+            token.invalidated = true;
+            return token;
           }
         }
         token.lastRefresh = now;
@@ -170,6 +213,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.picture = profile.picture as string;
           token.services = (profile.services as string[]) ?? [];
           token.linkedProviders = (profile.linked_providers as string[]) ?? [];
+          token.sessionVersion = (profile.session_version as number) ?? 1;
           token.lastRefresh = now;
           // Store the auth.defcon.run user ID (profile.sub) for fetching claims
           token.authUserId = profile.sub as string;
@@ -196,10 +240,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // Fetch fresh claims from auth.defcon.run using the auth user ID
           const authUserId = token.authUserId as string;
           if (authUserId) {
-            const freshClaims = await fetchFreshClaims(authUserId);
-            if (freshClaims) {
-              token.services = freshClaims.services;
-              token.linkedProviders = freshClaims.linkedProviders;
+            const isValid = await validateAndUpdateClaims(authUserId);
+            if (!isValid) {
+              // Mark token as invalidated - session callback will handle logout
+              token.invalidated = true;
+              return token;
             }
           }
           token.lastRefresh = now;
@@ -214,6 +259,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     session({ session, token }) {
+      // Check if token has been invalidated (user locked out or session revoked)
+      if (token.invalidated) {
+        // Throw error to invalidate the session - this will cause useSession to return unauthenticated
+        throw new Error("Session invalidated");
+      }
+
       const linkedProviders = (token.linkedProviders ?? []) as string[];
       session.user.id = (token.sub ?? token.userId) as string;
       session.user.email = token.email as string;
@@ -223,6 +274,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       session.user.hasStrava = linkedProviders.includes("strava");
       session.user.hasDiscord = linkedProviders.includes("discord");
       session.user.hasGithub = linkedProviders.includes("github");
+      session.user.sessionVersion = (token.sessionVersion as number) ?? 1;
+      session.user.lastRefresh = token.lastRefresh as number | undefined;
       return session;
     },
   },

@@ -88,6 +88,39 @@ export const RunUser = new Entity(
         default: () => [],
       },
 
+      // GPS Check-ins
+      checkIns: {
+        type: "list",
+        items: {
+          type: "map",
+          properties: {
+            date: { type: "string" },
+            timestamp: { type: "number" },
+            source: { type: "string" },
+            samples: { type: "any" },
+            averageCoordinates: {
+              type: "map",
+              properties: {
+                latitude: { type: "number" },
+                longitude: { type: "number" },
+              },
+            },
+            bestAccuracy: { type: "number" },
+            userAgent: { type: "string" },
+          },
+        },
+        default: () => [],
+      },
+
+      // Denormalized check-in fields
+      lastCheckInAt: {
+        type: "number",
+      },
+      checkInCount: {
+        type: "number",
+        default: () => 0,
+      },
+
       // User preferences
       preferences: {
         type: "map",
@@ -261,6 +294,16 @@ export async function updateRunUserProfile(
   await RunUser.patch({ userId }).set(data).go();
 }
 
+/**
+ * Update user's meshtastic radios
+ */
+export async function updateMeshtasticRadios(
+  userId: string,
+  radios: MeshtasticRadio[]
+): Promise<void> {
+  await RunUser.patch({ userId }).set({ meshtasticRadios: radios }).go();
+}
+
 // Type definitions
 export type MeshtasticRadio = {
   id: string;
@@ -273,6 +316,19 @@ export type MeshtasticRadio = {
   verifiedAt?: number;
   verificationAttempts?: number;
   resendAttempts?: number;
+};
+
+export type CheckIn = {
+  date: string;
+  timestamp: number;
+  source: string;
+  samples?: any;
+  averageCoordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+  bestAccuracy?: number;
+  userAgent?: string;
 };
 
 export type RunUserItem = {
@@ -288,6 +344,9 @@ export type RunUserItem = {
   mqttPassword?: string;
   mqttUsertype?: "rabbit" | "admin" | "wildhare" | "og";
   meshtasticRadios?: MeshtasticRadio[];
+  checkIns?: CheckIn[];
+  lastCheckInAt?: number;
+  checkInCount?: number;
   preferences?: {
     theme?: string;
     units?: string;

@@ -25,7 +25,7 @@
       "@public/*": ["./public/*"],
       "@svgtypes": ["./src/types"],
       "@components/*": ["./src/components/*"],
-      "@header/*": ["./src/components/header/header"],
+      "@header": ["./src/components/header/header"],
       "@/*": ["./src/*"]
     }
   },

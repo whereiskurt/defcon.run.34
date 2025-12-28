@@ -122,6 +122,25 @@ export const AuthProfile = new Entity(
         type: "list",
         items: { type: "string" },
       },
+      // Session invalidation fields
+      // Increment sessionVersion to invalidate all existing sessions
+      sessionVersion: {
+        type: "number",
+        default: 1,
+      },
+      // Lock user out completely - prevents new logins and invalidates sessions
+      lockedOut: {
+        type: "boolean",
+        default: false,
+      },
+      // Optional: reason for lockout (for admin reference)
+      lockoutReason: {
+        type: "string",
+      },
+      // Optional: when the lockout was applied
+      lockedAt: {
+        type: "number",
+      },
       // Timestamps
       createdAt: {
         type: "number",

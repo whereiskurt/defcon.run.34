@@ -12,22 +12,22 @@ import {
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
-import { useSession, signIn, signOut } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import BlurPulseBackground from '@/components/BlurPulseBackground';
 import { RainbowText } from '@/components/text-effects';
 import { Text, Heading } from '@components/text-effects/Common';
 
-import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown, Link2, RefreshCw } from 'lucide-react';
+import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown, Link2, RefreshCw, Hash, Timer } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 
-function DashboardContent() {
+export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [isClaimsOpen, setIsClaimsOpen] = useState(false);
   const [isRawSessionOpen, setIsRawSessionOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { resolvedTheme } = useTheme();
-  const { data: session, status, update } = useSession();
+  const { data: session, update } = useSession();
   const { logout } = useLogout();
 
   useEffect(() => {
@@ -39,65 +39,38 @@ function DashboardContent() {
   const handleRefreshClaims = async () => {
     setIsRefreshing(true);
     try {
-      // Pass an object to trigger the "update" trigger in the JWT callback
-      // This forces a refresh regardless of the time interval
-      await update({ refreshClaims: true });
+      const result = await update({ refreshClaims: true });
+      // If update returns null/undefined or session is invalidated, force logout
+      if (!result) {
+        await signOut({ callbackUrl: '/' });
+      }
+    } catch {
+      // Session was invalidated (error thrown from session callback)
+      await signOut({ callbackUrl: '/' });
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  // Services and linked providers are now included in the session directly
-  const services = (session?.user as { services?: string[] })?.services || [];
-  const linkedProviders = (session?.user as { linkedProviders?: string[] })?.linkedProviders || [];
-  const hasStrava = (session?.user as { hasStrava?: boolean })?.hasStrava || false;
-  const hasDiscord = (session?.user as { hasDiscord?: boolean })?.hasDiscord || false;
-  const hasGithub = (session?.user as { hasGithub?: boolean })?.hasGithub || false;
-
-  if (status === 'loading') {
+  // Session is guaranteed by layout, but useSession may still be loading on client
+  if (!mounted || !session) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
         <div className="z-10 w-full max-w-md">
           <div className="bg-white/50 dark:bg-gray-900/50 shadow-lg rounded-lg p-6">
-            <p className="text-center">Loading session...</p>
+            <p className="text-center">Loading...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  if (status === 'unauthenticated' || !session) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
-        <div className="z-10 w-full max-w-md">
-          <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
-            <CardHeader>
-              <div className="flex flex-col">
-                <Heading level={1}>Not Authenticated</Heading>
-                <Text variant="small" className={isDarkTheme ? 'text-gray-300' : 'text-black'}>
-                  You need to log in to view this page.
-                </Text>
-              </div>
-            </CardHeader>
-            <Divider />
-            <CardBody className="flex justify-center">
-              <Button
-                variant="solid"
-                color="primary"
-                className="text-lg font-semibold"
-                onPress={() => signIn('run.defcon.run', { callbackUrl: '/' })}
-              >
-                Go to Login
-              </Button>
-            </CardBody>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
   const { user } = session;
+  const services = user.services || [];
+  const linkedProviders = user.linkedProviders || [];
+  const hasStrava = user.hasStrava || false;
+  const hasDiscord = user.hasDiscord || false;
+  const hasGithub = user.hasGithub || false;
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
@@ -231,6 +204,34 @@ function DashboardContent() {
                   </div>
                 )}
 
+                {/* Session Version */}
+                <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
+                  <Hash className={`w-5 h-5 ${isDarkTheme ? 'text-pink-400' : 'text-pink-600'}`} />
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className={`text-xs uppercase tracking-wide ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Session Version
+                    </span>
+                    <span className={`text-sm font-mono ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                      {user.sessionVersion ?? 1}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Last Refresh */}
+                {user.lastRefresh && (
+                  <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
+                    <Timer className={`w-5 h-5 ${isDarkTheme ? 'text-teal-400' : 'text-teal-600'}`} />
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <span className={`text-xs uppercase tracking-wide ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Last Claims Refresh
+                      </span>
+                      <span className={`text-sm truncate ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                        {new Date(user.lastRefresh).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Services */}
                 <div className="flex items-start gap-3 p-2 rounded-md bg-default-50">
                   <Layers className={`w-5 h-5 mt-0.5 ${isDarkTheme ? 'text-cyan-400' : 'text-cyan-600'}`} />
@@ -342,26 +343,4 @@ function DashboardContent() {
       </div>
     </div>
   );
-}
-
-export default function DashboardPage() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <div className="z-10 w-full max-w-md">
-          <div className="bg-white/50 dark:bg-gray-900/50 shadow-lg rounded-lg p-6">
-            <p className="text-center">Loading...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <DashboardContent />;
 }
