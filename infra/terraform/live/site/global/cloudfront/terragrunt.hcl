@@ -84,6 +84,10 @@ dependency "site" {
         zone_id = "Z1234567890ABD"
         name    = "auth.defcon.run"
       }
+      "run.defcon.run" = {
+        zone_id = "Z1234567890ABE"
+        name    = "run.defcon.run"
+      }
     }
     waf = {
       default = {

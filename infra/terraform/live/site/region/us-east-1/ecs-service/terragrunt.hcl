@@ -17,7 +17,8 @@ dependency "ecs_task" {
 
   mock_outputs = {
     task_definition_arns = {
-      "auth" = "arn:aws:ecs:us-east-1:123456789012:task-definition/auth-use1-defcon-run:1"
+      "auth"      = "arn:aws:ecs:us-east-1:123456789012:task-definition/auth-use1-defcon-run:1"
+      "run-human" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-human-use1-defcon-run:1"
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
