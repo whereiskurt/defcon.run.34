@@ -1,0 +1,44 @@
+# Prowler Configuration for DEF CON 34 Infrastructure
+# Focused on the specific AWS services used in this project
+#
+# NOTE: Regions are configured via GitHub Actions workflow, not here.
+# - Default: us-east-1 ca-central-1 (hardcoded in workflow)
+# - Override: Set PROWLER_REGIONS variable in GitHub repo settings
+# - One-time: Use workflow_dispatch "regions" input
+
+# Services to scan - focused on what we actually use
+# This reduces ~300+ checks down to ~60-80 relevant ones
+services:
+  # Core Infrastructure
+  - iam           # Identity and access management
+  - s3            # Static assets, Terraform state
+  - dynamodb      # Application databases
+  - kms           # Encryption keys (SOPS, etc.)
+
+  # Compute & Containers
+  - ecs           # Fargate tasks
+  - ecr           # Container registry
+
+  # Networking & CDN
+  - cloudfront    # CDN distribution
+  - elb           # Application Load Balancers (elbv2)
+  - elbv2         # ALB specifically
+  - waf           # Web Application Firewall
+  - wafv2         # WAFv2 for CloudFront
+  - acm           # SSL/TLS certificates
+  - route53       # DNS (in management account, may skip)
+
+  # Security & Logging
+  - cloudwatch    # Logs and alarms
+  - cloudtrail    # Audit logging
+  - ssm           # Parameter Store secrets
+
+# Output configuration
+output:
+  # Generate multiple formats for flexibility
+  formats:
+    - json
+    - html
+
+  # Directory for results (relative to where prowler runs)
+  directory: prowler-output

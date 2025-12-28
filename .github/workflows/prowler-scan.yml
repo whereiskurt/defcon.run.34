@@ -1,0 +1,147 @@
+name: Prowler Security Scan
+
+on:
+  # Run on demand
+  workflow_dispatch:
+    inputs:
+      severity:
+        description: 'Minimum severity to report'
+        required: false
+        default: 'medium'
+        type: choice
+        options:
+          - critical
+          - high
+          - medium
+          - low
+          - informational
+      services:
+        description: 'Specific services to scan (comma-separated, empty for all configured)'
+        required: false
+        default: ''
+        type: string
+      regions:
+        description: 'Regions to scan (space-separated, empty for all configured)'
+        required: false
+        default: ''
+        type: string
+
+  # Run weekly on Sunday at 2am UTC
+  schedule:
+    - cron: '0 2 * * 0'
+
+jobs:
+  prowler-scan:
+    name: Prowler Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      security-events: write  # For SARIF upload
+
+    env:
+      AWS_REGION: us-east-1
+      # Default regions - add new regions here as you deploy them
+      # Can be overridden via workflow_dispatch input
+      PROWLER_REGIONS: ${{ inputs.regions || vars.PROWLER_REGIONS || 'us-east-1 ca-central-1' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-prowler
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Prowler
+        run: pip install prowler
+
+      - name: Run Prowler Scan
+        id: prowler
+        run: |
+          # Build the prowler command
+          PROWLER_CMD="prowler aws"
+
+          # Add regions from environment variable
+          PROWLER_CMD="$PROWLER_CMD --region $PROWLER_REGIONS"
+
+          # Add services from config or input
+          if [ -n "${{ inputs.services }}" ]; then
+            PROWLER_CMD="$PROWLER_CMD --services ${{ inputs.services }}"
+          else
+            # Use configured services
+            PROWLER_CMD="$PROWLER_CMD --services iam s3 dynamodb kms ecs ecr cloudfront elbv2 wafv2 acm cloudwatch ssm"
+          fi
+
+          # Add severity filter
+          SEVERITY="${{ inputs.severity || 'medium' }}"
+          PROWLER_CMD="$PROWLER_CMD --severity $SEVERITY"
+
+          # Add allowlist
+          PROWLER_CMD="$PROWLER_CMD --allowlist-file .prowler/allowlist.yaml"
+
+          # Output formats
+          PROWLER_CMD="$PROWLER_CMD --output-formats json-ocsf html sarif"
+          PROWLER_CMD="$PROWLER_CMD --output-directory prowler-output"
+
+          # Add status filter - only show failures and manual checks
+          PROWLER_CMD="$PROWLER_CMD --status FAIL MANUAL"
+
+          echo "Running: $PROWLER_CMD"
+          $PROWLER_CMD || true  # Don't fail the workflow on findings
+
+          # Count findings
+          CRITICAL=$(grep -c '"severity": "critical"' prowler-output/*.ocsf.json 2>/dev/null || echo "0")
+          HIGH=$(grep -c '"severity": "high"' prowler-output/*.ocsf.json 2>/dev/null || echo "0")
+          MEDIUM=$(grep -c '"severity": "medium"' prowler-output/*.ocsf.json 2>/dev/null || echo "0")
+
+          echo "critical_count=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high_count=$HIGH" >> $GITHUB_OUTPUT
+          echo "medium_count=$MEDIUM" >> $GITHUB_OUTPUT
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: prowler-output/
+        continue-on-error: true
+
+      - name: Upload Prowler Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prowler-results-${{ github.run_number }}
+          path: prowler-output/
+          retention-days: 30
+
+      - name: Write Job Summary
+        if: always()
+        run: |
+          echo "## Prowler Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Regions:** $PROWLER_REGIONS" >> $GITHUB_STEP_SUMMARY
+          echo "**Severity Filter:** ${{ inputs.severity || 'medium' }}+" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Findings Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Critical | ${{ steps.prowler.outputs.critical_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| High | ${{ steps.prowler.outputs.high_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Medium | ${{ steps.prowler.outputs.medium_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Full results are available in the uploaded artifacts." >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail on Critical Findings
+        if: steps.prowler.outputs.critical_count != '0'
+        run: |
+          echo "::error::Found ${{ steps.prowler.outputs.critical_count }} critical security findings!"
+          exit 1
