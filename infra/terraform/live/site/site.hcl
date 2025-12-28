@@ -290,10 +290,10 @@ locals {
       # Terragrunt role - for infrastructure deployments
       # Equivalent to your local "terraform" profile + management profile
       {
-        name                 = "terragrunt"
-        description          = "Terragrunt infrastructure deployments"
-        branch_restriction   = "main"  # Only main branch can assume this role
-        max_session_duration = 3600
+        name                    = "terragrunt"
+        description             = "Terragrunt infrastructure deployments"
+        environment_restriction = "terraform-apply"  # Only terraform-apply environment can assume this role
+        max_session_duration    = 3600
 
         # Full admin for now - scope down for production
         policy_arns = [
