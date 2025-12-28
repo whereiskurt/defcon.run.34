@@ -38,13 +38,14 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      security-events: write  # For SARIF upload
 
     env:
       AWS_REGION: us-east-1
       # Default regions - add new regions here as you deploy them
       # Can be overridden via workflow_dispatch input
       PROWLER_REGIONS: ${{ inputs.regions || vars.PROWLER_REGIONS || 'us-east-1 ca-central-1' }}
+      # Default services to scan
+      PROWLER_SERVICES: iam s3 dynamodb kms ecs ecr cloudfront elbv2 wafv2 acm cloudwatch ssm
 
     steps:
       - name: Checkout
@@ -56,47 +57,44 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-prowler
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install Prowler
-        run: pip install prowler
+      - name: Create output directory
+        run: mkdir -p prowler-output
 
       - name: Run Prowler Scan
         id: prowler
         run: |
-          # Build the prowler command
-          PROWLER_CMD="prowler aws"
-
-          # Add regions from environment variable
-          PROWLER_CMD="$PROWLER_CMD --region $PROWLER_REGIONS"
-
-          # Add services from config or input
+          # Determine services to scan
           if [ -n "${{ inputs.services }}" ]; then
-            PROWLER_CMD="$PROWLER_CMD --services ${{ inputs.services }}"
+            SERVICES="${{ inputs.services }}"
           else
-            # Use configured services
-            PROWLER_CMD="$PROWLER_CMD --services iam s3 dynamodb kms ecs ecr cloudfront elbv2 wafv2 acm cloudwatch ssm"
+            SERVICES="$PROWLER_SERVICES"
           fi
 
-          # Add severity filter
+          # Determine severity
           SEVERITY="${{ inputs.severity || 'medium' }}"
-          PROWLER_CMD="$PROWLER_CMD --severity $SEVERITY"
 
-          # Add allowlist
-          PROWLER_CMD="$PROWLER_CMD --allowlist-file .prowler/allowlist.yaml"
+          echo "Running Prowler scan..."
+          echo "Regions: $PROWLER_REGIONS"
+          echo "Services: $SERVICES"
+          echo "Severity: $SEVERITY"
 
-          # Output formats
-          PROWLER_CMD="$PROWLER_CMD --output-formats json-ocsf html sarif"
-          PROWLER_CMD="$PROWLER_CMD --output-directory prowler-output"
-
-          # Add status filter - only show failures and manual checks
-          PROWLER_CMD="$PROWLER_CMD --status FAIL MANUAL"
-
-          echo "Running: $PROWLER_CMD"
-          $PROWLER_CMD || true  # Don't fail the workflow on findings
+          # Run prowler using Docker (faster than pip install)
+          docker run --rm \
+            -e AWS_ACCESS_KEY_ID \
+            -e AWS_SECRET_ACCESS_KEY \
+            -e AWS_SESSION_TOKEN \
+            -v "$(pwd)/.prowler:/home/prowler/.prowler:ro" \
+            -v "$(pwd)/prowler-output:/home/prowler/output" \
+            public.ecr.aws/prowler/prowler:latest \
+            aws \
+            --region $PROWLER_REGIONS \
+            --service $SERVICES \
+            --severity $SEVERITY \
+            --mutelist-file /home/prowler/.prowler/allowlist.yaml \
+            --output-formats json-ocsf html \
+            --output-directory /home/prowler/output \
+            --status FAIL MANUAL \
+            || true  # Don't fail the workflow on findings
 
           # Count findings
           CRITICAL=$(grep -c '"severity": "critical"' prowler-output/*.ocsf.json 2>/dev/null || echo "0")
@@ -106,13 +104,6 @@ jobs:
           echo "critical_count=$CRITICAL" >> $GITHUB_OUTPUT
           echo "high_count=$HIGH" >> $GITHUB_OUTPUT
           echo "medium_count=$MEDIUM" >> $GITHUB_OUTPUT
-
-      - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: prowler-output/
-        continue-on-error: true
 
       - name: Upload Prowler Results
         uses: actions/upload-artifact@v4
