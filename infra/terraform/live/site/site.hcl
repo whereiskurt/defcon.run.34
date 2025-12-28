@@ -301,10 +301,9 @@ locals {
         ]
 
         # Cross-account access to management account for Route53
-        # Uncomment after creating the delegate role in management account:
-        # cross_account_arns = [
-        #   "arn:aws:iam::MGMT_ACCOUNT_ID:role/dc34-github-delegate"
-        # ]
+        cross_account_arns = [
+          "arn:aws:iam::481723467561:role/dc34-github-delegate"
+        ]
       },
 
       # Application role - for app deployments (ECR, S3, ECS)
