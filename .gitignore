@@ -7,6 +7,9 @@ tmp
 
 # dependencies
 node_modules
+.venv/
+venv/
+__pycache__/
 
 # IDE - VSCode
 .vscode/*
