@@ -85,7 +85,7 @@ jobs:
             -e AWS_SESSION_TOKEN \
             -v "$(pwd)/.prowler:/home/prowler/.prowler:ro" \
             -v "$(pwd)/prowler-output:/home/prowler/output" \
-            public.ecr.aws/prowler/prowler:latest \
+            prowlercloud/prowler:5.16.1 \
             aws \
             --region $PROWLER_REGIONS \
             --service $SERVICES \
