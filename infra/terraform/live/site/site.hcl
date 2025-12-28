@@ -6,7 +6,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = ["ca-central-1"]  # Set to ["ca-central-1"] to skip that region
+    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
   }
 
   dns = {
