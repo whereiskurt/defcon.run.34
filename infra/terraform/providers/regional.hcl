@@ -15,9 +15,14 @@ locals {
   # If prefix is empty or "", returns profile name as-is
   # Otherwise returns "prefix-profile"
   # In CI, profiles are not used (credentials come from environment)
-  application_profile = local.is_ci ? null : (local.profile_prefix != "" ? "${local.profile_prefix}-application" : "application")
-  management_profile  = local.is_ci ? null : (local.profile_prefix != "" ? "${local.profile_prefix}-management" : "management")
-  terraform_profile   = local.is_ci ? null : "terraform"
+  application_profile = local.profile_prefix != "" ? "${local.profile_prefix}-application" : "application"
+  management_profile  = local.profile_prefix != "" ? "${local.profile_prefix}-management" : "management"
+  terraform_profile   = "terraform"
+
+  # Generate profile line only when not in CI
+  application_profile_line = local.is_ci ? "" : "profile = \"${local.application_profile}\""
+  management_profile_line  = local.is_ci ? "" : "profile = \"${local.management_profile}\""
+  terraform_profile_line   = local.is_ci ? "" : "profile = \"${local.terraform_profile}\""
 }
 
 #######
@@ -36,32 +41,32 @@ generate "provider" {
     provider "aws" {
       ##Not alias means this is the default provider when not provided
       region = "${local.region}"
-      profile = "${local.application_profile}"
+      ${local.application_profile_line}
     }
     provider "aws" {
       alias   = "application"
       region = "${local.region}"
-      profile = "${local.application_profile}"
+      ${local.application_profile_line}
     }
     provider "aws" {
       alias   = "management"
       region = "${local.region}"
-      profile = "${local.management_profile}"
+      ${local.management_profile_line}
     }
     provider "aws" {
       alias   = "global-application"
       region = "us-east-1"
-      profile = "${local.application_profile}"
+      ${local.application_profile_line}
     }
     provider "aws" {
       alias   = "global-management"
       region = "us-east-1"
-      profile = "${local.management_profile}"
+      ${local.management_profile_line}
     }
     provider "aws" {
       alias   = "terraform"
       region = "${local.region}"
-      profile = "${local.terraform_profile}"
+      ${local.terraform_profile_line}
     }
     terraform {
       required_providers {
@@ -81,14 +86,16 @@ EOF
 ## The setup below relies on the AWS terraform profile
 remote_state {
   backend = "s3"
-  config = {
-    encrypt        = true
-    bucket         = get_env(upper("TG_BUCKET_${local.region_label}"), "")
-    key            = "${local.region_label}/${path_relative_to_include()}/terraform.tfstate"
-    region         = local.region
-    dynamodb_table = get_env(upper("TG_TABLE_${local.region_label}"), "")
-    profile        = "terraform"
-  }
+  config = merge(
+    {
+      encrypt        = true
+      bucket         = get_env(upper("TG_BUCKET_${local.region_label}"), "")
+      key            = "${local.region_label}/${path_relative_to_include()}/terraform.tfstate"
+      region         = local.region
+      dynamodb_table = get_env(upper("TG_TABLE_${local.region_label}"), "")
+    },
+    local.is_ci ? {} : { profile = "terraform" }
+  )
   generate = {
     path      = "backend.tf"
     if_exists = "overwrite_terragrunt"
