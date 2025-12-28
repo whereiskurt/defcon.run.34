@@ -28,16 +28,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cache Terraform Providers
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.terraform.d/plugin-cache
-            infra/terraform/live/site/**/.terraform
-          key: terraform-${{ runner.os }}-${{ hashFiles('infra/terraform/**/*.tf') }}
-          restore-keys: |
-            terraform-${{ runner.os }}-
-
       - name: Cache Terragrunt and SOPS
         uses: actions/cache@v4
         with:
@@ -46,10 +36,13 @@ jobs:
             /usr/local/bin/sops
           key: tools-${{ runner.os }}-terragrunt-v0.77.10-sops-v3.9.4
 
-      - name: Configure Terraform Plugin Cache
-        run: |
-          mkdir -p ~/.terraform.d/plugin-cache
-          echo 'plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"' > ~/.terraformrc
+      - name: Cache Terragrunt Provider Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.terragrunt-cache
+          key: terragrunt-providers-${{ runner.os }}-${{ hashFiles('infra/terraform/**/*.tf') }}
+          restore-keys: |
+            terragrunt-providers-${{ runner.os }}-
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -84,6 +77,8 @@ jobs:
       - name: Terragrunt Plan
         id: plan
         working-directory: infra/terraform/live/site
+        env:
+          TERRAGRUNT_PROVIDER_CACHE: "1"
         run: |
           # Run plan and capture output
           terragrunt run-all plan -no-color 2>&1 | tee plan_output.txt

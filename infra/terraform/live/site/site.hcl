@@ -441,6 +441,43 @@ locals {
                 }
               ]
             })
+          },
+          {
+            name = "terraform-state-lock"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "DynamoDBStateLock"
+                  Effect = "Allow"
+                  Action = [
+                    "dynamodb:PutItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:DeleteItem"
+                  ]
+                  Resource = [
+                    "arn:aws:dynamodb:us-east-1:427284555693:table/tf-defcon-run-use1-*",
+                    "arn:aws:dynamodb:ca-central-1:427284555693:table/tf-defcon-run-cac1-*"
+                  ]
+                },
+                {
+                  Sid    = "S3StateAccess"
+                  Effect = "Allow"
+                  Action = [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucket"
+                  ]
+                  Resource = [
+                    "arn:aws:s3:::tf-defcon-run-use1-*",
+                    "arn:aws:s3:::tf-defcon-run-use1-*/*",
+                    "arn:aws:s3:::tf-defcon-run-cac1-*",
+                    "arn:aws:s3:::tf-defcon-run-cac1-*/*"
+                  ]
+                }
+              ]
+            })
           }
         ]
       }
