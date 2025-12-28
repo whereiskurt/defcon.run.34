@@ -37,11 +37,13 @@ jobs:
           restore-keys: |
             terraform-${{ runner.os }}-
 
-      - name: Cache Terragrunt
+      - name: Cache Terragrunt and SOPS
         uses: actions/cache@v4
         with:
-          path: /usr/local/bin/terragrunt
-          key: terragrunt-${{ runner.os }}-v0.77.10
+          path: |
+            /usr/local/bin/terragrunt
+            /usr/local/bin/sops
+          key: tools-${{ runner.os }}-terragrunt-v0.77.10-sops-v3.9.4
 
       - name: Configure Terraform Plugin Cache
         run: |
@@ -68,6 +70,15 @@ jobs:
             chmod +x /usr/local/bin/terragrunt
           fi
           terragrunt --version
+
+      - name: Setup SOPS
+        run: |
+          if [ ! -f /usr/local/bin/sops ]; then
+            curl -Lo /usr/local/bin/sops \
+              "https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64"
+            chmod +x /usr/local/bin/sops
+          fi
+          sops --version
 
       - name: Terragrunt Plan
         id: plan

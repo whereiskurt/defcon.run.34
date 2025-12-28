@@ -420,6 +420,29 @@ locals {
         policy_arns = [
           "arn:aws:iam::aws:policy/ReadOnlyAccess"
         ]
+
+        inline_policies = [
+          {
+            name = "kms-sops-decrypt"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "SOPSDecrypt"
+                  Effect = "Allow"
+                  Action = [
+                    "kms:Decrypt",
+                    "kms:DescribeKey"
+                  ]
+                  Resource = [
+                    "arn:aws:kms:us-east-1:427284555693:key/mrk-1025ab1d1f5848fc9d680bdd7e827c80",
+                    "arn:aws:kms:ca-central-1:427284555693:key/mrk-1025ab1d1f5848fc9d680bdd7e827c80"
+                  ]
+                }
+              ]
+            })
+          }
+        ]
       }
     ]
   }

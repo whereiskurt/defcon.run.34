@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: \.secrets(\.sops)?\.json$
+    kms: "arn:aws:kms:us-east-1:427284555693:key/mrk-1025ab1d1f5848fc9d680bdd7e827c80,arn:aws:kms:ca-central-1:427284555693:key/mrk-1025ab1d1f5848fc9d680bdd7e827c80"
