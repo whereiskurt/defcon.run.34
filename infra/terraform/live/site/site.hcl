@@ -484,6 +484,19 @@ locals {
         cross_account_arns = [
           "arn:aws:iam::481723467561:role/dc34-github-delegate"
         ]
+      },
+
+      # Prowler security scanning role
+      {
+        name                 = "prowler"
+        description          = "Prowler security scanning (read-only)"
+        # No restrictions - can run from any branch/PR for security audits
+        max_session_duration = 3600
+
+        policy_arns = [
+          "arn:aws:iam::aws:policy/ReadOnlyAccess",
+          "arn:aws:iam::aws:policy/SecurityAudit"
+        ]
       }
     ]
   }
