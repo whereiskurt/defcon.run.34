@@ -480,6 +480,11 @@ locals {
             })
           }
         ]
+
+        # Cross-account access to management account for Route53
+        cross_account_arns = [
+          "arn:aws:iam::481723467561:role/dc34-github-delegate"
+        ]
       }
     ]
   }
