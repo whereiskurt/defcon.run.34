@@ -3,6 +3,9 @@ locals {
   region       = try(local.resource.locals.region.full, "us-east-1")
   region_label = try(local.resource.locals.region.label, "use1")
 
+  # Detect CI environment (GitHub Actions sets CI=true)
+  is_ci = get_env("CI", "") == "true"
+
   # AWS profile prefix from environment variable TF_VAR_profile_prefix
   # Can be set via: export TF_VAR_profile_prefix="dc" or export TF_VAR_profile_prefix="gr"
   # If not set or empty, no prefix is used
@@ -11,9 +14,10 @@ locals {
   # Construct profile names with optional prefix
   # If prefix is empty or "", returns profile name as-is
   # Otherwise returns "prefix-profile"
-  application_profile = local.profile_prefix != "" ? "${local.profile_prefix}-application" : "application"
-  management_profile  = local.profile_prefix != "" ? "${local.profile_prefix}-management" : "management"
-  terraform_profile   = "terraform"  # terraform profile never gets a prefix
+  # In CI, profiles are not used (credentials come from environment)
+  application_profile = local.is_ci ? null : (local.profile_prefix != "" ? "${local.profile_prefix}-application" : "application")
+  management_profile  = local.is_ci ? null : (local.profile_prefix != "" ? "${local.profile_prefix}-management" : "management")
+  terraform_profile   = local.is_ci ? null : "terraform"
 }
 
 #######
