@@ -1,6 +1,7 @@
 name: Terragrunt Plan
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'infra/terraform/**'
@@ -110,7 +111,23 @@ jobs:
           path: infra/terraform/live/site/plan_output.txt
           retention-days: 7
 
+      - name: Write Job Summary
+        run: |
+          STATUS=$([[ "${{ steps.plan.outcome }}" == "success" ]] && echo "✅" || echo "❌")
+          echo "## ${STATUS} Terragrunt Plan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "<details>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>Click to expand plan output</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```hcl' >> $GITHUB_STEP_SUMMARY
+          cat infra/terraform/live/site/plan_summary.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "*Plan generated from commit ${{ github.sha }}*" >> $GITHUB_STEP_SUMMARY
+
       - name: Comment on PR
+        if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
