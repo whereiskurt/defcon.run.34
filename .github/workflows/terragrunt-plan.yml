@@ -101,7 +101,7 @@ jobs:
         with:
           name: terragrunt-plan
           path: infra/terraform/live/site/plan_output.txt
-          retention-days: 7
+          retention-days: 14
 
       - name: Write Job Summary
         run: |

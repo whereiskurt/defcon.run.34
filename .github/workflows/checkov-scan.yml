@@ -126,4 +126,4 @@ jobs:
         with:
           name: checkov-results-${{ github.run_number }}
           path: checkov-results.json
-          retention-days: 30
+          retention-days: 14

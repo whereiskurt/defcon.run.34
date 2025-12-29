@@ -152,7 +152,7 @@ jobs:
         with:
           name: terragrunt-apply
           path: infra/terraform/live/site/apply_output.txt
-          retention-days: 30
+          retention-days: 14
 
       - name: Write Job Summary
         if: always()

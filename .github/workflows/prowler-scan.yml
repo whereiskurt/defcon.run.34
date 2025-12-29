@@ -121,7 +121,7 @@ jobs:
         with:
           name: prowler-results-${{ github.run_number }}
           path: prowler-output/
-          retention-days: 30
+          retention-days: 14
 
       - name: Write Job Summary
         if: always()

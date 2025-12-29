@@ -150,7 +150,7 @@ jobs:
         with:
           name: npm-audit-${{ matrix.app == 'run.auth/webapp' && 'run-auth' || 'run-human' }}
           path: apps/${{ matrix.app }}/audit-report.json
-          retention-days: 30
+          retention-days: 14
 
       - name: Fail on high/critical vulnerabilities
         if: steps.audit.outputs.critical != '0' || steps.audit.outputs.high != '0'
