@@ -40,27 +40,109 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
+        id: audit
         working-directory: apps/${{ matrix.app }}
         run: |
-          echo "## NPM Audit Results for ${{ matrix.app }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          # Run audit and capture JSON output
+          npm audit --json > audit-report.json 2>&1 || true
 
-          # Run audit and capture output
-          if npm audit --audit-level=high 2>&1 | tee audit-output.txt; then
-            echo "✅ No high or critical vulnerabilities found" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ Vulnerabilities found:" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat audit-output.txt >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
+          # Extract vulnerability counts
+          CRITICAL=$(jq '.metadata.vulnerabilities.critical // 0' audit-report.json)
+          HIGH=$(jq '.metadata.vulnerabilities.high // 0' audit-report.json)
+          MODERATE=$(jq '.metadata.vulnerabilities.moderate // 0' audit-report.json)
+          LOW=$(jq '.metadata.vulnerabilities.low // 0' audit-report.json)
+          INFO=$(jq '.metadata.vulnerabilities.info // 0' audit-report.json)
+          TOTAL=$(jq '.metadata.vulnerabilities.total // 0' audit-report.json)
 
-      - name: Generate audit JSON report
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
+          echo "low=$LOW" >> $GITHUB_OUTPUT
+          echo "info=$INFO" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+
+      - name: Generate Summary Report
         if: always()
         working-directory: apps/${{ matrix.app }}
         run: |
-          npm audit --json > audit-report.json || true
+          echo "## NPM Security Audit: ${{ matrix.app }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          TOTAL=${{ steps.audit.outputs.total }}
+
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Critical | ${{ steps.audit.outputs.critical }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High | ${{ steps.audit.outputs.high }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Moderate | ${{ steps.audit.outputs.moderate }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟢 Low | ${{ steps.audit.outputs.low }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ℹ️ Info | ${{ steps.audit.outputs.info }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total** | **$TOTAL** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "✅ **No vulnerabilities found!**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Vulnerability Details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Process each vulnerability
+            jq -r '.vulnerabilities | to_entries[] | @base64' audit-report.json 2>/dev/null | while read -r item; do
+              _jq() {
+                echo "$item" | base64 --decode | jq -r "${1}"
+              }
+
+              NAME=$(_jq '.key')
+              SEVERITY=$(_jq '.value.severity')
+              TITLE=$(_jq '.value.via[0].title // .value.via[0] // "Indirect dependency"')
+              URL=$(_jq '.value.via[0].url // ""')
+              RANGE=$(_jq '.value.range // "unknown"')
+              FIX=$(_jq '.value.fixAvailable | if type == "object" then "Update \(.name) to \(.version)" elif . == true then "Yes" else "No" end')
+              DIRECT=$(_jq '.value.isDirect')
+              EFFECTS=$(_jq '.value.effects | join(", ") // ""')
+
+              # Set severity emoji
+              case "$SEVERITY" in
+                critical) EMOJI="🔴" ;;
+                high) EMOJI="🟠" ;;
+                moderate) EMOJI="🟡" ;;
+                low) EMOJI="🟢" ;;
+                *) EMOJI="ℹ️" ;;
+              esac
+
+              echo "<details>" >> $GITHUB_STEP_SUMMARY
+              echo "<summary>$EMOJI <strong>$NAME</strong> ($SEVERITY)</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+              echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+
+              if [ "$TITLE" != "null" ] && [ -n "$TITLE" ]; then
+                echo "| **Issue** | $TITLE |" >> $GITHUB_STEP_SUMMARY
+              fi
+
+              echo "| **Package** | \`$NAME\` |" >> $GITHUB_STEP_SUMMARY
+              echo "| **Affected Versions** | \`$RANGE\` |" >> $GITHUB_STEP_SUMMARY
+              echo "| **Direct Dependency** | $DIRECT |" >> $GITHUB_STEP_SUMMARY
+
+              if [ -n "$EFFECTS" ] && [ "$EFFECTS" != "" ]; then
+                echo "| **Affects** | $EFFECTS |" >> $GITHUB_STEP_SUMMARY
+              fi
+
+              echo "| **Fix Available** | $FIX |" >> $GITHUB_STEP_SUMMARY
+
+              if [ "$URL" != "null" ] && [ -n "$URL" ]; then
+                echo "| **Advisory** | [View Details]($URL) |" >> $GITHUB_STEP_SUMMARY
+              fi
+
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
 
       - name: Upload audit report
         if: always()
@@ -69,3 +151,9 @@ jobs:
           name: npm-audit-${{ matrix.app == 'run.auth/webapp' && 'run-auth' || 'run-human' }}
           path: apps/${{ matrix.app }}/audit-report.json
           retention-days: 30
+
+      - name: Fail on high/critical vulnerabilities
+        if: steps.audit.outputs.critical != '0' || steps.audit.outputs.high != '0'
+        run: |
+          echo "::error::Found ${{ steps.audit.outputs.critical }} critical and ${{ steps.audit.outputs.high }} high severity vulnerabilities"
+          exit 1
