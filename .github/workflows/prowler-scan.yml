@@ -83,7 +83,7 @@ jobs:
 
           # Run prowler using Docker (faster than pip install)
           # Both config and mutelist are loaded from mounted .prowler directory
-          # --ignore-muted-findings excludes findings in the mutelist from output
+          # Muted findings will show as status=FAIL but muted=true in output
           docker run --rm \
             -e AWS_ACCESS_KEY_ID \
             -e AWS_SECRET_ACCESS_KEY \
@@ -97,27 +97,29 @@ jobs:
             --severity $SEVERITY \
             --config-file /home/prowler/.prowler/config.yaml \
             --mutelist-file /home/prowler/.prowler/allowlist.yaml \
-            --ignore-muted-findings \
             --output-formats json-ocsf html \
             --output-directory /home/prowler/output \
             --status FAIL MANUAL \
             || true  # Don't fail the workflow on findings
 
-          # Count findings (OCSF format uses capitalized severity names)
-          # Use grep -o to find matches, then wc -l to count them
-          # This handles the case where grep returns exit code 1 for no matches
-          CRITICAL=$(grep -o '"severity": "Critical"' prowler-output/*.ocsf.json 2>/dev/null | wc -l | tr -d ' ')
-          HIGH=$(grep -o '"severity": "High"' prowler-output/*.ocsf.json 2>/dev/null | wc -l | tr -d ' ')
-          MEDIUM=$(grep -o '"severity": "Medium"' prowler-output/*.ocsf.json 2>/dev/null | wc -l | tr -d ' ')
+          # Count non-muted findings only (OCSF format)
+          # status_id: 1=New, 2=Update, 5=Suppressed (muted)
+          # We count only findings where status_id != 5 (not muted)
+          CRITICAL=$(jq -s '[.[][] | select(.severity == "Critical" and .status_id != 5)] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
+          HIGH=$(jq -s '[.[][] | select(.severity == "High" and .status_id != 5)] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
+          MEDIUM=$(jq -s '[.[][] | select(.severity == "Medium" and .status_id != 5)] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
+          MUTED=$(jq -s '[.[][] | select(.status_id == 5)] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
 
           # Ensure we have valid numbers (default to 0 if empty)
           CRITICAL=${CRITICAL:-0}
           HIGH=${HIGH:-0}
           MEDIUM=${MEDIUM:-0}
+          MUTED=${MUTED:-0}
 
           echo "critical_count=$CRITICAL" >> $GITHUB_OUTPUT
           echo "high_count=$HIGH" >> $GITHUB_OUTPUT
           echo "medium_count=$MEDIUM" >> $GITHUB_OUTPUT
+          echo "muted_count=$MUTED" >> $GITHUB_OUTPUT
 
       - name: Upload Prowler Results
         uses: actions/upload-artifact@v4
@@ -143,6 +145,7 @@ jobs:
           echo "| Critical | ${{ steps.prowler.outputs.critical_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| High | ${{ steps.prowler.outputs.high_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Medium | ${{ steps.prowler.outputs.medium_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Muted | ${{ steps.prowler.outputs.muted_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Full results are available in the uploaded artifacts." >> $GITHUB_STEP_SUMMARY
 
