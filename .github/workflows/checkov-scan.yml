@@ -47,10 +47,18 @@ jobs:
             exit 0
           fi
 
-          # Count results
+          # Count results by status
           PASSED=$(jq '[.results.passed_checks // [] | length] | add // 0' checkov-results.json)
           FAILED=$(jq '[.results.failed_checks // [] | length] | add // 0' checkov-results.json)
           SKIPPED=$(jq '[.results.skipped_checks // [] | length] | add // 0' checkov-results.json)
+
+          # Count failed checks by severity
+          CRITICAL=$(jq '[.results.failed_checks // [] | .[] | select(.severity == "CRITICAL")] | length' checkov-results.json)
+          HIGH=$(jq '[.results.failed_checks // [] | .[] | select(.severity == "HIGH")] | length' checkov-results.json)
+          MEDIUM=$(jq '[.results.failed_checks // [] | .[] | select(.severity == "MEDIUM")] | length' checkov-results.json)
+          LOW=$(jq '[.results.failed_checks // [] | .[] | select(.severity == "LOW")] | length' checkov-results.json)
+          # Count checks without severity (when not using Bridgecrew API)
+          UNKNOWN=$(jq '[.results.failed_checks // [] | .[] | select(.severity == null or .severity == "")] | length' checkov-results.json)
 
           echo "### Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -61,13 +69,26 @@ jobs:
           echo "| ⏭️ Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Output failed checks with details
+          # Only show severity breakdown if there are failures
           if [ "$FAILED" -gt 0 ]; then
-            echo "### ❌ Failed Checks" >> $GITHUB_STEP_SUMMARY
+            echo "### Failed Checks by Severity" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟠 High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟡 Medium | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+            if [ "$UNKNOWN" -gt 0 ]; then
+              echo "| ⚪ Unknown | $UNKNOWN |" >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
 
-            # Process each failed check
-            jq -r '.results.failed_checks // [] | .[] | @base64' checkov-results.json | while read -r item; do
+            echo "### ❌ Failed Check Details" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Process each failed check, sorted by severity
+            jq -r '.results.failed_checks // [] | sort_by(.severity | if . == "CRITICAL" then 0 elif . == "HIGH" then 1 elif . == "MEDIUM" then 2 elif . == "LOW" then 3 else 4 end) | .[] | @base64' checkov-results.json | while read -r item; do
               _jq() {
                 echo "$item" | base64 --decode | jq -r "${1}"
               }
@@ -80,12 +101,23 @@ jobs:
               LINE_END=$(_jq '.file_line_range[1] // "?"')
               GUIDELINE=$(_jq '.guideline // ""')
               BC_ID=$(_jq '.bc_check_id // ""')
+              SEVERITY=$(_jq '.severity // "UNKNOWN"')
+
+              # Set severity emoji
+              case "$SEVERITY" in
+                CRITICAL) EMOJI="🔴" ;;
+                HIGH) EMOJI="🟠" ;;
+                MEDIUM) EMOJI="🟡" ;;
+                LOW) EMOJI="🟢" ;;
+                *) EMOJI="⚪" ; SEVERITY="Unknown" ;;
+              esac
 
               echo "<details>" >> $GITHUB_STEP_SUMMARY
-              echo "<summary><strong>$CHECK_ID</strong>: $CHECK_NAME</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "<summary>$EMOJI <strong>$CHECK_ID</strong>: $CHECK_NAME</summary>" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
               echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
               echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+              echo "| **Severity** | $SEVERITY |" >> $GITHUB_STEP_SUMMARY
               echo "| **Resource** | \`$RESOURCE\` |" >> $GITHUB_STEP_SUMMARY
               echo "| **File** | \`$FILE\` |" >> $GITHUB_STEP_SUMMARY
               echo "| **Lines** | $LINE_START - $LINE_END |" >> $GITHUB_STEP_SUMMARY
@@ -119,6 +151,8 @@ jobs:
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
           echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
 
       - name: Upload Checkov Results
         uses: actions/upload-artifact@v4
