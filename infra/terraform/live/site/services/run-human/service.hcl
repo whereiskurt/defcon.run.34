@@ -44,13 +44,9 @@ locals {
         essential          = true
         command            = ["nginx", "-g", "daemon off;"]
 
-        # Security: Read-only root filesystem with tmpfs for nginx writable paths
-        readonly_root_filesystem = true
-        tmpfs_mounts = [
-          { container_path = "/tmp", size = 64 },
-          { container_path = "/var/run", size = 64 },
-          { container_path = "/var/cache/nginx", size = 64 }
-        ]
+        # Note: readonlyRootFilesystem disabled - Fargate doesn't support tmpfs mounts
+        # and nginx requires writable paths (/var/cache/nginx, /var/run)
+        readonly_root_filesystem = false
 
         environment = [
           {
@@ -85,11 +81,9 @@ locals {
         essential          = true
         command            = ["node", "server.js"]
 
-        # Security: Read-only root filesystem with tmpfs for Node.js writable paths
-        readonly_root_filesystem = true
-        tmpfs_mounts = [
-          { container_path = "/tmp", size = 64 }
-        ]
+        # Note: readonlyRootFilesystem disabled - Fargate doesn't support tmpfs mounts
+        # and Node.js requires writable paths (/tmp)
+        readonly_root_filesystem = false
 
         environment = [
           {

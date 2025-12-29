@@ -79,6 +79,15 @@ Allowlist:
         # Uncomment if SecurityHub is not enabled
         # - "securityhub_enabled"
 
+        # ===========================================
+        # ECS Read-Only Root Filesystem - Fargate limitation
+        # ===========================================
+        # AWS Fargate does not support tmpfs mounts which are required for
+        # read-only root filesystem when containers need writable paths.
+        # This is an accepted AWS platform limitation, not a configuration choice.
+        # See: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-defs.html
+        - "ecs_task_definitions_containers_readonly_access"
+
       # ===========================================
       # ALB Access Logs - Required cross-account access
       # ===========================================
