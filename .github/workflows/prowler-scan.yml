@@ -99,10 +99,17 @@ jobs:
             --status FAIL MANUAL \
             || true  # Don't fail the workflow on findings
 
-          # Count findings
-          CRITICAL=$(grep -c '"severity": "critical"' prowler-output/*.ocsf.json 2>/dev/null || echo "0")
-          HIGH=$(grep -c '"severity": "high"' prowler-output/*.ocsf.json 2>/dev/null || echo "0")
-          MEDIUM=$(grep -c '"severity": "medium"' prowler-output/*.ocsf.json 2>/dev/null || echo "0")
+          # Count findings (OCSF format uses capitalized severity names)
+          # Use grep -o to find matches, then wc -l to count them
+          # This handles the case where grep returns exit code 1 for no matches
+          CRITICAL=$(grep -o '"severity": "Critical"' prowler-output/*.ocsf.json 2>/dev/null | wc -l | tr -d ' ')
+          HIGH=$(grep -o '"severity": "High"' prowler-output/*.ocsf.json 2>/dev/null | wc -l | tr -d ' ')
+          MEDIUM=$(grep -o '"severity": "Medium"' prowler-output/*.ocsf.json 2>/dev/null | wc -l | tr -d ' ')
+
+          # Ensure we have valid numbers (default to 0 if empty)
+          CRITICAL=${CRITICAL:-0}
+          HIGH=${HIGH:-0}
+          MEDIUM=${MEDIUM:-0}
 
           echo "critical_count=$CRITICAL" >> $GITHUB_OUTPUT
           echo "high_count=$HIGH" >> $GITHUB_OUTPUT
