@@ -43,6 +43,16 @@ variable "ecs_tasks" {
       essential          = optional(bool, true)
       command            = optional(list(string), [])
 
+      # Security: Read-only root filesystem (recommended for security)
+      readonly_root_filesystem = optional(bool, true)
+
+      # tmpfs mounts for containers that need write access with readonly root filesystem
+      # Common paths: /tmp, /var/run, /var/cache/nginx
+      tmpfs_mounts = optional(list(object({
+        container_path = string
+        size           = optional(number, 64) # Size in MiB
+      })), [])
+
       environment = optional(list(object({
         name  = string
         value = string

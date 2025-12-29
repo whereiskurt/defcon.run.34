@@ -184,6 +184,19 @@ resource "aws_ecs_task_definition" "task" {
       essential         = container.essential
       command           = length(container.command) > 0 ? container.command : null
 
+      # Security: Read-only root filesystem
+      readonlyRootFilesystem = container.readonly_root_filesystem
+
+      # Linux parameters for tmpfs mounts (needed when using readonly root filesystem)
+      linuxParameters = length(container.tmpfs_mounts) > 0 ? {
+        tmpfs = [
+          for mount in container.tmpfs_mounts : {
+            containerPath = mount.container_path
+            size          = mount.size
+          }
+        ]
+      } : null
+
       # Substitute template variables in environment values
       environment = length(container.environment) > 0 ? [
         for env in container.environment : {

@@ -44,6 +44,14 @@ locals {
         essential          = true
         command            = ["nginx", "-g", "daemon off;"]
 
+        # Security: Read-only root filesystem with tmpfs for nginx writable paths
+        readonly_root_filesystem = true
+        tmpfs_mounts = [
+          { container_path = "/tmp", size = 64 },
+          { container_path = "/var/run", size = 64 },
+          { container_path = "/var/cache/nginx", size = 64 }
+        ]
+
         environment = [
           {
             name  = "APP_URL"
@@ -76,6 +84,12 @@ locals {
         memory_reservation = 256
         essential          = true
         command            = ["node", "server.js"]
+
+        # Security: Read-only root filesystem with tmpfs for Node.js writable paths
+        readonly_root_filesystem = true
+        tmpfs_mounts = [
+          { container_path = "/tmp", size = 64 }
+        ]
 
         environment = [
           {
