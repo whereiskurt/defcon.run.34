@@ -122,3 +122,4 @@ Path pattern: `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/{provider}/{key}`
 Scripts expect these AWS CLI profiles:
 - `application` - For ECR push, S3 sync, ECS operations
 - `terraform` - For infrastructure changes (via Terragrunt)
+
