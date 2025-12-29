@@ -151,6 +151,14 @@ resource "aws_iam_role" "replication" {
           Service = "s3.amazonaws.com"
         }
         Action = "sts:AssumeRole"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnLike = {
+            "aws:SourceArn" = aws_s3_bucket.received_emails.arn
+          }
+        }
       }
     ]
   })

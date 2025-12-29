@@ -54,6 +54,14 @@ resource "aws_iam_role" "email_forwarder" {
         Principal = {
           Service = "lambda.amazonaws.com"
         }
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:lambda:${var.region.full}:${data.aws_caller_identity.current.account_id}:function:${var.site.label}-email-forwarder"
+          }
+        }
       }
     ]
   })

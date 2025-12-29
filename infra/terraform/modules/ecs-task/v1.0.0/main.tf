@@ -91,6 +91,14 @@ resource "aws_iam_role" "execution_role" {
           Service = "ecs-tasks.amazonaws.com"
         }
         Action = "sts:AssumeRole"
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:ecs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:*"
+          }
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
       }
     ]
   })

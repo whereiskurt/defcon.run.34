@@ -13,6 +13,14 @@ resource "aws_iam_role" "on_upload_lambda" {
           Service = "lambda.amazonaws.com"
         }
         Action = "sts:AssumeRole"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:lambda:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:function:*"
+          }
+        }
       }
     ]
   })
@@ -83,6 +91,14 @@ resource "aws_iam_role" "processor_lambda" {
           Service = "lambda.amazonaws.com"
         }
         Action = "sts:AssumeRole"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:lambda:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:function:*"
+          }
+        }
       }
     ]
   })

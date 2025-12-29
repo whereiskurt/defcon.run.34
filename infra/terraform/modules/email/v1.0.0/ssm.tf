@@ -59,7 +59,7 @@ locals {
       domain   = split("@", user)[1]
       username = split("@", user)[0]
       path     = "${split("@", user)[1]}/${split("@", user)[0]}"
-    } : {
+      } : {
       domain   = "default"
       username = user
       path     = "default/${user}"
@@ -133,10 +133,10 @@ resource "aws_ssm_parameter" "s3_bucket_arn" {
 resource "aws_ssm_parameter" "replica_bucket_name" {
   for_each = local.can_configure_replication ? local.replication_destinations_map : {}
 
-  name  = "/${local.ses}/s3/${each.value.label}/bucket_name"
-  type  = "String"
+  name = "/${local.ses}/s3/${each.value.label}/bucket_name"
+  type = "String"
   # Extract bucket name from ARN: arn:aws:s3:::bucket-name -> bucket-name
-  value = replace(local.replica_bucket_arns[each.key], "arn:aws:s3:::", "")
+  value       = replace(local.replica_bucket_arns[each.key], "arn:aws:s3:::", "")
   description = "Cached S3 bucket name for received emails in ${each.value.full} (replica)"
 }
 

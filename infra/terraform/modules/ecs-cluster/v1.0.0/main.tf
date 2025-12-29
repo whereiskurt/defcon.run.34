@@ -1,3 +1,5 @@
+data "aws_caller_identity" "current" {}
+
 locals {
   # Filter clusters for the current region
   region_clusters = [
@@ -72,6 +74,14 @@ resource "aws_iam_role" "ecs_task_role" {
           Service = "ecs-tasks.amazonaws.com"
         }
         Action = "sts:AssumeRole"
+        Condition = {
+          ArnLike = {
+            "aws:SourceArn" = "arn:aws:ecs:${var.region.full}:${data.aws_caller_identity.current.account_id}:*"
+          }
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+        }
       }
     ]
   })

@@ -25,13 +25,13 @@ variable "dns" {
 
 variable "ecs_tasks" {
   type = list(object({
-    name           = string
-    regions        = list(string)
-    cluster_name   = string
-    task_cpu       = optional(number, 512)
-    task_memory    = optional(number, 1024)
-    network_mode   = optional(string, "awsvpc")
-    task_role_arn  = optional(string, "")
+    name               = string
+    regions            = list(string)
+    cluster_name       = string
+    task_cpu           = optional(number, 512)
+    task_memory        = optional(number, 1024)
+    network_mode       = optional(string, "awsvpc")
+    task_role_arn      = optional(string, "")
     execution_role_arn = optional(string, "")
 
     containers = list(object({
@@ -61,7 +61,7 @@ variable "ecs_tasks" {
 
       depends_on = optional(list(object({
         container_name = string
-        condition      = string  # START, COMPLETE, SUCCESS, HEALTHY
+        condition      = string # START, COMPLETE, SUCCESS, HEALTHY
       })), [])
 
       health_check = optional(object({

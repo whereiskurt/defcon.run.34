@@ -46,11 +46,11 @@ resource "aws_s3_bucket" "uploads" {
   force_destroy = true
 
   tags = {
-    Name        = each.value.bucket_name
-    Service     = each.value.service_name
-    Region      = var.region.label
-    Site        = var.site.label
-    Purpose     = "user-uploads"
+    Name    = each.value.bucket_name
+    Service = each.value.service_name
+    Region  = var.region.label
+    Site    = var.site.label
+    Purpose = "user-uploads"
   }
 }
 
@@ -228,6 +228,14 @@ resource "aws_iam_role" "replication" {
           Service = "s3.amazonaws.com"
         }
         Action = "sts:AssumeRole"
+        Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          }
+          ArnLike = {
+            "aws:SourceArn" = aws_s3_bucket.uploads[each.key].arn
+          }
+        }
       }
     ]
   })
