@@ -25,11 +25,11 @@ variable "dns" {
 
 variable "ecs_clusters" {
   type = list(object({
-    name                = string
-    region              = string
-    enable_insights     = optional(bool, false)
-    cluster_type        = optional(string, "FARGATE") # FARGATE, EC2, EC2_GPU
-    namespace_name      = optional(string, "")
+    name            = string
+    region          = string
+    enable_insights = optional(bool, false)
+    cluster_type    = optional(string, "FARGATE") # FARGATE, EC2, EC2_GPU
+    namespace_name  = optional(string, "")
   }))
   description = "List of ECS cluster configurations. Each cluster has a name and region. Multiple clusters can be in the same region."
   default     = []

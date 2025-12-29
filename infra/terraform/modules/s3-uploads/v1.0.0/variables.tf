@@ -18,8 +18,8 @@ variable "region" {
 variable "user_uploads" {
   description = "User upload bucket configurations"
   type = list(object({
-    name         = string # Bucket identifier, e.g., "run-human"
-    service_name = string # Associated ECS service name
+    name         = string       # Bucket identifier, e.g., "run-human"
+    service_name = string       # Associated ECS service name
     regions      = list(string) # Deployment regions (full names)
 
     lifecycle = object({

@@ -4,16 +4,16 @@ output "tasks" {
   value = {
     for name, task in local.tasks_map :
     name => {
-      task_definition_arn = aws_ecs_task_definition.task[name].arn
-      task_definition_family = aws_ecs_task_definition.task[name].family
+      task_definition_arn      = aws_ecs_task_definition.task[name].arn
+      task_definition_family   = aws_ecs_task_definition.task[name].family
       task_definition_revision = aws_ecs_task_definition.task[name].revision
-      cluster_name        = task.cluster_name
-      network_mode        = task.network_mode
-      task_cpu            = task.task_cpu
-      task_memory         = task.task_memory
-      containers          = task.containers
-      region              = var.region.full
-      region_label        = var.region.label
+      cluster_name             = task.cluster_name
+      network_mode             = task.network_mode
+      task_cpu                 = task.task_cpu
+      task_memory              = task.task_memory
+      containers               = task.containers
+      region                   = var.region.full
+      region_label             = var.region.label
     }
   }
 }

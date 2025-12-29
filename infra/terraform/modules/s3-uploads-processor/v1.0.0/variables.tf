@@ -30,13 +30,13 @@ variable "upload_processors" {
 
     # Lambda configuration - source_path is required, points to directory with index.py
     on_upload_lambda = object({
-      source_path = string                  # Path to Lambda source directory
+      source_path = string # Path to Lambda source directory
       timeout     = optional(number, 30)
       memory_size = optional(number, 256)
     })
 
     on_process_lambda = object({
-      source_path = string                  # Path to Lambda source directory
+      source_path = string # Path to Lambda source directory
       timeout     = optional(number, 300)
       memory_size = optional(number, 1024)
     })
