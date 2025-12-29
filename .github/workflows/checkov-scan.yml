@@ -73,12 +73,13 @@ jobs:
               }
 
               CHECK_ID=$(_jq '.check_id')
-              CHECK_NAME=$(_jq '.check.name // .check_id')
+              CHECK_NAME=$(_jq '.check_name // .check_id')
               RESOURCE=$(_jq '.resource')
               FILE=$(_jq '.file_path')
               LINE_START=$(_jq '.file_line_range[0] // "?"')
               LINE_END=$(_jq '.file_line_range[1] // "?"')
               GUIDELINE=$(_jq '.guideline // ""')
+              BC_ID=$(_jq '.bc_check_id // ""')
 
               echo "<details>" >> $GITHUB_STEP_SUMMARY
               echo "<summary><strong>$CHECK_ID</strong>: $CHECK_NAME</summary>" >> $GITHUB_STEP_SUMMARY
@@ -88,6 +89,10 @@ jobs:
               echo "| **Resource** | \`$RESOURCE\` |" >> $GITHUB_STEP_SUMMARY
               echo "| **File** | \`$FILE\` |" >> $GITHUB_STEP_SUMMARY
               echo "| **Lines** | $LINE_START - $LINE_END |" >> $GITHUB_STEP_SUMMARY
+
+              if [ -n "$BC_ID" ] && [ "$BC_ID" != "null" ] && [ "$BC_ID" != "" ]; then
+                echo "| **Bridgecrew ID** | $BC_ID |" >> $GITHUB_STEP_SUMMARY
+              fi
 
               if [ -n "$GUIDELINE" ] && [ "$GUIDELINE" != "null" ] && [ "$GUIDELINE" != "" ]; then
                 echo "| **Guide** | [Documentation]($GUIDELINE) |" >> $GITHUB_STEP_SUMMARY
