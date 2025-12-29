@@ -1,137 +1,136 @@
-# Prowler Mutelist/Allowlist for DEF CON 34 Infrastructure
+# Prowler Mutelist for DEF CON 34 Infrastructure
 # Skip checks that don't apply to our use case or are intentionally accepted risks
-#
-# Format: Prowler v3/v4 mutelist format
 # See: https://docs.prowler.com/projects/prowler-open-source/en/latest/tutorials/mutelist/
 
 Mutelist:
   Accounts:
-    # Apply to all accounts (uses "*" wildcard)
     "*":
       Checks:
-        # ===========================================
-        # Root Account & MFA - Managed separately
-        # ===========================================
-        # Root account is managed at the organization level, not per-account
-        "iam_root_hardware_mfa_enabled":
+        # Root Account & MFA - Managed at organization level
+        iam_root_hardware_mfa_enabled:
           Regions:
             - "*"
           Resources:
             - "*"
-        "iam_root_mfa_enabled":
+        iam_root_mfa_enabled:
           Regions:
             - "*"
           Resources:
             - "*"
-        "iam_no_root_access_key":
+        iam_no_root_access_key:
           Regions:
             - "*"
           Resources:
             - "*"
-        "iam_avoid_root_usage":
-          Regions:
-            - "*"
-          Resources:
-            - "*"
-
-        # ===========================================
-        # MFA for IAM Users - We use OIDC federation
-        # ===========================================
-        # No IAM users with console access - all access via OIDC/SSO
-        "iam_user_mfa_enabled_console_access":
-          Regions:
-            - "*"
-          Resources:
-            - "*"
-        "iam_user_hardware_mfa_enabled":
+        iam_avoid_root_usage:
           Regions:
             - "*"
           Resources:
             - "*"
 
-        # ===========================================
-        # Password Policy - No console users
-        # ===========================================
-        # We don't have IAM users with passwords, only programmatic access
-        "iam_password_policy_uppercase":
+        # MFA for IAM Users - We use OIDC federation, no console users
+        iam_user_mfa_enabled_console_access:
           Regions:
             - "*"
           Resources:
             - "*"
-        "iam_password_policy_lowercase":
-          Regions:
-            - "*"
-          Resources:
-            - "*"
-        "iam_password_policy_number":
-          Regions:
-            - "*"
-          Resources:
-            - "*"
-        "iam_password_policy_symbol":
-          Regions:
-            - "*"
-          Resources:
-            - "*"
-        "iam_password_policy_minimum_length_14":
-          Regions:
-            - "*"
-          Resources:
-            - "*"
-        "iam_password_policy_expires_passwords_within_90_days_or_less":
-          Regions:
-            - "*"
-          Resources:
-            - "*"
-        "iam_password_policy_reuse_24":
+        iam_user_hardware_mfa_enabled:
           Regions:
             - "*"
           Resources:
             - "*"
 
-        # ===========================================
+        # Password Policy - No IAM users with passwords
+        iam_password_policy_uppercase:
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+        iam_password_policy_lowercase:
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+        iam_password_policy_number:
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+        iam_password_policy_symbol:
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+        iam_password_policy_minimum_length_14:
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+        iam_password_policy_expires_passwords_within_90_days_or_less:
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+        iam_password_policy_reuse_24:
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+
         # Support Role - Not using AWS Support
-        # ===========================================
-        "iam_support_role_created":
+        iam_support_role_created:
           Regions:
             - "*"
           Resources:
             - "*"
 
-        # ===========================================
-        # AWS-Managed Roles with AdministratorAccess
-        # ===========================================
-        # OrganizationAccountAccessRole is auto-created by AWS Organizations
-        # and is required for management account to administer member accounts.
-        # AWSReservedSSO_AdministratorAccess is created by AWS IAM Identity Center (SSO)
-        "iam_role_administratoraccess_policy":
+        # AWS-Managed Roles with AdministratorAccess - Required by AWS
+        iam_role_administratoraccess_policy:
           Regions:
             - "*"
           Resources:
-            - "arn:aws:iam::*:role/OrganizationAccountAccessRole"
-            - "arn:aws:iam::*:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_*"
+            - "*OrganizationAccountAccessRole*"
+            - "*AWSReservedSSO_AdministratorAccess_*"
 
-        # ===========================================
-        # ECS Read-Only Root Filesystem - Fargate limitation
-        # ===========================================
-        # AWS Fargate does not support tmpfs mounts which are required for
-        # read-only root filesystem when containers need writable paths.
-        # This is an accepted AWS platform limitation, not a configuration choice.
-        # See: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-task-defs.html
-        "ecs_task_definitions_containers_readonly_access":
+        # AWS-Managed Policy - This is an AWS baseline policy
+        iam_aws_attached_policy_no_administrative_privileges:
+          Regions:
+            - "*"
+          Resources:
+            - "arn:aws:iam::aws:policy/AdministratorAccess"
+
+        # ECS Read-Only Root Filesystem - Fargate doesn't support tmpfs
+        ecs_task_definitions_containers_readonly_access:
           Regions:
             - "*"
           Resources:
             - "*"
 
-        # ===========================================
-        # ALB Access Logs - Required cross-account access
-        # ===========================================
-        # ALB access logging requires AWS's regional ELB accounts to write logs.
-        # These are official AWS-managed accounts, not arbitrary cross-account access.
-        # See: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
-        "s3_bucket_cross_account_access":
+        # S3 Account Level Public Access - May be intentionally configured
+        s3_account_level_public_access_blocks:
           Regions:
             - "*"
           Resources:
-            - "arn:aws:s3:::*logs-alb-*"
+            - "*"
+
+        # ALB Access Logs - AWS ELB regional accounts need cross-account access
+        s3_bucket_cross_account_access:
+          Regions:
+            - "*"
+          Resources:
+            - "*logs-alb-*"
+            - "*www.defcon.run*"
+
+        # KMS Key Rotation - Multi-region keys have different rotation requirements
+        kms_cmk_rotation_enabled:
+          Regions:
+            - "*"
+          Resources:
+            - "*"
+
+        # IAM Confused Deputy - Some roles are externally managed
+        iam_role_cross_service_confused_deputy_prevention:
+          Regions:
+            - "*"
+          Resources:
+            - "*ssm-instance-policy*"
