@@ -33,20 +33,84 @@ jobs:
           download_external_modules: true
           skip_check: CKV_TF_1,CKV_TF_2
 
-      - name: Process Results
+      - name: Generate Summary Report
         if: always()
-        id: results
         run: |
-          if [ -f checkov-results.json ]; then
-            PASSED=$(jq '[.results.passed_checks // [] | length] | add // 0' checkov-results.json)
-            FAILED=$(jq '[.results.failed_checks // [] | length] | add // 0' checkov-results.json)
-            SKIPPED=$(jq '[.results.skipped_checks // [] | length] | add // 0' checkov-results.json)
-          else
-            PASSED=0
-            FAILED=0
-            SKIPPED=0
+          echo "## Checkov IaC Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Directory:** \`infra/terraform/\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ ! -f checkov-results.json ]; then
+            echo "⚠️ No results file found" >> $GITHUB_STEP_SUMMARY
+            exit 0
           fi
 
+          # Count results
+          PASSED=$(jq '[.results.passed_checks // [] | length] | add // 0' checkov-results.json)
+          FAILED=$(jq '[.results.failed_checks // [] | length] | add // 0' checkov-results.json)
+          SKIPPED=$(jq '[.results.skipped_checks // [] | length] | add // 0' checkov-results.json)
+
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Passed | $PASSED |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | $FAILED |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏭️ Skipped | $SKIPPED |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Output failed checks with details
+          if [ "$FAILED" -gt 0 ]; then
+            echo "### ❌ Failed Checks" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Process each failed check
+            jq -r '.results.failed_checks // [] | .[] | @base64' checkov-results.json | while read -r item; do
+              _jq() {
+                echo "$item" | base64 --decode | jq -r "${1}"
+              }
+
+              CHECK_ID=$(_jq '.check_id')
+              CHECK_NAME=$(_jq '.check.name // .check_id')
+              RESOURCE=$(_jq '.resource')
+              FILE=$(_jq '.file_path')
+              LINE_START=$(_jq '.file_line_range[0] // "?"')
+              LINE_END=$(_jq '.file_line_range[1] // "?"')
+              GUIDELINE=$(_jq '.guideline // ""')
+
+              echo "<details>" >> $GITHUB_STEP_SUMMARY
+              echo "<summary><strong>$CHECK_ID</strong>: $CHECK_NAME</summary>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+              echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+              echo "| **Resource** | \`$RESOURCE\` |" >> $GITHUB_STEP_SUMMARY
+              echo "| **File** | \`$FILE\` |" >> $GITHUB_STEP_SUMMARY
+              echo "| **Lines** | $LINE_START - $LINE_END |" >> $GITHUB_STEP_SUMMARY
+
+              if [ -n "$GUIDELINE" ] && [ "$GUIDELINE" != "null" ] && [ "$GUIDELINE" != "" ]; then
+                echo "| **Guide** | [Documentation]($GUIDELINE) |" >> $GITHUB_STEP_SUMMARY
+              fi
+
+              echo "" >> $GITHUB_STEP_SUMMARY
+
+              # Extract and display code snippet
+              CODE_BLOCK=$(_jq '.code_block // null')
+              if [ "$CODE_BLOCK" != "null" ] && [ -n "$CODE_BLOCK" ]; then
+                echo "**Code:**" >> $GITHUB_STEP_SUMMARY
+                echo "\`\`\`hcl" >> $GITHUB_STEP_SUMMARY
+                echo "$item" | base64 --decode | jq -r '.code_block | if type == "array" then .[] | .[1] else . end' >> $GITHUB_STEP_SUMMARY
+                echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+              fi
+
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "</details>" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+          # Store counts for later steps
           echo "passed=$PASSED" >> $GITHUB_OUTPUT
           echo "failed=$FAILED" >> $GITHUB_OUTPUT
           echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
@@ -58,28 +122,3 @@ jobs:
           name: checkov-results-${{ github.run_number }}
           path: checkov-results.json
           retention-days: 30
-
-      - name: Write Job Summary
-        if: always()
-        run: |
-          echo "## Checkov IaC Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Scan Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "**Directory:** infra/terraform/" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| ✅ Passed | ${{ steps.results.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ❌ Failed | ${{ steps.results.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⏭️ Skipped | ${{ steps.results.outputs.skipped }} |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Full results are available in the uploaded artifacts." >> $GITHUB_STEP_SUMMARY
-
-      - name: Fail on Critical Issues
-        if: steps.results.outputs.failed != '0'
-        run: |
-          echo "::warning::Found ${{ steps.results.outputs.failed }} failed security checks"
-          # Uncomment the line below to fail the workflow on any failures
-          # exit 1
