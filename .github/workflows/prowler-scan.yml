@@ -58,7 +58,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Create output directory
-        run: mkdir -p prowler-output
+        run: |
+          mkdir -p prowler-output
+          # Prowler container runs as uid 1000, ensure it can write to the output directory
+          chmod 777 prowler-output
 
       - name: Run Prowler Scan
         id: prowler
