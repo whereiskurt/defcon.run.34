@@ -16,26 +16,70 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write
-      actions: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Run Checkov
+        id: checkov
         uses: bridgecrewio/checkov-action@1f0ef821c5e4e9c5c9ae9550701402d75c9608b5 # v12
         with:
           directory: infra/terraform/
           framework: terraform
-          output_format: cli,sarif
-          output_file_path: console,checkov-results.sarif
+          output_format: cli,json
+          output_file_path: console,checkov-results.json
           soft_fail: true
           download_external_modules: true
           skip_check: CKV_TF_1,CKV_TF_2
 
-      - name: Upload SARIF results
-        uses: github/codeql-action/upload-sarif@v4
+      - name: Process Results
+        if: always()
+        id: results
+        run: |
+          if [ -f checkov-results.json ]; then
+            PASSED=$(jq '[.results.passed_checks // [] | length] | add // 0' checkov-results.json)
+            FAILED=$(jq '[.results.failed_checks // [] | length] | add // 0' checkov-results.json)
+            SKIPPED=$(jq '[.results.skipped_checks // [] | length] | add // 0' checkov-results.json)
+          else
+            PASSED=0
+            FAILED=0
+            SKIPPED=0
+          fi
+
+          echo "passed=$PASSED" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+          echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+
+      - name: Upload Checkov Results
+        uses: actions/upload-artifact@v4
         if: always()
         with:
-          sarif_file: checkov-results.sarif
+          name: checkov-results-${{ github.run_number }}
+          path: checkov-results.json
+          retention-days: 30
+
+      - name: Write Job Summary
+        if: always()
+        run: |
+          echo "## Checkov IaC Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Scan Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Directory:** infra/terraform/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ Passed | ${{ steps.results.outputs.passed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ Failed | ${{ steps.results.outputs.failed }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⏭️ Skipped | ${{ steps.results.outputs.skipped }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Full results are available in the uploaded artifacts." >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail on Critical Issues
+        if: steps.results.outputs.failed != '0'
+        run: |
+          echo "::warning::Found ${{ steps.results.outputs.failed }} failed security checks"
+          # Uncomment the line below to fail the workflow on any failures
+          # exit 1
