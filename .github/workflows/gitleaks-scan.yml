@@ -16,11 +16,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@34e11480e09d7e498a3c2a210ea1c11bb81e4fbb # v4.3.1
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        uses: gitleaks/gitleaks-action@dcedce43c6f43de0b836d1fe38946645c9c638dc # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
