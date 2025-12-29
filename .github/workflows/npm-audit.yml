@@ -1,0 +1,71 @@
+name: NPM Security Audit
+
+on:
+  # pull_request:
+  #   paths:
+  #     - 'apps/**/package.json'
+  #     - 'apps/**/package-lock.json'
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'apps/**/package.json'
+  #     - 'apps/**/package-lock.json'
+  schedule:
+    # Run weekly on Monday at 6am UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    name: NPM Audit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app:
+          - run.auth/webapp
+          - run.human/webapp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e11480e09d7e498a3c2a210ea1c11bb81e4fbb # v4.3.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        working-directory: apps/${{ matrix.app }}
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          echo "## NPM Audit Results for ${{ matrix.app }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Run audit and capture output
+          if npm audit --audit-level=high 2>&1 | tee audit-output.txt; then
+            echo "✅ No high or critical vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Vulnerabilities found:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat audit-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Generate audit JSON report
+        if: always()
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          npm audit --json > audit-report.json || true
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: npm-audit-${{ matrix.app == 'run.auth/webapp' && 'run-auth' || 'run-human' }}
+          path: apps/${{ matrix.app }}/audit-report.json
+          retention-days: 30

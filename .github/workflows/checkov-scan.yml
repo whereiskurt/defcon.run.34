@@ -1,0 +1,40 @@
+name: Checkov IaC Security Scan
+
+on:
+  # pull_request:
+  #   paths:
+  #     - 'infra/terraform/**'
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'infra/terraform/**'
+  workflow_dispatch:
+
+jobs:
+  checkov:
+    name: Checkov IaC Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e11480e09d7e498a3c2a210ea1c11bb81e4fbb # v4.3.1
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf # v12.1347.0
+        with:
+          directory: infra/terraform/
+          framework: terraform
+          output_format: cli,sarif
+          output_file_path: console,checkov-results.sarif
+          soft_fail: true
+          download_external_modules: true
+          skip_check: CKV_TF_1,CKV_TF_2
+
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@45c3735f22d3c38608a8ffa1f04c7f6c9f4ba7d3 # v3.31.9
+        if: always()
+        with:
+          sarif_file: checkov-results.sarif
