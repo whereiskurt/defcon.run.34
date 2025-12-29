@@ -82,6 +82,7 @@ jobs:
           echo "Severity: $SEVERITY"
 
           # Run prowler using Docker (faster than pip install)
+          # --ignore-muted-findings excludes findings in the mutelist from output
           docker run --rm \
             -e AWS_ACCESS_KEY_ID \
             -e AWS_SECRET_ACCESS_KEY \
@@ -94,6 +95,7 @@ jobs:
             --service $SERVICES \
             --severity $SEVERITY \
             --mutelist-file /home/prowler/.prowler/allowlist.yaml \
+            --ignore-muted-findings \
             --output-formats json-ocsf html \
             --output-directory /home/prowler/output \
             --status FAIL MANUAL \
