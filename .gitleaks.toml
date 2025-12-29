@@ -1,0 +1,14 @@
+title = "Gitleaks Configuration for defcon.run"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist"
+
+# Allow self-signed certificate keys used for local HTTPS development
+# These are not real secrets - they're for local dev only
+paths = [
+  '''.*selfsigned\.key$''',
+  '''.*selfsigned\.pem$''',
+]
