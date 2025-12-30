@@ -81,4 +81,10 @@ resource "aws_lambda_event_source_mapping" "processor" {
       })
     }
   }
+
+  # Ensure IAM role and policy are fully created before event source mapping
+  depends_on = [
+    aws_iam_role.processor_lambda,
+    aws_iam_role_policy.processor_lambda
+  ]
 }

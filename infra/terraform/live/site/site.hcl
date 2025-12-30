@@ -1,17 +1,18 @@
 locals {
   # Load service definitions from infra/services/
-  ecs_auth_service = read_terragrunt_config("./services/auth/service.hcl")
+  ecs_auth_service      = read_terragrunt_config("./services/auth/service.hcl")
   ecs_run_human_service = read_terragrunt_config("./services/run-human/service.hcl")
+  ecs_cms_service       = read_terragrunt_config("./services/cms/service.hcl")
 
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = []  # Set to ["ca-central-1"] to skip that region
+    skip_regions  = ["ca-central-1"] # Set to ["ca-central-1"] to skip that region
   }
 
   dns = {
     zonename   = "defcon.run"
-    subdomains = ["email", "run", "auth"]
+    subdomains = ["email", "run", "auth", "cms"]
     ttl        = 300
   }
 
@@ -70,11 +71,11 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "auth.defcon.run"
-    domains = ["auth", "run"]
+    domains = ["auth", "run", "cms"]
 
     ##Map fronted domain "auth.defcon.run" to the ruleset called "auth"
     waf_rulesets = {
-      "auth" = "auth"     # Use the 'api' ruleset from waf.hcl
+      "auth" = "auth" # Use the 'api' ruleset from waf.hcl
       #"run"  = "default" # Use the 'default' ruleset from waf.hcl
     }
 
@@ -109,31 +110,31 @@ locals {
     enabled = false
     instances = [
       {
-      count                  = 0
-      region                 = "us-east-1"
-      zone_name              = "run.defcon.run"
-      create_dns_records     = true
-      instance_type          = "t4g.medium"
-      spot_price_multiplier  = 1.00
-      spot_price_offset      = 0.0005
-      block_duration_minutes = 0
-      ec2key_name_prefix     = "ec2spot"
-      ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
-      githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
-    },
-    {
-      count                  = 0
-      region                 = "ca-central-1"
-      zone_name              = "run.defcon.run"
-      create_dns_records     = true
-      instance_type          = "t4g.medium"
-      spot_price_multiplier  = 1.00
-      spot_price_offset      = 0.0005
-      block_duration_minutes = 0
-      ec2key_name_prefix     = "ec2spot"
-      ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
-      githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
-    }
+        count                  = 0
+        region                 = "us-east-1"
+        zone_name              = "run.defcon.run"
+        create_dns_records     = true
+        instance_type          = "t4g.medium"
+        spot_price_multiplier  = 1.00
+        spot_price_offset      = 0.0005
+        block_duration_minutes = 0
+        ec2key_name_prefix     = "ec2spot"
+        ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
+        githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
+      },
+      {
+        count                  = 0
+        region                 = "ca-central-1"
+        zone_name              = "run.defcon.run"
+        create_dns_records     = true
+        instance_type          = "t4g.medium"
+        spot_price_multiplier  = 1.00
+        spot_price_offset      = 0.0005
+        block_duration_minutes = 0
+        ec2key_name_prefix     = "ec2spot"
+        ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
+        githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
+      }
     ]
   }
 
@@ -157,7 +158,7 @@ locals {
 
   dynamodb = {
     enabled = true
-    tables  = concat(
+    tables = concat(
       local.ecs_auth_service.locals.dynamodb.tables,
       local.ecs_run_human_service.locals.dynamodb.tables
     )
@@ -167,7 +168,8 @@ locals {
     enabled = true
     repositories = concat(
       local.ecs_auth_service.locals.ecr_repositories,
-      local.ecs_run_human_service.locals.ecr_repositories
+      local.ecs_run_human_service.locals.ecr_repositories,
+      local.ecs_cms_service.locals.ecr_repositories
     )
   }
 
@@ -175,7 +177,9 @@ locals {
     enabled = true
     tasks = [
       local.ecs_auth_service.locals.task,
-      local.ecs_run_human_service.locals.task
+      local.ecs_run_human_service.locals.task,
+      local.ecs_cms_service.locals.task_master,
+      local.ecs_cms_service.locals.task_worker
     ]
   }
 
@@ -183,15 +187,17 @@ locals {
     enabled = true
     services = [
       local.ecs_auth_service.locals.service,
-      local.ecs_run_human_service.locals.service
+      local.ecs_run_human_service.locals.service,
+      local.ecs_cms_service.locals.service_master,
+      local.ecs_cms_service.locals.service_worker
     ]
   }
 
   user_uploads = {
     enabled = true
     buckets = concat(
-      try(local.ecs_run_human_service.locals.user_uploads, [])
-      # Future: local.ecs_run_gpx_service.locals.user_uploads
+      try(local.ecs_run_human_service.locals.user_uploads, []),
+      try(local.ecs_cms_service.locals.cms_storage, [])
     )
   }
 
@@ -263,6 +269,10 @@ locals {
         description = "CloudFront origin verification secret for multi-region routing"
         keys        = ["secret"]
       }
+      strapi = {
+        description = "Strapi CMS secrets"
+        keys        = ["admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "oidc_client_id", "oidc_client_secret"]
+      }
     }
   }
 
@@ -272,19 +282,19 @@ locals {
     ? run_cmd("--terragrunt-quiet", "sops", "--decrypt", "${get_terragrunt_dir()}/.secrets.sops.json")
     # Fall back to plaintext file
     : fileexists("${get_terragrunt_dir()}/.secrets.json")
-      ? file("${get_terragrunt_dir()}/.secrets.json")
-      : "{}"
+    ? file("${get_terragrunt_dir()}/.secrets.json")
+    : "{}"
   )
 
   github_oidc = {
     enabled     = true
-    github_org  = "whereiskurt"      # Your GitHub org/user
-    github_repo = "defcon.run.34"    # Your repository name
+    github_org  = "whereiskurt"   # Your GitHub org/user
+    github_repo = "defcon.run.34" # Your repository name
 
     # Management account for cross-account Route53 access
     # Set this to your management account ID to get the trust policy output
     # After deploying, create the delegate role in the management account
-    management_account_id = null  # e.g., "123456789012"
+    management_account_id = null # e.g., "123456789012"
 
     roles = [
       # Terragrunt role - for infrastructure deployments
@@ -292,7 +302,7 @@ locals {
       {
         name                    = "terragrunt"
         description             = "Terragrunt infrastructure deployments"
-        environment_restriction = "terraform-apply"  # Only terraform-apply environment can assume this role
+        environment_restriction = "terraform-apply" # Only terraform-apply environment can assume this role
         max_session_duration    = 3600
 
         # Full admin for now - scope down for production
@@ -311,7 +321,7 @@ locals {
       {
         name                 = "application"
         description          = "Application deployments (ECR, S3, ECS)"
-        branch_restriction   = "main"  # Only main branch can deploy
+        branch_restriction   = "main" # Only main branch can deploy
         max_session_duration = 3600
 
         # Scoped permissions for app deployment
@@ -411,8 +421,8 @@ locals {
 
       # Read-only role for PR plan previews
       {
-        name               = "readonly"
-        description        = "Read-only for PR plan previews"
+        name        = "readonly"
+        description = "Read-only for PR plan previews"
         # No branch/environment restriction - all PRs can use this
         max_session_duration = 3600
 
@@ -488,8 +498,8 @@ locals {
 
       # Prowler security scanning role
       {
-        name                 = "prowler"
-        description          = "Prowler security scanning (read-only)"
+        name        = "prowler"
+        description = "Prowler security scanning (read-only)"
         # No restrictions - can run from any branch/PR for security audits
         max_session_duration = 3600
 

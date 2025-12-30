@@ -132,8 +132,8 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement  = null
-            byte_match_statement  = null
+            rate_based_statement = null
+            byte_match_statement = null
             regex_match_statement = {
               regex_string         = "^(/(use1|cac1))?/api/oidc/"
               field_to_match       = { uri_path = {}, method = null }
@@ -210,9 +210,9 @@ locals {
         # Rate Limiting: POST /api/login - Prevents brute-force
         # Supports optional region prefix: /api/login, /use1/api/login, /cac1/api/login
         {
-          name            = "RateLimitLoginEndpoint"
-          priority        = 10
-          action          = "block"
+          name     = "RateLimitLoginEndpoint"
+          priority = 10
+          action   = "block"
           custom_response = {
             response_code            = 469
             custom_response_body_key = "auth-blocked"
@@ -252,9 +252,9 @@ locals {
         # Rate Limiting: GET /api/captcha/challenge - Prevents challenge generation abuse
         # Supports optional region prefix
         {
-          name            = "RateLimitCaptchaChallenge"
-          priority        = 11
-          action          = "block"
+          name     = "RateLimitCaptchaChallenge"
+          priority = 11
+          action   = "block"
           custom_response = {
             response_code            = 469
             custom_response_body_key = "auth-blocked"
@@ -294,9 +294,9 @@ locals {
         # Rate Limiting: /api/session/validate - OPTIONS requests
         # Supports optional region prefix
         {
-          name            = "RateLimitSessionValidateOptions"
-          priority        = 12
-          action          = "block"
+          name     = "RateLimitSessionValidateOptions"
+          priority = 12
+          action   = "block"
           custom_response = {
             response_code            = 469
             custom_response_body_key = "auth-blocked"
@@ -336,9 +336,9 @@ locals {
         # Rate Limiting: /api/session/validate - GET requests with sess_auth cookie
         # Supports optional region prefix
         {
-          name            = "RateLimitSessionValidateGet"
-          priority        = 13
-          action          = "block"
+          name     = "RateLimitSessionValidateGet"
+          priority = 13
+          action   = "block"
           custom_response = {
             response_code            = 469
             custom_response_body_key = "auth-blocked"
@@ -386,9 +386,9 @@ locals {
         # Rate Limiting: /api/auth/*
         # Supports optional region prefix
         {
-          name            = "RateLimitAuthEndpoints"
-          priority        = 14
-          action          = "block"
+          name     = "RateLimitAuthEndpoints"
+          priority = 14
+          action   = "block"
           custom_response = {
             response_code            = 469
             custom_response_body_key = "auth-blocked"
@@ -414,9 +414,9 @@ locals {
         # Rate Limiting: /api/oidc/*
         # Supports optional region prefix
         {
-          name            = "RateLimitOidcEndpoints"
-          priority        = 15
-          action          = "block"
+          name     = "RateLimitOidcEndpoints"
+          priority = 15
+          action   = "block"
           custom_response = {
             response_code            = 469
             custom_response_body_key = "auth-blocked"
@@ -441,9 +441,9 @@ locals {
         },
         # Global Rate Limit (200 req/5min)
         {
-          name            = "RateLimitGlobal"
-          priority        = 16
-          action          = "block"
+          name     = "RateLimitGlobal"
+          priority = 16
+          action   = "block"
           custom_response = {
             response_code            = 469
             custom_response_body_key = "auth-blocked"
@@ -466,8 +466,8 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement  = null
-            byte_match_statement  = null
+            rate_based_statement = null
+            byte_match_statement = null
             regex_match_statement = {
               regex_string         = "^(/(use1|cac1))?/api/"
               field_to_match       = { uri_path = {}, method = null }
@@ -483,8 +483,8 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement  = null
-            byte_match_statement  = null
+            rate_based_statement = null
+            byte_match_statement = null
             regex_match_statement = {
               regex_string         = "^(/(use1|cac1))?/(login|strava)"
               field_to_match       = { uri_path = {}, method = null }
@@ -500,8 +500,8 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement  = null
-            byte_match_statement  = null
+            rate_based_statement = null
+            byte_match_statement = null
             regex_match_statement = {
               regex_string         = "^(/(use1|cac1))?/?$"
               field_to_match       = { uri_path = {}, method = null }
@@ -534,8 +534,8 @@ locals {
           action          = "allow"
           custom_response = null
           statement = {
-            rate_based_statement  = null
-            byte_match_statement  = null
+            rate_based_statement = null
+            byte_match_statement = null
             regex_match_statement = {
               regex_string         = "^(/(use1|cac1))?/favicon"
               field_to_match       = { uri_path = {}, method = null }

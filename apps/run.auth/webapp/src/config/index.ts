@@ -53,6 +53,10 @@ export const config = {
         clientId: process.env.OIDC_RUNHUMAN_CLIENT_ID!,
         clientSecret: process.env.OIDC_RUNHUMAN_SECRET!,
       },
+      cmsStrapi: {
+        clientId: process.env.OIDC_CMS_CLIENT_ID!,
+        clientSecret: process.env.OIDC_CMS_SECRET!,
+      },
     },
 
     ttl: {

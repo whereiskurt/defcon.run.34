@@ -6,9 +6,9 @@ locals {
   # Network-specific configuration for ca-central-1
   network = {
     vpc = {
-      cidr_block             = "10.1.0.0/16"
-      enable_dns_hostnames   = true
-      enable_dns_support     = true
+      cidr_block              = "10.1.0.0/16"
+      enable_dns_hostnames    = true
+      enable_dns_support      = true
       availability_zone_count = 2
 
       # Public subnets: one per AZ
