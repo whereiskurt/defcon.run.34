@@ -30,10 +30,10 @@ dependency "ecs_cluster" {
   mock_outputs = {
     clusters = {
       "app" = {
-        cluster_id   = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-defcon-run"
-        cluster_name = "app-use1-defcon-run"
-        cluster_arn  = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-defcon-run"
-        namespace_id = "ns-mock"
+        cluster_id     = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-defcon-run"
+        cluster_name   = "app-use1-defcon-run"
+        cluster_arn    = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-defcon-run"
+        namespace_id   = "ns-mock"
         namespace_name = "app-use1-defcon-run.local"
       }
     }
@@ -45,13 +45,13 @@ dependency "network" {
   config_path = "../network"
 
   mock_outputs = {
-    vpc_id              = "vpc-mock123"
-    private_subnet_ids  = ["subnet-private1", "subnet-private2"]
-    public_subnet_ids   = ["subnet-public1", "subnet-public2"]
-    security_group_ids  = ["sg-mock123"]
-    alb_arn             = "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/mock-alb/abc123"
-    alb_listener_arn    = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/app/mock-alb/abc123/def456"
-    nlb_arn             = null
+    vpc_id             = "vpc-mock123"
+    private_subnet_ids = ["subnet-private1", "subnet-private2"]
+    public_subnet_ids  = ["subnet-public1", "subnet-public2"]
+    security_group_ids = ["sg-mock123"]
+    alb_arn            = "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/mock-alb/abc123"
+    alb_listener_arn   = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/app/mock-alb/abc123/def456"
+    nlb_arn            = null
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -79,12 +79,12 @@ inputs = merge(
     clusters = dependency.ecs_cluster.outputs.clusters
 
     # Network resources from network module
-    vpc_id              = dependency.network.outputs.vpc_id
-    private_subnet_ids  = dependency.network.outputs.private_subnet_ids
-    public_subnet_ids   = dependency.network.outputs.public_subnet_ids
-    security_group_ids  = dependency.network.outputs.security_group_ids
-    alb_arn             = try(dependency.network.outputs.alb_arn, "")
-    alb_listener_arn    = try(dependency.network.outputs.alb_listener_arn, "")
-    nlb_arn             = try(dependency.network.outputs.nlb_arn, "")
+    vpc_id             = dependency.network.outputs.vpc_id
+    private_subnet_ids = dependency.network.outputs.private_subnet_ids
+    public_subnet_ids  = dependency.network.outputs.public_subnet_ids
+    security_group_ids = dependency.network.outputs.security_group_ids
+    alb_arn            = try(dependency.network.outputs.alb_arn, "")
+    alb_listener_arn   = try(dependency.network.outputs.alb_listener_arn, "")
+    nlb_arn            = try(dependency.network.outputs.nlb_arn, "")
   }
 )

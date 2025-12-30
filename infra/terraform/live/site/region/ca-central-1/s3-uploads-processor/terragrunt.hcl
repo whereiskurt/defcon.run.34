@@ -67,6 +67,6 @@ inputs = merge(
   {
     # Pass actual bucket/table details from dependencies
     s3_uploads_buckets = dependency.s3_uploads.outputs.buckets
-    dynamodb_tables      = dependency.dynamodb.outputs.tables
+    dynamodb_tables    = dependency.dynamodb.outputs.tables
   }
 )
