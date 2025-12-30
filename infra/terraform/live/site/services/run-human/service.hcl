@@ -275,7 +275,7 @@ locals {
     name          = "run-human"
     regions       = ["us-east-1", "ca-central-1"]
     cluster_name  = "app"
-    task_family   = "run-human"  # Must match task definition family from task above
+    task_family   = "run-human" # Must match task definition family from task above
     desired_count = 1
 
     service_discovery = {
@@ -331,8 +331,8 @@ locals {
       regions      = ["us-east-1", "ca-central-1"]
 
       lifecycle = {
-        uploads_expire_days   = 7  # Clean up uploads after 7 days
-        processed_expire_days = 0  # Never expire processed files
+        uploads_expire_days   = 7 # Clean up uploads after 7 days
+        processed_expire_days = 0 # Never expire processed files
         enable_versioning     = true
       }
 
