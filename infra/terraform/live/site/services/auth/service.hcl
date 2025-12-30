@@ -186,6 +186,14 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/runhuman/client_secret"
           },
           {
+            name      = "OIDC_CMS_CLIENT_ID"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/oidc_client_id"
+          },
+          {
+            name      = "OIDC_CMS_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/oidc_client_secret"
+          },
+          {
             name      = "AUTH_INTERNAL_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
           },
@@ -285,7 +293,7 @@ locals {
     name          = "auth"
     regions       = ["us-east-1", "ca-central-1"]
     cluster_name  = "app"
-    task_family   = "auth"  # Must match task definition family from task above
+    task_family   = "auth" # Must match task definition family from task above
     desired_count = 1
 
     service_discovery = {

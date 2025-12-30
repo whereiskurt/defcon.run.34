@@ -43,6 +43,29 @@ const clients: ClientMetadata[] = [
     scope: "openid profile email services",
     token_endpoint_auth_method: "client_secret_post",
   },
+  // CMS Strapi admin client
+  {
+    client_id: config.oidc.clients.cmsStrapi.clientId,
+    client_secret: config.oidc.clients.cmsStrapi.clientSecret,
+    redirect_uris: [
+      // Production URLs for Strapi admin SSO callback
+      "https://cms.defcon.run/admin/connect/oidc/callback",
+      "https://cms.defcon.run/api/connect/oidc/callback",
+      // Local development
+      "http://localhost:1337/admin/connect/oidc/callback",
+      "http://localhost:1337/api/connect/oidc/callback",
+    ],
+    post_logout_redirect_uris: [
+      // Production
+      "https://cms.defcon.run/admin",
+      // Local development
+      "http://localhost:1337/admin",
+    ],
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
+    scope: "openid profile email services",
+    token_endpoint_auth_method: "client_secret_post",
+  },
 ];
 
 /**
