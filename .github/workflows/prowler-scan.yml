@@ -103,12 +103,13 @@ jobs:
             || true  # Don't fail the workflow on findings
 
           # Count non-muted findings only (OCSF format)
-          # status_id: 1=New, 2=Update, 5=Suppressed (muted)
+          # status_id: 1=New, 2=Update, 3=Suppressed (muted)
+          # status: "New", "Suppressed" (for muted findings)
           # OCSF files are arrays of findings at root level
-          CRITICAL=$(jq '[.[] | select(.severity == "Critical" and .status_id != 5)] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
-          HIGH=$(jq '[.[] | select(.severity == "High" and .status_id != 5)] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
-          MEDIUM=$(jq '[.[] | select(.severity == "Medium" and .status_id != 5)] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
-          MUTED=$(jq '[.[] | select(.status_id == 5)] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
+          CRITICAL=$(jq '[.[] | select(.severity == "Critical" and .status != "Suppressed")] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
+          HIGH=$(jq '[.[] | select(.severity == "High" and .status != "Suppressed")] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
+          MEDIUM=$(jq '[.[] | select(.severity == "Medium" and .status != "Suppressed")] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
+          MUTED=$(jq '[.[] | select(.status == "Suppressed")] | length' prowler-output/*.ocsf.json 2>/dev/null || echo 0)
 
           # Ensure we have valid numbers (default to 0 if empty)
           CRITICAL=${CRITICAL:-0}
