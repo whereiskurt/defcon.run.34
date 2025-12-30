@@ -1,42 +1,42 @@
 # Tasks: Add Strapi CMS with Litestream Replication
 
 ## 1. Service Definition (service.hcl)
-- [ ] 1.1 Create `infra/terraform/live/site/services/cms/` directory
-- [ ] 1.2 Create `service.hcl` with ECR repository definitions (cms-nginx, cms-webapp)
-- [ ] 1.3 Define master task in service.hcl (nginx + webapp with supervisord running strapi + litestream replicate)
-- [ ] 1.4 Define worker task in service.hcl (nginx + webapp with supervisord running strapi + litestream restore/sync)
-- [ ] 1.5 Define `cms_storage` for S3 buckets (litestream + media) using `user_uploads` pattern
-- [ ] 1.6 Define master service (us-east-1, desired_count=1, no autoscaling)
-- [ ] 1.7 Define worker service (both regions, autoscaling enabled)
-- [ ] 1.8 Add VERSION.nginx and VERSION.webapp files
+- [x] 1.1 Create `infra/terraform/live/site/services/cms/` directory
+- [x] 1.2 Create `service.hcl` with ECR repository definitions (cms-nginx, cms-webapp)
+- [x] 1.3 Define master task in service.hcl (nginx + webapp with supervisord running strapi + litestream replicate)
+- [x] 1.4 Define worker task in service.hcl (nginx + webapp with supervisord running strapi + litestream restore/sync)
+- [x] 1.5 Define `cms_storage` for S3 buckets (litestream + media) using `user_uploads` pattern
+- [x] 1.6 Define master service (us-east-1, desired_count=1, no autoscaling)
+- [x] 1.7 Define worker service (both regions, autoscaling enabled)
+- [x] 1.8 Add VERSION.nginx and VERSION.webapp files
 
 ## 2. Site.hcl Integration
-- [ ] 2.1 Add `ecs_cms_service = read_terragrunt_config("./services/cms/service.hcl")` to site.hcl
-- [ ] 2.2 Add `"cms"` to `cloudfront.domains` list
-- [ ] 2.3 Add `"cms"` to `dns.subdomains` list
-- [ ] 2.4 Add CMS ECR repositories to `ecr.repositories` concat
-- [ ] 2.5 Add CMS tasks to `ecs_tasks.tasks` concat
-- [ ] 2.6 Add CMS services to `ecs_services.services` concat
-- [ ] 2.7 Add CMS storage to `user_uploads.buckets` concat
-- [ ] 2.8 Add `strapi` to `secrets.definitions` with keys: admin_jwt_secret, api_token_salt, app_keys, transfer_token_salt, oidc_client_id, oidc_client_secret
+- [x] 2.1 Add `ecs_cms_service = read_terragrunt_config("./services/cms/service.hcl")` to site.hcl
+- [x] 2.2 Add `"cms"` to `cloudfront.domains` list
+- [x] 2.3 Add `"cms"` to `dns.subdomains` list
+- [x] 2.4 Add CMS ECR repositories to `ecr.repositories` concat
+- [x] 2.5 Add CMS tasks to `ecs_tasks.tasks` concat
+- [x] 2.6 Add CMS services to `ecs_services.services` concat
+- [x] 2.7 Add CMS storage to `user_uploads.buckets` concat
+- [x] 2.8 Add `strapi` to `secrets.definitions` with keys: admin_jwt_secret, api_token_salt, app_keys, transfer_token_salt, oidc_client_id, oidc_client_secret
 
 ## 3. Secrets & OIDC Configuration
-- [ ] 3.1 Generate Strapi secrets (`openssl rand -base64 32` for each)
-- [ ] 3.2 Register CMS as OIDC client in auth.defcon.run oidc-provider config
-- [ ] 3.3 Generate oidc_client_id and oidc_client_secret for CMS client
-- [ ] 3.4 Add all strapi secrets to `.secrets.json`:
+- [x] 3.1 Generate Strapi secrets (`openssl rand -base64 32` for each)
+- [x] 3.2 Register CMS as OIDC client in auth.defcon.run oidc-provider config
+- [x] 3.3 Generate oidc_client_id and oidc_client_secret for CMS client
+- [x] 3.4 Add all strapi secrets to `.secrets.json`:
   - admin_jwt_secret, api_token_salt, app_keys, transfer_token_salt
   - oidc_client_id, oidc_client_secret
-- [ ] 3.5 Encrypt with `sops --encrypt .secrets.json > .secrets.sops.json`
-- [ ] 3.6 Verify secrets module will create SSM parameters at `/dc34/secrets/{region}/strapi/*`
+- [x] 3.5 Encrypt with `sops --encrypt .secrets.json > .secrets.sops.json`
+- [x] 3.6 Verify secrets module will create SSM parameters at `/dc34/secrets/{region}/strapi/*`
 
 ## 4. Terraform Apply
-- [ ] 4.1 Run `terragrunt run-all plan` to verify configuration
-- [ ] 4.2 Verify ECR repositories will be created via `modules/ecr`
-- [ ] 4.3 Verify S3 buckets will be created via `modules/s3-uploads`
-- [ ] 4.4 Verify CloudFront will include cms.defcon.run via `modules/cloudfront`
-- [ ] 4.5 Verify ACM certificate will be requested for cms.defcon.run
-- [ ] 4.6 Run `terragrunt run-all apply` to create infrastructure
+- [x] 4.1 Run `terragrunt run-all plan` to verify configuration
+- [x] 4.2 Verify ECR repositories will be created via `modules/ecr`
+- [x] 4.3 Verify S3 buckets will be created via `modules/s3-uploads`
+- [x] 4.4 Verify CloudFront will include cms.defcon.run via `modules/cloudfront`
+- [x] 4.5 Verify ACM certificate will be requested for cms.defcon.run
+- [x] 4.6 Run `terragrunt run-all apply` to create infrastructure
 
 ## 5. Application - Strapi Setup
 - [ ] 5.1 Create `apps/run.cms/` directory structure
