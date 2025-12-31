@@ -6,6 +6,8 @@
 #   ./version.sh webapp run.auth
 #   ./version.sh nginx run.human
 #   ./version.sh webapp run.human
+#   ./version.sh nginx run.cms
+#   ./version.sh app run.cms
 
 set -e
 
@@ -14,18 +16,29 @@ APP="${2}"
 
 if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   echo "Usage: ./version.sh <component> <app>"
-  echo "  component: nginx | webapp"
-  echo "  app: run.auth | run.human"
+  echo "  component: nginx | webapp | app"
+  echo "  app: run.auth | run.human | run.cms"
   exit 1
 fi
 
-if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" ]]; then
-  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx' or 'webapp'"
+if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" ]]; then
+  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', or 'app'"
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth' or 'run.human'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', or 'run.cms'"
+  exit 1
+fi
+
+# Validate component/app combinations
+if [[ "$APP" == "run.cms" && "$COMPONENT" == "webapp" ]]; then
+  echo "ERROR: run.cms uses 'app' component, not 'webapp'"
+  exit 1
+fi
+
+if [[ "$APP" != "run.cms" && "$COMPONENT" == "app" ]]; then
+  echo "ERROR: 'app' component is only valid for run.cms"
   exit 1
 fi
 

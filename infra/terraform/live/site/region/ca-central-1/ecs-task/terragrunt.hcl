@@ -10,8 +10,11 @@ locals {
   ecs_task_vars = read_terragrunt_config("ecs-task.hcl")
 }
 
-# Skip if ecs_tasks is disabled OR if region should be skipped
-skip = !local.site_vars.locals.ecs_tasks.enabled || include.skip.locals.should_skip
+# Exclude if ecs_tasks is disabled OR if region should be skipped (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.ecs_tasks.enabled || include.skip.locals.should_skip
+  actions = ["all"]
+}
 
 dependency "ecs_cluster" {
   config_path = "../ecs-cluster"

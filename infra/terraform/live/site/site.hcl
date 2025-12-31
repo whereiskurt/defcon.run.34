@@ -41,7 +41,8 @@ locals {
 
     smtp_iam_users = [
       "run.defcon.run",
-      "auth.defcon.run"
+      "auth.defcon.run",
+      "cms.defcon.run"
     ]
 
     fwd_rules = [
@@ -271,7 +272,7 @@ locals {
       }
       strapi = {
         description = "Strapi CMS secrets"
-        keys        = ["admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "oidc_client_id", "oidc_client_secret"]
+        keys        = ["admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "jwt_secret", "oidc_client_id", "oidc_client_secret"]
       }
     }
   }

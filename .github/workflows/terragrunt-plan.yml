@@ -31,7 +31,7 @@ jobs:
           path: |
             /usr/local/bin/terragrunt
             /usr/local/bin/sops
-          key: tools-${{ runner.os }}-terragrunt-v0.77.10-sops-v3.9.4
+          key: tools-${{ runner.os }}-terragrunt-v0.96.0-sops-v3.9.4
 
       - name: Cache Terragrunt Provider Cache
         uses: actions/cache@v4
@@ -57,7 +57,7 @@ jobs:
         run: |
           if [ ! -f /usr/local/bin/terragrunt ]; then
             curl -Lo /usr/local/bin/terragrunt \
-              "https://github.com/gruntwork-io/terragrunt/releases/download/v0.77.10/terragrunt_linux_amd64"
+              "https://github.com/gruntwork-io/terragrunt/releases/download/v0.96.0/terragrunt_linux_amd64"
             chmod +x /usr/local/bin/terragrunt
           fi
           terragrunt --version
@@ -78,7 +78,7 @@ jobs:
           TERRAGRUNT_PROVIDER_CACHE: "1"
         run: |
           # Run plan and capture output
-          terragrunt run-all plan -no-color 2>&1 | tee plan_output.txt
+          terragrunt run plan --all -no-color 2>&1 | tee plan_output.txt
 
           # Check exit code
           exit_code=${PIPESTATUS[0]}

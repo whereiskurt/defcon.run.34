@@ -51,6 +51,14 @@ variable "user_uploads" {
       expose_headers  = optional(list(string), ["ETag"])
       max_age_seconds = optional(number, 3600)
     }))
+
+    # Full bucket access mode (for services like Litestream that need unrestricted access)
+    # When true, IAM policy grants full S3 access to entire bucket instead of prefix-restricted
+    full_bucket_access = optional(bool, false)
+
+    # CloudFront access mode (for media buckets served via CloudFront CDN)
+    # When true, bucket policy includes statement allowing CloudFront OAC access
+    cloudfront_access = optional(bool, false)
   }))
   default = []
 }

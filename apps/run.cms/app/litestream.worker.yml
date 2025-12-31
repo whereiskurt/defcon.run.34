@@ -1,0 +1,12 @@
+# Litestream configuration for CMS Worker
+# Used for restore operations (sync handled by script)
+
+dbs:
+  - path: ${DATABASE_FILENAME}
+    replicas:
+      - type: s3
+        bucket: ${S3_LITESTREAM_BUCKET}
+        path: strapi
+        region: ${S3_LITESTREAM_REGION}
+        access-key-id: ${S3_LITESTREAM_ACCESS_KEY}
+        secret-access-key: ${S3_LITESTREAM_SECRET_KEY}

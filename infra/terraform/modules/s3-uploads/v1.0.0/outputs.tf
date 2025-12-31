@@ -24,6 +24,13 @@ output "bucket_arns" {
   }
 }
 
+output "bucket_regional_domain_names" {
+  description = "Map of bucket regional domain names by upload name (for CloudFront origins)"
+  value = {
+    for name, bucket in aws_s3_bucket.uploads : name => bucket.bucket_regional_domain_name
+  }
+}
+
 # Presigner credentials (sensitive)
 output "presigner_credentials" {
   description = "Presigner IAM user credentials (sensitive)"

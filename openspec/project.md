@@ -12,8 +12,8 @@ defcon.run 34 (2026) event infrastructure monorepo. This project provides the we
 ## Tech Stack
 
 ### Frontend
-- **Framework**: Next.js 16 with App Router
-- **React**: React 19
+- **Framework**: Next.js 16.0 with App Router
+- **React**: React 19.2
 - **UI Components**: HeroUI (formerly NextUI)
 - **Styling**: Tailwind CSS 4
 - **Maps**: Leaflet with react-leaflet
@@ -26,8 +26,14 @@ defcon.run 34 (2026) event infrastructure monorepo. This project provides the we
 - **Email**: AWS SES for transactional emails
 - **CAPTCHA**: Altcha (proof-of-work CAPTCHA)
 
+### CMS
+- **Strapi**: v5.6 headless CMS
+- **Database**: SQLite with Litestream replication to S3
+- **Media Storage**: S3 with CloudFront CDN (via OAC)
+- **Auth**: OIDC SSO via run.auth service
+
 ### Infrastructure
-- **IaC**: Terraform modules with Terragrunt orchestration
+- **IaC**: Terraform 1.8 modules with Terragrunt 0.96 orchestration
 - **Container Runtime**: AWS ECS Fargate
 - **Container Registry**: AWS ECR (multi-region)
 - **CDN/Edge**: CloudFront with WAF
@@ -71,6 +77,7 @@ defcon.run 34 (2026) event infrastructure monorepo. This project provides the we
 
 ### Applications
 - **run.auth** (auth.defcon.run): Central authentication service with OIDC provider
+- **run.cms** (cms.defcon.run): Strapi headless CMS for content management
 - **run.human** (run.defcon.run): Main participant-facing application
 
 ### Key Concepts
@@ -78,6 +85,35 @@ defcon.run 34 (2026) event infrastructure monorepo. This project provides the we
 - **Site label**: `dc34` (defcon.run 34)
 - **OAuth providers**: GitHub, Strava, Discord + email magic links
 - **basePath**: Next.js apps use dynamic basePath per region (e.g., `/use1`, `/cac1`)
+
+### CMS Architecture (run.cms)
+The CMS uses Strapi with region-prefixed URL routing:
+
+**URL Configuration:**
+- `server.url` = `https://cms.defcon.run` (base URL, no region prefix)
+- `admin.url` = `/${REGION_SHORT}/admin` (e.g., `/use1/admin`)
+- Full admin URL: `https://cms.defcon.run/use1/admin`
+
+**Request Flow:**
+1. Browser → `https://cms.defcon.run/use1/admin`
+2. CloudFront routes `/use1/admin*` to regional ALB
+3. nginx passes full path to Strapi (no stripping)
+4. Strapi serves admin at `/{region}/admin` path
+
+**Media Storage:**
+- Uploads stored in S3: `uploads-dc34-cms-media-{region}-{suffix}`
+- S3 key prefix: `{region}/cms/` (e.g., `use1/cms/image.png`)
+- Served via CloudFront CDN: `https://cms.defcon.run/{region}/cms/*`
+- CloudFront OAC with `AWS:SourceArn` condition for secure S3 access
+- Strapi S3 plugin config (`plugins.ts`):
+  - `rootPath`: `{region}/cms` - S3 upload prefix
+  - `baseUrl`: `https://cms.defcon.run` - CDN base (no path)
+  - URLs constructed as: `baseUrl + / + rootPath + / + filename`
+
+**Master/Worker Pattern:**
+- Master (us-east-1 only): Handles admin and write operations
+- Workers (both regions): Read-only replicas via Litestream sync
+- Workers accessed internally via service discovery
 
 ### Release Process
 ```bash
@@ -137,4 +173,5 @@ This sets `TG_BUCKET` and other variables needed for state management.
 ### Domains
 - `defcon.run` - Primary domain
 - `auth.defcon.run` - Authentication service
-- `run.defcon.run` - Main application (implied)
+- `cms.defcon.run` - CMS service
+- `run.defcon.run` - Main application

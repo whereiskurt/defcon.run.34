@@ -9,8 +9,11 @@ locals {
   site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
 }
 
-# Skip if upload_processors is disabled OR if region should be skipped
-skip = !local.site_vars.locals.upload_processors.enabled || include.skip.locals.should_skip
+# Exclude if upload_processors is disabled OR if region should be skipped (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.upload_processors.enabled || include.skip.locals.should_skip
+  actions = ["all"]
+}
 
 include "module" {
   path   = "${find_in_parent_folders("modules")}/s3-uploads-processor/config.hcl"

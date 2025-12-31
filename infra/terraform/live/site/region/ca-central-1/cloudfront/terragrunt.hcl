@@ -1,10 +1,19 @@
+# Include skip check for regional resources
+include "skip" {
+  path   = "${find_in_parent_folders("region")}/skip.hcl"
+  expose = true
+}
+
 # Read site config to check if cloudfront is enabled
 locals {
   site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
 }
 
-# Skip if cloudfront is disabled
-skip = !local.site_vars.locals.cloudfront.enabled
+# Exclude if cloudfront is disabled OR if region should be skipped (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.cloudfront.enabled || include.skip.locals.should_skip
+  actions = ["all"]
+}
 
 dependency "network" {
   config_path = "../network"
