@@ -1,9 +1,13 @@
 export default ({ env }) => {
-  // admin.url is relative to server.url (STRAPI_URL)
-  // STRAPI_URL already includes the regional prefix: https://cms.defcon.run/use1
-  // So admin.url just needs to be /admin, resulting in https://cms.defcon.run/use1/admin
+  // Get regional prefix for admin URL path
+  const regionShort = env('REGION_SHORT', 'use1');
+
   return {
-    url: '/admin',
+    // admin.url sets the path where Strapi serves the admin panel
+    // STRAPI_URL = https://cms.defcon.run (no region prefix)
+    // admin.url = /{region}/admin -> full URL = https://cms.defcon.run/use1/admin
+    // nginx passes full path to Strapi, Strapi handles /{region}/admin/* routes
+    url: `/${regionShort}/admin`,
     auth: {
       secret: env('ADMIN_JWT_SECRET'),
     },

@@ -112,7 +112,15 @@ locals {
           },
           {
             name  = "STRAPI_URL"
-            value = "https://cms.defcon.run/{{REGION_LABEL}}"
+            value = "https://cms.defcon.run"
+          },
+          {
+            name  = "SES_FROM_ADDRESS"
+            value = "support@email.defcon.run"
+          },
+          {
+            name  = "SES_REPLYTO_ADDRESS"
+            value = "reply-to@email.defcon.run"
           }
         ]
 
@@ -285,7 +293,15 @@ locals {
           },
           {
             name  = "STRAPI_URL"
-            value = "https://cms.defcon.run/{{REGION_LABEL}}"
+            value = "https://cms.defcon.run"
+          },
+          {
+            name  = "SES_FROM_ADDRESS"
+            value = "support@email.defcon.run"
+          },
+          {
+            name  = "SES_REPLYTO_ADDRESS"
+            value = "reply-to@email.defcon.run"
           }
         ]
 
@@ -407,6 +423,10 @@ locals {
           { label = "cac1", full = "ca-central-1" }
         ]
       }
+
+      # Enable CloudFront OAC access for serving media via CDN
+      # This allows cms.defcon.run/{region}/cms/* to serve media files
+      cloudfront_access = true
     }
   ]
 

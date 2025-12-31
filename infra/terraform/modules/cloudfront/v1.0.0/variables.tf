@@ -64,6 +64,16 @@ variable "waf_web_acl_arns" {
   default     = {}
 }
 
+variable "cms_media_origins" {
+  description = "Map of CMS media bucket origins by region label for the 'cms' domain CloudFront behavior"
+  type = map(object({
+    s3_bucket_id                   = string
+    s3_bucket_arn                  = string
+    s3_bucket_regional_domain_name = string
+  }))
+  default = {}
+}
+
 variable "tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)

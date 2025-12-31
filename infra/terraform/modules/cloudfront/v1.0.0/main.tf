@@ -99,6 +99,20 @@ resource "aws_cloudfront_origin_access_control" "cf_oac" {
   provider = aws.global-application
 }
 
+# Origin Access Control for CMS media buckets
+# Create one OAC per region for CMS media (only if cms_media_origins is populated)
+resource "aws_cloudfront_origin_access_control" "cms_media_oac" {
+  for_each = var.cms_media_origins
+
+  name                              = "oac-cms-media-${each.key}-${var.dns.zonename}"
+  description                       = "OAC for CMS media S3 bucket in ${each.key}"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+
+  provider = aws.global-application
+}
+
 # CloudFront Function to handle root and region path redirects
 # Redirects "/" to "/use1/" and "/use1" to "/use1/", etc.
 resource "aws_cloudfront_function" "root_redirect" {
@@ -179,6 +193,17 @@ resource "aws_cloudfront_distribution" "main" {
       domain_name              = origin.value.s3_bucket_regional_domain_name
       origin_id                = "s3-${origin.key}"
       origin_access_control_id = aws_cloudfront_origin_access_control.cf_oac["${each.key}-${origin.key}"].id
+    }
+  }
+
+  # Dynamic origins for CMS media buckets (only for 'cms' domain)
+  # These serve media uploads at /{region}/cms/*
+  dynamic "origin" {
+    for_each = each.key == "cms" ? var.cms_media_origins : {}
+    content {
+      domain_name              = origin.value.s3_bucket_regional_domain_name
+      origin_id                = "cms-media-${origin.key}"
+      origin_access_control_id = aws_cloudfront_origin_access_control.cms_media_oac[origin.key].id
     }
   }
 
@@ -281,6 +306,23 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
+  # Ordered cache behaviors for CMS media routing (only for 'cms' domain)
+  # IMPORTANT: This must come BEFORE the ALB wildcard patterns
+  # Pattern: /{region_label}/cms/* routes to CMS media S3 bucket
+  dynamic "ordered_cache_behavior" {
+    for_each = each.key == "cms" ? var.cms_media_origins : {}
+    content {
+      path_pattern           = "/${ordered_cache_behavior.key}/cms/*"
+      target_origin_id       = "cms-media-${ordered_cache_behavior.key}"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+    }
+  }
+
   # Ordered cache behaviors for regional ALB routing
   # Pattern: /{region_label}/* routes to ALB for this domain
   # Only create ALB behaviors where alb_dns_name is not empty
@@ -361,8 +403,8 @@ resource "aws_s3_bucket_policy" "cf_oac_access_use1" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudFrontOACAccess"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontOACAccess"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }
@@ -393,8 +435,8 @@ resource "aws_s3_bucket_policy" "cf_oac_access_cac1" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowCloudFrontOACAccess"
-        Effect    = "Allow"
+        Sid    = "AllowCloudFrontOACAccess"
+        Effect = "Allow"
         Principal = {
           Service = "cloudfront.amazonaws.com"
         }
@@ -403,6 +445,75 @@ resource "aws_s3_bucket_policy" "cf_oac_access_cac1" {
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.main[each.key].arn
+          }
+        }
+      }
+    ]
+  })
+
+  provider = aws.cac1
+}
+
+# Bucket policies for CMS media buckets in us-east-1 (use1)
+# These allow CloudFront OAC access to serve media files at /{region}/cms/*
+resource "aws_s3_bucket_policy" "cms_media_oac_access_use1" {
+  # Only create if bucket exists (non-empty and not a mock value)
+  for_each = (
+    contains(keys(var.cms_media_origins), "use1") &&
+    try(var.cms_media_origins["use1"].s3_bucket_id, "") != "" &&
+    !startswith(try(var.cms_media_origins["use1"].s3_bucket_id, ""), "mock-")
+  ) ? toset(["cms"]) : toset([])
+
+  bucket = var.cms_media_origins["use1"].s3_bucket_id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontOACAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${var.cms_media_origins["use1"].s3_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.main["cms"].arn
+          }
+        }
+      }
+    ]
+  })
+
+  provider = aws.use1
+}
+
+# Bucket policies for CMS media buckets in ca-central-1 (cac1)
+resource "aws_s3_bucket_policy" "cms_media_oac_access_cac1" {
+  # Only create if bucket exists (non-empty and not a mock value)
+  for_each = (
+    contains(keys(var.cms_media_origins), "cac1") &&
+    try(var.cms_media_origins["cac1"].s3_bucket_id, "") != "" &&
+    !startswith(try(var.cms_media_origins["cac1"].s3_bucket_id, ""), "mock-")
+  ) ? toset(["cms"]) : toset([])
+
+  bucket = var.cms_media_origins["cac1"].s3_bucket_id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontOACAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${var.cms_media_origins["cac1"].s3_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.main["cms"].arn
           }
         }
       }

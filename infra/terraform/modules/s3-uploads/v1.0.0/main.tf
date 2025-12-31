@@ -188,6 +188,10 @@ resource "aws_s3_bucket_policy" "uploads" {
           Resource = "${aws_s3_bucket.uploads[each.key].arn}/*"
         }
       ] : [],
+      # NOTE: CloudFront OAC bucket policies are managed by the CloudFront module
+      # The cloudfront_access option in bucket configuration is a flag for documentation,
+      # but the actual policy with AWS:SourceArn condition is applied by CloudFront module
+      # This avoids circular dependency (s3-uploads doesn't know CF distribution ARN)
       # Deny non-HTTPS access
       [
         {

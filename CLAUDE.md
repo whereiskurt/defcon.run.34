@@ -32,6 +32,9 @@ apps/                           # Application code
 ├── run.auth/                   # Auth service (auth.defcon.run)
 │   ├── nginx/                  # Nginx reverse proxy container
 │   └── webapp/                 # Next.js app with OIDC provider
+├── run.cms/                    # CMS service (cms.defcon.run)
+│   ├── nginx/                  # Nginx reverse proxy container
+│   └── app/                    # Strapi 5 headless CMS
 ├── run.human/                  # Main app (run.defcon.run)
 │   ├── nginx/                  # Nginx reverse proxy container
 │   └── webapp/                 # Next.js app
@@ -45,6 +48,7 @@ infra/terraform/
 ├── live/site/                  # Terragrunt live configuration
 │   ├── site.hcl                # Main site configuration
 │   ├── services/auth/          # Auth service definition
+│   ├── services/cms/           # CMS service definition
 │   ├── services/run-human/     # Run-human service definition
 │   └── region/{us-east-1,ca-central-1}/  # Regional resources
 ├── modules/                    # Terraform modules (versioned)
@@ -129,10 +133,11 @@ Path pattern: `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/{provider}/{key}`
 
 ## Key Technologies
 
-- **Frontend**: Next.js 16, React 19, HeroUI, Tailwind CSS 4
+- **Frontend**: Next.js 16.0, React 19.2, HeroUI, Tailwind CSS 4
+- **CMS**: Strapi 5.6 headless CMS with SQLite + Litestream replication
 - **Auth**: NextAuth.js (Auth.js), OIDC provider (oidc-provider)
 - **Database**: DynamoDB with ElectroDB entity framework
-- **Infrastructure**: Terraform modules, Terragrunt for orchestration
+- **Infrastructure**: Terraform 1.8, Terragrunt 0.96
 - **Container**: Docker, AWS ECR, ECS Fargate
 - **CDN**: CloudFront with WAF
 

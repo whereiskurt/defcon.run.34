@@ -70,12 +70,48 @@ dependency "use1_network" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+# Dependencies on regional s3-uploads modules for CMS media buckets
+dependency "use1_uploads" {
+  config_path = "../../region/us-east-1/s3-uploads"
+
+  mock_outputs = {
+    bucket_names = {
+      "cms-media" = "mock-uploads-cms-media-use1"
+    }
+    bucket_arns = {
+      "cms-media" = "arn:aws:s3:::mock-uploads-cms-media-use1"
+    }
+    bucket_regional_domain_names = {
+      "cms-media" = "mock-uploads-cms-media-use1.s3.us-east-1.amazonaws.com"
+    }
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+}
+
 dependency "cac1_network" {
   config_path = "../../region/ca-central-1/network"
 
   mock_outputs = {
     alb_dns_name = "mock-alb-cac1.ca-central-1.elb.amazonaws.com"
     alb_zone_id  = "ZQSVJUPU6J1EY"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy", "apply"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
+}
+
+dependency "cac1_uploads" {
+  config_path = "../../region/ca-central-1/s3-uploads"
+
+  mock_outputs = {
+    bucket_names = {
+      "cms-media" = "mock-uploads-cms-media-cac1"
+    }
+    bucket_arns = {
+      "cms-media" = "arn:aws:s3:::mock-uploads-cms-media-cac1"
+    }
+    bucket_regional_domain_names = {
+      "cms-media" = "mock-uploads-cms-media-cac1.s3.ca-central-1.amazonaws.com"
+    }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy", "apply"]
   mock_outputs_merge_strategy_with_state  = "shallow"
@@ -190,6 +226,21 @@ inputs = merge(
         ""
       )
     } : {}
+
+    # CMS media bucket origins for /{region}/cms/* behavior
+    # This maps the Strapi media uploads to CloudFront via OAC
+    cms_media_origins = {
+      use1 = {
+        s3_bucket_id                   = try(dependency.use1_uploads.outputs.bucket_names["cms-media"], "")
+        s3_bucket_arn                  = try(dependency.use1_uploads.outputs.bucket_arns["cms-media"], "")
+        s3_bucket_regional_domain_name = try(dependency.use1_uploads.outputs.bucket_regional_domain_names["cms-media"], "")
+      }
+      cac1 = {
+        s3_bucket_id                   = try(dependency.cac1_uploads.outputs.bucket_names["cms-media"], "")
+        s3_bucket_arn                  = try(dependency.cac1_uploads.outputs.bucket_arns["cms-media"], "")
+        s3_bucket_regional_domain_name = try(dependency.cac1_uploads.outputs.bucket_regional_domain_names["cms-media"], "")
+      }
+    }
 
     # Tags
     tags = {
