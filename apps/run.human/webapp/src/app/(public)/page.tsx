@@ -33,6 +33,11 @@ import {
 } from "lucide-react";
 import { SiStrava, SiDiscord, SiGithub } from "react-icons/si";
 
+// Build callback URL with region prefix for production
+const isDev = process.env.NODE_ENV !== "production";
+const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
+const dashboardUrl = isDev ? "/dashboard" : `/${REGION_SHORT}/dashboard`;
+
 function DashboardContent() {
   const [mounted, setMounted] = useState(false);
   const { resolvedTheme } = useTheme();
@@ -72,7 +77,7 @@ function DashboardContent() {
               color="primary"
               className="text-lg font-semibold"
               onPress={() =>
-                signIn("run.defcon.run", { callbackUrl: "/dashboard" })
+                signIn("run.defcon.run", { callbackUrl: dashboardUrl })
               }
             >
               Go to Login

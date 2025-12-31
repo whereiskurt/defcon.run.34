@@ -21,6 +21,11 @@ import { Text, Heading } from '@components/text-effects/Common';
 import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown, Link2, RefreshCw, Hash, Timer } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 
+// Build callback URL with region prefix for production
+const isDev = process.env.NODE_ENV !== 'production';
+const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
+const homeUrl = isDev ? '/' : `/${REGION_SHORT}/`;
+
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
   const [isClaimsOpen, setIsClaimsOpen] = useState(false);
@@ -42,11 +47,11 @@ export default function DashboardPage() {
       const result = await update({ refreshClaims: true });
       // If update returns null/undefined or session is invalidated, force logout
       if (!result) {
-        await signOut({ callbackUrl: '/' });
+        await signOut({ callbackUrl: homeUrl });
       }
     } catch {
       // Session was invalidated (error thrown from session callback)
-      await signOut({ callbackUrl: '/' });
+      await signOut({ callbackUrl: homeUrl });
     } finally {
       setIsRefreshing(false);
     }
