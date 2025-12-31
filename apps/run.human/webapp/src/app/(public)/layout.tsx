@@ -6,6 +6,13 @@ import { siteConfig } from "@site";
 import { fontSans } from "@fonts";
 import { auth } from "@/config/auth";
 import { redirect } from "next/navigation";
+import { SessionProvider } from "next-auth/react";
+
+const isDev = process.env.NODE_ENV !== "production";
+const REGION_SHORT = process.env.REGION_SHORT || "use1";
+// SessionProvider basePath - full path for client-side browser requests
+// (includes Next.js basePath because browser needs the complete URL)
+const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
 
 export const metadata: Metadata = {
   title: {
@@ -52,13 +59,15 @@ export default async function PublicLayout({
         )}
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
-          <div className="relative flex flex-col h-screen">
-            <main className="container mx-auto h-screen flex items-center justify-center">
-              <div className="w-full max-w-md">
-                {children}
-              </div>
-            </main>
-          </div>
+          <SessionProvider basePath={authBasePath}>
+            <div className="relative flex flex-col h-screen">
+              <main className="container mx-auto h-screen flex items-center justify-center">
+                <div className="w-full max-w-md">
+                  {children}
+                </div>
+              </main>
+            </div>
+          </SessionProvider>
         </Providers>
       </body>
     </html>

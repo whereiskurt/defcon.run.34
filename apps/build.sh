@@ -126,7 +126,8 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   rm -rf "${TMP_DIR}"
   mkdir -p "${TMP_DIR}"
   docker cp "$CONTAINER_ID:/app/.next/static" "${TMP_STATIC}"
-  docker cp "$CONTAINER_ID:/app/.next/server/app/index.html" "${TMP_STATIC}"
+  # Copy index.html if it exists (depends on app structure - route groups may not generate root index.html)
+  docker cp "$CONTAINER_ID:/app/.next/server/app/index.html" "${TMP_STATIC}" 2>/dev/null || true
   docker cp "$CONTAINER_ID:/app/public" "${TMP_PUBLIC}"
   docker rm "$CONTAINER_ID"
 
@@ -134,7 +135,10 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
 
   # Upload custom root index.html (handles region routing via cookie)
   AWS_PROFILE=application aws s3 cp "${APP_DIR}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/index.html" --cache-control 'no-cache, no-store, must-revalidate'
-  AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/index.html" --cache-control 'public,max-age=31536000,immutable'
+  # Upload region-specific index.html if it was generated (depends on app having a root page)
+  if [[ -f "${TMP_STATIC}/index.html" ]]; then
+    AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/index.html" --cache-control 'public,max-age=31536000,immutable'
+  fi
   AWS_PROFILE=application aws s3 cp "${TMP_PUBLIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 cp "${TMP_PUBLIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 sync "${TMP_PUBLIC}" "s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/public" --cache-control 'public,max-age=31536000,immutable' --delete
