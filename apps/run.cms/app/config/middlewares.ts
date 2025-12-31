@@ -7,12 +7,14 @@ export default ({ env }) => [
       contentSecurityPolicy: {
         useDefaults: true,
         directives: {
-          'connect-src': ["'self'", 'https:'],
+          'connect-src': ["'self'", 'https:', 'https://auth.defcon.run'],
+          'form-action': ["'self'", 'https://auth.defcon.run'],
           'img-src': [
             "'self'",
             'data:',
             'blob:',
             'https://cms.defcon.run',
+            'https://auth.defcon.run',
             'https://*.s3.amazonaws.com',
             'https://*.s3.us-east-1.amazonaws.com',
             'https://*.s3.ca-central-1.amazonaws.com',

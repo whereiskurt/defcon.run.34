@@ -48,18 +48,26 @@ const clients: ClientMetadata[] = [
     client_id: config.oidc.clients.cmsStrapi.clientId,
     client_secret: config.oidc.clients.cmsStrapi.clientSecret,
     redirect_uris: [
-      // Production URLs for Strapi admin SSO callback
+      // Production URLs for Strapi admin SSO callback (regional prefixes)
+      "https://cms.defcon.run/use1/admin/connect/oidc/callback",
+      "https://cms.defcon.run/cac1/admin/connect/oidc/callback",
+      // Production URLs without region prefix (for backwards compatibility)
       "https://cms.defcon.run/admin/connect/oidc/callback",
       "https://cms.defcon.run/api/connect/oidc/callback",
       // Local development
       "http://localhost:1337/admin/connect/oidc/callback",
       "http://localhost:1337/api/connect/oidc/callback",
+      "http://localhost:1337/use1/admin/connect/oidc/callback",
     ],
     post_logout_redirect_uris: [
-      // Production
+      // Production regional URLs
+      "https://cms.defcon.run/use1/admin",
+      "https://cms.defcon.run/cac1/admin",
+      // Production without region (backwards compatibility)
       "https://cms.defcon.run/admin",
       // Local development
       "http://localhost:1337/admin",
+      "http://localhost:1337/use1/admin",
     ],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
