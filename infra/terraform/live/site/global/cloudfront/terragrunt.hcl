@@ -3,8 +3,11 @@ locals {
   site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
 }
 
-# Skip if cloudfront is disabled
-skip = !local.site_vars.locals.cloudfront.enabled
+# Exclude if cloudfront is disabled (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.cloudfront.enabled
+  actions = ["all"]
+}
 
 # Dependencies on regional cloudfront-assets modules
 dependency "use1_cloudfront" {
@@ -52,7 +55,8 @@ dependency "cac1_cloudfront" {
     }
     region_label = "cac1"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy", "apply"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 # Dependencies on regional network modules for ALB info
@@ -73,7 +77,8 @@ dependency "cac1_network" {
     alb_dns_name = "mock-alb-cac1.ca-central-1.elb.amazonaws.com"
     alb_zone_id  = "ZQSVJUPU6J1EY"
   }
-  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy", "apply"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
 # Dependency on site module for Route53 zone and WAF

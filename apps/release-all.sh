@@ -1,4 +1,4 @@
-#!/bin/bash
+u!/bin/bash
 # Full multi-region release pipeline for all apps
 # Bumps versions once, builds images for each region, deploys to both regions
 #
@@ -14,6 +14,7 @@
 # Examples:
 #   ./release-all.sh                           # Full release: both apps, both regions
 #   ./release-all.sh --apps run.auth           # Only run.auth, both regions
+#   ./release-all.sh --apps run.cms            # Only run.cms (CMS has different build)
 #   ./release-all.sh --regions use1            # Both apps, only us-east-1
 #   ./release-all.sh --skip-bump --skip-build  # Deploy only (use existing images)
 
@@ -91,6 +92,7 @@ get_cf_domain() {
   case "$1" in
     run.auth) echo "auth.defcon.run" ;;
     run.human) echo "run.defcon.run" ;;
+    run.cms) echo "cms.defcon.run" ;;
     *) echo "" ;;
   esac
 }
@@ -99,7 +101,16 @@ get_tf_service() {
   case "$1" in
     run.auth) echo "auth" ;;
     run.human) echo "run-human" ;;
+    run.cms) echo "cms" ;;
     *) echo "" ;;
+  esac
+}
+
+# Get the app component for building (webapp vs app)
+get_app_component() {
+  case "$1" in
+    run.cms) echo "app" ;;
+    *) echo "webapp" ;;
   esac
 }
 
@@ -107,8 +118,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Validate apps
 for APP in "${APP_LIST[@]}"; do
-  if [[ "$APP" != "run.auth" && "$APP" != "run.human" ]]; then
-    echo "ERROR: Invalid app '$APP'. Must be 'run.auth' or 'run.human'"
+  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" ]]; then
+    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', or 'run.cms'"
     exit 1
   fi
 done
@@ -150,8 +161,9 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
   for APP in "${APP_LIST[@]}"; do
     echo ""
     echo "--- Bumping versions for ${APP} ---"
+    APP_COMPONENT=$(get_app_component "$APP")
     "${SCRIPT_DIR}/version.sh" nginx "$APP"
-    "${SCRIPT_DIR}/version.sh" webapp "$APP"
+    "${SCRIPT_DIR}/version.sh" "$APP_COMPONENT" "$APP"
   done
 
   echo ""
@@ -195,6 +207,7 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         # Resolve values before spawning subshell (functions don't export in bash 3.2)
         _AWS_REGION=$(get_aws_region "$REGION")
         _REGION_DISPLAY=$(get_region_name "$REGION")
+        _APP_COMPONENT=$(get_app_component "$APP")
         (
           # Disable set -e in subshell to handle errors explicitly
           set +e
@@ -213,10 +226,10 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
             exit 1
           fi
 
-          echo "  Building webapp..."
-          if ! "${SCRIPT_DIR}/build.sh" webapp "$APP"; then
-            echo "FAILED: webapp build for ${APP} in ${REGION}"
-            echo "webapp" > "${BUILD_STATUS_DIR}/${APP}-${REGION}.failed"
+          echo "  Building ${_APP_COMPONENT}..."
+          if ! "${SCRIPT_DIR}/build.sh" "${_APP_COMPONENT}" "$APP"; then
+            echo "FAILED: ${_APP_COMPONENT} build for ${APP} in ${REGION}"
+            echo "${_APP_COMPONENT}" > "${BUILD_STATUS_DIR}/${APP}-${REGION}.failed"
             exit 1
           fi
 
@@ -255,6 +268,7 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
       for REGION in "${REGION_LIST[@]}"; do
         _AWS_REGION=$(get_aws_region "$REGION")
         _REGION_DISPLAY=$(get_region_name "$REGION")
+        _APP_COMPONENT=$(get_app_component "$APP")
 
         echo ""
         echo ">>> Building ${APP} for ${_REGION_DISPLAY} (${_AWS_REGION}) <<<"
@@ -265,8 +279,8 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         echo "  Building nginx..."
         "${SCRIPT_DIR}/build.sh" nginx "$APP"
 
-        echo "  Building webapp..."
-        "${SCRIPT_DIR}/build.sh" webapp "$APP"
+        echo "  Building ${_APP_COMPONENT}..."
+        "${SCRIPT_DIR}/build.sh" "${_APP_COMPONENT}" "$APP"
 
         echo "  Build complete for ${APP} in ${REGION}"
       done
@@ -292,13 +306,14 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
   # Copy VERSION files for all apps
   for APP in "${APP_LIST[@]}"; do
     TF_SERVICE=$(get_tf_service "$APP")
+    APP_COMPONENT=$(get_app_component "$APP")
     APP_DIR="${SCRIPT_DIR}/${APP}"
     TF_SERVICE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services/${TF_SERVICE}"
 
     echo ""
     echo "--- Copying VERSION files for ${APP} ---"
     cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
-    cp "${APP_DIR}/webapp/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
+    cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
     echo "  VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
     echo "  VERSION.app:   $(cat "${TF_SERVICE_DIR}/VERSION.app")"
   done
@@ -307,7 +322,7 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
   echo ""
   echo ">>> Deploying to all regions via terragrunt run-all <<<"
   cd "${SCRIPT_DIR}/../infra/terraform/live/site"
-  terragrunt run-all apply --terragrunt-non-interactive -auto-approve
+  terragrunt run apply --all --non-interactive 
   cd - > /dev/null
 
   echo ""

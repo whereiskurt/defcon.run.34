@@ -10,8 +10,11 @@ locals {
   ecs_cluster_vars = read_terragrunt_config("ecs-cluster.hcl")
 }
 
-# Skip if ecs_clusters is disabled OR if region should be skipped
-skip = !local.site_vars.locals.ecs_clusters.enabled || include.skip.locals.should_skip
+# Exclude if ecs_clusters is disabled OR if region should be skipped (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.ecs_clusters.enabled || include.skip.locals.should_skip
+  actions = ["all"]
+}
 
 dependency "network" {
   config_path = "../network"

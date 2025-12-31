@@ -3,8 +3,11 @@ locals {
   site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
 }
 
-# Skip if github_oidc is disabled
-skip = !local.site_vars.locals.github_oidc.enabled
+# Exclude if github_oidc is disabled (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.github_oidc.enabled
+  actions = ["all"]
+}
 
 include "module" {
   path   = "${find_in_parent_folders("modules")}/github-oidc/config.hcl"

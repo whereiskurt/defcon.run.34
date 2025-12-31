@@ -10,8 +10,11 @@ locals {
   ecr_vars  = read_terragrunt_config("ecr.hcl")
 }
 
-# Skip if ecr is disabled OR if region should be skipped
-skip = !local.site_vars.locals.ecr.enabled || include.skip.locals.should_skip
+# Exclude if ecr is disabled OR if region should be skipped (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.ecr.enabled || include.skip.locals.should_skip
+  actions = ["all"]
+}
 
 include "module" {
   path   = "${find_in_parent_folders("modules")}/ecr/config.hcl"

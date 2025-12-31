@@ -112,7 +112,7 @@ locals {
           },
           {
             name  = "STRAPI_URL"
-            value = "https://cms.defcon.run"
+            value = "https://cms.defcon.run/{{REGION_LABEL}}"
           }
         ]
 
@@ -132,6 +132,10 @@ locals {
           {
             name      = "TRANSFER_TOKEN_SALT"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/transfer_token_salt"
+          },
+          {
+            name      = "JWT_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/jwt_secret"
           },
           {
             name      = "STRAPI_OIDC_CLIENT_ID"
@@ -281,7 +285,7 @@ locals {
           },
           {
             name  = "STRAPI_URL"
-            value = "https://cms.defcon.run"
+            value = "https://cms.defcon.run/{{REGION_LABEL}}"
           }
         ]
 
@@ -301,6 +305,10 @@ locals {
           {
             name      = "TRANSFER_TOKEN_SALT"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/transfer_token_salt"
+          },
+          {
+            name      = "JWT_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/jwt_secret"
           },
           {
             name      = "S3_LITESTREAM_ACCESS_KEY"
@@ -376,6 +384,9 @@ locals {
           { label = "use1", full = "us-east-1" }
         ]
       }
+
+      # Litestream needs full bucket access (not prefix-restricted like user uploads)
+      full_bucket_access = true
     },
     # Media storage bucket (both regions with replication)
     {
@@ -413,6 +424,8 @@ locals {
     }
 
     load_balancers = [
+      # Route /use1/admin* - Strapi admin panel with regional prefix
+      # Strapi's admin.url is configured to serve at /{region}/admin
       {
         type                  = "alb"
         container_name        = "cms-nginx"
@@ -433,7 +446,7 @@ locals {
           port         = 443
           protocol     = "HTTPS"
           host_headers = ["cms.defcon.run"]
-          path_pattern = "/admin*"
+          path_pattern = "/{{REGION_LABEL}}/admin*"
           priority     = 100
         }
       }
@@ -454,7 +467,9 @@ locals {
     }
   }
 
-  # CMS Worker service (both regions - handles read-only API requests)
+  # CMS Worker service (both regions - read-only replicas accessed via service discovery)
+  # No ALB needed - workers are called internally by Next.js via service discovery
+  # Litestream syncs database from master's S3 bucket
   service_worker = {
     name          = "cms-worker"
     regions       = ["us-east-1", "ca-central-1"]
@@ -467,32 +482,7 @@ locals {
       container_name = "cms-app"
     }
 
-    load_balancers = [
-      {
-        type                  = "alb"
-        container_name        = "cms-nginx"
-        container_port        = 443
-        target_group_protocol = "HTTPS"
-        health_check_path     = "/hello"
-        health_check_protocol = "HTTPS"
-
-        health_check = {
-          healthy_threshold   = 2
-          unhealthy_threshold = 2
-          timeout             = 5
-          interval            = 30
-          matcher             = "200-499"
-        }
-
-        listener = {
-          port         = 443
-          protocol     = "HTTPS"
-          host_headers = ["cms.defcon.run"]
-          path_pattern = "/api*"
-          priority     = 200
-        }
-      }
-    ]
+    # No load_balancers - internal service discovery only
 
     autoscaling = {
       enabled      = true

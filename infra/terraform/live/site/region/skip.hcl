@@ -12,5 +12,8 @@ locals {
   )
 }
 
-# Skip this module if region is in skip_regions list
-skip = local.should_skip
+# Exclude this module if region is in skip_regions list (Terragrunt 0.96+)
+exclude {
+  if      = local.should_skip
+  actions = ["all"]
+}

@@ -6,6 +6,8 @@
 #   ./build.sh webapp run.auth
 #   ./build.sh nginx run.human
 #   ./build.sh webapp run.human
+#   ./build.sh nginx run.cms
+#   ./build.sh app run.cms
 
 set -e
 
@@ -14,18 +16,29 @@ APP="${2}"
 
 if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   echo "Usage: ./build.sh <component> <app>"
-  echo "  component: nginx | webapp"
-  echo "  app: run.auth | run.human"
+  echo "  component: nginx | webapp | app"
+  echo "  app: run.auth | run.human | run.cms"
   exit 1
 fi
 
-if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" ]]; then
-  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx' or 'webapp'"
+if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" ]]; then
+  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', or 'app'"
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth' or 'run.human'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', or 'run.cms'"
+  exit 1
+fi
+
+# Validate component/app combinations
+if [[ "$APP" == "run.cms" && "$COMPONENT" == "webapp" ]]; then
+  echo "ERROR: run.cms uses 'app' component, not 'webapp'"
+  exit 1
+fi
+
+if [[ "$APP" != "run.cms" && "$COMPONENT" == "app" ]]; then
+  echo "ERROR: 'app' component is only valid for run.cms"
   exit 1
 fi
 
@@ -40,6 +53,9 @@ case "$APP" in
     REPO_PREFIX="dc34-run-human"
     WEBAPP_ORIGIN="run.defcon.run"
     SSM_PATH_SEGMENT="run"
+    ;;
+  "run.cms")
+    REPO_PREFIX="dc34-cms"
     ;;
 esac
 
@@ -131,6 +147,33 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
     aws ecr get-login-password --region "${AWS_REGION}" \
       | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
   fi
+
+  docker tag "${LOCAL_TAG}" \
+    "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+  docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+  echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+elif [[ "$COMPONENT" == "app" ]]; then
+  # Deploy CMS app (Strapi + Litestream - no static asset sync)
+  export REPO_NAME="${REPO_PREFIX}-app"
+  export IMAGE_TAG=${IMAGE_TAG:-$(cat "${APP_DIR}/app/VERSION" | tr -d '[:space:]')}
+  # Use region-specific local tag to avoid conflicts in parallel builds
+  LOCAL_TAG="${REPO_NAME}:${IMAGE_TAG}-${REGION_SHORT}"
+
+  # Skip ECR login if already authenticated (e.g., in parallel builds)
+  if [[ "${SKIP_ECR_LOGIN}" != "true" ]]; then
+    aws ecr get-login-password --region "${AWS_REGION}" \
+      | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+  fi
+
+  # Build Docker image (amd64 for ECS)
+  # --no-cache ensures native modules (better-sqlite3) are compiled fresh for amd64
+  # REGION_SHORT is passed to set Vite base path for admin assets (e.g., /use1/admin/)
+  docker buildx build --platform=linux/amd64 --no-cache \
+    --build-arg REGION_SHORT="${REGION_SHORT}" \
+    -t "$LOCAL_TAG" -f "${APP_DIR}/app/Dockerfile.app" "${APP_DIR}/app/"
 
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"

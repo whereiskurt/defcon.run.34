@@ -7,8 +7,11 @@ include "skip" {
 # Read site config to check if ec2spots is enabled
 # Note: locals block consolidated with ec2spot_vars below
 
-# Skip if ec2spots is disabled OR if region should be skipped
-skip = !local.site_vars.locals.ec2spots.enabled || include.skip.locals.should_skip
+# Exclude if ec2spots is disabled OR if region should be skipped (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.ec2spots.enabled || include.skip.locals.should_skip
+  actions = ["all"]
+}
 
 dependency "network" {
   config_path = "../network"

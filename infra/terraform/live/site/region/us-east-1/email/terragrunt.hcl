@@ -9,8 +9,11 @@ locals {
   site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
 }
 
-# Skip if email is disabled OR if region should be skipped
-skip = !local.site_vars.locals.email.enabled || include.skip.locals.should_skip
+# Exclude if email is disabled OR if region should be skipped (Terragrunt 0.96+)
+exclude {
+  if      = !local.site_vars.locals.email.enabled || include.skip.locals.should_skip
+  actions = ["all"]
+}
 
 dependency "site" {
   config_path = dirname(find_in_parent_folders("site.hcl"))

@@ -1,0 +1,38 @@
+# Dependencies - must be built inside container for correct architecture
+node_modules/
+
+# Build output - rebuilt in container
+dist/
+build/
+.cache/
+.strapi/
+
+# Database and temp files
+.tmp/
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Environment files
+.env
+.env.*
+
+# IDE and OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+README.md
+*.md

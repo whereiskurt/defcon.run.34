@@ -1,0 +1,64 @@
+export default ({ env }) => [
+  'strapi::logger',
+  'strapi::errors',
+  {
+    name: 'strapi::security',
+    config: {
+      contentSecurityPolicy: {
+        useDefaults: true,
+        directives: {
+          'connect-src': ["'self'", 'https:'],
+          'img-src': [
+            "'self'",
+            'data:',
+            'blob:',
+            'https://cms.defcon.run',
+            'https://*.s3.amazonaws.com',
+            'https://*.s3.us-east-1.amazonaws.com',
+            'https://*.s3.ca-central-1.amazonaws.com',
+          ],
+          'media-src': [
+            "'self'",
+            'data:',
+            'blob:',
+            'https://cms.defcon.run',
+            'https://*.s3.amazonaws.com',
+            'https://*.s3.us-east-1.amazonaws.com',
+            'https://*.s3.ca-central-1.amazonaws.com',
+          ],
+          upgradeInsecureRequests: null,
+        },
+      },
+    },
+  },
+  {
+    name: 'strapi::cors',
+    config: {
+      enabled: true,
+      headers: '*',
+      origin: [
+        'https://cms.defcon.run',
+        'https://run.defcon.run',
+        'https://auth.defcon.run',
+        'http://localhost:3000',
+        'http://localhost:1337',
+      ],
+    },
+  },
+  'strapi::poweredBy',
+  'strapi::query',
+  {
+    name: 'strapi::body',
+    config: {
+      formLimit: '256mb',
+      jsonLimit: '256mb',
+      textLimit: '256mb',
+      formidable: {
+        maxFileSize: 100 * 1024 * 1024, // 100MB
+      },
+    },
+  },
+  'strapi::session',
+  'strapi::favicon',
+  'strapi::public',
+];
