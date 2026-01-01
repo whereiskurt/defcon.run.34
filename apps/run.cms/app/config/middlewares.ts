@@ -36,13 +36,14 @@ export default ({ env }) => [
   {
     name: 'strapi::cors',
     config: {
-      enabled: true,
       headers: '*',
       origin: [
         'https://cms.defcon.run',
         'https://run.defcon.run',
         'https://auth.defcon.run',
         'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:3002',
         'http://localhost:1337',
       ],
     },
