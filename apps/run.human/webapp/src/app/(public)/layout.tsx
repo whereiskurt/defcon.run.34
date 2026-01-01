@@ -95,12 +95,17 @@ export default async function PublicLayout({
   const isAutoLoginFlow = fullUrl.includes("autoLogin=true");
 
   // Silent SSO: Check for valid auth.defcon.run session
-  // Only check if not already in auto-login flow
-  if (!isAutoLoginFlow) {
+  // Only check if not already in auto-login flow or auto-signin route
+  const isAutoSigninRoute = fullUrl.includes("/api/auth/auto-signin");
+  if (!isAutoLoginFlow && !isAutoSigninRoute) {
     const hasAuth = await hasAuthSession();
     if (hasAuth) {
-      console.log("[Silent SSO] Valid auth session found, triggering auto-login");
-      redirect("/?autoLogin=true");
+      console.log("[Silent SSO] Valid auth session found, redirecting to OIDC flow");
+      // Redirect to our auto-signin route handler which triggers the OIDC flow server-side
+      const dashboardUrl = isDev ? "/dashboard" : `/${REGION_SHORT}/dashboard`;
+      const callbackUrl = encodeURIComponent(dashboardUrl);
+      const autoSigninPath = isDev ? "/api/auth/auto-signin" : `/${REGION_SHORT}/api/auth/auto-signin`;
+      redirect(`${autoSigninPath}?callbackUrl=${callbackUrl}`);
     }
   }
 
