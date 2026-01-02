@@ -481,6 +481,152 @@ while true; do
 done
 ```
 
+## Appendix: Regional Path Routing for Admin Panel
+
+### The Challenge
+
+The multi-region architecture uses path prefixes (`/use1/*`, `/cac1/*`) to route requests to the correct region. However, Strapi's admin panel was not designed for path-prefixed deployments. This requires careful coordination between:
+
+1. **Strapi config** (`admin.url`) - where admin HTML is served
+2. **Vite config** (`base`) - where admin static assets load from
+3. **Build-time env** (`STRAPI_ADMIN_BACKEND_URL`) - where admin JS makes API calls
+4. **nginx** - rewriting paths between frontend expectations and backend reality
+5. **ALB listener rules** - which paths route to the CMS service
+
+### Key Insight: Strapi's Split Personality
+
+Strapi's `admin.url` setting **only affects where the admin HTML is served**, NOT the API endpoints:
+
+| Component | Path Without Prefix | Path With `admin.url=/use1/admin` |
+|-----------|---------------------|-----------------------------------|
+| Admin HTML | `/admin` | `/use1/admin` ✓ |
+| Admin Assets | `/admin/*.js` | Unchanged (needs Vite `base`) |
+| Admin API | `/admin/init`, `/admin/login` | **Unchanged** (`/admin/*`) |
+| Content Manager API | `/content-manager/*` | **Unchanged** |
+| Upload API | `/upload/*` | **Unchanged** |
+
+### Solution: Three-Part Configuration
+
+#### 1. Strapi Build Configuration
+
+```dockerfile
+# Dockerfile.app - build stage
+ARG REGION_SHORT=use1
+
+# Tell admin JS where to make API calls (baked into bundle)
+ENV STRAPI_ADMIN_BACKEND_URL=https://cms.defcon.run/${REGION_SHORT}
+
+# Set Vite base path for static assets
+ENV REGION_SHORT=${REGION_SHORT}
+
+RUN npm run build
+```
+
+```typescript
+// src/admin/vite.config.ts
+export default (config: UserConfig): UserConfig => {
+  const regionShort = process.env.REGION_SHORT || '';
+  const basePath = regionShort ? `/${regionShort}/admin/` : '/admin/';
+  return mergeConfig(config, { base: basePath });
+};
+```
+
+```typescript
+// config/admin.ts
+export default ({ env }) => ({
+  url: `/${env('REGION_SHORT', 'use1')}/admin`,
+  // ... other config
+});
+```
+
+#### 2. nginx Path Rewriting
+
+nginx must handle three cases differently:
+
+```nginx
+# Case 1: Admin SPA navigation (browser requests HTML)
+# Pass through - Strapi serves HTML at /use1/admin
+location ~ ^/(use1|cac1)/admin(/.*)?$ {
+  set $do_rewrite 0;
+
+  # API calls need prefix stripped
+  if ($request_method != GET) { set $do_rewrite 1; }
+  if ($http_accept ~* "application/json") { set $do_rewrite 1; }
+
+  if ($do_rewrite = 1) {
+    rewrite ^/(use1|cac1)/admin(.*)$ /admin$2 break;
+  }
+
+  proxy_pass http://strapi_app;
+}
+
+# Case 2: SSO plugin (always strip prefix)
+location ~ ^/(use1|cac1)/strapi-plugin-sso(/.*)?$ {
+  rewrite ^/(use1|cac1)/strapi-plugin-sso(.*)$ /strapi-plugin-sso$2 break;
+  proxy_pass http://strapi_app;
+}
+
+# Case 3: All other API routes (always strip prefix)
+# Handles: /use1/content-manager/*, /use1/upload/*, /use1/api/*, etc.
+location ~ ^/(use1|cac1)(/.*)?$ {
+  rewrite ^/(use1|cac1)(.*)$ $2 break;
+  proxy_pass http://strapi_app;
+}
+```
+
+**Why the complexity for admin routes?**
+- GET `/use1/admin` with `Accept: text/html` → Browser navigation, serve SPA HTML
+- GET `/use1/admin/init` with `Accept: application/json` → API call, strip prefix
+- POST `/use1/admin/login` → API call, strip prefix
+
+#### 3. ALB Listener Rules
+
+**Critical**: The ALB must route ALL paths the admin panel needs, not just `/admin*`:
+
+```hcl
+# service.hcl - WRONG (missing content-manager, upload, etc.)
+path_patterns = ["/{{REGION_LABEL}}/admin*", "/{{REGION_LABEL}}/strapi-plugin-sso/*"]
+
+# CORRECT - catch all regional traffic for CMS
+path_patterns = ["/{{REGION_LABEL}}/*"]
+```
+
+The admin panel makes API calls to:
+- `/use1/admin/*` - admin API
+- `/use1/content-manager/*` - content management
+- `/use1/upload/*` - media uploads
+- `/use1/i18n/*` - internationalization
+- And more...
+
+### Request Flow Summary
+
+```
+Browser: GET https://cms.defcon.run/use1/admin
+    ↓
+CloudFront: /use1/* → ALB (us-east-1)
+    ↓
+ALB: /use1/* → CMS master task
+    ↓
+nginx: GET /use1/admin, Accept: text/html → pass through
+    ↓
+Strapi: Serves admin HTML (admin.url=/use1/admin)
+    ↓
+Browser: Loads /use1/admin/strapi-xxx.js (Vite base=/use1/admin/)
+    ↓
+Admin JS: GET https://cms.defcon.run/use1/admin/init (STRAPI_ADMIN_BACKEND_URL)
+    ↓
+CloudFront → ALB → nginx: Accept: application/json → rewrite to /admin/init
+    ↓
+Strapi: Returns API response from /admin/init
+```
+
+### Common Pitfalls
+
+1. **Forgetting `STRAPI_ADMIN_BACKEND_URL`**: Admin JS makes calls to `/admin/*` without region prefix
+2. **Incomplete ALB rules**: `/content-manager/*` and `/upload/*` requests get 404
+3. **Rewriting SPA routes**: Browser navigation to `/use1/admin/settings` returns JSON 404
+4. **nginx location order**: Regex locations match in config order, not specificity
+
 ## Appendix: Directory Structure
 
 ```
