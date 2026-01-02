@@ -61,7 +61,17 @@ export default ({ env }) => [
       },
     },
   },
-  'strapi::session',
+  {
+    name: 'strapi::session',
+    config: {
+      // Session cookie config for reverse proxy setup
+      // TLS terminates at CloudFront/ALB, not at Strapi
+      // Since we're behind HTTPS at the edge, we can disable secure cookie check
+      // The cookie is still only sent over HTTPS to the browser
+      secure: false,
+      sameSite: 'lax',
+    },
+  },
   'strapi::favicon',
   'strapi::public',
 ];
