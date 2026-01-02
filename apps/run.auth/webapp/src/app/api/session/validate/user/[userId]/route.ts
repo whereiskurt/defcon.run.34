@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthProfile } from "@/entities/auth-profile";
+import { getAuthProfile, getAuthProfileByEmail } from "@/entities/auth-profile";
 
 /**
  * Internal Session Validation Endpoint (Server-to-Server)
  *
  * This endpoint allows other defcon.run services to fetch user claims
- * directly by userId without needing the user's session cookie.
+ * directly by userId or email without needing the user's session cookie.
  *
  * This is protected by a shared secret (X-Internal-Secret header).
  *
  * Usage:
  *   GET https://auth.defcon.run/use1/api/session/validate/user/{userId}
+ *   GET https://auth.defcon.run/use1/api/session/validate/user/{email}
  *   Headers: X-Internal-Secret: <shared-secret>
+ *
+ * The endpoint auto-detects whether the parameter is a userId or email:
+ * - If it contains '@', it's treated as an email
+ * - Otherwise, it's treated as a userId
  *
  * Response:
  *   {
@@ -55,9 +60,9 @@ export async function GET(
     );
   }
 
-  const { userId } = await params;
+  const { userId: userIdOrEmail } = await params;
 
-  if (!userId) {
+  if (!userIdOrEmail) {
     return NextResponse.json(
       { valid: false, error: "user_not_found" } as InternalValidateResponse,
       { status: 404 }
@@ -65,7 +70,11 @@ export async function GET(
   }
 
   try {
-    const profile = await getAuthProfile(userId);
+    // Auto-detect if the parameter is an email (contains '@') or userId
+    const isEmail = userIdOrEmail.includes('@');
+    const profile = isEmail
+      ? await getAuthProfileByEmail(decodeURIComponent(userIdOrEmail))
+      : await getAuthProfile(userIdOrEmail);
 
     if (!profile) {
       return NextResponse.json(
@@ -86,7 +95,7 @@ export async function GET(
     return NextResponse.json({
       valid: true,
       user: {
-        id: userId,
+        id: profile.userId,
         services: profile.services || [],
         linkedProviders,
         sessionVersion,

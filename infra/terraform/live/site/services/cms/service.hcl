@@ -204,6 +204,12 @@ locals {
           {
             name      = "S3_MEDIA_REGION"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/cms-media/bucket_region"
+          },
+          # Internal secret for server-to-server validation with auth.defcon.run
+          # Used by services-validation middleware to re-validate services claim
+          {
+            name      = "AUTH_INTERNAL_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
           }
         ]
 
