@@ -295,7 +295,7 @@ else
 fi
 
 #=============================================================================
-# PHASE 3: Deploy to ECS (all regions handled by terragrunt run-all)
+# PHASE 3: Deploy to ECS (targeted terragrunt apply on ecs-task and ecs-service)
 #=============================================================================
 if [[ "$SKIP_DEPLOY" == "false" ]]; then
   echo ""
@@ -318,12 +318,28 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
     echo "  VERSION.app:   $(cat "${TF_SERVICE_DIR}/VERSION.app")"
   done
 
-  # Deploy all regions in one terragrunt run-all (handles all regions by design)
-  echo ""
-  echo ">>> Deploying to all regions via terragrunt run-all <<<"
-  cd "${SCRIPT_DIR}/../infra/terraform/live/site"
-  terragrunt run apply --all --non-interactive 
-  cd - > /dev/null
+  # Deploy to each region - only ecs-task and ecs-service modules
+  # (ecs-task creates new task definitions, ecs-service deploys them)
+  TF_SITE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site"
+
+  for REGION in "${REGION_LIST[@]}"; do
+    _AWS_REGION=$(get_aws_region "$REGION")
+    _REGION_DISPLAY=$(get_region_name "$REGION")
+    REGION_DIR="${TF_SITE_DIR}/region/${_AWS_REGION}"
+
+    echo ""
+    echo ">>> Deploying to ${_REGION_DISPLAY} (${_AWS_REGION}) <<<"
+
+    # Apply ecs-task first (creates new task definitions)
+    echo "  Applying ecs-task..."
+    terragrunt run apply -auto-approve --non-interactive --working-dir "${REGION_DIR}/ecs-task"
+
+    # Apply ecs-service (deploys the new task definitions)
+    echo "  Applying ecs-service..."
+    terragrunt run apply -auto-approve --non-interactive --working-dir "${REGION_DIR}/ecs-service"
+
+    echo "  Deploy complete for ${_REGION_DISPLAY}"
+  done
 
   echo ""
   echo "All deployments complete!"
