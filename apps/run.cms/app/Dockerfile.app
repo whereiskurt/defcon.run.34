@@ -28,8 +28,11 @@ COPY . .
 
 # Build Strapi admin panel and compile TypeScript
 # REGION_SHORT is read by src/admin/vite.config.ts to set asset base path
+# STRAPI_ADMIN_BACKEND_URL tells the admin panel where to make API calls
+# This is baked into the JS bundle at build time
 ENV NODE_ENV=production
 ENV REGION_SHORT=${REGION_SHORT}
+ENV STRAPI_ADMIN_BACKEND_URL=https://cms.defcon.run/${REGION_SHORT}
 RUN npm run build
 
 # =============================================================================

@@ -487,7 +487,7 @@ locals {
           port          = 443
           protocol      = "HTTPS"
           host_headers  = ["cms.defcon.run"]
-          path_patterns = ["/{{REGION_LABEL}}/admin*", "/{{REGION_LABEL}}/strapi-plugin-sso/*"]
+          path_patterns = ["/{{REGION_LABEL}}/*"]
           priority      = 100
         }
       }
