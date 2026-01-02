@@ -464,8 +464,9 @@ locals {
     }
 
     load_balancers = [
-      # Route /use1/admin* - Strapi admin panel with regional prefix
-      # Strapi's admin.url is configured to serve at /{region}/admin
+      # Route Strapi admin panel and SSO plugin callbacks
+      # - /use1/admin* - Strapi admin panel with regional prefix
+      # - /use1/strapi-plugin-sso/* - SSO plugin OIDC callbacks
       {
         type                  = "alb"
         container_name        = "cms-nginx"
@@ -483,37 +484,11 @@ locals {
         }
 
         listener = {
-          port         = 443
-          protocol     = "HTTPS"
-          host_headers = ["cms.defcon.run"]
-          path_pattern = "/{{REGION_LABEL}}/admin*"
-          priority     = 100
-        }
-      },
-      # Route /use1/strapi-plugin-sso/* - SSO plugin callbacks
-      # strapi-plugin-sso handles OIDC authentication at this path
-      {
-        type                  = "alb"
-        container_name        = "cms-nginx"
-        container_port        = 443
-        target_group_protocol = "HTTPS"
-        health_check_path     = "/hello"
-        health_check_protocol = "HTTPS"
-
-        health_check = {
-          healthy_threshold   = 2
-          unhealthy_threshold = 2
-          timeout             = 5
-          interval            = 30
-          matcher             = "200-499"
-        }
-
-        listener = {
-          port         = 443
-          protocol     = "HTTPS"
-          host_headers = ["cms.defcon.run"]
-          path_pattern = "/{{REGION_LABEL}}/strapi-plugin-sso/*"
-          priority     = 99
+          port          = 443
+          protocol      = "HTTPS"
+          host_headers  = ["cms.defcon.run"]
+          path_patterns = ["/{{REGION_LABEL}}/admin*", "/{{REGION_LABEL}}/strapi-plugin-sso/*"]
+          priority      = 100
         }
       }
     ]

@@ -15,10 +15,12 @@ WORKDIR /app
 # Install build dependencies for native modules (better-sqlite3)
 RUN apk add --no-cache python3 make g++ git
 
-# Copy package files
+# Copy package files and scripts needed for postinstall
 COPY package*.json ./
+COPY scripts/ ./scripts/
 
 # Install dependencies - will compile native modules for linux/amd64
+# Note: postinstall runs scripts/patch-strapi-compile.js to patch Strapi
 RUN npm ci
 
 # Copy source code

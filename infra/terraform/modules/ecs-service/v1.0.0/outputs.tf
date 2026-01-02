@@ -3,12 +3,12 @@ output "services" {
   value = {
     for name, service in aws_ecs_service.service :
     name => {
-      service_id   = service.id
-      service_name = service.name
-      service_arn  = service.arn
-      cluster      = service.cluster
+      service_id    = service.id
+      service_name  = service.name
+      service_arn   = service.arn
+      cluster       = service.cluster
       desired_count = service.desired_count
-      launch_type  = service.launch_type
+      launch_type   = service.launch_type
     }
   }
 }
@@ -30,10 +30,10 @@ output "target_groups" {
   value = {
     for key, tg in aws_lb_target_group.target_group :
     key => {
-      id   = tg.id
-      name = tg.name
-      arn  = tg.arn
-      port = tg.port
+      id       = tg.id
+      name     = tg.name
+      arn      = tg.arn
+      port     = tg.port
       protocol = tg.protocol
     }
   }

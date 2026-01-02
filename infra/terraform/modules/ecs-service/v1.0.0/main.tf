@@ -77,7 +77,15 @@ locals {
         health_check_path     = lb.health_check_path
         health_check_protocol = lb.health_check_protocol != null ? lb.health_check_protocol : lb.target_group_protocol
         health_check          = lb.health_check
-        listener              = lb.listener
+        listener = lb.listener != null ? {
+          port            = lb.listener.port
+          protocol        = lb.listener.protocol
+          ssl_policy      = lb.listener.ssl_policy
+          certificate_arn = lb.listener.certificate_arn
+          host_headers    = lb.listener.host_headers
+          path_patterns   = coalesce(lb.listener.path_patterns, [])
+          priority        = lb.listener.priority
+        } : null
       }
     ]
   ])
@@ -174,10 +182,20 @@ resource "aws_lb_listener_rule" "alb_rule" {
   }
 
   listener_arn = var.alb_listener_arn
+  priority     = each.value.listener.priority
 
   condition {
     host_header {
       values = each.value.listener.host_headers
+    }
+  }
+
+  dynamic "condition" {
+    for_each = length(each.value.listener.path_patterns) > 0 ? [1] : []
+    content {
+      path_pattern {
+        values = each.value.listener.path_patterns
+      }
     }
   }
 
