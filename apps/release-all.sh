@@ -9,6 +9,7 @@ u!/bin/bash
 #   --skip-bump         Skip version bumping (use existing versions)
 #   --skip-build        Skip building (use existing images)
 #   --skip-deploy       Skip deployment (just build)
+#   --skip-nginx        Skip nginx container builds (only build app/webapp)
 #   --parallel          Run regional builds in parallel (faster but harder to debug)
 #
 # Examples:
@@ -27,6 +28,7 @@ REGIONS="use1"
 SKIP_BUMP=false
 SKIP_BUILD=false
 SKIP_DEPLOY=false
+SKIP_NGINX=false
 PARALLEL=false
 
 # Parse arguments
@@ -50,6 +52,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-deploy)
       SKIP_DEPLOY=true
+      shift
+      ;;
+    --skip-nginx)
+      SKIP_NGINX=true
       shift
       ;;
     --parallel)
@@ -141,6 +147,7 @@ echo "Regions: ${REGION_LIST[*]}"
 echo "Skip bump:  $SKIP_BUMP"
 echo "Skip build: $SKIP_BUILD"
 echo "Skip deploy: $SKIP_DEPLOY"
+echo "Skip nginx: $SKIP_NGINX"
 echo "Parallel:   $PARALLEL"
 echo "=============================================="
 echo "Started: $(date)"
@@ -162,7 +169,9 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
     echo ""
     echo "--- Bumping versions for ${APP} ---"
     APP_COMPONENT=$(get_app_component "$APP")
-    "${SCRIPT_DIR}/version.sh" nginx "$APP"
+    if [[ "$SKIP_NGINX" == "false" ]]; then
+      "${SCRIPT_DIR}/version.sh" nginx "$APP"
+    fi
     "${SCRIPT_DIR}/version.sh" "$APP_COMPONENT" "$APP"
   done
 
@@ -219,11 +228,13 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
           export REGION_SHORT="${REGION}"
           export SKIP_ECR_LOGIN="true"  # Already authenticated above
 
-          echo "  Building nginx..."
-          if ! "${SCRIPT_DIR}/build.sh" nginx "$APP"; then
-            echo "FAILED: nginx build for ${APP} in ${REGION}"
-            echo "nginx" > "${BUILD_STATUS_DIR}/${APP}-${REGION}.failed"
-            exit 1
+          if [[ "$SKIP_NGINX" == "false" ]]; then
+            echo "  Building nginx..."
+            if ! "${SCRIPT_DIR}/build.sh" nginx "$APP"; then
+              echo "FAILED: nginx build for ${APP} in ${REGION}"
+              echo "nginx" > "${BUILD_STATUS_DIR}/${APP}-${REGION}.failed"
+              exit 1
+            fi
           fi
 
           echo "  Building ${_APP_COMPONENT}..."
@@ -276,8 +287,10 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         export AWS_REGION="${_AWS_REGION}"
         export REGION_SHORT="${REGION}"
 
-        echo "  Building nginx..."
-        "${SCRIPT_DIR}/build.sh" nginx "$APP"
+        if [[ "$SKIP_NGINX" == "false" ]]; then
+          echo "  Building nginx..."
+          "${SCRIPT_DIR}/build.sh" nginx "$APP"
+        fi
 
         echo "  Building ${_APP_COMPONENT}..."
         "${SCRIPT_DIR}/build.sh" "${_APP_COMPONENT}" "$APP"
