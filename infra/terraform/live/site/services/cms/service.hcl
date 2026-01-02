@@ -121,6 +121,26 @@ locals {
           {
             name  = "SES_REPLYTO_ADDRESS"
             value = "reply-to@email.defcon.run"
+          },
+          {
+            name  = "OIDC_REDIRECT_URI"
+            value = "https://cms.defcon.run/{{REGION_LABEL}}/strapi-plugin-sso/oidc/callback"
+          },
+          {
+            name  = "OIDC_AUTHORIZATION_ENDPOINT"
+            value = "https://auth.defcon.run/{{REGION_LABEL}}/api/oidc/auth"
+          },
+          {
+            name  = "OIDC_TOKEN_ENDPOINT"
+            value = "https://auth.defcon.run/{{REGION_LABEL}}/api/oidc/token"
+          },
+          {
+            name  = "OIDC_USER_INFO_ENDPOINT"
+            value = "https://auth.defcon.run/{{REGION_LABEL}}/api/oidc/me"
+          },
+          {
+            name  = "OIDC_REQUIRED_SERVICES"
+            value = "cms"
           }
         ]
 
@@ -444,8 +464,9 @@ locals {
     }
 
     load_balancers = [
-      # Route /use1/admin* - Strapi admin panel with regional prefix
-      # Strapi's admin.url is configured to serve at /{region}/admin
+      # Route Strapi admin panel and SSO plugin callbacks
+      # - /use1/admin* - Strapi admin panel with regional prefix
+      # - /use1/strapi-plugin-sso/* - SSO plugin OIDC callbacks
       {
         type                  = "alb"
         container_name        = "cms-nginx"
@@ -463,11 +484,11 @@ locals {
         }
 
         listener = {
-          port         = 443
-          protocol     = "HTTPS"
-          host_headers = ["cms.defcon.run"]
-          path_pattern = "/{{REGION_LABEL}}/admin*"
-          priority     = 100
+          port          = 443
+          protocol      = "HTTPS"
+          host_headers  = ["cms.defcon.run"]
+          path_patterns = ["/{{REGION_LABEL}}/*"]
+          priority      = 100
         }
       }
     ]

@@ -7,6 +7,9 @@ export default ({ env }) => ({
   // Example: server.url = https://cms.defcon.run, admin.url = /use1/admin
   //          -> admin at https://cms.defcon.run/use1/admin
   url: env('STRAPI_URL', 'https://cms.defcon.run'),
+  // Trust X-Forwarded-Proto header from nginx reverse proxy
+  // Required for secure cookies to work when TLS terminates at nginx
+  proxy: true,
   app: {
     keys: env.array('APP_KEYS', ['defaultKey1', 'defaultKey2']),
   },

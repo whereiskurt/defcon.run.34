@@ -2,6 +2,9 @@ export default ({ env }) => {
   // Get regional prefix for admin URL path
   const regionShort = env('REGION_SHORT', 'use1');
 
+  // Debug: Log during build to verify REGION_SHORT is set
+  console.log(`[admin.ts] REGION_SHORT=${regionShort}, process.env.REGION_SHORT=${process.env.REGION_SHORT}`);
+
   return {
     // admin.url sets the path where Strapi serves the admin panel
     // STRAPI_URL = https://cms.defcon.run (no region prefix)

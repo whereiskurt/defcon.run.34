@@ -25,50 +25,54 @@ variable "dns" {
 
 variable "ecs_services" {
   type = list(object({
-    name                  = string
-    regions               = list(string)
-    cluster_name          = string
-    task_family           = string  # Must match task definition family from ecs-task module
-    desired_count         = optional(number, 1)
-    launch_type           = optional(string, "FARGATE")
-    force_new_deployment  = optional(bool, true)
+    name                 = string
+    regions              = list(string)
+    cluster_name         = string
+    task_family          = string # Must match task definition family from ecs-task module
+    desired_count        = optional(number, 1)
+    launch_type          = optional(string, "FARGATE")
+    force_new_deployment = optional(bool, true)
 
     # Network configuration
     assign_public_ip = optional(bool, false)
 
     # Service discovery configuration
     service_discovery = optional(object({
-      name      = string  # Service discovery name
-      ttl       = optional(number, 10)
-      container_name = optional(string, "")  # Container to register, empty = don't use service discovery
+      name           = string # Service discovery name
+      ttl            = optional(number, 10)
+      container_name = optional(string, "") # Container to register, empty = don't use service discovery
     }), null)
 
     # Load balancer configurations (can have multiple)
     load_balancers = optional(list(object({
-      type                 = string  # "alb" or "nlb"
-      container_name       = string
-      container_port       = number
-      target_group_port    = optional(number, null)  # Defaults to container_port
-      target_group_protocol = optional(string, "TCP")  # TCP, TLS, HTTP, HTTPS
-      health_check_path    = optional(string, "/")
-      health_check_protocol = optional(string, null)  # Defaults to target_group_protocol
+      type                  = string # "alb" or "nlb"
+      container_name        = string
+      container_port        = number
+      target_group_port     = optional(number, null)  # Defaults to container_port
+      target_group_protocol = optional(string, "TCP") # TCP, TLS, HTTP, HTTPS
+      health_check_path     = optional(string, "/")
+      health_check_protocol = optional(string, null) # Defaults to target_group_protocol
       health_check = optional(object({
         enabled             = optional(bool, true)
         healthy_threshold   = optional(number, 2)
         unhealthy_threshold = optional(number, 2)
         timeout             = optional(number, 5)
         interval            = optional(number, 30)
-        matcher             = optional(string, "200-499")  # For HTTP/HTTPS only
+        matcher             = optional(string, "200-499") # For HTTP/HTTPS only
       }), {})
 
       # Listener configuration (creates new listener on LB)
       listener = optional(object({
         port            = number
-        protocol        = string  # TCP, TLS, HTTP, HTTPS
+        protocol        = string # TCP, TLS, HTTP, HTTPS
         ssl_policy      = optional(string, "ELBSecurityPolicy-TLS13-1-0-2021-06")
-        certificate_arn = optional(string, "")  # For TLS/HTTPS
+        certificate_arn = optional(string, "") # For TLS/HTTPS
         # Host header routing for ALB
-        host_headers    = optional(list(string), [])
+        host_headers = optional(list(string), [])
+        # Path pattern routing for ALB (supports multiple patterns)
+        path_patterns = optional(list(string), [])
+        # Priority for listener rule (required when using path patterns)
+        priority = optional(number, null)
       }), null)
     })), [])
 
@@ -120,10 +124,10 @@ variable "task_definitions" {
 
 variable "clusters" {
   type = map(object({
-    cluster_id   = string
-    cluster_name = string
-    cluster_arn  = string
-    namespace_id = string
+    cluster_id     = string
+    cluster_name   = string
+    cluster_arn    = string
+    namespace_id   = string
     namespace_name = string
   }))
   description = "Map of cluster details by cluster name from ecs-cluster module"

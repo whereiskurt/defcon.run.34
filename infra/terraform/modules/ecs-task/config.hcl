@@ -20,7 +20,13 @@ locals {
           environment = try(container.environment, null) != null ? [
             for env in container.environment :
             merge(env, {
-              value = replace(env.value, "{{REGION}}", local.region_vars.locals.region.full)
+              value = replace(
+                replace(
+                  replace(env.value, "{{REGION_LABEL}}", local.region_vars.locals.region.label),
+                  "{{REGION}}", local.region_vars.locals.region.full
+                ),
+                "{{SITE_LABEL}}", local.site_vars.locals.site.label
+              )
             })
           ] : null
           secrets = try(container.secrets, null) != null ? [

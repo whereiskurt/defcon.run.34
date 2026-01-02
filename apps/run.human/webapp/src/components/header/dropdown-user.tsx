@@ -16,7 +16,8 @@ import {
   User,
   useDisclosure,
 } from '@heroui/react';
-import { signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
+import { fullLogout } from '@/hooks/useLogout';
 
 import { useRouter } from 'next/navigation';
 import { FaUserAlt, FaTrophy } from 'react-icons/fa';
@@ -216,7 +217,7 @@ export default UserDropDown;
 function LogoutModal(isOpen: boolean, onClose: () => void) {
   const doLogout = () => {
     onClose();
-    signOut();
+    fullLogout('/');
   };
   const closeWindow = () => {
     onClose();

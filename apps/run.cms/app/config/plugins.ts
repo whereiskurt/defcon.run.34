@@ -57,9 +57,45 @@ export default ({ env }) => {
     },
   };
 
+  // SSO plugin configuration for OIDC authentication via auth.defcon.run
+  const isDev = env('NODE_ENV') === 'development';
+
+  // OIDC endpoints - regional in production, local in development
+  const oidcBaseUrl = isDev
+    ? 'http://localhost:3002/api/oidc'
+    : `https://auth.defcon.run/${regionShort}/api/oidc`;
+
+  const ssoConfig = {
+    enabled: true,
+    config: {
+      // Use localStorage instead of cookies for better session persistence
+      REMEMBER_ME: true,
+      // OIDC provider configuration
+      OIDC_CLIENT_ID: env('STRAPI_OIDC_CLIENT_ID'),
+      OIDC_CLIENT_SECRET: env('STRAPI_OIDC_CLIENT_SECRET'),
+      OIDC_REDIRECT_URI: env('OIDC_REDIRECT_URI',
+        isDev
+          ? 'http://localhost:1337/strapi-plugin-sso/oidc/callback'
+          : `https://cms.defcon.run/${regionShort}/strapi-plugin-sso/oidc/callback`
+      ),
+      OIDC_SCOPES: 'openid profile email services',
+      OIDC_AUTHORIZATION_ENDPOINT: env('OIDC_AUTHORIZATION_ENDPOINT', `${oidcBaseUrl}/auth`),
+      OIDC_TOKEN_ENDPOINT: env('OIDC_TOKEN_ENDPOINT', `${oidcBaseUrl}/token`),
+      OIDC_USER_INFO_ENDPOINT: env('OIDC_USER_INFO_ENDPOINT', `${oidcBaseUrl}/me`),
+      OIDC_GRANT_TYPE: 'authorization_code',
+      // Use Authorization header for userinfo endpoint (required by oidc-provider)
+      OIDC_USER_INFO_ENDPOINT_WITH_AUTH_HEADER: true,
+      // Custom claim field mappings for name parsing
+      // auth.defcon.run returns 'name' as full name, plugin needs to split it
+      OIDC_FAMILY_NAME_FIELD: 'family_name',
+      OIDC_GIVEN_NAME_FIELD: 'given_name',
+    },
+  };
+
   return {
     upload: uploadConfig,
     email: emailConfig,
     'users-permissions': usersPermissionsConfig,
+    'strapi-plugin-sso': ssoConfig,
   };
 };

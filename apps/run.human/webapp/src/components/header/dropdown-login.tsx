@@ -13,6 +13,11 @@ import { FaDiscord, FaGithub } from 'react-icons/fa';
 import { FiLogIn } from 'react-icons/fi';
 import { MdOutlineMailLock } from 'react-icons/md';
 
+// Build callback URL with region prefix for production
+const isDev = process.env.NODE_ENV !== 'production';
+const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
+const dashboardUrl = isDev ? '/dashboard' : `/${REGION_SHORT}/dashboard`;
+
 const iconClasses =
   'text-xl text-default-500 pointer-events-none flex-shrink-0';
 
@@ -61,7 +66,7 @@ const LoginDropDown = (params: any) => {
             startContent={
               <MdOutlineMailLock size={24} className={iconClasses} />
             }
-            onPress={() => signIn('email', { callbackUrl: '/dashboard' })}
+            onPress={() => signIn('email', { callbackUrl: dashboardUrl })}
           >
             Email Account
           </DropdownItem>
@@ -73,14 +78,14 @@ const LoginDropDown = (params: any) => {
           <DropdownItem
             key="a1"
             startContent={<FaDiscord size={24} className={iconClasses} />}
-            onPress={() => signIn('discord', { callbackUrl: '/dashboard' })}
+            onPress={() => signIn('discord', { callbackUrl: dashboardUrl })}
           >
             Discord
           </DropdownItem>
           <DropdownItem
             key="b1"
             startContent={<FaGithub size={24} className={iconClasses} />}
-            onPress={() => signIn('github', { callbackUrl: '/dashboard' })}
+            onPress={() => signIn('github', { callbackUrl: dashboardUrl })}
           >
             Github
           </DropdownItem>
