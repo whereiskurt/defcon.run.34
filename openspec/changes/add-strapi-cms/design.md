@@ -626,6 +626,43 @@ Strapi: Returns API response from /admin/init
 2. **Incomplete ALB rules**: `/content-manager/*` and `/upload/*` requests get 404
 3. **Rewriting SPA routes**: Browser navigation to `/use1/admin/settings` returns JSON 404
 4. **nginx location order**: Regex locations match in config order, not specificity
+5. **Secure cookie errors**: Session middleware throws "Cannot send secure cookie over unencrypted connection"
+
+### Session Configuration for Reverse Proxy
+
+When TLS terminates at CloudFront/ALB (not at Strapi), the session middleware sees HTTP connections and refuses to set secure cookies. This breaks OIDC SSO which stores state in session cookies.
+
+**Error:**
+```
+Error: Cannot send secure cookie over unencrypted connection
+at Cookies.set (/app/node_modules/cookies/index.js:126:11)
+at ContextSession.save (/app/node_modules/koa-session/lib/context.js:341:22)
+```
+
+**Solution:** Configure session middleware to allow cookies over "insecure" internal connections:
+
+```typescript
+// config/middlewares.ts
+{
+  name: 'strapi::session',
+  config: {
+    // TLS terminates at CloudFront/ALB, not at Strapi
+    // Cookie is still sent over HTTPS to the browser
+    secure: false,
+    sameSite: 'lax',
+  },
+},
+```
+
+**Why this is safe:**
+- Browser ↔ CloudFront: HTTPS (secure)
+- CloudFront ↔ ALB: HTTPS (secure)
+- ALB ↔ nginx: HTTPS (self-signed cert)
+- nginx ↔ Strapi: HTTP (localhost within container)
+
+The cookie's `secure` flag only affects the internal nginx→Strapi hop. The browser still receives the cookie over HTTPS.
+
+**Note:** Setting `proxy: true` in `server.ts` is NOT sufficient. The session middleware has its own `secure` default that must be explicitly overridden.
 
 ## Appendix: Directory Structure
 
