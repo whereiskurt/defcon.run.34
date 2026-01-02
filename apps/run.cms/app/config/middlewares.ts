@@ -1,6 +1,15 @@
 export default ({ env }) => [
   'strapi::logger',
   'strapi::errors',
+  // Services claim validation - ensures user still has 'cms' service
+  // Periodically validates against auth.defcon.run every 5 minutes
+  // Works alongside short session lifespans for immediate revocation
+  {
+    name: 'global::services-validation',
+    config: {
+      enabled: true,
+    },
+  },
   {
     name: 'strapi::security',
     config: {

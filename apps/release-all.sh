@@ -332,11 +332,11 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
 
     # Apply ecs-task first (creates new task definitions)
     echo "  Applying ecs-task..."
-    terragrunt run apply -auto-approve --non-interactive --working-dir "${REGION_DIR}/ecs-task"
+    terragrunt run apply --non-interactive --working-dir "${REGION_DIR}/ecs-task" -- -auto-approve
 
     # Apply ecs-service (deploys the new task definitions)
     echo "  Applying ecs-service..."
-    terragrunt run apply -auto-approve --non-interactive --working-dir "${REGION_DIR}/ecs-service"
+    terragrunt run apply --non-interactive --working-dir "${REGION_DIR}/ecs-service" -- -auto-approve
 
     echo "  Deploy complete for ${_REGION_DISPLAY}"
   done
