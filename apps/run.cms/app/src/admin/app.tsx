@@ -105,12 +105,20 @@ export default {
         ? (args[1] as any)?.method || 'GET'
         : (args[0] as Request).method;
 
-      // Intercept logout requests - redirect to OIDC end_session instead
+      // Intercept logout requests - call Strapi logout first, then OIDC end_session
       if (url.includes('/admin/logout') && method.toUpperCase() === 'POST') {
-        console.log('[SSO] Intercepting logout, redirecting to OIDC end_session');
+        console.log('[SSO] Intercepting logout, calling Strapi logout then OIDC end_session');
         isRedirecting = true;
-        // Redirect to auth server's end_session endpoint
-        // httpOnly cookies will be cleared/invalidated by the server
+
+        // First, let Strapi logout complete to invalidate server-side session
+        try {
+          await originalFetch(...args);
+        } catch (e) {
+          // Ignore errors - proceed with OIDC logout anyway
+          console.log('[SSO] Strapi logout error (proceeding anyway):', e);
+        }
+
+        // Then redirect to auth server's end_session endpoint
         redirectToOIDCLogout();
         // Return a promise that never resolves - page is navigating away
         return new Promise(() => {});
