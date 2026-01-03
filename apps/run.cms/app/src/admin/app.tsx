@@ -8,7 +8,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const window: any;
-declare const localStorage: any;
 declare function setTimeout(callback: () => void, ms: number): void;
 declare class Promise<T> {
   constructor(executor: (resolve: (value: T) => void, reject: (reason?: any) => void) => void);
@@ -18,6 +17,7 @@ declare class URL {
   searchParams: { set(name: string, value: string): void };
   toString(): string;
 }
+declare const console: { log(...args: any[]): void };
 
 // Get region from the URL path (e.g., /use1/admin -> use1)
 const getRegionFromPath = (): string => {
@@ -109,10 +109,8 @@ export default {
       if (url.includes('/admin/logout') && method.toUpperCase() === 'POST') {
         console.log('[SSO] Intercepting logout, redirecting to OIDC end_session');
         isRedirecting = true;
-        // Clear local tokens
-        localStorage.removeItem('jwtToken');
-        localStorage.removeItem('isLoggedIn');
         // Redirect to auth server's end_session endpoint
+        // httpOnly cookies will be cleared/invalidated by the server
         redirectToOIDCLogout();
         // Return a promise that never resolves - page is navigating away
         return new Promise(() => {});
@@ -125,10 +123,7 @@ export default {
         if (url.includes('/admin/')) {
           console.log('[SSO] Got 401 on admin API, redirecting to SSO immediately');
           isRedirecting = true;
-          // Clear any stale tokens
-          localStorage.removeItem('jwtToken');
-          localStorage.removeItem('isLoggedIn');
-          // Redirect immediately
+          // Redirect immediately - httpOnly cookies handled by server
           redirectToSSO();
           // Return a promise that never resolves - page is navigating away
           return new Promise(() => {});

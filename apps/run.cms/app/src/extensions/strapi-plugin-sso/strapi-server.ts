@@ -3,12 +3,68 @@
  * Adds service claim validation for OIDC authentication
  *
  * Users must have 'cms' in their services claim to access the CMS admin
+ *
+ * Security: Uses httpOnly cookies instead of localStorage for JWT storage
  */
 import axios from 'axios';
 import { randomUUID } from 'node:crypto';
 import type { Core } from '@strapi/strapi';
 
 const REQUIRED_SERVICE = process.env.OIDC_REQUIRED_SERVICES || 'cms';
+
+// Cookie configuration for secure token storage
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  // Access token cookie expires in 5 minutes (matches session config)
+  maxAge: 5 * 60 * 1000,
+};
+
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  // Refresh token cookie expires in 10 minutes (matches session config)
+  maxAge: 10 * 60 * 1000,
+};
+
+/**
+ * Generate secure tokens using Strapi's sessionManager with httpOnly cookies
+ * This replaces the plugin's generateToken which uses non-httpOnly cookies
+ */
+async function generateSecureToken(
+  strapi: Core.Strapi,
+  user: { id: number | string },
+  ctx: any
+): Promise<string> {
+  const sessionManager = (strapi as any).sessionManager;
+  if (!sessionManager) {
+    throw new Error('sessionManager is not supported. Please upgrade to Strapi v5.24.1 or later.');
+  }
+
+  const userId = String(user.id);
+  const deviceId = randomUUID();
+
+  // Generate refresh token and set as httpOnly cookie
+  const { token: refreshToken } = await sessionManager('admin').generateRefreshToken(
+    userId,
+    deviceId,
+    { type: 'refresh' }
+  );
+
+  ctx.cookies.set('strapi_admin_refresh', refreshToken, REFRESH_COOKIE_OPTIONS);
+
+  // Generate access token from refresh token
+  const accessResult = await sessionManager('admin').generateAccessToken(refreshToken);
+  if ('error' in accessResult) {
+    throw new Error(accessResult.error);
+  }
+
+  return accessResult.token;
+}
 
 export default (plugin) => {
   // Override the OIDC callback to add service claim validation
@@ -71,9 +127,9 @@ export default (plugin) => {
       let jwtToken;
 
       if (dbUser) {
-        // Existing user - generate token
+        // Existing user - generate token with httpOnly cookies
         activateUser = dbUser;
-        jwtToken = await oauthService.generateToken(dbUser, ctx);
+        jwtToken = await generateSecureToken(strapiInstance, dbUser, ctx);
         strapiInstance.log.info(`[SSO] Existing user logged in: ${email}`);
       } else {
         // New user - auto-provision with admin role
@@ -110,17 +166,25 @@ export default (plugin) => {
           roles
         );
 
-        jwtToken = await oauthService.generateToken(activateUser, ctx);
+        jwtToken = await generateSecureToken(strapiInstance, activateUser, ctx);
         await oauthService.triggerWebHook(activateUser);
         strapiInstance.log.info(`[SSO] New admin user created: ${email} with roles: ${JSON.stringify(roles)}`);
       }
 
       oauthService.triggerSignInSuccess(activateUser);
 
-      const nonce = randomUUID();
-      const html = oauthService.renderSignUpSuccess(jwtToken, activateUser, nonce);
-      ctx.set('Content-Security-Policy', `script-src 'nonce-${nonce}'`);
-      ctx.send(html);
+      // Set access token in httpOnly cookie (more secure than localStorage)
+      // Note: refresh token is already set by generateSecureToken
+      ctx.cookies.set('strapi_admin_token', jwtToken, COOKIE_OPTIONS);
+
+      strapiInstance.log.info(`[SSO] Login successful for ${email}, redirecting to admin panel`);
+
+      // Get the admin URL from config
+      const adminUrl = strapiInstance.config.get('admin.url') || '/admin';
+
+      // Redirect to admin panel instead of returning JavaScript
+      // This avoids localStorage entirely - token is in httpOnly cookie
+      ctx.redirect(adminUrl);
     } catch (e) {
       strapiInstance.log.error(`[SSO] Authentication error: ${(e as Error).message}`, e);
       ctx.send(oauthService.renderSignUpError((e as Error).message));

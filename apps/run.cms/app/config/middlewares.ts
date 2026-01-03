@@ -1,6 +1,14 @@
 export default ({ env }) => [
   'strapi::logger',
   'strapi::errors',
+  // Cookie-based authentication - reads JWT from httpOnly cookie
+  // Must run early, before Strapi's auth middleware
+  {
+    name: 'global::cookie-auth',
+    config: {
+      enabled: true,
+    },
+  },
   // Services claim validation - ensures user still has 'cms' service
   // Periodically validates against auth.defcon.run every 5 minutes
   // Works alongside short session lifespans for immediate revocation
