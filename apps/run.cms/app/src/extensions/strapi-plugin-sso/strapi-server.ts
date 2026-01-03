@@ -13,9 +13,11 @@ import type { Core } from '@strapi/strapi';
 const REQUIRED_SERVICE = process.env.OIDC_REQUIRED_SERVICES || 'cms';
 
 // Cookie configuration for secure token storage
+// Note: secure: false because TLS terminates at nginx/ALB, not Strapi
+// The cookie is still sent securely to the browser via HTTPS at the edge
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: false, // Strapi behind reverse proxy - TLS terminates at edge
   sameSite: 'lax' as const,
   path: '/',
   // Access token cookie expires in 5 minutes (matches session config)
@@ -24,7 +26,7 @@ const COOKIE_OPTIONS = {
 
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: false, // Strapi behind reverse proxy - TLS terminates at edge
   sameSite: 'lax' as const,
   path: '/',
   // Refresh token cookie expires in 10 minutes (matches session config)
