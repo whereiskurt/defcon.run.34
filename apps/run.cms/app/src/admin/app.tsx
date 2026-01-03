@@ -10,6 +10,14 @@
 declare const window: any;
 declare const localStorage: any;
 declare function setTimeout(callback: () => void, ms: number): void;
+declare class Promise<T> {
+  constructor(executor: (resolve: (value: T) => void, reject: (reason?: any) => void) => void);
+}
+declare class URL {
+  constructor(url: string);
+  searchParams: { set(name: string, value: string): void };
+  toString(): string;
+}
 
 // Get region from the URL path (e.g., /use1/admin -> use1)
 const getRegionFromPath = (): string => {
@@ -33,6 +41,29 @@ const redirectToSSO = (): void => {
   const ssoUrl = `/${region}/strapi-plugin-sso/oidc`;
   console.log('[SSO] Session expired, redirecting to SSO:', ssoUrl);
   window.location.href = ssoUrl;
+};
+
+// Get auth server OIDC URL for the current region
+const getAuthServerUrl = (): string => {
+  if (typeof window === 'undefined') return 'https://auth.defcon.run/use1/api/oidc';
+  const region = getRegionFromPath();
+  // Use private service discovery in production (but URL here is for browser redirect)
+  return `https://auth.defcon.run/${region}/api/oidc`;
+};
+
+// Redirect to auth server's end_session endpoint for full logout
+const redirectToOIDCLogout = (): void => {
+  if (typeof window === 'undefined') return;
+  const region = getRegionFromPath();
+  const authServerUrl = getAuthServerUrl();
+
+  // Build the end_session URL with post_logout_redirect_uri
+  const endSessionUrl = new URL(`${authServerUrl}/session/end`);
+  const postLogoutRedirectUri = `${window.location.origin}/${region}/admin`;
+  endSessionUrl.searchParams.set('post_logout_redirect_uri', postLogoutRedirectUri);
+
+  console.log('[SSO] Logging out via OIDC end_session:', endSessionUrl.toString());
+  window.location.href = endSessionUrl.toString();
 };
 
 // Auto-redirect to SSO on login page (only runs in browser)
@@ -59,21 +90,48 @@ export default {
   bootstrap() {
     if (typeof window === 'undefined') return;
 
-    // Listen for 401 responses and redirect to SSO
+    let isRedirecting = false;
+
+    // Intercept fetch for 401 handling and logout interception
     const originalFetch = window.fetch;
     window.fetch = async (...args: Parameters<typeof fetch>) => {
+      // If we're already redirecting, return a pending promise (never resolves)
+      if (isRedirecting) {
+        return new Promise(() => {});
+      }
+
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
+      const method = typeof args[0] === 'string'
+        ? (args[1] as any)?.method || 'GET'
+        : (args[0] as Request).method;
+
+      // Intercept logout requests - redirect to OIDC end_session instead
+      if (url.includes('/admin/logout') && method.toUpperCase() === 'POST') {
+        console.log('[SSO] Intercepting logout, redirecting to OIDC end_session');
+        isRedirecting = true;
+        // Clear local tokens
+        localStorage.removeItem('jwtToken');
+        localStorage.removeItem('isLoggedIn');
+        // Redirect to auth server's end_session endpoint
+        redirectToOIDCLogout();
+        // Return a promise that never resolves - page is navigating away
+        return new Promise(() => {});
+      }
+
       const response = await originalFetch(...args);
 
-      // If we get a 401 on an admin API call, redirect to SSO
+      // If we get a 401 on an admin API call, redirect to SSO immediately
       if (response.status === 401) {
-        const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request).url;
         if (url.includes('/admin/')) {
-          console.log('[SSO] Got 401 on admin API, will redirect to SSO');
+          console.log('[SSO] Got 401 on admin API, redirecting to SSO immediately');
+          isRedirecting = true;
           // Clear any stale tokens
           localStorage.removeItem('jwtToken');
           localStorage.removeItem('isLoggedIn');
-          // Redirect to SSO after a brief delay
-          setTimeout(redirectToSSO, 500);
+          // Redirect immediately
+          redirectToSSO();
+          // Return a promise that never resolves - page is navigating away
+          return new Promise(() => {});
         }
       }
 
