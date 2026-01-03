@@ -70,6 +70,92 @@ The CMS OIDC authentication SHALL support multi-region deployments with region-p
 - **AND** the callback URL includes a regional prefix (use1 or cac1)
 - **THEN** the callback is accepted as a valid redirect_uri
 
+### Requirement: Secure Token Storage
+The CMS SHALL store JWT authentication tokens in httpOnly cookies to prevent XSS attacks from accessing tokens.
+
+#### Scenario: Access token stored in httpOnly cookie
+- **WHEN** a user successfully authenticates via SSO
+- **THEN** the access token is stored in a `strapi_admin_token` httpOnly cookie
+- **AND** the cookie has `secure: true` in production
+- **AND** the cookie has `sameSite: lax`
+- **AND** the token is NOT stored in localStorage
+
+#### Scenario: Refresh token stored in httpOnly cookie
+- **WHEN** a user successfully authenticates via SSO
+- **THEN** the refresh token is stored in a `strapi_admin_refresh` httpOnly cookie
+- **AND** the cookie has `secure: true` in production
+- **AND** the cookie has `sameSite: lax`
+
+#### Scenario: Cookie-auth middleware injects Authorization header
+- **WHEN** an admin API request is received
+- **AND** the request has a `strapi_admin_token` cookie
+- **AND** the request does NOT have an Authorization header
+- **THEN** the middleware adds `Authorization: Bearer {token}` to the request
+- **AND** Strapi's auth system processes the request normally
+
+### Requirement: Short Session Lifespan
+The CMS SHALL use short session lifespans to enable frequent re-validation of user permissions.
+
+#### Scenario: Access token expires quickly
+- **GIVEN** the access token lifespan is configured to 5 minutes
+- **WHEN** the access token expires
+- **THEN** Strapi attempts to refresh using the refresh token
+
+#### Scenario: Refresh token expires for re-authentication
+- **GIVEN** the refresh token lifespan is configured to 10 minutes
+- **WHEN** the refresh token expires
+- **THEN** the user must re-authenticate via SSO
+- **AND** the services claim is re-validated during authentication
+
+### Requirement: Services Claim Validation
+The CMS SHALL periodically validate that users still have the "cms" service claim.
+
+#### Scenario: Background services validation
+- **GIVEN** a user is authenticated in the CMS
+- **WHEN** 5 minutes have passed since the last validation
+- **THEN** the middleware calls auth.defcon.run to validate the user's services
+- **AND** uses private service discovery (`auth.app-{region}-defcon-run.local`)
+
+#### Scenario: User services claim revoked
+- **GIVEN** a user is authenticated in the CMS
+- **WHEN** the services validation finds the user no longer has "cms" service
+- **THEN** the user receives a 401 response
+- **AND** the user is redirected to SSO for re-authentication
+
+#### Scenario: Validation failure graceful handling
+- **GIVEN** a user is authenticated in the CMS
+- **WHEN** the services validation call fails (auth server unavailable)
+- **THEN** the session continues (fail-open for availability)
+- **AND** the failure is logged
+
+### Requirement: SSO Session Expiry Redirect
+The CMS SHALL automatically redirect users to SSO when their session expires.
+
+#### Scenario: Session timeout redirects to SSO
+- **WHEN** a user's session expires
+- **AND** an API call returns 401
+- **THEN** the user is redirected to `/{region}/strapi-plugin-sso/oidc`
+- **AND** the user is NOT shown the internal Strapi login page
+
+#### Scenario: Login page auto-redirects to SSO
+- **WHEN** a user navigates to `/{region}/admin/auth/login`
+- **THEN** the page automatically redirects to the SSO URL
+- **AND** provides seamless re-authentication experience
+
+### Requirement: OIDC Logout Integration
+The CMS logout SHALL invalidate the session at auth.defcon.run.
+
+#### Scenario: Logout triggers OIDC end_session
+- **WHEN** a user clicks the logout button in Strapi admin
+- **THEN** the user is redirected to auth.defcon.run's end_session endpoint
+- **AND** the `post_logout_redirect_uri` is set to `/{region}/admin`
+- **AND** httpOnly cookies are invalidated server-side
+
+#### Scenario: Post-logout redirect returns to CMS
+- **WHEN** auth.defcon.run completes the logout
+- **THEN** the user is redirected back to the CMS admin
+- **AND** the user can initiate a new SSO login
+
 ### Requirement: Local Admin Fallback
 The CMS SHALL maintain local email/password authentication as a fallback when SSO is unavailable.
 
@@ -91,4 +177,37 @@ The strapi-plugin-sso community plugin registers routes at `/strapi-plugin-sso/*
 - Strapi handles: `/strapi-plugin-sso/oidc`
 
 ### Plugin Extension
-Service claim validation is implemented via a Strapi extension at `src/extensions/strapi-plugin-sso/strapi-server.ts` that overrides the OIDC callback handler to check for the "cms" service in the user's services claim.
+Service claim validation is implemented via a Strapi extension at `src/extensions/strapi-plugin-sso/strapi-server.ts` that:
+- Overrides the OIDC callback handler to check for "cms" service in user's services claim
+- Uses Strapi's `sessionManager` API to generate tokens with httpOnly cookies
+- Redirects to admin panel after successful auth (no JavaScript/localStorage)
+
+### Middleware Stack
+Two custom middlewares handle authentication and validation:
+
+1. **cookie-auth** (`src/middlewares/cookie-auth.ts`)
+   - Reads JWT from `strapi_admin_token` httpOnly cookie
+   - Injects `Authorization: Bearer` header for admin routes
+   - Runs early in middleware chain, before Strapi's auth
+
+2. **services-validation** (`src/middlewares/services-validation.ts`)
+   - Validates user's services claim every 5 minutes
+   - Calls auth server via private service discovery
+   - Returns 401 if user no longer has "cms" service
+
+### Admin Panel Customization
+The admin panel (`src/admin/app.tsx`) provides:
+- Auto-redirect from `/admin/auth/login` to SSO URL
+- Fetch interceptor for 401 responses → SSO redirect
+- Fetch interceptor for logout → OIDC end_session redirect
+- No localStorage usage (all token storage in httpOnly cookies)
+
+### Session Configuration
+Configured in `config/admin.ts`:
+- Access token lifespan: 5 minutes
+- Refresh token lifespan: 10 minutes
+- Idle session timeout: 10 minutes
+
+### Nginx Configuration
+- Redirects `/admin/auth/login` → `/use1/admin/auth/login` (fixes Strapi hardcoded redirect)
+- Strips regional prefix for SSO plugin routes
