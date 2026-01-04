@@ -4,7 +4,9 @@
  *
  * Users must have 'cms' in their services claim to access the CMS admin
  *
- * Security: Uses httpOnly cookies instead of localStorage for JWT storage
+ * Security:
+ * - Refresh token stored in httpOnly cookie (protected from XSS)
+ * - Access token stored in localStorage (required for Strapi SPA, short-lived 5 min)
  */
 import axios from 'axios';
 import { randomUUID } from 'node:crypto';
@@ -12,18 +14,8 @@ import type { Core } from '@strapi/strapi';
 
 const REQUIRED_SERVICE = process.env.OIDC_REQUIRED_SERVICES || 'cms';
 
-// Cookie configuration for secure token storage
+// Refresh token cookie - httpOnly to protect from XSS
 // Note: secure: false because TLS terminates at nginx/ALB, not Strapi
-// The cookie is still sent securely to the browser via HTTPS at the edge
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: false, // Strapi behind reverse proxy - TLS terminates at edge
-  sameSite: 'lax' as const,
-  path: '/',
-  // Access token cookie expires in 5 minutes (matches session config)
-  maxAge: 5 * 60 * 1000,
-};
-
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
   secure: false, // Strapi behind reverse proxy - TLS terminates at edge
@@ -175,18 +167,33 @@ export default (plugin) => {
 
       oauthService.triggerSignInSuccess(activateUser);
 
-      // Set access token in httpOnly cookie (more secure than localStorage)
+      // Set refresh token in httpOnly cookie (protected from XSS)
       // Note: refresh token is already set by generateSecureToken
-      ctx.cookies.set('strapi_admin_token', jwtToken, COOKIE_OPTIONS);
 
       strapiInstance.log.info(`[SSO] Login successful for ${email}, redirecting to admin panel`);
 
       // Get the admin URL from config
       const adminUrl = strapiInstance.config.get('admin.url') || '/admin';
 
-      // Redirect to admin panel instead of returning JavaScript
-      // This avoids localStorage entirely - token is in httpOnly cookie
-      ctx.redirect(adminUrl);
+      // Return HTML that sets localStorage token (required for Strapi SPA)
+      // then redirects to admin panel. The access token is short-lived (5 min)
+      // so exposure risk is minimal. Refresh token stays in httpOnly cookie.
+      const nonce = randomUUID();
+      const html = `
+<!DOCTYPE html>
+<html>
+<head><title>SSO Login</title></head>
+<body>
+<script nonce="${nonce}">
+  localStorage.setItem('jwtToken', '"${jwtToken}"');
+  localStorage.setItem('STRAPI_ADMIN_AUTH_TOKEN', '"${jwtToken}"');
+  window.location.href = '${adminUrl}';
+</script>
+</body>
+</html>`;
+      ctx.set('Content-Security-Policy', `script-src 'nonce-${nonce}'`);
+      ctx.type = 'text/html';
+      ctx.body = html;
     } catch (e) {
       strapiInstance.log.error(`[SSO] Authentication error: ${(e as Error).message}`, e);
       ctx.send(oauthService.renderSignUpError((e as Error).message));

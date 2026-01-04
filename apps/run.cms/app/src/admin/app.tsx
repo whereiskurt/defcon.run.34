@@ -110,6 +110,10 @@ export default {
         console.log('[SSO] Intercepting logout, calling Strapi logout then OIDC end_session');
         isRedirecting = true;
 
+        // Clear localStorage tokens
+        window.localStorage.removeItem('jwtToken');
+        window.localStorage.removeItem('STRAPI_ADMIN_AUTH_TOKEN');
+
         // First, let Strapi logout complete to invalidate server-side session
         try {
           await originalFetch(...args);
@@ -131,7 +135,10 @@ export default {
         if (url.includes('/admin/')) {
           console.log('[SSO] Got 401 on admin API, redirecting to SSO immediately');
           isRedirecting = true;
-          // Redirect immediately - httpOnly cookies handled by server
+          // Clear stale localStorage tokens
+          window.localStorage.removeItem('jwtToken');
+          window.localStorage.removeItem('STRAPI_ADMIN_AUTH_TOKEN');
+          // Redirect to SSO for re-authentication
           redirectToSSO();
           // Return a promise that never resolves - page is navigating away
           return new Promise(() => {});
