@@ -8,15 +8,16 @@ The auth server's `post_logout_redirect_uris` are configured without trailing sl
 
 ## What Changes
 
-- Add a templated redirect HTML file at `apps/run.human/redirects/region.html`
-- Modify `apps/build.sh` to upload this file to S3 as object key `${REGION_SHORT}` (without trailing slash)
-- The redirect file will issue a meta-refresh redirect from `/use1` to `/use1/`
+- Add templated redirect HTML files at `apps/run.human/redirects/region.html` and `apps/run.auth/redirects/region.html`
+- Modify `apps/build.sh` to upload these files to S3 as object key `${REGION_SHORT}` (without trailing slash)
+- The redirect files will issue a meta-refresh redirect from `/use1` to `/use1/`
 
 This ensures that when CloudFront/S3 receives `/use1`, it serves the redirect HTML which sends the user to `/use1/` (with trailing slash), which then routes correctly to the ALB.
 
 ## Impact
 
 - Affected specs: `static-routing` (new capability)
-- Affected code: `apps/run.human/redirects/region.html` (new), `apps/build.sh` (modified)
+- Affected code: `apps/run.human/redirects/region.html` (new), `apps/run.auth/redirects/region.html` (new), `apps/build.sh` (modified)
 - No auth code changes required
 - Works for all regions (use1, cac1)
+- Applies to both run.defcon.run and auth.defcon.run
