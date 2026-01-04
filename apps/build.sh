@@ -143,6 +143,14 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   AWS_PROFILE=application aws s3 cp "${TMP_PUBLIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 sync "${TMP_PUBLIC}" "s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/public" --cache-control 'public,max-age=31536000,immutable' --delete
 
+  # Upload region redirect file (handles /use1 -> /use1/ trailing slash redirect for post-logout)
+  REDIRECT_TEMPLATE="${APP_DIR}/redirects/region.html"
+  if [[ -f "${REDIRECT_TEMPLATE}" ]]; then
+    TMP_REDIRECT="${TMP_DIR}/region-redirect.html"
+    sed "s/{{REGION}}/${REGION_SHORT}/g" "${REDIRECT_TEMPLATE}" > "${TMP_REDIRECT}"
+    AWS_PROFILE=application aws s3 cp "${TMP_REDIRECT}" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}" --content-type 'text/html' --cache-control 'no-cache, no-store, must-revalidate'
+  fi
+
   # Cleanup temp dir
   rm -rf "${TMP_DIR}"
 
