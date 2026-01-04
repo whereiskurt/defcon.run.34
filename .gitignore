@@ -48,3 +48,6 @@ out
 # Generated Lambda@Edge zip files
 *.lambda.zip
 lambda_*.zip
+
+# bv (beads viewer) local config and caches
+.bv/
