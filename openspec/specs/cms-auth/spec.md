@@ -70,28 +70,28 @@ The CMS OIDC authentication SHALL support multi-region deployments with region-p
 - **AND** the callback URL includes a regional prefix (use1 or cac1)
 - **THEN** the callback is accepted as a valid redirect_uri
 
-### Requirement: Secure Token Storage
-The CMS SHALL store JWT authentication tokens in httpOnly cookies to prevent XSS attacks from accessing tokens.
+### Requirement: Secure Token Storage (Hybrid Model)
+The CMS SHALL use a hybrid token storage model that balances security with Strapi SPA requirements.
 
-#### Scenario: Access token stored in httpOnly cookie
-- **WHEN** a user successfully authenticates via SSO
-- **THEN** the access token is stored in a `strapi_admin_token` httpOnly cookie
-- **AND** the cookie has `secure: true` in production
-- **AND** the cookie has `sameSite: lax`
-- **AND** the token is NOT stored in localStorage
+**Constraint**: Strapi v5's admin panel is a Single Page Application (SPA) that checks `localStorage` for authentication tokens before making API calls. Pure httpOnly cookie storage is not possible without forking Strapi's admin panel.
 
 #### Scenario: Refresh token stored in httpOnly cookie
 - **WHEN** a user successfully authenticates via SSO
 - **THEN** the refresh token is stored in a `strapi_admin_refresh` httpOnly cookie
-- **AND** the cookie has `secure: true` in production
 - **AND** the cookie has `sameSite: lax`
+- **AND** the refresh token is protected from XSS attacks
 
-#### Scenario: Cookie-auth middleware injects Authorization header
-- **WHEN** an admin API request is received
-- **AND** the request has a `strapi_admin_token` cookie
-- **AND** the request does NOT have an Authorization header
-- **THEN** the middleware adds `Authorization: Bearer {token}` to the request
-- **AND** Strapi's auth system processes the request normally
+#### Scenario: Access token stored in localStorage (SPA requirement)
+- **WHEN** a user successfully authenticates via SSO
+- **THEN** the access token is stored in `localStorage.jwtToken`
+- **AND** the access token is stored in `localStorage.STRAPI_ADMIN_AUTH_TOKEN`
+- **AND** the access token is short-lived (5 minutes) to limit XSS exposure window
+- **NOTE** This is required because Strapi's admin SPA checks localStorage before making API calls
+
+#### Scenario: Token cleanup on logout and session expiry
+- **WHEN** a user logs out or receives a 401 response
+- **THEN** localStorage tokens are cleared (`jwtToken`, `STRAPI_ADMIN_AUTH_TOKEN`)
+- **AND** the user is redirected appropriately (OIDC end_session or SSO login)
 
 ### Requirement: Short Session Lifespan
 The CMS SHALL use short session lifespans to enable frequent re-validation of user permissions.
@@ -179,28 +179,32 @@ The strapi-plugin-sso community plugin registers routes at `/strapi-plugin-sso/*
 ### Plugin Extension
 Service claim validation is implemented via a Strapi extension at `src/extensions/strapi-plugin-sso/strapi-server.ts` that:
 - Overrides the OIDC callback handler to check for "cms" service in user's services claim
-- Uses Strapi's `sessionManager` API to generate tokens with httpOnly cookies
-- Redirects to admin panel after successful auth (no JavaScript/localStorage)
+- Uses Strapi's `sessionManager` API to generate tokens
+- Stores refresh token in httpOnly cookie (XSS protected)
+- Returns HTML that sets access token in localStorage (required by Strapi SPA)
+- Redirects to admin panel after successful auth
 
 ### Middleware Stack
-Two custom middlewares handle authentication and validation:
+Custom middleware handles services validation:
 
-1. **cookie-auth** (`src/middlewares/cookie-auth.ts`)
-   - Reads JWT from `strapi_admin_token` httpOnly cookie
-   - Injects `Authorization: Bearer` header for admin routes
-   - Runs early in middleware chain, before Strapi's auth
-
-2. **services-validation** (`src/middlewares/services-validation.ts`)
-   - Validates user's services claim every 5 minutes
-   - Calls auth server via private service discovery
-   - Returns 401 if user no longer has "cms" service
+**services-validation** (`src/middlewares/services-validation.ts`)
+- Validates user's services claim every 5 minutes
+- Calls auth server via private service discovery
+- Returns 401 if user no longer has "cms" service
 
 ### Admin Panel Customization
 The admin panel (`src/admin/app.tsx`) provides:
 - Auto-redirect from `/admin/auth/login` to SSO URL
-- Fetch interceptor for 401 responses → SSO redirect
-- Fetch interceptor for logout → OIDC end_session redirect
-- No localStorage usage (all token storage in httpOnly cookies)
+- Fetch interceptor for 401 responses → clears localStorage → SSO redirect
+- Fetch interceptor for logout → clears localStorage → calls Strapi logout → OIDC end_session redirect
+
+### Security Model
+| Token | Storage | Protection | Lifespan |
+|-------|---------|------------|----------|
+| Refresh token | httpOnly cookie | XSS protected | 10 min |
+| Access token | localStorage | Short-lived (mitigates XSS) | 5 min |
+
+**Trade-off**: Access token in localStorage is required by Strapi's SPA architecture. The 5-minute lifespan limits the exposure window if an XSS attack occurs. The refresh token remains protected in an httpOnly cookie, preventing attackers from extending sessions.
 
 ### Session Configuration
 Configured in `config/admin.ts`:
