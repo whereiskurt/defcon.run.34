@@ -135,21 +135,21 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
 
   # Upload custom root index.html (handles region routing via cookie)
   AWS_PROFILE=application aws s3 cp "${APP_DIR}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/index.html" --cache-control 'no-cache, no-store, must-revalidate'
-  # Upload region-specific index.html if it was generated (depends on app having a root page)
+  # Upload region-specific index.html:
+  # - If Next.js generated one, use it (immutable cache)
+  # - Otherwise, use redirect template to send /use1 -> /use1/ (no-cache since it's a redirect)
+  # CloudFront Function rewrites /use1 -> /use1/index.html, so this file handles bare region paths
+  REDIRECT_TEMPLATE="${APP_DIR}/redirects/region.html"
   if [[ -f "${TMP_STATIC}/index.html" ]]; then
     AWS_PROFILE=application aws s3 cp "${TMP_STATIC}/index.html" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/index.html" --cache-control 'public,max-age=31536000,immutable'
+  elif [[ -f "${REDIRECT_TEMPLATE}" ]]; then
+    TMP_REDIRECT="${TMP_DIR}/region-redirect.html"
+    sed "s/{{REGION}}/${REGION_SHORT}/g" "${REDIRECT_TEMPLATE}" > "${TMP_REDIRECT}"
+    AWS_PROFILE=application aws s3 cp "${TMP_REDIRECT}" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/index.html" --content-type 'text/html' --cache-control 'no-cache, no-store, must-revalidate'
   fi
   AWS_PROFILE=application aws s3 cp "${TMP_PUBLIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 cp "${TMP_PUBLIC}/favicon.ico" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}/favicon.ico" --cache-control 'public,max-age=31536000,immutable'
   AWS_PROFILE=application aws s3 sync "${TMP_PUBLIC}" "s3://${WEBAPP_ORIGIN_BUCKET}/${WEBAPP_PREFIX}/public" --cache-control 'public,max-age=31536000,immutable' --delete
-
-  # Upload region redirect file (handles /use1 -> /use1/ trailing slash redirect for post-logout)
-  REDIRECT_TEMPLATE="${APP_DIR}/redirects/region.html"
-  if [[ -f "${REDIRECT_TEMPLATE}" ]]; then
-    TMP_REDIRECT="${TMP_DIR}/region-redirect.html"
-    sed "s/{{REGION}}/${REGION_SHORT}/g" "${REDIRECT_TEMPLATE}" > "${TMP_REDIRECT}"
-    AWS_PROFILE=application aws s3 cp "${TMP_REDIRECT}" "s3://${WEBAPP_ORIGIN_BUCKET}/${REGION_SHORT}" --content-type 'text/html' --cache-control 'no-cache, no-store, must-revalidate'
-  fi
 
   # Cleanup temp dir
   rm -rf "${TMP_DIR}"
