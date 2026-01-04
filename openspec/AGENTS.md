@@ -454,3 +454,40 @@ openspec archive <change-id> [--yes|-y]  # Mark complete (add --yes for automati
 ```
 
 Remember: Specs are truth. Changes are proposals. Keep them in sync.
+
+---
+
+## Issue Tracking (bd/beads)
+
+This project uses **bd (beads)** for issue tracking with first-class dependency support.
+
+Run `bd prime` for workflow context, or install hooks (`bd hooks install`) for auto-injection.
+
+**Quick reference:**
+- `bd ready` - Find unblocked work
+- `bd create "Title" --type task --priority 2` - Create issue
+- `bd close <id>` - Complete work
+- `bd sync` - Sync with git (run at session end)
+- `bd list --status=open` - List open issues
+- `bd show <id>` - View issue details
+- `bd dep add <issue> <depends-on>` - Add dependency
+- `bd blocked` - Show blocked issues
+
+For full workflow details: `bd prime`
+
+---
+
+## Issue Visualization (bv)
+
+**bv** is a TUI viewer for the beads issue tracker with AI agent support.
+
+**Quick reference:**
+- `bv` - Launch interactive TUI
+- `bv --robot-triage` - Output unified triage as JSON for AI agents
+- `bv --robot-next` - Get top pick recommendation
+- `bv --robot-plan` - Get dependency-respecting execution plan
+- `bv --robot-insights` - Get graph analysis and insights
+- `bv --robot-priority` - Get priority recommendations
+- `bv --search "query"` - Semantic search
+- `bv --export-graph .html` - Export interactive dependency graph
+- `bv --agent-brief <dir>` - Export agent brief bundle (triage.json, insights.json, brief.md)
