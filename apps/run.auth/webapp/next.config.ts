@@ -20,6 +20,8 @@ const VERSION_APP = process.env.NEXT_PUBLIC_VERSION_APP || readVersion(resolve(_
 const VERSION_NGINX = process.env.NEXT_PUBLIC_VERSION_NGINX || readVersion(resolve(__dirname, '../nginx/VERSION'));
 
 const sharedConfig = {
+  trailingSlash: true,
+  skipTrailingSlashRedirect: true,
   env: {
     NEXT_PUBLIC_VERSION_APP: VERSION_APP,
     NEXT_PUBLIC_VERSION_NGINX: VERSION_NGINX,

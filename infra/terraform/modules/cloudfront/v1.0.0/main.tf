@@ -124,21 +124,8 @@ resource "aws_cloudfront_function" "root_redirect" {
   code = <<-EOF
     function handler(event) {
       var request = event.request;
-      var uri = request.uri;
-
-      // Rewrite bare region paths (e.g., /use1, /cac1) to /use1/index.html
-      // Pattern: exactly /xxx# where x is lowercase letter and # is digit
-      if (/^\/[a-z]{3}[0-9]$/.test(uri)) {
-        request.uri = uri + '/index.html';
-        return request;
-      }
-
-      // Rewrite region paths with trailing slash (e.g., /use1/, /cac1/) to /use1/index.html
-      if (/^\/[a-z]{3}[0-9]\/$/.test(uri)) {
-        request.uri = uri + 'index.html';
-        return request;
-      }
-
+      // No rewrite needed - bare region paths like /use1 go directly to ALB
+      // Next.js handles routing via basePath configuration
       return request;
     }
   EOF
@@ -267,21 +254,27 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   # Ordered cache behaviors for bare region paths (no trailing slash)
-  # Pattern: /{region_label} routes to S3 with URI rewrite to index.html
+  # Pattern: /{region_label} routes to ALB with URI rewrite to add trailing slash
+  # Only create where ALB exists (alb_dns_name is not empty)
   # IMPORTANT: This must come BEFORE the ALB wildcard patterns
   dynamic "ordered_cache_behavior" {
-    for_each = var.regional_origins_by_domain[each.key]
+    for_each = {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.alb_dns_name != ""
+    }
     content {
       path_pattern           = "/${ordered_cache_behavior.key}"
-      target_origin_id       = "s3-${ordered_cache_behavior.key}"
+      target_origin_id       = "alb-${ordered_cache_behavior.key}"
       viewer_protocol_policy = "redirect-to-https"
-      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
       cached_methods         = ["GET", "HEAD"]
       compress               = true
 
-      cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+      origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewerExceptHostHeader
 
-      # Rewrite /use1 to /use1/index.html
+      # Rewrite /use1 to /use1/ so Next.js receives the trailing slash
       function_association {
         event_type   = "viewer-request"
         function_arn = aws_cloudfront_function.root_redirect.arn
