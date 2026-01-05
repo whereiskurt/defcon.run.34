@@ -44,7 +44,7 @@ No migration, no state manipulation, no data sync needed.
 | package.json | No | `run-{service}` | `run-auth` |
 | ECR repos | Yes | `dc34-run-{service}-{component}` | `dc34-run-auth-app` |
 | ECS task/service | No | `run-{service}` | `run-auth` |
-| S3 buckets | Yes | `{purpose}-dc34-run-{service}-*` | `uploads-dc34-run-cms-media-*` |
+| S3 buckets | Yes | `dc34-run-{service}-{purpose}-*` | `dc34-run-cms-media-*` |
 | Terraform dirs | No | `run-{service}` | `services/run-auth/` |
 
 ## Detailed Inconsistency Inventory
@@ -108,10 +108,10 @@ Note: ECR repos use site prefix via terraform variables, so these become `dc34-r
 
 | Current | Target |
 |---------|--------|
-| `cms-litestream` | `run-cms-litestream` |
-| `cms-media` | `run-cms-media` |
+| `cms-litestream` | `dc34-run-cms-litestream` |
+| `cms-media` | `dc34-run-cms-media` |
 
-Note: Full bucket names include site/region suffixes via terraform.
+Note: Full bucket names include region suffixes via terraform (e.g., `dc34-run-cms-media-use1-*`).
 
 ## Validation
 

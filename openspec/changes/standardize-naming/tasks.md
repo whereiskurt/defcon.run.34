@@ -45,8 +45,8 @@ Since the AWS account is fresh with no existing resources, all changes can be ma
 - [ ] ECS task family: `cms-master` → `run-cms-master`
 - [ ] ECS task family: `cms-worker` → `run-cms-worker`
 - [ ] ECS service names: update to `run-cms-*`
-- [ ] S3 bucket names: `cms-litestream` → `run-cms-litestream`
-- [ ] S3 bucket names: `cms-media` → `run-cms-media`
+- [ ] S3 bucket names: `cms-litestream` → `dc34-run-cms-litestream`
+- [ ] S3 bucket names: `cms-media` → `dc34-run-cms-media`
 
 ### 3.4 Update References
 - [ ] Update site.hcl if it references service directories

@@ -28,7 +28,7 @@ Then use `run-auth` as the name (no site prefix - ECS cluster provides site cont
 #### Scenario: S3 bucket naming (AWS)
 Given an S3 bucket for CMS media
 When naming the bucket
-Then use pattern `{purpose}-dc34-run-cms-media-{region}-{suffix}` (site prefix embedded)
+Then use pattern `dc34-run-cms-media-{region}-{suffix}` (site prefix first)
 
 ### Requirement: Prohibited naming patterns
 Legacy naming patterns MUST NOT be used to prevent confusion.

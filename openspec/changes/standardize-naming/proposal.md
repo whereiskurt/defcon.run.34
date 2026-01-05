@@ -21,7 +21,7 @@ The codebase has evolved with inconsistent naming patterns:
 | package.json | No | `run-{service}` | `run-auth` |
 | ECR repos | Yes | `dc34-run-{service}-{component}` | `dc34-run-auth-app` |
 | ECS task/service | No | `run-{service}` | `run-auth` |
-| S3 buckets | Yes | `{purpose}-dc34-run-{service}-*` | `uploads-dc34-run-cms-media-*` |
+| S3 buckets | Yes | `dc34-run-{service}-{purpose}-*` | `dc34-run-cms-media-*` |
 | Terraform dirs | No | `run-{service}` | `services/run-auth/` |
 
 ## Approach
