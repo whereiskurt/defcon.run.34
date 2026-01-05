@@ -6,9 +6,12 @@ Quick reference for development and deployment commands.
 
 ```bash
 # Run webapp in development mode (from apps/run.auth/webapp or apps/run.human/webapp)
-npm run dev
+
+POST=1337 npm run dev #CMS
+POST=3001 npm run dev #run.human
+POST=3002 npm run dev #run.auth
+
 npm run build
-npm run lint
 
 # Build Docker image and push to ECR
 ./apps/build.sh nginx run.auth     # or run.human
@@ -32,13 +35,13 @@ npm run lint
 
 ```bash
 # From infra/terraform/live/site/
-terragrunt run-all plan
-terragrunt run-all apply --terragrunt-non-interactive -auto-approve
+terragrunt plan
+terragrunt apply --all --non-interactive -- -auto-approve
 
 # Single module
 cd infra/terraform/live/site/region/us-east-1/ecs-service
 terragrunt plan
-terragrunt apply
+terragrunt apply --non-interactive -- -auto-approve
 ```
 
 ## Issue Tracking (bd/beads)
