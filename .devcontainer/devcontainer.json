@@ -36,7 +36,7 @@
       }
     }
   },
-  "forwardPorts": [3001, 3002],
+  "forwardPorts": [3001, 3002, 1337],
   "portsAttributes": {
     "3002": {
       "label": "run.auth",
@@ -44,6 +44,10 @@
     },
     "3001": {
       "label": "run.human",
+      "onAutoForward": "notify"
+    },
+    "1337": {
+      "label": "run.cms",
       "onAutoForward": "notify"
     }
   },
