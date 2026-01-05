@@ -1,160 +1,85 @@
-<!-- OPENSPEC:START -->
-# OpenSpec Instructions
+# AGENTS.md
 
-These instructions are for AI assistants working in this project.
+Instructions for AI coding assistants working in this repository.
 
-Always open `@/openspec/AGENTS.md` when the request:
-- Mentions planning or proposals (words like proposal, spec, change, plan)
-- Introduces new capabilities, breaking changes, architecture shifts, or big performance/security work
-- Sounds ambiguous and you need the authoritative spec before coding
+## Project Overview
 
-Use `@/openspec/AGENTS.md` to learn:
-- How to create and apply change proposals
-- Spec format and conventions
-- Project structure and guidelines
+**defcon.run 34** monorepo — an official event at DEF CON 34 (2026). Contains AWS multi-region infrastructure (Terragrunt/Terraform) and Next.js web applications deploying to `us-east-1` (use1) and `ca-central-1` (cac1) with CloudFront.
 
-Keep this managed block so 'openspec update' can refresh the instructions.
+## Repository Structure
 
-<!-- OPENSPEC:END -->
+```
+apps/
+├── run.auth/    # Auth service (auth.defcon.run) - Next.js + OIDC
+├── run.cms/     # CMS service (cms.defcon.run) - Strapi 5
+├── run.human/   # Main app (run.defcon.run) - Next.js
+├── build.sh     # Build and push Docker image to ECR
+├── deploy.sh    # Deploy to ECS via Terragrunt
+├── release.sh   # Full release: version bump + build + deploy
+└── release-all.sh  # Multi-region parallel release
 
-# Agent Instructions
+infra/terraform/
+├── live/site/   # Terragrunt live configuration
+│   ├── services/{auth,cms,run-human}/  # Service definitions
+│   └── region/{us-east-1,ca-central-1}/  # Regional resources
+└── modules/     # Terraform modules
 
-This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
-
-## Quick Reference
-
-```bash
-bd ready              # Find available work
-bd show <id>          # View issue details
-bd update <id> --status in_progress  # Claim work
-bd close <id>         # Complete work
-bd sync               # Sync with git
+openspec/        # Spec-driven development
+├── specs/       # Current truth - what IS built
+└── changes/     # Proposals - what SHOULD change
 ```
 
-## Landing the Plane (Session Completion)
+## Key Technologies
 
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until you have a PR ready for review.
+| Layer | Stack |
+|-------|-------|
+| Frontend | Next.js 16, React 19, HeroUI, Tailwind 4 |
+| CMS | Strapi 5.6 + SQLite + Litestream |
+| Auth | NextAuth.js, oidc-provider |
+| Database | DynamoDB + ElectroDB |
+| Infrastructure | Terraform 1.8, Terragrunt 0.96 |
+| Container | Docker, ECR, ECS Fargate |
+| CDN | CloudFront + WAF |
 
-### Branch Naming Convention
+## Quick Start
 
-Create a branch named after the bead you're working on:
 ```bash
-git checkout -b <bead-id>  # e.g., git checkout -b beads-abc123
+# Development
+cd apps/run.human/webapp && npm run dev
+
+# Release (all apps, all regions)
+./apps/release-all.sh --parallel
+
+# Infrastructure
+cd infra/terraform/live/site && terragrunt run-all plan
+
+# Issue tracking
+bd ready                 # Find unblocked work
+bd close <id> && bd sync # Complete and sync
 ```
 
-### MANDATORY WORKFLOW:
+## Detailed Documentation
 
-1. **Create/switch to feature branch** (if not already on one):
-   ```bash
-   # If starting fresh from main
-   git checkout main
-   git pull
-   git checkout -b <bead-id>
+Read these files for in-depth information:
 
-   # If already on a feature branch, continue there
-   ```
+| Topic | File | When to read |
+|-------|------|--------------|
+| **Architecture** | [.claude/architecture.md](.claude/architecture.md) | Multi-region patterns, containers, secrets |
+| **Commands** | [.claude/commands.md](.claude/commands.md) | Full command reference |
+| **OpenSpec** | [.claude/openspec.md](.claude/openspec.md) | Creating/implementing change proposals |
+| **Issue Tracking** | [.claude/beads.md](.claude/beads.md) | bd/beads workflow and bv visualization |
+| **Best Practices** | [.claude/best-practices.md](.claude/best-practices.md) | Code style, naming, session protocol |
 
-2. **File issues for remaining work** - Create beads for anything that needs follow-up
+## Essential Rules
 
-3. **Run quality gates** (if code changed) - Tests, linters, builds
+1. **OpenSpec for features** — Create proposals for new capabilities, breaking changes, or architecture shifts. Skip for bug fixes and typos.
 
-4. **Update issue status** - Close finished work, update in-progress items
+2. **bd for issue tracking** — Use `bd ready` to find work, `bd sync` at session end. Priority: 0-4 (not high/medium/low).
 
-5. **Commit and push to feature branch**:
-   ```bash
-   git add <files>
-   bd sync                    # Commit beads changes
-   git commit -m "descriptive message"
-   bd sync                    # Commit any new beads changes from closing
-   git push -u origin <bead-id>
-   ```
+3. **Session close protocol** — Always run: `git status` → `git add` → `bd sync` → `git commit` → `bd sync` → `git push`
 
-6. **Create PR** (if ready for review):
-   Use the MCP GitHub tools to create a pull request with:
-   - Title: Brief description of the change
-   - Body: Summary of changes, related bead ID, and test plan
-
-   Or if work continues next session, note the branch in handoff.
-
-7. **Verify**:
-   ```bash
-   git status        # Clean working tree
-   gh pr view        # PR exists (if created)
-   bd show <bead-id> # Issue status updated
-   ```
-
-8. **Hand off** - Provide context for next session including:
-   - Branch name
-   - PR link (if created)
-   - What remains to be done
-
-### CRITICAL RULES:
-- **NEVER commit directly to main** - main is protected, use feature branches
-- Work is NOT complete until pushed to remote (feature branch)
-- Branch names should match the bead ID for traceability
-- If PR is not ready, still push the branch and note status in handoff
-- NEVER say "ready to push when you are" - YOU must push
-
-
-<!-- bv-agent-instructions-v1 -->
+4. **Simplicity first** — <100 lines, single-file until proven insufficient, boring patterns preferred.
 
 ---
 
-## Beads Workflow Integration
-
-This project uses [beads_viewer](https://github.com/Dicklesworthstone/beads_viewer) for issue tracking. Issues are stored in `.beads/` and tracked in git.
-
-### Essential Commands
-
-```bash
-# View issues (launches TUI - avoid in automated sessions)
-bv
-
-# CLI commands for agents (use these instead)
-bd ready              # Show issues ready to work (no blockers)
-bd list --status=open # All open issues
-bd show <id>          # Full issue details with dependencies
-bd create --title="..." --type=task --priority=2
-bd update <id> --status=in_progress
-bd close <id> --reason="Completed"
-bd close <id1> <id2>  # Close multiple issues at once
-bd sync               # Commit and push changes
-```
-
-### Workflow Pattern
-
-1. **Start**: Run `bd ready` to find actionable work
-2. **Claim**: Use `bd update <id> --status=in_progress`
-3. **Work**: Implement the task
-4. **Complete**: Use `bd close <id>`
-5. **Sync**: Always run `bd sync` at session end
-
-### Key Concepts
-
-- **Dependencies**: Issues can block other issues. `bd ready` shows only unblocked work.
-- **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers, not words)
-- **Types**: task, bug, feature, epic, question, docs
-- **Blocking**: `bd dep add <issue> <depends-on>` to add dependencies
-
-### Session Protocol
-
-**Before ending any session, run this checklist:**
-
-```bash
-git status              # Check what changed
-git add <files>         # Stage code changes
-bd sync                 # Commit beads changes
-git commit -m "..."     # Commit code
-bd sync                 # Commit any new beads changes
-git push                # Push to remote
-```
-
-### Best Practices
-
-- Check `bd ready` at session start to find available work
-- Update status as you work (in_progress → closed)
-- Create new issues with `bd create` when you discover tasks
-- Use descriptive titles and set appropriate priority/type
-- Always `bd sync` before ending session
-
-<!-- end-bv-agent-instructions -->
+Remember: Specs are truth. Changes are proposals. Keep them in sync.
