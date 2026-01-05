@@ -10,12 +10,11 @@ Instructions for AI coding assistants working in this repository.
 
 ```
 apps/
-├── run.auth/    # Auth service (auth.defcon.run) - Next.js + OIDC
-├── run.cms/     # CMS service (cms.defcon.run) - Strapi 5
-├── run.human/   # Main app (run.defcon.run) - Next.js
-├── build.sh     # Build and push Docker image to ECR
-├── deploy.sh    # Deploy to ECS via Terragrunt
-├── release.sh   # Full release: version bump + build + deploy
+├── run.auth/       # Auth service (auth.defcon.run) - Next.js + OIDC
+├── run.cms/        # CMS service (cms.defcon.run) - Strapi 5
+├── run.human/      # Main app (run.defcon.run) - Next.js
+├── build.sh        # Build and push Docker image to ECR
+├── deploy.sh       # Deploy to ECS via Terragrunt
 └── release-all.sh  # Multi-region parallel release
 
 infra/terraform/
@@ -24,9 +23,9 @@ infra/terraform/
 │   └── region/{us-east-1,ca-central-1}/  # Regional resources
 └── modules/     # Terraform modules
 
-openspec/        # Spec-driven development
-├── specs/       # Current truth - what IS built
-└── changes/     # Proposals - what SHOULD change
+openspec/     # Spec-driven development
+├── changes/  # Proposals - what SHOULD change
+└── specs/    # Current truth - what IS built
 ```
 
 ## Key Technologies
@@ -35,11 +34,11 @@ openspec/        # Spec-driven development
 |-------|-------|
 | Frontend | Next.js 16, React 19, HeroUI, Tailwind 4 |
 | CMS | Strapi 5.6 + SQLite + Litestream |
-| Auth | NextAuth.js, oidc-provider |
-| Database | DynamoDB + ElectroDB |
+| Auth | Auth.js, oidc-provider |
+| Database |AWS DynamoDB + ElectroDB |
 | Infrastructure | Terraform 1.8, Terragrunt 0.96 |
-| Container | Docker, ECR, ECS Fargate |
-| CDN | CloudFront + WAF |
+| Container | Docker, AWS ECR, AWS ECS Fargate |
+| CDN | AWS CloudFront + WAF |
 
 ## Quick Start
 
@@ -66,7 +65,7 @@ Read these files for in-depth information:
 |-------|------|--------------|
 | **Architecture** | [.claude/architecture.md](.claude/architecture.md) | Multi-region patterns, containers, secrets |
 | **Commands** | [.claude/commands.md](.claude/commands.md) | Full command reference |
-| **OpenSpec** | [.claude/openspec.md](.claude/openspec.md) | Creating/implementing change proposals |
+| **OpenSpec** | [.claude/openspec.md](.claude/openspec.md) | Creating/implementing change proposals/TODOs |
 | **Issue Tracking** | [.claude/beads.md](.claude/beads.md) | bd/beads workflow and bv visualization |
 | **Best Practices** | [.claude/best-practices.md](.claude/best-practices.md) | Code style, naming, session protocol |
 
