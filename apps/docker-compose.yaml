@@ -1,9 +1,9 @@
-name: run-defcon-run-local
+name: dcr34
 
 services:
   
-  human-run-localhost:
-    container_name: human-run-localhost
+  run:
+    container_name: run
 
     build:
       context: run.human/webapp
@@ -51,11 +51,11 @@ services:
       - dev
       - -p "3001"
 
-  human-auth-localhost:
-    container_name: human-auth-localhost
-    network_mode: "service:human-run-localhost"
+  auth:
+    container_name: auth
+    network_mode: "service:run"
     depends_on:
-      dynamodb-web-local:
+      dynamodb:
         condition: service_healthy
 
     build:
@@ -97,9 +97,9 @@ services:
       - dev
       - -p "3002"
 
-  human-cms-localhost:
-    container_name: human-cms-localhost
-    network_mode: "service:human-run-localhost"
+  cms:
+    container_name: cms
+    network_mode: "service:run"
     build:
       context: run.cms/app
       dockerfile: Dockerfile.app.dev
@@ -113,7 +113,7 @@ services:
       - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
 
     volumes:
-      - ./run.cms/app:/app
+      - ./run.cms/app/data:/app/data
 
     env_file:
       - run.cms/app/.env
@@ -124,11 +124,11 @@ services:
       - develop
       - -p "1337"
       
-  dynamodb-web-local:
-    network_mode: "service:human-run-localhost"
+  dynamodb:
+    network_mode: "service:run"
     command: "-jar DynamoDBLocal.jar -sharedDb -inMemory -disableTelemetry"
     image: "amazon/dynamodb-local:latest"
-    container_name: dynamodb-web-local
+    container_name: dynamodb
     working_dir: /home/dynamodblocal
     healthcheck:
       test: ["CMD-SHELL", "curl -s -A 'HealthChecker' http://localhost:8000 || exit 1"]
@@ -138,12 +138,12 @@ services:
       start_interval: 500ms
       start_period:  5s
   
-  dynamodb-web-init:
+  db-init:
     image: amazon/aws-cli:latest
-    container_name: dynamodb-web-init
-    network_mode: "service:human-run-localhost"
+    container_name: db-init
+    network_mode: "service:run"
     depends_on:
-      dynamodb-web-local:
+      dynamodb:
         condition: service_healthy
     environment:
       - AWS_ACCESS_KEY_ID=local
