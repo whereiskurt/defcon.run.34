@@ -5,20 +5,28 @@ set -e
 
 echo "=== Installing webapp dependencies ==="
 
-# Install dependencies
+# Clean and install run.auth dependencies
 if [ -d "apps/run.auth/webapp" ]; then
+  echo "Cleaning run.auth node_modules..."
+  rm -rf apps/run.auth/webapp/node_modules
   echo "Installing run.auth dependencies..."
   cd apps/run.auth/webapp && npm install && cd -
 fi
 
+# Clean and install run.human dependencies
 if [ -d "apps/run.human/webapp" ]; then
+  echo "Cleaning run.human node_modules..."
+  rm -rf apps/run.human/webapp/node_modules
   echo "Installing run.human dependencies..."
   cd apps/run.human/webapp && npm install && cd -
 fi
 
+# Clean and install run.cms dependencies
 if [ -d "apps/run.cms/app" ]; then
+  echo "Cleaning run.cms node_modules..."
+  rm -rf apps/run.cms/app/node_modules
   echo "Installing run.cms (Strapi) dependencies..."
-  cd apps/run.human/app && npm install && cd -
+  cd apps/run.cms/app && npm install && cd -
 fi
 
 echo "=== Verifying tool installations ==="

@@ -10,6 +10,7 @@ services:
       dockerfile: Dockerfile.webapp.dev
     
     ports:
+      - "1337:1337"
       - "3001:3001"
       - "3002:3002"
       - "8000:8000"
@@ -84,7 +85,7 @@ services:
       - OIDC_COOKIE_KEYS=oidc-dev-secret-key-1,oidc-dev-secret-key-2
       - OIDC_RUNHUMAN_SECRET=run-human-dev-secret-12345
       - AUTH_SES_REGION=us-east-1
-      - AUTH_SES_SMTP_FROM=no-reply@auth.defcon.run
+      - AUTH_SES_SMTP_FROM=reply-to@email.defcon.run
       - AUTH_INTERNAL_SECRET=your-secret-here-make-it-long-and-random 
 
     env_file:
@@ -96,6 +97,33 @@ services:
       - dev
       - -p "3002"
 
+  human-cms-localhost:
+    container_name: human-cms-localhost
+    network_mode: "service:human-run-localhost"
+    build:
+      context: run.cms/app
+      dockerfile: Dockerfile.app.dev
+    environment:
+      - PORT=1337
+      - HOSTNAME=0.0.0.0
+      - NODE_ENV=development
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN:-}
+
+    volumes:
+      - ./run.cms/app:/app
+
+    env_file:
+      - run.cms/app/.env
+
+    command:
+      - npm
+      - run
+      - develop
+      - -p "1337"
+      
   dynamodb-web-local:
     network_mode: "service:human-run-localhost"
     command: "-jar DynamoDBLocal.jar -sharedDb -inMemory -disableTelemetry"
