@@ -52,8 +52,8 @@ RUN apk add --no-cache \
     sqlite
 
 # Install Litestream
-ARG LITESTREAM_VERSION=0.3.13
-RUN wget -qO- "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-v${LITESTREAM_VERSION}-linux-amd64.tar.gz" | tar xz -C /usr/local/bin
+ARG LITESTREAM_VERSION=0.5.5
+RUN wget -qO- "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/litestream-vfs-v${LITESTREAM_VERSION}-linux-amd64.tar.gz" | tar xz -C /usr/local/bin
 
 WORKDIR /app
 
