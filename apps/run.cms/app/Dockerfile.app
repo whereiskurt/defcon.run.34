@@ -19,6 +19,9 @@ RUN apk add --no-cache python3 make g++ git
 COPY package*.json ./
 COPY scripts/ ./scripts/
 
+# Copy local providers before npm ci (file: dependencies need them)
+COPY providers/ ./providers/
+
 # Install dependencies - will compile native modules for linux/amd64
 # Note: postinstall runs scripts/patch-strapi-compile.js to patch Strapi
 RUN npm ci
