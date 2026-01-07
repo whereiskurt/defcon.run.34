@@ -36,12 +36,13 @@ export default ({ env }) => {
       }
     : {}; // Use default local provider
 
-  // Configure SES using AWS SDK default credential chain (IAM role on Fargate, local profile)
+  // Configure SES using AWS SDK v3 (IAM role on Fargate, local profile)
   const emailConfig = {
     config: {
-      provider: '@strapi/provider-email-amazon-ses',
+      provider: 'strapi-provider-email-aws-ses-v3',
       providerOptions: {
         region: env('AWS_REGION', 'us-east-1'),
+        // Uses default AWS credential chain - IAM role in production, profile locally
       },
       settings: {
         defaultFrom: env('SES_FROM_ADDRESS', 'cms@defcon.run'),

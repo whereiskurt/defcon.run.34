@@ -1,0 +1,9 @@
+{
+  "name": "strapi-provider-email-aws-ses-v3",
+  "version": "1.0.0",
+  "description": "AWS SES email provider for Strapi using AWS SDK v3",
+  "main": "index.js",
+  "peerDependencies": {
+    "@aws-sdk/client-ses": "^3.0.0"
+  }
+}

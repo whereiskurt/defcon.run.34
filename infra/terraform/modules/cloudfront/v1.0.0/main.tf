@@ -13,6 +13,15 @@ locals {
   # This preserves the user-defined order for determining defaults
   region_labels = [for r in var.cloudfront.regions : r.label]
 
+  # Map region label to full region name (e.g., "use1" => "us-east-1")
+  region_label_to_full = { for r in var.cloudfront.regions : r.label => r.full }
+
+  # Set of region labels that should be skipped (derived from skip_regions full names)
+  skipped_region_labels = toset([
+    for r in var.cloudfront.regions : r.label
+    if contains(var.site.skip_regions, r.full)
+  ])
+
   # For each domain, determine the default origin to use
   # Prefer ALB if available (in region list order), fall back to S3 (in region list order)
   default_origin_per_domain = {
@@ -384,10 +393,12 @@ resource "aws_cloudfront_distribution" "main" {
 # We use separate resources per region with the appropriate provider
 
 # Bucket policies for us-east-1 (use1) region
+# Only create if region is not in skip_regions
 resource "aws_s3_bucket_policy" "cf_oac_access_use1" {
   for_each = {
     for domain in var.cloudfront.domains : domain => var.regional_origins_by_domain[domain]["use1"]
-    if contains(keys(var.regional_origins_by_domain[domain]), "use1")
+    if contains(keys(var.regional_origins_by_domain[domain]), "use1") &&
+    !contains(local.skipped_region_labels, "use1")
   }
 
   bucket = each.value.s3_bucket_id
@@ -416,10 +427,12 @@ resource "aws_s3_bucket_policy" "cf_oac_access_use1" {
 }
 
 # Bucket policies for ca-central-1 (cac1) region
+# Only create if region is not in skip_regions
 resource "aws_s3_bucket_policy" "cf_oac_access_cac1" {
   for_each = {
     for domain in var.cloudfront.domains : domain => var.regional_origins_by_domain[domain]["cac1"]
-    if contains(keys(var.regional_origins_by_domain[domain]), "cac1")
+    if contains(keys(var.regional_origins_by_domain[domain]), "cac1") &&
+    !contains(local.skipped_region_labels, "cac1")
   }
 
   bucket = each.value.s3_bucket_id
@@ -450,8 +463,9 @@ resource "aws_s3_bucket_policy" "cf_oac_access_cac1" {
 # Bucket policies for CMS media buckets in us-east-1 (use1)
 # These allow CloudFront OAC access to serve media files at /{region}/cms/*
 resource "aws_s3_bucket_policy" "cms_media_oac_access_use1" {
-  # Only create if bucket exists (non-empty and not a mock value)
+  # Only create if region is not in skip_regions and bucket exists
   for_each = (
+    !contains(local.skipped_region_labels, "use1") &&
     contains(keys(var.cms_media_origins), "use1") &&
     try(var.cms_media_origins["use1"].s3_bucket_id, "") != "" &&
     !startswith(try(var.cms_media_origins["use1"].s3_bucket_id, ""), "mock-")
@@ -484,8 +498,9 @@ resource "aws_s3_bucket_policy" "cms_media_oac_access_use1" {
 
 # Bucket policies for CMS media buckets in ca-central-1 (cac1)
 resource "aws_s3_bucket_policy" "cms_media_oac_access_cac1" {
-  # Only create if bucket exists (non-empty and not a mock value)
+  # Only create if region is not in skip_regions and bucket exists
   for_each = (
+    !contains(local.skipped_region_labels, "cac1") &&
     contains(keys(var.cms_media_origins), "cac1") &&
     try(var.cms_media_origins["cac1"].s3_bucket_id, "") != "" &&
     !startswith(try(var.cms_media_origins["cac1"].s3_bucket_id, ""), "mock-")

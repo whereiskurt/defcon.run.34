@@ -67,6 +67,9 @@ COPY --from=builder /app/src ./src
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 
+# Copy local providers (file: dependencies create symlinks in node_modules)
+COPY --from=builder /app/providers ./providers
+
 # Copy supervisord configurations
 COPY supervisord.master.conf /etc/supervisor/supervisord.master.conf
 COPY supervisord.worker.conf /etc/supervisor/supervisord.worker.conf

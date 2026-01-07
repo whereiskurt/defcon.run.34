@@ -31,6 +31,7 @@ defcon.run 34 (2026) event infrastructure monorepo. This project provides the we
 - **Database**: SQLite with Litestream replication to S3
 - **Media Storage**: S3 with CloudFront CDN (via OAC)
 - **Auth**: OIDC SSO via run.auth service
+- **Email**: Custom AWS SES provider (`strapi-provider-email-aws-ses-v3`) using AWS SDK v3
 
 ### Infrastructure
 - **IaC**: Terraform 1.8 modules with Terragrunt 0.96 orchestration
@@ -109,6 +110,16 @@ The CMS uses Strapi with region-prefixed URL routing:
   - `rootPath`: `{region}/cms` - S3 upload prefix
   - `baseUrl`: `https://cms.defcon.run` - CDN base (no path)
   - URLs constructed as: `baseUrl + / + rootPath + / + filename`
+
+**Email Provider:**
+- Custom local provider: `strapi-provider-email-aws-ses-v3` in `providers/`
+- Uses AWS SDK v3 (`@aws-sdk/client-ses`) to eliminate known vulnerabilities from third-party npm email packages
+- Linked as local dependency: `"strapi-provider-email-aws-ses-v3": "file:./providers/strapi-provider-email-aws-ses-v3"`
+- Uses AWS default credential chain (IAM role on Fargate, AWS profile locally)
+- Configuration in `config/plugins.ts`:
+  - `provider`: `strapi-provider-email-aws-ses-v3`
+  - `region`: from `AWS_REGION` env var
+  - `defaultFrom`/`defaultReplyTo`: from `SES_FROM_ADDRESS`/`SES_REPLYTO_ADDRESS`
 
 **Master/Worker Pattern:**
 - Master (us-east-1 only): Handles admin and write operations

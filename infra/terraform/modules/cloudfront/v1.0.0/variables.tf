@@ -3,6 +3,7 @@ variable "site" {
   type = object({
     label         = string
     random_suffix = string
+    skip_regions  = optional(list(string), [])
   })
 }
 

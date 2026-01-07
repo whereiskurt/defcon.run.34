@@ -2,11 +2,11 @@ output "distributions" {
   description = "Map of CloudFront distributions by domain"
   value = {
     for domain, dist in aws_cloudfront_distribution.main : domain => {
-      id              = dist.id
-      arn             = dist.arn
-      domain_name     = dist.domain_name
-      hosted_zone_id  = dist.hosted_zone_id
-      url             = "${domain}.${var.dns.zonename}"
+      id             = dist.id
+      arn            = dist.arn
+      domain_name    = dist.domain_name
+      hosted_zone_id = dist.hosted_zone_id
+      url            = "${domain}.${var.dns.zonename}"
     }
   }
 }
