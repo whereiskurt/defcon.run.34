@@ -11,26 +11,15 @@ import {
 } from '@heroui/react';
 
 import { useEffect, useState } from 'react';
-import { useTheme } from 'next-themes';
 import { useSession, signIn } from 'next-auth/react';
-import BlurPulseBackground from '@/components/BlurPulseBackground';
-import { RainbowText } from '@/components/text-effects';
 import { Text, Heading } from '@components/text-effects/Common';
 
 import { Link2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { FaStrava } from 'react-icons/fa';
 
 function StravaLinkContent() {
-  const [mounted, setMounted] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
-  const { resolvedTheme } = useTheme();
   const { data: session, status } = useSession();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const isDarkTheme = mounted && resolvedTheme === 'dark';
 
   const handleStravaLink = async () => {
     setIsLinking(true);
@@ -42,7 +31,7 @@ function StravaLinkContent() {
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
         <div className="z-10 w-full max-w-md">
-          <div className="bg-white/50 dark:bg-gray-900/50 shadow-lg rounded-lg p-6">
+          <div className="bg-content1 shadow-lg rounded-lg p-6">
             <p className="text-center">Loading session...</p>
           </div>
         </div>
@@ -54,9 +43,8 @@ function StravaLinkContent() {
   if (status === 'unauthenticated' || !session) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
         <div className="z-10 w-full max-w-md">
-          <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
+          <Card className="shadow-lg bg-content1">
             <CardHeader>
               <div className="flex flex-col w-full">
                 <div className="flex items-center justify-between w-full">
@@ -69,19 +57,19 @@ function StravaLinkContent() {
                     Login Required
                   </Chip>
                 </div>
-                <Text variant="small" className={isDarkTheme ? 'text-gray-300' : 'text-black'}>
+                <Text variant="small" className="text-default-500">
                   You must be logged in to link your Strava account.
                 </Text>
               </div>
             </CardHeader>
             <Divider />
             <CardBody className="flex flex-col items-center gap-4">
-              <Text className={`text-center ${isDarkTheme ? 'text-gray-300' : 'text-gray-700'}`}>
+              <Text className="text-center text-default-600">
                 Strava linking requires an existing account. Please log in first with your email, Discord, or GitHub.
               </Text>
               <Button
                 as="a"
-                href="${basePath}/login"
+                href="/login"
                 variant="solid"
                 color="primary"
                 className="text-lg font-semibold"
@@ -101,15 +89,12 @@ function StravaLinkContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
       <div className="z-10 w-full max-w-md">
-        <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
+        <Card className="shadow-lg bg-content1">
           <CardHeader>
             <div className="flex flex-col w-full">
               <div className="flex items-center justify-between w-full">
-                <Heading level={1}>
-                  <RainbowText text="Link Strava" />
-                </Heading>
+                <Heading level={1}>Link Strava</Heading>
                 {hasStravaLinked ? (
                   <Chip
                     color="success"
@@ -128,7 +113,7 @@ function StravaLinkContent() {
                   </Chip>
                 )}
               </div>
-              <Text variant="small" className={isDarkTheme ? 'text-gray-300' : 'text-black'}>
+              <Text variant="small" className="text-default-500">
                 Connect your Strava account
               </Text>
             </div>
@@ -145,10 +130,10 @@ function StravaLinkContent() {
                 color="primary"
               />
               <div className="flex flex-col">
-                <span className={`text-lg font-semibold ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                <span className="text-lg font-semibold text-foreground">
                   {session.user?.name || 'User'}
                 </span>
-                <span className={`text-sm ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'}`}>
+                <span className="text-sm text-default-500">
                   {session.user?.email}
                 </span>
               </div>
@@ -156,12 +141,12 @@ function StravaLinkContent() {
 
             {/* Strava Info Section */}
               <div className="flex items-center gap-3">
-                <FaStrava className={`w-8 h-8 ${isDarkTheme ? 'text-orange-400' : 'text-orange-500'}`} />
+                <FaStrava className="w-8 h-8 text-warning" />
                 <div>
-                  <h3 className={`font-semibold ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                  <h3 className="font-semibold text-foreground">
                     Strava Integration
                   </h3>
-                  <p className={`text-sm ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className="text-sm text-default-500">
                     {hasStravaLinked
                       ? 'Your Strava account is connected'
                       : 'Link your Strava to sync activities'}
@@ -205,23 +190,5 @@ function StravaLinkContent() {
 }
 
 export default function StravaPage() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <div className="z-10 w-full max-w-md">
-          <div className="bg-white/50 dark:bg-gray-900/50 shadow-lg rounded-lg p-6">
-            <p className="text-center">Loading...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return <StravaLinkContent />;
 }

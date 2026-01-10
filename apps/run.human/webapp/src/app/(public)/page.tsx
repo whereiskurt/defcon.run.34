@@ -10,10 +10,8 @@ import {
 } from "@heroui/react";
 
 import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import BlurPulseBackground from "@/components/BlurPulseBackground";
 import { Text, Heading } from "@components/text-effects/Common";
 
 // Build callback URL with region prefix for production
@@ -24,7 +22,6 @@ const dashboardUrl = isDev ? "/dashboard" : `/${REGION_SHORT}/dashboard`;
 function LoginContent() {
   const [mounted, setMounted] = useState(false);
   const [autoLoginTriggered, setAutoLoginTriggered] = useState(false);
-  const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
 
   const autoLogin = searchParams.get("autoLogin") === "true";
@@ -42,21 +39,12 @@ function LoginContent() {
     }
   }, [autoLogin, mounted, autoLoginTriggered]);
 
-  const isDarkTheme = mounted && resolvedTheme === "dark";
-
   // Show loading spinner during auto-login
   if (autoLogin && !autoLoginTriggered) {
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <BlurPulseBackground
-          imagePath={`/logo/bunny-face-${isDarkTheme ? "dark" : "light"}.svg`}
-        />
         <div className="z-10 w-full max-w-md">
-          <Card
-            className={`shadow-lg ${
-              isDarkTheme ? "bg-gray-900/50" : "bg-white/50"
-            }`}
-          >
+          <Card className="shadow-lg bg-content1">
             <CardBody className="flex flex-col items-center gap-4 py-8">
               <Spinner size="lg" />
               <Text variant="small" className="text-gray-500">
@@ -71,21 +59,14 @@ function LoginContent() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <BlurPulseBackground
-        imagePath={`/logo/bunny-face-${isDarkTheme ? "dark" : "light"}.svg`}
-      />
       <div className="z-10 w-full max-w-md">
-        <Card
-          className={`shadow-lg ${
-            isDarkTheme ? "bg-gray-900/50" : "bg-white/50"
-          }`}
-        >
+        <Card className="shadow-lg bg-content1">
           <CardHeader>
             <div className="flex flex-col">
               <Heading level={1}>Welcome to DEFCON.run</Heading>
               <Text
                 variant="small"
-                className={isDarkTheme ? "text-gray-300" : "text-black"}
+                className="text-default-500"
               >
                 Sign in to access your dashboard
               </Text>
