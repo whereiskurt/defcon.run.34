@@ -53,8 +53,8 @@ locals {
       deployment_minimum_healthy_percent = service.deployment_minimum_healthy_percent
       health_check_grace_period_seconds  = service.health_check_grace_period_seconds
       autoscaling                        = service.autoscaling
-      # Construct service name: name-region_label-dns-zonename
-      service_name = "${service.name}-${var.region.label}-${replace(var.dns.zonename, ".", "-")}"
+      # Construct service name: name-region_label (shortened for AWS 32-char limits)
+      service_name = "${service.name}-${var.region.label}"
       # Subnet selection based on assign_public_ip
       subnets = service.assign_public_ip ? var.public_subnet_ids : var.private_subnet_ids
     }
