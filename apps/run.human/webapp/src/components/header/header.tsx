@@ -12,7 +12,6 @@ import {
 import dynamic from 'next/dynamic';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
-import { Logo } from './logo-icon';
 
 import { FaMoneyCheckDollar, FaRadio, FaFire } from 'react-icons/fa6';
 
@@ -30,7 +29,7 @@ const LoginDropDown = dynamic(() => import('./dropdown-login'), {
   ssr: false,
   loading: () => (
     <Button
-      variant="ghost"
+      variant="light"
       className="opacity-50 animate-pulse"
       disabled
     >
@@ -66,7 +65,7 @@ export function Header(params: any) {
         <NavbarItem className="">
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
             <Link color="foreground" href="/dashboard">
-              <Logo />
+              <span className="font-semibold text-lg">defcon.run</span>
             </Link>
           </Tooltip>
         </NavbarItem>
@@ -76,7 +75,7 @@ export function Header(params: any) {
           <NavbarItem>
             <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
               <Link color="foreground" href="/dashboard">
-                <Logo />
+                <span className="font-semibold text-lg">defcon.run</span>
               </Link>
             </Tooltip>
           </NavbarItem>
@@ -85,7 +84,7 @@ export function Header(params: any) {
           <>
             <NavbarItem>
               <Link color="foreground" href="/routes">
-                <Button variant="ghost">
+                <Button variant="light">
                   <GrMapLocation size={24} />
                   Routes
                 </Button>
@@ -93,7 +92,7 @@ export function Header(params: any) {
             </NavbarItem>
             <NavbarItem>
               <Link className='p-0 m-0' color="foreground" href="/heatmap">
-                <Button variant="ghost">
+                <Button variant="light">
                   <FaFire size={24} />
                   HeatMap
                 </Button>
@@ -104,7 +103,7 @@ export function Header(params: any) {
           <>
             <NavbarItem>
               <Link color="foreground" href="/routes">
-                <Button variant="ghost">
+                <Button variant="light">
                   <GrMapLocation size={24} />
                   Routes
                 </Button>
@@ -112,7 +111,7 @@ export function Header(params: any) {
             </NavbarItem>
             <NavbarItem>
               <Link className='p-0 m-0' color="foreground" href="/heatmap">
-                <Button variant="ghost">
+                <Button variant="light">
                   <FaFire size={24} />
                   HeatMap
                 </Button>
@@ -122,7 +121,7 @@ export function Header(params: any) {
         )}
         <NavbarItem>
           <Link color="foreground" href="/meshtastic">
-            <Button variant="ghost">
+            <Button variant="light">
               <FaRadio size={24} />
               Meshtastic
             </Button>
@@ -132,7 +131,7 @@ export function Header(params: any) {
 
         <NavbarItem>
           <Link color="foreground" href="/contributors">
-            <Button variant="ghost">
+            <Button variant="light">
               <FaMoneyCheckDollar size={24} />
               Contributors
             </Button>

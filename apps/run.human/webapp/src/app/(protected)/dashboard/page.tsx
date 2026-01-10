@@ -14,8 +14,6 @@ import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
-import BlurPulseBackground from '@/components/BlurPulseBackground';
-import { RainbowText } from '@/components/text-effects';
 import { Text, Heading } from '@components/text-effects/Common';
 
 import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown, Link2, RefreshCw, Hash, Timer } from 'lucide-react';
@@ -79,15 +77,12 @@ export default function DashboardPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
       <div className="z-10 w-full max-w-lg">
         <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
           <CardHeader>
             <div className="flex flex-col w-full">
               <div className="flex items-center justify-between w-full">
-                <Heading level={1}>
-                  <RainbowText text="Session" />
-                </Heading>
+                <h1 className="text-2xl font-semibold">Session</h1>
                 <div className="flex items-center gap-2">
                   <Button
                     isIconOnly
