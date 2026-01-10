@@ -14,13 +14,10 @@ import {
 
 import type React from 'react';
 import { fontMuseo } from '@/config/fonts';
-import BlurPulseBackground from '@/components/BlurPulseBackground';
-import { GlitchLabel, RainbowText } from '@/components/text-effects';
 import { Text } from '@components/text-effects/Common';
 import { Heading } from '@components/text-effects/Common';
 
 import { Key, Wand, RefreshCw, ArrowRight } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { useState, useCallback, useRef } from 'react';
 import { getCsrfToken, useSession, signOut } from "next-auth/react"
 import { useEffect } from 'react';
@@ -39,15 +36,11 @@ function ClientOnlyForm() {
   const [email, setEmail] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isInviteCodeFocused, setIsInviteCodeFocused] = useState(false);
-  const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
   const [altchaToken, setAltchaToken] = useState<string | null>(null);
   const [altchaVerified, setAltchaVerified] = useState(false);
-  const { resolvedTheme } = useTheme();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
 
@@ -71,7 +64,6 @@ function ClientOnlyForm() {
   }, []);
 
   useEffect(() => {
-    setMounted(true);
     const fetchCsrfToken = async () => {
       const token = await getCsrfToken();
       setCsrfToken(token);
@@ -133,9 +125,6 @@ function ClientOnlyForm() {
     return false
   }
 
-  // Use a safe default in case we're rendering on the server
-  const isDarkTheme = mounted && resolvedTheme === 'dark';
-
   // Auto-redirect to complete OIDC flow when authenticated with an OIDC interaction
   // This handles the case where user completes OAuth and returns to /login?oidc=...
   useEffect(() => {
@@ -157,11 +146,10 @@ function ClientOnlyForm() {
     if (oidcInteraction) {
       return (
         <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-          <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
           <div className="z-10 w-full max-w-md">
-            <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
+            <Card className="shadow-lg bg-content1">
               <CardBody className="flex justify-center items-center py-8">
-                <Text variant="large" className={isDarkTheme ? 'text-white' : 'text-black'}>
+                <Text variant="large">
                   Completing login...
                 </Text>
               </CardBody>
@@ -173,15 +161,12 @@ function ClientOnlyForm() {
 
     return (
       <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
         <div className="z-10 w-full max-w-md">
-          <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
+          <Card className="shadow-lg bg-content1">
             <CardHeader>
               <div className="flex flex-col">
-                <Heading level={1}>
-                  <RainbowText text="Logged In" />
-                </Heading>
-                <Text variant="small" className={isDarkTheme ? 'text-gray-300' : 'text-black'}>
+                <Heading level={1}>Logged In</Heading>
+                <Text variant="small">
                   You are currently signed in
                 </Text>
               </div>
@@ -197,10 +182,10 @@ function ClientOnlyForm() {
                   color="primary"
                 />
                 <div className="flex flex-col">
-                  <span className={`text-lg font-semibold ${isDarkTheme ? 'text-white' : 'text-black'}`}>
+                  <span className="text-lg font-semibold">
                     {session.user?.name || 'User'}
                   </span>
-                  <span className={`text-sm ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <span className="text-sm text-default-500">
                     {session.user?.email}
                   </span>
                 </div>
@@ -237,20 +222,13 @@ function ClientOnlyForm() {
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <BlurPulseBackground imagePath={`/logo/bunny-face-${isDarkTheme ? 'dark' : 'light'}.svg`} />
       <div className="z-10 w-full max-w-md" >
         <form onSubmit={handleSubmit} className="w-full">
-          <Card className={`shadow-lg ${isDarkTheme ? 'bg-gray-900/50' : 'bg-white/50'}`}>
+          <Card className="shadow-lg bg-content1">
             <CardHeader>
               <div className="flex flex-col">
-                <Heading level={1}>
-                  {isSubmitting ? (
-                    <RainbowText text={'Welcome!'} />
-                  ) : (
-                    'Welcome!'
-                  )}
-                </Heading>
-                <Text variant="small" className={isDarkTheme ? 'text-gray-300' : 'text-black'}>
+                <Heading level={1}>Welcome!</Heading>
+                <Text variant="small">
                   We don&apos;t store passwords but require an email address.
                 </Text>
               </div>
@@ -261,13 +239,9 @@ function ClientOnlyForm() {
                 <Heading level={4}>
                   <label
                     htmlFor="email"
-                    className={`block text-lg font-medium ${isDarkTheme ? 'text-white' : 'text-black'}`}
+                    className="block text-lg font-medium"
                   >
-                    {isEmailFocused ? (
-                      <RainbowText text='Email Address' />
-                    ) : (
-                      'Email Address'
-                    )}
+                    Email Address
                   </label>
                 </Heading>
                 <div className="relative w-full">
@@ -275,11 +249,9 @@ function ClientOnlyForm() {
                     id="email"
                     type="email"
                     placeholder="you@example.com"
-                    className={`text-lg w-full ${isDarkTheme ? 'text-white' : 'text-black'}`}
+                    className="text-lg w-full"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    onFocus={() => setIsEmailFocused(true)}
-                    onBlur={() => setIsEmailFocused(false)}
                     required
                     disabled={isSubmitting}
                   />
@@ -289,16 +261,12 @@ function ClientOnlyForm() {
               <div className="space-y-3 w-full">
                 <label
                   htmlFor="inviteCode"
-                  className={`block text-lg font-medium pt-2 ${fontMuseo.className} ${isDarkTheme ? 'text-white' : 'text-black'}`}
+                  className={`block text-lg font-medium pt-2 ${fontMuseo.className}`}
                 >
-                  {isInviteCodeFocused ? (
-                    <GlitchLabel>Invite Codes</GlitchLabel>
-                  ) : (
-                    'Invite Codes'
-                  )}
+                  Invite Codes
                 </label>
                 <div className="relative w-full">
-                  <div className={`absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none ${isDarkTheme ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-default-400">
                     <Key className="h-5 w-5" />
                   </div>
                   <Input
@@ -308,8 +276,6 @@ function ClientOnlyForm() {
                     className="text-lg w-full"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value)}
-                    onFocus={() => setIsInviteCodeFocused(true)}
-                    onBlur={() => setIsInviteCodeFocused(false)}
                     required
                     disabled={isSubmitting}
                   />
@@ -338,9 +304,7 @@ function ClientOnlyForm() {
                 disabled={isSubmitting || !altchaVerified}
               >
                 {isSubmitting ? (
-                  <GlitchLabel className={fontMuseo.className}>
-                    Processing
-                  </GlitchLabel>
+                  <span className={fontMuseo.className}>Processing</span>
                 ) : (
                   <>
                     Send Magic Link <Wand />
@@ -405,7 +369,7 @@ export default function UnlockForm() {
   if (!mounted) {
     return <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
       <div className="z-10 w-full max-w-md">
-        <div className="bg-white/50 dark:bg-gray-900/50 shadow-lg rounded-lg p-6">
+        <div className="bg-content1 shadow-lg rounded-lg p-6">
           <p className="text-center">Loading...</p>
         </div>
       </div>

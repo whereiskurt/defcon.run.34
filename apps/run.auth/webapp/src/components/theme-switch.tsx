@@ -1,11 +1,10 @@
 "use client";
 
-import { FC, useRef, useState, useEffect } from "react";
+import { FC, useState, useEffect } from "react";
 import { VisuallyHidden } from "@react-aria/visually-hidden";
 import { SwitchProps, useSwitch } from "@heroui/switch";
 import { useTheme } from "next-themes";
 import { useIsSSR } from "@react-aria/ssr";
-import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import { IconSvgProps } from "@svgtypes";
 
@@ -64,14 +63,7 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
 }) => {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const isSSR = useIsSSR();
-  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
-  
-  // Fire mode state and rapid click detection
-  const [fireMode, setFireMode] = useState(false);
-  const clickCount = useRef(0);
-  const clickTimeout = useRef<NodeJS.Timeout | null>(null);
-  const isHeatmapPage = pathname === '/heatmap';
 
   useEffect(() => {
     setMounted(true);
@@ -79,89 +71,7 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
 
   const onChange = () => {
     theme === "light" ? setTheme("dark") : setTheme("light");
-    
-    // Only track rapid clicks on heatmap page
-    if (isHeatmapPage) {
-      clickCount.current += 1;
-      
-      // Clear existing timeout
-      if (clickTimeout.current) {
-        clearTimeout(clickTimeout.current);
-      }
-      
-      // Check for rapid clicking (10+ clicks in 2 seconds)
-      if (clickCount.current >= 10) {
-        setFireMode(prev => !prev);
-        clickCount.current = 0;
-        
-        // Show mode activation feedback
-        const flash = document.createElement('div');
-        const newMode = !fireMode;
-        
-        flash.style.cssText = `
-          position: fixed;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: ${newMode ? 'linear-gradient(45deg, #00ff00, #00ff00aa)' : 'linear-gradient(45deg, #333, #666)'};
-          color: #fff;
-          padding: 20px 30px;
-          font-family: 'Courier New', monospace;
-          font-size: 24px;
-          font-weight: bold;
-          z-index: 9999;
-          border: 2px solid ${newMode ? '#00ff00' : '#666'};
-          border-radius: 8px;
-          box-shadow: 0 0 30px ${newMode ? '#00ff00' : '#666'}, inset 0 0 20px ${newMode ? '#00ff0050' : '#66650'};
-          text-shadow: 0 0 10px #fff;
-          animation: modeFlash 1.5s ease-out;
-        `;
-        flash.innerHTML = newMode ? 
-          `ACTIVATED!` : 
-          ``;
-        
-        // Add flash animation CSS
-        const style = document.createElement('style');
-        style.textContent = `
-          @keyframes modeFlash {
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-            80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
-          }
-        `;
-        document.head.appendChild(style);
-        document.body.appendChild(flash);
-        
-        setTimeout(() => {
-          if (document.body.contains(flash)) {
-            document.body.removeChild(flash);
-          }
-          if (document.head.contains(style)) {
-            document.head.removeChild(style);
-          }
-        }, 1500);
-      } else {
-        // Reset click count after 2 seconds
-        clickTimeout.current = setTimeout(() => {
-          clickCount.current = 0;
-        }, 2000);
-      }
-    }
   };
-  
-  // Apply mode classes to body when activated
-  useEffect(() => {
-    if (isHeatmapPage && fireMode) {
-      document.body.classList.add('fireMode', 'matrixMode');
-    } else {
-      document.body.classList.remove('fireMode', 'matrixMode');
-    }
-    
-    return () => {
-      document.body.classList.remove('fireMode', 'matrixMode');
-    };
-  }, [fireMode, isHeatmapPage]);
 
   const {
     Component,
@@ -189,7 +99,7 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
         <div
           className={clsx([
             "w-auto h-auto",
-            "bg-transparent", 
+            "bg-transparent",
             "rounded-lg",
             "flex items-center justify-center",
             "!text-default-500",
