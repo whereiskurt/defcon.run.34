@@ -55,6 +55,10 @@ cd infra/terraform/live/site && terragrunt run-all plan
 # Issue tracking
 bd ready                 # Find unblocked work
 bd close <id> && bd sync # Complete and sync
+bv --robot-triage        # AI triage: ranked work, graph metrics, next steps
+
+# Context retrieval (CASS)
+cm context "<task>"      # Get rules and context before complex work
 ```
 
 ## Detailed Documentation
@@ -67,6 +71,7 @@ Read these files for in-depth information:
 | **Commands** | [.claude/commands.md](.claude/commands.md) | Full command reference |
 | **OpenSpec** | [.claude/openspec.md](.claude/openspec.md) | Creating/implementing change proposals/TODOs |
 | **Issue Tracking** | [.claude/beads.md](.claude/beads.md) | bd/beads workflow and bv visualization |
+| **Memory (CASS)** | [.claude/cass.md](.claude/cass.md) | Context retrieval before complex work |
 | **Best Practices** | [.claude/best-practices.md](.claude/best-practices.md) | Code style, naming, session protocol |
 
 ## Essential Rules
@@ -78,6 +83,8 @@ Read these files for in-depth information:
 3. **Session close protocol** — Always run: `git status` → `git add` → `bd sync` → `git commit` → `bd sync` → `git push`
 
 4. **Simplicity first** — <100 lines, single-file until proven insufficient, boring patterns preferred.
+
+5. **CASS for context** — Run `cm context "<task>"` before complex work to get rules and anti-patterns. Leave `// [cass: helpful b-xyz]` feedback inline.
 
 ---
 
