@@ -7,7 +7,7 @@ locals {
   # ECR repositories for this service
   ecr_repositories = [
     {
-      name                 = "auth-nginx"
+      name                 = "run-auth-nginx"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -16,7 +16,7 @@ locals {
       }
     },
     {
-      name                 = "auth-app"
+      name                 = "run-auth-app"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -28,7 +28,7 @@ locals {
 
   # ECS Task definition for the auth service
   task = {
-    name         = "auth"
+    name         = "run-auth"
     regions      = ["us-east-1", "ca-central-1"]
     cluster_name = "app"
     task_cpu     = 512
@@ -36,8 +36,8 @@ locals {
 
     containers = [
       {
-        name               = "auth-nginx"
-        image              = "auth-nginx:${local.versions.nginx}"
+        name               = "run-auth-nginx"
+        image              = "run-auth-nginx:${local.versions.nginx}"
         cpu                = 256
         memory             = 512
         memory_reservation = 256
@@ -73,8 +73,8 @@ locals {
         log_stream_prefix = "nginx"
       },
       {
-        name               = "auth-app"
-        image              = "auth-app:${local.versions.app}"
+        name               = "run-auth-app"
+        image              = "run-auth-app:${local.versions.app}"
         cpu                = 256
         memory             = 512
         memory_reservation = 256
@@ -290,21 +290,21 @@ locals {
 
   # ECS Service definition for the auth service
   service = {
-    name          = "auth"
+    name          = "run-auth"
     regions       = ["us-east-1", "ca-central-1"]
     cluster_name  = "app"
-    task_family   = "auth" # Must match task definition family from task above
+    task_family   = "run-auth" # Must match task definition family from task above
     desired_count = 1
 
     service_discovery = {
-      name           = "auth"
-      container_name = "auth-app"
+      name           = "run-auth"
+      container_name = "run-auth-app"
     }
 
     load_balancers = [
       {
         type                  = "alb"
-        container_name        = "auth-nginx"
+        container_name        = "run-auth-nginx"
         container_port        = 443
         target_group_protocol = "HTTPS"
         health_check_path     = "/hello"

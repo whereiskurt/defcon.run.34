@@ -1,8 +1,8 @@
 locals {
   # Load service definitions from infra/services/
-  ecs_auth_service      = read_terragrunt_config("./services/auth/service.hcl")
+  ecs_auth_service      = read_terragrunt_config("./services/run-auth/service.hcl")
   ecs_run_human_service = read_terragrunt_config("./services/run-human/service.hcl")
-  ecs_cms_service       = read_terragrunt_config("./services/cms/service.hcl")
+  ecs_cms_service       = read_terragrunt_config("./services/run-cms/service.hcl")
 
   site = {
     label         = "dc34"

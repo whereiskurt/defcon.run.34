@@ -105,9 +105,9 @@ get_cf_domain() {
 
 get_tf_service() {
   case "$1" in
-    run.auth) echo "auth" ;;
+    run.auth) echo "run-auth" ;;
     run.human) echo "run-human" ;;
-    run.cms) echo "cms" ;;
+    run.cms) echo "run-cms" ;;
     *) echo "" ;;
   esac
 }

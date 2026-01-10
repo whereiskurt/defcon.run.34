@@ -10,11 +10,15 @@ until aws dynamodb list-tables --endpoint-url "$ENDPOINT_URL" ; do
 done
 echo "DynamoDB Local is ready!"
 
-# Create the 'electro' table
+###############################################################################
+# run.auth tables
+###############################################################################
+
+# Create the 'run-auth-electro' table
 # Schema: pk/sk with 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name electro \
+    --table-name run-auth-electro \
     --attribute-definitions \
         AttributeName=pk,AttributeType=S \
         AttributeName=sk,AttributeType=S \
@@ -58,13 +62,13 @@ aws dynamodb create-table \
             }
         ]'
 
-echo "Created 'electro' table"
+echo "Created 'run-auth-electro' table"
 
-# Create the 'auth' table
-# Schema: pk/sk with 1 GSI (gsi1pk-gsi1sk-index), TTL enabled on 'ttl' attribute
+# Create the 'run-auth-authjs' table
+# Schema: pk/sk with 1 GSI (GSI1), TTL enabled on 'ttl' attribute
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name auth \
+    --table-name run-auth-authjs \
     --attribute-definitions \
         AttributeName=pk,AttributeType=S \
         AttributeName=sk,AttributeType=S \
@@ -92,36 +96,25 @@ aws dynamodb create-table \
             }
         ]'
 
-echo "Created 'auth' table"
+echo "Created 'run-auth-authjs' table"
 
-# Enable TTL on the 'auth' table
+# Enable TTL on the 'run-auth-authjs' table
 aws dynamodb update-time-to-live \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name auth \
+    --table-name run-auth-authjs \
     --time-to-live-specification "Enabled=true, AttributeName=ttl"
 
-echo "Enabled TTL on 'auth' table"
+echo "Enabled TTL on 'run-auth-authjs' table"
 
-echo "All tables created successfully!"
-aws dynamodb list-tables --endpoint-url "$ENDPOINT_URL"
+###############################################################################
+# run.human tables
+###############################################################################
 
-#!/bin/bash
-
-# Use dynamodb-local hostname when running in Docker, localhost:8989 when running locally
-ENDPOINT_URL="${DYNAMODB_ENDPOINT:-http://localhost:8000}"
-
-# Wait for DynamoDB Local to be ready
-echo "Waiting for DynamoDB Local at $ENDPOINT_URL..."
-until aws dynamodb list-tables --endpoint-url "$ENDPOINT_URL" ; do
-    sleep 1
-done
-echo "DynamoDB Local is ready!"
-
-# Create the 'electro' table
+# Create the 'run-human-electro' table
 # Schema: pk/sk with 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name run-electro \
+    --table-name run-human-electro \
     --attribute-definitions \
         AttributeName=pk,AttributeType=S \
         AttributeName=sk,AttributeType=S \
@@ -165,13 +158,13 @@ aws dynamodb create-table \
             }
         ]'
 
-echo "Created 'electro' table"
+echo "Created 'run-human-electro' table"
 
-# Create the 'human.run' table
-# Schema: pk/sk with 1 GSI (gsi1pk-gsi1sk-index), TTL enabled on 'ttl' attribute
+# Create the 'run-human-authjs' table
+# Schema: pk/sk with 1 GSI (GSI1), TTL enabled on 'ttl' attribute
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name run-auth \
+    --table-name run-human-authjs \
     --attribute-definitions \
         AttributeName=pk,AttributeType=S \
         AttributeName=sk,AttributeType=S \
@@ -199,15 +192,15 @@ aws dynamodb create-table \
             }
         ]'
 
-echo "Created 'human.run' table"
+echo "Created 'run-human-authjs' table"
 
-# Enable TTL on the 'auth' table
+# Enable TTL on the 'run-human-authjs' table
 aws dynamodb update-time-to-live \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name human.run \
+    --table-name run-human-authjs \
     --time-to-live-specification "Enabled=true, AttributeName=ttl"
 
-echo "Enabled TTL on 'human.auth' table"
+echo "Enabled TTL on 'run-human-authjs' table"
 
 echo "All tables created successfully!"
 aws dynamodb list-tables --endpoint-url "$ENDPOINT_URL"

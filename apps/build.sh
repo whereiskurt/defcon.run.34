@@ -45,7 +45,7 @@ fi
 # Set app-specific variables
 case "$APP" in
   "run.auth")
-    REPO_PREFIX="dc34-auth"
+    REPO_PREFIX="dc34-run-auth"
     WEBAPP_ORIGIN="auth.defcon.run"
     SSM_PATH_SEGMENT="auth"
     ;;
@@ -55,7 +55,7 @@ case "$APP" in
     SSM_PATH_SEGMENT="run"
     ;;
   "run.cms")
-    REPO_PREFIX="dc34-cms"
+    REPO_PREFIX="dc34-run-cms"
     ;;
 esac
 

@@ -7,7 +7,7 @@ locals {
   # ECR repositories for CMS service
   ecr_repositories = [
     {
-      name                 = "cms-nginx"
+      name                 = "run-cms-nginx"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -16,7 +16,7 @@ locals {
       }
     },
     {
-      name                 = "cms-app"
+      name                 = "run-cms-app"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -28,7 +28,7 @@ locals {
 
   # CMS Master task definition (us-east-1 only - handles writes)
   task_master = {
-    name         = "cms-master"
+    name         = "run-cms-master"
     regions      = ["us-east-1"]
     cluster_name = "app"
     task_cpu     = 512
@@ -36,8 +36,8 @@ locals {
 
     containers = [
       {
-        name               = "cms-nginx"
-        image              = "cms-nginx:${local.versions.nginx}"
+        name               = "run-cms-nginx"
+        image              = "run-cms-nginx:${local.versions.nginx}"
         cpu                = 128
         memory             = 256
         memory_reservation = 128
@@ -71,8 +71,8 @@ locals {
         log_stream_prefix = "nginx"
       },
       {
-        name               = "cms-app"
-        image              = "cms-app:${local.versions.app}"
+        name               = "run-cms-app"
+        image              = "run-cms-app:${local.versions.app}"
         cpu                = 384
         memory             = 768
         memory_reservation = 512
@@ -235,7 +235,7 @@ locals {
 
   # CMS Worker task definition (both regions - read-only)
   task_worker = {
-    name         = "cms-worker"
+    name         = "run-cms-worker"
     regions      = ["us-east-1", "ca-central-1"]
     cluster_name = "app"
     task_cpu     = 512
@@ -243,8 +243,8 @@ locals {
 
     containers = [
       {
-        name               = "cms-nginx"
-        image              = "cms-nginx:${local.versions.nginx}"
+        name               = "run-cms-nginx"
+        image              = "run-cms-nginx:${local.versions.nginx}"
         cpu                = 128
         memory             = 256
         memory_reservation = 128
@@ -278,8 +278,8 @@ locals {
         log_stream_prefix = "nginx"
       },
       {
-        name               = "cms-app"
-        image              = "cms-app:${local.versions.app}"
+        name               = "run-cms-app"
+        image              = "run-cms-app:${local.versions.app}"
         cpu                = 384
         memory             = 768
         memory_reservation = 512
@@ -458,15 +458,15 @@ locals {
 
   # CMS Master service (us-east-1 only - handles admin and write operations)
   service_master = {
-    name          = "cms-master"
+    name          = "run-cms-master"
     regions       = ["us-east-1"]
     cluster_name  = "app"
-    task_family   = "cms-master"
+    task_family   = "run-cms-master"
     desired_count = 1
 
     service_discovery = {
-      name           = "cms-master"
-      container_name = "cms-app"
+      name           = "run-cms-master"
+      container_name = "run-cms-app"
     }
 
     load_balancers = [
@@ -475,7 +475,7 @@ locals {
       # - /use1/strapi-plugin-sso/* - SSO plugin OIDC callbacks
       {
         type                  = "alb"
-        container_name        = "cms-nginx"
+        container_name        = "run-cms-nginx"
         container_port        = 443
         target_group_protocol = "HTTPS"
         health_check_path     = "/hello"
@@ -518,15 +518,15 @@ locals {
   # No ALB needed - workers are called internally by Next.js via service discovery
   # Litestream syncs database from master's S3 bucket
   service_worker = {
-    name          = "cms-worker"
+    name          = "run-cms-worker"
     regions       = ["us-east-1", "ca-central-1"]
     cluster_name  = "app"
-    task_family   = "cms-worker"
+    task_family   = "run-cms-worker"
     desired_count = 1
 
     service_discovery = {
-      name           = "cms-worker"
-      container_name = "cms-app"
+      name           = "run-cms-worker"
+      container_name = "run-cms-app"
     }
 
     # No load_balancers - internal service discovery only
