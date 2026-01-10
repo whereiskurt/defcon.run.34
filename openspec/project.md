@@ -46,6 +46,12 @@ defcon.run 34 (2026) event infrastructure monorepo. This project provides the we
 - **Linting**: ESLint 9 with eslint-config-next
 - **Package Manager**: npm
 
+### Workflow Tooling
+- **bd/beads**: Issue tracking with dependency graphs
+- **bv**: Graph-aware triage and visualization for beads
+- **cm/CASS**: Context retrieval for rules and anti-patterns
+- **OpenSpec**: Spec-driven change proposals
+
 ## Project Conventions
 
 ### Code Style
@@ -163,6 +169,63 @@ export SGUID=80a6b349
 source ./env.sh
 ```
 This sets `TG_BUCKET` and other variables needed for state management.
+
+## Development Workflow
+
+### Tool Integration
+
+The project uses four integrated tools for managing work:
+
+| Tool | Purpose | Key Commands |
+|------|---------|--------------|
+| **OpenSpec** | Spec-driven proposals | `openspec list`, `openspec validate` |
+| **bd/beads** | Issue tracking | `bd ready`, `bd create`, `bd close`, `bd sync` |
+| **bv** | Triage & visualization | `bv --robot-triage`, `bv --robot-plan` |
+| **cm/CASS** | Context retrieval | `cm context "<task>"` |
+
+### Typical Workflow
+
+1. **Get context first** — `cm context "<feature>"` retrieves relevant rules and anti-patterns
+2. **Create proposal** — Use OpenSpec for new features or breaking changes
+3. **Track tasks** — `bd create` issues from `tasks.md` with dependencies
+4. **Find ready work** — `bv --robot-triage` shows ranked, unblocked items
+5. **Implement** — Work through tasks, mark complete with `bd close`
+6. **Sync** — `bd sync` at session end to push beads changes
+7. **Archive** — `openspec archive` after deployment
+
+### Session Close Protocol
+
+Always run before completing a session:
+
+```bash
+git status              # Check what changed
+git add <files>         # Stage code changes
+bd sync                 # Commit beads changes
+git commit -m "..."     # Commit code
+bd sync                 # Commit any new beads changes
+git push                # Push to remote
+```
+
+### Quick Reference
+
+```bash
+# Finding work
+bd ready                         # Unblocked issues
+bv --robot-triage                # AI-ranked triage with graph metrics
+bv --robot-next                  # Single top recommendation
+
+# Creating work
+bd create --title="..." --type=task --priority=2
+
+# Completing work
+bd close <id1> <id2> ...         # Close multiple issues
+bd sync                          # Sync with git
+
+# Context before complex work
+cm context "<task description>"  # Get rules and anti-patterns
+```
+
+**Priority values:** 0-4 or P0-P4 (0=critical, 2=medium, 4=backlog). NOT "high"/"medium"/"low".
 
 ## External Dependencies
 

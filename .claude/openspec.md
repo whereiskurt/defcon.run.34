@@ -2,9 +2,29 @@
 
 This project uses OpenSpec for managing specifications and change proposals.
 
+## Integration with Project Tooling
+
+OpenSpec works alongside other tools in this project:
+
+| Tool | Purpose | When to Use |
+|------|---------|-------------|
+| **OpenSpec** | Spec-driven proposals | New features, breaking changes, architecture shifts |
+| **bd/beads** | Issue tracking | Track implementation tasks, dependencies |
+| **bv** | Triage & visualization | Find ready work, analyze blocking issues |
+| **cm/CASS** | Context retrieval | Get rules and anti-patterns before complex work |
+
+**Typical workflow:**
+1. `cm context "<feature>"` — Get relevant rules before planning
+2. Create OpenSpec proposal — Define what changes
+3. `bd create` tasks from `tasks.md` — Track implementation
+4. `bv --robot-triage` — Find unblocked work to tackle
+5. Implement, then `bd close` + `bd sync`
+6. `openspec archive` after deployment
+
 ## TL;DR Quick Checklist
 
-- Search existing work: `openspec spec list --long`, `openspec list`
+- Get context first: `cm context "<task>"` for rules and anti-patterns
+- Search existing work: `openspec list`, `openspec list --specs`, `bd ready`
 - Decide scope: new capability vs modify existing capability
 - Pick a unique `change-id`: kebab-case, verb-led (`add-`, `update-`, `remove-`, `refactor-`)
 - Scaffold: `proposal.md`, `tasks.md`, `design.md` (only if needed), and delta specs
@@ -42,10 +62,12 @@ This project uses OpenSpec for managing specifications and change proposals.
 1. **Read proposal.md** - Understand what's being built
 2. **Read design.md** (if exists) - Review technical decisions
 3. **Read tasks.md** - Get implementation checklist
-4. **Implement tasks sequentially** - Complete in order
-5. **Confirm completion** - Ensure every item in `tasks.md` is finished
-6. **Update checklist** - Set every task to `- [x]`
-7. **Approval gate** - Do not start until proposal is approved
+4. **Track with beads** - Use `bd create` to track tasks from `tasks.md` (optional for complex work)
+5. **Implement tasks sequentially** - Complete in order, use `bv --robot-triage` to find ready work
+6. **Confirm completion** - Ensure every item in `tasks.md` is finished
+7. **Update checklist** - Set every task to `- [x]`, close beads with `bd close`
+8. **Sync** - Run `bd sync` to commit beads changes
+9. **Approval gate** - Do not start until proposal is approved
 
 ### Stage 3: Archiving Changes
 
@@ -58,11 +80,13 @@ After deployment:
 ## Before Any Task
 
 **Context Checklist:**
+- [ ] Run `cm context "<task>"` to get relevant rules and anti-patterns
 - [ ] Read relevant specs in `specs/[capability]/spec.md`
 - [ ] Check pending changes in `changes/` for conflicts
 - [ ] Read `openspec/project.md` for conventions
 - [ ] Run `openspec list` to see active changes
 - [ ] Run `openspec list --specs` to see existing capabilities
+- [ ] Run `bd ready` to see available tracked work
 
 ## Proposal Structure
 
