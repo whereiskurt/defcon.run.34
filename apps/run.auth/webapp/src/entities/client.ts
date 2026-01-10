@@ -42,5 +42,5 @@ export const electroClient = DynamoDBDocument.from(
   }
 );
 
-export const DYNAMODB_TABLE = process.env.AUTH_DYNAMODB_DBNAME || "auth-authjs";
-export const ELECTRO_TABLE = process.env.AUTH_ELECTRO_DBNAME || "auth-electro";
+export const DYNAMODB_TABLE = process.env.AUTH_DYNAMODB_DBNAME || "run-auth-authjs";
+export const ELECTRO_TABLE = process.env.AUTH_ELECTRO_DBNAME || "run-auth-electro";

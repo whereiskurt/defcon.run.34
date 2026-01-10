@@ -29,11 +29,11 @@ services:
       - RUN_DYNAMODB_SECRET=local
       - RUN_DYNAMODB_REGION=us-east-1
       - RUN_DYNAMODB_ENDPOINT=http://localhost:8000
-      - RUN_DYNAMODB_DBNAME=run-auth
+      - RUN_DYNAMODB_DBNAME=run-human-authjs
       - RUN_ELECTRO_ID=local
       - RUN_ELECTRO_SECRET=local
       - RUN_ELECTRO_ENDPOINT=http://localhost:8000
-      - RUN_ELECTRO_DBNAME=run-electro
+      - RUN_ELECTRO_DBNAME=run-human-electro
       - OIDC_RUNHUMAN_CLIENT_ID=run-human
       - OIDC_RUNHUMAN_SECRET=run-human-dev-secret-12345
       - RUN_SES_REGION=us-east-1
@@ -76,10 +76,10 @@ services:
       - AUTH_DYNAMODB_SECRET=local
       - AUTH_DYNAMODB_REGION=us-east-1
       - AUTH_DYNAMODB_ENDPOINT=http://localhost:8000
-      - AUTH_DYNAMODB_DBNAME=auth
+      - AUTH_DYNAMODB_DBNAME=run-auth-authjs
       - AUTH_ELECTRO_ID=local
       - AUTH_ELECTRO_SECRET=local
-      - AUTH_ELECTRO_DBNAME=electro
+      - AUTH_ELECTRO_DBNAME=run-auth-electro
       - AUTH_ELECTRO_ENDPOINT=http://localhost:8000
       - OIDC_RUNHUMAN_CLIENT_ID=run-human
       - OIDC_COOKIE_KEYS=oidc-dev-secret-key-1,oidc-dev-secret-key-2
