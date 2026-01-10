@@ -11,6 +11,7 @@ import {
 } from '@heroui/react';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
@@ -29,6 +30,7 @@ export default function DashboardPage() {
   const [isClaimsOpen, setIsClaimsOpen] = useState(false);
   const [isRawSessionOpen, setIsRawSessionOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const router = useRouter();
   const { resolvedTheme } = useTheme();
   const { data: session, update } = useSession();
   const { logout } = useLogout();
@@ -46,7 +48,10 @@ export default function DashboardPage() {
       // If update returns null/undefined or session is invalidated, force logout
       if (!result) {
         await signOut({ callbackUrl: homeUrl });
+        return;
       }
+      // Force Next.js to re-render with fresh session data from the updated cookie
+      router.refresh();
     } catch {
       // Session was invalidated (error thrown from session callback)
       await signOut({ callbackUrl: homeUrl });
