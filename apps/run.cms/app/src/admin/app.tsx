@@ -19,11 +19,22 @@ declare class URL {
 }
 declare const console: { log(...args: any[]): void };
 
+// Check if we're in local development mode
+const isLocalDev = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+};
+
 // Get region from the URL path (e.g., /use1/admin -> use1)
-const getRegionFromPath = (): string => {
+// Returns null if no region prefix found (localhost without prefix)
+const getRegionFromPath = (): string | null => {
   if (typeof window === 'undefined') return 'use1';
   const pathMatch = window.location.pathname.match(/^\/([a-z]{3}\d)\/admin/);
-  return pathMatch ? pathMatch[1] : 'use1';
+  if (pathMatch) return pathMatch[1];
+  // On localhost without region prefix, return null (no prefix needed)
+  if (isLocalDev()) return null;
+  // Production fallback
+  return 'use1';
 };
 
 // Check if we're on a login page and should redirect to SSO
@@ -38,7 +49,8 @@ const shouldRedirectToSSO = (): boolean => {
 const redirectToSSO = (): void => {
   if (typeof window === 'undefined') return;
   const region = getRegionFromPath();
-  const ssoUrl = `/${region}/strapi-plugin-sso/oidc`;
+  // On localhost without region prefix, don't add region to SSO URL
+  const ssoUrl = region ? `/${region}/strapi-plugin-sso/oidc` : '/strapi-plugin-sso/oidc';
   console.log('[SSO] Session expired, redirecting to SSO:', ssoUrl);
   window.location.href = ssoUrl;
 };
@@ -47,6 +59,8 @@ const redirectToSSO = (): void => {
 const getAuthServerUrl = (): string => {
   if (typeof window === 'undefined') return 'https://auth.defcon.run/use1/api/oidc';
   const region = getRegionFromPath();
+  // In local dev, use localhost auth server without region prefix
+  if (!region) return 'http://localhost:3002/api/oidc';
   // Use private service discovery in production (but URL here is for browser redirect)
   return `https://auth.defcon.run/${region}/api/oidc`;
 };
@@ -59,7 +73,10 @@ const redirectToOIDCLogout = (): void => {
 
   // Build the end_session URL with post_logout_redirect_uri
   const endSessionUrl = new URL(`${authServerUrl}/session/end`);
-  const postLogoutRedirectUri = `${window.location.origin}/${region}/admin`;
+  // On localhost without region, redirect to /admin; otherwise /{region}/admin
+  const postLogoutRedirectUri = region
+    ? `${window.location.origin}/${region}/admin`
+    : `${window.location.origin}/admin`;
   endSessionUrl.searchParams.set('post_logout_redirect_uri', postLogoutRedirectUri);
 
   console.log('[SSO] Logging out via OIDC end_session:', endSessionUrl.toString());
