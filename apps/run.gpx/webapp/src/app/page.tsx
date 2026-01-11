@@ -1,11 +1,13 @@
-import { auth } from "@/config/auth";
+import { auth, signIn } from "@/config/auth";
 import { redirect } from "next/navigation";
 
 export default async function Home() {
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/api/auth/signin");
+    // Not authenticated - redirect to OIDC provider
+    await signIn("run.defcon.run", { redirectTo: "/" });
+    return null;
   }
 
   // Check for gpxstudio service claim
