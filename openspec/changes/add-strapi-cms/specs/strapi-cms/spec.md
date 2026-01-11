@@ -63,6 +63,20 @@ The system SHALL use Litestream to replicate the SQLite database to S3 for durab
 - **THEN** S3 versioning preserves previous database snapshots
 - **AND** lifecycle policies expire old versions after 30 days
 
+#### Scenario: Cross-region SSM parameter replication
+- **WHEN** the Litestream bucket is created in us-east-1 (master region)
+- **THEN** the s3-uploads module creates SSM parameters in us-east-1 with bucket credentials
+- **AND** the `ssm_replicate_to` configuration replicates those SSM parameters to ca-central-1
+- **AND** workers in ca-central-1 can read credentials from their local SSM at `/dc34/uploads/cac1/cms-litestream/*`
+- **AND** all replicated parameters point to the us-east-1 bucket (bucket_region = "us-east-1")
+
+#### Scenario: Worker accesses master bucket from different region
+- **WHEN** a worker in ca-central-1 starts and needs Litestream credentials
+- **THEN** ECS reads SSM parameters from ca-central-1 (`/dc34/uploads/cac1/cms-litestream/*`)
+- **AND** the bucket_name parameter contains the us-east-1 bucket name
+- **AND** the bucket_region parameter contains "us-east-1"
+- **AND** the worker uses these credentials to access the S3 bucket cross-region
+
 ---
 
 ### Requirement: Media Asset Storage

@@ -121,7 +121,16 @@ locals {
       service_name = "cms"
       regions      = ["us-east-1"]  # Single region for Litestream source
       lifecycle    = { uploads_expire_days = 0, enable_versioning = true }
-      replication  = { enabled = false }  # Workers pull directly
+      replication  = { enabled = false }  # Workers pull directly from master bucket
+      full_bucket_access = true  # Litestream needs unrestricted S3 access
+
+      # Cross-region SSM parameter replication
+      # Workers in ca-central-1 need credentials to access the us-east-1 bucket
+      # This replicates the SSM parameters (access_key, secret_key, bucket_name, bucket_region)
+      # to ca-central-1 so ECS tasks there can read them from local SSM
+      ssm_replicate_to = [
+        { label = "cac1", full = "ca-central-1" }
+      ]
     },
     {
       name         = "cms-media"
@@ -129,6 +138,7 @@ locals {
       regions      = ["us-east-1", "ca-central-1"]
       lifecycle    = { uploads_expire_days = 0, enable_versioning = true }
       replication  = { enabled = true, replica_regions = [...] }
+      cloudfront_access = true  # Serve via CloudFront CDN
     }
   ]
 }
@@ -701,3 +711,75 @@ infra/terraform/live/site/
 │       └── VERSION.webapp
 └── site.hcl                  # Updated to include CMS
 ```
+
+## Appendix: Cross-Region SSM Parameter Replication
+
+### The Challenge
+
+ECS tasks can only read SSM parameters from their own region. The Litestream bucket exists only in us-east-1 (master region), but workers in ca-central-1 need credentials to access it.
+
+### Solution: ssm_replicate_to Feature
+
+The `s3-uploads` module supports cross-region SSM parameter replication via the `ssm_replicate_to` option:
+
+```hcl
+{
+  name         = "cms-litestream"
+  regions      = ["us-east-1"]  # Bucket only in us-east-1
+
+  # Replicate SSM params to other regions
+  ssm_replicate_to = [
+    { label = "cac1", full = "ca-central-1" }
+  ]
+}
+```
+
+### How It Works
+
+1. **Bucket Creation** (us-east-1):
+   - S3 bucket: `uploads-dc34-cms-litestream-use1-{suffix}`
+   - IAM user with S3 access
+   - SSM parameters in us-east-1:
+     - `/dc34/uploads/use1/cms-litestream/access_key_id`
+     - `/dc34/uploads/use1/cms-litestream/secret_access_key`
+     - `/dc34/uploads/use1/cms-litestream/bucket_name`
+     - `/dc34/uploads/use1/cms-litestream/bucket_region` → "us-east-1"
+
+2. **SSM Replication** (to ca-central-1):
+   - Same values copied to ca-central-1 SSM:
+     - `/dc34/uploads/cac1/cms-litestream/access_key_id` → same IAM key
+     - `/dc34/uploads/cac1/cms-litestream/secret_access_key` → same IAM secret
+     - `/dc34/uploads/cac1/cms-litestream/bucket_name` → "uploads-dc34-cms-litestream-use1-{suffix}"
+     - `/dc34/uploads/cac1/cms-litestream/bucket_region` → "us-east-1" (source region!)
+
+3. **Worker Access** (either region):
+   - ECS task reads `/dc34/uploads/{{REGION_LABEL}}/cms-litestream/*`
+   - In us-east-1: reads local params pointing to local bucket
+   - In ca-central-1: reads local params pointing to us-east-1 bucket
+   - Worker uses `bucket_region` to make cross-region S3 calls
+
+### Implementation
+
+The `ssm-replicate.tf` file in `modules/s3-uploads/v1.0.0/` uses AWS provider aliases to create SSM parameters in target regions:
+
+```hcl
+provider "aws" {
+  alias  = "cac1"
+  region = "ca-central-1"
+}
+
+resource "aws_ssm_parameter" "replicate_bucket_name_cac1" {
+  for_each = { for k, v in local.ssm_replicate_targets : k => v if v.region_full == "ca-central-1" }
+  provider = aws.cac1
+
+  name  = "/${var.site.label}/uploads/${each.value.region_label}/${each.value.upload_name}/bucket_name"
+  value = aws_s3_bucket.uploads[each.value.upload_name].id  # us-east-1 bucket name
+}
+```
+
+### Benefits
+
+- **No manual secret copying**: Terraform manages replication automatically
+- **Consistent paths**: Workers use `{{REGION_LABEL}}` without hardcoding regions
+- **Single source of truth**: Bucket credentials managed in one place
+- **Cross-region access**: IAM credentials work across regions for S3
