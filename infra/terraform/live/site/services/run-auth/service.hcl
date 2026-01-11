@@ -194,6 +194,14 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/oidc_client_secret"
           },
           {
+            name      = "OIDC_GPXSTUDIO_CLIENT_ID"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/gpxstudio/client_id"
+          },
+          {
+            name      = "OIDC_GPXSTUDIO_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/gpxstudio/client_secret"
+          },
+          {
             name      = "AUTH_INTERNAL_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
           },

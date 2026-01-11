@@ -22,7 +22,7 @@ u!/bin/bash
 set -e
 
 # Default configuration
-APPS="run.auth,run.human,run.cms"
+APPS="run.auth,run.human,run.cms,run.gpx"
 # REGIONS="use1,cac1"
 REGIONS="use1"
 SKIP_BUMP=false
