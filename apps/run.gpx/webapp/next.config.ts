@@ -7,10 +7,15 @@ const nextConfig: NextConfig = {
   // The app route at /studio uses Next.js pages to wrap the frontend with auth
   async rewrites() {
     return [
-      // Serve gpx.studio static assets from the built frontend
+      // Map /gpx-studio/app to /gpx-studio/app.html for clean URLs
       {
-        source: "/gpx-studio/:path*",
-        destination: "/gpx-studio/:path*",
+        source: "/gpx-studio/app",
+        destination: "/gpx-studio/app.html",
+      },
+      // Map language routes (e.g., /gpx-studio/en/app) to their HTML files
+      {
+        source: "/gpx-studio/:lang/app",
+        destination: "/gpx-studio/:lang/app.html",
       },
     ];
   },
