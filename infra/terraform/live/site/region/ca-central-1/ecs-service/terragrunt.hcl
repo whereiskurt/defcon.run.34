@@ -20,9 +20,9 @@ dependency "ecs_task" {
 
   mock_outputs = {
     task_definition_arns = {
-      "auth"       = "arn:aws:ecs:ca-central-1:123456789012:task-definition/auth-cac1-defcon-run:1"
-      "run-human"  = "arn:aws:ecs:ca-central-1:123456789012:task-definition/run-human-cac1-defcon-run:1"
-      "cms-worker" = "arn:aws:ecs:ca-central-1:123456789012:task-definition/cms-worker-cac1-defcon-run:1"
+      "run-auth"       = "arn:aws:ecs:ca-central-1:123456789012:task-definition/run-auth-cac1-defcon-run:1"
+      "run-human"      = "arn:aws:ecs:ca-central-1:123456789012:task-definition/run-human-cac1-defcon-run:1"
+      "run-cms-worker" = "arn:aws:ecs:ca-central-1:123456789012:task-definition/run-cms-worker-cac1-defcon-run:1"
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]

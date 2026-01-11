@@ -59,6 +59,14 @@ variable "user_uploads" {
     # CloudFront access mode (for media buckets served via CloudFront CDN)
     # When true, bucket policy includes statement allowing CloudFront OAC access
     cloudfront_access = optional(bool, false)
+
+    # SSM parameter replication to other regions
+    # When set, SSM parameters (credentials, bucket info) are replicated to these regions
+    # Useful for buckets accessed from multiple regions (e.g., Litestream master bucket)
+    ssm_replicate_to = optional(list(object({
+      label = string # Region label (e.g., "cac1")
+      full  = string # Full region name (e.g., "ca-central-1")
+    })), [])
   }))
   default = []
 }

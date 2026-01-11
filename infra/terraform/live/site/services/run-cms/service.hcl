@@ -173,6 +173,7 @@ locals {
             name      = "STRAPI_OIDC_CLIENT_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/oidc_client_secret"
           },
+          # Litestream credentials - replicated from master region (us-east-1) to all regions
           {
             name      = "S3_LITESTREAM_ACCESS_KEY"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/cms-litestream/access_key_id"
@@ -352,21 +353,22 @@ locals {
             name      = "JWT_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/jwt_secret"
           },
+          # Litestream credentials - replicated from master region (us-east-1) to all regions
           {
             name      = "S3_LITESTREAM_ACCESS_KEY"
-            valueFrom = "/{{SITE_LABEL}}/uploads/use1/cms-litestream/access_key_id"
+            valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/cms-litestream/access_key_id"
           },
           {
             name      = "S3_LITESTREAM_SECRET_KEY"
-            valueFrom = "/{{SITE_LABEL}}/uploads/use1/cms-litestream/secret_access_key"
+            valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/cms-litestream/secret_access_key"
           },
           {
             name      = "S3_LITESTREAM_BUCKET"
-            valueFrom = "/{{SITE_LABEL}}/uploads/use1/cms-litestream/bucket_name"
+            valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/cms-litestream/bucket_name"
           },
           {
             name      = "S3_LITESTREAM_REGION"
-            valueFrom = "/{{SITE_LABEL}}/uploads/use1/cms-litestream/bucket_region"
+            valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/cms-litestream/bucket_region"
           },
           {
             name      = "S3_MEDIA_ACCESS_KEY"
@@ -409,6 +411,7 @@ locals {
   # S3 storage buckets for CMS
   cms_storage = [
     # Litestream replication bucket (single region - master writes here)
+    # SSM parameters replicated to other regions so workers can access master bucket
     {
       name         = "cms-litestream"
       service_name = "cms"
@@ -429,6 +432,12 @@ locals {
 
       # Litestream needs full bucket access (not prefix-restricted like user uploads)
       full_bucket_access = true
+
+      # Replicate SSM parameters to these regions so workers can access master bucket credentials
+      # This creates /dc34/uploads/cac1/cms-litestream/* params pointing to the use1 bucket
+      ssm_replicate_to = [
+        { label = "cac1", full = "ca-central-1" }
+      ]
     },
     # Media storage bucket (both regions with replication)
     {
