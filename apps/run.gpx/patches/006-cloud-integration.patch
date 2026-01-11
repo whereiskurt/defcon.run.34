@@ -768,3 +768,16 @@ index 00000000..7e7bac29
 +
 +// Get user's mapbox token (or undefined to use default)
 +export const userMapboxToken = derived(auth, $auth => $auth.user?.mapboxPublicToken);
+diff --git a/website/src/hooks.server.js b/website/src/hooks.server.js
+index 165a41ee..eb175081 100644
+--- a/website/src/hooks.server.js
++++ b/website/src/hooks.server.js
+@@ -47,7 +47,7 @@ export async function handle({ event, resolve }) {
+     <meta name="twitter:site" content="@gpxstudio" />
+     <meta name="twitter:creator" content="@gpxstudio" />
+     <link rel="alternate" hreflang="x-default" href="https://gpx.studio${getURLForLanguage('en', path)}" />
+-    <link rel="manifest" href="/${language}.manifest.webmanifest" />`;
++    <link rel="manifest" href="${base}/${language}.manifest.webmanifest" />`;
+ 
+     if (page !== '404') {
+         for (let lang of Object.keys(languages)) {
