@@ -156,7 +156,8 @@ echo "2. Installing dependencies..."
 npm install
 
 echo "3. Building gpx.studio..."
-npm run build
+# Set BASE_PATH so SvelteKit prefixes all asset URLs with /gpx-studio
+BASE_PATH=/gpx-studio npm run build
 
 echo "4. Copying build output to webapp..."
 rm -rf "$OUTPUT_DIR"
