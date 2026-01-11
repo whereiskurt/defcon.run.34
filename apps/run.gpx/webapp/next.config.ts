@@ -17,6 +17,11 @@ const nextConfig: NextConfig = {
         source: "/gpx-studio/:lang/app",
         destination: "/gpx-studio/:lang/app.html",
       },
+      // Proxy BRouter requests to avoid CORS issues
+      {
+        source: "/api/brouter",
+        destination: "https://brouter.gpx.studio/",
+      },
     ];
   },
 

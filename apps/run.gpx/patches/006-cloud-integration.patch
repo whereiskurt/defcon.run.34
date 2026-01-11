@@ -781,3 +781,20 @@ index 165a41ee..eb175081 100644
  
      if (page !== '404') {
          for (let lang of Object.keys(languages)) {
+diff --git a/website/src/lib/components/toolbar/tools/routing/routing.ts b/website/src/lib/components/toolbar/tools/routing/routing.ts
+index 6c8d9df6..5b07557f 100644
+--- a/website/src/lib/components/toolbar/tools/routing/routing.ts
++++ b/website/src/lib/components/toolbar/tools/routing/routing.ts
+@@ -30,7 +30,11 @@ async function getRoute(
+     brouterProfile: string,
+     privateRoads: boolean
+ ): Promise<TrackPoint[]> {
+-    let url = `https://brouter.gpx.studio?lonlats=${points.map((point) => `${point.lon.toFixed(8)},${point.lat.toFixed(8)}`).join('|')}&profile=${brouterProfile + (privateRoads ? '-private' : '')}&format=geojson&alternativeidx=0`;
++    // Use proxy URL to avoid CORS issues when running locally or on our domain
++    const brouterBase = typeof window !== 'undefined' && window.location.hostname !== 'gpx.studio'
++        ? '/api/brouter'
++        : 'https://brouter.gpx.studio';
++    let url = `${brouterBase}?lonlats=${points.map((point) => `${point.lon.toFixed(8)},${point.lat.toFixed(8)}`).join('|')}&profile=${brouterProfile + (privateRoads ? '-private' : '')}&format=geojson&alternativeidx=0`;
+ 
+     let response = await fetch(url);
+ 
