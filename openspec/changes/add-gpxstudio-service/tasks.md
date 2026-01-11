@@ -475,18 +475,48 @@ The Cloud Storage dialog (`CloudStorage.svelte`) follows these design patterns:
 
 **Layout Structure**:
 1. **Save button** - Large green button centered at top: "Save All Layers"
-2. **File list table** - Columns: Name | Size | Updated | (Add to map) | Actions
-3. **Refresh button** - Subtle ghost button below file list
-4. **Close button** - In dialog footer
+2. **Remote Files** - Collapsible section (collapsed by default)
+3. **Close button** - In dialog footer
+
+**Collapsible Remote Files Section**:
+Uses `Collapsible` from bits-ui (shadcn-svelte):
+```svelte
+<Collapsible.Root bind:open={filesExpanded} class="border rounded-md">
+    <Collapsible.Trigger class="flex items-center justify-between w-full px-4 py-3">
+        <!-- Header: Cloud icon, "Remote Files", count, refresh button, chevron -->
+    </Collapsible.Trigger>
+    <Collapsible.Content>
+        <!-- File list with max-h-64 overflow-auto -->
+    </Collapsible.Content>
+</Collapsible.Root>
+```
+
+Features:
+- Header shows: Cloud icon | "Remote Files" | (count) | Refresh button | Chevron
+- Refresh button uses `e.stopPropagation()` to prevent toggling collapse
+- Chevron rotates 180° when expanded
+- Content area: `max-h-64` (~4-5 items visible), scrollable
 
 **Table Columns**:
 | Column | Content |
 |--------|---------|
-| Name | File name with inline rename editing |
-| Size | Compact format: `166kb` (not `166.4 KB`) |
-| Updated | Natural language: "Today @ 2:30pm", "Yesterday @ 10:15am", or "20260111.142501" |
-| (unlabeled) | Green outlined "add to map" button with Plus icon |
+| Name | Green plus button + truncated filename (15 chars) + track count |
+| Size | Compact format: `166kb` |
+| Updated | Natural language dates (hidden on mobile: `hidden sm:table-cell`) |
 | Actions | Pencil (rename) and Trash (delete) icons |
+
+**Name Column Layout**:
+```
+[+] filename.gpx... (2 tracks)
+```
+- Plus button: `h-6 w-6` ghost button, green, "Add to map" tooltip
+- Filename: Truncated to 15 chars with `...`, full name in `title` attribute
+- Track count: Only shown if > 0
+
+**Filename Truncation**:
+```typescript
+{file.fileName.length > 15 ? file.fileName.slice(0, 15) + '...' : file.fileName}
+```
 
 **Date Formatting**:
 ```typescript
@@ -508,7 +538,7 @@ function formatFileSize(bytes: number): string {
 
 **Inline Rename**:
 - Click pencil icon to enter edit mode
-- Input field replaces filename text
+- Input field replaces filename (shows full name, not truncated)
 - Check (save) and X (cancel) buttons appear
 - Enter to save, Escape to cancel
 - Uses `updateCloudFile()` API to persist rename
@@ -518,3 +548,7 @@ When loading a file from cloud, use `file.fileName` from the cloud file list (no
 ```typescript
 gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
 ```
+
+**Mobile Responsiveness**:
+- Updated column hidden on mobile: `hidden sm:table-cell`
+- Dialog uses `!w-[90vw]` to be responsive
