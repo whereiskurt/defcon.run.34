@@ -1,0 +1,25 @@
+--- GPX Studio Prerender Fix Patch ---
+This patch adds handleHttpError to svelte.config.js to handle manifest
+errors when building with a BASE_PATH. Required for static site generation.
+
+Apply with: cd gpx-studio && git apply ../patches/005-prerender-fix.patch
+
+diff --git a/website/svelte.config.js b/website/svelte.config.js
+index 07e95437..66985adc 100644
+--- a/website/svelte.config.js
++++ b/website/svelte.config.js
+@@ -24,6 +24,14 @@ const config = {
+         },
+         prerender: {
+             crawl: true,
++            handleHttpError: ({ path, message }) => {
++                // Ignore manifest errors when using base path
++                if (path.includes('.webmanifest') || path.includes('manifest')) {
++                    console.warn(`Ignoring prerender error for ${path}: ${message}`);
++                    return;
++                }
++                throw new Error(message);
++            },
+         },
+     },
+ };

@@ -1,0 +1,800 @@
+diff --git a/website/src/lib/components/Menu.svelte b/website/src/lib/components/Menu.svelte
+index 23cd8f63..38c5487a 100644
+--- a/website/src/lib/components/Menu.svelte
++++ b/website/src/lib/components/Menu.svelte
+@@ -43,6 +43,7 @@
+         BookOpenText,
+         ChartArea,
+         Maximize,
++        Cloud,
+     } from '@lucide/svelte';
+     import { map } from '$lib/components/map/map';
+     import { editMetadata } from '$lib/components/file-list/metadata/utils.svelte';
+@@ -53,6 +54,8 @@
+     import LayerControlSettings from '$lib/components/map/layer-control/LayerControlSettings.svelte';
+     import { ListFileItem, ListTrackItem } from '$lib/components/file-list/file-list';
+     import Export from '$lib/components/export/Export.svelte';
++    import { CloudStorage } from '$lib/components/cloud';
++    import { cloudStorageState } from '$lib/components/cloud/utils.svelte';
+     import { mode, setMode } from 'mode-watcher';
+     import { i18n } from '$lib/i18n.svelte';
+     import { languages } from '$lib/languages';
+@@ -176,6 +179,11 @@
+                         {i18n._('menu.export_all')}
+                         <Shortcut key="S" ctrl={true} shift={true} />
+                     </Menubar.Item>
++                    <Menubar.Separator />
++                    <Menubar.Item onclick={() => (cloudStorageState.open = true)}>
++                        <Cloud size="16" />
++                        Cloud Storage
++                    </Menubar.Item>
+                 </Menubar.Content>
+             </Menubar.Menu>
+             <Menubar.Menu>
+@@ -531,6 +539,7 @@
+ </div>
+ 
+ <Export />
++<CloudStorage bind:open={cloudStorageState.open} />
+ <LayerControlSettings bind:open={layerSettingsOpen} />
+ 
+ <svelte:window
+diff --git a/website/svelte.config.js b/website/svelte.config.js
+index 07e95437..66985adc 100644
+--- a/website/svelte.config.js
++++ b/website/svelte.config.js
+@@ -24,6 +24,14 @@ const config = {
+         },
+         prerender: {
+             crawl: true,
++            handleHttpError: ({ path, message }) => {
++                // Ignore manifest errors when using base path
++                if (path.includes('.webmanifest') || path.includes('manifest')) {
++                    console.warn(`Ignoring prerender error for ${path}: ${message}`);
++                    return;
++                }
++                throw new Error(message);
++            },
+         },
+     },
+ };
+diff --git a/website/src/lib/cloud-sync.ts b/website/src/lib/cloud-sync.ts
+new file mode 100644
+index 00000000..7e8df0bd
+--- /dev/null
++++ b/website/src/lib/cloud-sync.ts
+@@ -0,0 +1,250 @@
++/**
++ * Cloud Sync Layer for GPX Studio
++ * Syncs local storage with our S3-backed API for persistent cloud storage.
++ *
++ * Architecture:
++ * - Local IndexedDB (Dexie) remains for session state and undo/redo
++ * - CloudSync layer syncs to S3 via presigned URLs on explicit save/load
++ * - User's files are isolated under their userId prefix in S3
++ */
++
++import { writable, get } from 'svelte/store';
++
++export interface CloudFile {
++  fileId: string;
++  fileName: string;
++  fileSize: number;
++  trackCount?: number;
++  waypointCount?: number;
++  totalDistance?: number;
++  totalElevation?: number;
++  createdAt: number;
++  updatedAt: number;
++}
++
++export type SyncStatus = 'idle' | 'syncing' | 'error';
++
++export const cloudSyncStatus = writable<SyncStatus>('idle');
++export const cloudSyncError = writable<string | null>(null);
++export const cloudFiles = writable<CloudFile[]>([]);
++
++const API_BASE = '/api/gpx';
++
++/**
++ * List all user's GPX files from the cloud
++ */
++export async function listCloudFiles(): Promise<CloudFile[]> {
++  try {
++    const response = await fetch(`${API_BASE}/files`, {
++      credentials: 'include',
++    });
++
++    if (!response.ok) {
++      if (response.status === 401) {
++        throw new Error('Not authenticated');
++      }
++      throw new Error('Failed to list files');
++    }
++
++    const data = await response.json();
++    const files = data.files || [];
++    cloudFiles.set(files);
++    return files;
++  } catch (error) {
++    console.error('Failed to list cloud files:', error);
++    throw error;
++  }
++}
++
++/**
++ * Save a GPX file to the cloud
++ * @param gpxContent - The GPX XML content as a string
++ * @param fileName - The user-facing file name
++ * @param metadata - Optional metadata (track count, distance, etc.)
++ * @returns The cloud fileId
++ */
++export async function saveToCloud(
++  gpxContent: string,
++  fileName: string,
++  metadata?: {
++    trackCount?: number;
++    waypointCount?: number;
++    totalDistance?: number;
++    totalElevation?: number;
++  }
++): Promise<string> {
++  cloudSyncStatus.set('syncing');
++  cloudSyncError.set(null);
++
++  try {
++    const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
++
++    // Get presigned upload URL
++    const presignResponse = await fetch(`${API_BASE}/upload/presign`, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      credentials: 'include',
++      body: JSON.stringify({
++        fileName,
++        contentType: 'application/gpx+xml',
++        fileSize: blob.size,
++        ...metadata,
++      }),
++    });
++
++    if (!presignResponse.ok) {
++      if (presignResponse.status === 401) {
++        throw new Error('Not authenticated');
++      }
++      if (presignResponse.status === 403) {
++        throw new Error('Access denied - gpxstudio service required');
++      }
++      throw new Error('Failed to get upload URL');
++    }
++
++    const { uploadUrl, fileId } = await presignResponse.json();
++
++    // Upload directly to S3
++    const uploadResponse = await fetch(uploadUrl, {
++      method: 'PUT',
++      headers: { 'Content-Type': 'application/gpx+xml' },
++      body: blob,
++    });
++
++    if (!uploadResponse.ok) {
++      throw new Error('Failed to upload file to storage');
++    }
++
++    cloudSyncStatus.set('idle');
++
++    // Refresh file list
++    await listCloudFiles();
++
++    return fileId;
++  } catch (error) {
++    cloudSyncStatus.set('error');
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    cloudSyncError.set(message);
++    throw error;
++  }
++}
++
++/**
++ * Load a GPX file from the cloud
++ * @param fileId - The cloud file ID
++ * @returns The GPX content and file name
++ */
++export async function loadFromCloud(fileId: string): Promise<{ content: string; fileName: string }> {
++  cloudSyncStatus.set('syncing');
++  cloudSyncError.set(null);
++
++  try {
++    // Get presigned download URL
++    const presignResponse = await fetch(`${API_BASE}/download/presign`, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      credentials: 'include',
++      body: JSON.stringify({ fileId }),
++    });
++
++    if (!presignResponse.ok) {
++      if (presignResponse.status === 401) {
++        throw new Error('Not authenticated');
++      }
++      if (presignResponse.status === 404) {
++        throw new Error('File not found');
++      }
++      throw new Error('Failed to get download URL');
++    }
++
++    const { downloadUrl, fileName } = await presignResponse.json();
++
++    // Download from S3
++    const downloadResponse = await fetch(downloadUrl);
++    if (!downloadResponse.ok) {
++      throw new Error('Failed to download file from storage');
++    }
++
++    const content = await downloadResponse.text();
++    cloudSyncStatus.set('idle');
++
++    return { content, fileName };
++  } catch (error) {
++    cloudSyncStatus.set('error');
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    cloudSyncError.set(message);
++    throw error;
++  }
++}
++
++/**
++ * Delete a file from the cloud
++ * @param fileId - The cloud file ID
++ */
++export async function deleteFromCloud(fileId: string): Promise<void> {
++  cloudSyncStatus.set('syncing');
++  cloudSyncError.set(null);
++
++  try {
++    const response = await fetch(`${API_BASE}/files/${fileId}`, {
++      method: 'DELETE',
++      credentials: 'include',
++    });
++
++    if (!response.ok) {
++      if (response.status === 401) {
++        throw new Error('Not authenticated');
++      }
++      if (response.status === 404) {
++        throw new Error('File not found');
++      }
++      throw new Error('Failed to delete file');
++    }
++
++    cloudSyncStatus.set('idle');
++
++    // Refresh file list
++    await listCloudFiles();
++  } catch (error) {
++    cloudSyncStatus.set('error');
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    cloudSyncError.set(message);
++    throw error;
++  }
++}
++
++/**
++ * Update file metadata (e.g., rename)
++ * @param fileId - The cloud file ID
++ * @param updates - Fields to update
++ */
++export async function updateCloudFile(
++  fileId: string,
++  updates: { fileName?: string }
++): Promise<void> {
++  cloudSyncStatus.set('syncing');
++  cloudSyncError.set(null);
++
++  try {
++    const response = await fetch(`${API_BASE}/files/${fileId}`, {
++      method: 'PUT',
++      headers: { 'Content-Type': 'application/json' },
++      credentials: 'include',
++      body: JSON.stringify(updates),
++    });
++
++    if (!response.ok) {
++      throw new Error('Failed to update file');
++    }
++
++    cloudSyncStatus.set('idle');
++
++    // Refresh file list
++    await listCloudFiles();
++  } catch (error) {
++    cloudSyncStatus.set('error');
++    const message = error instanceof Error ? error.message : 'Unknown error';
++    cloudSyncError.set(message);
++    throw error;
++  }
++}
+diff --git a/website/src/lib/components/cloud/CloudStorage.svelte b/website/src/lib/components/cloud/CloudStorage.svelte
+new file mode 100644
+index 00000000..d0f870ce
+--- /dev/null
++++ b/website/src/lib/components/cloud/CloudStorage.svelte
+@@ -0,0 +1,280 @@
++<script lang="ts">
++    import { onMount } from 'svelte';
++    import * as Dialog from '$lib/components/ui/dialog/index.js';
++    import { Button } from '$lib/components/ui/button';
++    import {
++        Cloud,
++        CloudUpload,
++        CloudDownload,
++        Trash2,
++        RefreshCw,
++        Loader2,
++        AlertCircle,
++    } from '@lucide/svelte';
++    import {
++        cloudFiles,
++        cloudSyncStatus,
++        cloudSyncError,
++        listCloudFiles,
++        saveToCloud,
++        loadFromCloud,
++        deleteFromCloud,
++        type CloudFile,
++    } from '$lib/cloud-sync';
++    import { auth, isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
++    import { fileStateCollection } from '$lib/logic/file-state';
++    import { fileActions } from '$lib/logic/file-actions';
++    import { selection } from '$lib/logic/selection';
++    import { parseGPX } from 'gpx';
++    import { get } from 'svelte/store';
++
++    export let open = false;
++
++    let loading = false;
++    let error: string | null = null;
++
++    onMount(async () => {
++        // Check auth and load files on mount
++        await auth.checkSession();
++        if (get(isAuthenticated) && get(hasGpxStudioAccess)) {
++            await refreshFiles();
++        }
++    });
++
++    async function refreshFiles() {
++        loading = true;
++        error = null;
++        try {
++            await listCloudFiles();
++        } catch (e) {
++            error = e instanceof Error ? e.message : 'Failed to load files';
++        } finally {
++            loading = false;
++        }
++    }
++
++    async function handleLoadFile(file: CloudFile) {
++        loading = true;
++        error = null;
++        try {
++            const { content, fileName } = await loadFromCloud(file.fileId);
++            const gpx = parseGPX(content);
++            if (gpx.metadata === undefined) {
++                gpx.metadata = {};
++            }
++            if (!gpx.metadata.name) {
++                gpx.metadata.name = fileName.replace(/\.gpx$/i, '');
++            }
++            const id = fileActions.add(gpx);
++            selection.selectFileWhenLoaded(gpx._data.id);
++            open = false;
++        } catch (e) {
++            error = e instanceof Error ? e.message : 'Failed to load file';
++        } finally {
++            loading = false;
++        }
++    }
++
++    async function handleSaveCurrentFiles() {
++        loading = true;
++        error = null;
++        try {
++            const selectedItems = get(selection);
++            if (selectedItems.size === 0) {
++                // Save all files if none selected
++                fileStateCollection.forEach((fileId, file) => {
++                    const gpxContent = file.toString();
++                    const fileName = file.metadata?.name || `track-${fileId}.gpx`;
++                    saveToCloud(gpxContent, `${fileName}.gpx`, {
++                        trackCount: file.trk?.length || 0,
++                        waypointCount: file.wpt?.length || 0,
++                    });
++                });
++            } else {
++                // Save selected files
++                for (const [item] of selectedItems) {
++                    if (item.type === 'file') {
++                        const file = fileStateCollection.getFile(item.id);
++                        if (file) {
++                            const gpxContent = file.toString();
++                            const fileName = file.metadata?.name || `track-${item.id}.gpx`;
++                            await saveToCloud(gpxContent, `${fileName}.gpx`, {
++                                trackCount: file.trk?.length || 0,
++                                waypointCount: file.wpt?.length || 0,
++                            });
++                        }
++                    }
++                }
++            }
++            await refreshFiles();
++        } catch (e) {
++            error = e instanceof Error ? e.message : 'Failed to save files';
++        } finally {
++            loading = false;
++        }
++    }
++
++    async function handleDeleteFile(file: CloudFile) {
++        if (!confirm(`Delete "${file.fileName}" from cloud storage?`)) {
++            return;
++        }
++        loading = true;
++        error = null;
++        try {
++            await deleteFromCloud(file.fileId);
++        } catch (e) {
++            error = e instanceof Error ? e.message : 'Failed to delete file';
++        } finally {
++            loading = false;
++        }
++    }
++
++    function formatFileSize(bytes: number): string {
++        if (bytes < 1024) return `${bytes} B`;
++        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
++        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
++    }
++
++    function formatDate(timestamp: number): string {
++        return new Date(timestamp).toLocaleDateString(undefined, {
++            year: 'numeric',
++            month: 'short',
++            day: 'numeric',
++            hour: '2-digit',
++            minute: '2-digit',
++        });
++    }
++</script>
++
++<Dialog.Root bind:open>
++    <Dialog.Content class="max-w-2xl">
++        <Dialog.Header>
++            <Dialog.Title class="flex items-center gap-2">
++                <Cloud class="h-5 w-5" />
++                Cloud Storage
++            </Dialog.Title>
++            <Dialog.Description>
++                Save and load GPX files from your DEF CON cloud storage.
++            </Dialog.Description>
++        </Dialog.Header>
++
++        {#if !$isAuthenticated}
++            <div class="flex flex-col items-center justify-center py-8 text-center">
++                <AlertCircle class="h-12 w-12 text-muted-foreground mb-4" />
++                <p class="text-muted-foreground mb-4">You need to sign in to access cloud storage.</p>
++                <Button on:click={() => auth.login()}>Sign In</Button>
++            </div>
++        {:else if !$hasGpxStudioAccess}
++            <div class="flex flex-col items-center justify-center py-8 text-center">
++                <AlertCircle class="h-12 w-12 text-destructive mb-4" />
++                <p class="text-destructive mb-4">Access denied. You need the gpxstudio service.</p>
++                <p class="text-muted-foreground text-sm">Contact an admin to request access.</p>
++            </div>
++        {:else}
++            <div class="space-y-4">
++                <!-- Actions -->
++                <div class="flex gap-2">
++                    <Button
++                        variant="outline"
++                        size="sm"
++                        on:click={refreshFiles}
++                        disabled={loading}
++                    >
++                        {#if loading}
++                            <Loader2 class="h-4 w-4 mr-2 animate-spin" />
++                        {:else}
++                            <RefreshCw class="h-4 w-4 mr-2" />
++                        {/if}
++                        Refresh
++                    </Button>
++                    <Button
++                        variant="default"
++                        size="sm"
++                        on:click={handleSaveCurrentFiles}
++                        disabled={loading}
++                    >
++                        <CloudUpload class="h-4 w-4 mr-2" />
++                        Save Current to Cloud
++                    </Button>
++                </div>
++
++                <!-- Error message -->
++                {#if error}
++                    <div class="bg-destructive/10 text-destructive px-4 py-2 rounded-md text-sm">
++                        {error}
++                    </div>
++                {/if}
++
++                <!-- File list -->
++                <div class="border rounded-md max-h-96 overflow-auto">
++                    {#if $cloudFiles.length === 0}
++                        <div class="p-8 text-center text-muted-foreground">
++                            <Cloud class="h-12 w-12 mx-auto mb-4 opacity-50" />
++                            <p>No files in cloud storage yet.</p>
++                            <p class="text-sm mt-2">Save your current GPX files to get started.</p>
++                        </div>
++                    {:else}
++                        <table class="w-full">
++                            <thead class="bg-muted/50 sticky top-0">
++                                <tr>
++                                    <th class="text-left px-4 py-2 font-medium">Name</th>
++                                    <th class="text-left px-4 py-2 font-medium">Size</th>
++                                    <th class="text-left px-4 py-2 font-medium">Updated</th>
++                                    <th class="text-right px-4 py-2 font-medium">Actions</th>
++                                </tr>
++                            </thead>
++                            <tbody>
++                                {#each $cloudFiles as file}
++                                    <tr class="border-t hover:bg-muted/30">
++                                        <td class="px-4 py-2">
++                                            <span class="font-medium">{file.fileName}</span>
++                                            {#if file.trackCount}
++                                                <span class="text-xs text-muted-foreground ml-2">
++                                                    {file.trackCount} track{file.trackCount !== 1 ? 's' : ''}
++                                                </span>
++                                            {/if}
++                                        </td>
++                                        <td class="px-4 py-2 text-sm text-muted-foreground">
++                                            {formatFileSize(file.fileSize)}
++                                        </td>
++                                        <td class="px-4 py-2 text-sm text-muted-foreground">
++                                            {formatDate(file.updatedAt)}
++                                        </td>
++                                        <td class="px-4 py-2 text-right">
++                                            <div class="flex gap-1 justify-end">
++                                                <Button
++                                                    variant="ghost"
++                                                    size="icon"
++                                                    class="h-8 w-8"
++                                                    on:click={() => handleLoadFile(file)}
++                                                    disabled={loading}
++                                                    title="Load file"
++                                                >
++                                                    <CloudDownload class="h-4 w-4" />
++                                                </Button>
++                                                <Button
++                                                    variant="ghost"
++                                                    size="icon"
++                                                    class="h-8 w-8 text-destructive hover:text-destructive"
++                                                    on:click={() => handleDeleteFile(file)}
++                                                    disabled={loading}
++                                                    title="Delete file"
++                                                >
++                                                    <Trash2 class="h-4 w-4" />
++                                                </Button>
++                                            </div>
++                                        </td>
++                                    </tr>
++                                {/each}
++                            </tbody>
++                        </table>
++                    {/if}
++                </div>
++            </div>
++        {/if}
++
++        <Dialog.Footer>
++            <Button variant="outline" on:click={() => (open = false)}>Close</Button>
++        </Dialog.Footer>
++    </Dialog.Content>
++</Dialog.Root>
+diff --git a/website/src/lib/components/cloud/index.ts b/website/src/lib/components/cloud/index.ts
+new file mode 100644
+index 00000000..0157d550
+--- /dev/null
++++ b/website/src/lib/components/cloud/index.ts
+@@ -0,0 +1 @@
++export { default as CloudStorage } from './CloudStorage.svelte';
+diff --git a/website/src/lib/components/cloud/utils.svelte.ts b/website/src/lib/components/cloud/utils.svelte.ts
+new file mode 100644
+index 00000000..b73c7c2b
+--- /dev/null
++++ b/website/src/lib/components/cloud/utils.svelte.ts
+@@ -0,0 +1,15 @@
++/**
++ * Cloud storage state management
++ */
++
++export const cloudStorageState = $state({
++    open: false,
++});
++
++export function openCloudStorage() {
++    cloudStorageState.open = true;
++}
++
++export function closeCloudStorage() {
++    cloudStorageState.open = false;
++}
+diff --git a/website/src/lib/stores/auth.ts b/website/src/lib/stores/auth.ts
+new file mode 100644
+index 00000000..7e7bac29
+--- /dev/null
++++ b/website/src/lib/stores/auth.ts
+@@ -0,0 +1,134 @@
++/**
++ * Authentication Store for GPX Studio
++ * Manages auth state via NextAuth session endpoint.
++ *
++ * This store:
++ * - Fetches session from /api/auth/session
++ * - Checks for 'gpxstudio' service claim
++ * - Provides logout functionality
++ * - Exposes user info including optional mapbox token
++ */
++
++import { writable, derived } from 'svelte/store';
++import { browser } from '$app/environment';
++
++export interface User {
++  id: string;
++  name?: string;
++  email?: string;
++  image?: string;
++  services?: string[];
++  mapboxPublicToken?: string;
++}
++
++export interface AuthState {
++  user: User | null;
++  isLoading: boolean;
++  isAuthenticated: boolean;
++  hasGpxStudioAccess: boolean;
++  error: string | null;
++}
++
++const initialState: AuthState = {
++  user: null,
++  isLoading: true,
++  isAuthenticated: false,
++  hasGpxStudioAccess: false,
++  error: null,
++};
++
++function createAuthStore() {
++  const { subscribe, set, update } = writable<AuthState>(initialState);
++
++  async function checkSession(): Promise<AuthState> {
++    if (!browser) {
++      return initialState;
++    }
++
++    update(state => ({ ...state, isLoading: true, error: null }));
++
++    try {
++      const response = await fetch('/api/auth/session', {
++        credentials: 'include',
++      });
++
++      if (!response.ok) {
++        throw new Error('Failed to check session');
++      }
++
++      const session = await response.json();
++
++      if (session?.user) {
++        const services: string[] = session.user.services || [];
++        const hasAccess = services.includes('gpxstudio');
++
++        const newState: AuthState = {
++          user: session.user,
++          isLoading: false,
++          isAuthenticated: true,
++          hasGpxStudioAccess: hasAccess,
++          error: hasAccess ? null : 'Access denied - gpxstudio service required',
++        };
++
++        set(newState);
++        return newState;
++      } else {
++        const newState: AuthState = {
++          user: null,
++          isLoading: false,
++          isAuthenticated: false,
++          hasGpxStudioAccess: false,
++          error: null,
++        };
++        set(newState);
++        return newState;
++      }
++    } catch (error) {
++      const newState: AuthState = {
++        user: null,
++        isLoading: false,
++        isAuthenticated: false,
++        hasGpxStudioAccess: false,
++        error: 'Failed to check session',
++      };
++      set(newState);
++      return newState;
++    }
++  }
++
++  function login() {
++    if (browser) {
++      window.location.href = '/api/auth/signin';
++    }
++  }
++
++  function logout() {
++    if (browser) {
++      window.location.href = '/api/auth/signout';
++    }
++  }
++
++  function reset() {
++    set(initialState);
++  }
++
++  return {
++    subscribe,
++    checkSession,
++    login,
++    logout,
++    reset,
++  };
++}
++
++export const auth = createAuthStore();
++
++// Derived stores for convenient access
++export const currentUser = derived(auth, $auth => $auth.user);
++export const isAuthenticated = derived(auth, $auth => $auth.isAuthenticated);
++export const isAuthLoading = derived(auth, $auth => $auth.isLoading);
++export const hasGpxStudioAccess = derived(auth, $auth => $auth.hasGpxStudioAccess);
++export const authError = derived(auth, $auth => $auth.error);
++
++// Get user's mapbox token (or undefined to use default)
++export const userMapboxToken = derived(auth, $auth => $auth.user?.mapboxPublicToken);
+diff --git a/website/src/hooks.server.js b/website/src/hooks.server.js
+index 165a41ee..eb175081 100644
+--- a/website/src/hooks.server.js
++++ b/website/src/hooks.server.js
+@@ -47,7 +47,7 @@ export async function handle({ event, resolve }) {
+     <meta name="twitter:site" content="@gpxstudio" />
+     <meta name="twitter:creator" content="@gpxstudio" />
+     <link rel="alternate" hreflang="x-default" href="https://gpx.studio${getURLForLanguage('en', path)}" />
+-    <link rel="manifest" href="/${language}.manifest.webmanifest" />`;
++    <link rel="manifest" href="${base}/${language}.manifest.webmanifest" />`;
+ 
+     if (page !== '404') {
+         for (let lang of Object.keys(languages)) {
+diff --git a/website/src/lib/components/toolbar/tools/routing/routing.ts b/website/src/lib/components/toolbar/tools/routing/routing.ts
+index 6c8d9df6..5b07557f 100644
+--- a/website/src/lib/components/toolbar/tools/routing/routing.ts
++++ b/website/src/lib/components/toolbar/tools/routing/routing.ts
+@@ -30,7 +30,11 @@ async function getRoute(
+     brouterProfile: string,
+     privateRoads: boolean
+ ): Promise<TrackPoint[]> {
+-    let url = `https://brouter.gpx.studio?lonlats=${points.map((point) => `${point.lon.toFixed(8)},${point.lat.toFixed(8)}`).join('|')}&profile=${brouterProfile + (privateRoads ? '-private' : '')}&format=geojson&alternativeidx=0`;
++    // Use proxy URL to avoid CORS issues when running locally or on our domain
++    const brouterBase = typeof window !== 'undefined' && window.location.hostname !== 'gpx.studio'
++        ? '/api/brouter'
++        : 'https://brouter.gpx.studio';
++    let url = `${brouterBase}?lonlats=${points.map((point) => `${point.lon.toFixed(8)},${point.lat.toFixed(8)}`).join('|')}&profile=${brouterProfile + (privateRoads ? '-private' : '')}&format=geojson&alternativeidx=0`;
+ 
+     let response = await fetch(url);
+ 
