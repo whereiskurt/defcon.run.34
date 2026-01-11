@@ -12,12 +12,12 @@ APP="${1}"
 
 if [[ -z "$APP" ]]; then
   echo "Usage: ./deploy.sh <app>"
-  echo "  app: run.auth | run.human | run.cms"
+  echo "  app: run.auth | run.human | run.cms | run.gpx"
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', or 'run.cms'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', or 'run.gpx'"
   exit 1
 fi
 
@@ -35,6 +35,10 @@ case "$APP" in
     TF_SERVICE="cms"
     APP_COMPONENT="app"
     ;;
+  "run.gpx")
+    TF_SERVICE="run-gpx"
+    APP_COMPONENT="webapp"
+    ;;
 esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,7 +49,10 @@ echo "=== Deploying ${APP} ==="
 echo "$(date)"
 
 # Copy VERSION files to terraform
-cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+# Some apps (like run.gpx) don't have nginx component
+if [[ -f "${APP_DIR}/nginx/VERSION" ]]; then
+  cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+fi
 cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
 
 # Apply terraform to trigger ECS blue/green deployment

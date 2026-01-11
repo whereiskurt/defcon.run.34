@@ -1,0 +1,66 @@
+--- GPX Studio Build Integration Patch ---
+This patch documents how to apply patches during the Docker build process.
+
+The patches modify the gpx.studio submodule during build time, then
+the modified code is built and the resulting static assets are served.
+
+Build Script (apps/run.gpx/build.sh):
+```bash
+#!/bin/bash
+set -e
+
+# Apply patches to gpx.studio
+cd gpx-studio/website
+for patch in ../../patches/*.patch; do
+  if [ -f "$patch" ] && [ "$(basename $patch)" != ".gitkeep" ]; then
+    echo "Applying patch: $patch"
+    # Note: These are documentation patches, actual application
+    # requires creating the files manually or using proper git patches
+    # patch -p1 < "$patch" || true
+  fi
+done
+
+# Install dependencies and build
+npm install
+npm run build
+
+# Copy built assets to Next.js public folder
+cp -r build/* ../webapp/public/gpx-studio/
+```
+
+Dockerfile Integration:
+```dockerfile
+# Build stage for gpx.studio
+FROM node:20-alpine AS gpx-builder
+WORKDIR /app/gpx-studio
+
+# Copy gpx.studio source and patches
+COPY gpx-studio/ .
+COPY patches/ ../patches/
+
+# Apply patches (create the files from patch documentation)
+# These patches are documentation; actual files should be created
+RUN npm install && npm run build
+
+# Final stage
+FROM node:20-alpine
+WORKDIR /app
+
+# Copy Next.js webapp
+COPY webapp/ .
+COPY --from=gpx-builder /app/gpx-studio/website/build public/gpx-studio/
+
+RUN npm install && npm run build
+CMD ["npm", "start"]
+```
+
+Integration Approach:
+1. Patches are documentation of required changes
+2. During development, manually apply changes to gpx-studio
+3. For production, either:
+   a. Fork gpx.studio and maintain our changes
+   b. Create actual git patches that can be applied with `git apply`
+   c. Use a monorepo approach where changes live in the submodule
+
+Recommended: Maintain a fork of gpx.studio with our changes,
+pointed to by the submodule. This is cleaner than runtime patching.

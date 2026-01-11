@@ -26,8 +26,8 @@ if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "ap
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', or 'run.cms'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', or 'run.gpx'"
   exit 1
 fi
 
@@ -56,6 +56,11 @@ case "$APP" in
     ;;
   "run.cms")
     REPO_PREFIX="dc34-run-cms"
+    ;;
+  "run.gpx")
+    REPO_PREFIX="dc34-run-gpx"
+    WEBAPP_ORIGIN="gpxstudio.defcon.run"
+    SSM_PATH_SEGMENT="gpx"
     ;;
 esac
 

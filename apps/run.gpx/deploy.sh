@@ -2,18 +2,16 @@
 # Deploys run.gpx to ECS
 # Usage: ./deploy.sh
 #
-# This is a placeholder script. The actual deployment will be integrated
-# into apps/deploy.sh once infrastructure is provisioned.
-#
-# Deploy process:
-# 1. Copy VERSION files to terraform
-# 2. Run terragrunt apply to trigger ECS blue/green deployment
+# Wrapper script that calls apps/deploy.sh with run.gpx.
 
 set -e
 
-echo "=== run.gpx deploy script ==="
-echo "This is a placeholder. Use apps/deploy.sh run.gpx once infrastructure is complete."
-echo ""
-echo "Current VERSION: $(cat VERSION)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APPS_DIR="$(dirname "$SCRIPT_DIR")"
 
-exit 0
+echo "=== run.gpx deploy script ==="
+echo "VERSION: $(cat "${SCRIPT_DIR}/VERSION")"
+echo ""
+
+# Call the main deploy script
+exec "${APPS_DIR}/deploy.sh" "run.gpx"

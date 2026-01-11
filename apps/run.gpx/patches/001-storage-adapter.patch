@@ -1,0 +1,196 @@
+--- GPX Studio Storage Adapter Patch ---
+This patch adds cloud storage sync to gpx.studio while preserving
+the local Dexie/IndexedDB storage for instant undo/redo operations.
+
+Architecture:
+- Local IndexedDB (Dexie) remains for session state, undo/redo
+- CloudSync layer syncs to our S3-backed API on explicit save
+- On load, fetches user's files from API and hydrates local DB
+
+diff --git a/website/src/lib/cloud-sync.ts b/website/src/lib/cloud-sync.ts
+new file mode 100644
+--- /dev/null
++++ b/website/src/lib/cloud-sync.ts
+@@ -0,0 +1,150 @@
++/**
++ * Cloud Sync Layer for GPX Studio
++ * Syncs local IndexedDB storage with our S3-backed API
++ */
++
++import { db } from './db';
++import type { GPXFile } from 'gpx';
++import { writable, get } from 'svelte/store';
++
++export interface CloudFile {
++  fileId: string;
++  fileName: string;
++  fileSize: number;
++  trackCount?: number;
++  waypointCount?: number;
++  totalDistance?: number;
++  totalElevation?: number;
++  createdAt: number;
++  updatedAt: number;
++}
++
++export const cloudSyncStatus = writable<'idle' | 'syncing' | 'error'>('idle');
++export const cloudSyncError = writable<string | null>(null);
++export const cloudFiles = writable<CloudFile[]>([]);
++
++const API_BASE = '/api/gpx';
++
++/**
++ * List all user's GPX files from the cloud
++ */
++export async function listCloudFiles(): Promise<CloudFile[]> {
++  const response = await fetch(`${API_BASE}/files`);
++  if (!response.ok) {
++    throw new Error('Failed to list files');
++  }
++  const data = await response.json();
++  cloudFiles.set(data.files);
++  return data.files;
++}
++
++/**
++ * Save a GPX file to the cloud
++ * Returns the cloud fileId
++ */
++export async function saveToCloud(file: GPXFile, fileName: string): Promise<string> {
++  cloudSyncStatus.set('syncing');
++  cloudSyncError.set(null);
++
++  try {
++    // Serialize the GPX file to XML
++    const gpxContent = file.toString();
++    const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
++
++    // Get presigned upload URL
++    const presignResponse = await fetch(`${API_BASE}/upload/presign`, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ fileName, contentType: 'application/gpx+xml' }),
++    });
++
++    if (!presignResponse.ok) {
++      throw new Error('Failed to get upload URL');
++    }
++
++    const { uploadUrl, fileId, key, bucket } = await presignResponse.json();
++
++    // Upload directly to S3
++    const uploadResponse = await fetch(uploadUrl, {
++      method: 'PUT',
++      headers: { 'Content-Type': 'application/gpx+xml' },
++      body: blob,
++    });
++
++    if (!uploadResponse.ok) {
++      throw new Error('Failed to upload file');
++    }
++
++    // Create metadata record
++    const metadataResponse = await fetch(`${API_BASE}/files`, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({
++        fileId,
++        fileName,
++        bucket,
++        key,
++        fileSize: blob.size,
++        trackCount: file.getTrackCount?.() || 0,
++        waypointCount: file.getWaypointCount?.() || 0,
++      }),
++    });
++
++    if (!metadataResponse.ok) {
++      throw new Error('Failed to save metadata');
++    }
++
++    cloudSyncStatus.set('idle');
++    return fileId;
++  } catch (error) {
++    cloudSyncStatus.set('error');
++    cloudSyncError.set(error instanceof Error ? error.message : 'Unknown error');
++    throw error;
++  }
++}
++
++/**
++ * Load a GPX file from the cloud
++ */
++export async function loadFromCloud(fileId: string): Promise<{ content: string; fileName: string }> {
++  cloudSyncStatus.set('syncing');
++
++  try {
++    // Get presigned download URL
++    const presignResponse = await fetch(`${API_BASE}/download/presign`, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ fileId }),
++    });
++
++    if (!presignResponse.ok) {
++      throw new Error('Failed to get download URL');
++    }
++
++    const { downloadUrl, fileName } = await presignResponse.json();
++
++    // Download from S3
++    const downloadResponse = await fetch(downloadUrl);
++    if (!downloadResponse.ok) {
++      throw new Error('Failed to download file');
++    }
++
++    const content = await downloadResponse.text();
++    cloudSyncStatus.set('idle');
++    return { content, fileName };
++  } catch (error) {
++    cloudSyncStatus.set('error');
++    cloudSyncError.set(error instanceof Error ? error.message : 'Unknown error');
++    throw error;
++  }
++}
++
++/**
++ * Delete a file from the cloud
++ */
++export async function deleteFromCloud(fileId: string): Promise<void> {
++  const response = await fetch(`${API_BASE}/files/${fileId}`, {
++    method: 'DELETE',
++  });
++
++  if (!response.ok) {
++    throw new Error('Failed to delete file');
++  }
++}
+
+diff --git a/website/src/lib/components/toolbar/SaveButton.svelte b/website/src/lib/components/toolbar/SaveButton.svelte
+--- a/website/src/lib/components/toolbar/SaveButton.svelte
++++ b/website/src/lib/components/toolbar/SaveButton.svelte
+@@ -1,5 +1,6 @@
+ <script lang="ts">
+   import { selection } from '$lib/logic/selection';
++  import { saveToCloud, cloudSyncStatus } from '$lib/cloud-sync';
+   // ... existing imports
+
++  // Add cloud save option to existing save functionality
++  async function saveToCloudStorage() {
++    const files = get(selection).files;
++    for (const [fileId, file] of files) {
++      if (file) {
++        await saveToCloud(file, file._data.name || `track-${fileId}.gpx`);
++      }
++    }
++  }
+ </script>
+
+--- Apply Instructions ---
+1. Create the cloud-sync.ts file in website/src/lib/
+2. Import cloud-sync functions into SaveButton.svelte
+3. Add "Save to Cloud" button/option in the save dialog
+4. Add "Open from Cloud" option in the file open dialog
+
+Note: The local Dexie storage is preserved for instant operations.
+Cloud sync happens explicitly when user chooses to save/load from cloud.
