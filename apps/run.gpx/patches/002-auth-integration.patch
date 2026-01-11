@@ -1,0 +1,184 @@
+--- GPX Studio Auth Integration Patch ---
+This patch adds authentication checking to gpx.studio, ensuring users
+are logged in before accessing the app, and provides session management.
+
+Architecture:
+- Auth state is fetched from /api/auth/session (NextAuth endpoint)
+- App layout checks auth state before rendering
+- Loading spinner shown while checking auth
+- Redirect to login if not authenticated
+- Logout button added to UI
+
+diff --git a/website/src/lib/stores/auth.ts b/website/src/lib/stores/auth.ts
+new file mode 100644
+--- /dev/null
++++ b/website/src/lib/stores/auth.ts
+@@ -0,0 +1,75 @@
++/**
++ * Authentication Store for GPX Studio
++ * Manages auth state via NextAuth session endpoint
++ */
++
++import { writable, derived, get } from 'svelte/store';
++import { browser } from '$app/environment';
++
++export interface User {
++  id: string;
++  name?: string;
++  email?: string;
++  image?: string;
++  services?: string[];
++  mapboxPublicToken?: string;
++}
++
++export interface AuthState {
++  user: User | null;
++  isLoading: boolean;
++  isAuthenticated: boolean;
++  error: string | null;
++}
++
++function createAuthStore() {
++  const { subscribe, set, update } = writable<AuthState>({
++    user: null,
++    isLoading: true,
++    isAuthenticated: false,
++    error: null,
++  });
++
++  async function checkSession() {
++    if (!browser) return;
++
++    update(state => ({ ...state, isLoading: true, error: null }));
++
++    try {
++      const response = await fetch('/api/auth/session');
++      if (!response.ok) {
++        throw new Error('Failed to check session');
++      }
++
++      const session = await response.json();
++
++      if (session?.user) {
++        // Check if user has gpxstudio service access
++        const services = session.user.services || [];
++        if (!services.includes('gpxstudio')) {
++          set({ user: null, isLoading: false, isAuthenticated: false, error: 'Access denied' });
++          return;
++        }
++
++        set({ user: session.user, isLoading: false, isAuthenticated: true, error: null });
++      } else {
++        set({ user: null, isLoading: false, isAuthenticated: false, error: null });
++      }
++    } catch (error) {
++      set({ user: null, isLoading: false, isAuthenticated: false, error: 'Session check failed' });
++    }
++  }
++
++  function logout() {
++    window.location.href = '/api/auth/signout';
++  }
++
++  return {
++    subscribe,
++    checkSession,
++    logout,
++  };
++}
++
++export const auth = createAuthStore();
++
++// Derived store for easy access to current user
++export const currentUser = derived(auth, $auth => $auth.user);
++export const isAuthenticated = derived(auth, $auth => $auth.isAuthenticated);
++export const isAuthLoading = derived(auth, $auth => $auth.isLoading);
+
+diff --git a/website/src/routes/[[language]]/app/+layout.svelte b/website/src/routes/[[language]]/app/+layout.svelte
+--- a/website/src/routes/[[language]]/app/+layout.svelte
++++ b/website/src/routes/[[language]]/app/+layout.svelte
+@@ -1,13 +1,45 @@
+ <script lang="ts">
+     import { browser } from '$app/environment';
+     import { extensionAPI } from '$lib/components/map/layer-control/extension-api';
++    import { auth, isAuthenticated, isAuthLoading } from '$lib/stores/auth';
++    import { onMount } from 'svelte';
++    import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
+     import type { Snippet } from 'svelte';
+
+     let { children }: { children: Snippet } = $props();
+
+-    if (browser) {
+-        extensionAPI.init();
+-    }
++    onMount(async () => {
++        if (browser) {
++            await auth.checkSession();
++
++            // Redirect to login if not authenticated
++            if (!$isAuthenticated && !$isAuthLoading) {
++                window.location.href = '/api/auth/signin';
++                return;
++            }
++
++            extensionAPI.init();
++        }
++    });
+ </script>
+
+-{@render children()}
++{#if $isAuthLoading}
++    <div class="flex items-center justify-center min-h-screen">
++        <LoadingSpinner />
++        <span class="ml-2">Checking authentication...</span>
++    </div>
++{:else if !$isAuthenticated}
++    <div class="flex items-center justify-center min-h-screen">
++        <p>Redirecting to login...</p>
++    </div>
++{:else}
++    {@render children()}
++{/if}
+
+diff --git a/website/src/lib/components/toolbar/UserMenu.svelte b/website/src/lib/components/toolbar/UserMenu.svelte
+new file mode 100644
+--- /dev/null
++++ b/website/src/lib/components/toolbar/UserMenu.svelte
+@@ -0,0 +1,35 @@
++<script lang="ts">
++  import { auth, currentUser } from '$lib/stores/auth';
++  import { Button } from '$lib/components/ui/button';
++</script>
++
++{#if $currentUser}
++  <div class="flex items-center gap-2">
++    {#if $currentUser.image}
++      <img
++        src={$currentUser.image}
++        alt={$currentUser.name || 'User'}
++        class="w-8 h-8 rounded-full"
++      />
++    {/if}
++    <span class="text-sm hidden sm:inline">
++      {$currentUser.name || $currentUser.email || 'User'}
++    </span>
++    <Button
++      variant="ghost"
++      size="sm"
++      on:click={() => auth.logout()}
++    >
++      Logout
++    </Button>
++  </div>
++{/if}
+
+--- Apply Instructions ---
+1. Create auth.ts store in website/src/lib/stores/
+2. Modify app +layout.svelte to check auth before rendering
+3. Create UserMenu.svelte component
+4. Add UserMenu to the toolbar/header component
+5. Create LoadingSpinner.svelte if not exists
+
+Session expiration handling:
+- The auth store can be extended to periodically check session validity
+- On 401 responses from API calls, redirect to login

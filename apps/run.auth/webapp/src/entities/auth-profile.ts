@@ -122,6 +122,11 @@ export const AuthProfile = new Entity(
         type: "list",
         items: { type: "string" },
       },
+      // User's personal Mapbox public token for GPX Studio
+      // If set, this takes precedence over the system default token
+      mapboxPublicToken: {
+        type: "string",
+      },
       // Session invalidation fields
       // Increment sessionVersion to invalidate all existing sessions
       sessionVersion: {

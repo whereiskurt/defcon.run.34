@@ -5,7 +5,8 @@ export default async function Home() {
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/api/auth/signin");
+    // Not authenticated - redirect to signin page
+    redirect("/signin");
   }
 
   // Check for gpxstudio service claim

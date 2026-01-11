@@ -126,7 +126,7 @@ const configuration: Configuration = {
     openid: ["sub"],
     profile: ["name", "picture", "updated_at"],
     email: ["email", "email_verified"],
-    services: ["services", "linked_providers"],
+    services: ["services", "linked_providers", "mapboxPublicToken"],
   },
 
   // Include all requested claims in the ID token (not just userinfo)
@@ -279,6 +279,11 @@ const configuration: Configuration = {
             if (profile.github?.id) linkedProviders.push("github");
             if (profile.strava?.id) linkedProviders.push("strava");
             result.linked_providers = linkedProviders;
+
+            // Mapbox public token for GPX Studio (user's personal token if set)
+            if (profile.mapboxPublicToken) {
+              result.mapboxPublicToken = profile.mapboxPublicToken;
+            }
           }
         }
 

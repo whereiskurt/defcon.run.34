@@ -3,6 +3,7 @@ locals {
   ecs_auth_service      = read_terragrunt_config("./services/run-auth/service.hcl")
   ecs_run_human_service = read_terragrunt_config("./services/run-human/service.hcl")
   ecs_cms_service       = read_terragrunt_config("./services/run-cms/service.hcl")
+  ecs_gpx_service       = read_terragrunt_config("./services/run-gpx/service.hcl")
 
   site = {
     label         = "dc34"
@@ -12,7 +13,7 @@ locals {
 
   dns = {
     zonename   = "defcon.run"
-    subdomains = ["email", "run", "auth", "cms"]
+    subdomains = ["email", "run", "auth", "cms", "gpxstudio"]
     ttl        = 300
   }
 
@@ -71,8 +72,8 @@ locals {
 
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
-    # e.g., "run" becomes "auth.defcon.run"
-    domains = ["auth", "run", "cms"]
+    # e.g., "run" becomes "run.defcon.run"
+    domains = ["auth", "run", "cms", "gpxstudio"]
 
     ##Map fronted domain "auth.defcon.run" to the ruleset called "auth"
     waf_rulesets = {
@@ -161,7 +162,8 @@ locals {
     enabled = true
     tables = concat(
       local.ecs_auth_service.locals.dynamodb.tables,
-      local.ecs_run_human_service.locals.dynamodb.tables
+      local.ecs_run_human_service.locals.dynamodb.tables,
+      local.ecs_gpx_service.locals.dynamodb.tables
     )
   }
 
@@ -170,7 +172,8 @@ locals {
     repositories = concat(
       local.ecs_auth_service.locals.ecr_repositories,
       local.ecs_run_human_service.locals.ecr_repositories,
-      local.ecs_cms_service.locals.ecr_repositories
+      local.ecs_cms_service.locals.ecr_repositories,
+      local.ecs_gpx_service.locals.ecr_repositories
     )
   }
 
@@ -180,7 +183,8 @@ locals {
       local.ecs_auth_service.locals.task,
       local.ecs_run_human_service.locals.task,
       local.ecs_cms_service.locals.task_master,
-      local.ecs_cms_service.locals.task_worker
+      local.ecs_cms_service.locals.task_worker,
+      local.ecs_gpx_service.locals.task
     ]
   }
 
@@ -190,7 +194,8 @@ locals {
       local.ecs_auth_service.locals.service,
       local.ecs_run_human_service.locals.service,
       local.ecs_cms_service.locals.service_master,
-      local.ecs_cms_service.locals.service_worker
+      local.ecs_cms_service.locals.service_worker,
+      local.ecs_gpx_service.locals.service
     ]
   }
 
@@ -298,6 +303,15 @@ locals {
       strapi = {
         description = "Strapi CMS secrets"
         keys        = ["admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "jwt_secret", "oidc_client_id", "oidc_client_secret"]
+      }
+      gpxstudio = {
+        description = "GPX Studio OIDC client credentials"
+        keys        = ["client_id", "client_secret"]
+      }
+      mapbox = {
+        description = "Mapbox API tokens"
+        keys        = ["public_token"]
+        global      = true # Global secret, not region-specific
       }
     }
   }

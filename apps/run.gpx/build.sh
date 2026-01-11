@@ -1,23 +1,20 @@
 #!/bin/bash
 # Builds run.gpx Docker image and pushes to ECR
-# Usage: ./build.sh
+# Usage: ./build.sh [webapp]
 #
-# This is a placeholder script. The actual build will be integrated
-# into apps/build.sh once the webapp is scaffolded (Phase 1.2).
-#
-# Build process:
-# 1. Apply patches to gpx-studio submodule
-# 2. Build gpx-studio frontend (SvelteKit -> static)
-# 3. Copy built frontend to webapp/public/gpx/
-# 4. Build Next.js webapp
-# 5. Create Docker image
-# 6. Push to ECR
+# Wrapper script that calls apps/build.sh with run.gpx parameters.
 
 set -e
 
-echo "=== run.gpx build script ==="
-echo "This is a placeholder. Use apps/build.sh webapp run.gpx once Phase 1.2 is complete."
-echo ""
-echo "Current VERSION: $(cat VERSION)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APPS_DIR="$(dirname "$SCRIPT_DIR")"
 
-exit 0
+COMPONENT="${1:-webapp}"
+
+echo "=== run.gpx build script ==="
+echo "Building: ${COMPONENT}"
+echo "VERSION: $(cat "${SCRIPT_DIR}/VERSION")"
+echo ""
+
+# Call the main build script
+exec "${APPS_DIR}/build.sh" "${COMPONENT}" "run.gpx"

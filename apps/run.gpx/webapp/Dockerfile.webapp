@@ -1,0 +1,118 @@
+# Multi-stage Dockerfile for run.gpx
+# Stage 1: Build gpx.studio frontend
+# Stage 2: Build Next.js webapp
+# Stage 3: Production runtime
+
+# =============================================================================
+# Stage 1: Build gpx.studio frontend (SvelteKit)
+# =============================================================================
+FROM node:20-alpine AS gpx-builder
+
+WORKDIR /gpx-studio
+
+# Copy gpx.studio source
+COPY ../gpx-studio/website/package*.json ./
+RUN npm install
+
+COPY ../gpx-studio/website ./
+
+# Create patch files (cloud-sync.ts and auth store)
+RUN mkdir -p src/lib/stores && \
+    echo 'import { writable } from "svelte/store"; \
+export const cloudSyncStatus = writable("idle"); \
+export const cloudSyncError = writable(null); \
+const API_BASE = "/api/gpx"; \
+export async function listCloudFiles() { return (await (await fetch(`${API_BASE}/files`)).json()).files; } \
+export async function saveToCloud(content, name) { \
+  cloudSyncStatus.set("syncing"); \
+  const blob = new Blob([content], {type: "application/gpx+xml"}); \
+  const {uploadUrl, fileId, key, bucket} = await (await fetch(`${API_BASE}/upload/presign`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileName: name})})).json(); \
+  await fetch(uploadUrl, {method: "PUT", body: blob}); \
+  await fetch(`${API_BASE}/files`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileId, fileName: name, bucket, key, fileSize: blob.size})}); \
+  cloudSyncStatus.set("idle"); return fileId; \
+}' > src/lib/cloud-sync.ts && \
+    echo 'import { writable, derived } from "svelte/store"; \
+import { browser } from "$app/environment"; \
+function createAuthStore() { \
+  const { subscribe, set } = writable({ user: null, isLoading: true, isAuthenticated: false }); \
+  async function checkSession() { \
+    if (!browser) return; \
+    try { \
+      const session = await (await fetch("/api/auth/session")).json(); \
+      if (session?.user?.services?.includes("gpxstudio")) set({ user: session.user, isLoading: false, isAuthenticated: true }); \
+      else set({ user: null, isLoading: false, isAuthenticated: false }); \
+    } catch { set({ user: null, isLoading: false, isAuthenticated: false }); } \
+  } \
+  return { subscribe, checkSession, logout: () => window.location.href = "/api/auth/signout" }; \
+} \
+export const auth = createAuthStore(); \
+export const isAuthenticated = derived(auth, a => a.isAuthenticated); \
+export const isAuthLoading = derived(auth, a => a.isLoading);' > src/lib/stores/auth.ts
+
+# Build gpx.studio
+RUN npm run build
+
+# =============================================================================
+# Stage 2: Build Next.js webapp
+# =============================================================================
+FROM node:20-alpine AS webapp-builder
+
+RUN apk update && apk add --no-cache \
+    curl \
+    build-base \
+    g++ \
+    python3
+
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy webapp source
+COPY . .
+
+# Copy built gpx.studio to public folder
+COPY --from=gpx-builder /gpx-studio/build ./public/gpx-studio/
+
+# Build arguments for Next.js
+ARG NEXT_PUBLIC_ASSET_PREFIX=""
+ARG WEBAPP_PREFIX="use1/assets"
+ARG WEBAPP_ORIGIN="gpxstudio.defcon.run"
+ARG VERSION_WEBAPP="unknown"
+ARG REGION_SHORT="use1"
+
+ENV NEXT_PUBLIC_ASSET_PREFIX=$NEXT_PUBLIC_ASSET_PREFIX
+ENV WEBAPP_PREFIX=$WEBAPP_PREFIX
+ENV WEBAPP_ORIGIN=$WEBAPP_ORIGIN
+ENV NEXT_PUBLIC_VERSION_APP=$VERSION_WEBAPP
+ENV REGION_SHORT=$REGION_SHORT
+
+# Build Next.js
+RUN npm run build
+
+# =============================================================================
+# Stage 3: Production runtime
+# =============================================================================
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy built artifacts
+COPY --from=webapp-builder /app/.next/standalone ./
+COPY --from=webapp-builder /app/.next/static ./.next/static
+COPY --from=webapp-builder /app/public ./public
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Run as non-root user
+USER node
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]

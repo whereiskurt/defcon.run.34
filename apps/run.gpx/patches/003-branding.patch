@@ -1,0 +1,77 @@
+--- GPX Studio Branding Patch ---
+This patch updates gpx.studio branding for DEF CON integration:
+- Title: "GPX Studio - DEF CON"
+- Favicon: DEF CON logo
+- Header: Add DEF CON branding
+
+diff --git a/website/src/routes/+layout.svelte b/website/src/routes/+layout.svelte
+--- a/website/src/routes/+layout.svelte
++++ b/website/src/routes/+layout.svelte
+@@ -56,7 +56,7 @@
+
+     $effect(() => {
+         if (i18n.isLoading) return;
+-        let title = `gpx.studio — ${i18n._(`metadata.${page.route.id?.replace('/[[language]]', '').split('/')[1] ?? 'home'}_title`)}`;
++        let title = `GPX Studio - DEF CON — ${i18n._(`metadata.${page.route.id?.replace('/[[language]]', '').split('/')[1] ?? 'home'}_title`)}`;
+         if (page.params.guide) {
+             document.title = `${title} | ${data.guideTitles[page.params.guide]}`;
+         } else {
+
+diff --git a/website/src/app.html b/website/src/app.html
+--- a/website/src/app.html
++++ b/website/src/app.html
+@@ -1,10 +1,11 @@
+ <!doctype html>
+ <html lang="en">
+     <head>
+         <meta charset="utf-8" />
+-        <link rel="icon" href="%sveltekit.assets%/favicon.ico" />
++        <link rel="icon" href="%sveltekit.assets%/defcon-favicon.ico" />
++        <link rel="apple-touch-icon" href="%sveltekit.assets%/defcon-apple-touch-icon.png" />
+         <meta name="viewport" content="width=device-width, initial-scale=1" />
+-        <title>gpx.studio</title>
++        <title>GPX Studio - DEF CON</title>
+         %sveltekit.head%
+     </head>
+     <body data-sveltekit-preload-data="hover">
+
+diff --git a/website/src/lib/components/Nav.svelte b/website/src/lib/components/Nav.svelte
+--- a/website/src/lib/components/Nav.svelte
++++ b/website/src/lib/components/Nav.svelte
+@@ -1,6 +1,7 @@
+ <script lang="ts">
+   // ... existing imports
++  import DefconLogo from '$lib/assets/defcon-logo.svg';
+ </script>
+
+ <nav class="...">
+   <div class="flex items-center gap-4">
++    <a href="https://defcon.run" class="flex items-center">
++      <img src={DefconLogo} alt="DEF CON" class="h-8" />
++    </a>
+     <!-- existing gpx.studio logo -->
+   </div>
+ </nav>
+
+diff --git a/website/static/defcon-favicon.ico b/website/static/defcon-favicon.ico
+new file mode 100644
+Binary file - copy from apps/run.human/webapp/public/favicon.ico
+
+diff --git a/website/src/lib/assets/defcon-logo.svg b/website/src/lib/assets/defcon-logo.svg
+new file mode 100644
+--- Copy DEF CON logo SVG from run.human assets ---
+
+--- Apply Instructions ---
+1. Update title in +layout.svelte to include "DEF CON"
+2. Update app.html with DEF CON favicon
+3. Add DEF CON logo to Nav.svelte header
+4. Copy favicon and logo assets from run.human to gpx.studio static/assets
+
+Asset locations to copy:
+- apps/run.human/webapp/public/favicon.ico -> website/static/defcon-favicon.ico
+- apps/run.human/webapp/public/defcon-logo.svg -> website/src/lib/assets/defcon-logo.svg
+  (or create new SVG if not available)
+
+Color scheme:
+- Keep gpx.studio's existing color scheme
+- Add subtle DEF CON branding without overwhelming the UI

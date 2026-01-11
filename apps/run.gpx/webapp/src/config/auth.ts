@@ -4,21 +4,38 @@ import type { NextAuthConfig } from "next-auth";
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.REGION_SHORT || "use1";
 
+// Auth server URLs
+const authServerUrl = isDev
+  ? "http://localhost:3002"
+  : "https://auth.defcon.run";
+const oidcIssuer = isDev
+  ? "http://localhost:3002/api/oidc"
+  : `https://auth.defcon.run/${region}/api/oidc`;
+
 export const authConfig: NextAuthConfig = {
+  debug: isDev,
+  trustHost: true,
+
   providers: [
     {
       id: "run.defcon.run",
       name: "DEF CON",
       type: "oidc",
-      issuer: isDev
-        ? "http://localhost:3002/api/oidc"
-        : `https://auth.defcon.run/${region}/api/oidc`,
+      issuer: oidcIssuer,
       clientId: process.env.OIDC_CLIENT_ID!,
       clientSecret: process.env.OIDC_CLIENT_SECRET!,
       authorization: {
+        url: `${authServerUrl}/api/oidc/auth`,
         params: {
           scope: "openid profile email services",
         },
+      },
+      token: {
+        url: `${authServerUrl}/api/oidc/token`,
+      },
+      checks: ["state"],
+      client: {
+        token_endpoint_auth_method: "client_secret_post",
       },
     },
   ],
@@ -30,6 +47,7 @@ export const authConfig: NextAuthConfig = {
         token.services = (profile as { services?: string[] }).services ?? [];
         token.mapboxPublicToken = (profile as { mapboxPublicToken?: string })
           .mapboxPublicToken;
+        token.sub = profile.sub as string;
       }
       return token;
     },
@@ -40,14 +58,14 @@ export const authConfig: NextAuthConfig = {
         (token.services as string[]) ?? [];
       (session.user as { mapboxPublicToken?: string }).mapboxPublicToken =
         token.mapboxPublicToken as string | undefined;
+      if (token.sub) {
+        session.user.id = token.sub;
+      }
       return session;
     },
   },
 
-  pages: {
-    signIn: "/api/auth/signin",
-    error: "/api/auth/error",
-  },
+  // Don't specify custom pages - let Auth.js auto-redirect to OIDC provider
 
   session: {
     strategy: "jwt",
@@ -81,6 +99,16 @@ export const authConfig: NextAuthConfig = {
         sameSite: "lax",
         path: "/",
         secure: !isDev,
+      },
+    },
+    state: {
+      name: "state_gpx",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: !isDev,
+        maxAge: 900, // 15 minutes
       },
     },
   },
