@@ -7,6 +7,10 @@
 ENDPOINT_URL="${DYNAMODB_ENDPOINT:-http://localhost:8888}"
 TABLE_NAME="run-auth-electro"
 
+# Set dummy credentials for local DynamoDB
+export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-local}"
+export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-local}"
+
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <email> <service1> [service2] [service3] ..."
     echo "Example: $0 whereiskurt@gmail.com auth run strava gpxstudio cms"
@@ -22,10 +26,11 @@ echo "Looking up user: $EMAIL"
 # Find user by email via GSI1
 PK=$(aws dynamodb query \
     --endpoint-url "$ENDPOINT_URL" \
+    --region us-east-1 \
     --table-name "$TABLE_NAME" \
     --index-name gsi1pk-gsi1sk-index \
     --key-condition-expression "gsi1pk = :email" \
-    --expression-attribute-values "{\":email\": {\"S\": \"\$oidc#authprofile_${EMAIL}\"}}" \
+    --expression-attribute-values "{\":email\": {\"S\": \"\$oidc#email_${EMAIL}\"}}" \
     --query 'Items[0].pk.S' \
     --output text 2>/dev/null)
 
@@ -50,6 +55,7 @@ echo "Setting services: ${SERVICES[*]}"
 # Update services
 aws dynamodb update-item \
     --endpoint-url "$ENDPOINT_URL" \
+    --region us-east-1 \
     --table-name "$TABLE_NAME" \
     --key "{\"pk\": {\"S\": \"$PK\"}, \"sk\": {\"S\": \"\$authprofile_1\"}}" \
     --update-expression "SET services = :s" \
