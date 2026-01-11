@@ -14,5 +14,5 @@ export default async function GpxStudioPage() {
   }
 
   // Redirect to the GPX Studio SvelteKit app
-  redirect("/gpx-studio/app");
+  redirect("/studio/app");
 }

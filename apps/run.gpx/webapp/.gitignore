@@ -6,7 +6,7 @@ node_modules/
 out/
 
 # Built gpx-studio frontend (built during Docker build)
-public/gpx-studio/
+public/studio/
 
 # Environment variables
 .env

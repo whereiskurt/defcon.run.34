@@ -73,12 +73,12 @@ RUN npm install
 COPY . .
 
 # Copy built gpx.studio to public folder
-COPY --from=gpx-builder /gpx-studio/build ./public/gpx-studio/
+COPY --from=gpx-builder /gpx-studio/build ./public/studio/
 
 # Build arguments for Next.js
 ARG NEXT_PUBLIC_ASSET_PREFIX=""
 ARG WEBAPP_PREFIX="use1/assets"
-ARG WEBAPP_ORIGIN="gpxstudio.defcon.run"
+ARG WEBAPP_ORIGIN="gpx.defcon.run"
 ARG VERSION_WEBAPP="unknown"
 ARG REGION_SHORT="use1"
 

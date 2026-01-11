@@ -50,13 +50,13 @@ locals {
             value = "{{REGION_LABEL}}"
           },
           {
-            # AUTH_URL for Auth.js - GPX Studio at gpxstudio.defcon.run
+            # AUTH_URL for Auth.js - GPX Studio at gpx.defcon.run
             name  = "AUTH_URL"
-            value = "https://gpxstudio.defcon.run"
+            value = "https://gpx.defcon.run"
           },
           {
             name  = "NEXTAUTH_URL"
-            value = "https://gpxstudio.defcon.run"
+            value = "https://gpx.defcon.run"
           },
           {
             name  = "AWS_REGION"
@@ -203,7 +203,7 @@ locals {
         listener = {
           port         = 443
           protocol     = "HTTPS"
-          host_headers = ["gpxstudio.defcon.run"]
+          host_headers = ["gpx.defcon.run"]
         }
       }
     ]

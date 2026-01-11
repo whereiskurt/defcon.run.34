@@ -59,7 +59,7 @@ case "$APP" in
     ;;
   "run.gpx")
     REPO_PREFIX="dc34-run-gpx"
-    WEBAPP_ORIGIN="gpxstudio.defcon.run"
+    WEBAPP_ORIGIN="gpx.defcon.run"
     SSM_PATH_SEGMENT="gpx"
     ;;
 esac
