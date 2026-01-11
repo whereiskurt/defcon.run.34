@@ -53,12 +53,11 @@ Before saying "done" or "complete", run this checklist:
 ```
 [ ] 1. git status                      (check what changed)
 [ ] 2. git checkout -b <branch-name>   (create feature branch if not already on one)
-[ ] 3. git add <files>                 (stage code changes)
-[ ] 4. bd sync                         (commit beads changes)
-[ ] 5. git commit -m "..."             (commit code)
-[ ] 6. bd sync                         (commit any new beads changes)
-[ ] 7. git push -u origin <branch>     (push branch to remote)
-[ ] 8. gh pr create                    (create PR for review)
+[ ] 3. git add <files>                 (stage code changes - NOT .beads/)
+[ ] 4. git commit -m "..."             (commit code)
+[ ] 5. git push -u origin <branch>     (push branch to remote)
+[ ] 6. gh pr create                    (create PR for review)
+[ ] 7. bd sync                         (sync beads changes to beads-sync branch)
 ```
 
 **Important:**
