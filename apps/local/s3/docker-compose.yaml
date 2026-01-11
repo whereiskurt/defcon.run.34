@@ -1,0 +1,31 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: minio-localhost
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console UI
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init-localhost
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./init-s3-buckets.sh:/init-s3-buckets.sh:ro
+    entrypoint: ["/bin/sh", "/init-s3-buckets.sh"]
+
+volumes:
+  minio-data:

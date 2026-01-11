@@ -202,5 +202,43 @@ aws dynamodb update-time-to-live \
 
 echo "Enabled TTL on 'run-human-authjs' table"
 
+###############################################################################
+# run.gpx tables
+###############################################################################
+
+# Create the 'run-gpx-electro' table
+# Schema: pk/sk with 1 GSI (gsi1pk-gsi1sk-index) for createdAt ordering
+aws dynamodb create-table \
+    --endpoint-url "$ENDPOINT_URL" \
+    --table-name run-gpx-electro \
+    --attribute-definitions \
+        AttributeName=pk,AttributeType=S \
+        AttributeName=sk,AttributeType=S \
+        AttributeName=gsi1pk,AttributeType=S \
+        AttributeName=gsi1sk,AttributeType=S \
+    --key-schema \
+        AttributeName=pk,KeyType=HASH \
+        AttributeName=sk,KeyType=RANGE \
+    --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+    --global-secondary-indexes \
+        '[
+            {
+                "IndexName": "gsi1",
+                "KeySchema": [
+                    {"AttributeName":"gsi1pk","KeyType":"HASH"},
+                    {"AttributeName":"gsi1sk","KeyType":"RANGE"}
+                ],
+                "Projection": {
+                    "ProjectionType":"ALL"
+                },
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": 5,
+                    "WriteCapacityUnits": 5
+                }
+            }
+        ]'
+
+echo "Created 'run-gpx-electro' table"
+
 echo "All tables created successfully!"
 aws dynamodb list-tables --endpoint-url "$ENDPOINT_URL"
