@@ -57,6 +57,10 @@ export const config = {
         clientId: process.env.OIDC_CMS_CLIENT_ID!,
         clientSecret: process.env.OIDC_CMS_SECRET!,
       },
+      gpxStudio: {
+        clientId: process.env.OIDC_GPXSTUDIO_CLIENT_ID!,
+        clientSecret: process.env.OIDC_GPXSTUDIO_SECRET!,
+      },
     },
 
     ttl: {

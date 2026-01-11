@@ -1,0 +1,3 @@
+[submodule "apps/run.gpx/gpx-studio"]
+	path = apps/run.gpx/gpx-studio
+	url = https://github.com/gpxstudio/gpx.studio.git

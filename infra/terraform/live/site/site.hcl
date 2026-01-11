@@ -198,7 +198,32 @@ locals {
     enabled = true
     buckets = concat(
       try(local.ecs_run_human_service.locals.user_uploads, []),
-      try(local.ecs_cms_service.locals.cms_storage, [])
+      try(local.ecs_cms_service.locals.cms_storage, []),
+      # GPX Studio storage bucket for user-uploaded GPX files
+      [
+        {
+          name         = "run-gpx"
+          service_name = "run-gpx"
+          regions      = ["us-east-1", "ca-central-1"]
+
+          lifecycle = {
+            uploads_expire_days   = 0 # Keep GPX files indefinitely
+            processed_expire_days = 0
+            enable_versioning     = true
+          }
+
+          replication = {
+            enabled = true
+            replica_regions = [
+              { label = "use1", full = "us-east-1" },
+              { label = "cac1", full = "ca-central-1" }
+            ]
+          }
+
+          full_bucket_access = false  # User-isolated prefix access
+          cloudfront_access  = false  # Presigned URLs, not direct CDN
+        }
+      ]
     )
   }
 

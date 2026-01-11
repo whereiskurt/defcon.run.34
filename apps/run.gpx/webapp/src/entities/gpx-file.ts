@@ -1,0 +1,138 @@
+import { Entity } from "electrodb";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+
+const client = new DynamoDBClient({
+  region: process.env.DYNAMODB_REGION || "us-east-1",
+  ...(process.env.DYNAMODB_ENDPOINT
+    ? { endpoint: process.env.DYNAMODB_ENDPOINT }
+    : {}),
+  credentials: {
+    accessKeyId: process.env.DYNAMODB_ACCESS_KEY!,
+    secretAccessKey: process.env.DYNAMODB_SECRET_KEY!,
+  },
+});
+
+const table = process.env.DYNAMODB_TABLE || "dc34-gpx";
+
+/**
+ * GPX File entity - stores metadata for user's GPX files
+ */
+export const GpxFile = new Entity(
+  {
+    model: {
+      entity: "GpxFile",
+      version: "1",
+      service: "gpx",
+    },
+    attributes: {
+      userId: {
+        type: "string",
+        required: true,
+      },
+      fileId: {
+        type: "string",
+        required: true,
+      },
+      fileName: {
+        type: "string",
+        required: true,
+      },
+      compositionId: {
+        type: "string",
+        required: false,
+      },
+      bucket: {
+        type: "string",
+        required: true,
+      },
+      key: {
+        type: "string",
+        required: true,
+      },
+      fileSize: {
+        type: "number",
+        required: true,
+      },
+      // GPX metadata (extracted on save)
+      trackCount: {
+        type: "number",
+        required: false,
+        default: 0,
+      },
+      waypointCount: {
+        type: "number",
+        required: false,
+        default: 0,
+      },
+      totalDistance: {
+        type: "number",
+        required: false,
+        default: 0,
+      },
+      totalElevation: {
+        type: "number",
+        required: false,
+        default: 0,
+      },
+      bounds: {
+        type: "map",
+        properties: {
+          minLat: { type: "number" },
+          maxLat: { type: "number" },
+          minLon: { type: "number" },
+          maxLon: { type: "number" },
+        },
+        required: false,
+      },
+      // Timestamps
+      createdAt: {
+        type: "number",
+        required: true,
+        default: () => Date.now(),
+        readOnly: true,
+      },
+      updatedAt: {
+        type: "number",
+        required: true,
+        default: () => Date.now(),
+        watch: "*",
+        set: () => Date.now(),
+      },
+      lastOpenedAt: {
+        type: "number",
+        required: false,
+      },
+    },
+    indexes: {
+      primary: {
+        pk: {
+          field: "pk",
+          composite: ["userId"],
+        },
+        sk: {
+          field: "sk",
+          composite: ["fileId"],
+        },
+      },
+      byCreatedAt: {
+        index: "gsi1",
+        pk: {
+          field: "gsi1pk",
+          composite: ["userId"],
+        },
+        sk: {
+          field: "gsi1sk",
+          composite: ["createdAt"],
+        },
+      },
+    },
+  },
+  { client, table }
+);
+
+// Type exports
+export type GpxFileItem = typeof GpxFile.types.item;
+export type CreateGpxFileInput = Omit<
+  GpxFileItem,
+  "createdAt" | "updatedAt"
+>;
