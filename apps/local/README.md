@@ -17,6 +17,14 @@ docker compose up -d
 - **Tables**: run-auth-electro, run-auth-authjs, run-human-electro, run-human-authjs, run-gpx-electro
 - **Credentials**: `local` / `local`
 
+#### Utility Scripts
+
+**Set user services** (grant access to services like gpxstudio, cms):
+```bash
+cd dynamodb
+./set-user-services.sh whereiskurt@gmail.com auth run strava gpxstudio cms
+```
+
 ### MinIO S3 (`s3/`)
 
 S3-compatible object storage for file uploads (GPX files, etc.).
