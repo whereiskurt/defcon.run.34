@@ -80,7 +80,7 @@ Read these files for in-depth information:
 
 2. **bd for issue tracking** — Use `bd ready` to find work, `bd sync` at session end. Priority: 0-4 (not high/medium/low).
 
-3. **Session close protocol** — Always run: `git status` → `git add` → `bd sync` → `git commit` → `bd sync` → `git push`
+3. **Branch workflow** — Always work in a feature branch, never commit directly to main. Create a PR for review. Never auto-merge PRs unless explicitly told.
 
 4. **Simplicity first** — <100 lines, single-file until proven insufficient, boring patterns preferred.
 
