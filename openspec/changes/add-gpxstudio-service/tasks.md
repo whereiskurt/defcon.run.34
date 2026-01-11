@@ -464,3 +464,57 @@ fileStateCollection.forEach((fileId, file) => {
 // Get single file by ID
 const file = fileStateCollection.getFile(fileId);  // Returns GPXFile | undefined
 ```
+
+### Cloud Storage Dialog UI Design
+
+The Cloud Storage dialog (`CloudStorage.svelte`) follows these design patterns:
+
+**Dialog Sizing**:
+- Use `!` prefix to override shadcn Dialog's default `sm:max-w-lg`: `class="!max-w-[900px] !w-[90vw]"`
+- Without `!`, Tailwind classes won't override the component's built-in styles
+
+**Layout Structure**:
+1. **Save button** - Large green button centered at top: "Save All Layers"
+2. **File list table** - Columns: Name | Size | Updated | (Add to map) | Actions
+3. **Refresh button** - Subtle ghost button below file list
+4. **Close button** - In dialog footer
+
+**Table Columns**:
+| Column | Content |
+|--------|---------|
+| Name | File name with inline rename editing |
+| Size | Compact format: `166kb` (not `166.4 KB`) |
+| Updated | Natural language: "Today @ 2:30pm", "Yesterday @ 10:15am", or "20260111.142501" |
+| (unlabeled) | Green outlined "add to map" button with Plus icon |
+| Actions | Pencil (rename) and Trash (delete) icons |
+
+**Date Formatting**:
+```typescript
+function formatDate(timestamp: number): string {
+    // Today: "Today @ 2:30pm"
+    // Yesterday: "Yesterday @ 10:15am"
+    // Older: "20260111.142501" (YYYYMMDD.HHMMSS)
+}
+```
+
+**File Size Formatting**:
+```typescript
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes}b`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}kb`;
+    return `${Math.round(bytes / (1024 * 1024))}mb`;
+}
+```
+
+**Inline Rename**:
+- Click pencil icon to enter edit mode
+- Input field replaces filename text
+- Check (save) and X (cancel) buttons appear
+- Enter to save, Escape to cancel
+- Uses `updateCloudFile()` API to persist rename
+
+**Loading File Uses Current Name**:
+When loading a file from cloud, use `file.fileName` from the cloud file list (not the API response) to reflect any renames:
+```typescript
+gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
+```
