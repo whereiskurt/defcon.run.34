@@ -24,16 +24,17 @@ RUN npm install
 COPY gpx-studio/website ./
 
 # Create patch files (cloud-sync.ts and auth store)
-# Note: API calls use relative paths, basePath handled by Next.js
+# Note: API calls use SvelteKit base path for correct routing through Next.js
 RUN mkdir -p src/lib/stores && \
     echo 'import { writable } from "svelte/store"; \
+import { base } from "$app/paths"; \
 export type CloudFile = { fileId: string; fileName: string; fileSize: number; createdAt: string; updatedAt: string; }; \
 export const cloudFiles = writable<CloudFile[]>([]); \
 export const cloudSyncStatus = writable<"idle" | "syncing" | "error">("idle"); \
 export const cloudSyncError = writable<string | null>(null); \
-const API_BASE = "/api/gpx"; \
+function getApiBase() { const b = base.replace("/studio", ""); return `${b}/api/gpx`; } \
 export async function listCloudFiles(): Promise<CloudFile[]> { \
-  const res = await fetch(`${API_BASE}/files`); \
+  const res = await fetch(`${getApiBase()}/files`); \
   const data = await res.json(); \
   const files = data.files || []; \
   cloudFiles.set(files); \
@@ -43,42 +44,44 @@ export async function saveToCloud(content: string, name: string): Promise<string
   cloudSyncStatus.set("syncing"); \
   try { \
     const blob = new Blob([content], {type: "application/gpx+xml"}); \
-    const presignRes = await fetch(`${API_BASE}/upload/presign`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileName: name})}); \
+    const presignRes = await fetch(`${getApiBase()}/upload/presign`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileName: name})}); \
     const {uploadUrl, fileId, key, bucket} = await presignRes.json(); \
     await fetch(uploadUrl, {method: "PUT", body: blob, headers: {"Content-Type": "application/gpx+xml"}}); \
-    await fetch(`${API_BASE}/files`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileId, fileName: name, bucket, key, fileSize: blob.size})}); \
+    await fetch(`${getApiBase()}/files`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileId, fileName: name, bucket, key, fileSize: blob.size})}); \
     cloudSyncStatus.set("idle"); \
     await listCloudFiles(); \
     return fileId; \
   } catch (e) { cloudSyncStatus.set("error"); cloudSyncError.set(String(e)); throw e; } \
 } \
 export async function loadFromCloud(fileId: string): Promise<string> { \
-  const res = await fetch(`${API_BASE}/files/${fileId}`); \
+  const res = await fetch(`${getApiBase()}/files/${fileId}`); \
   const {downloadUrl} = await res.json(); \
   const gpxRes = await fetch(downloadUrl); \
   return gpxRes.text(); \
 } \
 export async function deleteFromCloud(fileId: string): Promise<void> { \
-  await fetch(`${API_BASE}/files/${fileId}`, {method: "DELETE"}); \
+  await fetch(`${getApiBase()}/files/${fileId}`, {method: "DELETE"}); \
   await listCloudFiles(); \
 } \
 export async function updateCloudFile(fileId: string, updates: Partial<CloudFile>): Promise<void> { \
-  await fetch(`${API_BASE}/files/${fileId}`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(updates)}); \
+  await fetch(`${getApiBase()}/files/${fileId}`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(updates)}); \
   await listCloudFiles(); \
 }' > src/lib/cloud-sync.ts && \
     echo 'import { writable, derived } from "svelte/store"; \
 import { browser } from "$app/environment"; \
+import { base } from "$app/paths"; \
+function getAuthBase() { return base.replace("/studio", ""); } \
 function createAuthStore() { \
   const { subscribe, set } = writable({ user: null, isLoading: true, isAuthenticated: false }); \
   async function checkSession() { \
     if (!browser) return; \
     try { \
-      const session = await (await fetch("/api/auth/session")).json(); \
+      const session = await (await fetch(`${getAuthBase()}/api/auth/session`)).json(); \
       if (session?.user?.services?.includes("gpxstudio")) set({ user: session.user, isLoading: false, isAuthenticated: true }); \
       else set({ user: null, isLoading: false, isAuthenticated: false }); \
     } catch { set({ user: null, isLoading: false, isAuthenticated: false }); } \
   } \
-  return { subscribe, checkSession, logout: () => window.location.href = "/api/auth/signout" }; \
+  return { subscribe, checkSession, logout: () => window.location.href = `${getAuthBase()}/api/auth/signout` }; \
 } \
 export const auth = createAuthStore(); \
 export const isAuthenticated = derived(auth, a => a.isAuthenticated); \
