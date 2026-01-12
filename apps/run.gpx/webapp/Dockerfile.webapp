@@ -27,17 +27,44 @@ COPY gpx-studio/website ./
 # Note: API calls use relative paths, basePath handled by Next.js
 RUN mkdir -p src/lib/stores && \
     echo 'import { writable } from "svelte/store"; \
-export const cloudSyncStatus = writable("idle"); \
-export const cloudSyncError = writable(null); \
+export type CloudFile = { fileId: string; fileName: string; fileSize: number; createdAt: string; updatedAt: string; }; \
+export const cloudFiles = writable<CloudFile[]>([]); \
+export const cloudSyncStatus = writable<"idle" | "syncing" | "error">("idle"); \
+export const cloudSyncError = writable<string | null>(null); \
 const API_BASE = "/api/gpx"; \
-export async function listCloudFiles() { return (await (await fetch(`${API_BASE}/files`)).json()).files; } \
-export async function saveToCloud(content, name) { \
+export async function listCloudFiles(): Promise<CloudFile[]> { \
+  const res = await fetch(`${API_BASE}/files`); \
+  const data = await res.json(); \
+  const files = data.files || []; \
+  cloudFiles.set(files); \
+  return files; \
+} \
+export async function saveToCloud(content: string, name: string): Promise<string> { \
   cloudSyncStatus.set("syncing"); \
-  const blob = new Blob([content], {type: "application/gpx+xml"}); \
-  const {uploadUrl, fileId, key, bucket} = await (await fetch(`${API_BASE}/upload/presign`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileName: name})})).json(); \
-  await fetch(uploadUrl, {method: "PUT", body: blob}); \
-  await fetch(`${API_BASE}/files`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileId, fileName: name, bucket, key, fileSize: blob.size})}); \
-  cloudSyncStatus.set("idle"); return fileId; \
+  try { \
+    const blob = new Blob([content], {type: "application/gpx+xml"}); \
+    const presignRes = await fetch(`${API_BASE}/upload/presign`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileName: name})}); \
+    const {uploadUrl, fileId, key, bucket} = await presignRes.json(); \
+    await fetch(uploadUrl, {method: "PUT", body: blob, headers: {"Content-Type": "application/gpx+xml"}}); \
+    await fetch(`${API_BASE}/files`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileId, fileName: name, bucket, key, fileSize: blob.size})}); \
+    cloudSyncStatus.set("idle"); \
+    await listCloudFiles(); \
+    return fileId; \
+  } catch (e) { cloudSyncStatus.set("error"); cloudSyncError.set(String(e)); throw e; } \
+} \
+export async function loadFromCloud(fileId: string): Promise<string> { \
+  const res = await fetch(`${API_BASE}/files/${fileId}`); \
+  const {downloadUrl} = await res.json(); \
+  const gpxRes = await fetch(downloadUrl); \
+  return gpxRes.text(); \
+} \
+export async function deleteFromCloud(fileId: string): Promise<void> { \
+  await fetch(`${API_BASE}/files/${fileId}`, {method: "DELETE"}); \
+  await listCloudFiles(); \
+} \
+export async function updateCloudFile(fileId: string, updates: Partial<CloudFile>): Promise<void> { \
+  await fetch(`${API_BASE}/files/${fileId}`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(updates)}); \
+  await listCloudFiles(); \
 }' > src/lib/cloud-sync.ts && \
     echo 'import { writable, derived } from "svelte/store"; \
 import { browser } from "$app/environment"; \
