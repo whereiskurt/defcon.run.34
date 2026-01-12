@@ -359,13 +359,11 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
     echo ""
     echo ">>> Deploying to ${_REGION_DISPLAY} (${_AWS_REGION}) <<<"
 
-    # Apply ecs-task first (creates new task definitions)
-    echo "  Applying ecs-task..."
-    terragrunt run apply --non-interactive --working-dir "${REGION_DIR}/ecs-task" -- -auto-approve
-
-    # Apply ecs-service (deploys the new task definitions)
-    echo "  Applying ecs-service..."
-    terragrunt run apply --non-interactive --working-dir "${REGION_DIR}/ecs-service" -- -auto-approve
+    # Use run --all from region directory to properly handle dependency outputs
+    # This ensures ecs-service sees the new task definition ARNs from ecs-task
+    # Same approach as deploy.sh but scoped to the region directory
+    echo "  Applying ecs-task and ecs-service..."
+    (cd "${REGION_DIR}" && terragrunt run apply --all --non-interactive -- -auto-approve)
 
     echo "  Deploy complete for ${_REGION_DISPLAY}"
   done

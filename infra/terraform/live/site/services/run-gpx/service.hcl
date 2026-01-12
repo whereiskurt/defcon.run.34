@@ -59,16 +59,23 @@ locals {
             value = "{{REGION_LABEL}}/assets"
           },
           {
-            # AUTH_URL for Auth.js - GPX Studio at gpx.defcon.run/{region}
+            # AUTH_URL for Auth.js - base URL with region prefix
+            # Auth.js combines this with basePath: "/api/auth" from auth.ts
             name  = "AUTH_URL"
             value = "https://gpx.defcon.run/{{REGION_LABEL}}"
           },
           {
+            # NEXTAUTH_URL for backwards compatibility
             name  = "NEXTAUTH_URL"
             value = "https://gpx.defcon.run/{{REGION_LABEL}}"
           },
           {
             name  = "AWS_REGION"
+            value = "{{REGION}}"
+          },
+          {
+            # DynamoDB region for gpx-file.ts client
+            name  = "DYNAMODB_REGION"
             value = "{{REGION}}"
           },
           {
@@ -95,32 +102,34 @@ locals {
             name      = "OIDC_CLIENT_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/gpxstudio/client_secret"
           },
+          # DynamoDB credentials - names must match webapp code (gpx-file.ts)
           {
-            name      = "GPX_DYNAMODB_ID"
+            name      = "DYNAMODB_ACCESS_KEY"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-gpx-electro/access_key_id"
           },
           {
-            name      = "GPX_DYNAMODB_SECRET"
+            name      = "DYNAMODB_SECRET_KEY"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-gpx-electro/secret_access_key"
           },
           {
-            name      = "GPX_DYNAMODB_DBNAME"
+            name      = "DYNAMODB_TABLE"
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-gpx-electro/table_name"
           },
+          # S3 credentials - names must match webapp code (s3-client.ts)
           {
-            name      = "S3_GPX_ACCESS_KEY"
+            name      = "S3_UPLOADS_ACCESS_KEY"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-gpx/access_key_id"
           },
           {
-            name      = "S3_GPX_SECRET_KEY"
+            name      = "S3_UPLOADS_SECRET_KEY"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-gpx/secret_access_key"
           },
           {
-            name      = "S3_GPX_BUCKET"
+            name      = "S3_UPLOADS_BUCKET"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-gpx/bucket_name"
           },
           {
-            name      = "S3_GPX_REGION"
+            name      = "S3_UPLOADS_REGION"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-gpx/bucket_region"
           },
           {
@@ -212,9 +221,11 @@ locals {
         }
 
         listener = {
-          port         = 443
-          protocol     = "HTTPS"
-          host_headers = ["gpx.defcon.run"]
+          port          = 443
+          protocol      = "HTTPS"
+          host_headers  = ["gpx.defcon.run"]
+          path_patterns = ["/{{REGION_LABEL}}", "/{{REGION_LABEL}}/*"]
+          priority      = 200
         }
       }
     ]

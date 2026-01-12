@@ -18,16 +18,19 @@ dependency "use1_cloudfront" {
       run  = "mock-cf-assets-run-use1"
       auth = "mock-cf-assets-auth-use1"
       cms  = "mock-cf-assets-cms-use1"
+      gpx  = "mock-cf-assets-gpx-use1"
     }
     bucket_arns = {
       run  = "arn:aws:s3:::mock-cf-assets-run-use1"
       auth = "arn:aws:s3:::mock-cf-assets-auth-use1"
       cms  = "arn:aws:s3:::mock-cf-assets-cms-use1"
+      gpx  = "arn:aws:s3:::mock-cf-assets-gpx-use1"
     }
     bucket_regional_domain_names = {
       run  = "mock-cf-assets-run-use1.s3.us-east-1.amazonaws.com"
       auth = "mock-cf-assets-auth-use1.s3.us-east-1.amazonaws.com"
       cms  = "mock-cf-assets-cms-use1.s3.us-east-1.amazonaws.com"
+      gpx  = "mock-cf-assets-gpx-use1.s3.us-east-1.amazonaws.com"
     }
     region_label = "use1"
   }
@@ -42,16 +45,19 @@ dependency "cac1_cloudfront" {
       run  = "mock-cf-assets-run-cac1"
       auth = "mock-cf-assets-auth-cac1"
       cms  = "mock-cf-assets-cms-cac1"
+      gpx  = "mock-cf-assets-gpx-cac1"
     }
     bucket_arns = {
       run  = "arn:aws:s3:::mock-cf-assets-run-cac1"
       auth = "arn:aws:s3:::mock-cf-assets-auth-cac1"
       cms  = "arn:aws:s3:::mock-cf-assets-cms-cac1"
+      gpx  = "arn:aws:s3:::mock-cf-assets-gpx-cac1"
     }
     bucket_regional_domain_names = {
       run  = "mock-cf-assets-run-cac1.s3.ca-central-1.amazonaws.com"
       auth = "mock-cf-assets-auth-cac1.s3.ca-central-1.amazonaws.com"
       cms  = "mock-cf-assets-cms-cac1.s3.ca-central-1.amazonaws.com"
+      gpx  = "mock-cf-assets-gpx-cac1.s3.ca-central-1.amazonaws.com"
     }
     region_label = "cac1"
   }
