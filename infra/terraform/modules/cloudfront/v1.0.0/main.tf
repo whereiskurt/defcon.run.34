@@ -87,15 +87,16 @@ resource "aws_s3_bucket_acl" "cloudfront_logs_acl" {
 }
 
 # Origin Access Control for S3 buckets
-# Create one OAC per domain per region
+# Create one OAC per domain per region (only where S3 bucket exists)
 resource "aws_cloudfront_origin_access_control" "cf_oac" {
   for_each = merge([
     for domain in var.cloudfront.domains : {
-      for region_key in keys(var.regional_origins_by_domain[domain]) :
+      for region_key, region_value in var.regional_origins_by_domain[domain] :
       "${domain}-${region_key}" => {
         domain = domain
         region = region_key
       }
+      if region_value.s3_bucket_regional_domain_name != ""
     }
   ]...)
 
@@ -183,8 +184,13 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   # Dynamic origins for S3 buckets - use this domain's regional origins
+  # Only create S3 origins where s3_bucket_regional_domain_name is not empty
   dynamic "origin" {
-    for_each = var.regional_origins_by_domain[each.key]
+    for_each = {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.s3_bucket_regional_domain_name != ""
+    }
     content {
       domain_name              = origin.value.s3_bucket_regional_domain_name
       origin_id                = "s3-${origin.key}"
@@ -248,8 +254,13 @@ resource "aws_cloudfront_distribution" "main" {
   # Ordered cache behaviors for regional index.html routing
   # Pattern: /{region_label}/index.html routes to S3 for this domain
   # IMPORTANT: This must come BEFORE the ALB wildcard patterns
+  # Only create where S3 origin exists (s3_bucket_regional_domain_name is not empty)
   dynamic "ordered_cache_behavior" {
-    for_each = var.regional_origins_by_domain[each.key]
+    for_each = {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.s3_bucket_regional_domain_name != ""
+    }
     content {
       path_pattern           = "/${ordered_cache_behavior.key}/index.html"
       target_origin_id       = "s3-${ordered_cache_behavior.key}"
@@ -294,8 +305,13 @@ resource "aws_cloudfront_distribution" "main" {
   # Ordered cache behaviors for regional S3 asset routing
   # IMPORTANT: This must come BEFORE the ALB wildcard patterns
   # Pattern: /{region_label}/assets/* routes to S3 for this domain
+  # Only create where S3 origin exists (s3_bucket_regional_domain_name is not empty)
   dynamic "ordered_cache_behavior" {
-    for_each = var.regional_origins_by_domain[each.key]
+    for_each = {
+      for region_key, region_value in var.regional_origins_by_domain[each.key] :
+      region_key => region_value
+      if region_value.s3_bucket_regional_domain_name != ""
+    }
     content {
       path_pattern           = "/${ordered_cache_behavior.key}/assets/*"
       target_origin_id       = "s3-${ordered_cache_behavior.key}"
