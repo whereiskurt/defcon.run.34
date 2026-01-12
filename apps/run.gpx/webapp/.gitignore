@@ -7,6 +7,7 @@ out/
 
 # Built gpx-studio frontend (built during Docker build)
 public/studio/
+public/gpx-studio/
 
 # Environment variables
 .env
