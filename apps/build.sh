@@ -112,6 +112,12 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   LOCAL_TAG="${REPO_NAME}:${IMAGE_TAG}-${REGION_SHORT}"
 
   # Build Docker image (amd64 for ECS)
+  # run.gpx needs wider build context to include gpx-studio submodule
+  if [[ "$APP" == "run.gpx" ]]; then
+    BUILD_CONTEXT="${APP_DIR}"
+  else
+    BUILD_CONTEXT="${APP_DIR}/webapp/"
+  fi
   docker buildx build --platform=linux/amd64 \
     --build-arg NEXT_PUBLIC_ASSET_PREFIX="/${WEBAPP_PREFIX}/public" \
     --build-arg WEBAPP_PREFIX="${WEBAPP_PREFIX}" \
@@ -119,7 +125,7 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
     --build-arg VERSION_NGINX="${VERSION_NGINX}" \
     --build-arg VERSION_WEBAPP="${VERSION_WEBAPP}" \
     --build-arg REGION_SHORT="${REGION_SHORT}" \
-    -t "$LOCAL_TAG" -f "${APP_DIR}/webapp/Dockerfile.webapp" "${APP_DIR}/webapp/"
+    -t "$LOCAL_TAG" -f "${APP_DIR}/webapp/Dockerfile.webapp" "${BUILD_CONTEXT}"
 
   # Extract static assets from Docker image and sync to S3
   # Use unique temp dirs per app/region to avoid collisions in parallel builds

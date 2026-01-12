@@ -2,6 +2,8 @@
 # Stage 1: Build gpx.studio frontend
 # Stage 2: Build Next.js webapp
 # Stage 3: Production runtime
+#
+# NOTE: Build context must be apps/run.gpx/ (not webapp/) to include gpx-studio submodule
 
 # =============================================================================
 # Stage 1: Build gpx.studio frontend (SvelteKit)
@@ -13,11 +15,11 @@ ARG REGION_SHORT="use1"
 
 WORKDIR /gpx-studio
 
-# Copy gpx.studio source
-COPY ../gpx-studio/website/package*.json ./
+# Copy gpx.studio source (paths relative to apps/run.gpx/ build context)
+COPY gpx-studio/website/package*.json ./
 RUN npm install
 
-COPY ../gpx-studio/website ./
+COPY gpx-studio/website ./
 
 # Create patch files (cloud-sync.ts and auth store)
 # Note: API calls use relative paths, basePath handled by Next.js
@@ -69,12 +71,12 @@ RUN apk update && apk add --no-cache \
 
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package*.json ./
+# Copy package files and install dependencies (paths relative to apps/run.gpx/ build context)
+COPY webapp/package*.json ./
 RUN npm install
 
 # Copy webapp source
-COPY . .
+COPY webapp/ .
 
 # Copy built gpx.studio to public folder
 COPY --from=gpx-builder /gpx-studio/build ./public/studio/
