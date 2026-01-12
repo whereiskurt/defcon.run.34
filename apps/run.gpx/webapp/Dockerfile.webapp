@@ -16,6 +16,8 @@ ARG REGION_SHORT="use1"
 WORKDIR /gpx-studio
 
 # Copy gpx.studio source (paths relative to apps/run.gpx/ build context)
+# Must copy both website/ and gpx/ since website has local dependency "gpx": "file:../gpx"
+COPY gpx-studio/gpx ../gpx
 COPY gpx-studio/website/package*.json ./
 RUN npm install
 
