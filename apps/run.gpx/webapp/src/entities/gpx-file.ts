@@ -1,4 +1,4 @@
-import { Entity } from "electrodb";
+import { Entity, EntityItem } from "electrodb";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 const client = new DynamoDBClient({
@@ -131,7 +131,7 @@ export const GpxFile = new Entity(
 );
 
 // Type exports
-export type GpxFileItem = typeof GpxFile.types.item;
+export type GpxFileItem = EntityItem<typeof GpxFile>;
 export type CreateGpxFileInput = Omit<
   GpxFileItem,
   "createdAt" | "updatedAt"
