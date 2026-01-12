@@ -55,7 +55,8 @@ function createAuthStore() { \
 } \
 export const auth = createAuthStore(); \
 export const isAuthenticated = derived(auth, a => a.isAuthenticated); \
-export const isAuthLoading = derived(auth, a => a.isLoading);' > src/lib/stores/auth.ts
+export const isAuthLoading = derived(auth, a => a.isLoading); \
+export const hasGpxStudioAccess = derived(auth, a => a.user?.services?.includes("gpxstudio") ?? false);' > src/lib/stores/auth.ts
 
 # Build gpx.studio with regional BASE_PATH (e.g., /use1/studio)
 RUN BASE_PATH=/${REGION_SHORT}/studio npm run build
