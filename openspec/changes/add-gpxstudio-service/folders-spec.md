@@ -16,6 +16,7 @@ Add virtual folder support and file tagging to the GPX Studio cloud storage inte
 4. **Simple hierarchy** - Standard parent-child folder relationship
 5. **Max depth limit** - 5 levels maximum to prevent abuse
 6. **Flexible tagging** - Arbitrary user-defined tags on files
+7. **Global folders** - Shared folders accessible by all gpxstudio users
 
 ## Data Model
 
@@ -29,6 +30,7 @@ Add virtual folder support and file tagging to the GPX Studio cloud storage inte
 | Max tags per file | 10 | Keep manageable |
 | Max tag length | 20 chars | Chip display size |
 | Max tags per user | 50 | Prevent tag sprawl |
+| Max global folders | 10 | Prevent abuse, admin-managed |
 
 ### New Entity: GpxFolder
 
@@ -64,6 +66,15 @@ export const GpxFolder = new Entity({
       default: 0,  // 0 = root level, max 4 (5 levels: 0,1,2,3,4)
       validate: (val) => val >= 0 && val <= 4,
     },
+    isGlobal: {
+      type: "boolean",
+      required: true,
+      default: false,  // true = shared folder accessible by all gpxstudio users
+    },
+    createdBy: {
+      type: "string",
+      required: false,  // userId of creator (for global folders)
+    },
     createdAt: {
       type: "number",
       required: true,
@@ -87,6 +98,13 @@ export const GpxFolder = new Entity({
       index: "gsi1",
       pk: { field: "gsi1pk", composite: ["userId"] },
       sk: { field: "gsi1sk", composite: ["parentFolderId", "folderName"] },
+    },
+    // Global folders index - query all global folders across users
+    global: {
+      index: "gsi3",
+      pk: { field: "gsi3pk", composite: [] },  // Static "GLOBAL_FOLDERS" partition
+      sk: { field: "gsi3sk", composite: ["parentFolderId", "folderName"] },
+      condition: (attr) => attr.isGlobal === true,  // Sparse index
     },
   },
 });
@@ -183,6 +201,222 @@ export const GpxTag = new Entity({
 - Show most-used tags first
 - Prevent typo variants (suggest existing tags)
 - Track tag usage for cleanup
+
+## Global Folders
+
+### Concept
+
+Global folders are shared folders that all users with the `gpxstudio` service claim can access. They provide a way to share official routes, curated content, or collaborative workspaces.
+
+**Use Cases:**
+- **Official DEF CON Routes** - Event organizers share official event routes
+- **Challenges** - Shared challenge routes everyone can access
+- **Community Curated** - Popular routes shared by the community
+- **Collaborative Planning** - Group route planning for events
+
+### Authorization Model
+
+| Action | User Folder | Global Folder |
+|--------|-------------|---------------|
+| View/List | Owner only | All gpxstudio users |
+| Download files | Owner only | All gpxstudio users |
+| Upload files | Owner only | All gpxstudio users |
+| Rename files | Owner only | All gpxstudio users |
+| Delete files | Owner only | All gpxstudio users |
+| Create subfolder | Owner only | All gpxstudio users |
+| Delete folder | Owner only | Creator or admin only |
+| Rename folder | Owner only | Creator or admin only |
+
+**Key Points:**
+- Any gpxstudio user can read/write/delete files in a global folder
+- Only the folder creator (or admin) can delete or rename the global folder itself
+- Subfolders within a global folder inherit the global flag
+- Files in global folders use a special `userId: "GLOBAL"` for S3 storage
+
+### Data Model Notes
+
+**Global Folder Record:**
+```typescript
+{
+  userId: "GLOBAL",           // Special constant for global folders
+  folderId: "uuid",
+  folderName: "DEF CON 34 Official Routes",
+  parentFolderId: null,
+  isGlobal: true,
+  createdBy: "user-123",      // Track who created it
+  depth: 0,
+  createdAt: 1704931200000,
+  updatedAt: 1704931200000,
+}
+```
+
+**Files in Global Folders:**
+```typescript
+{
+  userId: "GLOBAL",           // Files also use GLOBAL userId
+  fileId: "uuid",
+  fileName: "keynote-walk.gpx",
+  folderId: "folder-uuid",
+  bucket: "dc34-run-gpx-uploads-use1",
+  key: "uploads/GLOBAL/gpx/uuid.gpx",  // GLOBAL prefix in S3
+  uploadedBy: "user-456",     // Track who uploaded
+  // ... other fields
+}
+```
+
+### S3 Storage for Global Files
+
+Global files are stored under a special `GLOBAL` prefix:
+- **Path**: `uploads/GLOBAL/gpx/{fileId}.gpx`
+- **Access**: IAM policy allows any authenticated gpxstudio user to read/write this prefix
+- **Isolation**: Clearly separated from user-specific uploads
+
+### UI Presentation
+
+Global folders appear in a special section at the top of the file list:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Cloud Storage                                          [X] │
+├─────────────────────────────────────────────────────────────┤
+│              [ Save All Layers ]                            │
+├─────────────────────────────────────────────────────────────┤
+│  🌐 Shared Folders                                     [v]  │
+├─────────────────────────────────────────────────────────────┤
+│  🌐 DEF CON 34 Official         8 items                     │
+│  🌐 Community Routes           12 items                     │
+├─────────────────────────────────────────────────────────────┤
+│  📁 My Files (12)              [+ Folder] [Refresh]    [v]  │
+├─────────────────────────────────────────────────────────────┤
+│  📁 Day 1 Routes                 3 items          ✏️ 🗑️     │
+│  [+] village-loop.gpx   45kb   Today @ 2pm        ✏️ 🗑️     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Visual Indicators:**
+- 🌐 Globe icon for global folders (vs 📁 for personal)
+- "Shared Folders" section header
+- No delete button on global folders (unless creator)
+- Files show "Uploaded by: username" in global folders
+
+### Creating Global Folders
+
+**Who Can Create:**
+- Initially: Only admins (users with `admin` in services claim)
+- Future: Could allow any gpxstudio user with rate limiting
+
+**Creation Flow:**
+1. Admin clicks "+ Global Folder" button
+2. Enters folder name
+3. Folder created with `isGlobal: true`, `userId: "GLOBAL"`
+4. Appears immediately in all users' Shared Folders section
+
+### API Changes for Global Folders
+
+#### `GET /api/gpx/folders`
+
+Add `includeGlobal` query param:
+
+**Query params:**
+- `parentId` (optional) - Parent folder ID
+- `includeGlobal` (optional) - If `true`, also return global folders
+
+**Response (with global folders):**
+```json
+{
+  "folders": [...],
+  "globalFolders": [
+    {
+      "folderId": "uuid",
+      "folderName": "DEF CON 34 Official",
+      "isGlobal": true,
+      "createdBy": "user-123",
+      "itemCount": 8
+    }
+  ]
+}
+```
+
+#### `POST /api/gpx/folders`
+
+Add `isGlobal` flag (admin only):
+
+**Request:**
+```json
+{
+  "folderName": "DEF CON 34 Official",
+  "parentFolderId": null,
+  "isGlobal": true
+}
+```
+
+**Validation:**
+- `isGlobal: true` requires admin privilege
+- Max 10 global folders total
+- Global folders can only be created at root level (for now)
+
+#### `GET /api/gpx/files`
+
+Add support for global folder context:
+
+**Query params:**
+- `folderId` - Folder ID (can be a global folder ID)
+- `global` - If `true`, list files from global context
+
+#### `POST /api/gpx/files`
+
+When saving to a global folder:
+- `userId` is set to `"GLOBAL"` automatically
+- `uploadedBy` tracks the actual uploader
+- S3 key uses `uploads/GLOBAL/gpx/{fileId}.gpx`
+
+### Permissions Enforcement
+
+**Folder Operations:**
+```typescript
+function canDeleteFolder(folder: GpxFolder, userId: string): boolean {
+  if (!folder.isGlobal) {
+    return folder.userId === userId;
+  }
+  // Global folders: only creator or admin can delete
+  return folder.createdBy === userId || isAdmin(userId);
+}
+
+function canAccessFolder(folder: GpxFolder, user: User): boolean {
+  if (!folder.isGlobal) {
+    return folder.userId === user.id;
+  }
+  // Global folders: any gpxstudio user
+  return user.services?.includes('gpxstudio');
+}
+```
+
+**File Operations:**
+```typescript
+function canModifyFile(file: GpxFile, userId: string): boolean {
+  if (file.userId === "GLOBAL") {
+    // Any gpxstudio user can modify files in global folders
+    return true;  // Caller already verified gpxstudio claim
+  }
+  return file.userId === userId;
+}
+```
+
+### Security Considerations
+
+1. **Rate Limiting** - Limit file uploads to global folders (e.g., 10/hour/user)
+2. **Audit Trail** - Track `uploadedBy` and `modifiedBy` for all global file operations
+3. **Content Moderation** - Consider review queue for global uploads (future)
+4. **Size Limits** - Stricter file size limits for global folders
+5. **Admin Override** - Admins can delete any file in global folders
+
+### Migration
+
+No migration needed for existing data. Global folders are a new feature:
+1. Add `isGlobal` and `createdBy` attributes to GpxFolder entity
+2. Add `uploadedBy` attribute to GpxFile entity
+3. Create GSI for querying global folders
+4. Update IAM policy to allow access to `uploads/GLOBAL/` prefix
 
 ## API Endpoints
 
@@ -761,12 +995,28 @@ If a folder is somehow deleted with files still referencing it (shouldn't happen
 4. Add autocomplete tag input component
 5. Fetch and cache tag suggestions
 
-### Phase 5: Polish
+### Phase 5: Backend - Global Folders
+1. Add `isGlobal`, `createdBy` to GpxFolder entity
+2. Add `uploadedBy` to GpxFile entity
+3. Create GSI for querying global folders
+4. Update folder/file endpoints for global context
+5. Add admin check for global folder creation
+6. Update IAM policy for `uploads/GLOBAL/` prefix
+
+### Phase 6: Frontend - Global Folders
+1. Add "Shared Folders" section to UI
+2. Add globe icon for global folders
+3. Show "Uploaded by" for files in global folders
+4. Admin-only "Create Global Folder" button
+5. Conditional delete/rename buttons based on permissions
+
+### Phase 7: Polish
 1. Add "Move to folder" action for files
 2. Show item counts on folder rows
 3. Add empty folder state
 4. Add loading states for folder/tag operations
 5. Add tag filtering (click chip to filter)
+6. Add rate limiting for global folder uploads
 
 ## Testing Checklist
 
@@ -784,6 +1034,22 @@ If a folder is somehow deleted with files still referencing it (shouldn't happen
 - [ ] Files without folder appear in root
 - [ ] Duplicate folder name rejected (case-insensitive)
 - [ ] Move file between folders (if implemented)
+
+### Global Folders
+- [ ] Admin can create global folder
+- [ ] Non-admin cannot create global folder (403)
+- [ ] Global folders appear in all users' Shared Folders section
+- [ ] Any gpxstudio user can upload to global folder
+- [ ] Any gpxstudio user can download from global folder
+- [ ] Any gpxstudio user can delete files in global folder
+- [ ] Only creator/admin can delete global folder itself
+- [ ] Only creator/admin can rename global folder
+- [ ] Max 10 global folders enforced
+- [ ] Files in global folders stored with GLOBAL userId
+- [ ] S3 key uses uploads/GLOBAL/ prefix
+- [ ] uploadedBy tracks actual uploader
+- [ ] Global folder subfolders inherit isGlobal flag
+- [ ] Globe icon displayed for global folders in UI
 
 ### Tags
 - [ ] Add tags to a file
