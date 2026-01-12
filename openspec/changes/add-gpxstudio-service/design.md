@@ -566,6 +566,92 @@ user_uploads = [
 ]
 ```
 
+## Infrastructure Requirements for New Services
+
+When adding a new service domain to CloudFront (e.g., `gpx`), these requirements must be met:
+
+### 1. Add Domain to site.hcl
+
+```hcl
+cloudfront = {
+  domains = ["auth", "run", "cms", "gpx"]  # Add new domain
+}
+
+dns = {
+  subdomains = ["email", "run", "auth", "cms", "gpx"]  # Add subdomain
+}
+```
+
+### 2. Regional CloudFront Assets Module
+
+The `cloudfront-assets` module automatically creates S3 buckets for each domain in `cloudfront.domains`. No additional configuration needed - just adding the domain to the list.
+
+### 3. Terragrunt Dependencies with Skipped Regions
+
+When a region is in `skip_regions`, Terragrunt dependencies may return empty values. All secondary region lookups MUST use `try()` wrappers:
+
+```hcl
+# In global/cloudfront/terragrunt.hcl
+regional_origins_by_domain = {
+  for domain in local.site_vars.locals.cloudfront.domains : domain => {
+    use1 = {
+      # Primary region - direct access OK
+      s3_bucket_regional_domain_name = dependency.use1_cloudfront.outputs.bucket_regional_domain_names[domain]
+    }
+    cac1 = {
+      # Secondary region - MUST use try() for graceful fallback
+      s3_bucket_regional_domain_name = try(dependency.cac1_cloudfront.outputs.bucket_regional_domain_names[domain], "")
+    }
+  }
+}
+```
+
+### 4. CloudFront Module Origin Filtering
+
+The CloudFront module filters origins where `domain_name` is empty. This is handled automatically by the module, but new dynamic blocks iterating over regional origins MUST include filtering:
+
+```hcl
+# Filter pattern for dynamic blocks
+dynamic "origin" {
+  for_each = {
+    for region_key, region_value in var.regional_origins_by_domain[each.key] :
+    region_key => region_value
+    if region_value.s3_bucket_regional_domain_name != ""  # Required filter
+  }
+  content {
+    domain_name = origin.value.s3_bucket_regional_domain_name
+    # ...
+  }
+}
+```
+
+### 5. ACM Certificate
+
+Certificates must exist in us-east-1 for CloudFront:
+- Add domain to `certs` module configuration
+- Certificate ARN is looked up via `cert_map["gpx.defcon.run"]`
+
+### 6. WAF Configuration (Optional)
+
+If WAF protection is needed:
+```hcl
+cloudfront = {
+  waf_rulesets = {
+    gpx = "default"  # Use default or api ruleset
+  }
+}
+```
+
+### 7. Checklist for New CloudFront Domains
+
+- [ ] Add to `cloudfront.domains` in site.hcl
+- [ ] Add to `dns.subdomains` in site.hcl
+- [ ] Add certificate config to us-east-1/certs
+- [ ] Verify `try()` wrappers for secondary region dependencies
+- [ ] Test with `terragrunt plan` (secondary region in skip_regions)
+- [ ] Test with `terragrunt apply` in primary region
+- [ ] Verify DNS record creation
+
 ## Risks / Trade-offs
 
 ### Risk: Upstream gpx.studio updates
