@@ -125,7 +125,7 @@ locals {
           },
           {
             name      = "MAPBOX_DEFAULT_TOKEN"
-            valueFrom = "/{{SITE_LABEL}}/secrets/global/mapbox/public_token"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mapbox/public_token"
           }
         ]
 
