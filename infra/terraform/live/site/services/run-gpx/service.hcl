@@ -50,13 +50,22 @@ locals {
             value = "{{REGION_LABEL}}"
           },
           {
-            # AUTH_URL for Auth.js - GPX Studio at gpx.defcon.run
+            # For next.config.ts basePath and assetPrefix
+            name  = "WEBAPP_ORIGIN"
+            value = "gpx.defcon.run"
+          },
+          {
+            name  = "WEBAPP_PREFIX"
+            value = "{{REGION_LABEL}}/assets"
+          },
+          {
+            # AUTH_URL for Auth.js - GPX Studio at gpx.defcon.run/{region}
             name  = "AUTH_URL"
-            value = "https://gpx.defcon.run"
+            value = "https://gpx.defcon.run/{{REGION_LABEL}}"
           },
           {
             name  = "NEXTAUTH_URL"
-            value = "https://gpx.defcon.run"
+            value = "https://gpx.defcon.run/{{REGION_LABEL}}"
           },
           {
             name  = "AWS_REGION"
@@ -128,7 +137,9 @@ locals {
         ]
 
         health_check = {
-          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/api/health || exit 1"]
+          # Health check path includes region prefix because Next.js basePath is /{region}
+          # {{REGION_LABEL}} is substituted by ecs-task module (e.g., use1, cac1)
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/{{REGION_LABEL}}/api/health || exit 1"]
           interval     = 30
           timeout      = 5
           retries      = 3
@@ -189,7 +200,7 @@ locals {
         container_name        = "run-gpx-app"
         container_port        = 3000
         target_group_protocol = "HTTP"
-        health_check_path     = "/api/health"
+        health_check_path     = "/{{REGION_LABEL}}/api/health"
         health_check_protocol = "HTTP"
 
         health_check = {

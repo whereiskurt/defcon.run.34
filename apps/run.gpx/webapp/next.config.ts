@@ -1,13 +1,25 @@
 import type { NextConfig } from "next";
 
+// Environment variables for regional deployment
+const WEBAPP_ORIGIN = process.env.WEBAPP_ORIGIN || "gpx.defcon.run";
+const WEBAPP_PREFIX = process.env.WEBAPP_PREFIX || "use1/assets";
+const REGION_SHORT = process.env.REGION_SHORT || "use1";
+
 const nextConfig: NextConfig = {
   output: "standalone",
 
+  // Mount app at /{region} path (e.g., /use1 or /cac1)
+  basePath: `/${REGION_SHORT}`,
+
+  // Asset prefix for CDN - rewrites <script> / <link> tags
+  assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}`,
+
   // GPX Studio frontend is built to public/studio/ and served as static files
-  // The app route at /studio uses Next.js pages to wrap the frontend with auth
+  // With basePath, rewrites are relative to basePath (e.g., /use1/studio/app)
   async rewrites() {
     return [
       // Map /studio/app to /studio/app.html for clean URLs
+      // Note: These paths are relative to basePath, so actual URL is /{region}/studio/app
       {
         source: "/studio/app",
         destination: "/studio/app.html",
@@ -31,6 +43,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "api.mapbox.com" },
       { protocol: "https", hostname: "*.s3.amazonaws.com" },
     ],
+  },
+
+  // Expose region to client-side
+  env: {
+    NEXT_PUBLIC_REGION_SHORT: REGION_SHORT,
   },
 };
 

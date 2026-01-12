@@ -8,6 +8,9 @@
 # =============================================================================
 FROM node:20-alpine AS gpx-builder
 
+# Region arg for BASE_PATH (e.g., use1, cac1)
+ARG REGION_SHORT="use1"
+
 WORKDIR /gpx-studio
 
 # Copy gpx.studio source
@@ -17,6 +20,7 @@ RUN npm install
 COPY ../gpx-studio/website ./
 
 # Create patch files (cloud-sync.ts and auth store)
+# Note: API calls use relative paths, basePath handled by Next.js
 RUN mkdir -p src/lib/stores && \
     echo 'import { writable } from "svelte/store"; \
 export const cloudSyncStatus = writable("idle"); \
@@ -49,8 +53,8 @@ export const auth = createAuthStore(); \
 export const isAuthenticated = derived(auth, a => a.isAuthenticated); \
 export const isAuthLoading = derived(auth, a => a.isLoading);' > src/lib/stores/auth.ts
 
-# Build gpx.studio
-RUN npm run build
+# Build gpx.studio with regional BASE_PATH (e.g., /use1/studio)
+RUN BASE_PATH=/${REGION_SHORT}/studio npm run build
 
 # =============================================================================
 # Stage 2: Build Next.js webapp
@@ -106,9 +110,8 @@ COPY --from=webapp-builder /app/.next/standalone ./
 COPY --from=webapp-builder /app/.next/static ./.next/static
 COPY --from=webapp-builder /app/public ./public
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+# Note: Health check handled by ECS task definition (uses regional path)
+# Dockerfile HEALTHCHECK removed - basePath makes static health check path impossible
 
 # Run as non-root user
 USER node

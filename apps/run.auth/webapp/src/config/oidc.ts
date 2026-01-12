@@ -68,21 +68,23 @@ const clients: ClientMetadata[] = [
     scope: "openid profile email services",
     token_endpoint_auth_method: "client_secret_post",
   },
-  // GPX Studio client (gpx.defcon.run)
+  // GPX Studio client (gpx.defcon.run/{region})
   {
     client_id: config.oidc.clients.gpxStudio.clientId,
     client_secret: config.oidc.clients.gpxStudio.clientSecret,
     redirect_uris: [
-      // Production URLs
-      "https://gpx.defcon.run/api/auth/callback/run.defcon.run",
+      // Production URLs - both regions
+      "https://gpx.defcon.run/use1/api/auth/callback/run.defcon.run",
+      "https://gpx.defcon.run/cac1/api/auth/callback/run.defcon.run",
       // Local development
-      "http://localhost:3003/api/auth/callback/run.defcon.run",
+      "http://localhost:3003/use1/api/auth/callback/run.defcon.run",
     ],
     post_logout_redirect_uris: [
-      // Production
-      "https://gpx.defcon.run",
+      // Production - both regions
+      "https://gpx.defcon.run/use1",
+      "https://gpx.defcon.run/cac1",
       // Local development
-      "http://localhost:3003",
+      "http://localhost:3003/use1",
     ],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
