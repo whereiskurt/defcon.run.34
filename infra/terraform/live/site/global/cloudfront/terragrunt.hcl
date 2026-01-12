@@ -202,9 +202,9 @@ inputs = merge(
         cac1 = {
           alb_dns_name                   = try(dependency.cac1_network.outputs.alb_dns_name, "")
           alb_zone_id                    = try(dependency.cac1_network.outputs.alb_zone_id, "")
-          s3_bucket_id                   = dependency.cac1_cloudfront.outputs.bucket_ids[domain]
-          s3_bucket_arn                  = dependency.cac1_cloudfront.outputs.bucket_arns[domain]
-          s3_bucket_regional_domain_name = dependency.cac1_cloudfront.outputs.bucket_regional_domain_names[domain]
+          s3_bucket_id                   = try(dependency.cac1_cloudfront.outputs.bucket_ids[domain], "")
+          s3_bucket_arn                  = try(dependency.cac1_cloudfront.outputs.bucket_arns[domain], "")
+          s3_bucket_regional_domain_name = try(dependency.cac1_cloudfront.outputs.bucket_regional_domain_names[domain], "")
         }
       }
     }
