@@ -137,9 +137,9 @@
 ## Phase 5: Docker Container
 
 ### 5.1 Dockerfile
-- [ ] 5.1.1 Create `apps/run.gpx/Dockerfile`
-- [ ] 5.1.2 Add healthcheck to Dockerfile
-- [ ] 5.1.3 Create `.dockerignore` to exclude unnecessary files
+- [x] 5.1.1 Create `apps/run.gpx/Dockerfile` (Dockerfile.webapp - multi-stage build)
+- [x] 5.1.2 Add healthcheck to Dockerfile (handled via ECS task definition)
+- [x] 5.1.3 Create `.dockerignore` to exclude unnecessary files
 
 ### 5.2 Build Scripts
 - [x] 5.2.1 Create `apps/run.gpx/build.sh`
@@ -149,19 +149,19 @@
 ## Phase 6: Infrastructure
 
 ### 6.1 Terraform Configuration
-- [ ] 6.1.1 Create `infra/terraform/live/site/services/run-gpx/` directory
-- [ ] 6.1.2 Create `infra/terraform/live/site/services/run-gpx/service.hcl`
-- [ ] 6.1.3 Create `infra/terraform/live/site/services/run-gpx/terragrunt.hcl`
-- [ ] 6.1.4 Create VERSION symlinks for Terraform
+- [x] 6.1.1 Create `infra/terraform/live/site/services/run-gpx/` directory
+- [x] 6.1.2 Create `infra/terraform/live/site/services/run-gpx/service.hcl`
+- [x] 6.1.3 Create VERSION.app for Terraform
+- [x] 6.1.4 Add run-gpx to release-all.sh pipeline
 
 ### 6.2 ALB and CloudFront
-- [ ] 6.2.1 Add ALB listener rule for gpxstudio.defcon.run
-- [ ] 6.2.2 Add CloudFront distribution or origin for gpxstudio subdomain
-- [ ] 6.2.3 Configure SSL certificate for gpxstudio.defcon.run
+- [x] 6.2.1 Add ALB listener rule for gpx.defcon.run (host_headers, no path_patterns)
+- [x] 6.2.2 Add CloudFront origin for gpx.defcon.run subdomain
+- [x] 6.2.3 Configure SSL certificate for gpx.defcon.run
 
 ### 6.3 DNS
-- [ ] 6.3.1 Add Route 53 record for gpxstudio.defcon.run
-- [ ] 6.3.2 Point to CloudFront distribution
+- [x] 6.3.1 Add Route 53 record for gpx.defcon.run
+- [x] 6.3.2 Point to CloudFront distribution
 
 ## Phase 7: Testing and Validation
 
@@ -177,13 +177,13 @@
 - [ ] 7.1.3 Test full integration locally via Docker
 
 ### 7.2 Staging Deployment
-- [ ] 7.2.1 Deploy to us-east-1
-- [ ] 7.2.2 Verify OIDC authentication flow
-- [ ] 7.2.3 Test with user who has `gpxstudio` service - should work
+- [x] 7.2.1 Deploy to us-east-1
+- [x] 7.2.2 Verify OIDC authentication flow
+- [x] 7.2.3 Test with user who has `gpxstudio` service - should work
 - [ ] 7.2.4 Test with user without `gpxstudio` service - should see access denied
-- [ ] 7.2.5 Test GPX file operations
-- [ ] 7.2.6 Test map rendering with Mapbox
-- [ ] 7.2.7 Verify S3 files are stored under user's prefix
+- [x] 7.2.5 Test GPX file operations
+- [x] 7.2.6 Test map rendering with Mapbox
+- [x] 7.2.7 Verify S3 files are stored under user's prefix
 
 ### 7.3 Production Readiness
 - [ ] 7.3.1 Review security
@@ -552,3 +552,69 @@ gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
 **Mobile Responsiveness**:
 - Updated column hidden on mobile: `hidden sm:table-cell`
 - Dialog uses `!w-[90vw]` to be responsive
+
+### Production Deployment Fixes (2026-01-13)
+
+Several issues were discovered and fixed during initial production deployment:
+
+**1. Auth.js Client-Side BasePath**:
+The `next-auth/react` SessionProvider needs an explicit `basePath` prop to make requests to the correct URL:
+```typescript
+// layout.tsx
+const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
+<Providers authBasePath={authBasePath}>{children}</Providers>
+
+// providers.tsx
+<SessionProvider basePath={authBasePath}>{children}</SessionProvider>
+```
+
+**2. Auth.js Server-Side BasePath**:
+Auth.js needs `basePath: "/api/auth"` in the config for internal routing after Next.js strips its basePath:
+```typescript
+// Request flow: /use1/api/auth/session -> Next.js strips /use1 -> /api/auth/session
+// Auth.js needs basePath="/api/auth" to parse "session" as the action
+basePath: "/api/auth",
+```
+
+**3. OIDC Redirect URI**:
+Auth.js doesn't include Next.js basePath in callback URLs. Add non-prefixed redirect_uri to OIDC config:
+```typescript
+redirect_uris: [
+  "https://gpx.defcon.run/api/auth/callback/run.defcon.run",  // Auth.js sends this
+  "https://gpx.defcon.run/use1/api/auth/callback/run.defcon.run",
+  "https://gpx.defcon.run/cac1/api/auth/callback/run.defcon.run",
+],
+```
+
+**4. ALB Path Patterns**:
+Remove `path_patterns` from ALB listener so all `gpx.defcon.run` requests route to run-gpx (matches run.human approach). This allows callback URLs without region prefix to work.
+
+**5. Docker .env File Exclusion**:
+Create `.dockerignore` in `apps/run.gpx/` to exclude `.env` file:
+```
+webapp/.env*
+.env*
+```
+Without this, the local dev `.env` (with `DYNAMODB_ENDPOINT=http://localhost:8888`) gets bundled into the Docker image.
+
+**6. ElectroDB GSI Index Name**:
+The Terraform "electro" table type creates GSIs named `gsi1pk-gsi1sk-index`, not `gsi1`:
+```typescript
+// WRONG
+index: "gsi1",
+
+// CORRECT (matches Terraform module)
+index: "gsi1pk-gsi1sk-index",
+```
+
+**7. S3 DeleteObject Permission**:
+The s3-uploads module's prefix-restricted IAM policy was missing `s3:DeleteObject`. Added to `iam.tf`:
+```hcl
+{
+  Sid    = "AllowDeleteObjectFromUploads"
+  Effect = "Allow"
+  Action = ["s3:DeleteObject"]
+  Resource = "${aws_s3_bucket.uploads[each.key].arn}/uploads/*"
+}
+```
+Requires `terragrunt apply` on s3-uploads module to update IAM policy.
