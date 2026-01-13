@@ -59,15 +59,15 @@ locals {
             value = "{{REGION_LABEL}}/assets"
           },
           {
-            # AUTH_URL for Auth.js - base URL with region prefix
-            # Auth.js combines this with basePath: "/api/auth" from auth.ts
+            # AUTH_URL for Auth.js - full path including /api/auth
+            # When using full path in AUTH_URL, do NOT set basePath in auth.ts
             name  = "AUTH_URL"
-            value = "https://gpx.defcon.run/{{REGION_LABEL}}"
+            value = "https://gpx.defcon.run/{{REGION_LABEL}}/api/auth"
           },
           {
             # NEXTAUTH_URL for backwards compatibility
             name  = "NEXTAUTH_URL"
-            value = "https://gpx.defcon.run/{{REGION_LABEL}}"
+            value = "https://gpx.defcon.run/{{REGION_LABEL}}/api/auth"
           },
           {
             name  = "AWS_REGION"
@@ -221,11 +221,11 @@ locals {
         }
 
         listener = {
-          port          = 443
-          protocol      = "HTTPS"
-          host_headers  = ["gpx.defcon.run"]
-          path_patterns = ["/{{REGION_LABEL}}", "/{{REGION_LABEL}}/*"]
-          priority      = 200
+          port         = 443
+          protocol     = "HTTPS"
+          host_headers = ["gpx.defcon.run"]
+          # No path_patterns - route all gpx.defcon.run requests to run-gpx
+          # This allows Auth.js callbacks without region prefix to work
         }
       }
     ]

@@ -22,8 +22,10 @@ export const authConfig: NextAuthConfig = {
   debug: isDev,
   trustHost: true,
 
-  // basePath must match the route handler path relative to Next.js basePath
-  // Route handler is at /app/api/auth/[...nextauth]/route.ts
+  // basePath is for internal routing AFTER Next.js strips its basePath (/use1)
+  // Request flow: /use1/api/auth/session -> Next.js strips /use1 -> /api/auth/session
+  // Auth.js needs basePath="/api/auth" to parse "session" as the action
+  // The env-url-basepath-mismatch warning can be ignored - AUTH_URL is for public URL construction
   basePath: "/api/auth",
 
   providers: [
@@ -126,8 +128,10 @@ export const authConfig: NextAuthConfig = {
   },
 };
 
-// Export with redirectProxyUrl at the NextAuth level as well
+// Export with redirectProxyUrl and secret at the NextAuth level
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   redirectProxyUrl,
+  // Secret for JWT encryption - uses AUTH_JWT_SECRET env var (supports rotation via comma-separated list)
+  secret: process.env.AUTH_JWT_SECRET?.split(","),
 });
