@@ -13,7 +13,7 @@ locals {
 
   dns = {
     zonename   = "defcon.run"
-    subdomains = ["email", "run", "auth", "cms", "gpxstudio"]
+    subdomains = ["email", "run", "auth", "cms", "gpx"]
     ttl        = 300
   }
 
@@ -73,7 +73,7 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.defcon.run"
-    domains = ["auth", "run", "cms", "gpxstudio"]
+    domains = ["auth", "run", "cms", "gpx"]
 
     ##Map fronted domain "auth.defcon.run" to the ruleset called "auth"
     waf_rulesets = {

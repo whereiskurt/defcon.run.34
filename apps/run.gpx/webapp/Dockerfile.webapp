@@ -2,55 +2,94 @@
 # Stage 1: Build gpx.studio frontend
 # Stage 2: Build Next.js webapp
 # Stage 3: Production runtime
+#
+# NOTE: Build context must be apps/run.gpx/ (not webapp/) to include gpx-studio submodule
 
 # =============================================================================
 # Stage 1: Build gpx.studio frontend (SvelteKit)
 # =============================================================================
 FROM node:20-alpine AS gpx-builder
 
+# Region arg for BASE_PATH (e.g., use1, cac1)
+ARG REGION_SHORT="use1"
+
 WORKDIR /gpx-studio
 
-# Copy gpx.studio source
-COPY ../gpx-studio/website/package*.json ./
+# Copy gpx.studio source (paths relative to apps/run.gpx/ build context)
+# Must copy both website/ and gpx/ since website has local dependency "gpx": "file:../gpx"
+COPY gpx-studio/gpx ../gpx
+COPY gpx-studio/website/package*.json ./
 RUN npm install
 
-COPY ../gpx-studio/website ./
+COPY gpx-studio/website ./
 
 # Create patch files (cloud-sync.ts and auth store)
+# Note: API calls use SvelteKit base path for correct routing through Next.js
 RUN mkdir -p src/lib/stores && \
     echo 'import { writable } from "svelte/store"; \
-export const cloudSyncStatus = writable("idle"); \
-export const cloudSyncError = writable(null); \
-const API_BASE = "/api/gpx"; \
-export async function listCloudFiles() { return (await (await fetch(`${API_BASE}/files`)).json()).files; } \
-export async function saveToCloud(content, name) { \
+import { base } from "$app/paths"; \
+export type CloudFile = { fileId: string; fileName: string; fileSize: number; createdAt: string; updatedAt: string; }; \
+export const cloudFiles = writable<CloudFile[]>([]); \
+export const cloudSyncStatus = writable<"idle" | "syncing" | "error">("idle"); \
+export const cloudSyncError = writable<string | null>(null); \
+function getApiBase() { const b = base.replace("/studio", ""); return `${b}/api/gpx`; } \
+export async function listCloudFiles(): Promise<CloudFile[]> { \
+  const res = await fetch(`${getApiBase()}/files`); \
+  const data = await res.json(); \
+  const files = data.files || []; \
+  cloudFiles.set(files); \
+  return files; \
+} \
+export async function saveToCloud(content: string, name: string): Promise<string> { \
   cloudSyncStatus.set("syncing"); \
-  const blob = new Blob([content], {type: "application/gpx+xml"}); \
-  const {uploadUrl, fileId, key, bucket} = await (await fetch(`${API_BASE}/upload/presign`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileName: name})})).json(); \
-  await fetch(uploadUrl, {method: "PUT", body: blob}); \
-  await fetch(`${API_BASE}/files`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileId, fileName: name, bucket, key, fileSize: blob.size})}); \
-  cloudSyncStatus.set("idle"); return fileId; \
+  try { \
+    const blob = new Blob([content], {type: "application/gpx+xml"}); \
+    const presignRes = await fetch(`${getApiBase()}/upload/presign`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileName: name})}); \
+    const {uploadUrl, fileId, key, bucket} = await presignRes.json(); \
+    await fetch(uploadUrl, {method: "PUT", body: blob, headers: {"Content-Type": "application/gpx+xml"}}); \
+    await fetch(`${getApiBase()}/files`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileId, fileName: name, bucket, key, fileSize: blob.size})}); \
+    cloudSyncStatus.set("idle"); \
+    await listCloudFiles(); \
+    return fileId; \
+  } catch (e) { cloudSyncStatus.set("error"); cloudSyncError.set(String(e)); throw e; } \
+} \
+export async function loadFromCloud(fileId: string): Promise<string> { \
+  const res = await fetch(`${getApiBase()}/files/${fileId}`); \
+  const {downloadUrl} = await res.json(); \
+  const gpxRes = await fetch(downloadUrl); \
+  return gpxRes.text(); \
+} \
+export async function deleteFromCloud(fileId: string): Promise<void> { \
+  await fetch(`${getApiBase()}/files/${fileId}`, {method: "DELETE"}); \
+  await listCloudFiles(); \
+} \
+export async function updateCloudFile(fileId: string, updates: Partial<CloudFile>): Promise<void> { \
+  await fetch(`${getApiBase()}/files/${fileId}`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(updates)}); \
+  await listCloudFiles(); \
 }' > src/lib/cloud-sync.ts && \
     echo 'import { writable, derived } from "svelte/store"; \
 import { browser } from "$app/environment"; \
+import { base } from "$app/paths"; \
+function getAuthBase() { return base.replace("/studio", ""); } \
 function createAuthStore() { \
   const { subscribe, set } = writable({ user: null, isLoading: true, isAuthenticated: false }); \
   async function checkSession() { \
     if (!browser) return; \
     try { \
-      const session = await (await fetch("/api/auth/session")).json(); \
+      const session = await (await fetch(`${getAuthBase()}/api/auth/session`)).json(); \
       if (session?.user?.services?.includes("gpxstudio")) set({ user: session.user, isLoading: false, isAuthenticated: true }); \
       else set({ user: null, isLoading: false, isAuthenticated: false }); \
     } catch { set({ user: null, isLoading: false, isAuthenticated: false }); } \
   } \
-  return { subscribe, checkSession, logout: () => window.location.href = "/api/auth/signout" }; \
+  return { subscribe, checkSession, logout: () => window.location.href = `${getAuthBase()}/api/auth/signout` }; \
 } \
 export const auth = createAuthStore(); \
 export const isAuthenticated = derived(auth, a => a.isAuthenticated); \
-export const isAuthLoading = derived(auth, a => a.isLoading);' > src/lib/stores/auth.ts
+export const isAuthLoading = derived(auth, a => a.isLoading); \
+export const hasGpxStudioAccess = derived(auth, a => a.user?.services?.includes("gpxstudio") ?? false);' > src/lib/stores/auth.ts
 
-# Build gpx.studio
-RUN npm run build
+# Build gpx.studio with regional BASE_PATH (e.g., /use1/studio)
+RUN BASE_PATH=/${REGION_SHORT}/studio npm run build
 
 # =============================================================================
 # Stage 2: Build Next.js webapp
@@ -65,20 +104,20 @@ RUN apk update && apk add --no-cache \
 
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package*.json ./
+# Copy package files and install dependencies (paths relative to apps/run.gpx/ build context)
+COPY webapp/package*.json ./
 RUN npm install
 
 # Copy webapp source
-COPY . .
+COPY webapp/ .
 
 # Copy built gpx.studio to public folder
-COPY --from=gpx-builder /gpx-studio/build ./public/gpx-studio/
+COPY --from=gpx-builder /gpx-studio/build ./public/studio/
 
 # Build arguments for Next.js
 ARG NEXT_PUBLIC_ASSET_PREFIX=""
 ARG WEBAPP_PREFIX="use1/assets"
-ARG WEBAPP_ORIGIN="gpxstudio.defcon.run"
+ARG WEBAPP_ORIGIN="gpx.defcon.run"
 ARG VERSION_WEBAPP="unknown"
 ARG REGION_SHORT="use1"
 
@@ -106,9 +145,8 @@ COPY --from=webapp-builder /app/.next/standalone ./
 COPY --from=webapp-builder /app/.next/static ./.next/static
 COPY --from=webapp-builder /app/public ./public
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+# Note: Health check handled by ECS task definition (uses regional path)
+# Dockerfile HEALTHCHECK removed - basePath makes static health check path impossible
 
 # Run as non-root user
 USER node

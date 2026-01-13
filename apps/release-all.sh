@@ -1,4 +1,4 @@
-u!/bin/bash
+#!/bin/bash
 # Full multi-region release pipeline for all apps
 # Bumps versions once, builds images for each region, deploys to both regions
 #
@@ -22,7 +22,7 @@ u!/bin/bash
 set -e
 
 # Default configuration
-APPS="run.auth,run.human,run.cms"
+APPS="run.auth,run.human,run.cms,run.gpx"
 # REGIONS="use1,cac1"
 REGIONS="use1"
 SKIP_BUMP=false
@@ -99,6 +99,7 @@ get_cf_domain() {
     run.auth) echo "auth.defcon.run" ;;
     run.human) echo "run.defcon.run" ;;
     run.cms) echo "cms.defcon.run" ;;
+    run.gpx) echo "gpx.defcon.run" ;;
     *) echo "" ;;
   esac
 }
@@ -108,7 +109,16 @@ get_tf_service() {
     run.auth) echo "run-auth" ;;
     run.human) echo "run-human" ;;
     run.cms) echo "run-cms" ;;
+    run.gpx) echo "run-gpx" ;;
     *) echo "" ;;
+  esac
+}
+
+# Check if app has nginx container (run.gpx is single container, no nginx)
+has_nginx() {
+  case "$1" in
+    run.gpx) echo "false" ;;
+    *) echo "true" ;;
   esac
 }
 
@@ -124,8 +134,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Validate apps
 for APP in "${APP_LIST[@]}"; do
-  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" ]]; then
-    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', or 'run.cms'"
+  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" ]]; then
+    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', or 'run.gpx'"
     exit 1
   fi
 done
@@ -169,7 +179,8 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
     echo ""
     echo "--- Bumping versions for ${APP} ---"
     APP_COMPONENT=$(get_app_component "$APP")
-    if [[ "$SKIP_NGINX" == "false" ]]; then
+    APP_HAS_NGINX=$(has_nginx "$APP")
+    if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
       "${SCRIPT_DIR}/version.sh" nginx "$APP"
     fi
     "${SCRIPT_DIR}/version.sh" "$APP_COMPONENT" "$APP"
@@ -217,6 +228,7 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         _AWS_REGION=$(get_aws_region "$REGION")
         _REGION_DISPLAY=$(get_region_name "$REGION")
         _APP_COMPONENT=$(get_app_component "$APP")
+        _APP_HAS_NGINX=$(has_nginx "$APP")
         (
           # Disable set -e in subshell to handle errors explicitly
           set +e
@@ -228,7 +240,7 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
           export REGION_SHORT="${REGION}"
           export SKIP_ECR_LOGIN="true"  # Already authenticated above
 
-          if [[ "$SKIP_NGINX" == "false" ]]; then
+          if [[ "$SKIP_NGINX" == "false" && "$_APP_HAS_NGINX" == "true" ]]; then
             echo "  Building nginx..."
             if ! "${SCRIPT_DIR}/build.sh" nginx "$APP"; then
               echo "FAILED: nginx build for ${APP} in ${REGION}"
@@ -280,6 +292,7 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         _AWS_REGION=$(get_aws_region "$REGION")
         _REGION_DISPLAY=$(get_region_name "$REGION")
         _APP_COMPONENT=$(get_app_component "$APP")
+        _APP_HAS_NGINX=$(has_nginx "$APP")
 
         echo ""
         echo ">>> Building ${APP} for ${_REGION_DISPLAY} (${_AWS_REGION}) <<<"
@@ -287,7 +300,7 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         export AWS_REGION="${_AWS_REGION}"
         export REGION_SHORT="${REGION}"
 
-        if [[ "$SKIP_NGINX" == "false" ]]; then
+        if [[ "$SKIP_NGINX" == "false" && "$_APP_HAS_NGINX" == "true" ]]; then
           echo "  Building nginx..."
           "${SCRIPT_DIR}/build.sh" nginx "$APP"
         fi
@@ -320,14 +333,17 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
   for APP in "${APP_LIST[@]}"; do
     TF_SERVICE=$(get_tf_service "$APP")
     APP_COMPONENT=$(get_app_component "$APP")
+    APP_HAS_NGINX=$(has_nginx "$APP")
     APP_DIR="${SCRIPT_DIR}/${APP}"
     TF_SERVICE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services/${TF_SERVICE}"
 
     echo ""
     echo "--- Copying VERSION files for ${APP} ---"
-    cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+    if [[ "$APP_HAS_NGINX" == "true" ]]; then
+      cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+      echo "  VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
+    fi
     cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
-    echo "  VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
     echo "  VERSION.app:   $(cat "${TF_SERVICE_DIR}/VERSION.app")"
   done
 
@@ -343,13 +359,11 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
     echo ""
     echo ">>> Deploying to ${_REGION_DISPLAY} (${_AWS_REGION}) <<<"
 
-    # Apply ecs-task first (creates new task definitions)
-    echo "  Applying ecs-task..."
-    terragrunt run apply --non-interactive --working-dir "${REGION_DIR}/ecs-task" -- -auto-approve
-
-    # Apply ecs-service (deploys the new task definitions)
-    echo "  Applying ecs-service..."
-    terragrunt run apply --non-interactive --working-dir "${REGION_DIR}/ecs-service" -- -auto-approve
+    # Use run --all from region directory to properly handle dependency outputs
+    # This ensures ecs-service sees the new task definition ARNs from ecs-task
+    # Same approach as deploy.sh but scoped to the region directory
+    echo "  Applying ecs-task and ecs-service..."
+    (cd "${REGION_DIR}" && terragrunt run apply --all --non-interactive -- -auto-approve)
 
     echo "  Deploy complete for ${_REGION_DISPLAY}"
   done

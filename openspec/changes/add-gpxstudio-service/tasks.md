@@ -5,30 +5,27 @@
 ## Phase 1: Foundation Setup
 
 ### 1.1 Repository Structure
-- [ ] 1.1.1 Create `apps/run.gpx/` directory structure
-- [ ] 1.1.2 Add gpx.studio as git submodule at `apps/run.gpx/gpx-studio/`
+- [x] 1.1.1 Create `apps/run.gpx/` directory structure
+- [x] 1.1.2 Add gpx.studio as git submodule at `apps/run.gpx/gpx-studio/`
   ```bash
   cd apps/run.gpx
   git submodule add https://github.com/gpxstudio/gpx.studio.git gpx-studio
   ```
-- [ ] 1.1.3 Create `apps/run.gpx/patches/` directory for modification patches
-- [ ] 1.1.4 Create `apps/run.gpx/webapp/` Next.js application scaffold
-- [ ] 1.1.5 Create `apps/run.gpx/VERSION` file (initial: v0.0.1)
-- [ ] 1.1.6 Create `apps/run.gpx/README.md` with build instructions
+- [x] 1.1.3 Create `apps/run.gpx/patches/` directory for modification patches
+- [x] 1.1.4 Create `apps/run.gpx/webapp/` Next.js application scaffold
+- [x] 1.1.5 Create `apps/run.gpx/VERSION` file (initial: v0.0.1)
+- [x] 1.1.6 Create `apps/run.gpx/README.md` with build instructions
 
 ### 1.2 Next.js Backend Setup
-- [ ] 1.2.1 Initialize Next.js project in `apps/run.gpx/webapp/`
-  ```bash
-  npx create-next-app@latest webapp --typescript --tailwind --app --src-dir
-  ```
-- [ ] 1.2.2 Install dependencies:
+- [x] 1.2.1 Initialize Next.js project in `apps/run.gpx/webapp/`
+- [x] 1.2.2 Install dependencies:
   - `next-auth` - OIDC authentication
   - `@aws-sdk/client-s3` - S3 operations
   - `@aws-sdk/s3-request-presigner` - Presigned URLs
   - `electrodb` - DynamoDB ORM
   - `@aws-sdk/client-dynamodb` - DynamoDB client
   - `uuid` - File ID generation
-- [ ] 1.2.3 Configure TypeScript with strict mode
+- [x] 1.2.3 Configure TypeScript with strict mode
 - [ ] 1.2.4 Set up ESLint and Prettier (match run.human config)
 
 ## Phase 2: Authentication Integration
@@ -38,7 +35,7 @@
   - `/dc34/secrets/us-east-1/gpxstudio/oidc_client_id`
   - `/dc34/secrets/us-east-1/gpxstudio/oidc_client_secret`
   - `/dc34/secrets/us-east-1/gpxstudio/nextauth_secret`
-- [ ] 2.1.2 Update `apps/run.auth/webapp/src/config/oidc.ts`:
+- [x] 2.1.2 Update `apps/run.auth/webapp/src/config/oidc.ts`:
   - Add `gpxStudio` to clients configuration
   - Set client_id from config
   - Set redirect_uris: `https://gpxstudio.defcon.run/api/auth/callback/run.defcon.run`
@@ -46,127 +43,78 @@
   - Include scope: `openid profile email services`
 
 ### 2.2 Auth.js Configuration
-- [ ] 2.2.1 Create `apps/run.gpx/webapp/src/config/auth.ts`:
+- [x] 2.2.1 Create `apps/run.gpx/webapp/src/config/auth.ts`:
   - Configure OIDC provider pointing to auth.defcon.run
   - Set up JWT callback to extract services claim AND mapboxPublicToken
   - Set up session callback to expose services and mapbox token to client
-- [ ] 2.2.2 Create `apps/run.gpx/webapp/src/app/api/auth/[...nextauth]/route.ts`
-- [ ] 2.2.3 Create auth middleware for service claim validation
+- [x] 2.2.2 Create `apps/run.gpx/webapp/src/app/api/auth/[...nextauth]/route.ts`
+- [x] 2.2.3 Create auth middleware for service claim validation
 - [ ] 2.2.4 Create `apps/run.gpx/webapp/src/app/access-denied/page.tsx` for unauthorized users
 
 ### 2.3 Auth Service Updates
-- [ ] 2.3.1 Add `gpxStudio` client config to `apps/run.auth/webapp/src/config/index.ts`
-- [ ] 2.3.2 Add `mapboxPublicToken` field to AuthProfile entity:
-  ```typescript
-  mapboxPublicToken: {
-    type: "string",
-    required: false,
-  }
-  ```
-- [ ] 2.3.3 Include `mapboxPublicToken` in OIDC claims when present
+- [x] 2.3.1 Add `gpxStudio` client config to `apps/run.auth/webapp/src/config/index.ts`
+- [x] 2.3.2 Add `mapboxPublicToken` field to AuthProfile entity
+- [x] 2.3.3 Include `mapboxPublicToken` in OIDC claims when present
 - [ ] 2.3.4 Rebuild and deploy auth service with new OIDC client
 
 ### 2.4 Mapbox Hybrid Token Implementation
-- [ ] 2.4.1 Create Mapbox token resolution utility:
-  ```typescript
-  // apps/run.gpx/webapp/src/lib/mapbox-token.ts
-  function resolveMapboxToken(userToken?: string): string {
-    // 1. User's personal token takes precedence
-    // 2. Fall back to MAPBOX_DEFAULT_TOKEN from env
-    return userToken || process.env.MAPBOX_DEFAULT_TOKEN!;
-  }
-  ```
-- [ ] 2.4.2 Create Mapbox token validation utility:
-  ```typescript
-  // apps/run.gpx/webapp/src/lib/mapbox-validator.ts
-  async function validateMapboxToken(token: string): Promise<ValidationResult>
-  ```
-  - Check format starts with `pk.`
-  - Reject `sk.*` tokens with clear error
-  - Test token with Mapbox API call
-  - Return specific error messages
-- [ ] 2.4.3 Create API endpoint for optional personal token:
-  - `POST /api/profile/mapbox-token` - Validate and save personal token
-  - `DELETE /api/profile/mapbox-token` - Remove personal token (revert to default)
-- [ ] 2.4.4 Create profile settings UI component for Mapbox token:
-  - Show current status: "Using default token" or "Using personal token"
-  - Optional input field for personal token with validation feedback
-  - Step-by-step setup instructions for users who want their own
-  - Links to Mapbox signup and token creation
-  - Clear button to revert to default token
-- [ ] 2.4.5 Create GPX Studio token loader:
-  - Fetch user profile to check for personal `mapboxPublicToken`
-  - If present, use user's token; otherwise use default from env
-  - Pass resolved token to frontend for Mapbox GL init
+- [ ] 2.4.1 Create Mapbox token resolution utility
+- [ ] 2.4.2 Create Mapbox token validation utility
+- [ ] 2.4.3 Create API endpoint for optional personal token
+- [ ] 2.4.4 Create profile settings UI component for Mapbox token
+- [ ] 2.4.5 Create GPX Studio token loader
 
 ## Phase 3: Storage Layer
 
 ### 3.1 S3 Bucket Setup
-- [ ] 3.1.1 Update `infra/terraform/live/site/site.hcl` to add run-gpx upload bucket:
-  ```hcl
-  {
-    name = "run-gpx"
-    service_name = "run-gpx"
-    regions = ["us-east-1", "ca-central-1"]
-    lifecycle = { uploads_expire_days = 0, enable_versioning = true }
-    replication = { enabled = true }
-    full_bucket_access = false
-    cloudfront_access = false
-  }
-  ```
+- [x] 3.1.1 Update `infra/terraform/live/site/site.hcl` to add run-gpx upload bucket
 - [ ] 3.1.2 Run `terragrunt apply` for s3-uploads module to create bucket
 - [ ] 3.1.3 Verify SSM parameters created for bucket credentials
 
 ### 3.2 DynamoDB Entity
-- [ ] 3.2.1 Create `apps/run.gpx/webapp/src/entities/gpx-file.ts`:
+- [x] 3.2.1 Create `apps/run.gpx/webapp/src/entities/gpx-file.ts`:
   - Define GpxFile entity with ElectroDB
   - Attributes: userId, fileId, fileName, bucket, key, fileSize, metadata
   - Indexes: byUser (pk: userId, sk: createdAt)
-- [ ] 3.2.2 Create `apps/run.gpx/webapp/src/entities/gpx-composition.ts`:
-  - Define GpxComposition entity for multi-file projects
-  - Attributes: userId, compositionId, name, fileIds, settings
-- [ ] 3.2.3 Add DynamoDB table to infrastructure or use existing run-human table with new entity
+- [ ] 3.2.2 Create `apps/run.gpx/webapp/src/entities/gpx-composition.ts` (deferred to v2)
+- [x] 3.2.3 Add DynamoDB table to infrastructure or use existing run-human table with new entity
 
 ### 3.3 S3 Client and API Routes
-- [ ] 3.3.1 Create `apps/run.gpx/webapp/src/lib/s3-client.ts`:
+- [x] 3.3.1 Create `apps/run.gpx/webapp/src/lib/s3-client.ts`:
   - Initialize S3Client with credentials from env
   - Export getUserPrefix helper function
-- [ ] 3.3.2 Create `apps/run.gpx/webapp/src/app/api/gpx/files/route.ts`:
+- [x] 3.3.2 Create `apps/run.gpx/webapp/src/app/api/gpx/files/route.ts`:
   - GET: List user's GPX files from DynamoDB
   - POST: Create new file record, return presigned upload URL
-- [ ] 3.3.3 Create `apps/run.gpx/webapp/src/app/api/gpx/files/[id]/route.ts`:
+- [x] 3.3.3 Create `apps/run.gpx/webapp/src/app/api/gpx/files/[id]/route.ts`:
   - GET: Get file metadata and presigned download URL
   - PUT: Update file metadata
   - DELETE: Delete file from S3 and DynamoDB
-- [ ] 3.3.4 Create `apps/run.gpx/webapp/src/app/api/gpx/upload/presign/route.ts`:
+- [x] 3.3.4 Create `apps/run.gpx/webapp/src/app/api/gpx/upload/presign/route.ts`:
   - POST: Generate presigned PUT URL for direct S3 upload
-- [ ] 3.3.5 Create `apps/run.gpx/webapp/src/app/api/gpx/download/presign/route.ts`:
+- [x] 3.3.5 Create `apps/run.gpx/webapp/src/app/api/gpx/download/presign/route.ts`:
   - POST: Generate presigned GET URL for direct S3 download
-- [ ] 3.3.6 Create `apps/run.gpx/webapp/src/app/api/health/route.ts`:
+- [x] 3.3.6 Create `apps/run.gpx/webapp/src/app/api/health/route.ts`:
   - GET: Health check endpoint for load balancer
 
 ## Phase 4: GPX Studio Frontend Modifications
 
 ### 4.1 Storage Adapter
-- [ ] 4.1.1 Analyze gpx.studio's Dexie storage implementation in `website/src/lib/db/`
-- [ ] 4.1.2 Create patch `001-storage-adapter.patch`:
-  - Add `api-adapter.ts` with API-based storage implementation
-  - Modify `index.ts` to use API adapter instead of Dexie
-  - Keep Dexie types for compatibility
-- [ ] 4.1.3 Implement file operations in adapter:
-  - `listFiles()` - Call GET /api/gpx/files
-  - `saveFile()` - Get presigned URL, upload to S3
-  - `loadFile()` - Get presigned URL, download from S3
-  - `deleteFile()` - Call DELETE /api/gpx/files/{id}
-- [ ] 4.1.4 Implement composition operations if needed
+- [x] 4.1.1 Analyze gpx.studio's Dexie storage implementation in `website/src/lib/db/`
+- [x] 4.1.2 Create cloud-sync.ts with API-based storage implementation
+- [x] 4.1.3 Implement file operations in adapter:
+  - `listCloudFiles()` - Call GET /api/gpx/files
+  - `saveToCloud()` - Get presigned URL, upload to S3
+  - `loadFromCloud()` - Get presigned URL, download from S3
+  - `deleteFromCloud()` - Call DELETE /api/gpx/files/{id}
+- [ ] 4.1.4 Implement composition operations if needed (deferred to v2)
 
 ### 4.2 Auth Integration
-- [ ] 4.2.1 Create patch `002-auth-integration.patch`:
-  - Add auth store in `website/src/lib/stores/auth.ts`
-  - Modify `+layout.svelte` to check auth state
-  - Add loading state while checking authentication
-  - Redirect to login if not authenticated
-- [ ] 4.2.2 Add logout button to gpx.studio UI
+- [x] 4.2.1 Create auth store in `website/src/lib/stores/auth.ts`
+  - Add auth state management
+  - Check for gpxstudio service claim
+  - Provide login/logout functions
+- [x] 4.2.2 Create CloudStorage dialog component
 - [ ] 4.2.3 Handle session expiration gracefully
 
 ### 4.3 Branding
@@ -177,101 +125,68 @@
 - [ ] 4.3.2 Customize color scheme if desired (optional)
 
 ### 4.4 Build Integration
-- [ ] 4.4.1 Create `apps/run.gpx/build-frontend.sh`:
+- [x] 4.4.1 Create `apps/run.gpx/build-frontend.sh`:
   - Apply patches to gpx.studio submodule
   - Install gpx.studio dependencies
-  - Build gpx.studio (npm run build)
-  - Copy build output to webapp/public/gpx/
-- [ ] 4.4.2 Update `apps/run.gpx/webapp/next.config.js`:
-  - Configure rewrites for /gpx/* to serve static files
-  - Or configure as catch-all for SPA
+  - Build gpx.studio with BASE_PATH=/gpx-studio
+  - Copy build output to webapp/public/gpx-studio/
+- [x] 4.4.2 Update `apps/run.gpx/webapp/next.config.ts`:
+  - Configure rewrites for /gpx-studio/* to serve static files
+  - Add BRouter proxy rewrite
 
 ## Phase 5: Docker Container
 
 ### 5.1 Dockerfile
-- [ ] 5.1.1 Create `apps/run.gpx/Dockerfile`:
-  ```dockerfile
-  # Stage 1: Build gpx.studio frontend
-  FROM node:22-alpine AS gpx-builder
-  # ... apply patches, build frontend
-
-  # Stage 2: Build Next.js backend
-  FROM node:22-alpine AS app-builder
-  # ... copy frontend, build Next.js
-
-  # Stage 3: Production runtime
-  FROM node:22-alpine
-  # ... copy built assets, configure runtime
-  ```
-- [ ] 5.1.2 Add healthcheck to Dockerfile
-- [ ] 5.1.3 Create `.dockerignore` to exclude unnecessary files
+- [x] 5.1.1 Create `apps/run.gpx/Dockerfile` (Dockerfile.webapp - multi-stage build)
+- [x] 5.1.2 Add healthcheck to Dockerfile (handled via ECS task definition)
+- [x] 5.1.3 Create `.dockerignore` to exclude unnecessary files
 
 ### 5.2 Build Scripts
-- [ ] 5.2.1 Create `apps/run.gpx/build.sh`:
-  - Read VERSION file
-  - Build Docker image
-  - Tag with version
-  - Push to ECR
-- [ ] 5.2.2 Create `apps/run.gpx/deploy.sh`:
-  - Copy VERSION to Terraform directory
-  - Run terragrunt apply
-- [ ] 5.2.3 Create `apps/run.gpx/version.sh`:
-  - Increment patch version
+- [x] 5.2.1 Create `apps/run.gpx/build.sh`
+- [x] 5.2.2 Create `apps/run.gpx/deploy.sh`
+- [ ] 5.2.3 Create `apps/run.gpx/version.sh`
 
 ## Phase 6: Infrastructure
 
 ### 6.1 Terraform Configuration
-- [ ] 6.1.1 Create `infra/terraform/live/site/services/run-gpx/` directory
-- [ ] 6.1.2 Create `infra/terraform/live/site/services/run-gpx/service.hcl`:
-  - ECR repository: run-gpx-webapp
-  - ECS task definition with container config
-  - ECS service with ALB integration
-  - Environment variables and secrets
-- [ ] 6.1.3 Create `infra/terraform/live/site/services/run-gpx/terragrunt.hcl`:
-  - Include service.hcl
-  - Configure dependencies
-- [ ] 6.1.4 Create VERSION symlinks for Terraform
+- [x] 6.1.1 Create `infra/terraform/live/site/services/run-gpx/` directory
+- [x] 6.1.2 Create `infra/terraform/live/site/services/run-gpx/service.hcl`
+- [x] 6.1.3 Create VERSION.app for Terraform
+- [x] 6.1.4 Add run-gpx to release-all.sh pipeline
 
 ### 6.2 ALB and CloudFront
-- [ ] 6.2.1 Add ALB listener rule for gpxstudio.defcon.run
-- [ ] 6.2.2 Add CloudFront distribution or origin for gpxstudio subdomain
-- [ ] 6.2.3 Configure SSL certificate for gpxstudio.defcon.run
+- [x] 6.2.1 Add ALB listener rule for gpx.defcon.run (host_headers, no path_patterns)
+- [x] 6.2.2 Add CloudFront origin for gpx.defcon.run subdomain
+- [x] 6.2.3 Configure SSL certificate for gpx.defcon.run
 
 ### 6.3 DNS
-- [ ] 6.3.1 Add Route 53 record for gpxstudio.defcon.run
-- [ ] 6.3.2 Point to CloudFront distribution
+- [x] 6.3.1 Add Route 53 record for gpx.defcon.run
+- [x] 6.3.2 Point to CloudFront distribution
 
 ## Phase 7: Testing and Validation
 
 ### 7.1 Local Development
-- [ ] 7.1.1 Test Next.js backend locally:
+- [x] 7.1.1 Test Next.js backend locally:
   - Auth flow with local auth.defcon.run
-  - S3 presigned URL generation
-  - DynamoDB operations
-- [ ] 7.1.2 Test gpx.studio frontend locally:
+  - S3 presigned URL generation (MinIO)
+  - DynamoDB operations (DynamoDB Local)
+- [x] 7.1.2 Test gpx.studio frontend locally:
   - File save/load via API
   - Auth state handling
   - Logout flow
 - [ ] 7.1.3 Test full integration locally via Docker
 
 ### 7.2 Staging Deployment
-- [ ] 7.2.1 Deploy to us-east-1
-- [ ] 7.2.2 Verify OIDC authentication flow
-- [ ] 7.2.3 Test with user who has `gpxstudio` service - should work
+- [x] 7.2.1 Deploy to us-east-1
+- [x] 7.2.2 Verify OIDC authentication flow
+- [x] 7.2.3 Test with user who has `gpxstudio` service - should work
 - [ ] 7.2.4 Test with user without `gpxstudio` service - should see access denied
-- [ ] 7.2.5 Test GPX file operations:
-  - Create new GPX file
-  - Edit and save GPX file
-  - Load existing GPX file
-  - Delete GPX file
-- [ ] 7.2.6 Test map rendering with Mapbox
-- [ ] 7.2.7 Verify S3 files are stored under user's prefix
+- [x] 7.2.5 Test GPX file operations
+- [x] 7.2.6 Test map rendering with Mapbox
+- [x] 7.2.7 Verify S3 files are stored under user's prefix
 
 ### 7.3 Production Readiness
-- [ ] 7.3.1 Review security:
-  - OIDC client credentials in SSM
-  - S3 bucket policies
-  - Service claim validation
+- [ ] 7.3.1 Review security
 - [ ] 7.3.2 Add monitoring and alerting
 - [ ] 7.3.3 Document operational procedures
 
@@ -279,8 +194,8 @@
 
 ### 8.1 User Documentation
 - [ ] 8.1.1 Create user guide for gpxstudio.defcon.run
-- [ ] 8.1.2 Document how to request gpxstudio access (add to services claim)
-- [ ] 8.1.3 Document optional personal Mapbox token setup in profile
+- [ ] 8.1.2 Document how to request gpxstudio access
+- [ ] 8.1.3 Document optional personal Mapbox token setup
 
 ### 8.2 Developer Documentation
 - [ ] 8.2.1 Document build process and patch management
@@ -290,33 +205,18 @@
 ## Phase 9: Manual Secrets Setup (Operator Task)
 
 > **Note**: This phase requires manual intervention to add secrets to SOPS.
-> These steps should be performed by an operator with SOPS access.
 
 ### 9.1 Create Mapbox Default Token
-- [ ] 9.1.1 Create Mapbox account (if not exists) at https://mapbox.com
-- [ ] 9.1.2 Create a new public token for gpxstudio:
-  - Name: `defcon-gpxstudio-default`
-  - URL restrictions: `gpxstudio.defcon.run`
-  - Scopes: Default (Maps, Geocoding)
+- [ ] 9.1.1 Create Mapbox account (if not exists)
+- [ ] 9.1.2 Create a new public token for gpxstudio
 - [ ] 9.1.3 Copy the token (starts with `pk.`)
 
 ### 9.2 Add Secrets to SOPS
-- [ ] 9.2.1 Add gpxstudio secrets to SOPS encrypted file:
-  ```yaml
-  gpxstudio:
-    oidc_client_id: "gpxstudio"
-    oidc_client_secret: "<generate-secure-secret>"
-    nextauth_secret: "<generate-secure-secret>"
-    mapbox_default_token: "pk.<your-token-here>"
-  ```
+- [ ] 9.2.1 Add gpxstudio secrets to SOPS encrypted file
 - [ ] 9.2.2 Run SOPS encryption and commit changes
 
 ### 9.3 Sync to SSM
-- [ ] 9.3.1 Deploy secrets to SSM Parameter Store:
-  - `/dc34/secrets/us-east-1/gpxstudio/oidc_client_id`
-  - `/dc34/secrets/us-east-1/gpxstudio/oidc_client_secret`
-  - `/dc34/secrets/us-east-1/gpxstudio/nextauth_secret`
-  - `/dc34/secrets/us-east-1/gpxstudio/mapbox_default_token`
+- [ ] 9.3.1 Deploy secrets to SSM Parameter Store
 - [ ] 9.3.2 Verify SSM parameters are accessible
 
 ### 9.4 Register OIDC Client
@@ -327,23 +227,110 @@
 
 ## Implementation Notes
 
-### Patch Management
+### Svelte 5 Compatibility
 
-Keep patches minimal and focused. Each patch should modify the minimum necessary files:
+**Critical**: gpx.studio uses Svelte 5 with `$props()` and runes. This affects event handler syntax:
+
+```svelte
+<!-- WRONG (Svelte 4 style) - buttons won't respond to clicks -->
+<Button on:click={handleClick}>Click me</Button>
+
+<!-- CORRECT (Svelte 5 style) - use onclick prop -->
+<Button onclick={handleClick}>Click me</Button>
+```
+
+The Button component uses `$props()` with `...restProps` spread, so event handlers must be passed as props, not using the `on:` directive syntax.
+
+### Cross-Component State Management
+
+**Issue**: Svelte 5's `$state()` rune doesn't work well with two-way binding (`bind:`) across component boundaries.
+
+**Solution**: Use traditional Svelte stores (`writable`) for state shared between components:
+
+```typescript
+// WRONG - $state doesn't propagate across components
+export const dialogState = $state({ open: false });
+
+// CORRECT - writable store works across components
+import { writable } from 'svelte/store';
+export const dialogOpen = writable(false);
+```
+
+### Build Configuration
+
+**BASE_PATH is required**: The SvelteKit build must set `BASE_PATH=/gpx-studio` so all asset URLs are prefixed correctly:
 
 ```bash
-# Create a patch after making changes in gpx-studio/
-cd apps/run.gpx/gpx-studio
-git diff > ../patches/001-storage-adapter.patch
-
-# Apply patches during build
-cd apps/run.gpx/gpx-studio
-git apply ../patches/*.patch
+# In build-frontend.sh
+BASE_PATH=/gpx-studio npm run build
 ```
+
+Without this, the built HTML references `/_app/immutable/chunks/...` instead of `/gpx-studio/_app/immutable/chunks/...`, causing 404 errors.
+
+### Local Development Setup
+
+**Vite Proxy**: For local development with hot reload, add a proxy to gpx-studio's vite.config.ts:
+
+```typescript
+export default defineConfig({
+  // ... other config
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3003',
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
+
+**Development servers**:
+1. Next.js webapp on port 3003 (handles API routes)
+2. gpx-studio Vite dev server on port 5173 (proxies /api/* to 3003)
+3. Auth service on port 3002
+4. MinIO on port 9000 (S3-compatible storage)
+5. DynamoDB Local on port 8888
+
+**MinIO CORS**: Configure CORS on MinIO for direct browser uploads:
+
+```bash
+mc alias set local http://localhost:9000 minioadmin minioadmin
+mc mb local/run-gpx-uploads --ignore-existing
+cat > /tmp/cors.json << 'EOF'
+{
+  "CORSRules": [{
+    "AllowedOrigins": ["http://localhost:5173", "http://localhost:3003"],
+    "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }]
+}
+EOF
+mc cors set local/run-gpx-uploads /tmp/cors.json
+```
+
+### Key Files Modified
+
+| File | Purpose |
+|------|---------|
+| `gpx-studio/website/src/lib/cloud-sync.ts` | API-based cloud storage functions |
+| `gpx-studio/website/src/lib/stores/auth.ts` | Auth state management with session check |
+| `gpx-studio/website/src/lib/components/cloud/CloudStorage.svelte` | Cloud storage dialog UI |
+| `gpx-studio/website/src/lib/components/cloud/utils.svelte.ts` | Dialog state (writable store) |
+| `gpx-studio/website/src/lib/components/Menu.svelte` | Added Cloud Storage menu item |
+| `gpx-studio/website/vite.config.ts` | Added dev proxy for API calls |
+| `gpx-studio/website/svelte.config.js` | BASE_PATH configuration |
+| `webapp/src/config/auth.ts` | OIDC configuration for Auth.js |
+| `webapp/src/lib/s3-client.ts` | S3 client with MinIO support |
+| `webapp/src/entities/gpx-file.ts` | ElectroDB entity for file metadata |
+| `webapp/src/app/api/gpx/*/route.ts` | API routes for file operations |
+| `build-frontend.sh` | Build script with BASE_PATH |
 
 ### Service Claim Validation
 
-Every API route should validate the `gpxstudio` service claim:
+Every API route validates the `gpxstudio` service claim:
 
 ```typescript
 import { auth } from '@/config/auth';
@@ -351,8 +338,13 @@ import { auth } from '@/config/auth';
 export async function GET() {
   const session = await auth();
 
-  if (!session?.user?.services?.includes('gpxstudio')) {
-    return Response.json({ error: 'Access denied' }, { status: 403 });
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const services = (session.user as { services?: string[] }).services ?? [];
+  if (!services.includes('gpxstudio')) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
   }
 
   // ... handle request
@@ -361,17 +353,268 @@ export async function GET() {
 
 ### S3 Key Structure
 
-All user files use predictable paths for easy management:
+All user files use predictable paths:
 
 ```
 uploads/{userId}/gpx/{fileId}.gpx
-uploads/{userId}/compositions/{compositionId}.json
 ```
 
 ### Error Handling
 
-Provide clear error messages for common issues:
-- No session: Redirect to login
-- Missing service claim: Show access denied page with instructions
-- S3 errors: Show retry option, log for debugging
-- Network errors: Show offline indicator
+- No session: Redirect to login (`/api/auth/signin`)
+- Missing service claim: Show access denied in dialog
+- S3 errors: Show error message with retry option
+- Network errors: Show error in dialog
+
+### GPX File Serialization
+
+**Critical**: Use `buildGPX(file)` from the `gpx` package, NOT `file.toString()`:
+
+```typescript
+// WRONG - returns "[object Object]"
+const gpxContent = file.toString();
+
+// CORRECT - returns valid GPX XML
+import { buildGPX } from 'gpx';
+const gpxContent = buildGPX(file);
+```
+
+The `fileStateCollection.getFile(fileId)` returns a GPXFile object. To serialize it to XML for upload, you must use `buildGPX()`.
+
+### AWS SDK v3 Presigned URL Checksums
+
+**Issue**: AWS SDK v3 adds CRC32 checksum headers to presigned URLs by default. Browsers cannot calculate these checksums, causing uploads to fail silently.
+
+**Solution**: Create a separate S3 client for presigning with checksums disabled:
+
+```typescript
+// s3-client.ts
+export const s3Client = new S3Client(baseConfig);
+
+// For presigned URLs - no checksums for browser compatibility
+export const s3ClientForPresign = new S3Client({
+  ...baseConfig,
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
+});
+```
+
+Use `s3ClientForPresign` when generating presigned URLs for browser uploads.
+
+### API Endpoint for File Creation
+
+**Critical**: The frontend must call `POST /api/gpx/files` (not `/api/gpx/upload/presign`) to:
+1. Create the DynamoDB metadata record
+2. Get the presigned upload URL
+
+```typescript
+// cloud-sync.ts
+// WRONG - only generates URL, no database record
+const response = await fetch(`${API_BASE}/upload/presign`, ...);
+
+// CORRECT - creates DB record AND returns presigned URL
+const response = await fetch(`${API_BASE}/files`, {
+  method: 'POST',
+  body: JSON.stringify({ fileName, fileSize }),
+  ...
+});
+```
+
+Without this, files upload to S3 but aren't tracked in DynamoDB, so they won't appear in the file list.
+
+### MinIO CORS Configuration
+
+**Issue**: MinIO's `mc cors set` command requires XML format, not JSON.
+
+```bash
+# WRONG - JSON format causes "decoding xml: EOF" error
+mc cors set local/bucket /tmp/cors.json
+
+# CORRECT - XML format
+cat > /tmp/cors.xml << 'EOF'
+<CORSConfiguration>
+  <CORSRule>
+    <AllowedOrigin>*</AllowedOrigin>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedMethod>POST</AllowedMethod>
+    <AllowedMethod>DELETE</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <MaxAgeSeconds>3600</MaxAgeSeconds>
+  </CORSRule>
+</CORSConfiguration>
+EOF
+mc cors set local/run-gpx-uploads /tmp/cors.xml
+```
+
+The `apps/local/s3/init-s3-buckets.sh` script has been updated to use XML format.
+
+### fileStateCollection API
+
+The `fileStateCollection` does NOT have a `getFiles()` method. Use these instead:
+
+```typescript
+// Iterate all files
+fileStateCollection.forEach((fileId, file) => {
+  // file is GPXFile, not a wrapper
+});
+
+// Get single file by ID
+const file = fileStateCollection.getFile(fileId);  // Returns GPXFile | undefined
+```
+
+### Cloud Storage Dialog UI Design
+
+The Cloud Storage dialog (`CloudStorage.svelte`) follows these design patterns:
+
+**Dialog Sizing**:
+- Use `!` prefix to override shadcn Dialog's default `sm:max-w-lg`: `class="!max-w-[900px] !w-[90vw]"`
+- Without `!`, Tailwind classes won't override the component's built-in styles
+
+**Layout Structure**:
+1. **Save button** - Large green button centered at top: "Save All Layers"
+2. **Remote Files** - Collapsible section (collapsed by default)
+3. **Close button** - In dialog footer
+
+**Collapsible Remote Files Section**:
+Uses `Collapsible` from bits-ui (shadcn-svelte):
+```svelte
+<Collapsible.Root bind:open={filesExpanded} class="border rounded-md">
+    <Collapsible.Trigger class="flex items-center justify-between w-full px-4 py-3">
+        <!-- Header: Cloud icon, "Remote Files", count, refresh button, chevron -->
+    </Collapsible.Trigger>
+    <Collapsible.Content>
+        <!-- File list with max-h-64 overflow-auto -->
+    </Collapsible.Content>
+</Collapsible.Root>
+```
+
+Features:
+- Header shows: Cloud icon | "Remote Files" | (count) | Refresh button | Chevron
+- Refresh button uses `e.stopPropagation()` to prevent toggling collapse
+- Chevron rotates 180° when expanded
+- Content area: `max-h-64` (~4-5 items visible), scrollable
+
+**Table Columns**:
+| Column | Content |
+|--------|---------|
+| Name | Green plus button + truncated filename (15 chars) + track count |
+| Size | Compact format: `166kb` |
+| Updated | Natural language dates (hidden on mobile: `hidden sm:table-cell`) |
+| Actions | Pencil (rename) and Trash (delete) icons |
+
+**Name Column Layout**:
+```
+[+] filename.gpx... (2 tracks)
+```
+- Plus button: `h-6 w-6` ghost button, green, "Add to map" tooltip
+- Filename: Truncated to 15 chars with `...`, full name in `title` attribute
+- Track count: Only shown if > 0
+
+**Filename Truncation**:
+```typescript
+{file.fileName.length > 15 ? file.fileName.slice(0, 15) + '...' : file.fileName}
+```
+
+**Date Formatting**:
+```typescript
+function formatDate(timestamp: number): string {
+    // Today: "Today @ 2:30pm"
+    // Yesterday: "Yesterday @ 10:15am"
+    // Older: "20260111.142501" (YYYYMMDD.HHMMSS)
+}
+```
+
+**File Size Formatting**:
+```typescript
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes}b`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}kb`;
+    return `${Math.round(bytes / (1024 * 1024))}mb`;
+}
+```
+
+**Inline Rename**:
+- Click pencil icon to enter edit mode
+- Input field replaces filename (shows full name, not truncated)
+- Check (save) and X (cancel) buttons appear
+- Enter to save, Escape to cancel
+- Uses `updateCloudFile()` API to persist rename
+
+**Loading File Uses Current Name**:
+When loading a file from cloud, use `file.fileName` from the cloud file list (not the API response) to reflect any renames:
+```typescript
+gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
+```
+
+**Mobile Responsiveness**:
+- Updated column hidden on mobile: `hidden sm:table-cell`
+- Dialog uses `!w-[90vw]` to be responsive
+
+### Production Deployment Fixes (2026-01-13)
+
+Several issues were discovered and fixed during initial production deployment:
+
+**1. Auth.js Client-Side BasePath**:
+The `next-auth/react` SessionProvider needs an explicit `basePath` prop to make requests to the correct URL:
+```typescript
+// layout.tsx
+const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
+<Providers authBasePath={authBasePath}>{children}</Providers>
+
+// providers.tsx
+<SessionProvider basePath={authBasePath}>{children}</SessionProvider>
+```
+
+**2. Auth.js Server-Side BasePath**:
+Auth.js needs `basePath: "/api/auth"` in the config for internal routing after Next.js strips its basePath:
+```typescript
+// Request flow: /use1/api/auth/session -> Next.js strips /use1 -> /api/auth/session
+// Auth.js needs basePath="/api/auth" to parse "session" as the action
+basePath: "/api/auth",
+```
+
+**3. OIDC Redirect URI**:
+Auth.js doesn't include Next.js basePath in callback URLs. Add non-prefixed redirect_uri to OIDC config:
+```typescript
+redirect_uris: [
+  "https://gpx.defcon.run/api/auth/callback/run.defcon.run",  // Auth.js sends this
+  "https://gpx.defcon.run/use1/api/auth/callback/run.defcon.run",
+  "https://gpx.defcon.run/cac1/api/auth/callback/run.defcon.run",
+],
+```
+
+**4. ALB Path Patterns**:
+Remove `path_patterns` from ALB listener so all `gpx.defcon.run` requests route to run-gpx (matches run.human approach). This allows callback URLs without region prefix to work.
+
+**5. Docker .env File Exclusion**:
+Create `.dockerignore` in `apps/run.gpx/` to exclude `.env` file:
+```
+webapp/.env*
+.env*
+```
+Without this, the local dev `.env` (with `DYNAMODB_ENDPOINT=http://localhost:8888`) gets bundled into the Docker image.
+
+**6. ElectroDB GSI Index Name**:
+The Terraform "electro" table type creates GSIs named `gsi1pk-gsi1sk-index`, not `gsi1`:
+```typescript
+// WRONG
+index: "gsi1",
+
+// CORRECT (matches Terraform module)
+index: "gsi1pk-gsi1sk-index",
+```
+
+**7. S3 DeleteObject Permission**:
+The s3-uploads module's prefix-restricted IAM policy was missing `s3:DeleteObject`. Added to `iam.tf`:
+```hcl
+{
+  Sid    = "AllowDeleteObjectFromUploads"
+  Effect = "Allow"
+  Action = ["s3:DeleteObject"]
+  Resource = "${aws_s3_bucket.uploads[each.key].arn}/uploads/*"
+}
+```
+Requires `terragrunt apply` on s3-uploads module to update IAM policy.

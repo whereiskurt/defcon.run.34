@@ -70,6 +70,15 @@ resource "aws_iam_user_policy" "presigner" {
         ]
         Resource = "${aws_s3_bucket.uploads[each.key].arn}/uploads/*"
       },
+      # Allow DeleteObject for cleaning up user's uploads
+      {
+        Sid    = "AllowDeleteObjectFromUploads"
+        Effect = "Allow"
+        Action = [
+          "s3:DeleteObject"
+        ]
+        Resource = "${aws_s3_bucket.uploads[each.key].arn}/uploads/*"
+      },
       # Allow HEAD operations for presigned URL validation
       {
         Sid    = "AllowHeadObject"

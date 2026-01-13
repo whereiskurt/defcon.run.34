@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { s3Client } from "@/lib/s3-client";
+import { s3ClientForPresign } from "@/lib/s3-client";
 import { GpxFile } from "@/entities/gpx-file";
 
 /**
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       Key: result.data.key,
     });
 
-    const downloadUrl = await getSignedUrl(s3Client, command, {
+    const downloadUrl = await getSignedUrl(s3ClientForPresign, command, {
       expiresIn: 3600,
     });
 

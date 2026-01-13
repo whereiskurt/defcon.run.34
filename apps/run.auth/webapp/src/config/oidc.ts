@@ -68,19 +68,23 @@ const clients: ClientMetadata[] = [
     scope: "openid profile email services",
     token_endpoint_auth_method: "client_secret_post",
   },
-  // GPX Studio client (gpxstudio.defcon.run)
+  // GPX Studio client (gpx.defcon.run/{region})
   {
     client_id: config.oidc.clients.gpxStudio.clientId,
     client_secret: config.oidc.clients.gpxStudio.clientSecret,
     redirect_uris: [
-      // Production URLs
-      "https://gpxstudio.defcon.run/api/auth/callback/run.defcon.run",
+      // Production URLs - Auth.js doesn't include Next.js basePath in callback URLs
+      // so we need both prefixed and non-prefixed versions
+      "https://gpx.defcon.run/api/auth/callback/run.defcon.run",
+      "https://gpx.defcon.run/use1/api/auth/callback/run.defcon.run",
+      "https://gpx.defcon.run/cac1/api/auth/callback/run.defcon.run",
       // Local development
       "http://localhost:3003/api/auth/callback/run.defcon.run",
     ],
     post_logout_redirect_uris: [
-      // Production
-      "https://gpxstudio.defcon.run",
+      // Production - both regions
+      "https://gpx.defcon.run/use1",
+      "https://gpx.defcon.run/cac1",
       // Local development
       "http://localhost:3003",
     ],

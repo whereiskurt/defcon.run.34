@@ -5,14 +5,14 @@
 # This script:
 # 1. Applies patches to gpx-studio submodule (creates required files)
 # 2. Builds gpx-studio SvelteKit app
-# 3. Copies built output to webapp/public/gpx-studio/
+# 3. Copies built output to webapp/public/studio/
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GPX_STUDIO_DIR="$SCRIPT_DIR/gpx-studio/website"
 WEBAPP_DIR="$SCRIPT_DIR/webapp"
-OUTPUT_DIR="$WEBAPP_DIR/public/gpx-studio"
+OUTPUT_DIR="$WEBAPP_DIR/public/studio"
 
 echo "=== Building GPX Studio frontend ==="
 echo "Version: $(cat "$SCRIPT_DIR/VERSION")"
@@ -156,7 +156,8 @@ echo "2. Installing dependencies..."
 npm install
 
 echo "3. Building gpx.studio..."
-npm run build
+# Set BASE_PATH so SvelteKit prefixes all asset URLs with /studio
+BASE_PATH=/studio npm run build
 
 echo "4. Copying build output to webapp..."
 rm -rf "$OUTPUT_DIR"

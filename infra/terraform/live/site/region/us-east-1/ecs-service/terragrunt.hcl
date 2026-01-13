@@ -24,6 +24,7 @@ dependency "ecs_task" {
       "run-human"      = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-human-use1-defcon-run:1"
       "run-cms-master" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-master-use1-defcon-run:1"
       "run-cms-worker" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-worker-use1-defcon-run:1"
+      "run-gpx"        = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-gpx-use1-defcon-run:1"
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]

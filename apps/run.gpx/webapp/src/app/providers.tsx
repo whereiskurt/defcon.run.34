@@ -2,6 +2,11 @@
 
 import { SessionProvider } from "next-auth/react";
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  return <SessionProvider>{children}</SessionProvider>;
+interface ProvidersProps {
+  children: React.ReactNode;
+  authBasePath?: string;
+}
+
+export function Providers({ children, authBasePath }: ProvidersProps) {
+  return <SessionProvider basePath={authBasePath}>{children}</SessionProvider>;
 }

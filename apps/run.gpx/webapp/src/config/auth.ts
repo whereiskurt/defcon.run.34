@@ -4,17 +4,29 @@ import type { NextAuthConfig } from "next-auth";
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.REGION_SHORT || "use1";
 
-// Auth server URLs
+// Auth server URLs - must include region prefix in production
 const authServerUrl = isDev
   ? "http://localhost:3002"
-  : "https://auth.defcon.run";
+  : `https://auth.defcon.run/${region}`;
 const oidcIssuer = isDev
   ? "http://localhost:3002/api/oidc"
   : `https://auth.defcon.run/${region}/api/oidc`;
 
+// Redirect proxy URL for Auth.js callbacks
+// This must match the actual auth endpoint path (including region prefix in prod)
+const redirectProxyUrl = isDev
+  ? "http://localhost:3003/api/auth"
+  : `https://gpx.defcon.run/${region}/api/auth`;
+
 export const authConfig: NextAuthConfig = {
   debug: isDev,
   trustHost: true,
+
+  // basePath is for internal routing AFTER Next.js strips its basePath (/use1)
+  // Request flow: /use1/api/auth/session -> Next.js strips /use1 -> /api/auth/session
+  // Auth.js needs basePath="/api/auth" to parse "session" as the action
+  // The env-url-basepath-mismatch warning can be ignored - AUTH_URL is for public URL construction
+  basePath: "/api/auth",
 
   providers: [
     {
@@ -24,6 +36,8 @@ export const authConfig: NextAuthConfig = {
       issuer: oidcIssuer,
       clientId: process.env.OIDC_CLIENT_ID!,
       clientSecret: process.env.OIDC_CLIENT_SECRET!,
+      // redirectProxyUrl for callback URL construction
+      redirectProxyUrl,
       authorization: {
         url: `${authServerUrl}/api/oidc/auth`,
         params: {
@@ -114,4 +128,10 @@ export const authConfig: NextAuthConfig = {
   },
 };
 
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+// Export with redirectProxyUrl and secret at the NextAuth level
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
+  redirectProxyUrl,
+  // Secret for JWT encryption - uses AUTH_JWT_SECRET env var (supports rotation via comma-separated list)
+  secret: process.env.AUTH_JWT_SECRET?.split(","),
+});

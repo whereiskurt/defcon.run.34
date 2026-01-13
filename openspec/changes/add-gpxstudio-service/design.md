@@ -17,7 +17,7 @@ Our integration needs:
 
 ## Goals
 
-- Self-hosted GPX editor at `gpxstudio.defcon.run`
+- Self-hosted GPX editor at `gpx.defcon.run`
 - SSO via auth.defcon.run (same login as run.defcon.run)
 - User GPX files stored in S3 under `uploads/{userId}/gpx/`
 - Access restricted to users with `gpxstudio` in services claim
@@ -140,11 +140,11 @@ POST   /api/gpx/download/presign       # Get presigned GET URL
 ### Decision: Authentication Flow
 
 ```
-1. User navigates to https://gpxstudio.defcon.run
+1. User navigates to https://gpx.defcon.run/{region}/studio/app
 2. Next.js middleware checks Auth.js session
 3. If no session: Redirect to auth.defcon.run OIDC auth
    - scope: openid profile email services
-   - redirect_uri: https://gpxstudio.defcon.run/api/auth/callback/run.defcon.run
+   - redirect_uri: https://gpx.defcon.run/{region}/api/auth/callback/run.defcon.run
 4. After OIDC callback, validate services claim:
    - If 'gpxstudio' not in services: Show access denied page
    - If present: Continue to app
@@ -155,17 +155,23 @@ POST   /api/gpx/download/presign       # Get presigned GET URL
 
 ### Decision: Multi-Region Deployment
 
-**Single-region primary deployment** (like run.human):
-- Deploy to us-east-1 initially
+**Multi-region deployment** (consistent with run.auth, run.human):
+- Deploy to us-east-1 and ca-central-1
 - CloudFront distribution serves globally
 - S3 cross-region replication for data availability
-- Regional path prefix: `/use1/` (optional, can omit for simpler URLs)
+- Regional path prefix: `/use1/` or `/cac1/` (required)
 
-**URL Structure Options**:
-- Option 1: `gpxstudio.defcon.run` (no region prefix, simpler)
-- Option 2: `gpxstudio.defcon.run/use1/` (consistent with other services)
+**URL Structure**:
+- Production: `gpx.defcon.run/{region}/studio/app`
+- Examples:
+  - `https://gpx.defcon.run/use1/studio/app` (US East)
+  - `https://gpx.defcon.run/cac1/studio/app` (Canada Central)
 
-**Recommendation**: Option 1 for simplicity - GPX editing is less latency-sensitive than auth.
+**Decision**: Use regional prefixes for consistency across all services:
+- Consistent deployment patterns and build scripts
+- Clear regional routing for debugging and observability
+- Alignment with CloudFront/ALB origin path patterns
+- Same basePath pattern as run.auth and run.human
 
 ### Decision: Service Claim Value
 
@@ -206,7 +212,7 @@ Use `gpxstudio` as the service claim value:
 - Monitor default token usage via Mapbox dashboard
 - Set up billing alerts for unexpected spikes
 - Encourage power users to bring their own key
-- Default token has URL restriction to `gpxstudio.defcon.run`
+- Default token has URL restriction to `gpx.defcon.run`
 
 **Why hybrid over strict BYOK**:
 - Lower friction for casual/first-time users
@@ -255,12 +261,14 @@ Add to `apps/run.auth/webapp/src/config/oidc.ts`:
   client_secret: config.oidc.clients.gpxStudio.clientSecret,
   grant_types: ['authorization_code', 'refresh_token'],
   redirect_uris: [
-    'https://gpxstudio.defcon.run/api/auth/callback/run.defcon.run',
-    'http://localhost:3002/api/auth/callback/run.defcon.run', // dev
+    'https://gpx.defcon.run/use1/api/auth/callback/run.defcon.run',
+    'https://gpx.defcon.run/cac1/api/auth/callback/run.defcon.run',
+    'http://localhost:3003/use1/api/auth/callback/run.defcon.run', // dev
   ],
   post_logout_redirect_uris: [
-    'https://gpxstudio.defcon.run',
-    'http://localhost:3002',
+    'https://gpx.defcon.run/use1',
+    'https://gpx.defcon.run/cac1',
+    'http://localhost:3003/use1',
   ],
   scope: 'openid profile email services',
 }
@@ -474,7 +482,7 @@ ecs_task_definitions = [
         environment = [
           { name = "NODE_ENV", value = "production" },
           { name = "REGION_SHORT", value = "{{REGION_LABEL}}" },
-          { name = "NEXTAUTH_URL", value = "https://gpxstudio.defcon.run" },
+          { name = "NEXTAUTH_URL", value = "https://gpx.defcon.run/{{REGION_LABEL}}" },
         ]
         secrets = [
           { name = "OIDC_CLIENT_ID", valueFrom = "/dc34/secrets/{{REGION}}/gpxstudio/oidc_client_id" },
@@ -511,7 +519,7 @@ ecs_services = [
         listener = {
           port = 443
           protocol = "HTTPS"
-          host_headers = ["gpxstudio.defcon.run"]
+          host_headers = ["gpx.defcon.run"]
           path_pattern = "/*"
           priority = 100
         }
@@ -558,6 +566,92 @@ user_uploads = [
 ]
 ```
 
+## Infrastructure Requirements for New Services
+
+When adding a new service domain to CloudFront (e.g., `gpx`), these requirements must be met:
+
+### 1. Add Domain to site.hcl
+
+```hcl
+cloudfront = {
+  domains = ["auth", "run", "cms", "gpx"]  # Add new domain
+}
+
+dns = {
+  subdomains = ["email", "run", "auth", "cms", "gpx"]  # Add subdomain
+}
+```
+
+### 2. Regional CloudFront Assets Module
+
+The `cloudfront-assets` module automatically creates S3 buckets for each domain in `cloudfront.domains`. No additional configuration needed - just adding the domain to the list.
+
+### 3. Terragrunt Dependencies with Skipped Regions
+
+When a region is in `skip_regions`, Terragrunt dependencies may return empty values. All secondary region lookups MUST use `try()` wrappers:
+
+```hcl
+# In global/cloudfront/terragrunt.hcl
+regional_origins_by_domain = {
+  for domain in local.site_vars.locals.cloudfront.domains : domain => {
+    use1 = {
+      # Primary region - direct access OK
+      s3_bucket_regional_domain_name = dependency.use1_cloudfront.outputs.bucket_regional_domain_names[domain]
+    }
+    cac1 = {
+      # Secondary region - MUST use try() for graceful fallback
+      s3_bucket_regional_domain_name = try(dependency.cac1_cloudfront.outputs.bucket_regional_domain_names[domain], "")
+    }
+  }
+}
+```
+
+### 4. CloudFront Module Origin Filtering
+
+The CloudFront module filters origins where `domain_name` is empty. This is handled automatically by the module, but new dynamic blocks iterating over regional origins MUST include filtering:
+
+```hcl
+# Filter pattern for dynamic blocks
+dynamic "origin" {
+  for_each = {
+    for region_key, region_value in var.regional_origins_by_domain[each.key] :
+    region_key => region_value
+    if region_value.s3_bucket_regional_domain_name != ""  # Required filter
+  }
+  content {
+    domain_name = origin.value.s3_bucket_regional_domain_name
+    # ...
+  }
+}
+```
+
+### 5. ACM Certificate
+
+Certificates must exist in us-east-1 for CloudFront:
+- Add domain to `certs` module configuration
+- Certificate ARN is looked up via `cert_map["gpx.defcon.run"]`
+
+### 6. WAF Configuration (Optional)
+
+If WAF protection is needed:
+```hcl
+cloudfront = {
+  waf_rulesets = {
+    gpx = "default"  # Use default or api ruleset
+  }
+}
+```
+
+### 7. Checklist for New CloudFront Domains
+
+- [ ] Add to `cloudfront.domains` in site.hcl
+- [ ] Add to `dns.subdomains` in site.hcl
+- [ ] Add certificate config to us-east-1/certs
+- [ ] Verify `try()` wrappers for secondary region dependencies
+- [ ] Test with `terragrunt plan` (secondary region in skip_regions)
+- [ ] Test with `terragrunt apply` in primary region
+- [ ] Verify DNS record creation
+
 ## Risks / Trade-offs
 
 ### Risk: Upstream gpx.studio updates
@@ -596,7 +690,7 @@ user_uploads = [
 ```
 OIDC_CLIENT_ID              # from SSM /dc34/secrets/{region}/gpxstudio/oidc_client_id
 OIDC_CLIENT_SECRET          # from SSM /dc34/secrets/{region}/gpxstudio/oidc_client_secret
-NEXTAUTH_URL                # https://gpxstudio.defcon.run
+NEXTAUTH_URL                # https://gpx.defcon.run/{region}
 NEXTAUTH_SECRET             # from SSM /dc34/secrets/{region}/gpxstudio/nextauth_secret
 ```
 

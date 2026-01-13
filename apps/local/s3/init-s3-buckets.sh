@@ -21,5 +21,26 @@ echo "Created 'run-gpx-uploads' bucket"
 # For local dev, we'll make it accessible
 mc anonymous set download local/run-gpx-uploads
 
+# Configure CORS for browser uploads via presigned URLs
+# MinIO mc cors set expects XML format
+cat > /tmp/cors.xml << 'EOF'
+<CORSConfiguration>
+  <CORSRule>
+    <AllowedOrigin>*</AllowedOrigin>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedMethod>POST</AllowedMethod>
+    <AllowedMethod>DELETE</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+    <ExposeHeader>Content-Length</ExposeHeader>
+    <MaxAgeSeconds>3600</MaxAgeSeconds>
+  </CORSRule>
+</CORSConfiguration>
+EOF
+mc cors set local/run-gpx-uploads /tmp/cors.xml
+echo "Configured CORS for 'run-gpx-uploads' bucket"
+
 echo "All buckets created successfully!"
 mc ls local/
