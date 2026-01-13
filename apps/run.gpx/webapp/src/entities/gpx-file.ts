@@ -102,6 +102,24 @@ export const GpxFile = new Entity(
         type: "number",
         required: false,
       },
+      // Folder organization
+      folderId: {
+        type: "string",
+        required: false,
+        default: undefined, // undefined = root level
+      },
+      // Tags for flexible categorization
+      tags: {
+        type: "set",
+        items: "string",
+        required: false,
+        default: [],
+      },
+      // For global folders - tracks who uploaded the file
+      uploadedBy: {
+        type: "string",
+        required: false,
+      },
     },
     indexes: {
       primary: {
@@ -123,6 +141,18 @@ export const GpxFile = new Entity(
         sk: {
           field: "gsi1sk",
           composite: ["createdAt"],
+        },
+      },
+      // Query files by folder
+      byFolder: {
+        index: "gsi2pk-gsi2sk-index",
+        pk: {
+          field: "gsi2pk",
+          composite: ["userId"],
+        },
+        sk: {
+          field: "gsi2sk",
+          composite: ["folderId", "createdAt"],
         },
       },
     },
