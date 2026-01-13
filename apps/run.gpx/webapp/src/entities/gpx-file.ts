@@ -115,7 +115,7 @@ export const GpxFile = new Entity(
         },
       },
       byCreatedAt: {
-        index: "gsi1",
+        index: "gsi1pk-gsi1sk-index",
         pk: {
           field: "gsi1pk",
           composite: ["userId"],
