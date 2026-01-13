@@ -1,0 +1,26 @@
+# Dependencies
+node_modules
+webapp/node_modules
+gpx-studio/website/node_modules
+
+# Build output
+webapp/.next
+webapp/out
+webapp/dist
+gpx-studio/website/build
+
+# Development
+*.log
+npm-debug.log*
+
+# Version control
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# Environment files - CRITICAL: exclude dev config from production image
+webapp/.env*
+.env*
