@@ -57,8 +57,9 @@ bd ready                 # Find unblocked work
 bd close <id> && bd sync # Complete and sync
 bv --robot-triage        # AI triage: ranked work, graph metrics, next steps
 
-# Context retrieval (CASS)
-cm context "<task>"      # Get rules and context before complex work
+# Memory (cm/cass) - before and after work
+cm context "<task>"      # BEFORE: Get rules and patterns for this task
+cm reflect --days 1      # AFTER: Extract learnings from session
 ```
 
 ## Detailed Documentation
@@ -71,7 +72,7 @@ Read these files for in-depth information:
 | **Commands** | [.claude/commands.md](.claude/commands.md) | Full command reference |
 | **OpenSpec** | [.claude/openspec.md](.claude/openspec.md) | Creating/implementing change proposals/TODOs |
 | **Issue Tracking** | [.claude/beads.md](.claude/beads.md) | bd/beads workflow and bv visualization |
-| **Memory (CASS)** | [.claude/cass.md](.claude/cass.md) | Context retrieval before complex work |
+| **Memory (CASS)** | [.claude/cass.md](.claude/cass.md) | cm/cass workflow, reflection, playbook management |
 | **Best Practices** | [.claude/best-practices.md](.claude/best-practices.md) | Code style, naming, session protocol |
 
 ## Essential Rules
@@ -84,7 +85,7 @@ Read these files for in-depth information:
 
 4. **Simplicity first** — <100 lines, single-file until proven insufficient, boring patterns preferred.
 
-5. **CASS for context** — Run `cm context "<task>"` before complex work to get rules and anti-patterns. Leave `// [cass: helpful b-xyz]` feedback inline.
+5. **Memory (cm/cass)** — Run `cm context "<task>"` before complex work; run `cm reflect --days 1` after sessions. Leave `// [cass: helpful b-xyz]` feedback inline.
 
 ---
 

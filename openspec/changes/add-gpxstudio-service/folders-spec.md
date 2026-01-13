@@ -221,16 +221,26 @@ Global folders are shared folders that all users with the `gpxstudio` service cl
 | View/List | Owner only | All gpxstudio users |
 | Download files | Owner only | All gpxstudio users |
 | Upload files | Owner only | All gpxstudio users |
-| Rename files | Owner only | All gpxstudio users |
-| Delete files | Owner only | All gpxstudio users |
-| Create subfolder | Owner only | All gpxstudio users |
+| Rename own file | Owner only | Uploader only |
+| Delete own file | Owner only | Uploader only |
+| Rename others' file | N/A | Admin only |
+| Delete others' file | N/A | Admin only |
+| Create subfolder | Owner only | Admin only |
 | Delete folder | Owner only | Creator or admin only |
 | Rename folder | Owner only | Creator or admin only |
 
+**Rationale for uploader-only file permissions:**
+- Prevents accidental or malicious deletion of others' work
+- Maintains accountability - you can only modify what you uploaded
+- Admins retain override capability for moderation
+- Subfolders restricted to admins to prevent folder sprawl
+
 **Key Points:**
-- Any gpxstudio user can read/write/delete files in a global folder
+- Any gpxstudio user can view and upload files in global folders
+- Users can only modify/delete files they uploaded (`uploadedBy` check)
+- Admins can modify/delete any file for moderation purposes
 - Only the folder creator (or admin) can delete or rename the global folder itself
-- Subfolders within a global folder inherit the global flag
+- Subfolders within a global folder inherit the global flag (admin-created only)
 - Files in global folders use a special `userId: "GLOBAL"` for S3 storage
 
 ### Data Model Notes
@@ -374,12 +384,21 @@ When saving to a global folder:
 
 **Folder Operations:**
 ```typescript
-function canDeleteFolder(folder: GpxFolder, userId: string): boolean {
+function canDeleteFolder(folder: GpxFolder, userId: string, isAdmin: boolean): boolean {
   if (!folder.isGlobal) {
     return folder.userId === userId;
   }
   // Global folders: only creator or admin can delete
-  return folder.createdBy === userId || isAdmin(userId);
+  return folder.createdBy === userId || isAdmin;
+}
+
+function canCreateSubfolder(parentFolder: GpxFolder | null, userId: string, isAdmin: boolean): boolean {
+  if (!parentFolder || !parentFolder.isGlobal) {
+    // Root level or user folder - owner can create
+    return !parentFolder || parentFolder.userId === userId;
+  }
+  // Global folders: admin only for subfolders
+  return isAdmin;
 }
 
 function canAccessFolder(folder: GpxFolder, user: User): boolean {
@@ -393,12 +412,23 @@ function canAccessFolder(folder: GpxFolder, user: User): boolean {
 
 **File Operations:**
 ```typescript
-function canModifyFile(file: GpxFile, userId: string): boolean {
+function canModifyFile(file: GpxFile, userId: string, isAdmin: boolean): boolean {
   if (file.userId === "GLOBAL") {
-    // Any gpxstudio user can modify files in global folders
-    return true;  // Caller already verified gpxstudio claim
+    // Global folder: only uploader or admin can modify/delete
+    return file.uploadedBy === userId || isAdmin;
   }
+  // User folder: owner only
   return file.userId === userId;
+}
+
+function canUploadToFolder(folder: GpxFolder | null, userId: string): boolean {
+  if (!folder) {
+    return true;  // Root level of user's own space
+  }
+  if (folder.isGlobal) {
+    return true;  // Any gpxstudio user can upload to global folders
+  }
+  return folder.userId === userId;  // User folder: owner only
 }
 ```
 
@@ -754,14 +784,163 @@ async function confirmCreateFolder() {
 }
 ```
 
-### Moving Files (Optional v2 Feature)
+### Save Dialog with Folder Picker
 
-Could add a "Move to..." action on files:
-- Click move icon opens folder picker dialog
-- Select destination folder
-- Call `moveFile(fileId, newFolderId)`
+Instead of requiring users to navigate to a folder before saving, provide a dialog with folder selection.
 
-For v1, users can save to a folder by navigating there first.
+**When user clicks "Save All Layers":**
+
+```
+┌───────────────────────────────────────────────────────┐
+│  Save to Cloud                                     [X]│
+├───────────────────────────────────────────────────────┤
+│  File name: [my-route.gpx________________]            │
+│                                                       │
+│  Save to:                                             │
+│  ┌─────────────────────────────────────────────────┐  │
+│  │ 📁 My Files (root)                     [Create] │  │
+│  │   ├── 📁 Day 1 Routes              ▼           │  │
+│  │   │     └── 📁 Morning Hikes                   │  │
+│  │   ├── 📁 Day 2 Routes                          │  │
+│  │   └── 📁 Challenges                            │  │
+│  │ ─────────────────────────────────────          │  │
+│  │ 🌐 Shared Folders                              │  │
+│  │   └── 🌐 DEF CON 34 Official                   │  │
+│  └─────────────────────────────────────────────────┘  │
+│                                                       │
+│             [Cancel]  [Save]                          │
+└───────────────────────────────────────────────────────┘
+```
+
+**Features:**
+- Tree view of all folders (collapsible)
+- Click folder to select as destination (highlighted)
+- "Create" button to make new folder inline
+- Shows both personal and global folders (separated)
+- Remembers last-used folder via localStorage
+- Validates file name before allowing save
+
+**Why folder picker dialog instead of navigate-first:**
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Navigate-first | Simple implementation | Must navigate away, easy to save to wrong place |
+| Folder picker | Clear destination, can create inline, remembers last folder | More UI complexity |
+
+#### FolderPicker Component
+
+```typescript
+// FolderPicker.svelte
+export interface FolderPickerProps {
+  selectedFolderId: string | null;
+  onSelect: (folderId: string | null) => void;
+  showGlobal?: boolean;
+  allowCreate?: boolean;
+}
+
+interface FolderNode {
+  folder: CloudFolder;
+  children: FolderNode[];
+}
+
+let expandedFolders: Set<string> = new Set();
+
+// Build tree from flat folder list
+function buildFolderTree(folders: CloudFolder[]): FolderNode[] {
+  const rootFolders = folders.filter(f => !f.parentFolderId);
+  return rootFolders.map(folder => ({
+    folder,
+    children: buildChildTree(folder.folderId, folders)
+  }));
+}
+
+function buildChildTree(parentId: string, folders: CloudFolder[]): FolderNode[] {
+  return folders
+    .filter(f => f.parentFolderId === parentId)
+    .map(folder => ({
+      folder,
+      children: buildChildTree(folder.folderId, folders)
+    }));
+}
+```
+
+#### SaveDialog Component
+
+```typescript
+// SaveDialog.svelte
+let showSaveDialog = false;
+let saveFileName = '';
+let saveFolderId: string | null = null;
+
+function openSaveDialog(defaultName: string) {
+  saveFileName = defaultName;
+  saveFolderId = localStorage.getItem('gpx_lastSaveFolder') || null;
+  showSaveDialog = true;
+}
+
+async function confirmSave() {
+  if (!saveFileName.trim()) return;
+
+  await saveToCloud(saveFileName.trim(), saveFolderId);
+
+  // Remember folder choice
+  if (saveFolderId) {
+    localStorage.setItem('gpx_lastSaveFolder', saveFolderId);
+  } else {
+    localStorage.removeItem('gpx_lastSaveFolder');
+  }
+
+  showSaveDialog = false;
+}
+```
+
+#### Inline Folder Creation in Picker
+
+```svelte
+{#if creatingFolderInPicker}
+  <div class="flex items-center gap-2 pl-6 py-1">
+    <FolderPlus class="h-4 w-4 text-muted-foreground" />
+    <input
+      type="text"
+      class="border rounded px-2 py-1 text-sm flex-1"
+      placeholder="New folder name"
+      bind:value={newFolderNameInPicker}
+      onkeydown={(e) => {
+        if (e.key === 'Enter') createFolderInPicker();
+        if (e.key === 'Escape') creatingFolderInPicker = false;
+      }}
+      autofocus
+    />
+    <Button size="sm" onclick={createFolderInPicker}>Create</Button>
+    <Button size="sm" variant="ghost" onclick={() => creatingFolderInPicker = false}>Cancel</Button>
+  </div>
+{/if}
+```
+
+### Moving Files
+
+Users can move files between folders using a folder picker dialog:
+
+**Move action on file row:**
+```svelte
+<Button variant="ghost" size="icon" onclick={() => openMoveDialog(file)}>
+  <FolderInput class="h-4 w-4" />
+</Button>
+```
+
+**Move dialog reuses FolderPicker component:**
+```typescript
+let showMoveDialog = false;
+let movingFile: CloudFile | null = null;
+let moveTargetFolderId: string | null = null;
+
+async function confirmMove() {
+  if (!movingFile) return;
+  await moveFile(movingFile.fileId, moveTargetFolderId);
+  showMoveDialog = false;
+  movingFile = null;
+}
+```
 
 ### Tag UI
 
@@ -986,7 +1165,10 @@ If a folder is somehow deleted with files still referencing it (shouldn't happen
 3. Update file list to show folders first
 4. Add create folder UI (inline input)
 5. Add folder rename/delete actions
-6. Update save flow to use current folder
+6. **Add FolderPicker component** (tree view, collapsible)
+7. **Add SaveDialog component** with folder picker
+8. Implement "Move to folder" action using FolderPicker
+9. Store last-used folder in localStorage
 
 ### Phase 4: Frontend - Tags
 1. Add tag state management to `cloud-sync.ts`
@@ -1033,7 +1215,21 @@ If a folder is somehow deleted with files still referencing it (shouldn't happen
 - [ ] Save file to current folder
 - [ ] Files without folder appear in root
 - [ ] Duplicate folder name rejected (case-insensitive)
-- [ ] Move file between folders (if implemented)
+
+### Save Dialog & Folder Picker
+- [ ] Save dialog opens when clicking "Save All Layers"
+- [ ] Folder picker shows tree view of all folders
+- [ ] Clicking folder selects it (visual highlight)
+- [ ] Root folder selectable (null folderId)
+- [ ] Global folders appear in separate section
+- [ ] Can create new folder inline from picker
+- [ ] Inline folder creation validates name
+- [ ] Save button disabled with empty filename
+- [ ] Last-used folder remembered in localStorage
+- [ ] Last-used folder pre-selected on dialog open
+- [ ] Move file dialog uses same FolderPicker component
+- [ ] Move action updates file's folderId
+- [ ] Folder tree is collapsible (expand/collapse arrows)
 
 ### Global Folders
 - [ ] Admin can create global folder
@@ -1041,7 +1237,10 @@ If a folder is somehow deleted with files still referencing it (shouldn't happen
 - [ ] Global folders appear in all users' Shared Folders section
 - [ ] Any gpxstudio user can upload to global folder
 - [ ] Any gpxstudio user can download from global folder
-- [ ] Any gpxstudio user can delete files in global folder
+- [ ] User can only rename/delete files they uploaded (uploadedBy check)
+- [ ] User cannot rename/delete files uploaded by others (403)
+- [ ] Admin can rename/delete any file in global folder
+- [ ] Only admin can create subfolders in global folders
 - [ ] Only creator/admin can delete global folder itself
 - [ ] Only creator/admin can rename global folder
 - [ ] Max 10 global folders enforced

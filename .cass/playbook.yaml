@@ -1,0 +1,12 @@
+# Project-specific playbook rules
+# These are merged with your global ~/.cass-memory/playbook.yaml
+# Project rules take precedence over global rules
+schema_version: 2
+name: repo-playbook
+description: Project-specific rules for this repository
+metadata:
+  createdAt: 2026-01-13T04:12:39.193Z
+  totalReflections: 0
+  totalSessionsProcessed: 0
+deprecatedPatterns: []
+bullets: []

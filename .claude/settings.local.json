@@ -99,7 +99,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:warnings.authjs.dev)",
       "WebFetch(domain:svelte.dev)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(cass:*)"
     ],
     "deny": [],
     "ask": []
