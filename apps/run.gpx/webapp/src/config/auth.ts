@@ -58,7 +58,9 @@ export const authConfig: NextAuthConfig = {
     async jwt({ token, account, profile }) {
       if (account?.provider === "run.defcon.run" && profile) {
         // Extract services and mapboxPublicToken from OIDC claims
-        token.services = (profile as { services?: string[] }).services ?? [];
+        // Ensure services is always an array (guard against malformed OIDC claims)
+        const profileServices = (profile as { services?: string[] }).services;
+        token.services = Array.isArray(profileServices) ? profileServices : [];
         token.mapboxPublicToken = (profile as { mapboxPublicToken?: string })
           .mapboxPublicToken;
         token.sub = profile.sub as string;
@@ -68,8 +70,10 @@ export const authConfig: NextAuthConfig = {
 
     async session({ session, token }) {
       // Expose services and mapbox token to client
+      // Ensure services is always an array
+      const tokenServices = token.services as string[] | undefined;
       (session.user as { services?: string[] }).services =
-        (token.services as string[]) ?? [];
+        Array.isArray(tokenServices) ? tokenServices : [];
       (session.user as { mapboxPublicToken?: string }).mapboxPublicToken =
         token.mapboxPublicToken as string | undefined;
       if (token.sub) {
