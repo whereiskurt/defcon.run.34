@@ -108,12 +108,11 @@ export const GpxFile = new Entity(
         required: true,
         default: "ROOT", // "ROOT" = root level (sentinel value for GSI)
       },
-      // Tags for flexible categorization
+      // Tags for flexible categorization (no default - DynamoDB doesn't allow empty sets)
       tags: {
         type: "set",
         items: "string",
         required: false,
-        default: [],
       },
       // For global folders - tracks who uploaded the file
       uploadedBy: {
