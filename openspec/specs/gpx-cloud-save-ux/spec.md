@@ -1,6 +1,6 @@
 # GPX Cloud Storage Save UX Improvements
 
-**Status:** Draft
+**Status:** Implemented (pending testing)
 **Beads:** dcr34-3k1
 **Created:** 2026-01-13
 
