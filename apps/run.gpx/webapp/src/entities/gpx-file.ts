@@ -102,6 +102,23 @@ export const GpxFile = new Entity(
         type: "number",
         required: false,
       },
+      // Folder organization
+      folderId: {
+        type: "string",
+        required: true,
+        default: "ROOT", // "ROOT" = root level (sentinel value for GSI)
+      },
+      // Tags for flexible categorization (no default - DynamoDB doesn't allow empty sets)
+      tags: {
+        type: "set",
+        items: "string",
+        required: false,
+      },
+      // For global folders - tracks who uploaded the file
+      uploadedBy: {
+        type: "string",
+        required: false,
+      },
     },
     indexes: {
       primary: {
@@ -123,6 +140,18 @@ export const GpxFile = new Entity(
         sk: {
           field: "gsi1sk",
           composite: ["createdAt"],
+        },
+      },
+      // Query files by folder
+      byFolder: {
+        index: "gsi2pk-gsi2sk-index",
+        pk: {
+          field: "gsi2pk",
+          composite: ["userId"],
+        },
+        sk: {
+          field: "gsi2sk",
+          composite: ["folderId", "createdAt"],
         },
       },
     },

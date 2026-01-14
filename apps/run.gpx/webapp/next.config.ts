@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 // Environment variables for regional deployment
+const isDev = process.env.NODE_ENV !== "production";
 const WEBAPP_ORIGIN = process.env.WEBAPP_ORIGIN || "gpx.defcon.run";
 const WEBAPP_PREFIX = process.env.WEBAPP_PREFIX || "use1/assets";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
@@ -8,11 +9,13 @@ const REGION_SHORT = process.env.REGION_SHORT || "use1";
 const nextConfig: NextConfig = {
   output: "standalone",
 
-  // Mount app at /{region} path (e.g., /use1 or /cac1)
-  basePath: `/${REGION_SHORT}`,
+  // Mount app at /{region} path in production (e.g., /use1 or /cac1)
+  // In dev, no basePath so GPX Studio's absolute paths work correctly
+  ...(isDev ? {} : { basePath: `/${REGION_SHORT}` }),
 
-  // Asset prefix for CDN - rewrites <script> / <link> tags
-  assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}`,
+  // Asset prefix for CDN in production - rewrites <script> / <link> tags
+  // In dev, no assetPrefix needed
+  ...(isDev ? {} : { assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}` }),
 
   // GPX Studio frontend is built to public/studio/ and served as static files
   // With basePath, rewrites are relative to basePath (e.g., /use1/studio/app)

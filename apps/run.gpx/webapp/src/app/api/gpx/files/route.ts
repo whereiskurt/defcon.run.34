@@ -8,8 +8,11 @@ import { v4 as uuidv4 } from "uuid";
 
 /**
  * GET /api/gpx/files - List user's GPX files
+ * Query params:
+ *   - folderId (optional) - Filter by folder. Omit or "root" for root level files.
+ *   - global (optional) - If "true", list files from global context
  */
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -21,12 +24,21 @@ export async function GET() {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
   }
 
-  try {
-    const result = await GpxFile.query
-      .byCreatedAt({ userId: session.user.id })
-      .go({ order: "desc" });
+  const { searchParams } = new URL(request.url);
+  const folderId = searchParams.get("folderId");
+  const isGlobal = searchParams.get("global") === "true";
+  const targetUserId = isGlobal ? "GLOBAL" : session.user.id;
 
-    return NextResponse.json({ files: result.data });
+  try {
+    // Use "ROOT" as sentinel value for root-level files
+    const targetFolderId = (folderId && folderId !== "root") ? folderId : "ROOT";
+
+    const result = await GpxFile.query
+      .byFolder({ userId: targetUserId, folderId: targetFolderId })
+      .go({ order: "desc" });
+    const files = result.data;
+
+    return NextResponse.json({ files });
   } catch (error) {
     console.error("Error listing GPX files:", error);
     return NextResponse.json(
@@ -38,6 +50,11 @@ export async function GET() {
 
 /**
  * POST /api/gpx/files - Create new file record and return presigned upload URL
+ * Request body:
+ *   - fileName (required)
+ *   - fileSize (optional)
+ *   - folderId (optional) - Folder to save to
+ *   - trackCount, waypointCount, totalDistance, totalElevation (optional metadata)
  */
 export async function POST(request: Request) {
   const session = await auth();
@@ -52,7 +69,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { fileName, fileSize } = await request.json();
+    const {
+      fileName,
+      fileSize,
+      folderId,
+      trackCount,
+      waypointCount,
+      totalDistance,
+      totalElevation,
+    } = await request.json();
 
     if (!fileName) {
       return NextResponse.json(
@@ -61,8 +86,41 @@ export async function POST(request: Request) {
       );
     }
 
+    // Determine if saving to a global folder
+    let targetUserId = session.user.id;
+    let isGlobalFolder = false;
+
+    if (folderId) {
+      // Check if this is a global folder
+      const { GpxFolder } = await import("@/entities/gpx-folder");
+
+      // Try user folder first
+      let folder = await GpxFolder.get({
+        userId: session.user.id,
+        folderId,
+      }).go();
+
+      if (!folder.data) {
+        // Check global folder
+        folder = await GpxFolder.get({
+          userId: "GLOBAL",
+          folderId,
+        }).go();
+
+        if (folder.data) {
+          isGlobalFolder = true;
+          targetUserId = "GLOBAL";
+        } else {
+          return NextResponse.json(
+            { error: "Folder not found" },
+            { status: 404 }
+          );
+        }
+      }
+    }
+
     const fileId = uuidv4();
-    const key = `${getUserPrefix(session.user.id)}${fileId}.gpx`;
+    const key = `${getUserPrefix(targetUserId)}${fileId}.gpx`;
 
     // Generate presigned upload URL
     const command = new PutObjectCommand({
@@ -75,12 +133,18 @@ export async function POST(request: Request) {
 
     // Create DynamoDB record
     await GpxFile.create({
-      userId: session.user.id,
+      userId: targetUserId,
       fileId,
       fileName,
       bucket: BUCKET,
       key,
       fileSize: fileSize || 0,
+      folderId: folderId || "ROOT", // Use "ROOT" sentinel for root-level files
+      trackCount: trackCount || 0,
+      waypointCount: waypointCount || 0,
+      totalDistance: totalDistance || 0,
+      totalElevation: totalElevation || 0,
+      uploadedBy: isGlobalFolder ? session.user.id : undefined,
     }).go();
 
     return NextResponse.json({ uploadUrl, fileId, key });

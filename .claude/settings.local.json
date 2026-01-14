@@ -100,7 +100,9 @@
       "WebFetch(domain:warnings.authjs.dev)",
       "WebFetch(domain:svelte.dev)",
       "WebSearch",
-      "Bash(cass:*)"
+      "Bash(cass:*)",
+      "WebFetch(domain:console.anthropic.com)",
+      "Bash(./build-frontend.sh:*)"
     ],
     "deny": [],
     "ask": []

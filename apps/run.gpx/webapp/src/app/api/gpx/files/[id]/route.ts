@@ -27,10 +27,22 @@ export async function GET(request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    const result = await GpxFile.get({
+    // Try user file first
+    let result = await GpxFile.get({
       userId: session.user.id,
       fileId: id,
     }).go();
+
+    let targetUserId = session.user.id;
+
+    // If not found, try global file
+    if (!result.data) {
+      result = await GpxFile.get({
+        userId: "GLOBAL",
+        fileId: id,
+      }).go();
+      targetUserId = "GLOBAL";
+    }
 
     if (!result.data) {
       return NextResponse.json({ error: "File not found" }, { status: 404 });
@@ -48,7 +60,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     // Update last opened timestamp
     await GpxFile.update({
-      userId: session.user.id,
+      userId: targetUserId,
       fileId: id,
     })
       .set({ lastOpenedAt: Date.now() })
@@ -66,6 +78,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
 /**
  * PUT /api/gpx/files/[id] - Update file metadata
+ * Request body can include: fileName, folderId (to move file), and other metadata
  */
 export async function PUT(request: Request, { params }: RouteParams) {
   const session = await auth();
@@ -84,6 +97,37 @@ export async function PUT(request: Request, { params }: RouteParams) {
   try {
     const updates = await request.json();
 
+    // Try user file first
+    let file = await GpxFile.get({
+      userId: session.user.id,
+      fileId: id,
+    }).go();
+
+    let targetUserId = session.user.id;
+
+    // If not found, try global file
+    if (!file.data) {
+      file = await GpxFile.get({
+        userId: "GLOBAL",
+        fileId: id,
+      }).go();
+
+      if (!file.data) {
+        return NextResponse.json({ error: "File not found" }, { status: 404 });
+      }
+
+      // For global files, only uploader or admin can modify
+      const isAdmin = services.includes("admin");
+      if (file.data.uploadedBy !== session.user.id && !isAdmin) {
+        return NextResponse.json(
+          { error: "Only the uploader or admin can modify this file" },
+          { status: 403 }
+        );
+      }
+
+      targetUserId = "GLOBAL";
+    }
+
     // Only allow updating specific fields
     const allowedFields = [
       "fileName",
@@ -93,17 +137,23 @@ export async function PUT(request: Request, { params }: RouteParams) {
       "totalDistance",
       "totalElevation",
       "bounds",
+      "folderId", // Allow moving files between folders
     ];
 
     const filteredUpdates: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
-        filteredUpdates[field] = updates[field];
+        // Handle folderId: null means move to root (use "ROOT" sentinel)
+        if (field === "folderId") {
+          filteredUpdates[field] = updates[field] || "ROOT";
+        } else {
+          filteredUpdates[field] = updates[field];
+        }
       }
     }
 
     const result = await GpxFile.update({
-      userId: session.user.id,
+      userId: targetUserId,
       fileId: id,
     })
       .set(filteredUpdates)
@@ -137,26 +187,47 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   const { id } = await params;
 
   try {
-    // Get file metadata first
-    const result = await GpxFile.get({
+    // Try user file first
+    let file = await GpxFile.get({
       userId: session.user.id,
       fileId: id,
     }).go();
 
-    if (!result.data) {
-      return NextResponse.json({ error: "File not found" }, { status: 404 });
+    let targetUserId = session.user.id;
+
+    // If not found, try global file
+    if (!file.data) {
+      file = await GpxFile.get({
+        userId: "GLOBAL",
+        fileId: id,
+      }).go();
+
+      if (!file.data) {
+        return NextResponse.json({ error: "File not found" }, { status: 404 });
+      }
+
+      // For global files, only uploader or admin can delete
+      const isAdmin = services.includes("admin");
+      if (file.data.uploadedBy !== session.user.id && !isAdmin) {
+        return NextResponse.json(
+          { error: "Only the uploader or admin can delete this file" },
+          { status: 403 }
+        );
+      }
+
+      targetUserId = "GLOBAL";
     }
 
     // Delete from S3
     const deleteCommand = new DeleteObjectCommand({
-      Bucket: result.data.bucket,
-      Key: result.data.key,
+      Bucket: file.data.bucket,
+      Key: file.data.key,
     });
     await s3Client.send(deleteCommand);
 
     // Delete from DynamoDB
     await GpxFile.delete({
-      userId: session.user.id,
+      userId: targetUserId,
       fileId: id,
     }).go();
 
