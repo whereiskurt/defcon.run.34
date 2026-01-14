@@ -143,9 +143,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
     const filteredUpdates: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
-        // Handle folderId: null means move to root
-        if (field === "folderId" && updates[field] === null) {
-          filteredUpdates[field] = undefined; // ElectroDB uses undefined for "no value"
+        // Handle folderId: null means move to root (use "ROOT" sentinel)
+        if (field === "folderId") {
+          filteredUpdates[field] = updates[field] || "ROOT";
         } else {
           filteredUpdates[field] = updates[field];
         }

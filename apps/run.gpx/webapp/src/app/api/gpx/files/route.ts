@@ -30,23 +30,13 @@ export async function GET(request: Request) {
   const targetUserId = isGlobal ? "GLOBAL" : session.user.id;
 
   try {
-    let files;
+    // Use "ROOT" as sentinel value for root-level files
+    const targetFolderId = (folderId && folderId !== "root") ? folderId : "ROOT";
 
-    if (folderId && folderId !== "root") {
-      // Get files in specific folder
-      const result = await GpxFile.query
-        .byFolder({ userId: targetUserId })
-        .where(({ folderId: fid }, { eq }) => eq(fid, folderId))
-        .go({ order: "desc" });
-      files = result.data;
-    } else {
-      // Get root level files (no folder)
-      const result = await GpxFile.query
-        .byFolder({ userId: targetUserId })
-        .where(({ folderId: fid }, { notExists }) => notExists(fid))
-        .go({ order: "desc" });
-      files = result.data;
-    }
+    const result = await GpxFile.query
+      .byFolder({ userId: targetUserId, folderId: targetFolderId })
+      .go({ order: "desc" });
+    const files = result.data;
 
     return NextResponse.json({ files });
   } catch (error) {
@@ -149,7 +139,7 @@ export async function POST(request: Request) {
       bucket: BUCKET,
       key,
       fileSize: fileSize || 0,
-      folderId: folderId || undefined,
+      folderId: folderId || "ROOT", // Use "ROOT" sentinel for root-level files
       trackCount: trackCount || 0,
       waypointCount: waypointCount || 0,
       totalDistance: totalDistance || 0,

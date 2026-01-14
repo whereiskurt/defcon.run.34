@@ -45,8 +45,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
     // Count items in folder
     const filesResult = await GpxFile.query
-      .byFolder({ userId: result.data.userId })
-      .where(({ folderId: fid }, { eq }) => eq(fid, id))
+      .byFolder({ userId: result.data.userId, folderId: id })
       .go();
 
     const subFolders = await GpxFolder.query
@@ -238,8 +237,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     // Check if folder is empty (no files)
     const filesResult = await GpxFile.query
-      .byFolder({ userId: targetUserId })
-      .where(({ folderId: fid }, { eq }) => eq(fid, id))
+      .byFolder({ userId: targetUserId, folderId: id })
       .go();
 
     if (filesResult.data.length > 0) {

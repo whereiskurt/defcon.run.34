@@ -105,8 +105,8 @@ export const GpxFile = new Entity(
       // Folder organization
       folderId: {
         type: "string",
-        required: false,
-        default: undefined, // undefined = root level
+        required: true,
+        default: "ROOT", // "ROOT" = root level (sentinel value for GSI)
       },
       // Tags for flexible categorization
       tags: {
