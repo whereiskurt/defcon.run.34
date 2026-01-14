@@ -49,8 +49,8 @@ export const GpxFolder = new Entity(
       },
       parentFolderId: {
         type: "string",
-        required: false,
-        default: undefined, // undefined = root level
+        required: true,
+        default: "ROOT", // "ROOT" = root level (sentinel value for GSI)
       },
       depth: {
         type: "number",

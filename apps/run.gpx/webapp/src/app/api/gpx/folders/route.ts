@@ -27,41 +27,22 @@ export async function GET(request: Request) {
   const includeGlobal = searchParams.get("includeGlobal") === "true";
 
   try {
-    // Query folders for this user with optional parent filter
-    let userFolders: GpxFolderItem[] = [];
+    // Use "ROOT" sentinel for root-level folders
+    const targetParentId = parentId || "ROOT";
 
-    if (parentId) {
-      // Get folders with specific parent
-      const result = await GpxFolder.query
-        .byParent({ userId: session.user.id })
-        .where(({ parentFolderId }, { eq }) => eq(parentFolderId, parentId))
-        .go();
-      userFolders = result.data;
-    } else {
-      // Get root level folders (no parent)
-      const result = await GpxFolder.query
-        .byParent({ userId: session.user.id })
-        .where(({ parentFolderId }, { notExists }) => notExists(parentFolderId))
-        .go();
-      userFolders = result.data;
-    }
+    // Query folders for this user with parent filter
+    const userResult = await GpxFolder.query
+      .byParent({ userId: session.user.id, parentFolderId: targetParentId })
+      .go();
+    const userFolders = userResult.data;
 
     // Optionally include global folders
     let globalFolders: GpxFolderItem[] = [];
     if (includeGlobal) {
-      if (parentId) {
-        const globalResult = await GpxFolder.query
-          .byParent({ userId: "GLOBAL" })
-          .where(({ parentFolderId }, { eq }) => eq(parentFolderId, parentId))
-          .go();
-        globalFolders = globalResult.data;
-      } else {
-        const globalResult = await GpxFolder.query
-          .byParent({ userId: "GLOBAL" })
-          .where(({ parentFolderId }, { notExists }) => notExists(parentFolderId))
-          .go();
-        globalFolders = globalResult.data;
-      }
+      const globalResult = await GpxFolder.query
+        .byParent({ userId: "GLOBAL", parentFolderId: targetParentId })
+        .go();
+      globalFolders = globalResult.data;
     }
 
     return NextResponse.json({
@@ -175,15 +156,10 @@ export async function POST(request: Request) {
     }
 
     // Check for duplicate name in same parent (case-insensitive)
-    const siblingFolders = parentFolderId
-      ? await GpxFolder.query
-          .byParent({ userId: targetUserId })
-          .where(({ parentFolderId: pf }, { eq }) => eq(pf, parentFolderId))
-          .go()
-      : await GpxFolder.query
-          .byParent({ userId: targetUserId })
-          .where(({ parentFolderId: pf }, { notExists }) => notExists(pf))
-          .go();
+    const targetParent = parentFolderId || "ROOT";
+    const siblingFolders = await GpxFolder.query
+      .byParent({ userId: targetUserId, parentFolderId: targetParent })
+      .go();
 
     const duplicateExists = siblingFolders.data.some(
       (f) => f.folderName.toLowerCase() === trimmedName.toLowerCase()
@@ -202,7 +178,7 @@ export async function POST(request: Request) {
       userId: targetUserId,
       folderId,
       folderName: trimmedName,
-      parentFolderId: parentFolderId || undefined,
+      parentFolderId: parentFolderId || "ROOT", // Use "ROOT" sentinel for root-level
       depth,
       isGlobal: isGlobal || false,
       createdBy: isGlobal ? session.user.id : undefined,

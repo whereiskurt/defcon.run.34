@@ -49,8 +49,7 @@ export async function GET(request: Request, { params }: RouteParams) {
       .go();
 
     const subFolders = await GpxFolder.query
-      .byParent({ userId: result.data.userId })
-      .where(({ parentFolderId }, { eq }) => eq(parentFolderId, id))
+      .byParent({ userId: result.data.userId, parentFolderId: id })
       .go();
 
     return NextResponse.json({
@@ -144,16 +143,10 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     // Check for duplicate name in same parent (case-insensitive)
-    const parentFolderId = folder.data.parentFolderId;
-    const siblingFolders = parentFolderId
-      ? await GpxFolder.query
-          .byParent({ userId: targetUserId })
-          .where(({ parentFolderId: pf }, { eq }) => eq(pf, parentFolderId))
-          .go()
-      : await GpxFolder.query
-          .byParent({ userId: targetUserId })
-          .where(({ parentFolderId: pf }, { notExists }) => notExists(pf))
-          .go();
+    const parentFolderId = folder.data.parentFolderId || "ROOT";
+    const siblingFolders = await GpxFolder.query
+      .byParent({ userId: targetUserId, parentFolderId })
+      .go();
 
     const duplicateExists = siblingFolders.data.some(
       (f) =>
@@ -249,8 +242,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
     // Check if folder has subfolders
     const subFolders = await GpxFolder.query
-      .byParent({ userId: targetUserId })
-      .where(({ parentFolderId }, { eq }) => eq(parentFolderId, id))
+      .byParent({ userId: targetUserId, parentFolderId: id })
       .go();
 
     if (subFolders.data.length > 0) {
