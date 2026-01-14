@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { GpxFile } from "@/entities/gpx-file";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  DeleteObjectCommand,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/s3-client";
 
 interface RouteParams {
@@ -77,8 +81,10 @@ export async function GET(request: Request, { params }: RouteParams) {
 }
 
 /**
- * PUT /api/gpx/files/[id] - Update file metadata
- * Request body can include: fileName, folderId (to move file), and other metadata
+ * PUT /api/gpx/files/[id] - Update file metadata or content
+ * Request body can include:
+ * - fileName, folderId (to move file), and other metadata
+ * - updateContent: true to get a presigned URL for uploading new content
  */
 export async function PUT(request: Request, { params }: RouteParams) {
   const session = await auth();
@@ -152,6 +158,19 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }
     }
 
+    // If updateContent is requested, generate presigned upload URL
+    let uploadUrl: string | undefined;
+    if (updates.updateContent) {
+      const putCommand = new PutObjectCommand({
+        Bucket: file.data.bucket,
+        Key: file.data.key,
+        ContentType: "application/gpx+xml",
+      });
+      uploadUrl = await getSignedUrl(s3Client, putCommand, {
+        expiresIn: 3600,
+      });
+    }
+
     const result = await GpxFile.update({
       userId: targetUserId,
       fileId: id,
@@ -159,7 +178,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .set(filteredUpdates)
       .go({ response: "all_new" });
 
-    return NextResponse.json({ file: result.data });
+    const response: { file: typeof result.data; uploadUrl?: string } = {
+      file: result.data,
+    };
+    if (uploadUrl) {
+      response.uploadUrl = uploadUrl;
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error updating GPX file:", error);
     return NextResponse.json(
