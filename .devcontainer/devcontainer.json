@@ -33,7 +33,8 @@
         "donjayamanne.python-extension-pack"
       ],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "task.allowAutomaticTasks": "on"
       }
     }
   },
