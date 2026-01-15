@@ -198,12 +198,14 @@ The project uses four integrated tools for managing work:
 Always run before completing a session:
 
 ```bash
-git status              # Check what changed
-git add <files>         # Stage code changes
-bd sync                 # Commit beads changes
-git commit -m "..."     # Commit code
-bd sync                 # Commit any new beads changes
-git push                # Push to remote
+git status                        # Check what changed
+git checkout -b <branch>          # Create feature branch (if not already on one)
+git add <files>                   # Stage code changes (NOT .beads/)
+bd sync --from-main               # Pull beads updates from main
+git commit -m "..."               # Commit code
+git push -u origin <branch>       # Push branch to remote
+gh pr create                      # Create PR for review
+# ^^^ STOP - wait for user review/approval before merging
 ```
 
 ### Quick Reference
