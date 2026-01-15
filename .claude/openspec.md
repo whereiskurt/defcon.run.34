@@ -59,15 +59,18 @@ OpenSpec works alongside other tools in this project:
 
 ### Stage 2: Implementing Changes
 
-1. **Read proposal.md** - Understand what's being built
-2. **Read design.md** (if exists) - Review technical decisions
-3. **Read tasks.md** - Get implementation checklist
-4. **Track with beads** - Use `bd create` to track tasks from `tasks.md` (optional for complex work)
-5. **Implement tasks sequentially** - Complete in order, use `bv --robot-triage` to find ready work
-6. **Confirm completion** - Ensure every item in `tasks.md` is finished
-7. **Update checklist** - Set every task to `- [x]`, close beads with `bd close`
-8. **Sync** - Run `bd sync` to commit beads changes
-9. **Approval gate** - Do not start until proposal is approved
+1. **Approval gate** - Do not start until proposal is approved
+2. **Read proposal.md** - Understand what's being built
+3. **Read design.md** (if exists) - Review technical decisions
+4. **Read tasks.md** - Get implementation checklist
+5. **Track with beads** - Use `bd create` to track tasks from `tasks.md` (optional for complex work)
+6. **Create feature branch** - `git checkout -b <branch-name>` (never commit to main)
+7. **Implement tasks sequentially** - Complete in order, use `bv --robot-triage` to find ready work
+8. **Confirm completion** - Ensure every item in `tasks.md` is finished
+9. **Update checklist** - Set every task to `- [x]`, close beads with `bd close`
+10. **Sync and commit** - `bd sync --from-main`, then `git add <files> && git commit`
+11. **Create PR** - `git push -u origin <branch> && gh pr create`
+12. **Wait for approval** - Do NOT merge until user explicitly approves
 
 ### Stage 3: Archiving Changes
 

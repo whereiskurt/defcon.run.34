@@ -63,7 +63,13 @@ bd update <id> --status=in_progress   # Claim it
 
 ```bash
 bd close <id1> <id2> ...              # Close all completed issues
-bd sync                               # Push to remote
+git checkout -b <branch>              # Create feature branch (if not already on one)
+git add <files>                       # Stage code changes (NOT .beads/)
+bd sync --from-main                   # Pull beads updates from main
+git commit -m "..."                   # Commit code
+git push -u origin <branch>           # Push branch to remote
+gh pr create                          # Create PR for review
+# ^^^ STOP - wait for user review/approval before merging
 ```
 
 ## Issue Visualization (bv)
