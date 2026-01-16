@@ -153,10 +153,22 @@ AUTH_EOF
 fi
 
 echo "2. Installing dependencies..."
+# First install gpx library dependencies (website depends on it via file:../gpx)
+echo "   Installing gpx library dependencies..."
+cd "$SCRIPT_DIR/gpx-studio/gpx"
+npm install
+cd "$GPX_STUDIO_DIR"
+# Now install website dependencies (will also build the gpx library)
 npm install
 
 echo "3. Building gpx.studio..."
 # Set BASE_PATH so SvelteKit prefixes all asset URLs with /studio
+# PUBLIC_MAPBOX_TOKEN is required at build time by SvelteKit's $env/static/public
+# Source from webapp's .env or use placeholder if not set
+if [ -f "$WEBAPP_DIR/.env" ]; then
+  MAPBOX_TOKEN=$(grep "^MAPBOX_DEFAULT_TOKEN=" "$WEBAPP_DIR/.env" | cut -d'=' -f2)
+fi
+export PUBLIC_MAPBOX_TOKEN="${MAPBOX_TOKEN:-pk.placeholder}"
 BASE_PATH=/studio npm run build
 
 echo "4. Copying build output to webapp..."
