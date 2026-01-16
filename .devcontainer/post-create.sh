@@ -3,6 +3,8 @@
 
 set -e
 
+npm install -g @anthropic-ai/claude-code
+
 echo "=== Installing webapp dependencies ==="
 
 # Clean and install run.auth dependencies
@@ -29,6 +31,16 @@ if [ -d "apps/run.cms/app" ]; then
   cd apps/run.cms/app && npm install && cd -
 fi
 
+
+# Clean and install run.cms dependencies
+if [ -d "apps/run.gpx/webapp" ]; then
+  echo "Cleaning run.gpx node_modules..."
+  rm -rf apps/run.gpx/webapp/node_modules
+  echo "Installing run.gpx (gpx.studio) dependencies..."
+  cd apps/run.gpx/webapp && npm install && cd -
+  cd apps/run.gpx/ && ./build-frontend.sh && cd -
+fi
+
 echo "=== Verifying tool installations ==="
 echo "Node: $(node --version)"
 echo "npm: $(npm --version)"
@@ -42,6 +54,7 @@ echo ""
 echo "=== defcon.run 34 Development Environment Ready ==="
 echo ""
 echo "Quick start:"
+echo "  cd apps/run.gpx/webapp && PORT=3003 npm run dev"
 echo "  cd apps/run.auth/webapp && PORT=3002 npm run dev"
 echo "  cd apps/run.human/webapp && PORT=3001 npm run dev"
 echo "  cd apps/run.cms/app && PORT=1337 npm run dev"

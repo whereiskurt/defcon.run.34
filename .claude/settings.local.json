@@ -7,8 +7,11 @@
       "Bash(aws:*)",
       "Bash(bd:*)",
       "Bash(brew install:*)",
+      "Bash(./build-frontend.sh:*)",
       "Bash(bv:*)",
+      "Bash(cass:*)",
       "Bash(cat:*)",
+      "Bash(claude:*)",
       "Bash(chmod:*)",
       "Bash(cm:*)",
       "Bash(cp:*)",
@@ -100,9 +103,7 @@
       "WebFetch(domain:warnings.authjs.dev)",
       "WebFetch(domain:svelte.dev)",
       "WebSearch",
-      "Bash(cass:*)",
-      "WebFetch(domain:console.anthropic.com)",
-      "Bash(./build-frontend.sh:*)"
+      "WebFetch(domain:console.anthropic.com)"
     ],
     "deny": [],
     "ask": []

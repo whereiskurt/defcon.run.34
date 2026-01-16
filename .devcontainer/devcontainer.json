@@ -33,12 +33,17 @@
         "donjayamanne.python-extension-pack"
       ],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "task.allowAutomaticTasks": "on"
       }
     }
   },
-  "forwardPorts": [3001, 3002, 1337],
+  "forwardPorts": [3001, 3002, 3003, 1337],
   "portsAttributes": {
+    "3003": {
+      "label": "run.gpx",
+      "onAutoForward": "notify"
+    },
     "3002": {
       "label": "run.auth",
       "onAutoForward": "notify"
