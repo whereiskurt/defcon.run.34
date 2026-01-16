@@ -51,14 +51,15 @@ export async function GET(request: Request, { params }: RouteParams) {
     const versionCount = file.versionCount || 1;
     const currentVersion = file.version || 1;
 
-    // Check existence of each version in S3
+    // Check existence of each version in S3 and get metadata
     const versionChecks = [];
     for (let v = 1; v <= versionCount; v++) {
       const versionKey = `${getUserPrefix(targetUserId)}${id}.v${v}.gpx`;
       versionChecks.push(
-        checkVersionExists(file.bucket, versionKey).then((exists) => ({
+        checkVersionMetadata(file.bucket, versionKey).then((meta) => ({
           version: v,
-          exists,
+          exists: meta.exists,
+          createdAt: meta.lastModified,
         }))
       );
     }
@@ -79,27 +80,30 @@ export async function GET(request: Request, { params }: RouteParams) {
 }
 
 /**
- * Check if an S3 object exists using HeadObject (faster than GetObject)
+ * Check if an S3 object exists and get metadata using HeadObject
  */
-async function checkVersionExists(
+async function checkVersionMetadata(
   bucket: string,
   key: string
-): Promise<boolean> {
+): Promise<{ exists: boolean; lastModified?: number }> {
   try {
-    await s3Client.send(
+    const response = await s3Client.send(
       new HeadObjectCommand({
         Bucket: bucket,
         Key: key,
       })
     );
-    return true;
+    return {
+      exists: true,
+      lastModified: response.LastModified?.getTime(),
+    };
   } catch (error) {
     // NotFound error means the object doesn't exist
     if ((error as { name?: string }).name === "NotFound") {
-      return false;
+      return { exists: false };
     }
     // For other errors, log and assume not exists
     console.error(`Error checking version at ${key}:`, error);
-    return false;
+    return { exists: false };
   }
 }

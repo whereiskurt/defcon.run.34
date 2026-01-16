@@ -14,6 +14,7 @@
     "@aws-sdk/lib-dynamodb": "^3.943.0",
     "@aws-sdk/s3-request-presigner": "^3.943.0",
     "electrodb": "^3.5.0",
+    "lucide-react": "^0.562.0",
     "nanoid": "^5.1.6",
     "next": "^16.1.1",
     "next-auth": "^5.0.0-beta.30",

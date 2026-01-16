@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     }
 
     // Verify the user owns this file
-    const fileResult = await GpxFile.get({
+    let fileResult = await GpxFile.get({
       userId: session.user.id,
       fileId,
     }).go();
@@ -76,10 +76,25 @@ export async function POST(request: Request) {
           { status: 404 }
         );
       }
+      fileResult = globalResult;
+    }
+
+    // Validate version exists
+    const maxVersion = fileResult.data.versionCount || 1;
+    if (version < 1 || version > maxVersion) {
+      return NextResponse.json(
+        { error: `Invalid version. File has versions 1-${maxVersion}` },
+        { status: 400 }
+      );
     }
 
     // Generate a unique share ID
     const shareId = nanoid(21);
+
+    // Normalize emails to lowercase for case-insensitive comparison
+    const normalizedEmails = accessMode === "private"
+      ? allowedEmails.map((e: string) => e.toLowerCase().trim())
+      : undefined;
 
     // Create the share record
     await GpxShare.create({
@@ -88,12 +103,25 @@ export async function POST(request: Request) {
       fileId,
       version,
       accessMode,
-      allowedEmails: accessMode === "private" ? allowedEmails : undefined,
+      allowedEmails: normalizedEmails,
     }).go();
 
     // Construct the share URL
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gpx.defcon.run";
-    const shareUrl = `${baseUrl}/share/${shareId}`;
+    // In dev: http://localhost:3003/studio/share/{token}
+    // In prod: https://gpx.defcon.run/{region}/studio/share/{token}
+    const isDev = process.env.NODE_ENV !== "production";
+    const regionShort = process.env.REGION_SHORT || "use1";
+
+    let shareUrl: string;
+    if (isDev) {
+      // Development: use localhost with port from env or default
+      const devPort = process.env.PORT || "3003";
+      shareUrl = `http://localhost:${devPort}/studio/share/${shareId}`;
+    } else {
+      // Production: use domain with region prefix
+      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gpx.defcon.run";
+      shareUrl = `${baseUrl}/${regionShort}/studio/share/${shareId}`;
+    }
 
     return NextResponse.json({ shareId, shareUrl });
   } catch (error) {
@@ -138,7 +166,21 @@ export async function GET(request: Request) {
       .byFile({ ownerId: session.user.id, fileId })
       .go({ order: "desc" });
 
-    const shares = result.data;
+    // Construct share URLs for each share
+    const isDev = process.env.NODE_ENV !== "production";
+    const regionShort = process.env.REGION_SHORT || "use1";
+
+    const shares = result.data.map((share) => {
+      let shareUrl: string;
+      if (isDev) {
+        const devPort = process.env.PORT || "3003";
+        shareUrl = `http://localhost:${devPort}/studio/share/${share.shareId}`;
+      } else {
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gpx.defcon.run";
+        shareUrl = `${baseUrl}/${regionShort}/studio/share/${share.shareId}`;
+      }
+      return { ...share, shareUrl };
+    });
 
     return NextResponse.json({ shares });
   } catch (error) {

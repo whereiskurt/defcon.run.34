@@ -33,21 +33,16 @@ export async function GET(request: Request, { params }: RouteParams) {
     }
 
     // For private shares, require authentication and check allowedEmails
+    // Return 404 for all failures to avoid revealing that a valid private share exists
     if (share.accessMode === "private") {
       const session = await auth();
+      const userEmail = session?.user?.email?.toLowerCase();
+      const normalizedAllowed = (share.allowedEmails || []).map(e => e.toLowerCase());
 
-      if (!session?.user?.id) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-
-      const userEmail = session.user.email;
-      const allowedEmails = share.allowedEmails || [];
-
-      if (!userEmail || !allowedEmails.includes(userEmail)) {
-        return NextResponse.json(
-          { error: "This share is not available to you" },
-          { status: 403 }
-        );
+      if (!userEmail || !normalizedAllowed.includes(userEmail)) {
+        // Don't distinguish between "not authenticated" and "not in allowed list"
+        // to prevent enumeration of valid private share tokens
+        return NextResponse.json({ error: "Share not found" }, { status: 404 });
       }
     }
 

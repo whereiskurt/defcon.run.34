@@ -56,15 +56,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
 
     // Step 3: Validate access permissions
+    // Use case-insensitive email comparison and return 404 to prevent token enumeration
     if (share.accessMode === "private") {
-      const userEmail = session.user.email;
-      const allowedEmails = share.allowedEmails || [];
+      const userEmail = session.user.email?.toLowerCase();
+      const normalizedAllowed = (share.allowedEmails || []).map(e => e.toLowerCase());
 
-      if (!userEmail || !allowedEmails.includes(userEmail)) {
-        return NextResponse.json(
-          { error: "This share is not available to you" },
-          { status: 403 }
-        );
+      if (!userEmail || !normalizedAllowed.includes(userEmail)) {
+        // Return 404 to avoid revealing that a valid private share exists
+        return NextResponse.json({ error: "Share not found" }, { status: 404 });
       }
     }
     // For public shares, any authenticated user can accept
@@ -96,8 +95,12 @@ export async function POST(request: Request, { params }: RouteParams) {
     const originalFile = fileResult.data;
 
     // Step 5: Copy S3 object from owner's storage to recipient's storage
-    // Source key includes version: uploads/{ownerId}/gpx/{fileId}.v{version}.gpx
-    const sourceKey = `${getUserPrefix(ownerUserId)}${share.fileId}.v${share.version}.gpx`;
+    // Version 1 files are stored without version suffix: uploads/{ownerId}/gpx/{fileId}.gpx
+    // Version 2+ files use versioned suffix: uploads/{ownerId}/gpx/{fileId}.v{version}.gpx
+    const sourceKey =
+      share.version === 1
+        ? `${getUserPrefix(ownerUserId)}${share.fileId}.gpx`
+        : `${getUserPrefix(ownerUserId)}${share.fileId}.v${share.version}.gpx`;
 
     // Generate new fileId for recipient
     const newFileId = uuidv4();
