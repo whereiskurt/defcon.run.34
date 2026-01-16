@@ -10,6 +10,17 @@ import PNGReader from 'png.js';
 import type { GPXStatisticsTree } from '$lib/logic/statistics-tree';
 import { ListTrackSegmentItem } from '$lib/components/file-list/file-list';
 
+// Runtime mapbox token (set from API, falls back to build-time token)
+let runtimeMapboxToken: string | null = null;
+
+export function setMapboxToken(token: string) {
+    runtimeMapboxToken = token;
+}
+
+export function getMapboxToken(): string {
+    return runtimeMapboxToken || PUBLIC_MAPBOX_TOKEN;
+}
+
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));
 }
@@ -121,7 +132,7 @@ export function getElevation(
 
     let promises = uniqueTiles.map((tile) =>
         fetch(
-            `https://api.mapbox.com/v4/mapbox.mapbox-terrain-dem-v1/${ELEVATION_ZOOM}/${tile[0]}/${tile[1]}@2x.pngraw?access_token=${PUBLIC_MAPBOX_TOKEN}`,
+            `https://api.mapbox.com/v4/mapbox.mapbox-terrain-dem-v1/${ELEVATION_ZOOM}/${tile[0]}/${tile[1]}@2x.pngraw?access_token=${getMapboxToken()}`,
             { cache: 'force-cache' }
         )
             .then((response) => response.arrayBuffer())

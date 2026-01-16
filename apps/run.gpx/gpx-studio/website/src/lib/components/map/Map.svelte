@@ -8,6 +8,7 @@
     import { PUBLIC_MAPBOX_TOKEN } from '$env/static/public';
     import { page } from '$app/state';
     import { map } from '$lib/components/map/map';
+    import { setMapboxToken } from '$lib/utils';
 
     let {
         accessToken = PUBLIC_MAPBOX_TOKEN,
@@ -23,12 +24,29 @@
         class?: string;
     } = $props();
 
-    mapboxgl.accessToken = accessToken;
-
     let webgl2Supported = $state(true);
     let embeddedApp = $state(false);
 
-    onMount(() => {
+    // Fetch mapbox token from API (uses server-side MAPBOX_DEFAULT_TOKEN)
+    async function fetchMapboxToken(): Promise<string> {
+        try {
+            const response = await fetch('/api/user/mapbox-token', { credentials: 'include' });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.token && data.token.startsWith('pk.')) {
+                    // Store token for other modules (e.g., elevation fetching)
+                    setMapboxToken(data.token);
+                    return data.token;
+                }
+            }
+        } catch {
+            // Fall through to fallback
+        }
+        // Fall back to prop or build-time token
+        return accessToken;
+    }
+
+    onMount(async () => {
         let gl = document.createElement('canvas').getContext('webgl2');
         if (!gl) {
             webgl2Supported = false;
@@ -48,7 +66,10 @@
             language = 'en';
         }
 
-        map.init(PUBLIC_MAPBOX_TOKEN, language, hash, geocoder, geolocate);
+        // Get token from API (server has the real token from environment)
+        const token = await fetchMapboxToken();
+        mapboxgl.accessToken = token;
+        map.init(token, language, hash, geocoder, geolocate);
     });
 
     onDestroy(() => {
