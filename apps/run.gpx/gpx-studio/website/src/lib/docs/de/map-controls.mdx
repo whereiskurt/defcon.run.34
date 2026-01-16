@@ -1,0 +1,70 @@
+---
+title: Kartensteuerungen
+---
+
+<script>
+    import { Plus, Minus, Diff, Compass, Search, LocateFixed, PersonStanding, Layers } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+    import DocsLayers from '$lib/components/docs/DocsLayers.svelte';
+</script>
+
+# { title }
+
+Die Kartensteuerung befindet sich auf der rechten Seite der Schnittstelle.
+Mit diesen Steuerelementen können Sie auf der Karte navigieren, vergrößern und zwischen verschiedenen Kartenstilen wechseln.
+
+### <Diff size="16" class="inline-block" style="margin-bottom: 2px" /> Kartennavigation
+
+Die Steuerelemente am oberen Rand erlauben es <Plus size="16" class="inline-block" style="margin-bottom: 2px" /> zu vergrößern und <Minus size="16" class="inline-block" style="margin-bottom: 2px" />, und um die Orientierung und Neigung der Karte <Compass size="16" class="inline-block" style="margin-bottom: 2px" /> zu ändern.
+
+<DocsNote>
+
+Um die Ausrichtung und Neigung der Karte zu steuern, können Sie die Karte auch ziehen, während Sie <kbd>die Strg-Taste</kbd> gedrückt halten.
+
+</DocsNote>
+
+### <Search size="16" class="inline-block" style="margin-bottom: 2px" /> Suchleiste
+
+Sie können die Suchleiste benutzen, um nach einer Adresse zu suchen und auf der Karte zu navigieren.
+
+### <LocateFixed size="16" class="inline-block" style="margin-bottom: 2px" /> Suche Taste
+
+Die Schaltfläche "suchen" zentriert die Karte an Ihrem aktuellen Standort.
+
+<DocsNote>
+
+Dies funktioniert nur, wenn Sie Ihrem Browser und <b>gpx.studio</b> erlaubt haben, auf Ihren Standort zuzugreifen.
+
+</DocsNote>
+
+### <PersonStanding size="16" class="inline-block" style="margin-bottom: 2px" /> Straßenansicht
+
+Diese Schaltfläche kann benutzt werden, um den Straßenansicht Modus auf der Karte zu aktivieren.
+Abhängig von der in der [settings]gewählten Straßenansicht (./Menü/Einstellungen) kann auf Straßenansicht anders zugegriffen werden.
+
+- <a href="https://www.mapillary.com/" target="_blank">Mapillary</a>: Die Straßenansicht wird als grüne Linien auf der Karte angezeigt. Wenn man genug zoomt, werden grüne Punkte die genauen Stellen anzeigen, an denen Straßenansicht Bilder verfügbar sind. Wenn Sie über einen grünen Punkt schweben wird das Straßenansicht Bild an dieser Stelle angezeigt.
+- <a href="https://www.google.com/streetview/" target="_blank">Google Street View</a>: Klicken Sie auf die Karte, um einen neuen Tab mit dem Straßenansicht Bild an dieser Stelle zu öffnen.
+
+### <Layers size="16" class="inline-block" style="margin-bottom: 2px" /> Karten-Ebenen
+
+Mit der Schaltfläche Karten-Ebenen können Sie zwischen verschiedenen Basemaps wechseln und Kartenüberlagerungen und Kategorien von Punkten ein-/ausblenden.
+
+- **Basemaps** sind Hintergrundkarten, die die wichtigsten geografischen Merkmale der Welt darstellen.
+  Basemaps haben je nach Zweck unterschiedliche Stile und Detailstufen.
+  Es kann jeweils nur eine Basemap angezeigt werden.
+- **Overlays** sind zusätzliche Ebenen, die über der Basemap angezeigt werden können, um ergänzende Informationen bereitzustellen.
+- **Punkte von Interesse** können auf der Karte angezeigt werden, um verschiedene Kategorien von Orten wie Geschäfte, Restaurants oder Unterkünfte anzuzeigen.
+
+<div class="flex flex-col items-center">
+    <DocsLayers />
+    <span class="text-sm text-center mt-2">
+        Fahren Sie über der Karte, um die <a href="https://hiking.waymarkedtrails.org" target="_blank">Wegmarkierte Wanderwege</a> Overlay oben auf die <a href="https://www.mapbox.com/maps/outdoors" target="_blank">Mapbox Outdoors</a> Basemap anzuzeigen.
+    </span>
+</div>
+
+Eine große Sammlung globaler und lokaler Basemaps und Overlays ist im **gpx.studio** sowie eine Auswahl von Point-of-Interest Kategorien verfügbar.
+Sie können im [Einstellungsdialog für die Kartenlayer Einstellungen](./menu/settings) aktiviert werden.
+
+In diesen Einstellungen können Sie auch die Deckkraft der Overlays verwalten.
+
+Für fortgeschrittene Benutzer ist es möglich, benutzerdefinierte Basemaps und Overlays durch die Bereitstellung von <a href="https://en.wikipedia.org/wiki/Web_Map_Tile_Service" target="_blank">WMTS</a>hinzuzufügen, <a href="https://en.wikipedia.org/wiki/Web_Map_Service" target="_blank">WMS</a>oder <a href="https://docs.mapbox.com/help/glossary/style/" target="_blank">Mapbox Stil JSON</a> URLs.

@@ -1,0 +1,49 @@
+---
+title: Ver opções
+---
+
+<script lang="ts">
+    import { ChartArea, ListTree, Map, Layers2, Coins, Milestone, Box } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# { title }
+
+Este menu fornece opções para reorganizar a interface e a visualização do mapa.
+
+### <ChartArea size="16" class="inline-block" style="margin-bottom: 2px" /> Perfil de elevação
+
+Oculte o perfil de elevação para liberar espaço para o mapa, ou mostre-o para inspecionar a seleção atual.
+
+### <ListTree size="16" class="inline-block" style="margin-bottom: 2px" /> File tree
+
+Toggle the tree layout for the [file list](../files-and-stats).
+This layout is ideal for managing a large number of open files, as it organizes them into a vertical list on the right side of the map.
+In addition, the file tree view enables you to inspect the [tracks, segments, and points of interest](../gpx) contained inside the files through collapsible sections.
+
+### <Map size="16" class="inline-block" style="margin-bottom: 2px" /> Mudar para mapa base anterior
+
+Altere o mapa base para o previamente selecionado através do [controle de camada de mapa](../map-controls).
+
+### <Layers2 size="16" class="inline-block" style="margin-bottom: 2px" /> Alternar sobreposições
+
+Alternar a visibilidade das camadas do mapa selecionadas através do [controle da camada do mapa](../map-controls).
+
+### <Coins size="16" class="inline-block" style="margin-bottom: 2px" /> Marcadores de distância
+
+Alterna a visibilidade dos marcadores de distância no mapa.
+Eles são exibidos para a seleção atual, como o [perfil de elevação](../files-and-stats).
+
+### <Milestone size="16" class="inline-block" style="margin-bottom: 2px" /> Setas de direção
+
+Alterna a visibilidade das setas de direção no mapa.
+
+### <Box size="16" class="inline-block" style="margin-bottom: 2px" /> Alternar 3D
+
+Entrar ou sair da visualização do mapa 3D.
+
+<DocsNote>
+
+Para controlar a orientação e a inclinação do mapa, você também pode arrastar o mapa enquanto segura <kbd>Ctrl</kbd>.
+
+</DocsNote>

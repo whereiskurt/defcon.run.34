@@ -1,0 +1,49 @@
+---
+title: Anzeigeoptionen
+---
+
+<script lang="ts">
+    import { ChartArea, ListTree, Map, Layers2, Coins, Milestone, Box } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# { title }
+
+Dieses Menü bietet Optionen zum Neuanordnen der Benutzeroberfläche und der Kartenansicht.
+
+### <ChartArea size="16" class="inline-block" style="margin-bottom: 2px" /> Höhenprofil
+
+Das Höhenprofil ausblenden, um Platz für die Karte zu schaffen, oder um die aktuelle Auswahl zu prüfen.
+
+### <ListTree size="16" class="inline-block" style="margin-bottom: 2px" /> Dateibaum
+
+Umschalten des vertikalen Layouts für die [Dateiliste](../files-and-stats).
+Dieses Layout eignet sich am besten um für eine große Anzahl von Dateien, da es diese in einer vertikalen Liste auf der rechten Seite der Karte anordnet.
+Darüber hinaus ermöglicht die Dateibaumansicht die Prüfung der [Tracks, Segmente, und Punkte von Interesse](../gpx), die in den Dateien durch zusammenklappbare Abschnitte enthalten sind.
+
+### <Map size="16" class="inline-block" style="margin-bottom: 2px" /> Wechseln zur vorherigen Basiskarte
+
+Ändere die Basiskarte auf jene, die zuvor über die [map layer control](../map-controls) ausgewählt wurde.
+
+### <Layers2 size="16" class="inline-block" style="margin-bottom: 2px" /> Overlays Umschalten
+
+Schaltet die Sichtbarkeit der Karten-Overlays um, die zuvor ausgewählt wurden mittels [map layer control](../map-controls).
+
+### <Coins size="16" class="inline-block" style="margin-bottom: 2px" /> Entfernungsmarkierungen
+
+Schaltet die Sichtbarkeit der Entfernungsmarker auf der Karte um.
+Sie werden für die aktuelle Auswahl angezeigt, wie in [elevation profile](../files-and-stats).
+
+### <Milestone size="16" class="inline-block" style="margin-bottom: 2px" /> Richtungspfeile
+
+Schaltet die Sichtbarkeit der Richtungspfeile auf der Karte um.
+
+### <Box size="16" class="inline-block" style="margin-bottom: 2px" /> 3D Ein/Aus
+
+Aufrufen oder Beenden der 3D-Kartenansicht.
+
+<DocsNote>
+
+Um die Ausrichtung und Neigung der Karte zu steuern, können Sie die Karte auch ziehen, während Sie <kbd>die Strg-Taste</kbd> gedrückt halten.
+
+</DocsNote>

@@ -1,0 +1,24 @@
+---
+title: Höjd
+---
+
+<script>
+    import { MountainSnow } from '@lucide/svelte';
+    import Elevation from '$lib/components/toolbar/tools/Elevation.svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# <MountainSnow size="24" class="inline-block" style="margin-bottom: 5px" /> { title }
+
+Detta verktyg låter dig lägga till höjddata till spår och [intressanta platser](../gpx), eller ersätta befintliga höjddata.
+
+<div class="flex flex-row justify-center">
+    <Elevation class="text-foreground p-3 border rounded-md shadow-lg" />
+</div>
+
+<DocsNote>
+
+Elevation data is provided by <a href="https://mapbox.com" target="_blank">Mapbox</a>.
+Du kan lära mer om dess ursprung och noggrannhet i <a href="https://docs.mapbox.com/data/tilesets/reference/mapbox-terrain-dem-v1/#elevation-data" target="_blank">dokumentation</a>.
+
+</DocsNote>

@@ -1,0 +1,24 @@
+---
+title: Elevació
+---
+
+<script>
+    import { MountainSnow } from '@lucide/svelte';
+    import Elevation from '$lib/components/toolbar/tools/Elevation.svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# <MountainSnow size="24" class="inline-block" style="margin-bottom: 5px" /> { title }
+
+Aquesta eina permet afegir dades d'elevació a traces i [punts d'interès](../gpx), o reemplaçar les dades existents.
+
+<div class="flex flex-row justify-center">
+    <Elevation class="text-foreground p-3 border rounded-md shadow-lg" />
+</div>
+
+<DocsNote>
+
+Dades d'elevació subministrades per <a href="https://mapbox.com" target="_blank">Mapbox</a>.
+Pots aprendre més sobre els seus orígens i precisió en la <a href="https://docs.mapbox.com/data/tilesets/reference/mapbox-terrain-dem-v1/#elevation-data" target="_blank">documentació</a>.
+
+</DocsNote>

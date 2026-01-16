@@ -1,0 +1,49 @@
+---
+title: Opcions de vista
+---
+
+<script lang="ts">
+    import { ChartArea, ListTree, Map, Layers2, Coins, Milestone, Box } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# { title }
+
+Aquest menú ofereix opcions per reorganitzar la interfície i la vista del mapa.
+
+### <ChartArea size="16" class="inline-block" style="margin-bottom: 2px" /> Perfil d'elevació
+
+Amagar el perfil d'elevació per fer espai al mapa o mostra-lo per inspeccionar la selecció actual.
+
+### <ListTree size="16" class="inline-block" style="margin-bottom: 2px" /> Arbre d'arxius
+
+Alterna el disseny de l'arbre per la [llista d'arxius](../files-and-stats).
+Aquesta disposició és ideal per tal d'administrar un gran nombre d'arxius oberts, ja que els organitza en una llista vertical en la part dreta del mapa.
+A més, la vista de l'arbre d'arxius permet inspeccionar [tracs, segments i punts d'interès](../gpx) continguts en els arxius a través de les seccions plegables.
+
+### <Map size="16" class="inline-block" style="margin-bottom: 2px" /> Canvia la mapa base anterior
+
+Canvia el mapa base al seleccionat prèviament mitjançant el [control de capa de mapa](../map-controls).
+
+### <Layers2 size="16" class="inline-block" style="margin-bottom: 2px" /> Alterna capes sobreposades
+
+Alterna la visibilitat de les capes seleccionades del mapa a través del [control de capa de mapa](../map-controls).
+
+### <Coins size="16" class="inline-block" style="margin-bottom: 2px" /> Marcadors de distància
+
+Alterna la visibilitat dels marcadors de distància en el mapa.
+Es mostren per a la selecció actual, com el [perfil d'elevació](../files-and-stats).
+
+### <Milestone size="16" class="inline-block" style="margin-bottom: 2px" /> Fletxes de direcció
+
+Alterna la visibilitat de les fletxes de direcció en el mapa.
+
+### <Box size="16" class="inline-block" style="margin-bottom: 2px" /> Alternar 3D
+
+Entra o surt de la vista de mapa en 3D.
+
+<DocsNote>
+
+Per controlar l'orientació i inclinació del mapa, pots arrossegar el mapa mentre prems <kbd>Ctrl</kbd>.
+
+</DocsNote>

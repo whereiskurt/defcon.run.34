@@ -1,0 +1,24 @@
+---
+title: Desnivel
+---
+
+<script>
+    import { MountainSnow } from '@lucide/svelte';
+    import Elevation from '$lib/components/toolbar/tools/Elevation.svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# <MountainSnow size="24" class="inline-block" style="margin-bottom: 5px" /> { title }
+
+Le permite añadir datos de desnivel a trazas y [puntos de interés](../gpx), o reemplazar los datos existentes.
+
+<div class="flex flex-row justify-center">
+    <Elevation class="text-foreground p-3 border rounded-md shadow-lg" />
+</div>
+
+<DocsNote>
+
+Los datos de desnivel son proporcionados por <a href="https://mapbox.com" target="_blank">Mapbox</a>.
+Puede aprender más sobre su origen y precisión en la <a href="https://docs.mapbox.com/data/tilesets/reference/mapbox-terrain-dem-v1/#elevation-data" target="_blank">documentación</a>.
+
+</DocsNote>

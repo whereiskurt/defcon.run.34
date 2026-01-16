@@ -1,0 +1,110 @@
+---
+title: Bestanden en statistieken
+---
+
+<script lang="ts">
+    import { ChartNoAxesColumn } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+    import ElevationProfile from '$lib/components/elevation-profile/ElevationProfile.svelte';
+    import GPXStatistics from '$lib/components/GPXStatistics.svelte';
+    import { exampleGPXFile } from '$lib/assets/example';
+    import { writable } from 'svelte/store';
+
+    let gpxStatistics = writable(exampleGPXFile.getStatistics());
+    let slicedGPXStatistics = writable(undefined);
+    let additionalDatasets = writable(['speed', 'atemp']);
+    let elevationFill = writable(undefined);
+</script>
+
+# { title }
+
+## Bestandenlijst
+
+Zodra je [opened](./menu/file) bestanden hebt, worden ze weergegeven als tabbladen in de lijst met bestanden die zich onderaan de kaart bevinden.
+Je kunt ze rangschikken door de tabbladen te slepen en te laten vallen.
+En wanneer veel bestanden open zijn, kun je door de lijst met tabbladen bladeren.
+
+<DocsNote>
+
+Wanneer je een muis gebruikt, moet je <kbd>Shift</kbd> ingedrukt houden om horizontaal te scrollen.
+
+</DocsNote>
+
+### Bestand selecteren
+
+Door op een tabblad te klikken, kun je schakelen tussen de bestanden om de statistieken daarvan te controleren, en [bewerk acties](./menu/edit) en [tools](./toolbar) er op toe te passen.
+Door de <kbd>Ctrl/Cmd</kbd> toets ingedrukt te houden, kun je bestanden aan de selectie toevoegen of verwijderen en door <kbd>Shift</kbd>ingedrukt te houden, kun je een serie bestanden selecteren.
+De meeste van de [bewerk acties](./menu/edit) en [tools](./toolbar) kunnen op meerdere bestanden tegelijk worden toegepast.
+
+<DocsNote>
+
+Je kunt ook navigeren door de bestanden met behulp van de pijltoetsen op je toetsenbord, en <kbd>Shift</kbd> gebruiken om bestanden toe te voegen aan de selectie.
+
+</DocsNote>
+
+### Bewerkingen
+
+Door met de rechtermuisknop te klikken op een tabblad bestanden, kun je dezelfde acties gebruiken als in het [edit menu](./menu/edit).
+
+### Boomstructuur
+
+Zoals vermeld in de [opties bekijken](./menu/view), kun je schakelen tussen een horizontale en een verticale indeling voor de bestandslijst.
+Deze indeling is ideaal voor het beheren van een groot aantal open bestanden, omdat deze geordend worden in een verticale lijst op de rechterkant van de kaart.
+Daarnaast kun je met de boomweergave de [routes, segmenten, en interessante punten](./gpx) in de bestanden bekijken door middel van inklapbare secties.
+
+Je kunt ook [bewerk acties](./menu/edit) en [tools](./toolbar) toepassen op interne bestands items.
+Bovendien kun je de interne onderdelen slepen en neerzetten om ze te rangschikken, of ze in de hiërarchie of zelfs naar een ander bestand verplaatsen.
+
+<DocsNote>
+
+De grootte van de bestandslijst kan worden aangepast door het scheidingsteken tussen de kaart en de bestandslijst te slepen.
+
+</DocsNote>
+
+## Hoogteprofiel en statistieken
+
+Aan de onderkant van de interface kunt u het hoogteprofiel en de statistieken voor de huidige selectie vinden.
+
+<DocsNote>
+
+De grootte van het hoogteprofiel kan worden aangepast door het scheidingsteken tussen de kaart en het hoogteprofiel te slepen.
+
+</DocsNote>
+
+### Interactieve statistieken
+
+Bij het zweven over het hoogteprofiel, toont een hint de statistieken op de positie van de cursor.
+
+Om de statistieken van een specifiek gedeelte van het hoogteprofiel te zien, kunt u een selectierechthoek over het profiel slepen.
+Klik op het profiel om de selectie opnieuw in te stellen.
+
+Je kunt het muiswiel ook gebruiken om in en uit te zoomen op het hoogte profiel, of te verschuiven door het profiel te slepen terwijl je de <kbd>Shift</kbd> toets ingedrukt houdt.
+
+<div class="h-48 w-full">
+    <ElevationProfile
+        {gpxStatistics}
+        {slicedGPXStatistics}
+        {additionalDatasets}
+        {elevationFill}
+    />
+</div>
+<div class="flex flex-col items-center -mt-6">
+    <div class="h-10 w-fit">
+        <GPXStatistics
+            {gpxStatistics}
+            {slicedGPXStatistics}
+            panelSize={120}
+            orientation={'horizontal'}
+        />
+    </div>
+</div>
+
+### Aanvullende gegevens
+
+Met behulp van de <kbd><ChartNoAxesColumn size="16" class="inline-block" style="margin-bottom: 2px"/></kbd> knoppen aan de rechterkant van het hoogteprofiel kunt u het hoogteprofiel optioneel kleuren door:
+
+- **helling** informatie berekend uit de hoogtegegevens, of
+- **oppervlakte** of **categorie** gegevens afkomstig van <a href="https://www.openstreetmap.org/" target="_blank">OpenStreetMap</a>zijn <a href="https://wiki.openstreetmap.org/wiki/Key:surface" target="_blank">oppervlak</a> en <a href="https://wiki.openstreetmap.org/wiki/Key:highway" target="_blank">snelweg</a> tags.
+  Dit is alleen beschikbaar voor bestanden gemaakt met **gpx.studio**.
+
+Als je selectie het bevat, kun je ook de volgende gegevens zichtbaar maken op het hoogteprofiel: **snelheid**, **hartritme**, **tempo**, **temperatuur**, en **vermogen**.

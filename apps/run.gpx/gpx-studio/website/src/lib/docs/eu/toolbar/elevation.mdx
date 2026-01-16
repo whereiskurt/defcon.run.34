@@ -1,0 +1,24 @@
+---
+title: Altuerak
+---
+
+<script>
+    import { MountainSnow } from '@lucide/svelte';
+    import Elevation from '$lib/components/toolbar/tools/Elevation.svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# <MountainSnow size="24" class="inline-block" style="margin-bottom: 5px" /> { title }
+
+Tresna honen bidez elebazio datuak gehitzen ahal dira ibilbidetan eta [interesguneetan](../gpx), edo daudenak aldatu.
+
+<div class="flex flex-row justify-center">
+    <Elevation class="text-foreground p-3 border rounded-md shadow-lg" />
+</div>
+
+<DocsNote>
+
+Altuera datuen iturria <a href="https://mapbox.com" target="_blank">Mapbox</a> da.
+Hauen jatorriaz edo xehetasunez informazio gehiago <a href="https://docs.mapbox.com/data/tilesets/reference/mapbox-terrain-dem-v1/#elevation-data" target="_blank">dokumentazioan</a>.
+
+</DocsNote>

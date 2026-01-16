@@ -1,0 +1,20 @@
+---
+title: Birleştir
+---
+
+<script>
+    import { Group } from '@lucide/svelte';
+    import Merge from '$lib/components/toolbar/tools/Merge.svelte';
+</script>
+
+# <Group size="24" class="inline-block" style="margin-bottom: 5px" /> { title }
+
+Bu aracı kullanmak için birden fazla dosya, [iz, veya segment](../gpx) [seçimi](../files-and-stats) yapmalısınız.
+
+- Eğer amacınız seçiminizden tek ve devamlı bir iz yapmaksa **izleri birleştir** seçeneğini kullanın ve onaylayın.
+- İkinci seçenek birden fazla [iz veya segment](../gpx) ile dosya oluşturma veya yönetmek için kullanılabilir.
+  Dosyaları (veya izleri) birleştirmek bütün izleri (veya segmentleri) içeren tek bir dosya (veya iz) oluşturur.
+
+<div class="flex flex-row justify-center">
+    <Merge class="text-foreground p-3 border rounded-md shadow-lg" />
+</div>

@@ -1,0 +1,27 @@
+---
+title: "Integráció "
+---
+
+<script>
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+    import EmbeddingPlayground from '$lib/components/embedding/EmbeddingPlayground.svelte';
+</script>
+
+# { title }
+
+A **gpx.studio** segítségével létrehozhatja a GPX-fájlokat ábrázoló térképeket, és beágyazhatja azokat webhelyébe.
+
+Minden amire szüksége van:
+
+1. Egy <a href="https://account.mapbox.com/auth/signup" target="_blank">Mapbox hozzáférési token</a> a térkép betöltéséhez, és
+2. A szerverén vagy a Google Drive-on tárolt GPX-fájlok, vagy nyilvános URL-en keresztül érhetők el.
+
+Ezután játszhat az alábbi konfigurátorral a térkép testreszabásához és a megfelelő HTML-kód létrehozásához.
+
+<DocsNote type="warning">
+
+A <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_blank">Cross-Origin Resource Sharing (CORS)</a> fejléceket be kell állítania a szerveren, hogy a <b>gpx.studio</b> betölthesse a GPX-fájlokat.
+
+</DocsNote>
+
+<EmbeddingPlayground />

@@ -1,0 +1,70 @@
+---
+title: Управление картой
+---
+
+<script>
+    import { Plus, Minus, Diff, Compass, Search, LocateFixed, PersonStanding, Layers } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+    import DocsLayers from '$lib/components/docs/DocsLayers.svelte';
+</script>
+
+# { title }
+
+The map controls are located on the right side of the interface.
+Эти элементы управления позволяют перемещаться по карте, увеличивать и уменьшать масштаб и переключаться между различными стилями карты.
+
+### <Diff size="16" class="inline-block" style="margin-bottom: 2px" /> Карта навигации
+
+Элементы управления вверху позволяют увеличивать <Plus size="16" class="inline-block" style="margin-bottom: 2px" /> и уменьшать масштаб <Minus size="16" class="inline-block" style="margin-bottom: 2px" />, а также изменять ориентацию и наклон карты <Compass size="16" class="inline-block" style="margin-bottom: 2px" />.
+
+<DocsNote>
+
+Чтобы управлять ориентацией и наклоном карты, вы также можете перетаскивать карту, удерживая <kbd>Ctrl</kbd>.
+
+</DocsNote>
+
+### <Search size="16" class="inline-block" style="margin-bottom: 2px" /> Панель поиска
+
+Вы можете использовать строку поиска, чтобы найти адрес и перейти к нему на карте.
+
+### <LocateFixed size="16" class="inline-block" style="margin-bottom: 2px" /> Кнопка определения местоположения
+
+Кнопка "Найти" центрирует карту на вашем текущем местоположении.
+
+<DocsNote>
+
+Это работает только в том случае, если вы разрешили вашему браузеру и <b>gpx.studio</b> доступ к вашему местоположению.
+
+</DocsNote>
+
+### Просмотр улиц
+
+Эта кнопка может быть использована для включения режима просмотра улиц на карте.
+В зависимости от выбранного источника просмотра улиц в [настройках](./menu/settings), доступ к изображениям просмотра улиц может осуществляться по-разному.
+
+- <a href="https://www.mapillary.com/" target="_blank">Mapillary</a>: просмотр улиц будет отображаться зелеными линиями на карте. При достаточном увеличении на карте зеленые точки будут показывать точные места, где доступны изображения просмотра улиц. Наведите курсор на зеленую точку на изображении улиц в этом месте.
+- <a href="https://www.google.com/streetview/" target="_blank">Google Street View</a>: нажмите на карту, чтобы открыть новую вкладку с изображением улицы в этом месте.
+
+### <Layers size="16" class="inline-block" style="margin-bottom: 2px" /> Слои карты
+
+Кнопка слоев карты позволяет переключаться между различными базовыми картами, а также включать и выключать наложения карты и категории объектов интереса.
+
+- **Основные карты** - это фоновые карты, в которых представлены основные географические особенности мира.
+  В зависимости от их назначения, базовые карты имеют разные стили и уровни детализации.
+  В один момент может быть отображена только одна базовая карта.
+- **Наложения** - это дополнительные слои, которые могут быть отображены поверх базы данных для предоставления дополнительной информации.
+- **Точки интереса** можно добавить на карту для показа различных категорий мест, таких как магазины, рестораны или размещения.
+
+<div class="flex flex-col items-center">
+    <DocsLayers />
+    <span class="text-sm text-center mt-2">
+        Наведите указатель мыши на карту, чтобы отобразить наложение <a href="https://hiking.waymarkedtrails.org" target="_blank">Пешеходные маршруты с метками</a> поверх базовой карты <a href="https://www.mapbox.com/maps/outdoors" target="_blank">Mapbox Outdoors</a>.
+    </span>
+</div>
+
+В **gpx.studio** доступна большая коллекция глобальных и локальных базовых карт и наложений, а также выбор категорий объектов интереса.
+Они могут быть включены в [диалоге настроек слоя карты](./menu/settings).
+
+В этих настройках вы также можете управлять непрозрачностью наложений.
+
+Для продвинутых пользователей возможно добавление пользовательских базовых карт и наложений, предоставив<a href="https://en.wikipedia.org/wiki/Web_Map_Tile_Service" target="_blank">WMTS</a>, <a href="https://en.wikipedia.org/wiki/Web_Map_Service" target="_blank">WMS</a>, or <a href="https://docs.mapbox.com/help/glossary/style/" target="_blank">Mapbox style JSON</a> URLs.

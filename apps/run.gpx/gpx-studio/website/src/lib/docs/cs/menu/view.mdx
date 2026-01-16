@@ -1,0 +1,49 @@
+---
+title: Možnosti zobrazení
+---
+
+<script lang="ts">
+    import { ChartArea, ListTree, Map, Layers2, Coins, Milestone, Box } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# { title }
+
+Tato nabídka nabízí možnosti pro změnu uspořádání rozhraní a zobrazení mapy.
+
+### <ChartArea size="16" class="inline-block" style="margin-bottom: 2px" /> Výškový profil
+
+Skrýt výškový profil, aby se vytvořilo místo pro mapu, nebo ho zobrazit a zkontrolovat aktuální výběr.
+
+### <ListTree size="16" class="inline-block" style="margin-bottom: 2px" /> Strom souborů
+
+Přepnout rozvržení stromu pro [seznam souborů](../files-and-stats).
+Toto zobrazení je ideální pro správu velkého počtu otevřených souborů, protože je uspořádá do svislého seznamu na pravé straně mapy.
+Kromě jiného umožňuje zobrazení stromu souborů zkontrolovat [trasy, segmenty, a body zájmu](../gpx) obsažené uvnitř souborů skrze sbalitelné sekce.
+
+### <Map size="16" class="inline-block" style="margin-bottom: 2px" /> Přepnout na předchozí základní mapu
+
+Změnit základní mapu na tu, která byla dříve vybrána pomocí [ovládání mapové vrstvy](../map-controls).
+
+### <Layers2 size="16" class="inline-block" style="margin-bottom: 2px" /> Přepnout překryvy
+
+Přepnout viditelnost mapových překryvů vybraných pomocí [ovládání mapové vrstvy](../map-controls).
+
+### <Coins size="16" class="inline-block" style="margin-bottom: 2px" /> Značky vzdálenosti
+
+Přepnout viditelnost značek vzdálenosti na mapě.
+Zobrazují se pro aktuální výběr, jako je [výškový profil](../files-and-stats).
+
+### <Milestone size="16" class="inline-block" style="margin-bottom: 2px" /> Směrové šipky
+
+Přepnout viditelnost směrových šipek na mapě.
+
+### <Box size="16" class="inline-block" style="margin-bottom: 2px" /> Přepnout 3D
+
+Zapnout nebo vypnout 3D zobrazení mapy.
+
+<DocsNote>
+
+Chcete-li ovládat orientaci a náklon mapy, můžete ji také potáhnout s přidržením klávesy <kbd>Ctrl</kbd>.
+
+</DocsNote>

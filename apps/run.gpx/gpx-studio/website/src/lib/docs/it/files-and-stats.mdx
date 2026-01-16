@@ -1,0 +1,110 @@
+---
+title: File e statistiche
+---
+
+<script lang="ts">
+    import { ChartNoAxesColumn } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+    import ElevationProfile from '$lib/components/elevation-profile/ElevationProfile.svelte';
+    import GPXStatistics from '$lib/components/GPXStatistics.svelte';
+    import { exampleGPXFile } from '$lib/assets/example';
+    import { writable } from 'svelte/store';
+
+    let gpxStatistics = writable(exampleGPXFile.getStatistics());
+    let slicedGPXStatistics = writable(undefined);
+    let additionalDatasets = writable(['speed', 'atemp']);
+    let elevationFill = writable(undefined);
+</script>
+
+# { title }
+
+## Elenco dei file
+
+Una volta che hai [aperto](./menu/file) i file, questi verranno mostrati come schede nella lista dei file situata in fondo alla mappa.
+È possibile riordinarli trascinando e rilasciando le schede.
+E quando molti file sono aperti, è possibile scorrere attraverso l'elenco delle schede per navigare tra di essi.
+
+<DocsNote>
+
+Quando si utilizza un mouse, è necessario tenere premuto <kbd>Maiuscolo</kbd> per scorrere orizzontalmente.
+
+</DocsNote>
+
+### Selezione del file
+
+Facendo clic su una scheda, è possibile passare tra i file per ispezionare le loro statistiche, e applicare [modifiche](./menu/edit) e [strumenti](./toolbar) a loro.
+Mantenendo premuto il tasto <kbd>Ctrl/Cmd</kbd>, puoi aggiungere file alla selezione o rimuoverli, e tenendo premuto <kbd>Maiuscolo</kbd>, puoi selezionare un  elenco di file.
+La maggior parte delle [azioni di modifica](./menu/edit) e [strumenti](./toolbar) possono essere applicate a più file contemporaneamente.
+
+<DocsNote>
+
+È inoltre possibile navigare attraverso i file utilizzando i tasti freccia sulla tastiera, e utilizzare <kbd>Maiuscolo</kbd> per aggiungere file alla selezione.
+
+</DocsNote>
+
+### Azioni di modifica
+
+Facendo clic destro su una scheda file, è possibile accedere alle stesse azioni del [menu di modifica](./menu/edit).
+
+### Disposizione ad albero
+
+Come accennato nella [sezione opzioni di visualizzazione](./menu/view), è possibile passare a un layout ad albero per l'elenco dei file.
+Questo layout è ideale per gestire un gran numero di file aperti, organizzandoli in una lista verticale sul lato destro della mappa.
+Inoltre, la vista ad albero dei file consente d'ispezionare [tracce, segmenti e punti di interesse](./gpx) all'interno dei file attraverso sezioni espandibili.
+
+Puoi anche applicare [modifiche](./menu/edit) e [strumenti](./toolbar) agli elementi interni del file.
+Inoltre, è possibile trascinare e rilasciare gli elementi per riordinarli, o spostarli nella gerarchia o anche in un altro file.
+
+<DocsNote>
+
+La dimensione dell'elenco di file può essere regolata trascinando il separatore tra la mappa e l'elenco di file.
+
+</DocsNote>
+
+## Profilo di elevazione e statistiche
+
+Nella parte inferiore dell'interfaccia è possibile trovare il profilo di elevazione e le statistiche per la selezione corrente.
+
+<DocsNote>
+
+La dimensione del profilo di elevazione può essere regolata trascinando il separatore tra la mappa e il profilo di elevazione.
+
+</DocsNote>
+
+### Statistiche interattive
+
+Quando si passa sopra il profilo di elevazione, un suggerimento mostrerà le statistiche nella posizione del cursore.
+
+Per ottenere le statistiche per una sezione specifica del profilo di elevazione, è possibile trascinare un rettangolo di selezione sul profilo.
+Fare clic sul profilo per resettare la selezione.
+
+È inoltre possibile utilizzare la rotellina del mouse per ingrandire e rimpicciolire sul profilo di elevazione, e spostarsi a sinistra e a destra trascinando il profilo tenendo premuto il tasto <kbd>Maiuscolo</kbd>.
+
+<div class="h-48 w-full">
+    <ElevationProfile
+        {gpxStatistics}
+        {slicedGPXStatistics}
+        {additionalDatasets}
+        {elevationFill}
+    />
+</div>
+<div class="flex flex-col items-center -mt-6">
+    <div class="h-10 w-fit">
+        <GPXStatistics
+            {gpxStatistics}
+            {slicedGPXStatistics}
+            panelSize={120}
+            orientation={'horizontal'}
+        />
+    </div>
+</div>
+
+### Dati aggiuntivi
+
+Utilizzando il pulsante <kbd><ChartNoAxesColumn size="16" class="inline-block" style="margin-bottom: 2px"/></kbd> in basso a destra del profilo di elevazione, è possibile colorare opzionalmente il profilo di elevazione mediante:
+
+- **slope** informazioni ricavate dai dati di elevazione, o
+- **superficie** o **categoria** dati provenienti da <a href="https://wiki.openstreetmap.org/wiki/Key:surface" target="_blank">superficie</a> and <a href="https://wiki.openstreetmap.org/wiki/Key:highway" target="_blank">autostrada</a> di <a href="https://www.openstreetmap.org/" target="_blank">OpenStreetMap</a>'s.
+  È disponibile solo per i file creati con **gpx.studio**.
+
+Se la tua selezione lo include puoi visualizzare anche i dati di: **velocità**, **frequenza cardiaca**, **cadenza**, **temperatura**, e **potenza** sul profilo altimetrico.

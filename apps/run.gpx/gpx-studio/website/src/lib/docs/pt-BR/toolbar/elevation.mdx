@@ -1,0 +1,24 @@
+---
+title: Elevação
+---
+
+<script>
+    import { MountainSnow } from '@lucide/svelte';
+    import Elevation from '$lib/components/toolbar/tools/Elevation.svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# <MountainSnow size="24" class="inline-block" style="margin-bottom: 5px" /> { title }
+
+Esta ferramenta permite que você adicione dados de elevação a rastros e [pontos de interesse](../gpx), ou substituir os dados existentes.
+
+<div class="flex flex-row justify-center">
+    <Elevation class="text-foreground p-3 border rounded-md shadow-lg" />
+</div>
+
+<DocsNote>
+
+Dados de elevação são fornecidos por <a href="https://mapbox.com" target="_blank">Mapbox</a>.
+Você pode aprender mais sobre sua origem e precisão na <a href="https://docs.mapbox.com/data/tilesets/reference/mapbox-terrain-dem-v1/#elevation-data" target="_blank">documentação</a>.
+
+</DocsNote>

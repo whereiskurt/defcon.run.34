@@ -1,0 +1,49 @@
+---
+title: Options d'affichage
+---
+
+<script lang="ts">
+    import { ChartArea, ListTree, Map, Layers2, Coins, Milestone, Box } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+</script>
+
+# { title }
+
+Ce menu propose des options pour réorganiser l'interface et la vue de la carte.
+
+### <ChartArea size="16" class="inline-block" style="margin-bottom: 2px" /> Profil altimétrique
+
+Masquer le profil altimétrique pour faire de la place pour la carte, ou l'afficher pour inspecter la sélection.
+
+### <ListTree size="16" class="inline-block" style="margin-bottom: 2px" /> Arborescence de fichiers
+
+Activer/désactiver la présentation en arborescence pour la [liste de fichiers](../files-and-stats).
+Cette disposition est idéale pour gérer un grand nombre de fichiers ouverts, car elle les organise en une liste verticale à droite de la carte.
+De plus, la vue en arborescence des fichiers vous permet d'inspecter les [traces, segments, et points d'intérêt](../gpx) contenus dans les fichiers grâce à des sections pliables.
+
+### <Map size="16" class="inline-block" style="margin-bottom: 2px" /> Basculer au fond de carte précédent
+
+Remplacer le fond de carte par celui précédemment sélectionné dans le [menu des couches de la carte](../map-controls).
+
+### <Layers2 size="16" class="inline-block" style="margin-bottom: 2px" /> Afficher/cacher les surcouches
+
+Activer/désactiver la visibilité des surcouches de carte sélectionnées à travers le [menu des couches de la carte](../map-controls).
+
+### <Coins size="16" class="inline-block" style="margin-bottom: 2px" /> Marqueurs de distance
+
+Activer/désactiver la visibilité des marqueurs de distance sur la carte.
+Ceux-ci sont affichés pour la sélection courante, comme le [profil altimétrique](../files-and-stats).
+
+### <Milestone size="16" class="inline-block" style="margin-bottom: 2px" /> Flèches de direction
+
+Activer/désactiver la visibilité des flèches de direction sur la carte.
+
+### <Box size="16" class="inline-block" style="margin-bottom: 2px" /> Activer/désactiver la 3D
+
+Entrer ou sortir de la vue 3D de la carte.
+
+<DocsNote>
+
+Pour contrôler l'orientation et l'inclinaison de la carte, vous pouvez également faire glisser la carte tout en maintenant <kbd>Ctrl</kbd>.
+
+</DocsNote>

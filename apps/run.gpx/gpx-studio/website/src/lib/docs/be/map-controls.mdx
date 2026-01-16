@@ -1,0 +1,70 @@
+---
+title: Map controls
+---
+
+<script>
+    import { Plus, Minus, Diff, Compass, Search, LocateFixed, PersonStanding, Layers } from '@lucide/svelte';
+    import DocsNote from '$lib/components/docs/DocsNote.svelte';
+    import DocsLayers from '$lib/components/docs/DocsLayers.svelte';
+</script>
+
+# { title }
+
+Элементы кіравання картай знаходзяцца ў правай частцы інтэрфэйсу.
+These controls allow you to navigate the map, zoom in and out, and switch between different map styles.
+
+### <Diff size="16" class="inline-block" style="margin-bottom: 2px" /> Навігацыя па карце
+
+Элементы кіравання ўверсе дазваляюць павялічваць <Plus size="16" class="inline-block" style="margin-bottom: 2px" /> і памяншаць <Minus size="16" class="inline-block" style="margin-bottom: 2px" />, а таксама змяняць арыентацыю і нахіл карты <Compass size="16" class="inline-block" style="margin-bottom: 2px" />.
+
+<DocsNote>
+
+Каб кіраваць арыентацыяй і нахілам карты, вы таксама можаце перацягнуць карту, утрымліваючы <kbd>Ctrl</kbd>.
+
+</DocsNote>
+
+### <Search size="16" class="inline-block" style="margin-bottom: 2px" /> Пошукавы радок
+
+Вы можаце выкарыстоўваць пошукавы радок, каб знайсці адрас і перайсці да яго на карце.
+
+### <LocateFixed size="16" class="inline-block" style="margin-bottom: 2px" /> Кнопка месцазнаходжання
+
+Кнопка цэнтруе карту на вашым бягучым месцазнаходжанні.
+
+<DocsNote>
+
+Гэта працуе, толькі калі вы дазволілі вашаму браўзеру і <b>gpx.studio</b> доступ да вашага месцазнаходжання.
+
+</DocsNote>
+
+### <PersonStanding size="16" class="inline-block" style="margin-bottom: 2px" /> Прагляд вуліц
+
+Гэтую кнопку можна выкарыстоўваць для ўключэння рэжыму прагляду вуліц на карце.
+У залежнасці ад крыніцы прагляду вуліц, абранай у [наладах](./menu/settings), да прагляду вуліц можна атрымаць доступ па-рознаму.
+
+- <a href="https://www.mapillary.com/" target="_blank">Mapillary</a>: прагляд вуліц будзе адлюстроўвацца на карце ў выглядзе зялёных ліній. Пры дастатковым павелічэнні зялёныя кропкі будуць паказваць дакладныя месцы, дзе даступныя здымкі вуліц. Пры навядзенні курсора на зялёную кропку будзе паказаны здымак вуліцы ў гэтым месцы.
+- <a href="https://www.google.com/streetview/" target="_blank">Google Street View</a>: націсніце на карту, каб адкрыць новую ўкладку са здымкамі вуліц у гэтым месцы.
+
+### <Layers size="16" class="inline-block" style="margin-bottom: 2px" /> Слаі карты
+
+Кнопка слаёў карты дазваляе вам пераключацца паміж рознымі базавымі картамі, а таксама пераключаць слаі карты і катэгорыі кропак цікавасці.
+
+- **Базавыя карты** - гэта фонавыя карты, якія прадстаўляюць асноўныя геаграфічныя аб'екты свету.
+  У залежнасці ад прызначэння базавыя карты маюць розныя стылі і ўзроўні дэталізацыі.
+  Адначасова можа быць адлюстравана толькі адна базавая карта.
+- **Накладкі** - гэта дадатковыя слаі, якія могуць адлюстроўвацца паверх базавай карты для атрымання дадатковай інфармацыі.
+- **Кропкі цікавасці** можна дадаць на карту, каб паказаць розныя катэгорыі месцаў, такіх як крамы, рэстараны або жыллё.
+
+<div class="flex flex-col items-center">
+    <DocsLayers />
+    <span class="text-sm text-center mt-2">
+        Навядзіце курсор мышы на карту, каб паказаць накладанне <a href="https://hiking.waymarkedtrails.org" target="_blank">Пешаходных Сцежак</a> на базавай карце <a href="https://www.mapbox.com/maps/outdoors" target="_blank">Mapbox Outdoors</a>.
+    </span>
+</div>
+
+Вялікая калекцыя глабальных і лакальных базавых карт і накладанняў даступная ў **gpx.studio**, а таксама выбар катэгорый кропак цікавасці.
+Іх можна ўключыць у [дыялогавым акне налад слаёў карты](./menu/settings).
+
+У гэтых наладах вы таксама можаце кіраваць непразрыстасцю накладанняў.
+
+Для прасунутых карыстальнікаў можна дадаваць карыстальніцкія базавыя карты і накладкі, дадаўшы URL-адрасы <a href="https://en.wikipedia.org/wiki/Web_Map_Tile_Service" target="_blank">WMTS</a>, <a href="https://en.wikipedia.org/wiki/Web_Map_Service" target="_blank">WMS</a> або <a href="https://docs.mapbox.com/help/glossary/style/" target="_blank">JSON у стылі Mapbox</a>.
