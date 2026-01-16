@@ -119,6 +119,17 @@ export const GpxFile = new Entity(
         type: "string",
         required: false,
       },
+      // Versioning support
+      version: {
+        type: "number",
+        required: true,
+        default: 1,
+      },
+      versionCount: {
+        type: "number",
+        required: true,
+        default: 1,
+      },
     },
     indexes: {
       primary: {
