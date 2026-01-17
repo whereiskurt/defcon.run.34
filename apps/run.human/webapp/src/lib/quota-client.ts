@@ -65,6 +65,15 @@ export interface UserQuotasResponse {
   quotas: QuotaInfo[];
 }
 
+export interface QuotaDefinition {
+  id: QuotaId;
+  name: string;
+  description: string;
+  tierLimits: Record<QuotaTier, number>;
+  resetPolicy: "none" | "daily" | "weekly" | "monthly" | "event";
+  enabled?: boolean;
+}
+
 /**
  * Make a request to the quota service with internal auth
  */
@@ -104,6 +113,21 @@ async function quotaRequest<T>(
  */
 export async function getUserQuotas(userId: string): Promise<UserQuotasResponse> {
   return quotaRequest<UserQuotasResponse>(`/api/internal/quota/${userId}`);
+}
+
+/**
+ * Get quota definitions (public endpoint, no auth required)
+ */
+export async function getQuotaDefinitions(): Promise<QuotaDefinition[]> {
+  const url = `${QUOTA_BASE_URL}/api/quota/definitions`;
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch quota definitions: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.definitions || [];
 }
 
 /**

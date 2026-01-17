@@ -1,10 +1,13 @@
 import { auth } from "@auth";
 import { getRunUser } from "@/entities/run-user";
-import { getUserQuotas, type QuotaId } from "@/lib/quota-client";
+import { getUserQuotas, getQuotaDefinitions, type QuotaId } from "@/lib/quota-client";
 import { NextRequest, NextResponse } from "next/server";
 
 // Quota IDs we want to fetch for the user profile
 const PROFILE_QUOTA_IDS: QuotaId[] = [
+  "file_upload",
+  "gpx_upload",
+  "photo_upload",
   "strava_sync",
   "checkin",
   "meshtastic_radio",
@@ -26,9 +29,16 @@ export async function GET(req: NextRequest) {
   }
 
   // Get all quotas from the central quota service
-  const userQuotasResponse = await getUserQuotas(session.user.id);
+  const [userQuotasResponse, definitions] = await Promise.all([
+    getUserQuotas(session.user.id),
+    getQuotaDefinitions(),
+  ]);
+
+  // Determine user's tier from the quota response (default to "upload")
+  const userTier = userQuotasResponse.quotaTier || "upload";
 
   // Build quota object for response (filter to profile quotas)
+  // Include defaults for quotas that haven't been initialized yet
   const quotas: Record<string, { remaining: number; initial: number }> = {};
   for (const quotaId of PROFILE_QUOTA_IDS) {
     const quota = userQuotasResponse.quotas.find((q) => q.quotaId === quotaId);
@@ -37,6 +47,16 @@ export async function GET(req: NextRequest) {
         remaining: quota.remaining,
         initial: quota.initialAmount,
       };
+    } else {
+      // Quota not initialized yet - return the tier default
+      const def = definitions.find((d) => d.id === quotaId);
+      if (def) {
+        const tierLimit = def.tierLimits[userTier] ?? def.tierLimits["upload"] ?? 0;
+        quotas[quotaId] = {
+          remaining: tierLimit,
+          initial: tierLimit,
+        };
+      }
     }
   }
 

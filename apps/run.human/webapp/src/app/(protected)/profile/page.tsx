@@ -20,6 +20,9 @@ interface UserData {
   checkIns?: any[];
   checkInCount?: number;
   quotas?: {
+    file_upload?: QuotaInfo;
+    gpx_upload?: QuotaInfo;
+    photo_upload?: QuotaInfo;
     strava_sync?: QuotaInfo;
     checkin?: QuotaInfo;
     meshtastic_radio?: QuotaInfo;
