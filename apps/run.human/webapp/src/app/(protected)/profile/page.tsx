@@ -149,30 +149,78 @@ export default function ProfilePage() {
               <>
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Quota</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {/* Activity Stats */}
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
                         {userData.checkInCount ?? userData.checkIns?.length ?? 0}
                       </p>
                       <p className="text-xs text-default-500">Total Check-ins</p>
                     </div>
+                    {/* Upload Quotas */}
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.checkin?.remaining ?? 50}
+                        {userData.quotas.file_upload?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.file_upload?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">File Uploads</p>
+                    </div>
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.gpx_upload?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.gpx_upload?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">GPX Uploads</p>
+                    </div>
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.photo_upload?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.photo_upload?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">Photo Uploads</p>
+                    </div>
+                    {/* Activity Quotas */}
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.checkin?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.checkin?.initial ?? 0}</span>
                       </p>
                       <p className="text-xs text-default-500">Check-ins Left</p>
                     </div>
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.strava_sync?.remaining ?? 16}
+                        {userData.quotas.strava_sync?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.strava_sync?.initial ?? 0}</span>
                       </p>
                       <p className="text-xs text-default-500">Strava Syncs</p>
                     </div>
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.meshtastic_radio?.remaining ?? 5}
+                        {userData.quotas.meshtastic_radio?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.meshtastic_radio?.initial ?? 0}</span>
                       </p>
-                      <p className="text-xs text-default-500">Radio Adds Left</p>
+                      <p className="text-xs text-default-500">Radio Slots</p>
+                    </div>
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.qr_scan?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.qr_scan?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">QR Scans</p>
+                    </div>
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.displayname_change?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.displayname_change?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">Name Changes</p>
+                    </div>
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.qr_sheet?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.qr_sheet?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">QR Sheets</p>
                     </div>
                   </div>
                 </div>
