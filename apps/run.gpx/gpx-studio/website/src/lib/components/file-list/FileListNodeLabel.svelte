@@ -252,6 +252,14 @@
             {/if}
             <Shortcut key="H" ctrl={true} />
         </ContextMenu.Item>
+        <ContextMenu.Item onclick={fileActions.hideOthers}>
+            <EyeOff size="16" />
+            {i18n._('menu.hide_others')}
+        </ContextMenu.Item>
+        <ContextMenu.Item onclick={fileActions.unhideAll}>
+            <Eye size="16" />
+            {i18n._('menu.unhide_all')}
+        </ContextMenu.Item>
         <ContextMenu.Separator />
         {#if orientation === 'vertical'}
             {#if item instanceof ListFileItem}

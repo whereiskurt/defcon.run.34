@@ -53,7 +53,7 @@ cd apps/run.human/webapp && npm run dev
 cd infra/terraform/live/site && terragrunt run-all plan
 
 # Issue tracking
-bd ready                 # Find unblocked work
+bd ready --json          # Find unblocked work (structured output)
 bd close <id> && bd sync # Complete and sync
 bv --robot-triage        # AI triage: ranked work, graph metrics, next steps
 

@@ -9,8 +9,7 @@
     import {
         Cloud,
         CloudUpload,
-        Copy,
-        Plus,
+        FolderOpen,
         Trash2,
         RefreshCw,
         Loader2,
@@ -38,7 +37,6 @@
         cloudSyncError,
         listCloudFiles,
         listCloudFolders,
-        saveToCloud,
         saveOrUpdateToCloud,
         loadFromCloud,
         loadVersionFromCloud,
@@ -54,7 +52,7 @@
         type CloudFolder,
         type FileVersion,
     } from '$lib/cloud-sync';
-    import { cloudStorageOpen, closeCloudStorage } from '$lib/components/cloud/utils.svelte';
+    import { cloudStorageOpen, cloudStorageMode, CloudStorageMode, closeCloudStorage } from '$lib/components/cloud/utils.svelte';
     import { auth, isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
     import { fileStateCollection } from '$lib/logic/file-state';
     import { settings } from '$lib/logic/settings';
@@ -92,6 +90,45 @@
     let layersExpanded = true;
     let selectedLayers: Set<string> = new Set();
     let knownLayers: Set<string> = new Set(); // Track layers we've seen to only auto-select new ones
+
+    // Remote file selection state (for batch opening)
+    let selectedRemoteFiles: Set<string> = new Set();
+
+    function toggleRemoteFileSelection(fileId: string) {
+        if (selectedRemoteFiles.has(fileId)) {
+            selectedRemoteFiles.delete(fileId);
+        } else {
+            selectedRemoteFiles.add(fileId);
+        }
+        selectedRemoteFiles = selectedRemoteFiles; // trigger reactivity
+    }
+
+    function selectAllRemoteFiles() {
+        selectedRemoteFiles = new Set($cloudFiles.map(f => f.fileId));
+    }
+
+    function selectNoneRemoteFiles() {
+        selectedRemoteFiles = new Set();
+    }
+
+    // Mode-reactive section expansion
+    $: {
+        const mode = $cloudStorageMode;
+        if (mode === CloudStorageMode.SAVE) {
+            layersExpanded = true;
+            filesExpanded = false;
+        } else if (mode === CloudStorageMode.OPEN) {
+            layersExpanded = false;
+            filesExpanded = true;
+        } else if (mode === CloudStorageMode.BROWSE) {
+            layersExpanded = true;
+            filesExpanded = true;
+        }
+        // Clear remote file selection when dialog opens
+        if (mode !== CloudStorageMode.CLOSED) {
+            selectedRemoteFiles = new Set();
+        }
+    }
 
     // Reactive: get all layers from fileStateCollection
     interface LayerInfo {
@@ -192,6 +229,8 @@
         try {
             await navigateToFolder(folderId, folderName);
             filesExpanded = true;
+            // Clear remote file selection when navigating folders
+            selectedRemoteFiles = new Set();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to navigate';
         } finally {
@@ -407,6 +446,40 @@
         }
     }
 
+    // Open selected remote files (batch load)
+    async function handleOpenSelectedFiles() {
+        if (selectedRemoteFiles.size === 0) {
+            error = 'No files selected';
+            return;
+        }
+
+        loading = true;
+        error = null;
+        let loadedCount = 0;
+        try {
+            for (const fileId of selectedRemoteFiles) {
+                const file = $cloudFiles.find(f => f.fileId === fileId);
+                if (!file) continue;
+
+                const { content } = await loadFromCloud(file.fileId);
+                const gpx = parseGPX(content);
+                if (gpx.metadata === undefined) {
+                    gpx.metadata = {};
+                }
+                gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
+                fileActions.add(gpx);
+                selection.selectFileWhenLoaded(gpx._data.id);
+                loadedCount++;
+            }
+            closeCloudStorage();
+            toast.success(`${loadedCount} file${loadedCount > 1 ? 's' : ''} loaded`);
+        } catch (e) {
+            error = e instanceof Error ? e.message : 'Failed to load files';
+        } finally {
+            loading = false;
+        }
+    }
+
     // Save selected layers (overwrites existing files by name)
     async function handleSaveSelectedLayers() {
         if (selectedLayers.size === 0) {
@@ -461,51 +534,6 @@
             filesExpanded = true;
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to save files';
-        } finally {
-            loading = false;
-        }
-    }
-
-    // Copy selected layers (always creates new files)
-    async function handleCopySelectedLayers() {
-        if (selectedLayers.size === 0) {
-            error = 'No layers selected';
-            return;
-        }
-
-        loading = true;
-        error = null;
-        try {
-            const targetFolderId = get(currentFolderId);
-            let copiedCount = 0;
-
-            for (const fileId of selectedLayers) {
-                const file = fileStateCollection.getFile(fileId);
-                if (!file) continue;
-
-                const gpxContent = buildGPX(file, []);
-                const fileName = `${file.metadata?.name || `track-${fileId}`}.gpx`;
-                await saveToCloud(gpxContent, fileName, {
-                    trackCount: file.trk?.length || 0,
-                    waypointCount: file.wpt?.length || 0,
-                }, targetFolderId);
-                copiedCount++;
-            }
-
-            // Persist last save folder (use 'ROOT' for null/root folder)
-            settings.lastSaveFolder.set(targetFolderId ?? 'ROOT');
-
-            await refreshFiles();
-
-            // Show success toast
-            toast.success(`${copiedCount} file${copiedCount > 1 ? 's' : ''} copied to cloud`, {
-                description: 'Click the share icon next to a file to create a share link',
-            });
-
-            // Auto-expand Remote Files section
-            filesExpanded = true;
-        } catch (e) {
-            error = e instanceof Error ? e.message : 'Failed to copy files';
         } finally {
             loading = false;
         }
@@ -598,7 +626,13 @@
         <Dialog.Header>
             <Dialog.Title class="flex items-center gap-2">
                 <Cloud class="h-5 w-5" />
-                Cloud Storage
+                {#if $cloudStorageMode === CloudStorageMode.SAVE}
+                    Save to Cloud
+                {:else if $cloudStorageMode === CloudStorageMode.OPEN}
+                    Open from Cloud
+                {:else}
+                    Cloud Storage
+                {/if}
             </Dialog.Title>
         </Dialog.Header>
 
@@ -742,6 +776,32 @@
                                 {/each}
                             </div>
                         {/if}
+                        <!-- Select All/None toolbar for remote files (in open/browse modes) -->
+                        {#if $cloudStorageMode !== CloudStorageMode.SAVE && $cloudFiles.length > 0}
+                            <div class="border-t px-4 py-2 bg-muted/30 flex gap-2 items-center">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onclick={selectAllRemoteFiles}
+                                    disabled={loading || selectedRemoteFiles.size === $cloudFiles.length}
+                                >
+                                    Select All
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onclick={selectNoneRemoteFiles}
+                                    disabled={loading || selectedRemoteFiles.size === 0}
+                                >
+                                    Select None
+                                </Button>
+                                {#if selectedRemoteFiles.size > 0}
+                                    <span class="text-sm text-muted-foreground ml-2">
+                                        {selectedRemoteFiles.size} selected
+                                    </span>
+                                {/if}
+                            </div>
+                        {/if}
                         <div class="border-t max-h-64 overflow-auto">
                             {#if $cloudFolders.length === 0 && $cloudFiles.length === 0 && !creatingFolder}
                                 <div class="p-6 text-center text-muted-foreground">
@@ -752,6 +812,9 @@
                                 <table class="w-full">
                                     <thead class="bg-muted/50 sticky top-0">
                                         <tr>
+                                            {#if $cloudStorageMode !== CloudStorageMode.SAVE}
+                                                <th class="w-10 px-2 py-2"></th>
+                                            {/if}
                                             <th class="text-left px-4 py-2 font-medium text-sm">Name</th>
                                             <th class="text-left px-4 py-2 font-medium text-sm">Size</th>
                                             <th class="text-left px-4 py-2 font-medium text-sm hidden sm:table-cell">Updated</th>
@@ -801,6 +864,9 @@
                                         <!-- Global folders (at root only) -->
                                         {#each $globalFolders as folder}
                                             <tr class="border-t hover:bg-muted/30 cursor-pointer" onclick={() => handleNavigateToFolder(folder.folderId, folder.folderName)}>
+                                                {#if $cloudStorageMode !== CloudStorageMode.SAVE}
+                                                    <td class="px-2 py-2"></td>
+                                                {/if}
                                                 <td class="px-4 py-2">
                                                     <div class="flex items-center gap-2">
                                                         <Globe class="h-4 w-4 text-blue-500 flex-shrink-0" />
@@ -821,6 +887,9 @@
                                         <!-- User folders -->
                                         {#each $cloudFolders as folder}
                                             <tr class="border-t hover:bg-muted/30 cursor-pointer" onclick={() => handleNavigateToFolder(folder.folderId, folder.folderName)}>
+                                                {#if $cloudStorageMode !== CloudStorageMode.SAVE}
+                                                    <td class="px-2 py-2"></td>
+                                                {/if}
                                                 <td class="px-4 py-2">
                                                     {#if editingFolderId === folder.folderId}
                                                         <div class="flex items-center gap-2" onclick={(e) => e.stopPropagation()}>
@@ -894,6 +963,15 @@
                                         <!-- Files -->
                                         {#each $cloudFiles as file}
                                             <tr class="border-t hover:bg-muted/30">
+                                                {#if $cloudStorageMode !== CloudStorageMode.SAVE}
+                                                    <td class="px-2 py-2 text-center">
+                                                        <Checkbox
+                                                            checked={selectedRemoteFiles.has(file.fileId)}
+                                                            onCheckedChange={() => toggleRemoteFileSelection(file.fileId)}
+                                                            disabled={loading}
+                                                        />
+                                                    </td>
+                                                {/if}
                                                 <td class="px-4 py-2">
                                                     {#if editingFileId === file.fileId}
                                                         <div class="flex items-center gap-2">
@@ -927,16 +1005,6 @@
                                                         </div>
                                                     {:else}
                                                         <div class="flex items-center gap-1.5">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                class="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50 flex-shrink-0"
-                                                                onclick={() => handleLoadFile(file)}
-                                                                disabled={loading}
-                                                                title="Add to map"
-                                                            >
-                                                                <Plus class="h-4 w-4" />
-                                                            </Button>
                                                             <span class="font-medium text-sm" title={file.fileName}>
                                                                 {file.fileName.length > 28 ? file.fileName.slice(0, 28) + '...' : file.fileName}
                                                             </span>
@@ -1046,35 +1114,41 @@
                     </Collapsible.Content>
                 </Collapsible.Root>
 
-                <!-- Save/Copy buttons -->
+                <!-- Mode-aware action buttons -->
                 <div class="flex justify-center gap-3 pt-2">
-                    <Button
-                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-5"
-                        onclick={handleSaveSelectedLayers}
-                        disabled={loading || selectedLayers.size === 0}
-                        title="Save selected layers, overwriting existing files with the same name"
-                    >
-                        {#if loading}
-                            <Loader2 class="h-5 w-5 mr-2 animate-spin" />
-                        {:else}
-                            <CloudUpload class="h-5 w-5 mr-2" />
-                        {/if}
-                        Save
-                    </Button>
-                    <Button
-                        variant="outline"
-                        class="px-6 py-5"
-                        onclick={handleCopySelectedLayers}
-                        disabled={loading || selectedLayers.size === 0}
-                        title="Make a copy of selected layers as new files"
-                    >
-                        {#if loading}
-                            <Loader2 class="h-5 w-5 mr-2 animate-spin" />
-                        {:else}
-                            <Copy class="h-5 w-5 mr-2" />
-                        {/if}
-                        Make Copy
-                    </Button>
+                    <!-- Save button - shown in save and browse modes -->
+                    {#if $cloudStorageMode === CloudStorageMode.SAVE || $cloudStorageMode === CloudStorageMode.BROWSE}
+                        <Button
+                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-5"
+                            onclick={handleSaveSelectedLayers}
+                            disabled={loading || selectedLayers.size === 0}
+                            title="Save selected layers, overwriting existing files with the same name"
+                        >
+                            {#if loading}
+                                <Loader2 class="h-5 w-5 mr-2 animate-spin" />
+                            {:else}
+                                <CloudUpload class="h-5 w-5 mr-2" />
+                            {/if}
+                            Save
+                        </Button>
+                    {/if}
+
+                    <!-- Open Selected button - shown in open and browse modes -->
+                    {#if $cloudStorageMode === CloudStorageMode.OPEN || $cloudStorageMode === CloudStorageMode.BROWSE}
+                        <Button
+                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5"
+                            onclick={handleOpenSelectedFiles}
+                            disabled={loading || selectedRemoteFiles.size === 0}
+                            title="Open selected files from cloud"
+                        >
+                            {#if loading}
+                                <Loader2 class="h-5 w-5 mr-2 animate-spin" />
+                            {:else}
+                                <FolderOpen class="h-5 w-5 mr-2" />
+                            {/if}
+                            Open Selected{selectedRemoteFiles.size > 0 ? ` (${selectedRemoteFiles.size})` : ''}
+                        </Button>
+                    {/if}
                 </div>
             </div>
         {/if}

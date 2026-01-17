@@ -77,6 +77,8 @@
         },
         "hide": "Hide",
         "unhide": "Unhide",
+        "hide_others": "Hide Others",
+        "unhide_all": "Unhide All",
         "center": "Center",
         "open_in": "Open in",
         "copy_coordinates": "Copy coordinates",

@@ -9,11 +9,11 @@ Run `bd prime` for workflow context, or install hooks (`bd hooks install`) for a
 ### Finding Work
 
 ```bash
-bd ready                        # Find unblocked work
-bd list --status=open           # List open issues
-bd list --status=in_progress    # Your active work
-bd show <id>                    # View issue details
-bd blocked                      # Show blocked issues
+bd ready --json                        # Find unblocked work
+bd list --status=open --json           # List open issues
+bd list --status=in_progress --json    # Your active work
+bd show <id> --json                    # View issue details
+bd blocked --json                      # Show blocked issues
 ```
 
 ### Creating & Updating
@@ -35,7 +35,7 @@ bd dep add <issue> <depends-on> # Add dependency
 
 ```bash
 bd sync                         # Sync with git (run at session end)
-bd stats                        # Project statistics
+bd stats --json                 # Project statistics
 ```
 
 ## Priority Values
@@ -54,8 +54,8 @@ Do NOT use "high"/"medium"/"low" strings.
 ### Starting Work
 
 ```bash
-bd ready                              # Find available work
-bd show <id>                          # Review issue details
+bd ready --json                       # Find available work
+bd show <id> --json                   # Review issue details
 bd update <id> --status=in_progress   # Claim it
 ```
 

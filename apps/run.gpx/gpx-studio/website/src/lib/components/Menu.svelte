@@ -3,7 +3,6 @@
     import Shortcut from '$lib/components/Shortcut.svelte';
     import {
         Plus,
-        Copy,
         Download,
         Undo2,
         Redo2,
@@ -44,7 +43,7 @@
     import { map } from '$lib/components/map/map';
     import { editMetadata } from '$lib/components/file-list/metadata/utils.svelte';
     import { editStyle } from '$lib/components/file-list/style/utils.svelte';
-    import { exportState, ExportState } from '$lib/components/export/utils.svelte';
+    import { exportState, ExportState, exportAllFiles } from '$lib/components/export/utils.svelte';
     import { anySelectedLayer } from '$lib/components/map/layer-control/utils';
     import { defaultOverlays } from '$lib/assets/layers';
     import LayerControlSettings from '$lib/components/map/layer-control/LayerControlSettings.svelte';
@@ -52,7 +51,7 @@
     import Export from '$lib/components/export/Export.svelte';
     import { CloudStorage } from '$lib/components/cloud';
     import ShareAcceptDialog from '$lib/components/cloud/ShareAcceptDialog.svelte';
-    import { cloudStorageOpen, openCloudStorage, quickSaveToCloud } from '$lib/components/cloud/utils.svelte';
+    import { cloudStorageOpen, openCloudStorageSave, openCloudStorageOpen, openCloudStorageBrowse, quickSaveToCloud } from '$lib/components/cloud/utils.svelte';
     import { mode, setMode } from 'mode-watcher';
     import { i18n } from '$lib/i18n.svelte';
     import { languages } from '$lib/languages';
@@ -129,19 +128,21 @@
                         Local Open
                         <Shortcut key="O" ctrl={true} />
                     </Menubar.Item>
-                    <Menubar.Item onclick={quickSaveToCloud} disabled={fileStateCollection.size == 0}>
+                    <Menubar.Item onclick={openCloudStorageOpen}>
                         <Cloud size="16" />
-                        Save to Cloud
-                        <Shortcut key="K" ctrl={true} shift={true} />
+                        Open Remote...
+                        <Shortcut key="O" ctrl={true} shift={true} />
                     </Menubar.Item>
                     <Menubar.Separator />
-                    <Menubar.Item
-                        onclick={fileActions.duplicateSelection}
-                        disabled={$selection.size == 0}
-                    >
-                        <Copy size="16" />
-                        {i18n._('menu.duplicate')}
-                        <Shortcut key="D" ctrl={true} />
+                    <Menubar.Item onclick={openCloudStorageSave} disabled={fileStateCollection.size == 0}>
+                        <Cloud size="16" />
+                        Save As...
+                        <Shortcut key="K" ctrl={true} shift={true} />
+                    </Menubar.Item>
+                    <Menubar.Item onclick={quickSaveToCloud} disabled={fileStateCollection.size == 0}>
+                        <Cloud size="16" />
+                        Save All
+                        <Shortcut key="S" ctrl={true} shift={true} />
                     </Menubar.Item>
                     <Menubar.Separator />
                     <Menubar.Item
@@ -149,7 +150,7 @@
                         disabled={$selection.size == 0}
                     >
                         <FileX size="16" />
-                        {i18n._('menu.delete')}
+                        Close
                         <Shortcut key="⌫" ctrl={true} />
                     </Menubar.Item>
                     <Menubar.Item
@@ -157,25 +158,16 @@
                         disabled={fileStateCollection.size == 0}
                     >
                         <FileX size="16" />
-                        {i18n._('menu.delete_all')}
+                        Close All
                         <Shortcut key="⌫" ctrl={true} shift={true} />
                     </Menubar.Item>
                     <Menubar.Separator />
                     <Menubar.Item
-                        onclick={() => (exportState.current = ExportState.SELECTION)}
-                        disabled={$selection.size == 0}
-                    >
-                        <Download size="16" />
-                        {i18n._('menu.export')}
-                        <Shortcut key="S" ctrl={true} />
-                    </Menubar.Item>
-                    <Menubar.Item
-                        onclick={() => (exportState.current = ExportState.ALL)}
+                        onclick={() => exportAllFiles([])}
                         disabled={fileStateCollection.size == 0}
                     >
                         <Download size="16" />
-                        {i18n._('menu.export_all')}
-                        <Shortcut key="S" ctrl={true} shift={true} />
+                        Export All...
                     </Menubar.Item>
                 </Menubar.Content>
             </Menubar.Menu>
@@ -346,6 +338,11 @@
                     <span class="hidden md:block">{i18n._('menu.view')}</span>
                 </Menubar.Trigger>
                 <Menubar.Content class="border-none">
+                    <Menubar.Item onclick={openCloudStorageBrowse}>
+                        <Cloud size="16" />
+                        Cloud Storage
+                    </Menubar.Item>
+                    <Menubar.Separator />
                     <Menubar.CheckboxItem bind:checked={$elevationProfile}>
                         <ChartArea size="16" />
                         {i18n._('menu.elevation_profile')}
@@ -356,11 +353,6 @@
                         {i18n._('menu.tree_file_view')}
                         <Shortcut key="L" ctrl={true} />
                     </Menubar.CheckboxItem>
-                    <Menubar.Separator />
-                    <Menubar.Item onclick={openCloudStorage}>
-                        <Cloud size="16" />
-                        Cloud Storage
-                    </Menubar.Item>
                     <Menubar.Separator />
                     <Menubar.Item inset onclick={switchBasemaps}>
                         <Map size="16" />{i18n._('menu.switch_basemap')}<Shortcut key="F1" />
@@ -565,19 +557,21 @@
                 pasteSelection();
                 e.preventDefault();
             }
-        } else if ((e.key === 's' || e.key == 'S') && (e.metaKey || e.ctrlKey)) {
-            if (e.shiftKey) {
-                if (fileStateCollection.size > 0) {
-                    exportState.current = ExportState.ALL;
-                }
-            } else if ($selection.size > 0) {
-                exportState.current = ExportState.SELECTION;
-            }
-            e.preventDefault();
-        } else if (e.key === 'k' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+        } else if ((e.key === 's' || e.key == 'S') && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+            // Ctrl+Shift+S: Save All (quick save to cloud)
             if (fileStateCollection.size > 0) {
                 quickSaveToCloud();
             }
+            e.preventDefault();
+        } else if (e.key === 'k' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+            // Ctrl+Shift+K: Save As... (opens Cloud Storage in save mode)
+            if (fileStateCollection.size > 0) {
+                openCloudStorageSave();
+            }
+            e.preventDefault();
+        } else if (e.key === 'o' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+            // Ctrl+Shift+O: Open Remote... (opens Cloud Storage in open mode)
+            openCloudStorageOpen();
             e.preventDefault();
         } else if ((e.key === 'z' || e.key == 'Z') && (e.metaKey || e.ctrlKey)) {
             if (e.shiftKey) {

@@ -1,7 +1,7 @@
 /**
  * Cloud storage state management
  */
-import { writable, get } from 'svelte/store';
+import { writable, derived, get } from 'svelte/store';
 import { toast } from 'svelte-sonner';
 import { buildGPX } from 'gpx';
 import {
@@ -13,14 +13,58 @@ import { fileStateCollection } from '$lib/logic/file-state';
 import { settings } from '$lib/logic/settings';
 import { selection } from '$lib/logic/selection';
 
-export const cloudStorageOpen = writable(false);
+/**
+ * Cloud Storage dialog modes
+ */
+export enum CloudStorageMode {
+    CLOSED = 'closed',
+    SAVE = 'save',      // From "Save As..." menu - layers expanded, files collapsed
+    OPEN = 'open',      // From "Open Remote..." menu - layers collapsed, files expanded
+    BROWSE = 'browse',  // From "View > Cloud Storage" menu - both expanded
+}
 
+// Main mode store
+export const cloudStorageMode = writable<CloudStorageMode>(CloudStorageMode.CLOSED);
+
+// Derived store for backwards compatibility (dialog open check)
+export const cloudStorageOpen = derived(
+    cloudStorageMode,
+    ($mode) => $mode !== CloudStorageMode.CLOSED
+);
+
+/**
+ * Open Cloud Storage in Save mode (from "Save As..." menu)
+ * Layers section expanded, Remote Files collapsed
+ */
+export function openCloudStorageSave() {
+    cloudStorageMode.set(CloudStorageMode.SAVE);
+}
+
+/**
+ * Open Cloud Storage in Open mode (from "Open Remote..." menu)
+ * Layers section collapsed, Remote Files expanded
+ */
+export function openCloudStorageOpen() {
+    cloudStorageMode.set(CloudStorageMode.OPEN);
+}
+
+/**
+ * Open Cloud Storage in Browse mode (from "View > Cloud Storage" menu)
+ * Both sections expanded
+ */
+export function openCloudStorageBrowse() {
+    cloudStorageMode.set(CloudStorageMode.BROWSE);
+}
+
+/**
+ * @deprecated Use mode-specific open functions instead
+ */
 export function openCloudStorage() {
-    cloudStorageOpen.set(true);
+    cloudStorageMode.set(CloudStorageMode.BROWSE);
 }
 
 export function closeCloudStorage() {
-    cloudStorageOpen.set(false);
+    cloudStorageMode.set(CloudStorageMode.CLOSED);
 }
 
 // Share accept dialog state
