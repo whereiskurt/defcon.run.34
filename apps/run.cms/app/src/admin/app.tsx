@@ -49,8 +49,9 @@ const shouldRedirectToSSO = (): boolean => {
 const redirectToSSO = (): void => {
   if (typeof window === 'undefined') return;
   const region = getRegionFromPath();
-  // On localhost without region prefix, don't add region to SSO URL
-  const ssoUrl = region ? `/${region}/strapi-plugin-sso/oidc` : '/strapi-plugin-sso/oidc';
+  // On localhost, never use region prefix for SSO URLs (plugin doesn't know about regions)
+  // In production, nginx rewrites /{region}/strapi-plugin-sso/* to /strapi-plugin-sso/*
+  const ssoUrl = isLocalDev() ? '/strapi-plugin-sso/oidc' : (region ? `/${region}/strapi-plugin-sso/oidc` : '/strapi-plugin-sso/oidc');
   console.log('[SSO] Session expired, redirecting to SSO:', ssoUrl);
   window.location.href = ssoUrl;
 };
