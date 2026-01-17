@@ -107,6 +107,44 @@ aws dynamodb update-time-to-live \
 echo "Enabled TTL on 'run-auth-authjs' table"
 
 ###############################################################################
+# run-quota table (centralized quota service)
+###############################################################################
+
+# Create the 'run-quota' table
+# Schema: pk/sk with 1 GSI (gsi1pk-gsi1sk-index for quota type queries)
+aws dynamodb create-table \
+    --endpoint-url "$ENDPOINT_URL" \
+    --table-name run-quota \
+    --attribute-definitions \
+        AttributeName=pk,AttributeType=S \
+        AttributeName=sk,AttributeType=S \
+        AttributeName=gsi1pk,AttributeType=S \
+        AttributeName=gsi1sk,AttributeType=S \
+    --key-schema \
+        AttributeName=pk,KeyType=HASH \
+        AttributeName=sk,KeyType=RANGE \
+    --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+    --global-secondary-indexes \
+        '[
+            {
+                "IndexName": "gsi1pk-gsi1sk-index",
+                "KeySchema": [
+                    {"AttributeName":"gsi1pk","KeyType":"HASH"},
+                    {"AttributeName":"gsi1sk","KeyType":"RANGE"}
+                ],
+                "Projection": {
+                    "ProjectionType":"ALL"
+                },
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": 5,
+                    "WriteCapacityUnits": 5
+                }
+            }
+        ]'
+
+echo "Created 'run-quota' table"
+
+###############################################################################
 # run.human tables
 ###############################################################################
 

@@ -17,10 +17,11 @@ import {
   tryConsumeQuota,
   quotaExceededResponse,
   handleQuotaError,
+  getUserTier,
   type QuotaId,
   type QuotaErrorResponse,
 } from "@/lib/quota-middleware";
-import { restoreQuota, getUserTier } from "@/services/quota";
+import { restoreQuota } from "@/lib/quota-client";
 
 // URL expiration time in seconds (1 hour)
 const PRESIGN_EXPIRES_IN = 3600;

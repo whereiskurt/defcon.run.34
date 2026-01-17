@@ -1,7 +1,7 @@
 /**
  * Quota System Definitions
  *
- * Type-safe quota type definitions for the DefCon 34 run tracking app.
+ * Type-safe quota type definitions for the DefCon 34 centralized quota service.
  * All quotas use countdown-to-zero semantics (remaining decrements with use).
  */
 

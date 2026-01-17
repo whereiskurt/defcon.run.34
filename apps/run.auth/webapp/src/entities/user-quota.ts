@@ -1,5 +1,11 @@
 import { Entity } from "electrodb";
-import { electroClient, ELECTRO_TABLE } from "./client";
+import { electroClient } from "./client";
+
+/**
+ * Quota table name - separate from auth tables for independent scaling
+ * Uses environment variable with fallback
+ */
+export const QUOTA_TABLE = process.env.AUTH_QUOTA_DBNAME || "run-quota";
 
 /**
  * UserQuota Entity
@@ -19,7 +25,7 @@ export const UserQuota = new Entity(
     model: {
       entity: "UserQuota",
       version: "1",
-      service: "run",
+      service: "quota",
     },
     attributes: {
       // Composite key components
@@ -88,7 +94,7 @@ export const UserQuota = new Entity(
       },
     },
   },
-  { client: electroClient, table: ELECTRO_TABLE }
+  { client: electroClient, table: QUOTA_TABLE }
 );
 
 /**

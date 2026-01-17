@@ -2,39 +2,22 @@
  * Quota Middleware Helpers
  *
  * Provides convenient patterns for integrating quota checks into API routes.
+ * Uses the centralized quota service in run.auth via quota-client.
  */
 
 import { NextResponse } from "next/server";
 import {
-  checkQuota,
-  consumeQuota,
+  checkQuota as clientCheckQuota,
+  consumeQuota as clientConsumeQuota,
+  QuotaExceededError,
   type QuotaId,
   type QuotaTier,
   type QuotaConsumeResult,
-} from "@/services/quota";
+} from "@/lib/quota-client";
 
-// Re-export for convenience
+// Re-export types for convenience
 export type { QuotaId, QuotaTier, QuotaConsumeResult };
-
-/**
- * Custom error for quota exceeded scenarios.
- * Can be thrown and caught for consistent error handling.
- */
-export class QuotaExceededError extends Error {
-  public readonly quotaId: QuotaId;
-  public readonly remaining: number;
-  public readonly requested: number;
-
-  constructor(quotaId: QuotaId, remaining: number, requested: number) {
-    super(
-      `Quota exceeded for ${quotaId}: ${remaining} remaining, ${requested} requested`
-    );
-    this.name = "QuotaExceededError";
-    this.quotaId = quotaId;
-    this.remaining = remaining;
-    this.requested = requested;
-  }
-}
+export { QuotaExceededError };
 
 /**
  * Quota exceeded error response structure
@@ -95,9 +78,9 @@ export async function requireQuota(
   userId: string,
   quotaId: QuotaId,
   amount: number = 1,
-  tier: QuotaTier = "zero"
+  tier?: QuotaTier
 ): Promise<void> {
-  const result = await checkQuota(userId, quotaId, amount, tier);
+  const result = await clientCheckQuota(userId, quotaId, amount, tier);
 
   if (!result.allowed) {
     throw new QuotaExceededError(quotaId, result.remaining, result.requested);
@@ -121,9 +104,9 @@ export async function tryConsumeQuota(
   userId: string,
   quotaId: QuotaId,
   amount: number = 1,
-  tier: QuotaTier = "zero"
+  tier?: QuotaTier
 ): Promise<QuotaConsumeResult> {
-  return consumeQuota(userId, quotaId, amount, tier);
+  return clientConsumeQuota(userId, quotaId, amount, tier);
 }
 
 /**
@@ -146,9 +129,9 @@ export async function requireAndConsumeQuota(
   userId: string,
   quotaId: QuotaId,
   amount: number = 1,
-  tier: QuotaTier = "zero"
+  tier?: QuotaTier
 ): Promise<void> {
-  const result = await consumeQuota(userId, quotaId, amount, tier);
+  const result = await clientConsumeQuota(userId, quotaId, amount, tier);
 
   if (!result.success) {
     throw new QuotaExceededError(quotaId, result.remaining, amount);
@@ -188,4 +171,18 @@ export function isQuotaExceededError(
   error: unknown
 ): error is QuotaExceededError {
   return error instanceof QuotaExceededError;
+}
+
+/**
+ * Helper to get user tier from services array
+ * Priority: admin > upload > zero
+ */
+export function getUserTier(services: string[]): QuotaTier {
+  if (services.includes("admin")) {
+    return "admin";
+  }
+  if (services.includes("run") || services.includes("human")) {
+    return "upload";
+  }
+  return "zero";
 }

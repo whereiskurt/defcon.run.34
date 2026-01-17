@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@auth';
 import { getRunUser, updateMeshtasticRadios, type MeshtasticRadio } from '@/entities/run-user';
-import { checkQuota, consumeQuota, restoreQuota, getUserTier } from '@/services/quota';
+import { checkQuota, consumeQuota, restoreQuota } from '@/lib/quota-client';
+import { getUserTier } from '@/lib/quota-middleware';
 import crypto from 'crypto';
 
 // Sanitize radio data to ensure all fields have correct types
