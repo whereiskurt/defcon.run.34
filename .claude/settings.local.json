@@ -103,7 +103,8 @@
       "WebFetch(domain:warnings.authjs.dev)",
       "WebFetch(domain:svelte.dev)",
       "WebSearch",
-      "WebFetch(domain:console.anthropic.com)"
+      "WebFetch(domain:console.anthropic.com)",
+      "Bash(AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local aws dynamodb:*)"
     ],
     "deny": [],
     "ask": []

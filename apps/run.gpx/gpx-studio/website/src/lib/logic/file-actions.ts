@@ -767,6 +767,48 @@ export const fileActions = {
             });
         });
     },
+    hideOthers: () => {
+        // Get the file IDs of selected items
+        const selectedFileIds = new Set<string>();
+        get(selection).forEach((item) => {
+            selectedFileIds.add(item.getFileId());
+        });
+
+        if (selectedFileIds.size === 0) {
+            return;
+        }
+
+        // Collect file IDs to hide outside of Immer producer
+        const fileIdsToHide: string[] = [];
+        fileStateCollection.forEach((fileId) => {
+            if (!selectedFileIds.has(fileId)) {
+                fileIdsToHide.push(fileId);
+            }
+        });
+
+        if (fileIdsToHide.length === 0) {
+            return;
+        }
+
+        fileActionManager.applyToFiles(fileIdsToHide, (file) => {
+            file.setHidden(true);
+        });
+    },
+    unhideAll: () => {
+        // Collect all file IDs outside of Immer producer
+        const allFileIds: string[] = [];
+        fileStateCollection.forEach((fileId) => {
+            allFileIds.push(fileId);
+        });
+
+        if (allFileIds.length === 0) {
+            return;
+        }
+
+        fileActionManager.applyToFiles(allFileIds, (file) => {
+            file.setHidden(false);
+        });
+    },
     deleteSelection: () => {
         if (get(selection).size === 0) {
             return;
