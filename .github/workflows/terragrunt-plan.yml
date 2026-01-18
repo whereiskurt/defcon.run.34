@@ -75,7 +75,7 @@ jobs:
         id: plan
         working-directory: infra/terraform/live/site
         env:
-          TERRAGRUNT_PROVIDER_CACHE: "1"
+          TG_PROVIDER_CACHE: "1"
         run: |
           # Run plan and capture output
           terragrunt run plan --all -no-color 2>&1 | tee plan_output.txt
