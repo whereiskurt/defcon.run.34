@@ -78,7 +78,7 @@ jobs:
           TG_PROVIDER_CACHE: "1"
         run: |
           # Run plan and capture output
-          terragrunt run plan --all -no-color 2>&1 | tee plan_output.txt
+          terragrunt run plan --all --no-color 2>&1 | tee plan_output.txt
 
           # Check exit code
           exit_code=${PIPESTATUS[0]}

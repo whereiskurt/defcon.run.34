@@ -76,7 +76,7 @@ jobs:
         env:
           TG_PROVIDER_CACHE: "1"
         run: |
-          terragrunt run apply --all -no-color --non-interactive -auto-approve 2>&1 | tee apply_output.txt
+          terragrunt run apply --all --no-color --non-interactive --auto-approve 2>&1 | tee apply_output.txt
           exit_code=${PIPESTATUS[0]}
 
           # Truncate if too long for summary (max ~65k chars)
@@ -105,7 +105,7 @@ jobs:
       #     echo "::warning::First apply attempt failed, retrying (attempt 2 of 3)..."
       #     sleep 30
       #
-      #     terragrunt run-all apply -no-color --non-interactive -auto-approve 2>&1 | tee apply_output.txt
+      #     terragrunt run-all apply --no-color --non-interactive --auto-approve 2>&1 | tee apply_output.txt
       #     exit_code=${PIPESTATUS[0]}
       #
       #     if [ $(wc -c < apply_output.txt) -gt 60000 ]; then
@@ -130,7 +130,7 @@ jobs:
       #     echo "::warning::Second apply attempt failed, retrying (attempt 3 of 3)..."
       #     sleep 60
       #
-      #     terragrunt run-all apply -no-color --non-interactive -auto-approve 2>&1 | tee apply_output.txt
+      #     terragrunt run-all apply --no-color --non-interactive --auto-approve 2>&1 | tee apply_output.txt
       #     exit_code=${PIPESTATUS[0]}
       #
       #     if [ $(wc -c < apply_output.txt) -gt 60000 ]; then
