@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/config/auth";
-import {
-  getUserQuotas,
-  resetQuota,
-  resetQuotaToTier,
-  setUserQuotaLimit,
-  upgradeUserToTier,
-  cleanupStaleUploads,
-  getUserTier,
-  type QuotaId,
-  type QuotaTier,
-} from "@/services/quota";
-import { isValidQuotaId, getAllQuotaIds } from "@/lib/quota-definitions";
+import { config } from "@/config";
+import { cleanupStaleUploads } from "@/services/quota";
+import type { QuotaTier } from "@/lib/quota-client";
 
 /**
  * Check if the current user is an admin
@@ -38,18 +29,39 @@ interface AdminQuotaResponse {
 }
 
 /**
+ * Make request to central quota admin API
+ */
+async function proxyToQuotaService(
+  endpoint: string,
+  method: string = "GET",
+  body?: unknown
+): Promise<Response> {
+  const url = `${config.urls.privateAuthServer}${endpoint}`;
+
+  return fetch(url, {
+    method,
+    headers: {
+      "Content-Type": "application/json",
+      "X-Internal-Secret": config.auth.internalSecret,
+    },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+}
+
+/**
  * POST /api/admin/quota
  *
  * Admin endpoint for managing user quotas.
- * Requires admin service in user's services array.
+ * Proxies most operations to the central quota service in run.auth.
+ * Keeps cleanup_stale local as it uses run.human's UserUpload entity.
  *
  * Actions:
  *   - get: Get all quotas for a user
  *   - reset: Reset a specific quota to user's stored initial amount
- *   - reset_to_tier: Reset quota to a specific tier's amount
+ *   - reset_to_tier: Reset quota to a specific tier's amount (via upgrade_tier)
  *   - set_limit: Set a custom limit for a quota
  *   - upgrade_tier: Upgrade all quotas to a new tier
- *   - cleanup_stale: Clean up stale pending uploads and restore quotas
+ *   - cleanup_stale: Clean up stale pending uploads and restore quotas (local)
  */
 export async function POST(
   request: NextRequest
@@ -74,7 +86,7 @@ export async function POST(
     const body: AdminQuotaRequest = await request.json();
     const { action, targetUserId, quotaId, tier, amount, maxAgeHours, limit } = body;
 
-    // cleanup_stale doesn't require targetUserId
+    // cleanup_stale doesn't require targetUserId and is handled locally
     if (action !== "cleanup_stale" && !targetUserId) {
       return NextResponse.json(
         { success: false, message: "targetUserId is required" },
@@ -84,99 +96,140 @@ export async function POST(
 
     switch (action) {
       case "get": {
-        const quotas = await getUserQuotas(targetUserId!);
+        const response = await proxyToQuotaService(`/api/admin/quota/${targetUserId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          return NextResponse.json(
+            { success: false, message: data.error || "Failed to get quotas" },
+            { status: response.status }
+          );
+        }
+
         return NextResponse.json({
           success: true,
-          data: {
-            userId: targetUserId,
-            quotas,
-            tier: getUserTier([]), // Would need user's services to determine actual tier
-          },
+          data,
         });
       }
 
       case "reset": {
-        if (!quotaId || !isValidQuotaId(quotaId)) {
+        if (!quotaId) {
           return NextResponse.json(
-            {
-              success: false,
-              message: `Invalid quotaId. Must be one of: ${getAllQuotaIds().join(", ")}`,
-            },
+            { success: false, message: "quotaId is required" },
             { status: 400 }
           );
         }
-        const result = await resetQuota(targetUserId!, quotaId as QuotaId);
+
+        const response = await proxyToQuotaService(
+          `/api/admin/quota/${targetUserId}/${quotaId}/reset`,
+          "POST"
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          return NextResponse.json(
+            { success: false, message: data.error || "Failed to reset quota" },
+            { status: response.status }
+          );
+        }
+
         return NextResponse.json({
           success: true,
           message: `Reset ${quotaId} for user ${targetUserId}`,
-          data: { remaining: result.remaining },
+          data,
         });
       }
 
       case "reset_to_tier": {
-        if (!quotaId || !isValidQuotaId(quotaId)) {
+        // Use upgrade_tier with specific quotaId to reset to tier
+        if (!quotaId || !tier) {
           return NextResponse.json(
-            {
-              success: false,
-              message: `Invalid quotaId. Must be one of: ${getAllQuotaIds().join(", ")}`,
-            },
+            { success: false, message: "quotaId and tier are required" },
             { status: 400 }
           );
         }
-        if (!tier || !["zero", "upload", "admin"].includes(tier)) {
+
+        const response = await proxyToQuotaService(
+          `/api/admin/quota/upgrade-tier`,
+          "POST",
+          { userId: targetUserId, newTier: tier, quotaIds: [quotaId] }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
           return NextResponse.json(
-            { success: false, message: "Invalid tier. Must be: zero, upload, or admin" },
-            { status: 400 }
+            { success: false, message: data.error || "Failed to reset to tier" },
+            { status: response.status }
           );
         }
-        const result = await resetQuotaToTier(targetUserId!, quotaId as QuotaId, tier);
+
         return NextResponse.json({
           success: true,
           message: `Reset ${quotaId} to ${tier} tier for user ${targetUserId}`,
-          data: { remaining: result.remaining },
+          data,
         });
       }
 
       case "set_limit": {
-        if (!quotaId || !isValidQuotaId(quotaId)) {
+        if (!quotaId || typeof amount !== "number") {
           return NextResponse.json(
-            {
-              success: false,
-              message: `Invalid quotaId. Must be one of: ${getAllQuotaIds().join(", ")}`,
-            },
+            { success: false, message: "quotaId and amount are required" },
             { status: 400 }
           );
         }
-        if (typeof amount !== "number" || amount < 0) {
+
+        const response = await proxyToQuotaService(
+          `/api/admin/quota/${targetUserId}/${quotaId}/set`,
+          "POST",
+          { newLimit: amount, resetToNewLimit: true }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
           return NextResponse.json(
-            { success: false, message: "amount must be a non-negative number" },
-            { status: 400 }
+            { success: false, message: data.error || "Failed to set limit" },
+            { status: response.status }
           );
         }
-        await setUserQuotaLimit(targetUserId!, quotaId as QuotaId, amount);
+
         return NextResponse.json({
           success: true,
           message: `Set ${quotaId} limit to ${amount} for user ${targetUserId}`,
-          data: { newLimit: amount },
+          data,
         });
       }
 
       case "upgrade_tier": {
-        if (!tier || !["zero", "upload", "admin"].includes(tier)) {
+        if (!tier) {
           return NextResponse.json(
-            { success: false, message: "Invalid tier. Must be: zero, upload, or admin" },
+            { success: false, message: "tier is required" },
             { status: 400 }
           );
         }
-        await upgradeUserToTier(targetUserId!, tier);
+
+        const response = await proxyToQuotaService(
+          `/api/admin/quota/upgrade-tier`,
+          "POST",
+          { userId: targetUserId, newTier: tier }
+        );
+        const data = await response.json();
+
+        if (!response.ok) {
+          return NextResponse.json(
+            { success: false, message: data.error || "Failed to upgrade tier" },
+            { status: response.status }
+          );
+        }
+
         return NextResponse.json({
           success: true,
           message: `Upgraded all quotas to ${tier} tier for user ${targetUserId}`,
+          data,
         });
       }
 
       case "cleanup_stale": {
-        // Clean up stale pending uploads and restore quotas
+        // This remains local as it uses run.human's UserUpload entity
         const maxAgeMs = (maxAgeHours ?? 2) * 60 * 60 * 1000;
         const cleanupLimit = limit ?? 100;
         const cleanupResult = await cleanupStaleUploads(maxAgeMs, cleanupLimit);

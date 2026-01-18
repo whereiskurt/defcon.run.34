@@ -1,5 +1,5 @@
 import { Entity } from "electrodb";
-import { electroClient, ELECTRO_TABLE } from "./client";
+import { quotaClient, QUOTA_TABLE } from "./client";
 
 /**
  * UserQuota Entity
@@ -19,7 +19,7 @@ export const UserQuota = new Entity(
     model: {
       entity: "UserQuota",
       version: "1",
-      service: "run",
+      service: "quota",
     },
     attributes: {
       // Composite key components
@@ -88,7 +88,7 @@ export const UserQuota = new Entity(
       },
     },
   },
-  { client: electroClient, table: ELECTRO_TABLE }
+  { client: quotaClient, table: QUOTA_TABLE }
 );
 
 /**

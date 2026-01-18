@@ -47,6 +47,7 @@ export type SessionValidateResponse =
         picture: string | null;
         services: string[];
         linkedProviders: string[];
+        quotaTier: "zero" | "upload" | "admin";
       };
       expires: string;
     }
@@ -101,15 +102,20 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get the full profile including services and linked providers
+    // Get the full profile including services, linked providers, and quotaTier
     const userId = (token.sub || token.email) as string | undefined;
     let services: string[] = [];
     let linkedProviders: string[] = [];
+    let quotaTier: "zero" | "upload" | "admin" = "upload";
 
     if (userId) {
       const profile = await getAuthProfile(userId);
       if (profile?.services) {
         services = profile.services;
+      }
+      // Get quota tier (default to "upload" if not set)
+      if (profile?.quotaTier) {
+        quotaTier = profile.quotaTier as "zero" | "upload" | "admin";
       }
       // Build linked providers list
       if (profile?.discord?.id) linkedProviders.push("discord");
@@ -145,6 +151,7 @@ export async function GET(request: NextRequest) {
           picture: (token.picture as string) || null,
           services,
           linkedProviders,
+          quotaTier,
         },
         expires,
       } as SessionValidateResponse,

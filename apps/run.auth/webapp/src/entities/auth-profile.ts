@@ -133,6 +133,15 @@ export const AuthProfile = new Entity(
         type: "number",
         default: 1,
       },
+      // User's quota tier - determines quota limits
+      // - zero: Blocked users with no quota access
+      // - upload: Standard users with normal limits
+      // - admin: Administrators with elevated limits
+      quotaTier: {
+        type: "string",
+        default: "upload",
+        // Enum: "zero" | "upload" | "admin"
+      },
       // Lock user out completely - prevents new logins and invalidates sessions
       lockedOut: {
         type: "boolean",

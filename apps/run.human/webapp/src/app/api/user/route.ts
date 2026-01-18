@@ -1,11 +1,13 @@
 import { auth } from "@auth";
 import { getRunUser } from "@/entities/run-user";
-import { getUserQuotas, getOrInitQuota, getUserTier } from "@/services/quota";
-import type { QuotaId } from "@/lib/quota-definitions";
+import { getUserQuotas, getQuotaDefinitions, type QuotaId } from "@/lib/quota-client";
 import { NextRequest, NextResponse } from "next/server";
 
 // Quota IDs we want to fetch for the user profile
 const PROFILE_QUOTA_IDS: QuotaId[] = [
+  "file_upload",
+  "gpx_upload",
+  "photo_upload",
   "strava_sync",
   "checkin",
   "meshtastic_radio",
@@ -26,25 +28,36 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
-  // Determine user tier from services (default to 'upload' for authenticated users)
-  const services = session.user.services || ["run"];
-  const tier = getUserTier(services);
+  // Get all quotas from the central quota service
+  const [userQuotasResponse, definitions] = await Promise.all([
+    getUserQuotas(session.user.id),
+    getQuotaDefinitions(),
+  ]);
 
-  // Get or initialize all profile quotas
-  const quotaPromises = PROFILE_QUOTA_IDS.map((quotaId) =>
-    getOrInitQuota(session.user.id, quotaId, tier)
-  );
-  const quotaResults = await Promise.all(quotaPromises);
+  // Determine user's tier from the quota response (default to "upload")
+  const userTier = userQuotasResponse.quotaTier || "upload";
 
-  // Build quota object for response
+  // Build quota object for response (filter to profile quotas)
+  // Include defaults for quotas that haven't been initialized yet
   const quotas: Record<string, { remaining: number; initial: number }> = {};
-  for (let i = 0; i < PROFILE_QUOTA_IDS.length; i++) {
-    const quotaId = PROFILE_QUOTA_IDS[i];
-    const quota = quotaResults[i];
-    quotas[quotaId] = {
-      remaining: quota.remaining,
-      initial: quota.initialAmount,
-    };
+  for (const quotaId of PROFILE_QUOTA_IDS) {
+    const quota = userQuotasResponse.quotas.find((q) => q.quotaId === quotaId);
+    if (quota) {
+      quotas[quotaId] = {
+        remaining: quota.remaining,
+        initial: quota.initialAmount,
+      };
+    } else {
+      // Quota not initialized yet - return the tier default
+      const def = definitions.find((d) => d.id === quotaId);
+      if (def) {
+        const tierLimit = def.tierLimits[userTier] ?? def.tierLimits["upload"] ?? 0;
+        quotas[quotaId] = {
+          remaining: tierLimit,
+          initial: tierLimit,
+        };
+      }
+    }
   }
 
   // Strip out sensitive fields

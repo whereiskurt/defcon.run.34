@@ -42,5 +42,28 @@ export const electroClient = DynamoDBDocument.from(
   }
 );
 
+// Quota client - for centralized quota service
+// Uses separate credentials for the run-quota-electro table
+// Falls back to electroClient credentials for local development
+const quotaEndpoint = process.env.AUTH_QUOTA_ENDPOINT || electroEndpoint;
+export const quotaClient = DynamoDBDocument.from(
+  new DynamoDB({
+    credentials: {
+      accessKeyId: process.env.AUTH_QUOTA_ID || process.env.AUTH_ELECTRO_ID!,
+      secretAccessKey: process.env.AUTH_QUOTA_SECRET || process.env.AUTH_ELECTRO_SECRET!,
+    },
+    region: process.env.AWS_REGION,
+    ...(quotaEndpoint ? { endpoint: quotaEndpoint } : {}),
+  }),
+  {
+    marshallOptions: {
+      convertEmptyValues: true,
+      removeUndefinedValues: true,
+      convertClassInstanceToMap: true,
+    },
+  }
+);
+
 export const DYNAMODB_TABLE = process.env.AUTH_DYNAMODB_DBNAME || "run-auth-authjs";
 export const ELECTRO_TABLE = process.env.AUTH_ELECTRO_DBNAME || "run-auth-electro";
+export const QUOTA_TABLE = process.env.AUTH_QUOTA_DBNAME || "run-quota-electro";

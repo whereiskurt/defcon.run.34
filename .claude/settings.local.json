@@ -35,6 +35,7 @@
       "Bash(litestream:*)",
       "Bash(ln:*)",
       "Bash(ls:*)",
+      "Bash(lsof:*)",
       "Bash(md5:*)",
       "Bash(md5sum:*)",
       "Bash(mkdir:*)",
