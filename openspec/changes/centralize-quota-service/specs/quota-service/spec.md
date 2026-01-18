@@ -1,6 +1,6 @@
 # Quota Service
 
-**Status:** Draft
+**Status:** Implemented
 **Change:** centralize-quota-service
 
 ## ADDED Requirements
@@ -90,7 +90,7 @@ Quota data SHALL be stored in a separate DynamoDB table.
 
 #### Scenario: Table isolation
 - **GIVEN** quota service operates on data
-- **THEN** operations use `run-quota` table
+- **THEN** operations use `run-quota-electro` table
 - **AND** NOT `run-auth-electro` table
 
 #### Scenario: Table structure

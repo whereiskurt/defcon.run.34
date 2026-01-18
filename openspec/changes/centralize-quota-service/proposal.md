@@ -1,6 +1,6 @@
 # Proposal: Centralize Quota Service in run.auth
 
-**Status:** Draft
+**Status:** Implemented
 **Author:** Claude
 **Created:** 2026-01-17
 
@@ -36,13 +36,13 @@ Move the quota system into run.auth, exposing quota operations via HTTP APIs tha
                            │
                     ┌──────▼──────┐
                     │  DynamoDB   │
-                    │  run-quota  │
+                    │  run-quota-electro  │
                     └─────────────┘
 ```
 
 ## Key Design Decisions
 
-1. **Dedicated `run-quota` DynamoDB table** - Separate from auth table for independent scaling
+1. **Dedicated `run-quota-electro` DynamoDB table** - Separate from auth table for independent scaling
 2. **Add `quotaTier` field to AuthProfile** - Explicit tier (zero/upload/admin) instead of deriving from services
 3. **Internal service URLs** - Backends use `auth.app-{region}-defcon-run.local` to avoid CloudFront roundtrips
 4. **X-Internal-Secret auth** - Server-to-server operations protected by shared secret
@@ -67,7 +67,7 @@ Move the quota system into run.auth, exposing quota operations via HTTP APIs tha
 - **run.auth**: Add quota service code, API endpoints, DynamoDB table
 - **run.human**: Replace local quota code with HTTP client calls
 - **run.gpx**: Add quota client, integrate with upload flow
-- **Infrastructure**: New DynamoDB table `run-quota`
+- **Infrastructure**: New DynamoDB table `run-quota-electro`
 
 ## Migration Strategy
 

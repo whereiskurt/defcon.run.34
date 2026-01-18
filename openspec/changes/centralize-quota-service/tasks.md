@@ -3,7 +3,7 @@
 ## Phase 1: Infrastructure & Core Service
 
 ### 1.1 Create DynamoDB table
-- [ ] Add Terraform module for `run-quota` DynamoDB table
+- [ ] Add Terraform module for `run-quota-electro` DynamoDB table
 - [ ] Configure GSI for quota queries (byQuotaRemaining)
 - [ ] Set up table in both us-east-1 and ca-central-1
 - [ ] **Verify:** Table accessible from run.auth
@@ -17,7 +17,7 @@
 ### 1.3 Copy quota core to run.auth
 - [ ] Copy `lib/quota-definitions.ts` from run.human
 - [ ] Copy `services/quota.ts` from run.human
-- [ ] Create `entities/user-quota.ts` (point to run-quota table)
+- [ ] Create `entities/user-quota.ts` (point to run-quota-electro table)
 - [ ] Update imports and table references
 - [ ] **Verify:** Quota service initializes without errors
 
