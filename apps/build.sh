@@ -115,8 +115,11 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   # run.gpx needs wider build context to include gpx-studio submodule
   if [[ "$APP" == "run.gpx" ]]; then
     BUILD_CONTEXT="${APP_DIR}"
+    # Fetch Mapbox public token from SSM (used by gpx.studio at build time)
+    PUBLIC_MAPBOX_TOKEN=$(aws ssm get-parameter --name "/dc34/secrets/${REGION_SHORT}/mapbox/public_token" --region "${AWS_REGION}" --query "Parameter.Value" --output text 2>/dev/null || echo "")
   else
     BUILD_CONTEXT="${APP_DIR}/webapp/"
+    PUBLIC_MAPBOX_TOKEN=""
   fi
   docker buildx build --platform=linux/amd64 \
     --build-arg NEXT_PUBLIC_ASSET_PREFIX="/${WEBAPP_PREFIX}/public" \
@@ -125,6 +128,7 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
     --build-arg VERSION_NGINX="${VERSION_NGINX}" \
     --build-arg VERSION_WEBAPP="${VERSION_WEBAPP}" \
     --build-arg REGION_SHORT="${REGION_SHORT}" \
+    --build-arg PUBLIC_MAPBOX_TOKEN="${PUBLIC_MAPBOX_TOKEN}" \
     -t "$LOCAL_TAG" -f "${APP_DIR}/webapp/Dockerfile.webapp" "${BUILD_CONTEXT}"
 
   # Extract static assets from Docker image and sync to S3
