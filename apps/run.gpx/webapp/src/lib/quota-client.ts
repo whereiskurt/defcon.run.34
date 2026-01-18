@@ -8,10 +8,12 @@
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.REGION_SHORT || "use1";
 
-// Auth server URLs for quota API
+// Auth server URLs for quota API (via service discovery)
+// Service discovery points to run-auth-app container on port 3000 (HTTP)
+// In production, run.auth has basePath=/{region}, so include it in the URL
 const QUOTA_BASE_URL = isDev
   ? "http://localhost:3002"
-  : `https://auth.app-${region}-defcon-run.local`;
+  : `http://run-auth.app-${region}-defcon-run.local:3000/${region}`;
 
 const INTERNAL_SECRET = process.env.AUTH_INTERNAL_SECRET || "";
 

@@ -13,6 +13,9 @@ FROM node:20-alpine AS gpx-builder
 # Region arg for BASE_PATH (e.g., use1, cac1)
 ARG REGION_SHORT="use1"
 
+# Mapbox token for map rendering (public, safe to embed in client bundle)
+ARG PUBLIC_MAPBOX_TOKEN=""
+
 WORKDIR /gpx-studio
 
 # Copy gpx.studio source (paths relative to apps/run.gpx/ build context)
@@ -23,50 +26,9 @@ RUN npm install
 
 COPY gpx-studio/website ./
 
-# Create patch files (cloud-sync.ts and auth store)
-# Note: API calls use SvelteKit base path for correct routing through Next.js
+# Create auth store patch (uses SvelteKit base path for correct routing through Next.js)
+# Note: cloud-sync.ts is used from the repo - it uses /api/gpx which works with the proxy
 RUN mkdir -p src/lib/stores && \
-    echo 'import { writable } from "svelte/store"; \
-import { base } from "$app/paths"; \
-export type CloudFile = { fileId: string; fileName: string; fileSize: number; createdAt: string; updatedAt: string; }; \
-export const cloudFiles = writable<CloudFile[]>([]); \
-export const cloudSyncStatus = writable<"idle" | "syncing" | "error">("idle"); \
-export const cloudSyncError = writable<string | null>(null); \
-function getApiBase() { const b = base.replace("/studio", ""); return `${b}/api/gpx`; } \
-export async function listCloudFiles(): Promise<CloudFile[]> { \
-  const res = await fetch(`${getApiBase()}/files`); \
-  const data = await res.json(); \
-  const files = data.files || []; \
-  cloudFiles.set(files); \
-  return files; \
-} \
-export async function saveToCloud(content: string, name: string): Promise<string> { \
-  cloudSyncStatus.set("syncing"); \
-  try { \
-    const blob = new Blob([content], {type: "application/gpx+xml"}); \
-    const presignRes = await fetch(`${getApiBase()}/upload/presign`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileName: name})}); \
-    const {uploadUrl, fileId, key, bucket} = await presignRes.json(); \
-    await fetch(uploadUrl, {method: "PUT", body: blob, headers: {"Content-Type": "application/gpx+xml"}}); \
-    await fetch(`${getApiBase()}/files`, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({fileId, fileName: name, bucket, key, fileSize: blob.size})}); \
-    cloudSyncStatus.set("idle"); \
-    await listCloudFiles(); \
-    return fileId; \
-  } catch (e) { cloudSyncStatus.set("error"); cloudSyncError.set(String(e)); throw e; } \
-} \
-export async function loadFromCloud(fileId: string): Promise<string> { \
-  const res = await fetch(`${getApiBase()}/files/${fileId}`); \
-  const {downloadUrl} = await res.json(); \
-  const gpxRes = await fetch(downloadUrl); \
-  return gpxRes.text(); \
-} \
-export async function deleteFromCloud(fileId: string): Promise<void> { \
-  await fetch(`${getApiBase()}/files/${fileId}`, {method: "DELETE"}); \
-  await listCloudFiles(); \
-} \
-export async function updateCloudFile(fileId: string, updates: Partial<CloudFile>): Promise<void> { \
-  await fetch(`${getApiBase()}/files/${fileId}`, {method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify(updates)}); \
-  await listCloudFiles(); \
-}' > src/lib/cloud-sync.ts && \
     echo 'import { writable, derived } from "svelte/store"; \
 import { browser } from "$app/environment"; \
 import { base } from "$app/paths"; \
@@ -89,6 +51,10 @@ export const isAuthLoading = derived(auth, a => a.isLoading); \
 export const hasGpxStudioAccess = derived(auth, a => a.user?.services?.includes("gpxstudio") ?? false);' > src/lib/stores/auth.ts
 
 # Build gpx.studio with regional BASE_PATH (e.g., /use1/studio)
+# PUBLIC_MAPBOX_TOKEN is required for map rendering - get from build arg or provide placeholder for dev
+# NODE_OPTIONS limits heap to prevent OOM kills in constrained Docker environments
+ENV PUBLIC_MAPBOX_TOKEN=${PUBLIC_MAPBOX_TOKEN:-pk.placeholder}
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 RUN BASE_PATH=/${REGION_SHORT}/studio npm run build
 
 # =============================================================================

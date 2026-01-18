@@ -79,8 +79,8 @@ export async function POST(request: Request) {
       fileResult = globalResult;
     }
 
-    // Validate version exists
-    const maxVersion = fileResult.data.versionCount || 1;
+    // Validate version exists (data is guaranteed non-null after checks above)
+    const maxVersion = fileResult.data!.versionCount || 1;
     if (version < 1 || version > maxVersion) {
       return NextResponse.json(
         { error: `Invalid version. File has versions 1-${maxVersion}` },

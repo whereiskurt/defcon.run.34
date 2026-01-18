@@ -29,10 +29,12 @@ const REQUIRED_SERVICE = process.env.OIDC_REQUIRED_SERVICES || 'cms';
 
 // Auth server base URL for internal API calls
 // Use service discovery name in production for direct VPC routing
+// Service discovery points to run-auth-app container on port 3000 (HTTP)
+// In production, run.auth has basePath=/{region}, so include it in the URL
 const region = process.env.REGION_SHORT || 'use1';
 const AUTH_SERVER_URL = process.env.NODE_ENV === 'development'
   ? 'http://localhost:3002'
-  : `https://auth.app-${region}-defcon-run.local`;
+  : `http://run-auth.app-${region}-defcon-run.local:3000/${region}`;
 
 // Internal secret for server-to-server calls (matches auth server's AUTH_INTERNAL_SECRET)
 const AUTH_INTERNAL_SECRET = process.env.AUTH_INTERNAL_SECRET;

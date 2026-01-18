@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
 import { Card, CardBody, CardHeader, Avatar, Divider, Skeleton, Chip } from '@heroui/react';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
+import { apiUrl } from '@/lib/api';
 
 interface QuotaInfo {
   remaining: number;
@@ -50,7 +51,7 @@ export default function ProfilePage() {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch('/api/user');
+      const response = await fetch(apiUrl('/api/user'));
       if (!response.ok) {
         throw new Error('Failed to fetch user data');
       }

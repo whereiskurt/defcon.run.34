@@ -24,6 +24,7 @@ import { FaUserAlt, FaTrophy } from 'react-icons/fa';
 import { LogoutIcon } from './icon/logout';
 import { QRIcon } from './icon/qr';
 import { useEffect, useState } from 'react';
+import { apiUrl } from '@/lib/api';
 
 import DCJackIcon from '@public/header/dcjack.svg';
 
@@ -47,7 +48,7 @@ const UserDropDown = (params: any) => {
   // Fetch user details once when component mounts
   const fetchUserDetails = async () => {
     try {
-      const res = await fetch('/api/user', {
+      const res = await fetch(apiUrl('/api/user'), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

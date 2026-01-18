@@ -29,10 +29,12 @@ export const config = {
       ? "http://localhost:3002"
       : `https://auth.defcon.run/${region}`,
 
-    /** Private auth server URL (internal network) */
+    /** Private auth server URL (internal network via service discovery) */
+    // Service discovery points to run-auth-app container on port 3000 (HTTP)
+    // In production, run.auth has basePath=/{region}, so include it in the URL
     privateAuthServer: isDev
       ? "http://localhost:3002"
-      : `https://auth.app-${region}-defcon-run.local`,
+      : `http://run-auth.app-${region}-defcon-run.local:3000/${region}`,
 
     /** Redirect proxy URL for OAuth callbacks */
     redirectProxy: isDev

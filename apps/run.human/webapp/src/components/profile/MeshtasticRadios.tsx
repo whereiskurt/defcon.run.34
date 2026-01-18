@@ -21,6 +21,7 @@ import {
 import { Trash2, Plus, Radio, Lock, Unlock, AlertCircle, ChevronDown, ChevronUp, RefreshCw, Eye, EyeOff, UserCheck, UserX } from "lucide-react";
 import VerificationCodeInput from './VerificationCodeInput';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { apiUrl } from '@/lib/api';
 
 interface MeshtasticRadio {
   id: string;
@@ -97,7 +98,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
 
   const fetchRadios = async () => {
     try {
-      const response = await fetch('/api/meshtastic-radios');
+      const response = await fetch(apiUrl('/api/meshtastic-radios'));
       if (!response.ok) throw new Error('Failed to fetch radios');
       const data = await response.json();
       setRadios(data.radios || []);
@@ -122,7 +123,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
     setAddError(null);
 
     try {
-      const response = await fetch('/api/meshtastic-radios', {
+      const response = await fetch(apiUrl('/api/meshtastic-radios'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -171,7 +172,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
     setVerifyingRadioId(radioId);
 
     try {
-      const response = await fetch('/api/meshtastic-radios', {
+      const response = await fetch(apiUrl('/api/meshtastic-radios'), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -220,7 +221,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
     setResendingRadioId(radioId);
 
     try {
-      const response = await fetch('/api/meshtastic-radios/resend', {
+      const response = await fetch(apiUrl('/api/meshtastic-radios/resend'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ radioId }),
@@ -259,7 +260,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
     setDeletingRadioId(radioId);
 
     try {
-      const response = await fetch(`/api/meshtastic-radios?radioId=${radioId}`, {
+      const response = await fetch(apiUrl(`/api/meshtastic-radios?radioId=${radioId}`), {
         method: 'DELETE',
       });
 
@@ -287,7 +288,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
     setTogglingImpersonateId(radioId);
 
     try {
-      const response = await fetch('/api/meshtastic-radios', {
+      const response = await fetch(apiUrl('/api/meshtastic-radios'), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
