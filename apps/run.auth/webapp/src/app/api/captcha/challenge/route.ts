@@ -15,7 +15,7 @@ export async function GET() {
   try {
     const challenge = await createChallenge({
       hmacKey: ALTCHA_HMAC_KEY,
-      maxNumber: 100000, // ~2-3 seconds solve time on average device
+      maxNumber: 2000000, // ~40-60 seconds on average device, faster on M3 (20x difficulty)
       expires: new Date(Date.now() + 2 * 60 * 1000), // 2 minute TTL
     });
 
