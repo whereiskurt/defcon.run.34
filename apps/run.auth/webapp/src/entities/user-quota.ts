@@ -1,11 +1,5 @@
 import { Entity } from "electrodb";
-import { electroClient } from "./client";
-
-/**
- * Quota table name - separate from auth tables for independent scaling
- * Uses environment variable with fallback
- */
-export const QUOTA_TABLE = process.env.AUTH_QUOTA_DBNAME || "run-quota";
+import { quotaClient, QUOTA_TABLE } from "./client";
 
 /**
  * UserQuota Entity
@@ -94,7 +88,7 @@ export const UserQuota = new Entity(
       },
     },
   },
-  { client: electroClient, table: QUOTA_TABLE }
+  { client: quotaClient, table: QUOTA_TABLE }
 );
 
 /**

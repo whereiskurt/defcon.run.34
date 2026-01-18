@@ -150,6 +150,18 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-auth-electro/table_name"
           },
           {
+            name      = "AUTH_QUOTA_ID"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota/access_key_id"
+          },
+          {
+            name      = "AUTH_QUOTA_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota/secret_access_key"
+          },
+          {
+            name      = "AUTH_QUOTA_DBNAME"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota/table_name"
+          },
+          {
             name      = "AUTH_GITHUB_ID"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/github/client_id"
           },
@@ -292,6 +304,32 @@ locals {
 
         ttl_enabled        = true
         ttl_attribute_name = "ttl"
+      },
+      # Centralized quota service table
+      {
+        table_name = "run-quota"
+        table_type = "electro"
+
+        # Multi-region global table configuration
+        replica_regions = [
+          {
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          }
+        ]
+
+        billing_mode     = "PAY_PER_REQUEST"
+        hash_key         = "pk"
+        range_key        = "sk"
+        stream_enabled   = true
+        stream_view_type = "NEW_AND_OLD_IMAGES"
+
+        ttl_enabled        = false
+        ttl_attribute_name = ""
       }
     ]
   }

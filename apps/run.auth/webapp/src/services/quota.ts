@@ -5,8 +5,8 @@
  * Uses DynamoDB conditional updates to prevent race conditions.
  */
 
-import { UserQuota, QUOTA_TABLE, type UserQuotaItem } from "@/entities/user-quota";
-import { electroClient } from "@/entities/client";
+import { UserQuota, type UserQuotaItem } from "@/entities/user-quota";
+import { quotaClient, QUOTA_TABLE } from "@/entities/client";
 import {
   getQuotaDefinition,
   getInitialAmountForTier,
@@ -244,7 +244,7 @@ export async function consumeQuota(
       ReturnValues: "ALL_NEW" as const,
     };
 
-    const result = await electroClient.update(params);
+    const result = await quotaClient.update(params);
 
     return {
       success: true,
