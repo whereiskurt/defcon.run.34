@@ -30,7 +30,7 @@ jobs:
           path: |
             /usr/local/bin/terragrunt
             /usr/local/bin/sops
-          key: tools-${{ runner.os }}-terragrunt-v0.96.0-sops-v3.9.4
+          key: tools-${{ runner.os }}-terragrunt-v0.97.1-sops-v3.11.0
 
       - name: Cache Terragrunt Provider Cache
         uses: actions/cache@v4
@@ -49,14 +49,14 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: 1.9.8
+          terraform_version: 1.14.3
           terraform_wrapper: false
 
       - name: Setup Terragrunt
         run: |
           if [ ! -f /usr/local/bin/terragrunt ]; then
             curl -Lo /usr/local/bin/terragrunt \
-              "https://github.com/gruntwork-io/terragrunt/releases/download/v0.96.0/terragrunt_linux_amd64"
+              "https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.1/terragrunt_linux_amd64"
             chmod +x /usr/local/bin/terragrunt
           fi
           terragrunt --version
@@ -65,7 +65,7 @@ jobs:
         run: |
           if [ ! -f /usr/local/bin/sops ]; then
             curl -Lo /usr/local/bin/sops \
-              "https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64"
+              "https://github.com/getsops/sops/releases/download/v3.11.0/sops-v3.11.0.linux.amd64"
             chmod +x /usr/local/bin/sops
           fi
           sops --version

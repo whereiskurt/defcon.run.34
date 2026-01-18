@@ -36,7 +36,7 @@ openspec/     # Spec-driven development
 | CMS | Strapi 5.6 + SQLite + Litestream |
 | Auth | Auth.js, oidc-provider |
 | Database |AWS DynamoDB + ElectroDB |
-| Infrastructure | Terraform 1.8, Terragrunt 0.96 |
+| Infrastructure | Terraform 1.14, Terragrunt 0.97 |
 | Container | Docker, AWS ECR, AWS ECS Fargate |
 | CDN | AWS CloudFront + WAF |
 
