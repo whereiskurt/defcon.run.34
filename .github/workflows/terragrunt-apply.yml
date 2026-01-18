@@ -92,60 +92,6 @@ jobs:
           exit $exit_code
         continue-on-error: true
 
-      # ============================================================
-      # RETRY LOGIC - Uncomment when ready to enable retries
-      # ============================================================
-      # - name: Retry Terragrunt Apply (Attempt 2)
-      #   id: apply_retry_2
-      #   if: steps.apply.outcome == 'failure'
-      #   working-directory: infra/terraform/live/site
-      #   env:
-      #     TG_PROVIDER_CACHE: "1"
-      #   run: |
-      #     echo "::warning::First apply attempt failed, retrying (attempt 2 of 3)..."
-      #     sleep 30
-      #
-      #     terragrunt run-all apply --no-color --non-interactive -- -auto-approve 2>&1 | tee apply_output.txt
-      #     exit_code=${PIPESTATUS[0]}
-      #
-      #     if [ $(wc -c < apply_output.txt) -gt 60000 ]; then
-      #       echo "Apply output truncated (too large for summary)" > apply_summary.txt
-      #       head -c 30000 apply_output.txt >> apply_summary.txt
-      #       echo -e "\n\n... (truncated) ...\n\n" >> apply_summary.txt
-      #       tail -c 30000 apply_output.txt >> apply_summary.txt
-      #     else
-      #       cp apply_output.txt apply_summary.txt
-      #     fi
-      #
-      #     exit $exit_code
-      #   continue-on-error: true
-      #
-      # - name: Retry Terragrunt Apply (Attempt 3)
-      #   id: apply_retry_3
-      #   if: steps.apply.outcome == 'failure' && steps.apply_retry_2.outcome == 'failure'
-      #   working-directory: infra/terraform/live/site
-      #   env:
-      #     TG_PROVIDER_CACHE: "1"
-      #   run: |
-      #     echo "::warning::Second apply attempt failed, retrying (attempt 3 of 3)..."
-      #     sleep 60
-      #
-      #     terragrunt run-all apply --no-color --non-interactive -- -auto-approve 2>&1 | tee apply_output.txt
-      #     exit_code=${PIPESTATUS[0]}
-      #
-      #     if [ $(wc -c < apply_output.txt) -gt 60000 ]; then
-      #       echo "Apply output truncated (too large for summary)" > apply_summary.txt
-      #       head -c 30000 apply_output.txt >> apply_summary.txt
-      #       echo -e "\n\n... (truncated) ...\n\n" >> apply_summary.txt
-      #       tail -c 30000 apply_output.txt >> apply_summary.txt
-      #     else
-      #       cp apply_output.txt apply_summary.txt
-      #     fi
-      #
-      #     exit $exit_code
-      #   continue-on-error: true
-      # ============================================================
-
       - name: Upload Apply Output
         uses: actions/upload-artifact@v4
         if: always()
@@ -159,7 +105,6 @@ jobs:
         run: |
           # Determine final status (check retries when enabled)
           # When retries are enabled, update this to check all retry steps:
-          # FINAL_OUTCOME="${{ steps.apply_retry_3.outcome || steps.apply_retry_2.outcome || steps.apply.outcome }}"
           FINAL_OUTCOME="${{ steps.apply.outcome }}"
 
           STATUS=$([[ "$FINAL_OUTCOME" == "success" ]] && echo "✅" || echo "❌")
@@ -179,7 +124,6 @@ jobs:
       - name: Fail if apply failed
         run: |
           # When retries are enabled, update this condition:
-          # if [[ "${{ steps.apply_retry_3.outcome || steps.apply_retry_2.outcome || steps.apply.outcome }}" == "failure" ]]; then
           if [[ "${{ steps.apply.outcome }}" == "failure" ]]; then
             echo "::error::Terragrunt apply failed"
             exit 1
