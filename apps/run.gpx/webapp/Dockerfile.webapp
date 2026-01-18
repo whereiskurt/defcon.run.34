@@ -59,6 +59,11 @@ RUN sed -i "s|import { page } from '\$app/state';|import { page } from '\$app/st
 RUN sed -i "s|import { toast } from 'svelte-sonner';|import { toast } from 'svelte-sonner';\n    import { base } from '\$app/paths';|" src/lib/components/cloud/CloudStorage.svelte && \
     sed -i "s|fetch(\`/api/gpx/shares|fetch(\`\${base.replace('/studio', '')}/api/gpx/shares|" src/lib/components/cloud/CloudStorage.svelte
 
+# Patch cloud-sync.ts to use correct API base path for all GPX API calls
+# This module handles file/folder CRUD operations - all paths must include region prefix
+RUN sed -i "s|import { writable, get } from 'svelte/store';|import { writable, get } from 'svelte/store';\nimport { base } from '\$app/paths';|" src/lib/cloud-sync.ts && \
+    sed -i "s|const API_BASE = '/api/gpx';|const API_BASE = \`\${base.replace('/studio', '')}/api/gpx\`;|" src/lib/cloud-sync.ts
+
 # Build gpx.studio with regional BASE_PATH (e.g., /use1/studio)
 # PUBLIC_MAPBOX_TOKEN is required for map rendering - get from build arg or provide placeholder for dev
 # NODE_OPTIONS limits heap to prevent OOM kills in constrained Docker environments
