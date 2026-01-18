@@ -107,14 +107,14 @@ aws dynamodb update-time-to-live \
 echo "Enabled TTL on 'run-auth-authjs' table"
 
 ###############################################################################
-# run-quota table (centralized quota service)
+# run-quota-electro table (centralized quota service)
 ###############################################################################
 
-# Create the 'run-quota' table
+# Create the 'run-quota-electro' table
 # Schema: pk/sk with 1 GSI (gsi1pk-gsi1sk-index for quota type queries)
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
-    --table-name run-quota \
+    --table-name run-quota-electro \
     --attribute-definitions \
         AttributeName=pk,AttributeType=S \
         AttributeName=sk,AttributeType=S \
@@ -142,7 +142,7 @@ aws dynamodb create-table \
             }
         ]'
 
-echo "Created 'run-quota' table"
+echo "Created 'run-quota-electro' table"
 
 ###############################################################################
 # run.human tables

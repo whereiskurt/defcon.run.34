@@ -151,15 +151,15 @@ locals {
           },
           {
             name      = "AUTH_QUOTA_ID"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota/access_key_id"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota-electro/access_key_id"
           },
           {
             name      = "AUTH_QUOTA_SECRET"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota/secret_access_key"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota-electro/secret_access_key"
           },
           {
             name      = "AUTH_QUOTA_DBNAME"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota/table_name"
+            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-quota-electro/table_name"
           },
           {
             name      = "AUTH_GITHUB_ID"
@@ -307,7 +307,7 @@ locals {
       },
       # Centralized quota service table
       {
-        table_name = "run-quota"
+        table_name = "run-quota-electro"
         table_type = "electro"
 
         # Multi-region global table configuration
