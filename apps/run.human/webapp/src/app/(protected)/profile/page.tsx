@@ -152,7 +152,7 @@ export default function ProfilePage() {
                   <h3 className="text-lg font-semibold mb-2">Quota</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                     {/* Activity Stats */}
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                    <div className="text-center p-2 bg-default-100 rounded3-lg">
                       <p className="text-2xl font-bold text-primary">
                         {userData.checkInCount ?? userData.checkIns?.length ?? 0}
                       </p>

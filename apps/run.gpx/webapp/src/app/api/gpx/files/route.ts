@@ -89,6 +89,7 @@ export async function POST(request: Request) {
     // Determine if saving to a global folder
     let targetUserId = session.user.id;
     let isGlobalFolder = false;
+    let validatedFolderId = "ROOT"; // Default to ROOT
 
     if (folderId) {
       // Check if this is a global folder
@@ -100,7 +101,9 @@ export async function POST(request: Request) {
         folderId,
       }).go();
 
-      if (!folder.data) {
+      if (folder.data) {
+        validatedFolderId = folderId;
+      } else {
         // Check global folder
         folder = await GpxFolder.get({
           userId: "GLOBAL",
@@ -110,12 +113,10 @@ export async function POST(request: Request) {
         if (folder.data) {
           isGlobalFolder = true;
           targetUserId = "GLOBAL";
-        } else {
-          return NextResponse.json(
-            { error: "Folder not found" },
-            { status: 404 }
-          );
+          validatedFolderId = folderId;
         }
+        // If folder not found, validatedFolderId remains ROOT
+        // This handles stale folder references from client state
       }
     }
 
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
       bucket: BUCKET,
       key,
       fileSize: fileSize || 0,
-      folderId: folderId || "ROOT", // Use "ROOT" sentinel for root-level files
+      folderId: validatedFolderId, // Use validated folder or ROOT if not found
       trackCount: trackCount || 0,
       waypointCount: waypointCount || 0,
       totalDistance: totalDistance || 0,

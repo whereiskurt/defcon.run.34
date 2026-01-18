@@ -9,6 +9,12 @@
  */
 
 import { writable, get } from 'svelte/store';
+import { base } from '$app/paths';
+
+// Get API base path from SvelteKit's base (e.g., /use1/studio -> /use1)
+function getApiBase(): string {
+  return base.replace('/studio', '') + '/api/gpx';
+}
 
 export interface CloudFile {
   fileId: string;
@@ -59,8 +65,6 @@ export const globalFolders = writable<CloudFolder[]>([]);
 export const currentFolderId = writable<string | null>(null);
 export const breadcrumbs = writable<Breadcrumb[]>([{ id: null, name: 'Root' }]);
 
-const API_BASE = '/api/gpx';
-
 /**
  * List user's GPX files from the cloud
  * @param folderId - Optional folder ID to filter by. Omit for root level.
@@ -76,7 +80,7 @@ export async function listCloudFiles(folderId?: string | null, isGlobal = false)
       params.set('global', 'true');
     }
 
-    const url = params.toString() ? `${API_BASE}/files?${params}` : `${API_BASE}/files`;
+    const url = params.toString() ? `${getApiBase()}/files?${params}` : `${getApiBase()}/files`;
     const response = await fetch(url, {
       credentials: 'include',
     });
@@ -113,7 +117,7 @@ export async function listCloudFolders(parentId?: string | null, includeGlobal =
       params.set('includeGlobal', 'true');
     }
 
-    const url = params.toString() ? `${API_BASE}/folders?${params}` : `${API_BASE}/folders`;
+    const url = params.toString() ? `${getApiBase()}/folders?${params}` : `${getApiBase()}/folders`;
     const response = await fetch(url, {
       credentials: 'include',
     });
@@ -154,7 +158,7 @@ export async function createFolder(
   cloudSyncError.set(null);
 
   try {
-    const response = await fetch(`${API_BASE}/folders`, {
+    const response = await fetch(`${getApiBase()}/folders`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -195,7 +199,7 @@ export async function renameFolder(folderId: string, newName: string): Promise<v
   cloudSyncError.set(null);
 
   try {
-    const response = await fetch(`${API_BASE}/folders/${folderId}`, {
+    const response = await fetch(`${getApiBase()}/folders/${folderId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -229,7 +233,7 @@ export async function deleteFolder(folderId: string): Promise<void> {
   cloudSyncError.set(null);
 
   try {
-    const response = await fetch(`${API_BASE}/folders/${folderId}`, {
+    const response = await fetch(`${getApiBase()}/folders/${folderId}`, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -262,7 +266,7 @@ export async function moveFile(fileId: string, targetFolderId: string | null): P
   cloudSyncError.set(null);
 
   try {
-    const response = await fetch(`${API_BASE}/files/${fileId}`, {
+    const response = await fetch(`${getApiBase()}/files/${fileId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -357,7 +361,7 @@ export async function saveToCloud(
 
     // Create file record and get presigned upload URL
     // POST /api/gpx/files creates the DynamoDB record AND returns presigned URL
-    const presignResponse = await fetch(`${API_BASE}/files`, {
+    const presignResponse = await fetch(`${getApiBase()}/files`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -418,7 +422,7 @@ export async function loadFromCloud(fileId: string): Promise<{ content: string; 
 
   try {
     // Get presigned download URL
-    const presignResponse = await fetch(`${API_BASE}/download/presign`, {
+    const presignResponse = await fetch(`${getApiBase()}/download/presign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -464,7 +468,7 @@ export async function deleteFromCloud(fileId: string): Promise<void> {
   cloudSyncError.set(null);
 
   try {
-    const response = await fetch(`${API_BASE}/files/${fileId}`, {
+    const response = await fetch(`${getApiBase()}/files/${fileId}`, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -505,7 +509,7 @@ export async function updateCloudFile(
   cloudSyncError.set(null);
 
   try {
-    const response = await fetch(`${API_BASE}/files/${fileId}`, {
+    const response = await fetch(`${getApiBase()}/files/${fileId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -554,7 +558,7 @@ export async function updateCloudFileContent(
     const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
 
     // Request presigned upload URL for existing file
-    const response = await fetch(`${API_BASE}/files/${fileId}`, {
+    const response = await fetch(`${getApiBase()}/files/${fileId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -660,7 +664,7 @@ export async function saveOrUpdateToCloud(
  */
 export async function getFileVersions(fileId: string): Promise<{ versions: FileVersion[]; current: number }> {
   try {
-    const response = await fetch(`${API_BASE}/files/${fileId}/versions`, {
+    const response = await fetch(`${getApiBase()}/files/${fileId}/versions`, {
       credentials: 'include',
     });
 
@@ -697,7 +701,7 @@ export async function loadVersionFromCloud(fileId: string, version: number): Pro
 
   try {
     // Get presigned download URL for specific version
-    const presignResponse = await fetch(`${API_BASE}/download/presign`, {
+    const presignResponse = await fetch(`${getApiBase()}/download/presign`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

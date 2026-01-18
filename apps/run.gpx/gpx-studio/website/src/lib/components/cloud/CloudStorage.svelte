@@ -657,12 +657,13 @@
                     </div>
                 {/if}
 
-                <!-- Layer Selection (on top) -->
+                <!-- Layer Selection (on top) - hidden in OPEN mode -->
+                {#if $cloudStorageMode !== CloudStorageMode.OPEN}
                 <Collapsible.Root bind:open={layersExpanded} class="border rounded-md">
                     <Collapsible.Trigger class="flex items-center justify-between w-full px-4 py-3 hover:bg-muted/50 transition-colors">
                         <div class="flex items-center gap-2">
                             <Layers class="h-4 w-4 text-muted-foreground" />
-                            <span class="font-medium">Layers to Save</span>
+                            <span class="font-medium">Maps</span>
                             <span class="text-sm text-muted-foreground">({selectedLayers.size}/{layers.length} selected)</span>
                         </div>
                         <ChevronDown class="h-4 w-4 text-muted-foreground transition-transform {layersExpanded ? 'rotate-180' : ''}" />
@@ -721,6 +722,7 @@
                         </div>
                     </Collapsible.Content>
                 </Collapsible.Root>
+                {/if}
 
                 <!-- Remote Files - Collapsible -->
                 <Collapsible.Root bind:open={filesExpanded} class="border rounded-md">
