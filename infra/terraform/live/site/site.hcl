@@ -334,7 +334,7 @@ locals {
     # Management account for cross-account Route53 access
     # Set this to your management account ID to get the trust policy output
     # After deploying, create the delegate role in the management account
-    management_account_id = null # e.g., "123456789012"
+    management_account_id = get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", null) # e.g., "123456789012"
 
     roles = [
       # Terragrunt role - for infrastructure deployments
