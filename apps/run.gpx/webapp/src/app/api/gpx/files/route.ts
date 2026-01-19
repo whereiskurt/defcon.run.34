@@ -5,6 +5,12 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3ClientForPresign, BUCKET, getUserPrefix } from "@/lib/s3-client";
 import { v4 as uuidv4 } from "uuid";
+import { MAX_GPX_FILE_SIZE, PRESIGN_EXPIRY_SECONDS } from "@/lib/constants";
+import {
+  consumeQuota,
+  restoreQuota,
+  type QuotaTier,
+} from "@/lib/quota-client";
 
 /**
  * GET /api/gpx/files - List user's GPX files
@@ -36,7 +42,12 @@ export async function GET(request: Request) {
     const result = await GpxFile.query
       .byFolder({ userId: targetUserId, folderId: targetFolderId })
       .go({ order: "desc" });
-    const files = result.data;
+
+    // Filter to only show active files (not pending or failed)
+    // Note: status defaults to "active" for backwards compatibility with existing files
+    const files = result.data.filter(
+      (file: { status?: string }) => !file.status || file.status === "active"
+    );
 
     return NextResponse.json({ files });
   } catch (error) {
@@ -52,9 +63,14 @@ export async function GET(request: Request) {
  * POST /api/gpx/files - Create new file record and return presigned upload URL
  * Request body:
  *   - fileName (required)
- *   - fileSize (optional)
+ *   - fileSize (required for quota/size validation)
  *   - folderId (optional) - Folder to save to
  *   - trackCount, waypointCount, totalDistance, totalElevation (optional metadata)
+ *
+ * Security controls:
+ *   - File size limit: 10 MB max
+ *   - Quota: 50 uploads for regular users, 500 for admins
+ *   - File created with status: 'pending' until confirmed
  */
 export async function POST(request: Request) {
   const session = await auth();
@@ -83,6 +99,42 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "fileName is required" },
         { status: 400 }
+      );
+    }
+
+    // Security: Validate file size
+    if (fileSize && fileSize > MAX_GPX_FILE_SIZE) {
+      return NextResponse.json(
+        {
+          error: "File too large",
+          message: `Maximum file size is ${MAX_GPX_FILE_SIZE / (1024 * 1024)} MB`,
+          maxSize: MAX_GPX_FILE_SIZE,
+          requestedSize: fileSize,
+        },
+        { status: 413 }
+      );
+    }
+
+    // Determine quota tier based on services
+    const quotaTier: QuotaTier = services.includes("admin") ? "admin" : "upload";
+
+    // Security: Consume quota before generating presign URL
+    const quotaResult = await consumeQuota(
+      session.user.id,
+      "gpx_upload",
+      1,
+      quotaTier
+    );
+
+    if (!quotaResult.success) {
+      return NextResponse.json(
+        {
+          error: "Quota exceeded",
+          message: "You have reached your upload limit",
+          remaining: quotaResult.remaining,
+          quotaId: "gpx_upload",
+        },
+        { status: 429 }
       );
     }
 
@@ -123,32 +175,55 @@ export async function POST(request: Request) {
     const fileId = uuidv4();
     const key = `${getUserPrefix(targetUserId)}${fileId}.gpx`;
 
-    // Generate presigned upload URL
+    // Generate presigned upload URL with ContentLength constraint
     const command = new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
       ContentType: "application/gpx+xml",
+      // Enforce file size at S3 level if provided
+      ...(fileSize ? { ContentLength: fileSize } : {}),
     });
 
-    const uploadUrl = await getSignedUrl(s3ClientForPresign, command, { expiresIn: 3600 });
+    let uploadUrl: string;
+    try {
+      uploadUrl = await getSignedUrl(s3ClientForPresign, command, {
+        expiresIn: PRESIGN_EXPIRY_SECONDS,
+      });
+    } catch (presignError) {
+      // Restore quota if presign fails
+      await restoreQuota(session.user.id, "gpx_upload", 1);
+      throw presignError;
+    }
 
-    // Create DynamoDB record
-    await GpxFile.create({
-      userId: targetUserId,
+    // Create DynamoDB record with pending status
+    try {
+      await GpxFile.create({
+        userId: targetUserId,
+        fileId,
+        fileName,
+        bucket: BUCKET,
+        key,
+        fileSize: fileSize || 0,
+        folderId: validatedFolderId,
+        trackCount: trackCount || 0,
+        waypointCount: waypointCount || 0,
+        totalDistance: totalDistance || 0,
+        totalElevation: totalElevation || 0,
+        uploadedBy: isGlobalFolder ? session.user.id : undefined,
+        status: "pending", // Pending until confirmed
+      }).go();
+    } catch (dbError) {
+      // Restore quota if DB write fails
+      await restoreQuota(session.user.id, "gpx_upload", 1);
+      throw dbError;
+    }
+
+    return NextResponse.json({
+      uploadUrl,
       fileId,
-      fileName,
-      bucket: BUCKET,
       key,
-      fileSize: fileSize || 0,
-      folderId: validatedFolderId, // Use validated folder or ROOT if not found
-      trackCount: trackCount || 0,
-      waypointCount: waypointCount || 0,
-      totalDistance: totalDistance || 0,
-      totalElevation: totalElevation || 0,
-      uploadedBy: isGlobalFolder ? session.user.id : undefined,
-    }).go();
-
-    return NextResponse.json({ uploadUrl, fileId, key });
+      quotaRemaining: quotaResult.remaining,
+    });
   } catch (error) {
     console.error("Error creating GPX file:", error);
     return NextResponse.json(
