@@ -3,65 +3,64 @@
 ## Phase 1: Infrastructure Setup
 
 ### 1.1 Create constants file
-- [ ] Create `apps/run.gpx/webapp/src/lib/constants.ts`
-- [ ] Add `MAX_GPX_FILE_SIZE = 10 * 1024 * 1024` (10 MB)
-- [ ] Add `PRESIGN_EXPIRY_SECONDS = 3600`
+- [x] Create `apps/run.gpx/webapp/src/lib/constants.ts`
+- [x] Add `MAX_GPX_FILE_SIZE = 10 * 1024 * 1024` (10 MB)
+- [x] Add `PRESIGN_EXPIRY_SECONDS = 3600`
 
 ### 1.2 Copy quota system from run.human
-- [ ] Copy `lib/quota-definitions.ts` - simplify to only `gpx_upload` quota
-- [ ] Copy `services/quota.ts` - full service with atomic operations
-- [ ] Copy `entities/user-quota.ts` - DynamoDB entity
-- [ ] Copy `lib/quota-middleware.ts` - API helpers (optional)
-- [ ] **Verify:** Quota definitions match: zero=0, upload=50, admin=500
+- [x] Quota client already exists at `lib/quota-client.ts`
+- [x] Uses centralized quota service in run.auth
+- [x] **Verify:** Quota definitions match: zero=0, upload=50, admin=500
 
 ### 1.3 Create GPX validator
-- [ ] Create `apps/run.gpx/webapp/src/lib/gpx-validator.ts`
-- [ ] Implement `validateGpxFile(key)` function
-- [ ] Fetch first 1KB from S3 to check header
-- [ ] Verify `<gpx>` root element exists
-- [ ] Return `{ valid: boolean, error?: string }`
+- [x] Create `apps/run.gpx/webapp/src/lib/gpx-validator.ts`
+- [x] Implement `validateGpxFile(key)` function
+- [x] Fetch first 1KB from S3 to check header
+- [x] Verify `<gpx>` root element exists
+- [x] Return `{ valid: boolean, error?: string }`
 
 ## Phase 2: API Changes
 
 ### 2.1 Add file size validation to presign
-- [ ] Update `POST /api/gpx/files` route
-- [ ] Check `fileSize` parameter against MAX_GPX_FILE_SIZE
-- [ ] Return 413 if exceeded with clear error message
-- [ ] Add ContentLength to PutObjectCommand
+- [x] Update `POST /api/gpx/files` route
+- [x] Check `fileSize` parameter against MAX_GPX_FILE_SIZE
+- [x] Return 413 if exceeded with clear error message
+- [x] Add ContentLength to PutObjectCommand
 - [ ] **Verify:** 15 MB upload attempt returns 413
 
 ### 2.2 Add quota consumption to presign
-- [ ] Import quota service in files route
-- [ ] Determine user tier from session
-- [ ] Call `consumeQuota()` before generating presign
-- [ ] Return 429 if quota exceeded with remaining/limit info
-- [ ] Add `status: 'pending'` to file record
-- [ ] Include `quotaRemaining` in response
+- [x] Import quota service in files route
+- [x] Determine user tier from session
+- [x] Call `consumeQuota()` before generating presign
+- [x] Return 429 if quota exceeded with remaining/limit info
+- [x] Add `status: 'pending'` to file record
+- [x] Include `quotaRemaining` in response
 - [ ] **Verify:** 51st upload returns 429 for regular user
 
 ### 2.3 Create confirmation endpoint
-- [ ] Create `apps/run.gpx/webapp/src/app/api/gpx/files/[id]/confirm/route.ts`
-- [ ] Add auth checks (session, service, ownership)
-- [ ] Verify file status is 'pending'
-- [ ] Call `validateGpxFile()` with S3 key
-- [ ] If valid: update status to 'active'
-- [ ] If invalid: delete S3 object, delete record, restore quota
-- [ ] Return appropriate success/error response
+- [x] Create `apps/run.gpx/webapp/src/app/api/gpx/files/[id]/confirm/route.ts`
+- [x] Add auth checks (session, service, ownership)
+- [x] Verify file status is 'pending'
+- [x] Call `validateGpxFile()` with S3 key
+- [x] If valid: update status to 'active'
+- [x] If invalid: delete S3 object, mark as failed, restore quota
+- [x] Return appropriate success/error response
 - [ ] **Verify:** .txt file uploaded as .gpx fails validation
 
 ### 2.4 Update file record entity
-- [ ] Add `status` field to GpxFile entity (pending/active)
-- [ ] Add GSI for querying by status (for cleanup)
+- [x] Add `status` field to GpxFile entity (pending/active/failed)
+- [x] Add GSI for querying by status (for cleanup)
+- [x] Filter file listing to only show active files
 - [ ] **Verify:** Entity changes don't break existing queries
 
 ## Phase 3: Client Updates
 
 ### 3.1 Update cloud-sync.ts upload flow
-- [ ] Handle 413 (file too large) response with toast
-- [ ] Handle 429 (quota exceeded) response with toast
-- [ ] Add confirm API call after S3 upload
-- [ ] Handle confirm failures (invalid GPX)
-- [ ] Update success messaging
+- [x] Handle 413 (file too large) response with FileTooLargeError
+- [x] Handle 429 (quota exceeded) response with QuotaExceededError
+- [x] Add confirm API call after S3 upload
+- [x] Handle confirm failures (invalid GPX)
+- [x] Client-side file size check for better UX
 
 ### 3.2 Add quota display (optional)
 - [ ] Show remaining uploads in UI somewhere

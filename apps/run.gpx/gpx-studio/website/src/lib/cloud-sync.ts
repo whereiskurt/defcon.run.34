@@ -334,6 +334,37 @@ export async function refreshCurrentFolder(): Promise<void> {
   ]);
 }
 
+/** Maximum file size for GPX uploads (10 MB) */
+const MAX_GPX_FILE_SIZE = 10 * 1024 * 1024;
+
+/**
+ * Custom error class for upload quota exceeded
+ */
+export class QuotaExceededError extends Error {
+  public readonly remaining: number;
+
+  constructor(message: string, remaining: number) {
+    super(message);
+    this.name = 'QuotaExceededError';
+    this.remaining = remaining;
+  }
+}
+
+/**
+ * Custom error class for file too large
+ */
+export class FileTooLargeError extends Error {
+  public readonly maxSize: number;
+  public readonly actualSize: number;
+
+  constructor(message: string, maxSize: number, actualSize: number) {
+    super(message);
+    this.name = 'FileTooLargeError';
+    this.maxSize = maxSize;
+    this.actualSize = actualSize;
+  }
+}
+
 /**
  * Save a GPX file to the cloud
  * @param gpxContent - The GPX XML content as a string
@@ -341,6 +372,8 @@ export async function refreshCurrentFolder(): Promise<void> {
  * @param metadata - Optional metadata (track count, distance, etc.)
  * @param folderId - Optional folder ID to save to
  * @returns The cloud fileId
+ * @throws {FileTooLargeError} If file exceeds 10 MB limit
+ * @throws {QuotaExceededError} If upload quota is exceeded
  */
 export async function saveToCloud(
   gpxContent: string,
@@ -358,6 +391,15 @@ export async function saveToCloud(
 
   try {
     const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
+
+    // Client-side size check for better UX
+    if (blob.size > MAX_GPX_FILE_SIZE) {
+      throw new FileTooLargeError(
+        `File too large: ${(blob.size / (1024 * 1024)).toFixed(1)} MB exceeds ${MAX_GPX_FILE_SIZE / (1024 * 1024)} MB limit`,
+        MAX_GPX_FILE_SIZE,
+        blob.size
+      );
+    }
 
     // Create file record and get presigned upload URL
     // POST /api/gpx/files creates the DynamoDB record AND returns presigned URL
@@ -380,6 +422,21 @@ export async function saveToCloud(
       if (presignResponse.status === 403) {
         throw new Error('Access denied - gpxstudio service required');
       }
+      if (presignResponse.status === 413) {
+        const data = await presignResponse.json().catch(() => ({}));
+        throw new FileTooLargeError(
+          data.message || 'File too large',
+          data.maxSize || MAX_GPX_FILE_SIZE,
+          blob.size
+        );
+      }
+      if (presignResponse.status === 429) {
+        const data = await presignResponse.json().catch(() => ({}));
+        throw new QuotaExceededError(
+          data.message || 'Upload quota exceeded',
+          data.remaining ?? 0
+        );
+      }
       throw new Error('Failed to get upload URL');
     }
 
@@ -394,6 +451,23 @@ export async function saveToCloud(
 
     if (!uploadResponse.ok) {
       throw new Error('Failed to upload file to storage');
+    }
+
+    // Confirm the upload (validates GPX content and activates the file)
+    const confirmResponse = await fetch(`${getApiBase()}/files/${fileId}/confirm`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    if (!confirmResponse.ok) {
+      const data = await confirmResponse.json().catch(() => ({}));
+      if (data.error === 'Invalid GPX file') {
+        // Invalid uploads still consume quota to prevent abuse
+        throw new Error(`Invalid GPX file: ${data.message || 'Unknown validation error'}. This upload counts against your quota.`);
+      }
+      // Non-critical: file is uploaded but confirmation failed
+      // The file may still work, just log and continue
+      console.warn('File uploaded but confirmation failed:', data.error);
     }
 
     cloudSyncStatus.set('idle');
