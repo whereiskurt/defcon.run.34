@@ -235,6 +235,8 @@
             filesExpanded = true;
             // Clear remote file selection when navigating folders
             selectedRemoteFiles = new Set();
+            // Update lastSaveFolder so new files auto-save to this folder
+            settings.lastSaveFolder.set(folderId ?? 'ROOT');
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to navigate';
         } finally {

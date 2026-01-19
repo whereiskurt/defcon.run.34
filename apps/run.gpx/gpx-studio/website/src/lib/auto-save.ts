@@ -8,9 +8,10 @@
 
 import { writable, get, derived } from 'svelte/store';
 import { buildGPX } from 'gpx';
-import { saveOrUpdateToCloud, listCloudFiles, updateCloudFileContent } from '$lib/cloud-sync';
+import { saveOrUpdateToCloud, listCloudFiles, updateCloudFileContent, updateCloudFile, saveToCloud } from '$lib/cloud-sync';
 import { fileStateCollection } from '$lib/logic/file-state';
 import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
+import { settings } from '$lib/logic/settings';
 import { browser, dev } from '$app/environment';
 
 // Auto-save interval: 1 minute in dev, 10 minutes in production
@@ -31,6 +32,7 @@ interface CloudLinkedFile {
   lastHash: string;
   lastSaveTime: number;
   needsSync: boolean;
+  wasDefaultName: boolean;  // True if file was created with auto-generated name like "New File 1"
 }
 
 /**
@@ -128,12 +130,14 @@ class AutoSaveManager {
 
   /**
    * Register a file as cloud-linked (called when opening from or saving to cloud)
+   * @param wasDefaultName - true if file was created with auto-generated name like "New File 1"
    */
   registerCloudLinkedFile(
     localFileId: string,
     cloudFileId: string,
     fileName: string,
-    folderId: string | null
+    folderId: string | null,
+    wasDefaultName: boolean = false
   ) {
     const file = fileStateCollection.getFile(localFileId);
     if (!file) return;
@@ -145,6 +149,7 @@ class AutoSaveManager {
       cloudFileId,
       fileName,
       folderId,
+      wasDefaultName,
       lastHash: hash,
       lastSaveTime: Date.now(),
       needsSync: false,
@@ -180,6 +185,68 @@ class AutoSaveManager {
    */
   getCloudInfo(localFileId: string): CloudLinkedFile | undefined {
     return this._cloudLinkedFiles.get(localFileId);
+  }
+
+  /**
+   * Handle file rename - either rename cloud file or create new one
+   * @param localFileId - The local file ID
+   * @param newName - The new name (without .gpx extension)
+   * @returns Promise that resolves when rename is handled
+   */
+  async handleFileRenamed(localFileId: string, newName: string): Promise<void> {
+    const info = this._cloudLinkedFiles.get(localFileId);
+    if (!info) return; // Not cloud-linked, nothing to do
+
+    const file = fileStateCollection.getFile(localFileId);
+    if (!file) return;
+
+    // Skip if not authenticated
+    if (!get(isAuthenticated) || !get(hasGpxStudioAccess)) {
+      return;
+    }
+
+    const newFileName = `${newName}.gpx`;
+
+    // If same name, nothing to do
+    if (newFileName === info.fileName) return;
+
+    try {
+      if (info.wasDefaultName) {
+        // Rename the existing cloud file
+        await updateCloudFile(info.cloudFileId, { fileName: newFileName });
+
+        // Update tracking info
+        this._cloudLinkedFiles.set(localFileId, {
+          ...info,
+          fileName: newFileName,
+          wasDefaultName: false, // No longer a default name
+        });
+      } else {
+        // Create a NEW cloud file with the new name
+        const gpxContent = buildGPX(file, []);
+        const lastFolder = get(settings.lastSaveFolder);
+        const folderId = lastFolder === 'ROOT' ? null : lastFolder;
+
+        const newCloudFileId = await saveToCloud(gpxContent, newFileName, {
+          trackCount: file.trk?.length || 0,
+          waypointCount: file.wpt?.length || 0,
+        }, folderId);
+
+        // Re-register with new cloud file
+        const newHash = hashString(gpxContent);
+        this._cloudLinkedFiles.set(localFileId, {
+          cloudFileId: newCloudFileId,
+          fileName: newFileName,
+          folderId,
+          lastHash: newHash,
+          lastSaveTime: Date.now(),
+          needsSync: false,
+          wasDefaultName: false,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to handle file rename:', error);
+    }
   }
 
   /**

@@ -93,12 +93,13 @@ export async function createFile() {
                 waypointCount: file.wpt?.length || 0,
             }, folderId);
 
-            // Register with auto-save manager
+            // Register with auto-save manager (wasDefaultName=true since this is a new file)
             autoSaveManager.registerCloudLinkedFile(
                 file._data.id,
                 cloudFileId,
                 fileName,
-                folderId
+                folderId,
+                true  // wasDefaultName - file created with auto-generated name
             );
         } catch (error) {
             // Silent fail - user can still manually save later

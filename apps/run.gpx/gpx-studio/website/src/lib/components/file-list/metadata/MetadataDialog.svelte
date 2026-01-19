@@ -10,6 +10,7 @@
     import { i18n } from '$lib/i18n.svelte';
     import { editMetadata } from '$lib/components/file-list/metadata/utils.svelte';
     import { fileActionManager } from '$lib/logic/file-action-manager';
+    import { autoSaveManager } from '$lib/auto-save';
 
     let {
         node,
@@ -53,7 +54,11 @@
         <Button
             variant="outline"
             onclick={() => {
-                fileActionManager.applyToFile(item.getFileId(), (file) => {
+                const fileId = item.getFileId();
+                const isFileRename = item instanceof ListFileItem && node instanceof GPXFile;
+                const previousName = isFileRename ? node.metadata.name : null;
+
+                fileActionManager.applyToFile(fileId, (file) => {
                     if (item instanceof ListFileItem && node instanceof GPXFile) {
                         file.metadata.name = name;
                         file.metadata.desc = description;
@@ -65,6 +70,12 @@
                         file.trk[item.getTrackIndex()].desc = description;
                     }
                 });
+
+                // Handle cloud file rename if this is a file-level rename
+                if (isFileRename && name !== previousName) {
+                    autoSaveManager.handleFileRenamed(fileId, name);
+                }
+
                 open = false;
             }}
         >
