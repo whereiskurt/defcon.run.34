@@ -147,6 +147,7 @@
                         Save All
                         <Shortcut key="S" ctrl={true} shift={true} />
                     </Menubar.Item>
+                    <Menubar.Separator />
                     <Menubar.CheckboxItem bind:checked={$autoSaveEnabled}>
                         <RefreshCw size="16" />
                         Auto-Save
