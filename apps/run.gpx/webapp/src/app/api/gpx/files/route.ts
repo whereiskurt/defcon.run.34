@@ -5,7 +5,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3ClientForPresign, BUCKET, getUserPrefix } from "@/lib/s3-client";
 import { v4 as uuidv4 } from "uuid";
-import { MAX_GPX_FILE_SIZE, PRESIGN_EXPIRY_SECONDS } from "@/lib/constants";
+import { getMaxFileSize, PRESIGN_EXPIRY_SECONDS } from "@/lib/constants";
 import {
   consumeQuota,
   restoreQuota,
@@ -68,9 +68,9 @@ export async function GET(request: Request) {
  *   - trackCount, waypointCount, totalDistance, totalElevation (optional metadata)
  *
  * Security controls:
- *   - File size limit: 10 MB max
- *   - Quota: 50 uploads for regular users, 500 for admins
- *   - File created with status: 'pending' until confirmed
+ *   - File size limit: 20 MB (upload tier), 100 MB (admin tier)
+ *   - Quota: 10 uploads (upload tier), 100 uploads (admin tier)
+ *   - File created with status: 'pending' until confirmed via /confirm endpoint
  */
 export async function POST(request: Request) {
   const session = await auth();
@@ -102,21 +102,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Security: Validate file size
-    if (fileSize && fileSize > MAX_GPX_FILE_SIZE) {
+    // Determine quota tier based on services (needed for tier-specific limits)
+    const quotaTier: QuotaTier = services.includes("admin") ? "admin" : "upload";
+    const maxFileSize = getMaxFileSize(quotaTier);
+
+    // Security: Validate file size against tier-specific limit
+    if (fileSize && fileSize > maxFileSize) {
       return NextResponse.json(
         {
           error: "File too large",
-          message: `Maximum file size is ${MAX_GPX_FILE_SIZE / (1024 * 1024)} MB`,
-          maxSize: MAX_GPX_FILE_SIZE,
+          message: `Maximum file size is ${maxFileSize / (1024 * 1024)} MB`,
+          maxSize: maxFileSize,
           requestedSize: fileSize,
         },
         { status: 413 }
       );
     }
-
-    // Determine quota tier based on services
-    const quotaTier: QuotaTier = services.includes("admin") ? "admin" : "upload";
 
     // Security: Consume quota before generating presign URL
     const quotaResult = await consumeQuota(
