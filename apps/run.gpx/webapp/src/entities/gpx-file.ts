@@ -130,6 +130,15 @@ export const GpxFile = new Entity(
         required: true,
         default: 1,
       },
+      // Upload status for security validation flow
+      // pending = uploaded but not yet validated
+      // active = validated and ready for use
+      // failed = validation failed or expired
+      status: {
+        type: ["pending", "active", "failed"] as const,
+        required: true,
+        default: "active", // Default to active for backwards compatibility
+      },
     },
     indexes: {
       primary: {
@@ -163,6 +172,18 @@ export const GpxFile = new Entity(
         sk: {
           field: "gsi2sk",
           composite: ["folderId", "createdAt"],
+        },
+      },
+      // Query files by status (for cleanup of pending uploads)
+      byStatus: {
+        index: "gsi3pk-gsi3sk-index",
+        pk: {
+          field: "gsi3pk",
+          composite: ["status"],
+        },
+        sk: {
+          field: "gsi3sk",
+          composite: ["createdAt"],
         },
       },
     },
