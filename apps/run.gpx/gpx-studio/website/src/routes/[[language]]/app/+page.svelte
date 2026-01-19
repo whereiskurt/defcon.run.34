@@ -21,8 +21,10 @@
     import { db } from '$lib/db';
     import { fileStateCollection } from '$lib/logic/file-state';
     import { openShareAcceptDialog } from '$lib/components/cloud/utils.svelte';
+    import { autoSaveManager } from '$lib/auto-save';
 
     const {
+        autoSaveEnabled,
         treeFileView,
         elevationProfile,
         bottomPanelSize,
@@ -59,6 +61,15 @@
                 openShareAcceptDialog(shareToken);
             }
         });
+
+        // Wire up auto-save setting to manager
+        const unsubscribeAutoSave = autoSaveEnabled.subscribe((enabled) => {
+            autoSaveManager.setEnabled(enabled);
+        });
+
+        return () => {
+            unsubscribeAutoSave();
+        };
     });
 
     onDestroy(() => {

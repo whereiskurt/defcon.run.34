@@ -60,6 +60,7 @@
     import { selection } from '$lib/logic/selection';
     import { parseGPX, buildGPX } from 'gpx';
     import { get } from 'svelte/store';
+    import { autoSaveManager } from '$lib/auto-save';
 
     let loading = false;
     let error: string | null = null;
@@ -144,10 +145,13 @@
     const fileOrderStore = settings.fileOrder;
 
     // Subscribe to file state collection changes
-    // Use fileOrder store as reactive trigger (updates when files added/removed)
+    // Use fileOrder store AND cloudStorageMode as reactive triggers
+    // (fileOrder updates when files added/removed, mode updates when dialog opens)
     $: {
         // Reference fileOrder to trigger reactivity when files change
         const _fileOrder = $fileOrderStore;
+        // Reference mode to refresh layers when dialog opens (catches metadata changes)
+        const _mode = $cloudStorageMode;
         const newLayers: LayerInfo[] = [];
 
         // Use the class's forEach method which handles getting file data
@@ -231,6 +235,8 @@
             filesExpanded = true;
             // Clear remote file selection when navigating folders
             selectedRemoteFiles = new Set();
+            // Update lastSaveFolder so new files auto-save to this folder
+            settings.lastSaveFolder.set(folderId ?? 'ROOT');
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to navigate';
         } finally {
@@ -342,6 +348,15 @@
             gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
             const id = fileActions.add(gpx);
             selection.selectFileWhenLoaded(gpx._data.id);
+
+            // Register file with auto-save manager (file is now cloud-linked)
+            autoSaveManager.registerCloudLinkedFile(
+                gpx._data.id,
+                file.fileId,
+                file.fileName,
+                file.folderId ?? null
+            );
+
             closeCloudStorage();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to load file';
@@ -469,6 +484,15 @@
                 gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
                 fileActions.add(gpx);
                 selection.selectFileWhenLoaded(gpx._data.id);
+
+                // Register file with auto-save manager (file is now cloud-linked)
+                autoSaveManager.registerCloudLinkedFile(
+                    gpx._data.id,
+                    file.fileId,
+                    file.fileName,
+                    file.folderId ?? null
+                );
+
                 loadedCount++;
             }
             closeCloudStorage();
@@ -504,6 +528,14 @@
                     trackCount: file.trk?.length || 0,
                     waypointCount: file.wpt?.length || 0,
                 }, targetFolderId);
+
+                // Register file with auto-save manager (file is now cloud-linked)
+                autoSaveManager.registerCloudLinkedFile(
+                    fileId,
+                    result.fileId,
+                    fileName,
+                    targetFolderId
+                );
 
                 if (result.wasUpdate) {
                     updatedCount++;

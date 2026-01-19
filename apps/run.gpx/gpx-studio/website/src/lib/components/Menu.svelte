@@ -39,6 +39,7 @@
         ChartArea,
         Maximize,
         Cloud,
+        RefreshCw,
     } from '@lucide/svelte';
     import { map } from '$lib/components/map/map';
     import { editMetadata } from '$lib/components/file-list/metadata/utils.svelte';
@@ -52,6 +53,7 @@
     import { CloudStorage } from '$lib/components/cloud';
     import ShareAcceptDialog from '$lib/components/cloud/ShareAcceptDialog.svelte';
     import { cloudStorageOpen, openCloudStorageSave, openCloudStorageOpen, openCloudStorageBrowse, quickSaveToCloud } from '$lib/components/cloud/utils.svelte';
+    import { autoSaveManager } from '$lib/auto-save';
     import { mode, setMode } from 'mode-watcher';
     import { i18n } from '$lib/i18n.svelte';
     import { languages } from '$lib/languages';
@@ -86,6 +88,7 @@
         directionMarkers,
         streetViewSource,
         routing,
+        autoSaveEnabled,
     } = settings;
 
     const canUndo = fileActionManager.canUndo;
@@ -144,6 +147,11 @@
                         Save All
                         <Shortcut key="S" ctrl={true} shift={true} />
                     </Menubar.Item>
+                    <Menubar.Separator />
+                    <Menubar.CheckboxItem bind:checked={$autoSaveEnabled}>
+                        <RefreshCw size="16" />
+                        Auto-Save
+                    </Menubar.CheckboxItem>
                     <Menubar.Separator />
                     <Menubar.Item
                         onclick={() => tick().then(fileActions.deleteSelectedFiles)}
@@ -502,7 +510,7 @@
             <a
                 href="https://gpx.studio"
                 target="_blank"
-                class="text-red-500 hover:text-red-600"
+                class="text-green-500 hover:text-green-600"
                 title="Made with love by gpx.studio"
             >
                 <Heart size="16" fill="currentColor" />
