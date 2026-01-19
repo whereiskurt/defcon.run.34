@@ -11,10 +11,10 @@ import { buildGPX } from 'gpx';
 import { saveOrUpdateToCloud, listCloudFiles, updateCloudFileContent } from '$lib/cloud-sync';
 import { fileStateCollection } from '$lib/logic/file-state';
 import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
-import { browser } from '$app/environment';
+import { browser, dev } from '$app/environment';
 
-// Auto-save interval in milliseconds (10 minutes)
-const AUTO_SAVE_INTERVAL = 10 * 60 * 1000;
+// Auto-save interval: 1 minute in dev, 10 minutes in production
+const AUTO_SAVE_INTERVAL = dev ? 1 * 60 * 1000 : 10 * 60 * 1000;
 
 /**
  * Auto-save status for UI display

@@ -145,10 +145,13 @@
     const fileOrderStore = settings.fileOrder;
 
     // Subscribe to file state collection changes
-    // Use fileOrder store as reactive trigger (updates when files added/removed)
+    // Use fileOrder store AND cloudStorageMode as reactive triggers
+    // (fileOrder updates when files added/removed, mode updates when dialog opens)
     $: {
         // Reference fileOrder to trigger reactivity when files change
         const _fileOrder = $fileOrderStore;
+        // Reference mode to refresh layers when dialog opens (catches metadata changes)
+        const _mode = $cloudStorageMode;
         const newLayers: LayerInfo[] = [];
 
         // Use the class's forEach method which handles getting file data
