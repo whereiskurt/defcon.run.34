@@ -60,6 +60,7 @@
     import { selection } from '$lib/logic/selection';
     import { parseGPX, buildGPX } from 'gpx';
     import { get } from 'svelte/store';
+    import { autoSaveManager } from '$lib/auto-save';
 
     let loading = false;
     let error: string | null = null;
@@ -342,6 +343,15 @@
             gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
             const id = fileActions.add(gpx);
             selection.selectFileWhenLoaded(gpx._data.id);
+
+            // Register file with auto-save manager (file is now cloud-linked)
+            autoSaveManager.registerCloudLinkedFile(
+                gpx._data.id,
+                file.fileId,
+                file.fileName,
+                file.folderId ?? null
+            );
+
             closeCloudStorage();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to load file';
@@ -469,6 +479,15 @@
                 gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
                 fileActions.add(gpx);
                 selection.selectFileWhenLoaded(gpx._data.id);
+
+                // Register file with auto-save manager (file is now cloud-linked)
+                autoSaveManager.registerCloudLinkedFile(
+                    gpx._data.id,
+                    file.fileId,
+                    file.fileName,
+                    file.folderId ?? null
+                );
+
                 loadedCount++;
             }
             closeCloudStorage();
@@ -504,6 +523,14 @@
                     trackCount: file.trk?.length || 0,
                     waypointCount: file.wpt?.length || 0,
                 }, targetFolderId);
+
+                // Register file with auto-save manager (file is now cloud-linked)
+                autoSaveManager.registerCloudLinkedFile(
+                    fileId,
+                    result.fileId,
+                    fileName,
+                    targetFolderId
+                );
 
                 if (result.wasUpdate) {
                     updatedCount++;

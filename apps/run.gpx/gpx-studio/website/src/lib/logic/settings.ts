@@ -161,6 +161,7 @@ export const settings = {
     defaultWidth: new Setting('defaultWidth', browser && window.innerWidth < 600 ? 8 : 5),
     bottomPanelSize: new Setting('bottomPanelSize', 170),
     rightPanelSize: new Setting('rightPanelSize', 240),
+    autoSaveEnabled: new Setting<boolean>('autoSaveEnabled', true),
     connectToDatabase(db: Database) {
         for (const key in settings) {
             const setting = (settings as any)[key];
