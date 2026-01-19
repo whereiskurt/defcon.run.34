@@ -14,8 +14,9 @@ import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
 import { settings } from '$lib/logic/settings';
 import { browser, dev } from '$app/environment';
 
-// Auto-save interval: 1 minute in dev, 10 minutes in production
-const AUTO_SAVE_INTERVAL = dev ? 1 * 60 * 1000 : 10 * 60 * 1000;
+// Auto-save interval: 1 minute for testing, 10 minutes for production
+// TODO: Change back to `dev ? 1 * 60 * 1000 : 10 * 60 * 1000` after testing
+const AUTO_SAVE_INTERVAL = 1 * 60 * 1000;
 
 /**
  * Auto-save status for UI display
@@ -98,6 +99,7 @@ class AutoSaveManager {
    * Set auto-save enabled state
    */
   setEnabled(enabled: boolean) {
+    console.log(`[AutoSave] setEnabled(${enabled})`);
     this._enabled.set(enabled);
     if (enabled) {
       this.start();
@@ -113,7 +115,9 @@ class AutoSaveManager {
     if (this._intervalId) return; // Already running
     if (!get(this._enabled)) return; // Disabled
 
+    console.log(`[AutoSave] Starting timer (interval: ${AUTO_SAVE_INTERVAL / 1000}s)`);
     this._intervalId = setInterval(() => {
+      console.log('[AutoSave] Timer tick - checking for changes...');
       this.checkAndSave();
     }, AUTO_SAVE_INTERVAL);
   }
@@ -155,6 +159,8 @@ class AutoSaveManager {
       needsSync: false,
     });
 
+    console.log(`[AutoSave] Registered file "${fileName}" (cloudId: ${cloudFileId}, hash: ${hash.slice(0,8)}, wasDefault: ${wasDefaultName})`);
+
     // Start timer if enabled and not running
     if (get(this._enabled) && !this._intervalId) {
       this.start();
@@ -194,21 +200,35 @@ class AutoSaveManager {
    * @returns Promise that resolves when rename is handled
    */
   async handleFileRenamed(localFileId: string, newName: string): Promise<void> {
+    console.log(`[AutoSave] handleFileRenamed called: localFileId=${localFileId}, newName="${newName}"`);
+
     const info = this._cloudLinkedFiles.get(localFileId);
-    if (!info) return; // Not cloud-linked, nothing to do
+    if (!info) {
+      console.log(`[AutoSave] File ${localFileId} is not cloud-linked, skipping rename`);
+      return; // Not cloud-linked, nothing to do
+    }
 
     const file = fileStateCollection.getFile(localFileId);
-    if (!file) return;
+    if (!file) {
+      console.log(`[AutoSave] File ${localFileId} not found in collection`);
+      return;
+    }
 
     // Skip if not authenticated
     if (!get(isAuthenticated) || !get(hasGpxStudioAccess)) {
+      console.log('[AutoSave] Not authenticated, skipping rename');
       return;
     }
 
     const newFileName = `${newName}.gpx`;
 
     // If same name, nothing to do
-    if (newFileName === info.fileName) return;
+    if (newFileName === info.fileName) {
+      console.log(`[AutoSave] Name unchanged (${newFileName}), skipping`);
+      return;
+    }
+
+    console.log(`[AutoSave] Renaming from "${info.fileName}" to "${newFileName}", wasDefaultName=${info.wasDefaultName}`);
 
     try {
       if (info.wasDefaultName) {
@@ -255,15 +275,18 @@ class AutoSaveManager {
   async checkAndSave(): Promise<void> {
     // Skip if not authenticated or no access
     if (!get(isAuthenticated) || !get(hasGpxStudioAccess)) {
+      console.log('[AutoSave] Skipping - not authenticated or no access');
       return;
     }
 
     // Skip if offline - mark as needs sync
     if (!get(this._isOnline)) {
+      console.log('[AutoSave] Skipping - offline');
       this.markAllNeedsSync();
       return;
     }
 
+    console.log(`[AutoSave] Checking ${this._cloudLinkedFiles.size} cloud-linked files`);
     const filesToSave: Array<{ localId: string; info: CloudLinkedFile; content: string }> = [];
 
     // Check each cloud-linked file for changes
@@ -271,6 +294,7 @@ class AutoSaveManager {
       const file = fileStateCollection.getFile(localFileId);
       if (!file) {
         // File no longer exists locally, unregister
+        console.log(`[AutoSave] File ${localFileId} no longer exists, unregistering`);
         this._cloudLinkedFiles.delete(localFileId);
         continue;
       }
@@ -278,13 +302,17 @@ class AutoSaveManager {
       const gpxContent = buildGPX(file, []);
       const currentHash = hashString(gpxContent);
 
+      console.log(`[AutoSave] File "${info.fileName}": lastHash=${info.lastHash.slice(0,8)}, currentHash=${currentHash.slice(0,8)}, needsSync=${info.needsSync}`);
+
       // Only save if content has changed
       if (currentHash !== info.lastHash || info.needsSync) {
+        console.log(`[AutoSave] File "${info.fileName}" has changes, queuing for save`);
         filesToSave.push({ localId: localFileId, info, content: gpxContent });
       }
     }
 
     if (filesToSave.length === 0) {
+      console.log('[AutoSave] No changes detected');
       return; // Nothing to save
     }
 

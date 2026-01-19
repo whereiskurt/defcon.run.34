@@ -57,23 +57,29 @@
                 const fileId = item.getFileId();
                 const isFileRename = item instanceof ListFileItem && node instanceof GPXFile;
                 const previousName = isFileRename ? node.metadata.name : null;
+                const newName = name; // Capture current input value
+
+                console.log(`[MetadataDialog] Save clicked: fileId=${fileId}, isFileRename=${isFileRename}, previousName="${previousName}", newName="${newName}"`);
 
                 fileActionManager.applyToFile(fileId, (file) => {
                     if (item instanceof ListFileItem && node instanceof GPXFile) {
-                        file.metadata.name = name;
+                        file.metadata.name = newName;
                         file.metadata.desc = description;
                         if (file.trk.length === 1) {
-                            file.trk[0].name = name;
+                            file.trk[0].name = newName;
                         }
                     } else if (item instanceof ListTrackItem && node instanceof Track) {
-                        file.trk[item.getTrackIndex()].name = name;
+                        file.trk[item.getTrackIndex()].name = newName;
                         file.trk[item.getTrackIndex()].desc = description;
                     }
                 });
 
                 // Handle cloud file rename if this is a file-level rename
-                if (isFileRename && name !== previousName) {
-                    autoSaveManager.handleFileRenamed(fileId, name);
+                if (isFileRename && newName !== previousName) {
+                    console.log(`[MetadataDialog] Name changed, calling handleFileRenamed`);
+                    autoSaveManager.handleFileRenamed(fileId, newName);
+                } else {
+                    console.log(`[MetadataDialog] Name unchanged or not a file rename, skipping`);
                 }
 
                 open = false;
