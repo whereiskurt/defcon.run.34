@@ -502,7 +502,7 @@
             <a
                 href="https://gpx.studio"
                 target="_blank"
-                class="text-red-500 hover:text-red-600"
+                class="text-green-500 hover:text-green-600"
                 title="Made with love by gpx.studio"
             >
                 <Heart size="16" fill="currentColor" />
