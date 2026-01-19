@@ -12,6 +12,7 @@ import { auth, isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
 import { fileStateCollection } from '$lib/logic/file-state';
 import { settings } from '$lib/logic/settings';
 import { selection } from '$lib/logic/selection';
+import { autoSaveManager } from '$lib/auto-save';
 
 /**
  * Cloud Storage dialog modes
@@ -140,6 +141,14 @@ export async function quickSaveToCloud(): Promise<void> {
                 trackCount: file.trk?.length || 0,
                 waypointCount: file.wpt?.length || 0,
             }, targetFolderId);
+
+            // Register file with auto-save manager (file is now cloud-linked)
+            autoSaveManager.registerCloudLinkedFile(
+                fileId,
+                result.fileId,
+                fileName,
+                targetFolderId
+            );
 
             if (result.wasUpdate) {
                 updatedCount++;

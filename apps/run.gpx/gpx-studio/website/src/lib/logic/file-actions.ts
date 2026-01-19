@@ -3,6 +3,9 @@ import { fileActionManager } from '$lib/logic/file-action-manager';
 import { applyToOrderedItemsFromFile, copied, cut, selection } from '$lib/logic/selection';
 import { currentTool, Tool } from '$lib/components/toolbar/tools';
 import { SplitType } from '$lib/components/toolbar/tools/scissors/scissors';
+import { autoSaveManager } from '$lib/auto-save';
+import { saveToCloud } from '$lib/cloud-sync';
+import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
 import {
     ListFileItem,
     ListLevel,
@@ -19,6 +22,7 @@ import { freeze, type WritableDraft } from 'immer';
 import {
     GPXFile,
     parseGPX,
+    buildGPX,
     Track,
     TrackPoint,
     TrackSegment,
@@ -65,12 +69,43 @@ export function newGPXFile() {
     return file;
 }
 
-export function createFile() {
+export async function createFile() {
     let file = newGPXFile();
 
     fileActions.add(file);
     selection.selectFileWhenLoaded(file._data.id);
     currentTool.set(Tool.ROUTING);
+
+    // If auto-save is enabled and user is authenticated, immediately save to cloud
+    const autoSaveEnabled = get(settings.autoSaveEnabled);
+    const authenticated = get(isAuthenticated);
+    const hasAccess = get(hasGpxStudioAccess);
+
+    if (autoSaveEnabled && authenticated && hasAccess) {
+        try {
+            const gpxContent = buildGPX(file, []);
+            const fileName = `${file.metadata?.name || 'New File'}.gpx`;
+            const lastFolder = get(settings.lastSaveFolder);
+            const folderId = lastFolder === 'ROOT' ? null : lastFolder;
+
+            const cloudFileId = await saveToCloud(gpxContent, fileName, {
+                trackCount: file.trk?.length || 0,
+                waypointCount: file.wpt?.length || 0,
+            }, folderId);
+
+            // Register with auto-save manager (wasDefaultName=true since this is a new file)
+            autoSaveManager.registerCloudLinkedFile(
+                file._data.id,
+                cloudFileId,
+                fileName,
+                folderId,
+                true  // wasDefaultName - file created with auto-generated name
+            );
+        } catch (error) {
+            // Silent fail - user can still manually save later
+            console.warn('Auto-save initial save failed:', error);
+        }
+    }
 }
 
 export function triggerFileInput() {

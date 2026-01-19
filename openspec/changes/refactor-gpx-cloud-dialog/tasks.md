@@ -22,7 +22,7 @@
 ### 2.2 Implement mode-reactive section expansion
 - [x] Import `cloudStorageMode` and `CloudStorageMode` from utils
 - [x] Add reactive statement to set `layersExpanded` and `filesExpanded` based on mode
-- [ ] **Verify:** Each mode expands correct sections
+- [x] **Verify:** Each mode expands correct sections
 
 ### 2.3 Update dialog title
 - [x] Make title reactive based on mode
@@ -56,7 +56,7 @@
 ### 2.8 Remove Make Copy functionality
 - [x] Remove `handleCopySelectedLayers` function
 - [x] Remove "Make Copy" button from UI
-- [ ] **Verify:** Make Copy button no longer appears
+- [x] **Verify:** Make Copy button no longer appears
 
 ## Phase 3: Menu.svelte Changes
 
@@ -64,21 +64,21 @@
 - [x] Add "Save As..." to File menu after Local Open
 - [x] Wire to `openCloudStorageSave()`
 - [x] Disable when no layers loaded
-- [ ] **Verify:** Opens dialog in save mode
+- [x] **Verify:** Opens dialog in save mode
 
 ### 3.2 Add Open Remote menu item
 - [x] Add "Open Remote..." to File menu after Save As
 - [x] Wire to `openCloudStorageOpen()`
-- [ ] **Verify:** Opens dialog in open mode
+- [x] **Verify:** Opens dialog in open mode
 
 ### 3.3 Update Cloud Storage in View menu
 - [x] Wire to `openCloudStorageBrowse()` instead of `openCloudStorage()`
-- [ ] **Verify:** Opens dialog in browse mode
+- [x] **Verify:** Opens dialog in browse mode
 
 ### 3.4 Update keyboard shortcuts
 - [x] Ctrl+Shift+K calls `openCloudStorageSave()`
 - [x] Add Ctrl+Shift+O for `openCloudStorageOpen()`
-- [ ] **Verify:** Shortcuts open correct modes
+- [x] **Verify:** Shortcuts open correct modes
 
 ### 3.5 Update imports
 - [x] Import new functions from utils.svelte.ts
@@ -87,19 +87,19 @@
 ## Phase 4: Testing
 
 ### 4.1 Manual verification
-- [ ] Test Save As menu → dialog in save mode, layers expanded
-- [ ] Test Open Remote menu → dialog in open mode, files expanded
-- [ ] Test Cloud Storage (View) → dialog in browse mode, both expanded
-- [ ] Test keyboard shortcuts (Ctrl+Shift+K, Ctrl+Shift+O)
-- [ ] Test batch file selection and Open Selected
-- [ ] Test folder navigation clears selection
-- [ ] Test existing save functionality still works
-- [ ] Test existing individual file actions (rename, delete, share, versions)
+- [x] Test Save As menu → dialog in save mode, layers expanded
+- [x] Test Open Remote menu → dialog in open mode, files expanded
+- [x] Test Cloud Storage (View) → dialog in browse mode, both expanded
+- [x] Test keyboard shortcuts (Ctrl+Shift+K, Ctrl+Shift+O)
+- [x] Test batch file selection and Open Selected
+- [x] Test folder navigation clears selection
+- [x] Test existing save functionality still works
+- [x] Test existing individual file actions (rename, delete, share, versions)
 
 ### 4.2 Edge cases
-- [ ] Test opening with no cloud files (empty state)
-- [ ] Test opening with no local layers (empty layers section)
-- [ ] Test mode switching mid-dialog (if applicable)
+- [x] Test opening with no cloud files (empty state)
+- [x] Test opening with no local layers (empty layers section)
+- [x] Test mode switching mid-dialog (N/A - modes set on open)
 
 ## Dependencies
 
