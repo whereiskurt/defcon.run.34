@@ -10,10 +10,61 @@
 
 import { writable, get } from 'svelte/store';
 import { base } from '$app/paths';
+import { browser } from '$app/environment';
 
 // Get API base path from SvelteKit's base (e.g., /use1/studio -> /use1)
 function getApiBase(): string {
   return base.replace('/studio', '') + '/api/gpx';
+}
+
+// Get auth API base path
+function getAuthBase(): string {
+  return base.replace('/studio', '') + '/api/auth';
+}
+
+/**
+ * Custom error class for authentication errors.
+ * Includes a flag to indicate the user should be redirected to login.
+ */
+export class AuthenticationError extends Error {
+  public readonly shouldRedirect: boolean;
+
+  constructor(message: string, shouldRedirect = true) {
+    super(message);
+    this.name = 'AuthenticationError';
+    this.shouldRedirect = shouldRedirect;
+  }
+}
+
+/**
+ * Handle 401 responses by redirecting to login.
+ * This is called when API requests fail due to expired/missing session.
+ */
+export function redirectToLogin(): void {
+  if (browser) {
+    // Redirect to signin, which will auto-redirect to OIDC provider
+    const currentUrl = encodeURIComponent(window.location.href);
+    window.location.href = `${getAuthBase()}/signin?callbackUrl=${currentUrl}`;
+  }
+}
+
+/**
+ * Handle API response errors, automatically redirecting on 401.
+ * @param response - The fetch Response object
+ * @param errorMessage - Default error message if not 401/403
+ * @throws AuthenticationError for 401 responses
+ * @throws Error for other error responses
+ */
+function handleApiError(response: Response, errorMessage: string): never {
+  if (response.status === 401) {
+    // Session expired or missing - redirect to login
+    redirectToLogin();
+    throw new AuthenticationError('Session expired. Redirecting to login...');
+  }
+  if (response.status === 403) {
+    throw new Error('Access denied - gpxstudio service required');
+  }
+  throw new Error(errorMessage);
 }
 
 export interface CloudFile {
@@ -86,10 +137,7 @@ export async function listCloudFiles(folderId?: string | null, isGlobal = false)
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Not authenticated');
-      }
-      throw new Error('Failed to list files');
+      handleApiError(response, 'Failed to list files');
     }
 
     const data = await response.json();
@@ -123,10 +171,7 @@ export async function listCloudFolders(parentId?: string | null, includeGlobal =
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        throw new Error('Not authenticated');
-      }
-      throw new Error('Failed to list folders');
+      handleApiError(response, 'Failed to list folders');
     }
 
     const data = await response.json();
@@ -417,7 +462,8 @@ export async function saveToCloud(
 
     if (!presignResponse.ok) {
       if (presignResponse.status === 401) {
-        throw new Error('Not authenticated');
+        redirectToLogin();
+        throw new AuthenticationError('Session expired. Redirecting to login...');
       }
       if (presignResponse.status === 403) {
         throw new Error('Access denied - gpxstudio service required');
@@ -505,7 +551,8 @@ export async function loadFromCloud(fileId: string): Promise<{ content: string; 
 
     if (!presignResponse.ok) {
       if (presignResponse.status === 401) {
-        throw new Error('Not authenticated');
+        redirectToLogin();
+        throw new AuthenticationError('Session expired. Redirecting to login...');
       }
       if (presignResponse.status === 404) {
         throw new Error('File not found');
@@ -549,7 +596,8 @@ export async function deleteFromCloud(fileId: string): Promise<void> {
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error('Not authenticated');
+        redirectToLogin();
+        throw new AuthenticationError('Session expired. Redirecting to login...');
       }
       if (response.status === 404) {
         throw new Error('File not found');
@@ -591,6 +639,10 @@ export async function updateCloudFile(
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        redirectToLogin();
+        throw new AuthenticationError('Session expired. Redirecting to login...');
+      }
       throw new Error('Failed to update file');
     }
 
@@ -645,7 +697,8 @@ export async function updateCloudFileContent(
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error('Not authenticated');
+        redirectToLogin();
+        throw new AuthenticationError('Session expired. Redirecting to login...');
       }
       if (response.status === 404) {
         throw new Error('File not found');
@@ -744,7 +797,8 @@ export async function getFileVersions(fileId: string): Promise<{ versions: FileV
 
     if (!response.ok) {
       if (response.status === 401) {
-        throw new Error('Not authenticated');
+        redirectToLogin();
+        throw new AuthenticationError('Session expired. Redirecting to login...');
       }
       if (response.status === 404) {
         throw new Error('File not found');
@@ -784,7 +838,8 @@ export async function loadVersionFromCloud(fileId: string, version: number): Pro
 
     if (!presignResponse.ok) {
       if (presignResponse.status === 401) {
-        throw new Error('Not authenticated');
+        redirectToLogin();
+        throw new AuthenticationError('Session expired. Redirecting to login...');
       }
       if (presignResponse.status === 404) {
         throw new Error('File or version not found');

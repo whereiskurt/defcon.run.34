@@ -92,7 +92,8 @@ export async function quickSaveToCloud(): Promise<void> {
     await auth.checkSession();
 
     if (!get(isAuthenticated)) {
-        toast.error('Sign in required to save to cloud');
+        // Redirect to login instead of just showing toast
+        auth.redirectToLogin();
         return;
     }
 
@@ -100,6 +101,9 @@ export async function quickSaveToCloud(): Promise<void> {
         toast.error('GPX Studio access required');
         return;
     }
+
+    // Start periodic session validation now that we're authenticated
+    auth.startSessionValidation();
 
     // Get layers to save: selected layers, or all layers if none selected
     const selectedIds = get(selection).getSelected().map(item => item.getFileId());

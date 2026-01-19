@@ -7,10 +7,15 @@
  * - Checks for 'gpxstudio' service claim
  * - Provides logout functionality
  * - Exposes user info including optional mapbox token
+ * - Periodically validates session to detect expiry
  */
 
 import { writable, derived } from 'svelte/store';
 import { browser } from '$app/environment';
+import { base } from '$app/paths';
+
+// Session validation interval (5 minutes)
+const SESSION_CHECK_INTERVAL = 5 * 60 * 1000;
 
 export interface User {
   id: string;
@@ -27,6 +32,7 @@ export interface AuthState {
   isAuthenticated: boolean;
   hasGpxStudioAccess: boolean;
   error: string | null;
+  lastChecked: number | null;
 }
 
 const initialState: AuthState = {
@@ -35,12 +41,19 @@ const initialState: AuthState = {
   isAuthenticated: false,
   hasGpxStudioAccess: false,
   error: null,
+  lastChecked: null,
 };
+
+// Get auth API base path
+function getAuthBase(): string {
+  return base.replace('/studio', '') + '/api/auth';
+}
 
 function createAuthStore() {
   const { subscribe, set, update } = writable<AuthState>(initialState);
+  let sessionCheckInterval: ReturnType<typeof setInterval> | null = null;
 
-  async function checkSession(): Promise<AuthState> {
+  async function checkSession(redirectOnExpired = false): Promise<AuthState> {
     if (!browser) {
       return initialState;
     }
@@ -48,7 +61,7 @@ function createAuthStore() {
     update(state => ({ ...state, isLoading: true, error: null }));
 
     try {
-      const response = await fetch('/api/auth/session', {
+      const response = await fetch(`${getAuthBase()}/session`, {
         credentials: 'include',
       });
 
@@ -70,19 +83,28 @@ function createAuthStore() {
           isAuthenticated: true,
           hasGpxStudioAccess: hasAccess,
           error: hasAccess ? null : 'Access denied - gpxstudio service required',
+          lastChecked: Date.now(),
         };
 
         set(newState);
         return newState;
       } else {
+        // Session expired or not authenticated
         const newState: AuthState = {
           user: null,
           isLoading: false,
           isAuthenticated: false,
           hasGpxStudioAccess: false,
           error: null,
+          lastChecked: Date.now(),
         };
         set(newState);
+
+        // Redirect to login if requested and session was expected
+        if (redirectOnExpired) {
+          redirectToLogin();
+        }
+
         return newState;
       }
     } catch (error) {
@@ -92,31 +114,76 @@ function createAuthStore() {
         isAuthenticated: false,
         hasGpxStudioAccess: false,
         error: 'Failed to check session',
+        lastChecked: Date.now(),
       };
       set(newState);
       return newState;
     }
   }
 
+  /**
+   * Redirect to login page with current URL as callback
+   */
+  function redirectToLogin() {
+    if (browser) {
+      const currentUrl = encodeURIComponent(window.location.href);
+      window.location.href = `${getAuthBase()}/signin?callbackUrl=${currentUrl}`;
+    }
+  }
+
+  /**
+   * Start periodic session validation.
+   * Checks session every 5 minutes and redirects to login if expired.
+   */
+  function startSessionValidation() {
+    if (!browser || sessionCheckInterval) {
+      return;
+    }
+
+    sessionCheckInterval = setInterval(async () => {
+      const state = await checkSession(false);
+      // If user was authenticated but session is now gone, redirect to login
+      if (!state.isAuthenticated) {
+        console.log('Session expired, redirecting to login...');
+        redirectToLogin();
+      }
+    }, SESSION_CHECK_INTERVAL);
+  }
+
+  /**
+   * Stop periodic session validation.
+   */
+  function stopSessionValidation() {
+    if (sessionCheckInterval) {
+      clearInterval(sessionCheckInterval);
+      sessionCheckInterval = null;
+    }
+  }
+
   function login() {
     if (browser) {
-      window.location.href = '/api/auth/signin';
+      window.location.href = `${getAuthBase()}/signin`;
     }
   }
 
   function logout() {
+    stopSessionValidation();
     if (browser) {
-      window.location.href = '/api/auth/signout';
+      window.location.href = `${getAuthBase()}/signout`;
     }
   }
 
   function reset() {
+    stopSessionValidation();
     set(initialState);
   }
 
   return {
     subscribe,
     checkSession,
+    startSessionValidation,
+    stopSessionValidation,
+    redirectToLogin,
     login,
     logout,
     reset,

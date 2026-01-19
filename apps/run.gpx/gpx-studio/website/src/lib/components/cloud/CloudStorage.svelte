@@ -208,6 +208,8 @@
         // Check auth and load files on mount
         await auth.checkSession();
         if (get(isAuthenticated) && get(hasGpxStudioAccess)) {
+            // Start periodic session validation now that we're authenticated
+            auth.startSessionValidation();
             await refreshFiles();
         }
     });
