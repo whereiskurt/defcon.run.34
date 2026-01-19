@@ -4,7 +4,6 @@ import { GpxFile } from "@/entities/gpx-file";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, BUCKET } from "@/lib/s3-client";
 import { validateGpxFile } from "@/lib/gpx-validator";
-import { restoreQuota } from "@/lib/quota-client";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -19,7 +18,7 @@ interface RouteParams {
  * If validation fails:
  *   - S3 object is deleted
  *   - DynamoDB record is marked as failed
- *   - Quota is restored
+ *   - Quota is NOT restored (invalid uploads count against quota to prevent abuse)
  */
 export async function POST(request: Request, { params }: RouteParams) {
   const session = await auth();
@@ -111,14 +110,14 @@ export async function POST(request: Request, { params }: RouteParams) {
         .set({ status: "failed" })
         .go();
 
-      // Restore quota
-      await restoreQuota(session.user.id, "gpx_upload", 1);
+      // Note: Quota is intentionally NOT restored for invalid uploads
+      // This prevents malicious actors from repeatedly uploading garbage
 
       return NextResponse.json(
         {
           error: "Invalid GPX file",
           message: validationResult.error,
-          quotaRestored: true,
+          quotaConsumed: true, // Invalid uploads still count against quota
         },
         { status: 400 }
       );

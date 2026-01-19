@@ -462,7 +462,8 @@ export async function saveToCloud(
     if (!confirmResponse.ok) {
       const data = await confirmResponse.json().catch(() => ({}));
       if (data.error === 'Invalid GPX file') {
-        throw new Error(`Invalid GPX file: ${data.message || 'Unknown validation error'}`);
+        // Invalid uploads still consume quota to prevent abuse
+        throw new Error(`Invalid GPX file: ${data.message || 'Unknown validation error'}. This upload counts against your quota.`);
       }
       // Non-critical: file is uploaded but confirmation failed
       // The file may still work, just log and continue
