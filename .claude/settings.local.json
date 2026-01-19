@@ -6,6 +6,7 @@
       "Bash(AWS_PROFILE=terraform sops:*)",
       "Bash(aws:*)",
       "Bash(bd:*)",
+      "Bash(BEADS_NO_DAEMON=1 bd:*)",
       "Bash(brew install:*)",
       "Bash(./build-frontend.sh:*)",
       "Bash(bv:*)",
@@ -110,7 +111,12 @@
       "WebFetch(domain:svelte.dev)",
       "WebSearch",
       "WebFetch(domain:console.anthropic.com)",
-      "Bash(AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local aws dynamodb:*)"
+      "Bash(AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local aws dynamodb:*)",
+      "mcp__ide__getDiagnostics",
+      "WebFetch(domain:localhost)",
+      "Bash(__NEW_LINE_51d0b0f357891420__ echo \"Local feature branches:\")",
+      "Bash(__NEW_LINE_51d0b0f357891420__ echo \"\")",
+      "Bash(jq:*)"
     ],
     "deny": [],
     "ask": []
