@@ -38,9 +38,16 @@ const nextConfig: NextConfig = {
         destination: "/studio/:lang/app.html",
       },
       // Proxy BRouter requests to avoid CORS issues
+      // basePath: false because SvelteKit app requests /api/brouter (not /use1/api/brouter)
       {
         source: "/api/brouter",
         destination: "https://brouter.gpx.studio/",
+        basePath: false,
+      },
+      {
+        source: "/api/brouter/:path*",
+        destination: "https://brouter.gpx.studio/:path*",
+        basePath: false,
       },
     ];
   },
