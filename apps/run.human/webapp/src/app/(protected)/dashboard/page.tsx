@@ -20,10 +20,8 @@ import { Text, Heading } from '@components/text-effects/Common';
 import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown, Link2, RefreshCw, Hash, Timer } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 
-// Build callback URL with region prefix for production
-const isDev = process.env.NODE_ENV !== 'production';
-const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
-const homeUrl = isDev ? '/' : `/${REGION_SHORT}/`;
+// Callback URL - don't add region prefix, next-auth handles basePath
+const homeUrl = '/';
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);

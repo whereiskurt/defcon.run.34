@@ -19,7 +19,9 @@ export default auth((req) => {
     // req.auth contains the session (null if not authenticated)
     if (!req.auth?.user) {
       // Not authenticated - redirect to signin
-      const signinUrl = new URL("/signin", req.url);
+      // Use nextUrl.clone() to preserve basePath (e.g., /use1)
+      const signinUrl = req.nextUrl.clone();
+      signinUrl.pathname = "/signin";
       signinUrl.searchParams.set("callbackUrl", req.url);
       return NextResponse.redirect(signinUrl);
     }
@@ -28,7 +30,8 @@ export default auth((req) => {
     const services = (req.auth.user as { services?: string[] }).services ?? [];
     if (!services.includes("gpxstudio")) {
       // No gpxstudio access - redirect to access denied
-      const accessDeniedUrl = new URL("/access-denied", req.url);
+      const accessDeniedUrl = req.nextUrl.clone();
+      accessDeniedUrl.pathname = "/access-denied";
       return NextResponse.redirect(accessDeniedUrl);
     }
   }

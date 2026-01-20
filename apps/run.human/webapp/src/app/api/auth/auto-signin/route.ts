@@ -1,8 +1,4 @@
-import { redirect } from "next/navigation";
 import { signIn } from "@/config/auth";
-
-const isDev = process.env.NODE_ENV !== "production";
-const REGION_SHORT = process.env.REGION_SHORT || "use1";
 
 /**
  * Auto-signin route for silent SSO.
@@ -10,8 +6,8 @@ const REGION_SHORT = process.env.REGION_SHORT || "use1";
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const callbackUrl = url.searchParams.get("callbackUrl") ||
-    (isDev ? "/dashboard" : `/${REGION_SHORT}/dashboard`);
+  // Don't add region prefix - signIn redirectTo respects basePath
+  const callbackUrl = url.searchParams.get("callbackUrl") || "/dashboard";
 
   // Trigger the OIDC flow - signIn in a route handler is allowed
   await signIn("run.defcon.run", { redirectTo: callbackUrl });
