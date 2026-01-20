@@ -22,10 +22,22 @@ export const authConfig: NextAuthConfig = {
   debug: isDev,
   trustHost: true,
 
+  // Suppress env-url-basepath-mismatch warning - expected in our setup
+  // AUTH_URL includes region prefix (/use1), but basePath is just /api/auth
+  // because Next.js strips the region prefix before Auth.js sees the request
+  logger: {
+    error: (code, ...message) => console.error(code, ...message),
+    warn: (code, ...message) => {
+      // Suppress known false-positive warning
+      if (code === "env-url-basepath-mismatch") return;
+      console.warn(code, ...message);
+    },
+    debug: (code, ...message) => isDev && console.debug(code, ...message),
+  },
+
   // basePath is for internal routing AFTER Next.js strips its basePath (/use1)
   // Request flow: /use1/api/auth/session -> Next.js strips /use1 -> /api/auth/session
   // Auth.js needs basePath="/api/auth" to parse "session" as the action
-  // The env-url-basepath-mismatch warning can be ignored - AUTH_URL is for public URL construction
   basePath: "/api/auth",
 
   providers: [

@@ -40,9 +40,15 @@ export default auth((req) => {
   return NextResponse.next();
 });
 
-// Only run middleware on /studio routes (the SvelteKit app)
+// Only run middleware on /studio HTML entry points, not static assets
+// This prevents auth checks on every JS/CSS/image request which causes slow loads
 export const config = {
   matcher: [
-    "/studio/:path*",
+    // Main entry points only - exclude static assets
+    "/studio",
+    "/studio/app",
+    // Language routes (e.g., /studio/en/app)
+    "/studio/:lang/app",
+    // Exclude: _app (immutable assets), assets, images, fonts, etc.
   ],
 };
