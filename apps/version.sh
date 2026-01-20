@@ -43,6 +43,11 @@ if [[ "$APP" != "run.cms" && "$COMPONENT" == "app" ]]; then
   exit 1
 fi
 
+if [[ "$APP" == "run.gpx" && "$COMPONENT" == "nginx" ]]; then
+  echo "ERROR: run.gpx is a single-container app without nginx"
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VERSION_FILE="${SCRIPT_DIR}/${APP}/${COMPONENT}/VERSION"
 

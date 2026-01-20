@@ -208,8 +208,6 @@
         // Check auth and load files on mount
         await auth.checkSession();
         if (get(isAuthenticated) && get(hasGpxStudioAccess)) {
-            // Start periodic session validation now that we're authenticated
-            auth.startSessionValidation();
             await refreshFiles();
         }
     });
@@ -864,14 +862,12 @@
                                                 <td class="px-4 py-2" colspan="4">
                                                     <div class="flex items-center gap-2">
                                                         <FolderPlus class="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                                        <!-- svelte-ignore a11y_autofocus -->
                                                         <input
                                                             type="text"
                                                             class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
                                                             placeholder="New folder name"
                                                             bind:value={newFolderName}
                                                             onkeydown={handleCreateFolderKeydown}
-                                                            autofocus
                                                         />
                                                         <Button
                                                             variant="ghost"
@@ -900,6 +896,7 @@
 
                                         <!-- Global folders (at root only) -->
                                         {#each $globalFolders as folder}
+                                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                                             <tr class="border-t hover:bg-muted/30 cursor-pointer" onclick={() => handleNavigateToFolder(folder.folderId, folder.folderName)}>
                                                 {#if $cloudStorageMode !== CloudStorageMode.SAVE}
                                                     <td class="px-2 py-2"></td>
@@ -923,21 +920,21 @@
 
                                         <!-- User folders -->
                                         {#each $cloudFolders as folder}
+                                            <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                                             <tr class="border-t hover:bg-muted/30 cursor-pointer" onclick={() => handleNavigateToFolder(folder.folderId, folder.folderName)}>
                                                 {#if $cloudStorageMode !== CloudStorageMode.SAVE}
                                                     <td class="px-2 py-2"></td>
                                                 {/if}
                                                 <td class="px-4 py-2">
                                                     {#if editingFolderId === folder.folderId}
+                                                        <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                                                         <div class="flex items-center gap-2" onclick={(e) => e.stopPropagation()}>
                                                             <Folder class="h-4 w-4 text-amber-500 flex-shrink-0" />
-                                                            <!-- svelte-ignore a11y_autofocus -->
                                                             <input
                                                                 type="text"
                                                                 class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
                                                                 bind:value={editFolderName}
                                                                 onkeydown={(e) => handleFolderRenameKeydown(e, folder.folderId)}
-                                                                autofocus
                                                             />
                                                             <Button
                                                                 variant="ghost"
@@ -972,6 +969,7 @@
                                                     {formatDate(folder.createdAt)}
                                                 </td>
                                                 <td class="px-4 py-2 text-center">
+                                                    <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
                                                     <div class="flex gap-1 justify-center" onclick={(e) => e.stopPropagation()}>
                                                         <Button
                                                             variant="ghost"
@@ -1013,13 +1011,11 @@
                                                 <td class="px-4 py-2">
                                                     {#if editingFileId === file.fileId}
                                                         <div class="flex items-center gap-2">
-                                                            <!-- svelte-ignore a11y_autofocus -->
                                                             <input
                                                                 type="text"
                                                                 class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
                                                                 bind:value={editFileName}
                                                                 onkeydown={(e) => handleRenameKeydown(e, file.fileId)}
-                                                                autofocus
                                                             />
                                                             <Button
                                                                 variant="ghost"

@@ -17,7 +17,7 @@ APP="${2}"
 if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   echo "Usage: ./build.sh <component> <app>"
   echo "  component: nginx | webapp | app"
-  echo "  app: run.auth | run.human | run.cms"
+  echo "  app: run.auth | run.human | run.cms | run.gpx"
   exit 1
 fi
 
@@ -39,6 +39,11 @@ fi
 
 if [[ "$APP" != "run.cms" && "$COMPONENT" == "app" ]]; then
   echo "ERROR: 'app' component is only valid for run.cms"
+  exit 1
+fi
+
+if [[ "$APP" == "run.gpx" && "$COMPONENT" == "nginx" ]]; then
+  echo "ERROR: run.gpx is a single-container app without nginx"
   exit 1
 fi
 
@@ -104,7 +109,12 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   # Deploy webapp
   export REPO_NAME="${REPO_PREFIX}-app"
   export IMAGE_TAG=${IMAGE_TAG:-$(cat "${APP_DIR}/webapp/VERSION" | tr -d '[:space:]')}
-  export VERSION_NGINX=${VERSION_NGINX:-$(cat "${APP_DIR}/nginx/VERSION" | tr -d '[:space:]')}
+  # Only read nginx VERSION for apps that have nginx (run.gpx is single container, no nginx)
+  if [[ -f "${APP_DIR}/nginx/VERSION" ]]; then
+    export VERSION_NGINX=${VERSION_NGINX:-$(cat "${APP_DIR}/nginx/VERSION" | tr -d '[:space:]')}
+  else
+    export VERSION_NGINX=${VERSION_NGINX:-"none"}
+  fi
   export VERSION_WEBAPP=${VERSION_WEBAPP:-$(cat "${APP_DIR}/webapp/VERSION" | tr -d '[:space:]')}
   export WEBAPP_PREFIX=${WEBAPP_PREFIX:-"${REGION_SHORT}/assets"}
   export WEBAPP_ORIGIN_BUCKET=$(aws ssm get-parameter --name "/dc34/cloudfront-assets/${REGION_SHORT}/${SSM_PATH_SEGMENT}/bucket_name" --region "${AWS_REGION}" --query "Parameter.Value" --output text)

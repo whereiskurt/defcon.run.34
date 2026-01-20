@@ -102,9 +102,6 @@ export async function quickSaveToCloud(): Promise<void> {
         return;
     }
 
-    // Start periodic session validation now that we're authenticated
-    auth.startSessionValidation();
-
     // Get layers to save: selected layers, or all layers if none selected
     const selectedIds = get(selection).getSelected().map(item => item.getFileId());
     const layersToSave: string[] = [];
