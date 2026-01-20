@@ -3,8 +3,14 @@ import { TrackPoint, distance } from 'gpx';
 import { settings } from '$lib/logic/settings';
 import { getElevation } from '$lib/utils';
 import { get } from 'svelte/store';
+import { base } from '$app/paths';
 
 const { routing, routingProfile, privateRoads } = settings;
+
+// Get API base path from SvelteKit's base (e.g., /use1/studio -> /use1)
+function getApiBase(): string {
+    return base.replace('/studio', '');
+}
 
 export const brouterProfiles: { [key: string]: string } = {
     bike: 'Trekking-dry',
@@ -31,8 +37,9 @@ async function getRoute(
     privateRoads: boolean
 ): Promise<TrackPoint[]> {
     // Use proxy URL to avoid CORS issues when running locally or on our domain
+    // getApiBase() returns the correct path with basePath (e.g., /use1/api/brouter)
     const brouterBase = typeof window !== 'undefined' && window.location.hostname !== 'gpx.studio'
-        ? '/api/brouter'
+        ? `${getApiBase()}/api/brouter`
         : 'https://brouter.gpx.studio';
     let url = `${brouterBase}?lonlats=${points.map((point) => `${point.lon.toFixed(8)},${point.lat.toFixed(8)}`).join('|')}&profile=${brouterProfile + (privateRoads ? '-private' : '')}&format=geojson&alternativeidx=0`;
 

@@ -864,6 +864,7 @@
                                                 <td class="px-4 py-2" colspan="4">
                                                     <div class="flex items-center gap-2">
                                                         <FolderPlus class="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                                        <!-- svelte-ignore a11y_autofocus -->
                                                         <input
                                                             type="text"
                                                             class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
@@ -930,6 +931,7 @@
                                                     {#if editingFolderId === folder.folderId}
                                                         <div class="flex items-center gap-2" onclick={(e) => e.stopPropagation()}>
                                                             <Folder class="h-4 w-4 text-amber-500 flex-shrink-0" />
+                                                            <!-- svelte-ignore a11y_autofocus -->
                                                             <input
                                                                 type="text"
                                                                 class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
@@ -1011,6 +1013,7 @@
                                                 <td class="px-4 py-2">
                                                     {#if editingFileId === file.fileId}
                                                         <div class="flex items-center gap-2">
+                                                            <!-- svelte-ignore a11y_autofocus -->
                                                             <input
                                                                 type="text"
                                                                 class="border rounded px-2 py-1 text-sm flex-1 min-w-0"
