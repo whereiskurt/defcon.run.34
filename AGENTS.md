@@ -12,6 +12,7 @@ Instructions for AI coding assistants working in this repository.
 apps/
 ├── run.auth/       # Auth service (auth.defcon.run) - Next.js + OIDC
 ├── run.cms/        # CMS service (cms.defcon.run) - Strapi 5
+├── run.gpx/        # GPX editor (gpx.defcon.run) - Next.js + gpx-studio
 ├── run.human/      # Main app (run.defcon.run) - Next.js
 ├── build.sh        # Build and push Docker image to ECR
 ├── deploy.sh       # Deploy to ECS via Terragrunt
@@ -43,8 +44,15 @@ openspec/     # Spec-driven development
 ## Quick Start
 
 ```bash
-# Development
-cd apps/run.human/webapp && npm run dev
+# Development (VS Code tasks auto-start these on folder open)
+# See .vscode/tasks.json for all dev servers
+PORT=3001 npm run dev      # run.human (from apps/run.human/webapp)
+PORT=3002 npm run dev      # run.auth (from apps/run.auth/webapp)
+PORT=3003 npm run dev      # run.gpx (from apps/run.gpx/webapp)
+PORT=1337 npm run develop  # run.cms (from apps/run.cms/app)
+
+# run.gpx requires building gpx-studio frontend first:
+cd apps/run.gpx && ./build-frontend.sh
 
 # Release (all apps, all regions)
 ./apps/release-all.sh --parallel

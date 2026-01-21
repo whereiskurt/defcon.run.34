@@ -2,14 +2,48 @@
 
 Quick reference for development and deployment commands.
 
-## Application Development
+## Local Development
+
+### VS Code Tasks (Auto-Start)
+
+VS Code tasks in `.vscode/tasks.json` auto-start when the folder opens:
+
+| Service | Port | Command | Notes |
+|---------|------|---------|-------|
+| **Local: DynamoDB** | 8000 | `cd apps/local/dynamodb && docker compose up` | Local infra |
+| **Local: S3 (MinIO)** | 9000 | `cd apps/local/s3 && docker compose up` | Local infra |
+| **run.human** | 3001 | `cd apps/run.human/webapp && PORT=3001 npm run dev` | Main app |
+| **run.auth** | 3002 | `cd apps/run.auth/webapp && PORT=3002 npm run dev` | Auth service |
+| **run.gpx** | 3003 | `cd apps/run.gpx/webapp && PORT=3003 npm run dev` | GPX editor |
+| **run.cms** | 1337 | `cd apps/run.cms/app && PORT=1337 npm run develop` | Strapi CMS |
+
+### run.gpx Prerequisites
+
+**Important:** Before running the run.gpx dev server, you must build the gpx-studio frontend:
 
 ```bash
-# Run webapp in development mode (from apps/run.auth/webapp or apps/run.human/webapp)
+cd apps/run.gpx
+./build-frontend.sh
+```
 
-POST=1337 npm run dev #CMS
-POST=3001 npm run dev #run.human
-POST=3002 npm run dev #run.auth
+This script:
+1. Initializes the gpx-studio git submodule
+2. Creates patched files (cloud-sync.ts, auth store)
+3. Installs dependencies for both gpx library and website
+4. Builds SvelteKit app with `BASE_PATH=/studio`
+5. Copies output to `webapp/public/studio/`
+
+Run this again after pulling changes that update the gpx-studio submodule.
+
+### Manual Commands
+
+```bash
+# Run webapp in development mode
+
+PORT=1337 npm run develop  # CMS (from apps/run.cms/app)
+PORT=3001 npm run dev      # run.human (from apps/run.human/webapp)
+PORT=3002 npm run dev      # run.auth (from apps/run.auth/webapp)
+PORT=3003 npm run dev      # run.gpx (from apps/run.gpx/webapp)
 
 npm run build
 
