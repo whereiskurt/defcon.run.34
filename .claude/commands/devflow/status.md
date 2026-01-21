@@ -1,12 +1,12 @@
 ---
 name: "Devflow: Status"
-description: Show detailed worktree status across all features and Claude instances.
+description: Show detailed status of branches, worktrees, and Claude instances.
 category: Devflow
 tags: [devflow, workflow, status, worktree, overview]
 ---
 <!-- DEVFLOW:START -->
 **Purpose**
-Get a comprehensive view of all worktrees, feature branches, and their merge status. Use this to understand what work is in progress across multiple Claude instances.
+Get a comprehensive view of all branches, worktrees, and their status. Use this to understand what work is in progress, whether using simple branches or worktree isolation.
 
 **Steps**
 
@@ -15,13 +15,25 @@ Get a comprehensive view of all worktrees, feature branches, and their merge sta
 ```bash
 REPO_NAME=$(basename $(git rev-parse --show-toplevel))
 REPO_ROOT=$(git rev-parse --show-toplevel)
-WORKTREE_BASE=~/working/worktrees/$REPO_NAME
+WORKTREE_BASE=~/working/wt
 CURRENT_BRANCH=$(git branch --show-current)
 
+# Check if in a worktree
+GIT_COMMON=$(git rev-parse --git-common-dir)
+GIT_DIR=$(git rev-parse --git-dir)
+if [ "$GIT_COMMON" != "$GIT_DIR" ]; then
+  IN_WORKTREE=true
+  MAIN_REPO=$(dirname $(dirname $GIT_COMMON))
+else
+  IN_WORKTREE=false
+  MAIN_REPO=$REPO_ROOT
+fi
+
 echo "Repository: $REPO_NAME"
-echo "Main repo: $REPO_ROOT"
+echo "Main repo: $MAIN_REPO"
 echo "Worktree base: $WORKTREE_BASE"
 echo "Current branch: $CURRENT_BRANCH"
+echo "In worktree: $IN_WORKTREE"
 echo ""
 ```
 
@@ -169,16 +181,17 @@ echo "=========================================="
 ```
 Repository: defcon.run.34
 Main repo: /Users/khundeck/working/defcon.run.34
-Worktree base: ~/working/worktrees/defcon.run.34
+Worktree base: ~/working/wt
 Current branch: feature/add-auth-wt-1737200000
+In worktree: true
 
 ==========================================
 ALL WORKTREES
 ==========================================
-/Users/khundeck/working/defcon.run.34          abc1234 [main]
-~/working/worktrees/.../feature/add-auth       def5678 [feature/add-auth]
-~/working/worktrees/.../feature/add-auth-wt-1  ghi9012 [feature/add-auth-wt-1737200000]
-~/working/worktrees/.../feature/add-auth-wt-2  jkl3456 [feature/add-auth-wt-1737200001]
+/Users/khundeck/working/defcon.run.34     abc1234 [main]
+~/working/wt/feature/add-auth             def5678 [feature/add-auth]
+~/working/wt/feature/add-auth-wt-1        ghi9012 [feature/add-auth-wt-1737200000]
+~/working/wt/feature/add-auth-wt-2        jkl3456 [feature/add-auth-wt-1737200001]
 
 ==========================================
 WORK WORKTREES BY FEATURE
@@ -187,9 +200,9 @@ WORK WORKTREES BY FEATURE
 Feature: feature/add-auth
   Work worktrees:
     - [feature/add-auth-wt-1737200000]
-      Path: ~/working/worktrees/.../feature/add-auth-wt-1737200000
+      Path: ~/working/wt/feature/add-auth-wt-1737200000
     - [feature/add-auth-wt-1737200001]
-      Path: ~/working/worktrees/.../feature/add-auth-wt-1737200001
+      Path: ~/working/wt/feature/add-auth-wt-1737200001
   Feature worktree: ✓ exists
   Active workers: 2
 

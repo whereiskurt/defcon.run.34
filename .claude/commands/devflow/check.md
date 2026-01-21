@@ -1,12 +1,12 @@
 ---
 name: "Devflow: Check"
-description: Mid-session workflow and worktree compliance check.
+description: Mid-session workflow compliance check for branch or worktree development.
 category: Devflow
 tags: [devflow, workflow, check, compliance, worktree]
 ---
 <!-- DEVFLOW:START -->
 **Purpose**
-Perform a mid-session audit to ensure you're following the worktree-based development process. Run this when unsure if you're on track, or before any significant milestone.
+Perform a mid-session audit to ensure you're following the development workflow. Run this when unsure if you're on track, or before any significant milestone. Works for both simple branch and worktree workflows.
 
 **Guardrails**
 - Be honest about compliance gaps
@@ -15,12 +15,13 @@ Perform a mid-session audit to ensure you're following the worktree-based develo
 
 **Checklist - Run All**
 
-### 1. Worktree State Check
+### 1. Session State Check
 
 ```bash
 CURRENT_BRANCH=$(git branch --show-current)
 REPO_NAME=$(basename $(git rev-parse --show-toplevel))
-WORKTREE_BASE=~/working/worktrees/$REPO_NAME
+REPO_ROOT=$(git rev-parse --show-toplevel)
+WORKTREE_BASE=~/working/wt
 
 # Check if in a worktree
 GIT_COMMON=$(git rev-parse --git-common-dir)
@@ -28,24 +29,29 @@ GIT_DIR=$(git rev-parse --git-dir)
 
 if [ "$GIT_COMMON" != "$GIT_DIR" ]; then
   IN_WORKTREE=true
+  MAIN_REPO=$(dirname $(dirname $GIT_COMMON))
 else
   IN_WORKTREE=false
+  MAIN_REPO=$REPO_ROOT
 fi
 
 echo "Current branch: $CURRENT_BRANCH"
 echo "In worktree: $IN_WORKTREE"
 
-# Check if it's a work worktree (has -wt-)
+# Determine session type
 if [[ "$CURRENT_BRANCH" == *"-wt-"* ]]; then
   echo "Type: Work worktree ✓"
   FEATURE_BRANCH="${CURRENT_BRANCH%-wt-*}"
   echo "Feature branch: $FEATURE_BRANCH"
+  SESSION_TYPE="worktree"
 elif [ "$CURRENT_BRANCH" == "main" ]; then
   echo "Type: Main branch ⚠️"
-  echo "WARNING: Should be in a work worktree. Run /devflow:start"
+  echo "WARNING: Should be on a feature branch. Run /devflow:start"
+  SESSION_TYPE="main"
 else
-  echo "Type: Feature branch (not work worktree) ⚠️"
-  echo "WARNING: Should be in a work worktree. Run /devflow:start"
+  echo "Type: Feature branch ✓"
+  echo "Session: Simple branch workflow (no worktree isolation)"
+  SESSION_TYPE="branch"
 fi
 ```
 
@@ -73,8 +79,8 @@ git diff --stat
 ### 4. Feature Branch Sync Status
 
 ```bash
-# If in work worktree, check if feature branch exists and is accessible
-if [[ "$CURRENT_BRANCH" == *"-wt-"* ]]; then
+# Check sync status based on session type
+if [ "$SESSION_TYPE" == "worktree" ]; then
   FEATURE_BRANCH="${CURRENT_BRANCH%-wt-*}"
   FEATURE_WORKTREE="$WORKTREE_BASE/$FEATURE_BRANCH"
 
@@ -96,6 +102,19 @@ if [[ "$CURRENT_BRANCH" == *"-wt-"* ]]; then
   else
     echo "Feature worktree missing: $FEATURE_WORKTREE ⚠️"
     echo "May need to recreate before merge"
+  fi
+elif [ "$SESSION_TYPE" == "branch" ]; then
+  # Simple branch - check remote sync
+  git fetch origin 2>/dev/null
+  LOCAL=$(git rev-parse $CURRENT_BRANCH 2>/dev/null)
+  REMOTE=$(git rev-parse origin/$CURRENT_BRANCH 2>/dev/null)
+
+  if [ -z "$REMOTE" ]; then
+    echo "Branch not pushed to remote yet ⚠️"
+  elif [ "$LOCAL" == "$REMOTE" ]; then
+    echo "Branch in sync with remote ✓"
+  else
+    echo "Branch diverged from remote ⚠️"
   fi
 fi
 ```
@@ -129,10 +148,10 @@ DEVFLOW CHECK REPORT
 ====================
 Location: <worktree path or main repo>
 Branch: <branch-name>
-Type: [Work Worktree ✓ | Feature Branch ⚠️ | Main ⚠️]
-Feature: <feature-branch> (if applicable)
+Session Type: [Work Worktree | Simple Branch | Main ⚠️]
+Feature: <feature-branch> (if worktree session)
 
-Worktrees:
+Worktrees: (if any)
 - <list all worktrees>
 
 Changes: <N files changed>
@@ -151,11 +170,11 @@ Next Steps:
 
 | Issue | Fix |
 |-------|-----|
-| On main branch | `/devflow:start` to create worktrees |
-| On feature branch directly | `/devflow:start` to create work worktree |
-| Feature worktree missing | Recreate with `git worktree add` |
+| On main branch | `/devflow:start` to create branch or worktree |
+| Feature worktree missing (worktree flow) | Recreate with `git worktree add` |
 | .beads/ staged | `git reset HEAD .beads/` |
 | Beads out of sync | `bd sync` |
+| Branch not pushed | `git push -u origin <branch>` |
 | No memory context | `cm context "<task>"` |
 
 **Reference**

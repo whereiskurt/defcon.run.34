@@ -1,47 +1,63 @@
 ---
 name: "Devflow: Close"
-description: Close a worktree session - merge back to feature branch and check for PR readiness.
+description: Close a development session - handle branch or worktree cleanup and check for PR readiness.
 category: Devflow
 tags: [devflow, workflow, session, close, worktree, merge]
 ---
 <!-- DEVFLOW:START -->
 **Purpose**
-Complete a work worktree session by merging changes back to the feature branch. Only prompt for PR creation when ALL worktrees for the feature have been merged.
+Complete a development session by committing changes and preparing for PR. Handles both simple branch and worktree workflows.
 
 **Guardrails**
-- NEVER skip the merge-back step
+- NEVER skip commit and push steps
 - NEVER delete work branches (keep for history)
-- NEVER create PR until all worktrees are merged
-- ALWAYS push work branch before merging
+- For worktrees: NEVER create PR until all worktrees are merged
+- ALWAYS push before merging or creating PR
 - Auto-merge conflicts where possible; prompt user if manual resolution needed
 
 **Session Close Protocol**
 
-### 1. Verify You're in a Work Worktree
+### 1. Detect Session Type
 
 ```bash
 CURRENT_BRANCH=$(git branch --show-current)
-REPO_NAME=$(basename $(git rev-parse --show-toplevel))
-WORKTREE_BASE=~/working/worktrees/$REPO_NAME
+REPO_ROOT=$(git rev-parse --show-toplevel)
+WORKTREE_BASE=~/working/wt
 
-# Must have -wt- in branch name
-if [[ ! "$CURRENT_BRANCH" == *"-wt-"* ]]; then
-  echo "ERROR: Not in a work worktree. Current branch: $CURRENT_BRANCH"
-  echo "Run /devflow:start to create a work worktree first."
-  exit 1
+# Check if in a worktree
+GIT_COMMON=$(git rev-parse --git-common-dir)
+GIT_DIR=$(git rev-parse --git-dir)
+if [ "$GIT_COMMON" != "$GIT_DIR" ]; then
+  IN_WORKTREE=true
+  MAIN_REPO=$(dirname $(dirname $GIT_COMMON))
+else
+  IN_WORKTREE=false
+  MAIN_REPO=$REPO_ROOT
 fi
 
-# Extract feature branch name (everything before -wt-)
-FEATURE_BRANCH="${CURRENT_BRANCH%-wt-*}"
-WORK_BRANCH="$CURRENT_BRANCH"
-WORK_WORKTREE_PATH=$(pwd)
-FEATURE_WORKTREE_PATH="$WORKTREE_BASE/$FEATURE_BRANCH"
-
-echo "Work branch: $WORK_BRANCH"
-echo "Feature branch: $FEATURE_BRANCH"
+# Check if this is a work worktree (has -wt- in branch name)
+if [[ "$CURRENT_BRANCH" == *"-wt-"* ]]; then
+  SESSION_TYPE="worktree"
+  FEATURE_BRANCH="${CURRENT_BRANCH%-wt-*}"
+  WORK_BRANCH="$CURRENT_BRANCH"
+  WORK_WORKTREE_PATH=$(pwd)
+  FEATURE_WORKTREE_PATH="$WORKTREE_BASE/$FEATURE_BRANCH"
+  echo "Session type: WORKTREE"
+  echo "Work branch: $WORK_BRANCH"
+  echo "Feature branch: $FEATURE_BRANCH"
+else
+  SESSION_TYPE="branch"
+  FEATURE_BRANCH="$CURRENT_BRANCH"
+  echo "Session type: SIMPLE BRANCH"
+  echo "Branch: $FEATURE_BRANCH"
+fi
 ```
 
-### 2. Commit Changes in Work Worktree
+---
+
+## Flow A: Simple Branch (No Worktree)
+
+### A1. Commit Changes
 
 ```bash
 # Check status
@@ -60,19 +76,77 @@ EOF
 )"
 ```
 
-### 3. Sync Beads
+### A2. Sync Beads
+
+```bash
+bd sync
+```
+
+### A3. Push Branch
+
+```bash
+git push -u origin $FEATURE_BRANCH
+```
+
+### A4. Create PR
+
+```bash
+gh pr create --base main --head $FEATURE_BRANCH --title "<title>" --body "$(cat <<'EOF'
+## Summary
+- <bullet points of changes>
+
+## Test plan
+- [ ] <testing checklist>
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)"
+```
+
+**STOP**: Wait for user review and approval before merging PR.
+
+### A5. Memory Reflection (Optional)
+
+```bash
+cm reflect --days 1
+```
+
+---
+
+## Flow B: Worktree Session
+
+### B1. Commit Changes in Work Worktree
+
+```bash
+# Check status
+git status
+
+# Stage changes (exclude .beads/)
+git add -A
+git reset HEAD .beads/ 2>/dev/null || true
+
+# Commit
+git commit -m "$(cat <<'EOF'
+<descriptive message>
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### B2. Sync Beads
 
 ```bash
 bd sync --from-main
 ```
 
-### 4. Push Work Branch to Remote
+### B3. Push Work Branch to Remote
 
 ```bash
 git push -u origin $WORK_BRANCH
 ```
 
-### 5. Merge into Feature Branch
+### B4. Merge into Feature Branch
 
 ```bash
 # Go to feature worktree
@@ -104,7 +178,7 @@ fi
 git push origin $FEATURE_BRANCH
 ```
 
-### 6. Remove Work Worktree (Keep Branch)
+### B5. Remove Work Worktree (Keep Branch)
 
 ```bash
 # Go back to main repo (or anywhere outside the worktree)
@@ -117,13 +191,13 @@ git worktree remove $WORK_WORKTREE_PATH
 # git branch -d $WORK_BRANCH  # SKIP THIS
 ```
 
-### 7. Final Beads Sync
+### B6. Final Beads Sync
 
 ```bash
 bd sync
 ```
 
-### 8. Check for Remaining Worktrees
+### B7. Check for Remaining Worktrees
 
 ```bash
 # List all worktrees for this feature
@@ -154,9 +228,9 @@ else
 fi
 ```
 
-### 9. Create PR (Only When All Merged)
+### B8. Create PR (Only When All Merged)
 
-Only run this step when Step 8 shows "READY FOR PR":
+Only run this step when Step B7 shows "READY FOR PR":
 
 ```bash
 cd $FEATURE_WORKTREE_PATH
@@ -171,20 +245,41 @@ gh pr create --base main --head $FEATURE_BRANCH --title "<title>" --body "$(cat 
 ## Worktrees merged
 - <list of work branches that were merged>
 
-Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF
 )"
 ```
 
 **STOP**: Wait for user review and approval before merging PR.
 
-### 10. Memory Reflection (Optional)
+### B9. Memory Reflection (Optional)
 
 ```bash
 cm reflect --days 1
 ```
 
-**Complete Workflow Summary**
+---
+
+**Decision Tree**
+
+```
+Close Session
+│
+├─ Detect session type
+│
+├─ SIMPLE BRANCH (no -wt- in name)
+│   └─ Commit → Sync beads → Push → Create PR
+│
+└─ WORKTREE (has -wt- in name)
+    └─ Commit → Sync beads → Push work branch
+        └─ Merge into feature branch
+            └─ Remove worktree (keep branch)
+                └─ Check remaining worktrees
+                    ├─ More exist? → Wait for others
+                    └─ None left? → Create PR
+```
+
+**Complete Worktree Workflow Summary**
 
 ```
 Work Worktree                    Feature Worktree

@@ -1,26 +1,26 @@
 ---
 name: "Devflow: Start"
-description: Start a development session with worktree isolation for parallel Claude instances.
+description: Start a development session with optional worktree isolation for parallel Claude instances.
 category: Devflow
 tags: [devflow, workflow, session, start, worktree]
 ---
 <!-- DEVFLOW:START -->
 **Purpose**
-Begin a development session with proper context gathering and worktree isolation. This enables multiple Claude instances to work in parallel on the same feature branch, each in their own worktree.
+Begin a development session with proper context gathering. Optionally use worktree isolation to enable multiple Claude instances to work in parallel on the same feature branch.
 
-**Worktree Structure**
+**Worktree Structure** (when using worktrees)
 ```
-~/working/worktrees/<repo-name>/
+~/working/wt/
 ├── <feature-name>/                 # Feature branch worktree (merge target)
 ├── <feature-name>-wt-<timestamp>/  # Claude 1's work worktree
 └── <feature-name>-wt-<timestamp>/  # Claude 2's work worktree
 ```
 
 **Guardrails**
-- Never work directly on main or the feature branch - always use a work worktree
+- Never work directly on main branch
 - Never start coding before gathering context
 - Check for existing tracked work before creating new items
-- Prompt user to confirm/customize worktree branch name
+- Always prompt user to confirm/customize branch and worktree names
 
 **Steps**
 
@@ -31,14 +31,13 @@ Begin a development session with proper context gathering and worktree isolation
 REPO_NAME=$(basename $(git rev-parse --show-toplevel))
 REPO_ROOT=$(git rev-parse --show-toplevel)
 CURRENT_BRANCH=$(git branch --show-current)
-WORKTREE_BASE=~/working/worktrees/$REPO_NAME
+WORKTREE_BASE=~/working/wt
 
-# Check if in a worktree
+# Check if already in a worktree
 GIT_COMMON=$(git rev-parse --git-common-dir)
 GIT_DIR=$(git rev-parse --git-dir)
 if [ "$GIT_COMMON" != "$GIT_DIR" ]; then
   IN_WORKTREE=true
-  # Get the main repo path
   MAIN_REPO=$(dirname $(dirname $GIT_COMMON))
 else
   IN_WORKTREE=false
@@ -49,13 +48,21 @@ fi
 git worktree list
 ```
 
-### 2. Get Memory Context (for non-trivial tasks)
+### 2. Prompt: Use Worktree or Not?
+
+Use `AskUserQuestion` to determine workflow:
+
+**Question:** "Do you want to use worktree isolation for this session?"
+- **Yes, use worktrees** - Enables parallel Claude instances, isolated environment
+- **No, simple branch** - Just create/checkout a feature branch in main repo
+
+### 3. Get Memory Context (for non-trivial tasks)
 
 ```bash
 cm context "<task description>"
 ```
 
-### 3. Check Existing Work
+### 4. Check Existing Work
 
 ```bash
 bd ready --json          # Find unblocked tracked work
@@ -63,80 +70,127 @@ openspec list            # Check active change proposals
 openspec list --specs    # Review existing capabilities
 ```
 
-### 4. Create Worktree Based on State
+---
 
-**State A: On main branch (not in worktree)**
+## Flow A: Simple Branch (No Worktree)
+
+### A1. Prompt for Branch Name
+
+Generate a suggested branch name based on task:
+- For features: `feature/<task-slug>`
+- For fixes: `fix/<task-slug>`
+
+Use `AskUserQuestion`:
+**Question:** "Branch name?"
+- **Suggested:** `feature/<suggested-name>` (Recommended)
+- **Custom** - Let user provide their own
+
+### A2. Create and Checkout Branch
+
 ```bash
-# Prompt user for feature branch name
-# Suggest: feature/<task-name> or fix/<task-name>
-FEATURE_BRANCH="feature/<name>"
+FEATURE_BRANCH="<user-confirmed-name>"
+
+# If on main, create new branch
+if [ "$CURRENT_BRANCH" = "main" ]; then
+  git checkout -b $FEATURE_BRANCH
+else
+  # Already on a feature branch, confirm or switch
+  echo "Currently on: $CURRENT_BRANCH"
+fi
+```
+
+### A3. Ready to Work
+
+```bash
+echo "Ready to work on branch: $(git branch --show-current)"
+```
+
+---
+
+## Flow B: Worktree Isolation
+
+### B1. Prompt for Branch and Worktree Names
+
+Generate suggestions:
+- **Feature branch:** `feature/<task-slug>`
+- **Worktree name:** `<feature-slug>-wt-$(date +%s)`
+
+Use `AskUserQuestion` for each:
+
+**Question 1:** "Feature branch name?"
+- **Suggested:** `feature/<suggested-name>` (Recommended)
+- **Custom** - Let user provide their own
+
+**Question 2:** "Work worktree name?"
+- **Suggested:** `<feature>-wt-<timestamp>` (Recommended)
+- **Custom** - Let user provide their own
+
+### B2. Create Worktree Structure
+
+**If on main branch:**
+```bash
+FEATURE_BRANCH="<user-confirmed-feature-branch>"
+WORK_BRANCH="<user-confirmed-worktree-name>"
 
 # Create feature branch (without checking it out)
-git branch $FEATURE_BRANCH main
+git branch $FEATURE_BRANCH main 2>/dev/null || echo "Branch exists"
 
 # Create worktree directory
 mkdir -p $WORKTREE_BASE
 
-# Create feature worktree (for merging later)
-git worktree add $WORKTREE_BASE/$FEATURE_BRANCH $FEATURE_BRANCH
-
-# Generate work branch name
-WT_ID=$(date +%s)
-WORK_BRANCH="${FEATURE_BRANCH}-wt-${WT_ID}"
-
-# Prompt: "Work branch will be: $WORK_BRANCH - customize? [Enter to accept]"
+# Create feature worktree (merge target)
+git worktree add $WORKTREE_BASE/$FEATURE_BRANCH $FEATURE_BRANCH 2>/dev/null || echo "Feature worktree exists"
 
 # Create work worktree
 git worktree add -b $WORK_BRANCH $WORKTREE_BASE/$WORK_BRANCH $FEATURE_BRANCH
-
-# Inform user to cd into worktree
-echo "cd $WORKTREE_BASE/$WORK_BRANCH"
 ```
 
-**State B: On feature branch (not in worktree)**
+**If on feature branch (not in worktree):**
 ```bash
 FEATURE_BRANCH=$CURRENT_BRANCH
+WORK_BRANCH="<user-confirmed-worktree-name>"
 
-# Ensure feature worktree exists
-if [ ! -d "$WORKTREE_BASE/$FEATURE_BRANCH" ]; then
-  # Can't create - branch is checked out here. Need to handle this.
-  echo "Feature branch checked out in main repo. Creating work worktree from here."
-fi
-
-# Generate work branch name
-WT_ID=$(date +%s)
-WORK_BRANCH="${FEATURE_BRANCH}-wt-${WT_ID}"
-
-# Prompt for customization
-
-# Create work worktree
+# Create work worktree from current feature branch
 git worktree add -b $WORK_BRANCH $WORKTREE_BASE/$WORK_BRANCH $FEATURE_BRANCH
-
-echo "cd $WORKTREE_BASE/$WORK_BRANCH"
 ```
 
-**State C: Already in a work worktree (-wt- in branch name)**
+**If already in worktree with -wt- in name:**
 ```bash
-# Already set up - just work
 echo "Already in work worktree. Ready to work."
 git branch --show-current
+# Skip to step B4
 ```
 
-**State D: In feature worktree (no -wt- in branch name, but in worktree)**
+### B3. Copy Environment Files
+
+Copy .env files from main repo to the new worktree:
+
 ```bash
-FEATURE_BRANCH=$CURRENT_BRANCH
+WORKTREE_PATH="$WORKTREE_BASE/$WORK_BRANCH"
 
-# Generate work branch name
-WT_ID=$(date +%s)
-WORK_BRANCH="${FEATURE_BRANCH}-wt-${WT_ID}"
+# run.auth webapp .env files
+cp "$MAIN_REPO/apps/run.auth/webapp/.env" "$WORKTREE_PATH/apps/run.auth/webapp/.env" 2>/dev/null || true
+cp "$MAIN_REPO/apps/run.auth/webapp/.env.local" "$WORKTREE_PATH/apps/run.auth/webapp/.env.local" 2>/dev/null || true
 
-# Prompt for customization
+# run.human webapp .env
+cp "$MAIN_REPO/apps/run.human/webapp/.env" "$WORKTREE_PATH/apps/run.human/webapp/.env" 2>/dev/null || true
 
-# Create work worktree from here
-git worktree add -b $WORK_BRANCH $WORKTREE_BASE/$WORK_BRANCH $FEATURE_BRANCH
+# run.gpx webapp .env
+cp "$MAIN_REPO/apps/run.gpx/webapp/.env" "$WORKTREE_PATH/apps/run.gpx/webapp/.env" 2>/dev/null || true
 
+# run.cms app .env
+cp "$MAIN_REPO/apps/run.cms/app/.env" "$WORKTREE_PATH/apps/run.cms/app/.env" 2>/dev/null || true
+
+echo "Copied .env files to worktree"
+```
+
+### B4. Change to Worktree
+
+```bash
 echo "cd $WORKTREE_BASE/$WORK_BRANCH"
 ```
+
+---
 
 ### 5. Track with Beads (if needed)
 
@@ -147,28 +201,31 @@ bd update <id> --status=in_progress
 
 **Decision Tree**
 ```
-Where am I?
-├─ Main branch (main repo)
-│   → Create feature branch + feature worktree + work worktree
-│   → cd to work worktree
+Start Session
 │
-├─ Feature branch (main repo)
-│   → Create work worktree
-│   → cd to work worktree
+├─ Use worktree? → NO
+│   └─ Prompt for branch name (with suggestion)
+│       └─ Create/checkout branch
+│           └─ Ready to work
 │
-├─ Feature worktree (no -wt-)
-│   → Create work worktree
-│   → cd to work worktree
-│
-└─ Work worktree (has -wt-)
-    → Already set up, just work
+└─ Use worktree? → YES
+    ├─ Already in -wt- worktree?
+    │   └─ Ready to work
+    │
+    └─ Not in work worktree
+        └─ Prompt for feature branch name (with suggestion)
+            └─ Prompt for worktree name (with suggestion)
+                └─ Create worktree structure
+                    └─ Copy .env files
+                        └─ cd to worktree
 ```
 
 **Output**
 After running this skill, you should:
 - Have context from cm (rules, anti-patterns)
-- Be working in an isolated work worktree
-- Know the feature branch this will merge into
+- Be working in either a feature branch or isolated work worktree
+- Know what branch/worktree you're on
+- Have .env files copied (if using worktree)
 - Have beads tracking if appropriate
 
 **Quick Reference**
@@ -180,7 +237,7 @@ git worktree list
 git worktree list | grep "<feature-name>"
 
 # Get back to main repo
-cd $REPO_ROOT
+cd $MAIN_REPO
 ```
 
 **Reference**
