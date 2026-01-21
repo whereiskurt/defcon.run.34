@@ -1157,43 +1157,43 @@
                         </div>
                     </Collapsible.Content>
                 </Collapsible.Root>
+            </div>
 
-                <!-- Mode-aware action buttons -->
-                <div class="flex justify-center gap-3 pt-2">
-                    <!-- Save button - shown in save and browse modes -->
-                    {#if $cloudStorageMode === CloudStorageMode.SAVE || $cloudStorageMode === CloudStorageMode.BROWSE}
-                        <Button
-                            class="bg-green-600 hover:bg-green-700 text-white px-6 py-5"
-                            onclick={handleSaveSelectedLayers}
-                            disabled={loading || selectedLayers.size === 0}
-                            title="Save selected layers, overwriting existing files with the same name"
-                        >
-                            {#if loading}
-                                <Loader2 class="h-5 w-5 mr-2 animate-spin" />
-                            {:else}
-                                <CloudUpload class="h-5 w-5 mr-2" />
-                            {/if}
-                            Save
-                        </Button>
-                    {/if}
+            <!-- Mode-aware action buttons - outside scrollable area -->
+            <div class="flex justify-center gap-3 pt-4 flex-shrink-0">
+                <!-- Save button - shown in save and browse modes -->
+                {#if $cloudStorageMode === CloudStorageMode.SAVE || $cloudStorageMode === CloudStorageMode.BROWSE}
+                    <Button
+                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-5"
+                        onclick={handleSaveSelectedLayers}
+                        disabled={loading || selectedLayers.size === 0}
+                        title="Save selected layers, overwriting existing files with the same name"
+                    >
+                        {#if loading}
+                            <Loader2 class="h-5 w-5 mr-2 animate-spin" />
+                        {:else}
+                            <CloudUpload class="h-5 w-5 mr-2" />
+                        {/if}
+                        Save
+                    </Button>
+                {/if}
 
-                    <!-- Open Selected button - shown in open and browse modes -->
-                    {#if $cloudStorageMode === CloudStorageMode.OPEN || $cloudStorageMode === CloudStorageMode.BROWSE}
-                        <Button
-                            class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5"
-                            onclick={handleOpenSelectedFiles}
-                            disabled={loading || selectedRemoteFiles.size === 0}
-                            title="Open selected files from cloud"
-                        >
-                            {#if loading}
-                                <Loader2 class="h-5 w-5 mr-2 animate-spin" />
-                            {:else}
-                                <FolderOpen class="h-5 w-5 mr-2" />
-                            {/if}
-                            Open Selected{selectedRemoteFiles.size > 0 ? ` (${selectedRemoteFiles.size})` : ''}
-                        </Button>
-                    {/if}
-                </div>
+                <!-- Open Selected button - shown in open and browse modes -->
+                {#if $cloudStorageMode === CloudStorageMode.OPEN || $cloudStorageMode === CloudStorageMode.BROWSE}
+                    <Button
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-5"
+                        onclick={handleOpenSelectedFiles}
+                        disabled={loading || selectedRemoteFiles.size === 0}
+                        title="Open selected files from cloud"
+                    >
+                        {#if loading}
+                            <Loader2 class="h-5 w-5 mr-2 animate-spin" />
+                        {:else}
+                            <FolderOpen class="h-5 w-5 mr-2" />
+                        {/if}
+                        Open Selected{selectedRemoteFiles.size > 0 ? ` (${selectedRemoteFiles.size})` : ''}
+                    </Button>
+                {/if}
             </div>
         {/if}
 
