@@ -135,6 +135,11 @@ locals {
           {
             name      = "MAPBOX_DEFAULT_TOKEN"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mapbox/public_token"
+          },
+          # Internal secret for service-to-service auth (quota API calls to run-auth)
+          {
+            name      = "AUTH_INTERNAL_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
           }
         ]
 

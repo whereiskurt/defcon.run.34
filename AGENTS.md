@@ -58,7 +58,7 @@ cd apps/run.gpx && ./build-frontend.sh
 ./apps/release-all.sh --parallel
 
 # Infrastructure
-cd infra/terraform/live/site && terragrunt run-all plan
+cd infra/terraform/live/site && terragrunt plan --all
 
 # Issue tracking
 bd ready --json          # Find unblocked work (structured output)
