@@ -6,6 +6,7 @@
       "Bash(AWS_PROFILE=terraform sops:*)",
       "Bash(aws:*)",
       "Bash(bd:*)",
+      "Bash(beads:*)",
       "Bash(BEADS_NO_DAEMON=1 bd:*)",
       "Bash(brew install:*)",
       "Bash(./build-frontend.sh:*)",
@@ -116,7 +117,8 @@
       "WebFetch(domain:localhost)",
       "Bash(__NEW_LINE_51d0b0f357891420__ echo \"Local feature branches:\")",
       "Bash(__NEW_LINE_51d0b0f357891420__ echo \"\")",
-      "Bash(jq:*)"
+      "Bash(jq:*)",
+      "Skill(beads:audit)"
     ],
     "deny": [],
     "ask": []
