@@ -145,12 +145,34 @@ Edit `~/.cass-memory/config.json`:
 
 ## Troubleshooting
 
+### Before Running `cm reflect`
+
+```bash
+# 1. Update the session index (required if stale)
+cass index
+
+# 2. Ensure API key is set (required for reflection)
+export ANTHROPIC_API_KEY=<your-key>
+
+# 3. Now reflect will find sessions
+cm reflect --days 7
+```
+
+### Common Issues
+
+| Symptom | Cause | Fix |
+|---------|-------|-----|
+| "No new sessions to reflect on" | Stale cass index | Run `cass index` first |
+| "ANTHROPIC_API_KEY not found" | Missing env var | `export ANTHROPIC_API_KEY=...` |
+| Reflect finds 0 sessions | Wrong workspace | `cm reflect --workspace /path` |
+
+### Health Checks
+
 ```bash
 cm doctor                        # Check system health
-cass health                      # Check index health
-cass index                       # Rebuild index
-
-# If reflect finds 0 sessions
-cass stats                       # Verify sessions exist
-cm reflect --workspace /path     # Specify workspace explicitly
+cm --info                        # Show config paths
+cass health                      # Check index health (<50ms)
+cass status                      # Index freshness + recommendations
+cass stats                       # Show conversation counts
+cass index                       # Rebuild/update index
 ```

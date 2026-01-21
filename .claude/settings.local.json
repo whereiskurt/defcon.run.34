@@ -118,7 +118,8 @@
       "Bash(__NEW_LINE_51d0b0f357891420__ echo \"Local feature branches:\")",
       "Bash(__NEW_LINE_51d0b0f357891420__ echo \"\")",
       "Bash(jq:*)",
-      "Skill(beads:audit)"
+      "Skill(beads:audit)",
+      "Bash(bun --version:*)"
     ],
     "deny": [],
     "ask": []

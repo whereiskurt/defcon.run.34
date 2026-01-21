@@ -105,9 +105,20 @@ EOF
 
 **STOP**: Wait for user review and approval before merging PR.
 
-### A5. Memory Reflection (Optional)
+### A5. Index and Reflect (Optional)
 
+Use `AskUserQuestion` to prompt:
+
+**Question:** "Index and reflect on this session?"
+- **Yes** - Update cass index and run reflection now
+- **No, later** - Skip for now (can batch multiple sessions later)
+
+If yes:
 ```bash
+# Update session index first
+cass index
+
+# Then reflect (requires ANTHROPIC_API_KEY)
 cm reflect --days 1
 ```
 
@@ -252,9 +263,20 @@ EOF
 
 **STOP**: Wait for user review and approval before merging PR.
 
-### B9. Memory Reflection (Optional)
+### B9. Index and Reflect (Optional)
 
+Use `AskUserQuestion` to prompt:
+
+**Question:** "Index and reflect on this session?"
+- **Yes** - Update cass index and run reflection now
+- **No, later** - Skip for now (can batch multiple sessions later)
+
+If yes:
 ```bash
+# Update session index first
+cass index
+
+# Then reflect (requires ANTHROPIC_API_KEY)
 cm reflect --days 1
 ```
 
@@ -269,6 +291,7 @@ Close Session
 │
 ├─ SIMPLE BRANCH (no -wt- in name)
 │   └─ Commit → Sync beads → Push → Create PR
+│       └─ Prompt: Index & reflect? (Yes/No, later)
 │
 └─ WORKTREE (has -wt- in name)
     └─ Commit → Sync beads → Push work branch
@@ -277,6 +300,7 @@ Close Session
                 └─ Check remaining worktrees
                     ├─ More exist? → Wait for others
                     └─ None left? → Create PR
+                        └─ Prompt: Index & reflect? (Yes/No, later)
 ```
 
 **Complete Worktree Workflow Summary**
