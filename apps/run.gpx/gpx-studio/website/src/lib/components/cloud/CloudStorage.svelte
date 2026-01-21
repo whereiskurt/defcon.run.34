@@ -654,7 +654,7 @@
 </script>
 
 <Dialog.Root open={$cloudStorageOpen} onOpenChange={(isOpen) => !isOpen && closeCloudStorage()}>
-    <Dialog.Content class="!max-w-[900px] !w-[90vw] max-h-[85vh] overflow-y-auto">
+    <Dialog.Content class="!max-w-[900px] !w-[90vw] max-h-[85vh] overflow-hidden flex flex-col">
         <Dialog.Header>
             <Dialog.Title class="flex items-center gap-2">
                 <Cloud class="h-5 w-5" />
@@ -681,7 +681,7 @@
                 <p class="text-muted-foreground text-sm">Contact an admin to request access.</p>
             </div>
         {:else}
-            <div class="space-y-4">
+            <div class="space-y-4 overflow-y-auto flex-1 min-h-0">
                 <!-- Error message -->
                 {#if error}
                     <div class="bg-destructive/10 text-destructive px-4 py-2 rounded-md text-sm">
@@ -850,9 +850,9 @@
                                                 <th class="w-10 px-2 py-2"></th>
                                             {/if}
                                             <th class="text-left px-4 py-2 font-medium text-sm">Name</th>
-                                            <th class="text-left px-4 py-2 font-medium text-sm">Size</th>
+                                            <th class="text-left px-4 py-2 font-medium text-sm hidden sm:table-cell">Size</th>
                                             <th class="text-left px-4 py-2 font-medium text-sm hidden sm:table-cell">Updated</th>
-                                            <th class="text-center px-4 py-2 font-medium text-sm">Actions</th>
+                                            <th class="text-center px-2 sm:px-4 py-2 font-medium text-sm">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -908,11 +908,11 @@
                                                         <span class="text-xs text-muted-foreground">shared</span>
                                                     </div>
                                                 </td>
-                                                <td class="px-4 py-2 text-sm text-muted-foreground">--</td>
+                                                <td class="px-4 py-2 text-sm text-muted-foreground hidden sm:table-cell">--</td>
                                                 <td class="px-4 py-2 text-sm text-muted-foreground hidden sm:table-cell">
                                                     {formatDate(folder.createdAt)}
                                                 </td>
-                                                <td class="px-4 py-2 text-center">
+                                                <td class="px-2 sm:px-4 py-2 text-center">
                                                     <ChevronRight class="h-4 w-4 text-muted-foreground" />
                                                 </td>
                                             </tr>
@@ -964,32 +964,32 @@
                                                         </div>
                                                     {/if}
                                                 </td>
-                                                <td class="px-4 py-2 text-sm text-muted-foreground">--</td>
+                                                <td class="px-4 py-2 text-sm text-muted-foreground hidden sm:table-cell">--</td>
                                                 <td class="px-4 py-2 text-sm text-muted-foreground hidden sm:table-cell">
                                                     {formatDate(folder.createdAt)}
                                                 </td>
-                                                <td class="px-4 py-2 text-center">
+                                                <td class="px-2 sm:px-4 py-2 text-center">
                                                     <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-                                                    <div class="flex gap-1 justify-center" onclick={(e) => e.stopPropagation()}>
+                                                    <div class="flex gap-0.5 sm:gap-1 justify-center" onclick={(e) => e.stopPropagation()}>
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            class="h-8 w-8"
+                                                            class="h-7 w-7 sm:h-8 sm:w-8"
                                                             onclick={() => startFolderRename(folder)}
                                                             disabled={loading || editingFolderId !== null}
                                                             title="Rename folder"
                                                         >
-                                                            <Pencil class="h-4 w-4" />
+                                                            <Pencil class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         </Button>
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            class="h-8 w-8 text-destructive hover:text-destructive"
+                                                            class="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                                                             onclick={() => handleDeleteFolder(folder)}
                                                             disabled={loading}
                                                             title="Delete folder"
                                                         >
-                                                            <Trash2 class="h-4 w-4" />
+                                                            <Trash2 class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         </Button>
                                                     </div>
                                                 </td>
@@ -1039,55 +1039,64 @@
                                                             </Button>
                                                         </div>
                                                     {:else}
-                                                        <div class="flex items-center gap-1.5">
-                                                            <span class="font-medium text-sm" title={file.fileName}>
-                                                                {file.fileName.length > 28 ? file.fileName.slice(0, 28) + '...' : file.fileName}
+                                                        <div class="flex flex-col sm:flex-row sm:items-center sm:gap-1.5">
+                                                            <span class="font-medium text-sm truncate" title={file.fileName}>
+                                                                {file.fileName}
                                                             </span>
-                                                            <span class="text-xs text-muted-foreground">v{file.version || 1}</span>
+                                                            <!-- Desktop: inline metadata -->
+                                                            <span class="text-xs text-muted-foreground hidden sm:inline">v{file.version || 1}</span>
                                                             {#if file.trackCount}
-                                                                <span class="text-xs text-muted-foreground">
+                                                                <span class="text-xs text-muted-foreground hidden sm:inline">
                                                                     · {file.trackCount} track{file.trackCount !== 1 ? 's' : ''}
                                                                 </span>
                                                             {/if}
+                                                            <!-- Mobile: second line with all metadata -->
+                                                            <div class="text-xs text-muted-foreground sm:hidden flex gap-2">
+                                                                <span>v{file.version || 1}</span>
+                                                                {#if file.trackCount}
+                                                                    <span>{file.trackCount} trk</span>
+                                                                {/if}
+                                                                <span>{formatFileSize(file.fileSize)}</span>
+                                                            </div>
                                                         </div>
                                                     {/if}
                                                 </td>
-                                                <td class="px-4 py-2 text-sm text-muted-foreground">
+                                                <td class="px-4 py-2 text-sm text-muted-foreground hidden sm:table-cell">
                                                     {formatFileSize(file.fileSize)}
                                                 </td>
                                                 <td class="px-4 py-2 text-sm text-muted-foreground hidden sm:table-cell">
                                                     {formatDate(file.updatedAt)}
                                                 </td>
-                                                <td class="px-4 py-2 text-center">
-                                                    <div class="flex gap-1 justify-center">
+                                                <td class="px-2 sm:px-4 py-2 text-center">
+                                                    <div class="flex gap-0.5 sm:gap-1 justify-center">
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            class="h-8 w-8"
+                                                            class="h-7 w-7 sm:h-8 sm:w-8"
                                                             onclick={() => startRename(file)}
                                                             disabled={loading || editingFileId !== null}
                                                             title="Rename file"
                                                         >
-                                                            <Pencil class="h-4 w-4" />
+                                                            <Pencil class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         </Button>
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            class="h-8 w-8 {filesWithShares.has(file.fileId) ? 'text-blue-600 hover:text-blue-700' : ''}"
+                                                            class="h-7 w-7 sm:h-8 sm:w-8 {filesWithShares.has(file.fileId) ? 'text-blue-600 hover:text-blue-700' : ''}"
                                                             onclick={() => { fileToShare = file; shareDialogOpen = true; }}
                                                             disabled={loading}
                                                             title={filesWithShares.has(file.fileId) ? 'Shared - click to manage' : 'Share'}
                                                         >
-                                                            <Share2 class="h-4 w-4" />
+                                                            <Share2 class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         </Button>
                                                         <!-- Version dropdown (only show if multiple versions exist) -->
                                                         {#if (file.versionCount || 1) > 1}
                                                             <DropdownMenu.Root onOpenChange={(open) => { if (open) fetchVersionHistory(file); }}>
                                                                 <DropdownMenu.Trigger
-                                                                    class="inline-flex items-center justify-center h-8 w-8 rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+                                                                    class="inline-flex items-center justify-center h-7 w-7 sm:h-8 sm:w-8 rounded-md text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
                                                                     disabled={loading}
                                                                 >
-                                                                    <History class="h-4 w-4" />
+                                                                    <History class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                                     <span class="sr-only">Version history</span>
                                                                 </DropdownMenu.Trigger>
                                                                 <DropdownMenu.Content class="w-56">
@@ -1131,12 +1140,12 @@
                                                         <Button
                                                             variant="ghost"
                                                             size="icon"
-                                                            class="h-8 w-8 text-destructive hover:text-destructive"
+                                                            class="h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                                                             onclick={() => handleDeleteFile(file)}
                                                             disabled={loading}
                                                             title="Delete file"
                                                         >
-                                                            <Trash2 class="h-4 w-4" />
+                                                            <Trash2 class="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         </Button>
                                                     </div>
                                                 </td>
