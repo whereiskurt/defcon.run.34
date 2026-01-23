@@ -14,7 +14,7 @@
         Globe,
         Lock,
     } from '@lucide/svelte';
-    import type { CloudFile } from '$lib/cloud-sync';
+    import { getApiBase, type CloudFile } from '$lib/cloud-sync';
 
     interface Share {
         shareId: string;
@@ -45,8 +45,6 @@
     let copied = $state(false);
     let copiedShareId: string | null = $state(null);
 
-    const API_BASE = '/api/gpx';
-
     // Load shares when dialog opens
     $effect(() => {
         if (open && file) {
@@ -65,7 +63,7 @@
         loading = true;
         error = null;
         try {
-            const response = await fetch(`${API_BASE}/shares?fileId=${file.fileId}`, {
+            const response = await fetch(`${getApiBase()}/shares?fileId=${file.fileId}`, {
                 credentials: 'include',
             });
 
@@ -112,7 +110,7 @@
                 body.allowedEmails = parseEmails(emails);
             }
 
-            const response = await fetch(`${API_BASE}/shares`, {
+            const response = await fetch(`${getApiBase()}/shares`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -144,7 +142,7 @@
         loading = true;
         error = null;
         try {
-            const response = await fetch(`${API_BASE}/shares/${shareId}`, {
+            const response = await fetch(`${getApiBase()}/shares/${shareId}`, {
                 method: 'DELETE',
                 credentials: 'include',
             });

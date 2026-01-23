@@ -13,7 +13,7 @@ import { base } from '$app/paths';
 import { browser } from '$app/environment';
 
 // Get API base path from SvelteKit's base (e.g., /use1/studio -> /use1)
-function getApiBase(): string {
+export function getApiBase(): string {
   return base.replace('/studio', '') + '/api/gpx';
 }
 

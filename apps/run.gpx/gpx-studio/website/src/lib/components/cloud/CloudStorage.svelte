@@ -48,6 +48,7 @@
         deleteFolder,
         navigateToFolder,
         refreshCurrentFolder,
+        getApiBase,
         type CloudFile,
         type CloudFolder,
         type FileVersion,
@@ -389,7 +390,7 @@
         const newFilesWithShares = new Set<string>();
         for (const file of $cloudFiles) {
             try {
-                const response = await fetch(`/api/gpx/shares?fileId=${file.fileId}`, {
+                const response = await fetch(`${getApiBase()}/shares?fileId=${file.fileId}`, {
                     credentials: 'include',
                 });
                 if (response.ok) {
