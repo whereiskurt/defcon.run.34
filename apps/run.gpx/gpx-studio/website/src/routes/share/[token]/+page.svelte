@@ -42,7 +42,8 @@
     let error: string | null = $state(null);
     let success = $state(false);
 
-    const API_BASE = '/api/gpx';
+    // Get API base path from SvelteKit's base (e.g., /use1/studio -> /use1)
+    const API_BASE = base.replace('/studio', '') + '/api/gpx';
 
     // Load share data on mount
     onMount(async () => {

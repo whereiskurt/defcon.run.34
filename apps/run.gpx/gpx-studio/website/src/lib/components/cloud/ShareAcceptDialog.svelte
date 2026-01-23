@@ -17,7 +17,7 @@
         openCloudStorage,
     } from '$lib/components/cloud/utils.svelte';
     import { isAuthenticated, hasGpxStudioAccess, auth } from '$lib/stores/auth';
-    import { loadFromCloud } from '$lib/cloud-sync';
+    import { loadFromCloud, getApiBase } from '$lib/cloud-sync';
     import { toast } from 'svelte-sonner';
 
     interface ShareInfo {
@@ -34,8 +34,6 @@
             totalDistance: number;
         } | null;
     }
-
-    const API_BASE = '/api/gpx';
 
     // State
     let loading = $state(false);
@@ -62,7 +60,7 @@
         shareInfo = null;
 
         try {
-            const response = await fetch(`${API_BASE}/shares/${token}`, {
+            const response = await fetch(`${getApiBase()}/shares/${token}`, {
                 credentials: 'include',
             });
 
@@ -106,7 +104,7 @@
         error = null;
 
         try {
-            const response = await fetch(`${API_BASE}/shares/${$shareAcceptToken}/accept`, {
+            const response = await fetch(`${getApiBase()}/shares/${$shareAcceptToken}/accept`, {
                 method: 'POST',
                 credentials: 'include',
             });
