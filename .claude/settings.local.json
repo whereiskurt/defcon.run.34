@@ -119,7 +119,9 @@
       "Bash(__NEW_LINE_51d0b0f357891420__ echo \"\")",
       "Bash(jq:*)",
       "Skill(beads:audit)",
-      "Bash(bun --version:*)"
+      "Bash(bun --version:*)",
+      "Bash(pkill:*)",
+      "Bash(bash -n:*)"
     ],
     "deny": [],
     "ask": []
