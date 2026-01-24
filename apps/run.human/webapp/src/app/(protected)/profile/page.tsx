@@ -2,7 +2,8 @@
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
-import { Card, CardBody, CardHeader, Avatar, Divider, Skeleton, Chip } from '@heroui/react';
+import { Card, CardBody, CardHeader, Avatar, Divider, Skeleton, Chip, Button } from '@heroui/react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import { apiUrl } from '@/lib/api';
 
@@ -44,7 +45,7 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sessionInfoExpanded, setSessionInfoExpanded] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -102,47 +103,50 @@ export default function ProfilePage() {
     <div className="container mx-auto py-4 space-y-4">
       {/* User Details Card */}
       <Card className="w-full">
-        <CardHeader className="flex gap-3">
-          <Avatar
-            src={session.user?.image || undefined}
-            size="lg"
-            isBordered
-            color="primary"
-          />
-          <div className="flex flex-col">
-            <p className="text-lg font-semibold">{displayName}</p>
-            <p className="text-small text-default-500">{session.user?.email}</p>
-            {userData?.mqttUsername && (
-              <p className="text-xs text-default-400">MQTT: {userData.mqttUsername}</p>
-            )}
+        <CardHeader className="flex justify-between items-center pb-2">
+          <div className="flex items-center gap-3">
+            <Avatar
+              src={session.user?.image || undefined}
+              size="lg"
+              isBordered
+              color="primary"
+            />
+            <div className="flex flex-col">
+              <p className="text-lg font-semibold">{displayName}</p>
+              <p className="text-small text-default-500">{session.user?.email}</p>
+              {userData?.mqttUsername && (
+                <p className="text-xs text-default-400">MQTT: {userData.mqttUsername}</p>
+              )}
+            </div>
           </div>
+          <Button
+            isIconOnly
+            variant="light"
+            size="sm"
+            onPress={() => setDetailsExpanded(!detailsExpanded)}
+          >
+            {detailsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
         </CardHeader>
         <Divider />
-        <CardBody>
-          <div className="flex flex-col gap-4">
-            {/* Session Info */}
-            <div>
-              <h3
-                className="text-lg font-semibold mb-2 cursor-pointer select-none flex items-center gap-2"
-                onDoubleClick={() => setSessionInfoExpanded(!sessionInfoExpanded)}
-              >
-                <span className="text-xs text-default-400">{sessionInfoExpanded ? '▼' : '▶'}</span>
-                Session Info
-              </h3>
-              {sessionInfoExpanded && (
+        {detailsExpanded && (
+          <CardBody>
+            <div className="flex flex-col gap-4">
+              {/* Session Info */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Session Info</h3>
                 <div className="text-sm text-default-500 space-y-1">
                   <p>User ID: <span className="font-mono text-xs">{session.user?.id || 'N/A'}</span></p>
                   <p>Session Version: {session.user?.sessionVersion || 'N/A'}</p>
                   <p>Check-in Preference: {userData?.checkin_preference || userData?.preferences?.checkinPreference || 'public'}</p>
                 </div>
-              )}
-            </div>
+              </div>
 
-            <Divider />
+              <Divider />
 
-            {/* Linked Services */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Linked Services</h3>
+              {/* Linked Services */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Linked Services</h3>
               <div className="flex flex-wrap gap-2">
                 {session.user?.linkedProviders?.length > 0 ? (
                   session.user.linkedProviders.map((provider: string) => (
@@ -260,6 +264,7 @@ export default function ProfilePage() {
             )}
           </div>
         </CardBody>
+        )}
       </Card>
 
       {/* Meshtastic Radios */}
