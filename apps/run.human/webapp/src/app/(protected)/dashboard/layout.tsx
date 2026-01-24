@@ -12,13 +12,5 @@ export default async function DashboardLayout({
     redirect("/");
   }
 
-  return (
-    <div className="relative flex flex-col h-screen">
-      <main className="container mx-auto h-screen flex items-center justify-center">
-        <div className="w-full max-w-md">
-          {children}
-        </div>
-      </main>
-    </div>
-  );
+  return <>{children}</>;
 }
