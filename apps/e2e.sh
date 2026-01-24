@@ -51,6 +51,17 @@ REGION_SHORT="${REGION_SHORT:-use1}"
 # Production mode flag
 PROD_MODE=false
 
+# Get cookie file name based on environment
+# Local: cookies-local-{role}.json, Production: cookies-{role}.json
+get_cookie_file() {
+    local role=$1
+    if [ "$PROD_MODE" = "true" ]; then
+        echo "cookies-${role}.json"
+    else
+        echo "cookies-local-${role}.json"
+    fi
+}
+
 # User roles
 ROLES=("accounta" "accountb" "accountc")
 
@@ -112,10 +123,10 @@ check_status() {
     fi
 
     echo ""
-    log_info "Sessions:"
+    log_info "Sessions ($([ "$PROD_MODE" = "true" ] && echo "production" || echo "local")):"
     local auth_dir="$AUTH_E2E_DIR/.auth"
     for role in "${ROLES[@]}"; do
-        local cookie_file="$auth_dir/cookies-local-${role}.json"
+        local cookie_file="$auth_dir/$(get_cookie_file $role)"
         if [ -f "$cookie_file" ]; then
             local expires_at=$(jq -r '.expiresAt' "$cookie_file" 2>/dev/null || echo "")
             if [ -n "$expires_at" ]; then
@@ -222,7 +233,7 @@ run_auth_tests() {
         log_info "Creating session for $role..."
 
         # Check if session already exists
-        local cookie_file="$AUTH_E2E_DIR/.auth/cookies-local-${role}.json"
+        local cookie_file="$AUTH_E2E_DIR/.auth/$(get_cookie_file $role)"
         if [ -f "$cookie_file" ]; then
             local expires_at=$(jq -r '.expiresAt' "$cookie_file" 2>/dev/null || echo "")
             if [ -n "$expires_at" ]; then
@@ -405,6 +416,7 @@ done
 
 # Apply production mode if requested
 if [ "$FLAG_PROD" = "true" ]; then
+    PROD_MODE=true
     AUTH_URL="$PROD_AUTH_URL"
     GPX_URL="$PROD_GPX_URL"
     log_info "Production mode: AUTH_URL=$AUTH_URL GPX_URL=$GPX_URL REGION_SHORT=$REGION_SHORT"
