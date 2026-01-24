@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import boto3
 import email
 from email.mime.multipart import MIMEMultipart
@@ -14,6 +15,12 @@ logger.setLevel(logging.INFO)
 
 s3 = boto3.client('s3')
 ses = boto3.client('ses')
+
+# Patterns to exclude from forwarding (e.g., e2e test addresses)
+# These emails are stored in S3 but not forwarded to avoid inbox flooding
+EXCLUDE_PATTERNS = [
+    r'^jeanclaude\+.*@',  # jeanclaude+anything@defcon.run (e2e test accounts)
+]
 
 def lambda_handler(event, context):
     """
@@ -34,6 +41,21 @@ def lambda_handler(event, context):
     # Get the recipient that triggered this rule
     recipients = receipt['recipients']
     # logger.info(f"Recipients: {recipients}")
+
+    # Check if any recipient matches exclusion patterns (e.g., e2e test accounts)
+    # These emails are stored in S3 for verification but not forwarded
+    for recipient in recipients:
+        for pattern in EXCLUDE_PATTERNS:
+            if re.match(pattern, recipient, re.IGNORECASE):
+                logger.info(f"Skipping forward for {recipient} (matches exclusion pattern: {pattern})")
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps({
+                        'message': 'Email excluded from forwarding',
+                        'recipient': recipient,
+                        'pattern': pattern
+                    })
+                }
 
     # Find the forwarding destination using flexible matching
     forward_to = None
