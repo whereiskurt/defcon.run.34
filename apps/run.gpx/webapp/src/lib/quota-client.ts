@@ -31,7 +31,8 @@ export type QuotaId =
   | "meshtastic_radio"
   | "qr_scan"
   | "displayname_change"
-  | "qr_sheet";
+  | "qr_sheet"
+  | "gpx_share";
 
 export interface QuotaCheckResult {
   allowed: boolean;

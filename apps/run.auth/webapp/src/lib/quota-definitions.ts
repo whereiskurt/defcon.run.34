@@ -182,6 +182,20 @@ export const QUOTA_DEFINITIONS = {
     resetPolicy: "none" as const,
     enabled: true,
   },
+
+  // GPX share link creation limit
+  gpx_share: {
+    id: "gpx_share",
+    name: "GPX Shares",
+    description: "Share links for GPX files (public or private)",
+    tierLimits: {
+      zero: 0,
+      upload: 20,
+      admin: 100,
+    },
+    resetPolicy: "none" as const,
+    enabled: true,
+  },
 } as const;
 
 /**

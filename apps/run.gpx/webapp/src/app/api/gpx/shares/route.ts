@@ -3,6 +3,7 @@ import { auth } from "@/config/auth";
 import { GpxShare } from "@/entities/gpx-share";
 import { GpxFile } from "@/entities/gpx-file";
 import { nanoid } from "nanoid";
+import { consumeQuota, restoreQuota } from "@/lib/quota-client";
 
 /**
  * POST /api/gpx/shares - Create a new share link for a GPX file
@@ -88,6 +89,21 @@ export async function POST(request: Request) {
       );
     }
 
+    // Consume share quota
+    const quotaResult = await consumeQuota(session.user.id, "gpx_share", 1);
+    if (!quotaResult.success) {
+      return NextResponse.json(
+        {
+          error: "Share quota exceeded",
+          details: {
+            remaining: quotaResult.remaining,
+            quotaId: "gpx_share",
+          },
+        },
+        { status: 429 }
+      );
+    }
+
     // Generate a unique share ID
     const shareId = nanoid(21);
 
@@ -97,14 +113,20 @@ export async function POST(request: Request) {
       : undefined;
 
     // Create the share record
-    await GpxShare.create({
-      shareId,
-      ownerId: session.user.id,
-      fileId,
-      version,
-      accessMode,
-      allowedEmails: normalizedEmails,
-    }).go();
+    try {
+      await GpxShare.create({
+        shareId,
+        ownerId: session.user.id,
+        fileId,
+        version,
+        accessMode,
+        allowedEmails: normalizedEmails,
+      }).go();
+    } catch (createError) {
+      // Restore quota if share creation fails
+      await restoreQuota(session.user.id, "gpx_share", 1).catch(() => {});
+      throw createError;
+    }
 
     // Construct the share URL
     // In dev: http://localhost:3003/studio/share/{token}
