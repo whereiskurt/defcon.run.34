@@ -32,7 +32,8 @@ export type QuotaId =
   | "qr_scan"
   | "displayname_change"
   | "qr_sheet"
-  | "gpx_share";
+  | "gpx_share"
+  | "gpx_save";
 
 export interface QuotaCheckResult {
   allowed: boolean;

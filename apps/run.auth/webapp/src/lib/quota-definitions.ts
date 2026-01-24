@@ -196,6 +196,20 @@ export const QUOTA_DEFINITIONS = {
     resetPolicy: "none" as const,
     enabled: true,
   },
+
+  // GPX file save/update limit (each save creates a new version)
+  gpx_save: {
+    id: "gpx_save",
+    name: "GPX Saves",
+    description: "File saves/updates (each creates a new version)",
+    tierLimits: {
+      zero: 0,
+      upload: 500,
+      admin: 5000,
+    },
+    resetPolicy: "none" as const,
+    enabled: true,
+  },
 } as const;
 
 /**
