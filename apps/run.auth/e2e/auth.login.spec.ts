@@ -1,29 +1,41 @@
 import { test, expect } from '@playwright/test';
 import { fetchAndSolveAltcha } from './lib/altcha-solver.js';
 import { waitForVerificationEmail } from './lib/s3-email.js';
-import { saveCookies, loadCookies, hasCookieJar, clearCookieJar, getCookieJarPath } from './lib/cookie-jar.js';
+import {
+  saveCookies, loadCookies, hasCookieJar, clearCookieJar, getCookieJarPath,
+  saveCookiesForUser, loadCookiesForUser, hasCookieJarForUser, getEmailForRole,
+  type UserRole
+} from './lib/cookie-jar.js';
 
 // Test configuration
-const TEST_EMAIL = 'jeanclaude@defcon.run';
+const USER_ROLE = (process.env.TEST_USER_ROLE as UserRole) || 'default';
+const TEST_EMAIL = getEmailForRole(USER_ROLE);
 const INVITE_CODE = 'hacktheplanet';
 const BASE_URL = process.env.BASE_URL || 'https://auth.defcon.run';
 // Local dev has no region prefix, production uses /use1
 const isLocal = BASE_URL.includes('localhost');
 const REGION_PREFIX = isLocal ? '' : '/use1';
 
+console.log(`Test configuration: USER_ROLE=${USER_ROLE}, EMAIL=${TEST_EMAIL}`);
+
 test.describe('Auth Login E2E', () => {
 
   test('should complete full login flow and save cookies', async ({ page, context }) => {
     // Skip if we already have valid cookies (use --grep "fresh" to force fresh login)
-    if (hasCookieJar()) {
-      const loaded = await loadCookies(context);
+    // Use role-specific cookie jar if USER_ROLE is set
+    const hasJar = USER_ROLE !== 'default' ? hasCookieJarForUser(USER_ROLE) : hasCookieJar();
+
+    if (hasJar) {
+      const loaded = USER_ROLE !== 'default'
+        ? await loadCookiesForUser(context, USER_ROLE)
+        : await loadCookies(context);
       if (loaded) {
         // Verify session is still valid
         const response = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/session/validate`);
         if (response.ok()) {
           const session = await response.json();
           if (session.valid) {
-            console.log('Using existing valid session from cookie jar');
+            console.log(`Using existing valid session from cookie jar for ${USER_ROLE}`);
             console.log(`User: ${session.user.email}`);
             console.log(`Services: ${session.user.services.join(', ')}`);
             return; // Skip login, session is valid
@@ -31,7 +43,9 @@ test.describe('Auth Login E2E', () => {
         }
       }
       console.log('Cookie jar invalid or expired, performing fresh login');
-      clearCookieJar();
+      if (USER_ROLE === 'default') {
+        clearCookieJar();
+      }
     }
 
     // Record timestamp before starting (for email filtering)
@@ -101,17 +115,24 @@ test.describe('Auth Login E2E', () => {
     console.log(`  Secure: ${sessionCookie!.secure}`);
 
     // Step 8: Save cookies for reuse
-    console.log('Step 8: Saving cookies to jar...');
-    await saveCookies(context);
+    console.log(`Step 8: Saving cookies to jar for ${USER_ROLE}...`);
+    if (USER_ROLE !== 'default') {
+      await saveCookiesForUser(context, USER_ROLE);
+    } else {
+      await saveCookies(context);
+    }
     console.log(`Cookie jar saved to: ${getCookieJarPath()}`);
   });
 
   test('should reuse existing session from cookie jar', async ({ page, context }) => {
-    test.skip(!hasCookieJar(), 'No cookie jar available - run login test first');
+    const hasJar = USER_ROLE !== 'default' ? hasCookieJarForUser(USER_ROLE) : hasCookieJar();
+    test.skip(!hasJar, `No cookie jar available for ${USER_ROLE} - run login test first`);
 
     // Load cookies from jar
-    console.log('Loading cookies from jar...');
-    const loaded = await loadCookies(context);
+    console.log(`Loading cookies from jar for ${USER_ROLE}...`);
+    const loaded = USER_ROLE !== 'default'
+      ? await loadCookiesForUser(context, USER_ROLE)
+      : await loadCookies(context);
     expect(loaded).toBe(true);
 
     // Navigate to authenticated endpoint

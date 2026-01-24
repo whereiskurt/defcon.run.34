@@ -2,77 +2,110 @@
 
 End-to-end tests for the GPX Cloud Storage features.
 
+## Quick Start
+
+The easiest way to run the full e2e suite is with the helper script:
+
+```bash
+# Run full e2e suite (creates sessions, uploads files, runs tests)
+./gpxe2e.sh
+
+# Check status of services and sessions
+./gpxe2e.sh --status
+
+# Just run tests (assumes setup already done)
+./gpxe2e.sh --tests
+
+# Run with visible browser
+./gpxe2e.sh --headed
+
+# Clean up test data
+./gpxe2e.sh --clean
+```
+
+The script handles:
+- Installing dependencies
+- Creating authenticated sessions for multiple users (default, owner, viewer)
+- Uploading sample files to cloud storage
+- Running the full test suite
+
 ## Prerequisites
 
-1. **Install dependencies**:
+1. **Services must be running**:
    ```bash
-   npm install
-   npx playwright install chromium
+   # Terminal 1: Auth service
+   cd apps/run.auth/webapp && PORT=3002 npm run dev
+
+   # Terminal 2: GPX service
+   cd apps/run.gpx/webapp && PORT=3003 npm run dev
    ```
 
-2. **Authentication session** - These tests require a valid auth session from run.auth e2e tests.
+2. **AWS credentials** for email verification (if creating new sessions)
 
-## Running Tests
+## Manual Setup
 
-### Production Testing
+If you prefer to run steps manually:
 
+### Install dependencies
 ```bash
-# First, create a production auth session
-cd ../../../run.auth/e2e
-npm install && npx playwright install chromium
-npm test
-
-# Then run gpx tests against production
-cd ../../../run.gpx/e2e
-npm test
+npm install
+npx playwright install chromium
 ```
 
-### Local Development Testing
-
-**Important:** Local and production use separate cookie jars. You must run auth tests against localhost first.
+### Create user sessions
 
 ```bash
-# Terminal 1: Start auth service
-cd apps/run.auth/webapp && PORT=3002 npm run dev
-
-# Terminal 2: Start gpx service
-cd apps/run.gpx/webapp && PORT=3003 npm run dev
-
-# Terminal 3: Create local auth session first
-cd apps/run.auth/e2e
+# Create default user session
+cd ../../../run.auth/e2e
 BASE_URL=http://localhost:3002 npm test
 
-# Then run gpx tests against localhost
-cd apps/run.gpx/e2e
-BASE_URL=http://localhost:3003 npm test
+# Create owner user session (for share tests)
+TEST_USER_ROLE=owner BASE_URL=http://localhost:3002 npm test
+
+# Create viewer user session (for share tests)
+TEST_USER_ROLE=viewer BASE_URL=http://localhost:3002 npm test
 ```
 
-### Other Commands
+### Run tests
 
 ```bash
+cd apps/run.gpx/e2e
+
+# Run all tests
+BASE_URL=http://localhost:3003 npm test
+
 # Run with visible browser
 npm run test:headed
 
 # Debug mode
 npm run test:debug
-
-# Shortcut for local testing (after auth session exists)
-npm run test:local
 ```
 
 ## Test Coverage
+
+### Auth & Session Tests
+
+| Test | Description |
+|------|-------------|
+| `Auth Smoke Test` | Verifies OIDC flow and session establishment |
+| `verify authenticated session` | Confirms user is logged in |
 
 ### Cloud Storage UI Tests
 
 | Test | Description |
 |------|-------------|
-| `verify authenticated session` | Confirms user is logged in |
 | `open Cloud Storage dialog` | Opens the cloud storage dialog |
-| `save a GPX file to cloud` | Uploads a sample GPX and saves it |
+| `open Save As dialog` | Verifies Save As menu item |
 | `open a file from cloud storage` | Loads a file from cloud |
 | `select and open multiple files` | Batch opens multiple files |
 | `create a public share link` | Creates a public share URL |
 | `access a public share link` | Verifies share URL works |
+
+### Multi-User Share Tests
+
+| Test | Description |
+|------|-------------|
+| `create and access a private share` | Owner shares, viewer accesses |
 
 ### Cloud Storage API Tests
 
@@ -82,29 +115,38 @@ npm run test:local
 | `list folders via API` | GET /api/gpx/folders |
 | `create and delete a test file` | Full upload flow |
 | `create public share via API` | POST /api/gpx/shares |
+| `upload a sample GPX file` | Uploads test data |
 
 ## Session Management
 
-Tests use the cookie jar from `run.auth/e2e/.auth/cookies.json`. This shared session allows running gpx tests without re-authenticating.
+Tests use cookie jars from `run.auth/e2e/.auth/`:
+- `cookies-local.json` - Default user (local dev)
+- `cookies-local-owner.json` - Owner user (local dev)
+- `cookies-local-viewer.json` - Viewer user (local dev)
+- `cookies.json` - Production sessions
 
 If tests fail with 401 errors:
-1. Re-run the auth e2e tests: `cd ../run.auth/e2e && npm test`
-2. Verify cookies exist: `ls -la ../run.auth/e2e/.auth/`
-3. Check session validity
+1. Check status: `./gpxe2e.sh --status`
+2. Re-run setup: `./gpxe2e.sh --setup`
+3. Or manually re-run auth tests
 
-## Local Development
+## Sample Files
 
-For local testing against dev servers:
+The `samples/` directory contains GPX files for testing. These are uploaded during test setup and used for file operations tests.
 
-```bash
-# Start services (in separate terminals)
-cd apps/run.auth/webapp && PORT=3002 npm run dev
-cd apps/run.gpx/webapp && PORT=3003 npm run dev
+## Environment Variables
 
-# Run tests against localhost
-BASE_URL=http://localhost:3003 npm test
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BASE_URL` | `http://localhost:3003` | GPX service URL |
+| `AUTH_URL` | `http://localhost:3002` | Auth service URL |
+| `TEST_USER_ROLE` | `default` | User role: default, owner, viewer |
 
 ## Cleanup
 
-Test files created during runs use the prefix `e2e-test-` with a timestamp. These can be manually cleaned up from cloud storage if needed.
+```bash
+# Remove all test sessions and data
+./gpxe2e.sh --clean
+```
+
+Test files created during runs use the prefix `e2e-` with a timestamp. These can be manually cleaned up from cloud storage if needed.
