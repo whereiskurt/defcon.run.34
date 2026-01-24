@@ -121,11 +121,14 @@ cd apps && ./e2e.sh
 # Clean up test data and sessions
 ./e2e.sh --clean
 
-# Run against production (us-east-1)
-AUTH_URL=https://auth.defcon.run BASE_URL=https://gpx.defcon.run ./e2e.sh
+# Run against production (us-east-1, default region)
+./e2e.sh --prod
 
-# Run against production (ca-central-1)
-AUTH_URL=https://auth.defcon.run BASE_URL=https://gpx.defcon.run REGION_SHORT=cac1 ./e2e.sh
+# Run against production with visible browser
+./e2e.sh --prod --headed
+
+# Run against production ca-central-1
+REGION_SHORT=cac1 ./e2e.sh --prod
 ```
 
 ### Prerequisites

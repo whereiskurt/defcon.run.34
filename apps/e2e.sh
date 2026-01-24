@@ -7,7 +7,8 @@
 # 2. run.gpx - Tests cloud storage features
 #
 # Usage:
-#   ./e2e.sh              # Run all e2e tests
+#   ./e2e.sh              # Run all e2e tests (localhost)
+#   ./e2e.sh --prod       # Run all e2e tests against production
 #   ./e2e.sh --setup      # Only create sessions (no gpx tests)
 #   ./e2e.sh --headed     # Run with visible browser
 #   ./e2e.sh --slow       # Run headed with slow-mo (500ms between actions)
@@ -15,6 +16,10 @@
 #   ./e2e.sh --gpx        # Only run gpx tests (assumes auth done)
 #   ./e2e.sh --clean      # Clean up all test data
 #   ./e2e.sh --status     # Check status of services and sessions
+#
+# Flags can be combined:
+#   ./e2e.sh --prod --headed      # Run against production with visible browser
+#   ./e2e.sh --prod --gpx --slow  # Run GPX tests against production slowly
 #
 
 set -e
@@ -32,12 +37,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AUTH_E2E_DIR="$SCRIPT_DIR/run.auth/e2e"
 GPX_E2E_DIR="$SCRIPT_DIR/run.gpx/e2e"
 
-# URLs
+# Production URLs
+PROD_AUTH_URL="https://auth.defcon.run"
+PROD_GPX_URL="https://gpx.defcon.run"
+
+# Default URLs (localhost)
 AUTH_URL="${AUTH_URL:-http://localhost:3002}"
 GPX_URL="${GPX_URL:-http://localhost:3003}"
 
 # Region (for production testing, default: use1)
 REGION_SHORT="${REGION_SHORT:-use1}"
+
+# Production mode flag
+PROD_MODE=false
 
 # User roles
 ROLES=("accounta" "accountb" "accountc")
@@ -328,13 +340,16 @@ run_setup() {
 show_help() {
     echo "Unified E2E Test Runner"
     echo ""
-    echo "Usage: $0 [command]"
+    echo "Usage: $0 [options] [command]"
+    echo ""
+    echo "Options:"
+    echo "  --prod      Use production URLs (auth.defcon.run, gpx.defcon.run)"
+    echo "  --headed    Run with visible browser"
+    echo "  --slow      Run headed with slow-mo (500ms delay between actions)"
     echo ""
     echo "Commands:"
     echo "  (none)      Run all e2e tests (auth + gpx)"
     echo "  --setup     Create auth sessions only"
-    echo "  --headed    Run all tests with visible browser"
-    echo "  --slow      Run headed with slow-mo (500ms delay between actions)"
     echo "  --auth      Run auth tests only"
     echo "  --gpx       Run gpx tests only (assumes sessions exist)"
     echo "  --clean     Clean up test data and sessions"
@@ -342,21 +357,64 @@ show_help() {
     echo "  --help      Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0                  # Run full suite"
-    echo "  $0 --setup          # Just create sessions"
-    echo "  $0 --headed         # Watch tests in browser"
-    echo "  $0 --slow           # Watch tests slowly"
-    echo "  $0 --gpx --headed   # Watch only GPX tests"
+    echo "  $0                      # Run full suite against localhost"
+    echo "  $0 --prod               # Run full suite against production"
+    echo "  $0 --prod --headed      # Run against production with visible browser"
+    echo "  $0 --prod --gpx --slow  # Run GPX tests against production slowly"
+    echo "  $0 --setup              # Just create sessions"
+    echo "  $0 --gpx --headed       # Watch only GPX tests"
 }
 
 # ============================================================================
 # Main
 # ============================================================================
 
-case "${1:-}" in
-    --help|-h)
-        show_help
-        ;;
+# Parse flags
+FLAG_HEADED=false
+FLAG_SLOW=false
+FLAG_PROD=false
+CMD=""
+
+for arg in "$@"; do
+    case "$arg" in
+        --help|-h)
+            show_help
+            exit 0
+            ;;
+        --prod)
+            FLAG_PROD=true
+            ;;
+        --headed)
+            FLAG_HEADED=true
+            ;;
+        --slow)
+            FLAG_SLOW=true
+            FLAG_HEADED=true
+            ;;
+        --status|--setup|--auth|--gpx|--clean)
+            CMD="$arg"
+            ;;
+        *)
+            log_error "Unknown flag: $arg"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+# Apply production mode if requested
+if [ "$FLAG_PROD" = "true" ]; then
+    AUTH_URL="$PROD_AUTH_URL"
+    GPX_URL="$PROD_GPX_URL"
+    log_info "Production mode: AUTH_URL=$AUTH_URL GPX_URL=$GPX_URL REGION_SHORT=$REGION_SHORT"
+fi
+
+# Export for subprocesses
+export AUTH_URL GPX_URL REGION_SHORT
+
+# Execute command
+case "$CMD" in
     --status)
         check_status
         ;;
@@ -366,32 +424,16 @@ case "${1:-}" in
     --auth)
         check_prerequisites
         install_deps
-        run_auth_tests "${2:-false}"
+        run_auth_tests "$FLAG_HEADED"
         ;;
     --gpx)
         check_prerequisites
-        gpx_headed="false"
-        gpx_slow="false"
-        if [ "${2:-}" = "--headed" ]; then gpx_headed="true"; fi
-        if [ "${2:-}" = "--slow" ]; then gpx_headed="true"; gpx_slow="true"; fi
-        run_gpx_tests "$gpx_headed" "$gpx_slow"
-        ;;
-    --headed)
-        run_all "true" "false"
-        ;;
-    --slow)
-        run_all "true" "true"
+        run_gpx_tests "$FLAG_HEADED" "$FLAG_SLOW"
         ;;
     --clean)
         clean_up
         ;;
     "")
-        run_all "false" "false"
-        ;;
-    *)
-        log_error "Unknown command: $1"
-        echo ""
-        show_help
-        exit 1
+        run_all "$FLAG_HEADED" "$FLAG_SLOW"
         ;;
 esac
