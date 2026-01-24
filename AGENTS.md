@@ -65,6 +65,11 @@ bd ready --json          # Find unblocked work (structured output)
 bd close <id> && bd sync # Complete and sync
 bv --robot-triage        # AI triage: ranked work, graph metrics, next steps
 
+# E2E Tests (requires AWS credentials for S3 email retrieval)
+cd apps/run.auth/e2e && npm install && npx playwright install chromium
+npm test                 # Run all auth e2e tests
+npm run test:headed      # Run with browser visible
+
 # Memory (cm/cass) - before and after work
 cm context "<task>"      # BEFORE: Get rules and patterns for this task
 cm reflect --days 1      # AFTER: Extract learnings from session
