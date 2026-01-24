@@ -50,16 +50,12 @@ export const isAuthenticated = derived(auth, a => a.isAuthenticated); \
 export const isAuthLoading = derived(auth, a => a.isLoading); \
 export const hasGpxStudioAccess = derived(auth, a => a.user?.services?.includes("gpxstudio") ?? false);' > src/lib/stores/auth.ts
 
-# Patch Map.svelte to use correct API base path for mapbox token endpoint
-# The gpx-studio submodule uses absolute /api/... paths which don't work with Next.js basePath
-RUN sed -i "s|import { page } from '\$app/state';|import { page } from '\$app/state';\n    import { base } from '\$app/paths';|" src/lib/components/map/Map.svelte && \
-    sed -i "s|fetch('/api/user/mapbox-token'|fetch(\`\${base.replace('/studio', '')}/api/user/mapbox-token\`|" src/lib/components/map/Map.svelte
-
-# Patch CloudStorage.svelte to use correct API base path for shares endpoint
-RUN sed -i "s|import { toast } from 'svelte-sonner';|import { toast } from 'svelte-sonner';\n    import { base } from '\$app/paths';|" src/lib/components/cloud/CloudStorage.svelte && \
-    sed -i "s|fetch(\`/api/gpx/shares|fetch(\`\${base.replace('/studio', '')}/api/gpx/shares|" src/lib/components/cloud/CloudStorage.svelte
-
-# Note: cloud-sync.ts now handles API base path in the repo code (getApiBase function)
+# Note: API base path fixes are now in the source files:
+# - Map.svelte uses base.replace('/studio', '') for mapbox-token endpoint
+# - CloudStorage.svelte uses getApiBase() from cloud-sync.ts for shares endpoint
+# - ShareDialog.svelte uses getApiBase() from cloud-sync.ts
+# - ShareAcceptDialog.svelte uses getApiBase() from cloud-sync.ts
+# - share/[token]/+page.svelte uses API_BASE and AUTH_BASE with base path
 
 # Build gpx.studio with regional BASE_PATH (e.g., /use1/studio)
 # PUBLIC_MAPBOX_TOKEN is required for map rendering - get from build arg or provide placeholder for dev
