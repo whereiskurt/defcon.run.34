@@ -7,6 +7,7 @@
     import { i18n } from '$lib/i18n.svelte';
     import { PUBLIC_MAPBOX_TOKEN } from '$env/static/public';
     import { page } from '$app/state';
+    import { base } from '$app/paths';
     import { map } from '$lib/components/map/map';
     import { setMapboxToken } from '$lib/utils';
 
@@ -30,7 +31,8 @@
     // Fetch mapbox token from API (uses server-side MAPBOX_DEFAULT_TOKEN)
     async function fetchMapboxToken(): Promise<string> {
         try {
-            const response = await fetch('/api/user/mapbox-token', { credentials: 'include' });
+            const apiBase = base.replace('/studio', '');
+            const response = await fetch(`${apiBase}/api/user/mapbox-token`, { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 if (data.token && data.token.startsWith('pk.')) {
