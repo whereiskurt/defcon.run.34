@@ -64,8 +64,8 @@ export const QUOTA_DEFINITIONS = {
     description: "Total file uploads (GPX or photo)",
     tierLimits: {
       zero: 0,
-      upload: 100,
-      admin: 1000,
+      upload: 200,
+      admin: 2000,
     },
     resetPolicy: "none" as const,
     enabled: true,
@@ -78,8 +78,8 @@ export const QUOTA_DEFINITIONS = {
     description: "GPX track file uploads",
     tierLimits: {
       zero: 0,
-      upload: 50,
-      admin: 500,
+      upload: 100,
+      admin: 1000,
     },
     resetPolicy: "none" as const,
     enabled: true,
@@ -92,8 +92,8 @@ export const QUOTA_DEFINITIONS = {
     description: "Photo file uploads",
     tierLimits: {
       zero: 0,
-      upload: 100,
-      admin: 1000,
+      upload: 200,
+      admin: 2000,
     },
     resetPolicy: "none" as const,
     enabled: true,
