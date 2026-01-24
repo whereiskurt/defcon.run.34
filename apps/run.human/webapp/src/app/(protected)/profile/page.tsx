@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionInfoExpanded, setSessionInfoExpanded] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -121,12 +122,20 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-4">
             {/* Session Info */}
             <div>
-              <h3 className="text-lg font-semibold mb-2">Session Info</h3>
-              <div className="text-sm text-default-500 space-y-1">
-                <p>User ID: <span className="font-mono text-xs">{session.user?.id || 'N/A'}</span></p>
-                <p>Session Version: {session.user?.sessionVersion || 'N/A'}</p>
-                <p>Check-in Preference: {userData?.checkin_preference || userData?.preferences?.checkinPreference || 'public'}</p>
-              </div>
+              <h3
+                className="text-lg font-semibold mb-2 cursor-pointer select-none flex items-center gap-2"
+                onDoubleClick={() => setSessionInfoExpanded(!sessionInfoExpanded)}
+              >
+                <span className="text-xs text-default-400">{sessionInfoExpanded ? '▼' : '▶'}</span>
+                Session Info
+              </h3>
+              {sessionInfoExpanded && (
+                <div className="text-sm text-default-500 space-y-1">
+                  <p>User ID: <span className="font-mono text-xs">{session.user?.id || 'N/A'}</span></p>
+                  <p>Session Version: {session.user?.sessionVersion || 'N/A'}</p>
+                  <p>Check-in Preference: {userData?.checkin_preference || userData?.preferences?.checkinPreference || 'public'}</p>
+                </div>
+              )}
             </div>
 
             <Divider />
