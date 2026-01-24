@@ -551,12 +551,41 @@ test.describe('3. Cloud Storage E2E', () => {
       return;
     }
 
-    // Select ALL available files (up to first 5 for reasonable test time)
-    const filesToSelect = Math.min(fileCount, 5);
-    console.log(`Selecting ${filesToSelect} files...`);
+    // Select files that are geographically diverse (NYC, Japan, Vegas, Guelph)
+    // Look for specific file names in the table rows
+    const tableRows = dialog.locator('table tr').filter({ hasText: /\.gpx/i });
+    const rowCount = await tableRows.count();
 
-    for (let i = 0; i < filesToSelect; i++) {
-      await fileCheckboxes.nth(i).click();
+    // Priority order for diverse locations (check file names)
+    const diversePatterns = ['NYC', 'Japan', 'lvcc', 'Guelph', 'bigstar'];
+    const selectedIndices: number[] = [];
+
+    // First pass: find rows matching our diverse patterns
+    for (const pattern of diversePatterns) {
+      if (selectedIndices.length >= 4) break; // Max 4 diverse files
+      for (let i = 0; i < rowCount && selectedIndices.length < 4; i++) {
+        if (selectedIndices.includes(i)) continue;
+        const rowText = await tableRows.nth(i).textContent();
+        if (rowText?.toLowerCase().includes(pattern.toLowerCase())) {
+          selectedIndices.push(i);
+          console.log(`Found diverse file: ${pattern} at row ${i}`);
+        }
+      }
+    }
+
+    // If we didn't find enough diverse files, add first few remaining
+    for (let i = 0; selectedIndices.length < 4 && i < rowCount; i++) {
+      if (!selectedIndices.includes(i)) {
+        selectedIndices.push(i);
+      }
+    }
+
+    console.log(`Selecting ${selectedIndices.length} geographically diverse files...`);
+
+    // Click checkboxes for selected rows
+    for (const idx of selectedIndices) {
+      const checkbox = tableRows.nth(idx).locator('button[role="checkbox"]');
+      await checkbox.click();
       await page.waitForTimeout(200);
     }
 
@@ -566,7 +595,7 @@ test.describe('3. Cloud Storage E2E', () => {
     await openButton.click();
 
     // Wait for files to load (longer timeout for multiple files)
-    await page.waitForTimeout(5000);
+    await page.waitForTimeout(8000);
 
     // Dialog should close automatically after loading
     const isDialogVisible = await dialog.isVisible().catch(() => false);
@@ -574,7 +603,7 @@ test.describe('3. Cloud Storage E2E', () => {
       const closeButton = dialog.locator('button[aria-label="Close"], button:has-text("Close")').first();
       if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
         await closeButton.click();
-        await page.waitForTimeout(1000);
+        await page.waitForTimeout(2000);
       }
     }
 
@@ -582,97 +611,120 @@ test.describe('3. Cloud Storage E2E', () => {
     await page.screenshot({ path: 'test-results/multi-file-all-loaded.png', fullPage: false });
     console.log('Screenshot: multi-file-all-loaded.png');
 
-    // Look for track items in the file list panel
-    // GPX Studio shows tracks as buttons, often named "Track 1", file names, etc.
-    const trackButtons = page.locator('button').filter({ hasText: /Track \d+|e2e-sample/i });
-    const trackCount = await trackButtons.count();
+    // The file tabs are at the bottom of the screen in a horizontal scrollable area
+    // Each file tab is a button containing the file name
+    // Wait a bit more for tabs to render
+    await page.waitForTimeout(1000);
 
-    console.log(`Found ${trackCount} track buttons in file list`);
+    // Look for file tabs - they're buttons with e2e-sample in the text
+    // The tabs might be in a scrollable container
+    const fileTabs = page.locator('button').filter({ hasText: /e2e-sample/i });
+    const fileTabCount = await fileTabs.count();
+    console.log(`Found ${fileTabCount} file tabs`);
 
-    if (trackCount >= 2) {
-      // Test Centre feature: right-click first track and use Center
-      console.log('Testing Centre feature on first track...');
-      const firstTrack = trackButtons.first();
-      await firstTrack.click({ button: 'right' });
+    // List all file tab names for debugging
+    for (let i = 0; i < fileTabCount; i++) {
+      const tabText = await fileTabs.nth(i).textContent();
+      console.log(`  Tab ${i + 1}: ${tabText?.trim()}`);
+    }
+
+    // Helper function to center on a file and take screenshot
+    async function centerOnFileAndScreenshot(fileIndex: number, screenshotName: string) {
+      const fileTab = fileTabs.nth(fileIndex);
+      const tabText = await fileTab.textContent();
+      console.log(`Centering on file ${fileIndex + 1}: ${tabText?.trim()}`);
+
+      // Click the file tab to select it
+      await fileTab.click();
       await page.waitForTimeout(500);
 
-      // Look for Center menu item
-      const centerMenuItem = page.locator('[role="menuitem"]').filter({ hasText: /Center/i });
-      if (await centerMenuItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // Method 1: Try right-click on the file tab itself for Center option
+      await fileTab.click({ button: 'right' });
+      await page.waitForTimeout(300);
+
+      let centerMenuItem = page.locator('[role="menuitem"]').filter({ hasText: /Center/i });
+      if (await centerMenuItem.isVisible({ timeout: 1000 }).catch(() => false)) {
         await centerMenuItem.click();
-        await page.waitForTimeout(1000);
-        await page.screenshot({ path: 'test-results/multi-file-centered-track-1.png', fullPage: false });
-        console.log('Screenshot: multi-file-centered-track-1.png (centred on first track)');
-      } else {
-        // Try keyboard shortcut instead
-        await firstTrack.click();
-        await page.keyboard.press('Control+Enter');
-        await page.waitForTimeout(1000);
-        await page.screenshot({ path: 'test-results/multi-file-centered-track-1.png', fullPage: false });
-        console.log('Screenshot: multi-file-centered-track-1.png (via keyboard shortcut)');
+        await page.waitForTimeout(2000); // Wait for map animation
+        await page.screenshot({ path: `test-results/${screenshotName}`, fullPage: false });
+        console.log(`Screenshot: ${screenshotName} (via file tab context menu)`);
+        return true;
       }
 
-      // Centre on second track to show map movement
-      if (trackCount >= 2) {
-        console.log('Testing Centre feature on second track...');
-        const secondTrack = trackButtons.nth(1);
-        await secondTrack.click({ button: 'right' });
-        await page.waitForTimeout(500);
+      // Close any open menu by pressing Escape
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(200);
 
-        const centerMenuItem2 = page.locator('[role="menuitem"]').filter({ hasText: /Center/i });
-        if (await centerMenuItem2.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await centerMenuItem2.click();
-          await page.waitForTimeout(1000);
-          await page.screenshot({ path: 'test-results/multi-file-centered-track-2.png', fullPage: false });
-          console.log('Screenshot: multi-file-centered-track-2.png (centred on second track)');
-        } else {
-          await secondTrack.click();
-          await page.keyboard.press('Control+Enter');
-          await page.waitForTimeout(1000);
-          await page.screenshot({ path: 'test-results/multi-file-centered-track-2.png', fullPage: false });
-          console.log('Screenshot: multi-file-centered-track-2.png (via keyboard shortcut)');
-        }
+      // Method 2: Try keyboard shortcut Ctrl+Enter on selected file
+      await fileTab.click();
+      await page.waitForTimeout(200);
+      await page.keyboard.press('Control+Enter');
+      await page.waitForTimeout(2000); // Wait for map animation
+
+      // Check if map moved by taking screenshot
+      await page.screenshot({ path: `test-results/${screenshotName}`, fullPage: false });
+      console.log(`Screenshot: ${screenshotName} (via Ctrl+Enter)`);
+      return true;
+    }
+
+    if (fileTabCount >= 2) {
+      // Center on first file
+      await centerOnFileAndScreenshot(0, 'multi-file-centered-1.png');
+
+      // Center on second file (should show different location)
+      await centerOnFileAndScreenshot(1, 'multi-file-centered-2.png');
+
+      // Center on third file if available
+      if (fileTabCount >= 3) {
+        await centerOnFileAndScreenshot(2, 'multi-file-centered-3.png');
       }
 
-      // Test Hide feature: hide first track
+      // Test Hide feature on first file
       console.log('Testing Hide feature...');
-      await firstTrack.click({ button: 'right' });
-      await page.waitForTimeout(500);
+      const firstTab = fileTabs.first();
+      await firstTab.click();
+      await page.waitForTimeout(300);
 
-      const hideMenuItem = page.locator('[role="menuitem"]').filter({ hasText: /^Hide$/i });
-      if (await hideMenuItem.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await hideMenuItem.click();
-        await page.waitForTimeout(1000);
-        await page.screenshot({ path: 'test-results/multi-file-track-hidden.png', fullPage: false });
-        console.log('Screenshot: multi-file-track-hidden.png (first track hidden)');
+      // Look for Track 1 to hide
+      const trackItems = page.locator('button').filter({ hasText: /^Track \d+$/ });
+      if (await trackItems.count() > 0) {
+        await trackItems.first().click({ button: 'right' });
+        await page.waitForTimeout(300);
 
-        // Verify hidden indicator (EyeOff icon)
-        const hiddenIcon = page.locator('svg.lucide-eye-off');
-        const hasHiddenIcon = await hiddenIcon.first().isVisible({ timeout: 1000 }).catch(() => false);
-        if (hasHiddenIcon) {
-          console.log('Hidden indicator (EyeOff icon) visible - hide worked');
-        }
-
-        // Test Unhide All
-        await firstTrack.click({ button: 'right' });
-        await page.waitForTimeout(500);
-        const unhideAllItem = page.locator('[role="menuitem"]').filter({ hasText: /Unhide All/i });
-        if (await unhideAllItem.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await unhideAllItem.click();
+        const hideMenuItem = page.locator('[role="menuitem"]').filter({ hasText: /^Hide$/i });
+        if (await hideMenuItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await hideMenuItem.click();
           await page.waitForTimeout(1000);
-          await page.screenshot({ path: 'test-results/multi-file-all-visible.png', fullPage: false });
-          console.log('Screenshot: multi-file-all-visible.png (all tracks visible again)');
+          await page.screenshot({ path: 'test-results/multi-file-track-hidden.png', fullPage: false });
+          console.log('Screenshot: multi-file-track-hidden.png (track hidden)');
+
+          // Verify hidden indicator (EyeOff icon appears next to hidden items)
+          const hiddenIcon = page.locator('svg.lucide-eye-off');
+          const hasHiddenIcon = await hiddenIcon.first().isVisible({ timeout: 1000 }).catch(() => false);
+          if (hasHiddenIcon) {
+            console.log('Hidden indicator visible - hide worked');
+          }
+
+          // Unhide all
+          await trackItems.first().click({ button: 'right' });
+          await page.waitForTimeout(300);
+          const unhideAllItem = page.locator('[role="menuitem"]').filter({ hasText: /Unhide All/i });
+          if (await unhideAllItem.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await unhideAllItem.click();
+            await page.waitForTimeout(500);
+            console.log('Unhide All executed');
+          }
+        } else {
+          // Try keyboard shortcut
+          await trackItems.first().click();
+          await page.keyboard.press('Control+h');
+          await page.waitForTimeout(1000);
+          await page.screenshot({ path: 'test-results/multi-file-track-hidden.png', fullPage: false });
+          console.log('Screenshot: multi-file-track-hidden.png (via keyboard)');
         }
-      } else {
-        // Try keyboard shortcut for hide
-        await firstTrack.click();
-        await page.keyboard.press('Control+h');
-        await page.waitForTimeout(1000);
-        await page.screenshot({ path: 'test-results/multi-file-track-hidden.png', fullPage: false });
-        console.log('Screenshot: multi-file-track-hidden.png (via keyboard shortcut)');
       }
     } else {
-      console.log('Not enough tracks found for Centre/Hide testing - taking map screenshot only');
+      console.log('Not enough file tabs for multi-file testing');
     }
 
     console.log('Multiple files test with map verification completed');
