@@ -6,8 +6,10 @@ import { saveCookies, loadCookies, hasCookieJar, clearCookieJar, getCookieJarPat
 // Test configuration
 const TEST_EMAIL = 'jeanclaude@defcon.run';
 const INVITE_CODE = 'hacktheplanet';
-const BASE_URL = 'https://auth.defcon.run';
-const REGION_PREFIX = '/use1';
+const BASE_URL = process.env.BASE_URL || 'https://auth.defcon.run';
+// Local dev has no region prefix, production uses /use1
+const isLocal = BASE_URL.includes('localhost');
+const REGION_PREFIX = isLocal ? '' : '/use1';
 
 test.describe('Auth Login E2E', () => {
 
@@ -17,7 +19,7 @@ test.describe('Auth Login E2E', () => {
       const loaded = await loadCookies(context);
       if (loaded) {
         // Verify session is still valid
-        const response = await page.request.get('https://auth.defcon.run/use1/api/session/validate');
+        const response = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/session/validate`);
         if (response.ok()) {
           const session = await response.json();
           if (session.valid) {

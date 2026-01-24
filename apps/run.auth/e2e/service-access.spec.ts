@@ -1,12 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { loadCookies, hasCookieJar } from './lib/cookie-jar.js';
 
-// Service URLs
-const AUTH_URL = 'https://auth.defcon.run';
-const RUN_URL = 'https://run.defcon.run';
-const GPX_URL = 'https://gpx.defcon.run';
-const CMS_URL = 'https://cms.defcon.run';
-const REGION_PREFIX = '/use1';
+// Determine environment - local vs production
+const isLocal = process.env.BASE_URL?.includes('localhost') || false;
+
+// Service URLs - local dev uses different ports, production uses subdomains
+const AUTH_URL = process.env.BASE_URL || 'https://auth.defcon.run';
+const RUN_URL = isLocal ? 'http://localhost:3001' : 'https://run.defcon.run';
+const GPX_URL = isLocal ? 'http://localhost:3003' : 'https://gpx.defcon.run';
+const CMS_URL = isLocal ? 'http://localhost:1337' : 'https://cms.defcon.run';
+// Local dev has no region prefix, production uses /use1
+const REGION_PREFIX = isLocal ? '' : '/use1';
 
 // Expected services configuration
 // Default services for new users: ["auth", "run", "strava", "gpxstudio"]

@@ -18,8 +18,10 @@ npx playwright install chromium
 
 ## Running Tests
 
+### Production Testing
+
 ```bash
-# Run all tests
+# Run all tests against production
 npm test
 
 # Run with browser visible
@@ -32,6 +34,22 @@ npm run test:debug
 npx playwright test auth.login.spec.ts
 npx playwright test service-access.spec.ts
 ```
+
+### Local Development Testing
+
+```bash
+# Start auth service locally
+cd apps/run.auth/webapp && PORT=3002 npm run dev
+
+# Run tests against localhost (saves to cookies-local.json)
+BASE_URL=http://localhost:3002 npm test
+```
+
+**Note:** Local and production use separate cookie jars:
+- Production: `.auth/cookies.json`
+- Local: `.auth/cookies-local.json`
+
+This prevents cookie conflicts between environments.
 
 ## Test Structure
 

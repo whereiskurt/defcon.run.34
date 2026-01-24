@@ -1,13 +1,12 @@
 import { defineConfig } from '@playwright/test';
 
-const baseURL = process.env.BASE_URL || 'https://auth.defcon.run';
+const baseURL = process.env.BASE_URL || 'https://gpx.defcon.run';
 
 export default defineConfig({
   testDir: '.',
   testMatch: '**/*.spec.ts',
-  timeout: 120000, // 2 minutes for ALTCHA solving + email wait
-  // Run tests serially to ensure cookie jar is properly managed
-  fullyParallel: false,
+  timeout: 120000, // 2 minutes for cloud operations
+  fullyParallel: false, // Run tests serially for cookie jar management
   workers: 1,
   expect: {
     timeout: 30000,
