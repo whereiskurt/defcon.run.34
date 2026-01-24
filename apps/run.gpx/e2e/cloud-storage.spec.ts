@@ -893,3 +893,187 @@ test.describe('Cloud Storage API Tests', () => {
     console.log('Deleted test share');
   });
 });
+
+// ============================================================================
+// CLEANUP - Delete all e2e test files via UI
+// This test runs LAST to ensure all test files are cleaned up
+// ============================================================================
+
+test.describe('Test Cleanup - Delete E2E Files', () => {
+  test.beforeEach(async ({ page, context }) => {
+    if (!hasAuthCookieJar()) {
+      test.skip();
+      return;
+    }
+    const loaded = await loadAuthCookies(context);
+    if (!loaded) {
+      test.skip();
+      return;
+    }
+
+    // Trigger OIDC flow if needed
+    const sessionResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/auth/session`);
+    const session = await sessionResponse.json();
+
+    if (!session?.user) {
+      await page.goto(`${BASE_URL}${REGION_PREFIX}/api/auth/signin`);
+      await page.waitForLoadState('networkidle');
+      const defconButton = page.locator('button:has-text("Sign in with DEF CON")');
+      if (await defconButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await defconButton.click();
+        await page.waitForLoadState('networkidle', { timeout: 10000 });
+      }
+    }
+  });
+
+  test('should delete all e2e test files via Cloud Storage UI', async ({ page }) => {
+    // First, check how many e2e files exist via API
+    const filesResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
+    if (!filesResponse.ok()) {
+      console.log('Could not list files - skipping cleanup');
+      test.skip();
+      return;
+    }
+
+    const { files } = await filesResponse.json();
+    const e2eFiles = files.filter((f: { fileName: string }) =>
+      f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
+    );
+
+    console.log(`Found ${e2eFiles.length} e2e test files to clean up`);
+
+    if (e2eFiles.length === 0) {
+      console.log('No e2e test files to delete - cleanup complete');
+      return;
+    }
+
+    // Navigate to studio
+    await page.goto(`${BASE_URL}${STUDIO_PATH}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // Open Cloud Storage dialog
+    const dialog = await openCloudStorage(page, 'open');
+    await page.waitForTimeout(2000);
+
+    // Find all e2e test file rows and select them
+    let deletedCount = 0;
+
+    for (const file of e2eFiles) {
+      // Look for the file row containing this filename
+      const fileRow = dialog.locator('table tr').filter({ hasText: file.fileName });
+
+      if (await fileRow.count() === 0) {
+        console.log(`File not visible in UI: ${file.fileName} - deleting via API`);
+        // Fallback: delete via API if not visible in UI
+        await page.request.delete(`${BASE_URL}${REGION_PREFIX}/api/gpx/files/${file.fileId}`);
+        deletedCount++;
+        continue;
+      }
+
+      // Try to find delete button on the row (trash icon or delete button)
+      const deleteButton = fileRow.locator('button[title*="elete"], button[aria-label*="elete"], button:has(svg)').filter({ hasText: '' }).last();
+
+      if (await deleteButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        console.log(`Deleting via UI: ${file.fileName}`);
+        await deleteButton.click();
+
+        // Wait for confirmation dialog if it appears
+        const confirmButton = page.locator('[role="alertdialog"] button:has-text("Delete"), [role="dialog"] button:has-text("Delete"), button:has-text("Confirm")');
+        if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await confirmButton.click();
+        }
+
+        await page.waitForTimeout(500);
+        deletedCount++;
+      } else {
+        // Select the file and use toolbar delete
+        const checkbox = fileRow.locator('button[role="checkbox"]');
+        if (await checkbox.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await checkbox.click();
+        }
+      }
+    }
+
+    // If we selected files, try the toolbar delete button
+    const selectedCount = await dialog.locator('button[role="checkbox"][data-state="checked"]').count();
+    if (selectedCount > 0) {
+      console.log(`${selectedCount} files selected - looking for bulk delete`);
+
+      // Look for delete button in toolbar
+      const toolbarDelete = dialog.locator('button[title*="elete"], button:has-text("Delete")').first();
+      if (await toolbarDelete.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await toolbarDelete.click();
+
+        // Confirm deletion
+        const confirmButton = page.locator('[role="alertdialog"] button:has-text("Delete"), [role="dialog"] button:has-text("Delete"), button:has-text("Confirm")');
+        if (await confirmButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await confirmButton.click();
+          await page.waitForTimeout(1000);
+          deletedCount += selectedCount;
+        }
+      }
+    }
+
+    // Fallback: delete any remaining e2e files via API
+    const remainingResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
+    if (remainingResponse.ok()) {
+      const { files: remainingFiles } = await remainingResponse.json();
+      const remainingE2eFiles = remainingFiles.filter((f: { fileName: string }) =>
+        f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
+      );
+
+      for (const file of remainingE2eFiles) {
+        console.log(`Cleaning up remaining file via API: ${file.fileName}`);
+        await page.request.delete(`${BASE_URL}${REGION_PREFIX}/api/gpx/files/${file.fileId}`);
+        deletedCount++;
+      }
+    }
+
+    console.log(`Cleanup complete: ${deletedCount} e2e test files deleted`);
+
+    // Verify cleanup
+    const verifyResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
+    if (verifyResponse.ok()) {
+      const { files: verifyFiles } = await verifyResponse.json();
+      const remainingE2e = verifyFiles.filter((f: { fileName: string }) =>
+        f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
+      );
+
+      if (remainingE2e.length === 0) {
+        console.log('All e2e test files successfully deleted');
+      } else {
+        console.log(`WARNING: ${remainingE2e.length} e2e files still remain`);
+      }
+    }
+  });
+
+  test('should verify no e2e test files remain', async ({ page }) => {
+    // Final verification that all e2e test files are gone
+    const filesResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
+
+    if (!filesResponse.ok()) {
+      console.log('Could not verify cleanup');
+      return;
+    }
+
+    const { files } = await filesResponse.json();
+    const e2eFiles = files.filter((f: { fileName: string }) =>
+      f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
+    );
+
+    console.log(`Final check: ${e2eFiles.length} e2e test files remaining`);
+    console.log(`Total files in cloud storage: ${files.length}`);
+
+    // This is a soft check - we log but don't fail if some files remain
+    // (they might have been created by a parallel test run)
+    if (e2eFiles.length > 0) {
+      console.log('Remaining e2e files:');
+      e2eFiles.forEach((f: { fileName: string; fileId: string }) => {
+        console.log(`  - ${f.fileName} (${f.fileId})`);
+      });
+    }
+
+    expect(e2eFiles.length).toBe(0);
+  });
+});
