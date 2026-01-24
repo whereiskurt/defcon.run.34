@@ -1,0 +1,126 @@
+import { test, expect } from '@playwright/test';
+import { fetchAndSolveAltcha } from './lib/altcha-solver.js';
+import { waitForVerificationEmail } from './lib/s3-email.js';
+import { saveCookies, loadCookies, hasCookieJar, clearCookieJar, getCookieJarPath } from './lib/cookie-jar.js';
+
+// Test configuration
+const TEST_EMAIL = 'jeanclaude@defcon.run';
+const INVITE_CODE = 'hacktheplanet';
+const BASE_URL = 'https://auth.defcon.run';
+const REGION_PREFIX = '/use1';
+
+test.describe('Auth Login E2E', () => {
+
+  test('should complete full login flow and save cookies', async ({ page, context }) => {
+    // Skip if we already have valid cookies (use --grep "fresh" to force fresh login)
+    if (hasCookieJar()) {
+      const loaded = await loadCookies(context);
+      if (loaded) {
+        // Verify session is still valid
+        const response = await page.request.get('https://auth.defcon.run/use1/api/session/validate');
+        if (response.ok()) {
+          const session = await response.json();
+          if (session.valid) {
+            console.log('Using existing valid session from cookie jar');
+            console.log(`User: ${session.user.email}`);
+            console.log(`Services: ${session.user.services.join(', ')}`);
+            return; // Skip login, session is valid
+          }
+        }
+      }
+      console.log('Cookie jar invalid or expired, performing fresh login');
+      clearCookieJar();
+    }
+
+    // Record timestamp before starting (for email filtering)
+    const loginStartTime = new Date();
+    console.log(`Login started at: ${loginStartTime.toISOString()}`);
+
+    // Step 1: Navigate to login page
+    console.log('Step 1: Navigating to login page...');
+    await page.goto(`${BASE_URL}${REGION_PREFIX}/login`);
+    await expect(page.locator('text=Welcome!')).toBeVisible({ timeout: 10000 });
+
+    // Step 2: Get CSRF token from NextAuth API
+    console.log('Step 2: Fetching CSRF token from NextAuth API...');
+    const csrfResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/auth/csrf`);
+    expect(csrfResponse.ok()).toBe(true);
+    const csrfData = await csrfResponse.json();
+    const csrfToken = csrfData.csrfToken;
+    expect(csrfToken).toBeDefined();
+    console.log(`CSRF token fetched: ${csrfToken.substring(0, 10)}...`);
+
+    // Step 3: Solve ALTCHA challenge
+    console.log('Step 3: Solving ALTCHA challenge...');
+    const altchaPayload = await fetchAndSolveAltcha(BASE_URL, REGION_PREFIX);
+    console.log('ALTCHA solved!');
+
+    // Step 4: Submit login request via API
+    console.log('Step 4: Submitting login request...');
+    const loginResponse = await page.request.post(`${BASE_URL}${REGION_PREFIX}/api/login`, {
+      data: {
+        email: TEST_EMAIL,
+        inviteCode: INVITE_CODE,
+        csrfToken: csrfToken,
+        altcha: altchaPayload,
+      },
+    });
+
+    expect(loginResponse.ok()).toBe(true);
+    const loginResult = await loginResponse.json();
+    expect(loginResult.message).toBe('Success. Check your email.');
+    console.log('Login request sent successfully!');
+
+    // Step 5: Wait for verification email in S3
+    console.log('Step 5: Waiting for verification email in S3...');
+    const emailResult = await waitForVerificationEmail(TEST_EMAIL, loginStartTime);
+    console.log(`\nVerification code received: ${emailResult.code}`);
+
+    // Step 6: Complete verification by navigating to callback URL
+    console.log('Step 6: Completing verification...');
+    const callbackUrl = `${BASE_URL}${REGION_PREFIX}/api/auth/callback/nodemailer?token=${emailResult.code}&email=${encodeURIComponent(TEST_EMAIL)}&callbackUrl=${encodeURIComponent(`${REGION_PREFIX}/`)}`;
+
+    await page.goto(callbackUrl);
+
+    // Step 7: Verify login success - should redirect to home
+    console.log('Step 7: Verifying login success...');
+    await page.waitForURL(`${BASE_URL}${REGION_PREFIX}/`, { timeout: 30000 });
+
+    // Verify session cookie is set
+    const finalCookies = await context.cookies();
+    const sessionCookie = finalCookies.find(c => c.name === 'sess_auth');
+    expect(sessionCookie).toBeDefined();
+    expect(sessionCookie!.httpOnly).toBe(true);
+
+    console.log('Login successful! Session cookie set.');
+    console.log(`  Cookie name: ${sessionCookie!.name}`);
+    console.log(`  Domain: ${sessionCookie!.domain}`);
+    console.log(`  HttpOnly: ${sessionCookie!.httpOnly}`);
+    console.log(`  Secure: ${sessionCookie!.secure}`);
+
+    // Step 8: Save cookies for reuse
+    console.log('Step 8: Saving cookies to jar...');
+    await saveCookies(context);
+    console.log(`Cookie jar saved to: ${getCookieJarPath()}`);
+  });
+
+  test('should reuse existing session from cookie jar', async ({ page, context }) => {
+    test.skip(!hasCookieJar(), 'No cookie jar available - run login test first');
+
+    // Load cookies from jar
+    console.log('Loading cookies from jar...');
+    const loaded = await loadCookies(context);
+    expect(loaded).toBe(true);
+
+    // Navigate to authenticated endpoint
+    console.log('Navigating to authenticated page...');
+    await page.goto(`${BASE_URL}${REGION_PREFIX}/`);
+
+    // Verify we're authenticated (check for session cookie)
+    const cookies = await context.cookies();
+    const sessionCookie = cookies.find(c => c.name === 'sess_auth');
+    expect(sessionCookie).toBeDefined();
+
+    console.log('Session reused from cookie jar successfully!');
+  });
+});

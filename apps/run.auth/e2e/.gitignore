@@ -1,0 +1,12 @@
+# Cookie jar storage
+.auth/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Playwright
+test-results/
+playwright-report/
