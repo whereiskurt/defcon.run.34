@@ -10,6 +10,7 @@ import {
   CopyObjectCommand,
 } from "@aws-sdk/client-s3";
 import { s3Client, s3ClientForPresign, getUserPrefix, BUCKET } from "@/lib/s3-client";
+import { consumeQuota, restoreQuota } from "@/lib/quota-client";
 
 const MAX_VERSIONS = 50;
 
@@ -103,6 +104,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 
   const { id } = await params;
+  let quotaConsumed = false;
 
   try {
     const updates = await request.json();
@@ -168,6 +170,21 @@ export async function PUT(request: Request, { params }: RouteParams) {
     let versionedKey: string | undefined;
 
     if (updates.updateContent) {
+      // Consume save quota before generating presign URL
+      const quotaResult = await consumeQuota(session.user.id, "gpx_save", 1);
+      if (!quotaResult.success) {
+        return NextResponse.json(
+          {
+            error: "Save quota exceeded",
+            message: "You have reached your save limit",
+            remaining: quotaResult.remaining,
+            quotaId: "gpx_save",
+          },
+          { status: 429 }
+        );
+      }
+      quotaConsumed = true;
+
       // Calculate new version
       const currentVersion = file.data.version || 1;
       newVersion = currentVersion + 1;
@@ -228,6 +245,10 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
     return NextResponse.json(response);
   } catch (error) {
+    // Restore quota if consumed and operation failed
+    if (quotaConsumed) {
+      await restoreQuota(session.user.id, "gpx_save", 1).catch(() => {});
+    }
     console.error("Error updating GPX file:", error);
     return NextResponse.json(
       { error: "Failed to update file" },
