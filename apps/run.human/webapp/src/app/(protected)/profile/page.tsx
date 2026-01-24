@@ -119,6 +119,18 @@ export default function ProfilePage() {
         <Divider />
         <CardBody>
           <div className="flex flex-col gap-4">
+            {/* Session Info */}
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Session Info</h3>
+              <div className="text-sm text-default-500 space-y-1">
+                <p>User ID: <span className="font-mono text-xs">{session.user?.id || 'N/A'}</span></p>
+                <p>Session Version: {session.user?.sessionVersion || 'N/A'}</p>
+                <p>Check-in Preference: {userData?.checkin_preference || userData?.preferences?.checkinPreference || 'public'}</p>
+              </div>
+            </div>
+
+            <Divider />
+
             {/* Linked Services */}
             <div>
               <h3 className="text-lg font-semibold mb-2">Linked Services</h3>
@@ -235,19 +247,8 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </div>
-                <Divider />
               </>
             )}
-
-            {/* Session Info */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Session Info</h3>
-              <div className="text-sm text-default-500 space-y-1">
-                <p>User ID: <span className="font-mono text-xs">{session.user?.id || 'N/A'}</span></p>
-                <p>Session Version: {session.user?.sessionVersion || 'N/A'}</p>
-                <p>Check-in Preference: {userData?.checkin_preference || userData?.preferences?.checkinPreference || 'public'}</p>
-              </div>
-            </div>
           </div>
         </CardBody>
       </Card>
