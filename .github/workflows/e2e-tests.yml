@@ -68,11 +68,7 @@ jobs:
 
       - name: Run E2E Tests
         working-directory: apps
-        env:
-          AUTH_URL: ${{ env.AUTH_URL }}
-          BASE_URL: ${{ env.GPX_URL }}
-          GPX_URL: ${{ env.GPX_URL }}
-        run: ./e2e.sh
+        run: ./e2e.sh --prod
 
       - name: Upload test results
         if: failure()
