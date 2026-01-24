@@ -187,6 +187,28 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
   done
 
   echo ""
+  echo "--- Committing VERSION bumps to git ---"
+  # Collect all VERSION files that were bumped
+  VERSION_FILES=()
+  for APP in "${APP_LIST[@]}"; do
+    APP_COMPONENT=$(get_app_component "$APP")
+    APP_HAS_NGINX=$(has_nginx "$APP")
+    if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
+      VERSION_FILES+=("${SCRIPT_DIR}/${APP}/nginx/VERSION")
+    fi
+    VERSION_FILES+=("${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
+  done
+
+  # Stage and commit VERSION files
+  git add "${VERSION_FILES[@]}"
+  if git diff --cached --quiet; then
+    echo "  No VERSION changes to commit"
+  else
+    git commit -m "Bump versions for release: ${APP_LIST[*]}"
+    echo "  VERSION bumps committed"
+  fi
+
+  echo ""
   echo "Version bump complete!"
 else
   echo ""
