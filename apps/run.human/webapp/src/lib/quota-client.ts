@@ -19,6 +19,7 @@ export type QuotaId =
   | "file_upload"
   | "gpx_upload"
   | "gpx_save"
+  | "gpx_share"
   | "photo_upload"
   | "strava_sync"
   | "checkin"

@@ -24,6 +24,7 @@ interface UserData {
     file_upload?: QuotaInfo;
     gpx_upload?: QuotaInfo;
     gpx_save?: QuotaInfo;
+    gpx_share?: QuotaInfo;
     photo_upload?: QuotaInfo;
     strava_sync?: QuotaInfo;
     checkin?: QuotaInfo;
@@ -180,6 +181,13 @@ export default function ProfilePage() {
                         <span className="text-sm text-default-400">/{userData.quotas.gpx_save?.initial ?? 0}</span>
                       </p>
                       <p className="text-xs text-default-500">GPX Saves</p>
+                    </div>
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.gpx_share?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.gpx_share?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">GPX Shares</p>
                     </div>
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
