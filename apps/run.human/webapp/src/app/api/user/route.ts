@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 const PROFILE_QUOTA_IDS: QuotaId[] = [
   "file_upload",
   "gpx_upload",
+  "gpx_save",
   "photo_upload",
   "strava_sync",
   "checkin",
