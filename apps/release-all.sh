@@ -369,6 +369,18 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
     echo "  VERSION.app:   $(cat "${TF_SERVICE_DIR}/VERSION.app")"
   done
 
+  # Commit terraform VERSION files
+  echo ""
+  echo "--- Committing terraform VERSION files to git ---"
+  TF_SERVICES_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services"
+  git add "${TF_SERVICES_DIR}"/*/VERSION.app "${TF_SERVICES_DIR}"/*/VERSION.nginx 2>/dev/null || true
+  if git diff --cached --quiet; then
+    echo "  No terraform VERSION changes to commit"
+  else
+    git commit -m "Update terraform VERSION files for deploy: ${APP_LIST[*]}"
+    echo "  Terraform VERSION files committed"
+  fi
+
   # Deploy to each region - only ecs-task and ecs-service modules
   # (ecs-task creates new task definitions, ecs-service deploys them)
   TF_SITE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site"
