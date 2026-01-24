@@ -102,7 +102,7 @@
                 allowedEmails?: string[];
             } = {
                 fileId: file.fileId,
-                version: 1, // Use version 1 for now (current version)
+                version: file.version || 1,
                 accessMode,
             };
 
@@ -332,9 +332,9 @@
                                         <div class="text-xs text-muted-foreground">
                                             Created {formatDate(share.createdAt)}
                                         </div>
-                                        {#if share.accessMode === 'private' && share.allowedEmails}
-                                            <div class="text-xs text-muted-foreground truncate">
-                                                {share.allowedEmails.length} email{share.allowedEmails.length !== 1 ? 's' : ''}
+                                        {#if share.accessMode === 'private' && share.allowedEmails && share.allowedEmails.length > 0}
+                                            <div class="text-xs text-muted-foreground truncate" title={share.allowedEmails.join(', ')}>
+                                                {share.allowedEmails[0]}{#if share.allowedEmails.length > 1}<span class="ml-1 text-blue-500 cursor-help">+{share.allowedEmails.length - 1} more</span>{/if}
                                             </div>
                                         {/if}
                                     </div>
