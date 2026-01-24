@@ -44,6 +44,7 @@
 
     // Get API base path from SvelteKit's base (e.g., /use1/studio -> /use1)
     const API_BASE = base.replace('/studio', '') + '/api/gpx';
+    const AUTH_BASE = base.replace('/studio', '') + '/api/auth';
 
     // Load share data on mount
     onMount(async () => {
@@ -98,7 +99,7 @@
                 if (response.status === 401) {
                     // Redirect to login with return URL
                     const returnUrl = encodeURIComponent(window.location.pathname);
-                    window.location.href = `/api/auth/signin?callbackUrl=${returnUrl}`;
+                    window.location.href = `${AUTH_BASE}/signin?callbackUrl=${returnUrl}`;
                     return;
                 }
 
@@ -171,7 +172,7 @@
                         {#if pageError === 'Please sign in to view this share'}
                             <Button onclick={() => {
                                 const returnUrl = encodeURIComponent(window.location.pathname);
-                                window.location.href = `/api/auth/signin?callbackUrl=${returnUrl}`;
+                                window.location.href = `${AUTH_BASE}/signin?callbackUrl=${returnUrl}`;
                             }}>
                                 <LogIn class="h-4 w-4 mr-2" />
                                 Sign In
