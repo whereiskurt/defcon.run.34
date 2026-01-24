@@ -34,8 +34,8 @@ GPX_E2E_DIR="$SCRIPT_DIR"
 AUTH_URL="${AUTH_URL:-http://localhost:3002}"
 GPX_URL="${GPX_URL:-http://localhost:3003}"
 
-# User roles to set up
-ROLES=("default" "owner" "viewer")
+# User roles to set up (all use +addressing: jeanclaude+accounta@defcon.run, etc.)
+ROLES=("accounta" "accountb" "accountc")
 
 # ============================================================================
 # Utility Functions
@@ -67,7 +67,8 @@ log_section() {
 check_url() {
     local url=$1
     local name=$2
-    if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -q "200\|302\|301"; then
+    # Accept various success/redirect codes (200, 301, 302, 307, 308)
+    if curl -s -o /dev/null -w "%{http_code}" "$url" | grep -qE "^(200|301|302|307|308)$"; then
         return 0
     else
         return 1
@@ -103,11 +104,7 @@ check_status() {
 
     local auth_dir="$AUTH_E2E_DIR/.auth"
     for role in "${ROLES[@]}"; do
-        local suffix=""
-        if [ "$role" != "default" ]; then
-            suffix="-$role"
-        fi
-        local cookie_file="$auth_dir/cookies-local${suffix}.json"
+        local cookie_file="$auth_dir/cookies-local-${role}.json"
 
         if [ -f "$cookie_file" ]; then
             # Check if expired
@@ -245,11 +242,7 @@ create_user_sessions() {
         log_info "Creating session for user role: $role"
 
         # Check if session already exists and is valid
-        local suffix=""
-        if [ "$role" != "default" ]; then
-            suffix="-$role"
-        fi
-        local cookie_file="$AUTH_E2E_DIR/.auth/cookies-local${suffix}.json"
+        local cookie_file="$AUTH_E2E_DIR/.auth/cookies-local-${role}.json"
 
         if [ -f "$cookie_file" ]; then
             local expires_at=$(jq -r '.expiresAt' "$cookie_file" 2>/dev/null || echo "")
@@ -267,7 +260,7 @@ create_user_sessions() {
         log_info "Running auth e2e tests for '$role'..."
         (
             cd "$AUTH_E2E_DIR"
-            TEST_USER_ROLE="$role" BASE_URL="$AUTH_URL" npm test -- --grep "should complete login" 2>&1 | tail -20
+            TEST_USER_ROLE="$role" BASE_URL="$AUTH_URL" npm test -- --grep "should complete full login" 2>&1 | tail -20
         ) || {
             log_error "Failed to create session for '$role'"
             exit 1
@@ -295,7 +288,7 @@ upload_sample_files() {
 
     (
         cd "$GPX_E2E_DIR"
-        BASE_URL="$GPX_URL" npm test -- --grep "should upload a sample GPX file" 2>&1 | tail -20
+        BASE_URL="$GPX_URL" npm test -- --grep "should upload multiple sample GPX" 2>&1 | tail -20
     ) || {
         log_warn "Sample file upload test had issues (may be OK if file already exists)"
     }

@@ -9,19 +9,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isLocal = process.env.BASE_URL?.includes('localhost') || false;
 
 // User roles for multi-user testing
-export type UserRole = 'default' | 'owner' | 'viewer';
+export type UserRole = 'accounta' | 'accountb' | 'accountc';
 
 // Get cookie jar path for a specific user role
-export function getCookieJarPathForUser(role: UserRole = 'default'): string {
-  const suffix = role === 'default' ? '' : `-${role}`;
+export function getCookieJarPathForUser(role: UserRole = 'accounta'): string {
   if (isLocal) {
-    return path.join(__dirname, '..', '.auth', `cookies-local${suffix}.json`);
+    return path.join(__dirname, '..', '.auth', `cookies-local-${role}.json`);
   }
-  return path.join(__dirname, '..', '.auth', `cookies${suffix}.json`);
+  return path.join(__dirname, '..', '.auth', `cookies-${role}.json`);
 }
 
-// Default cookie jar path (for backward compatibility)
-const COOKIE_JAR_PATH = getCookieJarPathForUser('default');
+// Default cookie jar path (accounta is the default)
+const COOKIE_JAR_PATH = getCookieJarPathForUser('accounta');
 
 interface CookieJar {
   cookies: Cookie[];
@@ -171,12 +170,9 @@ export function hasCookieJarForUser(role: UserRole): boolean {
 }
 
 // Get email for a user role
+// All roles use + addressing: jeanclaude+accounta@defcon.run, etc.
 export function getEmailForRole(role: UserRole): string {
   const baseEmail = 'jeanclaude@defcon.run';
-  if (role === 'default') {
-    return baseEmail;
-  }
-  // Use + addressing: jeanclaude+owner@defcon.run, jeanclaude+viewer@defcon.run
   const [local, domain] = baseEmail.split('@');
   return `${local}+${role}@${domain}`;
 }

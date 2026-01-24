@@ -63,6 +63,25 @@ function getSampleFiles(): string[] {
   return [];
 }
 
+// Get sample files filtered by size (to avoid slow uploads for large files)
+function getSampleFilesFiltered(maxSizeKB: number = 200): string[] {
+  if (!fs.existsSync(SAMPLES_DIR)) {
+    return [];
+  }
+  return fs.readdirSync(SAMPLES_DIR)
+    .filter(f => f.endsWith('.gpx'))
+    .filter(f => {
+      const stats = fs.statSync(path.join(SAMPLES_DIR, f));
+      return stats.size < maxSizeKB * 1024;
+    })
+    .sort((a, b) => {
+      // Sort by size ascending
+      const aStats = fs.statSync(path.join(SAMPLES_DIR, a));
+      const bStats = fs.statSync(path.join(SAMPLES_DIR, b));
+      return aStats.size - bStats.size;
+    });
+}
+
 // Helper to upload a file via API and return fileId
 async function uploadFileViaAPI(page: Page, filename: string, content: Buffer): Promise<string | null> {
   // Create file record
@@ -283,22 +302,28 @@ test.describe('2. Test Setup - Upload Sample Files', () => {
   });
 
   test('should upload multiple sample GPX files for testing', async ({ page }) => {
-    // Get available sample files
-    const sampleFiles = getSampleFiles();
-    const filesToUpload = sampleFiles.length > 0
-      ? sampleFiles.slice(0, 3)  // Upload up to 3 sample files
-      : ['sample1.gpx', 'sample2.gpx', 'sample3.gpx'];  // Fallback names
+    // Get sample files filtered by size (max 200KB each for speed)
+    // This gives us diverse routes without huge files slowing tests
+    const sampleFiles = getSampleFilesFiltered(200);
+    const allSampleFiles = getSampleFiles();
+
+    console.log(`Available sample files: ${allSampleFiles.length} total, ${sampleFiles.length} under 200KB`);
+
+    // Upload all filtered sample files (or fallback to first 3 of any size)
+    const filesToUpload = sampleFiles.length >= 3
+      ? sampleFiles
+      : allSampleFiles.slice(0, 5);
 
     console.log(`Uploading ${filesToUpload.length} sample files...`);
 
     const uploadedIds: string[] = [];
 
-    for (let i = 0; i < Math.min(3, filesToUpload.length || 3); i++) {
-      const sampleFile = filesToUpload[i] || `sample${i + 1}.gpx`;
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const sampleFile = filesToUpload[i];
       const content = loadSampleFile(sampleFile);
       const testFileName = `e2e-sample-${i + 1}-${Date.now()}.gpx`;
 
-      console.log(`Uploading: ${testFileName}`);
+      console.log(`Uploading: ${testFileName} (from ${sampleFile}, ${Math.round(content.length / 1024)}KB)`);
 
       const fileId = await uploadFileViaAPI(page, testFileName, content);
 
@@ -324,42 +349,42 @@ test.describe('2. Test Setup - Upload Sample Files', () => {
     expect(e2eFiles.length).toBeGreaterThanOrEqual(uploadedIds.length);
   });
 
-  test('should upload files for owner user (multi-user tests)', async ({ page, context, browser }) => {
-    // Skip if owner session doesn't exist
-    if (!hasAuthCookieJarForUser('owner')) {
-      console.log('No owner session - skipping owner file upload');
-      console.log('Run: TEST_USER_ROLE=owner BASE_URL=http://localhost:3002 npm test (in auth e2e)');
+  test('should upload files for accountb user (multi-user tests)', async ({ page, context, browser }) => {
+    // Skip if accountb session doesn't exist
+    if (!hasAuthCookieJarForUser('accountb')) {
+      console.log('No accountb session - skipping accountb file upload');
+      console.log('Run: TEST_USER_ROLE=accountb BASE_URL=http://localhost:3002 npm test (in auth e2e)');
       test.skip();
       return;
     }
 
-    // Create new context for owner
-    const ownerContext = await browser.newContext();
-    const ownerPage = await ownerContext.newPage();
+    // Create new context for accountb
+    const accountbContext = await browser.newContext();
+    const accountbPage = await accountbContext.newPage();
 
-    const success = await establishSession(ownerPage, ownerContext, 'owner');
+    const success = await establishSession(accountbPage, accountbContext, 'accountb');
     if (!success) {
-      await ownerContext.close();
-      console.log('Failed to establish owner session');
+      await accountbContext.close();
+      console.log('Failed to establish accountb session');
       test.skip();
       return;
     }
 
-    // Upload a file as owner
+    // Upload a file as accountb
     const content = loadSampleFile('guelph-loop-approx.gpx');
-    const testFileName = `e2e-owner-${Date.now()}.gpx`;
+    const testFileName = `e2e-accountb-${Date.now()}.gpx`;
 
-    console.log(`Uploading file as owner: ${testFileName}`);
+    console.log(`Uploading file as accountb: ${testFileName}`);
 
-    const fileId = await uploadFileViaAPI(ownerPage, testFileName, content);
+    const fileId = await uploadFileViaAPI(accountbPage, testFileName, content);
 
     if (fileId) {
-      console.log(`Owner file uploaded with ID: ${fileId}`);
+      console.log(`accountb file uploaded with ID: ${fileId}`);
     } else {
-      console.log('Failed to upload owner file');
+      console.log('Failed to upload accountb file');
     }
 
-    await ownerContext.close();
+    await accountbContext.close();
 
     expect(fileId).not.toBeNull();
   });
@@ -518,7 +543,7 @@ test.describe('3. Cloud Storage E2E', () => {
     const fileCheckboxes = dialog.locator('table tr').filter({ hasText: /\.gpx/i }).locator('button[role="checkbox"]');
     const fileCount = await fileCheckboxes.count();
 
-    console.log(`Found ${fileCount} files`);
+    console.log(`Found ${fileCount} files to open`);
 
     if (fileCount < 2) {
       console.log(`Only ${fileCount} file(s) found - test setup should have uploaded at least 3`);
@@ -526,24 +551,26 @@ test.describe('3. Cloud Storage E2E', () => {
       return;
     }
 
-    // Manually select first two files (more reliable than Select All)
-    await fileCheckboxes.first().click();
-    await page.waitForTimeout(300);
-    await fileCheckboxes.nth(1).click();
-    await page.waitForTimeout(500);
+    // Select ALL available files (up to first 5 for reasonable test time)
+    const filesToSelect = Math.min(fileCount, 5);
+    console.log(`Selecting ${filesToSelect} files...`);
+
+    for (let i = 0; i < filesToSelect; i++) {
+      await fileCheckboxes.nth(i).click();
+      await page.waitForTimeout(200);
+    }
 
     // Click Open button (blue button)
     const openButton = dialog.locator('button.bg-blue-600, button:has-text("Open")').filter({ hasText: /Open/i });
     await expect(openButton).toBeEnabled({ timeout: 5000 });
     await openButton.click();
 
-    // Wait for dialog to close or files to load (longer timeout)
-    await page.waitForTimeout(3000);
+    // Wait for files to load (longer timeout for multiple files)
+    await page.waitForTimeout(5000);
 
-    // Check if dialog closed or if we're now showing loaded files
+    // Dialog should close automatically after loading
     const isDialogVisible = await dialog.isVisible().catch(() => false);
     if (isDialogVisible) {
-      // Dialog may still be open if loading - try to close it
       const closeButton = dialog.locator('button[aria-label="Close"], button:has-text("Close")').first();
       if (await closeButton.isVisible({ timeout: 1000 }).catch(() => false)) {
         await closeButton.click();
@@ -551,7 +578,104 @@ test.describe('3. Cloud Storage E2E', () => {
       }
     }
 
-    console.log('Multiple files selection test completed');
+    // Take initial screenshot of map with all loaded files
+    await page.screenshot({ path: 'test-results/multi-file-all-loaded.png', fullPage: false });
+    console.log('Screenshot: multi-file-all-loaded.png');
+
+    // Look for track items in the file list panel
+    // GPX Studio shows tracks as buttons, often named "Track 1", file names, etc.
+    const trackButtons = page.locator('button').filter({ hasText: /Track \d+|e2e-sample/i });
+    const trackCount = await trackButtons.count();
+
+    console.log(`Found ${trackCount} track buttons in file list`);
+
+    if (trackCount >= 2) {
+      // Test Centre feature: right-click first track and use Center
+      console.log('Testing Centre feature on first track...');
+      const firstTrack = trackButtons.first();
+      await firstTrack.click({ button: 'right' });
+      await page.waitForTimeout(500);
+
+      // Look for Center menu item
+      const centerMenuItem = page.locator('[role="menuitem"]').filter({ hasText: /Center/i });
+      if (await centerMenuItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await centerMenuItem.click();
+        await page.waitForTimeout(1000);
+        await page.screenshot({ path: 'test-results/multi-file-centered-track-1.png', fullPage: false });
+        console.log('Screenshot: multi-file-centered-track-1.png (centred on first track)');
+      } else {
+        // Try keyboard shortcut instead
+        await firstTrack.click();
+        await page.keyboard.press('Control+Enter');
+        await page.waitForTimeout(1000);
+        await page.screenshot({ path: 'test-results/multi-file-centered-track-1.png', fullPage: false });
+        console.log('Screenshot: multi-file-centered-track-1.png (via keyboard shortcut)');
+      }
+
+      // Centre on second track to show map movement
+      if (trackCount >= 2) {
+        console.log('Testing Centre feature on second track...');
+        const secondTrack = trackButtons.nth(1);
+        await secondTrack.click({ button: 'right' });
+        await page.waitForTimeout(500);
+
+        const centerMenuItem2 = page.locator('[role="menuitem"]').filter({ hasText: /Center/i });
+        if (await centerMenuItem2.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await centerMenuItem2.click();
+          await page.waitForTimeout(1000);
+          await page.screenshot({ path: 'test-results/multi-file-centered-track-2.png', fullPage: false });
+          console.log('Screenshot: multi-file-centered-track-2.png (centred on second track)');
+        } else {
+          await secondTrack.click();
+          await page.keyboard.press('Control+Enter');
+          await page.waitForTimeout(1000);
+          await page.screenshot({ path: 'test-results/multi-file-centered-track-2.png', fullPage: false });
+          console.log('Screenshot: multi-file-centered-track-2.png (via keyboard shortcut)');
+        }
+      }
+
+      // Test Hide feature: hide first track
+      console.log('Testing Hide feature...');
+      await firstTrack.click({ button: 'right' });
+      await page.waitForTimeout(500);
+
+      const hideMenuItem = page.locator('[role="menuitem"]').filter({ hasText: /^Hide$/i });
+      if (await hideMenuItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await hideMenuItem.click();
+        await page.waitForTimeout(1000);
+        await page.screenshot({ path: 'test-results/multi-file-track-hidden.png', fullPage: false });
+        console.log('Screenshot: multi-file-track-hidden.png (first track hidden)');
+
+        // Verify hidden indicator (EyeOff icon)
+        const hiddenIcon = page.locator('svg.lucide-eye-off');
+        const hasHiddenIcon = await hiddenIcon.first().isVisible({ timeout: 1000 }).catch(() => false);
+        if (hasHiddenIcon) {
+          console.log('Hidden indicator (EyeOff icon) visible - hide worked');
+        }
+
+        // Test Unhide All
+        await firstTrack.click({ button: 'right' });
+        await page.waitForTimeout(500);
+        const unhideAllItem = page.locator('[role="menuitem"]').filter({ hasText: /Unhide All/i });
+        if (await unhideAllItem.isVisible({ timeout: 2000 }).catch(() => false)) {
+          await unhideAllItem.click();
+          await page.waitForTimeout(1000);
+          await page.screenshot({ path: 'test-results/multi-file-all-visible.png', fullPage: false });
+          console.log('Screenshot: multi-file-all-visible.png (all tracks visible again)');
+        }
+      } else {
+        // Try keyboard shortcut for hide
+        await firstTrack.click();
+        await page.keyboard.press('Control+h');
+        await page.waitForTimeout(1000);
+        await page.screenshot({ path: 'test-results/multi-file-track-hidden.png', fullPage: false });
+        console.log('Screenshot: multi-file-track-hidden.png (via keyboard shortcut)');
+      }
+    } else {
+      console.log('Not enough tracks found for Centre/Hide testing - taking map screenshot only');
+    }
+
+    console.log('Multiple files test with map verification completed');
   });
 
   test('should create a public share link', async ({ page }) => {
@@ -646,7 +770,7 @@ test.describe('3. Cloud Storage E2E', () => {
     }
 
     const shareData = await shareResponse.json();
-    const shareUrl = shareData.shareUrl;
+    const shareUrl = shareData.shareUrl as string;
     const shareToken = shareUrl.split('/share/').pop();
     console.log(`Testing share access: ${shareUrl}`);
     console.log(`Share token: ${shareToken}`);
@@ -695,24 +819,24 @@ test.describe('3. Cloud Storage E2E', () => {
 test.describe('4. Multi-User Share Tests', () => {
   test('should create and access a private share between users', async ({ page, context, browser }) => {
     // Check if we have both user cookie jars
-    if (!hasAuthCookieJarForUser('owner') || !hasAuthCookieJarForUser('viewer')) {
-      console.log('Multi-user test requires both owner and viewer sessions.');
-      console.log('Run auth e2e tests with TEST_USER_ROLE=owner and TEST_USER_ROLE=viewer first.');
+    if (!hasAuthCookieJarForUser('accountb') || !hasAuthCookieJarForUser('accountc')) {
+      console.log('Multi-user test requires both accountb and accountc sessions.');
+      console.log('Run auth e2e tests with TEST_USER_ROLE=accountb and TEST_USER_ROLE=accountc first.');
       test.skip();
       return;
     }
 
-    // === OWNER SESSION ===
-    console.log('=== Owner session: Creating private share ===');
+    // === ACCOUNT B SESSION (file owner) ===
+    console.log('=== accountb session: Creating private share ===');
 
-    // Load owner cookies
-    const ownerLoaded = await loadAuthCookiesForUser(context, 'owner');
-    if (!ownerLoaded) {
+    // Load accountb cookies
+    const accountbLoaded = await loadAuthCookiesForUser(context, 'accountb');
+    if (!accountbLoaded) {
       test.skip();
       return;
     }
 
-    // Trigger OIDC for owner
+    // Trigger OIDC for accountb
     await page.goto(`${BASE_URL}${REGION_PREFIX}/api/auth/signin`);
     await page.waitForLoadState('networkidle');
     const defconButton = page.locator('button:has-text("Sign in with DEF CON")');
@@ -721,25 +845,25 @@ test.describe('4. Multi-User Share Tests', () => {
       await page.waitForLoadState('networkidle', { timeout: 10000 });
     }
 
-    // Get owner's files
+    // Get accountb's files
     const filesResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
     if (!filesResponse.ok()) {
-      console.log('Owner not authenticated');
+      console.log('accountb not authenticated');
       test.skip();
       return;
     }
 
     const { files } = await filesResponse.json();
     if (files.length === 0) {
-      console.log('Owner has no files to share - uploading one now');
+      console.log('accountb has no files to share - uploading one now');
 
-      // Upload a file for the owner
+      // Upload a file for accountb
       const content = loadSampleFile('guelph-loop-approx.gpx');
-      const testFileName = `e2e-owner-share-${Date.now()}.gpx`;
+      const testFileName = `e2e-accountb-share-${Date.now()}.gpx`;
       const fileId = await uploadFileViaAPI(page, testFileName, content);
 
       if (!fileId) {
-        console.log('Failed to upload file for owner');
+        console.log('Failed to upload file for accountb');
         test.fail();
         return;
       }
@@ -758,64 +882,68 @@ test.describe('4. Multi-User Share Tests', () => {
     const { files: updatedFiles } = await updatedFilesResponse.json();
 
     const fileToShare = updatedFiles[0];
-    const viewerEmail = getEmailForRole('viewer');
+    const accountcEmail = getEmailForRole('accountc');
 
-    // Create private share for viewer
+    // Create private share for accountc
     const shareResponse = await page.request.post(`${BASE_URL}${REGION_PREFIX}/api/gpx/shares`, {
       data: {
         fileId: fileToShare.fileId,
         version: fileToShare.version || 1,
         accessMode: 'private',
-        allowedEmails: [viewerEmail],
+        allowedEmails: [accountcEmail],
       },
     });
 
     expect(shareResponse.ok()).toBe(true);
     const shareData = await shareResponse.json();
-    const shareUrl = shareData.shareUrl;
+    // Fix share URL for local dev - API may return /use1/ prefix that doesn't exist locally
+    let shareUrl = shareData.shareUrl as string;
+    if (isLocal && shareUrl.includes('/use1/')) {
+      shareUrl = shareUrl.replace('/use1/', '/');
+    }
     const shareId = shareData.shareId;
 
-    console.log(`Private share created for ${viewerEmail}: ${shareUrl}`);
+    console.log(`Private share created for ${accountcEmail}: ${shareUrl}`);
 
-    // === VIEWER SESSION ===
-    console.log('=== Viewer session: Accessing private share ===');
+    // === ACCOUNT C SESSION (share recipient) ===
+    console.log('=== accountc session: Accessing private share ===');
 
-    // Create new context for viewer
-    const viewerContext = await browser.newContext();
-    const viewerPage = await viewerContext.newPage();
+    // Create new context for accountc
+    const accountcContext = await browser.newContext();
+    const accountcPage = await accountcContext.newPage();
 
-    // Load viewer cookies
-    const viewerLoaded = await loadAuthCookiesForUser(viewerContext, 'viewer');
-    if (!viewerLoaded) {
-      await viewerContext.close();
+    // Load accountc cookies
+    const accountcLoaded = await loadAuthCookiesForUser(accountcContext, 'accountc');
+    if (!accountcLoaded) {
+      await accountcContext.close();
       test.skip();
       return;
     }
 
-    // Trigger OIDC for viewer
-    await viewerPage.goto(`${BASE_URL}${REGION_PREFIX}/api/auth/signin`);
-    await viewerPage.waitForLoadState('networkidle');
-    const viewerDefconButton = viewerPage.locator('button:has-text("Sign in with DEF CON")');
-    if (await viewerDefconButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await viewerDefconButton.click();
-      await viewerPage.waitForLoadState('networkidle', { timeout: 10000 });
+    // Trigger OIDC for accountc
+    await accountcPage.goto(`${BASE_URL}${REGION_PREFIX}/api/auth/signin`);
+    await accountcPage.waitForLoadState('networkidle');
+    const accountcDefconButton = accountcPage.locator('button:has-text("Sign in with DEF CON")');
+    if (await accountcDefconButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await accountcDefconButton.click();
+      await accountcPage.waitForLoadState('networkidle', { timeout: 10000 });
     }
 
-    // Viewer accesses the share URL
-    await viewerPage.goto(shareUrl);
-    await viewerPage.waitForLoadState('networkidle');
+    // accountc accesses the share URL
+    await accountcPage.goto(shareUrl);
+    await accountcPage.waitForLoadState('networkidle');
 
-    // Verify viewer can access the share (not 404 or error)
-    const pageContent = await viewerPage.textContent('body');
+    // Verify accountc can access the share (not 404 or error)
+    const pageContent = await accountcPage.textContent('body');
     expect(pageContent).not.toContain('404');
     expect(pageContent).not.toContain('Access denied');
 
-    console.log('Viewer successfully accessed private share');
+    console.log('accountc successfully accessed private share');
 
     // Clean up
-    await viewerContext.close();
+    await accountcContext.close();
 
-    // Delete the share (as owner)
+    // Delete the share (as accountb)
     await page.request.delete(`${BASE_URL}${REGION_PREFIX}/api/gpx/shares/${shareId}`);
     console.log('Private share cleaned up');
   });
@@ -1114,25 +1242,25 @@ test.describe('6. Test Cleanup - Delete E2E Files', () => {
     }
   });
 
-  test('should clean up owner e2e files', async ({ page, context, browser }) => {
-    // Clean up files uploaded by owner user
-    if (!hasAuthCookieJarForUser('owner')) {
-      console.log('No owner session - skipping owner cleanup');
+  test('should clean up accountb e2e files', async ({ page, context, browser }) => {
+    // Clean up files uploaded by accountb user
+    if (!hasAuthCookieJarForUser('accountb')) {
+      console.log('No accountb session - skipping accountb cleanup');
       return;
     }
 
-    const ownerContext = await browser.newContext();
-    const ownerPage = await ownerContext.newPage();
+    const accountbContext = await browser.newContext();
+    const accountbPage = await accountbContext.newPage();
 
-    const success = await establishSession(ownerPage, ownerContext, 'owner');
+    const success = await establishSession(accountbPage, accountbContext, 'accountb');
     if (!success) {
-      await ownerContext.close();
+      await accountbContext.close();
       return;
     }
 
-    const filesResponse = await ownerPage.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
+    const filesResponse = await accountbPage.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
     if (!filesResponse.ok()) {
-      await ownerContext.close();
+      await accountbContext.close();
       return;
     }
 
@@ -1141,15 +1269,15 @@ test.describe('6. Test Cleanup - Delete E2E Files', () => {
       f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
     );
 
-    console.log(`Found ${e2eFiles.length} owner e2e files to clean up`);
+    console.log(`Found ${e2eFiles.length} accountb e2e files to clean up`);
 
     for (const file of e2eFiles) {
-      await ownerPage.request.delete(`${BASE_URL}${REGION_PREFIX}/api/gpx/files/${file.fileId}`);
-      console.log(`Deleted owner file: ${file.fileName}`);
+      await accountbPage.request.delete(`${BASE_URL}${REGION_PREFIX}/api/gpx/files/${file.fileId}`);
+      console.log(`Deleted accountb file: ${file.fileName}`);
     }
 
-    await ownerContext.close();
-    console.log('Owner cleanup complete');
+    await accountbContext.close();
+    console.log('accountb cleanup complete');
   });
 
   test('should verify no e2e test files remain', async ({ page }) => {

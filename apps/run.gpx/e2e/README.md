@@ -25,7 +25,7 @@ The easiest way to run the full e2e suite is with the helper script:
 
 The script handles:
 - Installing dependencies
-- Creating authenticated sessions for multiple users (default, owner, viewer)
+- Creating authenticated sessions for multiple users (accounta, accountb, accountc)
 - Uploading sample files to cloud storage
 - Running the full test suite
 
@@ -55,15 +55,16 @@ npx playwright install chromium
 ### Create user sessions
 
 ```bash
-# Create default user session
 cd ../../../run.auth/e2e
-BASE_URL=http://localhost:3002 npm test
 
-# Create owner user session (for share tests)
-TEST_USER_ROLE=owner BASE_URL=http://localhost:3002 npm test
+# Create accounta session (default)
+TEST_USER_ROLE=accounta BASE_URL=http://localhost:3002 npm test
 
-# Create viewer user session (for share tests)
-TEST_USER_ROLE=viewer BASE_URL=http://localhost:3002 npm test
+# Create accountb session (for share tests - file owner)
+TEST_USER_ROLE=accountb BASE_URL=http://localhost:3002 npm test
+
+# Create accountc session (for share tests - share recipient)
+TEST_USER_ROLE=accountc BASE_URL=http://localhost:3002 npm test
 ```
 
 ### Run tests
@@ -105,7 +106,7 @@ npm run test:debug
 
 | Test | Description |
 |------|-------------|
-| `create and access a private share` | Owner shares, viewer accesses |
+| `create and access a private share` | accountb shares, accountc accesses |
 
 ### Cloud Storage API Tests
 
@@ -120,10 +121,10 @@ npm run test:debug
 ## Session Management
 
 Tests use cookie jars from `run.auth/e2e/.auth/`:
-- `cookies-local.json` - Default user (local dev)
-- `cookies-local-owner.json` - Owner user (local dev)
-- `cookies-local-viewer.json` - Viewer user (local dev)
-- `cookies.json` - Production sessions
+- `cookies-local-accounta.json` - accounta user (local dev, default)
+- `cookies-local-accountb.json` - accountb user (local dev, file owner)
+- `cookies-local-accountc.json` - accountc user (local dev, share recipient)
+- `cookies-accounta.json` - Production sessions
 
 If tests fail with 401 errors:
 1. Check status: `./gpxe2e.sh --status`
@@ -140,7 +141,7 @@ The `samples/` directory contains GPX files for testing. These are uploaded duri
 |----------|---------|-------------|
 | `BASE_URL` | `http://localhost:3003` | GPX service URL |
 | `AUTH_URL` | `http://localhost:3002` | Auth service URL |
-| `TEST_USER_ROLE` | `default` | User role: default, owner, viewer |
+| `TEST_USER_ROLE` | `accounta` | User role: accounta, accountb, accountc |
 
 ## Cleanup
 

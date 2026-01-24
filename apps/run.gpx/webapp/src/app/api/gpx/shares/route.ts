@@ -129,20 +129,20 @@ export async function POST(request: Request) {
     }
 
     // Construct the share URL
-    // In dev: http://localhost:3003/studio/share/{token}
-    // In prod: https://gpx.defcon.run/{region}/studio/share/{token}
-    const isDev = process.env.NODE_ENV !== "production";
-    const regionShort = process.env.REGION_SHORT || "use1";
+    // Local: http://localhost:3003/studio/share/{token}
+    // Prod: https://gpx.defcon.run/{region}/studio/share/{token}
+    const configuredBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    const isProduction = configuredBaseUrl?.includes("defcon.run");
 
     let shareUrl: string;
-    if (isDev) {
-      // Development: use localhost with port from env or default
-      const devPort = process.env.PORT || "3003";
-      shareUrl = `http://localhost:${devPort}/studio/share/${shareId}`;
-    } else {
+    if (isProduction) {
       // Production: use domain with region prefix
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gpx.defcon.run";
-      shareUrl = `${baseUrl}/${regionShort}/studio/share/${shareId}`;
+      const regionShort = process.env.REGION_SHORT || "use1";
+      shareUrl = `${configuredBaseUrl}/${regionShort}/studio/share/${shareId}`;
+    } else {
+      // Local development: no region prefix, use configured URL or localhost
+      const baseUrl = configuredBaseUrl || `http://localhost:${process.env.PORT || "3003"}`;
+      shareUrl = `${baseUrl}/studio/share/${shareId}`;
     }
 
     return NextResponse.json({ shareId, shareUrl });
@@ -189,17 +189,17 @@ export async function GET(request: Request) {
       .go({ order: "desc" });
 
     // Construct share URLs for each share
-    const isDev = process.env.NODE_ENV !== "production";
+    const configuredBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+    const isProduction = configuredBaseUrl?.includes("defcon.run");
     const regionShort = process.env.REGION_SHORT || "use1";
 
     const shares = result.data.map((share) => {
       let shareUrl: string;
-      if (isDev) {
-        const devPort = process.env.PORT || "3003";
-        shareUrl = `http://localhost:${devPort}/studio/share/${share.shareId}`;
+      if (isProduction) {
+        shareUrl = `${configuredBaseUrl}/${regionShort}/studio/share/${share.shareId}`;
       } else {
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://gpx.defcon.run";
-        shareUrl = `${baseUrl}/${regionShort}/studio/share/${share.shareId}`;
+        const baseUrl = configuredBaseUrl || `http://localhost:${process.env.PORT || "3003"}`;
+        shareUrl = `${baseUrl}/studio/share/${share.shareId}`;
       }
       return { ...share, shareUrl };
     });

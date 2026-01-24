@@ -9,30 +9,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isLocal = process.env.BASE_URL?.includes('localhost') || false;
 
 // User roles for multi-user testing
-export type UserRole = 'default' | 'owner' | 'viewer';
+export type UserRole = 'accounta' | 'accountb' | 'accountc';
 
 // Cookie jar paths - separate for local vs production
 const AUTH_E2E_DIR = path.join(__dirname, '..', '..', '..', 'run.auth', 'e2e');
 
-function getAuthCookieJarPathForUser(role: UserRole = 'default'): string {
-  const suffix = role === 'default' ? '' : `-${role}`;
+function getAuthCookieJarPathForUser(role: UserRole = 'accounta'): string {
   if (isLocal) {
-    return path.join(AUTH_E2E_DIR, '.auth', `cookies-local${suffix}.json`);
+    return path.join(AUTH_E2E_DIR, '.auth', `cookies-local-${role}.json`);
   }
-  return path.join(AUTH_E2E_DIR, '.auth', `cookies${suffix}.json`);
+  return path.join(AUTH_E2E_DIR, '.auth', `cookies-${role}.json`);
 }
 
-const AUTH_COOKIE_JAR_PATH = getAuthCookieJarPathForUser('default');
+const AUTH_COOKIE_JAR_PATH = getAuthCookieJarPathForUser('accounta');
 
 // Local cookie jar for gpx-specific state
 const LOCAL_COOKIE_JAR_PATH = path.join(__dirname, '..', '.auth', 'cookies.json');
 
 // Get email for a user role
+// All roles use + addressing: jeanclaude+accounta@defcon.run, etc.
 export function getEmailForRole(role: UserRole): string {
   const baseEmail = 'jeanclaude@defcon.run';
-  if (role === 'default') {
-    return baseEmail;
-  }
   const [local, domain] = baseEmail.split('@');
   return `${local}+${role}@${domain}`;
 }

@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 const baseURL = process.env.BASE_URL || 'https://gpx.defcon.run';
+const slowMo = process.env.SLOW_MO ? parseInt(process.env.SLOW_MO, 10) : 0;
 
 export default defineConfig({
   testDir: '.',
@@ -14,6 +15,9 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'on-first-retry',
+    launchOptions: {
+      slowMo,
+    },
   },
   projects: [
     {
