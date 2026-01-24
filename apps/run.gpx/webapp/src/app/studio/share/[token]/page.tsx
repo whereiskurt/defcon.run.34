@@ -3,6 +3,11 @@
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 
+// Get basePath from environment (e.g., /use1 in production, empty in dev)
+const basePath = process.env.NEXT_PUBLIC_REGION_SHORT
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
+  : "";
+
 /**
  * Share page - redirects to GPX Studio app with share token as query param.
  * The GPX Studio app handles the share acceptance dialog.
@@ -14,7 +19,7 @@ export default function SharePage() {
   useEffect(() => {
     if (token) {
       // Redirect to GPX Studio app with share token
-      window.location.href = `/studio/app?share=${encodeURIComponent(token)}`;
+      window.location.href = `${basePath}/studio/app?share=${encodeURIComponent(token)}`;
     }
   }, [token]);
 
