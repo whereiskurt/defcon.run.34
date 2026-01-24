@@ -153,12 +153,13 @@ export default function ProfilePage() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Quota</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {/* Activity Stats */}
+                    {/* Check-ins */}
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
-                        {userData.checkInCount ?? userData.checkIns?.length ?? 0}
+                        {userData.quotas.checkin?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.checkin?.initial ?? 0}</span>
                       </p>
-                      <p className="text-xs text-default-500">Total Check-ins</p>
+                      <p className="text-xs text-default-500">Check-ins</p>
                     </div>
                     {/* Upload Quotas */}
                     <div className="text-center p-2 bg-default-100 rounded-lg">
@@ -197,13 +198,6 @@ export default function ProfilePage() {
                       <p className="text-xs text-default-500">Photo Uploads</p>
                     </div>
                     {/* Activity Quotas */}
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.checkin?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.checkin?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">Check-ins Left</p>
-                    </div>
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
                         {userData.quotas.strava_sync?.remaining ?? 0}
