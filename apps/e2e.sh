@@ -36,6 +36,9 @@ GPX_E2E_DIR="$SCRIPT_DIR/run.gpx/e2e"
 AUTH_URL="${AUTH_URL:-http://localhost:3002}"
 GPX_URL="${GPX_URL:-http://localhost:3003}"
 
+# Region (for production testing, default: use1)
+REGION_SHORT="${REGION_SHORT:-use1}"
+
 # User roles
 ROLES=("accounta" "accountb" "accountc")
 

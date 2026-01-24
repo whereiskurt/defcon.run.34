@@ -16,9 +16,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Test configuration
 const BASE_URL = process.env.BASE_URL || 'https://gpx.defcon.run';
-// Local dev has no region prefix, production uses /use1
+// Local dev has no region prefix, production uses regional path (default: use1)
 const isLocal = BASE_URL.includes('localhost');
-const REGION_PREFIX = isLocal ? '' : '/use1';
+const REGION_SHORT = process.env.REGION_SHORT || 'use1';
+const REGION_PREFIX = isLocal ? '' : `/${REGION_SHORT}`;
 const STUDIO_PATH = `${REGION_PREFIX}/studio`;
 
 // Sample files directory
@@ -948,11 +949,7 @@ test.describe('4. Multi-User Share Tests', () => {
 
     expect(shareResponse.ok()).toBe(true);
     const shareData = await shareResponse.json();
-    // Fix share URL for local dev - API may return /use1/ prefix that doesn't exist locally
-    let shareUrl = shareData.shareUrl as string;
-    if (isLocal && shareUrl.includes('/use1/')) {
-      shareUrl = shareUrl.replace('/use1/', '/');
-    }
+    const shareUrl = shareData.shareUrl as string;
     const shareId = shareData.shareId;
 
     console.log(`Private share created for ${accountcEmail}: ${shareUrl}`);

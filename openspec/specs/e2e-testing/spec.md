@@ -120,6 +120,12 @@ cd apps && ./e2e.sh
 
 # Clean up test data and sessions
 ./e2e.sh --clean
+
+# Run against production (us-east-1)
+AUTH_URL=https://auth.defcon.run BASE_URL=https://gpx.defcon.run ./e2e.sh
+
+# Run against production (ca-central-1)
+AUTH_URL=https://auth.defcon.run BASE_URL=https://gpx.defcon.run REGION_SHORT=cac1 ./e2e.sh
 ```
 
 ### Prerequisites
@@ -141,6 +147,7 @@ cd apps && ./e2e.sh
 |----------|---------|-------------|
 | `BASE_URL` | `http://localhost:3003` | GPX service URL |
 | `AUTH_URL` | `http://localhost:3002` | Auth service URL |
+| `REGION_SHORT` | `use1` | Region prefix for production (use1, cac1) |
 | `TEST_USER_ROLE` | `accounta` | User: accounta, accountb, accountc |
 | `SLOW_MO` | `0` | Milliseconds delay between actions |
 

@@ -13,9 +13,10 @@ const USER_ROLE = (process.env.TEST_USER_ROLE as UserRole) || 'accounta';
 const TEST_EMAIL = getEmailForRole(USER_ROLE);
 const INVITE_CODE = 'hacktheplanet';
 const BASE_URL = process.env.BASE_URL || 'https://auth.defcon.run';
-// Local dev has no region prefix, production uses /use1
+// Local dev has no region prefix, production uses regional path (default: use1)
 const isLocal = BASE_URL.includes('localhost');
-const REGION_PREFIX = isLocal ? '' : '/use1';
+const REGION_SHORT = process.env.REGION_SHORT || 'use1';
+const REGION_PREFIX = isLocal ? '' : `/${REGION_SHORT}`;
 
 console.log(`Test configuration: USER_ROLE=${USER_ROLE}, EMAIL=${TEST_EMAIL}`);
 
