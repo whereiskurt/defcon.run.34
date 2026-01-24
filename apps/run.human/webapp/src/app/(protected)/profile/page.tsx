@@ -2,7 +2,8 @@
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
-import { Card, CardBody, CardHeader, Avatar, Divider, Skeleton, Chip } from '@heroui/react';
+import { Card, CardBody, CardHeader, Avatar, Divider, Skeleton, Chip, Button } from '@heroui/react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import { apiUrl } from '@/lib/api';
 
@@ -23,6 +24,8 @@ interface UserData {
   quotas?: {
     file_upload?: QuotaInfo;
     gpx_upload?: QuotaInfo;
+    gpx_save?: QuotaInfo;
+    gpx_share?: QuotaInfo;
     photo_upload?: QuotaInfo;
     strava_sync?: QuotaInfo;
     checkin?: QuotaInfo;
@@ -42,6 +45,7 @@ export default function ProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -99,27 +103,50 @@ export default function ProfilePage() {
     <div className="container mx-auto py-4 space-y-4">
       {/* User Details Card */}
       <Card className="w-full">
-        <CardHeader className="flex gap-3">
-          <Avatar
-            src={session.user?.image || undefined}
-            size="lg"
-            isBordered
-            color="primary"
-          />
-          <div className="flex flex-col">
-            <p className="text-lg font-semibold">{displayName}</p>
-            <p className="text-small text-default-500">{session.user?.email}</p>
-            {userData?.mqttUsername && (
-              <p className="text-xs text-default-400">MQTT: {userData.mqttUsername}</p>
-            )}
+        <CardHeader className="flex justify-between items-center pb-2">
+          <div className="flex items-center gap-3">
+            <Avatar
+              src={session.user?.image || undefined}
+              size="lg"
+              isBordered
+              color="primary"
+            />
+            <div className="flex flex-col">
+              <p className="text-lg font-semibold">{displayName}</p>
+              <p className="text-small text-default-500">{session.user?.email}</p>
+              {userData?.mqttUsername && (
+                <p className="text-xs text-default-400">MQTT: {userData.mqttUsername}</p>
+              )}
+            </div>
           </div>
+          <Button
+            isIconOnly
+            variant="light"
+            size="sm"
+            onPress={() => setDetailsExpanded(!detailsExpanded)}
+          >
+            {detailsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
         </CardHeader>
         <Divider />
-        <CardBody>
-          <div className="flex flex-col gap-4">
-            {/* Linked Services */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Linked Services</h3>
+        {detailsExpanded && (
+          <CardBody>
+            <div className="flex flex-col gap-4">
+              {/* Session Info */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Session Info</h3>
+                <div className="text-sm text-default-500 space-y-1">
+                  <p>User ID: <span className="font-mono text-xs">{session.user?.id || 'N/A'}</span></p>
+                  <p>Session Version: {session.user?.sessionVersion || 'N/A'}</p>
+                  <p>Check-in Preference: {userData?.checkin_preference || userData?.preferences?.checkinPreference || 'public'}</p>
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* Linked Services */}
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Linked Services</h3>
               <div className="flex flex-wrap gap-2">
                 {session.user?.linkedProviders?.length > 0 ? (
                   session.user.linkedProviders.map((provider: string) => (
@@ -151,12 +178,13 @@ export default function ProfilePage() {
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Quota</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {/* Activity Stats */}
+                    {/* Check-ins */}
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
-                        {userData.checkInCount ?? userData.checkIns?.length ?? 0}
+                        {userData.quotas.checkin?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.checkin?.initial ?? 0}</span>
                       </p>
-                      <p className="text-xs text-default-500">Total Check-ins</p>
+                      <p className="text-xs text-default-500">Check-ins</p>
                     </div>
                     {/* Upload Quotas */}
                     <div className="text-center p-2 bg-default-100 rounded-lg">
@@ -175,19 +203,26 @@ export default function ProfilePage() {
                     </div>
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.gpx_save?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.gpx_save?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">GPX Saves</p>
+                    </div>
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas.gpx_share?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas.gpx_share?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">GPX Shares</p>
+                    </div>
+                    <div className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
                         {userData.quotas.photo_upload?.remaining ?? 0}
                         <span className="text-sm text-default-400">/{userData.quotas.photo_upload?.initial ?? 0}</span>
                       </p>
                       <p className="text-xs text-default-500">Photo Uploads</p>
                     </div>
                     {/* Activity Quotas */}
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.checkin?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.checkin?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">Check-ins Left</p>
-                    </div>
                     <div className="text-center p-2 bg-default-100 rounded-lg">
                       <p className="text-2xl font-bold text-primary">
                         {userData.quotas.strava_sync?.remaining ?? 0}
@@ -225,21 +260,11 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </div>
-                <Divider />
               </>
             )}
-
-            {/* Session Info */}
-            <div>
-              <h3 className="text-lg font-semibold mb-2">Session Info</h3>
-              <div className="text-sm text-default-500 space-y-1">
-                <p>User ID: <span className="font-mono text-xs">{session.user?.id || 'N/A'}</span></p>
-                <p>Session Version: {session.user?.sessionVersion || 'N/A'}</p>
-                <p>Check-in Preference: {userData?.checkin_preference || userData?.preferences?.checkinPreference || 'public'}</p>
-              </div>
-            </div>
           </div>
         </CardBody>
+        )}
       </Card>
 
       {/* Meshtastic Radios */}

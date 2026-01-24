@@ -3,7 +3,7 @@ name: merged-playbook
 description: Auto-generated from cass-memory reflections
 metadata:
   createdAt: 2026-01-13T05:38:45.319Z
-  lastReflection: 2026-01-24T01:34:05.803Z
+  lastReflection: 2026-01-24T07:21:55.556Z
   totalReflections: 0
   totalSessionsProcessed: 0
 deprecatedPatterns: []
@@ -72,7 +72,7 @@ bullets:
     kind: stack_pattern
     state: draft
     maturity: candidate
-    helpfulCount: 1
+    helpfulCount: 2
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -82,9 +82,16 @@ bullets:
           /infra/terraform/live/ for environment-specific configs and
           /infra/terraform/modules/ for reusable modules, exactly matching this
           pattern
+      - type: helpful
+        timestamp: 2026-01-24T07:21:55.555Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-aaa4e2e.jsonl
+        context: Found expected Terragrunt structure with /infra/terraform/modules/ for
+          reusable email module and live configurations, confirming deployment
+          structure pattern
+    lastValidatedAt: 2026-01-24T07:21:55.555Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.648Z
-    updatedAt: 2026-01-24T01:34:05.802Z
+    updatedAt: 2026-01-24T07:21:55.555Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -92,7 +99,6 @@ bullets:
     reasoning: Session revealed a clear Terragrunt organizational pattern that would
       help agents quickly understand infrastructure layout in similar projects
     tags: []
-    lastValidatedAt: 2026-01-24T01:34:05.802Z
   - id: b-mkc6x1tk-znun2c
     scope: task
     category: codebase_exploration
@@ -2867,7 +2873,7 @@ bullets:
     kind: workflow_rule
     state: draft
     maturity: proven
-    helpfulCount: 13
+    helpfulCount: 15
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -2938,10 +2944,20 @@ bullets:
         sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/44e6cf1c-5de6-4599-88b3-57dc8864e344/subagents/agent-a471bc3.jsonl
         context: Started session with warmup message to establish read-only exploration
           context before diving into profile page analysis
-    lastValidatedAt: 2026-01-24T01:34:05.802Z
+      - type: helpful
+        timestamp: 2026-01-24T07:21:55.555Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-ab307dc.jsonl
+        context: The warmup approach helped establish the debugging context and
+          available tools before diving into the authentication issue analysis
+      - type: helpful
+        timestamp: 2026-01-24T07:21:55.555Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-aaa4e2e.jsonl
+        context: Session started with systematic exploration approach after establishing
+          read-only mode, which enabled efficient infrastructure analysis
+    lastValidatedAt: 2026-01-24T07:21:55.555Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.683Z
-    updatedAt: 2026-01-24T01:34:05.802Z
+    updatedAt: 2026-01-24T07:21:55.555Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -3089,8 +3105,8 @@ bullets:
     isNegative: false
     kind: workflow_rule
     state: draft
-    maturity: established
-    helpfulCount: 10
+    maturity: proven
+    helpfulCount: 12
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -3146,10 +3162,21 @@ bullets:
         sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/44e6cf1c-5de6-4599-88b3-57dc8864e344/subagents/agent-a471bc3.jsonl
         context: Confirmed READ-ONLY mode access at start of session to prevent
           accidental modifications during profile system analysis
-    lastValidatedAt: 2026-01-24T01:34:05.802Z
+      - type: helpful
+        timestamp: 2026-01-24T07:21:55.555Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-ab307dc.jsonl
+        context: READ-ONLY mode was important for safely exploring the authentication
+          codebase without accidentally modifying user profiles or
+          authentication configurations
+      - type: helpful
+        timestamp: 2026-01-24T07:21:55.555Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-aaa4e2e.jsonl
+        context: Confirmed READ-ONLY mode at session start before exploring email
+          infrastructure, preventing accidental modifications during analysis
+    lastValidatedAt: 2026-01-24T07:21:55.555Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.685Z
-    updatedAt: 2026-01-24T01:34:05.802Z
+    updatedAt: 2026-01-24T07:21:55.555Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -7465,7 +7492,7 @@ bullets:
     kind: workflow_rule
     state: draft
     maturity: established
-    helpfulCount: 9
+    helpfulCount: 10
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -7516,10 +7543,16 @@ bullets:
         context: Event-specific naming patterns (defcon.run.34) helped understand
           project structure and temporal constraints for infrastructure
           deployment
-    lastValidatedAt: 2026-01-24T01:34:05.802Z
+      - type: helpful
+        timestamp: 2026-01-24T07:21:55.555Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-aaa4e2e.jsonl
+        context: Event-specific naming patterns (dc34 for DEF CON 34) found in S3 bucket
+          names and site configuration, confirming temporal naming pattern
+          expectation
+    lastValidatedAt: 2026-01-24T07:21:55.555Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T17:45:39.467Z
-    updatedAt: 2026-01-24T01:34:05.802Z
+    updatedAt: 2026-01-24T07:21:55.555Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -10412,6 +10445,7 @@ bullets:
         context: Session analyzed event-driven project (defcon.run.34) with AWS
           multi-region deployment using Terraform/Terragrunt infrastructure
           management, confirming this pattern
+    lastValidatedAt: 2026-01-24T01:34:05.802Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-21T01:59:22.004Z
     updatedAt: 2026-01-24T01:34:05.802Z
@@ -10422,7 +10456,6 @@ bullets:
     reasoning: While existing bullets mention Terragrunt patterns, they don't
       specifically address event-driven multi-region deployment patterns
     tags: []
-    lastValidatedAt: 2026-01-24T01:34:05.802Z
   - id: b-mkndkbkm-p8oa54
     scope: global
     category: development_methodology
