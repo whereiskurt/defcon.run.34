@@ -1,39 +1,74 @@
 name: E2E Tests
 
 on:
-  pull_request:
-    paths:
-      - 'apps/run.auth/**'
-      - 'apps/run.gpx/**'
-      - 'apps/e2e.sh'
-      - '.github/workflows/e2e-tests.yml'
-  push:
-    branches: [main]
-    paths:
-      - 'apps/run.auth/**'
-      - 'apps/run.gpx/**'
-      - 'apps/e2e.sh'
   workflow_dispatch:
     inputs:
       headed:
-        description: 'Run with visible browser (for debugging)'
+        description: 'Run with visible browser (for debugging via VNC)'
         type: boolean
         default: false
 
 env:
-  AUTH_URL: http://localhost:3002
-  GPX_URL: http://localhost:3003
+  AWS_REGION: us-east-1
   NODE_VERSION: '22'
 
 jobs:
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest
+    environment: e2e-tests
     timeout-minutes: 30
+
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-e2e
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Fetch configuration from SSM
+        id: config
+        run: |
+          # Fetch e2e configuration from SSM Parameter Store
+          echo "Fetching e2e configuration from SSM..."
+
+          # Auth service config
+          NEXTAUTH_SECRET=$(aws ssm get-parameter --name "/defcon-run/e2e/nextauth-secret" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          AUTH_INTERNAL_SECRET=$(aws ssm get-parameter --name "/defcon-run/e2e/auth-internal-secret" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+
+          # S3 config
+          S3_BUCKET=$(aws ssm get-parameter --name "/defcon-run/e2e/s3-bucket" --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          S3_EMAIL_BUCKET=$(aws ssm get-parameter --name "/defcon-run/e2e/s3-email-bucket" --query "Parameter.Value" --output text 2>/dev/null || echo "")
+
+          # DynamoDB config
+          DYNAMODB_TABLE_PREFIX=$(aws ssm get-parameter --name "/defcon-run/e2e/dynamodb-table-prefix" --query "Parameter.Value" --output text 2>/dev/null || echo "e2e-")
+
+          # Email config (optional)
+          EMAIL_SERVER=$(aws ssm get-parameter --name "/defcon-run/e2e/email-server" --with-decryption --query "Parameter.Value" --output text 2>/dev/null || echo "")
+          EMAIL_FROM=$(aws ssm get-parameter --name "/defcon-run/e2e/email-from" --query "Parameter.Value" --output text 2>/dev/null || echo "noreply@defcon.run")
+
+          # Export to environment (mask secrets)
+          echo "::add-mask::$NEXTAUTH_SECRET"
+          echo "::add-mask::$AUTH_INTERNAL_SECRET"
+          echo "::add-mask::$EMAIL_SERVER"
+
+          # Write to outputs
+          echo "nextauth_secret=$NEXTAUTH_SECRET" >> $GITHUB_OUTPUT
+          echo "auth_internal_secret=$AUTH_INTERNAL_SECRET" >> $GITHUB_OUTPUT
+          echo "s3_bucket=$S3_BUCKET" >> $GITHUB_OUTPUT
+          echo "s3_email_bucket=$S3_EMAIL_BUCKET" >> $GITHUB_OUTPUT
+          echo "dynamodb_table_prefix=$DYNAMODB_TABLE_PREFIX" >> $GITHUB_OUTPUT
+          echo "email_server=$EMAIL_SERVER" >> $GITHUB_OUTPUT
+          echo "email_from=$EMAIL_FROM" >> $GITHUB_OUTPUT
+
+          echo "Configuration loaded from SSM"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -46,30 +81,20 @@ jobs:
             apps/run.auth/e2e/package-lock.json
             apps/run.gpx/e2e/package-lock.json
 
-      # Install webapp dependencies
-      - name: Install Auth webapp dependencies
-        working-directory: apps/run.auth/webapp
-        run: npm ci
+      # Install dependencies in parallel
+      - name: Install dependencies
+        run: |
+          cd apps/run.auth/webapp && npm ci &
+          cd apps/run.gpx/webapp && npm ci &
+          cd apps/run.auth/e2e && npm ci &
+          cd apps/run.gpx/e2e && npm ci &
+          wait
+          echo "All dependencies installed"
 
-      - name: Install GPX webapp dependencies
-        working-directory: apps/run.gpx/webapp
-        run: npm ci
-
-      # Install e2e test dependencies
-      - name: Install Auth e2e dependencies
-        working-directory: apps/run.auth/e2e
-        run: npm ci
-
-      - name: Install GPX e2e dependencies
-        working-directory: apps/run.gpx/e2e
-        run: npm ci
-
-      # Install Playwright browsers
       - name: Install Playwright Browsers
         working-directory: apps/run.auth/e2e
         run: npx playwright install chromium --with-deps
 
-      # Build GPX Studio frontend (required for GPX service)
       - name: Build GPX Studio frontend
         working-directory: apps/run.gpx
         run: |
@@ -77,97 +102,77 @@ jobs:
             ./build-frontend.sh
           fi
 
-      # Start Auth service in background
+      # Start services
       - name: Start Auth Service
         working-directory: apps/run.auth/webapp
         env:
           PORT: 3002
           NODE_ENV: development
-          # Auth service secrets
-          NEXTAUTH_SECRET: ${{ secrets.E2E_NEXTAUTH_SECRET || 'e2e-test-secret-not-for-production' }}
+          NEXTAUTH_SECRET: ${{ steps.config.outputs.nextauth_secret }}
           NEXTAUTH_URL: http://localhost:3002
-          # DynamoDB config (use local or real)
-          AWS_REGION: us-east-1
-          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
-          DYNAMODB_TABLE_PREFIX: ${{ secrets.E2E_DYNAMODB_TABLE_PREFIX || 'e2e-' }}
-          # Email config
-          EMAIL_SERVER: ${{ secrets.E2E_EMAIL_SERVER }}
-          EMAIL_FROM: ${{ secrets.E2E_EMAIL_FROM || 'noreply@defcon.run' }}
+          DYNAMODB_TABLE_PREFIX: ${{ steps.config.outputs.dynamodb_table_prefix }}
+          EMAIL_SERVER: ${{ steps.config.outputs.email_server }}
+          EMAIL_FROM: ${{ steps.config.outputs.email_from }}
         run: |
-          npm run dev &
-          echo "Auth service starting on port 3002..."
+          npm run dev > /tmp/auth-service.log 2>&1 &
+          echo $! > /tmp/auth-service.pid
+          echo "Auth service starting (PID: $(cat /tmp/auth-service.pid))..."
 
-      # Start GPX service in background
       - name: Start GPX Service
         working-directory: apps/run.gpx/webapp
         env:
           PORT: 3003
           NODE_ENV: development
-          # GPX service secrets
-          NEXTAUTH_SECRET: ${{ secrets.E2E_NEXTAUTH_SECRET || 'e2e-test-secret-not-for-production' }}
+          NEXTAUTH_SECRET: ${{ steps.config.outputs.nextauth_secret }}
           NEXTAUTH_URL: http://localhost:3003
-          # S3 config for file storage
-          AWS_REGION: us-east-1
-          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
-          S3_BUCKET: ${{ secrets.E2E_S3_BUCKET }}
-          # Auth service URL
-          AUTH_INTERNAL_SECRET: ${{ secrets.E2E_AUTH_INTERNAL_SECRET }}
+          S3_BUCKET: ${{ steps.config.outputs.s3_bucket }}
+          AUTH_INTERNAL_SECRET: ${{ steps.config.outputs.auth_internal_secret }}
         run: |
-          npm run dev &
-          echo "GPX service starting on port 3003..."
+          npm run dev > /tmp/gpx-service.log 2>&1 &
+          echo $! > /tmp/gpx-service.pid
+          echo "GPX service starting (PID: $(cat /tmp/gpx-service.pid))..."
 
-      # Wait for services to be healthy
       - name: Wait for services
         run: |
           echo "Waiting for Auth service..."
-          timeout 120 bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:3002 | grep -qE "^(200|301|302|307|308)$"; do sleep 2; done'
-          echo "Auth service is up!"
+          timeout 120 bash -c 'until curl -sf http://localhost:3002 > /dev/null 2>&1; do sleep 2; done' || {
+            echo "Auth service failed to start. Logs:"
+            cat /tmp/auth-service.log
+            exit 1
+          }
+          echo "✓ Auth service is up"
 
           echo "Waiting for GPX service..."
-          timeout 120 bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:3003 | grep -qE "^(200|301|302|307|308)$"; do sleep 2; done'
-          echo "GPX service is up!"
+          timeout 120 bash -c 'until curl -sf http://localhost:3003 > /dev/null 2>&1; do sleep 2; done' || {
+            echo "GPX service failed to start. Logs:"
+            cat /tmp/gpx-service.log
+            exit 1
+          }
+          echo "✓ GPX service is up"
 
-      # Run E2E tests
       - name: Run E2E Tests
         working-directory: apps
         env:
           AUTH_URL: http://localhost:3002
           GPX_URL: http://localhost:3003
-          AWS_REGION: us-east-1
-          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
-          E2E_S3_EMAIL_BUCKET: ${{ secrets.E2E_S3_EMAIL_BUCKET }}
-        run: |
-          if [ "${{ github.event.inputs.headed }}" = "true" ]; then
-            ./e2e.sh --headed
-          else
-            ./e2e.sh
-          fi
+          E2E_S3_EMAIL_BUCKET: ${{ steps.config.outputs.s3_email_bucket }}
+        run: ./e2e.sh
 
-      # Upload test results on failure
-      - name: Upload Auth test results
+      # Artifacts
+      - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: auth-e2e-results
+          name: e2e-test-results
           path: |
             apps/run.auth/e2e/test-results/
             apps/run.auth/e2e/playwright-report/
-          retention-days: 7
-
-      - name: Upload GPX test results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gpx-e2e-results
-          path: |
             apps/run.gpx/e2e/test-results/
             apps/run.gpx/e2e/playwright-report/
+            /tmp/auth-service.log
+            /tmp/gpx-service.log
           retention-days: 7
 
-      # Always upload screenshots (useful for visual verification)
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -177,21 +182,14 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-      # Generate summary
       - name: Generate Summary
         if: always()
         run: |
           echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          if [ -f "apps/run.gpx/e2e/test-results/multi-file-all-loaded.png" ]; then
-            echo "### Screenshots Generated" >> $GITHUB_STEP_SUMMARY
-            echo "Screenshots are available in the artifacts." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          echo "### Services Tested" >> $GITHUB_STEP_SUMMARY
-          echo "- Auth Service: $AUTH_URL" >> $GITHUB_STEP_SUMMARY
-          echo "- GPX Service: $GPX_URL" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- S3 Bucket: \`${{ steps.config.outputs.s3_bucket }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- DynamoDB Prefix: \`${{ steps.config.outputs.dynamodb_table_prefix }}\`" >> $GITHUB_STEP_SUMMARY

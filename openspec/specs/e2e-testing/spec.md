@@ -256,38 +256,72 @@ const diversePatterns = ['NYC', 'Japan', 'lvcc', 'Guelph', 'bigstar'];
 
 The e2e tests can run in GitHub Actions via `.github/workflows/e2e-tests.yml`.
 
-### Triggers
+### Trigger
 
-- **Pull requests** - When auth or gpx code changes
-- **Push to main** - After merges
-- **Manual** - Via workflow_dispatch (with optional headed mode)
+**Manual only** - Via workflow_dispatch in GitHub Actions UI. This prevents accidental runs and allows control over when e2e tests consume AWS resources.
 
-### Required Secrets
+### Prerequisites
 
-Configure these in GitHub repository settings:
+#### 1. GitHub Environment
 
-| Secret | Description |
-|--------|-------------|
-| `E2E_AWS_ACCESS_KEY_ID` | AWS access key for S3/DynamoDB |
-| `E2E_AWS_SECRET_ACCESS_KEY` | AWS secret key |
-| `E2E_S3_BUCKET` | S3 bucket for GPX file storage |
-| `E2E_S3_EMAIL_BUCKET` | S3 bucket where SES stores emails |
-| `E2E_DYNAMODB_TABLE_PREFIX` | DynamoDB table prefix (e.g., `e2e-`) |
-| `E2E_NEXTAUTH_SECRET` | NextAuth.js secret |
-| `E2E_AUTH_INTERNAL_SECRET` | Internal service-to-service auth |
-| `E2E_EMAIL_SERVER` | SMTP connection string |
-| `E2E_EMAIL_FROM` | Email sender address |
+Create a GitHub environment named `e2e-tests` with:
+- Variable: `AWS_ACCOUNT_ID` - Your AWS account ID
+
+#### 2. IAM Role
+
+Create an IAM role `dc34-github-e2e` with:
+- Trust policy for GitHub OIDC provider
+- Permissions for SSM, S3, DynamoDB, SES
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["ssm:GetParameter"],
+      "Resource": "arn:aws:ssm:*:*:parameter/defcon-run/e2e/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:ListBucket"],
+      "Resource": ["arn:aws:s3:::your-e2e-bucket", "arn:aws:s3:::your-e2e-bucket/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["dynamodb:*"],
+      "Resource": "arn:aws:dynamodb:*:*:table/e2e-*"
+    }
+  ]
+}
+```
+
+#### 3. SSM Parameters
+
+Create these SSM parameters under `/defcon-run/e2e/`:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `/defcon-run/e2e/nextauth-secret` | SecureString | NextAuth.js secret |
+| `/defcon-run/e2e/auth-internal-secret` | SecureString | Service-to-service auth |
+| `/defcon-run/e2e/s3-bucket` | String | GPX file storage bucket |
+| `/defcon-run/e2e/s3-email-bucket` | String | SES email storage bucket |
+| `/defcon-run/e2e/dynamodb-table-prefix` | String | Table prefix (e.g., `e2e-`) |
+| `/defcon-run/e2e/email-server` | SecureString | SMTP connection string |
+| `/defcon-run/e2e/email-from` | String | Sender address |
 
 ### CI Workflow Steps
 
-1. Install webapp and e2e dependencies
-2. Install Playwright browsers
-3. Build GPX Studio frontend
-4. Start Auth service on port 3002
-5. Start GPX service on port 3003
-6. Wait for services to be healthy
-7. Run full e2e test suite
-8. Upload test results and screenshots as artifacts
+1. Authenticate via AWS OIDC
+2. Fetch configuration from SSM Parameter Store
+3. Install webapp and e2e dependencies (in parallel)
+4. Install Playwright browsers
+5. Build GPX Studio frontend
+6. Start Auth service on port 3002
+7. Start GPX service on port 3003
+8. Wait for services to be healthy
+9. Run full e2e test suite
+10. Upload test results and screenshots as artifacts
 
 ### Artifacts
 
@@ -296,8 +330,7 @@ On test completion, these artifacts are uploaded:
 | Artifact | Contents | Retention |
 |----------|----------|-----------|
 | `e2e-screenshots` | Map screenshots (always) | 14 days |
-| `auth-e2e-results` | Auth test results (on failure) | 7 days |
-| `gpx-e2e-results` | GPX test results (on failure) | 7 days |
+| `e2e-test-results` | Test results + service logs (on failure) | 7 days |
 
 ## Troubleshooting
 
