@@ -1,0 +1,109 @@
+name: E2E Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        type: choice
+        options:
+          - production
+        default: production
+
+env:
+  AWS_REGION: us-east-1
+  NODE_VERSION: '22'
+  AUTH_URL: https://auth.defcon.run
+  GPX_URL: https://gpx.defcon.run
+
+jobs:
+  e2e:
+    name: E2E Tests (Production)
+    runs-on: ubuntu-latest
+    environment: e2e-tests
+    timeout-minutes: 20
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-e2e
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/run.auth/e2e/package-lock.json
+            apps/run.gpx/e2e/package-lock.json
+
+      - name: Install e2e dependencies
+        run: |
+          cd apps/run.auth/e2e && npm ci &
+          cd apps/run.gpx/e2e && npm ci &
+          wait
+
+      - name: Install Playwright Browsers
+        working-directory: apps/run.auth/e2e
+        run: npx playwright install chromium --with-deps
+
+      - name: Verify services are reachable
+        run: |
+          echo "Checking Auth service..."
+          curl -sf "$AUTH_URL" > /dev/null || { echo "❌ Auth service not reachable at $AUTH_URL"; exit 1; }
+          echo "✓ Auth service is up at $AUTH_URL"
+
+          echo "Checking GPX service..."
+          curl -sf "$GPX_URL" > /dev/null || { echo "❌ GPX service not reachable at $GPX_URL"; exit 1; }
+          echo "✓ GPX service is up at $GPX_URL"
+
+      - name: Run E2E Tests
+        working-directory: apps
+        env:
+          AUTH_URL: ${{ env.AUTH_URL }}
+          BASE_URL: ${{ env.GPX_URL }}
+          GPX_URL: ${{ env.GPX_URL }}
+        run: ./e2e.sh
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: |
+            apps/run.auth/e2e/test-results/
+            apps/run.auth/e2e/playwright-report/
+            apps/run.gpx/e2e/test-results/
+            apps/run.gpx/e2e/playwright-report/
+          retention-days: 7
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: apps/run.gpx/e2e/test-results/*.png
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+          echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Services Tested" >> $GITHUB_STEP_SUMMARY
+          echo "- Auth: $AUTH_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- GPX: $GPX_URL" >> $GITHUB_STEP_SUMMARY

@@ -4,7 +4,23 @@ import { fileURLToPath } from 'url';
 import type { BrowserContext, Cookie } from '@playwright/test';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const COOKIE_JAR_PATH = path.join(__dirname, '..', '.auth', 'cookies.json');
+
+// Determine environment - local vs production
+const isLocal = process.env.BASE_URL?.includes('localhost') || false;
+
+// User roles for multi-user testing
+export type UserRole = 'accounta' | 'accountb' | 'accountc';
+
+// Get cookie jar path for a specific user role
+export function getCookieJarPathForUser(role: UserRole = 'accounta'): string {
+  if (isLocal) {
+    return path.join(__dirname, '..', '.auth', `cookies-local-${role}.json`);
+  }
+  return path.join(__dirname, '..', '.auth', `cookies-${role}.json`);
+}
+
+// Default cookie jar path (accounta is the default)
+const COOKIE_JAR_PATH = getCookieJarPathForUser('accounta');
 
 interface CookieJar {
   cookies: Cookie[];
@@ -84,4 +100,79 @@ export function clearCookieJar(): void {
 
 export function getCookieJarPath(): string {
   return COOKIE_JAR_PATH;
+}
+
+// Multi-user support functions
+
+export async function saveCookiesForUser(context: BrowserContext, role: UserRole): Promise<void> {
+  const cookies = await context.cookies();
+  const cookiePath = getCookieJarPathForUser(role);
+
+  const sessionCookie = cookies.find(c => c.name === 'sess_auth');
+  const expiresAt = sessionCookie?.expires
+    ? new Date(sessionCookie.expires * 1000).toISOString()
+    : new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString();
+
+  const jar: CookieJar = {
+    cookies,
+    savedAt: new Date().toISOString(),
+    expiresAt,
+  };
+
+  const dir = path.dirname(cookiePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  fs.writeFileSync(cookiePath, JSON.stringify(jar, null, 2));
+  console.log(`Cookies saved for ${role} to ${cookiePath}`);
+}
+
+export async function loadCookiesForUser(context: BrowserContext, role: UserRole): Promise<boolean> {
+  const cookiePath = getCookieJarPathForUser(role);
+
+  if (!fs.existsSync(cookiePath)) {
+    console.log(`No cookie jar found for ${role} at ${cookiePath}`);
+    return false;
+  }
+
+  try {
+    const jar: CookieJar = JSON.parse(fs.readFileSync(cookiePath, 'utf-8'));
+
+    if (new Date(jar.expiresAt) < new Date()) {
+      console.log(`Cookie jar for ${role} expired, removing`);
+      fs.unlinkSync(cookiePath);
+      return false;
+    }
+
+    await context.addCookies(jar.cookies);
+    console.log(`Cookies loaded for ${role} from ${cookiePath}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to load cookies for ${role}:`, error);
+    return false;
+  }
+}
+
+export function hasCookieJarForUser(role: UserRole): boolean {
+  const cookiePath = getCookieJarPathForUser(role);
+
+  if (!fs.existsSync(cookiePath)) {
+    return false;
+  }
+
+  try {
+    const jar: CookieJar = JSON.parse(fs.readFileSync(cookiePath, 'utf-8'));
+    return new Date(jar.expiresAt) > new Date();
+  } catch {
+    return false;
+  }
+}
+
+// Get email for a user role
+// All roles use + addressing: jeanclaude+accounta@defcon.run, etc.
+export function getEmailForRole(role: UserRole): string {
+  const baseEmail = 'jeanclaude@defcon.run';
+  const [local, domain] = baseEmail.split('@');
+  return `${local}+${role}@${domain}`;
 }

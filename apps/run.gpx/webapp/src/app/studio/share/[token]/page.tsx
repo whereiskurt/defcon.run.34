@@ -3,8 +3,10 @@
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 
-// Get basePath from environment (e.g., /use1 in production, empty in dev)
-const basePath = process.env.NEXT_PUBLIC_REGION_SHORT
+// Get basePath from environment - only add region prefix in production
+// Check if NEXT_PUBLIC_BASE_URL is set and contains defcon.run
+const isProduction = process.env.NEXT_PUBLIC_BASE_URL?.includes("defcon.run");
+const basePath = isProduction && process.env.NEXT_PUBLIC_REGION_SHORT
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
   : "";
 

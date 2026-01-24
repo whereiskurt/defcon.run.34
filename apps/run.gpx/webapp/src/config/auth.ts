@@ -19,7 +19,7 @@ const redirectProxyUrl = isDev
   : `https://gpx.defcon.run/${region}/api/auth`;
 
 export const authConfig: NextAuthConfig = {
-  debug: isDev,
+  debug: false, // Disable verbose Auth.js debug logging (CREATE_STATE, authorization url, etc.)
   trustHost: true,
 
   // Suppress env-url-basepath-mismatch warning - expected in our setup
@@ -32,7 +32,7 @@ export const authConfig: NextAuthConfig = {
       if (code === "env-url-basepath-mismatch") return;
       console.warn(code, ...message);
     },
-    debug: (code, ...message) => isDev && console.debug(code, ...message),
+    // Debug logging disabled - too noisy for normal development
   },
 
   // basePath is for internal routing AFTER Next.js strips its basePath (/use1)

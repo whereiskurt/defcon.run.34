@@ -547,6 +547,37 @@ locals {
           "arn:aws:iam::aws:policy/ReadOnlyAccess",
           "arn:aws:iam::aws:policy/SecurityAudit"
         ]
+      },
+
+      # E2E testing role - for running Playwright tests against production
+      {
+        name                    = "e2e"
+        description             = "E2E tests against production (S3 email access)"
+        environment_restriction = "e2e-tests" # Only e2e-tests environment can assume
+        max_session_duration    = 3600
+
+        inline_policies = [
+          {
+            name = "s3-email-read"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "S3EmailRead"
+                  Effect = "Allow"
+                  Action = [
+                    "s3:GetObject",
+                    "s3:ListBucket"
+                  ]
+                  Resource = [
+                    "arn:aws:s3:::dc34-email-*",
+                    "arn:aws:s3:::dc34-email-*/*"
+                  ]
+                }
+              ]
+            })
+          }
+        ]
       }
     ]
   }
