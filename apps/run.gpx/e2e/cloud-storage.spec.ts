@@ -241,17 +241,17 @@ test.describe('1. Auth Smoke Test', () => {
     const currentUrl = page.url();
     console.log(`Current URL: ${currentUrl}`);
 
-    // If we're on GPX signin page, click the "Sign in with DEF CON" button
+    // If we're on GPX signin page, trigger the OIDC flow
     if (currentUrl.includes('/api/auth/signin')) {
-      console.log('On GPX signin page - clicking DEF CON provider...');
+      console.log('On GPX signin page - triggering OIDC flow...');
 
-      const defconButton = page.locator('button:has-text("Sign in with DEF CON")');
-      if (await defconButton.isVisible({ timeout: 3000 }).catch(() => false)) {
-        console.log('Clicking "Sign in with DEF CON" button...');
-        await defconButton.click();
-        await page.waitForLoadState('networkidle', { timeout: 10000 });
-        console.log(`After click URL: ${page.url()}`);
-      }
+      // In production, Auth.js generates form action URLs without region prefix
+      // So we navigate directly to the signin URL with provider instead of clicking the button
+      const signinWithProviderUrl = `${BASE_URL}${REGION_PREFIX}/api/auth/signin/run.defcon.run`;
+      console.log(`Navigating directly to: ${signinWithProviderUrl}`);
+      await page.goto(signinWithProviderUrl);
+      await page.waitForLoadState('networkidle', { timeout: 10000 });
+      console.log(`After navigation URL: ${page.url()}`);
     }
 
     // If we're on auth service, it should auto-redirect with valid session
