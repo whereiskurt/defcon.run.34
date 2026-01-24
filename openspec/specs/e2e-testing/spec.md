@@ -252,6 +252,53 @@ const diversePatterns = ['NYC', 'Japan', 'lvcc', 'Guelph', 'bigstar'];
 // Search file names for these patterns to ensure map shows different locations
 ```
 
+## GitHub Actions CI
+
+The e2e tests can run in GitHub Actions via `.github/workflows/e2e-tests.yml`.
+
+### Triggers
+
+- **Pull requests** - When auth or gpx code changes
+- **Push to main** - After merges
+- **Manual** - Via workflow_dispatch (with optional headed mode)
+
+### Required Secrets
+
+Configure these in GitHub repository settings:
+
+| Secret | Description |
+|--------|-------------|
+| `E2E_AWS_ACCESS_KEY_ID` | AWS access key for S3/DynamoDB |
+| `E2E_AWS_SECRET_ACCESS_KEY` | AWS secret key |
+| `E2E_S3_BUCKET` | S3 bucket for GPX file storage |
+| `E2E_S3_EMAIL_BUCKET` | S3 bucket where SES stores emails |
+| `E2E_DYNAMODB_TABLE_PREFIX` | DynamoDB table prefix (e.g., `e2e-`) |
+| `E2E_NEXTAUTH_SECRET` | NextAuth.js secret |
+| `E2E_AUTH_INTERNAL_SECRET` | Internal service-to-service auth |
+| `E2E_EMAIL_SERVER` | SMTP connection string |
+| `E2E_EMAIL_FROM` | Email sender address |
+
+### CI Workflow Steps
+
+1. Install webapp and e2e dependencies
+2. Install Playwright browsers
+3. Build GPX Studio frontend
+4. Start Auth service on port 3002
+5. Start GPX service on port 3003
+6. Wait for services to be healthy
+7. Run full e2e test suite
+8. Upload test results and screenshots as artifacts
+
+### Artifacts
+
+On test completion, these artifacts are uploaded:
+
+| Artifact | Contents | Retention |
+|----------|----------|-----------|
+| `e2e-screenshots` | Map screenshots (always) | 14 days |
+| `auth-e2e-results` | Auth test results (on failure) | 7 days |
+| `gpx-e2e-results` | GPX test results (on failure) | 7 days |
+
 ## Troubleshooting
 
 ### 401 Errors

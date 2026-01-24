@@ -1,0 +1,197 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - 'apps/run.auth/**'
+      - 'apps/run.gpx/**'
+      - 'apps/e2e.sh'
+      - '.github/workflows/e2e-tests.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/run.auth/**'
+      - 'apps/run.gpx/**'
+      - 'apps/e2e.sh'
+  workflow_dispatch:
+    inputs:
+      headed:
+        description: 'Run with visible browser (for debugging)'
+        type: boolean
+        default: false
+
+env:
+  AUTH_URL: http://localhost:3002
+  GPX_URL: http://localhost:3003
+  NODE_VERSION: '22'
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            apps/run.auth/webapp/package-lock.json
+            apps/run.gpx/webapp/package-lock.json
+            apps/run.auth/e2e/package-lock.json
+            apps/run.gpx/e2e/package-lock.json
+
+      # Install webapp dependencies
+      - name: Install Auth webapp dependencies
+        working-directory: apps/run.auth/webapp
+        run: npm ci
+
+      - name: Install GPX webapp dependencies
+        working-directory: apps/run.gpx/webapp
+        run: npm ci
+
+      # Install e2e test dependencies
+      - name: Install Auth e2e dependencies
+        working-directory: apps/run.auth/e2e
+        run: npm ci
+
+      - name: Install GPX e2e dependencies
+        working-directory: apps/run.gpx/e2e
+        run: npm ci
+
+      # Install Playwright browsers
+      - name: Install Playwright Browsers
+        working-directory: apps/run.auth/e2e
+        run: npx playwright install chromium --with-deps
+
+      # Build GPX Studio frontend (required for GPX service)
+      - name: Build GPX Studio frontend
+        working-directory: apps/run.gpx
+        run: |
+          if [ -f "build-frontend.sh" ]; then
+            ./build-frontend.sh
+          fi
+
+      # Start Auth service in background
+      - name: Start Auth Service
+        working-directory: apps/run.auth/webapp
+        env:
+          PORT: 3002
+          NODE_ENV: development
+          # Auth service secrets
+          NEXTAUTH_SECRET: ${{ secrets.E2E_NEXTAUTH_SECRET || 'e2e-test-secret-not-for-production' }}
+          NEXTAUTH_URL: http://localhost:3002
+          # DynamoDB config (use local or real)
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
+          DYNAMODB_TABLE_PREFIX: ${{ secrets.E2E_DYNAMODB_TABLE_PREFIX || 'e2e-' }}
+          # Email config
+          EMAIL_SERVER: ${{ secrets.E2E_EMAIL_SERVER }}
+          EMAIL_FROM: ${{ secrets.E2E_EMAIL_FROM || 'noreply@defcon.run' }}
+        run: |
+          npm run dev &
+          echo "Auth service starting on port 3002..."
+
+      # Start GPX service in background
+      - name: Start GPX Service
+        working-directory: apps/run.gpx/webapp
+        env:
+          PORT: 3003
+          NODE_ENV: development
+          # GPX service secrets
+          NEXTAUTH_SECRET: ${{ secrets.E2E_NEXTAUTH_SECRET || 'e2e-test-secret-not-for-production' }}
+          NEXTAUTH_URL: http://localhost:3003
+          # S3 config for file storage
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
+          S3_BUCKET: ${{ secrets.E2E_S3_BUCKET }}
+          # Auth service URL
+          AUTH_INTERNAL_SECRET: ${{ secrets.E2E_AUTH_INTERNAL_SECRET }}
+        run: |
+          npm run dev &
+          echo "GPX service starting on port 3003..."
+
+      # Wait for services to be healthy
+      - name: Wait for services
+        run: |
+          echo "Waiting for Auth service..."
+          timeout 120 bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:3002 | grep -qE "^(200|301|302|307|308)$"; do sleep 2; done'
+          echo "Auth service is up!"
+
+          echo "Waiting for GPX service..."
+          timeout 120 bash -c 'until curl -s -o /dev/null -w "%{http_code}" http://localhost:3003 | grep -qE "^(200|301|302|307|308)$"; do sleep 2; done'
+          echo "GPX service is up!"
+
+      # Run E2E tests
+      - name: Run E2E Tests
+        working-directory: apps
+        env:
+          AUTH_URL: http://localhost:3002
+          GPX_URL: http://localhost:3003
+          AWS_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: ${{ secrets.E2E_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.E2E_AWS_SECRET_ACCESS_KEY }}
+          E2E_S3_EMAIL_BUCKET: ${{ secrets.E2E_S3_EMAIL_BUCKET }}
+        run: |
+          if [ "${{ github.event.inputs.headed }}" = "true" ]; then
+            ./e2e.sh --headed
+          else
+            ./e2e.sh
+          fi
+
+      # Upload test results on failure
+      - name: Upload Auth test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-e2e-results
+          path: |
+            apps/run.auth/e2e/test-results/
+            apps/run.auth/e2e/playwright-report/
+          retention-days: 7
+
+      - name: Upload GPX test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpx-e2e-results
+          path: |
+            apps/run.gpx/e2e/test-results/
+            apps/run.gpx/e2e/playwright-report/
+          retention-days: 7
+
+      # Always upload screenshots (useful for visual verification)
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: apps/run.gpx/e2e/test-results/*.png
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # Generate summary
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f "apps/run.gpx/e2e/test-results/multi-file-all-loaded.png" ]; then
+            echo "### Screenshots Generated" >> $GITHUB_STEP_SUMMARY
+            echo "Screenshots are available in the artifacts." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "### Services Tested" >> $GITHUB_STEP_SUMMARY
+          echo "- Auth Service: $AUTH_URL" >> $GITHUB_STEP_SUMMARY
+          echo "- GPX Service: $GPX_URL" >> $GITHUB_STEP_SUMMARY
