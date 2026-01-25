@@ -14,7 +14,16 @@ on:
         type: choice
         options:
           - us-east-1
+          - us-west-2
           - ca-central-1
+          - eu-west-1
+          - eu-west-2
+          - eu-central-1
+          - ap-southeast-1
+          - ap-southeast-2
+          - ap-northeast-1
+          - ap-south-1
+          - sa-east-1
         default: us-east-1
 
 env:
@@ -28,7 +37,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ inputs.region }}
-      REGION_SHORT: ${{ inputs.region == 'us-east-1' && 'use1' || 'cac1' }}
     environment: e2e-tests
     timeout-minutes: 20
 
@@ -39,6 +47,25 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set region short code
+        id: region
+        run: |
+          case "${{ inputs.region }}" in
+            us-east-1)      echo "short=use1" >> $GITHUB_OUTPUT ;;
+            us-west-2)      echo "short=usw2" >> $GITHUB_OUTPUT ;;
+            ca-central-1)   echo "short=cac1" >> $GITHUB_OUTPUT ;;
+            eu-west-1)      echo "short=euw1" >> $GITHUB_OUTPUT ;;
+            eu-west-2)      echo "short=euw2" >> $GITHUB_OUTPUT ;;
+            eu-central-1)   echo "short=euc1" >> $GITHUB_OUTPUT ;;
+            ap-southeast-1) echo "short=apse1" >> $GITHUB_OUTPUT ;;
+            ap-southeast-2) echo "short=apse2" >> $GITHUB_OUTPUT ;;
+            ap-northeast-1) echo "short=apne1" >> $GITHUB_OUTPUT ;;
+            ap-south-1)     echo "short=aps1" >> $GITHUB_OUTPUT ;;
+            sa-east-1)      echo "short=sae1" >> $GITHUB_OUTPUT ;;
+            *)              echo "short=use1" >> $GITHUB_OUTPUT ;;
+          esac
+          echo "Region: ${{ inputs.region }} → $(cat $GITHUB_OUTPUT | grep short | cut -d= -f2)"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -78,7 +105,7 @@ jobs:
       - name: Run E2E Tests
         working-directory: apps
         env:
-          REGION_SHORT: ${{ env.REGION_SHORT }}
+          REGION_SHORT: ${{ steps.region.outputs.short }}
         run: ./e2e.sh --prod
 
       - name: Upload test results
@@ -108,7 +135,7 @@ jobs:
           echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
-          echo "**Region:** ${{ inputs.region }} (${{ env.REGION_SHORT }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region }} (${{ steps.region.outputs.short }})" >> $GITHUB_STEP_SUMMARY
           echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
