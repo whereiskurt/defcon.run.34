@@ -40,6 +40,12 @@ export const authConfig: NextAuthConfig = {
   // Auth.js needs basePath="/api/auth" to parse "session" as the action
   basePath: "/api/auth",
 
+  // Use custom signin page that auto-redirects to OIDC provider
+  // This avoids Auth.js generating incorrect URLs on the default signin page
+  pages: {
+    signIn: "/signin",
+  },
+
   providers: [
     {
       id: "run.defcon.run",
@@ -94,8 +100,6 @@ export const authConfig: NextAuthConfig = {
       return session;
     },
   },
-
-  // Don't specify custom pages - let Auth.js auto-redirect to OIDC provider
 
   session: {
     strategy: "jwt",
