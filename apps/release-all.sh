@@ -210,25 +210,50 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
   done
 
   echo ""
-  echo "--- Committing VERSION bumps to git ---"
-  # Collect all VERSION files that were bumped
-  VERSION_FILES=()
+  echo "--- Copying VERSION files to terraform ---"
+  # Copy VERSION files to terraform service directories
+  TF_SERVICES_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services"
   for APP in "${APP_LIST[@]}"; do
+    TF_SERVICE=$(get_tf_service "$APP")
     APP_COMPONENT=$(get_app_component "$APP")
     APP_HAS_NGINX=$(has_nginx "$APP")
+    APP_DIR="${SCRIPT_DIR}/${APP}"
+    TF_SERVICE_DIR="${TF_SERVICES_DIR}/${TF_SERVICE}"
+
     if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
-      VERSION_FILES+=("${SCRIPT_DIR}/${APP}/nginx/VERSION")
+      cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+      echo "  ${TF_SERVICE}/VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
     fi
-    VERSION_FILES+=("${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
+    cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
+    echo "  ${TF_SERVICE}/VERSION.app: $(cat "${TF_SERVICE_DIR}/VERSION.app")"
   done
 
-  # Stage and commit VERSION files
+  echo ""
+  echo "--- Committing all VERSION files to git ---"
+  # Collect all VERSION files (app + terraform)
+  VERSION_FILES=()
+  for APP in "${APP_LIST[@]}"; do
+    TF_SERVICE=$(get_tf_service "$APP")
+    APP_COMPONENT=$(get_app_component "$APP")
+    APP_HAS_NGINX=$(has_nginx "$APP")
+    TF_SERVICE_DIR="${TF_SERVICES_DIR}/${TF_SERVICE}"
+
+    # App VERSION files
+    if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
+      VERSION_FILES+=("${SCRIPT_DIR}/${APP}/nginx/VERSION")
+      VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.nginx")
+    fi
+    VERSION_FILES+=("${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
+    VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.app")
+  done
+
+  # Stage and commit all VERSION files in single commit
   git add "${VERSION_FILES[@]}"
   if git diff --cached --quiet; then
     echo "  No VERSION changes to commit"
   else
     git commit -m "Bump versions for release: ${APP_LIST[*]}"
-    echo "  VERSION bumps committed"
+    echo "  VERSION files committed (app + terraform)"
   fi
 
   # Push branch if requested
@@ -381,36 +406,6 @@ if [[ "$RUN_TERRAGRUNT" == "true" ]]; then
   echo "=============================================="
   echo "  PHASE 3: DEPLOY TO ECS (via Terragrunt)"
   echo "=============================================="
-
-  # Copy VERSION files for all apps
-  for APP in "${APP_LIST[@]}"; do
-    TF_SERVICE=$(get_tf_service "$APP")
-    APP_COMPONENT=$(get_app_component "$APP")
-    APP_HAS_NGINX=$(has_nginx "$APP")
-    APP_DIR="${SCRIPT_DIR}/${APP}"
-    TF_SERVICE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services/${TF_SERVICE}"
-
-    echo ""
-    echo "--- Copying VERSION files for ${APP} ---"
-    if [[ "$APP_HAS_NGINX" == "true" ]]; then
-      cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
-      echo "  VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
-    fi
-    cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
-    echo "  VERSION.app:   $(cat "${TF_SERVICE_DIR}/VERSION.app")"
-  done
-
-  # Commit terraform VERSION files
-  echo ""
-  echo "--- Committing terraform VERSION files to git ---"
-  TF_SERVICES_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services"
-  git add "${TF_SERVICES_DIR}"/*/VERSION.app "${TF_SERVICES_DIR}"/*/VERSION.nginx 2>/dev/null || true
-  if git diff --cached --quiet; then
-    echo "  No terraform VERSION changes to commit"
-  else
-    git commit -m "Update terraform VERSION files for deploy: ${APP_LIST[*]}"
-    echo "  Terraform VERSION files committed"
-  fi
 
   # Deploy to each region - only ecs-task and ecs-service modules
   # (ecs-task creates new task definitions, ecs-service deploys them)
