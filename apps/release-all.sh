@@ -300,7 +300,7 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
       fi
     done
 
-    PR_TITLE="Release: ${APP_LIST[*]}"
+    PR_TITLE="Release v$(date +%Y%m%d.%H%M)"
     PR_BODY="$(cat <<EOF
 ## Release Summary
 
