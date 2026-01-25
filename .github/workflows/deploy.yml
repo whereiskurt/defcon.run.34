@@ -1,4 +1,4 @@
-name: 📦 Deploy: Deploy
+name: 🚀 Deploy: Deploy
 
 run-name: Deploy ${{ inputs.apps || 'all apps' }} → ${{ inputs.region }}
 
