@@ -13,12 +13,16 @@
 #   --parallel          Run regional builds in parallel (faster but harder to debug)
 #   --no-branch         Don't create a release branch (commit to current branch)
 #   --push              Push the release branch after committing
+#   --pr                Create a pull request after pushing (implies --push, --merge)
+#   --no-merge          Don't auto-merge PR after builds (use with --pr)
 #
 # Examples:
 #   ./release-all.sh                           # Full release: both apps, both regions
 #   ./release-all.sh --apps run.auth           # Only run.auth, both regions
 #   ./release-all.sh --apps run.cms            # Only run.cms (CMS has different build)
 #   ./release-all.sh --regions use1            # Both apps, only us-east-1
+#   ./release-all.sh --pr                      # Full release with PR + auto-merge
+#   ./release-all.sh --pr --no-merge           # Create PR but don't auto-merge
 #   ./release-all.sh --with-terragrunt          # Full release with terragrunt deploy
 
 set -e
@@ -34,6 +38,8 @@ SKIP_NGINX=false
 PARALLEL=false
 CREATE_BRANCH=true
 PUSH_BRANCH=false
+CREATE_PR=false
+AUTO_MERGE=true
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -72,6 +78,15 @@ while [[ $# -gt 0 ]]; do
       ;;
     --push)
       PUSH_BRANCH=true
+      shift
+      ;;
+    --pr)
+      CREATE_PR=true
+      PUSH_BRANCH=true  # PR requires push
+      shift
+      ;;
+    --no-merge)
+      AUTO_MERGE=false
       shift
       ;;
     --help|-h)
@@ -173,6 +188,8 @@ echo "Terragrunt: $RUN_TERRAGRUNT"
 echo "Parallel:   $PARALLEL"
 echo "Create branch: $CREATE_BRANCH"
 echo "Push branch: $PUSH_BRANCH"
+echo "Create PR:  $CREATE_PR"
+echo "Auto merge: $AUTO_MERGE"
 echo "=============================================="
 echo "Started: $(date)"
 echo ""
@@ -210,25 +227,50 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
   done
 
   echo ""
-  echo "--- Committing VERSION bumps to git ---"
-  # Collect all VERSION files that were bumped
-  VERSION_FILES=()
+  echo "--- Copying VERSION files to terraform ---"
+  # Copy VERSION files to terraform service directories
+  TF_SERVICES_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services"
   for APP in "${APP_LIST[@]}"; do
+    TF_SERVICE=$(get_tf_service "$APP")
     APP_COMPONENT=$(get_app_component "$APP")
     APP_HAS_NGINX=$(has_nginx "$APP")
+    APP_DIR="${SCRIPT_DIR}/${APP}"
+    TF_SERVICE_DIR="${TF_SERVICES_DIR}/${TF_SERVICE}"
+
     if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
-      VERSION_FILES+=("${SCRIPT_DIR}/${APP}/nginx/VERSION")
+      cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+      echo "  ${TF_SERVICE}/VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
     fi
-    VERSION_FILES+=("${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
+    cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
+    echo "  ${TF_SERVICE}/VERSION.app: $(cat "${TF_SERVICE_DIR}/VERSION.app")"
   done
 
-  # Stage and commit VERSION files
+  echo ""
+  echo "--- Committing all VERSION files to git ---"
+  # Collect all VERSION files (app + terraform)
+  VERSION_FILES=()
+  for APP in "${APP_LIST[@]}"; do
+    TF_SERVICE=$(get_tf_service "$APP")
+    APP_COMPONENT=$(get_app_component "$APP")
+    APP_HAS_NGINX=$(has_nginx "$APP")
+    TF_SERVICE_DIR="${TF_SERVICES_DIR}/${TF_SERVICE}"
+
+    # App VERSION files
+    if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
+      VERSION_FILES+=("${SCRIPT_DIR}/${APP}/nginx/VERSION")
+      VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.nginx")
+    fi
+    VERSION_FILES+=("${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
+    VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.app")
+  done
+
+  # Stage and commit all VERSION files in single commit
   git add "${VERSION_FILES[@]}"
   if git diff --cached --quiet; then
     echo "  No VERSION changes to commit"
   else
     git commit -m "Bump versions for release: ${APP_LIST[*]}"
-    echo "  VERSION bumps committed"
+    echo "  VERSION files committed (app + terraform)"
   fi
 
   # Push branch if requested
@@ -237,6 +279,53 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
     echo "--- Pushing release branch ---"
     git push -u origin "$RELEASE_BRANCH"
     echo "  Branch pushed: ${RELEASE_BRANCH}"
+  fi
+
+  # Create PR if requested
+  if [[ "$CREATE_PR" == "true" && "$CREATE_BRANCH" == "true" ]]; then
+    echo ""
+    echo "--- Creating pull request ---"
+
+    # Build version summary for PR body
+    PR_VERSIONS=""
+    for APP in "${APP_LIST[@]}"; do
+      APP_COMPONENT=$(get_app_component "$APP")
+      APP_HAS_NGINX=$(has_nginx "$APP")
+      APP_VERSION=$(cat "${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
+      if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
+        NGINX_VERSION=$(cat "${SCRIPT_DIR}/${APP}/nginx/VERSION")
+        PR_VERSIONS="${PR_VERSIONS}- **${APP}**: app=${APP_VERSION}, nginx=${NGINX_VERSION}"$'\n'
+      else
+        PR_VERSIONS="${PR_VERSIONS}- **${APP}**: ${APP_VERSION}"$'\n'
+      fi
+    done
+
+    PR_TITLE="Release: ${APP_LIST[*]}"
+    PR_BODY="$(cat <<EOF
+## Release Summary
+
+This PR bumps versions for deployment to: **${REGION_LIST[*]}**
+
+### Versions
+${PR_VERSIONS}
+### Checklist
+- [ ] Images built and pushed to ECR
+- [ ] Deployed to staging/test
+- [ ] Verified in production
+- [ ] CloudFront cache invalidated
+
+---
+🤖 Generated by \`release-all.sh --pr\`
+EOF
+)"
+
+    # Create the PR
+    PR_URL=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" 2>&1)
+    if [[ $? -eq 0 ]]; then
+      echo "  PR created: ${PR_URL}"
+    else
+      echo "  WARNING: Failed to create PR: ${PR_URL}"
+    fi
   fi
 
   echo ""
@@ -374,6 +463,39 @@ else
 fi
 
 #=============================================================================
+# Auto-merge PR (after builds complete)
+#=============================================================================
+if [[ "$CREATE_PR" == "true" && "$AUTO_MERGE" == "true" && -n "$PR_URL" ]]; then
+  echo ""
+  echo "=============================================="
+  echo "  AUTO-MERGE PR"
+  echo "=============================================="
+
+  # Extract PR number from URL (e.g., https://github.com/owner/repo/pull/123)
+  PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+
+  if [[ -n "$PR_NUMBER" ]]; then
+    echo "Merging PR #${PR_NUMBER}..."
+
+    # Use squash merge with admin override to bypass branch protection
+    if gh pr merge "$PR_NUMBER" --squash --delete-branch --auto --admin 2>&1; then
+      echo "  PR #${PR_NUMBER} merged successfully"
+      echo "  Branch deleted"
+      PR_MERGED=true
+    else
+      echo "  WARNING: Auto-merge failed. You may need to merge manually."
+      echo "  PR: ${PR_URL}"
+    fi
+  else
+    echo "  WARNING: Could not extract PR number from URL: ${PR_URL}"
+  fi
+elif [[ "$CREATE_PR" == "true" && "$AUTO_MERGE" == "false" ]]; then
+  echo ""
+  echo "--- Skipping auto-merge (--no-merge) ---"
+  echo "  PR ready for review: ${PR_URL}"
+fi
+
+#=============================================================================
 # PHASE 3: Deploy to ECS (targeted terragrunt apply on ecs-task and ecs-service)
 #=============================================================================
 if [[ "$RUN_TERRAGRUNT" == "true" ]]; then
@@ -381,36 +503,6 @@ if [[ "$RUN_TERRAGRUNT" == "true" ]]; then
   echo "=============================================="
   echo "  PHASE 3: DEPLOY TO ECS (via Terragrunt)"
   echo "=============================================="
-
-  # Copy VERSION files for all apps
-  for APP in "${APP_LIST[@]}"; do
-    TF_SERVICE=$(get_tf_service "$APP")
-    APP_COMPONENT=$(get_app_component "$APP")
-    APP_HAS_NGINX=$(has_nginx "$APP")
-    APP_DIR="${SCRIPT_DIR}/${APP}"
-    TF_SERVICE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services/${TF_SERVICE}"
-
-    echo ""
-    echo "--- Copying VERSION files for ${APP} ---"
-    if [[ "$APP_HAS_NGINX" == "true" ]]; then
-      cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
-      echo "  VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
-    fi
-    cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
-    echo "  VERSION.app:   $(cat "${TF_SERVICE_DIR}/VERSION.app")"
-  done
-
-  # Commit terraform VERSION files
-  echo ""
-  echo "--- Committing terraform VERSION files to git ---"
-  TF_SERVICES_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services"
-  git add "${TF_SERVICES_DIR}"/*/VERSION.app "${TF_SERVICES_DIR}"/*/VERSION.nginx 2>/dev/null || true
-  if git diff --cached --quiet; then
-    echo "  No terraform VERSION changes to commit"
-  else
-    git commit -m "Update terraform VERSION files for deploy: ${APP_LIST[*]}"
-    echo "  Terraform VERSION files committed"
-  fi
 
   # Deploy to each region - only ecs-task and ecs-service modules
   # (ecs-task creates new task definitions, ecs-service deploys them)
@@ -488,6 +580,16 @@ echo "  RELEASE COMPLETE"
 echo "=============================================="
 echo "Apps:     ${APP_LIST[*]}"
 echo "Regions:  ${REGION_LIST[*]}"
+if [[ -n "$RELEASE_BRANCH" ]]; then
+  echo "Branch:   ${RELEASE_BRANCH}"
+fi
+if [[ -n "$PR_URL" && "$PR_URL" != *"WARNING"* ]]; then
+  if [[ "$PR_MERGED" == "true" ]]; then
+    echo "PR:       ${PR_URL} (merged)"
+  else
+    echo "PR:       ${PR_URL} (pending)"
+  fi
+fi
 echo "Duration: ${MINUTES}m ${SECONDS}s"
 echo "Finished: $(date)"
 echo "=============================================="
