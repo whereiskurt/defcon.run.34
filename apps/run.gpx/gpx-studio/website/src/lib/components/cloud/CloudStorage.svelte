@@ -58,6 +58,7 @@
     import { fileStateCollection } from '$lib/logic/file-state';
     import { settings } from '$lib/logic/settings';
     import { fileActions } from '$lib/logic/file-actions';
+    import { boundsManager } from '$lib/logic/bounds';
     import { selection } from '$lib/logic/selection';
     import { parseGPX, buildGPX } from 'gpx';
     import { get } from 'svelte/store';
@@ -350,6 +351,9 @@
             const id = fileActions.add(gpx);
             selection.selectFileWhenLoaded(gpx._data.id);
 
+            // Center map on the loaded file's bounds
+            boundsManager.fitBoundsOnLoad([gpx._data.id]);
+
             // Register file with auto-save manager (file is now cloud-linked)
             autoSaveManager.registerCloudLinkedFile(
                 gpx._data.id,
@@ -454,6 +458,10 @@
             gpx.metadata.name = `${baseName} (v${version})`;
             const id = fileActions.add(gpx);
             selection.selectFileWhenLoaded(gpx._data.id);
+
+            // Center map on the loaded file's bounds
+            boundsManager.fitBoundsOnLoad([gpx._data.id]);
+
             closeCloudStorage();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Failed to load version';
@@ -472,6 +480,7 @@
         loading = true;
         error = null;
         let loadedCount = 0;
+        const loadedFileIds: string[] = [];
         try {
             for (const fileId of selectedRemoteFiles) {
                 const file = $cloudFiles.find(f => f.fileId === fileId);
@@ -485,6 +494,7 @@
                 gpx.metadata.name = file.fileName.replace(/\.gpx$/i, '');
                 fileActions.add(gpx);
                 selection.selectFileWhenLoaded(gpx._data.id);
+                loadedFileIds.push(gpx._data.id);
 
                 // Register file with auto-save manager (file is now cloud-linked)
                 autoSaveManager.registerCloudLinkedFile(
@@ -496,6 +506,12 @@
 
                 loadedCount++;
             }
+
+            // Center map on all loaded files' bounds
+            if (loadedFileIds.length > 0) {
+                boundsManager.fitBoundsOnLoad(loadedFileIds);
+            }
+
             closeCloudStorage();
             toast.success(`${loadedCount} file${loadedCount > 1 ? 's' : ''} loaded`);
         } catch (e) {

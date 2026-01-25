@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { GpxShare } from "@/entities/gpx-share";
 import { GpxFile } from "@/entities/gpx-file";
+import { restoreQuota } from "@/lib/quota-client";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -139,6 +140,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     await GpxShare.delete({
       shareId: token,
     }).go();
+
+    // Restore the share quota
+    await restoreQuota(session.user.id, "gpx_share", 1).catch((err) => {
+      // Log but don't fail the request if quota restore fails
+      console.error("Failed to restore share quota:", err);
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

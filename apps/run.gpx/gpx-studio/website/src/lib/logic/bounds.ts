@@ -75,6 +75,11 @@ export class BoundsManager {
         this._unsubscribes.push(
             map.subscribe((map_) => {
                 if (!map_) return;
+                // Switch from globe to mercator projection when viewing files
+                // Globe is only shown at startup, flat map is better for editing tracks
+                if (map_.getProjection().name === 'globe') {
+                    map_.setProjection('mercator');
+                }
                 map_.fitBounds(this._bounds, { padding: 80, linear: true, easing: () => 1 });
                 this.reset();
             })
