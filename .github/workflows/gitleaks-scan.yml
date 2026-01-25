@@ -1,4 +1,4 @@
-name: "🛡️ Gitleaks"
+name: "🛡️ Security: Gitleaks"
 
 on:
   # pull_request:
