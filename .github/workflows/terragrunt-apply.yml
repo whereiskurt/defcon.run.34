@@ -1,7 +1,16 @@
 name: Terragrunt Apply
 
 on:
+  # Manual trigger
   workflow_dispatch:
+
+  # Auto-trigger on merge to main when infra/ changes
+  # Requires approval via terraform-apply environment
+  push:
+    branches:
+      - main
+    paths:
+      - 'infra/**'
 
 jobs:
   apply:

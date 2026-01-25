@@ -1,7 +1,13 @@
 name: Terragrunt Plan
 
 on:
+  # Manual trigger
   workflow_dispatch:
+
+  # Auto-trigger on PRs that change infra/
+  pull_request:
+    paths:
+      - 'infra/**'
 
 jobs:
   plan:
