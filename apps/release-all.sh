@@ -8,7 +8,7 @@
 #   --regions <regions> Comma-separated list of regions (default: use1,cac1)
 #   --skip-bump         Skip version bumping (use existing versions)
 #   --skip-build        Skip building (use existing images)
-#   --skip-deploy       Skip deployment (just build)
+#   --with-terragrunt   Run terragrunt apply after build (off by default)
 #   --skip-nginx        Skip nginx container builds (only build app/webapp)
 #   --parallel          Run regional builds in parallel (faster but harder to debug)
 #   --no-branch         Don't create a release branch (commit to current branch)
@@ -19,7 +19,7 @@
 #   ./release-all.sh --apps run.auth           # Only run.auth, both regions
 #   ./release-all.sh --apps run.cms            # Only run.cms (CMS has different build)
 #   ./release-all.sh --regions use1            # Both apps, only us-east-1
-#   ./release-all.sh --skip-bump --skip-build  # Deploy only (use existing images)
+#   ./release-all.sh --with-terragrunt          # Full release with terragrunt deploy
 
 set -e
 
@@ -29,7 +29,7 @@ APPS="run.auth,run.human,run.cms,run.gpx"
 REGIONS="use1"
 SKIP_BUMP=false
 SKIP_BUILD=false
-SKIP_DEPLOY=false
+RUN_TERRAGRUNT=false
 SKIP_NGINX=false
 PARALLEL=false
 CREATE_BRANCH=true
@@ -54,8 +54,8 @@ while [[ $# -gt 0 ]]; do
       SKIP_BUILD=true
       shift
       ;;
-    --skip-deploy)
-      SKIP_DEPLOY=true
+    --with-terragrunt)
+      RUN_TERRAGRUNT=true
       shift
       ;;
     --skip-nginx)
@@ -168,8 +168,8 @@ echo "Apps:    ${APP_LIST[*]}"
 echo "Regions: ${REGION_LIST[*]}"
 echo "Skip bump:  $SKIP_BUMP"
 echo "Skip build: $SKIP_BUILD"
-echo "Skip deploy: $SKIP_DEPLOY"
 echo "Skip nginx: $SKIP_NGINX"
+echo "Terragrunt: $RUN_TERRAGRUNT"
 echo "Parallel:   $PARALLEL"
 echo "Create branch: $CREATE_BRANCH"
 echo "Push branch: $PUSH_BRANCH"
@@ -376,10 +376,10 @@ fi
 #=============================================================================
 # PHASE 3: Deploy to ECS (targeted terragrunt apply on ecs-task and ecs-service)
 #=============================================================================
-if [[ "$SKIP_DEPLOY" == "false" ]]; then
+if [[ "$RUN_TERRAGRUNT" == "true" ]]; then
   echo ""
   echo "=============================================="
-  echo "  PHASE 3: DEPLOY TO ECS"
+  echo "  PHASE 3: DEPLOY TO ECS (via Terragrunt)"
   echo "=============================================="
 
   # Copy VERSION files for all apps
@@ -437,13 +437,13 @@ if [[ "$SKIP_DEPLOY" == "false" ]]; then
   echo "All deployments complete!"
 else
   echo ""
-  echo "--- Skipping deploy (--skip-deploy) ---"
+  echo "--- Skipping terragrunt deploy (use --with-terragrunt to enable) ---"
 fi
 
 #=============================================================================
 # PHASE 4: CloudFront Invalidation (once per app)
 #=============================================================================
-if [[ "$SKIP_DEPLOY" == "false" ]]; then
+if [[ "$RUN_TERRAGRUNT" == "true" ]]; then
   echo ""
   echo "=============================================="
   echo "  PHASE 4: CLOUDFRONT INVALIDATION"
