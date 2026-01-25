@@ -322,7 +322,9 @@ test.describe('2. Test Setup - Upload Sample Files', () => {
     for (let i = 0; i < filesToUpload.length; i++) {
       const sampleFile = filesToUpload[i];
       const content = loadSampleFile(sampleFile);
-      const testFileName = `e2e-sample-${i + 1}-${Date.now()}.gpx`;
+      // Keep original name with e2e- prefix so multi-file test can find diverse locations
+      const baseName = sampleFile.replace('.gpx', '');
+      const testFileName = `e2e-${baseName}-${Date.now()}.gpx`;
 
       console.log(`Uploading: ${testFileName} (from ${sampleFile}, ${Math.round(content.length / 1024)}KB)`);
 
@@ -617,9 +619,9 @@ test.describe('3. Cloud Storage E2E', () => {
     // Wait a bit more for tabs to render
     await page.waitForTimeout(1000);
 
-    // Look for file tabs - they're buttons with e2e-sample in the text
-    // The tabs might be in a scrollable container
-    const fileTabs = page.locator('button').filter({ hasText: /e2e-sample/i });
+    // Look for file tabs - they're buttons with e2e- prefix in the text
+    // File names now preserve original sample names: e2e-japan-*, e2e-Test NYC Route-*, etc.
+    const fileTabs = page.locator('button').filter({ hasText: /e2e-/i });
     const fileTabCount = await fileTabs.count();
     console.log(`Found ${fileTabCount} file tabs`);
 
