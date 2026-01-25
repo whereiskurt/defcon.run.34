@@ -1,0 +1,249 @@
+name: EC2 Runner
+
+run-name: EC2 Runner - ${{ inputs.action }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        type: choice
+        options:
+          - start
+          - stop
+          - status
+        default: status
+      instance_type:
+        description: 'EC2 instance type (for start)'
+        type: choice
+        options:
+          - c6i.4xlarge
+          - c6i.8xlarge
+          - m6i.4xlarge
+        default: c6i.4xlarge
+
+env:
+  RUNNER_NAME: dc34-release-runner
+
+jobs:
+  # ============================================================================
+  # Start a new EC2 runner
+  # ============================================================================
+  start:
+    if: inputs.action == 'start'
+    name: Start EC2 Runner
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
+          aws-region: us-east-1
+
+      - name: Check for existing runner
+        id: check
+        run: |
+          EXISTING=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${{ env.RUNNER_NAME }}" \
+                      "Name=instance-state-name,Values=running,pending" \
+            --query 'Reservations[].Instances[].InstanceId' \
+            --output text)
+
+          if [[ -n "$EXISTING" ]]; then
+            echo "existing=true" >> $GITHUB_OUTPUT
+            echo "instance_id=$EXISTING" >> $GITHUB_OUTPUT
+            echo "⚠️ Runner already exists: $EXISTING" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "existing=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Start EC2 Runner
+        if: steps.check.outputs.existing != 'true'
+        id: start-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.GH_RUNNER_TOKEN }}
+          ec2-image-id: ami-0c7217cdde317cfec
+          ec2-instance-type: ${{ inputs.instance_type }}
+          subnet-id: ${{ vars.RUNNER_SUBNET_ID }}
+          security-group-id: ${{ vars.RUNNER_SG_ID }}
+          iam-instance-profile: ${{ vars.RUNNER_INSTANCE_PROFILE }}
+          aws-resource-tags: >
+            [
+              {"Key": "Name", "Value": "${{ env.RUNNER_NAME }}"},
+              {"Key": "Project", "Value": "defcon.run.34"},
+              {"Key": "Purpose", "Value": "release-build"},
+              {"Key": "KeepAlive", "Value": "true"}
+            ]
+          runner-home-dir: /home/ubuntu/actions-runner
+          pre-runner-script: |
+            # Install SSM agent for remote access
+            sudo snap install amazon-ssm-agent --classic
+            sudo systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+            sudo systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+
+            # Install Docker
+            sudo apt-get update
+            sudo apt-get install -y docker.io awscli
+            sudo usermod -aG docker ubuntu
+            sudo systemctl enable docker
+            sudo systemctl start docker
+
+            # Install Docker Buildx
+            mkdir -p ~/.docker/cli-plugins
+            curl -Lo ~/.docker/cli-plugins/docker-buildx \
+              https://github.com/docker/buildx/releases/latest/download/buildx-v0.12.1.linux-amd64
+            chmod +x ~/.docker/cli-plugins/docker-buildx
+
+            # Install gh CLI
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list
+            sudo apt-get update
+            sudo apt-get install -y gh
+
+      - name: Tag with fixed name
+        if: steps.check.outputs.existing != 'true'
+        run: |
+          # Add the runner label as a tag for easy lookup
+          aws ec2 create-tags \
+            --resources ${{ steps.start-runner.outputs.ec2-instance-id }} \
+            --tags Key=RunnerLabel,Value=${{ steps.start-runner.outputs.label }}
+
+      - name: Output Runner Info
+        run: |
+          echo "## EC2 Runner Started" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.check.outputs.existing }}" == "true" ]]; then
+            echo "⚠️ **Using existing runner**" >> $GITHUB_STEP_SUMMARY
+            echo "**Instance ID:** ${{ steps.check.outputs.instance_id }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Instance ID:** ${{ steps.start-runner.outputs.ec2-instance-id }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Runner Label:** ${{ steps.start-runner.outputs.label }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Instance Type:** ${{ inputs.instance_type }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Run **Release** workflow with runner type: **ec2-reuse-existing**" >> $GITHUB_STEP_SUMMARY
+          echo "2. When done, run **EC2 Runner** workflow with action: **stop**" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Stop existing EC2 runner
+  # ============================================================================
+  stop:
+    if: inputs.action == 'stop'
+    name: Stop EC2 Runner
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
+          aws-region: us-east-1
+
+      - name: Find and stop runner
+        run: |
+          # Find running instances with our tag
+          INSTANCES=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${{ env.RUNNER_NAME }}" \
+                      "Name=instance-state-name,Values=running,pending" \
+            --query 'Reservations[].Instances[].InstanceId' \
+            --output text)
+
+          if [[ -z "$INSTANCES" ]]; then
+            echo "No running runners found" >> $GITHUB_STEP_SUMMARY
+            exit 0
+          fi
+
+          echo "## Stopping EC2 Runners" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          for INSTANCE_ID in $INSTANCES; do
+            echo "Terminating: $INSTANCE_ID"
+            aws ec2 terminate-instances --instance-ids "$INSTANCE_ID"
+            echo "- Terminated: \`$INSTANCE_ID\`" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Cleanup GitHub runners
+        env:
+          GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
+        run: |
+          # List offline runners and remove them
+          OFFLINE_RUNNERS=$(gh api /repos/${{ github.repository }}/actions/runners \
+            --jq '.runners[] | select(.status == "offline") | select(.name | startswith("ec2-")) | .id')
+
+          for RUNNER_ID in $OFFLINE_RUNNERS; do
+            echo "Removing offline runner: $RUNNER_ID"
+            gh api -X DELETE /repos/${{ github.repository }}/actions/runners/$RUNNER_ID || true
+          done
+
+  # ============================================================================
+  # Show status of EC2 runners
+  # ============================================================================
+  status:
+    if: inputs.action == 'status'
+    name: Check Runner Status
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
+          aws-region: us-east-1
+
+      - name: Check EC2 instances
+        run: |
+          echo "## EC2 Runner Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          INSTANCES=$(aws ec2 describe-instances \
+            --filters "Name=tag:Project,Values=defcon.run.34" \
+                      "Name=tag:Purpose,Values=release-build" \
+            --query 'Reservations[].Instances[].[InstanceId,State.Name,InstanceType,LaunchTime,Tags[?Key==`RunnerLabel`].Value|[0]]' \
+            --output text)
+
+          if [[ -z "$INSTANCES" ]]; then
+            echo "No EC2 runners found." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Instance ID | State | Type | Launch Time | Runner Label |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------------|-------|------|-------------|--------------|" >> $GITHUB_STEP_SUMMARY
+            echo "$INSTANCES" | while read -r INSTANCE_ID STATE TYPE LAUNCH_TIME LABEL; do
+              echo "| \`$INSTANCE_ID\` | $STATE | $TYPE | $LAUNCH_TIME | ${LABEL:-N/A} |" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+      - name: Check GitHub runners
+        env:
+          GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### GitHub Self-Hosted Runners" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          RUNNERS=$(gh api /repos/${{ github.repository }}/actions/runners \
+            --jq '.runners[] | select(.name | startswith("ec2-")) | [.name, .status, .busy] | @tsv' 2>/dev/null || echo "")
+
+          if [[ -z "$RUNNERS" ]]; then
+            echo "No EC2-based GitHub runners registered." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Runner Name | Status | Busy |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------------|--------|------|" >> $GITHUB_STEP_SUMMARY
+            echo "$RUNNERS" | while read -r NAME STATUS BUSY; do
+              echo "| \`$NAME\` | $STATUS | $BUSY |" >> $GITHUB_STEP_SUMMARY
+            done
+          fi

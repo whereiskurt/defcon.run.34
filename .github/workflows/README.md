@@ -18,7 +18,9 @@ Automated release pipeline that builds Docker images, pushes to ECR, syncs asset
 | Runner | Speed | Cost | Best For |
 |--------|-------|------|----------|
 | **GitHub-hosted** | ~15-25 min | Free (public) / $0.008/min (private) | Daily releases, simple setup |
-| **Self-hosted EC2** | ~5-8 min | ~$0.15-0.30 per build (spot) | Urgent releases, large changes |
+| **EC2 ephemeral** | ~5-8 min | ~$0.15-0.30 per build | One-off releases |
+| **EC2 start-and-keep** | ~5-8 min first, ~3-5 min reuse | ~$0.77/hr (c6i.4xlarge) | Work sessions with multiple releases |
+| **EC2 reuse-existing** | ~3-5 min | Uses already-running instance | Fast iteration during work session |
 
 ### Setup Requirements
 
@@ -42,7 +44,7 @@ Automated release pipeline that builds Docker images, pushes to ECR, syncs asset
    ```
    RUNNER_SUBNET_ID = subnet-xxx        # Public subnet in us-east-1
    RUNNER_SG_ID = sg-xxx                # Security group allowing outbound
-   RUNNER_INSTANCE_PROFILE = xxx        # IAM instance profile for runner
+   RUNNER_INSTANCE_PROFILE = xxx        # IAM instance profile for runner (see below)
    ```
 
 2. **Repository Secret**:
@@ -53,10 +55,35 @@ Automated release pipeline that builds Docker images, pushes to ECR, syncs asset
    Create at: https://github.com/settings/tokens
    Required scopes: `repo` (Full control of private repositories)
 
-3. **EC2 Runner Infrastructure** (optional - use existing VPC):
+3. **IAM Instance Profile for SSM Access**:
+   The runner needs an instance profile with SSM permissions so you can SSH in for debugging.
+
+   Create an IAM role with:
+   - Trust policy: EC2 service
+   - Attached policy: `AmazonSSMManagedInstanceCore`
+
+   Then create an instance profile and add the role to it:
+   ```bash
+   aws iam create-role --role-name dc34-github-runner \
+     --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
+
+   aws iam attach-role-policy --role-name dc34-github-runner \
+     --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+
+   aws iam create-instance-profile --instance-profile-name dc34-github-runner
+   aws iam add-role-to-instance-profile --instance-profile-name dc34-github-runner --role-name dc34-github-runner
+   ```
+
+   To SSM into the runner:
+   ```bash
+   aws ssm start-session --target <instance-id>
+   ```
+
+4. **EC2 Runner Infrastructure** (optional - use existing VPC):
    The runner uses your existing VPC. Ensure the subnet has:
    - Internet access (NAT gateway or public subnet)
    - Outbound access to GitHub, AWS ECR, and AWS S3
+   - SSM endpoints (or NAT for internet access to SSM)
 
 ### Workflow Inputs
 
@@ -64,11 +91,18 @@ Automated release pipeline that builds Docker images, pushes to ECR, syncs asset
 |-------|-------------|---------|
 | `apps` | Comma-separated app list | `run.auth,run.human,run.cms,run.gpx` |
 | `regions` | Target regions | `use1` |
-| `runner` | Runner type | `github-hosted` |
+| `runner` | Runner type (see below) | `github-hosted` |
+| `ec2_instance_type` | EC2 instance type | `c6i.4xlarge` |
 | `parallel` | Build apps in parallel | `true` |
 | `skip_bump` | Skip version increment | `false` |
 | `create_pr` | Create and auto-merge PR | `true` |
 | `deploy` | Run terragrunt deploy | `false` |
+
+**Runner types**:
+- `github-hosted` - Standard GitHub runner (simple, no setup)
+- `ec2-ephemeral` - Start EC2, build, terminate (one-shot)
+- `ec2-start-and-keep` - Start EC2, build, keep running (for reuse)
+- `ec2-reuse-existing` - Use already-running EC2 runner (fast)
 
 ### What It Does
 
@@ -86,6 +120,30 @@ Automated release pipeline that builds Docker images, pushes to ECR, syncs asset
 | Single app, single region | ~8 min | ~3 min |
 | All apps, single region | ~20 min | ~6 min |
 | All apps, both regions | ~25 min | ~8 min |
+
+### EC2 Runner Lifecycle
+
+For extended work sessions, use the runner lifecycle management:
+
+1. **Start a persistent runner**:
+   - Run **Release** workflow with runner: `ec2-start-and-keep`
+   - Or run **EC2 Runner** workflow with action: `start`
+
+2. **Reuse for subsequent releases**:
+   - Run **Release** workflow with runner: `ec2-reuse-existing`
+   - The runner stays warm, builds are fast (~3-5 min)
+
+3. **When done for the day**:
+   - Run **EC2 Runner** workflow with action: `stop`
+   - This terminates the instance and cleans up GitHub runners
+
+4. **Check runner status**:
+   - Run **EC2 Runner** workflow with action: `status`
+   - Shows running EC2 instances and registered GitHub runners
+
+**Cost tip**: A c6i.4xlarge costs ~$0.68/hr. For a 4-hour session with 5 releases:
+- Ephemeral: 5 × ~$0.20 = ~$1.00 (includes startup overhead each time)
+- Persistent: 4 × $0.68 = ~$2.72 (but faster iteration, SSM access)
 
 ### Troubleshooting
 

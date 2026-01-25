@@ -22,8 +22,18 @@ on:
         type: choice
         options:
           - github-hosted
-          - self-hosted-ec2
+          - ec2-ephemeral
+          - ec2-start-and-keep
+          - ec2-reuse-existing
         default: github-hosted
+      ec2_instance_type:
+        description: 'EC2 instance type (for EC2 runners)'
+        type: choice
+        options:
+          - c6i.4xlarge
+          - c6i.8xlarge
+          - m6i.4xlarge
+        default: c6i.4xlarge
       parallel:
         description: 'Build apps in parallel'
         type: boolean
@@ -137,12 +147,17 @@ jobs:
           echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
-  # Option 2: Self-hosted EC2 spot runner (faster, more powerful)
+  # Option 2: Self-hosted EC2 runner (faster, more powerful)
+  #
+  # Runner modes:
+  #   ec2-ephemeral:      Start → Build → Stop (one-shot)
+  #   ec2-start-and-keep: Start → Build → Keep running (reuse later)
+  #   ec2-reuse-existing: Use existing runner → Build (no start/stop)
   # ============================================================================
 
-  # Step 1: Spin up EC2 spot instance as self-hosted runner
+  # Start EC2 runner (for ephemeral and start-and-keep modes)
   start-ec2-runner:
-    if: inputs.runner == 'self-hosted-ec2'
+    if: inputs.runner == 'ec2-ephemeral' || inputs.runner == 'ec2-start-and-keep'
     name: Start EC2 Runner
     runs-on: ubuntu-latest
     outputs:
@@ -167,18 +182,26 @@ jobs:
           mode: start
           github-token: ${{ secrets.GH_RUNNER_TOKEN }}
           ec2-image-id: ami-0c7217cdde317cfec  # Ubuntu 22.04 LTS x86_64
-          ec2-instance-type: c6i.4xlarge        # 16 vCPUs, 32GB RAM - fast builds
+          ec2-instance-type: ${{ inputs.ec2_instance_type }}
           subnet-id: ${{ vars.RUNNER_SUBNET_ID }}
           security-group-id: ${{ vars.RUNNER_SG_ID }}
           iam-instance-profile: ${{ vars.RUNNER_INSTANCE_PROFILE }}
+          # Use fixed label for start-and-keep so we can reuse it later
+          label: ${{ inputs.runner == 'ec2-start-and-keep' && 'dc34-release-runner' || '' }}
           aws-resource-tags: >
             [
-              {"Key": "Name", "Value": "github-runner-release"},
+              {"Key": "Name", "Value": "dc34-release-runner"},
               {"Key": "Project", "Value": "defcon.run.34"},
-              {"Key": "Purpose", "Value": "release-build"}
+              {"Key": "Purpose", "Value": "release-build"},
+              {"Key": "KeepAlive", "Value": "${{ inputs.runner == 'ec2-start-and-keep' && 'true' || 'false' }}"}
             ]
           runner-home-dir: /home/ubuntu/actions-runner
           pre-runner-script: |
+            # Install SSM agent for remote access
+            sudo snap install amazon-ssm-agent --classic
+            sudo systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+            sudo systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+
             # Install Docker
             sudo apt-get update
             sudo apt-get install -y docker.io awscli
@@ -198,9 +221,22 @@ jobs:
             sudo apt-get update
             sudo apt-get install -y gh
 
-  # Step 2: Run the release on the EC2 runner
-  release-ec2:
-    if: inputs.runner == 'self-hosted-ec2'
+      - name: Output Runner Info
+        run: |
+          echo "## EC2 Runner Started" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Instance ID:** ${{ steps.start-runner.outputs.ec2-instance-id }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner Label:** ${{ steps.start-runner.outputs.label }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Instance Type:** ${{ inputs.ec2_instance_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Keep Alive:** ${{ inputs.runner == 'ec2-start-and-keep' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ inputs.runner }}" == "ec2-start-and-keep" ]]; then
+            echo "⚠️ **Runner will stay running after build. Use 'EC2 Runner: Stop' workflow to terminate.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Run release on newly started EC2 runner
+  release-ec2-new:
+    if: inputs.runner == 'ec2-ephemeral' || inputs.runner == 'ec2-start-and-keep'
     name: Release (EC2 Runner)
     needs: start-ec2-runner
     runs-on: ${{ needs.start-ec2-runner.outputs.runner-label }}
@@ -275,17 +311,99 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
           echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Runner:** Self-hosted EC2 (c6i.4xlarge)" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** Self-hosted EC2 (${{ inputs.ec2_instance_type }})" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
           echo "**Deploy:** ${{ inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
 
-  # Step 3: Terminate the EC2 runner
+  # Run release on existing EC2 runner (reuse mode)
+  release-ec2-existing:
+    if: inputs.runner == 'ec2-reuse-existing'
+    name: Release (Existing EC2 Runner)
+    runs-on: dc34-release-runner  # Fixed label for persistent runner
+    timeout-minutes: 30
+
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
+          aws-region: us-east-1
+
+      - name: Login to ECR (us-east-1)
+        if: contains(inputs.regions, 'use1')
+        run: |
+          aws ecr get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Login to ECR (ca-central-1)
+        if: contains(inputs.regions, 'cac1')
+        run: |
+          aws ecr get-login-password --region ca-central-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run release-all.sh
+        env:
+          SKIP_ECR_LOGIN: "true"
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ARGS="--apps ${{ inputs.apps }} --regions ${{ inputs.regions }}"
+
+          if [[ "${{ inputs.parallel }}" == "true" ]]; then
+            ARGS="$ARGS --parallel"
+          fi
+
+          if [[ "${{ inputs.skip_bump }}" == "true" ]]; then
+            ARGS="$ARGS --skip-bump"
+          fi
+
+          if [[ "${{ inputs.create_pr }}" == "true" ]]; then
+            ARGS="$ARGS --pr"
+          else
+            ARGS="$ARGS --push"
+          fi
+
+          if [[ "${{ inputs.deploy }}" == "true" ]]; then
+            ARGS="$ARGS --with-terragrunt"
+          fi
+
+          echo "Running: ./apps/release-all.sh $ARGS"
+          ./apps/release-all.sh $ARGS
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** Existing EC2 (reused)" >> $GITHUB_STEP_SUMMARY
+          echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deploy:** ${{ inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+  # Stop EC2 runner (only for ephemeral mode)
   stop-ec2-runner:
-    if: inputs.runner == 'self-hosted-ec2' && always()
+    if: inputs.runner == 'ec2-ephemeral' && always()
     name: Stop EC2 Runner
-    needs: [start-ec2-runner, release-ec2]
+    needs: [start-ec2-runner, release-ec2-new]
     runs-on: ubuntu-latest
 
     permissions:
