@@ -303,9 +303,8 @@ test.describe('2. Test Setup - Upload Sample Files', () => {
   });
 
   test('should upload multiple sample GPX files for testing', async ({ page }) => {
-    // Get sample files filtered by size (max 200KB each for speed)
-    // This gives us diverse routes without huge files slowing tests
-    const sampleFiles = getSampleFilesFiltered(200);
+    // Get sample files filtered by size (max 20MB each)
+    const sampleFiles = getSampleFilesFiltered(20 * 1024);
     const allSampleFiles = getSampleFiles();
 
     console.log(`Available sample files: ${allSampleFiles.length} total, ${sampleFiles.length} under 200KB`);
@@ -322,11 +321,10 @@ test.describe('2. Test Setup - Upload Sample Files', () => {
     for (let i = 0; i < filesToUpload.length; i++) {
       const sampleFile = filesToUpload[i];
       const content = loadSampleFile(sampleFile);
-      // Keep original name with e2e- prefix so multi-file test can find diverse locations
-      const baseName = sampleFile.replace('.gpx', '');
-      const testFileName = `e2e-${baseName}-${Date.now()}.gpx`;
+      // Keep original name so multi-file test can find diverse locations (NYC, Japan, etc.)
+      const testFileName = sampleFile;
 
-      console.log(`Uploading: ${testFileName} (from ${sampleFile}, ${Math.round(content.length / 1024)}KB)`);
+      console.log(`Uploading: ${testFileName} (${Math.round(content.length / 1024)}KB)`);
 
       const fileId = await uploadFileViaAPI(page, testFileName, content);
 
@@ -346,10 +344,9 @@ test.describe('2. Test Setup - Upload Sample Files', () => {
     expect(listResponse.ok()).toBe(true);
 
     const { files } = await listResponse.json();
-    const e2eFiles = files.filter((f: { fileName: string }) => f.fileName.startsWith('e2e-'));
-    console.log(`Total e2e files in cloud storage: ${e2eFiles.length}`);
+    console.log(`Total files in cloud storage: ${files.length}`);
 
-    expect(e2eFiles.length).toBeGreaterThanOrEqual(uploadedIds.length);
+    expect(files.length).toBeGreaterThanOrEqual(uploadedIds.length);
   });
 
   test('should upload files for accountb user (multi-user tests)', async ({ page, context, browser }) => {
@@ -619,9 +616,8 @@ test.describe('3. Cloud Storage E2E', () => {
     // Wait a bit more for tabs to render
     await page.waitForTimeout(1000);
 
-    // Look for file tabs - they're buttons with e2e- prefix in the text
-    // File names now preserve original sample names: e2e-japan-*, e2e-Test NYC Route-*, etc.
-    const fileTabs = page.locator('button').filter({ hasText: /e2e-/i });
+    // Look for file tabs - they're buttons with .gpx file names
+    const fileTabs = page.locator('button').filter({ hasText: /\.gpx/i });
     const fileTabCount = await fileTabs.count();
     console.log(`Found ${fileTabCount} file tabs`);
 
@@ -1196,14 +1192,11 @@ test.describe('6. Test Cleanup - Delete E2E Files', () => {
     }
 
     const { files } = await filesResponse.json();
-    const e2eFiles = files.filter((f: { fileName: string }) =>
-      f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
-    );
 
-    console.log(`Found ${e2eFiles.length} e2e test files to clean up`);
+    console.log(`Found ${files.length} test files to clean up`);
 
-    if (e2eFiles.length === 0) {
-      console.log('No e2e test files to delete - cleanup complete');
+    if (files.length === 0) {
+      console.log('No test files to delete - cleanup complete');
       return;
     }
 
@@ -1216,10 +1209,10 @@ test.describe('6. Test Cleanup - Delete E2E Files', () => {
     const dialog = await openCloudStorage(page, 'open');
     await page.waitForTimeout(2000);
 
-    // Find all e2e test file rows and select them
+    // Find all test file rows and delete them
     let deletedCount = 0;
 
-    for (const file of e2eFiles) {
+    for (const file of files) {
       // Look for the file row containing this filename
       const fileRow = dialog.locator('table tr').filter({ hasText: file.fileName });
 
@@ -1275,35 +1268,29 @@ test.describe('6. Test Cleanup - Delete E2E Files', () => {
       }
     }
 
-    // Fallback: delete any remaining e2e files via API
+    // Fallback: delete any remaining files via API
     const remainingResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
     if (remainingResponse.ok()) {
       const { files: remainingFiles } = await remainingResponse.json();
-      const remainingE2eFiles = remainingFiles.filter((f: { fileName: string }) =>
-        f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
-      );
 
-      for (const file of remainingE2eFiles) {
+      for (const file of remainingFiles) {
         console.log(`Cleaning up remaining file via API: ${file.fileName}`);
         await page.request.delete(`${BASE_URL}${REGION_PREFIX}/api/gpx/files/${file.fileId}`);
         deletedCount++;
       }
     }
 
-    console.log(`Cleanup complete: ${deletedCount} e2e test files deleted`);
+    console.log(`Cleanup complete: ${deletedCount} test files deleted`);
 
     // Verify cleanup
     const verifyResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
     if (verifyResponse.ok()) {
       const { files: verifyFiles } = await verifyResponse.json();
-      const remainingE2e = verifyFiles.filter((f: { fileName: string }) =>
-        f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
-      );
 
-      if (remainingE2e.length === 0) {
-        console.log('All e2e test files successfully deleted');
+      if (verifyFiles.length === 0) {
+        console.log('All test files successfully deleted');
       } else {
-        console.log(`WARNING: ${remainingE2e.length} e2e files still remain`);
+        console.log(`WARNING: ${verifyFiles.length} files still remain`);
       }
     }
   });
@@ -1331,13 +1318,10 @@ test.describe('6. Test Cleanup - Delete E2E Files', () => {
     }
 
     const { files } = await filesResponse.json();
-    const e2eFiles = files.filter((f: { fileName: string }) =>
-      f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
-    );
 
-    console.log(`Found ${e2eFiles.length} accountb e2e files to clean up`);
+    console.log(`Found ${files.length} accountb files to clean up`);
 
-    for (const file of e2eFiles) {
+    for (const file of files) {
       await accountbPage.request.delete(`${BASE_URL}${REGION_PREFIX}/api/gpx/files/${file.fileId}`);
       console.log(`Deleted accountb file: ${file.fileName}`);
     }
@@ -1346,8 +1330,8 @@ test.describe('6. Test Cleanup - Delete E2E Files', () => {
     console.log('accountb cleanup complete');
   });
 
-  test('should verify no e2e test files remain', async ({ page }) => {
-    // Final verification that all e2e test files are gone
+  test('should verify no test files remain', async ({ page }) => {
+    // Final verification that all test files are gone
     const filesResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/gpx/files`);
 
     if (!filesResponse.ok()) {
@@ -1356,20 +1340,16 @@ test.describe('6. Test Cleanup - Delete E2E Files', () => {
     }
 
     const { files } = await filesResponse.json();
-    const e2eFiles = files.filter((f: { fileName: string }) =>
-      f.fileName.startsWith('e2e-') || f.fileName.startsWith('e2e_')
-    );
 
-    console.log(`Final check: ${e2eFiles.length} e2e test files remaining`);
-    console.log(`Total files in cloud storage: ${files.length}`);
+    console.log(`Final check: ${files.length} test files remaining`);
 
-    if (e2eFiles.length > 0) {
-      console.log('Remaining e2e files:');
-      e2eFiles.forEach((f: { fileName: string; fileId: string }) => {
+    if (files.length > 0) {
+      console.log('Remaining files:');
+      files.forEach((f: { fileName: string; fileId: string }) => {
         console.log(`  - ${f.fileName} (${f.fileId})`);
       });
     }
 
-    expect(e2eFiles.length).toBe(0);
+    expect(files.length).toBe(0);
   });
 });
