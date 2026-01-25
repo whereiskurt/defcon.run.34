@@ -1319,7 +1319,12 @@ test.describe('4. Multi-User Share Tests', () => {
         await takeScreenshot(accountcPage, 'accountc-private-share-denied', 'accountc accessing private share (should be denied)');
 
         const accountcContent = await accountcPage.textContent('body');
-        const accountcDenied = accountcContent?.includes('Access denied') || accountcContent?.includes('403') || accountcContent?.includes('not authorized');
+        // Check for denial message - we show "invalid or has expired" to prevent token enumeration
+        const accountcDenied =
+          accountcContent?.includes('Unable to load share') ||
+          accountcContent?.includes('invalid or has expired') ||
+          accountcContent?.includes('Access denied') ||
+          accountcContent?.includes('403');
 
         if (accountcDenied) {
           console.log('accountc correctly denied access to private share');
