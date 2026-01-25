@@ -570,8 +570,8 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::dc34-email-*",
-                    "arn:aws:s3:::dc34-email-*/*"
+                    "arn:aws:s3:::ses-inbox-dc34-*",
+                    "arn:aws:s3:::ses-inbox-dc34-*/*"
                   ]
                 },
                 {
