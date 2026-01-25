@@ -11,6 +11,8 @@
 #   --skip-deploy       Skip deployment (just build)
 #   --skip-nginx        Skip nginx container builds (only build app/webapp)
 #   --parallel          Run regional builds in parallel (faster but harder to debug)
+#   --no-branch         Don't create a release branch (commit to current branch)
+#   --push              Push the release branch after committing
 #
 # Examples:
 #   ./release-all.sh                           # Full release: both apps, both regions
@@ -30,6 +32,8 @@ SKIP_BUILD=false
 SKIP_DEPLOY=false
 SKIP_NGINX=false
 PARALLEL=false
+CREATE_BRANCH=true
+PUSH_BRANCH=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -60,6 +64,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --parallel)
       PARALLEL=true
+      shift
+      ;;
+    --no-branch)
+      CREATE_BRANCH=false
+      shift
+      ;;
+    --push)
+      PUSH_BRANCH=true
       shift
       ;;
     --help|-h)
@@ -159,6 +171,8 @@ echo "Skip build: $SKIP_BUILD"
 echo "Skip deploy: $SKIP_DEPLOY"
 echo "Skip nginx: $SKIP_NGINX"
 echo "Parallel:   $PARALLEL"
+echo "Create branch: $CREATE_BRANCH"
+echo "Push branch: $PUSH_BRANCH"
 echo "=============================================="
 echo "Started: $(date)"
 echo ""
@@ -174,6 +188,15 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
   echo "=============================================="
   echo "  PHASE 1: VERSION BUMP"
   echo "=============================================="
+
+  # Create release branch if requested
+  if [[ "$CREATE_BRANCH" == "true" ]]; then
+    RELEASE_BRANCH="release/$(date +%Y-%m-%d-%H%M%S)"
+    echo ""
+    echo "--- Creating release branch: ${RELEASE_BRANCH} ---"
+    git checkout -b "$RELEASE_BRANCH"
+    echo "  Branch created: ${RELEASE_BRANCH}"
+  fi
 
   for APP in "${APP_LIST[@]}"; do
     echo ""
@@ -206,6 +229,14 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
   else
     git commit -m "Bump versions for release: ${APP_LIST[*]}"
     echo "  VERSION bumps committed"
+  fi
+
+  # Push branch if requested
+  if [[ "$PUSH_BRANCH" == "true" && "$CREATE_BRANCH" == "true" ]]; then
+    echo ""
+    echo "--- Pushing release branch ---"
+    git push -u origin "$RELEASE_BRANCH"
+    echo "  Branch pushed: ${RELEASE_BRANCH}"
   fi
 
   echo ""
