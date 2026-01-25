@@ -1,4 +1,4 @@
-name: 🛡️ Checkov
+name: "🛡️ Checkov"
 
 on:
   # pull_request:

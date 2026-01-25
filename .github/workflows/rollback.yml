@@ -1,4 +1,4 @@
-name: 🚀 Deploy: Rollback
+name: "🚀 Deploy: Rollback"
 
 run-name: "Rollback ${{ inputs.action == 'list' && '(list versions)' || format('{0} → {1}', inputs.app, inputs.target_version) }}"
 
