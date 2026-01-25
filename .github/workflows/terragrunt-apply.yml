@@ -1,4 +1,4 @@
-name: 🏗️ Infra: Terragrunt Apply
+name: ⚙️ Infra: Terragrunt Apply
 
 on:
   # Manual trigger

@@ -1,4 +1,4 @@
-name: 🧪 Test: E2E
+name: ✅ Test: E2E
 run-name: E2E Tests (${{ inputs.region || 'us-east-1' }})
 
 on:
