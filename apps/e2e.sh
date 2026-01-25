@@ -40,10 +40,14 @@ GPX_E2E_DIR="$SCRIPT_DIR/run.gpx/e2e"
 # Production URLs
 PROD_AUTH_URL="https://auth.defcon.run"
 PROD_GPX_URL="https://gpx.defcon.run"
+PROD_RUN_URL="https://run.defcon.run"
+PROD_CMS_URL="https://cms.defcon.run"
 
 # Default URLs (localhost)
 AUTH_URL="${AUTH_URL:-http://localhost:3002}"
 GPX_URL="${GPX_URL:-http://localhost:3003}"
+RUN_URL="${RUN_URL:-http://localhost:3001}"
+CMS_URL="${CMS_URL:-http://localhost:1337}"
 
 # Region (for production testing, default: use1)
 REGION_SHORT="${REGION_SHORT:-use1}"
@@ -419,11 +423,13 @@ if [ "$FLAG_PROD" = "true" ]; then
     PROD_MODE=true
     AUTH_URL="$PROD_AUTH_URL"
     GPX_URL="$PROD_GPX_URL"
+    RUN_URL="$PROD_RUN_URL"
+    CMS_URL="$PROD_CMS_URL"
     log_info "Production mode: AUTH_URL=$AUTH_URL GPX_URL=$GPX_URL REGION_SHORT=$REGION_SHORT"
 fi
 
 # Export for subprocesses
-export AUTH_URL GPX_URL REGION_SHORT
+export AUTH_URL GPX_URL RUN_URL CMS_URL REGION_SHORT
 
 # Execute command
 case "$CMD" in

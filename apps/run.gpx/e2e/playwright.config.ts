@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-const baseURL = process.env.BASE_URL || 'https://gpx.defcon.run';
+const baseURL = process.env.BASE_URL || 'http://localhost:3003';
 const slowMo = process.env.SLOW_MO ? parseInt(process.env.SLOW_MO, 10) : 0;
 
 export default defineConfig({

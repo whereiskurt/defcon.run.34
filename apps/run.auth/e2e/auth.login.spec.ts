@@ -12,7 +12,7 @@ import {
 const USER_ROLE = (process.env.TEST_USER_ROLE as UserRole) || 'accounta';
 const TEST_EMAIL = getEmailForRole(USER_ROLE);
 const INVITE_CODE = 'hacktheplanet';
-const BASE_URL = process.env.BASE_URL || 'https://auth.defcon.run';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3002';
 // Local dev has no region prefix, production uses regional path (default: use1)
 const isLocal = BASE_URL.includes('localhost');
 const REGION_SHORT = process.env.REGION_SHORT || 'use1';

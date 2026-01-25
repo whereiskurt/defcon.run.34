@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-const baseURL = process.env.BASE_URL || 'https://auth.defcon.run';
+const baseURL = process.env.BASE_URL || 'http://localhost:3002';
 
 export default defineConfig({
   testDir: '.',

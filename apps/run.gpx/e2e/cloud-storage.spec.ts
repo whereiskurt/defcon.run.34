@@ -14,8 +14,8 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Test configuration
-const BASE_URL = process.env.BASE_URL || 'https://gpx.defcon.run';
+// Test configuration (defaults to localhost, use --prod flag or set BASE_URL for production)
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3003';
 // Local dev has no region prefix, production uses regional path (default: use1)
 const isLocal = BASE_URL.includes('localhost');
 const REGION_SHORT = process.env.REGION_SHORT || 'use1';
@@ -43,8 +43,8 @@ const SAMPLE_GPX = `<?xml version="1.0" encoding="UTF-8"?>
 const TEST_FILE_PREFIX = 'e2e-test';
 const getTestFileName = () => `${TEST_FILE_PREFIX}-${Date.now()}.gpx`;
 
-// Auth service URL for OIDC flow
-const AUTH_SERVICE_URL = isLocal ? 'http://localhost:3002' : 'https://auth.defcon.run';
+// Auth service URL for OIDC flow (set by e2e.sh, defaults to localhost)
+const AUTH_SERVICE_URL = process.env.AUTH_URL || 'http://localhost:3002';
 
 // Helper to load a sample file
 function loadSampleFile(filename: string): Buffer {

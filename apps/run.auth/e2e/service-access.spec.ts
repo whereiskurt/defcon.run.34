@@ -4,11 +4,11 @@ import { loadCookies, hasCookieJar } from './lib/cookie-jar.js';
 // Determine environment - local vs production
 const isLocal = process.env.BASE_URL?.includes('localhost') || false;
 
-// Service URLs - local dev uses different ports, production uses subdomains
-const AUTH_URL = process.env.BASE_URL || 'https://auth.defcon.run';
-const RUN_URL = isLocal ? 'http://localhost:3001' : 'https://run.defcon.run';
-const GPX_URL = isLocal ? 'http://localhost:3003' : 'https://gpx.defcon.run';
-const CMS_URL = isLocal ? 'http://localhost:1337' : 'https://cms.defcon.run';
+// Service URLs - use env vars with localhost defaults
+const AUTH_URL = process.env.BASE_URL || 'http://localhost:3002';
+const RUN_URL = process.env.RUN_URL || 'http://localhost:3001';
+const GPX_URL = process.env.GPX_URL || 'http://localhost:3003';
+const CMS_URL = process.env.CMS_URL || 'http://localhost:1337';
 // Local dev has no region prefix, production uses regional path (default: use1)
 const REGION_SHORT = process.env.REGION_SHORT || 'use1';
 const REGION_PREFIX = isLocal ? '' : `/${REGION_SHORT}`;
