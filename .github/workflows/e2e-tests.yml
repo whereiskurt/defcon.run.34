@@ -1,4 +1,5 @@
 name: E2E Tests
+run-name: E2E Tests (${{ inputs.region || 'us-east-1' }})
 
 on:
   workflow_dispatch:
