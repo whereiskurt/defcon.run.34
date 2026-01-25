@@ -586,6 +586,172 @@ locals {
             })
           }
         ]
+      },
+
+      # Release role - for GitHub Actions release workflow
+      # Used by release.yml to build and push Docker images, sync assets to S3
+      {
+        name        = "release"
+        description = "Release workflow (ECR push, S3 assets, CloudFront invalidation)"
+        # No branch restriction - release workflow can run from any branch
+        # The workflow creates release/* branches and merges PRs
+        max_session_duration = 7200 # 2 hours for long builds
+
+        inline_policies = [
+          {
+            name = "ecr-push"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "ECRAuth"
+                  Effect = "Allow"
+                  Action = [
+                    "ecr:GetAuthorizationToken"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "ECRPush"
+                  Effect = "Allow"
+                  Action = [
+                    "ecr:GetDownloadUrlForLayer",
+                    "ecr:BatchGetImage",
+                    "ecr:BatchCheckLayerAvailability",
+                    "ecr:PutImage",
+                    "ecr:InitiateLayerUpload",
+                    "ecr:UploadLayerPart",
+                    "ecr:CompleteLayerUpload",
+                    "ecr:DescribeRepositories",
+                    "ecr:ListImages"
+                  ]
+                  Resource = "arn:aws:ecr:*:*:repository/dc34-*"
+                }
+              ]
+            })
+          },
+          {
+            name = "s3-assets"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "S3Assets"
+                  Effect = "Allow"
+                  Action = [
+                    "s3:PutObject",
+                    "s3:GetObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucket"
+                  ]
+                  Resource = [
+                    "arn:aws:s3:::dc34-*",
+                    "arn:aws:s3:::dc34-*/*"
+                  ]
+                }
+              ]
+            })
+          },
+          {
+            name = "ssm-read"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "SSMRead"
+                  Effect = "Allow"
+                  Action = [
+                    "ssm:GetParameter",
+                    "ssm:GetParameters"
+                  ]
+                  Resource = "arn:aws:ssm:*:*:parameter/dc34/*"
+                }
+              ]
+            })
+          },
+          {
+            name = "cloudfront-invalidate"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "CloudFrontInvalidate"
+                  Effect = "Allow"
+                  Action = [
+                    "cloudfront:CreateInvalidation",
+                    "cloudfront:GetInvalidation",
+                    "cloudfront:ListDistributions"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
+          },
+          {
+            name = "sts-identity"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "STSIdentity"
+                  Effect = "Allow"
+                  Action = [
+                    "sts:GetCallerIdentity"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
+          },
+          {
+            name = "ec2-runner"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "EC2Runner"
+                  Effect = "Allow"
+                  Action = [
+                    "ec2:RunInstances",
+                    "ec2:TerminateInstances",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeInstanceStatus",
+                    "ec2:CreateTags",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeSecurityGroups"
+                  ]
+                  Resource = "*"
+                  Condition = {
+                    StringEquals = {
+                      "aws:RequestTag/Project" = "defcon.run.34"
+                    }
+                  }
+                },
+                {
+                  Sid    = "EC2RunnerManage"
+                  Effect = "Allow"
+                  Action = [
+                    "ec2:TerminateInstances",
+                    "ec2:DescribeInstances",
+                    "ec2:DescribeInstanceStatus"
+                  ]
+                  Resource = "*"
+                  Condition = {
+                    StringEquals = {
+                      "ec2:ResourceTag/Project" = "defcon.run.34"
+                    }
+                  }
+                },
+                {
+                  Sid    = "IAMPassRole"
+                  Effect = "Allow"
+                  Action = "iam:PassRole"
+                  Resource = "arn:aws:iam::*:role/*github-runner*"
+                }
+              ]
+            })
+          }
+        ]
       }
     ]
   }

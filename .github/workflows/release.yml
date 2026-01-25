@@ -1,0 +1,308 @@
+name: Release
+
+run-name: Release (${{ inputs.apps || 'all apps' }}) → ${{ inputs.regions || 'use1' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      apps:
+        description: 'Apps to release (comma-separated)'
+        type: string
+        default: 'run.auth,run.human,run.cms,run.gpx'
+      regions:
+        description: 'Target regions'
+        type: choice
+        options:
+          - use1
+          - cac1
+          - use1,cac1
+        default: use1
+      runner:
+        description: 'Runner type'
+        type: choice
+        options:
+          - github-hosted
+          - self-hosted-ec2
+        default: github-hosted
+      parallel:
+        description: 'Build apps in parallel'
+        type: boolean
+        default: true
+      skip_bump:
+        description: 'Skip version bump (use existing versions)'
+        type: boolean
+        default: false
+      create_pr:
+        description: 'Create and merge PR'
+        type: boolean
+        default: true
+      deploy:
+        description: 'Run terragrunt deploy after build'
+        type: boolean
+        default: false
+
+env:
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+
+jobs:
+  # ============================================================================
+  # Option 1: GitHub-hosted runner (slower but simple)
+  # ============================================================================
+  release-github-hosted:
+    if: inputs.runner == 'github-hosted'
+    name: Release (GitHub Runner)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for version bumping
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
+          aws-region: us-east-1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Login to ECR (us-east-1)
+        if: contains(inputs.regions, 'use1')
+        run: |
+          aws ecr get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Login to ECR (ca-central-1)
+        if: contains(inputs.regions, 'cac1')
+        run: |
+          aws ecr get-login-password --region ca-central-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run release-all.sh
+        env:
+          SKIP_ECR_LOGIN: "true"  # Already logged in above
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ARGS="--apps ${{ inputs.apps }} --regions ${{ inputs.regions }}"
+
+          if [[ "${{ inputs.parallel }}" == "true" ]]; then
+            ARGS="$ARGS --parallel"
+          fi
+
+          if [[ "${{ inputs.skip_bump }}" == "true" ]]; then
+            ARGS="$ARGS --skip-bump"
+          fi
+
+          if [[ "${{ inputs.create_pr }}" == "true" ]]; then
+            ARGS="$ARGS --pr"
+          else
+            ARGS="$ARGS --push"
+          fi
+
+          if [[ "${{ inputs.deploy }}" == "true" ]]; then
+            ARGS="$ARGS --with-terragrunt"
+          fi
+
+          echo "Running: ./apps/release-all.sh $ARGS"
+          ./apps/release-all.sh $ARGS
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** GitHub-hosted (ubuntu-latest)" >> $GITHUB_STEP_SUMMARY
+          echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deploy:** ${{ inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Option 2: Self-hosted EC2 spot runner (faster, more powerful)
+  # ============================================================================
+
+  # Step 1: Spin up EC2 spot instance as self-hosted runner
+  start-ec2-runner:
+    if: inputs.runner == 'self-hosted-ec2'
+    name: Start EC2 Runner
+    runs-on: ubuntu-latest
+    outputs:
+      runner-label: ${{ steps.start-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-runner.outputs.ec2-instance-id }}
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
+          aws-region: us-east-1
+
+      - name: Start EC2 Runner
+        id: start-runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.GH_RUNNER_TOKEN }}
+          ec2-image-id: ami-0c7217cdde317cfec  # Ubuntu 22.04 LTS x86_64
+          ec2-instance-type: c6i.4xlarge        # 16 vCPUs, 32GB RAM - fast builds
+          subnet-id: ${{ vars.RUNNER_SUBNET_ID }}
+          security-group-id: ${{ vars.RUNNER_SG_ID }}
+          iam-instance-profile: ${{ vars.RUNNER_INSTANCE_PROFILE }}
+          aws-resource-tags: >
+            [
+              {"Key": "Name", "Value": "github-runner-release"},
+              {"Key": "Project", "Value": "defcon.run.34"},
+              {"Key": "Purpose", "Value": "release-build"}
+            ]
+          runner-home-dir: /home/ubuntu/actions-runner
+          pre-runner-script: |
+            # Install Docker
+            sudo apt-get update
+            sudo apt-get install -y docker.io awscli
+            sudo usermod -aG docker ubuntu
+            sudo systemctl enable docker
+            sudo systemctl start docker
+
+            # Install Docker Buildx
+            mkdir -p ~/.docker/cli-plugins
+            curl -Lo ~/.docker/cli-plugins/docker-buildx \
+              https://github.com/docker/buildx/releases/latest/download/buildx-v0.12.1.linux-amd64
+            chmod +x ~/.docker/cli-plugins/docker-buildx
+
+            # Install gh CLI
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list
+            sudo apt-get update
+            sudo apt-get install -y gh
+
+  # Step 2: Run the release on the EC2 runner
+  release-ec2:
+    if: inputs.runner == 'self-hosted-ec2'
+    name: Release (EC2 Runner)
+    needs: start-ec2-runner
+    runs-on: ${{ needs.start-ec2-runner.outputs.runner-label }}
+    timeout-minutes: 30
+
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
+          aws-region: us-east-1
+
+      - name: Login to ECR (us-east-1)
+        if: contains(inputs.regions, 'use1')
+        run: |
+          aws ecr get-login-password --region us-east-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Login to ECR (ca-central-1)
+        if: contains(inputs.regions, 'cac1')
+        run: |
+          aws ecr get-login-password --region ca-central-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Run release-all.sh
+        env:
+          SKIP_ECR_LOGIN: "true"
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ARGS="--apps ${{ inputs.apps }} --regions ${{ inputs.regions }}"
+
+          if [[ "${{ inputs.parallel }}" == "true" ]]; then
+            ARGS="$ARGS --parallel"
+          fi
+
+          if [[ "${{ inputs.skip_bump }}" == "true" ]]; then
+            ARGS="$ARGS --skip-bump"
+          fi
+
+          if [[ "${{ inputs.create_pr }}" == "true" ]]; then
+            ARGS="$ARGS --pr"
+          else
+            ARGS="$ARGS --push"
+          fi
+
+          if [[ "${{ inputs.deploy }}" == "true" ]]; then
+            ARGS="$ARGS --with-terragrunt"
+          fi
+
+          echo "Running: ./apps/release-all.sh $ARGS"
+          ./apps/release-all.sh $ARGS
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** Self-hosted EC2 (c6i.4xlarge)" >> $GITHUB_STEP_SUMMARY
+          echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deploy:** ${{ inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+  # Step 3: Terminate the EC2 runner
+  stop-ec2-runner:
+    if: inputs.runner == 'self-hosted-ec2' && always()
+    name: Stop EC2 Runner
+    needs: [start-ec2-runner, release-ec2]
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
+          aws-region: us-east-1
+
+      - name: Stop EC2 Runner
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: stop
+          github-token: ${{ secrets.GH_RUNNER_TOKEN }}
+          label: ${{ needs.start-ec2-runner.outputs.runner-label }}
+          ec2-instance-id: ${{ needs.start-ec2-runner.outputs.ec2-instance-id }}
