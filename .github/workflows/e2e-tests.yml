@@ -9,17 +9,26 @@ on:
         options:
           - production
         default: production
+      region:
+        description: 'AWS Region'
+        type: choice
+        options:
+          - us-east-1
+          - ca-central-1
+        default: us-east-1
 
 env:
-  AWS_REGION: us-east-1
   NODE_VERSION: '22'
   AUTH_URL: https://auth.defcon.run
   GPX_URL: https://gpx.defcon.run
 
 jobs:
   e2e:
-    name: E2E Tests (Production)
+    name: E2E Tests (${{ inputs.region }})
     runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ inputs.region }}
+      REGION_SHORT: ${{ inputs.region == 'us-east-1' && 'use1' || 'cac1' }}
     environment: e2e-tests
     timeout-minutes: 20
 
@@ -35,7 +44,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-e2e
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ inputs.region }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -68,6 +77,8 @@ jobs:
 
       - name: Run E2E Tests
         working-directory: apps
+        env:
+          REGION_SHORT: ${{ env.REGION_SHORT }}
         run: ./e2e.sh --prod
 
       - name: Upload test results
@@ -97,6 +108,7 @@ jobs:
           echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** Production" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region }} (${{ env.REGION_SHORT }})" >> $GITHUB_STEP_SUMMARY
           echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
