@@ -231,14 +231,15 @@ The multi-file test captures screenshots in `test-results/`:
 Share URLs must NOT include region prefix (`/use1/`) in local development:
 
 ```typescript
-// Correct: Check if NEXT_PUBLIC_BASE_URL contains production domain
-const configuredBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-const isProduction = configuredBaseUrl?.includes("defcon.run");
+// Use WEBAPP_ORIGIN (set in production Terraform config)
+const webappOrigin = process.env.WEBAPP_ORIGIN; // "gpx.defcon.run" in prod
+const regionShort = process.env.REGION_SHORT;   // "use1" or "cac1" in prod
+const isProduction = webappOrigin?.includes("defcon.run");
 
-if (isProduction) {
-  shareUrl = `${configuredBaseUrl}/${regionShort}/studio/share/${shareId}`;
+if (isProduction && webappOrigin && regionShort) {
+  shareUrl = `https://${webappOrigin}/${regionShort}/studio/share/${shareId}`;
 } else {
-  const baseUrl = configuredBaseUrl || `http://localhost:${process.env.PORT}`;
+  const baseUrl = `http://localhost:${process.env.PORT || "3003"}`;
   shareUrl = `${baseUrl}/studio/share/${shareId}`;
 }
 ```
@@ -334,7 +335,7 @@ Session expired. Re-run: `./e2e.sh --setup`
 Upload quota depleted. Wait for quota reset or use admin API to restore.
 
 ### Share URL 404
-Check that share URL doesn't contain `/use1/` in local dev. The API should generate correct URLs based on `NEXT_PUBLIC_BASE_URL`.
+Check that share URL doesn't contain `/use1/` in local dev. The API uses `WEBAPP_ORIGIN` and `REGION_SHORT` to detect production.
 
 ### Map Not Moving
 Ensure `Ctrl+Enter` is being sent after file selection. Double-click on file tabs does NOT center the map.
