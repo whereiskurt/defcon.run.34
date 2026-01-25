@@ -478,7 +478,7 @@ if [[ "$CREATE_PR" == "true" && "$AUTO_MERGE" == "true" && -n "$PR_URL" ]]; then
     echo "Merging PR #${PR_NUMBER}..."
 
     # Use squash merge with admin override to bypass branch protection
-    if gh pr merge "$PR_NUMBER" --squash --delete-branch --auto --admin 2>&1; then
+    if gh pr merge "$PR_NUMBER" --squash --delete-branch --admin 2>&1; then
       echo "  PR #${PR_NUMBER} merged successfully"
       echo "  Branch deleted"
       PR_MERGED=true

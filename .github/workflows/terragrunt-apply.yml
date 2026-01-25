@@ -4,13 +4,18 @@ on:
   # Manual trigger
   workflow_dispatch:
 
-  # Auto-trigger on merge to main when infra/ changes
+  # Auto-trigger on merge to main when VERSION files change
   # Requires approval via terraform-apply environment
   push:
     branches:
       - main
     paths:
-      - 'infra/**'
+      - 'infra/**/VERSION.*'
+
+# Cancel in-progress runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   apply:
