@@ -573,6 +573,14 @@ locals {
                     "arn:aws:s3:::dc34-email-*",
                     "arn:aws:s3:::dc34-email-*/*"
                   ]
+                },
+                {
+                  Sid    = "SSMEmailBucketParam"
+                  Effect = "Allow"
+                  Action = ["ssm:GetParameter"]
+                  Resource = [
+                    "arn:aws:ssm:*:*:parameter/dc34/ses/s3/*/bucket_name"
+                  ]
                 }
               ]
             })
