@@ -12,3 +12,11 @@ paths = [
   '''.*selfsigned\.key$''',
   '''.*selfsigned\.pem$''',
 ]
+
+# Public map tile provider API keys in gpx-studio
+# These are intentionally public keys for map services (Thunderforest, MapTiler, etc.)
+# See: gpx-studio/website/src/lib/assets/layers.ts
+regexes = [
+  '''30cb768c-c968-493c-ae24-2b0b974ebd29''',
+  '''d01fbtg0ar23gctac5m0jgyy2ds''',
+]
