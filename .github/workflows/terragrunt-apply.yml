@@ -12,6 +12,11 @@ on:
     paths:
       - 'infra/**/VERSION.*'
 
+# Cancel in-progress runs when new commits are pushed
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   apply:
     name: Terragrunt Apply
