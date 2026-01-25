@@ -9,8 +9,8 @@ import type { QuotaTier } from "./quota-client";
  */
 export const UPLOAD_LIMITS: Record<QuotaTier, { maxFileSize: number; maxFiles: number }> = {
   zero: { maxFileSize: 0, maxFiles: 0 },
-  upload: { maxFileSize: 20 * 1024 * 1024, maxFiles: 10 },  // 20 MB, 10 files
-  admin: { maxFileSize: 100 * 1024 * 1024, maxFiles: 100 }, // 100 MB, 100 files
+  upload: { maxFileSize: 20 * 1024 * 1024, maxFiles: 25 },  // 20 MB, 25 files
+  admin: { maxFileSize: 100 * 1024 * 1024, maxFiles: 250 }, // 100 MB, 250 files
 };
 
 /** Default max file size for backwards compatibility */
