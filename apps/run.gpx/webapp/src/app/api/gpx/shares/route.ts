@@ -131,17 +131,17 @@ export async function POST(request: Request) {
     // Construct the share URL
     // Local: http://localhost:3003/studio/share/{token}
     // Prod: https://gpx.defcon.run/{region}/studio/share/{token}
-    const configuredBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-    const isProduction = configuredBaseUrl?.includes("defcon.run");
+    const webappOrigin = process.env.WEBAPP_ORIGIN; // Set in production: "gpx.defcon.run"
+    const regionShort = process.env.REGION_SHORT;   // Set in production: "use1" or "cac1"
+    const isProduction = webappOrigin?.includes("defcon.run") || process.env.NODE_ENV === "production";
 
     let shareUrl: string;
-    if (isProduction) {
+    if (isProduction && webappOrigin && regionShort) {
       // Production: use domain with region prefix
-      const regionShort = process.env.REGION_SHORT || "use1";
-      shareUrl = `${configuredBaseUrl}/${regionShort}/studio/share/${shareId}`;
+      shareUrl = `https://${webappOrigin}/${regionShort}/studio/share/${shareId}`;
     } else {
-      // Local development: no region prefix, use configured URL or localhost
-      const baseUrl = configuredBaseUrl || `http://localhost:${process.env.PORT || "3003"}`;
+      // Local development: no region prefix
+      const baseUrl = `http://localhost:${process.env.PORT || "3003"}`;
       shareUrl = `${baseUrl}/studio/share/${shareId}`;
     }
 
@@ -189,16 +189,16 @@ export async function GET(request: Request) {
       .go({ order: "desc" });
 
     // Construct share URLs for each share
-    const configuredBaseUrl = process.env.NEXT_PUBLIC_BASE_URL;
-    const isProduction = configuredBaseUrl?.includes("defcon.run");
-    const regionShort = process.env.REGION_SHORT || "use1";
+    const webappOrigin = process.env.WEBAPP_ORIGIN;
+    const regionShort = process.env.REGION_SHORT;
+    const isProduction = webappOrigin?.includes("defcon.run") || process.env.NODE_ENV === "production";
 
     const shares = result.data.map((share) => {
       let shareUrl: string;
-      if (isProduction) {
-        shareUrl = `${configuredBaseUrl}/${regionShort}/studio/share/${share.shareId}`;
+      if (isProduction && webappOrigin && regionShort) {
+        shareUrl = `https://${webappOrigin}/${regionShort}/studio/share/${share.shareId}`;
       } else {
-        const baseUrl = configuredBaseUrl || `http://localhost:${process.env.PORT || "3003"}`;
+        const baseUrl = `http://localhost:${process.env.PORT || "3003"}`;
         shareUrl = `${baseUrl}/studio/share/${share.shareId}`;
       }
       return { ...share, shareUrl };
