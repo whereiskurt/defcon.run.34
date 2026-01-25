@@ -231,3 +231,78 @@ Scripts expect these named profiles in `~/.aws/config`:
 | `terraform` | terraform | Terragrunt/Terraform state access |
 
 **Single-account option:** All three profiles can point to the same AWS account if separation isn't needed. The profile names are conventions used by scripts, not hard requirements for distinct accounts.
+
+## CI/CD Pipeline
+
+### GitHub Actions Workflows
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `terragrunt-plan.yml` | PRs with `infra/**` changes | Preview infrastructure changes |
+| `terragrunt-apply.yml` | Merge to main with `infra/**` changes | Deploy infrastructure (requires approval) |
+| `e2e-tests.yml` | Manual / workflow_dispatch | End-to-end testing |
+| `gitleaks-scan.yml` | Push | Secret detection |
+| `checkov-scan.yml` | Push | Infrastructure security scanning |
+
+### Infrastructure Deployment Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PR with infra/ changes                                         │
+│  ↓                                                              │
+│  Terragrunt Plan (auto) ──→ Plan output in PR comment           │
+│  ↓                                                              │
+│  Merge to main                                                  │
+│  ↓                                                              │
+│  Terragrunt Apply (triggered) ──→ Waits for approval            │
+│  ↓                                                              │
+│  Approve in GitHub (terraform-apply environment)                │
+│  ↓                                                              │
+│  terragrunt run apply --all                                     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Environment Protection:**
+
+The `terraform-apply` GitHub environment requires manual approval before `terragrunt apply` runs. Configure required reviewers at:
+`Settings → Environments → terraform-apply → Environment protection rules`
+
+### Release Automation
+
+The `release-all.sh` script automates the full release cycle:
+
+```bash
+./apps/release-all.sh --pr    # Recommended: full release with PR
+```
+
+**What happens:**
+
+1. Creates release branch (`release/YYYY-MM-DD-HHMMSS`)
+2. Bumps VERSION files for all apps (nginx + webapp)
+3. Copies VERSION files to terraform service directories
+4. Commits all VERSION files in single commit
+5. Pushes branch and creates PR with version summary
+6. Builds Docker images for all apps/regions
+7. Pushes images to ECR
+8. Auto-merges PR (squash merge, deletes branch)
+9. If `infra/` changed, triggers `terragrunt-apply` workflow
+10. User approves in GitHub Actions → infrastructure deploys
+
+**VERSION File Locations:**
+
+| Type | Path |
+|------|------|
+| App VERSION | `apps/{app}/webapp/VERSION` or `apps/{app}/app/VERSION` |
+| Nginx VERSION | `apps/{app}/nginx/VERSION` |
+| Terraform VERSION | `infra/terraform/live/site/services/{service}/VERSION.app` |
+| Terraform Nginx | `infra/terraform/live/site/services/{service}/VERSION.nginx` |
+
+### IAM Roles for GitHub Actions
+
+| Role | Purpose |
+|------|---------|
+| `dc34-github-readonly` | Terragrunt plan (read-only AWS access) |
+| `dc34-github-terragrunt` | Terragrunt apply (full AWS access) |
+| `dc34-github-e2e` | E2E tests (S3 email bucket access) |
+
+These roles use OIDC federation - no long-lived credentials stored in GitHub.

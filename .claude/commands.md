@@ -63,6 +63,45 @@ npm run build
 ./apps/release-all.sh --apps run.auth --regions use1
 ./apps/release-all.sh --parallel                       # Faster parallel builds
 ./apps/release-all.sh --skip-bump --skip-build         # Deploy only
+
+# Release with PR and auto-merge (recommended)
+./apps/release-all.sh --pr                    # Create PR, build, auto-merge
+./apps/release-all.sh --pr --no-merge         # Create PR but don't auto-merge
+./apps/release-all.sh --pr --with-terragrunt  # Full release with infra deploy
+```
+
+### release-all.sh Options
+
+| Flag | Description |
+|------|-------------|
+| `--apps <list>` | Comma-separated apps (default: run.auth,run.human,run.cms,run.gpx) |
+| `--regions <list>` | Comma-separated regions (default: use1) |
+| `--pr` | Create PR after pushing (implies --push, auto-merge by default) |
+| `--no-merge` | Don't auto-merge PR after builds (use with --pr) |
+| `--push` | Push the release branch after committing |
+| `--no-branch` | Don't create release branch (commit to current branch) |
+| `--parallel` | Run regional builds in parallel |
+| `--with-terragrunt` | Run terragrunt apply after build |
+| `--skip-bump` | Skip version bumping |
+| `--skip-build` | Skip building images |
+| `--skip-nginx` | Skip nginx container builds |
+
+### Release Flow with --pr
+
+```
+./release-all.sh --pr
+    │
+    ├─ 1. Create release branch (release/YYYY-MM-DD-HHMMSS)
+    ├─ 2. Bump VERSION files (app + terraform)
+    ├─ 3. Commit all VERSION files in single commit
+    ├─ 4. Push branch, create PR
+    ├─ 5. Build images → push to ECR
+    ├─ 6. Auto-merge PR (squash, delete branch)
+    │
+    └─ If infra/ changed:
+       ├─ 7. Terragrunt Apply workflow triggers
+       ├─ 8. Approve in GitHub Actions (terraform-apply environment)
+       └─ 9. terragrunt apply runs
 ```
 
 ## Infrastructure
