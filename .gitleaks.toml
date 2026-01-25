@@ -17,8 +17,8 @@ paths = [
 # These are intentionally public keys for map services (Thunderforest, MapTiler, etc.)
 # See: gpx-studio/website/src/lib/assets/layers.ts
 regexes = [
-  '''30cb768c-c968-493c-ae24-2b0b974ebd29''',
-  '''d01fbtg0ar23gctac5m0jgyy2ds''',
-  '''piCT8WysfuC3xLSUW7sGLfrAAJoYDvQz''',
-  '''AIzaSyA2ZadQob_hXiT2VaYIkAyafPvz_4ZMssk''',
+  '''30cb768c-c968-493c-ae24-2b0b974ebd29''',  # Thunderforest
+  '''d01fbtg0ar23gctac5m0jgyy2ds''',           # MapTiler
+  '''piCT8WysfuC3xLSUW7sGLfrAAJoYDvQz''',      # Stadia Maps
+  '''AIzaSyA2ZadQob_hXiT2VaYIkAyafPvz_4ZMssk''', # Google Maps
 ]
