@@ -3,13 +3,6 @@
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 
-// Get basePath from environment - only add region prefix in production
-// Check if NEXT_PUBLIC_BASE_URL is set and contains defcon.run
-const isProduction = process.env.NEXT_PUBLIC_BASE_URL?.includes("defcon.run");
-const basePath = isProduction && process.env.NEXT_PUBLIC_REGION_SHORT
-  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
-  : "";
-
 /**
  * Share page - redirects to GPX Studio app with share token as query param.
  * The GPX Studio app handles the share acceptance dialog.
@@ -20,6 +13,12 @@ export default function SharePage() {
 
   useEffect(() => {
     if (token) {
+      // Detect production by checking hostname at runtime
+      // In production, we need the region prefix (e.g., /use1)
+      const isProduction = window.location.hostname.includes("defcon.run");
+      const regionShort = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
+      const basePath = isProduction ? `/${regionShort}` : "";
+
       // Redirect to GPX Studio app with share token
       window.location.href = `${basePath}/studio/app?share=${encodeURIComponent(token)}`;
     }
