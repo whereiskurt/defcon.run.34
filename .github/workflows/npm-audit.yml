@@ -1,4 +1,4 @@
-name: NPM Security Audit
+name: 🛡️ NPM Audit
 
 on:
   # pull_request:

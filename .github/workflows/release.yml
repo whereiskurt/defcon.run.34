@@ -1,4 +1,4 @@
-name: Release
+name: 🚀 Deploy: Release
 
 run-name: Release (${{ inputs.apps || 'all apps' }}) → ${{ inputs.regions || 'use1' }}
 

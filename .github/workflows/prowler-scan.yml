@@ -1,4 +1,4 @@
-name: Prowler Security Scan
+name: 🛡️ Prowler
 
 on:
   # Run on demand

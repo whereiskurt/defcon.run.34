@@ -1,4 +1,4 @@
-name: Checkov IaC Security Scan
+name: 🛡️ Checkov
 
 on:
   # pull_request:
