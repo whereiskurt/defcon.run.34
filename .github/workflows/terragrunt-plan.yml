@@ -4,10 +4,10 @@ on:
   # Manual trigger
   workflow_dispatch:
 
-  # Auto-trigger on PRs that change infra/
+  # Auto-trigger on PRs that change VERSION files
   pull_request:
     paths:
-      - 'infra/**'
+      - 'infra/**/VERSION.*'
 
 jobs:
   plan:
