@@ -303,18 +303,10 @@ test.describe('2. Test Setup - Upload Sample Files', () => {
   });
 
   test('should upload multiple sample GPX files for testing', async ({ page }) => {
-    // Get sample files filtered by size (max 20MB each)
-    const sampleFiles = getSampleFilesFiltered(20 * 1024);
-    const allSampleFiles = getSampleFiles();
+    // Get all sample files (no size filtering - upload everything)
+    const filesToUpload = getSampleFiles();
 
-    console.log(`Available sample files: ${allSampleFiles.length} total, ${sampleFiles.length} under 200KB`);
-
-    // Upload all filtered sample files (or fallback to first 3 of any size)
-    const filesToUpload = sampleFiles.length >= 3
-      ? sampleFiles
-      : allSampleFiles.slice(0, 5);
-
-    console.log(`Uploading ${filesToUpload.length} sample files...`);
+    console.log(`Uploading all ${filesToUpload.length} sample files...`);
 
     const uploadedIds: string[] = [];
 
