@@ -1,5 +1,40 @@
 # GitHub Actions Workflows
 
+## Workflow Overview
+
+| Workflow | Purpose | When to use |
+|----------|---------|-------------|
+| **Release** | Build images, push to ECR, sync assets | New code ready to deploy |
+| **Deploy** | Run terragrunt to update ECS | After release, or redeploy current |
+| **Rollback** | Revert to a previous version | Something went wrong |
+| **EC2 Runner** | Manage self-hosted runners | Fast builds, work sessions |
+
+### Typical Flow
+
+```
+Code merged to main
+        │
+        ▼
+┌─────────────────┐
+│    Release      │  Build images, push to ECR
+│  (no deploy)    │  Creates PR, merges
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│    Deploy       │  Terragrunt apply → ECS blue/green
+│   us-east-1     │
+└────────┬────────┘
+         │
+         ▼ (verify, then)
+┌─────────────────┐
+│    Deploy       │  Same for second region
+│  ca-central-1   │
+└─────────────────┘
+```
+
+---
+
 ## Release Workflow (`release.yml`)
 
 Automated release pipeline that builds Docker images, pushes to ECR, syncs assets to S3, and creates PRs.
@@ -163,3 +198,113 @@ For extended work sessions, use the runner lifecycle management:
 - Check `GH_RUNNER_TOKEN` secret is valid and has `repo` scope.
 - Verify subnet has internet access.
 - Check IAM role has EC2 permissions.
+
+---
+
+## Deploy Workflow (`deploy.yml`)
+
+Runs terragrunt to deploy what's currently in ECR to ECS. Triggers blue/green deployment.
+
+### Usage
+
+1. Go to **Actions** → **Deploy** → **Run workflow**
+2. Select region (`us-east-1` or `ca-central-1`)
+3. Optionally filter to specific apps
+4. Click **Run workflow**
+
+### Inputs
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| `region` | Target AWS region | `us-east-1` |
+| `apps` | Comma-separated apps (empty = all) | `` |
+| `invalidate_cache` | Invalidate CloudFront after deploy | `true` |
+
+### What It Does
+
+1. Reads VERSION files to determine which image tags to deploy
+2. Runs `terragrunt apply` on ecs-task and ecs-service modules
+3. ECS performs blue/green deployment
+4. Invalidates CloudFront cache (optional)
+
+### CLI Usage
+
+```bash
+# Deploy all apps to us-east-1
+gh workflow run deploy.yml -f region=us-east-1
+
+# Deploy specific app
+gh workflow run deploy.yml -f region=us-east-1 -f apps=run.auth
+```
+
+---
+
+## Rollback Workflow (`rollback.yml`)
+
+Reverts an app to a previous version by querying ECR for available images.
+
+### Usage
+
+**Step 1: List available versions**
+1. Go to **Actions** → **Rollback** → **Run workflow**
+2. Set action: `list`
+3. Select region
+4. Click **Run workflow**
+5. Check the workflow summary for available versions
+
+**Step 2: Perform rollback**
+1. Run workflow again
+2. Set action: `rollback`
+3. Select the app and region
+4. Enter the target version (from step 1)
+5. Click **Run workflow**
+
+### Inputs
+
+| Input | Description | Default |
+|-------|-------------|---------|
+| `action` | `list` or `rollback` | `list` |
+| `region` | Target AWS region | `us-east-1` |
+| `app` | App to rollback | `run.auth` |
+| `target_version` | Version to rollback to | `` |
+
+### What It Does
+
+**List action:**
+- Queries ECR for available image tags
+- Shows last 10 versions per app with push dates
+- Shows current deployed version
+- Displays git history for VERSION files
+
+**Rollback action:**
+- Validates version exists in ECR
+- Updates VERSION files
+- Commits change to main
+- Runs terragrunt apply
+- Invalidates CloudFront cache
+
+### CLI Usage
+
+```bash
+# List available versions
+gh workflow run rollback.yml -f action=list -f region=us-east-1
+
+# Rollback to specific version
+gh workflow run rollback.yml \
+  -f action=rollback \
+  -f region=us-east-1 \
+  -f app=run.auth \
+  -f target_version=v0.1.5
+```
+
+### Version Discovery
+
+The rollback workflow finds versions from:
+
+1. **ECR image tags** - Actual images available to deploy
+2. **Git history** - VERSION file changes (for context)
+
+This is more reliable than just decrementing version numbers since:
+- Versions might skip numbers (v0.1.5 → v0.2.0)
+- Some versions might have been deleted from ECR
+- You can see exactly when each version was pushed

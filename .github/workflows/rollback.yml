@@ -1,0 +1,323 @@
+name: Rollback
+
+run-name: "Rollback ${{ inputs.action == 'list' && '(list versions)' || format('{0} → {1}', inputs.app, inputs.target_version) }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action'
+        type: choice
+        options:
+          - list
+          - rollback
+        default: list
+      region:
+        description: 'Target region'
+        type: choice
+        options:
+          - us-east-1
+          - ca-central-1
+        default: us-east-1
+      app:
+        description: 'App to rollback (for rollback action)'
+        type: choice
+        options:
+          - run.auth
+          - run.human
+          - run.cms
+          - run.gpx
+        default: run.auth
+      target_version:
+        description: 'Version to rollback to (run "list" first to see options)'
+        type: string
+        default: ''
+
+env:
+  TF_SITE_DIR: infra/terraform/live/site
+
+jobs:
+  # ============================================================================
+  # List available versions from ECR
+  # ============================================================================
+  list-versions:
+    if: inputs.action == 'list'
+    name: List Available Versions
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-deploy
+          aws-region: ${{ inputs.region }}
+
+      - name: List versions from ECR and Git
+        run: |
+          echo "## Available Versions for Rollback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Region: **${{ inputs.region }}**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # App to ECR repo mapping
+          declare -A REPOS=(
+            ["run.auth"]="dc34-run-auth-app"
+            ["run.human"]="dc34-run-human-app"
+            ["run.cms"]="dc34-run-cms-app"
+            ["run.gpx"]="dc34-run-gpx-app"
+          )
+
+          # Service name mapping
+          declare -A SERVICES=(
+            ["run.auth"]="run-auth"
+            ["run.human"]="run-human"
+            ["run.cms"]="run-cms"
+            ["run.gpx"]="run-gpx"
+          )
+
+          for APP in "run.auth" "run.human" "run.cms" "run.gpx"; do
+            REPO="${REPOS[$APP]}"
+            SERVICE="${SERVICES[$APP]}"
+
+            echo "### ${APP}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Get current deployed version from VERSION file
+            CURRENT=$(cat ${{ env.TF_SITE_DIR }}/services/${SERVICE}/VERSION.app 2>/dev/null || echo "unknown")
+            echo "**Currently deployed:** \`${CURRENT}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Query ECR for image tags, sorted by push date (newest first)
+            echo "**Available in ECR:**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Version | Pushed | Size |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------|--------|------|" >> $GITHUB_STEP_SUMMARY
+
+            # Get images sorted by push date
+            aws ecr describe-images \
+              --repository-name "$REPO" \
+              --query 'imageDetails[?imageTags] | sort_by(@, &imagePushedAt) | reverse(@) | [0:10]' \
+              --output json 2>/dev/null | \
+            jq -r '.[] | [
+              (.imageTags[0] // "untagged"),
+              (.imagePushedAt | split("T")[0]),
+              ((.imageSizeInBytes / 1048576) | floor | tostring + " MB")
+            ] | @tsv' | \
+            while IFS=$'\t' read -r TAG DATE SIZE; do
+              if [[ "$TAG" == "$CURRENT" ]]; then
+                echo "| \`${TAG}\` ← current | ${DATE} | ${SIZE} |" >> $GITHUB_STEP_SUMMARY
+              else
+                echo "| \`${TAG}\` | ${DATE} | ${SIZE} |" >> $GITHUB_STEP_SUMMARY
+              fi
+            done
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # Also show git history for VERSION file
+            echo "<details><summary>Git history for VERSION file</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+            # Get version file path based on app
+            if [[ "$APP" == "run.cms" ]]; then
+              VERSION_FILE="apps/${APP}/app/VERSION"
+            else
+              VERSION_FILE="apps/${APP}/webapp/VERSION"
+            fi
+
+            # Show last 10 version changes from git
+            git log --oneline -10 --follow -- "$VERSION_FILE" 2>/dev/null | head -10 >> $GITHUB_STEP_SUMMARY || echo "No git history" >> $GITHUB_STEP_SUMMARY
+
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          done
+
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### How to Rollback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Find the version you want from the tables above" >> $GITHUB_STEP_SUMMARY
+          echo "2. Run this workflow again with:" >> $GITHUB_STEP_SUMMARY
+          echo "   - Action: \`rollback\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - App: select the app" >> $GITHUB_STEP_SUMMARY
+          echo "   - Target version: paste the version string" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Perform rollback
+  # ============================================================================
+  rollback:
+    if: inputs.action == 'rollback' && inputs.target_version != ''
+    name: Rollback ${{ inputs.app }} to ${{ inputs.target_version }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-deploy
+          aws-region: ${{ inputs.region }}
+
+      - name: Validate version exists in ECR
+        id: validate
+        run: |
+          # Map app to ECR repo
+          case "${{ inputs.app }}" in
+            run.auth)  REPO="dc34-run-auth-app" ;;
+            run.human) REPO="dc34-run-human-app" ;;
+            run.cms)   REPO="dc34-run-cms-app" ;;
+            run.gpx)   REPO="dc34-run-gpx-app" ;;
+          esac
+
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
+
+          # Check if version exists
+          IMAGE=$(aws ecr describe-images \
+            --repository-name "$REPO" \
+            --image-ids imageTag="${{ inputs.target_version }}" \
+            --query 'imageDetails[0].imageTags[0]' \
+            --output text 2>/dev/null || echo "")
+
+          if [[ -z "$IMAGE" || "$IMAGE" == "None" ]]; then
+            echo "❌ Version ${{ inputs.target_version }} not found in ECR repo $REPO" >> $GITHUB_STEP_SUMMARY
+            echo "Run with action=list to see available versions." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ Version ${{ inputs.target_version }} found in ECR" >> $GITHUB_STEP_SUMMARY
+
+      - name: Get current version
+        id: current
+        run: |
+          SERVICE_NAME=$(echo "${{ inputs.app }}" | tr '.' '-')
+          CURRENT=$(cat ${{ env.TF_SITE_DIR }}/services/${SERVICE_NAME}/VERSION.app)
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          echo "service=$SERVICE_NAME" >> $GITHUB_OUTPUT
+
+          echo "## Rollback Plan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| **App** | ${{ inputs.app }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Region** | ${{ inputs.region }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Current** | \`${CURRENT}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Rollback to** | \`${{ inputs.target_version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+      - name: Update VERSION file
+        run: |
+          SERVICE_NAME="${{ steps.current.outputs.service }}"
+
+          # Update terraform VERSION file
+          echo "${{ inputs.target_version }}" > "${{ env.TF_SITE_DIR }}/services/${SERVICE_NAME}/VERSION.app"
+
+          # Also update app VERSION file for consistency
+          if [[ "${{ inputs.app }}" == "run.cms" ]]; then
+            echo "${{ inputs.target_version }}" > "apps/${{ inputs.app }}/app/VERSION"
+          else
+            echo "${{ inputs.target_version }}" > "apps/${{ inputs.app }}/webapp/VERSION"
+          fi
+
+          echo "Updated VERSION files to ${{ inputs.target_version }}"
+
+      - name: Commit version change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git commit -m "Rollback ${{ inputs.app }} to ${{ inputs.target_version }}
+
+          Previous version: ${{ steps.current.outputs.version }}
+          Region: ${{ inputs.region }}
+          Triggered by: @${{ github.actor }}
+
+          Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+          git push
+
+      - name: Setup Terragrunt
+        uses: gruntwork-io/terragrunt-action@v2
+        with:
+          tofu_version: 1.8.0
+          tg_version: 0.68.0
+
+      - name: Deploy rollback
+        working-directory: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}
+        run: |
+          echo "## Deploying Rollback" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          echo "Applying terragrunt for ${{ steps.current.outputs.service }}..."
+
+          # Apply the changes
+          terragrunt run apply --all --non-interactive -- -auto-approve 2>&1 | tee /tmp/tg-output.txt
+
+          echo "✅ Rollback deployed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Invalidate CloudFront cache
+        run: |
+          # Map app to domain
+          case "${{ inputs.app }}" in
+            run.auth)  DOMAIN="auth.defcon.run" ;;
+            run.human) DOMAIN="run.defcon.run" ;;
+            run.cms)   DOMAIN="cms.defcon.run" ;;
+            run.gpx)   DOMAIN="gpx.defcon.run" ;;
+          esac
+
+          DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Aliases.Items[?@=='${DOMAIN}']].Id" \
+            --output text 2>/dev/null || true)
+
+          if [[ -n "$DISTRIBUTION_ID" && "$DISTRIBUTION_ID" != "None" ]]; then
+            INVALIDATION_ID=$(aws cloudfront create-invalidation \
+              --distribution-id "$DISTRIBUTION_ID" \
+              --paths "/*" \
+              --query 'Invalidation.Id' \
+              --output text)
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**CloudFront invalidation:** \`${INVALIDATION_ID}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Rollback Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**${{ inputs.app }}** rolled back from \`${{ steps.current.outputs.version }}\` to \`${{ inputs.target_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "If you need to rollback further, run this workflow again with a different version." >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Error if rollback requested without version
+  # ============================================================================
+  validate-input:
+    if: inputs.action == 'rollback' && inputs.target_version == ''
+    name: Validate Input
+    runs-on: ubuntu-latest
+    steps:
+      - name: Error - no version specified
+        run: |
+          echo "❌ **Error:** No target version specified" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run this workflow with action=**list** first to see available versions," >> $GITHUB_STEP_SUMMARY
+          echo "then run again with action=**rollback** and specify the target version." >> $GITHUB_STEP_SUMMARY
+          exit 1

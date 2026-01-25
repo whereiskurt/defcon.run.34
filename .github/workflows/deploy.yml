@@ -1,0 +1,141 @@
+name: Deploy
+
+run-name: Deploy ${{ inputs.apps || 'all apps' }} → ${{ inputs.region }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: 'Target region'
+        type: choice
+        options:
+          - us-east-1
+          - ca-central-1
+        default: us-east-1
+      apps:
+        description: 'Apps to deploy (comma-separated, empty = all)'
+        type: string
+        default: ''
+      invalidate_cache:
+        description: 'Invalidate CloudFront cache after deploy'
+        type: boolean
+        default: true
+
+env:
+  TF_SITE_DIR: infra/terraform/live/site
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.region }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-deploy
+          aws-region: ${{ inputs.region }}
+
+      - name: Setup Terragrunt
+        uses: gruntwork-io/terragrunt-action@v2
+        with:
+          tofu_version: 1.8.0
+          tg_version: 0.68.0
+
+      - name: Show current versions
+        run: |
+          echo "## Current Versions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| App | Version |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|---------|" >> $GITHUB_STEP_SUMMARY
+
+          for app in run-auth run-human run-cms run-gpx; do
+            VERSION=$(cat ${{ env.TF_SITE_DIR }}/services/${app}/VERSION.app 2>/dev/null || echo "N/A")
+            echo "| ${app} | ${VERSION} |" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - name: Deploy ECS Tasks and Services
+        working-directory: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}
+        run: |
+          echo "Deploying to ${{ inputs.region }}..."
+
+          # If specific apps requested, filter to just those
+          if [[ -n "${{ inputs.apps }}" ]]; then
+            APPS="${{ inputs.apps }}"
+            echo "Deploying specific apps: $APPS"
+
+            # Convert app names to terraform service names
+            # run.auth -> run-auth, etc.
+            IFS=',' read -ra APP_LIST <<< "$APPS"
+            for APP in "${APP_LIST[@]}"; do
+              SERVICE_NAME=$(echo "$APP" | tr '.' '-')
+              echo "Applying ecs-task and ecs-service for $SERVICE_NAME..."
+
+              # Apply task definition first
+              terragrunt apply --non-interactive -auto-approve \
+                --terragrunt-include-dir "**/ecs-task" \
+                --terragrunt-strict-include 2>&1 || true
+
+              # Then apply service
+              terragrunt apply --non-interactive -auto-approve \
+                --terragrunt-include-dir "**/ecs-service" \
+                --terragrunt-strict-include 2>&1 || true
+            done
+          else
+            echo "Deploying all apps..."
+            terragrunt run apply --all --non-interactive -- -auto-approve
+          fi
+
+      - name: Invalidate CloudFront Cache
+        if: inputs.invalidate_cache
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## CloudFront Invalidation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Map apps to CloudFront domains
+          declare -A DOMAINS=(
+            ["run-auth"]="auth.defcon.run"
+            ["run-human"]="run.defcon.run"
+            ["run-cms"]="cms.defcon.run"
+            ["run-gpx"]="gpx.defcon.run"
+          )
+
+          for APP in "${!DOMAINS[@]}"; do
+            DOMAIN="${DOMAINS[$APP]}"
+
+            DISTRIBUTION_ID=$(aws cloudfront list-distributions \
+              --query "DistributionList.Items[?Aliases.Items[?@=='${DOMAIN}']].Id" \
+              --output text 2>/dev/null || true)
+
+            if [[ -n "$DISTRIBUTION_ID" && "$DISTRIBUTION_ID" != "None" ]]; then
+              INVALIDATION_ID=$(aws cloudfront create-invalidation \
+                --distribution-id "$DISTRIBUTION_ID" \
+                --paths "/*" \
+                --query 'Invalidation.Id' \
+                --output text)
+              echo "- **${DOMAIN}**: Invalidation \`${INVALIDATION_ID}\`" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "- **${DOMAIN}**: No distribution found" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Deploy Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Apps:** ${{ inputs.apps || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Cache Invalidated:** ${{ inputs.invalidate_cache }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
