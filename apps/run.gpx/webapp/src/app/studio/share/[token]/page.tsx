@@ -13,11 +13,11 @@ export default function SharePage() {
 
   useEffect(() => {
     if (token) {
-      // Detect production by checking hostname at runtime
       // In production, we need the region prefix (e.g., /use1)
-      const isProduction = window.location.hostname.includes("defcon.run");
+      // NODE_ENV is embedded at build time and available client-side
+      const isDev = process.env.NODE_ENV !== "production";
       const regionShort = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
-      const basePath = isProduction ? `/${regionShort}` : "";
+      const basePath = isDev ? "" : `/${regionShort}`;
 
       // Redirect to GPX Studio app with share token
       window.location.href = `${basePath}/studio/app?share=${encodeURIComponent(token)}`;
