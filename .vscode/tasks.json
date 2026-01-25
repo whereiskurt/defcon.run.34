@@ -4,7 +4,7 @@
     {
       "label": "Local: DynamoDB",
       "type": "shell",
-      "command": "docker compose up",
+      "command": "docker compose down && docker compose up",
       "options": {
         "cwd": "${workspaceFolder}/apps/local/dynamodb"
       },
@@ -22,7 +22,7 @@
     {
       "label": "Local: S3 (MinIO)",
       "type": "shell",
-      "command": "docker compose up",
+      "command": "docker compose down && docker compose up",
       "options": {
         "cwd": "${workspaceFolder}/apps/local/s3"
       },
@@ -103,6 +103,19 @@
       },
       "runOptions": {
         "runOn": "folderOpen"
+      }
+    },
+    {
+      "label": "E2E Tests",
+      "type": "shell",
+      "command": "$(aws configure export-credentials --profile terraform --format env) && ./e2e.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/apps"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
       }
     }
   ]

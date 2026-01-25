@@ -174,19 +174,28 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const fileId = searchParams.get("fileId");
-
-  if (!fileId) {
-    return NextResponse.json(
-      { error: "fileId query parameter is required" },
-      { status: 400 }
-    );
-  }
+  const listAll = searchParams.get("all") === "true";
 
   try {
-    // Query shares by ownerId and fileId using the byFile index
-    const result = await GpxShare.query
-      .byFile({ ownerId: session.user.id, fileId })
-      .go({ order: "desc" });
+    let result;
+
+    if (listAll) {
+      // List all shares for the current user (uses scan - for cleanup/admin only)
+      // Note: This is less efficient than index query but needed for cleanup
+      result = await GpxShare.scan
+        .where(({ ownerId }, { eq }) => eq(ownerId, session.user.id))
+        .go();
+    } else if (fileId) {
+      // Query shares by ownerId and fileId using the byFile index
+      result = await GpxShare.query
+        .byFile({ ownerId: session.user.id, fileId })
+        .go({ order: "desc" });
+    } else {
+      return NextResponse.json(
+        { error: "Either fileId or all=true query parameter is required" },
+        { status: 400 }
+      );
+    }
 
     // Construct share URLs for each share
     const webappOrigin = process.env.WEBAPP_ORIGIN;

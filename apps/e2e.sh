@@ -232,13 +232,23 @@ run_auth_tests() {
     local headed=$1
     log_section "Running Auth E2E Tests"
 
+    # For localhost, always create fresh sessions (assume fresh DB)
+    # For production, reuse valid sessions if they exist
+    if [ "$PROD_MODE" = "false" ]; then
+        log_info "Localhost mode: clearing existing sessions for fresh start"
+        for role in "${ROLES[@]}"; do
+            local cookie_file="$AUTH_E2E_DIR/.auth/$(get_cookie_file $role)"
+            rm -f "$cookie_file" 2>/dev/null || true
+        done
+    fi
+
     for role in "${ROLES[@]}"; do
         echo ""
         log_info "Creating session for $role..."
 
-        # Check if session already exists
+        # Check if session already exists (production only - localhost always creates fresh)
         local cookie_file="$AUTH_E2E_DIR/.auth/$(get_cookie_file $role)"
-        if [ -f "$cookie_file" ]; then
+        if [ "$PROD_MODE" = "true" ] && [ -f "$cookie_file" ]; then
             local expires_at=$(jq -r '.expiresAt' "$cookie_file" 2>/dev/null || echo "")
             if [ -n "$expires_at" ]; then
                 local expires_ts=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${expires_at%%.*}" "+%s" 2>/dev/null || echo "0")

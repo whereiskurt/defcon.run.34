@@ -190,7 +190,7 @@ export const QUOTA_DEFINITIONS = {
     description: "Share links for GPX files (public or private)",
     tierLimits: {
       zero: 0,
-      upload: 20,
+      upload: 40,
       admin: 100,
     },
     resetPolicy: "none" as const,
