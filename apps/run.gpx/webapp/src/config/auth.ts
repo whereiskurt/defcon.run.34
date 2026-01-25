@@ -42,8 +42,9 @@ export const authConfig: NextAuthConfig = {
 
   // Use custom signin page that auto-redirects to OIDC provider
   // This avoids Auth.js generating incorrect URLs on the default signin page
+  // Must include region prefix in production since Auth.js doesn't know about Next.js basePath
   pages: {
-    signIn: "/signin",
+    signIn: isDev ? "/signin" : `/${region}/signin`,
   },
 
   providers: [
