@@ -1,4 +1,4 @@
-name: Terragrunt Plan
+name: 🏗️ Infra: Terragrunt Plan
 
 on:
   # Manual trigger
