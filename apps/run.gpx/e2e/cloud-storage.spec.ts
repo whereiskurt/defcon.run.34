@@ -970,20 +970,35 @@ test.describe('4. Multi-User Share Tests', () => {
     }
 
     // Trigger OIDC for accountc
+    console.log(`accountc going to signin: ${BASE_URL}${REGION_PREFIX}/api/auth/signin`);
     await accountcPage.goto(`${BASE_URL}${REGION_PREFIX}/api/auth/signin`);
     await accountcPage.waitForLoadState('networkidle');
+    console.log(`accountc signin URL after load: ${accountcPage.url()}`);
     const accountcDefconButton = accountcPage.locator('button:has-text("Sign in with DEF CON")');
     if (await accountcDefconButton.isVisible({ timeout: 3000 }).catch(() => false)) {
+      console.log('accountc: Sign in button visible, clicking...');
       await accountcDefconButton.click();
       await accountcPage.waitForLoadState('networkidle', { timeout: 10000 });
+      console.log(`accountc URL after signin click: ${accountcPage.url()}`);
+    } else {
+      console.log('accountc: Sign in button not visible (already authenticated?)');
     }
 
     // accountc accesses the share URL
-    await accountcPage.goto(shareUrl);
+    console.log(`accountc navigating to share URL: ${shareUrl}`);
+    const response = await accountcPage.goto(shareUrl);
+    console.log(`Response status: ${response?.status()}, URL after navigation: ${accountcPage.url()}`);
     await accountcPage.waitForLoadState('networkidle');
+
+    // Wait a bit for any client-side redirect
+    await accountcPage.waitForTimeout(3000);
+    console.log(`Final URL after wait: ${accountcPage.url()}`);
 
     // Verify accountc can access the share (not 404 or error)
     const pageContent = await accountcPage.textContent('body');
+    if (pageContent?.includes('404')) {
+      console.log(`ERROR: Got 404. Page content preview: ${pageContent.substring(0, 500)}`);
+    }
     expect(pageContent).not.toContain('404');
     expect(pageContent).not.toContain('Access denied');
 
