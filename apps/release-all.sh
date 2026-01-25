@@ -13,14 +13,16 @@
 #   --parallel          Run regional builds in parallel (faster but harder to debug)
 #   --no-branch         Don't create a release branch (commit to current branch)
 #   --push              Push the release branch after committing
-#   --pr                Create a pull request after pushing (implies --push)
+#   --pr                Create a pull request after pushing (implies --push, --merge)
+#   --no-merge          Don't auto-merge PR after builds (use with --pr)
 #
 # Examples:
 #   ./release-all.sh                           # Full release: both apps, both regions
 #   ./release-all.sh --apps run.auth           # Only run.auth, both regions
 #   ./release-all.sh --apps run.cms            # Only run.cms (CMS has different build)
 #   ./release-all.sh --regions use1            # Both apps, only us-east-1
-#   ./release-all.sh --pr                      # Full release with PR creation
+#   ./release-all.sh --pr                      # Full release with PR + auto-merge
+#   ./release-all.sh --pr --no-merge           # Create PR but don't auto-merge
 #   ./release-all.sh --with-terragrunt          # Full release with terragrunt deploy
 
 set -e
@@ -37,6 +39,7 @@ PARALLEL=false
 CREATE_BRANCH=true
 PUSH_BRANCH=false
 CREATE_PR=false
+AUTO_MERGE=true
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -80,6 +83,10 @@ while [[ $# -gt 0 ]]; do
     --pr)
       CREATE_PR=true
       PUSH_BRANCH=true  # PR requires push
+      shift
+      ;;
+    --no-merge)
+      AUTO_MERGE=false
       shift
       ;;
     --help|-h)
@@ -182,6 +189,7 @@ echo "Parallel:   $PARALLEL"
 echo "Create branch: $CREATE_BRANCH"
 echo "Push branch: $PUSH_BRANCH"
 echo "Create PR:  $CREATE_PR"
+echo "Auto merge: $AUTO_MERGE"
 echo "=============================================="
 echo "Started: $(date)"
 echo ""
@@ -455,6 +463,39 @@ else
 fi
 
 #=============================================================================
+# Auto-merge PR (after builds complete)
+#=============================================================================
+if [[ "$CREATE_PR" == "true" && "$AUTO_MERGE" == "true" && -n "$PR_URL" ]]; then
+  echo ""
+  echo "=============================================="
+  echo "  AUTO-MERGE PR"
+  echo "=============================================="
+
+  # Extract PR number from URL (e.g., https://github.com/owner/repo/pull/123)
+  PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+
+  if [[ -n "$PR_NUMBER" ]]; then
+    echo "Merging PR #${PR_NUMBER}..."
+
+    # Use squash merge to keep history clean
+    if gh pr merge "$PR_NUMBER" --squash --delete-branch 2>&1; then
+      echo "  PR #${PR_NUMBER} merged successfully"
+      echo "  Branch deleted"
+      PR_MERGED=true
+    else
+      echo "  WARNING: Auto-merge failed. You may need to merge manually."
+      echo "  PR: ${PR_URL}"
+    fi
+  else
+    echo "  WARNING: Could not extract PR number from URL: ${PR_URL}"
+  fi
+elif [[ "$CREATE_PR" == "true" && "$AUTO_MERGE" == "false" ]]; then
+  echo ""
+  echo "--- Skipping auto-merge (--no-merge) ---"
+  echo "  PR ready for review: ${PR_URL}"
+fi
+
+#=============================================================================
 # PHASE 3: Deploy to ECS (targeted terragrunt apply on ecs-task and ecs-service)
 #=============================================================================
 if [[ "$RUN_TERRAGRUNT" == "true" ]]; then
@@ -543,7 +584,11 @@ if [[ -n "$RELEASE_BRANCH" ]]; then
   echo "Branch:   ${RELEASE_BRANCH}"
 fi
 if [[ -n "$PR_URL" && "$PR_URL" != *"WARNING"* ]]; then
-  echo "PR:       ${PR_URL}"
+  if [[ "$PR_MERGED" == "true" ]]; then
+    echo "PR:       ${PR_URL} (merged)"
+  else
+    echo "PR:       ${PR_URL} (pending)"
+  fi
 fi
 echo "Duration: ${MINUTES}m ${SECONDS}s"
 echo "Finished: $(date)"
