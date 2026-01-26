@@ -140,7 +140,10 @@ jobs:
           startup-timeout-minutes: 10
           pre-runner-script: |
             sudo apt-get update -qq
-            sudo apt-get install -y -qq jq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq jq docker.io awscli
+            sudo usermod -aG docker ubuntu
+            sudo systemctl enable docker
+            sudo systemctl start docker
 
       - name: Tag with fixed name
         if: steps.check.outputs.existing != 'true'
