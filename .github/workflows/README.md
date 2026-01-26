@@ -79,8 +79,8 @@ Automated release pipeline that builds Docker images, pushes to ECR, syncs asset
    ```
    RUNNER_SUBNET_ID = subnet-xxx        # Public subnet in us-east-1
    RUNNER_SG_ID = sg-xxx                # Security group allowing outbound
-   RUNNER_INSTANCE_PROFILE = xxx        # IAM instance profile for runner (see below)
    ```
+   Note: IAM role name is hardcoded to `dc34-github-runner` in the workflows.
 
 2. **Repository Secret**:
    ```
@@ -90,8 +90,9 @@ Automated release pipeline that builds Docker images, pushes to ECR, syncs asset
    Create at: https://github.com/settings/tokens
    Required scopes: `repo` (Full control of private repositories)
 
-3. **IAM Instance Profile for SSM Access**:
-   The runner needs an instance profile with SSM permissions so you can SSH in for debugging.
+3. **IAM Role for SSM Access**:
+   The runner needs an IAM role with SSM permissions so you can SSH in for debugging.
+   The ec2-github-runner action handles instance profile creation internally.
 
    Create an IAM role with:
    - Trust policy: EC2 service

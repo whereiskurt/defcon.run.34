@@ -21,6 +21,14 @@ on:
           - c6i.8xlarge
           - m6i.4xlarge
         default: c6i.4xlarge
+      market_type:
+        description: 'Instance market type'
+        type: choice
+        options:
+          - on-demand
+          - spot
+          - spot-with-fallback
+        default: on-demand
 
 env:
   RUNNER_NAME: dc34-release-runner
@@ -116,9 +124,70 @@ jobs:
             echo "existing=false" >> $GITHUB_OUTPUT
           fi
 
+      - name: Get spot price
+        if: inputs.market_type != 'on-demand' && steps.check.outputs.existing != 'true'
+        id: spot-price
+        run: |
+          # Get current spot price for the instance type in the subnet's AZ
+          AZ=$(aws ec2 describe-subnets \
+            --subnet-ids "${{ steps.vpc.outputs.subnet_id }}" \
+            --query 'Subnets[0].AvailabilityZone' \
+            --output text)
+
+          SPOT_PRICE=$(aws ec2 describe-spot-price-history \
+            --instance-types ${{ inputs.instance_type }} \
+            --product-descriptions "Linux/UNIX" \
+            --availability-zone "$AZ" \
+            --query 'SpotPriceHistory[0].SpotPrice' \
+            --output text)
+
+          echo "Current spot price in $AZ: \$$SPOT_PRICE/hr"
+          echo "spot_price=$SPOT_PRICE" >> $GITHUB_OUTPUT
+          echo "availability_zone=$AZ" >> $GITHUB_OUTPUT
+
       - name: Start EC2 Runner
         if: steps.check.outputs.existing != 'true'
         id: start-runner
+        continue-on-error: ${{ inputs.market_type == 'spot-with-fallback' }}
+        uses: machulav/ec2-github-runner@v2
+        with:
+          mode: start
+          github-token: ${{ secrets.GH_RUNNER_TOKEN }}
+          ec2-image-id: ami-0c7217cdde317cfec
+          ec2-instance-type: ${{ inputs.instance_type }}
+          subnet-id: ${{ steps.vpc.outputs.subnet_id }}
+          security-group-id: ${{ steps.vpc.outputs.security_group_id }}
+          iam-role-name: dc34-github-runner
+          label: dc34-release-runner
+          market-type: ${{ inputs.market_type != 'on-demand' && 'spot' || '' }}
+          aws-resource-tags: >
+            [
+              {"Key": "Name", "Value": "${{ env.RUNNER_NAME }}"},
+              {"Key": "Project", "Value": "defcon.run.34"},
+              {"Key": "Purpose", "Value": "release-build"},
+              {"Key": "KeepAlive", "Value": "true"},
+              {"Key": "MarketType", "Value": "${{ inputs.market_type }}"}
+            ]
+          startup-timeout-minutes: 10
+          pre-runner-script: |
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq jq docker.io awscli gh
+            sudo usermod -aG docker ubuntu
+            sudo systemctl enable docker
+            sudo systemctl start docker
+            mkdir -p /home/ubuntu/.docker/cli-plugins
+            curl -sLo /home/ubuntu/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-amd64
+            chmod +x /home/ubuntu/.docker/cli-plugins/docker-buildx
+
+      - name: Start EC2 Runner (Fallback to On-Demand)
+        if: |
+          inputs.market_type == 'spot-with-fallback' &&
+          steps.check.outputs.existing != 'true' &&
+          steps.start-runner.outcome == 'failure'
+        id: start-runner-fallback
         uses: machulav/ec2-github-runner@v2
         with:
           mode: start
@@ -134,7 +203,8 @@ jobs:
               {"Key": "Name", "Value": "${{ env.RUNNER_NAME }}"},
               {"Key": "Project", "Value": "defcon.run.34"},
               {"Key": "Purpose", "Value": "release-build"},
-              {"Key": "KeepAlive", "Value": "true"}
+              {"Key": "KeepAlive", "Value": "true"},
+              {"Key": "MarketType", "Value": "on-demand-fallback"}
             ]
           startup-timeout-minutes: 10
           pre-runner-script: |
@@ -151,12 +221,14 @@ jobs:
             chmod +x /home/ubuntu/.docker/cli-plugins/docker-buildx
 
       - name: Tag with fixed name
-        if: steps.check.outputs.existing != 'true'
+        if: steps.check.outputs.existing != 'true' && (steps.start-runner.outputs.ec2-instance-id || steps.start-runner-fallback.outputs.ec2-instance-id)
         run: |
           # Add the runner label as a tag for easy lookup
+          INSTANCE_ID="${{ steps.start-runner.outputs.ec2-instance-id || steps.start-runner-fallback.outputs.ec2-instance-id }}"
+          LABEL="${{ steps.start-runner.outputs.label || steps.start-runner-fallback.outputs.label }}"
           aws ec2 create-tags \
-            --resources ${{ steps.start-runner.outputs.ec2-instance-id }} \
-            --tags Key=RunnerLabel,Value=${{ steps.start-runner.outputs.label }}
+            --resources "$INSTANCE_ID" \
+            --tags Key=RunnerLabel,Value="$LABEL"
 
       - name: Output Runner Info
         run: |
@@ -166,9 +238,23 @@ jobs:
             echo "⚠️ **Using existing runner**" >> $GITHUB_STEP_SUMMARY
             echo "**Instance ID:** ${{ steps.check.outputs.instance_id }}" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**Instance ID:** ${{ steps.start-runner.outputs.ec2-instance-id }}" >> $GITHUB_STEP_SUMMARY
-            echo "**Runner Label:** ${{ steps.start-runner.outputs.label }}" >> $GITHUB_STEP_SUMMARY
+            INSTANCE_ID="${{ steps.start-runner.outputs.ec2-instance-id || steps.start-runner-fallback.outputs.ec2-instance-id }}"
+            RUNNER_LABEL="${{ steps.start-runner.outputs.label || steps.start-runner-fallback.outputs.label }}"
+
+            # Determine market type used
+            if [[ -n "${{ steps.start-runner-fallback.outputs.ec2-instance-id }}" ]]; then
+              MARKET="on-demand (fallback from spot)"
+            else
+              MARKET="${{ inputs.market_type }}"
+            fi
+
+            echo "**Instance ID:** $INSTANCE_ID" >> $GITHUB_STEP_SUMMARY
+            echo "**Runner Label:** $RUNNER_LABEL" >> $GITHUB_STEP_SUMMARY
             echo "**Instance Type:** ${{ inputs.instance_type }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Market Type:** $MARKET" >> $GITHUB_STEP_SUMMARY
+            if [[ "${{ inputs.market_type }}" != "on-demand" && -n "${{ steps.spot-price.outputs.spot_price }}" ]]; then
+              echo "**Spot Price:** \$${{ steps.spot-price.outputs.spot_price }}/hr (in ${{ steps.spot-price.outputs.availability_zone }})" >> $GITHUB_STEP_SUMMARY
+            fi
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
@@ -259,16 +345,19 @@ jobs:
           INSTANCES=$(aws ec2 describe-instances \
             --filters "Name=tag:Project,Values=defcon.run.34" \
                       "Name=tag:Purpose,Values=release-build" \
-            --query 'Reservations[].Instances[].[InstanceId,State.Name,InstanceType,LaunchTime,Tags[?Key==`RunnerLabel`].Value|[0]]' \
+            --query 'Reservations[].Instances[].[InstanceId,State.Name,InstanceType,InstanceLifecycle,LaunchTime,Tags[?Key==`RunnerLabel`].Value|[0]]' \
             --output text)
 
           if [[ -z "$INSTANCES" ]]; then
             echo "No EC2 runners found." >> $GITHUB_STEP_SUMMARY
           else
-            echo "| Instance ID | State | Type | Launch Time | Runner Label |" >> $GITHUB_STEP_SUMMARY
-            echo "|-------------|-------|------|-------------|--------------|" >> $GITHUB_STEP_SUMMARY
-            echo "$INSTANCES" | while read -r INSTANCE_ID STATE TYPE LAUNCH_TIME LABEL; do
-              echo "| \`$INSTANCE_ID\` | $STATE | $TYPE | $LAUNCH_TIME | ${LABEL:-N/A} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Instance ID | State | Type | Lifecycle | Launch Time | Runner Label |" >> $GITHUB_STEP_SUMMARY
+            echo "|-------------|-------|------|-----------|-------------|--------------|" >> $GITHUB_STEP_SUMMARY
+            echo "$INSTANCES" | while read -r INSTANCE_ID STATE TYPE LIFECYCLE LAUNCH_TIME LABEL; do
+              # InstanceLifecycle is null/None for on-demand instances
+              LIFECYCLE="${LIFECYCLE:-on-demand}"
+              [[ "$LIFECYCLE" == "None" ]] && LIFECYCLE="on-demand"
+              echo "| \`$INSTANCE_ID\` | $STATE | $TYPE | $LIFECYCLE | $LAUNCH_TIME | ${LABEL:-N/A} |" >> $GITHUB_STEP_SUMMARY
             done
           fi
 

@@ -44,11 +44,18 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-deploy
           aws-region: ${{ inputs.region }}
 
-      - name: Setup Terragrunt
-        uses: gruntwork-io/terragrunt-action@v2
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          tofu_version: 1.8.0
-          tg_version: 0.68.0
+          terraform_version: 1.8.0
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.68.0/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+          terragrunt --version
 
       - name: Show current versions
         run: |

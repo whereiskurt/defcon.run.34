@@ -102,8 +102,9 @@ export default async function PublicLayout({
     if (hasAuth) {
       console.log("[Silent SSO] Valid auth session found, redirecting to OIDC flow");
       // Redirect to our auto-signin route handler which triggers the OIDC flow server-side
-      // Note: Don't add region prefix - redirect() automatically prepends basePath
-      const callbackUrl = encodeURIComponent("/dashboard");
+      // Note: redirect() prepends basePath, but callbackUrl needs explicit prefix for next-auth
+      const REGION_SHORT = process.env.REGION_SHORT || "use1";
+      const callbackUrl = encodeURIComponent(`/${REGION_SHORT}/dashboard`);
       redirect(`/api/auth/auto-signin?callbackUrl=${callbackUrl}`);
     }
   }

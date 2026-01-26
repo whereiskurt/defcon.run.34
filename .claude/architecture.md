@@ -58,6 +58,7 @@ Each application has its own CloudFront distribution with a dedicated WAF WebACL
 | **auth.defcon.run** | auth-webacl | Stricter rate limits on `/api/oidc/*`, login brute-force protection |
 | **cms.defcon.run** | cms-webacl | Admin panel protection, upload size limits |
 | **run.defcon.run** | run-human-webacl | Standard protection, API rate limiting |
+| **gpx.defcon.run** | gpx-webacl | Standard protection, file upload limits |
 
 **Security layers:**
 
@@ -68,7 +69,7 @@ Each application has its own CloudFront distribution with a dedicated WAF WebACL
 
 ## Container Architectures
 
-The project uses two distinct container patterns depending on application requirements:
+The project uses three container patterns depending on application requirements:
 
 ### Next.js Apps (run.auth, run.human)
 
@@ -87,6 +88,54 @@ Simple two-container architecture for stateless Next.js applications:
 
 - **nginx** - TLS termination, reverse proxy
 - **webapp** - Next.js server (`node server.js`)
+
+### GPX Editor (run.gpx) - Next.js + Embedded SvelteKit
+
+Single-container architecture for the GPX route editor. TLS termination happens at the ALB.
+
+```
+┌─────────────────────────────────────────────┐
+│              ECS Task                       │
+│  ┌──────────────────────────────────────┐   │
+│  │           run-gpx-app                │   │
+│  │        (node server.js)              │   │
+│  │            :3000                     │   │
+│  │  ┌────────────────────────────────┐  │   │
+│  │  │  Next.js (auth, API routes)    │  │   │
+│  │  │  - /api/auth/* (Auth.js)       │  │   │
+│  │  │  - /api/gpx/* (file CRUD)      │  │   │
+│  │  │  - /api/user/* (mapbox token)  │  │   │
+│  │  ├────────────────────────────────┤  │   │
+│  │  │  /studio/* (gpx-studio static) │  │   │
+│  │  │  - SvelteKit prebuilt app      │  │   │
+│  │  └────────────────────────────────┘  │   │
+│  └──────────────────────────────────────┘   │
+│                    │                        │
+│           ┌───────┴───────┐                 │
+│           ▼               ▼                 │
+│       DynamoDB           S3                 │
+│    (file metadata)   (GPX files)            │
+└─────────────────────────────────────────────┘
+```
+
+**Key components:**
+
+- **Next.js** - Auth, API routes, and file management
+- **gpx-studio** - SvelteKit-based GPX editor (built at deploy time via `build-frontend.sh`)
+- **DynamoDB** - File/folder metadata via ElectroDB (multi-region replicated)
+- **S3** - GPX file storage with presigned URLs
+- **Mapbox** - Map rendering (token from run-auth user profile)
+
+**Authentication flow:**
+1. User visits `/gpx` → Next.js checks session
+2. If authenticated and has `gpxstudio` service access → redirect to `/studio/app`
+3. gpx-studio fetches session from `/api/auth/session`
+4. File operations use `/api/gpx/*` endpoints with S3 presigned URLs
+
+**Why no nginx?**
+- ALB terminates TLS (HTTPS → HTTP)
+- Simpler deployment for this internal-facing tool
+- Fewer containers to manage
 
 ### CMS (run.cms) - Master/Worker with Litestream
 

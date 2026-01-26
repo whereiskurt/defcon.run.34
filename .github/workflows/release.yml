@@ -34,6 +34,14 @@ on:
           - c6i.8xlarge
           - m6i.4xlarge
         default: c6i.4xlarge
+      ec2_market_type:
+        description: 'EC2 market type (for EC2 runners)'
+        type: choice
+        options:
+          - on-demand
+          - spot
+          - spot-with-fallback
+        default: spot-with-fallback
       parallel:
         description: 'Build apps in parallel'
         type: boolean
@@ -185,7 +193,7 @@ jobs:
           ec2-instance-type: ${{ inputs.ec2_instance_type }}
           subnet-id: ${{ vars.RUNNER_SUBNET_ID }}
           security-group-id: ${{ vars.RUNNER_SG_ID }}
-          iam-instance-profile: ${{ vars.RUNNER_INSTANCE_PROFILE }}
+          iam-role-name: dc34-github-runner
           # Use fixed label for start-and-keep so we can reuse it later
           label: ${{ inputs.runner == 'ec2-start-and-keep' && 'dc34-release-runner' || '' }}
           aws-resource-tags: >

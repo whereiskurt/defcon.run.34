@@ -13,8 +13,10 @@ import { FaDiscord, FaGithub } from 'react-icons/fa';
 import { FiLogIn } from 'react-icons/fi';
 import { MdOutlineMailLock } from 'react-icons/md';
 
-// Callback URL - don't add region prefix, next-auth handles basePath
-const dashboardUrl = '/dashboard';
+// Callback URL needs region prefix in production for next-auth redirects
+const isDev = process.env.NODE_ENV !== 'production';
+const region = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
+const dashboardUrl = isDev ? '/dashboard' : `/${region}/dashboard`;
 
 const iconClasses =
   'text-xl text-default-500 pointer-events-none flex-shrink-0';

@@ -766,6 +766,17 @@ locals {
                   }
                 },
                 {
+                  Sid    = "EC2SpotPermissions"
+                  Effect = "Allow"
+                  Action = [
+                    "ec2:DescribeSpotPriceHistory",
+                    "ec2:RequestSpotInstances",
+                    "ec2:CancelSpotInstanceRequests",
+                    "ec2:DescribeSpotInstanceRequests"
+                  ]
+                  Resource = "*"
+                },
+                {
                   Sid    = "EC2TerminateTagged"
                   Effect = "Allow"
                   Action = [

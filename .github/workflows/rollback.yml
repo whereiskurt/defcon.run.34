@@ -252,23 +252,18 @@ jobs:
 
           git push
 
-      - name: Setup Terragrunt
+      - name: Deploy rollback
         uses: gruntwork-io/terragrunt-action@v2
         with:
-          tofu_version: 1.8.0
+          tf_version: 1.8.0
           tg_version: 0.68.0
+          tg_dir: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}
+          tg_command: run apply --all --non-interactive -- -auto-approve
 
-      - name: Deploy rollback
-        working-directory: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}
+      - name: Update summary
         run: |
           echo "## Deploying Rollback" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
-          echo "Applying terragrunt for ${{ steps.current.outputs.service }}..."
-
-          # Apply the changes
-          terragrunt run apply --all --non-interactive -- -auto-approve 2>&1 | tee /tmp/tg-output.txt
-
           echo "✅ Rollback deployed" >> $GITHUB_STEP_SUMMARY
 
       - name: Invalidate CloudFront cache

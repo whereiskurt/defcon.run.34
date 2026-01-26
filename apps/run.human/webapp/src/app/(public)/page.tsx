@@ -14,8 +14,10 @@ import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Text, Heading } from "@components/text-effects/Common";
 
-// Callback URL - don't add region prefix, next-auth handles basePath
-const dashboardUrl = "/dashboard";
+// Callback URL needs region prefix in production for next-auth redirects
+const isDev = process.env.NODE_ENV !== "production";
+const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
+const dashboardUrl = isDev ? "/dashboard" : `/${region}/dashboard`;
 
 function LoginContent() {
   const [mounted, setMounted] = useState(false);
