@@ -129,6 +129,7 @@ jobs:
           security-group-id: ${{ steps.vpc.outputs.security_group_id }}
           iam-role-name: dc34-github-runner
           associate-public-ip-address: true
+          labels: dc34-release-runner
           aws-resource-tags: >
             [
               {"Key": "Name", "Value": "${{ env.RUNNER_NAME }}"},
