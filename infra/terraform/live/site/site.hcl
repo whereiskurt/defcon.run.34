@@ -421,7 +421,9 @@ locals {
                   ]
                   Resource = [
                     "arn:aws:s3:::dc34-*",
-                    "arn:aws:s3:::dc34-*/*"
+                    "arn:aws:s3:::dc34-*/*",
+                    "arn:aws:s3:::cf-assets-*",
+                    "arn:aws:s3:::cf-assets-*/*"
                   ]
                 }
               ]
@@ -653,7 +655,9 @@ locals {
                   ]
                   Resource = [
                     "arn:aws:s3:::dc34-*",
-                    "arn:aws:s3:::dc34-*/*"
+                    "arn:aws:s3:::dc34-*/*",
+                    "arn:aws:s3:::cf-assets-*",
+                    "arn:aws:s3:::cf-assets-*/*"
                   ]
                 }
               ]
