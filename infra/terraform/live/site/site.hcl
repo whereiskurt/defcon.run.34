@@ -736,7 +736,7 @@ locals {
                   Resource = "*"
                 },
                 {
-                  Sid    = "EC2CreateTags"
+                  Sid    = "EC2CreateTagsOnLaunch"
                   Effect = "Allow"
                   Action = [
                     "ec2:CreateTags"
@@ -745,6 +745,19 @@ locals {
                   Condition = {
                     StringEquals = {
                       "ec2:CreateAction" = "RunInstances"
+                    }
+                  }
+                },
+                {
+                  Sid    = "EC2CreateTagsOnExisting"
+                  Effect = "Allow"
+                  Action = [
+                    "ec2:CreateTags"
+                  ]
+                  Resource = "*"
+                  Condition = {
+                    StringEquals = {
+                      "ec2:ResourceTag/Project" = "defcon.run.34"
                     }
                   }
                 },
