@@ -167,6 +167,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const userId = session.user.id;
   const services = (session.user as { services?: string[] }).services ?? [];
   if (!services.includes("gpxstudio")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
@@ -183,12 +184,12 @@ export async function GET(request: Request) {
       // List all shares for the current user (uses scan - for cleanup/admin only)
       // Note: This is less efficient than index query but needed for cleanup
       result = await GpxShare.scan
-        .where(({ ownerId }, { eq }) => eq(ownerId, session.user.id))
+        .where(({ ownerId }, { eq }) => eq(ownerId, userId))
         .go();
     } else if (fileId) {
       // Query shares by ownerId and fileId using the byFile index
       result = await GpxShare.query
-        .byFile({ ownerId: session.user.id, fileId })
+        .byFile({ ownerId: userId, fileId })
         .go({ order: "desc" });
     } else {
       return NextResponse.json(
