@@ -716,31 +716,43 @@ locals {
               Version = "2012-10-17"
               Statement = [
                 {
-                  Sid    = "EC2Runner"
+                  Sid    = "EC2Describe"
                   Effect = "Allow"
                   Action = [
-                    "ec2:RunInstances",
-                    "ec2:TerminateInstances",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeSecurityGroups",
                     "ec2:DescribeInstances",
                     "ec2:DescribeInstanceStatus",
-                    "ec2:CreateTags",
-                    "ec2:DescribeSubnets",
-                    "ec2:DescribeSecurityGroups"
+                    "ec2:DescribeImages"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "EC2RunInstances"
+                  Effect = "Allow"
+                  Action = [
+                    "ec2:RunInstances"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "EC2CreateTags"
+                  Effect = "Allow"
+                  Action = [
+                    "ec2:CreateTags"
                   ]
                   Resource = "*"
                   Condition = {
                     StringEquals = {
-                      "aws:RequestTag/Project" = "defcon.run.34"
+                      "ec2:CreateAction" = "RunInstances"
                     }
                   }
                 },
                 {
-                  Sid    = "EC2RunnerManage"
+                  Sid    = "EC2TerminateTagged"
                   Effect = "Allow"
                   Action = [
-                    "ec2:TerminateInstances",
-                    "ec2:DescribeInstances",
-                    "ec2:DescribeInstanceStatus"
+                    "ec2:TerminateInstances"
                   ]
                   Resource = "*"
                   Condition = {
