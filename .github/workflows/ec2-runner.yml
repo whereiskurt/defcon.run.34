@@ -136,22 +136,7 @@ jobs:
               {"Key": "Purpose", "Value": "release-build"},
               {"Key": "KeepAlive", "Value": "true"}
             ]
-          runner-home-dir: /home/ubuntu/actions-runner
           startup-timeout-minutes: 10
-          pre-runner-script: |
-            # Install Docker and tools
-            sudo apt-get update -qq
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io awscli
-
-            # Configure Docker
-            sudo usermod -aG docker ubuntu
-            sudo systemctl enable docker
-            sudo systemctl start docker
-
-            # Install SSM agent
-            sudo snap install amazon-ssm-agent --classic 2>/dev/null || true
-            sudo systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service 2>/dev/null || true
-            sudo systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service 2>/dev/null || true
 
       - name: Tag with fixed name
         if: steps.check.outputs.existing != 'true'
