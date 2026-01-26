@@ -33,6 +33,7 @@ jobs:
     if: inputs.action == 'start'
     name: Start EC2 Runner
     runs-on: ubuntu-latest
+    environment: ec2-runner
 
     permissions:
       id-token: write
@@ -139,6 +140,7 @@ jobs:
     if: inputs.action == 'stop'
     name: Stop EC2 Runner
     runs-on: ubuntu-latest
+    environment: ec2-runner
 
     permissions:
       id-token: write
@@ -194,6 +196,7 @@ jobs:
     if: inputs.action == 'status'
     name: Check Runner Status
     runs-on: ubuntu-latest
+    environment: ec2-runner
 
     permissions:
       id-token: write
