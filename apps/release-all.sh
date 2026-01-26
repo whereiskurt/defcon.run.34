@@ -319,12 +319,12 @@ ${PR_VERSIONS}
 EOF
 )"
 
-    # Create the PR
-    PR_URL=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" 2>&1)
-    if [[ $? -eq 0 ]]; then
+    # Create the PR (use || true to prevent set -e from exiting on failure)
+    PR_URL=$(gh pr create --title "$PR_TITLE" --body "$PR_BODY" 2>&1) && PR_RESULT=0 || PR_RESULT=$?
+    if [[ $PR_RESULT -eq 0 ]]; then
       echo "  PR created: ${PR_URL}"
     else
-      echo "  WARNING: Failed to create PR: ${PR_URL}"
+      echo "  WARNING: Failed to create PR (exit code $PR_RESULT): ${PR_URL}"
     fi
   fi
 
