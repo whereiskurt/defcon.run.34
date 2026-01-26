@@ -115,19 +115,102 @@ jobs:
           retention-days: 14
 
       - name: Write Job Summary
+        working-directory: infra/terraform/live/site
         run: |
           STATUS=$([[ "${{ steps.plan.outcome }}" == "success" ]] && echo "✅" || echo "❌")
+
           echo "## ${STATUS} Terragrunt Plan" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Extract per-module summaries
+          echo "### Summary by Module" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Add | Change | Destroy |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-----|--------|---------|" >> $GITHUB_STEP_SUMMARY
+
+          TOTAL_ADD=0
+          TOTAL_CHANGE=0
+          TOTAL_DESTROY=0
+          HAS_CHANGES=false
+
+          # Parse plan output for each module's summary line
+          # Format: "Plan: X to add, Y to change, Z to destroy."
+          while IFS= read -r line; do
+            # Extract module path from STDOUT lines like: "STDOUT [region/us-east-1/ecr] terraform: Plan:"
+            if [[ "$line" =~ STDOUT\ \[([^\]]+)\].*Plan:\ ([0-9]+)\ to\ add,\ ([0-9]+)\ to\ change,\ ([0-9]+)\ to\ destroy ]]; then
+              MODULE="${BASH_REMATCH[1]}"
+              ADD="${BASH_REMATCH[2]}"
+              CHANGE="${BASH_REMATCH[3]}"
+              DESTROY="${BASH_REMATCH[4]}"
+
+              # Add emoji indicators
+              ADD_ICON=$([[ "$ADD" -gt 0 ]] && echo "🟢" || echo "")
+              CHANGE_ICON=$([[ "$CHANGE" -gt 0 ]] && echo "🟡" || echo "")
+              DESTROY_ICON=$([[ "$DESTROY" -gt 0 ]] && echo "🔴" || echo "")
+
+              echo "| \`$MODULE\` | ${ADD_ICON} $ADD | ${CHANGE_ICON} $CHANGE | ${DESTROY_ICON} $DESTROY |" >> $GITHUB_STEP_SUMMARY
+
+              TOTAL_ADD=$((TOTAL_ADD + ADD))
+              TOTAL_CHANGE=$((TOTAL_CHANGE + CHANGE))
+              TOTAL_DESTROY=$((TOTAL_DESTROY + DESTROY))
+
+              if [[ "$ADD" -gt 0 || "$CHANGE" -gt 0 || "$DESTROY" -gt 0 ]]; then
+                HAS_CHANGES=true
+              fi
+            # Also check for simpler format without the prefix
+            elif [[ "$line" =~ Plan:\ ([0-9]+)\ to\ add,\ ([0-9]+)\ to\ change,\ ([0-9]+)\ to\ destroy ]]; then
+              ADD="${BASH_REMATCH[1]}"
+              CHANGE="${BASH_REMATCH[2]}"
+              DESTROY="${BASH_REMATCH[3]}"
+
+              TOTAL_ADD=$((TOTAL_ADD + ADD))
+              TOTAL_CHANGE=$((TOTAL_CHANGE + CHANGE))
+              TOTAL_DESTROY=$((TOTAL_DESTROY + DESTROY))
+
+              if [[ "$ADD" -gt 0 || "$CHANGE" -gt 0 || "$DESTROY" -gt 0 ]]; then
+                HAS_CHANGES=true
+              fi
+            fi
+          done < plan_output.txt
+
+          # Add totals row
+          echo "| **Total** | **$TOTAL_ADD** | **$TOTAL_CHANGE** | **$TOTAL_DESTROY** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status message
+          if [[ "$HAS_CHANGES" == "true" ]]; then
+            echo "### 📋 Changes Detected" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- 🟢 **$TOTAL_ADD** resources to add" >> $GITHUB_STEP_SUMMARY
+            echo "- 🟡 **$TOTAL_CHANGE** resources to change" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔴 **$TOTAL_DESTROY** resources to destroy" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✨ No Changes" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Infrastructure is up to date." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Extract any errors
+          if grep -q "Error:" plan_output.txt; then
+            echo "### ⚠️ Errors" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -A 5 "Error:" plan_output.txt | head -30 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Full output in collapsible section
           echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Click to expand plan output</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>📄 Full Plan Output</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```hcl' >> $GITHUB_STEP_SUMMARY
-          cat infra/terraform/live/site/plan_summary.txt >> $GITHUB_STEP_SUMMARY
+          cat plan_summary.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "*Plan generated from commit ${{ github.sha }}*" >> $GITHUB_STEP_SUMMARY
 
       - name: Comment on PR
         if: github.event_name == 'pull_request'
