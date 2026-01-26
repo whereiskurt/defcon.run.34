@@ -29,6 +29,10 @@ on:
           - spot
           - spot-with-fallback
         default: on-demand
+      region:
+        description: 'AWS region'
+        type: string
+        default: us-east-1
 
 env:
   RUNNER_NAME: dc34-release-runner
@@ -52,7 +56,18 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
-          aws-region: us-east-1
+          aws-region: ${{ inputs.region }}
+
+      - name: Get Ubuntu AMI for region
+        id: ami
+        run: |
+          AMI_ID=$(aws ec2 describe-images \
+            --owners 099720109477 \
+            --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
+            --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' \
+            --output text)
+          echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
+          echo "Using Ubuntu 22.04 AMI: $AMI_ID"
 
       - name: Discover VPC resources
         id: vpc
@@ -153,7 +168,7 @@ jobs:
         with:
           mode: start
           github-token: ${{ secrets.GH_RUNNER_TOKEN }}
-          ec2-image-id: ami-0c7217cdde317cfec
+          ec2-image-id: ${{ steps.ami.outputs.ami_id }}
           ec2-instance-type: ${{ inputs.instance_type }}
           subnet-id: ${{ steps.vpc.outputs.subnet_id }}
           security-group-id: ${{ steps.vpc.outputs.security_group_id }}
@@ -193,7 +208,7 @@ jobs:
         with:
           mode: start
           github-token: ${{ secrets.GH_RUNNER_TOKEN }}
-          ec2-image-id: ami-0c7217cdde317cfec
+          ec2-image-id: ${{ steps.ami.outputs.ami_id }}
           ec2-instance-type: ${{ inputs.instance_type }}
           subnet-id: ${{ steps.vpc.outputs.subnet_id }}
           security-group-id: ${{ steps.vpc.outputs.security_group_id }}
@@ -281,7 +296,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
-          aws-region: us-east-1
+          aws-region: ${{ inputs.region }}
 
       - name: Find and stop runner
         run: |
@@ -337,7 +352,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
-          aws-region: us-east-1
+          aws-region: ${{ inputs.region }}
 
       - name: Check EC2 instances
         run: |
