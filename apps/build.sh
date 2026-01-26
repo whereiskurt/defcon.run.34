@@ -106,7 +106,7 @@ if [[ "$COMPONENT" == "nginx" ]]; then
       | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
   fi
 
-  docker buildx build \
+  docker buildx build --load \
     --platform linux/amd64 \
     -f "${APP_DIR}/nginx/Dockerfile.nginx" -t "$LOCAL_TAG" "${APP_DIR}/nginx/"
 
@@ -143,7 +143,7 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
     BUILD_CONTEXT="${APP_DIR}/webapp/"
     PUBLIC_MAPBOX_TOKEN=""
   fi
-  docker buildx build --platform=linux/amd64 \
+  docker buildx build --load --platform=linux/amd64 \
     --build-arg NEXT_PUBLIC_ASSET_PREFIX="/${WEBAPP_PREFIX}/public" \
     --build-arg WEBAPP_PREFIX="${WEBAPP_PREFIX}" \
     --build-arg WEBAPP_ORIGIN="${WEBAPP_ORIGIN}" \
@@ -220,7 +220,7 @@ elif [[ "$COMPONENT" == "app" ]]; then
   # Build Docker image (amd64 for ECS)
   # --no-cache ensures native modules (better-sqlite3) are compiled fresh for amd64
   # REGION_SHORT is passed to set Vite base path for admin assets (e.g., /use1/admin/)
-  docker buildx build --platform=linux/amd64 --no-cache \
+  docker buildx build --load --platform=linux/amd64 --no-cache \
     --build-arg REGION_SHORT="${REGION_SHORT}" \
     -t "$LOCAL_TAG" -f "${APP_DIR}/app/Dockerfile.app" "${APP_DIR}/app/"
 
