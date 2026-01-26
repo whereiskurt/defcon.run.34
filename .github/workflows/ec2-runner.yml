@@ -138,8 +138,11 @@ jobs:
             ]
           startup-timeout-minutes: 10
           pre-runner-script: |
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
             sudo apt-get update -qq
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq jq docker.io awscli
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq jq docker.io awscli gh
             sudo usermod -aG docker ubuntu
             sudo systemctl enable docker
             sudo systemctl start docker
