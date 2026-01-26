@@ -1,6 +1,6 @@
 name: "🚀 Deploy: Release"
 
-run-name: "Deploy ${{ inputs.apps || 'all apps' }} → ${{ inputs.region }}"
+run-name: "Deploy all apps"
 
 on:
   workflow_dispatch:
@@ -9,17 +9,6 @@ on:
         description: 'PR to merge: "latest", PR number, or "skip" to deploy without merge'
         type: string
         default: 'latest'
-      region:
-        description: 'Target region'
-        type: choice
-        options:
-          - us-east-1
-          - ca-central-1
-        default: us-east-1
-      apps:
-        description: 'Apps to deploy (comma-separated, empty = all)'
-        type: string
-        default: ''
       invalidate_cache:
         description: 'Invalidate CloudFront cache after deploy'
         type: boolean
@@ -119,7 +108,7 @@ jobs:
   # Deploy to ECS
   # ============================================================================
   deploy:
-    name: Deploy to ${{ inputs.region }}
+    name: Deploy
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: [merge-pr]
@@ -139,7 +128,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-deploy
-          aws-region: ${{ inputs.region }}
+          aws-region: us-east-1
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -167,36 +156,10 @@ jobs:
           done
 
       - name: Deploy ECS Tasks and Services
-        working-directory: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}
+        working-directory: ${{ env.TF_SITE_DIR }}
         run: |
-          echo "Deploying to ${{ inputs.region }}..."
-
-          # If specific apps requested, filter to just those
-          if [[ -n "${{ inputs.apps }}" ]]; then
-            APPS="${{ inputs.apps }}"
-            echo "Deploying specific apps: $APPS"
-
-            # Convert app names to terraform service names
-            # run.auth -> run-auth, etc.
-            IFS=',' read -ra APP_LIST <<< "$APPS"
-            for APP in "${APP_LIST[@]}"; do
-              SERVICE_NAME=$(echo "$APP" | tr '.' '-')
-              echo "Applying ecs-task and ecs-service for $SERVICE_NAME..."
-
-              # Apply task definition first
-              terragrunt apply --non-interactive -auto-approve \
-                --terragrunt-include-dir "**/ecs-task" \
-                --terragrunt-strict-include 2>&1 || true
-
-              # Then apply service
-              terragrunt apply --non-interactive -auto-approve \
-                --terragrunt-include-dir "**/ecs-service" \
-                --terragrunt-strict-include 2>&1 || true
-            done
-          else
-            echo "Deploying all apps..."
-            terragrunt run apply --all --non-interactive -- -auto-approve
-          fi
+          echo "Deploying all regions..."
+          terragrunt run apply --all --non-interactive -- -auto-approve
 
       - name: Invalidate CloudFront Cache
         if: inputs.invalidate_cache
@@ -238,8 +201,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Deploy Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Region:** ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Apps:** ${{ inputs.apps || 'all' }}" >> $GITHUB_STEP_SUMMARY
           echo "**Cache Invalidated:** ${{ inputs.invalidate_cache }}" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
