@@ -1,6 +1,6 @@
 name: "🚀 Deploy: Release"
 
-run-name: Deploy ${{ inputs.apps || 'all apps' }} → ${{ inputs.region }}${{ inputs.pr_number && format(' (PR #{0})', inputs.pr_number) || '' }}
+run-name: "Deploy ${{ inputs.apps || 'all apps' }} → ${{ inputs.region }}"
 
 on:
   workflow_dispatch:
