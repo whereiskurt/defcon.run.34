@@ -59,18 +59,18 @@ jobs:
 
           PR_INPUT="${{ inputs.pr_number }}"
 
-          # Handle "latest" - find most recent open release PR
+          # Handle "latest" - find most recent open release PR with "Release" in title
           if [[ "$PR_INPUT" == "latest" ]]; then
             echo "Finding latest open release PR..."
-            PR_NUMBER=$(gh pr list --state open --json number,headRefName,createdAt \
-              --jq '[.[] | select(.headRefName | startswith("release/"))] | sort_by(.createdAt) | reverse | .[0].number')
+            PR_NUMBER=$(gh pr list --state open --json number,title,headRefName,createdAt \
+              --jq '[.[] | select(.title | startswith("Release"))] | sort_by(.createdAt) | reverse | .[0].number')
 
             if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
               echo "::error::No open release PRs found"
-              echo "**Error:** No open release PRs found" >> $GITHUB_STEP_SUMMARY
+              echo "**Error:** No open Release PRs found" >> $GITHUB_STEP_SUMMARY
               echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Open PRs:" >> $GITHUB_STEP_SUMMARY
-              gh pr list --state open --json number,title,headRefName --jq '.[] | "- #\(.number): \(.title) (\(.headRefName))"' >> $GITHUB_STEP_SUMMARY
+              echo "### Open PRs (looking for title starting with 'Release'):" >> $GITHUB_STEP_SUMMARY
+              gh pr list --state open --json number,title,headRefName --jq '.[] | "- #\(.number): \(.title)"' >> $GITHUB_STEP_SUMMARY
               exit 1
             fi
             echo "Found latest release PR: #$PR_NUMBER"
