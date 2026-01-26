@@ -83,3 +83,13 @@ output "management_account_setup" {
     EOT
   } : null
 }
+
+# EC2 Runner instance profile outputs
+output "ec2_runner_instance_profile" {
+  description = "EC2 runner instance profile details"
+  value = var.github_oidc.ec2_runner_instance_profile.enabled ? {
+    name     = aws_iam_instance_profile.ec2_runner[0].name
+    arn      = aws_iam_instance_profile.ec2_runner[0].arn
+    role_arn = aws_iam_role.ec2_runner[0].arn
+  } : null
+}

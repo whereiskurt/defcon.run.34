@@ -336,6 +336,13 @@ locals {
     # After deploying, create the delegate role in the management account
     management_account_id = get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "123456789012")
 
+    # EC2 instance profile for self-hosted GitHub runners
+    # Enables SSM access for debugging and includes ECR read access
+    ec2_runner_instance_profile = {
+      enabled = true
+      name    = "github-runner"
+    }
+
     roles = [
       # Terragrunt role - for infrastructure deployments
       # Equivalent to your local "terraform" profile + management profile

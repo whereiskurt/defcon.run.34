@@ -142,3 +142,67 @@ resource "aws_iam_role_policy" "cross_account_assume" {
     ]
   })
 }
+
+# =============================================================================
+# EC2 Runner Instance Profile
+# Creates an IAM role and instance profile for self-hosted GitHub runners
+# Includes SSM access for remote debugging
+# =============================================================================
+
+resource "aws_iam_role" "ec2_runner" {
+  count = var.github_oidc.ec2_runner_instance_profile.enabled ? 1 : 0
+
+  name        = "${var.site.label}-${var.github_oidc.ec2_runner_instance_profile.name}"
+  description = "IAM role for GitHub Actions self-hosted EC2 runners"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name      = "${var.site.label}-${var.github_oidc.ec2_runner_instance_profile.name}"
+    Site      = var.site.label
+    Purpose   = "github-runner"
+    ManagedBy = "Terragrunt"
+  }
+}
+
+# Attach SSM managed policy for remote access
+resource "aws_iam_role_policy_attachment" "ec2_runner_ssm" {
+  count = var.github_oidc.ec2_runner_instance_profile.enabled ? 1 : 0
+
+  role       = aws_iam_role.ec2_runner[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# Attach ECR read-only for pulling images (useful for build runners)
+resource "aws_iam_role_policy_attachment" "ec2_runner_ecr" {
+  count = var.github_oidc.ec2_runner_instance_profile.enabled ? 1 : 0
+
+  role       = aws_iam_role.ec2_runner[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+# Instance profile for EC2 runners
+resource "aws_iam_instance_profile" "ec2_runner" {
+  count = var.github_oidc.ec2_runner_instance_profile.enabled ? 1 : 0
+
+  name = "${var.site.label}-${var.github_oidc.ec2_runner_instance_profile.name}"
+  role = aws_iam_role.ec2_runner[0].name
+
+  tags = {
+    Name      = "${var.site.label}-${var.github_oidc.ec2_runner_instance_profile.name}"
+    Site      = var.site.label
+    Purpose   = "github-runner"
+    ManagedBy = "Terragrunt"
+  }
+}

@@ -16,6 +16,13 @@ variable "github_oidc" {
     # If set, outputs will include the trust policy needed in the management account
     management_account_id = optional(string, null)
 
+    # Optional: Create EC2 instance profile for self-hosted runners
+    # Enables SSM access for debugging and runner management
+    ec2_runner_instance_profile = optional(object({
+      enabled = bool
+      name    = optional(string, "github-runner")
+    }), { enabled = false })
+
     roles = list(object({
       name        = string
       description = optional(string, "GitHub Actions role")
