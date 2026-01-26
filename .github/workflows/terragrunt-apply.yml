@@ -3,6 +3,14 @@ name: "🏗️ Infra: Terragrunt Apply"
 on:
   # Manual trigger
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner type'
+        type: choice
+        options:
+          - github-hosted
+          - ec2-reuse-existing
+        default: github-hosted
 
   # Auto-trigger on merge to main when VERSION files change
   # Requires approval via terraform-apply environment
@@ -20,7 +28,9 @@ concurrency:
 jobs:
   apply:
     name: Terragrunt Apply
-    runs-on: ubuntu-latest
+    # Use EC2 runner if selected via workflow_dispatch, otherwise github-hosted
+    # Push triggers always use github-hosted
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && inputs.runner == 'ec2-reuse-existing') && 'dc34-release-runner' || 'ubuntu-latest' }}
     environment: terraform-apply
     permissions:
       id-token: write
@@ -125,7 +135,8 @@ jobs:
           echo "## ${STATUS} Terragrunt Apply" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** ${{ (github.event_name == 'workflow_dispatch' && inputs.runner == 'ec2-reuse-existing') && '🖥️ EC2 (dc34-release-runner)' || '☁️ GitHub-hosted' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "<details>" >> $GITHUB_STEP_SUMMARY
           echo "<summary>Click to expand apply output</summary>" >> $GITHUB_STEP_SUMMARY

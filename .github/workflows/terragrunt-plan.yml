@@ -3,6 +3,14 @@ name: "🏗️ Infra: Terragrunt Plan"
 on:
   # Manual trigger
   workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Runner type'
+        type: choice
+        options:
+          - github-hosted
+          - ec2-reuse-existing
+        default: github-hosted
 
   # Auto-trigger on PRs that change VERSION files
   pull_request:
@@ -17,7 +25,9 @@ concurrency:
 jobs:
   plan:
     name: Terragrunt Plan
-    runs-on: ubuntu-latest
+    # Use EC2 runner if selected via workflow_dispatch, otherwise github-hosted
+    # PR triggers always use github-hosted
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && inputs.runner == 'ec2-reuse-existing') && 'dc34-release-runner' || 'ubuntu-latest' }}
     environment: terraform-plan
     permissions:
       id-token: write
@@ -122,6 +132,7 @@ jobs:
           echo "## ${STATUS} Terragrunt Plan" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** ${{ (github.event_name == 'workflow_dispatch' && inputs.runner == 'ec2-reuse-existing') && '🖥️ EC2 (dc34-release-runner)' || '☁️ GitHub-hosted' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Extract per-module summaries
