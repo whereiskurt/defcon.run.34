@@ -49,48 +49,48 @@ jobs:
       - name: Discover VPC resources
         id: vpc
         run: |
-          # Find a public subnet tagged with our project
+          set +e  # Don't exit on error, we handle fallbacks
+
+          # Find a public subnet (map-public-ip-on-launch = true)
           SUBNET_ID=$(aws ec2 describe-subnets \
-            --filters "Name=tag:Project,Values=defcon.run" \
-                      "Name=map-public-ip-on-launch,Values=true" \
+            --filters "Name=map-public-ip-on-launch,Values=true" \
             --query 'Subnets[0].SubnetId' \
             --output text 2>/dev/null)
 
-          # Fallback: find any public subnet in default VPC region
           if [[ -z "$SUBNET_ID" || "$SUBNET_ID" == "None" ]]; then
-            SUBNET_ID=$(aws ec2 describe-subnets \
-              --filters "Name=map-public-ip-on-launch,Values=true" \
-              --query 'Subnets[0].SubnetId' \
-              --output text)
+            echo "::error::No public subnet found"
+            exit 1
           fi
 
-          # Find security group with outbound access (sshhttps or similar)
+          # Get VPC ID from subnet
+          VPC_ID=$(aws ec2 describe-subnets \
+            --subnet-ids "$SUBNET_ID" \
+            --query 'Subnets[0].VpcId' \
+            --output text)
+
+          # Find security group by name pattern (securemgmt)
           SG_ID=$(aws ec2 describe-security-groups \
-            --filters "Name=group-name,Values=*securemgmt*" \
-            --query 'SecurityGroups[0].GroupId' \
+            --filters "Name=vpc-id,Values=$VPC_ID" \
+            --query "SecurityGroups[?contains(GroupName, 'securemgmt')].GroupId | [0]" \
             --output text 2>/dev/null)
 
-          # Fallback: find any SG with full egress
+          # Fallback: use default security group for the VPC
           if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
-            SG_ID=$(aws ec2 describe-security-groups \
-              --filters "Name=ip-permission.from-port,Values=0" \
-                        "Name=ip-permission.to-port,Values=65535" \
-              --query 'SecurityGroups[0].GroupId' \
-              --output text 2>/dev/null)
-          fi
-
-          # Use default VPC security group as last resort
-          if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
-            VPC_ID=$(aws ec2 describe-subnets --subnet-ids "$SUBNET_ID" --query 'Subnets[0].VpcId' --output text)
             SG_ID=$(aws ec2 describe-security-groups \
               --filters "Name=vpc-id,Values=$VPC_ID" "Name=group-name,Values=default" \
               --query 'SecurityGroups[0].GroupId' \
               --output text)
           fi
 
+          if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
+            echo "::error::No security group found"
+            exit 1
+          fi
+
           echo "subnet_id=$SUBNET_ID" >> $GITHUB_OUTPUT
           echo "security_group_id=$SG_ID" >> $GITHUB_OUTPUT
-          echo "Found subnet: $SUBNET_ID, security group: $SG_ID"
+          echo "vpc_id=$VPC_ID" >> $GITHUB_OUTPUT
+          echo "✅ Found: subnet=$SUBNET_ID, sg=$SG_ID, vpc=$VPC_ID"
 
       - name: Check for existing runner
         id: check
