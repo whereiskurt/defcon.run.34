@@ -136,30 +136,30 @@ jobs:
               {"Key": "KeepAlive", "Value": "true"}
             ]
           runner-home-dir: /home/ubuntu/actions-runner
+          startup-timeout-minutes: 10
           pre-runner-script: |
-            # Install SSM agent for remote access
-            sudo snap install amazon-ssm-agent --classic
-            sudo systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
-            sudo systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
+            # Add GitHub CLI apt repository
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
 
-            # Install Docker
-            sudo apt-get update
-            sudo apt-get install -y docker.io awscli
+            # Single apt-get update and install all packages together
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io awscli gh
+
+            # Configure Docker
             sudo usermod -aG docker ubuntu
             sudo systemctl enable docker
             sudo systemctl start docker
 
             # Install Docker Buildx
             mkdir -p ~/.docker/cli-plugins
-            curl -Lo ~/.docker/cli-plugins/docker-buildx \
-              https://github.com/docker/buildx/releases/latest/download/buildx-v0.12.1.linux-amd64
+            curl -sLo ~/.docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-amd64
             chmod +x ~/.docker/cli-plugins/docker-buildx
 
-            # Install gh CLI
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list
-            sudo apt-get update
-            sudo apt-get install -y gh
+            # Install SSM agent (do last as it's least critical for runner)
+            sudo snap install amazon-ssm-agent --classic 2>/dev/null || true
+            sudo systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service 2>/dev/null || true
+            sudo systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service 2>/dev/null || true
 
       - name: Tag with fixed name
         if: steps.check.outputs.existing != 'true'
