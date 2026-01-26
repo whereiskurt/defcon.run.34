@@ -16,13 +16,20 @@ ARG REGION_SHORT="use1"
 # Mapbox token for map rendering (public, safe to embed in client bundle)
 ARG PUBLIC_MAPBOX_TOKEN=""
 
+WORKDIR /gpx
+
+# First build the gpx library (it has typescript as devDependency and postinstall needs it)
+COPY gpx-studio/gpx/package*.json ./
+RUN npm install
+COPY gpx-studio/gpx ./
+RUN npm run build
+
+# Now build the website
 WORKDIR /gpx-studio
 
-# Copy gpx.studio source (paths relative to apps/run.gpx/ build context)
-# Must copy both website/ and gpx/ since website has local dependency "gpx": "file:../gpx"
-COPY gpx-studio/gpx ../gpx
 COPY gpx-studio/website/package*.json ./
-RUN npm install
+# Use --ignore-scripts since we already built ../gpx above
+RUN npm install --ignore-scripts
 
 COPY gpx-studio/website ./
 
