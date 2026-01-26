@@ -322,6 +322,7 @@ jobs:
     if: inputs.runner == 'ec2-reuse-existing'
     name: Release (Existing EC2 Runner)
     runs-on: dc34-release-runner  # Fixed label for persistent runner
+    environment: ec2-runner
     timeout-minutes: 30
 
     permissions:
