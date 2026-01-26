@@ -160,6 +160,7 @@ jobs:
           iam-role-name: dc34-github-runner
           label: dc34-release-runner
           market-type: ${{ inputs.market_type != 'on-demand' && 'spot' || '' }}
+          ec2-volume-size: 30
           aws-resource-tags: >
             [
               {"Key": "Name", "Value": "${{ env.RUNNER_NAME }}"},
@@ -198,6 +199,7 @@ jobs:
           security-group-id: ${{ steps.vpc.outputs.security_group_id }}
           iam-role-name: dc34-github-runner
           label: dc34-release-runner
+          ec2-volume-size: 30
           aws-resource-tags: >
             [
               {"Key": "Name", "Value": "${{ env.RUNNER_NAME }}"},
