@@ -20,7 +20,7 @@ WORKDIR /gpx
 
 # First build the gpx library (it has typescript as devDependency and postinstall needs it)
 COPY gpx-studio/gpx/package*.json ./
-RUN npm install
+RUN npm install --ignore-scripts
 COPY gpx-studio/gpx ./
 RUN npm run build
 
