@@ -6,9 +6,9 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: 'PR number to merge before deploy (optional)'
+        description: 'PR to merge: "latest", PR number, or "skip" to deploy without merge'
         type: string
-        default: ''
+        default: 'latest'
       region:
         description: 'Target region'
         type: choice
@@ -33,8 +33,8 @@ jobs:
   # Optional: Merge PR before deploy
   # ============================================================================
   merge-pr:
-    if: inputs.pr_number != ''
-    name: Merge PR #${{ inputs.pr_number }}
+    if: inputs.pr_number != '' && inputs.pr_number != 'skip'
+    name: Merge Release PR
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -57,21 +57,42 @@ jobs:
           echo "## PR Merge" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
+          PR_INPUT="${{ inputs.pr_number }}"
+
+          # Handle "latest" - find most recent open release PR
+          if [[ "$PR_INPUT" == "latest" ]]; then
+            echo "Finding latest open release PR..."
+            PR_NUMBER=$(gh pr list --state open --json number,headRefName,createdAt \
+              --jq '[.[] | select(.headRefName | startswith("release/"))] | sort_by(.createdAt) | reverse | .[0].number')
+
+            if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
+              echo "::error::No open release PRs found"
+              echo "**Error:** No open release PRs found" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "### Open PRs:" >> $GITHUB_STEP_SUMMARY
+              gh pr list --state open --json number,title,headRefName --jq '.[] | "- #\(.number): \(.title) (\(.headRefName))"' >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+            echo "Found latest release PR: #$PR_NUMBER"
+          else
+            PR_NUMBER="$PR_INPUT"
+          fi
+
           # Get PR details
-          PR_INFO=$(gh pr view ${{ inputs.pr_number }} --json title,state,headRefName,baseRefName,mergeable)
+          PR_INFO=$(gh pr view $PR_NUMBER --json title,state,headRefName,baseRefName,mergeable)
           PR_TITLE=$(echo "$PR_INFO" | jq -r '.title')
           PR_STATE=$(echo "$PR_INFO" | jq -r '.state')
           PR_HEAD=$(echo "$PR_INFO" | jq -r '.headRefName')
           PR_BASE=$(echo "$PR_INFO" | jq -r '.baseRefName')
           MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
 
-          echo "**PR #${{ inputs.pr_number }}:** $PR_TITLE" >> $GITHUB_STEP_SUMMARY
+          echo "**PR #${PR_NUMBER}:** $PR_TITLE" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** $PR_HEAD → $PR_BASE" >> $GITHUB_STEP_SUMMARY
           echo "**State:** $PR_STATE" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [[ "$PR_STATE" != "OPEN" ]]; then
-            echo "::error::PR #${{ inputs.pr_number }} is not open (state: $PR_STATE)"
+            echo "::error::PR #${PR_NUMBER} is not open (state: $PR_STATE)"
             exit 1
           fi
 
@@ -81,14 +102,14 @@ jobs:
 
           # Approve and merge the PR
           echo "Approving PR..."
-          gh pr review ${{ inputs.pr_number }} --approve --body "Auto-approved by deploy workflow" || true
+          gh pr review $PR_NUMBER --approve --body "Auto-approved by deploy workflow" || true
 
           echo "Merging PR..."
-          gh pr merge ${{ inputs.pr_number }} --squash --auto --delete-branch
+          gh pr merge $PR_NUMBER --squash --delete-branch
 
           # Get the merge commit SHA
           sleep 2
-          MERGE_SHA=$(gh pr view ${{ inputs.pr_number }} --json mergeCommit --jq '.mergeCommit.oid')
+          MERGE_SHA=$(gh pr view $PR_NUMBER --json mergeCommit --jq '.mergeCommit.oid')
           echo "sha=$MERGE_SHA" >> $GITHUB_OUTPUT
 
           echo "**Merged:** ✅" >> $GITHUB_STEP_SUMMARY
