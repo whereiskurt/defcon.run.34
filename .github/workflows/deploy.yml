@@ -1,10 +1,14 @@
 name: "🚀 Deploy: Release"
 
-run-name: Deploy ${{ inputs.apps || 'all apps' }} → ${{ inputs.region }}
+run-name: Deploy ${{ inputs.apps || 'all apps' }} → ${{ inputs.region }}${{ inputs.pr_number && format(' (PR #{0})', inputs.pr_number) || '' }}
 
 on:
   workflow_dispatch:
     inputs:
+      pr_number:
+        description: 'PR number to merge before deploy (optional)'
+        type: string
+        default: ''
       region:
         description: 'Target region'
         type: choice
@@ -25,10 +29,80 @@ env:
   TF_SITE_DIR: infra/terraform/live/site
 
 jobs:
+  # ============================================================================
+  # Optional: Merge PR before deploy
+  # ============================================================================
+  merge-pr:
+    if: inputs.pr_number != ''
+    name: Merge PR #${{ inputs.pr_number }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    outputs:
+      merge_sha: ${{ steps.merge.outputs.sha }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate and Merge PR
+        id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "## PR Merge" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Get PR details
+          PR_INFO=$(gh pr view ${{ inputs.pr_number }} --json title,state,headRefName,baseRefName,mergeable)
+          PR_TITLE=$(echo "$PR_INFO" | jq -r '.title')
+          PR_STATE=$(echo "$PR_INFO" | jq -r '.state')
+          PR_HEAD=$(echo "$PR_INFO" | jq -r '.headRefName')
+          PR_BASE=$(echo "$PR_INFO" | jq -r '.baseRefName')
+          MERGEABLE=$(echo "$PR_INFO" | jq -r '.mergeable')
+
+          echo "**PR #${{ inputs.pr_number }}:** $PR_TITLE" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** $PR_HEAD → $PR_BASE" >> $GITHUB_STEP_SUMMARY
+          echo "**State:** $PR_STATE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "$PR_STATE" != "OPEN" ]]; then
+            echo "::error::PR #${{ inputs.pr_number }} is not open (state: $PR_STATE)"
+            exit 1
+          fi
+
+          if [[ "$MERGEABLE" != "MERGEABLE" ]]; then
+            echo "::warning::PR may have merge conflicts (mergeable: $MERGEABLE)"
+          fi
+
+          # Approve and merge the PR
+          echo "Approving PR..."
+          gh pr review ${{ inputs.pr_number }} --approve --body "Auto-approved by deploy workflow" || true
+
+          echo "Merging PR..."
+          gh pr merge ${{ inputs.pr_number }} --squash --auto --delete-branch
+
+          # Get the merge commit SHA
+          sleep 2
+          MERGE_SHA=$(gh pr view ${{ inputs.pr_number }} --json mergeCommit --jq '.mergeCommit.oid')
+          echo "sha=$MERGE_SHA" >> $GITHUB_OUTPUT
+
+          echo "**Merged:** ✅" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`$MERGE_SHA\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Deploy to ECS
+  # ============================================================================
   deploy:
     name: Deploy to ${{ inputs.region }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: [merge-pr]
+    if: always() && (needs.merge-pr.result == 'success' || needs.merge-pr.result == 'skipped')
 
     permissions:
       id-token: write
@@ -37,6 +111,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.merge-pr.outputs.merge_sha || github.ref }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
