@@ -51,14 +51,21 @@ jobs:
         run: |
           set +e  # Don't exit on error, we handle fallbacks
 
-          # Find a public subnet (map-public-ip-on-launch = true)
+          # Find a public subnet by Name tag containing "public" and "defcon"
           SUBNET_ID=$(aws ec2 describe-subnets \
-            --filters "Name=map-public-ip-on-launch,Values=true" \
-            --query 'Subnets[0].SubnetId' \
+            --query "Subnets[?contains(Tags[?Key=='Name'].Value | [0], 'public') && contains(Tags[?Key=='Name'].Value | [0], 'defcon')].SubnetId | [0]" \
             --output text 2>/dev/null)
 
+          # Fallback: any subnet with "public" in name
           if [[ -z "$SUBNET_ID" || "$SUBNET_ID" == "None" ]]; then
-            echo "::error::No public subnet found"
+            SUBNET_ID=$(aws ec2 describe-subnets \
+              --query "Subnets[?contains(Tags[?Key=='Name'].Value | [0], 'public')].SubnetId | [0]" \
+              --output text 2>/dev/null)
+          fi
+
+          if [[ -z "$SUBNET_ID" || "$SUBNET_ID" == "None" ]]; then
+            echo "::error::No public subnet found. Looking for subnet with 'public' in Name tag."
+            aws ec2 describe-subnets --query "Subnets[*].[SubnetId, Tags[?Key=='Name'].Value | [0]]" --output table
             exit 1
           fi
 
