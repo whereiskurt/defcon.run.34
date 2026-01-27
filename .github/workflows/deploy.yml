@@ -163,13 +163,13 @@ jobs:
         working-directory: ${{ env.TF_SITE_DIR }}
         run: |
           echo "Applying ECS task definitions..."
-          terragrunt run-all apply --terragrunt-include-dir "**/ecs-task" --terragrunt-non-interactive -auto-approve
+          terragrunt apply --all --terragrunt-include-dir "**/ecs-task" --terragrunt-non-interactive -auto-approve
 
       - name: Deploy ECS Services
         working-directory: ${{ env.TF_SITE_DIR }}
         run: |
           echo "Applying ECS services..."
-          terragrunt run-all apply --terragrunt-include-dir "**/ecs-service" --terragrunt-non-interactive -auto-approve
+          terragrunt apply --all --terragrunt-include-dir "**/ecs-service" --terragrunt-non-interactive -auto-approve
 
       - name: Invalidate CloudFront Cache
         if: inputs.invalidate_cache
