@@ -41,7 +41,7 @@ jobs:
       - name: Validate and Merge PR
         id: merge
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
         run: |
           echo "## PR Merge" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
