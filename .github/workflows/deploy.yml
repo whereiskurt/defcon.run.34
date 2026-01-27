@@ -159,11 +159,17 @@ jobs:
             echo "| ${app} | ${VERSION} |" >> $GITHUB_STEP_SUMMARY
           done
 
-      - name: Deploy ECS Tasks and Services
+      - name: Deploy ECS Task Definitions
         working-directory: ${{ env.TF_SITE_DIR }}
         run: |
-          echo "Deploying all regions..."
-          terragrunt apply --all --non-interactive -auto-approve
+          echo "Applying ECS task definitions..."
+          terragrunt run-all apply --terragrunt-include-dir "**/ecs-task" --terragrunt-non-interactive -auto-approve
+
+      - name: Deploy ECS Services
+        working-directory: ${{ env.TF_SITE_DIR }}
+        run: |
+          echo "Applying ECS services..."
+          terragrunt run-all apply --terragrunt-include-dir "**/ecs-service" --terragrunt-non-interactive -auto-approve
 
       - name: Invalidate CloudFront Cache
         if: inputs.invalidate_cache
