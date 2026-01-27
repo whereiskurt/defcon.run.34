@@ -1,12 +1,12 @@
 name: "🚀 Deploy: Build & Publish"
 
-run-name: Release (${{ inputs.apps || 'all apps' }}) → ${{ inputs.regions || 'use1' }}
+run-name: "Build+Pub(${{ inputs.apps || 'all' }}) → ${{ inputs.regions || 'use1' }}"
 
 on:
   workflow_dispatch:
     inputs:
       apps:
-        description: 'Apps to release (comma-separated)'
+        description: 'Apps to build (comma-separated)'
         type: string
         default: 'run.auth,run.human,run.cms,run.gpx'
       regions:
@@ -66,9 +66,9 @@ jobs:
   # ============================================================================
   # Option 1: GitHub-hosted runner (slower but simple)
   # ============================================================================
-  release-github-hosted:
+  build-github-hosted:
     if: inputs.runner == 'github-hosted'
-    name: Release (GitHub Runner)
+    name: Build+Pub (GitHub)
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -143,7 +143,7 @@ jobs:
       - name: Generate Summary
         if: always()
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Build+Pub Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
           echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
@@ -292,10 +292,10 @@ jobs:
             echo "⚠️ **Runner will stay running after build. Use 'EC2 Runner: Stop' workflow to terminate.**" >> $GITHUB_STEP_SUMMARY
           fi
 
-  # Run release on newly started EC2 runner
-  release-ec2-new:
+  # Run build on newly started EC2 runner
+  build-ec2-new:
     if: inputs.runner == 'ec2-ephemeral' || inputs.runner == 'ec2-start-and-keep'
-    name: Release (EC2 Runner)
+    name: Build+Pub (EC2)
     needs: start-ec2-runner
     runs-on: ${{ needs.start-ec2-runner.outputs.runner-label }}
     timeout-minutes: 30
@@ -365,7 +365,7 @@ jobs:
       - name: Generate Summary
         if: always()
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Build+Pub Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
           echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
@@ -375,10 +375,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
 
-  # Run release on existing EC2 runner (reuse mode)
-  release-ec2-existing:
+  # Run build on existing EC2 runner (reuse mode)
+  build-ec2-existing:
     if: inputs.runner == 'ec2-reuse-existing'
-    name: Release (Existing EC2 Runner)
+    name: Build+Pub (Existing EC2)
     runs-on: dc34-release-runner  # Fixed label for persistent runner
     environment: ec2-runner
     timeout-minutes: 30
@@ -448,7 +448,7 @@ jobs:
       - name: Generate Summary
         if: always()
         run: |
-          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Build+Pub Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
           echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
@@ -462,7 +462,7 @@ jobs:
   stop-ec2-runner:
     if: inputs.runner == 'ec2-ephemeral' && always()
     name: Stop EC2 Runner
-    needs: [start-ec2-runner, release-ec2-new]
+    needs: [start-ec2-runner, build-ec2-new]
     runs-on: ubuntu-latest
 
     permissions:
