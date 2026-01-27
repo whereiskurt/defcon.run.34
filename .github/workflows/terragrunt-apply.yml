@@ -1,7 +1,7 @@
 name: "🏗️ Infra: Terragrunt Apply"
 
 on:
-  # Manual trigger
+  # Manual trigger only - use deploy.yml workflow for automated deploys
   workflow_dispatch:
     inputs:
       runner:
@@ -11,14 +11,6 @@ on:
           - github-hosted
           - ec2-reuse-existing
         default: github-hosted
-
-  # Auto-trigger on merge to main when VERSION files change
-  # Requires approval via terraform-apply environment
-  push:
-    branches:
-      - main
-    paths:
-      - 'infra/**/VERSION.*'
 
 # Cancel in-progress runs when new commits are pushed
 concurrency:

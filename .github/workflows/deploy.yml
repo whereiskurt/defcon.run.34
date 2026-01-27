@@ -156,7 +156,7 @@ jobs:
         working-directory: ${{ env.TF_SITE_DIR }}
         run: |
           echo "Deploying all regions..."
-          terragrunt run apply --all --non-interactive -- -auto-approve
+          terragrunt apply --all --non-interactive -auto-approve
 
       - name: Invalidate CloudFront Cache
         if: inputs.invalidate_cache
