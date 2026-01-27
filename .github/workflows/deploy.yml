@@ -21,9 +21,6 @@ on:
         type: boolean
         default: true
 
-env:
-  TF_SITE_DIR: infra/terraform/live/site
-
 jobs:
   # ============================================================================
   # Optional: Merge PR before deploy
@@ -109,86 +106,41 @@ jobs:
           echo "**Commit:** \`$MERGE_SHA\`" >> $GITHUB_STEP_SUMMARY
 
   # ============================================================================
-  # Deploy to ECS
+  # Deploy ECS via Terragrunt Apply
   # ============================================================================
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  terragrunt-apply:
+    name: Deploy ECS
     needs: [merge-pr]
     if: always() && (needs.merge-pr.result == 'success' || needs.merge-pr.result == 'skipped')
+    uses: ./.github/workflows/terragrunt-apply.yml
+    with:
+      region: ${{ inputs.region }}
+      modules: ecs-task,ecs-service
+    secrets: inherit
+
+  # ============================================================================
+  # Invalidate CloudFront Cache
+  # ============================================================================
+  invalidate-cache:
+    name: Invalidate Cache
+    needs: [merge-pr, terragrunt-apply]
+    if: always() && inputs.invalidate_cache && needs.terragrunt-apply.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     permissions:
       id-token: write
       contents: read
 
-    env:
-      TG_BUCKET_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
-      TG_TABLE_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
-      TG_BUCKET_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
-      TG_TABLE_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
-      SGUID: ${{ vars.SGUID }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.merge-pr.outputs.merge_sha || github.ref }}
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-deploy
-          aws-region: ${{ inputs.region }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.14.3
-          terraform_wrapper: false
-
-      - name: Setup Terragrunt
-        run: |
-          curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.1/terragrunt_linux_amd64 -o terragrunt
-          chmod +x terragrunt
-          sudo mv terragrunt /usr/local/bin/
-          terragrunt --version
-
-      - name: Setup SOPS
-        run: |
-          curl -sLo sops https://github.com/getsops/sops/releases/download/v3.8.1/sops-v3.8.1.linux.amd64
-          chmod +x sops
-          sudo mv sops /usr/local/bin/
-          sops --version
-
-      - name: Show current versions
-        run: |
-          echo "## Current Versions" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| App | Version |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|---------|" >> $GITHUB_STEP_SUMMARY
-
-          for app in run-auth run-human run-cms run-gpx; do
-            VERSION=$(cat ${{ env.TF_SITE_DIR }}/services/${app}/VERSION.app 2>/dev/null || echo "N/A")
-            echo "| ${app} | ${VERSION} |" >> $GITHUB_STEP_SUMMARY
-          done
-
-      - name: Deploy ECS Task Definitions
-        working-directory: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}/ecs-task
-        run: |
-          echo "Applying ECS task definitions (${{ inputs.region }})..."
-          terragrunt apply --non-interactive -auto-approve
-
-      - name: Deploy ECS Services
-        working-directory: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}/ecs-service
-        run: |
-          echo "Applying ECS services (${{ inputs.region }})..."
-          terragrunt apply --non-interactive -auto-approve
+          aws-region: us-east-1
 
       - name: Invalidate CloudFront Cache
-        if: inputs.invalidate_cache
         run: |
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## CloudFront Invalidation" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
@@ -219,13 +171,24 @@ jobs:
             fi
           done
 
+  # ============================================================================
+  # Summary
+  # ============================================================================
+  summary:
+    name: Summary
+    needs: [merge-pr, terragrunt-apply, invalidate-cache]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Generate Summary
-        if: always()
         run: |
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Deploy Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Region:** ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Cache Invalidated:** ${{ inputs.invalidate_cache }}" >> $GITHUB_STEP_SUMMARY
+          echo "**PR Merge:** ${{ needs.merge-pr.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Terragrunt Apply:** ${{ needs.terragrunt-apply.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Cache Invalidation:** ${{ needs.invalidate-cache.result }}" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY

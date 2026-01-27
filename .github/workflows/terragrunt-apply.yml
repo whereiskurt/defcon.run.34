@@ -1,7 +1,7 @@
 name: "🏗️ Infra: Terragrunt Apply"
 
 on:
-  # Manual trigger only - use deploy.yml workflow for automated deploys
+  # Manual trigger
   workflow_dispatch:
     inputs:
       runner:
@@ -11,6 +11,30 @@ on:
           - github-hosted
           - ec2-reuse-existing
         default: github-hosted
+      region:
+        description: 'Target region (empty = all)'
+        type: choice
+        options:
+          - ''
+          - us-east-1
+          - ca-central-1
+        default: ''
+      modules:
+        description: 'Modules to apply (comma-separated, empty = all)'
+        type: string
+        default: ''
+
+  # Called by other workflows (e.g., deploy.yml)
+  workflow_call:
+    inputs:
+      region:
+        description: 'Target region (empty = all)'
+        type: string
+        default: ''
+      modules:
+        description: 'Modules to apply (comma-separated, e.g., ecs-task,ecs-service)'
+        type: string
+        default: ''
 
 # Cancel in-progress runs when new commits are pushed
 concurrency:
@@ -92,7 +116,27 @@ jobs:
         env:
           TG_PROVIDER_CACHE: "1"
         run: |
-          terragrunt run apply --all --no-color --non-interactive -- -auto-approve 2>&1 | tee apply_output.txt
+          REGION="${{ inputs.region }}"
+          MODULES="${{ inputs.modules }}"
+
+          # If specific region and modules, apply to each module directory
+          if [[ -n "$REGION" && -n "$MODULES" ]]; then
+            echo "Applying modules [$MODULES] in region [$REGION]..."
+            IFS=',' read -ra MODULE_LIST <<< "$MODULES"
+            for MODULE in "${MODULE_LIST[@]}"; do
+              MODULE=$(echo "$MODULE" | xargs)  # trim whitespace
+              echo "=== Applying $MODULE in $REGION ==="
+              (cd "region/$REGION/$MODULE" && terragrunt apply --no-color --non-interactive -auto-approve) 2>&1 | tee -a apply_output.txt
+            done
+          # If only region specified, apply all in that region
+          elif [[ -n "$REGION" ]]; then
+            echo "Applying all modules in region [$REGION]..."
+            (cd "region/$REGION" && terragrunt run apply --all --no-color --non-interactive -- -auto-approve) 2>&1 | tee apply_output.txt
+          # Otherwise apply everything
+          else
+            echo "Applying all modules in all regions..."
+            terragrunt run apply --all --no-color --non-interactive -- -auto-approve 2>&1 | tee apply_output.txt
+          fi
           exit_code=${PIPESTATUS[0]}
 
           # Truncate if too long for summary (max ~65k chars)
