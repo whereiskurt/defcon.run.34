@@ -1,6 +1,6 @@
 name: "🚀 Deploy: Release"
 
-run-name: "Deploy → ${{ inputs.region }}"
+run-name: "Deploy → ${{ inputs.region }} (${{ inputs.runner }})"
 
 on:
   workflow_dispatch:
@@ -12,6 +12,13 @@ on:
           - us-east-1
           - ca-central-1
         default: us-east-1
+      runner:
+        description: 'Runner type'
+        type: choice
+        options:
+          - github-hosted
+          - ec2-reuse-existing
+        default: github-hosted
       pr_number:
         description: 'PR to merge: "latest", PR number, or "skip" to deploy without merge'
         type: string
@@ -114,6 +121,7 @@ jobs:
     if: always() && (needs.merge-pr.result == 'success' || needs.merge-pr.result == 'skipped')
     uses: ./.github/workflows/terragrunt-apply.yml
     with:
+      runner: ${{ inputs.runner }}
       region: ${{ inputs.region }}
       modules: ecs-task,ecs-service
     secrets: inherit
@@ -187,6 +195,7 @@ jobs:
           echo "## Deploy Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Region:** ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** ${{ inputs.runner == 'ec2-reuse-existing' && '🖥️ EC2' || '☁️ GitHub-hosted' }}" >> $GITHUB_STEP_SUMMARY
           echo "**PR Merge:** ${{ needs.merge-pr.result }}" >> $GITHUB_STEP_SUMMARY
           echo "**Terragrunt Apply:** ${{ needs.terragrunt-apply.result }}" >> $GITHUB_STEP_SUMMARY
           echo "**Cache Invalidation:** ${{ needs.invalidate-cache.result }}" >> $GITHUB_STEP_SUMMARY
