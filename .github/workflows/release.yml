@@ -183,18 +183,80 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
           aws-region: us-east-1
 
+      - name: Get Ubuntu AMI
+        id: ami
+        run: |
+          AMI_ID=$(aws ec2 describe-images \
+            --owners 099720109477 \
+            --filters "Name=name,Values=ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*" \
+            --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' \
+            --output text)
+          echo "ami_id=$AMI_ID" >> $GITHUB_OUTPUT
+          echo "Using Ubuntu 22.04 AMI: $AMI_ID"
+
+      - name: Discover VPC resources
+        id: vpc
+        run: |
+          set +e  # Don't exit on error, we handle fallbacks
+
+          # Find a public subnet by Name tag containing "public" and "defcon"
+          SUBNET_ID=$(aws ec2 describe-subnets \
+            --query "Subnets[?contains(Tags[?Key=='Name'].Value | [0], 'public') && contains(Tags[?Key=='Name'].Value | [0], 'defcon')].SubnetId | [0]" \
+            --output text 2>/dev/null)
+
+          # Fallback: any subnet with "public" in name
+          if [[ -z "$SUBNET_ID" || "$SUBNET_ID" == "None" ]]; then
+            SUBNET_ID=$(aws ec2 describe-subnets \
+              --query "Subnets[?contains(Tags[?Key=='Name'].Value | [0], 'public')].SubnetId | [0]" \
+              --output text 2>/dev/null)
+          fi
+
+          if [[ -z "$SUBNET_ID" || "$SUBNET_ID" == "None" ]]; then
+            echo "::error::No public subnet found"
+            exit 1
+          fi
+
+          # Get VPC ID from subnet
+          VPC_ID=$(aws ec2 describe-subnets \
+            --subnet-ids "$SUBNET_ID" \
+            --query 'Subnets[0].VpcId' \
+            --output text)
+
+          # Find security group by name pattern (securemgmt)
+          SG_ID=$(aws ec2 describe-security-groups \
+            --filters "Name=vpc-id,Values=$VPC_ID" \
+            --query "SecurityGroups[?contains(GroupName, 'securemgmt')].GroupId | [0]" \
+            --output text 2>/dev/null)
+
+          # Fallback: use default security group for the VPC
+          if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
+            SG_ID=$(aws ec2 describe-security-groups \
+              --filters "Name=vpc-id,Values=$VPC_ID" "Name=group-name,Values=default" \
+              --query 'SecurityGroups[0].GroupId' \
+              --output text)
+          fi
+
+          if [[ -z "$SG_ID" || "$SG_ID" == "None" ]]; then
+            echo "::error::No security group found"
+            exit 1
+          fi
+
+          echo "subnet_id=$SUBNET_ID" >> $GITHUB_OUTPUT
+          echo "security_group_id=$SG_ID" >> $GITHUB_OUTPUT
+          echo "✅ Found: subnet=$SUBNET_ID, sg=$SG_ID"
+
       - name: Start EC2 Runner
         id: start-runner
         uses: machulav/ec2-github-runner@v2
         with:
           mode: start
           github-token: ${{ secrets.GH_RUNNER_TOKEN }}
-          ec2-image-id: ami-0c7217cdde317cfec  # Ubuntu 22.04 LTS x86_64
+          ec2-image-id: ${{ steps.ami.outputs.ami_id }}
           ec2-instance-type: ${{ inputs.ec2_instance_type }}
-          subnet-id: ${{ vars.RUNNER_SUBNET_ID }}
-          security-group-id: ${{ vars.RUNNER_SG_ID }}
+          subnet-id: ${{ steps.vpc.outputs.subnet_id }}
+          security-group-id: ${{ steps.vpc.outputs.security_group_id }}
           iam-role-name: dc34-github-runner
-          # Use fixed label for start-and-keep so we can reuse it later
+          ec2-volume-size: 30
           label: ${{ inputs.runner == 'ec2-start-and-keep' && 'dc34-release-runner' || '' }}
           aws-resource-tags: >
             [
@@ -203,31 +265,19 @@ jobs:
               {"Key": "Purpose", "Value": "release-build"},
               {"Key": "KeepAlive", "Value": "${{ inputs.runner == 'ec2-start-and-keep' && 'true' || 'false' }}"}
             ]
-          runner-home-dir: /home/ubuntu/actions-runner
+          startup-timeout-minutes: 10
           pre-runner-script: |
-            # Install SSM agent for remote access
-            sudo snap install amazon-ssm-agent --classic
-            sudo systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
-            sudo systemctl start snap.amazon-ssm-agent.amazon-ssm-agent.service
-
-            # Install Docker
-            sudo apt-get update
-            sudo apt-get install -y docker.io awscli
+            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg 2>/dev/null
+            sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+            echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq jq docker.io awscli gh
             sudo usermod -aG docker ubuntu
             sudo systemctl enable docker
             sudo systemctl start docker
-
-            # Install Docker Buildx
-            mkdir -p ~/.docker/cli-plugins
-            curl -Lo ~/.docker/cli-plugins/docker-buildx \
-              https://github.com/docker/buildx/releases/latest/download/buildx-v0.12.1.linux-amd64
-            chmod +x ~/.docker/cli-plugins/docker-buildx
-
-            # Install gh CLI
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list
-            sudo apt-get update
-            sudo apt-get install -y gh
+            mkdir -p /usr/local/lib/docker/cli-plugins
+            curl -sLo /usr/local/lib/docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-amd64
+            chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 
       - name: Output Runner Info
         run: |
