@@ -135,7 +135,7 @@ jobs:
 
       - name: Setup Terragrunt
         run: |
-          curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.68.0/terragrunt_linux_amd64 -o terragrunt
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.1/terragrunt_linux_amd64 -o terragrunt
           chmod +x terragrunt
           sudo mv terragrunt /usr/local/bin/
           terragrunt --version
@@ -163,13 +163,13 @@ jobs:
         working-directory: ${{ env.TF_SITE_DIR }}
         run: |
           echo "Applying ECS task definitions..."
-          terragrunt apply --all --terragrunt-include-dir "**/ecs-task" --terragrunt-non-interactive -auto-approve
+          terragrunt run apply --all --terragrunt-include-dir "**/ecs-task" --non-interactive -- -auto-approve
 
       - name: Deploy ECS Services
         working-directory: ${{ env.TF_SITE_DIR }}
         run: |
           echo "Applying ECS services..."
-          terragrunt apply --all --terragrunt-include-dir "**/ecs-service" --terragrunt-non-interactive -auto-approve
+          terragrunt run apply --all --terragrunt-include-dir "**/ecs-service" --non-interactive -- -auto-approve
 
       - name: Invalidate CloudFront Cache
         if: inputs.invalidate_cache
