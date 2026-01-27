@@ -4,7 +4,7 @@
 
 | Workflow | Purpose | When to use |
 |----------|---------|-------------|
-| **Release** | Build images, push to ECR, sync assets | New code ready to deploy |
+| **Build+Pub** | Build images, push to ECR, sync assets | New code ready to deploy |
 | **Deploy** | Run terragrunt to update ECS | After release, or redeploy current |
 | **Rollback** | Revert to a previous version | Something went wrong |
 | **EC2 Runner** | Manage self-hosted runners | Fast builds, work sessions |
@@ -16,7 +16,7 @@ Code merged to main
         │
         ▼
 ┌─────────────────┐
-│    Release      │  Build images, push to ECR
+│   Build+Pub    │  Build images, push to ECR
 │  (no deploy)    │  Creates PR, merges
 └────────┬────────┘
          │
@@ -35,15 +35,15 @@ Code merged to main
 
 ---
 
-## Release Workflow (`release.yml`)
+## Build+Pub Workflow (`buildpub.yml`)
 
-Automated release pipeline that builds Docker images, pushes to ECR, syncs assets to S3, and creates PRs.
+Automated build and publish pipeline that builds Docker images, pushes to ECR, syncs assets to S3, and creates PRs.
 
 ### Quick Start
 
-1. Go to **Actions** → **Release** → **Run workflow**
+1. Go to **Actions** → **Build & Publish** → **Run workflow**
 2. Select options:
-   - **Apps**: Which apps to release (default: all)
+   - **Apps**: Which apps to build (default: all)
    - **Regions**: `use1`, `cac1`, or both
    - **Runner**: `github-hosted` (simple) or `self-hosted-ec2` (fast)
 3. Click **Run workflow**
@@ -162,11 +162,11 @@ Automated release pipeline that builds Docker images, pushes to ECR, syncs asset
 For extended work sessions, use the runner lifecycle management:
 
 1. **Start a persistent runner**:
-   - Run **Release** workflow with runner: `ec2-start-and-keep`
+   - Run **Build+Pub** workflow with runner: `ec2-start-and-keep`
    - Or run **EC2 Runner** workflow with action: `start`
 
 2. **Reuse for subsequent releases**:
-   - Run **Release** workflow with runner: `ec2-reuse-existing`
+   - Run **Build+Pub** workflow with runner: `ec2-reuse-existing`
    - The runner stays warm, builds are fast (~3-5 min)
 
 3. **When done for the day**:
