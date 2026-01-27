@@ -6,7 +6,8 @@
 #   ./scripts/acquire-all.sh                    # Local (localhost:3002)
 #   ./scripts/acquire-all.sh --prod             # Production (auth.defcon.run)
 #   ./scripts/acquire-all.sh --force            # Force fresh login
-#   ./scripts/acquire-all.sh --prod --force     # Both
+#   ./scripts/acquire-all.sh --clean            # Cleanup DynamoDB first
+#   ./scripts/acquire-all.sh --prod --clean     # Production with cleanup
 #
 # This script runs three parallel processes to acquire credentials for
 # accounta, accountb, and accountc. Each process waits for its verification
@@ -18,6 +19,7 @@ cd "$(dirname "$0")/.."
 
 # Parse arguments
 FORCE=""
+CLEAN=false
 BASE_URL="http://localhost:3002"
 
 for arg in "$@"; do
@@ -28,6 +30,9 @@ for arg in "$@"; do
     --force)
       FORCE="FORCE_FRESH=true"
       ;;
+    --clean|--cleanup)
+      CLEAN=true
+      ;;
   esac
 done
 
@@ -36,8 +41,24 @@ echo "Acquiring credentials for all accounts"
 echo "============================================================"
 echo "Base URL: $BASE_URL"
 echo "Force:    ${FORCE:-no}"
+echo "Cleanup:  $CLEAN"
 echo "============================================================"
 echo ""
+
+# Run cleanup if requested
+if [ "$CLEAN" = true ]; then
+  echo "Running DynamoDB cleanup..."
+  echo ""
+  if CLEANUP_EXECUTE=true npx playwright test setup/cleanup-test-users.spec.ts --reporter=line; then
+    echo ""
+    echo "Cleanup complete."
+    # Force fresh login after cleanup
+    FORCE="FORCE_FRESH=true"
+  else
+    echo "Cleanup failed, but continuing..."
+  fi
+  echo ""
+fi
 
 # Function to acquire credentials for a single account
 acquire_account() {
