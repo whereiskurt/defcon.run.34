@@ -4,8 +4,8 @@ const baseURL = process.env.BASE_URL || 'http://localhost:3002';
 
 export default defineConfig({
   testDir: '.',
-  testMatch: '**/*.spec.ts',
-  timeout: 120000, // 2 minutes for ALTCHA solving + email wait
+  testMatch: ['setup/**/*.spec.ts', 'tests/**/*.spec.ts'],
+  timeout: 180000, // 3 minutes for ALTCHA + email wait (up to 2 min)
   // Run tests serially to ensure cookie jar is properly managed
   fullyParallel: false,
   workers: 1,
@@ -21,5 +21,10 @@ export default defineConfig({
       name: 'chromium',
       use: { browserName: 'chromium' },
     },
+  ],
+  // Reporter configuration
+  reporter: [
+    ['list'],
+    ['html', { open: 'never' }],
   ],
 });

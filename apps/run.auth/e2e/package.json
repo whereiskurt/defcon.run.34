@@ -3,9 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:debug": "playwright test --debug"
+    "test": "playwright test tests/",
+    "test:headed": "playwright test tests/ --headed",
+    "test:debug": "playwright test tests/ --debug",
+    "acquire": "playwright test setup/acquire-credentials.spec.ts",
+    "acquire:all": "./scripts/acquire-all.sh",
+    "acquire:prod": "BASE_URL=https://auth.defcon.run playwright test setup/acquire-credentials.spec.ts",
+    "acquire:all:prod": "./scripts/acquire-all.sh --prod",
+    "validate": "playwright test tests/session-valid.spec.ts",
+    "validate:prod": "BASE_URL=https://auth.defcon.run playwright test tests/session-valid.spec.ts",
+    "status": "./scripts/status.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0",

@@ -3,7 +3,7 @@ import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
 
 const EMAIL_PREFIX = 'inbox/defcon.run/';
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLL_ATTEMPTS = 30; // 60 seconds max wait
+const MAX_POLL_ATTEMPTS = 60; // 120 seconds max wait (2 minutes)
 
 // SSM parameter path for bucket name
 const SITE_LABEL = 'dc34';
