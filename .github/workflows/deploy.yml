@@ -1,10 +1,17 @@
 name: "🚀 Deploy: Release"
 
-run-name: "Deploy all apps"
+run-name: "Deploy → ${{ inputs.region }}"
 
 on:
   workflow_dispatch:
     inputs:
+      region:
+        description: 'Target region'
+        type: choice
+        options:
+          - us-east-1
+          - ca-central-1
+        default: us-east-1
       pr_number:
         description: 'PR to merge: "latest", PR number, or "skip" to deploy without merge'
         type: string
@@ -125,7 +132,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-deploy
-          aws-region: us-east-1
+          aws-region: ${{ inputs.region }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -160,16 +167,16 @@ jobs:
           done
 
       - name: Deploy ECS Task Definitions
-        working-directory: ${{ env.TF_SITE_DIR }}
+        working-directory: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}/ecs-task
         run: |
-          echo "Applying ECS task definitions..."
-          terragrunt run apply --all --terragrunt-include-dir "**/ecs-task" --non-interactive -- -auto-approve
+          echo "Applying ECS task definitions (${{ inputs.region }})..."
+          terragrunt apply --non-interactive -auto-approve
 
       - name: Deploy ECS Services
-        working-directory: ${{ env.TF_SITE_DIR }}
+        working-directory: ${{ env.TF_SITE_DIR }}/region/${{ inputs.region }}/ecs-service
         run: |
-          echo "Applying ECS services..."
-          terragrunt run apply --all --terragrunt-include-dir "**/ecs-service" --non-interactive -- -auto-approve
+          echo "Applying ECS services (${{ inputs.region }})..."
+          terragrunt apply --non-interactive -auto-approve
 
       - name: Invalidate CloudFront Cache
         if: inputs.invalidate_cache
@@ -211,6 +218,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## Deploy Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region }}" >> $GITHUB_STEP_SUMMARY
           echo "**Cache Invalidated:** ${{ inputs.invalidate_cache }}" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
