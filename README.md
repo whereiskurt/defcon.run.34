@@ -1,17 +1,25 @@
 # defcon.run 34
 
-A multi-region AWS infrastructure and web application suite for hosting a 4-day running event at DEF CON 34 in Las Vegas.
+> "Multi-region AWS IaC: CloudFront + WAF + ALB → ECS Fargate (Next.js, Strapi, SvelteKit). DynamoDB global tables + Litestream SQLite replication. AI-assisted spec-driven development with parallel Claude instances. All Terraform+Terragrunt."
 
-**This is a hobby project** where I experiment with modern cloud architecture, AI-assisted development workflows, and full-stack technologies. It's a playground for learning new tools and approaches while building something real.
+This is a hobby project where I experiment with modern cloud architecture, AI-assisted workflows, and full-stack tech — while building something real: a 4-day running event at **DEF CON 34** in Las Vegas.
+
+There's A LOT of AWS and development workflow magic in this repo that I'm happy to share. 🏃‍♂️ Multi-region active-active deployments, SQLite WAL streaming to S3, embedding open-source SvelteKit apps in Next.js, and a suite of AI development tools for parallel Claude coordination. I learned a ton building this — hopefully it's useful to others!
+
+![Architecture Overview](https://github.com/user-attachments/assets/0f631149-7046-43f2-9890-5fd04b23762d)
+
+## Motivation
+
+After [defcon.run 33](https://github.com/khundeck/defcon.run.33), I wanted to level up: better auth, a proper GPX route editor for planning runs, and a workflow that lets me spin up multiple Claude instances working in parallel on the same feature. This repo is the result — and we're headed to Vegas with it!
 
 ## What It Does
 
-- **Event Registration** — Runner sign-ups with email verification via OIDC
-- **Route Planning** — GPX route editor for planning runs across Las Vegas
-- **Content Management** — Headless CMS for event schedules and announcements
-- **Multi-Region Resilience** — Active-active deployment across US East and Canada Central
+- **Event Registration** — Runner sign-ups with email verification via custom OIDC provider
+- **Route Planning** — Full GPX editor (embedded [gpx-studio](https://gpx.studio)) for planning runs across Las Vegas
+- **Content Management** — Headless CMS for schedules and announcements with master-worker replication
+- **Multi-Region Resilience** — Active-active across US East and Canada Central
 
-## Architecture Overview
+## Architecture
 
 ```
                               Internet
@@ -39,45 +47,29 @@ A multi-region AWS infrastructure and web application suite for hosting a 4-day 
 
 ### Services
 
-| Service | URL | Purpose | Stack |
-|---------|-----|---------|-------|
-| **run.human** | run.defcon.run | Main app, registration | Next.js 16, React 19, DynamoDB |
-| **run.auth** | auth.defcon.run | OIDC provider, SSO | Next.js, Auth.js, oidc-provider |
-| **run.gpx** | gpx.defcon.run | GPX route editor | Next.js + SvelteKit (gpx-studio) |
-| **run.cms** | cms.defcon.run | Headless CMS | Strapi 5, SQLite + Litestream |
+| Service | URL | What It Does |
+|---------|-----|--------------|
+| **run.human** | run.defcon.run | Main app — registration, event info |
+| **run.auth** | auth.defcon.run | OIDC provider — SSO across all services |
+| **run.gpx** | gpx.defcon.run | GPX route editor — plan your Vegas runs |
+| **run.cms** | cms.defcon.run | Headless CMS — schedules, announcements |
 
 ## Tech Stack
 
-### Frontend
-- **Next.js 16** with React 19 and App Router
-- **HeroUI** component library with Tailwind 4
-- **gpx-studio** (SvelteKit) embedded for route editing
+| Layer | Stack |
+|-------|-------|
+| **Frontend** | Next.js 16, React 19, HeroUI, Tailwind 4, gpx-studio (SvelteKit) |
+| **Backend** | DynamoDB + ElectroDB, SQLite + Litestream, S3 |
+| **Auth** | Auth.js, oidc-provider, SES email verification |
+| **Infrastructure** | Terraform 1.14, Terragrunt 0.97, ECS Fargate, CloudFront + WAF |
+| **CI/CD** | GitHub Actions, OIDC federation (no long-lived creds), SOPS secrets |
+| **Testing** | Playwright E2E with multi-user scenarios |
 
-### Backend & Data
-- **DynamoDB** with ElectroDB for data modeling
-- **SQLite + Litestream** for CMS (master-worker replication to S3)
-- **S3** for GPX files, static assets, email storage
-
-### Infrastructure
-- **Terraform 1.14** with **Terragrunt 0.97** for DRY multi-region configs
-- **ECS Fargate** with nginx sidecars for TLS
-- **CloudFront** with per-app WAF WebACLs
-- **OIDC federation** for GitHub Actions (no long-lived credentials)
-
-### Development Tooling
-- **SOPS** for secrets management (KMS-encrypted)
-- **Playwright** for E2E testing with multi-user scenarios
-- **GitHub Actions** with approval-gated deployments
-
-## Architectural Patterns
-
-### Multi-Region Active-Active
-
-Both regions run identical services. CloudFront routes by path prefix (`/use1/*`, `/cac1/*`) with dynamic `basePath` in apps. DynamoDB global tables replicate across regions.
+## Cool Patterns I Built
 
 ### Master-Worker CMS Replication
 
-The CMS uses a pattern I'm proud of:
+This one I'm proud of. The CMS uses SQLite with [Litestream](https://litestream.io/) for continuous replication:
 
 ```
 ┌──────── Master (us-east-1) ────────┐     ┌──────── Workers ────────┐
@@ -86,21 +78,26 @@ The CMS uses a pattern I'm proud of:
 └────────────────────────────────────┘     └─────────────────────────┘
 ```
 
-Litestream continuously streams SQLite WAL to S3. Workers periodically restore and atomically swap DBs. Admin writes go to master; reads fan out to workers via service discovery.
+Admin writes go to master. Litestream streams WAL to S3. Workers periodically restore and atomically swap DBs. Reads fan out via ECS service discovery. Simple, cheap, resilient.
 
 ### Embedded Open Source
 
-The GPX editor embeds [gpx-studio](https://gpx.studio), an open-source SvelteKit app. I wrapped it in Next.js for auth integration:
+The GPX editor embeds [gpx-studio](https://gpx.studio) — an open-source SvelteKit app. I wrapped it in Next.js:
 
-- Next.js handles authentication (Auth.js) and API routes
-- gpx-studio is built at deploy time and served as static files
-- Cloud storage uses presigned S3 URLs with DynamoDB metadata
+- Next.js handles auth (Auth.js) and API routes
+- gpx-studio built at deploy time, served as static files under `/studio/*`
+- Cloud storage via presigned S3 URLs + DynamoDB metadata
+- Versioning and public/private share links
+
+### Multi-Region Active-Active
+
+Both regions run identical services. CloudFront routes by path prefix (`/use1/*`, `/cac1/*`). Apps use dynamic `basePath`. DynamoDB global tables replicate across regions. One `release-all.sh --parallel` and you're live everywhere.
 
 ## AI-Assisted Development Workflow
 
-This project uses a suite of tools that enhance development with AI assistants:
+This is where it gets fun. I built a suite of tools for working with Claude:
 
-### Devflow — Parallel Instance Coordination
+### Devflow — Parallel Claude Coordination
 
 Multiple Claude instances can work on the same feature using git worktrees:
 
@@ -110,7 +107,7 @@ Multiple Claude instances can work on the same feature using git worktrees:
 │  /devflow:start                     /devflow:start              │
 │      │                                  │                       │
 │      ▼                                  ▼                       │
-│  Creates feature branch             Detects feature exists      │
+│  Creates feature branch             Joins existing feature      │
 │  Creates work worktree              Creates work worktree       │
 │      │                                  │                       │
 │  ┌─────────────────┐              ┌─────────────────┐           │
@@ -119,94 +116,61 @@ Multiple Claude instances can work on the same feature using git worktrees:
 │  └────────┬────────┘              └────────┬────────┘           │
 │           ▼                                ▼                    │
 │  /devflow:close                    /devflow:close               │
-│  Merge → feature branch            Merge → feature branch       │
-│                                    "Last one - create PR"       │
+│  Merge → feature                   Merge → feature              │
+│                                    "Last one — create PR"       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+Each Claude gets isolated workspace. Work merges to shared feature branch. Last one out creates the PR.
+
 ### OpenSpec — Spec-Driven Development
 
-Features start as proposals with formal specifications:
+Features start as proposals with formal `WHEN`/`THEN` scenarios:
 
 ```
 openspec/
 ├── changes/           # Active proposals
-│   └── add-gpx-versioning-sharing/
+│   └── add-gpx-versioning/
 │       ├── proposal.md   # What and why
 │       ├── tasks.md      # Implementation checklist
 │       └── specs/        # Delta specifications
-└── specs/             # Living truth of what's built
-    ├── human-auth/
-    ├── gpx-cloud-save-ux/
-    └── e2e-testing/
+└── specs/             # Living truth — what's actually built
 ```
 
-Each requirement has formal scenarios (`WHEN`/`THEN`). Changes are validated before implementation and archived after deployment.
+Validate before implementation. Archive after deployment. Specs are always truth.
 
-### Beads — Dependency-Aware Issue Tracking
-
-`bd` tracks issues with first-class dependency support:
+### Beads + bv — Dependency-Aware Issue Tracking
 
 ```bash
 bd ready                    # Find unblocked work
 bd create --title="..." --type=task --priority=2
-bd dep add <issue> <depends-on>
-bv --robot-triage          # AI triage with graph metrics
+bv --robot-triage          # AI triage with PageRank, critical paths
 ```
 
-The visualization tool (`bv`) computes PageRank, critical paths, and parallel execution tracks—no more manually parsing backlogs.
+No more manually parsing backlogs. `bv` computes graph metrics and tells you what to work on.
 
 ### CASS — Persistent Memory
 
-`cm` extracts learnings from sessions and retrieves context before work:
-
 ```bash
-cm context "implement user auth"  # Get rules and anti-patterns
-# ... do the work ...
-cm reflect --days 1               # Extract learnings
+cm context "implement user auth"  # Get rules and anti-patterns before work
+cm reflect --days 1               # Extract learnings after
 ```
 
-## Building a Complex Feature: GPX Editor
+Memory that survives across sessions. Rules accumulate over time.
 
-The GPX editor demonstrates the full workflow. Here's how it came together:
-
-### 1. Proposal Phase
-Created `openspec/changes/add-gpxstudio-service/proposal.md` defining:
-- Authentication integration requirements
-- Cloud storage API design
-- Multi-region deployment pattern
-
-### 2. Implementation
-- Forked gpx-studio, modified build for embedding
-- Built Next.js wrapper with Auth.js integration
-- Designed DynamoDB schema with ElectroDB for file/folder metadata
-- Implemented presigned S3 URLs for large file uploads
-- Added versioning and public/private share links
-
-### 3. Infrastructure
-- Terraform module for single-container ECS task (no nginx sidecar)
-- DynamoDB global tables for multi-region file metadata
-- S3 buckets per region for GPX file storage
-- WAF rules for upload size limits
-
-### 4. Testing
-- Playwright E2E tests with multi-user scenarios
-- Cookie jar session management for test efficiency
-- Geographic diversity in test files for map verification
-
-## Running Locally
+## Running It
 
 ```bash
-# Development servers (VS Code tasks auto-start these)
-PORT=3001 npm run dev      # run.human (apps/run.human/webapp)
-PORT=3002 npm run dev      # run.auth (apps/run.auth/webapp)
-PORT=3003 npm run dev      # run.gpx (apps/run.gpx/webapp)
-PORT=1337 npm run develop  # run.cms (apps/run.cms/app)
+# Dev servers (VS Code tasks auto-start these)
+PORT=3001 npm run dev      # run.human
+PORT=3002 npm run dev      # run.auth
+PORT=3003 npm run dev      # run.gpx
+PORT=1337 npm run develop  # run.cms
 
-# GPX requires building the frontend first
+# GPX needs frontend built first
 cd apps/run.gpx && ./build-frontend.sh
 
-# Release all apps to all regions
+# Release everything
 ./apps/release-all.sh --parallel
 
 # E2E tests
@@ -217,47 +181,36 @@ cd apps && ./e2e.sh --headed
 
 ```
 apps/
-├── run.auth/       # OIDC authentication service
-├── run.cms/        # Strapi CMS with Litestream
-├── run.gpx/        # GPX editor (Next.js + gpx-studio)
-├── run.human/      # Main event application
-├── build.sh        # Docker build + ECR push
-├── deploy.sh       # ECS deployment via Terragrunt
-└── release-all.sh  # Multi-region parallel release
+├── run.auth/       # OIDC auth service
+├── run.cms/        # Strapi + Litestream
+├── run.gpx/        # Next.js + gpx-studio
+├── run.human/      # Main event app
+└── release-all.sh  # Multi-region release
 
 infra/terraform/
-├── live/site/      # Terragrunt live configs
-│   ├── services/   # Per-service definitions
-│   └── region/     # Regional resources
-└── modules/        # Reusable Terraform modules
+├── live/site/      # Terragrunt configs
+└── modules/        # Terraform modules
 
-openspec/
+openspec/           # Spec-driven development
 ├── changes/        # Active proposals
 └── specs/          # Current specifications
 
-.claude/            # AI assistant documentation
-├── commands/       # Skill definitions (devflow, openspec)
-├── architecture.md
-├── beads.md
-├── cass.md
-└── openspec.md
+.claude/            # AI workflow docs
+├── commands/       # devflow, openspec skills
+└── *.md            # architecture, beads, cass guides
 ```
 
-## What I've Learned
+## What I Learned
 
-This project has been a vehicle for exploring:
+This project has been my vehicle for exploring:
 
-- **Multi-region AWS patterns** — CloudFront path-based routing, DynamoDB global tables, S3 replication
-- **Database replication** — Litestream for SQLite WAL streaming, atomic DB swaps
-- **AI-assisted development** — Structured workflows for spec-driven development with Claude
-- **Embedding open source** — Wrapping SvelteKit apps in Next.js with auth integration
-- **Infrastructure as Code** — Terragrunt for DRY multi-region Terraform configurations
-- **E2E testing patterns** — Session persistence, multi-user scenarios, geographic test diversity
-
-## License
-
-This is a personal hobby project. The infrastructure patterns and tooling workflows are shared for learning purposes.
+- **Multi-region AWS** — CloudFront path-based routing, DynamoDB global tables, regional failover
+- **Database replication** — Litestream SQLite WAL streaming, atomic DB swaps
+- **AI-assisted development** — Structured workflows for parallel Claude instances
+- **Embedding open source** — Wrapping SvelteKit in Next.js with auth
+- **Infrastructure as Code** — Terragrunt for DRY multi-region Terraform
+- **E2E testing** — Session persistence, multi-user scenarios, geographic test diversity
 
 ---
 
-*Built for runners at DEF CON 34, Las Vegas 2026*
+*Built for runners at DEF CON 34, Las Vegas 2026* 🏃‍♂️🎰
