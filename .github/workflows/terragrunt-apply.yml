@@ -165,23 +165,98 @@ jobs:
 
       - name: Write Job Summary
         if: always()
+        working-directory: infra/terraform/live/site
         run: |
-          # Determine final status (check retries when enabled)
-          # When retries are enabled, update this to check all retry steps:
           FINAL_OUTCOME="${{ steps.apply.outcome }}"
-
           STATUS=$([[ "$FINAL_OUTCOME" == "success" ]] && echo "✅" || echo "❌")
+
           echo "## ${STATUS} Terragrunt Apply" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Modules:** ${{ inputs.modules || 'all' }}" >> $GITHUB_STEP_SUMMARY
           echo "**Runner:** ${{ inputs.runner == 'ec2-reuse-existing' && '🖥️ EC2 (dc34-release-runner)' || '☁️ GitHub-hosted' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Extract per-module summaries
+          echo "### Summary by Module" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | Added | Changed | Destroyed |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|---------|-----------|" >> $GITHUB_STEP_SUMMARY
+
+          TOTAL_ADD=0
+          TOTAL_CHANGE=0
+          TOTAL_DESTROY=0
+          HAS_CHANGES=false
+          CURRENT_MODULE=""
+
+          # Parse apply output for each module's summary line
+          # Format: "Apply complete! Resources: X added, Y changed, Z destroyed."
+          while IFS= read -r line; do
+            # Track current module from STDOUT prefix
+            if [[ "$line" =~ STDOUT\ \[([^\]]+)\] ]]; then
+              CURRENT_MODULE="${BASH_REMATCH[1]}"
+            fi
+
+            # Match "Apply complete! Resources: X added, Y changed, Z destroyed."
+            if [[ "$line" =~ Apply\ complete!\ Resources:\ ([0-9]+)\ added,\ ([0-9]+)\ changed,\ ([0-9]+)\ destroyed ]]; then
+              ADD="${BASH_REMATCH[1]}"
+              CHANGE="${BASH_REMATCH[2]}"
+              DESTROY="${BASH_REMATCH[3]}"
+
+              # Add emoji indicators
+              ADD_ICON=$([[ "$ADD" -gt 0 ]] && echo "🟢" || echo "")
+              CHANGE_ICON=$([[ "$CHANGE" -gt 0 ]] && echo "🟡" || echo "")
+              DESTROY_ICON=$([[ "$DESTROY" -gt 0 ]] && echo "🔴" || echo "")
+
+              MODULE_DISPLAY="${CURRENT_MODULE:-unknown}"
+              echo "| \`$MODULE_DISPLAY\` | ${ADD_ICON} $ADD | ${CHANGE_ICON} $CHANGE | ${DESTROY_ICON} $DESTROY |" >> $GITHUB_STEP_SUMMARY
+
+              TOTAL_ADD=$((TOTAL_ADD + ADD))
+              TOTAL_CHANGE=$((TOTAL_CHANGE + CHANGE))
+              TOTAL_DESTROY=$((TOTAL_DESTROY + DESTROY))
+
+              if [[ "$ADD" -gt 0 || "$CHANGE" -gt 0 || "$DESTROY" -gt 0 ]]; then
+                HAS_CHANGES=true
+              fi
+            fi
+          done < apply_output.txt
+
+          # Add totals row
+          echo "| **Total** | **$TOTAL_ADD** | **$TOTAL_CHANGE** | **$TOTAL_DESTROY** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status message
+          if [[ "$HAS_CHANGES" == "true" ]]; then
+            echo "### 📋 Changes Applied" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- 🟢 **$TOTAL_ADD** resources added" >> $GITHUB_STEP_SUMMARY
+            echo "- 🟡 **$TOTAL_CHANGE** resources changed" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔴 **$TOTAL_DESTROY** resources destroyed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ✨ No Changes" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Infrastructure is up to date." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Extract any errors
+          if grep -q "Error:" apply_output.txt; then
+            echo "### ⚠️ Errors" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -A 5 "Error:" apply_output.txt | head -30 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Full output in collapsible section
           echo "<details>" >> $GITHUB_STEP_SUMMARY
-          echo "<summary>Click to expand apply output</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>📄 Full Apply Output</summary>" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```hcl' >> $GITHUB_STEP_SUMMARY
-          cat infra/terraform/live/site/apply_summary.txt >> $GITHUB_STEP_SUMMARY
+          cat apply_summary.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "</details>" >> $GITHUB_STEP_SUMMARY
 

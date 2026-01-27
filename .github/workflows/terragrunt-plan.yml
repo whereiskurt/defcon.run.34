@@ -11,6 +11,18 @@ on:
           - github-hosted
           - ec2-reuse-existing
         default: github-hosted
+      region:
+        description: 'Target region (empty = all)'
+        type: choice
+        options:
+          - ''
+          - us-east-1
+          - ca-central-1
+        default: ''
+      modules:
+        description: 'Modules to plan (comma-separated, empty = all)'
+        type: string
+        default: ''
 
   # Auto-trigger on PRs that change VERSION files
   pull_request:
@@ -25,9 +37,8 @@ concurrency:
 jobs:
   plan:
     name: Terragrunt Plan
-    # Use EC2 runner if selected via workflow_dispatch, otherwise github-hosted
-    # PR triggers always use github-hosted
-    runs-on: ${{ (github.event_name == 'workflow_dispatch' && inputs.runner == 'ec2-reuse-existing') && 'dc34-release-runner' || 'ubuntu-latest' }}
+    # Use EC2 runner if selected, otherwise github-hosted
+    runs-on: ${{ inputs.runner == 'ec2-reuse-existing' && 'dc34-release-runner' || 'ubuntu-latest' }}
     environment: terraform-plan
     permissions:
       id-token: write
@@ -98,10 +109,27 @@ jobs:
         env:
           TG_PROVIDER_CACHE: "1"
         run: |
-          # Run plan and capture output
-          terragrunt run plan --all --no-color 2>&1 | tee plan_output.txt
+          REGION="${{ inputs.region }}"
+          MODULES="${{ inputs.modules }}"
 
-          # Check exit code
+          # If specific region and modules, plan each module directory
+          if [[ -n "$REGION" && -n "$MODULES" ]]; then
+            echo "Planning modules [$MODULES] in region [$REGION]..."
+            IFS=',' read -ra MODULE_LIST <<< "$MODULES"
+            for MODULE in "${MODULE_LIST[@]}"; do
+              MODULE=$(echo "$MODULE" | xargs)  # trim whitespace
+              echo "=== Planning $MODULE in $REGION ==="
+              (cd "region/$REGION/$MODULE" && terragrunt plan --no-color) 2>&1 | tee -a plan_output.txt
+            done
+          # If only region specified, plan all in that region
+          elif [[ -n "$REGION" ]]; then
+            echo "Planning all modules in region [$REGION]..."
+            (cd "region/$REGION" && terragrunt run plan --all --no-color) 2>&1 | tee plan_output.txt
+          # Otherwise plan everything
+          else
+            echo "Planning all modules in all regions..."
+            terragrunt run plan --all --no-color 2>&1 | tee plan_output.txt
+          fi
           exit_code=${PIPESTATUS[0]}
 
           # Truncate if too long for PR comment (max ~65k chars)
@@ -125,6 +153,7 @@ jobs:
           retention-days: 14
 
       - name: Write Job Summary
+        if: always()
         working-directory: infra/terraform/live/site
         run: |
           STATUS=$([[ "${{ steps.plan.outcome }}" == "success" ]] && echo "✅" || echo "❌")
@@ -132,7 +161,9 @@ jobs:
           echo "## ${STATUS} Terragrunt Plan" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Runner:** ${{ (github.event_name == 'workflow_dispatch' && inputs.runner == 'ec2-reuse-existing') && '🖥️ EC2 (dc34-release-runner)' || '☁️ GitHub-hosted' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ inputs.region || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Modules:** ${{ inputs.modules || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** ${{ inputs.runner == 'ec2-reuse-existing' && '🖥️ EC2 (dc34-release-runner)' || '☁️ GitHub-hosted' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           # Extract per-module summaries
