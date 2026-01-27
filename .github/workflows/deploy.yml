@@ -119,6 +119,9 @@ jobs:
     name: Deploy ECS
     needs: [merge-pr]
     if: always() && (needs.merge-pr.result == 'success' || needs.merge-pr.result == 'skipped')
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/terragrunt-apply.yml
     with:
       runner: ${{ inputs.runner }}
