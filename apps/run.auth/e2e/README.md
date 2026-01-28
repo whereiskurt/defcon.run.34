@@ -133,8 +133,10 @@ npm run test:debug
 | `npm run acquire:prod` | Acquire credentials (production) |
 | `npm run acquire:all` | Parallel acquisition for all accounts (local) |
 | `npm run acquire:all:prod` | Parallel acquisition (production) |
-| `npm run acquire:fresh` | Cleanup + force fresh login (local) |
-| `npm run acquire:fresh:prod` | Cleanup + force fresh login (production) |
+| `npm run acquire:fresh` | Cleanup + force fresh login (local, single account) |
+| `npm run acquire:fresh:prod` | Cleanup + force fresh login (production, single account) |
+| `npm run acquire:fresh:all` | Cleanup + acquire all accounts (local) |
+| `npm run acquire:fresh:all:prod` | Cleanup + acquire all accounts (production) |
 | `npm run validate` | Validate saved session (local) |
 | `npm run validate:prod` | Validate saved session (production) |
 | `npm test` | Run service access tests |

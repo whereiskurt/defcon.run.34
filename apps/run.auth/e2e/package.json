@@ -14,6 +14,8 @@
     "acquire:all:prod": "./scripts/acquire-all.sh --prod",
     "acquire:fresh": "CLEANUP_EXECUTE=true playwright test setup/cleanup-test-users.spec.ts && FORCE_FRESH=true playwright test setup/acquire-credentials.spec.ts",
     "acquire:fresh:prod": "CLEANUP_EXECUTE=true playwright test setup/cleanup-test-users.spec.ts && BASE_URL=https://auth.defcon.run FORCE_FRESH=true playwright test setup/acquire-credentials.spec.ts",
+    "acquire:fresh:all": "./scripts/acquire-all.sh --clean",
+    "acquire:fresh:all:prod": "./scripts/acquire-all.sh --prod --clean",
     "validate": "playwright test tests/session-valid.spec.ts",
     "validate:prod": "BASE_URL=https://auth.defcon.run playwright test tests/session-valid.spec.ts",
     "status": "./scripts/status.sh"
