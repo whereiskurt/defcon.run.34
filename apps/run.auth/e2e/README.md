@@ -81,20 +81,20 @@ Login and save session cookies (can take up to 2 minutes for email):
 
 ```bash
 # Single account (local)
-npm run acquire                              # accounta (default)
-TEST_USER_ROLE=accountb npm run acquire      # accountb
+npm run creds                              # accounta (default)
+TEST_USER_ROLE=accountb npm run creds      # accountb
 
 # Single account (production)
-npm run acquire:prod
-TEST_USER_ROLE=accountb npm run acquire:prod
+npm run creds:prod
+TEST_USER_ROLE=accountb npm run creds:prod
 
 # All accounts in parallel
-npm run acquire:all           # local
-npm run acquire:all:prod      # production
+npm run creds:all           # local
+npm run creds:all:prod      # production
 
 # Cleanup + fresh login (combined)
-npm run acquire:fresh         # local
-npm run acquire:fresh:prod    # production
+npm run creds:fresh         # local
+npm run creds:fresh:prod    # production
 
 # Parallel with cleanup
 ./scripts/acquire-all.sh --clean        # local
@@ -129,14 +129,14 @@ npm run test:debug
 | `npm run status` | Check cookie jar status |
 | `npm run cleanup` | Dry run - show what would be deleted |
 | `npm run cleanup:execute` | Delete test user data from DynamoDB |
-| `npm run acquire` | Acquire credentials (local, accounta) |
-| `npm run acquire:prod` | Acquire credentials (production) |
-| `npm run acquire:all` | Parallel acquisition for all accounts (local) |
-| `npm run acquire:all:prod` | Parallel acquisition (production) |
-| `npm run acquire:fresh` | Cleanup + force fresh login (local, single account) |
-| `npm run acquire:fresh:prod` | Cleanup + force fresh login (production, single account) |
-| `npm run acquire:fresh:all` | Cleanup + acquire all accounts (local) |
-| `npm run acquire:fresh:all:prod` | Cleanup + acquire all accounts (production) |
+| `npm run creds` | Acquire credentials (local, accounta) |
+| `npm run creds:prod` | Acquire credentials (production) |
+| `npm run creds:all` | Parallel acquisition for all accounts (local) |
+| `npm run creds:all:prod` | Parallel acquisition (production) |
+| `npm run creds:fresh` | Cleanup + force fresh login (local, single account) |
+| `npm run creds:fresh:prod` | Cleanup + force fresh login (production, single account) |
+| `npm run creds:fresh:all` | Cleanup + acquire all accounts (local) |
+| `npm run creds:fresh:all:prod` | Cleanup + acquire all accounts (production) |
 | `npm run validate` | Validate saved session (local) |
 | `npm run validate:prod` | Validate saved session (production) |
 | `npm test` | Run service access tests |
@@ -181,14 +181,14 @@ The tests need AWS credentials with these permissions:
 
 Run credential acquisition first:
 ```bash
-npm run acquire:prod
+npm run creds:prod
 ```
 
 ### "Cookie jar expired"
 
 Force a fresh login:
 ```bash
-FORCE_FRESH=true npm run acquire:prod
+FORCE_FRESH=true npm run creds:prod
 ```
 
 ### "No verification email found"
@@ -202,7 +202,7 @@ FORCE_FRESH=true npm run acquire:prod
 
 Run cleanup before acquiring:
 ```bash
-npm run acquire:fresh:prod
+npm run creds:fresh:prod
 # or
 ./scripts/acquire-all.sh --prod --clean
 ```
@@ -223,7 +223,7 @@ Default services for new users: `auth`, `run`, `strava`, `gpxstudio`
 cd apps/run.auth/webapp && PORT=3002 npm run dev
 
 # Run tests against localhost (uses separate cookie jar)
-npm run acquire
+npm run creds
 npm test
 ```
 
