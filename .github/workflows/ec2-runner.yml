@@ -17,9 +17,19 @@ on:
         description: 'EC2 instance type (for start)'
         type: choice
         options:
-          - c6i.4xlarge
-          - c6i.8xlarge
-          - m6i.4xlarge
+          # Compute optimized - best for builds
+          - c6i.4xlarge    # 16 vCPU, 32 GB  (~$0.68/hr on-demand, ~$0.14/hr spot)
+          - c6i.8xlarge    # 32 vCPU, 64 GB  (~$1.36/hr on-demand, ~$0.27/hr spot)
+          - c6i.12xlarge   # 48 vCPU, 96 GB  (~$2.04/hr on-demand, ~$0.41/hr spot)
+          - c7i.4xlarge    # 16 vCPU, 32 GB  (newer gen, ~15% faster)
+          - c7i.8xlarge    # 32 vCPU, 64 GB
+          # General purpose - balanced
+          - m6i.4xlarge    # 16 vCPU, 64 GB  (~$0.77/hr on-demand)
+          - m6i.8xlarge    # 32 vCPU, 128 GB (~$1.54/hr on-demand)
+          - m7i.4xlarge    # 16 vCPU, 64 GB  (newer gen)
+          # Memory optimized - for large builds
+          - r6i.4xlarge    # 16 vCPU, 128 GB (~$1.01/hr on-demand)
+          - r6i.8xlarge    # 32 vCPU, 256 GB (~$2.02/hr on-demand)
         default: c6i.4xlarge
       market_type:
         description: 'Instance market type'

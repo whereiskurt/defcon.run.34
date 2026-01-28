@@ -30,9 +30,19 @@ on:
         description: 'EC2 instance type (for EC2 runners)'
         type: choice
         options:
-          - c6i.4xlarge
-          - c6i.8xlarge
-          - m6i.4xlarge
+          # Compute optimized - best for builds
+          - c6i.4xlarge    # 16 vCPU, 32 GB  (~$0.14/hr spot)
+          - c6i.8xlarge    # 32 vCPU, 64 GB  (~$0.27/hr spot)
+          - c6i.12xlarge   # 48 vCPU, 96 GB  (~$0.41/hr spot)
+          - c7i.4xlarge    # 16 vCPU, 32 GB  (newer gen)
+          - c7i.8xlarge    # 32 vCPU, 64 GB
+          # General purpose - balanced
+          - m6i.4xlarge    # 16 vCPU, 64 GB
+          - m6i.8xlarge    # 32 vCPU, 128 GB
+          - m7i.4xlarge    # 16 vCPU, 64 GB  (newer gen)
+          # Memory optimized - for large builds
+          - r6i.4xlarge    # 16 vCPU, 128 GB
+          - r6i.8xlarge    # 32 vCPU, 256 GB
         default: c6i.4xlarge
       ec2_market_type:
         description: 'EC2 market type (for EC2 runners)'

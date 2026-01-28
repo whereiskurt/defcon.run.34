@@ -140,6 +140,28 @@ Automated build and publish pipeline that builds Docker images, pushes to ECR, s
 - `ec2-start-and-keep` - Start EC2, build, keep running (for reuse)
 - `ec2-reuse-existing` - Use already-running EC2 runner (fast)
 
+**Instance types** (all prices are approximate spot pricing in us-east-1):
+
+| Type | vCPU | Memory | Spot/hr | Best For |
+|------|------|--------|---------|----------|
+| **Compute Optimized** |
+| `c6i.4xlarge` | 16 | 32 GB | ~$0.14 | Standard builds (default) |
+| `c6i.8xlarge` | 32 | 64 GB | ~$0.27 | Parallel builds |
+| `c6i.12xlarge` | 48 | 96 GB | ~$0.41 | Heavy parallel builds |
+| `c7i.4xlarge` | 16 | 32 GB | ~$0.15 | Newer gen, ~15% faster |
+| `c7i.8xlarge` | 32 | 64 GB | ~$0.30 | Newer gen, parallel |
+| **General Purpose** |
+| `m6i.4xlarge` | 16 | 64 GB | ~$0.15 | Balanced workloads |
+| `m6i.8xlarge` | 32 | 128 GB | ~$0.31 | Large builds |
+| `m7i.4xlarge` | 16 | 64 GB | ~$0.17 | Newer gen |
+| **Memory Optimized** |
+| `r6i.4xlarge` | 16 | 128 GB | ~$0.20 | Memory-heavy builds |
+| `r6i.8xlarge` | 32 | 256 GB | ~$0.40 | Very large builds |
+
+**Tip**: Use spot instances for 60-90% savings. For a 3-4 hour work session:
+- `c6i.8xlarge` spot: ~$1.08 (vs ~$5.44 on-demand)
+- `c7i.8xlarge` spot: ~$1.20 (faster builds)
+
 ### What It Does
 
 1. **Version Bump**: Increments VERSION files for selected apps
