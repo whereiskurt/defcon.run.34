@@ -8,7 +8,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = ["ca-central-1"] # Set to ["ca-central-1"] to skip that region
+    skip_regions  = [] # Set to ["ca-central-1"] to skip that region
   }
 
   dns = {
@@ -49,15 +49,15 @@ locals {
     fwd_rules = [
       {
         match   = "kurt@defcon.run"
-        send_to = "whereiskurt+defcon.run@gmail.com"
+        send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
       },
       {
         match   = "kurt@run.defcon.run"
-        send_to = "whereiskurt+kurt-at-run.defcon.run@gmail.com"
+        send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
       },
       {
         match   = "defcon.run"
-        send_to = "whereiskurt+defcon.run@gmail.com"
+        send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
       },
     ]
   }
@@ -328,8 +328,8 @@ locals {
 
   github_oidc = {
     enabled     = true
-    github_org  = "whereiskurt"   # Your GitHub org/user
-    github_repo = "defcon.run.34" # Your repository name
+    github_org  = get_env("TF_VAR_GITHUB_ORG", "your-github-org")
+    github_repo = "defcon.run.34"
 
     # Management account for cross-account Route53 access
     # Set this to your management account ID to get the trust policy output
@@ -359,7 +359,7 @@ locals {
 
         # Cross-account access to management account for Route53
         cross_account_arns = [
-          "arn:aws:iam::481723467561:role/dc34-github-delegate"
+          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/dc34-github-delegate"
         ]
       },
 
@@ -493,8 +493,8 @@ locals {
                     "kms:DescribeKey"
                   ]
                   Resource = [
-                    "arn:aws:kms:us-east-1:427284555693:key/mrk-1025ab1d1f5848fc9d680bdd7e827c80",
-                    "arn:aws:kms:ca-central-1:427284555693:key/mrk-1025ab1d1f5848fc9d680bdd7e827c80"
+                    "arn:aws:kms:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
+                    "arn:aws:kms:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}"
                   ]
                 }
               ]
@@ -514,8 +514,8 @@ locals {
                     "dynamodb:DeleteItem"
                   ]
                   Resource = [
-                    "arn:aws:dynamodb:us-east-1:427284555693:table/tf-defcon-run-use1-*",
-                    "arn:aws:dynamodb:ca-central-1:427284555693:table/tf-defcon-run-cac1-*"
+                    "arn:aws:dynamodb:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/tf-defcon-run-use1-*",
+                    "arn:aws:dynamodb:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/tf-defcon-run-cac1-*"
                   ]
                 },
                 {
@@ -541,7 +541,7 @@ locals {
 
         # Cross-account access to management account for Route53
         cross_account_arns = [
-          "arn:aws:iam::481723467561:role/dc34-github-delegate"
+          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/dc34-github-delegate"
         ]
       },
 
@@ -979,8 +979,8 @@ locals {
                     "kms:DescribeKey"
                   ]
                   Resource = [
-                    "arn:aws:kms:us-east-1:427284555693:key/mrk-1025ab1d1f5848fc9d680bdd7e827c80",
-                    "arn:aws:kms:ca-central-1:427284555693:key/mrk-1025ab1d1f5848fc9d680bdd7e827c80"
+                    "arn:aws:kms:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
+                    "arn:aws:kms:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}"
                   ]
                 }
               ]

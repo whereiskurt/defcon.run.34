@@ -38,6 +38,7 @@ out
 
 .env.*
 .env*
+env.local.sh
 
 # Secrets files (Terraform)
 # Plaintext secrets - NEVER commit

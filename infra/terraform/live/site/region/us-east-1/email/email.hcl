@@ -14,7 +14,7 @@ locals {
   fwd_rules = [
     {
       match   = "${local.region_label}.${local.dns_zonename}"
-      send_to = "whereiskurt+${local.region_label}.${local.dns_zonename}@gmail.com"
+      send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
     },
   ]
 
