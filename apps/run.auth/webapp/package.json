@@ -14,7 +14,6 @@
     }
   },
   "dependencies": {
-    "-": "^0.0.1",
     "@auth/dynamodb-adapter": "^2.11.1",
     "@aws-sdk/client-dynamodb": "^3.943.0",
     "@aws-sdk/client-ses": "^3.943.0",
