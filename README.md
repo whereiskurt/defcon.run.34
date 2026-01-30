@@ -2,7 +2,7 @@
 
 > "Multi-region AWS IaC: CloudFront + WAF + ALB → ECS Fargate (Next.js, Strapi, SvelteKit). DynamoDB global tables + Litestream SQLite replication. AI-assisted spec-driven development with parallel Claude instances. All Terraform+Terragrunt."
 
-This is a hobby project where I experiment with modern cloud architecture, AI-assisted workflows, and full-stack tech — while building something real: a 4-day running event at **DEF CON 34** in Las Vegas.
+This is a hobby fun project where we experiment with modern cloud architecture, AI-assisted workflows, and full-stack tech — while building something real: a 4-day running event at **DEF CON 34** in Las Vegas.
 
 There's A LOT of AWS and development workflow magic in this repo that I'm happy to share. 🏃‍♂️ Multi-region active-active deployments, SQLite WAL streaming to S3, embedding open-source SvelteKit apps in Next.js, and a suite of AI development tools for parallel Claude coordination. I learned a ton building this — hopefully it's useful to others!
 

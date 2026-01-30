@@ -7,7 +7,7 @@ locals {
   is_ci = get_env("CI", "") == "true"
 
   # Management account for cross-account Route53 access
-  management_account_id    = "481723467561"
+  management_account_id    = get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")
   management_delegate_role = "dc34-github-delegate"
 
   # AWS profile prefix from environment variable TF_VAR_profile_prefix

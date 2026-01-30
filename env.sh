@@ -1,6 +1,15 @@
-#/bin/bash
+#!/bin/bash
+
 export GUID=${GUID:-$(uuidgen)}
 export SGUID=$(echo ${GUID:0:8} | tr '[:upper:]' '[:lower:]')
+
+## Sensitive configuration - override these before sourcing this file
+## Example: export TF_VAR_APPLICATION_ACCOUNT_ID="123456789012" && source env.sh
+export TF_VAR_APPLICATION_ACCOUNT_ID="${TF_VAR_APPLICATION_ACCOUNT_ID:-000000000000}"
+export TF_VAR_MANAGEMENT_ACCOUNT_ID="${TF_VAR_MANAGEMENT_ACCOUNT_ID:-000000000000}"
+export TF_VAR_GITHUB_ORG="${TF_VAR_GITHUB_ORG:-your-github-org}"
+export TF_VAR_FWD_EMAIL_TO_ADDRESS="${TF_VAR_FWD_EMAIL_TO_ADDRESS:-admin@example.com}"
+export TF_VAR_SOPS_KMS_KEY_ID="${TF_VAR_SOPS_KMS_KEY_ID:-mrk-00000000000000000000000000000000}"
 
 ## The state is stored in the bucket and the table is used for locking
 ## One entry per region supported
