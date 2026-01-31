@@ -672,6 +672,8 @@ locals {
                     "s3:PutBucketPolicy",
                     "s3:PutBucketPublicAccessBlock",
                     "s3:PutBucketTagging",
+                    "s3:TagResource",
+                    "s3:UntagResource",
                     "s3:PutBucketVersioning",
                     "s3:PutEncryptionConfiguration",
                     "s3:PutLifecycleConfiguration"
