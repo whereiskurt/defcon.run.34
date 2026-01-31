@@ -20,6 +20,15 @@ include "module" {
   expose = true
 }
 
+# Ensure IAM policy is updated before S3 operations
+dependency "github_oidc" {
+  config_path = "${find_in_parent_folders("site")}/global/github-oidc"
+  mock_outputs = {
+    role_arns = {}
+  }
+  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+}
+
 include "providers" {
   path = "${find_in_parent_folders("providers")}/regional.hcl"
 }

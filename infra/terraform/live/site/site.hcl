@@ -646,6 +646,7 @@ locals {
                     "s3:GetAccelerateConfiguration",
                     "s3:GetBucketAcl",
                     "s3:GetBucketCORS",
+                    "s3:GetBucketLocation",
                     "s3:GetBucketLogging",
                     "s3:GetBucketNotification",
                     "s3:GetBucketObjectLockConfiguration",
