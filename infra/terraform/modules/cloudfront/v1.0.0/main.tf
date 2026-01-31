@@ -546,3 +546,72 @@ resource "aws_s3_bucket_policy" "cms_media_oac_access_cac1" {
 
   provider = aws.cac1
 }
+
+# Bucket policies for ap-southeast-1 (apse1) region
+# Only create if region is not in skip_regions
+resource "aws_s3_bucket_policy" "cf_oac_access_apse1" {
+  for_each = {
+    for domain in var.cloudfront.domains : domain => var.regional_origins_by_domain[domain]["apse1"]
+    if contains(keys(var.regional_origins_by_domain[domain]), "apse1") &&
+    !contains(local.skipped_region_labels, "apse1")
+  }
+
+  bucket = each.value.s3_bucket_id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontOACAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${each.value.s3_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.main[each.key].arn
+          }
+        }
+      }
+    ]
+  })
+
+  provider = aws.apse1
+}
+
+# Bucket policies for CMS media buckets in ap-southeast-1 (apse1)
+resource "aws_s3_bucket_policy" "cms_media_oac_access_apse1" {
+  # Only create if region is not in skip_regions and bucket exists
+  for_each = (
+    !contains(local.skipped_region_labels, "apse1") &&
+    contains(keys(var.cms_media_origins), "apse1") &&
+    try(var.cms_media_origins["apse1"].s3_bucket_id, "") != "" &&
+    !startswith(try(var.cms_media_origins["apse1"].s3_bucket_id, ""), "mock-")
+  ) ? toset(["cms"]) : toset([])
+
+  bucket = var.cms_media_origins["apse1"].s3_bucket_id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowCloudFrontOACAccess"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudfront.amazonaws.com"
+        }
+        Action   = "s3:GetObject"
+        Resource = "${var.cms_media_origins["apse1"].s3_bucket_arn}/*"
+        Condition = {
+          StringEquals = {
+            "AWS:SourceArn" = aws_cloudfront_distribution.main["cms"].arn
+          }
+        }
+      }
+    ]
+  })
+
+  provider = aws.apse1
+}

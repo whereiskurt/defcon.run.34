@@ -8,7 +8,7 @@ locals {
   ecr_repositories = [
     {
       name                 = "run-auth-nginx"
-      regions              = ["us-east-1", "ca-central-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -17,7 +17,7 @@ locals {
     },
     {
       name                 = "run-auth-app"
-      regions              = ["us-east-1", "ca-central-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -29,7 +29,7 @@ locals {
   # ECS Task definition for the auth service
   task = {
     name         = "run-auth"
-    regions      = ["us-east-1", "ca-central-1"]
+    regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
     task_cpu     = 512
     task_memory  = 1024
@@ -264,6 +264,10 @@ locals {
           {
             label = "cac1"
             full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
           }
         ]
 
@@ -293,6 +297,10 @@ locals {
           {
             label = "cac1"
             full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
           }
         ]
 
@@ -319,6 +327,10 @@ locals {
           {
             label = "cac1"
             full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
           }
         ]
 
@@ -337,7 +349,7 @@ locals {
   # ECS Service definition for the auth service
   service = {
     name          = "run-auth"
-    regions       = ["us-east-1", "ca-central-1"]
+    regions       = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name  = "app"
     task_family   = "run-auth" # Must match task definition family from task above
     desired_count = 1

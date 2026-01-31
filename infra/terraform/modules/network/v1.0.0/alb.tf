@@ -83,7 +83,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alb_log_bucket_en
   }
 }
 
-# NOTE: Each region has its own account where the access logs come from
+# Use the recommended service principal for ALB access logging
 # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
 resource "aws_s3_bucket_policy" "alb_log_bucket_policy" {
   count  = var.alb.enabled ? 1 : 0
@@ -95,11 +95,7 @@ resource "aws_s3_bucket_policy" "alb_log_bucket_policy" {
       {
         "Effect" : "Allow",
         "Principal" : {
-          "AWS" : [
-            "arn:aws:iam::797873946194:root",  # us-east-1
-            "arn:aws:iam::127311923021:root",  # us-east-2
-            "arn:aws:iam::985666609251:root"   # ca-central-1
-          ]
+          "Service" : "logdelivery.elasticloadbalancing.amazonaws.com"
         },
         "Action" : "s3:PutObject",
         "Resource" : [
