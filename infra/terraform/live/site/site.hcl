@@ -488,7 +488,17 @@ locals {
                     "iam:PassRole",
                     "iam:PutRolePolicy",
                     "iam:PutUserPolicy",
-                    "iam:RemoveRoleFromInstanceProfile"
+                    "iam:RemoveRoleFromInstanceProfile",
+                    "iam:TagInstanceProfile",
+                    "iam:TagOpenIDConnectProvider",
+                    "iam:TagPolicy",
+                    "iam:TagRole",
+                    "iam:TagUser",
+                    "iam:UntagInstanceProfile",
+                    "iam:UntagOpenIDConnectProvider",
+                    "iam:UntagPolicy",
+                    "iam:UntagRole",
+                    "iam:UntagUser"
                   ]
                   Resource = "*"
                 },
@@ -535,7 +545,9 @@ locals {
                     "ec2:ModifySubnetAttribute",
                     "ec2:ModifyVpcAttribute",
                     "ec2:ReleaseAddress",
-                    "ec2:RevokeSecurityGroupEgress"
+                    "ec2:RevokeSecurityGroupEgress",
+                    "ec2:CreateTags",
+                    "ec2:DeleteTags"
                   ]
                   Resource = "*"
                 },
@@ -552,6 +564,8 @@ locals {
                     "ecs:DescribeServices",
                     "ecs:DescribeTaskDefinition",
                     "ecs:RegisterTaskDefinition",
+                    "ecs:TagResource",
+                    "ecs:UntagResource",
                     "ecs:UpdateService"
                   ]
                   Resource = "*"
@@ -569,7 +583,9 @@ locals {
                     "ecr:GetRepositoryPolicy",
                     "ecr:ListTagsForResource",
                     "ecr:PutLifecyclePolicy",
-                    "ecr:SetRepositoryPolicy"
+                    "ecr:SetRepositoryPolicy",
+                    "ecr:TagResource",
+                    "ecr:UntagResource"
                   ]
                   Resource = "*"
                 },
@@ -592,7 +608,9 @@ locals {
                     "elasticloadbalancing:DescribeTargetGroupAttributes",
                     "elasticloadbalancing:DescribeTargetGroups",
                     "elasticloadbalancing:ModifyLoadBalancerAttributes",
-                    "elasticloadbalancing:ModifyTargetGroupAttributes"
+                    "elasticloadbalancing:ModifyTargetGroupAttributes",
+                    "elasticloadbalancing:AddTags",
+                    "elasticloadbalancing:RemoveTags"
                   ]
                   Resource = "*"
                 },
@@ -696,7 +714,9 @@ locals {
                     "lambda:GetFunctionCodeSigningConfig",
                     "lambda:GetPolicy",
                     "lambda:ListVersionsByFunction",
-                    "lambda:RemovePermission"
+                    "lambda:RemovePermission",
+                    "lambda:TagResource",
+                    "lambda:UntagResource"
                   ]
                   Resource = "*"
                 },
@@ -707,11 +727,17 @@ locals {
                     "cloudwatch:DeleteAlarms",
                     "cloudwatch:DescribeAlarms",
                     "cloudwatch:PutMetricAlarm",
+                    "cloudwatch:TagResource",
+                    "cloudwatch:UntagResource",
                     "logs:CreateLogGroup",
                     "logs:DeleteLogGroup",
                     "logs:DescribeLogGroups",
                     "logs:ListTagsForResource",
-                    "logs:PutRetentionPolicy"
+                    "logs:PutRetentionPolicy",
+                    "logs:TagLogGroup",
+                    "logs:TagResource",
+                    "logs:UntagLogGroup",
+                    "logs:UntagResource"
                   ]
                   Resource = "*"
                 },
@@ -719,11 +745,13 @@ locals {
                   Sid    = "SSM"
                   Effect = "Allow"
                   Action = [
+                    "ssm:AddTagsToResource",
                     "ssm:DeleteParameter",
                     "ssm:DescribeParameters",
                     "ssm:GetParameter",
                     "ssm:ListTagsForResource",
-                    "ssm:PutParameter"
+                    "ssm:PutParameter",
+                    "ssm:RemoveTagsFromResource"
                   ]
                   Resource = "*"
                 },
@@ -762,9 +790,12 @@ locals {
                     "sns:GetSubscriptionAttributes",
                     "sns:GetTopicAttributes",
                     "sns:ListSubscriptionsByTopic",
+                    "sns:ListTagsForResource",
                     "sns:SetTopicAttributes",
                     "sns:Subscribe",
-                    "sns:Unsubscribe"
+                    "sns:TagResource",
+                    "sns:Unsubscribe",
+                    "sns:UntagResource"
                   ]
                   Resource = "*"
                 },
