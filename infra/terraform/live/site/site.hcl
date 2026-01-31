@@ -789,7 +789,10 @@ locals {
                     "wafv2:CreateWebACL",
                     "wafv2:DeleteWebACL",
                     "wafv2:GetWebACL",
-                    "wafv2:ListTagsForResource"
+                    "wafv2:ListTagsForResource",
+                    "wafv2:TagResource",
+                    "wafv2:UntagResource",
+                    "wafv2:UpdateWebACL"
                   ]
                   Resource = "*"
                 },
