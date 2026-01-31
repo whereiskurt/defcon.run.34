@@ -65,6 +65,8 @@ jobs:
       TG_BUCKET_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
       TG_TABLE_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
       SGUID: ${{ vars.SGUID }}
+      TF_VAR_MANAGEMENT_ACCOUNT_ID: ${{ vars.TF_VAR_MANAGEMENT_ACCOUNT_ID }}
+      TF_VAR_APPLICATION_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
 
     steps:
       - name: Checkout
