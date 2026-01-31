@@ -658,6 +658,8 @@ locals {
                     "s3:GetLifecycleConfiguration",
                     "s3:GetReplicationConfiguration",
                     "s3:ListBucketVersions",
+                    "s3:PutReplicationConfiguration",
+                    "s3:DeleteReplicationConfiguration",
                     "s3:ListTagsForResource",
                     "s3:PutBucketAcl",
                     "s3:PutBucketCORS",
