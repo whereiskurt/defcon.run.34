@@ -29,8 +29,7 @@ set -e
 
 # Default configuration
 APPS="run.auth,run.human,run.cms,run.gpx"
-# REGIONS="use1,cac1"
-REGIONS="use1"
+REGIONS="use1,cac1,apse1"
 SKIP_BUMP=false
 SKIP_BUILD=false
 RUN_TERRAGRUNT=false
@@ -109,6 +108,7 @@ get_aws_region() {
   case "$1" in
     use1) echo "us-east-1" ;;
     cac1) echo "ca-central-1" ;;
+    apse1) echo "ap-southeast-1" ;;
     *) echo "" ;;
   esac
 }
@@ -117,6 +117,7 @@ get_region_name() {
   case "$1" in
     use1) echo "US East (N. Virginia)" ;;
     cac1) echo "Canada (Central)" ;;
+    apse1) echo "Asia Pacific (Singapore)" ;;
     *) echo "$1" ;;
   esac
 }
@@ -171,7 +172,7 @@ done
 for REGION in "${REGION_LIST[@]}"; do
   AWS_REGION=$(get_aws_region "$REGION")
   if [[ -z "$AWS_REGION" ]]; then
-    echo "ERROR: Invalid region '$REGION'. Must be 'use1' or 'cac1'"
+    echo "ERROR: Invalid region '$REGION'. Must be 'use1', 'cac1', or 'apse1'"
     exit 1
   fi
 done
