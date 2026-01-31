@@ -769,6 +769,7 @@ locals {
                     "ssm:DeleteParameter",
                     "ssm:DescribeParameters",
                     "ssm:GetParameter",
+                    "ssm:GetParameters",
                     "ssm:ListTagsForResource",
                     "ssm:PutParameter",
                     "ssm:RemoveTagsFromResource"
@@ -856,7 +857,10 @@ locals {
                     "glue:DeleteDatabase",
                     "glue:DeleteTable",
                     "glue:GetDatabase",
-                    "glue:GetTable"
+                    "glue:GetTable",
+                    "glue:GetTags",
+                    "glue:TagResource",
+                    "glue:UntagResource"
                   ]
                   Resource = "*"
                 }
