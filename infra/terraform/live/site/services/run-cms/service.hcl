@@ -8,7 +8,7 @@ locals {
   ecr_repositories = [
     {
       name                 = "run-cms-nginx"
-      regions              = ["us-east-1", "ca-central-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -17,7 +17,7 @@ locals {
     },
     {
       name                 = "run-cms-app"
-      regions              = ["us-east-1", "ca-central-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -237,7 +237,7 @@ locals {
   # CMS Worker task definition (both regions - read-only)
   task_worker = {
     name         = "run-cms-worker"
-    regions      = ["us-east-1", "ca-central-1"]
+    regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
     task_cpu     = 512
     task_memory  = 1024
@@ -436,14 +436,15 @@ locals {
       # Replicate SSM parameters to these regions so workers can access master bucket credentials
       # This creates /dc34/uploads/cac1/cms-litestream/* params pointing to the use1 bucket
       ssm_replicate_to = [
-        { label = "cac1", full = "ca-central-1" }
+        { label = "cac1", full = "ca-central-1" },
+        { label = "apse1", full = "ap-southeast-1" }
       ]
     },
     # Media storage bucket (both regions with replication)
     {
       name         = "cms-media"
       service_name = "cms"
-      regions      = ["us-east-1", "ca-central-1"]
+      regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
 
       lifecycle = {
         uploads_expire_days   = 0
@@ -455,7 +456,8 @@ locals {
         enabled = true
         replica_regions = [
           { label = "use1", full = "us-east-1" },
-          { label = "cac1", full = "ca-central-1" }
+          { label = "cac1", full = "ca-central-1" },
+          { label = "apse1", full = "ap-southeast-1" }
         ]
       }
 
@@ -528,7 +530,7 @@ locals {
   # Litestream syncs database from master's S3 bucket
   service_worker = {
     name          = "run-cms-worker"
-    regions       = ["us-east-1", "ca-central-1"]
+    regions       = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name  = "app"
     task_family   = "run-cms-worker"
     desired_count = 1

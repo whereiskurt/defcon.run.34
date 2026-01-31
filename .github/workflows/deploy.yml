@@ -11,6 +11,7 @@ on:
         options:
           - us-east-1
           - ca-central-1
+          - ap-southeast-1
         default: us-east-1
       runner:
         description: 'Runner type'

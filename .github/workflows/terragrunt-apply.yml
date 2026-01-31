@@ -18,6 +18,7 @@ on:
           - ''
           - us-east-1
           - ca-central-1
+          - ap-southeast-1
         default: ''
       modules:
         description: 'Modules to apply (comma-separated, empty = all)'
@@ -61,6 +62,8 @@ jobs:
       TG_TABLE_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
       TG_BUCKET_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
       TG_TABLE_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
+      TG_BUCKET_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
+      TG_TABLE_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
       SGUID: ${{ vars.SGUID }}
 
     steps:

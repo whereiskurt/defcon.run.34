@@ -15,8 +15,12 @@ on:
         options:
           - use1
           - cac1
+          - apse1
           - use1,cac1
-        default: use1
+          - use1,apse1
+          - cac1,apse1
+          - use1,cac1,apse1
+        default: use1,cac1,apse1
       runner:
         description: 'Runner type'
         type: choice
@@ -116,6 +120,12 @@ jobs:
         run: |
           aws ecr get-login-password --region ca-central-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
+
+      - name: Login to ECR (ap-southeast-1)
+        if: contains(inputs.regions, 'apse1')
+        run: |
+          aws ecr get-login-password --region ap-southeast-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com
 
       - name: Configure git
         run: |
@@ -339,6 +349,12 @@ jobs:
           aws ecr get-login-password --region ca-central-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
 
+      - name: Login to ECR (ap-southeast-1)
+        if: contains(inputs.regions, 'apse1')
+        run: |
+          aws ecr get-login-password --region ap-southeast-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com
+
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
@@ -421,6 +437,12 @@ jobs:
         run: |
           aws ecr get-login-password --region ca-central-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
+
+      - name: Login to ECR (ap-southeast-1)
+        if: contains(inputs.regions, 'apse1')
+        run: |
+          aws ecr get-login-password --region ap-southeast-1 | \
+            docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com
 
       - name: Configure git
         run: |

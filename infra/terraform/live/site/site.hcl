@@ -8,7 +8,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = [] # Set to ["ca-central-1"] to skip that region
+    skip_regions  = [] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
   }
 
   dns = {
@@ -37,6 +37,10 @@ locals {
       {
         label = "cac1"
         full  = "ca-central-1"
+      },
+      {
+        label = "apse1"
+        full  = "ap-southeast-1"
       }
     ]
 
@@ -94,6 +98,10 @@ locals {
       {
         label = "cac1"
         full  = "ca-central-1"
+      },
+      {
+        label = "apse1"
+        full  = "ap-southeast-1"
       }
     ]
 
@@ -154,6 +162,12 @@ locals {
         region          = "ca-central-1"
         enable_insights = false
         cluster_type    = "FARGATE"
+      },
+      {
+        name            = "app"
+        region          = "ap-southeast-1"
+        enable_insights = false
+        cluster_type    = "FARGATE"
       }
     ]
   }
@@ -209,7 +223,7 @@ locals {
         {
           name         = "run-gpx"
           service_name = "run-gpx"
-          regions      = ["us-east-1", "ca-central-1"]
+          regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
 
           lifecycle = {
             uploads_expire_days   = 0 # Keep GPX files indefinitely
@@ -221,7 +235,8 @@ locals {
             enabled = true
             replica_regions = [
               { label = "use1", full = "us-east-1" },
-              { label = "cac1", full = "ca-central-1" }
+              { label = "cac1", full = "ca-central-1" },
+              { label = "apse1", full = "ap-southeast-1" }
             ]
           }
 
@@ -257,6 +272,10 @@ locals {
       {
         label = "cac1"
         full  = "ca-central-1"
+      },
+      {
+        label = "apse1"
+        full  = "ap-southeast-1"
       }
     ]
 

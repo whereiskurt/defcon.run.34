@@ -8,7 +8,7 @@ locals {
   ecr_repositories = [
     {
       name                 = "run-human-nginx"
-      regions              = ["us-east-1", "ca-central-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -17,7 +17,7 @@ locals {
     },
     {
       name                 = "run-human-app"
-      regions              = ["us-east-1", "ca-central-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -29,7 +29,7 @@ locals {
   # ECS Task definition for the run-human service
   task = {
     name         = "run-human"
-    regions      = ["us-east-1", "ca-central-1"]
+    regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
     task_cpu     = 512
     task_memory  = 1024
@@ -226,6 +226,10 @@ locals {
           {
             label = "cac1"
             full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
           }
         ]
 
@@ -255,6 +259,10 @@ locals {
           {
             label = "cac1"
             full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
           }
         ]
 
@@ -273,7 +281,7 @@ locals {
   # ECS Service definition for the auth service
   service = {
     name          = "run-human"
-    regions       = ["us-east-1", "ca-central-1"]
+    regions       = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name  = "app"
     task_family   = "run-human" # Must match task definition family from task above
     desired_count = 1
@@ -328,7 +336,7 @@ locals {
     {
       name         = "run-human"
       service_name = "run-human"
-      regions      = ["us-east-1", "ca-central-1"]
+      regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
 
       lifecycle = {
         uploads_expire_days   = 7 # Clean up uploads after 7 days
@@ -340,7 +348,8 @@ locals {
         enabled = true
         replica_regions = [
           { label = "use1", full = "us-east-1" },
-          { label = "cac1", full = "ca-central-1" }
+          { label = "cac1", full = "ca-central-1" },
+          { label = "apse1", full = "ap-southeast-1" }
         ]
       }
     }
@@ -352,7 +361,7 @@ locals {
     {
       name         = "run-human"
       service_name = "run-human"
-      regions      = ["us-east-1", "ca-central-1"]
+      regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
 
       # Reference to user_uploads bucket (by name from user_uploads config)
       user_upload_name = "run-human"

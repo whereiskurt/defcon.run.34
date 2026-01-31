@@ -313,8 +313,9 @@ resource "aws_s3_bucket_replication_configuration" "uploads" {
   dynamic "rule" {
     for_each = each.value.replica_bucket_arns
     content {
-      id     = "replicate-to-${rule.key}"
-      status = "Enabled"
+      id       = "replicate-to-${rule.key}"
+      priority = index(keys(each.value.replica_bucket_arns), rule.key)
+      status   = "Enabled"
 
       filter {}
 

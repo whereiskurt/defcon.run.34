@@ -7,7 +7,7 @@ locals {
   ecr_repositories = [
     {
       name                 = "run-gpx-app"
-      regions              = ["us-east-1", "ca-central-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -19,7 +19,7 @@ locals {
   # ECS Task definition for the run-gpx service
   task = {
     name         = "run-gpx"
-    regions      = ["us-east-1", "ca-central-1"]
+    regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
     task_cpu     = 256
     task_memory  = 512
@@ -180,6 +180,10 @@ locals {
           {
             label = "cac1"
             full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
           }
         ]
 
@@ -198,7 +202,7 @@ locals {
   # ECS Service definition
   service = {
     name          = "run-gpx"
-    regions       = ["us-east-1", "ca-central-1"]
+    regions       = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name  = "app"
     task_family   = "run-gpx"
     desired_count = 1

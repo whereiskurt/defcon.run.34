@@ -69,6 +69,11 @@ generate "provider" {
       region  = "ca-central-1"
       ${local.application_profile_line}
     }
+    provider "aws" {
+      alias   = "apse1"
+      region  = "ap-southeast-1"
+      ${local.application_profile_line}
+    }
     terraform {
       required_providers {
         random = {

@@ -224,8 +224,9 @@ resource "aws_s3_bucket_replication_configuration" "received_emails" {
   dynamic "rule" {
     for_each = local.replication_destinations_map
     content {
-      id     = "replicate-to-${rule.value.label}"
-      status = "Enabled"
+      id       = "replicate-to-${rule.value.label}"
+      priority = index(keys(local.replication_destinations_map), rule.key)
+      status   = "Enabled"
 
       # Replicate all objects
       filter {}

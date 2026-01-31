@@ -19,6 +19,8 @@ export TG_BUCKET_USE1="tf-defcon-run-use1-${SGUID}"
 export TG_TABLE_USE1="tf-defcon-run-use1-${SGUID}"
 export TG_BUCKET_USW2="tf-defcon-run-usw2-${SGUID}"
 export TG_TABLE_USW2="tf-defcon-run-usw2-${SGUID}"
+export TG_BUCKET_APSE1="tf-defcon-run-apse1-${SGUID}"
+export TG_TABLE_APSE1="tf-defcon-run-apse1-${SGUID}"
 
 unset AWS_ACCESS_KEY_ID                                           
 unset AWS_SECRET_ACCESS_KEY                                              
