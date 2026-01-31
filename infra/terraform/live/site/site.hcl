@@ -447,6 +447,24 @@ locals {
                   Resource = "*"
                 },
                 {
+                  Sid    = "DynamoDBManagement"
+                  Effect = "Allow"
+                  Action = [
+                    "dynamodb:CreateTable",
+                    "dynamodb:DeleteTable",
+                    "dynamodb:DescribeContinuousBackups",
+                    "dynamodb:DescribeTable",
+                    "dynamodb:DescribeTimeToLive",
+                    "dynamodb:ListTagsOfResource",
+                    "dynamodb:TagResource",
+                    "dynamodb:UntagResource",
+                    "dynamodb:UpdateContinuousBackups",
+                    "dynamodb:UpdateTable",
+                    "dynamodb:UpdateTimeToLive"
+                  ]
+                  Resource = "*"
+                },
+                {
                   Sid    = "IAMManagement"
                   Effect = "Allow"
                   Action = [
