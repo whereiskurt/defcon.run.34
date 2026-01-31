@@ -34,6 +34,12 @@ provider "aws" {
   region = "us-east-1"
 }
 
+# ap-southeast-1 provider for SSM replication
+provider "aws" {
+  alias  = "apse1"
+  region = "ap-southeast-1"
+}
+
 # Replicated Access Key ID to ca-central-1
 resource "aws_ssm_parameter" "replicate_access_key_id_cac1" {
   for_each = {
@@ -240,6 +246,117 @@ resource "aws_ssm_parameter" "replicate_bucket_region_use1" {
     if v.region_full == "us-east-1"
   }
   provider = aws.use1
+
+  name        = "/${var.site.label}/uploads/${each.value.region_label}/${each.value.upload_name}/bucket_region"
+  description = "S3 bucket region for ${each.value.upload_name} (replicated from ${var.region.label})"
+  type        = "String"
+  # Important: This is the SOURCE bucket's region, not the target region
+  value       = var.region.full
+
+  tags = {
+    Name           = "uploads-${each.value.upload_name}-bucket-region"
+    Service        = each.value.upload.service_name
+    Region         = each.value.region_label
+    Site           = var.site.label
+    ReplicatedFrom = var.region.label
+  }
+}
+
+# Replicated Access Key ID to ap-southeast-1
+resource "aws_ssm_parameter" "replicate_access_key_id_apse1" {
+  for_each = {
+    for k, v in local.ssm_replicate_targets : k => v
+    if v.region_full == "ap-southeast-1"
+  }
+  provider = aws.apse1
+
+  name        = "/${var.site.label}/uploads/${each.value.region_label}/${each.value.upload_name}/access_key_id"
+  description = "S3 presigner access key ID for ${each.value.upload_name} (replicated from ${var.region.label})"
+  type        = "SecureString"
+  value       = aws_iam_access_key.presigner[each.value.upload_name].id
+
+  tags = {
+    Name           = "uploads-${each.value.upload_name}-access-key-id"
+    Service        = each.value.upload.service_name
+    Region         = each.value.region_label
+    Site           = var.site.label
+    ReplicatedFrom = var.region.label
+  }
+}
+
+# Replicated Secret Access Key to ap-southeast-1
+resource "aws_ssm_parameter" "replicate_secret_access_key_apse1" {
+  for_each = {
+    for k, v in local.ssm_replicate_targets : k => v
+    if v.region_full == "ap-southeast-1"
+  }
+  provider = aws.apse1
+
+  name        = "/${var.site.label}/uploads/${each.value.region_label}/${each.value.upload_name}/secret_access_key"
+  description = "S3 presigner secret access key for ${each.value.upload_name} (replicated from ${var.region.label})"
+  type        = "SecureString"
+  value       = aws_iam_access_key.presigner[each.value.upload_name].secret
+
+  tags = {
+    Name           = "uploads-${each.value.upload_name}-secret-access-key"
+    Service        = each.value.upload.service_name
+    Region         = each.value.region_label
+    Site           = var.site.label
+    ReplicatedFrom = var.region.label
+  }
+}
+
+# Replicated Bucket Name to ap-southeast-1
+resource "aws_ssm_parameter" "replicate_bucket_name_apse1" {
+  for_each = {
+    for k, v in local.ssm_replicate_targets : k => v
+    if v.region_full == "ap-southeast-1"
+  }
+  provider = aws.apse1
+
+  name        = "/${var.site.label}/uploads/${each.value.region_label}/${each.value.upload_name}/bucket_name"
+  description = "S3 bucket name for ${each.value.upload_name} (replicated from ${var.region.label})"
+  type        = "String"
+  value       = aws_s3_bucket.uploads[each.value.upload_name].id
+
+  tags = {
+    Name           = "uploads-${each.value.upload_name}-bucket-name"
+    Service        = each.value.upload.service_name
+    Region         = each.value.region_label
+    Site           = var.site.label
+    ReplicatedFrom = var.region.label
+  }
+}
+
+# Replicated Bucket ARN to ap-southeast-1
+resource "aws_ssm_parameter" "replicate_bucket_arn_apse1" {
+  for_each = {
+    for k, v in local.ssm_replicate_targets : k => v
+    if v.region_full == "ap-southeast-1"
+  }
+  provider = aws.apse1
+
+  name        = "/${var.site.label}/uploads/${each.value.region_label}/${each.value.upload_name}/bucket_arn"
+  description = "S3 bucket ARN for ${each.value.upload_name} (replicated from ${var.region.label})"
+  type        = "String"
+  value       = aws_s3_bucket.uploads[each.value.upload_name].arn
+
+  tags = {
+    Name           = "uploads-${each.value.upload_name}-bucket-arn"
+    Service        = each.value.upload.service_name
+    Region         = each.value.region_label
+    Site           = var.site.label
+    ReplicatedFrom = var.region.label
+  }
+}
+
+# Replicated Bucket Region to ap-southeast-1 (stores the SOURCE region, not target)
+resource "aws_ssm_parameter" "replicate_bucket_region_apse1" {
+  for_each = {
+    for k, v in local.ssm_replicate_targets : k => v
+    if v.region_full == "ap-southeast-1"
+  }
+  provider = aws.apse1
 
   name        = "/${var.site.label}/uploads/${each.value.region_label}/${each.value.upload_name}/bucket_region"
   description = "S3 bucket region for ${each.value.upload_name} (replicated from ${var.region.label})"
