@@ -638,6 +638,8 @@ locals {
                   Action = [
                     "s3:CreateBucket",
                     "s3:DeleteBucket",
+                    "s3:HeadBucket",
+                    "s3:ListAllMyBuckets",
                     "s3:DeleteBucketPolicy",
                     "s3:DeleteObject",
                     "s3:DeleteObjectVersion",
