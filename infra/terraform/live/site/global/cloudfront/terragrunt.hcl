@@ -65,6 +65,34 @@ dependency "cac1_cloudfront" {
   mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
+dependency "apse1_cloudfront" {
+  config_path = "../../region/ap-southeast-1/cloudfront"
+
+  mock_outputs = {
+    bucket_ids = {
+      run  = "mock-cf-assets-run-apse1"
+      auth = "mock-cf-assets-auth-apse1"
+      cms  = "mock-cf-assets-cms-apse1"
+      gpx  = "mock-cf-assets-gpx-apse1"
+    }
+    bucket_arns = {
+      run  = "arn:aws:s3:::mock-cf-assets-run-apse1"
+      auth = "arn:aws:s3:::mock-cf-assets-auth-apse1"
+      cms  = "arn:aws:s3:::mock-cf-assets-cms-apse1"
+      gpx  = "arn:aws:s3:::mock-cf-assets-gpx-apse1"
+    }
+    bucket_regional_domain_names = {
+      run  = "mock-cf-assets-run-apse1.s3.ap-southeast-1.amazonaws.com"
+      auth = "mock-cf-assets-auth-apse1.s3.ap-southeast-1.amazonaws.com"
+      cms  = "mock-cf-assets-cms-apse1.s3.ap-southeast-1.amazonaws.com"
+      gpx  = "mock-cf-assets-gpx-apse1.s3.ap-southeast-1.amazonaws.com"
+    }
+    region_label = "apse1"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy", "apply"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
+}
+
 # Dependencies on regional network modules for ALB info
 dependency "use1_network" {
   config_path = "../../region/us-east-1/network"
@@ -105,6 +133,17 @@ dependency "cac1_network" {
   mock_outputs_merge_strategy_with_state  = "shallow"
 }
 
+dependency "apse1_network" {
+  config_path = "../../region/ap-southeast-1/network"
+
+  mock_outputs = {
+    alb_dns_name = "mock-alb-apse1.ap-southeast-1.elb.amazonaws.com"
+    alb_zone_id  = "Z1LMS91P8CMLE5"
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy", "apply"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
+}
+
 dependency "cac1_uploads" {
   config_path = "../../region/ca-central-1/s3-uploads"
 
@@ -117,6 +156,24 @@ dependency "cac1_uploads" {
     }
     bucket_regional_domain_names = {
       "cms-media" = "mock-uploads-cms-media-cac1.s3.ca-central-1.amazonaws.com"
+    }
+  }
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy", "apply"]
+  mock_outputs_merge_strategy_with_state  = "shallow"
+}
+
+dependency "apse1_uploads" {
+  config_path = "../../region/ap-southeast-1/s3-uploads"
+
+  mock_outputs = {
+    bucket_names = {
+      "cms-media" = "mock-uploads-cms-media-apse1"
+    }
+    bucket_arns = {
+      "cms-media" = "arn:aws:s3:::mock-uploads-cms-media-apse1"
+    }
+    bucket_regional_domain_names = {
+      "cms-media" = "mock-uploads-cms-media-apse1.s3.ap-southeast-1.amazonaws.com"
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy", "apply"]
@@ -212,6 +269,13 @@ inputs = merge(
           s3_bucket_arn                  = try(dependency.cac1_cloudfront.outputs.bucket_arns[domain], "")
           s3_bucket_regional_domain_name = try(dependency.cac1_cloudfront.outputs.bucket_regional_domain_names[domain], "")
         }
+        apse1 = {
+          alb_dns_name                   = try(dependency.apse1_network.outputs.alb_dns_name, "")
+          alb_zone_id                    = try(dependency.apse1_network.outputs.alb_zone_id, "")
+          s3_bucket_id                   = try(dependency.apse1_cloudfront.outputs.bucket_ids[domain], "")
+          s3_bucket_arn                  = try(dependency.apse1_cloudfront.outputs.bucket_arns[domain], "")
+          s3_bucket_regional_domain_name = try(dependency.apse1_cloudfront.outputs.bucket_regional_domain_names[domain], "")
+        }
       }
     }
 
@@ -245,6 +309,11 @@ inputs = merge(
         s3_bucket_id                   = try(dependency.cac1_uploads.outputs.bucket_names["cms-media"], "")
         s3_bucket_arn                  = try(dependency.cac1_uploads.outputs.bucket_arns["cms-media"], "")
         s3_bucket_regional_domain_name = try(dependency.cac1_uploads.outputs.bucket_regional_domain_names["cms-media"], "")
+      }
+      apse1 = {
+        s3_bucket_id                   = try(dependency.apse1_uploads.outputs.bucket_names["cms-media"], "")
+        s3_bucket_arn                  = try(dependency.apse1_uploads.outputs.bucket_arns["cms-media"], "")
+        s3_bucket_regional_domain_name = try(dependency.apse1_uploads.outputs.bucket_regional_domain_names["cms-media"], "")
       }
     }
 
