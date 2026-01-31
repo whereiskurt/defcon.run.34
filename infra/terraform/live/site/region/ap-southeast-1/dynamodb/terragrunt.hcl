@@ -15,6 +15,16 @@ exclude {
   actions = ["all"]
 }
 
+# Depend on us-east-1 DynamoDB (primary region) for global table replicas
+# Tables must be created in primary region first before replicas can be looked up
+dependency "use1_dynamodb" {
+  config_path  = "../../us-east-1/dynamodb"
+  skip_outputs = true
+
+  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs = {}
+}
+
 include "module" {
   path   = "${find_in_parent_folders("modules")}/dynamodb/config.hcl"
   expose = true

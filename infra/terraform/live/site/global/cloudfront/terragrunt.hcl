@@ -202,6 +202,10 @@ dependency "site" {
         zone_id = "Z1234567890ABF"
         name    = "cms.defcon.run"
       }
+      "gpx.defcon.run" = {
+        zone_id = "Z1234567890ABG"
+        name    = "gpx.defcon.run"
+      }
     }
     waf = {
       default = {
@@ -229,6 +233,9 @@ dependency "use1_certs" {
       }
       "cms.defcon.run" = {
         arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-cms-id"
+      }
+      "gpx.defcon.run" = {
+        arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-gpx-id"
       }
     }
   }

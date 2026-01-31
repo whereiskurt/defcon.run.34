@@ -8,7 +8,7 @@ locals {
   site = {
     label         = "dc34"
     random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = [] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
+    skip_regions  = ["ca-central-1", "ap-southeast-1"] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
   }
 
   dns = {
@@ -345,6 +345,39 @@ locals {
     : "{}"
   )
 
+  # CloudTrail for IAM activity logging and policy generation
+  # Records all API calls to enable least-privilege policy generation
+  cloudtrail = {
+    enabled = true
+
+    # Multi-region trail captures activity across all regions
+    multi_region = true
+
+    # How long to retain logs (90 days recommended for policy analysis)
+    log_retention_days = 90
+
+    # Move logs to Glacier after N days (0 = disabled)
+    # Set to 30+ for cost savings on long-term retention
+    glacier_transition_days = 0
+
+    # IAM Access Analyzer generates least-privilege policies from CloudTrail
+    enable_access_analyzer = true
+
+    # Athena enables SQL queries on CloudTrail logs
+    enable_athena = true
+
+    # GitHub OIDC roles to monitor (all roles by default)
+    monitor_roles = [
+      "terragrunt",
+      "application",
+      "readonly",
+      "prowler",
+      "e2e",
+      "release",
+      "deploy"
+    ]
+  }
+
   github_oidc = {
     enabled     = true
     github_org  = get_env("TF_VAR_GITHUB_ORG", "your-github-org")
@@ -365,15 +398,420 @@ locals {
     roles = [
       # Terragrunt role - for infrastructure deployments
       # Equivalent to your local "terraform" profile + management profile
+      # Policy generated via iamlive from actual terragrunt apply
       {
         name                    = "terragrunt"
         description             = "Terragrunt infrastructure deployments"
         environment_restriction = "terraform-apply" # Only terraform-apply environment can assume this role
         max_session_duration    = 3600
 
-        # Full admin for now - scope down for production
-        policy_arns = [
-          "arn:aws:iam::aws:policy/AdministratorAccess"
+        inline_policies = [
+          {
+            name = "terragrunt-infrastructure"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "TerraformStateAccess"
+                  Effect = "Allow"
+                  Action = [
+                    "dynamodb:DeleteItem",
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "s3:GetObject",
+                    "s3:GetObjectVersion",
+                    "s3:ListBucket",
+                    "s3:ListMultipartUploadParts",
+                    "s3:PutObject"
+                  ]
+                  Resource = [
+                    "arn:aws:dynamodb:*:*:table/tf-defcon-run-*",
+                    "arn:aws:s3:::tf-defcon-run-*",
+                    "arn:aws:s3:::tf-defcon-run-*/*"
+                  ]
+                },
+                {
+                  Sid    = "KMSDecrypt"
+                  Effect = "Allow"
+                  Action = [
+                    "kms:Decrypt"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "STSIdentity"
+                  Effect = "Allow"
+                  Action = [
+                    "sts:GetCallerIdentity"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "IAMManagement"
+                  Effect = "Allow"
+                  Action = [
+                    "iam:AddRoleToInstanceProfile",
+                    "iam:AttachRolePolicy",
+                    "iam:AttachUserPolicy",
+                    "iam:CreateAccessKey",
+                    "iam:CreateInstanceProfile",
+                    "iam:CreateOpenIDConnectProvider",
+                    "iam:CreatePolicy",
+                    "iam:CreateRole",
+                    "iam:CreateServiceLinkedRole",
+                    "iam:CreateUser",
+                    "iam:DeleteAccessKey",
+                    "iam:DeleteInstanceProfile",
+                    "iam:DeleteOpenIDConnectProvider",
+                    "iam:DeletePolicy",
+                    "iam:DeleteRole",
+                    "iam:DeleteRolePolicy",
+                    "iam:DeleteUser",
+                    "iam:DeleteUserPolicy",
+                    "iam:DetachRolePolicy",
+                    "iam:DetachUserPolicy",
+                    "iam:GetInstanceProfile",
+                    "iam:GetOpenIDConnectProvider",
+                    "iam:GetPolicy",
+                    "iam:GetPolicyVersion",
+                    "iam:GetRole",
+                    "iam:GetRolePolicy",
+                    "iam:GetUser",
+                    "iam:GetUserPolicy",
+                    "iam:ListAccessKeys",
+                    "iam:ListAttachedRolePolicies",
+                    "iam:ListAttachedUserPolicies",
+                    "iam:ListGroupsForUser",
+                    "iam:ListInstanceProfilesForRole",
+                    "iam:ListPolicyVersions",
+                    "iam:ListRolePolicies",
+                    "iam:PassRole",
+                    "iam:PutRolePolicy",
+                    "iam:PutUserPolicy",
+                    "iam:RemoveRoleFromInstanceProfile"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "EC2Networking"
+                  Effect = "Allow"
+                  Action = [
+                    "ec2:AllocateAddress",
+                    "ec2:AssociateRouteTable",
+                    "ec2:AttachInternetGateway",
+                    "ec2:AuthorizeSecurityGroupEgress",
+                    "ec2:AuthorizeSecurityGroupIngress",
+                    "ec2:CreateInternetGateway",
+                    "ec2:CreateNatGateway",
+                    "ec2:CreateRoute",
+                    "ec2:CreateRouteTable",
+                    "ec2:CreateSecurityGroup",
+                    "ec2:CreateSubnet",
+                    "ec2:CreateVpc",
+                    "ec2:DeleteInternetGateway",
+                    "ec2:DeleteNatGateway",
+                    "ec2:DeleteRoute",
+                    "ec2:DeleteRouteTable",
+                    "ec2:DeleteSecurityGroup",
+                    "ec2:DeleteSubnet",
+                    "ec2:DeleteVpc",
+                    "ec2:DescribeAddresses",
+                    "ec2:DescribeAddressesAttribute",
+                    "ec2:DescribeAvailabilityZones",
+                    "ec2:DescribeInternetGateways",
+                    "ec2:DescribeManagedPrefixLists",
+                    "ec2:DescribeNatGateways",
+                    "ec2:DescribeNetworkAcls",
+                    "ec2:DescribeNetworkInterfaces",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeVpcAttribute",
+                    "ec2:DescribeVpcs",
+                    "ec2:DetachInternetGateway",
+                    "ec2:DisassociateAddress",
+                    "ec2:DisassociateRouteTable",
+                    "ec2:GetManagedPrefixListEntries",
+                    "ec2:ModifySubnetAttribute",
+                    "ec2:ModifyVpcAttribute",
+                    "ec2:ReleaseAddress",
+                    "ec2:RevokeSecurityGroupEgress"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "ECSManagement"
+                  Effect = "Allow"
+                  Action = [
+                    "ecs:CreateCluster",
+                    "ecs:CreateService",
+                    "ecs:DeleteCluster",
+                    "ecs:DeleteService",
+                    "ecs:DeregisterTaskDefinition",
+                    "ecs:DescribeClusters",
+                    "ecs:DescribeServices",
+                    "ecs:DescribeTaskDefinition",
+                    "ecs:RegisterTaskDefinition",
+                    "ecs:UpdateService"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "ECRManagement"
+                  Effect = "Allow"
+                  Action = [
+                    "ecr:CreateRepository",
+                    "ecr:DeleteLifecyclePolicy",
+                    "ecr:DeleteRepository",
+                    "ecr:DeleteRepositoryPolicy",
+                    "ecr:DescribeRepositories",
+                    "ecr:GetLifecyclePolicy",
+                    "ecr:GetRepositoryPolicy",
+                    "ecr:ListTagsForResource",
+                    "ecr:PutLifecyclePolicy",
+                    "ecr:SetRepositoryPolicy"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "LoadBalancing"
+                  Effect = "Allow"
+                  Action = [
+                    "elasticloadbalancing:CreateLoadBalancer",
+                    "elasticloadbalancing:CreateRule",
+                    "elasticloadbalancing:CreateTargetGroup",
+                    "elasticloadbalancing:DeleteListener",
+                    "elasticloadbalancing:DeleteLoadBalancer",
+                    "elasticloadbalancing:DeleteRule",
+                    "elasticloadbalancing:DeleteTargetGroup",
+                    "elasticloadbalancing:DescribeListenerAttributes",
+                    "elasticloadbalancing:DescribeListeners",
+                    "elasticloadbalancing:DescribeLoadBalancerAttributes",
+                    "elasticloadbalancing:DescribeLoadBalancers",
+                    "elasticloadbalancing:DescribeRules",
+                    "elasticloadbalancing:DescribeTargetGroupAttributes",
+                    "elasticloadbalancing:DescribeTargetGroups",
+                    "elasticloadbalancing:ModifyLoadBalancerAttributes",
+                    "elasticloadbalancing:ModifyTargetGroupAttributes"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "S3BucketManagement"
+                  Effect = "Allow"
+                  Action = [
+                    "s3:CreateBucket",
+                    "s3:DeleteBucket",
+                    "s3:DeleteBucketPolicy",
+                    "s3:DeleteObject",
+                    "s3:DeleteObjectVersion",
+                    "s3:GetAccelerateConfiguration",
+                    "s3:GetBucketAcl",
+                    "s3:GetBucketCORS",
+                    "s3:GetBucketLogging",
+                    "s3:GetBucketNotification",
+                    "s3:GetBucketObjectLockConfiguration",
+                    "s3:GetBucketOwnershipControls",
+                    "s3:GetBucketPolicy",
+                    "s3:GetBucketPublicAccessBlock",
+                    "s3:GetBucketRequestPayment",
+                    "s3:GetBucketTagging",
+                    "s3:GetBucketVersioning",
+                    "s3:GetBucketWebsite",
+                    "s3:GetEncryptionConfiguration",
+                    "s3:GetLifecycleConfiguration",
+                    "s3:GetReplicationConfiguration",
+                    "s3:ListBucketVersions",
+                    "s3:ListTagsForResource",
+                    "s3:PutBucketAcl",
+                    "s3:PutBucketCORS",
+                    "s3:PutBucketNotification",
+                    "s3:PutBucketOwnershipControls",
+                    "s3:PutBucketPolicy",
+                    "s3:PutBucketPublicAccessBlock",
+                    "s3:PutBucketTagging",
+                    "s3:PutBucketVersioning",
+                    "s3:PutEncryptionConfiguration",
+                    "s3:PutLifecycleConfiguration"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "CloudFront"
+                  Effect = "Allow"
+                  Action = [
+                    "cloudfront:CreateDistribution",
+                    "cloudfront:CreateFunction",
+                    "cloudfront:CreateOriginAccessControl",
+                    "cloudfront:DeleteDistribution",
+                    "cloudfront:DeleteFunction",
+                    "cloudfront:DeleteOriginAccessControl",
+                    "cloudfront:DescribeFunction",
+                    "cloudfront:GetDistribution",
+                    "cloudfront:GetFunction",
+                    "cloudfront:GetOriginAccessControl",
+                    "cloudfront:ListTagsForResource",
+                    "cloudfront:PublishFunction",
+                    "cloudfront:TagResource",
+                    "cloudfront:UpdateDistribution"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "Route53"
+                  Effect = "Allow"
+                  Action = [
+                    "route53:CreateHostedZone",
+                    "route53:DeleteHostedZone",
+                    "route53:GetChange",
+                    "route53:GetHostedZone",
+                    "route53:ListHostedZones",
+                    "route53:ListResourceRecordSets",
+                    "route53:ListTagsForResource"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "ACM"
+                  Effect = "Allow"
+                  Action = [
+                    "acm:DeleteCertificate",
+                    "acm:DescribeCertificate",
+                    "acm:ListTagsForCertificate",
+                    "acm:RequestCertificate"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "Lambda"
+                  Effect = "Allow"
+                  Action = [
+                    "lambda:AddPermission",
+                    "lambda:CreateEventSourceMapping",
+                    "lambda:CreateFunction",
+                    "lambda:DeleteEventSourceMapping",
+                    "lambda:DeleteFunction",
+                    "lambda:GetEventSourceMapping",
+                    "lambda:GetFunction",
+                    "lambda:GetFunctionCodeSigningConfig",
+                    "lambda:GetPolicy",
+                    "lambda:ListVersionsByFunction",
+                    "lambda:RemovePermission"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "CloudWatch"
+                  Effect = "Allow"
+                  Action = [
+                    "cloudwatch:DeleteAlarms",
+                    "cloudwatch:DescribeAlarms",
+                    "cloudwatch:PutMetricAlarm",
+                    "logs:CreateLogGroup",
+                    "logs:DeleteLogGroup",
+                    "logs:DescribeLogGroups",
+                    "logs:ListTagsForResource",
+                    "logs:PutRetentionPolicy"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "SSM"
+                  Effect = "Allow"
+                  Action = [
+                    "ssm:DeleteParameter",
+                    "ssm:DescribeParameters",
+                    "ssm:GetParameter",
+                    "ssm:ListTagsForResource",
+                    "ssm:PutParameter"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "WAF"
+                  Effect = "Allow"
+                  Action = [
+                    "wafv2:CreateWebACL",
+                    "wafv2:DeleteWebACL",
+                    "wafv2:GetWebACL",
+                    "wafv2:ListTagsForResource"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "ServiceDiscovery"
+                  Effect = "Allow"
+                  Action = [
+                    "servicediscovery:CreatePrivateDnsNamespace",
+                    "servicediscovery:CreateService",
+                    "servicediscovery:DeleteNamespace",
+                    "servicediscovery:DeleteService",
+                    "servicediscovery:GetNamespace",
+                    "servicediscovery:GetOperation",
+                    "servicediscovery:GetService",
+                    "servicediscovery:ListTagsForResource"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "SNS"
+                  Effect = "Allow"
+                  Action = [
+                    "sns:CreateTopic",
+                    "sns:DeleteTopic",
+                    "sns:GetSubscriptionAttributes",
+                    "sns:GetTopicAttributes",
+                    "sns:ListSubscriptionsByTopic",
+                    "sns:SetTopicAttributes",
+                    "sns:Subscribe",
+                    "sns:Unsubscribe"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "AutoScaling"
+                  Effect = "Allow"
+                  Action = [
+                    "application-autoscaling:DeleteScalingPolicy",
+                    "application-autoscaling:DeregisterScalableTarget",
+                    "application-autoscaling:DescribeScalableTargets",
+                    "application-autoscaling:DescribeScalingPolicies",
+                    "application-autoscaling:ListTagsForResource",
+                    "application-autoscaling:PutScalingPolicy",
+                    "application-autoscaling:RegisterScalableTarget"
+                  ]
+                  Resource = "*"
+                },
+                {
+                  Sid    = "CloudTrailAndAnalytics"
+                  Effect = "Allow"
+                  Action = [
+                    "access-analyzer:CreateAnalyzer",
+                    "access-analyzer:DeleteAnalyzer",
+                    "access-analyzer:GetAnalyzer",
+                    "athena:CreateWorkGroup",
+                    "athena:DeleteWorkGroup",
+                    "athena:GetWorkGroup",
+                    "athena:ListTagsForResource",
+                    "cloudtrail:CreateTrail",
+                    "cloudtrail:DeleteTrail",
+                    "cloudtrail:DescribeTrails",
+                    "cloudtrail:GetTrailStatus",
+                    "cloudtrail:ListTags",
+                    "cloudtrail:PutEventSelectors",
+                    "cloudtrail:StartLogging",
+                    "glue:CreateDatabase",
+                    "glue:CreateTable",
+                    "glue:DeleteDatabase",
+                    "glue:DeleteTable",
+                    "glue:GetDatabase",
+                    "glue:GetTable"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
+          }
         ]
 
         # Cross-account access to management account for Route53
