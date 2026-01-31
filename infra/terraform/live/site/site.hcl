@@ -505,6 +505,7 @@ locals {
                     "iam:ListRolePolicies",
                     "iam:PassRole",
                     "iam:PutRolePolicy",
+                    "iam:UpdateAssumeRolePolicy",
                     "iam:PutUserPolicy",
                     "iam:RemoveRoleFromInstanceProfile",
                     "iam:TagInstanceProfile",
