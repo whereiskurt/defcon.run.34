@@ -67,6 +67,7 @@ jobs:
       SGUID: ${{ vars.SGUID }}
       TF_VAR_MANAGEMENT_ACCOUNT_ID: ${{ vars.TF_VAR_MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_APPLICATION_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      TF_VAR_GITHUB_ORG: ${{ github.repository_owner }}
 
     steps:
       - name: Checkout
