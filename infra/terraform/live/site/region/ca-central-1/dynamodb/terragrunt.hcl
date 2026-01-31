@@ -31,10 +31,11 @@ terraform {
 # Ensure primary region (us-east-1) completes first before this replica region runs
 # This prevents race conditions when reading replicated tables via data sources
 dependency "primary_region_dynamodb" {
-  config_path = "../../us-east-1/dynamodb"
-
-  # Don't fail if the primary region hasn't been applied yet
+  config_path  = "../../us-east-1/dynamodb"
   skip_outputs = true
+
+  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs = {}
 }
 
 inputs = include.module.locals.merged_inputs

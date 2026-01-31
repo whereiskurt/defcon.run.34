@@ -3,7 +3,7 @@ name: merged-playbook
 description: Auto-generated from cass-memory reflections
 metadata:
   createdAt: 2026-01-13T05:38:45.319Z
-  lastReflection: 2026-01-24T07:21:55.556Z
+  lastReflection: 2026-01-31T05:15:06.465Z
   totalReflections: 0
   totalSessionsProcessed: 0
 deprecatedPatterns: []
@@ -46,12 +46,18 @@ bullets:
     kind: workflow_rule
     state: draft
     maturity: candidate
-    helpfulCount: 0
+    helpfulCount: 1
     harmfulCount: 0
-    feedbackEvents: []
+    feedbackEvents:
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5/subagents/agent-aab6962.jsonl
+        context: Used 'ls -la' systematically on infra/terraform/live/ and
+          subdirectories to map email infrastructure organization before
+          examining specific configuration files
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.647Z
-    updatedAt: 2026-01-13T06:07:50.647Z
+    updatedAt: 2026-01-31T05:15:06.464Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -60,6 +66,7 @@ bullets:
       to understand the DEF CON 34 monorepo structure, revealing the three main
       applications and infrastructure layout
     tags: []
+    lastValidatedAt: 2026-01-31T05:15:06.464Z
   - id: b-mkc6x1tk-3ip4ob
     scope: framework
     category: infrastructure_patterns
@@ -71,8 +78,8 @@ bullets:
     isNegative: false
     kind: stack_pattern
     state: draft
-    maturity: candidate
-    helpfulCount: 2
+    maturity: established
+    helpfulCount: 5
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -88,10 +95,27 @@ bullets:
         context: Found expected Terragrunt structure with /infra/terraform/modules/ for
           reusable email module and live configurations, confirming deployment
           structure pattern
-    lastValidatedAt: 2026-01-24T07:21:55.555Z
+      - type: helpful
+        timestamp: 2026-01-31T04:22:34.923Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/bdf04a54-d69f-413f-883d-7404aefe9e01.jsonl
+        context: Used Terragrunt project structure knowledge to navigate
+          /infra/terraform/live/ and /infra/terraform/modules/ directories for
+          SSM parameter replication fix
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5/subagents/agent-aab6962.jsonl
+        context: "Found email configurations in expected Terragrunt structure:
+          /infra/terraform/live/ for environment-specific email configs and
+          /infra/terraform/modules/ for reusable email modules"
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5.jsonl
+        context: Terragrunt directory structure knowledge helped navigate to
+          infra/terraform/live/ for configuration analysis
+    lastValidatedAt: 2026-01-31T05:15:06.464Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.648Z
-    updatedAt: 2026-01-24T07:21:55.555Z
+    updatedAt: 2026-01-31T05:15:06.464Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -2145,18 +2169,25 @@ bullets:
     kind: workflow_rule
     state: draft
     maturity: candidate
-    helpfulCount: 0
+    helpfulCount: 1
     harmfulCount: 0
-    feedbackEvents: []
+    feedbackEvents:
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5/subagents/agent-aab6962.jsonl
+        context: Used glob patterns like **/*.hcl and **/*.tf to discover email
+          configuration files across the entire infrastructure codebase
+          structure
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.673Z
-    updatedAt: 2026-01-13T06:07:50.673Z
+    updatedAt: 2026-01-31T05:15:06.464Z
     pinned: false
     deprecated: false
     sourceSessions: []
     sourceAgents: []
     reasoning: Session used this technique effectively to discover documentation structure
     tags: []
+    lastValidatedAt: 2026-01-31T05:15:06.464Z
   - id: b-mkc6x1u9-07m9ic
     scope: framework
     category: application_identification
@@ -2873,7 +2904,7 @@ bullets:
     kind: workflow_rule
     state: draft
     maturity: proven
-    helpfulCount: 15
+    helpfulCount: 20
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -2954,10 +2985,38 @@ bullets:
         sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-aaa4e2e.jsonl
         context: Session started with systematic exploration approach after establishing
           read-only mode, which enabled efficient infrastructure analysis
-    lastValidatedAt: 2026-01-24T07:21:55.555Z
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-a8c07e6.jsonl
+        context: Session started with warmup to establish READ-ONLY mode and confirm
+          available tools before diving into debugging analysis
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/19855e2c-4577-43c3-a7c4-9a2aff85401f/subagents/agent-ac9a17e.jsonl
+        context: Established READ-ONLY exploration context at session start, which was
+          crucial for safely exploring quota system implementation across
+          multiple apps without risk of modifications
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5/subagents/agent-aab6962.jsonl
+        context: Started session with warmup to establish read-only exploration context
+          before diving into email infrastructure analysis
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5.jsonl
+        context: Session started with systematic exploration approach, confirming
+          read-only access and available tools before diving into email
+          infrastructure analysis
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/cd248ba9-5692-4855-9386-381af3defdf1/subagents/agent-a3deec0.jsonl
+        context: Session started with warmup message to establish conversation context
+          and confirm available tools before diving into codebase analysis -
+          this proved essential for setting proper exploration boundaries
+    lastValidatedAt: 2026-01-31T05:15:06.464Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.683Z
-    updatedAt: 2026-01-24T07:21:55.555Z
+    updatedAt: 2026-01-31T05:15:06.464Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -3106,7 +3165,7 @@ bullets:
     kind: workflow_rule
     state: draft
     maturity: proven
-    helpfulCount: 12
+    helpfulCount: 15
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -3173,10 +3232,26 @@ bullets:
         sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-aaa4e2e.jsonl
         context: Confirmed READ-ONLY mode at session start before exploring email
           infrastructure, preventing accidental modifications during analysis
-    lastValidatedAt: 2026-01-24T07:21:55.555Z
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/f6ae04dd-0a1c-46a2-87fe-a246fbd2acad/subagents/agent-a8c07e6.jsonl
+        context: Explicitly confirmed READ-ONLY mode access which was important for safe
+          codebase exploration during debugging session
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5/subagents/agent-aab6962.jsonl
+        context: Confirmed READ-ONLY mode access which was appropriate for
+          infrastructure analysis without risk of modifications
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5.jsonl
+        context: Explicitly confirmed READ-ONLY mode at session start, which was
+          important for infrastructure analysis where accidental modifications
+          could be problematic
+    lastValidatedAt: 2026-01-31T05:15:06.464Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.685Z
-    updatedAt: 2026-01-24T07:21:55.555Z
+    updatedAt: 2026-01-31T05:15:06.464Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -4267,7 +4342,7 @@ bullets:
     kind: stack_pattern
     state: draft
     maturity: proven
-    helpfulCount: 11
+    helpfulCount: 13
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -4333,10 +4408,22 @@ bullets:
         context: Mapped service boundaries (run.auth, run.human) early which helped
           understand quota service integration points and internal communication
           patterns
-    lastValidatedAt: 2026-01-24T01:34:05.802Z
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/19855e2c-4577-43c3-a7c4-9a2aff85401f/subagents/agent-ac9a17e.jsonl
+        context: Successfully used this pattern to map auth/CMS/frontend boundaries in
+          defcon.run monorepo, identifying run.auth (authentication), run.human
+          (frontend), and run.gpx (feature service) separation which was crucial
+          for understanding quota system distribution
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/ab26a359-2971-4def-8c72-410f09fd36c5.jsonl
+        context: Applied monorepo component boundary mapping to understand email
+          infrastructure separation and regional deployment patterns
+    lastValidatedAt: 2026-01-31T05:15:06.464Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-13T06:07:50.704Z
-    updatedAt: 2026-01-24T01:34:05.802Z
+    updatedAt: 2026-01-31T05:15:06.464Z
     pinned: false
     deprecated: false
     sourceSessions: []
@@ -10078,7 +10165,7 @@ bullets:
     kind: workflow_rule
     state: draft
     maturity: candidate
-    helpfulCount: 2
+    helpfulCount: 3
     harmfulCount: 0
     feedbackEvents:
       - type: helpful
@@ -10093,10 +10180,17 @@ bullets:
         context: Mapped service separation pattern with run.auth (authentication),
           run.gpx (GPS application) boundaries to understand cross-service token
           flow
-    lastValidatedAt: 2026-01-21T02:54:43.524Z
+      - type: helpful
+        timestamp: 2026-01-31T05:15:06.464Z
+        sessionPath: /Users/khundeck/.claude/projects/-Users-khundeck-working-defcon-run-34/19855e2c-4577-43c3-a7c4-9a2aff85401f/subagents/agent-ac9a17e.jsonl
+        context: Applied this pattern to identify service boundaries in defcon.run
+          project, successfully mapping run.auth (authentication/quota
+          definitions), run.human (user-facing profile), and run.gpx (GPX file
+          handling with quota consumption)
+    lastValidatedAt: 2026-01-31T05:15:06.464Z
     confidenceDecayHalfLifeDays: 90
     createdAt: 2026-01-21T01:59:21.984Z
-    updatedAt: 2026-01-21T02:54:43.524Z
+    updatedAt: 2026-01-31T05:15:06.464Z
     pinned: false
     deprecated: false
     sourceSessions: []

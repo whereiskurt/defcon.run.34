@@ -9,6 +9,15 @@ exclude {
   actions = ["all"]
 }
 
+# Deploy CloudTrail first so it captures all subsequent infrastructure changes
+dependency "cloudtrail" {
+  config_path  = "../cloudtrail"
+  skip_outputs = true
+
+  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs = {}
+}
+
 include "module" {
   path   = "${find_in_parent_folders("modules")}/github-oidc/config.hcl"
   expose = true
