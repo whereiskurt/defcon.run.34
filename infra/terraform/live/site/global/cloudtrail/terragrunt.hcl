@@ -9,6 +9,15 @@ exclude {
   actions = ["all"]
 }
 
+# Ensure IAM policy is updated before S3/Glue operations
+dependency "github_oidc" {
+  config_path  = "../github-oidc"
+  skip_outputs = true
+
+  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs = {}
+}
+
 include "module" {
   path   = "${find_in_parent_folders("modules")}/cloudtrail/config.hcl"
   expose = true
