@@ -369,6 +369,10 @@ jobs:
       - name: Install Terraform, Terragrunt, and SOPS
         if: inputs.deploy
         run: |
+          # Install unzip if not present (needed for terraform)
+          if ! command -v unzip &> /dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq unzip
+          fi
           # Install Terraform if not present
           if ! command -v terraform &> /dev/null; then
             curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
@@ -480,6 +484,10 @@ jobs:
       - name: Install Terraform, Terragrunt, and SOPS
         if: inputs.deploy
         run: |
+          # Install unzip if not present (needed for terraform)
+          if ! command -v unzip &> /dev/null; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq unzip
+          fi
           # Install Terraform if not present
           if ! command -v terraform &> /dev/null; then
             curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
