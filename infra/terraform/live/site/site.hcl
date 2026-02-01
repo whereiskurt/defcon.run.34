@@ -1091,7 +1091,10 @@ locals {
                     "ecs:DescribeServices",
                     "ecs:DescribeClusters",
                     "ecs:ListServices",
-                    "ecs:ListClusters"
+                    "ecs:ListClusters",
+                    "ecs:TagResource",
+                    "ecs:UntagResource",
+                    "ecs:ListTagsForResource"
                   ]
                   Resource = "*"
                 }
