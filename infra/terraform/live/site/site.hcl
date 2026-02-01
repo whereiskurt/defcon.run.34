@@ -1208,7 +1208,8 @@ locals {
                   Action = [
                     "application-autoscaling:DescribeScalableTargets",
                     "application-autoscaling:DescribeScalingPolicies",
-                    "application-autoscaling:DescribeScheduledActions"
+                    "application-autoscaling:DescribeScheduledActions",
+                    "application-autoscaling:ListTagsForResource"
                   ]
                   Resource = "*"
                 }
