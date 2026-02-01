@@ -108,7 +108,7 @@ const providers: Provider[] = [
     token: {
       url: `${config.urls.publicAuthServer}/api/oidc/token`,
     },
-    checks: ["state"],
+    checks: ["state", "pkce", "nonce"],
     client: {
       token_endpoint_auth_method: "client_secret_post",
     },

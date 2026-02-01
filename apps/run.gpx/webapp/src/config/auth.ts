@@ -66,7 +66,7 @@ export const authConfig: NextAuthConfig = {
       token: {
         url: `${authServerUrl}/api/oidc/token`,
       },
-      checks: ["state"],
+      checks: ["state", "pkce", "nonce"],
       client: {
         token_endpoint_auth_method: "client_secret_post",
       },
