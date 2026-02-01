@@ -1112,7 +1112,9 @@ locals {
                   Action = "iam:PassRole"
                   Resource = [
                     "arn:aws:iam::*:role/run-*-defcon-run-task-role",
-                    "arn:aws:iam::*:role/run-*-defcon-run-execution-role"
+                    "arn:aws:iam::*:role/run-*-defcon-run-execution-role",
+                    "arn:aws:iam::*:role/ecs-task-role-*-defcon-run-*",
+                    "arn:aws:iam::*:role/ecs-execution-role-*-defcon-run-*"
                   ]
                 },
                 {
@@ -1127,6 +1129,7 @@ locals {
                   ]
                   Resource = [
                     "arn:aws:iam::*:role/run-*-defcon-run-*",
+                    "arn:aws:iam::*:role/ecs-*-role-*-defcon-run-*",
                     "arn:aws:iam::*:role/dc34-*"
                   ]
                 }
