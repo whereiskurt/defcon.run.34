@@ -431,7 +431,7 @@ locals {
                 {
                   Sid      = "Core"
                   Effect   = "Allow"
-                  Action   = ["kms:Decrypt", "sts:GetCallerIdentity"]
+                  Action   = ["kms:Decrypt", "kms:DescribeKey", "sts:GetCallerIdentity"]
                   Resource = "*"
                 },
                 {
@@ -563,7 +563,7 @@ locals {
                 {
                   Sid      = "Analytics"
                   Effect   = "Allow"
-                  Action   = ["access-analyzer:*", "athena:*", "cloudtrail:*", "glue:*"]
+                  Action   = ["access-analyzer:*", "athena:*", "cloudtrail:*", "events:*", "glue:*"]
                   Resource = "*"
                 },
                 {
