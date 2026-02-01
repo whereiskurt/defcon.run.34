@@ -2,7 +2,6 @@
 # Parameters are stored in a hierarchical structure for easy lookup
 # String parameters store non-sensitive metadata (table names, ARNs, regions)
 # SecureString parameters (secret keys) use KMS encryption via kms.tf
-# checkov:skip=CKV2_AWS_34:Table names, ARNs, and regions are non-sensitive infrastructure metadata
 
 locals {
   ssm_prefixes = {
@@ -12,6 +11,7 @@ locals {
 }
 
 # Table name for each table
+#checkov:skip=CKV2_AWS_34:Table names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "table_name" {
   for_each = local.table_configs
 
@@ -28,6 +28,7 @@ resource "aws_ssm_parameter" "table_name" {
 }
 
 # Table ARN for each table
+#checkov:skip=CKV2_AWS_34:Table ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "table_arn" {
   for_each = local.table_configs
 
@@ -44,6 +45,7 @@ resource "aws_ssm_parameter" "table_arn" {
 }
 
 # Stream ARN (if streams are enabled)
+#checkov:skip=CKV2_AWS_34:Stream ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "stream_arn" {
   for_each = {
     for name, config in local.table_configs :
@@ -63,6 +65,7 @@ resource "aws_ssm_parameter" "stream_arn" {
 }
 
 # IAM user access key ID for each table
+#checkov:skip=CKV2_AWS_34:Access key IDs are non-sensitive identifiers (not the secret)
 resource "aws_ssm_parameter" "access_key_id" {
   for_each = aws_iam_access_key.dynamodb_user
 
@@ -96,6 +99,7 @@ resource "aws_ssm_parameter" "secret_access_key" {
 }
 
 # Region information for each table
+#checkov:skip=CKV2_AWS_34:Region names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "region" {
   for_each = local.table_configs
 

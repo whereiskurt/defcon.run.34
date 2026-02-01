@@ -1,53 +1,61 @@
 # SSM Parameters for SES/Email configuration
 # String parameters store non-sensitive configuration (hostnames, addresses, bucket info)
 # SecureString parameters (SMTP credentials) use KMS encryption via kms.tf
-# checkov:skip=CKV2_AWS_34:Non-sensitive email config (hostnames, from addresses, bucket names)
 
 locals {
   ses = "${var.site.label}/ses"
 }
 
+#checkov:skip=CKV2_AWS_34:Zone names are non-sensitive configuration
 resource "aws_ssm_parameter" "email_zonenames" {
   name  = "/${local.ses}/zonenames"
   type  = "StringList"
   value = join(",", var.email.zonenames)
 }
 
+#checkov:skip=CKV2_AWS_34:Boolean config flags are non-sensitive
 resource "aws_ssm_parameter" "make_regional_domains" {
   name  = "/${local.ses}/make_regional_domains"
   type  = "String"
   value = var.email.make_regional_domains
 }
+
+#checkov:skip=CKV2_AWS_34:Boolean config flags are non-sensitive
 resource "aws_ssm_parameter" "make_site_domain" {
   name  = "/${local.ses}/make_site_domain"
   type  = "String"
   value = var.email.make_site_domain
 }
 
+#checkov:skip=CKV2_AWS_34:Boolean config flags are non-sensitive
 resource "aws_ssm_parameter" "make_domains" {
   name  = "/${local.ses}/make_domains"
   type  = "String"
   value = var.email.make_domains
 }
 
+#checkov:skip=CKV2_AWS_34:AWS service URLs are non-sensitive
 resource "aws_ssm_parameter" "aws_emailuri" {
   name  = "/${local.ses}/awsuri"
   type  = "String"
   value = "https://email.${var.region.full}.amazonaws.com"
 }
 
+#checkov:skip=CKV2_AWS_34:SMTP hostnames are non-sensitive
 resource "aws_ssm_parameter" "smtp_host" {
   name  = "/${local.ses}/smtp_host"
   type  = "String"
   value = "email-smtp.${var.region.full}.amazonaws.com"
 }
 
+#checkov:skip=CKV2_AWS_34:From addresses are non-sensitive
 resource "aws_ssm_parameter" "ses_from_address" {
   name  = "/${local.ses}/from_address"
   type  = "String"
   value = "support@${var.email.zonenames[0]}"
 }
 
+#checkov:skip=CKV2_AWS_34:Reply-to addresses are non-sensitive
 resource "aws_ssm_parameter" "ses_replyto_address" {
   name  = "/${local.ses}/replyto_address"
   type  = "String"
@@ -108,6 +116,7 @@ resource "aws_ssm_parameter" "smtp_credential_url" {
 }
 
 # Email forwarding configuration
+#checkov:skip=CKV2_AWS_34:Forwarding rules contain email addresses which are non-sensitive
 resource "aws_ssm_parameter" "fwd_rules_rules" {
   count = length(var.fwd_rules) > 0 ? 1 : 0
   name  = "/${local.ses}/forwarding/rules"
@@ -121,6 +130,7 @@ resource "aws_ssm_parameter" "fwd_rules_rules" {
 
 # S3 bucket information for cross-region replication
 # Store this bucket's info in the current region's SSM
+#checkov:skip=CKV2_AWS_34:Bucket names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "s3_bucket_name" {
   name        = "/${local.ses}/s3/${var.region.label}/bucket_name"
   type        = "String"
@@ -128,6 +138,7 @@ resource "aws_ssm_parameter" "s3_bucket_name" {
   description = "S3 bucket name for received emails in ${var.region.full}"
 }
 
+#checkov:skip=CKV2_AWS_34:Bucket ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "s3_bucket_arn" {
   name        = "/${local.ses}/s3/${var.region.label}/bucket_arn"
   type        = "String"
@@ -138,6 +149,7 @@ resource "aws_ssm_parameter" "s3_bucket_arn" {
 # Cross-region bucket information cache
 # Store information about OTHER regions' buckets in THIS region for easy lookup
 # This allows each region to know about all buckets without cross-region API calls
+#checkov:skip=CKV2_AWS_34:Bucket names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replica_bucket_name" {
   for_each = local.can_configure_replication ? local.replication_destinations_map : {}
 
@@ -148,6 +160,7 @@ resource "aws_ssm_parameter" "replica_bucket_name" {
   description = "Cached S3 bucket name for received emails in ${each.value.full} (replica)"
 }
 
+#checkov:skip=CKV2_AWS_34:Bucket ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replica_bucket_arn" {
   for_each = local.can_configure_replication ? local.replication_destinations_map : {}
 

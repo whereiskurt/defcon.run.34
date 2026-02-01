@@ -2,7 +2,6 @@
 # Following the pattern from dynamodb and email modules
 # String parameters store non-sensitive metadata (bucket names, ARNs, regions)
 # SecureString parameters (access keys) use KMS encryption via kms.tf
-# checkov:skip=CKV2_AWS_34:Bucket names, ARNs, and regions are non-sensitive infrastructure metadata
 
 # Access Key ID
 resource "aws_ssm_parameter" "access_key_id" {
@@ -41,6 +40,7 @@ resource "aws_ssm_parameter" "secret_access_key" {
 }
 
 # Bucket Name
+#checkov:skip=CKV2_AWS_34:Bucket names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "bucket_name" {
   for_each = local.uploads_map
 
@@ -58,6 +58,7 @@ resource "aws_ssm_parameter" "bucket_name" {
 }
 
 # Bucket ARN
+#checkov:skip=CKV2_AWS_34:Bucket ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "bucket_arn" {
   for_each = local.uploads_map
 
@@ -75,6 +76,7 @@ resource "aws_ssm_parameter" "bucket_arn" {
 }
 
 # Bucket Region
+#checkov:skip=CKV2_AWS_34:Region names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "bucket_region" {
   for_each = local.uploads_map
 

@@ -91,6 +91,7 @@ resource "aws_ssm_parameter" "replicate_secret_access_key_cac1" {
 }
 
 # Replicated Bucket Name to ca-central-1
+#checkov:skip=CKV2_AWS_34:Bucket names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_name_cac1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v
@@ -113,6 +114,7 @@ resource "aws_ssm_parameter" "replicate_bucket_name_cac1" {
 }
 
 # Replicated Bucket ARN to ca-central-1
+#checkov:skip=CKV2_AWS_34:Bucket ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_arn_cac1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v
@@ -135,6 +137,7 @@ resource "aws_ssm_parameter" "replicate_bucket_arn_cac1" {
 }
 
 # Replicated Bucket Region to ca-central-1 (stores the SOURCE region, not target)
+#checkov:skip=CKV2_AWS_34:Region names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_region_cac1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v
@@ -202,6 +205,7 @@ resource "aws_ssm_parameter" "replicate_secret_access_key_use1" {
 }
 
 # Replicated Bucket Name to us-east-1
+#checkov:skip=CKV2_AWS_34:Bucket names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_name_use1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v
@@ -224,6 +228,7 @@ resource "aws_ssm_parameter" "replicate_bucket_name_use1" {
 }
 
 # Replicated Bucket ARN to us-east-1
+#checkov:skip=CKV2_AWS_34:Bucket ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_arn_use1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v
@@ -246,6 +251,7 @@ resource "aws_ssm_parameter" "replicate_bucket_arn_use1" {
 }
 
 # Replicated Bucket Region to us-east-1 (stores the SOURCE region, not target)
+#checkov:skip=CKV2_AWS_34:Region names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_region_use1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v
@@ -313,6 +319,7 @@ resource "aws_ssm_parameter" "replicate_secret_access_key_apse1" {
 }
 
 # Replicated Bucket Name to ap-southeast-1
+#checkov:skip=CKV2_AWS_34:Bucket names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_name_apse1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v
@@ -335,6 +342,7 @@ resource "aws_ssm_parameter" "replicate_bucket_name_apse1" {
 }
 
 # Replicated Bucket ARN to ap-southeast-1
+#checkov:skip=CKV2_AWS_34:Bucket ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_arn_apse1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v
@@ -357,6 +365,7 @@ resource "aws_ssm_parameter" "replicate_bucket_arn_apse1" {
 }
 
 # Replicated Bucket Region to ap-southeast-1 (stores the SOURCE region, not target)
+#checkov:skip=CKV2_AWS_34:Region names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "replicate_bucket_region_apse1" {
   for_each = {
     for k, v in local.ssm_replicate_targets : k => v

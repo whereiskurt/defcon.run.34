@@ -398,9 +398,9 @@ resource "aws_glue_catalog_table" "cloudtrail" {
 # SSM Parameters for Query Templates
 # Store useful Athena queries for analyzing role activity
 # These are non-sensitive SQL query templates - encryption not required
-# checkov:skip=CKV2_AWS_34:Athena query templates are non-sensitive configuration data
 # =============================================================================
 
+#checkov:skip=CKV2_AWS_34:Athena query templates are non-sensitive SQL
 resource "aws_ssm_parameter" "athena_query_role_activity" {
   count = var.cloudtrail.enable_athena ? 1 : 0
 
@@ -434,6 +434,7 @@ EOT
   }
 }
 
+#checkov:skip=CKV2_AWS_34:Athena query templates are non-sensitive SQL
 resource "aws_ssm_parameter" "athena_query_unique_actions" {
   count = var.cloudtrail.enable_athena ? 1 : 0
 
@@ -471,6 +472,7 @@ EOT
   }
 }
 
+#checkov:skip=CKV2_AWS_34:Athena query templates are non-sensitive SQL
 resource "aws_ssm_parameter" "athena_query_denied_actions" {
   count = var.cloudtrail.enable_athena ? 1 : 0
 
@@ -503,6 +505,7 @@ EOT
   }
 }
 
+#checkov:skip=CKV2_AWS_34:Athena query templates are non-sensitive SQL
 resource "aws_ssm_parameter" "athena_query_github_summary" {
   count = var.cloudtrail.enable_athena ? 1 : 0
 

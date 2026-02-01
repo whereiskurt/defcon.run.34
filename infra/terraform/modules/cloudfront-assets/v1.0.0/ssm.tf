@@ -1,7 +1,6 @@
 # SSM Parameters for CloudFront Assets configuration
 # Parameters are stored in a hierarchical structure for easy lookup
 # These store non-sensitive bucket metadata (names, ARNs, domains) - encryption not required
-# checkov:skip=CKV2_AWS_34:Bucket names and ARNs are non-sensitive infrastructure metadata
 
 locals {
   ssm_prefixes = {
@@ -11,6 +10,7 @@ locals {
 }
 
 # Bucket name for each domain
+#checkov:skip=CKV2_AWS_34:Bucket names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "bucket_name" {
   for_each = local.domain_set
 
@@ -27,6 +27,7 @@ resource "aws_ssm_parameter" "bucket_name" {
 }
 
 # Bucket ARN for each domain
+#checkov:skip=CKV2_AWS_34:Bucket ARNs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "bucket_arn" {
   for_each = local.domain_set
 
@@ -43,6 +44,7 @@ resource "aws_ssm_parameter" "bucket_arn" {
 }
 
 # Bucket regional domain name for each domain
+#checkov:skip=CKV2_AWS_34:Domain names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "bucket_regional_domain_name" {
   for_each = local.domain_set
 
@@ -59,6 +61,7 @@ resource "aws_ssm_parameter" "bucket_regional_domain_name" {
 }
 
 # Bucket domain name for each domain
+#checkov:skip=CKV2_AWS_34:Domain names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "bucket_domain_name" {
   for_each = local.domain_set
 
@@ -75,6 +78,7 @@ resource "aws_ssm_parameter" "bucket_domain_name" {
 }
 
 # Region (full name) for each domain
+#checkov:skip=CKV2_AWS_34:Region names are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "region" {
   for_each = local.domain_set
 
@@ -91,6 +95,7 @@ resource "aws_ssm_parameter" "region" {
 }
 
 # S3 URL for each domain (s3:// format)
+#checkov:skip=CKV2_AWS_34:S3 URLs are non-sensitive infrastructure metadata
 resource "aws_ssm_parameter" "s3_url" {
   for_each = local.domain_set
 
