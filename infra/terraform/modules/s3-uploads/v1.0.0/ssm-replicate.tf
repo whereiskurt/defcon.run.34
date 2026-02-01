@@ -1,6 +1,11 @@
 # Cross-region SSM parameter replication
 # Replicates bucket credentials to other regions for services that need cross-region access
 # (e.g., Litestream workers in ca-central-1 accessing master bucket in us-east-1)
+#
+# Note: Cross-region SSM parameters use AWS-managed SSM key (alias/aws/ssm) instead of CMK.
+# Using CMK would require creating and managing KMS keys in each target region, which adds
+# significant complexity. The AWS-managed key provides encryption at rest.
+# checkov:skip=CKV_AWS_337:Cross-region SSM replication uses AWS-managed encryption - CMK would require multi-region KMS infrastructure
 
 # Build a map of all SSM replication targets
 # Format: { "cms-litestream:cac1" = { upload_name = "cms-litestream", region = { label = "cac1", full = "ca-central-1" } } }

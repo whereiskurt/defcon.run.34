@@ -83,6 +83,7 @@ resource "aws_ssm_parameter" "secret_access_key" {
   description = "IAM secret access key for DynamoDB user for ${each.key} in ${var.region.label}"
   type        = "SecureString"
   value       = each.value.secret
+  key_id      = aws_kms_key.ssm.arn
 
   tags = {
     Site      = var.site.label

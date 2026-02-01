@@ -9,6 +9,7 @@ resource "aws_ssm_parameter" "access_key_id" {
   description = "S3 presigner access key ID for ${each.key} in ${var.region.label}"
   type        = "SecureString"
   value       = aws_iam_access_key.presigner[each.key].id
+  key_id      = aws_kms_key.ssm.arn
 
   tags = {
     Name    = "uploads-${each.key}-access-key-id"
@@ -26,6 +27,7 @@ resource "aws_ssm_parameter" "secret_access_key" {
   description = "S3 presigner secret access key for ${each.key} in ${var.region.label}"
   type        = "SecureString"
   value       = aws_iam_access_key.presigner[each.key].secret
+  key_id      = aws_kms_key.ssm.arn
 
   tags = {
     Name    = "uploads-${each.key}-secret-access-key"
