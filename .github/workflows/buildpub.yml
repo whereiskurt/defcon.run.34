@@ -74,6 +74,18 @@ on:
 
 env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  # Terraform state backend configuration (required for deploy)
+  TG_BUCKET_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
+  TG_TABLE_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
+  TG_BUCKET_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
+  TG_TABLE_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
+  TG_BUCKET_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
+  TG_TABLE_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
+  SGUID: ${{ vars.SGUID }}
+  TF_VAR_MANAGEMENT_ACCOUNT_ID: ${{ vars.TF_VAR_MANAGEMENT_ACCOUNT_ID }}
+  TF_VAR_APPLICATION_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  TF_VAR_GITHUB_ORG: ${{ github.repository_owner }}
+  TF_VAR_SOPS_KMS_KEY_ID: ${{ vars.TF_VAR_SOPS_KMS_KEY_ID }}
 
 jobs:
   # ============================================================================
