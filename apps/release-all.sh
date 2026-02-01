@@ -517,11 +517,14 @@ if [[ "$RUN_TERRAGRUNT" == "true" ]]; then
     echo ""
     echo ">>> Deploying to ${_REGION_DISPLAY} (${_AWS_REGION}) <<<"
 
-    # Use run --all from region directory to properly handle dependency outputs
-    # This ensures ecs-service sees the new task definition ARNs from ecs-task
-    # Same approach as deploy.sh but scoped to the region directory
-    echo "  Applying ecs-task and ecs-service..."
-    (cd "${REGION_DIR}" && terragrunt run apply --all --non-interactive -- -auto-approve)
+    # Only apply ECS modules (not all infrastructure)
+    # ecs-task: registers new task definitions with updated image versions
+    # ecs-service: updates services to use the new task definitions
+    echo "  Applying ecs-task (register new task definitions)..."
+    (cd "${REGION_DIR}/ecs-task" && terragrunt apply --non-interactive -auto-approve)
+
+    echo "  Applying ecs-service (update services)..."
+    (cd "${REGION_DIR}/ecs-service" && terragrunt apply --non-interactive -auto-approve)
 
     echo "  Deploy complete for ${_REGION_DISPLAY}"
   done
