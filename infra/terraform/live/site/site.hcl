@@ -1183,10 +1183,14 @@ locals {
                   Effect = "Allow"
                   Action = [
                     "elasticloadbalancing:DescribeTargetGroups",
+                    "elasticloadbalancing:DescribeTargetGroupAttributes",
                     "elasticloadbalancing:DescribeLoadBalancers",
+                    "elasticloadbalancing:DescribeLoadBalancerAttributes",
                     "elasticloadbalancing:DescribeListeners",
+                    "elasticloadbalancing:DescribeListenerAttributes",
                     "elasticloadbalancing:DescribeRules",
-                    "elasticloadbalancing:DescribeTargetHealth"
+                    "elasticloadbalancing:DescribeTargetHealth",
+                    "elasticloadbalancing:DescribeTags"
                   ]
                   Resource = "*"
                 }
