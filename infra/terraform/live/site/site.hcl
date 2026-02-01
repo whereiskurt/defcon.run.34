@@ -1108,8 +1108,8 @@ locals {
                   Effect = "Allow"
                   Action = "iam:PassRole"
                   Resource = [
-                    "arn:aws:iam::*:role/dc34-*-task-*",
-                    "arn:aws:iam::*:role/dc34-*-execution-*"
+                    "arn:aws:iam::*:role/run-*-defcon-run-task-role",
+                    "arn:aws:iam::*:role/run-*-defcon-run-execution-role"
                   ]
                 },
                 {
@@ -1118,7 +1118,10 @@ locals {
                   Action = [
                     "iam:GetRole"
                   ]
-                  Resource = "arn:aws:iam::*:role/dc34-*"
+                  Resource = [
+                    "arn:aws:iam::*:role/run-*-defcon-run-*",
+                    "arn:aws:iam::*:role/dc34-*"
+                  ]
                 }
               ]
             })
