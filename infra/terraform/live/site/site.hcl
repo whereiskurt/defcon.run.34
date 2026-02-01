@@ -1099,7 +1099,7 @@ locals {
             })
           },
           {
-            name = "iam-pass-role"
+            name = "iam-ecs-roles"
             policy = jsonencode({
               Version = "2012-10-17"
               Statement = [
@@ -1113,10 +1113,14 @@ locals {
                   ]
                 },
                 {
-                  Sid    = "GetRole"
+                  Sid    = "IAMReadRoles"
                   Effect = "Allow"
                   Action = [
-                    "iam:GetRole"
+                    "iam:GetRole",
+                    "iam:ListRolePolicies",
+                    "iam:GetRolePolicy",
+                    "iam:ListAttachedRolePolicies",
+                    "iam:ListInstanceProfilesForRole"
                   ]
                   Resource = [
                     "arn:aws:iam::*:role/run-*-defcon-run-*",
