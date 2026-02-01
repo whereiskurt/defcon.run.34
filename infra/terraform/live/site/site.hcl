@@ -1073,6 +1073,72 @@ locals {
                 }
               ]
             })
+          },
+          {
+            name = "ecs-deploy"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "ECSFullDeploy"
+                  Effect = "Allow"
+                  Action = [
+                    "ecs:RegisterTaskDefinition",
+                    "ecs:DeregisterTaskDefinition",
+                    "ecs:DescribeTaskDefinition",
+                    "ecs:ListTaskDefinitions",
+                    "ecs:UpdateService",
+                    "ecs:DescribeServices",
+                    "ecs:DescribeClusters",
+                    "ecs:ListServices",
+                    "ecs:ListClusters"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
+          },
+          {
+            name = "iam-pass-role"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "PassTaskRole"
+                  Effect = "Allow"
+                  Action = "iam:PassRole"
+                  Resource = [
+                    "arn:aws:iam::*:role/dc34-*-task-*",
+                    "arn:aws:iam::*:role/dc34-*-execution-*"
+                  ]
+                },
+                {
+                  Sid    = "GetRole"
+                  Effect = "Allow"
+                  Action = [
+                    "iam:GetRole"
+                  ]
+                  Resource = "arn:aws:iam::*:role/dc34-*"
+                }
+              ]
+            })
+          },
+          {
+            name = "logs-read"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "LogsRead"
+                  Effect = "Allow"
+                  Action = [
+                    "logs:DescribeLogGroups",
+                    "logs:DescribeLogStreams"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
           }
         ]
       },

@@ -56,9 +56,18 @@ fi
 cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
 
 # Apply terraform to trigger ECS blue/green deployment
+# Only apply ECS modules (ecs-task then ecs-service) - not all infrastructure
 echo "=== Applying Terraform (triggering ECS deployment) ==="
-cd "${SCRIPT_DIR}/../infra/terraform/live/site"
-terragrunt run apply --all --non-interactive
+SITE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site"
+
+echo "--- Applying ecs-task (register new task definitions) ---"
+cd "${SITE_DIR}/ecs-task"
+terragrunt apply --non-interactive
+
+echo "--- Applying ecs-service (update services with new task definitions) ---"
+cd "${SITE_DIR}/ecs-service"
+terragrunt apply --non-interactive
+
 cd -
 
 echo "=== Deploy complete for ${APP} ==="
