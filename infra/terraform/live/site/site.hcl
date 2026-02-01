@@ -1152,6 +1152,26 @@ locals {
                 }
               ]
             })
+          },
+          {
+            name = "service-discovery"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "ServiceDiscoveryRead"
+                  Effect = "Allow"
+                  Action = [
+                    "servicediscovery:GetService",
+                    "servicediscovery:GetNamespace",
+                    "servicediscovery:ListServices",
+                    "servicediscovery:ListNamespaces",
+                    "servicediscovery:ListTagsForResource"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
           }
         ]
       },
