@@ -1,5 +1,7 @@
 # SSM Parameters for CloudFront Assets configuration
 # Parameters are stored in a hierarchical structure for easy lookup
+# These store non-sensitive bucket metadata (names, ARNs, domains) - encryption not required
+# checkov:skip=CKV2_AWS_34:Bucket names and ARNs are non-sensitive infrastructure metadata
 
 locals {
   ssm_prefixes = {

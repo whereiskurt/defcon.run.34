@@ -1,3 +1,8 @@
+# SSM Parameters for SES/Email configuration
+# String parameters store non-sensitive configuration (hostnames, addresses, bucket info)
+# SecureString parameters (SMTP credentials) use KMS encryption via kms.tf
+# checkov:skip=CKV2_AWS_34:Non-sensitive email config (hostnames, from addresses, bucket names)
+
 locals {
   ses = "${var.site.label}/ses"
 }
