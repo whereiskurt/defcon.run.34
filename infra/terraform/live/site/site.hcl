@@ -431,7 +431,7 @@ locals {
                 {
                   Sid      = "Core"
                   Effect   = "Allow"
-                  Action   = ["kms:Decrypt", "kms:DescribeKey", "sts:GetCallerIdentity"]
+                  Action   = ["kms:*", "sts:GetCallerIdentity"]
                   Resource = "*"
                 },
                 {
