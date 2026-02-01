@@ -34,7 +34,15 @@ variable "github_oidc" {
       # IAM permissions in this account
       policy_arns = optional(list(string), [])
 
+      # Inline policies (10KB combined limit per role - use managed_policies for larger needs)
       inline_policies = optional(list(object({
+        name   = string
+        policy = string
+      })), [])
+
+      # Customer-managed policies (6KB each, up to 20 per role)
+      # Use this when inline_policies exceed 10KB limit
+      managed_policies = optional(list(object({
         name   = string
         policy = string
       })), [])

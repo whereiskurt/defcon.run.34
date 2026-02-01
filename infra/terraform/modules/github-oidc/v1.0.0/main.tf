@@ -12,6 +12,7 @@ locals {
       description          = role.description
       policy_arns          = role.policy_arns
       inline_policies      = role.inline_policies
+      managed_policies     = role.managed_policies
       max_session_duration = role.max_session_duration
       cross_account_arns   = role.cross_account_arns
 
@@ -102,7 +103,7 @@ resource "aws_iam_role_policy_attachment" "managed_policies" {
   policy_arn = each.value.policy_arn
 }
 
-# Inline policies for roles
+# Inline policies for roles (10KB combined limit per role)
 resource "aws_iam_role_policy" "inline_policies" {
   for_each = {
     for pair in flatten([
@@ -120,6 +121,52 @@ resource "aws_iam_role_policy" "inline_policies" {
   name   = each.value.policy_name
   role   = aws_iam_role.github_role[each.value.role_name].id
   policy = each.value.policy
+}
+
+# Customer-managed policies (6KB each, up to 20 per role)
+# Use this when inline_policies exceed 10KB limit
+resource "aws_iam_policy" "managed_policies" {
+  for_each = {
+    for pair in flatten([
+      for role_name, role in local.roles_map : [
+        for policy in role.managed_policies : {
+          key         = "${role_name}-${policy.name}"
+          role_name   = role_name
+          policy_name = policy.name
+          policy      = policy.policy
+        }
+      ]
+    ]) : pair.key => pair
+  }
+
+  name        = "${var.site.label}-github-${each.value.role_name}-${each.value.policy_name}"
+  description = "Managed policy for ${var.site.label}-github-${each.value.role_name}"
+  policy      = each.value.policy
+
+  tags = {
+    Name      = "${var.site.label}-github-${each.value.role_name}-${each.value.policy_name}"
+    Site      = var.site.label
+    Role      = each.value.role_name
+    ManagedBy = "Terragrunt"
+  }
+}
+
+# Attach customer-managed policies to roles
+resource "aws_iam_role_policy_attachment" "managed_policy_attachments" {
+  for_each = {
+    for pair in flatten([
+      for role_name, role in local.roles_map : [
+        for policy in role.managed_policies : {
+          key        = "${role_name}-${policy.name}"
+          role_name  = role_name
+          policy_name = policy.name
+        }
+      ]
+    ]) : pair.key => pair
+  }
+
+  role       = aws_iam_role.github_role[each.value.role_name].name
+  policy_arn = aws_iam_policy.managed_policies[each.key].arn
 }
 
 # Cross-account assume role policies
