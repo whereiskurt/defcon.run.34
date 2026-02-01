@@ -67,6 +67,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "cloudtrail_logs" {
       storage_class = "GLACIER"
     }
   }
+
+  rule {
+    id     = "abort-incomplete-multipart-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "cloudtrail_logs" {
@@ -196,6 +205,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "athena_results" {
 
     expiration {
       days = 7
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete-multipart-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
     }
   }
 }

@@ -168,6 +168,11 @@ resource "aws_dynamodb_table" "this" {
     }
   }
 
+  # Point-in-time recovery
+  point_in_time_recovery {
+    enabled = true
+  }
+
   # Replica configuration for Global Tables v2
   dynamic "replica" {
     for_each = each.value.enable_global_table ? [

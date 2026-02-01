@@ -154,19 +154,19 @@ locals {
       {
         name            = "app"
         region          = "us-east-1"
-        enable_insights = false
+        enable_insights = true
         cluster_type    = "FARGATE"
       },
       {
         name            = "app"
         region          = "ca-central-1"
-        enable_insights = false
+        enable_insights = true
         cluster_type    = "FARGATE"
       },
       {
         name            = "app"
         region          = "ap-southeast-1"
-        enable_insights = false
+        enable_insights = true
         cluster_type    = "FARGATE"
       }
     ]

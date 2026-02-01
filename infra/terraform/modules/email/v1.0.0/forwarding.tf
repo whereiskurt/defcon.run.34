@@ -8,14 +8,19 @@ data "archive_file" "email_forwarder" {
 }
 
 resource "aws_lambda_function" "email_forwarder" {
-  count            = length(var.fwd_rules) > 0 ? 1 : 0
-  filename         = data.archive_file.email_forwarder[0].output_path
-  function_name    = "${var.site.label}-email-forwarder"
-  role             = aws_iam_role.email_forwarder[0].arn
-  handler          = "index.lambda_handler"
-  source_code_hash = data.archive_file.email_forwarder[0].output_base64sha256
-  runtime          = "python3.12"
-  timeout          = 60
+  count                          = length(var.fwd_rules) > 0 ? 1 : 0
+  filename                       = data.archive_file.email_forwarder[0].output_path
+  function_name                  = "${var.site.label}-email-forwarder"
+  role                           = aws_iam_role.email_forwarder[0].arn
+  handler                        = "index.lambda_handler"
+  source_code_hash               = data.archive_file.email_forwarder[0].output_base64sha256
+  runtime                        = "python3.12"
+  timeout                        = 60
+  reserved_concurrent_executions = 10
+
+  tracing_config {
+    mode = "Active"
+  }
 
   environment {
     variables = {

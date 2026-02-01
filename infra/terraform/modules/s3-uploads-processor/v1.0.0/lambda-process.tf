@@ -14,16 +14,21 @@ data "archive_file" "processor" {
 resource "aws_lambda_function" "processor" {
   for_each = local.processors_map
 
-  function_name = "processor-${var.site.label}-${each.key}-${var.region.label}"
-  role          = aws_iam_role.processor_lambda[each.key].arn
-  handler       = "index.handler"
-  runtime       = "python3.12"
+  function_name                  = "processor-${var.site.label}-${each.key}-${var.region.label}"
+  role                           = aws_iam_role.processor_lambda[each.key].arn
+  handler                        = "index.handler"
+  runtime                        = "python3.12"
+  reserved_concurrent_executions = 5
 
   filename         = data.archive_file.processor[each.key].output_path
   source_code_hash = data.archive_file.processor[each.key].output_base64sha256
 
   timeout     = try(each.value.on_process_lambda.timeout, 300)
   memory_size = try(each.value.on_process_lambda.memory_size, 1024)
+
+  tracing_config {
+    mode = "Active"
+  }
 
   environment {
     variables = {
