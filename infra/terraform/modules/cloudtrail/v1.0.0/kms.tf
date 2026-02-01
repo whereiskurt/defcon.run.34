@@ -78,4 +78,44 @@ data "aws_iam_policy_document" "kms_policy" {
     ]
     resources = ["*"]
   }
+
+  # Allow SNS to use the key for encrypting alert messages
+  statement {
+    sid    = "AllowSNSEncrypt"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["sns.amazonaws.com"]
+    }
+    actions = [
+      "kms:GenerateDataKey*",
+      "kms:Decrypt"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+  }
+
+  # Allow EventBridge to use the key for publishing to encrypted SNS
+  statement {
+    sid    = "AllowEventBridgeEncrypt"
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+    actions = [
+      "kms:GenerateDataKey*",
+      "kms:Decrypt"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:SourceAccount"
+      values   = [local.account_id]
+    }
+  }
 }
