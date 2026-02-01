@@ -1,9 +1,8 @@
 # =============================================================================
 # KMS Key for SSM Parameter Encryption
 # Creates a regional key for encrypting SSM SecureString parameters
+# Uses data.aws_caller_identity.current from main.tf
 # =============================================================================
-
-data "aws_caller_identity" "current" {}
 
 resource "aws_kms_key" "ssm" {
   description              = "${var.site.label} S3 Uploads SSM parameter encryption key - ${var.region.label}"
