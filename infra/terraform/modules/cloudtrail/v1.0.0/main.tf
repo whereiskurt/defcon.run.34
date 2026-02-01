@@ -138,6 +138,9 @@ resource "aws_cloudtrail" "main" {
   is_multi_region_trail         = var.cloudtrail.multi_region
   enable_logging                = true
 
+  # KMS encryption for logs
+  kms_key_id = var.cloudtrail.enable_kms_encryption ? aws_kms_key.cloudtrail[0].arn : null
+
   # Enable log file validation for integrity checking
   enable_log_file_validation = true
 

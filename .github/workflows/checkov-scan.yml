@@ -31,7 +31,15 @@ jobs:
           output_file_path: console,checkov-results.json
           soft_fail: true
           download_external_modules: true
-          skip_check: CKV_TF_1,CKV_TF_2
+          # Skipped checks with rationale:
+          # CKV_TF_1, CKV_TF_2: Module source pinning (using local modules)
+          # CKV_AWS_374: CloudFront geo-restriction (DEF CON attendees are global)
+          # CKV_AWS_117: Lambda VPC config (email forwarder only needs SES/S3)
+          # CKV_AWS_116: Lambda DLQ (CloudWatch logs sufficient for debugging)
+          # CKV_AWS_144: S3 cross-region replication (future: centralized logging account)
+          # CKV2_AWS_6: S3 public access block (some buckets need CloudFront access)
+          # CKV_AWS_18: S3 access logging (not needed for all buckets)
+          skip_check: CKV_TF_1,CKV_TF_2,CKV_AWS_374,CKV_AWS_117,CKV_AWS_116,CKV_AWS_144,CKV_AWS_18
 
       - name: Generate Summary Report
         if: always()

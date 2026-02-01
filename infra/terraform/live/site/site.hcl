@@ -366,6 +366,13 @@ locals {
     # Athena enables SQL queries on CloudTrail logs
     enable_athena = true
 
+    # KMS encryption for CloudTrail logs
+    enable_kms_encryption = true
+
+    # Security + cost alerts via email
+    enable_alerts = true
+    alert_email   = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
+
     # GitHub OIDC roles to monitor (all roles by default)
     monitor_roles = [
       "terragrunt",
