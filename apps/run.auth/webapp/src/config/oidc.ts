@@ -8,6 +8,7 @@ import { config } from "@/config";
  * Each client represents an application that can authenticate users via auth.defcon.run
  *
  * Redirect URIs include both regional prefixes (use1, cac1) to support multi-region deployments
+ * SECURITY: Localhost URIs are only included in development mode to prevent local interception attacks
  */
 const clients: ClientMetadata[] = [
   // run.human webapp client
@@ -21,22 +22,25 @@ const clients: ClientMetadata[] = [
       // Production regional URLs (kept for backwards compatibility)
       "https://run.defcon.run/use1/api/auth/callback/run.defcon.run",
       "https://run.defcon.run/cac1/api/auth/callback/run.defcon.run",
-
       "https://auth.defcon.run/use1/api/auth/callback/run.defcon.run",
       "https://auth.defcon.run/cac1/api/auth/callback/run.defcon.run",
-      // Local development
-      "http://localhost:3000/api/auth/callback/run.defcon.run",
-      "http://localhost:3001/api/auth/callback/run.defcon.run",
-      "http://localhost:3002/api/auth/callback/run.defcon.run",
-      "https://localhost/api/auth/callback/run.defcon.run",
+      // Local development (only in dev mode)
+      ...(config.isDev ? [
+        "http://localhost:3000/api/auth/callback/run.defcon.run",
+        "http://localhost:3001/api/auth/callback/run.defcon.run",
+        "http://localhost:3002/api/auth/callback/run.defcon.run",
+        "https://localhost/api/auth/callback/run.defcon.run",
+      ] : []),
     ],
     post_logout_redirect_uris: [
       // Production regional URLs
       "https://run.defcon.run/use1",
       "https://run.defcon.run/cac1",
-      // Local development
-      "http://localhost:3001/",
-      "http://localhost:3002",
+      // Local development (only in dev mode)
+      ...(config.isDev ? [
+        "http://localhost:3001/",
+        "http://localhost:3002",
+      ] : []),
     ],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
@@ -51,17 +55,21 @@ const clients: ClientMetadata[] = [
       // Production URLs for strapi-plugin-sso callback (regional prefixes)
       "https://cms.defcon.run/use1/strapi-plugin-sso/oidc/callback",
       "https://cms.defcon.run/cac1/strapi-plugin-sso/oidc/callback",
-      // Local development
-      "http://localhost:1337/strapi-plugin-sso/oidc/callback",
-      "http://localhost:1337/use1/strapi-plugin-sso/oidc/callback",
+      // Local development (only in dev mode)
+      ...(config.isDev ? [
+        "http://localhost:1337/strapi-plugin-sso/oidc/callback",
+        "http://localhost:1337/use1/strapi-plugin-sso/oidc/callback",
+      ] : []),
     ],
     post_logout_redirect_uris: [
       // Production regional URLs
       "https://cms.defcon.run/use1/admin",
       "https://cms.defcon.run/cac1/admin",
-      // Local development
-      "http://localhost:1337/admin",
-      "http://localhost:1337/use1/admin",
+      // Local development (only in dev mode)
+      ...(config.isDev ? [
+        "http://localhost:1337/admin",
+        "http://localhost:1337/use1/admin",
+      ] : []),
     ],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
@@ -78,15 +86,19 @@ const clients: ClientMetadata[] = [
       "https://gpx.defcon.run/api/auth/callback/run.defcon.run",
       "https://gpx.defcon.run/use1/api/auth/callback/run.defcon.run",
       "https://gpx.defcon.run/cac1/api/auth/callback/run.defcon.run",
-      // Local development
-      "http://localhost:3003/api/auth/callback/run.defcon.run",
+      // Local development (only in dev mode)
+      ...(config.isDev ? [
+        "http://localhost:3003/api/auth/callback/run.defcon.run",
+      ] : []),
     ],
     post_logout_redirect_uris: [
       // Production - both regions
       "https://gpx.defcon.run/use1",
       "https://gpx.defcon.run/cac1",
-      // Local development
-      "http://localhost:3003",
+      // Local development (only in dev mode)
+      ...(config.isDev ? [
+        "http://localhost:3003",
+      ] : []),
     ],
     grant_types: ["authorization_code", "refresh_token"],
     response_types: ["code"],
@@ -297,8 +309,19 @@ const configuration: Configuration = {
   },
 
   renderError: async (ctx, out, error) => {
-    console.error("OIDC Error:", error);
+    // Generate a request ID for correlation between user-facing error and server logs
+    const requestId = crypto.randomUUID().slice(0, 8);
+
+    // Log detailed error server-side with request ID for debugging
+    console.error(`[OIDC Error ${requestId}]`, {
+      error: out.error,
+      error_description: out.error_description,
+      details: error,
+    });
+
     ctx.type = "html";
+    // SECURITY: Return generic error message to users to prevent information disclosure
+    // Detailed errors are logged server-side with request ID for debugging
     ctx.body = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -323,6 +346,7 @@ const configuration: Configuration = {
     }
     h1 { color: #ef4444; margin-bottom: 1rem; }
     p { color: #a1a1aa; margin-bottom: 1.5rem; }
+    .ref { color: #52525b; font-size: 0.75rem; margin-top: 1rem; }
     a {
       color: #3b82f6;
       text-decoration: none;
@@ -332,27 +356,21 @@ const configuration: Configuration = {
       display: inline-block;
     }
     a:hover { background: #3b82f6; color: #fff; }
-    code {
-      background: #1f1f1f;
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.25rem;
-      font-size: 0.875rem;
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Authentication Error</h1>
-    <p><code>${out.error}</code></p>
-    <p>${out.error_description || "An error occurred during authentication."}</p>
+    <p>An error occurred during authentication. Please try again.</p>
     <a href="${config.urls.loginPage}">Try Again</a>
+    <p class="ref">Reference: ${requestId}</p>
   </div>
 </body>
 </html>`;
   },
 
   pkce: {
-    required: () => false,
+    required: () => true,
   },
 
   rotateRefreshToken: true,
