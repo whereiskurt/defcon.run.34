@@ -15,6 +15,15 @@ exclude {
   actions = ["all"]
 }
 
+# Ensure IAM policy is updated before S3 bucket operations
+dependency "github_oidc" {
+  config_path  = "${dirname(find_in_parent_folders("site.hcl"))}/global/github-oidc"
+  skip_outputs = true
+
+  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs = {}
+}
+
 dependency "site" {
   config_path = dirname(find_in_parent_folders("site.hcl"))
 
