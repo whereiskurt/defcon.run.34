@@ -52,10 +52,9 @@ on:
         description: 'EC2 market type (for EC2 runners)'
         type: choice
         options:
-          - on-demand
           - spot
-          - spot-with-fallback
-        default: spot-with-fallback
+          - on-demand
+        default: spot
       parallel:
         description: 'Build apps in parallel'
         type: boolean
@@ -109,16 +108,14 @@ jobs:
           driver-opts: |
             image=moby/buildkit:latest
 
-      - name: Install Terraform
-        if: inputs.deploy
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.14"
-          terraform_wrapper: false
-
-      - name: Install Terragrunt and SOPS
+      - name: Install Terraform, Terragrunt, and SOPS
         if: inputs.deploy
         run: |
+          # Install Terraform (directly to /usr/local/bin for reliable PATH)
+          curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
+          unzip -q /tmp/terraform.zip -d /tmp
+          sudo mv /tmp/terraform /usr/local/bin/terraform
+          terraform --version
           # Install Terragrunt
           curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
           chmod +x /tmp/terragrunt
@@ -294,6 +291,7 @@ jobs:
           github-token: ${{ secrets.GH_RUNNER_TOKEN }}
           ec2-image-id: ${{ steps.ami.outputs.ami_id }}
           ec2-instance-type: ${{ inputs.ec2_instance_type }}
+          market-type: ${{ inputs.ec2_market_type }}
           subnet-id: ${{ steps.vpc.outputs.subnet_id }}
           security-group-id: ${{ steps.vpc.outputs.security_group_id }}
           iam-role-name: dc34-github-runner
@@ -336,6 +334,7 @@ jobs:
           echo "**Instance ID:** ${{ steps.start-runner.outputs.ec2-instance-id }}" >> $GITHUB_STEP_SUMMARY
           echo "**Runner Label:** ${{ steps.start-runner.outputs.label }}" >> $GITHUB_STEP_SUMMARY
           echo "**Instance Type:** ${{ inputs.ec2_instance_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Market Type:** ${{ inputs.ec2_market_type }}" >> $GITHUB_STEP_SUMMARY
           echo "**Keep Alive:** ${{ inputs.runner == 'ec2-start-and-keep' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [[ "${{ inputs.runner }}" == "ec2-start-and-keep" ]]; then
@@ -425,7 +424,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
           echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Runner:** Self-hosted EC2 (${{ inputs.ec2_instance_type }})" >> $GITHUB_STEP_SUMMARY
+          echo "**Runner:** Self-hosted EC2 (${{ inputs.ec2_instance_type }}, ${{ inputs.ec2_market_type }})" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
           echo "**Deploy:** ${{ inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
