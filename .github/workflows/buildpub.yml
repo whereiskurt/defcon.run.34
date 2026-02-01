@@ -116,13 +116,19 @@ jobs:
           terraform_version: "1.14"
           terraform_wrapper: false
 
-      - name: Install Terragrunt
+      - name: Install Terragrunt and SOPS
         if: inputs.deploy
         run: |
+          # Install Terragrunt
           curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
           chmod +x /tmp/terragrunt
           sudo mv /tmp/terragrunt /usr/local/bin/terragrunt
           terragrunt --version
+          # Install SOPS (required for decrypting secrets in terragrunt)
+          curl -sL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
+          chmod +x /tmp/sops
+          sudo mv /tmp/sops /usr/local/bin/sops
+          sops --version
 
       - name: Login to ECR (us-east-1)
         if: contains(inputs.regions, 'use1')
@@ -319,6 +325,9 @@ jobs:
             # Install Terragrunt (for deploy option)
             curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
             chmod +x /tmp/terragrunt && sudo mv /tmp/terragrunt /usr/local/bin/
+            # Install SOPS (for decrypting secrets in terragrunt)
+            curl -sL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
+            chmod +x /tmp/sops && sudo mv /tmp/sops /usr/local/bin/
 
       - name: Output Runner Info
         run: |
@@ -447,7 +456,7 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
           aws-region: us-east-1
 
-      - name: Install Terraform and Terragrunt
+      - name: Install Terraform, Terragrunt, and SOPS
         if: inputs.deploy
         run: |
           # Install Terraform if not present
@@ -460,8 +469,14 @@ jobs:
             curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
             chmod +x /tmp/terragrunt && sudo mv /tmp/terragrunt /usr/local/bin/
           fi
+          # Install SOPS if not present (for decrypting secrets in terragrunt)
+          if ! command -v sops &> /dev/null; then
+            curl -sL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
+            chmod +x /tmp/sops && sudo mv /tmp/sops /usr/local/bin/
+          fi
           terraform --version
           terragrunt --version
+          sops --version
 
       - name: Login to ECR (us-east-1)
         if: contains(inputs.regions, 'use1')
