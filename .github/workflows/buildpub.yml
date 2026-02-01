@@ -366,6 +366,28 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
           aws-region: us-east-1
 
+      - name: Install Terraform, Terragrunt, and SOPS
+        if: inputs.deploy
+        run: |
+          # Install Terraform if not present
+          if ! command -v terraform &> /dev/null; then
+            curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
+            unzip -q /tmp/terraform.zip -d /tmp && sudo mv /tmp/terraform /usr/local/bin/
+          fi
+          # Install Terragrunt if not present
+          if ! command -v terragrunt &> /dev/null; then
+            curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
+            chmod +x /tmp/terragrunt && sudo mv /tmp/terragrunt /usr/local/bin/
+          fi
+          # Install SOPS if not present
+          if ! command -v sops &> /dev/null; then
+            curl -sL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
+            chmod +x /tmp/sops && sudo mv /tmp/sops /usr/local/bin/
+          fi
+          terraform --version
+          terragrunt --version
+          sops --version
+
       - name: Login to ECR (us-east-1)
         if: contains(inputs.regions, 'use1')
         run: |
