@@ -1172,6 +1172,26 @@ locals {
                 }
               ]
             })
+          },
+          {
+            name = "elb-read"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "ELBRead"
+                  Effect = "Allow"
+                  Action = [
+                    "elasticloadbalancing:DescribeTargetGroups",
+                    "elasticloadbalancing:DescribeLoadBalancers",
+                    "elasticloadbalancing:DescribeListeners",
+                    "elasticloadbalancing:DescribeRules",
+                    "elasticloadbalancing:DescribeTargetHealth"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
           }
         ]
       },
