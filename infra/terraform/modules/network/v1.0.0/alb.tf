@@ -83,6 +83,41 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "alb_log_bucket_en
   }
 }
 
+# Block public access to ALB log bucket
+resource "aws_s3_bucket_public_access_block" "alb_log_bucket" {
+  count  = var.alb.enabled ? 1 : 0
+  bucket = aws_s3_bucket.alb_log_bucket[0].id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Lifecycle configuration for ALB log bucket
+resource "aws_s3_bucket_lifecycle_configuration" "alb_log_bucket" {
+  count  = var.alb.enabled ? 1 : 0
+  bucket = aws_s3_bucket.alb_log_bucket[0].id
+
+  rule {
+    id     = "expire-old-logs"
+    status = "Enabled"
+
+    expiration {
+      days = 90
+    }
+  }
+
+  rule {
+    id     = "abort-incomplete-multipart-uploads"
+    status = "Enabled"
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+}
+
 # Use the recommended service principal for ALB access logging
 # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/enable-access-logging.html
 resource "aws_s3_bucket_policy" "alb_log_bucket_policy" {

@@ -112,6 +112,7 @@ resource "aws_security_group" "postgres" {
   vpc_id      = aws_vpc.vpc.id
 
   ingress {
+    description     = "PostgreSQL port from HTTP and HTTPS security groups"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
@@ -120,6 +121,7 @@ resource "aws_security_group" "postgres" {
   }
 
   egress {
+    description = "Allow all outbound traffic for database updates and replication"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -141,6 +143,7 @@ resource "aws_security_group" "etherpad" {
   vpc_id      = aws_vpc.vpc.id
 
   ingress {
+    description     = "Etherpad port from HTTP and HTTPS security groups"
     from_port       = 9001
     to_port         = 9001
     protocol        = "tcp"
@@ -149,6 +152,7 @@ resource "aws_security_group" "etherpad" {
   }
 
   egress {
+    description = "Allow all outbound traffic for Etherpad dependencies"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -228,6 +232,7 @@ resource "aws_security_group" "nlb" {
   ]
 
   egress {
+    description = "Allow all outbound traffic for MQTT broker"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"

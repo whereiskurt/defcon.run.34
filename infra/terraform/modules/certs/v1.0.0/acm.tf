@@ -18,6 +18,10 @@ resource "aws_acm_certificate" "primary_zone_cert" {
     for subdomain in concat(["*"], ["${var.region.label}"], ["*.${var.region.label}"], var.dns.subdomains) :
     "${subdomain}.${var.dns.zonename}"
   ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Create ACM certificates for each subdomain
@@ -27,6 +31,10 @@ resource "aws_acm_certificate" "subdomain_certs" {
   validation_method         = "DNS"
   domain_name               = "${each.key}.${var.dns.zonename}"
   subject_alternative_names = ["*.${each.key}.${var.dns.zonename}"]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Create Route 53 validation records for primary zone certificate

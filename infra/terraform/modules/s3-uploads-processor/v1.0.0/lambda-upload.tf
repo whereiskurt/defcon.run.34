@@ -14,16 +14,21 @@ data "archive_file" "on_upload" {
 resource "aws_lambda_function" "on_upload" {
   for_each = local.processors_map
 
-  function_name = "on-upload-${var.site.label}-${each.key}-${var.region.label}"
-  role          = aws_iam_role.on_upload_lambda[each.key].arn
-  handler       = "index.handler"
-  runtime       = "python3.12"
+  function_name                  = "on-upload-${var.site.label}-${each.key}-${var.region.label}"
+  role                           = aws_iam_role.on_upload_lambda[each.key].arn
+  handler                        = "index.handler"
+  runtime                        = "python3.12"
+  reserved_concurrent_executions = 10
 
   filename         = data.archive_file.on_upload[each.key].output_path
   source_code_hash = data.archive_file.on_upload[each.key].output_base64sha256
 
   timeout     = try(each.value.on_upload_lambda.timeout, 30)
   memory_size = try(each.value.on_upload_lambda.memory_size, 256)
+
+  tracing_config {
+    mode = "Active"
+  }
 
   environment {
     variables = {

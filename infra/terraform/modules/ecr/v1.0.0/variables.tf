@@ -26,10 +26,10 @@ variable "dns" {
 variable "ecr" {
   type = list(object({
     name                 = string
-    regions              = list(string)  # List of regions to create this repository in
-    image_tag_mutability = optional(string, "MUTABLE") # MUTABLE or IMMUTABLE
-    scan_on_push         = optional(bool, true)
-    encryption_type      = optional(string, "AES256") # AES256 or KMS
+    regions              = list(string)                  # List of regions to create this repository in
+    image_tag_mutability = optional(string, "IMMUTABLE") # IMMUTABLE (recommended) or MUTABLE
+    scan_on_push         = optional(bool, true)          # Scan images for vulnerabilities on push
+    encryption_type      = optional(string, "AES256")    # AES256 or KMS
     kms_key              = optional(string, "")
 
     lifecycle_policy = optional(object({
