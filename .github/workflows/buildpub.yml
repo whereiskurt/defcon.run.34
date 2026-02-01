@@ -109,6 +109,21 @@ jobs:
           driver-opts: |
             image=moby/buildkit:latest
 
+      - name: Install Terraform
+        if: inputs.deploy
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14"
+          terraform_wrapper: false
+
+      - name: Install Terragrunt
+        if: inputs.deploy
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
+          chmod +x /tmp/terragrunt
+          sudo mv /tmp/terragrunt /usr/local/bin/terragrunt
+          terragrunt --version
+
       - name: Login to ECR (us-east-1)
         if: contains(inputs.regions, 'use1')
         run: |
@@ -298,6 +313,12 @@ jobs:
             mkdir -p /usr/local/lib/docker/cli-plugins
             curl -sLo /usr/local/lib/docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-amd64
             chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+            # Install Terraform (for deploy option)
+            curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
+            unzip -q /tmp/terraform.zip -d /tmp && sudo mv /tmp/terraform /usr/local/bin/
+            # Install Terragrunt (for deploy option)
+            curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
+            chmod +x /tmp/terragrunt && sudo mv /tmp/terragrunt /usr/local/bin/
 
       - name: Output Runner Info
         run: |
@@ -425,6 +446,22 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
           aws-region: us-east-1
+
+      - name: Install Terraform and Terragrunt
+        if: inputs.deploy
+        run: |
+          # Install Terraform if not present
+          if ! command -v terraform &> /dev/null; then
+            curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
+            unzip -q /tmp/terraform.zip -d /tmp && sudo mv /tmp/terraform /usr/local/bin/
+          fi
+          # Install Terragrunt if not present
+          if ! command -v terragrunt &> /dev/null; then
+            curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
+            chmod +x /tmp/terragrunt && sudo mv /tmp/terragrunt /usr/local/bin/
+          fi
+          terraform --version
+          terragrunt --version
 
       - name: Login to ECR (us-east-1)
         if: contains(inputs.regions, 'use1')
