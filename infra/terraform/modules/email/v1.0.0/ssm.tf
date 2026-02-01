@@ -72,6 +72,7 @@ resource "aws_ssm_parameter" "smtp_credential_username" {
   name     = "/${local.ses}/smtp/${local.smtp_user_paths[each.value].path}/username"
   type     = "SecureString"
   value    = aws_iam_access_key.smtp_credential_keys[each.key].id
+  key_id   = aws_kms_key.ssm.arn
   tags = {
     Email = each.value
   }
@@ -82,6 +83,7 @@ resource "aws_ssm_parameter" "smtp_credential_password" {
   name     = "/${local.ses}/smtp/${local.smtp_user_paths[each.value].path}/password"
   type     = "SecureString"
   value    = aws_iam_access_key.smtp_credential_keys[each.key].ses_smtp_password_v4
+  key_id   = aws_kms_key.ssm.arn
   tags = {
     Email = each.value
   }
@@ -93,7 +95,8 @@ resource "aws_ssm_parameter" "smtp_credential_url" {
   type     = "SecureString"
   ##The replace is necessary because an IAM access key ID cannot contain slashes
   ##Slashes aren't URL friendly. Other chars like + are handled fine by most URL parsers but the '/' is not.
-  value = "smtp://${aws_iam_access_key.smtp_credential_keys[each.key].id}:${replace(aws_iam_access_key.smtp_credential_keys[each.key].ses_smtp_password_v4, "/", "%2F")}@email-smtp.${var.region.full}.amazonaws.com:587"
+  value  = "smtp://${aws_iam_access_key.smtp_credential_keys[each.key].id}:${replace(aws_iam_access_key.smtp_credential_keys[each.key].ses_smtp_password_v4, "/", "%2F")}@email-smtp.${var.region.full}.amazonaws.com:587"
+  key_id = aws_kms_key.ssm.arn
   tags = {
     Email = each.value
   }
