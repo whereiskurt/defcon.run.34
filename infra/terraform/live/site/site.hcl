@@ -1196,6 +1196,24 @@ locals {
                 }
               ]
             })
+          },
+          {
+            name = "autoscaling-read"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "AutoScalingRead"
+                  Effect = "Allow"
+                  Action = [
+                    "application-autoscaling:DescribeScalableTargets",
+                    "application-autoscaling:DescribeScalingPolicies",
+                    "application-autoscaling:DescribeScheduledActions"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
           }
         ]
       },
