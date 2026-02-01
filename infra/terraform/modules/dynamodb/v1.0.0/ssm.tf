@@ -1,5 +1,8 @@
 # SSM Parameters for DynamoDB configuration
 # Parameters are stored in a hierarchical structure for easy lookup
+# String parameters store non-sensitive metadata (table names, ARNs, regions)
+# SecureString parameters (secret keys) use KMS encryption via kms.tf
+# checkov:skip=CKV2_AWS_34:Table names, ARNs, and regions are non-sensitive infrastructure metadata
 
 locals {
   ssm_prefixes = {

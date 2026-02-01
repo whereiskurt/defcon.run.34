@@ -1,5 +1,8 @@
 # SSM Parameters for presigner credentials and bucket info
 # Following the pattern from dynamodb and email modules
+# String parameters store non-sensitive metadata (bucket names, ARNs, regions)
+# SecureString parameters (access keys) use KMS encryption via kms.tf
+# checkov:skip=CKV2_AWS_34:Bucket names, ARNs, and regions are non-sensitive infrastructure metadata
 
 # Access Key ID
 resource "aws_ssm_parameter" "access_key_id" {

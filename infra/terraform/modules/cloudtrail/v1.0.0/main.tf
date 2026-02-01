@@ -397,6 +397,8 @@ resource "aws_glue_catalog_table" "cloudtrail" {
 # =============================================================================
 # SSM Parameters for Query Templates
 # Store useful Athena queries for analyzing role activity
+# These are non-sensitive SQL query templates - encryption not required
+# checkov:skip=CKV2_AWS_34:Athena query templates are non-sensitive configuration data
 # =============================================================================
 
 resource "aws_ssm_parameter" "athena_query_role_activity" {

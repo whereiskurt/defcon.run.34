@@ -6,6 +6,7 @@
 # Using CMK would require creating and managing KMS keys in each target region, which adds
 # significant complexity. The AWS-managed key provides encryption at rest.
 # checkov:skip=CKV_AWS_337:Cross-region SSM replication uses AWS-managed encryption - CMK would require multi-region KMS infrastructure
+# checkov:skip=CKV2_AWS_34:Bucket names, ARNs, and regions are non-sensitive infrastructure metadata
 
 # Build a map of all SSM replication targets
 # Format: { "cms-litestream:cac1" = { upload_name = "cms-litestream", region = { label = "cac1", full = "ca-central-1" } } }
