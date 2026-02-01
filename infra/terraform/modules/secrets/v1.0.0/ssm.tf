@@ -9,6 +9,7 @@ resource "aws_ssm_parameter" "secret" {
   description = "${each.value.description} - ${each.value.key}"
   type        = "SecureString"
   value       = each.value.value
+  key_id      = aws_kms_key.ssm.arn
 
   tags = {
     Site       = var.site.label

@@ -61,6 +61,18 @@ output "ecs_secret_refs" {
   }
 }
 
+# KMS key ARN for SSM parameter encryption
+output "kms_key_arn" {
+  description = "ARN of the KMS key used for SSM parameter encryption"
+  value       = aws_kms_key.ssm.arn
+}
+
+# KMS key alias for SSM parameter encryption
+output "kms_key_alias" {
+  description = "Alias of the KMS key used for SSM parameter encryption"
+  value       = aws_kms_alias.ssm.name
+}
+
 # Summary output for debugging
 output "summary" {
   description = "Summary of created secrets"
@@ -71,5 +83,6 @@ output "summary" {
     ssm_count         = length(aws_ssm_parameter.secret)
     sm_count          = length(aws_secretsmanager_secret.secret)
     replica_regions   = var.secrets.use_secrets_manager ? [for r in var.secrets.replica_regions : r.full] : []
+    kms_key_arn       = aws_kms_key.ssm.arn
   }
 }

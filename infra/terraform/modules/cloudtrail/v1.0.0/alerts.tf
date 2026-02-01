@@ -7,7 +7,8 @@
 resource "aws_sns_topic" "cloudtrail_alerts" {
   count = var.cloudtrail.enable_alerts ? 1 : 0
 
-  name = "${var.site.label}-cloudtrail-alerts"
+  name              = "${var.site.label}-cloudtrail-alerts"
+  kms_master_key_id = var.cloudtrail.enable_kms_encryption ? aws_kms_key.cloudtrail[0].arn : null
 
   tags = {
     Name      = "${var.site.label}-cloudtrail-alerts"
