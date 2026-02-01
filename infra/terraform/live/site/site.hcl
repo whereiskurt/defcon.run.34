@@ -1215,6 +1215,23 @@ locals {
                 }
               ]
             })
+          },
+          {
+            name = "cloudwatch-read"
+            policy = jsonencode({
+              Version = "2012-10-17"
+              Statement = [
+                {
+                  Sid    = "CloudWatchRead"
+                  Effect = "Allow"
+                  Action = [
+                    "cloudwatch:DescribeAlarms",
+                    "cloudwatch:ListTagsForResource"
+                  ]
+                  Resource = "*"
+                }
+              ]
+            })
           }
         ]
       },
