@@ -4,9 +4,13 @@
 
 This is a hobby fun project where we experiment with modern cloud architecture, AI-assisted workflows, and full-stack tech — while building something real: a 4-day running event at **DEF CON 34** in Las Vegas.
 
-There's A LOT of AWS and development workflow magic in this repo that I'm happy to share. 🏃‍♂️ Multi-region active-active deployments, SQLite WAL streaming to S3, embedding open-source SvelteKit apps in Next.js, and a suite of AI development tools for parallel Claude coordination. I learned a ton building this — hopefully it's useful to others!
+There's A LOT of AWS and development workflow magic in this repo that I'm happy to share. 🏃‍♂️ Multi-region active-active deployments, SQLite WAL streaming to S3, embedding open-source SvelteKit apps in Next.js, and a suite of AI development tools for parallel Claude coordination. I learned a ton building this — hopefully it's useful to others.
 
+### Last Year's Architecture
+This was [last year's architecture](https://github.com/whereiskurt/defcon.run.33/) and the basis for this years: 
 ![Architecture Overview](https://github.com/user-attachments/assets/0f631149-7046-43f2-9890-5fd04b23762d)
+
+TODO: Redraw this diagram w/ `claude`. :-)
 
 ## Motivation
 
