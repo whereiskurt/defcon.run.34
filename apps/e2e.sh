@@ -14,8 +14,12 @@
 #   ./e2e.sh --slow       # Run headed with slow-mo (500ms between actions)
 #   ./e2e.sh --auth       # Only run auth tests
 #   ./e2e.sh --gpx        # Only run gpx tests (assumes auth done)
-#   ./e2e.sh --clean      # Clean up all test data
+#   ./e2e.sh --clean      # Clean up all test data (cookie jars only)
 #   ./e2e.sh --status     # Check status of services and sessions
+#
+# DynamoDB cleanup (use with --setup):
+#   ./e2e.sh --setup --clean       # Clean DynamoDB + create fresh sessions
+#   ./e2e.sh --prod --setup --clean  # Same for production
 #
 # Flags can be combined:
 #   ./e2e.sh --prod --headed      # Run against production with visible browser
@@ -268,7 +272,7 @@ run_auth_tests() {
 
         (
             cd "$AUTH_E2E_DIR"
-            TEST_USER_ROLE="$role" BASE_URL="$AUTH_URL" npx playwright test $headed_flag --grep "should complete full login" 2>&1 | tail -25
+            TEST_USER_ROLE="$role" BASE_URL="$AUTH_URL" npx playwright test setup/acquire-credentials.spec.ts $headed_flag 2>&1 | tail -50
         ) || {
             log_error "Failed to create session for $role"
             exit 1
@@ -343,6 +347,33 @@ clean_up() {
 }
 
 # ============================================================================
+# DynamoDB Cleanup (for --setup --clean)
+# ============================================================================
+
+cleanup_dynamodb() {
+    log_section "Cleaning Up DynamoDB Test Data"
+
+    log_info "Running DynamoDB cleanup for test accounts..."
+    log_info "Tables: run-auth-authjs, run-auth-electro, run-quota-electro, run-gpx-electro"
+    echo ""
+
+    (
+        cd "$AUTH_E2E_DIR"
+        CLEANUP_EXECUTE=true npx playwright test setup/cleanup-test-users.spec.ts --reporter=line 2>&1
+    ) || {
+        log_warn "DynamoDB cleanup had errors, but continuing..."
+    }
+
+    log_success "DynamoDB cleanup complete"
+
+    # Also clear cookie jars since we're starting fresh
+    log_info "Clearing cookie jars..."
+    rm -f "$AUTH_E2E_DIR/.auth/"cookies*.json 2>/dev/null || true
+    rm -f "$GPX_E2E_DIR/.auth/"cookies*.json 2>/dev/null || true
+    log_success "Cookie jars cleared"
+}
+
+# ============================================================================
 # Main Commands
 # ============================================================================
 
@@ -356,8 +387,15 @@ run_all() {
 }
 
 run_setup() {
+    local clean=$1
     check_prerequisites
     install_deps
+
+    # Run DynamoDB cleanup if --clean flag was provided
+    if [ "$clean" = "true" ]; then
+        cleanup_dynamodb
+    fi
+
     run_auth_tests "false"
     log_success "Setup complete - sessions created for all roles"
 }
@@ -371,23 +409,26 @@ show_help() {
     echo "  --prod      Use production URLs (auth.defcon.run, gpx.defcon.run)"
     echo "  --headed    Run with visible browser"
     echo "  --slow      Run headed with slow-mo (500ms delay between actions)"
+    echo "  --clean     Clean DynamoDB test data (use with --setup)"
     echo ""
     echo "Commands:"
     echo "  (none)      Run all e2e tests (auth + gpx)"
     echo "  --setup     Create auth sessions only"
     echo "  --auth      Run auth tests only"
     echo "  --gpx       Run gpx tests only (assumes sessions exist)"
-    echo "  --clean     Clean up test data and sessions"
     echo "  --status    Check status of services and sessions"
     echo "  --help      Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0                      # Run full suite against localhost"
-    echo "  $0 --prod               # Run full suite against production"
-    echo "  $0 --prod --headed      # Run against production with visible browser"
-    echo "  $0 --prod --gpx --slow  # Run GPX tests against production slowly"
-    echo "  $0 --setup              # Just create sessions"
-    echo "  $0 --gpx --headed       # Watch only GPX tests"
+    echo "  $0                           # Run full suite against localhost"
+    echo "  $0 --prod                    # Run full suite against production"
+    echo "  $0 --prod --headed           # Run against production with visible browser"
+    echo "  $0 --prod --gpx --slow       # Run GPX tests against production slowly"
+    echo "  $0 --setup                   # Just create sessions"
+    echo "  $0 --setup --clean           # Clean DynamoDB + create fresh sessions"
+    echo "  $0 --prod --setup --clean    # Same for production"
+    echo "  $0 --clean                   # Remove local cookie jars only"
+    echo "  $0 --gpx --headed            # Watch only GPX tests"
 }
 
 # ============================================================================
@@ -398,6 +439,7 @@ show_help() {
 FLAG_HEADED=false
 FLAG_SLOW=false
 FLAG_PROD=false
+FLAG_CLEAN=false
 CMD=""
 
 for arg in "$@"; do
@@ -416,8 +458,11 @@ for arg in "$@"; do
             FLAG_SLOW=true
             FLAG_HEADED=true
             ;;
-        --status|--setup|--auth|--gpx|--clean)
+        --status|--setup|--auth|--gpx)
             CMD="$arg"
+            ;;
+        --clean)
+            FLAG_CLEAN=true
             ;;
         *)
             log_error "Unknown flag: $arg"
@@ -447,7 +492,7 @@ case "$CMD" in
         check_status
         ;;
     --setup)
-        run_setup
+        run_setup "$FLAG_CLEAN"
         ;;
     --auth)
         check_prerequisites
@@ -458,10 +503,12 @@ case "$CMD" in
         check_prerequisites
         run_gpx_tests "$FLAG_HEADED" "$FLAG_SLOW"
         ;;
-    --clean)
-        clean_up
-        ;;
     "")
-        run_all "$FLAG_HEADED" "$FLAG_SLOW"
+        # If no command but --clean flag, just do local cleanup
+        if [ "$FLAG_CLEAN" = "true" ]; then
+            clean_up
+        else
+            run_all "$FLAG_HEADED" "$FLAG_SLOW"
+        fi
         ;;
 esac
