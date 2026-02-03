@@ -1,46 +1,146 @@
 # defcon.run 34
+Hello World! 🤗 This is a hobby fun project where we experiment with modern cloud architecture, AI-assisted claude code workflows, and full-stack tech — with the goal of building something useful for our annual a 4-day running event at **DEF CON ** in Las Vegas.
+
+There is hundreds of hours of AWS and development workflow magic in this repo that I'm happy to share with you. 🙂 
+
+From the end-off DEF CON 33 (Aug 2025) to now (February 2026) - I've been working to establish the architecture and new patterns we'll be using to build out run.defcon.run this year. For example, we have new `auth` and `gpx` services to support our future vision, as well as `.claude/` skills an `AGENTS.md` to focus the tooling.  
 
 > "Multi-region AWS IaC: CloudFront + WAF + ALB → ECS Fargate (Next.js, Strapi, SvelteKit). DynamoDB global tables + Litestream SQLite replication. AI-assisted spec-driven development with parallel Claude instances. All Terraform+Terragrunt with modules."
 
-Hello World! 🤗 This is a hobby fun project where we experiment with modern cloud architecture, AI-assisted claude code workflows, and full-stack tech — with the goal of building something useful for our annual a 4-day running event at **DEF CON ** in Las Vegas.
-
-There's A LOT of AWS and development workflow magic in this repo that I'm happy to share it. 🏃‍♂️ Multi-region active-active deployments, SQLite WAL streaming to S3, embedding open-source SvelteKit gpx.studio app in Next.js, and a suite of AI development tools for parallel Claude coordination. I learned a ton building this — hopefully it's useful to others. 🤷
-
 ## Motivation
 
-After [defcon.run 33](https://github.com/khundeck/defcon.run.33), I wanted to level up: better auth, a proper GPX route editor for planning runs, and a workflow that lets me spin up multiple Claude instances working in parallel on the same feature. This repo is the result — and we're headed to Vegas with it!
+A massive motivation is learning Claude Code and new AI development workflows. July 2025 Claude wrote the first implementations of our Heat Map and the Leaderboard. Ultimately, Claude became a massive multipler and I completed more features than I could've ever imagined.
+
+[defcon.run 33](https://github.com/khundeck/defcon.run.33) was a huge success by all measures, where we tried a tonne of new ideas (ie. meshtastic CTF), heatmaps, leaderboards. I learned from that a few key areas to focus on: better auth, a proper GPX route editor for planning runs, and a workflow that lets me spin up multiple Claude instances working in parallel on the same feature. This repo is the result - and we'll be working on until DEF CON 34 this year.
 
 ## What It Does
-
+Today (February) these are the basics so far:
 - **Event Registration** — Runner sign-ups with email verification via custom OIDC provider
 - **Route Planning** — Full GPX editor (embedded [gpx-studio](https://gpx.studio)) for planning runs across Las Vegas
 - **Content Management** — Headless CMS for schedules and announcements with master-worker replication
-- **Multi-Region Resilience** — Active-active across US East and Canada Central
+- **Multi-Region Resilience** — Active-active pattern (US East + extendable to any region)
+
+What's missing is the `meshtk` integration which will make meshtastic integration possible.
 
 ## Architecture
 
 ```
-                              Internet
-                                 │
-                                 ▼
-┌──────────────────────────────────────────────────────────────┐
-│                    CloudFront + WAF                          │
-│  Per-app WebACLs: rate limiting, brute-force protection      │
-│  Path-based routing: /use1/* → US East, /cac1/* → Canada     │
-└──────────────────────────────────────────────────────────────┘
-                     │                    │
-                     ▼                    ▼
-           ┌─────────────────┐  ┌─────────────────┐
-           │   us-east-1     │  │  ca-central-1   │
-           │  ┌───────────┐  │  │  ┌───────────┐  │
-           │  │    ALB    │  │  │  │    ALB    │  │
-           │  └─────┬─────┘  │  │  └─────┬─────┘  │
-           │        │        │  │        │        │
-           │  ┌─────▼─────┐  │  │  ┌─────▼─────┐  │
-           │  │ ECS Tasks │  │  │  │ ECS Tasks │  │
-           │  │ (Fargate) │  │  │  │ (Fargate) │  │
-           │  └───────────┘  │  │  └───────────┘  │
-           └─────────────────┘  └─────────────────┘
+                                    Internet
+                                       │
+                                       ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                           CloudFront + WAF                                 │
+│     Per-app WebACLs: rate limiting, geo-blocking, brute-force protection   │
+│     Path-based routing: /use1/* → Virginia, /apse1/* → Singapore           │
+└────────────────────────────────────────────────────────────────────────────┘
+                        │                              │
+                        ▼                              ▼
+              ┌─────────────────┐            ┌─────────────────┐
+              │   us-east-1     │            │ ap-southeast-1  │
+              │   (Virginia)    │            │   (Singapore)   │
+              │  ┌───────────┐  │            │  ┌───────────┐  │
+              │  │    ALB    │  │            │  │    ALB    │  │
+              │  └─────┬─────┘  │            │  └─────┬─────┘  │
+              │        │        │            │        │        │
+              │  ┌─────▼─────┐  │            │  ┌─────▼─────┐  │
+              │  │ ECS Tasks │  │            │  │ ECS Tasks │  │
+              │  │ (Fargate) │  │            │  │ (Fargate) │  │
+              │  └─────┬─────┘  │            │  └─────┬─────┘  │
+              │        │        │            │        │        │
+              │  ┌─────▼─────┐  │            │  ┌─────▼─────┐  │
+              │  │ DynamoDB  │◀─┼────────────┼─▶│ DynamoDB  │  │
+              │  │ (Global)  │  │  Replicate │  │ (Global)  │  │
+              │  └───────────┘  │            │  └───────────┘  │
+              └─────────────────┘            └─────────────────┘
+```
+
+### Request Flow
+
+```
+┌────────┐    ┌────────────┐    ┌─────┐    ┌─────────┐    ┌───────────┐
+│ Browser│───▶│ CloudFront │───▶│ WAF │───▶│   ALB   │───▶│ECS Fargate│
+└────────┘    │  (Edge)    │    │     │    │(Regional)│   │ (Next.js) │
+              └────────────┘    └─────┘    └─────────┘    └────┬──────┘
+                                                               │
+              ┌────────────────────────────────────────────────┘
+              ▼
+    ┌──────────────────────────────────────────────────────────┐
+    │                     Data Layer                           │
+    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
+    │  │  DynamoDB   │  │     S3      │  │    SES      │       │
+    │  │ (ElectroDB) │  │  (Uploads)  │  │  (Email)    │       │
+    │  └─────────────┘  └─────────────┘  └─────────────┘       │
+    └──────────────────────────────────────────────────────────┘
+```
+
+### Authentication Flow (OIDC)
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          User Login Flow                                 │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  ┌────────┐         ┌────────────┐         ┌────────────┐
+  │  User  │         │ run.human  │         │ run.auth   │
+  │Browser │         │ (App)      │         │ (OIDC)     │
+  └───┬────┘         └─────┬──────┘         └─────┬──────┘
+      │                    │                      │
+      │  1. Click Login    │                      │
+      │───────────────────▶│                      │
+      │                    │  2. Redirect to      │
+      │                    │     /authorize       │
+      │◀───────────────────│─────────────────────▶│
+      │                    │                      │
+      │  3. Enter email    │                      │
+      │──────────────────────────────────────────▶│
+      │                    │                      │
+      │                    │     ┌────────────┐   │
+      │                    │     │    SES     │   │
+      │                    │     │  (Email)   │◀──│ 4. Send magic link
+      │                    │     └─────┬──────┘   │
+      │  5. Click link     │           │          │
+      │◀───────────────────────────────┘          │
+      │                    │                      │
+      │──────────────────────────────────────────▶│ 6. Verify token
+      │                    │                      │
+      │◀─────────────────────────────────────────▶│ 7. Issue JWT
+      │  8. Redirect with  │                      │
+      │     session cookie │                      │
+      │───────────────────▶│                      │
+      │                    │                      │
+      │  9. Authenticated! │                      │
+      │◀───────────────────│                      │
+```
+
+### Deployment Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    GitHub Actions (OIDC Federation)                     │
+│                    No long-lived AWS credentials                        │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+           ┌────────────────────────┼────────────────────────┐
+           ▼                        ▼                        ▼
+    ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
+    │   Build     │          │   Build     │          │   Build     │
+    │  run.auth   │          │  run.human  │          │   run.gpx   │
+    └──────┬──────┘          └──────┬──────┘          └──────┬──────┘
+           │                        │                        │
+           └────────────────────────┼────────────────────────┘
+                                    ▼
+                         ┌─────────────────────┐
+                         │     Push to ECR     │
+                         │  (Container Images) │
+                         └──────────┬──────────┘
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ▼                               ▼
+           ┌────────────────┐              ┌────────────────┐
+           │  Deploy ECS    │              │  Deploy ECS    │
+           │  us-east-1     │              │ ap-southeast-1 │
+           │  (Terragrunt)  │              │  (Terragrunt)  │
+           └────────────────┘              └────────────────┘
 ```
 
 ### Services
@@ -91,6 +191,30 @@ Admin writes go to master. Litestream streams WAL to S3. Workers periodically re
 
 The GPX editor embeds [gpx-studio](https://gpx.studio) — an open-source SvelteKit app. I wrapped it in Next.js:
 
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                         run.gpx Architecture                             │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                     Next.js Shell                           │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
+│  │   Auth.js       │  │   API Routes    │  │   /studio   │  │
+│  │   (Session)     │  │   (/api/gpx/*)  │  │  (Static)   │  │
+│  └────────┬────────┘  └────────┬────────┘  └──────┬──────┘  │
+└───────────┼────────────────────┼──────────────────┼─────────┘
+            │                    │                  │
+            ▼                    ▼                  ▼
+     ┌────────────┐       ┌────────────┐    ┌─────────────────┐
+     │  DynamoDB  │       │     S3     │    │   gpx-studio    │
+     │ (Metadata) │       │  (Files)   │    │   (SvelteKit)   │
+     │ - versions │       │ - .gpx     │    │  Built at deploy│
+     │ - shares   │       │ - exports  │    │  Served static  │
+     └────────────┘       └────────────┘    └─────────────────┘
+
+Flow: User → Auth → Load GPX list → Open in Studio → Save via API → S3
+```
+
 - Next.js handles auth (Auth.js) and API routes
 - gpx-studio built at deploy time, served as static files under `/studio/*`
 - Cloud storage via presigned S3 URLs + DynamoDB metadata
@@ -98,7 +222,28 @@ The GPX editor embeds [gpx-studio](https://gpx.studio) — an open-source Svelte
 
 ### Multi-Region Active-Active
 
-Both regions run identical services. CloudFront routes by path prefix (`/use1/*`, `/cac1/*`). Apps use dynamic `basePath`. DynamoDB global tables replicate across regions. One `release-all.sh --parallel` and you're live everywhere.
+Both regions run identical services. CloudFront routes by path prefix (`/use1/*`, `/apse1/*`). Apps use dynamic `basePath`. DynamoDB global tables replicate across regions. One `release-all.sh --parallel` and you're live everywhere.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Adding a New Region                                  │
+└─────────────────────────────────────────────────────────────────────────┘
+
+1. Create regional config:     infra/terraform/live/site/region/ap-southeast-1/
+2. Add service definitions:    infra/terraform/live/site/services/*/apse1.hcl
+3. Update CloudFront origins:  Add /apse1/* path routing
+4. Extend DynamoDB tables:     Add region to global table replicas
+5. Deploy:                     ./apps/release-all.sh --parallel
+
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  us-east-1   │    │ap-southeast-1│    │  eu-west-1   │
+│  (Primary)   │◀──▶│  (Asia)      │◀──▶│  (Europe)    │
+│              │    │              │    │   (Future)   │
+└──────────────┘    └──────────────┘    └──────────────┘
+       ▲                   ▲                   ▲
+       └───────────────────┴───────────────────┘
+                  DynamoDB Global Tables
+```
 
 ## AI-Assisted Development Workflow
 
