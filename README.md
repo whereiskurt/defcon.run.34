@@ -1,7 +1,7 @@
 # defcon.run 34
-Hello World! 🤗 This is a hobby fun project where we experiment with modern cloud architecture, AI-assisted claude code workflows, and full-stack tech — with the goal of building something useful for our annual a 4-day running event at **DEF CON ** in Las Vegas.
+Hello World! 🤗 
 
-There is hundreds of hours of AWS and development workflow magic in this repo that I'm happy to share with you. 🙂 
+This is a hobby project where we experiment with modern AWS cloud architecture, AI-assisted Claude Code workflows, and full-stack webapp tech - with the goal of building something fun and useful for our annual a 4-day running event at DEFCON in Las Vegas.
 
 From the end-off DEF CON 33 (Aug 2025) to now (February 2026) - I've been working to establish the architecture and new patterns we'll be using to build out run.defcon.run this year. For example, we have new `auth` and `gpx` services to support our future vision, as well as `.claude/` skills an `AGENTS.md` to focus the tooling.  
 
@@ -12,6 +12,8 @@ From the end-off DEF CON 33 (Aug 2025) to now (February 2026) - I've been workin
 A massive motivation is learning Claude Code and new AI development workflows. July 2025 Claude wrote the first implementations of our Heat Map and the Leaderboard. Ultimately, Claude became a massive multipler and I completed more features than I could've ever imagined.
 
 [defcon.run 33](https://github.com/khundeck/defcon.run.33) was a huge success by all measures, where we tried a tonne of new ideas (ie. meshtastic CTF), heatmaps, leaderboards. I learned from that a few key areas to focus on: better auth, a proper GPX route editor for planning runs, and a workflow that lets me spin up multiple Claude instances working in parallel on the same feature. This repo is the result - and we'll be working on until DEF CON 34 this year.
+
+There is hundreds of hours of AWS and development workflow magic in this repo that I'm happy to share with you. 🙂 
 
 ## What It Does
 Today (February) these are the basics so far:
