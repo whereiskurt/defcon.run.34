@@ -2,6 +2,9 @@
 Hello World! 🤗 
 
 This is a hobby project where we experiment with modern AWS cloud architecture, AI-assisted Claude Code workflows, and full-stack webapp tech - with the goal of building something fun and useful for our annual a 4-day running event at DEFCON in Las Vegas.
+<img width="250" alt="Screenshot 2025-10-03 at 09 48 16" src="https://github.com/user-attachments/assets/9214fceb-2f76-48be-b89f-54ecf7692318" />
+<img width="350" alt="Screenshot 2025-08-08 at 13 54 31" src="https://github.com/user-attachments/assets/4fa9373a-43b8-40f0-b9fc-e5819fdafb2f" />
+<img width="200"  alt="Screenshot 2025-08-10 at 07 30 29" src="https://github.com/user-attachments/assets/018b73fe-ceaa-4296-9bc6-226bcb3f6258" />
 
 From the end-off DEF CON 33 (Aug 2025) to now (February 2026) - I've been working to establish the architecture and new patterns we'll be using to build out run.defcon.run this year. For example, we have new `auth` and `gpx` services to support our future vision, as well as `.claude/` skills an `AGENTS.md` to focus the tooling.  
 
