@@ -1,16 +1,10 @@
 # defcon.run 34
 
-> "Multi-region AWS IaC: CloudFront + WAF + ALB → ECS Fargate (Next.js, Strapi, SvelteKit). DynamoDB global tables + Litestream SQLite replication. AI-assisted spec-driven development with parallel Claude instances. All Terraform+Terragrunt."
+> "Multi-region AWS IaC: CloudFront + WAF + ALB → ECS Fargate (Next.js, Strapi, SvelteKit). DynamoDB global tables + Litestream SQLite replication. AI-assisted spec-driven development with parallel Claude instances. All Terraform+Terragrunt with modules."
 
-This is a hobby fun project where we experiment with modern cloud architecture, AI-assisted workflows, and full-stack tech — while building something real: a 4-day running event at **DEF CON 34** in Las Vegas.
+Hello World! 🤗 This is a hobby fun project where we experiment with modern cloud architecture, AI-assisted claude code workflows, and full-stack tech — with the goal of building something useful for our annual a 4-day running event at **DEF CON ** in Las Vegas.
 
-There's A LOT of AWS and development workflow magic in this repo that I'm happy to share. 🏃‍♂️ Multi-region active-active deployments, SQLite WAL streaming to S3, embedding open-source SvelteKit apps in Next.js, and a suite of AI development tools for parallel Claude coordination. I learned a ton building this — hopefully it's useful to others.
-
-### Last Year's Architecture
-This was [last year's architecture](https://github.com/whereiskurt/defcon.run.33/) and the basis for this years: 
-![Architecture Overview](https://github.com/user-attachments/assets/0f631149-7046-43f2-9890-5fd04b23762d)
-
-TODO: Redraw this diagram w/ `claude`. :-)
+There's A LOT of AWS and development workflow magic in this repo that I'm happy to share it. 🏃‍♂️ Multi-region active-active deployments, SQLite WAL streaming to S3, embedding open-source SvelteKit gpx.studio app in Next.js, and a suite of AI development tools for parallel Claude coordination. I learned a ton building this — hopefully it's useful to others. 🤷
 
 ## Motivation
 
@@ -69,11 +63,20 @@ After [defcon.run 33](https://github.com/khundeck/defcon.run.33), I wanted to le
 | **CI/CD** | GitHub Actions, OIDC federation (no long-lived creds), SOPS secrets |
 | **Testing** | Playwright E2E with multi-user scenarios |
 
-## Cool Patterns I Built
+
+### Last Year's Architecture
+This was [last year's architecture](https://github.com/whereiskurt/defcon.run.33/) and the basis for this years: 
+
+![Architecture Overview](https://github.com/user-attachments/assets/0f631149-7046-43f2-9890-5fd04b23762d)
+
+TODO: Redraw this diagram w/ `claude`. :-)
+
+
+## Cool Patterns :-)
 
 ### Master-Worker CMS Replication
 
-This one I'm proud of. The CMS uses SQLite with [Litestream](https://litestream.io/) for continuous replication:
+I'm continuing to explore this approach, but it seems like a headless Strapi master that litestreams to an S3 buckets, with read-only workers, is cheap robust pattern. The CMS uses SQLite with [Litestream](https://litestream.io/) for continuous replication:
 
 ```
 ┌──────── Master (us-east-1) ────────┐     ┌──────── Workers ────────┐
@@ -162,8 +165,12 @@ cm reflect --days 1               # Extract learnings after
 
 Memory that survives across sessions. Rules accumulate over time.
 
-## Running It
+# Running It
+## devcontainers
+If you use `vscode` you should be able to launch a devcontainer based on the `.devcontainer/devcontainer.json` configuration file. The `.vscode/tasks.json` file has all of the start-up commands for the servers. 
 
+
+## From the shell
 ```bash
 # Dev servers (VS Code tasks auto-start these)
 PORT=3001 npm run dev      # run.human

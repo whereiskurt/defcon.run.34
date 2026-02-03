@@ -4,7 +4,8 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
-  "runArgs": ["--platform=linux/arm64"],
+  // docker system info --format '{{.OSType}}/{{.Architecture}}'
+  "runArgs": ["--platform=linux/aarch64"], //M3 hardware
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {
       "moby": false,
