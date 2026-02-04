@@ -7,7 +7,7 @@ locals {
   is_ci = get_env("CI", "") == "true"
 
   # Read site config for parameterized values
-  site_config = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  site_config = read_terragrunt_config(find_in_parent_folders("site.hcl", "${get_terragrunt_dir()}/site.hcl"))
 
   # Management account for cross-account Route53 access
   management_account_id    = get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")
