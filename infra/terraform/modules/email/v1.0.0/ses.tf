@@ -11,7 +11,7 @@ resource "aws_ses_active_receipt_rule_set" "main" {
 # Note: Receipt rule ordering removed to avoid Terraform for_each circular dependencies
 # SES applies rules based on recipient matching, so explicit ordering is not required
 
-# Root SES Domains (email.defcon.run, run.defcon.run, etc...)
+# Root SES Domains (email.<domain>, run.<domain>, etc...)
 module "ses_root" {
   for_each = var.email.make_domains && var.region.full == var.email.primary_region ? toset(var.email.zonenames) : []
   source   = "./ses-domain"
@@ -43,7 +43,7 @@ module "ses_root" {
   }
 }
 
-# Regional SES Domains (use1.email.defcon.run, use1.run.defcon.run, etc...)
+# Regional SES Domains (use1.email.<domain>, use1.run.<domain>, etc...)
 module "ses_regional" {
   for_each            = var.email.make_regional_domains ? toset(var.email.zonenames) : []
   source              = "./ses-domain"
@@ -73,7 +73,7 @@ module "ses_regional" {
   }
 }
 
-# Management SES Domain (defcon.run)
+# Management SES Domain (<domain>)
 module "ses_mgmt" {
   count               = var.email.make_site_domain && var.region.full == var.email.primary_region ? 1 : 0
   source              = "./ses-domain"
@@ -104,7 +104,7 @@ module "ses_mgmt" {
   }
 }
 
-# Management SES Domain (use1.defcon.run, cac1.defcon.run)
+# Management SES Domain (use1.<domain>, cac1.<domain>)
 module "ses_mgmt_regional" {
   count               = var.email.make_site_domain == true && var.email.make_regional_domains == true ? 1 : 0
   source              = "./ses-domain"

@@ -17,10 +17,16 @@ locals {
     ttl        = 300
   }
 
+  # Derived values for parameterized references
+  site_domain_slug   = replace(local.dns.zonename, ".", "-")         # "defcon-run"
+  tf_state_prefix    = "tf-${local.site_domain_slug}"                # "tf-defcon-run"
+  delegate_role_name = "${local.site.label}-github-delegate"         # "dc34-github-delegate"
+  github_repo_name   = "defcon.run.34"
+
   email = {
     enabled        = true
     primary_region = "us-east-1"
-    zonenames      = ["email.defcon.run", "run.defcon.run", "auth.defcon.run"]
+    zonenames      = [for sub in ["email", "run", "auth"] : "${sub}.${local.dns.zonename}"]
     smtp_prefix    = "s"
 
     make_site_domain      = true
@@ -44,23 +50,19 @@ locals {
       }
     ]
 
-    smtp_iam_users = [
-      "run.defcon.run",
-      "auth.defcon.run",
-      "cms.defcon.run"
-    ]
+    smtp_iam_users = [for sub in ["run", "auth", "cms"] : "${sub}.${local.dns.zonename}"]
 
     fwd_rules = [
       {
-        match   = "kurt@defcon.run"
+        match   = "kurt@${local.dns.zonename}"
         send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
       },
       {
-        match   = "kurt@run.defcon.run"
+        match   = "kurt@run.${local.dns.zonename}"
         send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
       },
       {
-        match   = "defcon.run"
+        match   = local.dns.zonename
         send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
       },
     ]
@@ -76,10 +78,10 @@ locals {
 
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
-    # e.g., "run" becomes "run.defcon.run"
+    # e.g., "run" becomes "run.<dns.zonename>"
     domains = ["auth", "run", "cms", "gpx"]
 
-    ##Map fronted domain "auth.defcon.run" to the ruleset called "auth"
+    ## Map fronted domain "auth.<dns.zonename>" to the ruleset called "auth"
     waf_rulesets = {
       "auth" = "auth" # Use the 'api' ruleset from waf.hcl
       #"run"  = "default" # Use the 'default' ruleset from waf.hcl
@@ -122,7 +124,7 @@ locals {
       {
         count                  = 0
         region                 = "us-east-1"
-        zone_name              = "run.defcon.run"
+        zone_name              = "run.${local.dns.zonename}"
         create_dns_records     = true
         instance_type          = "t4g.medium"
         spot_price_multiplier  = 1.00
@@ -135,7 +137,7 @@ locals {
       {
         count                  = 0
         region                 = "ca-central-1"
-        zone_name              = "run.defcon.run"
+        zone_name              = "run.${local.dns.zonename}"
         create_dns_records     = true
         instance_type          = "t4g.medium"
         spot_price_multiplier  = 1.00
@@ -388,7 +390,7 @@ locals {
   github_oidc = {
     enabled     = true
     github_org  = get_env("TF_VAR_GITHUB_ORG", "your-github-org")
-    github_repo = "defcon.run.34"
+    github_repo = local.github_repo_name
 
     # Management account for cross-account Route53 access
     # Set this to your management account ID to get the trust policy output
@@ -426,7 +428,7 @@ locals {
                   Sid      = "TerraformState"
                   Effect   = "Allow"
                   Action   = ["dynamodb:DeleteItem", "dynamodb:GetItem", "dynamodb:PutItem", "s3:GetObject", "s3:GetObjectVersion", "s3:ListBucket", "s3:ListMultipartUploadParts", "s3:PutObject"]
-                  Resource = ["arn:aws:dynamodb:*:*:table/tf-defcon-run-*", "arn:aws:s3:::tf-defcon-run-*", "arn:aws:s3:::tf-defcon-run-*/*"]
+                  Resource = ["arn:aws:dynamodb:*:*:table/${local.tf_state_prefix}-*", "arn:aws:s3:::${local.tf_state_prefix}-*", "arn:aws:s3:::${local.tf_state_prefix}-*/*"]
                 },
                 {
                   Sid      = "Core"
@@ -579,7 +581,7 @@ locals {
 
         # Cross-account access to management account for Route53
         cross_account_arns = [
-          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/dc34-github-delegate"
+          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.delegate_role_name}"
         ]
       },
 
@@ -620,7 +622,7 @@ locals {
                     "ecr:DescribeRepositories",
                     "ecr:ListImages"
                   ]
-                  Resource = "arn:aws:ecr:*:*:repository/dc34-*"
+                  Resource = "arn:aws:ecr:*:*:repository/${local.site.label}-*"
                 }
               ]
             })
@@ -640,8 +642,8 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::dc34-*",
-                    "arn:aws:s3:::dc34-*/*",
+                    "arn:aws:s3:::${local.site.label}-*",
+                    "arn:aws:s3:::${local.site.label}-*/*",
                     "arn:aws:s3:::cf-assets-*",
                     "arn:aws:s3:::cf-assets-*/*"
                   ]
@@ -680,7 +682,7 @@ locals {
                     "ssm:GetParameter",
                     "ssm:GetParameters"
                   ]
-                  Resource = "arn:aws:ssm:*:*:parameter/dc34/*"
+                  Resource = "arn:aws:ssm:*:*:parameter/${local.site.label}/*"
                 }
               ]
             })
@@ -735,8 +737,8 @@ locals {
                     "dynamodb:DeleteItem"
                   ]
                   Resource = [
-                    "arn:aws:dynamodb:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/tf-defcon-run-use1-*",
-                    "arn:aws:dynamodb:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/tf-defcon-run-cac1-*"
+                    "arn:aws:dynamodb:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/${local.tf_state_prefix}-use1-*",
+                    "arn:aws:dynamodb:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/${local.tf_state_prefix}-cac1-*"
                   ]
                 },
                 {
@@ -749,10 +751,10 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::tf-defcon-run-use1-*",
-                    "arn:aws:s3:::tf-defcon-run-use1-*/*",
-                    "arn:aws:s3:::tf-defcon-run-cac1-*",
-                    "arn:aws:s3:::tf-defcon-run-cac1-*/*"
+                    "arn:aws:s3:::${local.tf_state_prefix}-use1-*",
+                    "arn:aws:s3:::${local.tf_state_prefix}-use1-*/*",
+                    "arn:aws:s3:::${local.tf_state_prefix}-cac1-*",
+                    "arn:aws:s3:::${local.tf_state_prefix}-cac1-*/*"
                   ]
                 }
               ]
@@ -762,7 +764,7 @@ locals {
 
         # Cross-account access to management account for Route53
         cross_account_arns = [
-          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/dc34-github-delegate"
+          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.delegate_role_name}"
         ]
       },
 
@@ -800,8 +802,8 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::ses-inbox-dc34-*",
-                    "arn:aws:s3:::ses-inbox-dc34-*/*"
+                    "arn:aws:s3:::ses-inbox-${local.site.label}-*",
+                    "arn:aws:s3:::ses-inbox-${local.site.label}-*/*"
                   ]
                 },
                 {
@@ -809,7 +811,7 @@ locals {
                   Effect = "Allow"
                   Action = ["ssm:GetParameter"]
                   Resource = [
-                    "arn:aws:ssm:*:*:parameter/dc34/ses/s3/*/bucket_name"
+                    "arn:aws:ssm:*:*:parameter/${local.site.label}/ses/s3/*/bucket_name"
                   ]
                 }
               ]
@@ -855,7 +857,7 @@ locals {
                     "ecr:DescribeRepositories",
                     "ecr:ListImages"
                   ]
-                  Resource = "arn:aws:ecr:*:*:repository/dc34-*"
+                  Resource = "arn:aws:ecr:*:*:repository/${local.site.label}-*"
                 }
               ]
             })
@@ -875,8 +877,8 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::dc34-*",
-                    "arn:aws:s3:::dc34-*/*",
+                    "arn:aws:s3:::${local.site.label}-*",
+                    "arn:aws:s3:::${local.site.label}-*/*",
                     "arn:aws:s3:::cf-assets-*",
                     "arn:aws:s3:::cf-assets-*/*"
                   ]
@@ -896,7 +898,7 @@ locals {
                     "ssm:GetParameter",
                     "ssm:GetParameters"
                   ]
-                  Resource = "arn:aws:ssm:*:*:parameter/dc34/*"
+                  Resource = "arn:aws:ssm:*:*:parameter/${local.site.label}/*"
                 }
               ]
             })
@@ -982,7 +984,7 @@ locals {
                   Resource = "*"
                   Condition = {
                     StringEquals = {
-                      "ec2:ResourceTag/Project" = "defcon.run.34"
+                      "ec2:ResourceTag/Project" = local.github_repo_name
                     }
                   }
                 },
@@ -1006,7 +1008,7 @@ locals {
                   Resource = "*"
                   Condition = {
                     StringEquals = {
-                      "ec2:ResourceTag/Project" = "defcon.run.34"
+                      "ec2:ResourceTag/Project" = local.github_repo_name
                     }
                   }
                 },
@@ -1055,8 +1057,8 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::tf-defcon-run-*",
-                    "arn:aws:s3:::tf-defcon-run-*/*"
+                    "arn:aws:s3:::${local.tf_state_prefix}-*",
+                    "arn:aws:s3:::${local.tf_state_prefix}-*/*"
                   ]
                 },
                 {
@@ -1068,7 +1070,7 @@ locals {
                     "dynamodb:DeleteItem"
                   ]
                   Resource = [
-                    "arn:aws:dynamodb:*:*:table/tf-defcon-run-*"
+                    "arn:aws:dynamodb:*:*:table/${local.tf_state_prefix}-*"
                   ]
                 }
               ]
@@ -1111,10 +1113,10 @@ locals {
                   Effect = "Allow"
                   Action = "iam:PassRole"
                   Resource = [
-                    "arn:aws:iam::*:role/run-*-defcon-run-task-role",
-                    "arn:aws:iam::*:role/run-*-defcon-run-execution-role",
-                    "arn:aws:iam::*:role/ecs-task-role-*-defcon-run-*",
-                    "arn:aws:iam::*:role/ecs-execution-role-*-defcon-run-*"
+                    "arn:aws:iam::*:role/run-*-${local.site_domain_slug}-task-role",
+                    "arn:aws:iam::*:role/run-*-${local.site_domain_slug}-execution-role",
+                    "arn:aws:iam::*:role/ecs-task-role-*-${local.site_domain_slug}-*",
+                    "arn:aws:iam::*:role/ecs-execution-role-*-${local.site_domain_slug}-*"
                   ]
                 },
                 {
@@ -1128,9 +1130,9 @@ locals {
                     "iam:ListInstanceProfilesForRole"
                   ]
                   Resource = [
-                    "arn:aws:iam::*:role/run-*-defcon-run-*",
-                    "arn:aws:iam::*:role/ecs-*-role-*-defcon-run-*",
-                    "arn:aws:iam::*:role/dc34-*"
+                    "arn:aws:iam::*:role/run-*-${local.site_domain_slug}-*",
+                    "arn:aws:iam::*:role/ecs-*-role-*-${local.site_domain_slug}-*",
+                    "arn:aws:iam::*:role/${local.site.label}-*"
                   ]
                 }
               ]
@@ -1260,8 +1262,8 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::tf-defcon-run-*",
-                    "arn:aws:s3:::tf-defcon-run-*/*"
+                    "arn:aws:s3:::${local.tf_state_prefix}-*",
+                    "arn:aws:s3:::${local.tf_state_prefix}-*/*"
                   ]
                 },
                 {
@@ -1273,7 +1275,7 @@ locals {
                     "dynamodb:DeleteItem"
                   ]
                   Resource = [
-                    "arn:aws:dynamodb:*:*:table/tf-defcon-run-*"
+                    "arn:aws:dynamodb:*:*:table/${local.tf_state_prefix}-*"
                   ]
                 }
               ]
@@ -1313,8 +1315,8 @@ locals {
                   Effect = "Allow"
                   Action = "iam:PassRole"
                   Resource = [
-                    "arn:aws:iam::*:role/dc34-*-task-*",
-                    "arn:aws:iam::*:role/dc34-*-execution-*"
+                    "arn:aws:iam::*:role/${local.site.label}-*-task-*",
+                    "arn:aws:iam::*:role/${local.site.label}-*-execution-*"
                   ]
                 },
                 {
@@ -1323,7 +1325,7 @@ locals {
                   Action = [
                     "iam:GetRole"
                   ]
-                  Resource = "arn:aws:iam::*:role/dc34-*"
+                  Resource = "arn:aws:iam::*:role/${local.site.label}-*"
                 }
               ]
             })
@@ -1379,7 +1381,7 @@ locals {
                     "ssm:GetParameter",
                     "ssm:GetParameters"
                   ]
-                  Resource = "arn:aws:ssm:*:*:parameter/dc34/*"
+                  Resource = "arn:aws:ssm:*:*:parameter/${local.site.label}/*"
                 }
               ]
             })

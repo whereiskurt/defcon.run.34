@@ -58,8 +58,8 @@ The module will automatically create the repository in each specified region.
 
 Repositories are automatically prefixed with the site label:
 - Configuration: `name = "webapp-nginx"`
-- Actual repo: `dc34-webapp-nginx`
-- Full URL: `{account_id}.dkr.ecr.{region}.amazonaws.com/dc34-webapp-nginx`
+- Actual repo: `<site_label>-webapp-nginx`
+- Full URL: `{account_id}.dkr.ecr.{region}.amazonaws.com/<site_label>-webapp-nginx`
 
 ## Lifecycle Policies
 
@@ -77,21 +77,21 @@ The module provides several outputs for use in task definitions:
 # All repository details
 repositories = {
   "webapp-nginx" = {
-    repository_name = "dc34-webapp-nginx"
-    repository_url  = "123456789012.dkr.ecr.us-east-1.amazonaws.com/dc34-webapp-nginx"
-    arn            = "arn:aws:ecr:us-east-1:123456789012:repository/dc34-webapp-nginx"
+    repository_name = "<site_label>-webapp-nginx"
+    repository_url  = "123456789012.dkr.ecr.us-east-1.amazonaws.com/<site_label>-webapp-nginx"
+    arn            = "arn:aws:ecr:us-east-1:123456789012:repository/<site_label>-webapp-nginx"
     # ... more fields
   }
 }
 
 # Quick URL lookup
 repository_urls = {
-  "webapp-nginx" = "123456789012.dkr.ecr.us-east-1.amazonaws.com/dc34-webapp-nginx"
+  "webapp-nginx" = "123456789012.dkr.ecr.us-east-1.amazonaws.com/<site_label>-webapp-nginx"
 }
 
 # URLs with :latest tag for easy copy-paste
 repository_urls_with_latest = {
-  "webapp-nginx" = "123456789012.dkr.ecr.us-east-1.amazonaws.com/dc34-webapp-nginx:latest"
+  "webapp-nginx" = "123456789012.dkr.ecr.us-east-1.amazonaws.com/<site_label>-webapp-nginx:latest"
 }
 ```
 
@@ -135,21 +135,21 @@ docker build -t webapp-nginx .
 
 # Tag for ECR
 docker tag webapp-nginx:latest \
-  {account_id}.dkr.ecr.us-east-1.amazonaws.com/dc34-webapp-nginx:latest
+  {account_id}.dkr.ecr.us-east-1.amazonaws.com/<site_label>-webapp-nginx:latest
 
 # Or with version tag
 docker tag webapp-nginx:latest \
-  {account_id}.dkr.ecr.us-east-1.amazonaws.com/dc34-webapp-nginx:v1.0.0
+  {account_id}.dkr.ecr.us-east-1.amazonaws.com/<site_label>-webapp-nginx:v1.0.0
 ```
 
 ### 3. Push to ECR
 
 ```bash
 # Push latest
-docker push {account_id}.dkr.ecr.us-east-1.amazonaws.com/dc34-webapp-nginx:latest
+docker push {account_id}.dkr.ecr.us-east-1.amazonaws.com/<site_label>-webapp-nginx:latest
 
 # Push version
-docker push {account_id}.dkr.ecr.us-east-1.amazonaws.com/dc34-webapp-nginx:v1.0.0
+docker push {account_id}.dkr.ecr.us-east-1.amazonaws.com/<site_label>-webapp-nginx:v1.0.0
 ```
 
 ### Script Example
@@ -161,7 +161,7 @@ set -e
 # Variables
 AWS_REGION="us-east-1"
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-REPO_NAME="dc34-webapp-nginx"
+REPO_NAME="<site_label>-webapp-nginx"
 IMAGE_TAG="${1:-latest}"
 
 # Authenticate
@@ -215,11 +215,11 @@ This approach:
 
 ```bash
 # Create repositories in us-east-1
-cd /Users/khundeck/working/defcon.run.34/infra/terraform/live/site/region/us-east-1/ecr
+cd infra/terraform/live/site/region/us-east-1/ecr
 terragrunt apply
 
 # Create repositories in ca-central-1
-cd /Users/khundeck/working/defcon.run.34/infra/terraform/live/site/region/ca-central-1/ecr
+cd infra/terraform/live/site/region/ca-central-1/ecr
 terragrunt apply
 ```
 
@@ -248,22 +248,22 @@ When `scan_on_push = true`, ECR automatically scans images for:
 Based on site.hcl configuration:
 
 ### WebApp (NextJS)
-- `dc34-webapp-nginx:latest`
-- `dc34-webapp:latest`
+- `<site_label>-webapp-nginx:latest`
+- `<site_label>-webapp:latest`
 
 ### MQTT
-- `dc34-mqtt-mosquitto:latest`
-- `dc34-mqtt-grpc:latest`
-- `dc34-mqtt-nginx:latest`
-- `dc34-mqtt-ghosts:latest`
+- `<site_label>-mqtt-mosquitto:latest`
+- `<site_label>-mqtt-grpc:latest`
+- `<site_label>-mqtt-nginx:latest`
+- `<site_label>-mqtt-ghosts:latest`
 
 ### Strapi
-- `dc34-strapi-nginx:latest`
-- `dc34-strapi:latest`
+- `<site_label>-strapi-nginx:latest`
+- `<site_label>-strapi:latest`
 
 ### Etherpad
-- `dc34-etherpad-nginx:latest`
-- `dc34-etherpad:latest`
+- `<site_label>-etherpad-nginx:latest`
+- `<site_label>-etherpad:latest`
 
 ## Cost Optimization
 

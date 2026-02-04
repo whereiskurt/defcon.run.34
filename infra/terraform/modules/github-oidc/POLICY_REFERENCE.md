@@ -1,6 +1,6 @@
 # IAM Policy Reference for Terragrunt Role
 
-This document captures the least-privilege IAM policies needed for the `dc34-github-terragrunt` role.
+This document captures the least-privilege IAM policies needed for the `<site_label>-github-terragrunt` role.
 These policies were generated via iamlive from actual terragrunt apply operations.
 
 ## Problem
@@ -36,9 +36,9 @@ Split the permissions into 4 customer-managed policies:
         "s3:PutObject"
       ],
       "Resource": [
-        "arn:aws:dynamodb:*:*:table/tf-defcon-run-*",
-        "arn:aws:s3:::tf-defcon-run-*",
-        "arn:aws:s3:::tf-defcon-run-*/*"
+        "arn:aws:dynamodb:*:*:table/tf-<domain-slug>-*",
+        "arn:aws:s3:::tf-<domain-slug>-*",
+        "arn:aws:s3:::tf-<domain-slug>-*/*"
       ]
     },
     {

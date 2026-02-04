@@ -20,11 +20,11 @@ dependency "ecs_task" {
 
   mock_outputs = {
     task_definition_arns = {
-      "run-auth"       = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-auth-use1-defcon-run:1"
-      "run-human"      = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-human-use1-defcon-run:1"
-      "run-cms-master" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-master-use1-defcon-run:1"
-      "run-cms-worker" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-worker-use1-defcon-run:1"
-      "run-gpx"        = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-gpx-use1-defcon-run:1"
+      "run-auth"       = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-auth-use1-example-site:1"
+      "run-human"      = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-human-use1-example-site:1"
+      "run-cms-master" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-master-use1-example-site:1"
+      "run-cms-worker" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-worker-use1-example-site:1"
+      "run-gpx"        = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-gpx-use1-example-site:1"
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
@@ -36,11 +36,11 @@ dependency "ecs_cluster" {
   mock_outputs = {
     clusters = {
       "app" = {
-        cluster_id     = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-defcon-run"
-        cluster_name   = "app-use1-defcon-run"
-        cluster_arn    = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-defcon-run"
+        cluster_id     = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-example-site"
+        cluster_name   = "app-use1-example-site"
+        cluster_arn    = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-example-site"
         namespace_id   = "ns-mock"
-        namespace_name = "app-use1-defcon-run.local"
+        namespace_name = "app-use1-example-site.local"
       }
     }
   }

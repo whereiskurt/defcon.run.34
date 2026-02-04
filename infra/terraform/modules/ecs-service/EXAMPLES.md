@@ -37,7 +37,7 @@ This file contains examples of how to configure different app types in `site.hcl
       listener = {
         port         = 443
         protocol     = "HTTPS"
-        host_headers = ["run.defcon.run", "*.run.defcon.run"]
+        host_headers = ["run.<domain>", "*.run.<domain>"]
       }
     }
   ]
@@ -169,7 +169,7 @@ This file contains examples of how to configure different app types in `site.hcl
       listener = {
         port         = 443
         protocol     = "HTTPS"
-        host_headers = ["strapi.defcon.run", "*.strapi.defcon.run"]
+        host_headers = ["strapi.<domain>", "*.strapi.<domain>"]
       }
     }
   ]
@@ -227,7 +227,7 @@ This file contains examples of how to configure different app types in `site.hcl
       listener = {
         port         = 443
         protocol     = "HTTPS"
-        host_headers = ["etherpad.defcon.run"]
+        host_headers = ["etherpad.<domain>"]
       }
     }
   ]
@@ -490,9 +490,9 @@ inputs = {
 
 Resources follow this naming pattern:
 
-- **Service**: `{name}-{region_label}-{zonename}` → `auth-use1-defcon-run`
-- **Target Group**: `{service_name}-{container_port}` → `auth-use1-defcon-run-443`
-- **Service Discovery**: `{name}.{namespace}` → `webapp.app-use1-defcon-run.local`
+- **Service**: `{name}-{region_label}-{zonename}` → `auth-use1-<domain-slug>`
+- **Target Group**: `{service_name}-{container_port}` → `auth-use1-<domain-slug>-443`
+- **Service Discovery**: `{name}.{namespace}` → `webapp.app-use1-<domain-slug>.local`
 
 ## Cost Optimization
 

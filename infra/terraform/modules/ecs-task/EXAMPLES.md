@@ -23,7 +23,7 @@ This file contains examples of how to configure different app types in `site.hcl
       command            = ["nginx", "-g", "daemon off;"]
 
       environment = [
-        { name = "APP_URL", value = "https://run.defcon.run" }
+        { name = "APP_URL", value = "https://run.<domain>" }
       ]
 
       port_mappings = [
@@ -51,12 +51,12 @@ This file contains examples of how to configure different app types in `site.hcl
 
       environment = [
         { name = "NODE_ENV", value = "production" },
-        { name = "NEXTAUTH_URL", value = "https://run.defcon.run" }
+        { name = "NEXTAUTH_URL", value = "https://run.<domain>" }
       ]
 
       secrets = [
-        { name = "AUTH_JWT_SECRET", valueFrom = "/defcon-run/auth/secret" },
-        { name = "AUTH_DYNAMODB_ID", valueFrom = "/use1.defcon.run/next-auth/access_key" }
+        { name = "AUTH_JWT_SECRET", valueFrom = "/<domain-slug>/auth/secret" },
+        { name = "AUTH_DYNAMODB_ID", valueFrom = "/<region_label>.<domain>/next-auth/access_key" }
       ]
 
       port_mappings = [
@@ -126,8 +126,8 @@ This file contains examples of how to configure different app types in `site.hcl
       ]
 
       secrets = [
-        { name = "MESHTK_SERVER_S3BUCKETNAME", valueFrom = "/use1.defcon.run/mqtt/s3/logging_bucket_name" },
-        { name = "USER_CREATION_SEED", valueFrom = "/defcon-run/auth/secret" }
+        { name = "MESHTK_SERVER_S3BUCKETNAME", valueFrom = "/<region_label>.<domain>/mqtt/s3/logging_bucket_name" },
+        { name = "USER_CREATION_SEED", valueFrom = "/<domain-slug>/auth/secret" }
       ]
 
       port_mappings = [
@@ -158,13 +158,13 @@ This file contains examples of how to configure different app types in `site.hcl
       ]
 
       environment = [
-        { name = "APP_URL", value = "https://mqtt.defcon.run" },
-        { name = "MESHMAP_NODES_URL", value = "https://mqtt.defcon.run/map/nodes.json" }
+        { name = "APP_URL", value = "https://mqtt.<domain>" },
+        { name = "MESHMAP_NODES_URL", value = "https://mqtt.<domain>/map/nodes.json" }
       ]
 
       secrets = [
-        { name = "MQTT_USERNAME", valueFrom = "/use1.defcon.run/meshmap/mqtt_username" },
-        { name = "MQTT_PASSWORD", valueFrom = "/use1.defcon.run/meshmap/mqtt_password" }
+        { name = "MQTT_USERNAME", valueFrom = "/<region_label>.<domain>/meshmap/mqtt_username" },
+        { name = "MQTT_PASSWORD", valueFrom = "/<region_label>.<domain>/meshmap/mqtt_password" }
       ]
 
       port_mappings = [
@@ -195,7 +195,7 @@ This file contains examples of how to configure different app types in `site.hcl
       ]
 
       secrets = [
-        { name = "MESHTK_OPENAI_KEY", valueFrom = "/defcon-run/openai/botsecret" }
+        { name = "MESHTK_OPENAI_KEY", valueFrom = "/<domain-slug>/openai/botsecret" }
       ]
 
       health_check = {
@@ -237,7 +237,7 @@ This file contains examples of how to configure different app types in `site.hcl
       ]
 
       environment = [
-        { name = "APP_URL", value = "https://strapi.defcon.run" }
+        { name = "APP_URL", value = "https://strapi.<domain>" }
       ]
 
       port_mappings = [
@@ -270,17 +270,17 @@ This file contains examples of how to configure different app types in `site.hcl
       ]
 
       secrets = [
-        { name = "DATABASE_CLIENT", valueFrom = "/ecs.use1.defcon-run/rds/strapi/db_engine" },
-        { name = "DATABASE_HOST", valueFrom = "/ecs.use1.defcon-run/rds/strapi/db_endpoint_writer" },
-        { name = "DATABASE_PORT", valueFrom = "/ecs.use1.defcon-run/rds/strapi/db_port" },
-        { name = "DATABASE_USERNAME", valueFrom = "/ecs.use1.defcon-run/rds/strapi/db_username" },
-        { name = "DATABASE_PASSWORD", valueFrom = "/ecs.use1.defcon-run/rds/strapi/db_password" },
-        { name = "DATABASE_NAME", valueFrom = "/ecs.use1.defcon-run/rds/strapi/db_dbname" },
-        { name = "APP_KEYS", valueFrom = "/defcon-run/strapi/app_keys" },
-        { name = "API_TOKEN_SALT", valueFrom = "/defcon-run/strapi/api_token_salt" },
-        { name = "ADMIN_JWT_SECRET", valueFrom = "/defcon-run/strapi/admin_jwt_secret" },
-        { name = "TRANSFER_TOKEN_SALT", valueFrom = "/defcon-run/strapi/transfer_token_salt" },
-        { name = "JWT_SECRET", valueFrom = "/defcon-run/strapi/jwt_secret" }
+        { name = "DATABASE_CLIENT", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/strapi/db_engine" },
+        { name = "DATABASE_HOST", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/strapi/db_endpoint_writer" },
+        { name = "DATABASE_PORT", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/strapi/db_port" },
+        { name = "DATABASE_USERNAME", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/strapi/db_username" },
+        { name = "DATABASE_PASSWORD", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/strapi/db_password" },
+        { name = "DATABASE_NAME", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/strapi/db_dbname" },
+        { name = "APP_KEYS", valueFrom = "/<domain-slug>/strapi/app_keys" },
+        { name = "API_TOKEN_SALT", valueFrom = "/<domain-slug>/strapi/api_token_salt" },
+        { name = "ADMIN_JWT_SECRET", valueFrom = "/<domain-slug>/strapi/admin_jwt_secret" },
+        { name = "TRANSFER_TOKEN_SALT", valueFrom = "/<domain-slug>/strapi/transfer_token_salt" },
+        { name = "JWT_SECRET", valueFrom = "/<domain-slug>/strapi/jwt_secret" }
       ]
 
       port_mappings = [
@@ -326,7 +326,7 @@ This file contains examples of how to configure different app types in `site.hcl
       ]
 
       environment = [
-        { name = "APP_URL", value = "https://etherpad.defcon.run" }
+        { name = "APP_URL", value = "https://etherpad.<domain>" }
       ]
 
       port_mappings = [
@@ -358,12 +358,12 @@ This file contains examples of how to configure different app types in `site.hcl
       ]
 
       secrets = [
-        { name = "DB_TYPE", valueFrom = "/ecs.use1.defcon-run/rds/etherpad/db_engine" },
-        { name = "DB_HOST", valueFrom = "/ecs.use1.defcon-run/rds/etherpad/db_endpoint_writer" },
-        { name = "DB_PORT", valueFrom = "/ecs.use1.defcon-run/rds/etherpad/db_port" },
-        { name = "DB_USER", valueFrom = "/ecs.use1.defcon-run/rds/etherpad/db_username" },
-        { name = "DB_PASS", valueFrom = "/ecs.use1.defcon-run/rds/etherpad/db_password" },
-        { name = "DB_NAME", valueFrom = "/ecs.use1.defcon-run/rds/etherpad/db_dbname" }
+        { name = "DB_TYPE", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/etherpad/db_engine" },
+        { name = "DB_HOST", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/etherpad/db_endpoint_writer" },
+        { name = "DB_PORT", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/etherpad/db_port" },
+        { name = "DB_USER", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/etherpad/db_username" },
+        { name = "DB_PASS", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/etherpad/db_password" },
+        { name = "DB_NAME", valueFrom = "/ecs.<region_label>.<domain-slug>/rds/etherpad/db_dbname" }
       ]
 
       port_mappings = [

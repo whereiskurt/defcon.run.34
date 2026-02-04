@@ -8,7 +8,8 @@ locals {
   # Placeholders:
   #   {{REGION_LABEL}} -> region label (use1, cac1)
   #   {{REGION}}       -> full region name (us-east-1, ca-central-1)
-  #   {{SITE_LABEL}}   -> site label (dc34)
+  #   {{SITE_LABEL}}   -> site label (e.g. dc34)
+  #   {{SITE_DOMAIN}}  -> site domain (e.g. defcon.run)
   services_with_placeholders = [
     for service in local.site_config.locals.ecs_services.services :
     merge(service, {
@@ -18,20 +19,39 @@ locals {
           # Replace placeholders in health_check_path
           health_check_path = try(lb.health_check_path, null) != null ? replace(
             replace(
-              replace(lb.health_check_path, "{{REGION_LABEL}}", local.region_config.locals.region.label),
-              "{{REGION}}", local.region_config.locals.region.full
+              replace(
+                replace(lb.health_check_path, "{{REGION_LABEL}}", local.region_config.locals.region.label),
+                "{{REGION}}", local.region_config.locals.region.full
+              ),
+              "{{SITE_LABEL}}", local.site_config.locals.site.label
             ),
-            "{{SITE_LABEL}}", local.site_config.locals.site.label
+            "{{SITE_DOMAIN}}", local.site_config.locals.dns.zonename
           ) : null,
           listener = try(lb.listener, null) != null ? merge(lb.listener, {
             path_patterns = try(lb.listener.path_patterns, null) != null ? [
               for pattern in lb.listener.path_patterns :
               replace(
                 replace(
-                  replace(pattern, "{{REGION_LABEL}}", local.region_config.locals.region.label),
-                  "{{REGION}}", local.region_config.locals.region.full
+                  replace(
+                    replace(pattern, "{{REGION_LABEL}}", local.region_config.locals.region.label),
+                    "{{REGION}}", local.region_config.locals.region.full
+                  ),
+                  "{{SITE_LABEL}}", local.site_config.locals.site.label
                 ),
-                "{{SITE_LABEL}}", local.site_config.locals.site.label
+                "{{SITE_DOMAIN}}", local.site_config.locals.dns.zonename
+              )
+            ] : null,
+            host_headers = try(lb.listener.host_headers, null) != null ? [
+              for header in lb.listener.host_headers :
+              replace(
+                replace(
+                  replace(
+                    replace(header, "{{REGION_LABEL}}", local.region_config.locals.region.label),
+                    "{{REGION}}", local.region_config.locals.region.full
+                  ),
+                  "{{SITE_LABEL}}", local.site_config.locals.site.label
+                ),
+                "{{SITE_DOMAIN}}", local.site_config.locals.dns.zonename
               )
             ] : null
           }) : null

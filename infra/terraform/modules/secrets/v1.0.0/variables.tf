@@ -31,13 +31,13 @@ variable "secrets" {
 
     # Path prefix template for SSM parameters
     # Supports variables: {{SITE_LABEL}}, {{REGION_LABEL}}, {{REGION}}
-    # Example: "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}" -> "/dc34/secrets/use1"
+    # Example: "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}" -> "/<site_label>/secrets/use1"
     # Default: "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}"
     ssm_prefix = optional(string, "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}")
 
     # Path prefix template for Secrets Manager (no region since it replicates)
     # Supports variables: {{SITE_LABEL}}
-    # Example: "/{{SITE_LABEL}}/secrets" -> "/dc34/secrets"
+    # Example: "/{{SITE_LABEL}}/secrets" -> "/<site_label>/secrets"
     # Default: "/{{SITE_LABEL}}/secrets"
     sm_prefix = optional(string, "/{{SITE_LABEL}}/secrets")
 

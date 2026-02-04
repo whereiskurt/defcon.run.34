@@ -4,7 +4,7 @@ locals {
   full_domains = [for domain in var.cloudfront.domains : "${domain}.${var.dns.zonename}"]
 
   # Create a map of full domain name to zone_id by looking up the parent zone
-  # e.g., for "run.defcon.run", look up zone for "defcon.run"
+  # e.g., for "run.<domain>", look up zone for "<domain>"
   domain_zones = {
     for domain in local.full_domains : domain => var.zone_map[domain].zone_id
   }

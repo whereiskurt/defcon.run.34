@@ -2,7 +2,7 @@
 # Returns ARNs/paths that can be used in ECS secrets valueFrom
 
 # SSM Parameter ARNs (when use_secrets_manager = false)
-# Format: { "strava/client_id" = "arn:aws:ssm:region:account:parameter/dc34/secrets/use1/strava/client_id" }
+# Format: { "strava/client_id" = "arn:aws:ssm:region:account:parameter/<site_label>/secrets/use1/strava/client_id" }
 output "ssm_parameter_arns" {
   description = "Map of secret/key to SSM parameter ARNs"
   value = {
@@ -11,7 +11,7 @@ output "ssm_parameter_arns" {
 }
 
 # SSM Parameter names (when use_secrets_manager = false)
-# Format: { "strava/client_id" = "/dc34/secrets/use1/strava/client_id" }
+# Format: { "strava/client_id" = "/<site_label>/secrets/use1/strava/client_id" }
 output "ssm_parameter_names" {
   description = "Map of secret/key to SSM parameter names (for ECS valueFrom)"
   value = {
@@ -20,7 +20,7 @@ output "ssm_parameter_names" {
 }
 
 # Secrets Manager ARNs (when use_secrets_manager = true)
-# Format: { "strava" = "arn:aws:secretsmanager:region:account:secret:dc34/secrets/strava-xxxxx" }
+# Format: { "strava" = "arn:aws:secretsmanager:region:account:secret:<site_label>/secrets/strava-xxxxx" }
 output "secretsmanager_arns" {
   description = "Map of secret name to Secrets Manager ARNs"
   value = {
@@ -29,7 +29,7 @@ output "secretsmanager_arns" {
 }
 
 # Secrets Manager names (when use_secrets_manager = true)
-# Format: { "strava" = "/dc34/secrets/strava" }
+# Format: { "strava" = "/<site_label>/secrets/strava" }
 output "secretsmanager_names" {
   description = "Map of secret name to Secrets Manager names"
   value = {

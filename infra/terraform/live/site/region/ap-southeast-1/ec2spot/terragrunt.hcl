@@ -29,14 +29,14 @@ dependency "site" {
 
   mock_outputs = {
     zone_map = {
-      "defcon.run" = {
+      "example.com" = {
         zone_id      = "Z0000000000000000000"
-        name         = "defcon.run"
+        name         = "example.com"
         name_servers = ["ns-0.awsdns-00.com"]
       }
-      "run.defcon.run" = {
+      "run.example.com" = {
         zone_id      = "Z0000000000000000002"
-        name         = "run.defcon.run"
+        name         = "run.example.com"
         name_servers = ["ns-0.awsdns-00.com"]
       }
     }
