@@ -51,7 +51,7 @@ locals {
         environment = [
           {
             name  = "APP_URL"
-            value = "https://run.defcon.run"
+            value = "https://run.{{SITE_DOMAIN}}"
           }
         ]
 
@@ -101,12 +101,12 @@ locals {
           {
             # AUTH_URL is preferred by Auth.js v5 - must include region prefix for correct callback URL construction
             name  = "AUTH_URL"
-            value = "https://run.defcon.run/{{REGION_LABEL}}"
+            value = "https://run.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },
           {
             # NEXTAUTH_URL for backwards compatibility
             name  = "NEXTAUTH_URL"
-            value = "https://run.defcon.run/{{REGION_LABEL}}"
+            value = "https://run.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },
           {
             name  = "AWS_REGION"
@@ -114,7 +114,7 @@ locals {
           },
           {
             name  = "AUTH_COOKIE_DOMAIN"
-            value = ".defcon.run"
+            value = ".{{SITE_DOMAIN}}"
           },
           {
             name  = "RUN_SES_REGION"
@@ -311,7 +311,7 @@ locals {
         listener = {
           port         = 443
           protocol     = "HTTPS"
-          host_headers = ["run.defcon.run", "*.run.defcon.run"]
+          host_headers = ["run.{{SITE_DOMAIN}}", "*.run.{{SITE_DOMAIN}}"]
         }
       }
     ]

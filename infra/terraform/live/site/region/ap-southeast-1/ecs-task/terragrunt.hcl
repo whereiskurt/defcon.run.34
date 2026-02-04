@@ -22,11 +22,11 @@ dependency "ecs_cluster" {
   mock_outputs = {
     clusters = {
       "app" = {
-        cluster_arn = "arn:aws:ecs:us-east-1:123456789012:cluster/app-use1-defcon-run"
+        cluster_arn = "arn:aws:ecs:us-east-1:123456789012:cluster/app-apse1-example-site"
       }
     }
     task_role_arns = {
-      "app" = "arn:aws:iam::123456789012:role/ecs-task-role-app-use1-defcon-run"
+      "app" = "arn:aws:iam::123456789012:role/ecs-task-role-app-apse1-example-site"
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]

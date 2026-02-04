@@ -410,7 +410,7 @@ resource "aws_ssm_parameter" "athena_query_role_activity" {
 
   value = <<-EOT
 -- Actions by specific role (replace ROLE_NAME with actual role)
--- Example: dc34-github-terragrunt, dc34-github-application, etc.
+-- Example: <site_label>-github-terragrunt, <site_label>-github-application, etc.
 SELECT
     eventtime,
     eventsource,

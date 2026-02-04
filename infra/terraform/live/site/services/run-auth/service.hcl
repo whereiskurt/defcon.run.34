@@ -51,7 +51,7 @@ locals {
         environment = [
           {
             name  = "APP_URL"
-            value = "https://auth.defcon.run"
+            value = "https://auth.{{SITE_DOMAIN}}"
           }
         ]
 
@@ -100,11 +100,11 @@ locals {
           },
           {
             name  = "NEXTAUTH_URL"
-            value = "https://auth.defcon.run/{{REGION_LABEL}}"
+            value = "https://auth.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },
           {
             name  = "AUTH_COOKIE_DOMAIN"
-            value = ".defcon.run"
+            value = ".{{SITE_DOMAIN}}"
           },
           {
             name  = "AWS_REGION"
@@ -379,7 +379,7 @@ locals {
         listener = {
           port         = 443
           protocol     = "HTTPS"
-          host_headers = ["auth.defcon.run", "*.auth.defcon.run"]
+          host_headers = ["auth.{{SITE_DOMAIN}}", "*.auth.{{SITE_DOMAIN}}"]
         }
       }
     ]

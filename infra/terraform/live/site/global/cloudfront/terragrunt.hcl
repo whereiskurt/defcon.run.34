@@ -186,25 +186,25 @@ dependency "site" {
 
   mock_outputs = {
     zone_map = {
-      "defcon.run" = {
+      "example.com" = {
         zone_id = "Z1234567890ABC"
-        name    = "defcon.run"
+        name    = "example.com"
       }
-      "auth.defcon.run" = {
+      "auth.example.com" = {
         zone_id = "Z1234567890ABD"
-        name    = "auth.defcon.run"
+        name    = "auth.example.com"
       }
-      "run.defcon.run" = {
+      "run.example.com" = {
         zone_id = "Z1234567890ABE"
-        name    = "run.defcon.run"
+        name    = "run.example.com"
       }
-      "cms.defcon.run" = {
+      "cms.example.com" = {
         zone_id = "Z1234567890ABF"
-        name    = "cms.defcon.run"
+        name    = "cms.example.com"
       }
-      "gpx.defcon.run" = {
+      "gpx.example.com" = {
         zone_id = "Z1234567890ABG"
-        name    = "gpx.defcon.run"
+        name    = "gpx.example.com"
       }
     }
     waf = {
@@ -225,16 +225,16 @@ dependency "use1_certs" {
 
   mock_outputs = {
     cert_map = {
-      "run.defcon.run" = {
+      "run.example.com" = {
         arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-id"
       }
-      "auth.defcon.run" = {
+      "auth.example.com" = {
         arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-auth-id"
       }
-      "cms.defcon.run" = {
+      "cms.example.com" = {
         arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-cms-id"
       }
-      "gpx.defcon.run" = {
+      "gpx.example.com" = {
         arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-gpx-id"
       }
     }

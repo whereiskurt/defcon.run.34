@@ -49,7 +49,7 @@ locals {
         environment = [
           {
             name  = "APP_URL"
-            value = "https://cms.defcon.run"
+            value = "https://cms.{{SITE_DOMAIN}}"
           }
         ]
 
@@ -112,31 +112,31 @@ locals {
           },
           {
             name  = "STRAPI_URL"
-            value = "https://cms.defcon.run"
+            value = "https://cms.{{SITE_DOMAIN}}"
           },
           {
             name  = "SES_FROM_ADDRESS"
-            value = "support@email.defcon.run"
+            value = "support@email.{{SITE_DOMAIN}}"
           },
           {
             name  = "SES_REPLYTO_ADDRESS"
-            value = "reply-to@email.defcon.run"
+            value = "reply-to@email.{{SITE_DOMAIN}}"
           },
           {
             name  = "OIDC_REDIRECT_URI"
-            value = "https://cms.defcon.run/{{REGION_LABEL}}/strapi-plugin-sso/oidc/callback"
+            value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}/strapi-plugin-sso/oidc/callback"
           },
           {
             name  = "OIDC_AUTHORIZATION_ENDPOINT"
-            value = "https://auth.defcon.run/{{REGION_LABEL}}/api/oidc/auth"
+            value = "https://auth.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/oidc/auth"
           },
           {
             name  = "OIDC_TOKEN_ENDPOINT"
-            value = "https://auth.defcon.run/{{REGION_LABEL}}/api/oidc/token"
+            value = "https://auth.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/oidc/token"
           },
           {
             name  = "OIDC_USER_INFO_ENDPOINT"
-            value = "https://auth.defcon.run/{{REGION_LABEL}}/api/oidc/me"
+            value = "https://auth.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/oidc/me"
           },
           {
             name  = "OIDC_REQUIRED_SERVICES"
@@ -206,7 +206,7 @@ locals {
             name      = "S3_MEDIA_REGION"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/cms-media/bucket_region"
           },
-          # Internal secret for server-to-server validation with auth.defcon.run
+          # Internal secret for server-to-server validation with auth service
           # Used by services-validation middleware to re-validate services claim
           {
             name      = "AUTH_INTERNAL_SECRET"
@@ -257,7 +257,7 @@ locals {
         environment = [
           {
             name  = "APP_URL"
-            value = "https://cms.defcon.run"
+            value = "https://cms.{{SITE_DOMAIN}}"
           }
         ]
 
@@ -320,15 +320,15 @@ locals {
           },
           {
             name  = "STRAPI_URL"
-            value = "https://cms.defcon.run"
+            value = "https://cms.{{SITE_DOMAIN}}"
           },
           {
             name  = "SES_FROM_ADDRESS"
-            value = "support@email.defcon.run"
+            value = "support@email.{{SITE_DOMAIN}}"
           },
           {
             name  = "SES_REPLYTO_ADDRESS"
-            value = "reply-to@email.defcon.run"
+            value = "reply-to@email.{{SITE_DOMAIN}}"
           }
         ]
 
@@ -434,7 +434,7 @@ locals {
       full_bucket_access = true
 
       # Replicate SSM parameters to these regions so workers can access master bucket credentials
-      # This creates /dc34/uploads/cac1/cms-litestream/* params pointing to the use1 bucket
+      # This creates /<site_label>/uploads/cac1/cms-litestream/* params pointing to the use1 bucket
       ssm_replicate_to = [
         { label = "cac1", full = "ca-central-1" },
         { label = "apse1", full = "ap-southeast-1" }
@@ -462,7 +462,7 @@ locals {
       }
 
       # Enable CloudFront OAC access for serving media via CDN
-      # This allows cms.defcon.run/{region}/cms/* to serve media files
+      # This allows cms.<domain>/{region}/cms/* to serve media files
       cloudfront_access = true
     }
   ]
@@ -503,7 +503,7 @@ locals {
         listener = {
           port          = 443
           protocol      = "HTTPS"
-          host_headers  = ["cms.defcon.run"]
+          host_headers  = ["cms.{{SITE_DOMAIN}}"]
           path_patterns = ["/{{REGION_LABEL}}/*"]
           priority      = 100
         }

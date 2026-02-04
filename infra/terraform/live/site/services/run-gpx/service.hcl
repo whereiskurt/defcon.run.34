@@ -52,7 +52,7 @@ locals {
           {
             # For next.config.ts basePath and assetPrefix
             name  = "WEBAPP_ORIGIN"
-            value = "gpx.defcon.run"
+            value = "gpx.{{SITE_DOMAIN}}"
           },
           {
             name  = "WEBAPP_PREFIX"
@@ -62,12 +62,12 @@ locals {
             # AUTH_URL for Auth.js - full path including /api/auth
             # When using full path in AUTH_URL, do NOT set basePath in auth.ts
             name  = "AUTH_URL"
-            value = "https://gpx.defcon.run/{{REGION_LABEL}}/api/auth"
+            value = "https://gpx.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/auth"
           },
           {
             # NEXTAUTH_URL for backwards compatibility
             name  = "NEXTAUTH_URL"
-            value = "https://gpx.defcon.run/{{REGION_LABEL}}/api/auth"
+            value = "https://gpx.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/auth"
           },
           {
             name  = "AWS_REGION"
@@ -80,7 +80,7 @@ locals {
           },
           {
             name  = "AUTH_COOKIE_DOMAIN"
-            value = ".defcon.run"
+            value = ".{{SITE_DOMAIN}}"
           },
           {
             # Auth service URL for internal API calls
@@ -232,8 +232,8 @@ locals {
         listener = {
           port         = 443
           protocol     = "HTTPS"
-          host_headers = ["gpx.defcon.run"]
-          # No path_patterns - route all gpx.defcon.run requests to run-gpx
+          host_headers = ["gpx.{{SITE_DOMAIN}}"]
+          # No path_patterns - route all gpx.<domain> requests to run-gpx
           # This allows Auth.js callbacks without region prefix to work
         }
       }

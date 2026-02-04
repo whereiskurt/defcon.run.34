@@ -9,10 +9,10 @@ dependency "certs" {
 
   mock_outputs = {
     cert_map = {
-      "defcon.run" = {
+      "example.com" = {
         arn                       = "arn:aws:acm:ca-central-1:123456789012:certificate/mock-cert-id"
-        domain_name               = "defcon.run"
-        subject_alternative_names = ["*.defcon.run"]
+        domain_name               = "example.com"
+        subject_alternative_names = ["*.example.com"]
         validation_method         = "DNS"
       }
     }

@@ -67,11 +67,11 @@ Pre-built queries are stored in SSM Parameter Store:
 
 ```bash
 # List queries
-aws ssm get-parameters-by-path --path "/dc34/cloudtrail/queries" --query 'Parameters[*].Name'
+aws ssm get-parameters-by-path --path "/<site_label>/cloudtrail/queries" --query 'Parameters[*].Name'
 
 # Run a query
-QUERY=$(aws ssm get-parameter --name "/dc34/cloudtrail/queries/github-roles-summary" --query 'Parameter.Value' --output text)
-aws athena start-query-execution --query-string "$QUERY" --work-group dc34-cloudtrail-analysis
+QUERY=$(aws ssm get-parameter --name "/<site_label>/cloudtrail/queries/github-roles-summary" --query 'Parameter.Value' --output text)
+aws athena start-query-execution --query-string "$QUERY" --work-group <site_label>-cloudtrail-analysis
 ```
 
 ### Example: Find All Actions by Terragrunt Role
@@ -81,9 +81,9 @@ SELECT
     eventsource,
     eventname,
     COUNT(*) as call_count
-FROM dc34_cloudtrail.cloudtrail_logs
+FROM <site_label>_cloudtrail.cloudtrail_logs
 WHERE useridentity.sessioncontext.sessionissuer.arn
-    LIKE '%dc34-github-terragrunt%'
+    LIKE '%<site_label>-github-terragrunt%'
     AND date >= date_format(current_date - interval '30' day, '%Y/%m/%d')
 GROUP BY eventsource, eventname
 ORDER BY eventsource, eventname;

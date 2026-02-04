@@ -6,9 +6,12 @@ locals {
   # Detect CI environment (GitHub Actions sets CI=true)
   is_ci = get_env("CI", "") == "true"
 
+  # Read site config for parameterized values
+  site_config = read_terragrunt_config(find_in_parent_folders("site.hcl", "${get_terragrunt_dir()}/site.hcl"))
+
   # Management account for cross-account Route53 access
   management_account_id    = get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")
-  management_delegate_role = "dc34-github-delegate"
+  management_delegate_role = "${local.site_config.locals.site.label}-github-delegate"
 
   # AWS profile prefix from environment variable TF_VAR_profile_prefix
   # Can be set via: export TF_VAR_profile_prefix="dc" or export TF_VAR_profile_prefix="gr"
@@ -29,7 +32,7 @@ locals {
   terraform_profile_line   = local.is_ci ? "" : "profile = \"${local.terraform_profile}\""
 
   # In CI, management provider uses assume_role to cross-account delegate role
-  management_assume_role_block = local.is_ci ? "assume_role {\n      role_arn     = \"arn:aws:iam::${local.management_account_id}:role/${local.management_delegate_role}\"\n      external_id  = \"dc34\"\n    }" : ""
+  management_assume_role_block = local.is_ci ? "assume_role {\n      role_arn     = \"arn:aws:iam::${local.management_account_id}:role/${local.management_delegate_role}\"\n      external_id  = \"${local.site_config.locals.site.label}\"\n    }" : ""
 }
 
 generate "provider" {
