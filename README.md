@@ -3,11 +3,16 @@ Hello World! 🤗
 
 Welcome to the defcon.run.34 codebase. I've been working on variations of this for years - thousands of hours. My hope is this code will useful for you or give your inspiration for what's possible. 
 
-This AWS infrastructure code is multi-regional and re-usable across projects/domains, which is something that's been hard to get right and kinda of a BIG CLAIM that I'm proud of. True multi-regional AWS deployments are tricky to get working so this code base could help accelerate you.
+This AWS infrastructure code is multi-regional and re-usable across projects/domains, which is something that's been hard to get right and kinda of a BIG CLAIM that I'm proud of. 
 
-This code runs https://run.defcon.run inside of my AWS account, but, can easily be re-configured to run your AWS webscale infrastructure, inside your AWS acccount (ie. https://service.example.com.) If you review the `env.sh` and `infra/terraform/live/site/site.hcl` files you'll see the variables that control AWS accounts, domain names, etc.
+True multi-regional AWS deployments are tricky to get working so this code base could help accelerate you.
 
-Being truly multi-regional without dependencies on `us-east-1` involves deploying all regional services like ECR, ECS, SSM, S3, ... regionally (i.e `ca-central-1`, `ap-southeast-1`, etc). The also means you must build, release, and deploy your app images to each of the regions. This code base solves that in a reasonable and maintainable way leveraging the features of `terragrunt`, which is made for this purpose. Also a single `release-all.sh` helps unity the deployments and ensure all regions are the same.
+This code runs https://run.defcon.run inside of my AWS account, but, can easily be re-configured to run your AWS webscale infrastructure, inside your AWS acccount (ie. https://service.example.com.) 
+
+Review the `env.sh` and `infra/terraform/live/site/site.hcl` files you'll see the variables that control AWS accounts, domain names, etc.
+
+Being truly multi-regional without dependencies on `us-east-1` involves deploying all regional services like ECR, ECS, SSM, S3, ... regionally (i.e `ca-central-1`, `ap-southeast-1`, etc). You must also `build`, `release`, and `deploy` each app image to each of the regions. This code base helps by leveraging features of `terragrunt` and the `release-all.sh` script that helps unity the deployments and ensure all regions are the same.
+
 
 Adding another region is trivial (copy+paste+rename) and something that `claude` was even able to do with great ease given the working examples. TODO: Create a `/skill` to CRUD new region easily.
 
@@ -18,6 +23,9 @@ If you've worked with terragrunt+terraform this layout may seem familar. `live/s
 
 ## Infrastructure Service
 > Checkout [`infra/README.md`](infra/README.md) for the deployment pipeline and multi-region active-active patterns.
+
+The modules below create various AWS resources and don't map 1:1. For example, `s3-uploads` configures S3, IAM, KMS, SSM, and uses the variables set `site.hcl` and `services/*/service.hcl`.
+
 ```
 infra/terraform/
 ├── live/site/                      # Terragrunt live configuration
@@ -53,7 +61,7 @@ infra/terraform/
 ## Application
 > Checkout [`apps/README.md`](apps/README.md) for request flow, authentication flow, CMS replication, and GPX architecture diagrams.
 
-
+Using the `./release-all.sh --pr --with-terraform --regions=use1` will bump the versions, push the application to the ECR repositories, rewrite the taskdefs to use the version number, and trigger a ECS deployment. Making, `--regions=use1,apse1,cac1` would deploy to all regions.   
 
 ```
 apps/                   # Application services → see apps/README.md
@@ -70,6 +78,7 @@ apps/                   # Application services → see apps/README.md
 | **run.human** | run.defcon.run | Main app — registration, event info |
 | **run.gpx** | gpx.defcon.run | GPX route editor — plan your Vegas runs |
 | **run.cms** | cms.defcon.run | Headless CMS — schedules, announcements |
+| **run.meshtk** | mqtt.defcon.run | Meshtastic and MQTT services+UIs |
 
 Future commits will add `meshtk` in as a service for parity with defcon.run.33 
 
