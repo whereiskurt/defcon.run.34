@@ -5,9 +5,7 @@ Welcome to the defcon.run.34 codebase. I've been working on variations of this f
 
 This AWS infrastructure code is multi-regional and re-usable across projects/domains, which is something that's been hard to get right and kinda of a BIG CLAIM that I'm proud of. 
 
-Because multi-regional AWS deployments are tricky to get working so this code base could help accelerate you. It's very easy to start with just `us-east-1` and then add `ca-central-1` at any time. 
-
-The `site.hcl` defines a `skip_regions  = ["ca-central-1", "ap-southeast-1"]` - which is ensures those regions are skipped and do not get AWS resources. Simply remove to get multi-region resource deployments.
+Because multi-regional AWS deployments are tricky to get working so this code base could help accelerate you. It's very easy to start with just `us-east-1` and then add `ca-central-1` at any time. Specifically, the `site.hcl` defines a `skip_regions  = ["ca-central-1", "ap-southeast-1"]` which ensures those regions are `skipped` and do not get AWS resources. Simply remove to get multi-region resource deployments.
 
 This code runs https://run.defcon.run inside of my AWS account, but, can easily be re-configured to run your AWS webscale infrastructure, inside your AWS acccount (ie. https://service.example.com.) 
 
