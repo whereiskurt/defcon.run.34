@@ -134,10 +134,10 @@ get_cf_domain() {
 
 get_tf_service() {
   case "$1" in
-    run.auth) echo "run-auth" ;;
-    run.human) echo "run-human" ;;
-    run.cms) echo "run-cms" ;;
-    run.gpx) echo "run-gpx" ;;
+    run.auth) echo "run.auth" ;;
+    run.human) echo "run.human" ;;
+    run.cms) echo "run.cms" ;;
+    run.gpx) echo "run.gpx" ;;
     *) echo "" ;;
   esac
 }

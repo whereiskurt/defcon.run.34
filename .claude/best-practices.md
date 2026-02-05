@@ -168,10 +168,10 @@ Update `infra/terraform/live/site/site.hcl`:
 
 #### 5. Service DynamoDB Replication
 Update each service's `service.hcl` to add the region to `dynamodb.tables[].replica_regions[]`:
-- `services/run-auth/service.hcl`
-- `services/run-human/service.hcl`
-- `services/run-gpx/service.hcl`
-- `services/run-cms/service.hcl`
+- `services/run.auth/service.hcl`
+- `services/run.human/service.hcl`
+- `services/run.gpx/service.hcl`
+- `services/run.cms/service.hcl`
 
 #### 6. State Backend
 Add to `env.sh`:
@@ -238,7 +238,7 @@ skip_regions = []
 
 # IMPORTANT: Keep the new region OUT of S3 replica_regions for now:
 # - site.hcl email.replica_regions
-# - services/run-cms/service.hcl cms-media replication.replica_regions
+# - services/run.cms/service.hcl cms-media replication.replica_regions
 ```
 
 **Step 4: Deploy infrastructure**
@@ -252,7 +252,7 @@ terragrunt run-all apply --non-interactive -- -auto-approve
 # Edit site.hcl - add to email.replica_regions:
 { label = "apse1", full = "ap-southeast-1" }
 
-# Edit services/run-cms/service.hcl - add to cms-media replica_regions:
+# Edit services/run.cms/service.hcl - add to cms-media replica_regions:
 { label = "apse1", full = "ap-southeast-1" }
 ```
 

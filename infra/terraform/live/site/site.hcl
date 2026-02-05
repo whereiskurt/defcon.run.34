@@ -1,9 +1,4 @@
 locals {
-  # Load service definitions from infra/services/
-  ecs_auth_service      = read_terragrunt_config("./services/run-auth/service.hcl")
-  ecs_run_human_service = read_terragrunt_config("./services/run-human/service.hcl")
-  ecs_cms_service       = read_terragrunt_config("./services/run-cms/service.hcl")
-  ecs_gpx_service       = read_terragrunt_config("./services/run-gpx/service.hcl")
 
   site = {
     label         = "dc34"
@@ -22,6 +17,12 @@ locals {
   tf_state_prefix    = "tf-${local.site_domain_slug}"                # "tf-defcon-run"
   delegate_role_name = "${local.site.label}-github-delegate"         # "dc34-github-delegate"
   github_repo_name   = "defcon.run.34"
+
+  # Load service definitions from infra/services/
+  ecs_auth_service      = read_terragrunt_config("./services/run.auth/service.hcl")
+  ecs_run_human_service = read_terragrunt_config("./services/run.human/service.hcl")
+  ecs_cms_service       = read_terragrunt_config("./services/run.cms/service.hcl")
+  ecs_gpx_service       = read_terragrunt_config("./services/run.gpx/service.hcl")
 
   email = {
     enabled        = true
