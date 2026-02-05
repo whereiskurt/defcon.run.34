@@ -369,13 +369,13 @@ locals {
       dynamodb_table_ref = "run-human-electro"
 
       on_upload_lambda = {
-        source_path = "${get_repo_root()}/infra/terraform/live/site/services/run-human/lambdas/on-upload"
+        source_path = "${get_repo_root()}/infra/terraform/live/site/services/run.human/lambdas/on-upload"
         timeout     = 30
         memory_size = 256
       }
 
       on_process_lambda = {
-        source_path = "${get_repo_root()}/infra/terraform/live/site/services/run-human/lambdas/on-process"
+        source_path = "${get_repo_root()}/infra/terraform/live/site/services/run.human/lambdas/on-process"
         timeout     = 300
         memory_size = 1024
       }

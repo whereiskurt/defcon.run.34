@@ -24,19 +24,19 @@ fi
 # Set app-specific terraform service path and app component directory
 case "$APP" in
   "run.auth")
-    TF_SERVICE="auth"
+    TF_SERVICE="run.auth"
     APP_COMPONENT="webapp"
     ;;
   "run.human")
-    TF_SERVICE="run-human"
+    TF_SERVICE="run.human"
     APP_COMPONENT="webapp"
     ;;
   "run.cms")
-    TF_SERVICE="cms"
+    TF_SERVICE="run.cms"
     APP_COMPONENT="app"
     ;;
   "run.gpx")
-    TF_SERVICE="run-gpx"
+    TF_SERVICE="run.gpx"
     APP_COMPONENT="webapp"
     ;;
 esac

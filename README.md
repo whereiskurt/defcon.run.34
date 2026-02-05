@@ -1,7 +1,80 @@
 # WIP: defcon.run 34
-Hello World! 🤗 
+Hello World! 🤗
 
-Since the end-off DEF CON 33 (Aug 2025) to now (February 2026) - I've been working to establish the new architecture and patterns we'll be using to build out `run.defcon.run` this year. For example, we have new `auth` and `gpx` services, we're using `terragrunt`+`terraform modules` to support our future vision, as well as `.claude/` skills an `AGENTS.md` to focus the tooling. 
+Welcome to the defcon.run.34 codebase. I've been working on variations of this for years - thousands of hours. My hope is this code will useful for you or give your inspiration for what's possible. 
+
+This AWS infrastructure code is multi-regional and re-usable across projects/domains, which is something that's been hard to get right and kinda of a BIG CLAIM that I'm proud of. True multi-regional AWS deployments are tricky to get working so this code base could help accelerate you.
+
+This code runs https://run.defcon.run inside of my AWS account, but, can easily be re-configured to run your AWS webscale infrastructure, inside your AWS acccount (ie. https://service.example.com.) If you review the `env.sh` and `infra/terraform/live/site/site.hcl` files you'll see the variables that control AWS accounts, domain names, etc.
+
+Being truly multi-regional without dependencies on `us-east-1` involves deploying all regional services like ECR, ECS, SSM, S3, ... regionally (i.e `ca-central-1`, `ap-southeast-1`, etc). The also means you must build, release, and deploy your app images to each of the regions. This code base solves that in a reasonable and maintainable way leveraging the features of `terragrunt`, which is made for this purpose. Also a single `release-all.sh` helps unity the deployments and ensure all regions are the same.
+
+Adding another region is trivial (copy+paste+rename) and something that `claude` was even able to do with great ease given the working examples. TODO: Create a `/skill` to CRUD new region easily.
+
+## What's here?
+The main pillars are `infrastructure` <-> `services` <-> `application`, with `services` gluing the applications instance into the infrastructure.
+
+If you've worked with terragrunt+terraform this layout may seem familar. `live/site` terragrunt structure contain instances of terraform `modules`. Each `region/` contains a `region.hcl` defining the regional specific settings. Other than the unique `region.hcl` files, each of the `ca-central-1/`, `ap-southeast-1/` are just copies/synlinks to `us-east-1/`. Our infrastructure deploys the same modules for all of the regions.
+
+## Infrastructure Service
+> Checkout [`infra/README.md`](infra/README.md) for the deployment pipeline and multi-region active-active patterns.
+```
+infra/terraform/
+├── live/site/                      # Terragrunt live configuration
+│   ├── global/                     # Global resources (CloudFront, ECR, etc.)
+│   ├── region/                     # Per-region resources
+│   │   ├── us-east-1/              # Virginia (primary)
+│   │   ├── ca-central-1/           # Canada
+│   │   └── ap-southeat-1/          # Singapore
+│   └── services/                   # Per-service Terragrunt definitions
+│       ├── run.auth/               # run.auth ECS service
+│       ├── run.cms/                # run.cms ECS service
+│       └── run.human/              # run.human ECS service
+└── modules/                        # Reusable Terraform modules
+    ├── certs/
+    ├── cloudfront/
+    ├── cloudfront-assets/
+    ├── cloudtrail/
+    ├── dynamodb/
+    ├── ec2spot/
+    ├── ecr/
+    ├── ecs-cluster/
+    ├── ecs-service/
+    ├── ecs-task/
+    ├── email/
+    ├── github-oidc/
+    ├── lambda-edge/
+    ├── network/
+    ├── s3-uploads/
+    ├── s3-uploads-processor/
+    ├── secrets/
+    └── site/
+```
+## Application
+> Checkout [`apps/README.md`](apps/README.md) for request flow, authentication flow, CMS replication, and GPX architecture diagrams.
+
+
+
+```
+apps/                   # Application services → see apps/README.md
+├── run.auth/           #   OIDC auth service
+├── run.cms/            #   Strapi + Litestream
+├── run.gpx/            #   Next.js + gpx-studio
+├── run.human/          #   Main event app
+└── release-all.sh      #   Multi-region release
+```
+
+| Service | URL | What It Does |
+|---------|-----|--------------|
+| **run.auth** | auth.defcon.run | OIDC provider — SSO across all services |
+| **run.human** | run.defcon.run | Main app — registration, event info |
+| **run.gpx** | gpx.defcon.run | GPX route editor — plan your Vegas runs |
+| **run.cms** | cms.defcon.run | Headless CMS — schedules, announcements |
+
+Future commits will add `meshtk` in as a service for parity with defcon.run.33 
+
+
+Since the end-off DEF CON 33 (Aug 2025) to now (February 2026) - I've been working to establish the new architecture and patterns we'll be using to build out `run.defcon.run` this year. For example, we have new `auth` and `gpx` services, we're using `terragrunt`+`terraform modules` to support our future vision, as well as `.claude/` skills an `AGENTS.md` to focus the tooling.
 
 This is a hobby project where we experiment with modern AWS cloud architecture, AI-assisted Claude Code workflows, and full-stack webapp tech - with the goal of building something fun and useful for our annual a 4-day running event at DEFCON in Las Vegas.
 
@@ -15,7 +88,7 @@ A massive motivation is learning Claude Code and new AI development workflows. J
 
 [defcon.run 33](https://github.com/khundeck/defcon.run.33) was a huge success by all measures, where we tried a tonne of new ideas (ie. meshtastic CTF), heatmaps, leaderboards. I learned from that a few key areas to focus on: better auth, a proper GPX route editor for planning runs, and a workflow that lets me spin up multiple Claude instances working in parallel on the same feature. This repo is the result - and we'll be working on until DEF CON 34 this year.
 
-There is hundreds of hours of AWS and development workflow magic in this repo that I'm happy to share with you. 🙂 
+There is hundreds of hours of AWS and development workflow magic in this repo that I'm happy to share with you. 🙂
 
 ## What It Does
 Today (February) these are the basics so far:
@@ -58,103 +131,6 @@ What's missing is the `meshtk` integration which will make meshtastic integratio
               └─────────────────┘            └─────────────────┘
 ```
 
-### Request Flow
-
-```
-┌────────┐    ┌────────────┐    ┌─────┐    ┌─────────┐    ┌───────────┐
-│ Browser│───▶│ CloudFront │───▶│ WAF │───▶│   ALB   │───▶│ECS Fargate│
-└────────┘    │  (Edge)    │    │     │    │(Regional)│   │ (Next.js) │
-              └────────────┘    └─────┘    └─────────┘    └────┬──────┘
-                                                               │
-              ┌────────────────────────────────────────────────┘
-              ▼
-    ┌──────────────────────────────────────────────────────────┐
-    │                     Data Layer                           │
-    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       │
-    │  │  DynamoDB   │  │     S3      │  │    SES      │       │
-    │  │ (ElectroDB) │  │  (Uploads)  │  │  (Email)    │       │
-    │  └─────────────┘  └─────────────┘  └─────────────┘       │
-    └──────────────────────────────────────────────────────────┘
-```
-
-### Authentication Flow (OIDC)
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                          User Login Flow                                 │
-└──────────────────────────────────────────────────────────────────────────┘
-
-  ┌────────┐         ┌────────────┐         ┌────────────┐
-  │  User  │         │ run.human  │         │ run.auth   │
-  │Browser │         │ (App)      │         │ (OIDC)     │
-  └───┬────┘         └─────┬──────┘         └─────┬──────┘
-      │                    │                      │
-      │  1. Click Login    │                      │
-      │───────────────────▶│                      │
-      │                    │  2. Redirect to      │
-      │                    │     /authorize       │
-      │◀───────────────────│─────────────────────▶│
-      │                    │                      │
-      │  3. Enter email    │                      │
-      │──────────────────────────────────────────▶│
-      │                    │                      │
-      │                    │     ┌────────────┐   │
-      │                    │     │    SES     │   │
-      │                    │     │  (Email)   │◀──│ 4. Send magic link
-      │                    │     └─────┬──────┘   │
-      │  5. Click link     │           │          │
-      │◀───────────────────────────────┘          │
-      │                    │                      │
-      │──────────────────────────────────────────▶│ 6. Verify token
-      │                    │                      │
-      │◀─────────────────────────────────────────▶│ 7. Issue JWT
-      │  8. Redirect with  │                      │
-      │     session cookie │                      │
-      │───────────────────▶│                      │
-      │                    │                      │
-      │  9. Authenticated! │                      │
-      │◀───────────────────│                      │
-```
-
-### Deployment Pipeline
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    GitHub Actions (OIDC Federation)                     │
-│                    No long-lived AWS credentials                        │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-           ┌────────────────────────┼────────────────────────┐
-           ▼                        ▼                        ▼
-    ┌─────────────┐          ┌─────────────┐          ┌─────────────┐
-    │   Build     │          │   Build     │          │   Build     │
-    │  run.auth   │          │  run.human  │          │   run.gpx   │
-    └──────┬──────┘          └──────┬──────┘          └──────┬──────┘
-           │                        │                        │
-           └────────────────────────┼────────────────────────┘
-                                    ▼
-                         ┌─────────────────────┐
-                         │     Push to ECR     │
-                         │  (Container Images) │
-                         └──────────┬──────────┘
-                                    │
-                    ┌───────────────┼───────────────┐
-                    ▼                               ▼
-           ┌────────────────┐              ┌────────────────┐
-           │  Deploy ECS    │              │  Deploy ECS    │
-           │  us-east-1     │              │ ap-southeast-1 │
-           │  (Terragrunt)  │              │  (Terragrunt)  │
-           └────────────────┘              └────────────────┘
-```
-
-### Services
-
-| Service | URL | What It Does |
-|---------|-----|--------------|
-| **run.human** | run.defcon.run | Main app — registration, event info |
-| **run.auth** | auth.defcon.run | OIDC provider — SSO across all services |
-| **run.gpx** | gpx.defcon.run | GPX route editor — plan your Vegas runs |
-| **run.cms** | cms.defcon.run | Headless CMS — schedules, announcements |
 
 ## Tech Stack
 
@@ -167,161 +143,15 @@ What's missing is the `meshtk` integration which will make meshtastic integratio
 | **CI/CD** | GitHub Actions, OIDC federation (no long-lived creds), SOPS secrets |
 | **Testing** | Playwright E2E with multi-user scenarios |
 
+## Running It
 
-### Last Year's Architecture
-This was [last year's architecture](https://github.com/whereiskurt/defcon.run.33/) and the basis for this years: 
+### Devcontainers
 
-![Architecture Overview](https://github.com/user-attachments/assets/0f631149-7046-43f2-9890-5fd04b23762d)
+If you use VS Code you can launch a devcontainer via `.devcontainer/devcontainer.json`. The `.vscode/tasks.json` file has all of the start-up commands for the dev servers.
 
-TODO: Redraw this diagram w/ `claude`. :-)
-
-
-## Cool Patterns :-)
-
-### Master-Worker CMS Replication
-
-I'm continuing to explore this approach, but it seems like a headless Strapi master that litestreams to an S3 buckets, with read-only workers, is cheap robust pattern. The CMS uses SQLite with [Litestream](https://litestream.io/) for continuous replication:
-
-```
-┌──────── Master (us-east-1) ────────┐     ┌──────── Workers ────────┐
-│  Strapi → SQLite → Litestream      │────▶│  S3 → SQLite → Strapi   │
-│  (writes, continuous WAL sync)     │     │  (reads, 5-min restore) │
-└────────────────────────────────────┘     └─────────────────────────┘
-```
-
-Admin writes go to master. Litestream streams WAL to S3. Workers periodically restore and atomically swap DBs. Reads fan out via ECS service discovery. Simple, cheap, resilient.
-
-### Embedded Open Source
-
-The GPX editor embeds [gpx-studio](https://gpx.studio) — an open-source SvelteKit app. I wrapped it in Next.js:
-
-```
-┌──────────────────────────────────────────────────────────────────────────┐
-│                         run.gpx Architecture                             │
-└──────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│                     Next.js Shell                           │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────┐  │
-│  │   Auth.js       │  │   API Routes    │  │   /studio   │  │
-│  │   (Session)     │  │   (/api/gpx/*)  │  │  (Static)   │  │
-│  └────────┬────────┘  └────────┬────────┘  └──────┬──────┘  │
-└───────────┼────────────────────┼──────────────────┼─────────┘
-            │                    │                  │
-            ▼                    ▼                  ▼
-     ┌────────────┐       ┌────────────┐    ┌─────────────────┐
-     │  DynamoDB  │       │     S3     │    │   gpx-studio    │
-     │ (Metadata) │       │  (Files)   │    │   (SvelteKit)   │
-     │ - versions │       │ - .gpx     │    │  Built at deploy│
-     │ - shares   │       │ - exports  │    │  Served static  │
-     └────────────┘       └────────────┘    └─────────────────┘
-
-Flow: User → Auth → Load GPX list → Open in Studio → Save via API → S3
-```
-
-- Next.js handles auth (Auth.js) and API routes
-- gpx-studio built at deploy time, served as static files under `/studio/*`
-- Cloud storage via presigned S3 URLs + DynamoDB metadata
-- Versioning and public/private share links
-
-### Multi-Region Active-Active
-
-Both regions run identical services. CloudFront routes by path prefix (`/use1/*`, `/apse1/*`). Apps use dynamic `basePath`. DynamoDB global tables replicate across regions. One `release-all.sh --parallel` and you're live everywhere.
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    Adding a New Region                                  │
-└─────────────────────────────────────────────────────────────────────────┘
-
-1. Create regional config:     infra/terraform/live/site/region/ap-southeast-1/
-2. Add service definitions:    infra/terraform/live/site/services/*/apse1.hcl
-3. Update CloudFront origins:  Add /apse1/* path routing
-4. Extend DynamoDB tables:     Add region to global table replicas
-5. Deploy:                     ./apps/release-all.sh --parallel
-
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  us-east-1   │    │ap-southeast-1│    │  eu-west-1   │
-│  (Primary)   │◀──▶│  (Asia)      │◀──▶│  (Europe)    │
-│              │    │              │    │   (Future)   │
-└──────────────┘    └──────────────┘    └──────────────┘
-       ▲                   ▲                   ▲
-       └───────────────────┴───────────────────┘
-                  DynamoDB Global Tables
-```
-
-## AI-Assisted Development Workflow
-
-This is where it gets fun. I built a suite of tools for working with Claude:
-
-### Devflow — Parallel Claude Coordination
-
-Multiple Claude instances can work on the same feature using git worktrees:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  CLAUDE 1                           CLAUDE 2                    │
-│  /devflow:start                     /devflow:start              │
-│      │                                  │                       │
-│      ▼                                  ▼                       │
-│  Creates feature branch             Joins existing feature      │
-│  Creates work worktree              Creates work worktree       │
-│      │                                  │                       │
-│  ┌─────────────────┐              ┌─────────────────┐           │
-│  │ Work isolated   │              │ Work isolated   │           │
-│  │ wt-1234567      │              │ wt-8901234      │           │
-│  └────────┬────────┘              └────────┬────────┘           │
-│           ▼                                ▼                    │
-│  /devflow:close                    /devflow:close               │
-│  Merge → feature                   Merge → feature              │
-│                                    "Last one — create PR"       │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-Each Claude gets isolated workspace. Work merges to shared feature branch. Last one out creates the PR.
-
-### OpenSpec — Spec-Driven Development
-
-Features start as proposals with formal `WHEN`/`THEN` scenarios:
-
-```
-openspec/
-├── changes/           # Active proposals
-│   └── add-gpx-versioning/
-│       ├── proposal.md   # What and why
-│       ├── tasks.md      # Implementation checklist
-│       └── specs/        # Delta specifications
-└── specs/             # Living truth — what's actually built
-```
-
-Validate before implementation. Archive after deployment. Specs are always truth.
-
-### Beads + bv — Dependency-Aware Issue Tracking
+### From the Shell
 
 ```bash
-bd ready                    # Find unblocked work
-bd create --title="..." --type=task --priority=2
-bv --robot-triage          # AI triage with PageRank, critical paths
-```
-
-No more manually parsing backlogs. `bv` computes graph metrics and tells you what to work on.
-
-### CASS — Persistent Memory
-
-```bash
-cm context "implement user auth"  # Get rules and anti-patterns before work
-cm reflect --days 1               # Extract learnings after
-```
-
-Memory that survives across sessions. Rules accumulate over time.
-
-# Running It
-## devcontainers
-If you use `vscode` you should be able to launch a devcontainer based on the `.devcontainer/devcontainer.json` configuration file. The `.vscode/tasks.json` file has all of the start-up commands for the servers. 
-
-
-## From the shell
-```bash
-# Dev servers (VS Code tasks auto-start these)
 PORT=3001 npm run dev      # run.human
 PORT=3002 npm run dev      # run.auth
 PORT=3003 npm run dev      # run.gpx
@@ -332,33 +162,14 @@ cd apps/run.gpx && ./build-frontend.sh
 
 # Release everything
 ./apps/release-all.sh --parallel
-
-# E2E tests
-cd apps && ./e2e.sh --headed
 ```
 
 ## Project Structure
 
-```
-apps/
-├── run.auth/       # OIDC auth service
-├── run.cms/        # Strapi + Litestream
-├── run.gpx/        # Next.js + gpx-studio
-├── run.human/      # Main event app
-└── release-all.sh  # Multi-region release
 
-infra/terraform/
-├── live/site/      # Terragrunt configs
-└── modules/        # Terraform modules
+## AI-Assisted Development
 
-openspec/           # Spec-driven development
-├── changes/        # Active proposals
-└── specs/          # Current specifications
-
-.claude/            # AI workflow docs
-├── commands/       # devflow, openspec skills
-└── *.md            # architecture, beads, cass guides
-```
+This project uses a suite of Claude Code tools for AI-assisted development — parallel Claude instances via git worktrees, spec-driven proposals, dependency-aware issue tracking, and persistent memory. See the [`.claude/`](.claude/) directory for full documentation.
 
 ## What I Learned
 
@@ -370,6 +181,13 @@ This project has been my vehicle for exploring:
 - **Embedding open source** — Wrapping SvelteKit in Next.js with auth
 - **Infrastructure as Code** — Terragrunt for DRY multi-region Terraform
 - **E2E testing** — Session persistence, multi-user scenarios, geographic test diversity
+
+### Last Year's Architecture
+This was [last year's architecture](https://github.com/whereiskurt/defcon.run.33/) and the basis for this years:
+
+![Architecture Overview](https://github.com/user-attachments/assets/0f631149-7046-43f2-9890-5fd04b23762d)
+
+TODO: Redraw this diagram w/ `claude`. :-)
 
 ---
 
