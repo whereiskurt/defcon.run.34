@@ -199,6 +199,33 @@ locals {
     ]
   }
 
+  # S3 storage bucket for user-uploaded GPX files
+  gpx_storage = [
+    {
+      name         = "run-gpx"
+      service_name = "run-gpx"
+      regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
+
+      lifecycle = {
+        uploads_expire_days   = 0 # Keep GPX files indefinitely
+        processed_expire_days = 0
+        enable_versioning     = true
+      }
+
+      replication = {
+        enabled = true
+        replica_regions = [
+          { label = "use1", full = "us-east-1" },
+          { label = "cac1", full = "ca-central-1" },
+          { label = "apse1", full = "ap-southeast-1" }
+        ]
+      }
+
+      full_bucket_access = false # User-isolated prefix access
+      cloudfront_access  = false # Presigned URLs, not direct CDN
+    }
+  ]
+
   # ECS Service definition
   service = {
     name          = "run-gpx"

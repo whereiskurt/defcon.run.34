@@ -1,27 +1,63 @@
-# WIP: defcon.run 34
-Hello World! 🤗
+# defcon.run.34
+I hope this code will be useful for you and give your inspiration for what's possible with multi-regional webscale application deployments. This is ultimately a hobby project where we experiment with modern AWS cloud architecture, AI-assisted Claude Code workflows, and full-stack webapp tech - with the goal of building something fun and useful for our annual a 4-day running event at DEF CON in Las Vegas.
 
-Welcome to the defcon.run.34 codebase. I've been working on variations of this for years - thousands of hours. My hope is this code will useful for you or give your inspiration for what's possible. 
+> "Multi-region AWS IaC: CloudFront + WAF + ALB → ECS Fargate (Next.js, Strapi, SvelteKit). DynamoDB global tables + Litestream SQLite replication. AI-assisted spec-driven development with parallel Claude instances. All Terraform+Terragrunt with modules."
 
-This AWS infrastructure code is multi-regional and re-usable across projects/domains, which is something that's been hard to get right and kinda of a BIG CLAIM that I'm proud of. 
+# Infrastructure, Services and Apps
+The main functional areas are `infrastructure`, `services` and `application`. 
 
-Because multi-regional AWS deployments are tricky to get working so this code base could help accelerate you. It's very easy to start with just `us-east-1` and then add `ca-central-1` at any time. Specifically, the `site.hcl` defines a `skip_regions  = ["ca-central-1", "ap-southeast-1"]` which ensures those regions are `skipped` and do not get AWS resources. Simply remove to get multi-region resource deployments.
+Setting up a `service` is about mapping an application onto infrastructure. For instance the `run.auth` service has a nginx container and Node.js container - two different Docker images compiled and released to ECR, being deployed into an ECS Cluster.
 
-This code runs https://run.defcon.run inside of my AWS account, but, can easily be re-configured to run your AWS webscale infrastructure, inside your AWS acccount (ie. https://service.example.com.) 
+If you've worked with `terragrunt+terraform` this layout may seem familar. `live/site` terragrunt structure contain instances of terraform `modules`. Each `region/` contains a `region.hcl` defining the regional specific settings. Other than the unique `region.hcl` files, each of the `ca-central-1/`, `ap-southeast-1/` are just copies/synlinks to `us-east-1/`. Our infrastructure deploys the same modules for all of the regions.
 
-Review the `env.sh` and `infra/terraform/live/site/site.hcl` files you'll see the variables that control AWS accounts, domain names, etc.
+## Multi-region Architecture
+This is the main application architecture:
 
-Being truly multi-regional without dependencies on `us-east-1` involves deploying all regional services like ECR, ECS, SSM, S3, ... regionally (i.e `ca-central-1`, `ap-southeast-1`, etc). You must also `build`, `release`, and `deploy` each app image to each of the regions. This code base helps by leveraging features of `terragrunt` and the `release-all.sh` script that helps unity the deployments and ensure all regions are the same.
+```
+                                     Internet
+                                        │
+                                        ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│                            CloudFront + WAF                                │
+│     Per-app WebACLs: rate limiting, geo-blocking, brute-force protection   │
+│     Path-based routing: /use1/* → Virginia, /apse1/* → Singapore           │
+└────────────────────────────────────────────────────────────────────────────┘
+                       │                                │
+                       ▼                                ▼
+         ┌─────────────────────────┐      ┌─────────────────────────┐
+         │       us-east-1         │      │     ap-southeast-1      │
+         │       (Virginia)        │      │       (Singapore)       │
+         │    ┌─────────────┐      │      │    ┌─────────────┐      │
+         │    │     ALB     │      │      │    │     ALB     │      │
+         │    └──────┬──────┘      │      │    └──────┬──────┘      │
+         │           │             │      │           │             │
+         │    ┌──────▼──────┐      │      │    ┌──────▼──────┐      │
+         │    │  ECS Tasks  │      │      │    │  ECS Tasks  │      │
+         │    │  (Fargate)  │      │      │    │  (Fargate)  │      │
+         │    └───┬─────┬───┘      │      │    └───┬─────┬───┘      │
+         │        │     │          │      │        │     │          │
+         │   ┌────▼──┐ ┌▼────────┐ │      │   ┌────▼──┐ ┌▼────────┐ │
+         │   │  S3   │ │DynamoDB │ │      │   │  S3   │ │DynamoDB │ │
+         │   │       │ │(Global) │ │      │   │       │ │(Global) │ │
+         │   └───────┘ └────┬────┘ │      │   └───────┘ └────┬────┘ │
+         │        ▲         │      │      │        ▲         │      │
+         └────────┼─────────┼──────┘      └────────┼─────────┼──────┘
+                  │         │                      │         │
+                  └─────────┼──── S3 CRR ──────────┘         │
+                            │                                │
+                            └──── DynamoDB Global Tables ────┘
+```
 
+# AWS Mulit-region Deployments
+This AWS infrastructure code is multi-regional and re-usable across projects/domains. AWS Multi-regional deployments are complicated and have lots of little 'gotchas'. This code base shows how-to major services with Cloudfront, SES, S3, DynamoDB.
 
-Adding another region is trivial (copy+paste+rename) and something that `claude` was even able to do with great ease given the working examples. TODO: Create a `/skill` to CRUD new region easily.
+The `site.hcl` defines a `skip_regions  = ["ca-central-1", "ap-southeast-1"]` which ensures those regions are `skipped` and do not get AWS resources. Simply remove to get multi-region resource deployments. It's very easy to start with just `us-east-1` and then enable at any time. 
 
-## What's here?
-The main pillars are `infrastructure` <-> `services` <-> `application`, with `services` gluing the applications instance into the infrastructure.
+The `env.sh` and `infra/terraform/live/site/site.hcl` files 
 
-If you've worked with terragrunt+terraform this layout may seem familar. `live/site` terragrunt structure contain instances of terraform `modules`. Each `region/` contains a `region.hcl` defining the regional specific settings. Other than the unique `region.hcl` files, each of the `ca-central-1/`, `ap-southeast-1/` are just copies/synlinks to `us-east-1/`. Our infrastructure deploys the same modules for all of the regions.
+Being truly multi-regional without dependencies on `us-east-1` involves deploying all regional services like ECR, ECS, SSM, S3 to `ca-central-1`, `ap-southeast-1`, etc. You must also `build`, `release`, and `deploy` each app image to each of the ECR regions. Using the `release-all.sh` script that helps unity the deployments and ensure all regions are the same.
 
-## Infrastructure Service
+## Infrastructure and Services
 > Checkout [`infra/README.md`](infra/README.md) for the deployment pipeline and multi-region active-active patterns.
 
 The modules below create various AWS resources and don't map 1:1. For example, `s3-uploads` configures S3, IAM, KMS, SSM, and uses the variables set `site.hcl` and `services/*/service.hcl`.
@@ -37,6 +73,7 @@ infra/terraform/
 │   └── services/                   # Per-service Terragrunt definitions
 │       ├── run.auth/               # run.auth ECS service
 │       ├── run.cms/                # run.cms ECS service
+│       └── run.gpx/                # run.gpx ECS service
 │       └── run.human/              # run.human ECS service
 └── modules/                        # Reusable Terraform modules
     ├── certs/
@@ -58,10 +95,20 @@ infra/terraform/
     ├── secrets/
     └── site/
 ```
-## Application
+The `infra/terraform/live/site/services` maps the application deployments into infrastructure.
+
+| Service | URL | What It Does |
+|---------|-----|--------------|
+| **run.auth** | auth.defcon.run | OIDC provider — SSO across all services |
+| **run.human** | run.defcon.run | Main app — registration, event info |
+| **run.gpx** | gpx.defcon.run | GPX route editor — plan your Vegas runs |
+| **run.cms** | cms.defcon.run | Headless CMS — schedules, announcements |
+| **run.meshtk** | mqtt.defcon.run | Meshtastic and MQTT services+UIs |
+
+## Applications
 > Checkout [`apps/README.md`](apps/README.md) for request flow, authentication flow, CMS replication, and GPX architecture diagrams.
 
-Using the `./release-all.sh --pr --with-terraform --regions=use1` will bump the versions, push the application to the ECR repositories, rewrite the taskdefs to use the version number, and trigger a ECS deployment. Making, `--regions=use1,apse1,cac1` would deploy to all regions.   
+Using the `./release-all.sh --pr --with-terraform --regions=use1` will bump the versions, push the application to the ECR repositories, rewrite the ECS taskdefs to use the new version numbers, and trigger a ECS deployments. Making, `--regions=use1,apse1,cac1` would deploy to all regions.   
 
 ```
 apps/                   # Application services → see apps/README.md
@@ -72,74 +119,13 @@ apps/                   # Application services → see apps/README.md
 └── release-all.sh      #   Multi-region release
 ```
 
-| Service | URL | What It Does |
-|---------|-----|--------------|
-| **run.auth** | auth.defcon.run | OIDC provider — SSO across all services |
-| **run.human** | run.defcon.run | Main app — registration, event info |
-| **run.gpx** | gpx.defcon.run | GPX route editor — plan your Vegas runs |
-| **run.cms** | cms.defcon.run | Headless CMS — schedules, announcements |
-| **run.meshtk** | mqtt.defcon.run | Meshtastic and MQTT services+UIs |
+The applications can be run locally without any AWS connections. Only the `run.auth` email registration requires outbound SES configuration, but it's not necessary if you use OIDC providers (ie. Discord, github.)
 
-Future commits will add `meshtk` in as a service for parity with defcon.run.33 
+### devcontainers
 
+If you use `vscode` you can launch a devcontainer via `.devcontainer/devcontainer.json`. 
 
-Since the end-off DEF CON 33 (Aug 2025) to now (February 2026) - I've been working to establish the new architecture and patterns we'll be using to build out `run.defcon.run` this year. For example, we have new `auth` and `gpx` services, we're using `terragrunt`+`terraform modules` to support our future vision, as well as `.claude/` skills an `AGENTS.md` to focus the tooling.
-
-This is a hobby project where we experiment with modern AWS cloud architecture, AI-assisted Claude Code workflows, and full-stack webapp tech - with the goal of building something fun and useful for our annual a 4-day running event at DEFCON in Las Vegas.
-
-<img width="350" alt="Screenshot 2025-08-08 at 13 54 31" src="https://github.com/user-attachments/assets/4fa9373a-43b8-40f0-b9fc-e5819fdafb2f" />
-
-> "Multi-region AWS IaC: CloudFront + WAF + ALB → ECS Fargate (Next.js, Strapi, SvelteKit). DynamoDB global tables + Litestream SQLite replication. AI-assisted spec-driven development with parallel Claude instances. All Terraform+Terragrunt with modules."
-
-## Motivation
-
-A massive motivation is learning Claude Code and new AI development workflows. July 2025 Claude wrote the first implementations of our Heat Map and the Leaderboard. Ultimately, Claude became a massive multipler and I completed more features than I could've ever imagined.
-
-[defcon.run 33](https://github.com/khundeck/defcon.run.33) was a huge success by all measures, where we tried a tonne of new ideas (ie. meshtastic CTF), heatmaps, leaderboards. I learned from that a few key areas to focus on: better auth, a proper GPX route editor for planning runs, and a workflow that lets me spin up multiple Claude instances working in parallel on the same feature. This repo is the result - and we'll be working on until DEF CON 34 this year.
-
-There is hundreds of hours of AWS and development workflow magic in this repo that I'm happy to share with you. 🙂
-
-## What It Does
-Today (February) these are the basics so far:
-- **Event Registration** — Runner sign-ups with email verification via custom OIDC provider
-- **Route Planning** — Full GPX editor (embedded [gpx-studio](https://gpx.studio)) for planning runs across Las Vegas
-- **Content Management** — Headless CMS for schedules and announcements with master-worker replication
-- **Multi-Region Resilience** — Active-active pattern (US East + extendable to any region)
-
-What's missing is the `meshtk` integration which will make meshtastic integration possible.
-
-## Architecture
-
-```
-                                    Internet
-                                       │
-                                       ▼
-┌────────────────────────────────────────────────────────────────────────────┐
-│                           CloudFront + WAF                                 │
-│     Per-app WebACLs: rate limiting, geo-blocking, brute-force protection   │
-│     Path-based routing: /use1/* → Virginia, /apse1/* → Singapore           │
-└────────────────────────────────────────────────────────────────────────────┘
-                        │                              │
-                        ▼                              ▼
-              ┌─────────────────┐            ┌─────────────────┐
-              │   us-east-1     │            │ ap-southeast-1  │
-              │   (Virginia)    │            │   (Singapore)   │
-              │  ┌───────────┐  │            │  ┌───────────┐  │
-              │  │    ALB    │  │            │  │    ALB    │  │
-              │  └─────┬─────┘  │            │  └─────┬─────┘  │
-              │        │        │            │        │        │
-              │  ┌─────▼─────┐  │            │  ┌─────▼─────┐  │
-              │  │ ECS Tasks │  │            │  │ ECS Tasks │  │
-              │  │ (Fargate) │  │            │  │ (Fargate) │  │
-              │  └─────┬─────┘  │            │  └─────┬─────┘  │
-              │        │        │            │        │        │
-              │  ┌─────▼─────┐  │            │  ┌─────▼─────┐  │
-              │  │ DynamoDB  │◀─┼────────────┼─▶│ DynamoDB  │  │
-              │  │ (Global)  │  │  Replicate │  │ (Global)  │  │
-              │  └───────────┘  │            │  └───────────┘  │
-              └─────────────────┘            └─────────────────┘
-```
-
+The `.vscode/tasks.json` file has all of the start-up commands for the dev servers.
 
 ## Tech Stack
 
@@ -152,29 +138,28 @@ What's missing is the `meshtk` integration which will make meshtastic integratio
 | **CI/CD** | GitHub Actions, OIDC federation (no long-lived creds), SOPS secrets |
 | **Testing** | Playwright E2E with multi-user scenarios |
 
-## Running It
 
-### Devcontainers
+# Motivations
 
-If you use VS Code you can launch a devcontainer via `.devcontainer/devcontainer.json`. The `.vscode/tasks.json` file has all of the start-up commands for the dev servers.
+[defcon.run 33](https://github.com/khundeck/defcon.run.33) was a huge success by all measures, where we tried a tonne of new ideas (ie. meshtastic CTF), heatmaps, leaderboards. I learned from that a few key areas to focus on: auth for webapp and meshtk, a proper GPX route editor for planning runs, and a workflow that lets me spin up multiple Claude instances working in parallel on features, while I sleep. ;-) This repo is the result - and we'll be working on until DEF CON 34 this year.
 
-### From the Shell
+Another massive motivation is continuing to learn Claude Code and new AI development workflows. 
 
-```bash
-PORT=3001 npm run dev      # run.human
-PORT=3002 npm run dev      # run.auth
-PORT=3003 npm run dev      # run.gpx
-PORT=1337 npm run develop  # run.cms
+July 2025 Claude wrote the first implementations Heat Map and the Leaderboard, and was able to help me finish the crypto implementation in meshtk. Ultimately, Claude became a massive multiplyer and I completed more features than I could've ever imagined.
 
-# GPX needs frontend built first
-cd apps/run.gpx && ./build-frontend.sh
+There is hundreds of hours of AWS and development workflow magic in this repo that I'm happy to share with you. 🙂
 
-# Release everything
-./apps/release-all.sh --parallel
-```
+## What It Does
+Today (February) these are the basics so far:
+- **Event Registration** — Runner sign-ups with email verification via custom OIDC provider
+- **Route Planning** — Full GPX editor (embedded [gpx-studio](https://gpx.studio)) for planning runs across Las Vegas
+- **Content Management** — Headless CMS for schedules and announcements with master-worker replication
+- **Multi-Region Resilience** — Active-active pattern (US East + extendable to any region)
+
+What's missing is the `meshtk` integration which will make meshtastic integration possible.
+
 
 ## Project Structure
-
 
 ## AI-Assisted Development
 

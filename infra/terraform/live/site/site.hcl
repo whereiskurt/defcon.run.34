@@ -1,28 +1,27 @@
 locals {
 
   site = {
-    label         = "dc34"
-    random_suffix = get_env("SGUID", "80a6b349")
-    skip_regions  = ["ca-central-1", "ap-southeast-1"] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
+    label            = "dc34"
+    github_repo_name = "defcon.run.34"
+    tf_state_prefix  = "tf-dc34"
+    random_suffix    = get_env("SGUID", "80a6b349")
+    skip_regions     = ["ca-central-1", "ap-southeast-1"] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
   }
 
   dns = {
-    zonename   = "defcon.run"
-    subdomains = ["email", "run", "auth", "cms", "gpx"]
-    ttl        = 300
+    zonename         = "defcon.run"
+    site_domain_slug = "defcon-run"
+    subdomains       = ["email", "run", "auth", "cms", "gpx"]
+    ttl              = 300
   }
 
-  # Derived values for parameterized references
-  site_domain_slug   = replace(local.dns.zonename, ".", "-")         # "defcon-run"
-  tf_state_prefix    = "tf-${local.site_domain_slug}"                # "tf-defcon-run"
-  delegate_role_name = "${local.site.label}-github-delegate"         # "dc34-github-delegate"
-  github_repo_name   = "defcon.run.34"
-
   # Load service definitions from infra/services/
-  ecs_auth_service      = read_terragrunt_config("./services/run.auth/service.hcl")
-  ecs_run_human_service = read_terragrunt_config("./services/run.human/service.hcl")
-  ecs_cms_service       = read_terragrunt_config("./services/run.cms/service.hcl")
-  ecs_gpx_service       = read_terragrunt_config("./services/run.gpx/service.hcl")
+  service_conf = {
+    auth      = read_terragrunt_config("./services/run.auth/service.hcl")
+    run_human = read_terragrunt_config("./services/run.human/service.hcl")
+    cms       = read_terragrunt_config("./services/run.cms/service.hcl")
+    gpx       = read_terragrunt_config("./services/run.gpx/service.hcl")
+  }
 
   email = {
     enabled        = true
@@ -53,20 +52,25 @@ locals {
 
     smtp_iam_users = [for sub in ["run", "auth", "cms"] : "${sub}.${local.dns.zonename}"]
 
-    fwd_rules = [
-      {
-        match   = "kurt@${local.dns.zonename}"
-        send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
-      },
-      {
-        match   = "kurt@run.${local.dns.zonename}"
-        send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
-      },
-      {
-        match   = local.dns.zonename
-        send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
-      },
-    ]
+    fwd_rules = concat(
+      [
+        {
+          match   = "kurt@${local.dns.zonename}"
+          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
+        },
+        {
+          match   = "kurt@run.${local.dns.zonename}"
+          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
+        },
+      ],
+      # Only include catch-all rule if TF_VAR_FWD_EMAIL_TO_ADDRESS is set
+      get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "") != "" ? [
+        {
+          match   = local.dns.zonename
+          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "")
+        }
+      ] : []
+    )
   }
 
   waf = {
@@ -124,7 +128,7 @@ locals {
     instances = [
       {
         count                  = 0
-        region                 = "us-east-1"
+        regions                = ["us-east-1", "ca-central-1", "ap-southeast-1"]
         zone_name              = "run.${local.dns.zonename}"
         create_dns_records     = true
         instance_type          = "t4g.medium"
@@ -134,19 +138,15 @@ locals {
         ec2key_name_prefix     = "ec2spot"
         ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
         githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
-      },
-      {
-        count                  = 0
-        region                 = "ca-central-1"
-        zone_name              = "run.${local.dns.zonename}"
-        create_dns_records     = true
-        instance_type          = "t4g.medium"
-        spot_price_multiplier  = 1.00
-        spot_price_offset      = 0.0005
-        block_duration_minutes = 0
-        ec2key_name_prefix     = "ec2spot"
-        ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
-        githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
+        # Per-region overrides (optional) - useful for different instance counts per region
+        # region_overrides = {
+        #   "us-east-1" = {
+        #     count = 2
+        #   }
+        #   "ca-central-1" = {
+        #     count = 1
+        #   }
+        # }
       }
     ]
   }
@@ -156,21 +156,15 @@ locals {
     clusters = [
       {
         name            = "app"
-        region          = "us-east-1"
+        regions         = ["us-east-1", "ca-central-1", "ap-southeast-1"]
         enable_insights = true
         cluster_type    = "FARGATE"
-      },
-      {
-        name            = "app"
-        region          = "ca-central-1"
-        enable_insights = true
-        cluster_type    = "FARGATE"
-      },
-      {
-        name            = "app"
-        region          = "ap-southeast-1"
-        enable_insights = true
-        cluster_type    = "FARGATE"
+        # Per-region overrides (optional) - merge into base config for specific regions
+        # region_overrides = {
+        #   "ap-southeast-1" = {
+        #     enable_insights = false
+        #   }
+        # }
       }
     ]
   }
@@ -178,83 +172,58 @@ locals {
   dynamodb = {
     enabled = true
     tables = concat(
-      local.ecs_auth_service.locals.dynamodb.tables,
-      local.ecs_run_human_service.locals.dynamodb.tables,
-      local.ecs_gpx_service.locals.dynamodb.tables
+      local.service_conf.auth.locals.dynamodb.tables,
+      local.service_conf.run_human.locals.dynamodb.tables,
+      local.service_conf.gpx.locals.dynamodb.tables
     )
   }
 
   ecr = {
     enabled = true
     repositories = concat(
-      local.ecs_auth_service.locals.ecr_repositories,
-      local.ecs_run_human_service.locals.ecr_repositories,
-      local.ecs_cms_service.locals.ecr_repositories,
-      local.ecs_gpx_service.locals.ecr_repositories
+      local.service_conf.auth.locals.ecr_repositories,
+      local.service_conf.run_human.locals.ecr_repositories,
+      local.service_conf.cms.locals.ecr_repositories,
+      local.service_conf.gpx.locals.ecr_repositories
     )
   }
 
   ecs_tasks = {
     enabled = true
     tasks = [
-      local.ecs_auth_service.locals.task,
-      local.ecs_run_human_service.locals.task,
-      local.ecs_cms_service.locals.task_master,
-      local.ecs_cms_service.locals.task_worker,
-      local.ecs_gpx_service.locals.task
+      local.service_conf.auth.locals.task,
+      local.service_conf.run_human.locals.task,
+      local.service_conf.cms.locals.task_master,
+      local.service_conf.cms.locals.task_worker,
+      local.service_conf.gpx.locals.task
     ]
   }
 
   ecs_services = {
     enabled = true
     services = [
-      local.ecs_auth_service.locals.service,
-      local.ecs_run_human_service.locals.service,
-      local.ecs_cms_service.locals.service_master,
-      local.ecs_cms_service.locals.service_worker,
-      local.ecs_gpx_service.locals.service
+      local.service_conf.auth.locals.service,
+      local.service_conf.run_human.locals.service,
+      local.service_conf.cms.locals.service_master,
+      local.service_conf.cms.locals.service_worker,
+      local.service_conf.gpx.locals.service
     ]
   }
 
   user_uploads = {
     enabled = true
     buckets = concat(
-      try(local.ecs_run_human_service.locals.user_uploads, []),
-      try(local.ecs_cms_service.locals.cms_storage, []),
-      # GPX Studio storage bucket for user-uploaded GPX files
-      [
-        {
-          name         = "run-gpx"
-          service_name = "run-gpx"
-          regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
-
-          lifecycle = {
-            uploads_expire_days   = 0 # Keep GPX files indefinitely
-            processed_expire_days = 0
-            enable_versioning     = true
-          }
-
-          replication = {
-            enabled = true
-            replica_regions = [
-              { label = "use1", full = "us-east-1" },
-              { label = "cac1", full = "ca-central-1" },
-              { label = "apse1", full = "ap-southeast-1" }
-            ]
-          }
-
-          full_bucket_access = false  # User-isolated prefix access
-          cloudfront_access  = false  # Presigned URLs, not direct CDN
-        }
-      ]
+      try(local.service_conf.run_human.locals.user_uploads, []),
+      try(local.service_conf.cms.locals.cms_storage, []),
+      try(local.service_conf.gpx.locals.gpx_storage, [])
     )
   }
 
   upload_processors = {
     enabled = true
     processors = concat(
-      try(local.ecs_run_human_service.locals.upload_processors, [])
-      # Future: local.ecs_run_gpx_service.locals.upload_processors
+      try(local.service_conf.run_human.locals.upload_processors, [])
+      # Future: local.service_conf.gpx.locals.upload_processors
     )
   }
 
@@ -389,9 +358,10 @@ locals {
   }
 
   github_oidc = {
-    enabled     = true
-    github_org  = get_env("TF_VAR_GITHUB_ORG", "your-github-org")
-    github_repo = local.github_repo_name
+    enabled            = true
+    github_org         = get_env("TF_VAR_GITHUB_ORG", "your-github-org")
+    github_repo        = local.site.github_repo_name
+    delegate_role_name = "${local.site.label}-github-delegate" # "dc34-github-delegate"
 
     # Management account for cross-account Route53 access
     # Set this to your management account ID to get the trust policy output
@@ -429,7 +399,7 @@ locals {
                   Sid      = "TerraformState"
                   Effect   = "Allow"
                   Action   = ["dynamodb:DeleteItem", "dynamodb:GetItem", "dynamodb:PutItem", "s3:GetObject", "s3:GetObjectVersion", "s3:ListBucket", "s3:ListMultipartUploadParts", "s3:PutObject"]
-                  Resource = ["arn:aws:dynamodb:*:*:table/${local.tf_state_prefix}-*", "arn:aws:s3:::${local.tf_state_prefix}-*", "arn:aws:s3:::${local.tf_state_prefix}-*/*"]
+                  Resource = ["arn:aws:dynamodb:*:*:table/${local.site.tf_state_prefix}-*", "arn:aws:s3:::${local.site.tf_state_prefix}-*", "arn:aws:s3:::${local.site.tf_state_prefix}-*/*"]
                 },
                 {
                   Sid      = "Core"
@@ -582,7 +552,7 @@ locals {
 
         # Cross-account access to management account for Route53
         cross_account_arns = [
-          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.delegate_role_name}"
+          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.github_oidc.delegate_role_name}"
         ]
       },
 
@@ -738,8 +708,8 @@ locals {
                     "dynamodb:DeleteItem"
                   ]
                   Resource = [
-                    "arn:aws:dynamodb:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/${local.tf_state_prefix}-use1-*",
-                    "arn:aws:dynamodb:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/${local.tf_state_prefix}-cac1-*"
+                    "arn:aws:dynamodb:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/${local.site.tf_state_prefix}-use1-*",
+                    "arn:aws:dynamodb:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:table/${local.site.tf_state_prefix}-cac1-*"
                   ]
                 },
                 {
@@ -752,10 +722,10 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::${local.tf_state_prefix}-use1-*",
-                    "arn:aws:s3:::${local.tf_state_prefix}-use1-*/*",
-                    "arn:aws:s3:::${local.tf_state_prefix}-cac1-*",
-                    "arn:aws:s3:::${local.tf_state_prefix}-cac1-*/*"
+                    "arn:aws:s3:::${local.site.tf_state_prefix}-use1-*",
+                    "arn:aws:s3:::${local.site.tf_state_prefix}-use1-*/*",
+                    "arn:aws:s3:::${local.site.tf_state_prefix}-cac1-*",
+                    "arn:aws:s3:::${local.site.tf_state_prefix}-cac1-*/*"
                   ]
                 }
               ]
@@ -765,7 +735,7 @@ locals {
 
         # Cross-account access to management account for Route53
         cross_account_arns = [
-          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.delegate_role_name}"
+          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.github_oidc.delegate_role_name}"
         ]
       },
 
@@ -985,7 +955,7 @@ locals {
                   Resource = "*"
                   Condition = {
                     StringEquals = {
-                      "ec2:ResourceTag/Project" = local.github_repo_name
+                      "ec2:ResourceTag/Project" = local.site.github_repo_name
                     }
                   }
                 },
@@ -1009,7 +979,7 @@ locals {
                   Resource = "*"
                   Condition = {
                     StringEquals = {
-                      "ec2:ResourceTag/Project" = local.github_repo_name
+                      "ec2:ResourceTag/Project" = local.site.github_repo_name
                     }
                   }
                 },
@@ -1058,8 +1028,8 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::${local.tf_state_prefix}-*",
-                    "arn:aws:s3:::${local.tf_state_prefix}-*/*"
+                    "arn:aws:s3:::${local.site.tf_state_prefix}-*",
+                    "arn:aws:s3:::${local.site.tf_state_prefix}-*/*"
                   ]
                 },
                 {
@@ -1071,7 +1041,7 @@ locals {
                     "dynamodb:DeleteItem"
                   ]
                   Resource = [
-                    "arn:aws:dynamodb:*:*:table/${local.tf_state_prefix}-*"
+                    "arn:aws:dynamodb:*:*:table/${local.site.tf_state_prefix}-*"
                   ]
                 }
               ]
@@ -1114,10 +1084,10 @@ locals {
                   Effect = "Allow"
                   Action = "iam:PassRole"
                   Resource = [
-                    "arn:aws:iam::*:role/run-*-${local.site_domain_slug}-task-role",
-                    "arn:aws:iam::*:role/run-*-${local.site_domain_slug}-execution-role",
-                    "arn:aws:iam::*:role/ecs-task-role-*-${local.site_domain_slug}-*",
-                    "arn:aws:iam::*:role/ecs-execution-role-*-${local.site_domain_slug}-*"
+                    "arn:aws:iam::*:role/run-*-${local.dns.site_domain_slug}-task-role",
+                    "arn:aws:iam::*:role/run-*-${local.dns.site_domain_slug}-execution-role",
+                    "arn:aws:iam::*:role/ecs-task-role-*-${local.dns.site_domain_slug}-*",
+                    "arn:aws:iam::*:role/ecs-execution-role-*-${local.dns.site_domain_slug}-*"
                   ]
                 },
                 {
@@ -1131,8 +1101,8 @@ locals {
                     "iam:ListInstanceProfilesForRole"
                   ]
                   Resource = [
-                    "arn:aws:iam::*:role/run-*-${local.site_domain_slug}-*",
-                    "arn:aws:iam::*:role/ecs-*-role-*-${local.site_domain_slug}-*",
+                    "arn:aws:iam::*:role/run-*-${local.dns.site_domain_slug}-*",
+                    "arn:aws:iam::*:role/ecs-*-role-*-${local.dns.site_domain_slug}-*",
                     "arn:aws:iam::*:role/${local.site.label}-*"
                   ]
                 }
@@ -1263,8 +1233,8 @@ locals {
                     "s3:ListBucket"
                   ]
                   Resource = [
-                    "arn:aws:s3:::${local.tf_state_prefix}-*",
-                    "arn:aws:s3:::${local.tf_state_prefix}-*/*"
+                    "arn:aws:s3:::${local.site.tf_state_prefix}-*",
+                    "arn:aws:s3:::${local.site.tf_state_prefix}-*/*"
                   ]
                 },
                 {
@@ -1276,7 +1246,7 @@ locals {
                     "dynamodb:DeleteItem"
                   ]
                   Resource = [
-                    "arn:aws:dynamodb:*:*:table/${local.tf_state_prefix}-*"
+                    "arn:aws:dynamodb:*:*:table/${local.site.tf_state_prefix}-*"
                   ]
                 }
               ]
