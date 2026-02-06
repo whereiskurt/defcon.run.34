@@ -1,6 +1,8 @@
 locals {
-  site_vars = read_terragrunt_config("site.hcl")
-  waf_vars  = read_terragrunt_config("global/waf/waf.hcl")
+  # Compute absolute path from repo root to work correctly with terragrunt --all
+  repo_root = dirname(find_in_parent_folders("AGENTS.md"))
+  site_vars = read_terragrunt_config("${local.repo_root}/infra/terraform/live/site/site.hcl")
+  waf_vars  = read_terragrunt_config("${local.repo_root}/infra/terraform/live/site/global/waf/waf.hcl")
 }
 
 include "providers" {

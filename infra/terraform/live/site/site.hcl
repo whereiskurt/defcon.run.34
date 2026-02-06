@@ -357,11 +357,14 @@ locals {
     ]
   }
 
+  # Extracted to avoid self-reference within github_oidc block
+  github_oidc_delegate_role_name = "${local.site.label}-github-delegate" # "dc34-github-delegate"
+
   github_oidc = {
     enabled            = true
     github_org         = get_env("TF_VAR_GITHUB_ORG", "your-github-org")
     github_repo        = local.site.github_repo_name
-    delegate_role_name = "${local.site.label}-github-delegate" # "dc34-github-delegate"
+    delegate_role_name = local.github_oidc_delegate_role_name
 
     # Management account for cross-account Route53 access
     # Set this to your management account ID to get the trust policy output
@@ -552,7 +555,7 @@ locals {
 
         # Cross-account access to management account for Route53
         cross_account_arns = [
-          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.github_oidc.delegate_role_name}"
+          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.github_oidc_delegate_role_name}"
         ]
       },
 
@@ -735,7 +738,7 @@ locals {
 
         # Cross-account access to management account for Route53
         cross_account_arns = [
-          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.github_oidc.delegate_role_name}"
+          "arn:aws:iam::${get_env("TF_VAR_MANAGEMENT_ACCOUNT_ID", "000000000000")}:role/${local.github_oidc_delegate_role_name}"
         ]
       },
 
