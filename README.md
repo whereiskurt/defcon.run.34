@@ -6,9 +6,9 @@ I hope this code will be useful for you and give your inspiration for what's pos
 # Infrastructure, Services and Apps
 The main functional areas are `infrastructure`, `services` and `application`. 
 
-Setting up a `service` is about mapping an application onto infrastructure. For instance the `run.auth` service has a nginx container and Node.js container - two different Docker images compiled and released to ECR, being deployed into an ECS Cluster.
+Setting up a `service` is about mapping an application onto infrastructure. The `run.auth` service has both an nginx container and Node.js container - two different images compiled and released to ECR, referenced in a ECS taskdef being deployed into an ECS Cluster.
 
-If you've worked with `terragrunt+terraform` this layout may seem familar. `live/site` terragrunt structure contain instances of terraform `modules`. Each `region/` contains a `region.hcl` defining the regional specific settings. Other than the unique `region.hcl` files, each of the `ca-central-1/`, `ap-southeast-1/` are just copies/synlinks to `us-east-1/`. Our infrastructure deploys the same modules for all of the regions.
+The `live/site` terragrunt structure contains instances of terraform `modules`. Each `region/` with a `region.hcl` defines the regional specific settings (eg. short names 'apse1'). Each region folder `ca-central-1/`, `ap-southeast-1/` is just a copy of the `us-east-1/` because our site deploys the same modules for all of the regions.
 
 ## Multi-region Architecture
 This is the main application architecture:
@@ -118,14 +118,17 @@ apps/                   # Application services → see apps/README.md
 ├── run.human/          #   Main event app
 └── release-all.sh      #   Multi-region release
 ```
-
 The applications can be run locally without any AWS connections. Only the `run.auth` email registration requires outbound SES configuration, but it's not necessary if you use OIDC providers (ie. Discord, github.)
 
 ### devcontainers
+In `vscode` you can launch a devcontainer via `.devcontainer/devcontainer.json`.  The `.vscode/tasks.json` file has all of the start-up commands for the dev servers.
 
-If you use `vscode` you can launch a devcontainer via `.devcontainer/devcontainer.json`. 
-
-The `.vscode/tasks.json` file has all of the start-up commands for the dev servers.
+## What It Does
+Today (February) these are the basics so far:
+- **Event Registration** — Runner sign-ups with email verification via custom OIDC provider
+- **Route Planning** — Full GPX editor (embedded [gpx-studio](https://gpx.studio)) for planning runs across Las Vegas
+- **Content Management** — Headless CMS for schedules and announcements with master-worker replication
+- **Multi-Region Resilience** — Active-active pattern (US East + extendable to any region)
 
 ## Tech Stack
 
@@ -149,17 +152,6 @@ July 2025 Claude wrote the first implementations Heat Map and the Leaderboard, a
 
 There is hundreds of hours of AWS and development workflow magic in this repo that I'm happy to share with you. 🙂
 
-## What It Does
-Today (February) these are the basics so far:
-- **Event Registration** — Runner sign-ups with email verification via custom OIDC provider
-- **Route Planning** — Full GPX editor (embedded [gpx-studio](https://gpx.studio)) for planning runs across Las Vegas
-- **Content Management** — Headless CMS for schedules and announcements with master-worker replication
-- **Multi-Region Resilience** — Active-active pattern (US East + extendable to any region)
-
-What's missing is the `meshtk` integration which will make meshtastic integration possible.
-
-
-## Project Structure
 
 ## AI-Assisted Development
 
@@ -175,14 +167,3 @@ This project has been my vehicle for exploring:
 - **Embedding open source** — Wrapping SvelteKit in Next.js with auth
 - **Infrastructure as Code** — Terragrunt for DRY multi-region Terraform
 - **E2E testing** — Session persistence, multi-user scenarios, geographic test diversity
-
-### Last Year's Architecture
-This was [last year's architecture](https://github.com/whereiskurt/defcon.run.33/) and the basis for this years:
-
-![Architecture Overview](https://github.com/user-attachments/assets/0f631149-7046-43f2-9890-5fd04b23762d)
-
-TODO: Redraw this diagram w/ `claude`. :-)
-
----
-
-*Built for runners at DEF CON 34, Las Vegas 2026* 🏃‍♂️🎰
