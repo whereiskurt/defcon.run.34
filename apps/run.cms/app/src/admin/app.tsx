@@ -57,13 +57,20 @@ const redirectToSSO = (): void => {
 };
 
 // Get auth server OIDC URL for the current region
+// NOTE: In browser context, we read from window to get SITE_DOMAIN if available
+// Since this is client-side, we fall back to hardcoded defaults but allow override
 const getAuthServerUrl = (): string => {
-  if (typeof window === 'undefined') return 'https://auth.defcon.run/use1/api/oidc';
+  // Default site domain - this runs in browser so we can't use process.env directly
+  // The production code uses auth.{siteDomain} pattern
+  const siteDomain = 'defcon.run'; // TODO: Could inject via Strapi config if needed
+  const localAuthPort = '3002';
+
+  if (typeof window === 'undefined') return `https://auth.${siteDomain}/use1/api/oidc`;
   const region = getRegionFromPath();
   // In local dev, use localhost auth server without region prefix
-  if (!region) return 'http://localhost:3002/api/oidc';
-  // Use private service discovery in production (but URL here is for browser redirect)
-  return `https://auth.defcon.run/${region}/api/oidc`;
+  if (!region) return `http://localhost:${localAuthPort}/api/oidc`;
+  // Use public auth server URL in production (for browser redirect)
+  return `https://auth.${siteDomain}/${region}/api/oidc`;
 };
 
 // Redirect to auth server's end_session endpoint for full logout

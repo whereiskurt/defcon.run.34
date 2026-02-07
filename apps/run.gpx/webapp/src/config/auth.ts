@@ -4,19 +4,28 @@ import type { NextAuthConfig } from "next-auth";
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.REGION_SHORT || "use1";
 
+// Site domain from environment (defaults for local dev)
+const siteDomain = process.env.SITE_DOMAIN || "defcon.run";
+
+// Local development ports (can be overridden via env vars)
+const LOCAL_AUTH_PORT = process.env.LOCAL_AUTH_PORT || "3002";
+const LOCAL_GPX_PORT = process.env.LOCAL_GPX_PORT || "3003";
+
 // Auth server URLs - must include region prefix in production
-const authServerUrl = isDev
-  ? "http://localhost:3002"
-  : `https://auth.defcon.run/${region}`;
-const oidcIssuer = isDev
-  ? "http://localhost:3002/api/oidc"
-  : `https://auth.defcon.run/${region}/api/oidc`;
+const authServerUrl = process.env.AUTH_PUBLIC_URL || (isDev
+  ? `http://localhost:${LOCAL_AUTH_PORT}`
+  : `https://auth.${siteDomain}/${region}`);
+const oidcIssuer = process.env.AUTH_PUBLIC_URL
+  ? `${process.env.AUTH_PUBLIC_URL}/api/oidc`
+  : (isDev
+    ? `http://localhost:${LOCAL_AUTH_PORT}/api/oidc`
+    : `https://auth.${siteDomain}/${region}/api/oidc`);
 
 // Internal auth server URL for server-to-server validation calls
 // Uses service discovery in production (no TLS, direct container communication)
-const internalAuthServerUrl = isDev
-  ? "http://localhost:3002"
-  : `http://run-auth.app-${region}-defcon-run.local:3000/${region}`;
+const internalAuthServerUrl = process.env.AUTH_INTERNAL_URL || (isDev
+  ? `http://localhost:${LOCAL_AUTH_PORT}`
+  : `http://run-auth.app-${region}-${siteDomain.replace(/\./g, "-")}.local:3000/${region}`);
 
 const INTERNAL_SECRET = process.env.AUTH_INTERNAL_SECRET || "";
 
@@ -26,9 +35,11 @@ const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 
 // Redirect proxy URL for Auth.js callbacks
 // This must match the actual auth endpoint path (including region prefix in prod)
-const redirectProxyUrl = isDev
-  ? "http://localhost:3003/api/auth"
-  : `https://gpx.defcon.run/${region}/api/auth`;
+const redirectProxyUrl = process.env.GPX_PUBLIC_URL
+  ? `${process.env.GPX_PUBLIC_URL}/api/auth`
+  : (isDev
+    ? `http://localhost:${LOCAL_GPX_PORT}/api/auth`
+    : `https://gpx.${siteDomain}/${region}/api/auth`);
 
 /**
  * Result from fetching fresh claims from auth server
@@ -264,7 +275,7 @@ export const authConfig: NextAuthConfig = {
         sameSite: "lax",
         path: "/",
         secure: !isDev,
-        ...(isDev ? {} : { domain: ".defcon.run" }),
+        ...(isDev ? {} : { domain: `.${siteDomain}` }),
       },
     },
     csrfToken: {

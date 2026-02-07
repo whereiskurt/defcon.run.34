@@ -83,9 +83,35 @@ locals {
             value = ".{{SITE_DOMAIN}}"
           },
           {
-            # Auth service URL for internal API calls
+            # Auth service URL for internal API calls (via service discovery)
             name  = "AUTH_SERVICE_URL"
-            value = "http://run-auth.app.local:3000"
+            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+          },
+          # URL configuration for cross-service communication
+          {
+            name  = "SITE_DOMAIN"
+            value = "{{SITE_DOMAIN}}"
+          },
+          {
+            name  = "AUTH_PUBLIC_URL"
+            value = "https://auth.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # Internal auth URL via service discovery (container-to-container)
+            name  = "AUTH_INTERNAL_URL"
+            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+          },
+          {
+            name  = "RUN_PUBLIC_URL"
+            value = "https://run.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            name  = "GPX_PUBLIC_URL"
+            value = "https://gpx.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            name  = "CMS_PUBLIC_URL"
+            value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           }
         ]
 

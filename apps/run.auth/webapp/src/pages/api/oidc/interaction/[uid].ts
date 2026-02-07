@@ -4,6 +4,8 @@ import { oidc, isSessionNotFound } from "@/config/oidc";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
+const siteDomain = process.env.SITE_DOMAIN || "defcon.run";
+const LOCAL_RUN_PORT = process.env.LOCAL_RUN_PORT || "3001";
 const loginPath = isDev ? "/login" : `/${REGION_SHORT}/login`;
 
 /**
@@ -143,7 +145,9 @@ export default async function handler(
       // The interaction was already completed (consumed/deleted) or never existed.
       // Since the user is authenticated, the OIDC flow likely already succeeded.
       // Redirect to the main app instead of showing an error.
-      const redirectUrl = isDev ? "http://localhost:3001" : `https://run.defcon.run/${REGION_SHORT}`;
+      const redirectUrl = isDev
+        ? `http://localhost:${LOCAL_RUN_PORT}`
+        : `https://run.${siteDomain}/${REGION_SHORT}`;
       res.redirect(redirectUrl);
       return;
     }

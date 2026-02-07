@@ -113,6 +113,27 @@ locals {
           {
             name  = "AUTH_SES_REGION"
             value = "{{REGION}}"
+          },
+          # URL configuration for cross-service communication
+          {
+            name  = "SITE_DOMAIN"
+            value = "{{SITE_DOMAIN}}"
+          },
+          {
+            name  = "AUTH_PUBLIC_URL"
+            value = "https://auth.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            name  = "RUN_PUBLIC_URL"
+            value = "https://run.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            name  = "GPX_PUBLIC_URL"
+            value = "https://gpx.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            name  = "CMS_PUBLIC_URL"
+            value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           }
         ]
 

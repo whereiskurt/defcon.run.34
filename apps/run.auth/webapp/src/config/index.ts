@@ -6,9 +6,16 @@
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.REGION_SHORT || "use1";
 
+// Site domain from environment (defaults for local dev)
+const siteDomain = process.env.SITE_DOMAIN || "defcon.run";
+
+// Local development ports (can be overridden via env vars)
+const LOCAL_AUTH_PORT = process.env.LOCAL_AUTH_PORT || "3002";
+
 export const config = {
   isDev,
   region,
+  siteDomain,
 
   auth: {
     basePath: "/api/auth",
@@ -20,9 +27,9 @@ export const config = {
 
   urls: {
     /** Base URL for the auth server (browser-accessible) */
-    baseUrl: isDev
-      ? "http://localhost:3002"
-      : `https://auth.defcon.run/${region}`,
+    baseUrl: process.env.AUTH_PUBLIC_URL || (isDev
+      ? `http://localhost:${LOCAL_AUTH_PORT}`
+      : `https://auth.${siteDomain}/${region}`),
 
     /** Login page path */
     loginPage: isDev ? "/login" : `/${region}/login`,
@@ -40,9 +47,11 @@ export const config = {
   },
 
   oidc: {
-    issuer: isDev
-      ? "http://localhost:3002/api/oidc"
-      : `https://auth.defcon.run/${region}/api/oidc`,
+    issuer: process.env.AUTH_PUBLIC_URL
+      ? `${process.env.AUTH_PUBLIC_URL}/api/oidc`
+      : (isDev
+        ? `http://localhost:${LOCAL_AUTH_PORT}/api/oidc`
+        : `https://auth.${siteDomain}/${region}/api/oidc`),
 
     routePrefix: isDev ? "/api/oidc" : `/${region}/api/oidc`,
 

@@ -1,4 +1,13 @@
-export default ({ env }) => [
+export default ({ env }) => {
+  // Site domain from environment (defaults for local dev)
+  const siteDomain = env('SITE_DOMAIN', 'defcon.run');
+
+  // Local development ports (can be overridden via env vars)
+  const LOCAL_RUN_PORT = env('LOCAL_RUN_PORT', '3001');
+  const LOCAL_AUTH_PORT = env('LOCAL_AUTH_PORT', '3002');
+  const LOCAL_CMS_PORT = env('LOCAL_CMS_PORT', '1337');
+
+  return [
   'strapi::logger',
   'strapi::errors',
   // Cookie-based authentication - reads JWT from httpOnly cookie
@@ -10,7 +19,7 @@ export default ({ env }) => [
     },
   },
   // Services claim validation - ensures user still has 'cms' service
-  // Periodically validates against auth.defcon.run every 5 minutes
+  // Periodically validates against auth.{siteDomain} every 5 minutes
   // Works alongside short session lifespans for immediate revocation
   {
     name: 'global::services-validation',
@@ -24,14 +33,14 @@ export default ({ env }) => [
       contentSecurityPolicy: {
         useDefaults: true,
         directives: {
-          'connect-src': ["'self'", 'https:', 'https://auth.defcon.run'],
-          'form-action': ["'self'", 'https://auth.defcon.run'],
+          'connect-src': ["'self'", 'https:', `https://auth.${siteDomain}`],
+          'form-action': ["'self'", `https://auth.${siteDomain}`],
           'img-src': [
             "'self'",
             'data:',
             'blob:',
-            'https://cms.defcon.run',
-            'https://auth.defcon.run',
+            `https://cms.${siteDomain}`,
+            `https://auth.${siteDomain}`,
             'https://*.s3.amazonaws.com',
             'https://*.s3.us-east-1.amazonaws.com',
             'https://*.s3.ca-central-1.amazonaws.com',
@@ -40,7 +49,7 @@ export default ({ env }) => [
             "'self'",
             'data:',
             'blob:',
-            'https://cms.defcon.run',
+            `https://cms.${siteDomain}`,
             'https://*.s3.amazonaws.com',
             'https://*.s3.us-east-1.amazonaws.com',
             'https://*.s3.ca-central-1.amazonaws.com',
@@ -55,13 +64,13 @@ export default ({ env }) => [
     config: {
       headers: '*',
       origin: [
-        'https://cms.defcon.run',
-        'https://run.defcon.run',
-        'https://auth.defcon.run',
+        `https://cms.${siteDomain}`,
+        `https://run.${siteDomain}`,
+        `https://auth.${siteDomain}`,
         'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3002',
-        'http://localhost:1337',
+        `http://localhost:${LOCAL_RUN_PORT}`,
+        `http://localhost:${LOCAL_AUTH_PORT}`,
+        `http://localhost:${LOCAL_CMS_PORT}`,
       ],
     },
   },
@@ -91,4 +100,4 @@ export default ({ env }) => [
   },
   'strapi::favicon',
   'strapi::public',
-];
+];};

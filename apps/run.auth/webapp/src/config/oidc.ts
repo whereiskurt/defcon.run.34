@@ -3,9 +3,18 @@ import { OIDCAdapter } from "../entities/oidc-adapter";
 import { getAuthProfile } from "@/entities/auth-profile";
 import { config } from "@/config";
 
+// Local development ports (can be overridden via env vars)
+const LOCAL_RUN_PORT = process.env.LOCAL_RUN_PORT || "3001";
+const LOCAL_AUTH_PORT = process.env.LOCAL_AUTH_PORT || "3002";
+const LOCAL_GPX_PORT = process.env.LOCAL_GPX_PORT || "3003";
+const LOCAL_CMS_PORT = process.env.LOCAL_CMS_PORT || "1337";
+
+// Site domain from config
+const siteDomain = config.siteDomain;
+
 /**
  * Registered OIDC clients (relying parties)
- * Each client represents an application that can authenticate users via auth.defcon.run
+ * Each client represents an application that can authenticate users via auth.{siteDomain}
  *
  * Redirect URIs include both regional prefixes (use1, cac1) to support multi-region deployments
  * SECURITY: Localhost URIs are only included in development mode to prevent local interception attacks
@@ -18,28 +27,28 @@ const clients: ClientMetadata[] = [
     redirect_uris: [
       // Production URLs - Auth.js doesn't include Next.js basePath in callback URLs
       // so we need both prefixed and non-prefixed versions
-      "https://run.defcon.run/api/auth/callback/run.defcon.run",
+      `https://run.${siteDomain}/api/auth/callback/run.${siteDomain}`,
       // Production regional URLs (kept for backwards compatibility)
-      "https://run.defcon.run/use1/api/auth/callback/run.defcon.run",
-      "https://run.defcon.run/cac1/api/auth/callback/run.defcon.run",
-      "https://auth.defcon.run/use1/api/auth/callback/run.defcon.run",
-      "https://auth.defcon.run/cac1/api/auth/callback/run.defcon.run",
+      `https://run.${siteDomain}/use1/api/auth/callback/run.${siteDomain}`,
+      `https://run.${siteDomain}/cac1/api/auth/callback/run.${siteDomain}`,
+      `https://auth.${siteDomain}/use1/api/auth/callback/run.${siteDomain}`,
+      `https://auth.${siteDomain}/cac1/api/auth/callback/run.${siteDomain}`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
-        "http://localhost:3000/api/auth/callback/run.defcon.run",
-        "http://localhost:3001/api/auth/callback/run.defcon.run",
-        "http://localhost:3002/api/auth/callback/run.defcon.run",
-        "https://localhost/api/auth/callback/run.defcon.run",
+        `http://localhost:3000/api/auth/callback/run.${siteDomain}`,
+        `http://localhost:${LOCAL_RUN_PORT}/api/auth/callback/run.${siteDomain}`,
+        `http://localhost:${LOCAL_AUTH_PORT}/api/auth/callback/run.${siteDomain}`,
+        `https://localhost/api/auth/callback/run.${siteDomain}`,
       ] : []),
     ],
     post_logout_redirect_uris: [
       // Production regional URLs
-      "https://run.defcon.run/use1",
-      "https://run.defcon.run/cac1",
+      `https://run.${siteDomain}/use1`,
+      `https://run.${siteDomain}/cac1`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
-        "http://localhost:3001/",
-        "http://localhost:3002",
+        `http://localhost:${LOCAL_RUN_PORT}/`,
+        `http://localhost:${LOCAL_AUTH_PORT}`,
       ] : []),
     ],
     grant_types: ["authorization_code", "refresh_token"],
@@ -53,22 +62,22 @@ const clients: ClientMetadata[] = [
     client_secret: config.oidc.clients.cmsStrapi.clientSecret,
     redirect_uris: [
       // Production URLs for strapi-plugin-sso callback (regional prefixes)
-      "https://cms.defcon.run/use1/strapi-plugin-sso/oidc/callback",
-      "https://cms.defcon.run/cac1/strapi-plugin-sso/oidc/callback",
+      `https://cms.${siteDomain}/use1/strapi-plugin-sso/oidc/callback`,
+      `https://cms.${siteDomain}/cac1/strapi-plugin-sso/oidc/callback`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
-        "http://localhost:1337/strapi-plugin-sso/oidc/callback",
-        "http://localhost:1337/use1/strapi-plugin-sso/oidc/callback",
+        `http://localhost:${LOCAL_CMS_PORT}/strapi-plugin-sso/oidc/callback`,
+        `http://localhost:${LOCAL_CMS_PORT}/use1/strapi-plugin-sso/oidc/callback`,
       ] : []),
     ],
     post_logout_redirect_uris: [
       // Production regional URLs
-      "https://cms.defcon.run/use1/admin",
-      "https://cms.defcon.run/cac1/admin",
+      `https://cms.${siteDomain}/use1/admin`,
+      `https://cms.${siteDomain}/cac1/admin`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
-        "http://localhost:1337/admin",
-        "http://localhost:1337/use1/admin",
+        `http://localhost:${LOCAL_CMS_PORT}/admin`,
+        `http://localhost:${LOCAL_CMS_PORT}/use1/admin`,
       ] : []),
     ],
     grant_types: ["authorization_code", "refresh_token"],
@@ -76,28 +85,28 @@ const clients: ClientMetadata[] = [
     scope: "openid profile email services",
     token_endpoint_auth_method: "client_secret_post",
   },
-  // GPX Studio client (gpx.defcon.run/{region})
+  // GPX Studio client (gpx.{siteDomain}/{region})
   {
     client_id: config.oidc.clients.gpxStudio.clientId,
     client_secret: config.oidc.clients.gpxStudio.clientSecret,
     redirect_uris: [
       // Production URLs - Auth.js doesn't include Next.js basePath in callback URLs
       // so we need both prefixed and non-prefixed versions
-      "https://gpx.defcon.run/api/auth/callback/run.defcon.run",
-      "https://gpx.defcon.run/use1/api/auth/callback/run.defcon.run",
-      "https://gpx.defcon.run/cac1/api/auth/callback/run.defcon.run",
+      `https://gpx.${siteDomain}/api/auth/callback/run.${siteDomain}`,
+      `https://gpx.${siteDomain}/use1/api/auth/callback/run.${siteDomain}`,
+      `https://gpx.${siteDomain}/cac1/api/auth/callback/run.${siteDomain}`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
-        "http://localhost:3003/api/auth/callback/run.defcon.run",
+        `http://localhost:${LOCAL_GPX_PORT}/api/auth/callback/run.${siteDomain}`,
       ] : []),
     ],
     post_logout_redirect_uris: [
       // Production - both regions
-      "https://gpx.defcon.run/use1",
-      "https://gpx.defcon.run/cac1",
+      `https://gpx.${siteDomain}/use1`,
+      `https://gpx.${siteDomain}/cac1`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
-        "http://localhost:3003",
+        `http://localhost:${LOCAL_GPX_PORT}`,
       ] : []),
     ],
     grant_types: ["authorization_code", "refresh_token"],
@@ -179,7 +188,9 @@ const configuration: Configuration = {
         // After OIDC logout succeeds, redirect to custom logout endpoint to clear Auth.js session
         // This avoids CSRF requirements of Auth.js's /api/auth/signout
         const paramValue = ctx.oidc.params?.post_logout_redirect_uri;
-        const defaultRedirect = config.isDev ? 'http://localhost:3001' : `https://run.defcon.run/${config.region}`;
+        const defaultRedirect = config.isDev
+          ? `http://localhost:${LOCAL_RUN_PORT}`
+          : `https://run.${siteDomain}/${config.region}`;
         const postLogoutRedirectUri = (typeof paramValue === 'string' ? paramValue : null) || defaultRedirect;
 
         // Redirect to our custom logout endpoint which clears sess_auth and redirects
@@ -204,14 +215,14 @@ const configuration: Configuration = {
       path: "/",
       httpOnly: true,
       sameSite: "lax" as const,
-      ...(config.isDev ? {} : { secure: true, domain: ".defcon.run" }),
+      ...(config.isDev ? {} : { secure: true, domain: `.${siteDomain}` }),
     },
     long: {
       signed: true,
       path: "/",
       httpOnly: true,
       sameSite: "lax" as const,
-      ...(config.isDev ? {} : { secure: true, domain: ".defcon.run" }),
+      ...(config.isDev ? {} : { secure: true, domain: `.${siteDomain}` }),
     },
   },
 
