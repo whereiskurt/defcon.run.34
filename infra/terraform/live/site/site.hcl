@@ -3,7 +3,7 @@ locals {
   site = {
     label            = "dc34"
     github_repo_name = "defcon.run.34"
-    tf_state_prefix  = "tf-dc34"
+    tf_state_prefix  = "tf-defcon-run"
     random_suffix    = get_env("SGUID", "80a6b349")
     skip_regions     = ["ca-central-1", "ap-southeast-1"] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
   }
