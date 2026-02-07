@@ -3,12 +3,19 @@ export default ({ env }) => {
   const s3Bucket = env('S3_MEDIA_BUCKET');
   const regionShort = env('REGION_SHORT', 'use1');
 
+  // Site domain from environment (defaults for local dev)
+  const siteDomain = env('SITE_DOMAIN', 'defcon.run');
+
+  // Local development ports (can be overridden via env vars)
+  const LOCAL_AUTH_PORT = env('LOCAL_AUTH_PORT', '3002');
+  const LOCAL_CMS_PORT = env('LOCAL_CMS_PORT', '1337');
+
   // CloudFront CDN base URL (domain only, no path)
   // The rootPath will be appended to construct full URLs
-  const cdnBaseUrl = 'https://cms.defcon.run';
+  const cdnBaseUrl = `https://cms.${siteDomain}`;
 
   // S3 root path - upload files to {region}/cms/ folder so CloudFront paths match
-  // e.g., use1/cms/image.png maps to https://cms.defcon.run/use1/cms/image.png
+  // e.g., use1/cms/image.png maps to https://cms.{siteDomain}/use1/cms/image.png
   const s3RootPath = `${regionShort}/cms`;
 
   // Only configure S3 if credentials are provided
@@ -58,13 +65,20 @@ export default ({ env }) => {
     },
   };
 
-  // SSO plugin configuration for OIDC authentication via auth.defcon.run
+  // SSO plugin configuration for OIDC authentication via auth.{siteDomain}
   const isDev = env('NODE_ENV') === 'development';
 
   // OIDC endpoints - regional in production, local in development
-  const oidcBaseUrl = isDev
-    ? 'http://localhost:3002/api/oidc'
-    : `https://auth.defcon.run/${regionShort}/api/oidc`;
+  // Use AUTH_PUBLIC_URL if set, otherwise construct from siteDomain
+  const authPublicUrl = env('AUTH_PUBLIC_URL', isDev
+    ? `http://localhost:${LOCAL_AUTH_PORT}`
+    : `https://auth.${siteDomain}/${regionShort}`);
+  const oidcBaseUrl = `${authPublicUrl}/api/oidc`;
+
+  // CMS public URL for callbacks
+  const cmsPublicUrl = env('CMS_PUBLIC_URL', isDev
+    ? `http://localhost:${LOCAL_CMS_PORT}`
+    : `https://cms.${siteDomain}/${regionShort}`);
 
   const ssoConfig = {
     enabled: true,
@@ -76,8 +90,8 @@ export default ({ env }) => {
       OIDC_CLIENT_SECRET: env('STRAPI_OIDC_CLIENT_SECRET'),
       OIDC_REDIRECT_URI: env('OIDC_REDIRECT_URI',
         isDev
-          ? 'http://localhost:1337/strapi-plugin-sso/oidc/callback'
-          : `https://cms.defcon.run/${regionShort}/strapi-plugin-sso/oidc/callback`
+          ? `http://localhost:${LOCAL_CMS_PORT}/strapi-plugin-sso/oidc/callback`
+          : `${cmsPublicUrl}/strapi-plugin-sso/oidc/callback`
       ),
       OIDC_SCOPES: 'openid profile email services',
       OIDC_AUTHORIZATION_ENDPOINT: env('OIDC_AUTHORIZATION_ENDPOINT', `${oidcBaseUrl}/auth`),

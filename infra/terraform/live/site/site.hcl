@@ -15,6 +15,32 @@ locals {
     ttl              = 300
   }
 
+  # URL configuration for services
+  # These values are used to generate environment variables for containers
+  # and can be referenced in service.hcl files
+  urls = {
+    # Service subdomains (combined with dns.zonename to form full domains)
+    # e.g., "auth" + "defcon.run" = "auth.defcon.run"
+    subdomains = {
+      auth = "auth"
+      run  = "run"
+      gpx  = "gpx"
+      cms  = "cms"
+    }
+
+    # Local development ports (for .env.local files and development defaults)
+    local_ports = {
+      auth = 3002
+      run  = 3001
+      gpx  = 3003
+      cms  = 1337
+    }
+
+    # Service discovery namespace pattern (used for internal container communication)
+    # {{REGION_LABEL}} is substituted at deployment time (e.g., use1, cac1)
+    service_namespace = "app-{{REGION_LABEL}}-${local.dns.site_domain_slug}.local"
+  }
+
   # Load service definitions from infra/services/
   service_conf = {
     auth      = read_terragrunt_config("./services/run.auth/service.hcl")

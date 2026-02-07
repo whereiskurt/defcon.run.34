@@ -3,6 +3,8 @@
 import { signOut } from 'next-auth/react';
 
 const isDev = process.env.NODE_ENV !== 'production';
+const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run';
+const LOCAL_AUTH_PORT = process.env.NEXT_PUBLIC_LOCAL_AUTH_PORT || '3002';
 
 /**
  * Extract the region prefix from the current URL path.
@@ -16,12 +18,12 @@ function getRegionFromPath(): string {
 
 /**
  * Get the auth server OIDC URL based on the current region.
- * In production, the auth server is at auth.defcon.run/{region}/api/oidc
+ * In production, the auth server is at auth.{siteDomain}/{region}/api/oidc
  */
 function getAuthServerUrl(): string {
-  if (isDev) return 'http://localhost:3002/api/oidc';
+  if (isDev) return `http://localhost:${LOCAL_AUTH_PORT}/api/oidc`;
   const region = getRegionFromPath();
-  return `https://auth.defcon.run/${region}/api/oidc`;
+  return `https://auth.${siteDomain}/${region}/api/oidc`;
 }
 
 /**

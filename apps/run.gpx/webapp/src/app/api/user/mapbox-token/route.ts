@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { resolveMapboxToken, validateMapboxToken } from "@/lib/mapbox-token";
 
+// Auth service URL for internal API calls
+const LOCAL_AUTH_PORT = process.env.LOCAL_AUTH_PORT || "3002";
+const authServiceUrl = process.env.AUTH_SERVICE_URL || `http://localhost:${LOCAL_AUTH_PORT}`;
+
 /**
  * GET /api/user/mapbox-token - Get the resolved Mapbox token for current user
  * Returns the user's personal token if set, otherwise the default system token
@@ -58,7 +62,6 @@ export async function PUT(request: Request) {
     // Allow clearing the token
     if (token === null || token === "") {
       // Clear the token by calling auth service
-      const authServiceUrl = process.env.AUTH_SERVICE_URL || "http://localhost:3002";
       const response = await fetch(
         `${authServiceUrl}/api/profile/mapbox-token`,
         {
@@ -88,7 +91,6 @@ export async function PUT(request: Request) {
     }
 
     // Update the token via auth service
-    const authServiceUrl = process.env.AUTH_SERVICE_URL || "http://localhost:3002";
     const response = await fetch(`${authServiceUrl}/api/profile/mapbox-token`, {
       method: "PUT",
       headers: {
@@ -132,7 +134,6 @@ export async function DELETE() {
   }
 
   try {
-    const authServiceUrl = process.env.AUTH_SERVICE_URL || "http://localhost:3002";
     const response = await fetch(`${authServiceUrl}/api/profile/mapbox-token`, {
       method: "DELETE",
       headers: {

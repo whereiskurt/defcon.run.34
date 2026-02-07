@@ -6,6 +6,7 @@ import * as qr from "qrcode";
 // Seed for MQTT credential generation (should be set in environment)
 const creationSeed: string = process.env.RUN_USER_CREATION_SEED || "default-seed";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
+const siteDomain = process.env.SITE_DOMAIN || "defcon.run";
 
 /**
  * RunUser Entity
@@ -207,7 +208,7 @@ export async function upsertRunUser(userId: string) {
   const hash = createHash("sha256").update(`${rsapubSHA}${seed}`).digest("hex");
 
   // Generate QR code data URL (includes region prefix for multi-region deployment)
-  const eqr = await qr.toDataURL(`https://run.defcon.run/${REGION_SHORT}/r?h=${hash}`, {
+  const eqr = await qr.toDataURL(`https://run.${siteDomain}/${REGION_SHORT}/r?h=${hash}`, {
     errorCorrectionLevel: "H",
     width: 300,
   });
