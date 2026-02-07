@@ -163,6 +163,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run release-all.sh
+        id: release
         env:
           SKIP_ECR_LOGIN: "true"  # Already logged in above
           GH_TOKEN: ${{ github.token }}
@@ -178,7 +179,8 @@ jobs:
           fi
 
           if [[ "${{ inputs.create_pr }}" == "true" ]]; then
-            ARGS="$ARGS --pr"
+            # Create PR but don't auto-merge (we'll do it separately with admin token)
+            ARGS="$ARGS --pr --no-merge"
           else
             ARGS="$ARGS --push"
           fi
@@ -188,7 +190,32 @@ jobs:
           fi
 
           echo "Running: ./apps/release-all.sh $ARGS"
-          ./apps/release-all.sh $ARGS
+          # Capture output to extract PR URL
+          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr)
+
+          # Extract PR URL from output
+          PR_URL=$(echo "$OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' | head -1 || true)
+          if [[ -n "$PR_URL" ]]; then
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Merge PR
+        if: inputs.create_pr && steps.release.outputs.pr_number
+        env:
+          GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.release.outputs.pr_number }}"
+          echo "Merging PR #${PR_NUMBER} with admin token..."
+
+          if gh pr merge "$PR_NUMBER" --squash --delete-branch --admin; then
+            echo "✅ PR #${PR_NUMBER} merged successfully"
+          else
+            echo "⚠️ Auto-merge failed. PR may need manual merge."
+            echo "PR: ${{ steps.release.outputs.pr_url }}"
+            # Don't fail the workflow - builds succeeded
+          fi
 
       - name: Generate Summary
         if: always()
@@ -428,6 +455,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run release-all.sh
+        id: release
         env:
           SKIP_ECR_LOGIN: "true"
           GH_TOKEN: ${{ github.token }}
@@ -443,7 +471,8 @@ jobs:
           fi
 
           if [[ "${{ inputs.create_pr }}" == "true" ]]; then
-            ARGS="$ARGS --pr"
+            # Create PR but don't auto-merge (we'll do it separately with admin token)
+            ARGS="$ARGS --pr --no-merge"
           else
             ARGS="$ARGS --push"
           fi
@@ -453,7 +482,31 @@ jobs:
           fi
 
           echo "Running: ./apps/release-all.sh $ARGS"
-          ./apps/release-all.sh $ARGS
+          # Capture output to extract PR URL
+          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr)
+
+          # Extract PR URL from output
+          PR_URL=$(echo "$OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' | head -1 || true)
+          if [[ -n "$PR_URL" ]]; then
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Merge PR
+        if: inputs.create_pr && steps.release.outputs.pr_number
+        env:
+          GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.release.outputs.pr_number }}"
+          echo "Merging PR #${PR_NUMBER} with admin token..."
+
+          if gh pr merge "$PR_NUMBER" --squash --delete-branch --admin; then
+            echo "✅ PR #${PR_NUMBER} merged successfully"
+          else
+            echo "⚠️ Auto-merge failed. PR may need manual merge."
+            echo "PR: ${{ steps.release.outputs.pr_url }}"
+          fi
 
       - name: Generate Summary
         if: always()
@@ -543,6 +596,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Run release-all.sh
+        id: release
         env:
           SKIP_ECR_LOGIN: "true"
           GH_TOKEN: ${{ github.token }}
@@ -558,7 +612,8 @@ jobs:
           fi
 
           if [[ "${{ inputs.create_pr }}" == "true" ]]; then
-            ARGS="$ARGS --pr"
+            # Create PR but don't auto-merge (we'll do it separately with admin token)
+            ARGS="$ARGS --pr --no-merge"
           else
             ARGS="$ARGS --push"
           fi
@@ -568,7 +623,31 @@ jobs:
           fi
 
           echo "Running: ./apps/release-all.sh $ARGS"
-          ./apps/release-all.sh $ARGS
+          # Capture output to extract PR URL
+          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr)
+
+          # Extract PR URL from output
+          PR_URL=$(echo "$OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' | head -1 || true)
+          if [[ -n "$PR_URL" ]]; then
+            echo "pr_url=$PR_URL" >> $GITHUB_OUTPUT
+            PR_NUMBER=$(echo "$PR_URL" | grep -oE '[0-9]+$')
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Merge PR
+        if: inputs.create_pr && steps.release.outputs.pr_number
+        env:
+          GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.release.outputs.pr_number }}"
+          echo "Merging PR #${PR_NUMBER} with admin token..."
+
+          if gh pr merge "$PR_NUMBER" --squash --delete-branch --admin; then
+            echo "✅ PR #${PR_NUMBER} merged successfully"
+          else
+            echo "⚠️ Auto-merge failed. PR may need manual merge."
+            echo "PR: ${{ steps.release.outputs.pr_url }}"
+          fi
 
       - name: Generate Summary
         if: always()
