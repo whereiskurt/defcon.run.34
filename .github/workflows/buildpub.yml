@@ -67,25 +67,9 @@ on:
         description: 'Create and merge PR'
         type: boolean
         default: true
-      deploy:
-        description: 'Run terragrunt deploy after build'
-        type: boolean
-        default: false
 
 env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  # Terraform state backend configuration (required for deploy)
-  TG_BUCKET_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
-  TG_TABLE_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
-  TG_BUCKET_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
-  TG_TABLE_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
-  TG_BUCKET_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
-  TG_TABLE_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
-  SGUID: ${{ vars.SGUID }}
-  TF_VAR_MANAGEMENT_ACCOUNT_ID: ${{ vars.TF_VAR_MANAGEMENT_ACCOUNT_ID }}
-  TF_VAR_APPLICATION_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  TF_VAR_GITHUB_ORG: ${{ github.repository_owner }}
-  TF_VAR_SOPS_KMS_KEY_ID: ${{ vars.TF_VAR_SOPS_KMS_KEY_ID }}
 
 jobs:
   # ============================================================================
@@ -119,25 +103,6 @@ jobs:
         with:
           driver-opts: |
             image=moby/buildkit:latest
-
-      - name: Install Terraform, Terragrunt, and SOPS
-        if: inputs.deploy
-        run: |
-          # Install Terraform (directly to /usr/local/bin for reliable PATH)
-          curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
-          unzip -q /tmp/terraform.zip -d /tmp
-          sudo mv /tmp/terraform /usr/local/bin/terraform
-          terraform --version
-          # Install Terragrunt
-          curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
-          chmod +x /tmp/terragrunt
-          sudo mv /tmp/terragrunt /usr/local/bin/terragrunt
-          terragrunt --version
-          # Install SOPS (required for decrypting secrets in terragrunt)
-          curl -sL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
-          chmod +x /tmp/sops
-          sudo mv /tmp/sops /usr/local/bin/sops
-          sops --version
 
       - name: Login to ECR (us-east-1)
         if: contains(inputs.regions, 'use1')
@@ -185,10 +150,6 @@ jobs:
             ARGS="$ARGS --push"
           fi
 
-          if [[ "${{ inputs.deploy }}" == "true" ]]; then
-            ARGS="$ARGS --with-terragrunt"
-          fi
-
           echo "Running: ./apps/release-all.sh $ARGS"
           # Capture output to extract PR URL
           OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr)
@@ -226,7 +187,6 @@ jobs:
           echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
           echo "**Runner:** GitHub-hosted (ubuntu-latest)" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Deploy:** ${{ inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
           echo "**Run Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
@@ -356,15 +316,6 @@ jobs:
             mkdir -p /usr/local/lib/docker/cli-plugins
             curl -sLo /usr/local/lib/docker/cli-plugins/docker-buildx https://github.com/docker/buildx/releases/download/v0.12.1/buildx-v0.12.1.linux-amd64
             chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
-            # Install Terraform (for deploy option)
-            curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
-            unzip -q /tmp/terraform.zip -d /tmp && sudo mv /tmp/terraform /usr/local/bin/
-            # Install Terragrunt (for deploy option)
-            curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
-            chmod +x /tmp/terragrunt && sudo mv /tmp/terragrunt /usr/local/bin/
-            # Install SOPS (for decrypting secrets in terragrunt)
-            curl -sL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
-            chmod +x /tmp/sops && sudo mv /tmp/sops /usr/local/bin/
 
       - name: Output Runner Info
         run: |
@@ -405,32 +356,6 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
           aws-region: us-east-1
 
-      - name: Install Terraform, Terragrunt, and SOPS
-        if: inputs.deploy
-        run: |
-          # Install unzip if not present (needed for terraform)
-          if ! command -v unzip &> /dev/null; then
-            sudo apt-get update -qq && sudo apt-get install -y -qq unzip
-          fi
-          # Install Terraform if not present
-          if ! command -v terraform &> /dev/null; then
-            curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
-            unzip -q /tmp/terraform.zip -d /tmp && sudo mv /tmp/terraform /usr/local/bin/
-          fi
-          # Install Terragrunt if not present
-          if ! command -v terragrunt &> /dev/null; then
-            curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
-            chmod +x /tmp/terragrunt && sudo mv /tmp/terragrunt /usr/local/bin/
-          fi
-          # Install SOPS if not present
-          if ! command -v sops &> /dev/null; then
-            curl -sL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
-            chmod +x /tmp/sops && sudo mv /tmp/sops /usr/local/bin/
-          fi
-          terraform --version
-          terragrunt --version
-          sops --version
-
       - name: Login to ECR (us-east-1)
         if: contains(inputs.regions, 'use1')
         run: |
@@ -475,10 +400,6 @@ jobs:
             ARGS="$ARGS --pr --no-merge"
           else
             ARGS="$ARGS --push"
-          fi
-
-          if [[ "${{ inputs.deploy }}" == "true" ]]; then
-            ARGS="$ARGS --with-terragrunt"
           fi
 
           echo "Running: ./apps/release-all.sh $ARGS"
@@ -517,7 +438,6 @@ jobs:
           echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
           echo "**Runner:** Self-hosted EC2 (${{ inputs.ec2_instance_type }}, ${{ inputs.ec2_market_type }})" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Deploy:** ${{ inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
 
@@ -545,32 +465,6 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
           aws-region: us-east-1
-
-      - name: Install Terraform, Terragrunt, and SOPS
-        if: inputs.deploy
-        run: |
-          # Install unzip if not present (needed for terraform)
-          if ! command -v unzip &> /dev/null; then
-            sudo apt-get update -qq && sudo apt-get install -y -qq unzip
-          fi
-          # Install Terraform if not present
-          if ! command -v terraform &> /dev/null; then
-            curl -sL https://releases.hashicorp.com/terraform/1.14.0/terraform_1.14.0_linux_amd64.zip -o /tmp/terraform.zip
-            unzip -q /tmp/terraform.zip -d /tmp && sudo mv /tmp/terraform /usr/local/bin/
-          fi
-          # Install Terragrunt if not present
-          if ! command -v terragrunt &> /dev/null; then
-            curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.0/terragrunt_linux_amd64 -o /tmp/terragrunt
-            chmod +x /tmp/terragrunt && sudo mv /tmp/terragrunt /usr/local/bin/
-          fi
-          # Install SOPS if not present (for decrypting secrets in terragrunt)
-          if ! command -v sops &> /dev/null; then
-            curl -sL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
-            chmod +x /tmp/sops && sudo mv /tmp/sops /usr/local/bin/
-          fi
-          terraform --version
-          terragrunt --version
-          sops --version
 
       - name: Login to ECR (us-east-1)
         if: contains(inputs.regions, 'use1')
@@ -618,10 +512,6 @@ jobs:
             ARGS="$ARGS --push"
           fi
 
-          if [[ "${{ inputs.deploy }}" == "true" ]]; then
-            ARGS="$ARGS --with-terragrunt"
-          fi
-
           echo "Running: ./apps/release-all.sh $ARGS"
           # Capture output to extract PR URL
           OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr)
@@ -658,7 +548,6 @@ jobs:
           echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
           echo "**Runner:** Existing EC2 (reused)" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Deploy:** ${{ inputs.deploy }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Triggered by:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
 
