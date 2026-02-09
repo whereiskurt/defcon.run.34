@@ -176,8 +176,8 @@ Update each service's `service.hcl` to add the region to `dynamodb.tables[].repl
 #### 6. State Backend
 Add to `env.sh`:
 ```bash
-export TG_BUCKET_APSE1="tf-defcon-run-apse1-${SGUID}"
-export TG_TABLE_APSE1="tf-defcon-run-apse1-${SGUID}"
+export TG_BUCKET_APSE1="tf-dc34-apse1-${SGUID}"
+export TG_TABLE_APSE1="tf-dc34-apse1-${SGUID}"
 ```
 
 #### 7. SOPS KMS Key
@@ -206,18 +206,18 @@ S3 replication requires destination buckets to exist before configuring replicat
 **Step 1: Create state backend (manual)**
 ```bash
 # Create S3 bucket for Terraform state
-aws s3 mb s3://tf-defcon-run-apse1-80a6b349 --region ap-southeast-1 --profile terraform
+aws s3 mb s3://tf-dc34-apse1-80a6b349 --region ap-southeast-1 --profile terraform
 
 # Enable versioning (required for state)
 aws s3api put-bucket-versioning \
-  --bucket tf-defcon-run-apse1-80a6b349 \
+  --bucket tf-dc34-apse1-80a6b349 \
   --versioning-configuration Status=Enabled \
   --region ap-southeast-1 \
   --profile terraform
 
 # Create DynamoDB table for state locking
 aws dynamodb create-table \
-  --table-name tf-defcon-run-apse1-80a6b349 \
+  --table-name tf-dc34-apse1-80a6b349 \
   --attribute-definitions AttributeName=LockID,AttributeType=S \
   --key-schema AttributeName=LockID,KeyType=HASH \
   --billing-mode PAY_PER_REQUEST \

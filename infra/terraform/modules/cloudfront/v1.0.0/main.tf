@@ -50,7 +50,7 @@ locals {
 resource "aws_s3_bucket" "cloudfront_logs" {
   for_each = var.cloudfront.logging.enabled ? local.domain_set : toset([])
 
-  bucket        = "logs-cf-${each.key}-${replace(var.dns.zonename, ".", "-")}-${random_id.rnd.hex}"
+  bucket        = "logs-cf-${each.key}-${var.site.label}-${random_id.rnd.hex}"
   force_destroy = true
 
   tags = merge(

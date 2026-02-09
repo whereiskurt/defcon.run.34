@@ -23,7 +23,7 @@ resource "aws_lb" "nlb_public" {
 # S3 bucket for NLB logs
 resource "aws_s3_bucket" "nlb_logs" {
   count         = var.nlb.enabled ? 1 : 0
-  bucket        = "logs-nlb-${replace(var.region.label, ".", "-")}-${replace(var.dns.zonename, ".", "-")}-${var.site.random_suffix}"
+  bucket        = "logs-nlb-${var.region.label}-${var.site.label}-${var.site.random_suffix}"
   force_destroy = var.nlb.logs_force_destroy
 
   tags = merge(

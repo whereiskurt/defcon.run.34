@@ -3,14 +3,13 @@ locals {
   site = {
     label            = "dc34"
     github_repo_name = "defcon.run.34"
-    tf_state_prefix  = "tf-defcon-run"
+    tf_state_prefix  = "tf-dc34"
     random_suffix    = get_env("SGUID", "80a6b349")
-    skip_regions     = ["ca-central-1", "ap-southeast-1"] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
+    skip_regions     = ["ap-southeast-1"] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
   }
 
   dns = {
     zonename         = "defcon.run"
-    site_domain_slug = "defcon-run"
     subdomains       = ["email", "run", "auth", "cms", "gpx"]
     ttl              = 300
   }
@@ -38,7 +37,7 @@ locals {
 
     # Service discovery namespace pattern (used for internal container communication)
     # {{REGION_LABEL}} is substituted at deployment time (e.g., use1, cac1)
-    service_namespace = "app-{{REGION_LABEL}}-${local.dns.site_domain_slug}.local"
+    service_namespace = "app-{{REGION_LABEL}}-${local.site.label}.local"
   }
 
   # Load service definitions from infra/services/
@@ -1113,10 +1112,10 @@ locals {
                   Effect = "Allow"
                   Action = "iam:PassRole"
                   Resource = [
-                    "arn:aws:iam::*:role/run-*-${local.dns.site_domain_slug}-task-role",
-                    "arn:aws:iam::*:role/run-*-${local.dns.site_domain_slug}-execution-role",
-                    "arn:aws:iam::*:role/ecs-task-role-*-${local.dns.site_domain_slug}-*",
-                    "arn:aws:iam::*:role/ecs-execution-role-*-${local.dns.site_domain_slug}-*"
+                    "arn:aws:iam::*:role/run-*-${local.site.label}-task-role",
+                    "arn:aws:iam::*:role/run-*-${local.site.label}-execution-role",
+                    "arn:aws:iam::*:role/ecs-task-role-*-${local.site.label}-*",
+                    "arn:aws:iam::*:role/ecs-execution-role-*-${local.site.label}-*"
                   ]
                 },
                 {
@@ -1130,8 +1129,8 @@ locals {
                     "iam:ListInstanceProfilesForRole"
                   ]
                   Resource = [
-                    "arn:aws:iam::*:role/run-*-${local.dns.site_domain_slug}-*",
-                    "arn:aws:iam::*:role/ecs-*-role-*-${local.dns.site_domain_slug}-*",
+                    "arn:aws:iam::*:role/run-*-${local.site.label}-*",
+                    "arn:aws:iam::*:role/ecs-*-role-*-${local.site.label}-*",
                     "arn:aws:iam::*:role/${local.site.label}-*"
                   ]
                 }

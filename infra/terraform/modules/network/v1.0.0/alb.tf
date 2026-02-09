@@ -61,7 +61,7 @@ resource "aws_lb_listener" "https" {
 # S3 bucket for ALB logs
 resource "aws_s3_bucket" "alb_log_bucket" {
   count         = var.alb.enabled ? 1 : 0
-  bucket        = "logs-alb-${replace(var.region.label, ".", "-")}-${replace(var.dns.zonename, ".", "-")}-${var.site.random_suffix}"
+  bucket        = "logs-alb-${var.region.label}-${var.site.label}-${var.site.random_suffix}"
   force_destroy = var.alb.logs_force_destroy
 
   tags = merge(

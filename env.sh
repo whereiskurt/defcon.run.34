@@ -11,6 +11,7 @@ export LOCAL_CMS_PORT="${LOCAL_CMS_PORT:-1337}"
 
 ## Site domain configuration
 export SITE_DOMAIN="${SITE_DOMAIN:-defcon.run}"
+export SITE_LABEL="${SITE_LABEL:-dc34}"
 export REGION_SHORT="${REGION_SHORT:-use1}"
 
 ## URL configuration for cross-service communication (local development defaults)
@@ -30,14 +31,14 @@ export TF_VAR_SOPS_KMS_KEY_ID="${TF_VAR_SOPS_KMS_KEY_ID:-mrk-0000000000000000000
 
 ## The state is stored in the bucket and the table is used for locking
 ## One entry per region supported
-export TG_TABLE_CAC1="tf-defcon-run-cac1-${SGUID}"
-export TG_BUCKET_CAC1="tf-defcon-run-cac1-${SGUID}"
-export TG_BUCKET_USE1="tf-defcon-run-use1-${SGUID}"
-export TG_TABLE_USE1="tf-defcon-run-use1-${SGUID}"
-export TG_BUCKET_USW2="tf-defcon-run-usw2-${SGUID}"
-export TG_TABLE_USW2="tf-defcon-run-usw2-${SGUID}"
-export TG_BUCKET_APSE1="tf-defcon-run-apse1-${SGUID}"
-export TG_TABLE_APSE1="tf-defcon-run-apse1-${SGUID}"
+export TG_TABLE_CAC1="tf-${SITE_LABEL}-cac1-${SGUID}"
+export TG_BUCKET_CAC1="tf-${SITE_LABEL}-cac1-${SGUID}"
+export TG_BUCKET_USE1="tf-${SITE_LABEL}-use1-${SGUID}"
+export TG_TABLE_USE1="tf-${SITE_LABEL}-use1-${SGUID}"
+export TG_BUCKET_USW2="tf-${SITE_LABEL}-usw2-${SGUID}"
+export TG_TABLE_USW2="tf-${SITE_LABEL}-usw2-${SGUID}"
+export TG_BUCKET_APSE1="tf-${SITE_LABEL}-apse1-${SGUID}"
+export TG_TABLE_APSE1="tf-${SITE_LABEL}-apse1-${SGUID}"
 
 unset AWS_ACCESS_KEY_ID                                           
 unset AWS_SECRET_ACCESS_KEY                                              

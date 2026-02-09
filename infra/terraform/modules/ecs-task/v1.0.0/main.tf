@@ -70,7 +70,7 @@ locals {
         })
       ]
       # Generate family name: taskname-region_label-dns-zonename
-      family = "${task.name}-${var.region.label}-${replace(var.dns.zonename, ".", "-")}"
+      family = "${task.name}-${var.region.label}-${var.site.label}"
     }
   }
 }

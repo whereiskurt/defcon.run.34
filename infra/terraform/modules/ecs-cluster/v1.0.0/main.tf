@@ -16,9 +16,9 @@ locals {
       enable_insights = cluster.enable_insights
       cluster_type    = cluster.cluster_type
       # Generate cluster name: name-region_label-dns-zonename (e.g., "app-use1-<domain-slug>")
-      cluster_name = "${cluster.name}-${var.region.label}-${replace(var.dns.zonename, ".", "-")}"
-      # Generate namespace name: name-region_label-dns-zonename.local (e.g., "app-use1-<domain-slug>.local")
-      namespace_name = cluster.namespace_name != "" ? cluster.namespace_name : "${cluster.name}-${var.region.label}-${replace(var.dns.zonename, ".", "-")}.local"
+      cluster_name = "${cluster.name}-${var.region.label}-${var.site.label}"
+      # Generate namespace name: name-region_label-site_label.local (e.g., "app-use1-dc34.local")
+      namespace_name = cluster.namespace_name != "" ? cluster.namespace_name : "${cluster.name}-${var.region.label}-${var.site.label}.local"
     }
   }
 }

@@ -58,12 +58,12 @@ jobs:
 
     env:
       AWS_REGION: us-east-1
-      TG_BUCKET_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
-      TG_TABLE_USE1: tf-defcon-run-use1-${{ vars.SGUID }}
-      TG_BUCKET_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
-      TG_TABLE_CAC1: tf-defcon-run-cac1-${{ vars.SGUID }}
-      TG_BUCKET_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
-      TG_TABLE_APSE1: tf-defcon-run-apse1-${{ vars.SGUID }}
+      TG_BUCKET_USE1: tf-${{ vars.SITE_LABEL }}-use1-${{ vars.SGUID }}
+      TG_TABLE_USE1: tf-${{ vars.SITE_LABEL }}-use1-${{ vars.SGUID }}
+      TG_BUCKET_CAC1: tf-${{ vars.SITE_LABEL }}-cac1-${{ vars.SGUID }}
+      TG_TABLE_CAC1: tf-${{ vars.SITE_LABEL }}-cac1-${{ vars.SGUID }}
+      TG_BUCKET_APSE1: tf-${{ vars.SITE_LABEL }}-apse1-${{ vars.SGUID }}
+      TG_TABLE_APSE1: tf-${{ vars.SITE_LABEL }}-apse1-${{ vars.SGUID }}
       SGUID: ${{ vars.SGUID }}
       TF_VAR_MANAGEMENT_ACCOUNT_ID: ${{ vars.TF_VAR_MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_APPLICATION_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}

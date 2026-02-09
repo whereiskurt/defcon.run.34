@@ -14,7 +14,7 @@ locals {
 resource "aws_s3_bucket" "cf_assets" {
   for_each = local.domain_set
 
-  bucket        = "cf-assets-${each.key}-${var.region.label}-${replace(var.dns.zonename, ".", "-")}-${random_id.rnd.hex}"
+  bucket        = "cf-assets-${each.key}-${var.region.label}-${var.site.label}-${random_id.rnd.hex}"
   force_destroy = var.force_destroy
 
   tags = merge(
