@@ -274,7 +274,6 @@ function addCodeFolding(pre) {
   pre.dataset.raw = raw;
 
   var lines = raw.split('\n');
-  _foldUid = 0; // reset per-pre to keep IDs manageable
   pre.innerHTML = processLines(lines, 0, lines.length);
 }
 
