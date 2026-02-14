@@ -279,51 +279,65 @@ function addCodeFolding(pre) {
 }
 
 // --- Fold toggle ---
-function toggleFold(id) {
-  var content = document.getElementById(id);
-  if (!content) return;
-  var line = document.querySelector('[data-fold="' + id + '"]');
+// Collapse a single fold (mark collapsed, set icon, add summary)
+function collapseFold(foldId) {
+  var content = document.getElementById(foldId);
+  if (!content || content.classList.contains('fold-collapsed')) return;
+  var line = document.querySelector('[data-fold="' + foldId + '"]');
   var icon = line ? line.querySelector('.fold-icon') : null;
 
-  if (content.classList.contains('fold-collapsed')) {
-    content.classList.remove('fold-collapsed');
-    if (icon) icon.textContent = '▾';
-    var summary = document.getElementById(id + '-summary');
-    if (summary) summary.remove();
-  } else {
-    content.classList.add('fold-collapsed');
-    if (icon) icon.textContent = '▸';
-    var count = line ? line.dataset.count : '?';
-    if (!document.getElementById(id + '-summary')) {
-      var summary = document.createElement('span');
-      summary.id = id + '-summary';
-      summary.className = 'fold-summary';
-      summary.textContent = ' ...' + count + ' lines';
-      summary.onclick = function() { toggleFold(id); };
-      content.insertAdjacentElement('afterend', summary);
-    }
+  content.classList.add('fold-collapsed');
+  if (icon) icon.textContent = '▸';
+  var count = line ? line.dataset.count : '?';
+  if (!document.getElementById(foldId + '-summary')) {
+    var summary = document.createElement('span');
+    summary.id = foldId + '-summary';
+    summary.className = 'fold-summary';
+    summary.textContent = ' ...' + count + ' lines';
+    summary.onclick = function() { toggleFold(foldId); };
+    content.insertAdjacentElement('afterend', summary);
   }
 }
 
-// --- Collapse All / Expand All ---
-function foldAll() {
-  var pc = document.getElementById('preview-content');
-  if (!pc) return;
-  pc.querySelectorAll('.fold-content').forEach(function(el) {
-    if (!el.classList.contains('fold-collapsed')) {
-      var id = el.id;
-      if (id) toggleFold(id);
-    }
-  });
+// Expand a single fold (remove collapsed, set icon, remove summary)
+function expandFold(foldId) {
+  var content = document.getElementById(foldId);
+  if (!content || !content.classList.contains('fold-collapsed')) return;
+  var line = document.querySelector('[data-fold="' + foldId + '"]');
+  var icon = line ? line.querySelector('.fold-icon') : null;
+
+  content.classList.remove('fold-collapsed');
+  if (icon) icon.textContent = '▾';
+  var summary = document.getElementById(foldId + '-summary');
+  if (summary) summary.remove();
 }
 
-function unfoldAll() {
-  var pc = document.getElementById('preview-content');
-  if (!pc) return;
-  pc.querySelectorAll('.fold-content.fold-collapsed').forEach(function(el) {
-    var id = el.id;
-    if (id) toggleFold(id);
-  });
+function toggleFold(id) {
+  var content = document.getElementById(id);
+  if (!content) return;
+
+  if (content.classList.contains('fold-collapsed')) {
+    // EXPAND this level only — children stay collapsed
+    expandFold(id);
+    // Collapse all child folds so only this level is revealed
+    content.querySelectorAll('.fold-content').forEach(function(child) {
+      collapseFold(child.id);
+    });
+  } else {
+    // COLLAPSE recursively — collapse all descendants first, then this
+    content.querySelectorAll('.fold-content').forEach(function(child) {
+      // Remove child summaries since they'll be hidden inside collapsed parent
+      var childSummary = document.getElementById(child.id + '-summary');
+      if (childSummary) childSummary.remove();
+      child.classList.add('fold-collapsed');
+      var childLine = document.querySelector('[data-fold="' + child.id + '"]');
+      if (childLine) {
+        var childIcon = childLine.querySelector('.fold-icon');
+        if (childIcon) childIcon.textContent = '▸';
+      }
+    });
+    collapseFold(id);
+  }
 }
 
 // Apply folding + highlighting after htmx swaps preview content
