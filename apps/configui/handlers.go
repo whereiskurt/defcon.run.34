@@ -233,7 +233,8 @@ func (a *App) handleAWSStatus(w http.ResponseWriter, r *http.Request) {
 		regions = strings.Split(regionsParam, ",")
 	}
 
-	status := checkAWSStatus(prefix, suffix, regions)
+	status := checkAWSStatus(prefix, suffix, regions, a.envLocal.ProfilePrefix)
+	status.SSOSession = a.envLocal.SSOSessionName
 
 	tmpl, err := template.New("aws_status.html").ParseFS(content, "templates/partials/aws_status.html")
 	if err != nil {
@@ -244,6 +245,37 @@ func (a *App) handleAWSStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	if err := tmpl.Execute(w, status); err != nil {
 		log.Printf("AWS status template error: %v", err)
+	}
+}
+
+func (a *App) handleSSOLogin(w http.ResponseWriter, r *http.Request) {
+	session := a.envLocal.SSOSessionName
+	if session == "" {
+		session = "Developer"
+	}
+	out, err := runSSOLogin(session)
+	w.Header().Set("Content-Type", "text/html")
+	// Always trigger a status refresh after SSO login attempt
+	w.Header().Set("HX-Trigger", "refreshAwsStatus")
+	if err != nil {
+		fmt.Fprintf(w, `<div class="py-2"><span class="text-xs text-red-400">SSO login failed: %s</span></div>`, template.HTMLEscapeString(out))
+	} else {
+		fmt.Fprintf(w, `<div class="py-2"><span class="text-xs text-green-400">SSO login complete for session: %s</span></div>`, template.HTMLEscapeString(session))
+	}
+}
+
+func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
+	profile := "terraform"
+	if a.envLocal.ProfilePrefix != "" {
+		profile = a.envLocal.ProfilePrefix + "-terraform"
+	}
+	out, err := runExportCredentials(profile)
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("HX-Trigger", "refreshAwsStatus")
+	if err != nil {
+		fmt.Fprintf(w, `<div class="py-2"><span class="text-xs text-red-400">Export failed: %s</span></div>`, template.HTMLEscapeString(out))
+	} else {
+		fmt.Fprintf(w, `<div class="py-2 text-xs"><p class="text-green-400 mb-1">Credentials exported for profile: %s</p><pre class="font-mono text-zinc-300 bg-zinc-900 rounded p-2 overflow-x-auto">%s</pre></div>`, template.HTMLEscapeString(profile), template.HTMLEscapeString(out))
 	}
 }
 

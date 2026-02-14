@@ -111,6 +111,8 @@ func main() {
 	mux.HandleFunc("POST /preview", app.handlePreview)
 	mux.HandleFunc("GET /export", app.handleExport)
 	mux.HandleFunc("GET /api/aws-status", app.handleAWSStatus)
+	mux.HandleFunc("POST /api/sso-login", app.handleSSOLogin)
+	mux.HandleFunc("POST /api/export-creds", app.handleExportCreds)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port

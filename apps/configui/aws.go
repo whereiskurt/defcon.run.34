@@ -11,8 +11,10 @@ import (
 type AWSStatus struct {
 	Identity     *AWSIdentity              `json:"identity"`
 	Error        string                    `json:"error"`
+	Profile      string                    `json:"profile"`
 	StateBuckets map[string]ResourceStatus `json:"state_buckets"`
 	LockTables   map[string]ResourceStatus `json:"lock_tables"`
+	SSOSession   string                    `json:"sso_session"`
 }
 
 type AWSIdentity struct {
@@ -27,8 +29,14 @@ type ResourceStatus struct {
 	Name   string `json:"name"`
 }
 
-func checkAWSStatus(prefix, suffix string, regions []string) *AWSStatus {
+func checkAWSStatus(prefix, suffix string, regions []string, profilePrefix string) *AWSStatus {
+	tfProfile := "terraform"
+	if profilePrefix != "" {
+		tfProfile = profilePrefix + "-terraform"
+	}
+
 	status := &AWSStatus{
+		Profile:      tfProfile,
 		StateBuckets: make(map[string]ResourceStatus),
 		LockTables:   make(map[string]ResourceStatus),
 	}
@@ -40,9 +48,9 @@ func checkAWSStatus(prefix, suffix string, regions []string) *AWSStatus {
 	}
 
 	// Check identity
-	out, err := exec.Command("aws", "sts", "get-caller-identity", "--profile", "terraform", "--output", "json").Output()
+	out, err := exec.Command("aws", "sts", "get-caller-identity", "--profile", tfProfile, "--output", "json").Output()
 	if err != nil {
-		status.Error = "Not authenticated (run: aws sso login)"
+		status.Error = "Not authenticated"
 		return status
 	}
 	var id AWSIdentity
@@ -77,7 +85,7 @@ func checkAWSStatus(prefix, suffix string, regions []string) *AWSStatus {
 			rs := ResourceStatus{Name: bucketName}
 			_, err := exec.Command("aws", "s3api", "head-bucket",
 				"--bucket", bucketName,
-				"--profile", "terraform",
+				"--profile", tfProfile,
 				"--region", full).Output()
 			if err != nil {
 				errStr := err.Error()
@@ -103,7 +111,7 @@ func checkAWSStatus(prefix, suffix string, regions []string) *AWSStatus {
 			rs := ResourceStatus{Name: tableName}
 			_, err := exec.Command("aws", "dynamodb", "describe-table",
 				"--table-name", tableName,
-				"--profile", "terraform",
+				"--profile", tfProfile,
 				"--region", full,
 				"--output", "json").Output()
 			if err != nil {
@@ -124,4 +132,22 @@ func checkAWSStatus(prefix, suffix string, regions []string) *AWSStatus {
 
 	wg.Wait()
 	return status
+}
+
+// runSSOLogin runs aws sso login for the given session name.
+func runSSOLogin(sessionName string) (string, error) {
+	out, err := exec.Command("aws", "sso", "login", "--sso-session", sessionName).CombinedOutput()
+	if err != nil {
+		return string(out), fmt.Errorf("sso login failed: %w", err)
+	}
+	return string(out), nil
+}
+
+// runExportCredentials runs aws configure export-credentials for the given profile.
+func runExportCredentials(profile string) (string, error) {
+	out, err := exec.Command("aws", "configure", "export-credentials", "--profile", profile, "--format", "env").CombinedOutput()
+	if err != nil {
+		return string(out), fmt.Errorf("export-credentials failed: %w", err)
+	}
+	return string(out), nil
 }
