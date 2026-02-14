@@ -180,7 +180,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	preClass := `text-xs font-mono bg-zinc-900 text-zinc-300 p-4 rounded-lg overflow-auto whitespace-pre`
+	preClass := `text-xs font-mono bg-zinc-900 text-zinc-300 p-4 pl-6 rounded-lg overflow-auto whitespace-pre`
 	tabActive := `px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400`
 	tabInactive := `px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer`
 	copyBtn := `absolute top-2 right-2 rounded-md bg-zinc-700 hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-300`
@@ -201,14 +201,6 @@ function switchPreviewTab(tab) {
     document.getElementById('ptab-content-'+t).classList.toggle('hidden', t !== tab);
     var btn = document.getElementById('ptab-'+t);
     btn.className = t === tab ? %q : %q;
-  });
-}
-function copyPreviewTab(tab) {
-  var pre = document.getElementById('pre-'+tab);
-  if (!pre) return;
-  navigator.clipboard.writeText(pre.textContent).then(function() {
-    var btn = pre.parentElement.querySelector('button');
-    if (btn) { var o = btn.textContent; btn.textContent = 'Copied!'; setTimeout(function(){ btn.textContent = o; }, 1500); }
   });
 }
 </script>

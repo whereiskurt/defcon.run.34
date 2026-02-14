@@ -102,6 +102,46 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.5);
 }
 
+/* Code folding in preview */
+.fold-line {
+  display: inline;
+  cursor: default;
+}
+
+.fold-icon {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  cursor: pointer;
+  color: #71717a;
+  user-select: none;
+  margin-left: -1.2em;
+  margin-right: 0.2em;
+}
+
+.fold-icon:hover {
+  color: #06b6d4;
+}
+
+.fold-content {
+  display: inline;
+}
+
+.fold-content.fold-collapsed {
+  display: none;
+}
+
+.fold-summary {
+  color: #71717a;
+  font-style: italic;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fold-summary:hover {
+  color: #06b6d4;
+}
+
 /* Scrollbar styling for dark mode */
 @media (prefers-color-scheme: dark) {
   ::-webkit-scrollbar {
