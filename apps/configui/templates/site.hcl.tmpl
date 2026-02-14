@@ -125,26 +125,17 @@ locals {
     enabled = <<boolHCL .EC2Spots.Enabled>>
     instances = [
       {
-        count                  = 0
-        regions                = ["us-east-1", "ca-central-1", "ap-southeast-1"]
+        count                  = <<.EC2Spots.Count>>
+        regions                = [<<stringList .EC2Spots.Regions>>]
         zone_name              = "run.${local.dns.zonename}"
-        create_dns_records     = true
-        instance_type          = "t4g.medium"
-        spot_price_multiplier  = 1.00
-        spot_price_offset      = 0.0005
-        block_duration_minutes = 0
-        ec2key_name_prefix     = "ec2spot"
-        ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
+        create_dns_records     = <<boolHCL .EC2Spots.CreateDNSRecords>>
+        instance_type          = "<<.EC2Spots.InstanceType>>"
+        spot_price_multiplier  = <<printf "%.2f" .EC2Spots.SpotPriceMultiplier>>
+        spot_price_offset      = <<printf "%.4f" .EC2Spots.SpotPriceOffset>>
+        block_duration_minutes = <<.EC2Spots.BlockDurationMin>>
+        ec2key_name_prefix     = "<<.EC2Spots.EC2KeyNamePrefix>>"
+        ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/<<.EC2Spots.EC2KeyNamePrefix>>"
         githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
-        # Per-region overrides (optional) - useful for different instance counts per region
-        # region_overrides = {
-        #   "us-east-1" = {
-        #     count = 2
-        #   }
-        #   "ca-central-1" = {
-        #     count = 1
-        #   }
-        # }
       }
     ]
   }

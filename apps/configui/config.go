@@ -110,7 +110,15 @@ type CloudFrontConfig struct {
 }
 
 type EC2SpotsConfig struct {
-	Enabled bool `json:"enabled"`
+	Enabled            bool     `json:"enabled"`
+	Count              int      `json:"count"`
+	Regions            []string `json:"regions"`
+	InstanceType       string   `json:"instance_type"`
+	CreateDNSRecords   bool     `json:"create_dns_records"`
+	SpotPriceMultiplier float64 `json:"spot_price_multiplier"`
+	SpotPriceOffset     float64 `json:"spot_price_offset"`
+	BlockDurationMin    int     `json:"block_duration_minutes"`
+	EC2KeyNamePrefix    string  `json:"ec2key_name_prefix"`
 }
 
 type ECSClustersConfig struct {
@@ -379,7 +387,15 @@ func DefaultConfig() *SiteConfig {
 			PriceClass: "PriceClass_100",
 		},
 		EC2Spots: EC2SpotsConfig{
-			Enabled: false,
+			Enabled:            false,
+			Count:              0,
+			Regions:            []string{"us-east-1", "ca-central-1", "ap-southeast-1"},
+			InstanceType:       "t4g.medium",
+			CreateDNSRecords:   true,
+			SpotPriceMultiplier: 1.00,
+			SpotPriceOffset:     0.0005,
+			BlockDurationMin:    0,
+			EC2KeyNamePrefix:    "ec2spot",
 		},
 		ECSClusters: ECSClustersConfig{
 			Enabled: true,

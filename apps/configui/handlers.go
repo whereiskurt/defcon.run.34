@@ -396,6 +396,17 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 
 	// EC2 Spots
 	cfg.EC2Spots.Enabled = formBool(r, "ec2spots.enabled")
+	cfg.EC2Spots.Count = formInt(r, "ec2spots.count", 0)
+	cfg.EC2Spots.InstanceType = formStr(r, "ec2spots.instance_type", "t4g.medium")
+	cfg.EC2Spots.CreateDNSRecords = formBool(r, "ec2spots.create_dns_records")
+	cfg.EC2Spots.SpotPriceMultiplier = formFloat(r, "ec2spots.spot_price_multiplier", 1.00)
+	cfg.EC2Spots.SpotPriceOffset = formFloat(r, "ec2spots.spot_price_offset", 0.0005)
+	cfg.EC2Spots.BlockDurationMin = formInt(r, "ec2spots.block_duration_minutes", 0)
+	cfg.EC2Spots.EC2KeyNamePrefix = formStr(r, "ec2spots.ec2key_name_prefix", "ec2spot")
+	cfg.EC2Spots.Regions = formCSV(r, "ec2spots.regions")
+	if len(cfg.EC2Spots.Regions) == 0 {
+		cfg.EC2Spots.Regions = []string{"us-east-1", "ca-central-1", "ap-southeast-1"}
+	}
 
 	// ECS Clusters
 	cfg.ECSClusters.Enabled = formBool(r, "ecs_clusters.enabled")
@@ -544,6 +555,15 @@ func formInt(r *http.Request, key string, fallback int) int {
 	if v := r.FormValue(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
 			return n
+		}
+	}
+	return fallback
+}
+
+func formFloat(r *http.Request, key string, fallback float64) float64 {
+	if v := r.FormValue(key); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			return f
 		}
 	}
 	return fallback
