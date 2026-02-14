@@ -39,7 +39,6 @@ function toggleModule(id, checkbox) {
     card.classList.remove('panel-disabled');
   } else {
     card.classList.add('panel-disabled');
-    // Collapse body when disabled
     const body = document.getElementById('body-' + id);
     const chevron = document.getElementById('chevron-' + id);
     if (body) body.style.display = 'none';
@@ -113,114 +112,173 @@ if (form) {
   form.addEventListener('change', schedulePreviewRefresh);
 }
 
-// --- Code folding for preview <pre> blocks ---
+// =====================================================
+// HCL Syntax Highlighting + Code Folding
+// =====================================================
 var _foldUid = 0;
 
-function escapeHtml(text) {
+function esc(text) {
   var d = document.createElement('div');
   d.textContent = text;
   return d.innerHTML;
 }
 
-// Determine if a trimmed line opens a foldable block
+// --- Syntax highlighting ---
+// Tokenize a raw line into segments, then render with color spans.
+function highlightLine(raw) {
+  var html = '';
+  var i = 0;
+
+  while (i < raw.length) {
+    // Whitespace — pass through
+    if (raw[i] === ' ' || raw[i] === '\t') {
+      html += raw[i];
+      i++;
+      continue;
+    }
+
+    // Comment: # to end of line
+    if (raw[i] === '#') {
+      html += '<span class="hl-cmt">' + esc(raw.substring(i)) + '</span>';
+      break;
+    }
+
+    // String: "..."
+    if (raw[i] === '"') {
+      var j = i + 1;
+      while (j < raw.length) {
+        if (raw[j] === '\\') { j += 2; continue; }
+        if (raw[j] === '"') break;
+        j++;
+      }
+      var str = raw.substring(i, j + 1);
+      // Highlight ${...} interpolations inside the string
+      var strHtml = esc(str).replace(/\$\{([^}]*)\}/g, function(m) {
+        return '</span><span class="hl-interp">' + esc(m) + '</span><span class="hl-str">';
+      });
+      html += '<span class="hl-str">' + strHtml + '</span>';
+      i = j + 1;
+      continue;
+    }
+
+    // Number (possibly with decimals)
+    var numMatch = raw.substring(i).match(/^-?\d+\.?\d*/);
+    if (numMatch && (i === 0 || ' \t=([,'.indexOf(raw[i - 1]) !== -1)) {
+      html += '<span class="hl-num">' + numMatch[0] + '</span>';
+      i += numMatch[0].length;
+      continue;
+    }
+
+    // Word: identifier, keyword, boolean, function
+    var wordMatch = raw.substring(i).match(/^[a-zA-Z_][a-zA-Z0-9_.]*/);
+    if (wordMatch) {
+      var word = wordMatch[0];
+      if (word === 'true' || word === 'false' || word === 'null') {
+        html += '<span class="hl-bool">' + word + '</span>';
+      } else if (i + word.length < raw.length && raw[i + word.length] === '(') {
+        html += '<span class="hl-func">' + esc(word) + '</span>';
+      } else {
+        html += '<span class="hl-key">' + esc(word) + '</span>';
+      }
+      i += word.length;
+      continue;
+    }
+
+    // Operator: =
+    if (raw[i] === '=') {
+      html += '<span class="hl-op">=</span>';
+      i++;
+      continue;
+    }
+
+    // Brackets
+    if ('{[()]}'.indexOf(raw[i]) !== -1) {
+      html += '<span class="hl-brace">' + raw[i] + '</span>';
+      i++;
+      continue;
+    }
+
+    // Punctuation (commas, etc)
+    html += esc(raw[i]);
+    i++;
+  }
+
+  return html;
+}
+
+// --- Folding ---
 function isFoldOpener(trimmed) {
   return (trimmed.endsWith('{') || trimmed.endsWith('[')) && trimmed.length > 1;
 }
 
-// Determine the matching close character
 function closeCharFor(trimmed) {
   if (trimmed.endsWith('{')) return '}';
   if (trimmed.endsWith('[')) return ']';
   return null;
 }
 
-function addCodeFolding(pre) {
-  var raw = pre.textContent;
-  // Store raw text for copy
-  pre.dataset.raw = raw;
+function findMatchingClose(lines, start, openChar, closeChar) {
+  var depth = 1;
+  var end = start + 1;
+  while (end < lines.length && depth > 0) {
+    var t = lines[end].trimEnd();
+    for (var c = 0; c < t.length; c++) {
+      if (t[c] === openChar) depth++;
+      else if (t[c] === closeChar) depth--;
+      if (depth === 0) break;
+    }
+    end++;
+  }
+  return end;
+}
 
-  var lines = raw.split('\n');
+// Recursively process lines into folded + highlighted HTML
+function processLines(lines, from, to) {
   var html = '';
-  var i = 0;
+  var i = from;
 
-  while (i < lines.length) {
+  while (i < to) {
     var line = lines[i];
     var trimmed = line.trimEnd();
 
     if (isFoldOpener(trimmed)) {
-      var closer = closeCharFor(trimmed);
-      // Find matching close by tracking depth
-      var depth = 1;
-      var end = i + 1;
-      while (end < lines.length && depth > 0) {
-        var t = lines[end].trimEnd();
-        // Count opens/closes of the same type
-        for (var c = 0; c < t.length; c++) {
-          if (t[c] === trimmed[trimmed.length - 1]) depth++;
-          else if (t[c] === closer) depth--;
-          if (depth === 0) break;
-        }
-        end++;
-      }
-
-      var innerCount = end - i - 1; // lines between open and close (inclusive of close line)
+      var openChar = trimmed[trimmed.length - 1];
+      var closeChar = closeCharFor(trimmed);
+      var end = findMatchingClose(lines, i, openChar, closeChar);
+      if (end > to) end = to; // safety
+      var innerCount = end - i - 1;
       var id = 'fold-' + (_foldUid++);
 
-      // Opening line with fold toggle
+      // Fold header line
       html += '<span class="fold-line" data-fold="' + id + '" data-count="' + innerCount + '">';
       html += '<span class="fold-icon" onclick="toggleFold(\'' + id + '\')">▾</span>';
-      html += escapeHtml(line);
+      html += highlightLine(line);
       html += '</span>\n';
 
-      // Inner content (collapsible)
+      // Inner content — recurse for nested folds
       html += '<span id="' + id + '" class="fold-content">';
-      for (var j = i + 1; j < end; j++) {
-        // Recurse-ish: check inner lines too
-        var innerLine = lines[j];
-        var innerTrimmed = innerLine.trimEnd();
-
-        if (isFoldOpener(innerTrimmed)) {
-          var innerCloser = closeCharFor(innerTrimmed);
-          var innerDepth = 1;
-          var innerEnd = j + 1;
-          while (innerEnd < end && innerDepth > 0) {
-            var it = lines[innerEnd].trimEnd();
-            for (var ic = 0; ic < it.length; ic++) {
-              if (it[ic] === innerTrimmed[innerTrimmed.length - 1]) innerDepth++;
-              else if (it[ic] === innerCloser) innerDepth--;
-              if (innerDepth === 0) break;
-            }
-            innerEnd++;
-          }
-
-          var innerInnerCount = innerEnd - j - 1;
-          var innerId = 'fold-' + (_foldUid++);
-
-          html += '<span class="fold-line" data-fold="' + innerId + '" data-count="' + innerInnerCount + '">';
-          html += '<span class="fold-icon" onclick="toggleFold(\'' + innerId + '\')">▾</span>';
-          html += escapeHtml(innerLine);
-          html += '</span>\n';
-          html += '<span id="' + innerId + '" class="fold-content">';
-          for (var k = j + 1; k < innerEnd; k++) {
-            html += escapeHtml(lines[k]) + '\n';
-          }
-          html += '</span>';
-          j = innerEnd - 1;
-        } else {
-          html += escapeHtml(innerLine) + '\n';
-        }
-      }
+      html += processLines(lines, i + 1, end);
       html += '</span>';
       i = end;
     } else {
-      html += escapeHtml(line) + '\n';
+      html += highlightLine(line) + '\n';
       i++;
     }
   }
 
-  pre.innerHTML = html;
+  return html;
 }
 
+function addCodeFolding(pre) {
+  var raw = pre.textContent;
+  pre.dataset.raw = raw;
+
+  var lines = raw.split('\n');
+  _foldUid = 0; // reset per-pre to keep IDs manageable
+  pre.innerHTML = processLines(lines, 0, lines.length);
+}
+
+// --- Fold toggle ---
 function toggleFold(id) {
   var content = document.getElementById(id);
   if (!content) return;
@@ -230,13 +288,11 @@ function toggleFold(id) {
   if (content.classList.contains('fold-collapsed')) {
     content.classList.remove('fold-collapsed');
     if (icon) icon.textContent = '▾';
-    // Remove the summary
     var summary = document.getElementById(id + '-summary');
     if (summary) summary.remove();
   } else {
     content.classList.add('fold-collapsed');
     if (icon) icon.textContent = '▸';
-    // Add summary showing line count
     var count = line ? line.dataset.count : '?';
     if (!document.getElementById(id + '-summary')) {
       var summary = document.createElement('span');
@@ -249,15 +305,35 @@ function toggleFold(id) {
   }
 }
 
-// Apply code folding after htmx swaps preview content
+// --- Collapse All / Expand All ---
+function foldAll() {
+  var pc = document.getElementById('preview-content');
+  if (!pc) return;
+  pc.querySelectorAll('.fold-content').forEach(function(el) {
+    if (!el.classList.contains('fold-collapsed')) {
+      var id = el.id;
+      if (id) toggleFold(id);
+    }
+  });
+}
+
+function unfoldAll() {
+  var pc = document.getElementById('preview-content');
+  if (!pc) return;
+  pc.querySelectorAll('.fold-content.fold-collapsed').forEach(function(el) {
+    var id = el.id;
+    if (id) toggleFold(id);
+  });
+}
+
+// Apply folding + highlighting after htmx swaps preview content
 document.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'preview-content') {
-    var pres = e.detail.target.querySelectorAll('pre');
-    pres.forEach(addCodeFolding);
+    e.detail.target.querySelectorAll('pre').forEach(addCodeFolding);
   }
 });
 
-// Fix copy to use raw text (bypassing fold HTML)
+// Copy uses raw text (bypasses fold/highlight HTML)
 function copyPreviewTab(tab) {
   var pre = document.getElementById('pre-' + tab);
   if (!pre) return;

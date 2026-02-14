@@ -186,11 +186,18 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	copyBtn := `absolute top-2 right-2 rounded-md bg-zinc-700 hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-300`
 
 	w.Header().Set("Content-Type", "text/html")
+	foldBtn := `text-[10px] text-zinc-500 hover:text-cyan-400 cursor-pointer`
 	fmt.Fprintf(w, `<div>
-<div class="flex gap-1 border-b border-zinc-700 mb-3">
-  <button type="button" onclick="switchPreviewTab('sitehcl')" id="ptab-sitehcl" class="%s">site.hcl</button>
-  <button type="button" onclick="switchPreviewTab('envsh')" id="ptab-envsh" class="%s">env.sh</button>
-  <button type="button" onclick="switchPreviewTab('envlocal')" id="ptab-envlocal" class="%s">env.local.sh</button>
+<div class="flex items-center border-b border-zinc-700 mb-3">
+  <div class="flex gap-1 flex-1">
+    <button type="button" onclick="switchPreviewTab('sitehcl')" id="ptab-sitehcl" class="%s">site.hcl</button>
+    <button type="button" onclick="switchPreviewTab('envsh')" id="ptab-envsh" class="%s">env.sh</button>
+    <button type="button" onclick="switchPreviewTab('envlocal')" id="ptab-envlocal" class="%s">env.local.sh</button>
+  </div>
+  <div class="flex gap-2 pr-1 pb-1">
+    <button type="button" onclick="foldAll()" class="%s">Collapse</button>
+    <button type="button" onclick="unfoldAll()" class="%s">Expand</button>
+  </div>
 </div>
 <div id="ptab-content-sitehcl" class="relative"><button onclick="copyPreviewTab('sitehcl')" class="%s">Copy</button><pre id="pre-sitehcl" class="%s">%s</pre></div>
 <div id="ptab-content-envsh" class="relative hidden"><button onclick="copyPreviewTab('envsh')" class="%s">Copy</button><pre id="pre-envsh" class="%s">%s</pre></div>
@@ -206,6 +213,7 @@ function switchPreviewTab(tab) {
 </script>
 </div>`,
 		tabActive, tabInactive, tabInactive,
+		foldBtn, foldBtn,
 		copyBtn, preClass, template.HTMLEscapeString(hcl),
 		copyBtn, preClass, template.HTMLEscapeString(envSh),
 		copyBtn, preClass, template.HTMLEscapeString(envLocalSh),
