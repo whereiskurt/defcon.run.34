@@ -184,25 +184,19 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	tabActive := `px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400`
 	tabInactive := `px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer`
 	copyBtn := `rounded-md bg-zinc-700 hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-300`
-	stickyBar := `sticky top-0 z-10 flex justify-end py-1 bg-zinc-900/90 backdrop-blur-sm`
+	stickyBar := `sticky top-0 z-10 flex items-center gap-2 py-1 bg-zinc-900/90 backdrop-blur-sm`
+	foldBtn := `text-[10px] text-zinc-500 hover:text-cyan-400 cursor-pointer`
 
 	w.Header().Set("Content-Type", "text/html")
-	foldBtn := `text-[10px] text-zinc-500 hover:text-cyan-400 cursor-pointer`
 	fmt.Fprintf(w, `<div>
-<div class="flex items-center border-b border-zinc-700 mb-3">
-  <div class="flex gap-1 flex-1">
-    <button type="button" onclick="switchPreviewTab('sitehcl')" id="ptab-sitehcl" class="%s">site.hcl</button>
-    <button type="button" onclick="switchPreviewTab('envsh')" id="ptab-envsh" class="%s">env.sh</button>
-    <button type="button" onclick="switchPreviewTab('envlocal')" id="ptab-envlocal" class="%s">env.local.sh</button>
-  </div>
-  <div class="flex gap-2 pr-1 pb-1">
-    <button type="button" onclick="foldAll()" class="%s">Collapse</button>
-    <button type="button" onclick="unfoldAll()" class="%s">Expand</button>
-  </div>
+<div class="flex gap-1 border-b border-zinc-700 mb-3">
+  <button type="button" onclick="switchPreviewTab('sitehcl')" id="ptab-sitehcl" class="%s">site.hcl</button>
+  <button type="button" onclick="switchPreviewTab('envsh')" id="ptab-envsh" class="%s">env.sh</button>
+  <button type="button" onclick="switchPreviewTab('envlocal')" id="ptab-envlocal" class="%s">env.local.sh</button>
 </div>
-<div id="ptab-content-sitehcl"><div class="%s"><button onclick="copyPreviewTab('sitehcl')" class="%s">Copy</button></div><pre id="pre-sitehcl" class="%s">%s</pre></div>
-<div id="ptab-content-envsh" class="hidden"><div class="%s"><button onclick="copyPreviewTab('envsh')" class="%s">Copy</button></div><pre id="pre-envsh" class="%s">%s</pre></div>
-<div id="ptab-content-envlocal" class="hidden"><div class="%s"><button onclick="copyPreviewTab('envlocal')" class="%s">Copy</button></div><pre id="pre-envlocal" class="%s">%s</pre></div>
+<div id="ptab-content-sitehcl"><div class="%s"><button type="button" onclick="foldAll()" class="%s">Collapse</button><button type="button" onclick="unfoldAll()" class="%s">Expand</button><span class="flex-1"></span><button onclick="copyPreviewTab('sitehcl')" class="%s">Copy</button></div><pre id="pre-sitehcl" class="%s">%s</pre></div>
+<div id="ptab-content-envsh" class="hidden"><div class="%s"><button type="button" onclick="foldAll()" class="%s">Collapse</button><button type="button" onclick="unfoldAll()" class="%s">Expand</button><span class="flex-1"></span><button onclick="copyPreviewTab('envsh')" class="%s">Copy</button></div><pre id="pre-envsh" class="%s">%s</pre></div>
+<div id="ptab-content-envlocal" class="hidden"><div class="%s"><button type="button" onclick="foldAll()" class="%s">Collapse</button><button type="button" onclick="unfoldAll()" class="%s">Expand</button><span class="flex-1"></span><button onclick="copyPreviewTab('envlocal')" class="%s">Copy</button></div><pre id="pre-envlocal" class="%s">%s</pre></div>
 <script>
 function switchPreviewTab(tab) {
   ['sitehcl','envsh','envlocal'].forEach(function(t) {
@@ -214,10 +208,9 @@ function switchPreviewTab(tab) {
 </script>
 </div>`,
 		tabActive, tabInactive, tabInactive,
-		foldBtn, foldBtn,
-		stickyBar, copyBtn, preClass, template.HTMLEscapeString(hcl),
-		stickyBar, copyBtn, preClass, template.HTMLEscapeString(envSh),
-		stickyBar, copyBtn, preClass, template.HTMLEscapeString(envLocalSh),
+		stickyBar, foldBtn, foldBtn, copyBtn, preClass, template.HTMLEscapeString(hcl),
+		stickyBar, foldBtn, foldBtn, copyBtn, preClass, template.HTMLEscapeString(envSh),
+		stickyBar, foldBtn, foldBtn, copyBtn, preClass, template.HTMLEscapeString(envLocalSh),
 		tabActive, tabInactive)
 }
 
