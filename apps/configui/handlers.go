@@ -26,6 +26,21 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 			return false
 		},
 		"join": strings.Join,
+		"truncMid": func(s string, keep int, args ...string) template.HTML {
+			mode := ""
+			if len(args) > 0 {
+				mode = args[0]
+			}
+			if len(s) <= keep*2 {
+				return template.HTML(template.HTMLEscapeString(s))
+			}
+			head := template.HTMLEscapeString(s[:keep])
+			tail := template.HTMLEscapeString(s[len(s)-keep:])
+			if mode == "blur" {
+				return template.HTML(head + `<span class="pii-blur" onclick="this.classList.toggle('pii-revealed')" title="Click to reveal">` + tail + `</span>`)
+			}
+			return template.HTML(head + ".." + tail)
+		},
 		"mapHas": func(m map[string]string, key string) bool {
 			_, ok := m[key]
 			return ok
@@ -236,7 +251,23 @@ func (a *App) handleAWSStatus(w http.ResponseWriter, r *http.Request) {
 	status := checkAWSStatus(prefix, suffix, regions, a.envLocal.ProfilePrefix)
 	status.SSOSession = a.envLocal.SSOSessionName
 
-	tmpl, err := template.New("aws_status.html").ParseFS(content, "templates/partials/aws_status.html")
+	tmpl, err := template.New("aws_status.html").Funcs(template.FuncMap{
+		"truncMid": func(s string, keep int, args ...string) template.HTML {
+			mode := ""
+			if len(args) > 0 {
+				mode = args[0]
+			}
+			if len(s) <= keep*2 {
+				return template.HTML(template.HTMLEscapeString(s))
+			}
+			head := template.HTMLEscapeString(s[:keep])
+			tail := template.HTMLEscapeString(s[len(s)-keep:])
+			if mode == "blur" {
+				return template.HTML(head + `<span class="pii-blur" onclick="this.classList.toggle('pii-revealed')" title="Click to reveal">` + tail + `</span>`)
+			}
+			return template.HTML(head + ".." + tail)
+		},
+	}).ParseFS(content, "templates/partials/aws_status.html")
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Template error: %v", err), 500)
 		return
@@ -273,9 +304,24 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("HX-Trigger", "refreshAwsStatus")
 	if err != nil {
-		fmt.Fprintf(w, `<div class="py-2"><span class="text-xs text-red-400">Export failed: %s</span></div>`, template.HTMLEscapeString(out))
+		fmt.Fprintf(w, `<div class="rounded-lg border border-red-700 bg-red-900/20 px-4 py-3 text-xs text-red-400">Export failed: %s</div>`, template.HTMLEscapeString(out))
 	} else {
-		fmt.Fprintf(w, `<div class="py-2 text-xs"><p class="text-green-400 mb-1">Credentials exported for profile: %s</p><pre class="font-mono text-zinc-300 bg-zinc-900 rounded p-2 overflow-x-auto">%s</pre></div>`, template.HTMLEscapeString(profile), template.HTMLEscapeString(out))
+		escaped := template.HTMLEscapeString(out)
+		fmt.Fprintf(w, `<div class="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3">
+  <div class="flex items-center justify-between mb-2">
+    <span class="text-xs text-green-400 font-medium">Credentials exported for profile: %s</span>
+    <div class="flex items-center gap-2">
+      <button onclick="var pre=document.getElementById('creds-output'); navigator.clipboard.writeText(pre.dataset.raw).then(function(){this.textContent='Copied!'; var b=this; setTimeout(function(){b.textContent='Copy';},1500);}.bind(this));"
+              class="rounded-md bg-zinc-700 hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-300">Copy</button>
+      <button onclick="document.getElementById('aws-action-result').innerHTML='';"
+              class="text-zinc-500 hover:text-zinc-300 text-lg px-1" title="Dismiss">&times;</button>
+    </div>
+  </div>
+  <pre id="creds-output" class="pii-blur font-mono text-xs text-zinc-300 bg-zinc-900 rounded p-3 overflow-x-auto whitespace-pre cursor-pointer"
+       data-raw="%s"
+       onclick="this.classList.toggle('pii-revealed');"
+       title="Click to reveal/blur">%s</pre>
+</div>`, template.HTMLEscapeString(profile), escaped, escaped)
 	}
 }
 

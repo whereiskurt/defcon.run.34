@@ -64,6 +64,23 @@
 .status-dot.warning { background: #f59e0b; }
 .status-dot.unknown { background: #71717a; }
 
+/* PII blur - click to reveal */
+.pii-blur {
+  filter: blur(4px);
+  transition: filter 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pii-blur:hover {
+  filter: blur(2px);
+}
+
+.pii-blur.pii-revealed {
+  filter: none;
+  user-select: text;
+}
+
 /* Preview slide panel */
 #preview-panel {
   transition: transform 0.3s ease;
