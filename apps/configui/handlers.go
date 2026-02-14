@@ -162,55 +162,97 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	cfg := a.parseForm(r)
 	envLocal := a.parseEnvLocalForm(r)
 
-	hcl, err := renderSiteHCL(cfg)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate site.hcl preview: %v", err), 500)
+	type previewTab struct {
+		ID    string
+		Label string
+		Body  string
+	}
+
+	var tabs []previewTab
+
+	// site.hcl
+	if out, err := renderSiteHCL(cfg); err == nil {
+		tabs = append(tabs, previewTab{"sitehcl", "site.hcl", out})
+	} else {
+		http.Error(w, fmt.Sprintf("Failed to generate site.hcl: %v", err), 500)
 		return
 	}
 
-	envSh, err := renderEnvSh(cfg)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate env.sh preview: %v", err), 500)
-		return
+	// Service HCLs
+	for _, svc := range []struct{ name, label string }{
+		{"run.auth", "auth"},
+		{"run.human", "human"},
+		{"run.cms", "cms"},
+		{"run.gpx", "gpx"},
+	} {
+		if out, err := renderServiceHCL(svc.name, cfg); err == nil {
+			tabs = append(tabs, previewTab{"svc-" + svc.label, svc.name + "/service.hcl", out})
+		} else {
+			log.Printf("Preview: skip %s: %v", svc.name, err)
+		}
 	}
 
-	envLocalSh, err := renderEnvLocalSh(envLocal)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate env.local.sh preview: %v", err), 500)
-		return
+	// env.sh
+	if out, err := renderEnvSh(cfg); err == nil {
+		tabs = append(tabs, previewTab{"envsh", "env.sh", out})
+	} else {
+		log.Printf("Preview: skip env.sh: %v", err)
 	}
 
-	preClass := `text-xs font-mono bg-zinc-900 text-zinc-300 p-4 pl-6 rounded-lg overflow-auto whitespace-pre`
+	// env.local.sh
+	if out, err := renderEnvLocalSh(envLocal); err == nil {
+		tabs = append(tabs, previewTab{"envlocal", "env.local.sh", out})
+	} else {
+		log.Printf("Preview: skip env.local.sh: %v", err)
+	}
+
 	tabActive := `px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400`
 	tabInactive := `px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer`
 	copyBtn := `rounded-md bg-zinc-700 hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-300`
 	stickyBar := `sticky top-0 z-10 flex justify-end py-1 bg-zinc-900/90 backdrop-blur-sm`
+	preClass := `text-xs font-mono bg-zinc-900 text-zinc-300 p-4 pl-6 rounded-lg overflow-auto whitespace-pre`
 
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `<div>
-<div class="flex gap-1 border-b border-zinc-700 mb-3">
-  <button type="button" onclick="switchPreviewTab('sitehcl')" id="ptab-sitehcl" class="%s">site.hcl</button>
-  <button type="button" onclick="switchPreviewTab('envsh')" id="ptab-envsh" class="%s">env.sh</button>
-  <button type="button" onclick="switchPreviewTab('envlocal')" id="ptab-envlocal" class="%s">env.local.sh</button>
-</div>
-<div id="ptab-content-sitehcl"><div class="%s"><button onclick="copyPreviewTab('sitehcl')" class="%s">Copy</button></div><pre id="pre-sitehcl" class="%s">%s</pre></div>
-<div id="ptab-content-envsh" class="hidden"><div class="%s"><button onclick="copyPreviewTab('envsh')" class="%s">Copy</button></div><pre id="pre-envsh" class="%s">%s</pre></div>
-<div id="ptab-content-envlocal" class="hidden"><div class="%s"><button onclick="copyPreviewTab('envlocal')" class="%s">Copy</button></div><pre id="pre-envlocal" class="%s">%s</pre></div>
-<script>
+
+	// Build tab IDs array for JS
+	var tabIDs []string
+	for _, t := range tabs {
+		tabIDs = append(tabIDs, `'`+t.ID+`'`)
+	}
+
+	// Tab buttons
+	fmt.Fprint(w, `<div>`)
+	fmt.Fprintf(w, `<div class="flex flex-wrap gap-1 border-b border-zinc-700 mb-3">`)
+	for i, t := range tabs {
+		cls := tabInactive
+		if i == 0 {
+			cls = tabActive
+		}
+		fmt.Fprintf(w, `<button type="button" onclick="switchPreviewTab('%s')" id="ptab-%s" class="%s">%s</button>`,
+			t.ID, t.ID, cls, template.HTMLEscapeString(t.Label))
+	}
+	fmt.Fprint(w, `</div>`)
+
+	// Tab content panes
+	for i, t := range tabs {
+		hidden := ""
+		if i > 0 {
+			hidden = ` class="hidden"`
+		}
+		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="%s"><button onclick="copyPreviewTab('%s')" class="%s">Copy</button></div><pre id="pre-%s" class="%s">%s</pre></div>`,
+			t.ID, hidden, stickyBar, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Body))
+	}
+
+	// Tab switching JS
+	fmt.Fprintf(w, `<script>
 function switchPreviewTab(tab) {
-  ['sitehcl','envsh','envlocal'].forEach(function(t) {
+  [%s].forEach(function(t) {
     document.getElementById('ptab-content-'+t).classList.toggle('hidden', t !== tab);
     var btn = document.getElementById('ptab-'+t);
     btn.className = t === tab ? %q : %q;
   });
 }
-</script>
-</div>`,
-		tabActive, tabInactive, tabInactive,
-		stickyBar, copyBtn, preClass, template.HTMLEscapeString(hcl),
-		stickyBar, copyBtn, preClass, template.HTMLEscapeString(envSh),
-		stickyBar, copyBtn, preClass, template.HTMLEscapeString(envLocalSh),
-		tabActive, tabInactive)
+</script></div>`, strings.Join(tabIDs, ","), tabActive, tabInactive)
 }
 
 func (a *App) handleExport(w http.ResponseWriter, r *http.Request) {

@@ -104,31 +104,28 @@ func renderSiteHCL(cfg *SiteConfig) (string, error) {
 }
 
 // generateServiceHCLs renders all service.hcl files from templates.
-func generateServiceHCLs(servicesDir string, cfg *SiteConfig) error {
-	services := []struct {
-		name     string
-		template string
-		data     interface{}
-	}{
-		{"run.auth", "templates/services/run.auth.service.hcl.tmpl", cfg},
-		{"run.human", "templates/services/run.human.service.hcl.tmpl", cfg},
-		{"run.cms", "templates/services/run.cms.service.hcl.tmpl", cfg},
-		{"run.gpx", "templates/services/run.gpx.service.hcl.tmpl", cfg},
+func renderServiceHCL(svcName string, cfg *SiteConfig) (string, error) {
+	tmplFile := fmt.Sprintf("templates/services/%s.service.hcl.tmpl", svcName)
+	tmpl, err := template.New(filepath.Base(tmplFile)).Delims("<<", ">>").Funcs(genFuncs).ParseFS(content, tmplFile)
+	if err != nil {
+		return "", fmt.Errorf("parse %s template: %w", svcName, err)
 	}
 
-	for _, svc := range services {
-		tmpl, err := template.New(filepath.Base(svc.template)).Delims("<<", ">>").Funcs(genFuncs).ParseFS(content, svc.template)
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, cfg); err != nil {
+		return "", fmt.Errorf("execute %s template: %w", svcName, err)
+	}
+	return buf.String(), nil
+}
+
+func generateServiceHCLs(servicesDir string, cfg *SiteConfig) error {
+	for _, svcName := range []string{"run.auth", "run.human", "run.cms", "run.gpx"} {
+		out, err := renderServiceHCL(svcName, cfg)
 		if err != nil {
-			return fmt.Errorf("parse %s template: %w", svc.name, err)
+			return err
 		}
-
-		var buf bytes.Buffer
-		if err := tmpl.Execute(&buf, svc.data); err != nil {
-			return fmt.Errorf("execute %s template: %w", svc.name, err)
-		}
-
-		outPath := filepath.Join(servicesDir, svc.name, "service.hcl")
-		if err := os.WriteFile(outPath, buf.Bytes(), 0644); err != nil {
+		outPath := filepath.Join(servicesDir, svcName, "service.hcl")
+		if err := os.WriteFile(outPath, []byte(out), 0644); err != nil {
 			return fmt.Errorf("write %s: %w", outPath, err)
 		}
 	}
