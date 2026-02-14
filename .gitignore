@@ -58,4 +58,7 @@ lambda_*.zip
 ## I want share this because it makes automations is easier.
 !.claude/settings.local.json
 
-
+# ConfigUI
+apps/configui/configui
+apps/configui/backups/
+apps/configui/site-config.json

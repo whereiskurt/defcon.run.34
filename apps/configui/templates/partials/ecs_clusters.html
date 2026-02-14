@@ -1,0 +1,35 @@
+{{define "ecs_clusters.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.ECSClusters.Enabled}}panel-disabled{{end}}" data-panel="ecs_clusters">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('ecs_clusters')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="ecs_clusters.enabled" class="toggle-switch" {{if .Config.ECSClusters.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('ecs_clusters', this)">
+      <h3 class="text-base font-semibold">ECS Clusters</h3>
+      <span class="text-xs text-zinc-400">Fargate clusters</span>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-ecs_clusters" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-ecs_clusters" style="display:none">
+    {{if .Config.ECSClusters.Clusters}}
+    {{with index .Config.ECSClusters.Clusters 0}}
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Cluster Name</label>
+        <input type="text" name="ecs_clusters.0.name" value="{{.Name}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+      </div>
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Cluster Type</label>
+        <select name="ecs_clusters.0.cluster_type" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <option value="FARGATE" {{if eq .ClusterType "FARGATE"}}selected{{end}}>FARGATE</option>
+          <option value="EC2" {{if eq .ClusterType "EC2"}}selected{{end}}>EC2</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="ecs_clusters.0.enable_insights" class="toggle-switch" {{if .EnableInsights}}checked{{end}}>
+      <label class="text-sm">Enable Container Insights</label>
+    </div>
+    {{end}}
+    {{end}}
+  </div>
+</div>
+{{end}}

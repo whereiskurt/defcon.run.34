@@ -1,0 +1,23 @@
+{{define "github_oidc.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.GitHubOIDC.Enabled}}panel-disabled{{end}}" data-panel="github_oidc">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('github_oidc')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="github_oidc.enabled" class="toggle-switch" {{if .Config.GitHubOIDC.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('github_oidc', this)">
+      <h3 class="text-base font-semibold">GitHub OIDC</h3>
+      <span class="text-xs text-zinc-400">CI/CD roles</span>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-github_oidc" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-github_oidc" style="display:none">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="github_oidc.ec2_runner.enabled" class="toggle-switch" {{if .Config.GitHubOIDC.EC2RunnerProfile.Enabled}}checked{{end}}>
+      <label class="text-sm">EC2 Runner Instance Profile</label>
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Runner Profile Name</label>
+      <input type="text" name="github_oidc.ec2_runner.name" value="{{.Config.GitHubOIDC.EC2RunnerProfile.Name}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+    </div>
+    <p class="text-xs text-zinc-400">IAM role policies are managed directly in the generation template (opaque).</p>
+  </div>
+</div>
+{{end}}

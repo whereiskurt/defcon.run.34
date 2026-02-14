@@ -1,0 +1,79 @@
+{{define "versions.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden" data-panel="versions">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('versions')">
+    <h3 class="text-base font-semibold">Versions</h3>
+    <svg class="w-4 h-4 chevron open" id="chevron-versions" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="border-t border-zinc-200 dark:border-zinc-700 px-4 py-3" id="body-versions">
+    <!-- Bulk set -->
+    <div class="flex items-center gap-3 mb-4">
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Set All:</label>
+      <input type="text" id="bulk-version" value="{{.Config.Versions.Auth.App}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-sm font-mono w-32 focus:ring-2 focus:ring-cyan-500" placeholder="v0.0.27">
+      <button type="button" onclick="setAllVersions()" class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-3 py-1.5 text-sm">Apply to All</button>
+    </div>
+
+    <!-- Version table -->
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700">
+          <th class="text-left py-2">Service</th>
+          <th class="text-left py-2">App</th>
+          <th class="text-left py-2">Nginx</th>
+          <th class="text-left py-2">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{$sync := versionSync}}
+        <tr class="border-b border-zinc-200 dark:border-zinc-700">
+          <td class="py-2 font-medium">run.auth</td>
+          <td class="py-2"><input type="text" name="versions.auth.app" value="{{.Config.Versions.Auth.App}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-cyan-500"></td>
+          <td class="py-2"><input type="text" name="versions.auth.nginx" value="{{.Config.Versions.Auth.Nginx}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-cyan-500"></td>
+          <td class="py-2">
+            {{if and (index $sync "auth") (index (index $sync "auth") "app") (index (index $sync "auth") "nginx")}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"><span class="status-dot ok"></span> sync</span>
+            {{else}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"><span class="status-dot warning"></span> mismatch</span>
+            {{end}}
+          </td>
+        </tr>
+        <tr class="border-b border-zinc-200 dark:border-zinc-700">
+          <td class="py-2 font-medium">run.human</td>
+          <td class="py-2"><input type="text" name="versions.human.app" value="{{.Config.Versions.Human.App}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-cyan-500"></td>
+          <td class="py-2"><input type="text" name="versions.human.nginx" value="{{.Config.Versions.Human.Nginx}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-cyan-500"></td>
+          <td class="py-2">
+            {{if and (index $sync "human") (index (index $sync "human") "app") (index (index $sync "human") "nginx")}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"><span class="status-dot ok"></span> sync</span>
+            {{else}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"><span class="status-dot warning"></span> mismatch</span>
+            {{end}}
+          </td>
+        </tr>
+        <tr class="border-b border-zinc-200 dark:border-zinc-700">
+          <td class="py-2 font-medium">run.cms</td>
+          <td class="py-2"><input type="text" name="versions.cms.app" value="{{.Config.Versions.CMS.App}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-cyan-500"></td>
+          <td class="py-2"><input type="text" name="versions.cms.nginx" value="{{.Config.Versions.CMS.Nginx}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-cyan-500"></td>
+          <td class="py-2">
+            {{if and (index $sync "cms") (index (index $sync "cms") "app") (index (index $sync "cms") "nginx")}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"><span class="status-dot ok"></span> sync</span>
+            {{else}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"><span class="status-dot warning"></span> mismatch</span>
+            {{end}}
+          </td>
+        </tr>
+        <tr>
+          <td class="py-2 font-medium">run.gpx</td>
+          <td class="py-2"><input type="text" name="versions.gpx.app" value="{{.Config.Versions.GPX.App}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-cyan-500"></td>
+          <td class="py-2 text-zinc-400 text-xs">&mdash;</td>
+          <td class="py-2">
+            {{if and (index $sync "gpx") (index (index $sync "gpx") "app")}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"><span class="status-dot ok"></span> sync</span>
+            {{else}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"><span class="status-dot warning"></span> mismatch</span>
+            {{end}}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{{end}}

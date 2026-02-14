@@ -1,0 +1,47 @@
+{{define "form.html"}}
+<div id="form-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+  <!-- Row 1 -->
+  {{template "site.html" .}}
+  {{template "aws_config.html" .}}
+
+  <!-- Row 2 -->
+  {{template "env_secrets.html" .}}
+  {{template "dns.html" .}}
+
+  <!-- Row 3 -->
+  {{template "env_general.html" .}}
+  {{template "versions.html" .}}
+
+  <!-- Section Divider: Infrastructure Modules -->
+  <div class="md:col-span-2 border-t border-zinc-200 dark:border-zinc-700 pt-4 mt-2 section-divider">
+    <h2 class="text-lg font-bold text-zinc-500 dark:text-zinc-400">Infrastructure Modules</h2>
+  </div>
+
+  {{template "cloudfront.html" .}}
+  {{template "waf.html" .}}
+  {{template "ecs_clusters.html" .}}
+  {{template "dynamodb.html" .}}
+  {{template "ecr.html" .}}
+  {{template "ecs_tasks.html" .}}
+  {{template "ecs_services.html" .}}
+  {{template "email.html" .}}
+  {{template "ec2spots.html" .}}
+  {{template "s3_uploads.html" .}}
+  {{template "upload_proc.html" .}}
+  {{template "secrets.html" .}}
+  {{template "cloudtrail.html" .}}
+  {{template "github_oidc.html" .}}
+
+  <!-- Section Divider: Services -->
+  <div class="md:col-span-2 border-t border-zinc-200 dark:border-zinc-700 pt-4 mt-2 section-divider">
+    <h2 class="text-lg font-bold text-zinc-500 dark:text-zinc-400">Services</h2>
+  </div>
+
+  {{template "svc_auth.html" .}}
+  {{template "svc_human.html" .}}
+  {{template "svc_cms.html" .}}
+  {{template "svc_gpx.html" .}}
+
+</div>
+{{end}}

@@ -1,0 +1,39 @@
+{{define "aws_status.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-3">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-4 text-sm">
+      {{if .Identity}}
+        <div class="flex items-center gap-2">
+          <span class="status-dot ok"></span>
+          <span class="text-zinc-400">Identity:</span>
+          <span class="font-mono text-xs">{{.Identity.Account}}</span>
+        </div>
+      {{else}}
+        <div class="flex items-center gap-2">
+          <span class="status-dot error"></span>
+          <span class="text-red-400">{{if .Error}}{{.Error}}{{else}}Not authenticated{{end}}</span>
+        </div>
+      {{end}}
+
+      {{range $label, $status := .StateBuckets}}
+        <div class="flex items-center gap-1">
+          {{if $status.Exists}}
+            <span class="status-dot ok"></span>
+          {{else if eq $status.Error "access denied"}}
+            <span class="status-dot warning"></span>
+          {{else if eq $status.Error ""}}
+            <span class="status-dot unknown"></span>
+          {{else}}
+            <span class="status-dot error"></span>
+          {{end}}
+          <span class="text-xs text-zinc-400">{{$label}}</span>
+        </div>
+      {{end}}
+    </div>
+    <button class="text-xs text-cyan-500 hover:text-cyan-400"
+            hx-get="/api/aws-status" hx-target="#aws-status" hx-swap="innerHTML">
+      Refresh
+    </button>
+  </div>
+</div>
+{{end}}

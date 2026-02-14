@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>defcon.run ConfigUI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            body: ['Atkinson Hyperlegible', 'sans-serif'],
+            mono: ['Fira Code', 'monospace'],
+          },
+          colors: {
+            cyan: { 500: '#06b6d4', 600: '#0891b2' },
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 font-body min-h-screen">
+  <!-- Header -->
+  <header class="sticky top-0 z-40 bg-white/80 dark:bg-zinc-900/80 backdrop-blur border-b border-zinc-200 dark:border-zinc-700">
+    <div class="max-w-[1800px] mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <h1 class="text-lg font-bold tracking-tight">defcon.run <span class="text-cyan-500">ConfigUI</span></h1>
+        <span class="text-xs text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded">{{.Config.Site.Label}}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <div id="save-result"></div>
+        <button type="submit" form="config-form" formaction="/save"
+                class="rounded-md bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 text-sm font-medium"
+                hx-post="/save" hx-include="#config-form" hx-target="#save-result" hx-swap="innerHTML">
+          Save
+        </button>
+        <button type="button" id="preview-toggle-btn"
+                class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm"
+                hx-post="/preview" hx-include="#config-form" hx-target="#preview-content" hx-swap="innerHTML"
+                onclick="showPreview()">
+          Preview
+        </button>
+        <a href="/export" class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm">
+          Export
+        </a>
+        <button onclick="toggleTheme()" class="p-2 rounded-md hover:bg-zinc-200 dark:hover:bg-zinc-700" title="Toggle theme">
+          <svg class="w-5 h-5 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <svg class="w-5 h-5 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Content wrapper: main + preview side by side -->
+  <div id="content-wrapper" class="flex">
+    <!-- Main content -->
+    <main id="main-content" class="flex-1 min-w-0 max-w-7xl mx-auto px-4 py-6 transition-all duration-200">
+      <!-- AWS Status Bar (loads async) -->
+      <div id="aws-status" class="mb-6"
+           hx-get="/api/aws-status" hx-trigger="load" hx-swap="innerHTML">
+        <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-4 py-3 text-sm text-zinc-400">
+          Checking AWS status...
+        </div>
+      </div>
+
+      <form id="config-form" method="POST">
+        {{template "form.html" .}}
+      </form>
+    </main>
+
+    <!-- Preview panel (inline, pushes content left) -->
+    <aside id="preview-panel" class="hidden w-1/2 flex-shrink-0 border-l border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 h-[calc(100vh-57px)] sticky top-[57px] flex flex-col">
+      <div class="flex-shrink-0 border-b border-zinc-200 dark:border-zinc-700 px-4 py-3 flex justify-between items-center">
+        <h2 class="font-bold text-sm">Preview</h2>
+        <button onclick="hidePreview()" class="text-zinc-400 hover:text-zinc-200 text-lg px-1" title="Close (Esc)">&times;</button>
+      </div>
+      <div id="preview-content" class="flex-1 overflow-auto p-4">
+        <p class="text-sm text-zinc-400">Click Preview to generate...</p>
+      </div>
+      <div class="flex-shrink-0 border-t border-zinc-200 dark:border-zinc-700 px-4 py-3">
+        <button type="button"
+                class="rounded-md bg-green-600 hover:bg-green-500 text-white px-4 py-2 text-sm font-medium w-full"
+                onclick="confirmSaveAll()">
+          Save All
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

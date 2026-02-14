@@ -1,0 +1,20 @@
+{{define "ecs_services.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.ECSServices.Enabled}}panel-disabled{{end}}" data-panel="ecs_services">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('ecs_services')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="ecs_services.enabled" class="toggle-switch" {{if .Config.ECSServices.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('ecs_services', this)">
+      <h3 class="text-base font-semibold">ECS Services</h3>
+      <span class="text-xs text-zinc-400">Service definitions</span>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-ecs_services" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3" id="body-ecs_services" style="display:none">
+    <p class="text-xs text-zinc-400 mb-2">Services aggregated from service configs (read-only):</p>
+    <ul class="text-sm space-y-1">
+      <li class="font-mono text-xs text-zinc-500">run-auth, run-human</li>
+      <li class="font-mono text-xs text-zinc-500">run-cms-master, run-cms-worker</li>
+      <li class="font-mono text-xs text-zinc-500">run-gpx</li>
+    </ul>
+  </div>
+</div>
+{{end}}

@@ -1,0 +1,18 @@
+{{define "upload_proc.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.UploadProcessors.Enabled}}panel-disabled{{end}}" data-panel="upload_proc">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('upload_proc')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="upload_processors.enabled" class="toggle-switch" {{if .Config.UploadProcessors.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('upload_proc', this)">
+      <h3 class="text-base font-semibold">Upload Processors</h3>
+      <span class="text-xs text-zinc-400">Lambda functions</span>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-upload_proc" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3" id="body-upload_proc" style="display:none">
+    <p class="text-xs text-zinc-400 mb-2">Processors aggregated from services (read-only):</p>
+    <ul class="text-sm space-y-1">
+      <li class="font-mono text-xs text-zinc-500">run-human (on-upload, on-process)</li>
+    </ul>
+  </div>
+</div>
+{{end}}

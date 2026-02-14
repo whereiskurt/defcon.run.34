@@ -1,0 +1,60 @@
+{{define "svc_human.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden" data-panel="svc_human">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('svc_human')">
+    <div class="flex items-center gap-3">
+      <h3 class="text-base font-semibold">run.human</h3>
+      <span class="text-xs text-zinc-400">Main application</span>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-svc_human" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-4" id="body-svc_human" style="display:none">
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">Task Definition</h4>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">Task CPU</label><input type="number" name="svc.human.task_cpu" value="{{.Config.Services.Human.Task.TaskCPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Task Memory</label><input type="number" name="svc.human.task_memory" value="{{.Config.Services.Human.Task.TaskMemory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">Nginx Container</h4>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">CPU</label><input type="number" name="svc.human.nginx.cpu" value="{{.Config.Services.Human.Nginx.CPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Memory</label><input type="number" name="svc.human.nginx.memory" value="{{.Config.Services.Human.Nginx.Memory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Mem Reservation</label><input type="number" name="svc.human.nginx.mem_reservation" value="{{.Config.Services.Human.Nginx.MemoryReservation}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">App Container</h4>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">CPU</label><input type="number" name="svc.human.app.cpu" value="{{.Config.Services.Human.App.CPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Memory</label><input type="number" name="svc.human.app.memory" value="{{.Config.Services.Human.App.Memory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Mem Reservation</label><input type="number" name="svc.human.app.mem_reservation" value="{{.Config.Services.Human.App.MemoryReservation}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">S3 Uploads</h4>
+      <div><label class="text-xs text-zinc-400 mb-1 block">Uploads Expire Days</label><input type="number" name="svc.human.uploads_expire_days" value="{{.Config.Services.Human.Uploads.UploadsExpireDays}}" class="w-32 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">Lambda Processors</h4>
+      <div class="grid grid-cols-4 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">Upload Timeout</label><input type="number" name="svc.human.on_upload.timeout" value="{{.Config.Services.Human.OnUploadLambda.Timeout}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Upload Memory</label><input type="number" name="svc.human.on_upload.memory" value="{{.Config.Services.Human.OnUploadLambda.MemorySize}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Process Timeout</label><input type="number" name="svc.human.on_process.timeout" value="{{.Config.Services.Human.OnProcessLambda.Timeout}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Process Memory</label><input type="number" name="svc.human.on_process.memory" value="{{.Config.Services.Human.OnProcessLambda.MemorySize}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">Service</h4>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">Desired Count</label><input type="number" name="svc.human.desired_count" value="{{.Config.Services.Human.Service.DesiredCount}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div class="flex items-end gap-3 pb-2"><label class="flex items-center gap-2 text-sm"><input type="checkbox" name="svc.human.autoscaling.enabled" class="toggle-switch" {{if .Config.Services.Human.Service.Autoscaling.Enabled}}checked{{end}}> Autoscaling</label></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mt-2">
+        <div><label class="text-xs text-zinc-400 mb-1 block">Min</label><input type="number" name="svc.human.autoscaling.min" value="{{.Config.Services.Human.Service.Autoscaling.MinCapacity}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Max</label><input type="number" name="svc.human.autoscaling.max" value="{{.Config.Services.Human.Service.Autoscaling.MaxCapacity}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}
