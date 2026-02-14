@@ -121,13 +121,16 @@ input:focus, select:focus, textarea:focus {
 
 .fold-icon {
   display: inline-block;
-  width: 1em;
+  width: 1.4em;
+  font-size: 1.3em;
+  line-height: 1;
   text-align: center;
   cursor: pointer;
   color: #52525b;
   user-select: none;
-  margin-left: -1.2em;
+  margin-left: -1.6em;
   margin-right: 0.2em;
+  vertical-align: middle;
 }
 
 .fold-icon:hover {
