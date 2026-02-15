@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -169,7 +170,28 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = workDir
-	cmd.Env = append(os.Environ(), "AWS_PROFILE="+profile)
+
+	// Build clean env: inherit parent but strip conflicting AWS auth vars
+	// so AWS_PROFILE is the sole credential source (uses SSO token cache on disk)
+	conflictVars := map[string]bool{
+		"AWS_PROFILE":            true,
+		"AWS_DEFAULT_PROFILE":    true,
+		"AWS_ACCESS_KEY_ID":      true,
+		"AWS_SECRET_ACCESS_KEY":  true,
+		"AWS_SESSION_TOKEN":      true,
+		"AWS_SECURITY_TOKEN":     true,
+	}
+	var cleanEnv []string
+	for _, e := range os.Environ() {
+		key := e
+		if idx := strings.IndexByte(e, '='); idx >= 0 {
+			key = e[:idx]
+		}
+		if !conflictVars[key] {
+			cleanEnv = append(cleanEnv, e)
+		}
+	}
+	cmd.Env = append(cleanEnv, "AWS_PROFILE="+profile)
 	session.cmd = cmd
 
 	stdout, err := cmd.StdoutPipe()
