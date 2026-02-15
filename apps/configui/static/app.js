@@ -93,11 +93,39 @@ document.addEventListener('keydown', function(e) {
 
 // --- Auto-refresh preview on form changes ---
 var _previewDebounce = null;
+var _previewState = { tab: null, scroll: 0 };
+
+function savePreviewState() {
+  // Find which tab is active (visible)
+  var pc = document.getElementById('preview-content');
+  if (!pc) return;
+  var active = pc.querySelector('[id^="ptab-content-"]:not(.hidden)');
+  if (active) {
+    _previewState.tab = active.id.replace('ptab-content-', '');
+  }
+  // Save scroll position of the preview-content container
+  _previewState.scroll = pc.scrollTop;
+}
+
+function restorePreviewState() {
+  if (_previewState.tab) {
+    // switchPreviewTab is defined in the inline script from the handler
+    if (typeof switchPreviewTab === 'function') {
+      switchPreviewTab(_previewState.tab);
+    }
+  }
+  var pc = document.getElementById('preview-content');
+  if (pc) {
+    pc.scrollTop = _previewState.scroll;
+  }
+}
+
 function schedulePreviewRefresh() {
   if (!isPreviewOpen()) return;
   clearTimeout(_previewDebounce);
   _previewDebounce = setTimeout(function() {
     if (!isPreviewOpen()) return;
+    savePreviewState();
     htmx.ajax('POST', '/preview', {
       source: '#config-form',
       target: '#preview-content',
@@ -339,10 +367,11 @@ function toggleFold(id) {
   }
 }
 
-// Apply folding + highlighting after htmx swaps preview content
+// Apply folding + highlighting after htmx swaps preview content, then restore state
 document.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'preview-content') {
     e.detail.target.querySelectorAll('pre').forEach(addCodeFolding);
+    restorePreviewState();
   }
 });
 
