@@ -13,7 +13,7 @@
     <!-- Tab switcher -->
     <div class="flex gap-1 border-b border-zinc-200 dark:border-zinc-700">
       <button type="button" id="tab-sso" onclick="switchAwsTab('sso')"
-        class="px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400">
+        class="px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400">
         SSO &middot; ~/.aws/config
       </button>
       <button type="button" id="tab-iam" onclick="switchAwsTab('iam')"
@@ -42,7 +42,7 @@ function switchAwsTab(tab) {
   var ssoContent = document.getElementById('aws-tab-sso');
   var iamContent = document.getElementById('aws-tab-iam');
 
-  var activeClasses = 'border-cyan-500 text-cyan-600 dark:text-cyan-400';
+  var activeClasses = 'border-green-500 text-green-600 dark:text-green-400';
   var inactiveClasses = 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300';
 
   if (tab === 'sso') {

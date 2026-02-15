@@ -11,11 +11,11 @@
   <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-cloudfront" style="display:none">
     <div>
       <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Domains (comma-separated)</label>
-      <input type="text" name="cloudfront.domains" value="{{join .Config.CloudFront.Domains ","}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+      <input type="text" name="cloudfront.domains" value="{{join .Config.CloudFront.Domains ","}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
     </div>
     <div>
       <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Price Class</label>
-      <select name="cloudfront.price_class" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+      <select name="cloudfront.price_class" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         <option value="PriceClass_100" {{if eq .Config.CloudFront.PriceClass "PriceClass_100"}}selected{{end}}>PriceClass_100 (NA + EU)</option>
         <option value="PriceClass_200" {{if eq .Config.CloudFront.PriceClass "PriceClass_200"}}selected{{end}}>PriceClass_200 (+ Asia)</option>
         <option value="PriceClass_All" {{if eq .Config.CloudFront.PriceClass "PriceClass_All"}}selected{{end}}>PriceClass_All (Global)</option>
@@ -38,13 +38,13 @@
       </div>
     </div>
     <div>
-      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">WAF Ruleset Mapping</h4>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">WAF Ruleset Mapping</h4>
       <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Map each CloudFront domain to a WAF ruleset (from <span class="font-mono">waf.hcl</span>). Leave empty for no WAF.</p>
       <div class="space-y-2">
         {{range .Config.CloudFront.Domains}}
         <div class="flex items-center gap-3">
           <span class="text-sm font-mono w-20">{{.}}</span>
-          <select name="cloudfront.waf_rulesets.{{.}}" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-sm focus:ring-2 focus:ring-cyan-500">
+          <select name="cloudfront.waf_rulesets.{{.}}" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-sm focus:ring-2 focus:ring-green-500">
             <option value="">None</option>
             <option value="default" {{if eq (mapGet $.Config.CloudFront.WAFRulesets .) "default"}}selected{{end}}>default</option>
             <option value="api" {{if eq (mapGet $.Config.CloudFront.WAFRulesets .) "api"}}selected{{end}}>api</option>

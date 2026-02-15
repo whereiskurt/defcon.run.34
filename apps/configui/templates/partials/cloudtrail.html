@@ -19,20 +19,20 @@
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Log Retention (days)</label>
-        <input type="number" name="cloudtrail.log_retention_days" value="{{.Config.CloudTrail.LogRetentionDays}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+        <input type="number" name="cloudtrail.log_retention_days" value="{{.Config.CloudTrail.LogRetentionDays}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
       </div>
       <div>
         <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Glacier Transition (days)</label>
-        <input type="number" name="cloudtrail.glacier_transition_days" value="{{.Config.CloudTrail.GlacierTransitionDays}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+        <input type="number" name="cloudtrail.glacier_transition_days" value="{{.Config.CloudTrail.GlacierTransitionDays}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
       </div>
     </div>
     <div>
       <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Alert Email</label>
-      <input type="email" name="cloudtrail.alert_email" value="{{.Config.CloudTrail.AlertEmail}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+      <input type="email" name="cloudtrail.alert_email" value="{{.Config.CloudTrail.AlertEmail}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
     </div>
     <div>
       <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Monitor Roles (comma-separated)</label>
-      <input type="text" name="cloudtrail.monitor_roles" value="{{join .Config.CloudTrail.MonitorRoles ","}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+      <input type="text" name="cloudtrail.monitor_roles" value="{{join .Config.CloudTrail.MonitorRoles ","}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
     </div>
   </div>
 </div>

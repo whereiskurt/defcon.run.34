@@ -10,57 +10,57 @@
   <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-4" id="body-svc_auth" style="display:none">
     <!-- Task -->
     <div>
-      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">Task Definition</h4>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Task Definition</h4>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Task CPU</label>
-          <input type="number" name="svc.auth.task_cpu" value="{{.Config.Services.Auth.Task.TaskCPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.task_cpu" value="{{.Config.Services.Auth.Task.TaskCPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Task Memory</label>
-          <input type="number" name="svc.auth.task_memory" value="{{.Config.Services.Auth.Task.TaskMemory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.task_memory" value="{{.Config.Services.Auth.Task.TaskMemory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
       </div>
     </div>
     <!-- Nginx container -->
     <div>
-      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">Nginx Container</h4>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Nginx Container</h4>
       <div class="grid grid-cols-3 gap-3">
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">CPU</label>
-          <input type="number" name="svc.auth.nginx.cpu" value="{{.Config.Services.Auth.Nginx.CPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.nginx.cpu" value="{{.Config.Services.Auth.Nginx.CPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Memory</label>
-          <input type="number" name="svc.auth.nginx.memory" value="{{.Config.Services.Auth.Nginx.Memory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.nginx.memory" value="{{.Config.Services.Auth.Nginx.Memory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Mem Reservation</label>
-          <input type="number" name="svc.auth.nginx.mem_reservation" value="{{.Config.Services.Auth.Nginx.MemoryReservation}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.nginx.mem_reservation" value="{{.Config.Services.Auth.Nginx.MemoryReservation}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
       </div>
     </div>
     <!-- App container -->
     <div>
-      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">App Container</h4>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">App Container</h4>
       <div class="grid grid-cols-3 gap-3">
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">CPU</label>
-          <input type="number" name="svc.auth.app.cpu" value="{{.Config.Services.Auth.App.CPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.app.cpu" value="{{.Config.Services.Auth.App.CPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Memory</label>
-          <input type="number" name="svc.auth.app.memory" value="{{.Config.Services.Auth.App.Memory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.app.memory" value="{{.Config.Services.Auth.App.Memory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Mem Reservation</label>
-          <input type="number" name="svc.auth.app.mem_reservation" value="{{.Config.Services.Auth.App.MemoryReservation}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.app.mem_reservation" value="{{.Config.Services.Auth.App.MemoryReservation}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
       </div>
     </div>
     <!-- DynamoDB -->
     <div>
-      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">DynamoDB Tables</h4>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">DynamoDB Tables</h4>
       <ul class="text-sm space-y-1">
         {{range .Config.Services.Auth.DynamoDB}}
         <li class="font-mono text-xs text-zinc-500">{{.TableName}} ({{.TableType}}) {{if .TTLEnabled}}<span class="text-amber-400">TTL: {{.TTLAttribute}}</span>{{end}}</li>
@@ -69,11 +69,11 @@
     </div>
     <!-- Service -->
     <div>
-      <h4 class="text-xs uppercase tracking-wide text-cyan-500 mb-2">Service</h4>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Service</h4>
       <div class="grid grid-cols-2 gap-3">
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Desired Count</label>
-          <input type="number" name="svc.auth.desired_count" value="{{.Config.Services.Auth.Service.DesiredCount}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.desired_count" value="{{.Config.Services.Auth.Service.DesiredCount}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
         <div class="flex items-end gap-3 pb-2">
           <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="svc.auth.autoscaling.enabled" class="toggle-switch" {{if .Config.Services.Auth.Service.Autoscaling.Enabled}}checked{{end}}> Autoscaling</label>
@@ -82,11 +82,11 @@
       <div class="grid grid-cols-2 gap-3 mt-2">
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Min Capacity</label>
-          <input type="number" name="svc.auth.autoscaling.min" value="{{.Config.Services.Auth.Service.Autoscaling.MinCapacity}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.autoscaling.min" value="{{.Config.Services.Auth.Service.Autoscaling.MinCapacity}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
         <div>
           <label class="text-xs text-zinc-400 mb-1 block">Max Capacity</label>
-          <input type="number" name="svc.auth.autoscaling.max" value="{{.Config.Services.Auth.Service.Autoscaling.MaxCapacity}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <input type="number" name="svc.auth.autoscaling.max" value="{{.Config.Services.Auth.Service.Autoscaling.MaxCapacity}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
         </div>
       </div>
     </div>

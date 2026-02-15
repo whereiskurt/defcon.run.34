@@ -15,6 +15,26 @@ function toggleTheme() {
   localStorage.setItem('theme', isDark ? 'dark' : 'light');
 }
 
+// Expand/collapse all panels
+function expandAllPanels() {
+  document.querySelectorAll('[data-panel]').forEach(function(panel) {
+    var id = panel.dataset.panel;
+    var body = document.getElementById('body-' + id);
+    var chevron = document.getElementById('chevron-' + id);
+    if (body) { body.style.display = ''; }
+    if (chevron) { chevron.classList.add('open'); }
+  });
+}
+function collapseAllPanels() {
+  document.querySelectorAll('[data-panel]').forEach(function(panel) {
+    var id = panel.dataset.panel;
+    var body = document.getElementById('body-' + id);
+    var chevron = document.getElementById('chevron-' + id);
+    if (body) { body.style.display = 'none'; }
+    if (chevron) { chevron.classList.remove('open'); }
+  });
+}
+
 // Panel collapse/expand
 function togglePanel(id) {
   const body = document.getElementById('body-' + id);
@@ -97,7 +117,7 @@ var _previewDebounce = null;
 var _activePreviewTab = null;
 var _previewScroll = 0;
 
-var TAB_ACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400';
+var TAB_ACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400';
 var TAB_INACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer';
 
 function switchPreviewTab(tab) {

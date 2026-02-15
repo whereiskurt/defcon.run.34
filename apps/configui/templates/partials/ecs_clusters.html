@@ -14,11 +14,11 @@
     <div class="grid grid-cols-2 gap-3">
       <div>
         <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Cluster Name</label>
-        <input type="text" name="ecs_clusters.0.name" value="{{.Name}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+        <input type="text" name="ecs_clusters.0.name" value="{{.Name}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
       </div>
       <div>
         <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Cluster Type</label>
-        <select name="ecs_clusters.0.cluster_type" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+        <select name="ecs_clusters.0.cluster_type" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
           <option value="FARGATE" {{if eq .ClusterType "FARGATE"}}selected{{end}}>FARGATE</option>
           <option value="EC2" {{if eq .ClusterType "EC2"}}selected{{end}}>EC2</option>
         </select>

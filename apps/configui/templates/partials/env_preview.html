@@ -13,7 +13,7 @@
     <!-- Tab switcher -->
     <div class="flex gap-1 border-b border-zinc-200 dark:border-zinc-700">
       <button type="button" id="tab-envsh" onclick="switchEnvTab('envsh')"
-        class="px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400">
+        class="px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400">
         env.sh
       </button>
       <button type="button" id="tab-envlocal" onclick="switchEnvTab('envlocal')"
@@ -42,7 +42,7 @@ function switchEnvTab(tab) {
   var envshContent = document.getElementById('env-tab-envsh');
   var envlocalContent = document.getElementById('env-tab-envlocal');
 
-  var activeClasses = 'border-cyan-500 text-cyan-600 dark:text-cyan-400';
+  var activeClasses = 'border-green-500 text-green-600 dark:text-green-400';
   var inactiveClasses = 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300';
 
   if (tab === 'envsh') {

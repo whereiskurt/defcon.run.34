@@ -206,7 +206,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Preview: skip env.local.sh: %v", err)
 	}
 
-	tabActive := `px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400`
+	tabActive := `px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400`
 	tabInactive := `px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer`
 	copyBtn := `rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-300`
 	btnBar := `absolute top-2 right-2 z-10 flex gap-1`
@@ -387,21 +387,21 @@ func (a *App) handleSOPSEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprint(w, `<div class="border-l-2 border-cyan-500 bg-zinc-900 rounded-r-md px-4 py-3 my-1">`)
-	fmt.Fprintf(w, `<div class="text-xs font-medium text-cyan-400 mb-2">%s — SOPS Values</div>`, template.HTMLEscapeString(name))
+	fmt.Fprint(w, `<div class="border-l-2 border-green-500 bg-zinc-900 rounded-r-md px-4 py-3 my-1">`)
+	fmt.Fprintf(w, `<div class="text-xs font-medium text-green-400 mb-2">%s — SOPS Values</div>`, template.HTMLEscapeString(name))
 	fmt.Fprint(w, `<div class="grid gap-2">`)
 	for _, key := range keys {
 		val := values[key]
 		fmt.Fprintf(w, `<div class="flex items-center gap-2">
   <label class="text-xs text-zinc-400 w-32 shrink-0 font-mono">%s</label>
   <input type="text" data-sops-key="%s" value="%s"
-    class="flex-1 rounded-md border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs font-mono text-zinc-200 focus:ring-1 focus:ring-cyan-500 pii-blur"
+    class="flex-1 rounded-md border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs font-mono text-zinc-200 focus:ring-1 focus:ring-green-500 pii-blur"
     onclick="this.classList.add('pii-revealed')">
 </div>`, template.HTMLEscapeString(key), template.HTMLEscapeString(key), template.HTMLEscapeString(val))
 	}
 	fmt.Fprint(w, `</div>`)
 	fmt.Fprintf(w, `<div class="flex gap-2 mt-3">
-  <button type="button" onclick="saveSecret('%s')" class="text-xs px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white">Save</button>
+  <button type="button" onclick="saveSecret('%s')" class="text-xs px-3 py-1 rounded bg-green-700 hover:bg-green-600 text-white">Save</button>
   <button type="button" onclick="cancelEditSecret('%s')" class="text-xs px-3 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300">Cancel</button>
 </div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(name))
 	fmt.Fprint(w, `</div>`)

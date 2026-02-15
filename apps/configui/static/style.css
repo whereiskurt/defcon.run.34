@@ -1,3 +1,22 @@
+/* Header branding — terminal vibes */
+.header-bunny {
+  transition: filter 0.3s ease;
+}
+.header-bunny:hover {
+  filter: drop-shadow(0 0 10px rgba(34, 197, 94, 0.8)) drop-shadow(0 0 20px rgba(34, 197, 94, 0.4));
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.cursor-blink::after {
+  content: '_';
+  animation: blink 1s step-end infinite;
+  color: #22c55e;
+  font-weight: normal;
+}
+
 /* Toggle switch component */
 .toggle-switch {
   appearance: none;
@@ -12,7 +31,7 @@
 }
 
 .toggle-switch:checked {
-  background: #06b6d4;
+  background: #22c55e;
 }
 
 .toggle-switch::after {
@@ -101,7 +120,7 @@
 /* Form field focus */
 input:focus, select:focus, textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.5);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.5);
 }
 
 /* HCL Syntax highlighting — light mode */
@@ -151,7 +170,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .fold-icon:hover {
-  color: #06b6d4;
+  color: #22c55e;
 }
 
 .fold-content {
@@ -174,7 +193,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .fold-summary:hover {
-  color: #06b6d4;
+  color: #22c55e;
 }
 
 /* Scrollbar styling for dark mode */
