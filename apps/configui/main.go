@@ -18,15 +18,16 @@ var content embed.FS
 
 // App holds all paths and state for the configui server.
 type App struct {
-	repoRoot      string
-	configPath    string
-	siteHCLPath   string
-	servicesDir   string
-	envShPath     string
+	repoRoot       string
+	configPath     string
+	siteHCLPath    string
+	servicesDir    string
+	envShPath      string
 	envLocalShPath string
-	backupDir     string
-	config        *SiteConfig
-	envLocal      *EnvLocalConfig
+	backupDir      string
+	sopsFilePath   string
+	config         *SiteConfig
+	envLocal       *EnvLocalConfig
 }
 
 func findRepoRoot() (string, error) {
@@ -80,6 +81,7 @@ func main() {
 		envShPath:      filepath.Join(repoRoot, "env.sh"),
 		envLocalShPath: filepath.Join(repoRoot, "env.local.sh"),
 		backupDir:      filepath.Join(repoRoot, "apps", "configui", "backups"),
+		sopsFilePath:   filepath.Join(repoRoot, "infra", "terraform", "live", "site", ".secrets.sops.json"),
 	}
 
 	// Import config from site.hcl (source of truth)
@@ -124,6 +126,8 @@ func main() {
 	mux.HandleFunc("GET /api/aws-status", app.handleAWSStatus)
 	mux.HandleFunc("POST /api/sso-login", app.handleSSOLogin)
 	mux.HandleFunc("POST /api/export-creds", app.handleExportCreds)
+	mux.HandleFunc("POST /api/sops/edit", app.handleSOPSEdit)
+	mux.HandleFunc("POST /api/sops/save", app.handleSOPSSave)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port

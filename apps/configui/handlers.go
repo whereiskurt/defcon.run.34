@@ -345,6 +345,104 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// sopsProfile returns the AWS profile name to use for SOPS operations.
+func (a *App) sopsProfile() string {
+	if a.envLocal.ProfilePrefix != "" {
+		return a.envLocal.ProfilePrefix + "-terraform"
+	}
+	return "terraform"
+}
+
+func (a *App) handleSOPSEdit(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	if name == "" {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<div class="rounded-md border border-red-700 bg-red-900/20 px-3 py-2 text-xs text-red-400">Missing secret name</div>`)
+		return
+	}
+
+	profile := a.sopsProfile()
+	secrets, err := sopsDecrypt(a.sopsFilePath, profile)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprintf(w, `<div class="rounded-md border border-red-700 bg-red-900/20 px-3 py-2 text-xs text-red-400 flex items-center justify-between"><span>%s</span><button type="button" onclick="editSecret('%s')" class="ml-3 shrink-0 px-2 py-0.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300">Retry</button></div>`,
+			template.HTMLEscapeString(err.Error()), template.HTMLEscapeString(name))
+		return
+	}
+
+	values, ok := secrets[name]
+	if !ok {
+		values = make(map[string]string)
+	}
+
+	// Look up key definitions for ordering
+	def, hasDef := a.config.Secrets.Definitions[name]
+	var keys []string
+	if hasDef {
+		keys = def.Keys
+	} else {
+		for k := range values {
+			keys = append(keys, k)
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, `<div class="border-l-2 border-cyan-500 bg-zinc-900 rounded-r-md px-4 py-3 my-1">`)
+	fmt.Fprintf(w, `<div class="text-xs font-medium text-cyan-400 mb-2">%s — SOPS Values</div>`, template.HTMLEscapeString(name))
+	fmt.Fprint(w, `<div class="grid gap-2">`)
+	for _, key := range keys {
+		val := values[key]
+		fmt.Fprintf(w, `<div class="flex items-center gap-2">
+  <label class="text-xs text-zinc-400 w-32 shrink-0 font-mono">%s</label>
+  <input type="text" data-sops-key="%s" value="%s"
+    class="flex-1 rounded-md border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs font-mono text-zinc-200 focus:ring-1 focus:ring-cyan-500 pii-blur"
+    onclick="this.classList.add('pii-revealed')">
+</div>`, template.HTMLEscapeString(key), template.HTMLEscapeString(key), template.HTMLEscapeString(val))
+	}
+	fmt.Fprint(w, `</div>`)
+	fmt.Fprintf(w, `<div class="flex gap-2 mt-3">
+  <button type="button" onclick="saveSecret('%s')" class="text-xs px-3 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white">Save</button>
+  <button type="button" onclick="cancelEditSecret('%s')" class="text-xs px-3 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300">Cancel</button>
+</div>`, template.HTMLEscapeString(name), template.HTMLEscapeString(name))
+	fmt.Fprint(w, `</div>`)
+}
+
+func (a *App) handleSOPSSave(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	if name == "" {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<div class="rounded-md border border-red-700 bg-red-900/20 px-3 py-2 text-xs text-red-400">Missing secret name</div>`)
+		return
+	}
+
+	// Build values map from form fields: sops.{name}.{key}
+	if err := r.ParseForm(); err != nil {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<div class="rounded-md border border-red-700 bg-red-900/20 px-3 py-2 text-xs text-red-400">Failed to parse form</div>`)
+		return
+	}
+
+	values := make(map[string]string)
+	prefix := "sops." + name + "."
+	for key, vals := range r.Form {
+		if strings.HasPrefix(key, prefix) && len(vals) > 0 {
+			fieldName := key[len(prefix):]
+			values[fieldName] = vals[0]
+		}
+	}
+
+	profile := a.sopsProfile()
+	if err := sopsSaveSecret(a.sopsFilePath, profile, name, values); err != nil {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprintf(w, `<div class="rounded-md border border-red-700 bg-red-900/20 px-3 py-2 text-xs text-red-400 flex items-center justify-between"><span>Save failed: %s</span><button type="button" onclick="editSecret('%s')" class="ml-3 shrink-0 px-2 py-0.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300">Retry</button></div>`,
+			template.HTMLEscapeString(err.Error()), template.HTMLEscapeString(name))
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<div class="rounded-md border border-green-700 bg-green-900/20 px-3 py-2 text-xs text-green-400">Saved &ldquo;%s&rdquo; successfully. Re-encrypted .secrets.sops.json.</div>`, template.HTMLEscapeString(name))
+}
+
 // parseForm reads form values into a SiteConfig.
 func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg := DefaultConfig()
