@@ -50,7 +50,7 @@
   transform: translateX(1.25rem);
 }
 
-/* Global expand/collapse fold buttons (+/−) */
+/* Expand/collapse fold buttons (+/−/|) */
 .global-fold-btn {
   display: inline-flex;
   align-items: center;

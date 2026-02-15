@@ -16,22 +16,59 @@ function toggleTheme() {
 }
 
 // Expand/collapse all panels
-function expandAllPanels() {
-  document.querySelectorAll('[data-panel]').forEach(function(panel) {
-    var id = panel.dataset.panel;
-    var body = document.getElementById('body-' + id);
-    var chevron = document.getElementById('chevron-' + id);
-    if (body) { body.style.display = ''; }
-    if (chevron) { chevron.classList.add('open'); }
-  });
+// Tri-state fold button helpers: + (all collapsed), − (all expanded), | (mixed)
+function getFoldSymbol(openCount, totalCount) {
+  if (openCount === 0) return '+';
+  if (openCount === totalCount) return '\u2212';
+  return '|';
 }
-function collapseAllPanels() {
+
+function countAllPanelStates() {
+  var panels = document.querySelectorAll('[data-panel]');
+  var total = 0, open = 0;
+  panels.forEach(function(p) {
+    var body = document.getElementById('body-' + p.dataset.panel);
+    if (body) { total++; if (body.style.display !== 'none') open++; }
+  });
+  return { open: open, total: total };
+}
+
+function updateGlobalFoldBtn() {
+  var btn = document.getElementById('global-fold-btn');
+  if (!btn) return;
+  var s = countAllPanelStates();
+  btn.textContent = getFoldSymbol(s.open, s.total);
+}
+
+function toggleAllPanels() {
+  var s = countAllPanelStates();
+  var expanding = s.open === 0; // mixed or all open → collapse; all collapsed → expand
   document.querySelectorAll('[data-panel]').forEach(function(panel) {
     var id = panel.dataset.panel;
     var body = document.getElementById('body-' + id);
     var chevron = document.getElementById('chevron-' + id);
-    if (body) { body.style.display = 'none'; }
-    if (chevron) { chevron.classList.remove('open'); }
+    if (body) body.style.display = expanding ? '' : 'none';
+    if (chevron) { if (expanding) chevron.classList.add('open'); else chevron.classList.remove('open'); }
+  });
+  updateAllFoldButtons();
+}
+
+function updateSectionFoldBtn(section) {
+  var btn = document.getElementById('section-chevron-' + section);
+  if (!btn) return;
+  var ids = getSectionPanels(section);
+  var total = 0, open = 0;
+  ids.forEach(function(id) {
+    var body = document.getElementById('body-' + id);
+    if (body) { total++; if (body.style.display !== 'none') open++; }
+  });
+  btn.textContent = getFoldSymbol(open, total);
+}
+
+function updateAllFoldButtons() {
+  updateGlobalFoldBtn();
+  document.querySelectorAll('[data-section]').forEach(function(div) {
+    updateSectionFoldBtn(div.dataset.section);
   });
 }
 
@@ -48,6 +85,7 @@ function togglePanel(id) {
     body.style.display = 'none';
     chevron?.classList.remove('open');
   }
+  updateAllFoldButtons();
 }
 
 // Module enable/disable checkbox
@@ -589,24 +627,15 @@ function isSectionExpanded(section) {
 }
 
 function toggleSection(section) {
-  var chevron = document.getElementById('section-chevron-' + section);
-  if (isSectionExpanded(section)) {
-    getSectionPanels(section).forEach(function(id) {
-      var body = document.getElementById('body-' + id);
-      var ch = document.getElementById('chevron-' + id);
-      if (body) body.style.display = 'none';
-      if (ch) ch.classList.remove('open');
-    });
-    if (chevron) chevron.textContent = '+';
-  } else {
-    getSectionPanels(section).forEach(function(id) {
-      var body = document.getElementById('body-' + id);
-      var ch = document.getElementById('chevron-' + id);
-      if (body) body.style.display = '';
-      if (ch) ch.classList.add('open');
-    });
-    if (chevron) chevron.textContent = '\u2212';
-  }
+  var ids = getSectionPanels(section);
+  var expanding = !isSectionExpanded(section);
+  ids.forEach(function(id) {
+    var body = document.getElementById('body-' + id);
+    var ch = document.getElementById('chevron-' + id);
+    if (body) body.style.display = expanding ? '' : 'none';
+    if (ch) { if (expanding) ch.classList.add('open'); else ch.classList.remove('open'); }
+  });
+  updateAllFoldButtons();
 }
 
 // Collect module panels (with toggle-switch checkboxes) in a section
@@ -1144,5 +1173,6 @@ initTheme();
 initHeaderSync();
 markDefaults();
 updateSectionToggle('infra');
+updateAllFoldButtons();
 injectTerminalButtons();
 updateTerminalButtonsVisibility();
