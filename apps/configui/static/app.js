@@ -108,12 +108,25 @@ function savePreviewState() {
 }
 
 function restorePreviewState() {
-  if (_previewState.tab) {
-    // switchPreviewTab is defined in the inline script from the handler
-    if (typeof switchPreviewTab === 'function') {
-      switchPreviewTab(_previewState.tab);
+  var tab = _previewState.tab;
+  if (tab) {
+    // Directly toggle tab visibility and button classes without relying on inline script
+    var pc = document.getElementById('preview-content');
+    if (pc) {
+      pc.querySelectorAll('[id^="ptab-content-"]').forEach(function(el) {
+        var id = el.id.replace('ptab-content-', '');
+        el.classList.toggle('hidden', id !== tab);
+      });
+      pc.querySelectorAll('[id^="ptab-"]').forEach(function(btn) {
+        if (btn.id.indexOf('ptab-content-') === 0) return; // skip content divs
+        var id = btn.id.replace('ptab-', '');
+        var active = 'px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400';
+        var inactive = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer';
+        btn.className = id === tab ? active : inactive;
+      });
     }
   }
+  // Restore scroll position
   var pc = document.getElementById('preview-content');
   if (pc) {
     pc.scrollTop = _previewState.scroll;
