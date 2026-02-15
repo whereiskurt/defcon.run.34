@@ -267,6 +267,51 @@ func (a *App) handleExport(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+// AWSStatusCache wraps AWSStatus with a timestamp for disk caching.
+type AWSStatusCache struct {
+	Status    *AWSStatus `json:"status"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+const awsStatusCacheTTL = 30 * time.Minute
+
+func (a *App) saveAWSStatusCache() {
+	a.mu.RLock()
+	cache := a.awsStatusCache
+	a.mu.RUnlock()
+	if cache == nil {
+		return
+	}
+	data, err := json.MarshalIndent(cache, "", "  ")
+	if err != nil {
+		return
+	}
+	os.WriteFile(a.awsStatusCachePath, data, 0644)
+}
+
+func (a *App) loadAWSStatusCache() {
+	data, err := os.ReadFile(a.awsStatusCachePath)
+	if err != nil {
+		return
+	}
+	var cache AWSStatusCache
+	if json.Unmarshal(data, &cache) != nil {
+		return
+	}
+	if cache.Status == nil || cache.Status.Identity == nil {
+		return // only cache successful auth
+	}
+	a.awsStatusCache = &cache
+	log.Printf("Loaded AWS status cache: %s old", time.Since(cache.UpdatedAt).Round(time.Second))
+}
+
+func (a *App) invalidateAWSStatusCache() {
+	a.mu.Lock()
+	a.awsStatusCache = nil
+	a.mu.Unlock()
+	os.Remove(a.awsStatusCachePath)
+}
+
 func (a *App) handleAWSStatus(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
 	suffix := r.URL.Query().Get("suffix")
@@ -284,8 +329,29 @@ func (a *App) handleAWSStatus(w http.ResponseWriter, r *http.Request) {
 		regions = strings.Split(regionsParam, ",")
 	}
 
-	status := checkAWSStatus(prefix, suffix, regions, a.envLocal.ProfilePrefix)
-	status.SSOSession = a.envLocal.SSOSessionName
+	// Use cached AWS status if fresh
+	a.mu.RLock()
+	cache := a.awsStatusCache
+	a.mu.RUnlock()
+
+	var status *AWSStatus
+	if cache != nil && cache.Status != nil && cache.Status.Identity != nil &&
+		time.Since(cache.UpdatedAt) < awsStatusCacheTTL {
+		status = cache.Status
+		status.SSOSession = a.envLocal.SSOSessionName
+		log.Printf("AWS status from cache (%s old)", time.Since(cache.UpdatedAt).Round(time.Second))
+	} else {
+		status = checkAWSStatus(prefix, suffix, regions, a.envLocal.ProfilePrefix)
+		status.SSOSession = a.envLocal.SSOSessionName
+
+		// Cache successful results
+		if status.Identity != nil {
+			a.mu.Lock()
+			a.awsStatusCache = &AWSStatusCache{Status: status, UpdatedAt: time.Now()}
+			a.mu.Unlock()
+			go a.saveAWSStatusCache()
+		}
+	}
 
 	// Trigger discovery after successful AWS auth and tell client to refetch
 	if status.Identity != nil {
@@ -322,6 +388,9 @@ func (a *App) handleAWSStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSSOLogin(w http.ResponseWriter, r *http.Request) {
+	// Invalidate cached status so the next check is fresh
+	a.invalidateAWSStatusCache()
+
 	session := a.envLocal.SSOSessionName
 	if session == "" {
 		session = "Developer"
@@ -338,6 +407,8 @@ func (a *App) handleSSOLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
+	// Invalidate cached status so the next check picks up new credentials
+	a.invalidateAWSStatusCache()
 	profile := "terraform"
 	if a.envLocal.ProfilePrefix != "" {
 		profile = a.envLocal.ProfilePrefix + "-terraform"

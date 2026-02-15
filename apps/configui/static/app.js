@@ -812,30 +812,110 @@ function showFixLocksResult(data) {
   document.addEventListener('keydown', onKey);
 }
 
-// Plan All confirmation dialog
-function confirmPlanAll() {
+// Plan/Apply All — with optional region scoping
+
+function confirmPlanAll(region) {
+  var label = region ? 'Plan ' + region : 'Plan all modules';
+  var msg = region
+    ? 'Run terragrunt plan --all in the ' + region + ' region?'
+    : 'Run terragrunt plan --all across every infrastructure module?';
   showConfirmDialog({
-    title: 'Plan all modules?',
-    message: 'Are you sure you want to run terragrunt plan across all infrastructure modules?',
-    confirmLabel: 'Plan All',
+    title: label + '?',
+    message: msg,
+    confirmLabel: region ? 'Plan ' + region : 'Plan All',
     onConfirm: function() {
-      openTerminal('all', 'plan-all', '');
+      if (region) {
+        openTerminal('region-all', 'plan-all', region);
+      } else {
+        openTerminal('all', 'plan-all', '');
+      }
     }
   });
 }
 
-// Apply All confirmation dialog
-function confirmApplyAll() {
+function confirmApplyAll(region) {
+  var label = region ? 'Apply ' + region : 'Apply all modules';
+  var msg = region
+    ? 'Run terragrunt apply --all in the ' + region + ' region? Resources may be created, modified, or destroyed.'
+    : 'Run terragrunt apply --all across every infrastructure module. Resources may be created, modified, or destroyed.';
   showConfirmDialog({
-    title: 'Are you sure you want to update your state?',
-    message: 'This will run terragrunt apply --all across every infrastructure module.',
-    confirmLabel: 'Apply All',
+    title: label + '?',
+    message: msg,
+    confirmLabel: region ? 'Apply ' + region : 'Apply All',
     confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
     onConfirm: function() {
-      openTerminal('all', 'apply-all', '');
+      if (region) {
+        openTerminal('region-all', 'apply-all', region);
+      } else {
+        openTerminal('all', 'apply-all', '');
+      }
     }
   });
 }
+
+// Split-button dropdown for Plan All / Apply All
+function initSplitButtons() {
+  var regions = window.ALL_REGIONS || [];
+  ['split-plan-all', 'split-apply-all'].forEach(function(id) {
+    var container = document.getElementById(id);
+    if (!container) return;
+    var command = container.dataset.command; // "plan" or "apply"
+    var isPlan = command === 'plan';
+    var mainLabel = isPlan ? 'Plan All' : 'Apply All';
+    var mainClass = isPlan ? 'split-btn-plan' : 'split-btn-apply';
+    var confirmFn = isPlan ? confirmPlanAll : confirmApplyAll;
+
+    container.innerHTML =
+      '<button type="button" class="split-btn-main ' + mainClass + '">' + mainLabel + '</button>' +
+      '<button type="button" class="split-btn-drop ' + mainClass + '" aria-label="Select region">' +
+        '<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>' +
+      '</button>' +
+      '<div class="split-menu hidden"></div>';
+
+    var mainBtn = container.querySelector('.split-btn-main');
+    var dropBtn = container.querySelector('.split-btn-drop');
+    var menu = container.querySelector('.split-menu');
+
+    // Build menu items
+    var allItem = document.createElement('div');
+    allItem.className = 'split-menu-item';
+    allItem.textContent = mainLabel.replace('All', 'All Regions');
+    allItem.onclick = function() { menu.classList.add('hidden'); confirmFn(); };
+    menu.appendChild(allItem);
+
+    var sep = document.createElement('div');
+    sep.className = 'split-menu-sep';
+    menu.appendChild(sep);
+
+    regions.forEach(function(r) {
+      var item = document.createElement('div');
+      item.className = 'split-menu-item';
+      item.textContent = r.label + ' (' + r.full + ')';
+      item.onclick = function() { menu.classList.add('hidden'); confirmFn(r.full); };
+      menu.appendChild(item);
+    });
+
+    // Main button = all regions
+    mainBtn.onclick = function(e) { e.stopPropagation(); confirmFn(); };
+
+    // Drop button = toggle menu
+    dropBtn.onclick = function(e) {
+      e.stopPropagation();
+      // Close other split menus
+      document.querySelectorAll('.split-menu').forEach(function(m) {
+        if (m !== menu) m.classList.add('hidden');
+      });
+      menu.classList.toggle('hidden');
+    };
+  });
+}
+
+// Close split menus on outside click
+document.addEventListener('click', function() {
+  document.querySelectorAll('.split-menu').forEach(function(m) {
+    m.classList.add('hidden');
+  });
+});
 
 // Export confirmation dialog
 function confirmExport() {
@@ -1839,6 +1919,7 @@ initFieldSync();
 markDefaults();
 updateSectionToggle('infra');
 updateAllFoldButtons();
+initSplitButtons();
 injectTerminalButtons();
 updateTerminalButtonsVisibility();
 recoverTerminalSessions();

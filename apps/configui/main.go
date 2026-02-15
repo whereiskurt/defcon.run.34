@@ -21,21 +21,23 @@ var content embed.FS
 
 // App holds all paths and state for the configui server.
 type App struct {
-	repoRoot           string
-	configPath         string
-	siteHCLPath        string
-	servicesDir        string
-	envShPath          string
-	envLocalShPath     string
-	backupDir          string
-	sopsFilePath       string
-	discoveryCachePath string
-	url                string
-	mu                 sync.RWMutex
-	config             *SiteConfig
-	envLocal           *EnvLocalConfig
-	discovery          *DiscoveryResults
-	termSessions       map[string]*TermSession
+	repoRoot             string
+	configPath           string
+	siteHCLPath          string
+	servicesDir          string
+	envShPath            string
+	envLocalShPath       string
+	backupDir            string
+	sopsFilePath         string
+	discoveryCachePath   string
+	awsStatusCachePath   string
+	url                  string
+	mu                   sync.RWMutex
+	config               *SiteConfig
+	envLocal             *EnvLocalConfig
+	discovery            *DiscoveryResults
+	awsStatusCache       *AWSStatusCache
+	termSessions         map[string]*TermSession
 }
 
 // reload re-imports config from site.hcl, service configs, env files, and versions.
@@ -143,14 +145,16 @@ func main() {
 		backupDir:          filepath.Join(repoRoot, "apps", "configui", "backups"),
 		sopsFilePath:       filepath.Join(repoRoot, "infra", "terraform", "live", "site", ".secrets.sops.json"),
 		discoveryCachePath: filepath.Join(repoRoot, "apps", "configui", ".discovery-cache.json"),
+		awsStatusCachePath: filepath.Join(repoRoot, "apps", "configui", ".aws-status-cache.json"),
 		termSessions:       make(map[string]*TermSession),
 	}
 
 	// Initial config load
 	app.reload()
 
-	// Load cached discovery results (if any)
+	// Load cached discovery and AWS status results (if any)
 	app.loadDiscoveryCache()
+	app.loadAWSStatusCache()
 
 	// Startup backup
 	if backupPath, err := app.createBackup(); err != nil {

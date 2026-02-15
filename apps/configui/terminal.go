@@ -43,6 +43,8 @@ type ModuleDef struct {
 var ModuleMap = map[string]ModuleDef{
 	// All modules (run from site root)
 	"all": {Path: "", Global: true},
+	// All modules in a single region
+	"region-all": {Path: "region/%s"},
 	// Global modules (run once)
 	"github_oidc": {Path: "global/github-oidc", Global: true},
 	"cloudtrail":  {Path: "global/cloudtrail", Global: true},
