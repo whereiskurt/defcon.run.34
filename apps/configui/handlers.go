@@ -392,7 +392,28 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Email.MakeSiteDomain = formBool(r, "email.make_site_domain")
 	cfg.Email.MakeRegionalDomains = formBool(r, "email.make_regional_domains")
 	cfg.Email.MakeDomains = formBool(r, "email.make_domains")
+	cfg.Email.ZoneSubdomains = formCSV(r, "email.zone_subdomains")
+	if len(cfg.Email.ZoneSubdomains) == 0 {
+		cfg.Email.ZoneSubdomains = DefaultConfig().Email.ZoneSubdomains
+	}
+	cfg.Email.SMTPIAMSubdomains = formCSV(r, "email.smtp_iam_subdomains")
+	if len(cfg.Email.SMTPIAMSubdomains) == 0 {
+		cfg.Email.SMTPIAMSubdomains = DefaultConfig().Email.SMTPIAMSubdomains
+	}
 	cfg.Email.ReplicaRegions = formRegions(r, "email.regions")
+	// Forwarding rules (indexed)
+	cfg.Email.FwdRules = nil
+	for i := 0; i < 20; i++ {
+		match := r.FormValue(fmt.Sprintf("email.fwd.%d.match", i))
+		sendTo := r.FormValue(fmt.Sprintf("email.fwd.%d.send_to", i))
+		if match == "" && sendTo == "" {
+			continue
+		}
+		if match != "" {
+			cfg.Email.FwdRules = append(cfg.Email.FwdRules, FwdRule{Match: match, SendToDefault: sendTo})
+		}
+	}
+	cfg.Email.CatchAllEnabled = formBool(r, "email.catch_all")
 
 	// WAF
 	cfg.WAF.Enabled = formBool(r, "waf.enabled")

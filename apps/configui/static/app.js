@@ -447,5 +447,14 @@ function confirmSaveAll() {
   };
 }
 
+// PII blur: re-blur <pre> elements when clicking outside them
+document.addEventListener('click', function(e) {
+  document.querySelectorAll('pre.pii-blur.pii-revealed').forEach(function(el) {
+    if (!el.contains(e.target)) {
+      el.classList.remove('pii-revealed');
+    }
+  });
+});
+
 // Initialize on load
 initTheme();

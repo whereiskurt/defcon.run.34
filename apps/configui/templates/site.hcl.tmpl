@@ -64,15 +64,14 @@ locals {
 
     fwd_rules = concat(
       [
+<<- range .Email.FwdRules>>
         {
-          match   = "kurt@${local.dns.zonename}"
-          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
+          match   = <<fwdMatchExpr .Match>>
+          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "<<.SendToDefault>>")
         },
-        {
-          match   = "kurt@run.${local.dns.zonename}"
-          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
-        },
+<<- end>>
       ],
+<<- if .Email.CatchAllEnabled>>
       # Only include catch-all rule if TF_VAR_FWD_EMAIL_TO_ADDRESS is set
       get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "") != "" ? [
         {
@@ -80,6 +79,9 @@ locals {
           send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "")
         }
       ] : []
+<<- else>>
+      []
+<<- end>>
     )
   }
 

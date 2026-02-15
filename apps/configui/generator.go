@@ -68,6 +68,15 @@ var genFuncs = template.FuncMap{
 		}
 		return strings.Join(parts, "\n")
 	},
+	"fwdMatchExpr": func(match string) string {
+		// "admin" → "admin@${local.dns.zonename}"
+		// "no-reply@run" → "no-reply@run.${local.dns.zonename}"
+		if strings.Contains(match, "@") {
+			parts := strings.SplitN(match, "@", 2)
+			return fmt.Sprintf(`"%s@%s.${local.dns.zonename}"`, parts[0], parts[1])
+		}
+		return fmt.Sprintf(`"%s@${local.dns.zonename}"`, match)
+	},
 	"indent": func(n int, s string) string {
 		prefix := strings.Repeat(" ", n)
 		lines := strings.Split(s, "\n")

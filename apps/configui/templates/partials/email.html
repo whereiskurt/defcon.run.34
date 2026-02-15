@@ -32,6 +32,52 @@
         <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="email.regions.apse1" {{if hasRegion .Config.Email.ReplicaRegions "apse1"}}checked{{end}} class="rounded"> apse1</label>
       </div>
     </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Zone Subdomains</label>
+        <input type="text" name="email.zone_subdomains" value="{{join .Config.Email.ZoneSubdomains ", "}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500" placeholder="email, run, auth">
+      </div>
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">SMTP IAM Subdomains</label>
+        <input type="text" name="email.smtp_iam_subdomains" value="{{join .Config.Email.SMTPIAMSubdomains ", "}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500" placeholder="run, auth, cms">
+      </div>
+    </div>
+    <div>
+      <div class="flex items-center justify-between mb-2">
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Forwarding Rules</label>
+        <button type="button" onclick="addFwdRule()" class="text-xs px-2 py-1 rounded bg-cyan-600 hover:bg-cyan-500 text-white">+ Add Rule</button>
+      </div>
+      <div id="fwd-rules-list" class="space-y-2">
+        {{range $i, $rule := .Config.Email.FwdRules}}
+        <div class="flex gap-2 items-center fwd-rule-row">
+          <input type="text" name="email.fwd.{{$i}}.match" value="{{$rule.Match}}" placeholder="admin" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <span class="text-xs text-zinc-400 whitespace-nowrap">@[zonename] &rarr;</span>
+          <input type="text" name="email.fwd.{{$i}}.send_to" value="{{$rule.SendToDefault}}" placeholder="admin@example.com" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">
+          <button type="button" onclick="removeFwdRule(this)" class="text-red-400 hover:text-red-300 text-lg px-1" title="Remove">&times;</button>
+        </div>
+        {{end}}
+      </div>
+      <script>
+        var fwdRuleIdx = {{len .Config.Email.FwdRules}};
+        function addFwdRule() {
+          var list = document.getElementById('fwd-rules-list');
+          var row = document.createElement('div');
+          row.className = 'flex gap-2 items-center fwd-rule-row';
+          row.innerHTML = '<input type="text" name="email.fwd.' + fwdRuleIdx + '.match" placeholder="admin" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">'
+            + '<span class="text-xs text-zinc-400 whitespace-nowrap">@[zonename] &rarr;</span>'
+            + '<input type="text" name="email.fwd.' + fwdRuleIdx + '.send_to" placeholder="admin@example.com" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-cyan-500">'
+            + '<button type="button" onclick="removeFwdRule(this)" class="text-red-400 hover:text-red-300 text-lg px-1" title="Remove">&times;</button>';
+          list.appendChild(row);
+          fwdRuleIdx++;
+        }
+        function removeFwdRule(btn) {
+          btn.closest('.fwd-rule-row').remove();
+        }
+      </script>
+    </div>
+    <div>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="email.catch_all" class="toggle-switch" {{if .Config.Email.CatchAllEnabled}}checked{{end}}> Catch-All Rule (forward unmatched to TF_VAR_FWD_EMAIL_TO_ADDRESS)</label>
+    </div>
   </div>
 </div>
 {{end}}

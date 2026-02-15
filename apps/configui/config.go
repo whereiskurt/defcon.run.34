@@ -80,6 +80,15 @@ type EnvLocalConfig struct {
 	SSOSessionName       string `json:"sso_session_name"`
 }
 
+// FwdRule represents an email forwarding rule.
+// Match stores the local-part (and optional subdomain) before @${local.dns.zonename}:
+//   - "admin" → renders as "admin@${local.dns.zonename}"
+//   - "no-reply@run" → renders as "no-reply@run.${local.dns.zonename}"
+type FwdRule struct {
+	Match         string `json:"match"`
+	SendToDefault string `json:"send_to_default"`
+}
+
 type EmailConfig struct {
 	Enabled             bool        `json:"enabled"`
 	PrimaryRegion       string      `json:"primary_region"`
@@ -90,6 +99,8 @@ type EmailConfig struct {
 	ZoneSubdomains      []string    `json:"zone_subdomains"`
 	SMTPIAMSubdomains   []string    `json:"smtp_iam_subdomains"`
 	ReplicaRegions      []RegionRef `json:"replica_regions"`
+	FwdRules            []FwdRule   `json:"fwd_rules"`
+	CatchAllEnabled     bool        `json:"catch_all_enabled"`
 }
 
 type WAFConfig struct {
@@ -367,6 +378,11 @@ func DefaultConfig() *SiteConfig {
 			ZoneSubdomains:      []string{"email", "run", "auth"},
 			SMTPIAMSubdomains:   []string{"run", "auth", "cms"},
 			ReplicaRegions:      allRegions,
+			FwdRules: []FwdRule{
+				{Match: "admin", SendToDefault: "admin@example.com"},
+				{Match: "no-reply@run", SendToDefault: "no-reply@run.example.com"},
+			},
+			CatchAllEnabled: true,
 		},
 		WAF: WAFConfig{
 			Enabled: true,

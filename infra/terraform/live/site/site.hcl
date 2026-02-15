@@ -90,12 +90,12 @@ locals {
     fwd_rules = concat(
       [
         {
-          match   = "kurt@${local.dns.zonename}"
+          match   = "admin@${local.dns.zonename}"
           send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
         },
         {
-          match   = "kurt@run.${local.dns.zonename}"
-          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
+          match   = "no-reply@run.${local.dns.zonename}"
+          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "no-reply@run.example.com")
         },
       ],
       # Only include catch-all rule if TF_VAR_FWD_EMAIL_TO_ADDRESS is set

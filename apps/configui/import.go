@@ -208,6 +208,101 @@ func extractGetEnvDefault(block, key string) (string, bool) {
 	return m[1], true
 }
 
+// extractFwdRules parses the fwd_rules = concat(...) block from the email section.
+// It extracts match patterns and get_env defaults for each rule, and detects catch-all.
+func extractFwdRules(emailBlock string) ([]FwdRule, bool, bool) {
+	// Find fwd_rules = concat(
+	idx := strings.Index(emailBlock, "fwd_rules")
+	if idx == -1 {
+		return nil, false, false
+	}
+
+	// Find the concat( opening
+	concatIdx := strings.Index(emailBlock[idx:], "concat(")
+	if concatIdx == -1 {
+		return nil, false, false
+	}
+	start := idx + concatIdx + len("concat(")
+
+	// Find matching closing paren
+	depth := 1
+	end := -1
+	for i := start; i < len(emailBlock); i++ {
+		switch emailBlock[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				end = i
+				goto foundEnd
+			}
+		}
+	}
+	return nil, false, false
+foundEnd:
+	concatBody := emailBlock[start:end]
+
+	// Extract individual { ... } objects from the concat body
+	var rules []FwdRule
+	catchAll := false
+
+	objects := splitArrayObjects(concatBody)
+	for _, obj := range objects {
+		matchVal, hasMatch := extractString(obj, "match")
+
+		// Check for catch-all: match = local.dns.zonename (unquoted)
+		if !hasMatch {
+			unquotedMatch := regexp.MustCompile(`(?m)^\s*match\s*=\s*local\.dns\.zonename`)
+			if unquotedMatch.MatchString(obj) {
+				catchAll = true
+				continue
+			}
+			continue
+		}
+
+		// Parse the match pattern to extract the local part
+		// "admin@${local.dns.zonename}" → "admin"
+		// "no-reply@run.${local.dns.zonename}" → "no-reply@run"
+		match := parseFwdMatch(matchVal)
+
+		// Extract send_to default from get_env
+		sendTo := ""
+		if v, ok := extractGetEnvDefault(obj, "send_to"); ok {
+			sendTo = v
+		}
+
+		rules = append(rules, FwdRule{Match: match, SendToDefault: sendTo})
+	}
+
+	return rules, catchAll, len(rules) > 0 || catchAll
+}
+
+// parseFwdMatch extracts the logical match pattern from a fwd_rules match string.
+// "admin@${local.dns.zonename}" → "admin"
+// "no-reply@run.${local.dns.zonename}" → "no-reply@run"
+func parseFwdMatch(matchStr string) string {
+	// Remove ${local.dns.zonename} suffix
+	zoneSuffix := "${local.dns.zonename}"
+	if !strings.Contains(matchStr, zoneSuffix) {
+		return matchStr
+	}
+
+	// Remove the zonename reference and any trailing/leading dots
+	before := strings.Replace(matchStr, zoneSuffix, "", 1)
+	// "admin@" → "admin"
+	// "no-reply@run." → "no-reply@run"
+	before = strings.TrimSuffix(before, ".")
+	before = strings.TrimSuffix(before, "@")
+
+	// If there's an @ remaining, it means format was "local-part@sub.${zonename}"
+	// e.g. "no-reply@run" which is what we want
+	if before == "" {
+		return matchStr
+	}
+	return before
+}
+
 // extractForExprSourceList extracts the source list from a for expression.
 // e.g. `key = [for sub in ["a", "b"] : ...]` returns ["a", "b"]
 func extractForExprSourceList(block, key string) ([]string, bool) {
@@ -361,6 +456,10 @@ func importSiteHCL(path string) (*SiteConfig, error) {
 		}
 		if v, ok := extractRegionList(block, "replica_regions"); ok {
 			cfg.Email.ReplicaRegions = v
+		}
+		if rules, catchAll, ok := extractFwdRules(block); ok {
+			cfg.Email.FwdRules = rules
+			cfg.Email.CatchAllEnabled = catchAll
 		}
 	}
 
