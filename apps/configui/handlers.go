@@ -79,11 +79,15 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Config   *SiteConfig
-		EnvLocal *EnvLocalConfig
+		Config       *SiteConfig
+		EnvLocal     *EnvLocalConfig
+		DefaultsJSON template.JS
 	}{
 		Config:   a.config,
 		EnvLocal: a.envLocal,
+	}
+	if dj, err := json.Marshal(DefaultFormValues()); err == nil {
+		data.DefaultsJSON = template.JS(dj)
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

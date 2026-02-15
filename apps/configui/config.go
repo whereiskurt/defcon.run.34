@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
+	"strings"
 )
 
 // RegionRef identifies an AWS region with a short label and full name.
@@ -340,7 +342,7 @@ func DefaultConfig() *SiteConfig {
 			GitHubRepoName: "defcon.run.34",
 			TFStatePrefix:  "tf-dc34",
 			RandomSuffix:   "80a6b349",
-			SkipRegions:    []string{"ap-southeast-1"},
+			SkipRegions:    []string{},
 		},
 		DNS: DNSConfig{
 			ZoneName:   "defcon.run",
@@ -622,6 +624,40 @@ func LoadConfig(path string) (*SiteConfig, error) {
 }
 
 // SaveConfig writes site-config.json to disk.
+// DefaultFormValues returns a map of form field names to their default string values.
+// Used by the UI to visually indicate which fields still hold default values.
+func DefaultFormValues() map[string]string {
+	d := DefaultConfig()
+	return map[string]string{
+		"site.label":            d.Site.Label,
+		"site.github_repo_name": d.Site.GitHubRepoName,
+		"site.tf_state_prefix":  d.Site.TFStatePrefix,
+		"site.random_suffix":    d.Site.RandomSuffix,
+		"dns.zonename":          d.DNS.ZoneName,
+		"dns.subdomains":        strings.Join(d.DNS.Subdomains, ","),
+		"dns.ttl":               fmt.Sprintf("%d", d.DNS.TTL),
+		"env.site_domain":       d.Env.SiteDomain,
+		"env.site_label":        d.Env.SiteLabel,
+		"env.aws_region":        d.Env.AWSRegion,
+		"env.region_short":      d.Env.RegionShort,
+		"env.local_ports.run":   fmt.Sprintf("%d", d.Env.LocalPorts.Run),
+		"env.local_ports.auth":  fmt.Sprintf("%d", d.Env.LocalPorts.Auth),
+		"env.local_ports.gpx":   fmt.Sprintf("%d", d.Env.LocalPorts.GPX),
+		"env.local_ports.cms":   fmt.Sprintf("%d", d.Env.LocalPorts.CMS),
+		"email.primary_region":  d.Email.PrimaryRegion,
+		"email.smtp_prefix":     d.Email.SMTPPrefix,
+		"secrets.primary_region": d.Secrets.PrimaryRegion,
+		"cloudfront.domains":    strings.Join(d.CloudFront.Domains, ","),
+		"cloudfront.price_class": d.CloudFront.PriceClass,
+		"ec2spots.instance_type": d.EC2Spots.InstanceType,
+		"ec2spots.ec2key_name_prefix": d.EC2Spots.EC2KeyNamePrefix,
+		"ecs_clusters.0.name":   d.ECSClusters.Clusters[0].Name,
+		"github_oidc.delegate_role_name": d.GitHubOIDC.DelegateRoleName,
+		"github_oidc.ec2_runner.name": d.GitHubOIDC.EC2RunnerProfile.Name,
+		"cloudtrail.log_retention_days": fmt.Sprintf("%d", d.CloudTrail.LogRetentionDays),
+	}
+}
+
 func SaveConfig(path string, cfg *SiteConfig) error {
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

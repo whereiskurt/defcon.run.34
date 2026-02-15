@@ -20,7 +20,7 @@ func TestImportSiteHCL(t *testing.T) {
 	assertEqual(t, "Site.GitHubRepoName", cfg.Site.GitHubRepoName, "defcon.run.34")
 	assertEqual(t, "Site.TFStatePrefix", cfg.Site.TFStatePrefix, "tf-dc34")
 	assertEqual(t, "Site.RandomSuffix", cfg.Site.RandomSuffix, "80a6b349")
-	assertSliceEqual(t, "Site.SkipRegions", cfg.Site.SkipRegions, []string{"ap-southeast-1"})
+	assertSliceEqual(t, "Site.SkipRegions", cfg.Site.SkipRegions, []string{})
 
 	// DNS
 	assertEqual(t, "DNS.ZoneName", cfg.DNS.ZoneName, "defcon.run")

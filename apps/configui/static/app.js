@@ -758,6 +758,47 @@ function initHeaderSync() {
   }
 }
 
+// Default value indicators — dim fields that still hold default values
+function markDefaults() {
+  var defaults = window.FORM_DEFAULTS;
+  if (!defaults) return;
+
+  var form = document.getElementById('config-form');
+  if (!form) return;
+
+  Object.keys(defaults).forEach(function(name) {
+    var input = form.querySelector('[name="' + name + '"]');
+    if (!input) return;
+
+    var defVal = defaults[name];
+
+    function update() {
+      var badge = input.parentElement.querySelector('.default-badge');
+      if (input.value === defVal) {
+        input.classList.add('is-default');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'default-badge';
+          badge.textContent = 'default';
+          // Insert badge after the label, before the input
+          var label = input.parentElement.querySelector('label');
+          if (label) {
+            label.appendChild(badge);
+          }
+        }
+      } else {
+        input.classList.remove('is-default');
+        if (badge) badge.remove();
+      }
+    }
+
+    update();
+    input.addEventListener('input', update);
+    input.addEventListener('change', update);
+  });
+}
+
 // Initialize on load
 initTheme();
 initHeaderSync();
+markDefaults();
