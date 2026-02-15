@@ -284,10 +284,14 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
-			// Strip terragrunt's stream prefixes to reduce output noise
+			// Strip terragrunt's stream prefixes to reduce output noise.
+			// Match longest prefixes first to avoid partial stripping.
 			for _, prefix := range []string{
 				"STDOUT terraform: ", "STDERR terraform: ",
 				"STDOUT tofu: ", "STDERR tofu: ",
+				"STDOUT terraform:", "STDERR terraform:",
+				"STDOUT tofu:", "STDERR tofu:",
+				"STDOUT: ", "STDERR: ",
 				"STDOUT ", "STDERR ",
 			} {
 				if strings.HasPrefix(line, prefix) {

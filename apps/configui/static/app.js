@@ -622,24 +622,83 @@ function confirmFixLocks() {
     confirmLabel: 'Fix Locks',
     confirmClass: 'bg-amber-600 hover:bg-amber-500 text-white',
     onConfirm: function() {
-      showToast('Scanning for stuck locks...', 6000);
+      // Show scanning overlay
+      var scanOverlay = document.createElement('div');
+      scanOverlay.className = 'fixed inset-0 z-[60] bg-black/60 flex items-center justify-center';
+      scanOverlay.innerHTML =
+        '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-8 max-w-md mx-4 text-center">' +
+          '<div class="discovery-dot loading mx-auto mb-4" style="width:24px;height:24px;border-width:3px;"></div>' +
+          '<p class="text-sm font-mono text-zinc-400">Scanning DynamoDB tables for stuck locks...</p>' +
+        '</div>';
+      document.body.appendChild(scanOverlay);
+
       fetch('/api/fix-locks', { method: 'POST' })
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
-          if (data.found && data.found.length > 0) {
-            showToast('Removed ' + data.removed.length + ' of ' + data.found.length + ' stuck lock(s)', 5000);
-          } else {
-            showToast('No stuck locks found', 3000);
-          }
-          if (data.errors && data.errors.length > 0) {
-            showToast('Lock errors: ' + data.errors.join('; '), 8000);
-          }
+          scanOverlay.remove();
+          showFixLocksResult(data);
         })
         .catch(function(err) {
-          showToast('Fix locks failed: ' + err.message, 5000);
+          scanOverlay.remove();
+          showFixLocksResult({ found: [], removed: [], errors: ['Request failed: ' + err.message] });
         });
     }
   });
+}
+
+function showFixLocksResult(data) {
+  var found = (data.found && data.found.length) || 0;
+  var removed = (data.removed && data.removed.length) || 0;
+  var errors = data.errors || [];
+
+  var icon, title, detail;
+  if (found === 0 && errors.length === 0) {
+    icon = '<span class="text-green-400 text-3xl">&#10003;</span>';
+    title = 'No stuck locks found';
+    detail = '<p class="text-sm text-zinc-400">All DynamoDB state tables are clean.</p>';
+  } else if (removed > 0) {
+    icon = '<span class="text-amber-400 text-3xl">&#9888;</span>';
+    title = 'Removed ' + removed + ' lock' + (removed > 1 ? 's' : '');
+    var rows = '';
+    data.removed.forEach(function(l) {
+      rows += '<tr class="border-t border-zinc-700">' +
+        '<td class="py-1 pr-3 text-zinc-400">' + l.region + '</td>' +
+        '<td class="py-1 font-mono text-xs text-zinc-300 break-all">' + l.lock_id + '</td>' +
+      '</tr>';
+    });
+    detail = '<table class="w-full text-xs mt-2">' + rows + '</table>';
+  } else {
+    icon = '<span class="text-red-400 text-3xl">&#10007;</span>';
+    title = 'Lock fix failed';
+    detail = '';
+  }
+
+  if (errors.length > 0) {
+    detail += '<div class="mt-3 text-xs text-red-400">';
+    errors.forEach(function(e) { detail += '<p>' + e + '</p>'; });
+    detail += '</div>';
+  }
+
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[60] bg-black/60 flex items-center justify-center';
+  overlay.innerHTML =
+    '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-6 max-w-lg mx-4">' +
+      '<div class="flex items-center gap-3 mb-3">' +
+        icon +
+        '<h3 class="text-base font-semibold">' + title + '</h3>' +
+      '</div>' +
+      detail +
+      '<div class="flex justify-end mt-4">' +
+        '<button class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm" id="fixlocks-close">Close</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  function dismiss() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+  overlay.querySelector('#fixlocks-close').onclick = dismiss;
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+  function onKey(e) { if (e.key === 'Escape') { e.stopImmediatePropagation(); dismiss(); } }
+  document.addEventListener('keydown', onKey);
 }
 
 // Apply All confirmation dialog
@@ -1265,7 +1324,7 @@ function showTerminalModal(session) {
               '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>' +
             '</button>' +
           '</div>' +
-          '<span class="text-[11px] text-zinc-500 font-mono">' + (session.work_dir || '') + '</span>' +
+          '<span class="text-[11px] text-zinc-500 font-mono" style="padding-left:1.1rem;">' + (session.work_dir || '') + '</span>' +
         '</div>' +
         '<button id="term-close-x" class="text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
       '</div>' +
