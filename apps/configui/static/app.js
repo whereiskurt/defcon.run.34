@@ -1152,13 +1152,15 @@ function showTerminalModal(session) {
   overlay.innerHTML =
     '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-5xl w-full mx-auto">' +
       '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
-        '<div class="flex items-center gap-2">' +
-          '<span class="text-green-400 text-sm font-mono font-bold">$ </span>' +
-          '<span class="text-sm font-mono text-zinc-200">' + cmdLine + '</span>' +
-          '<button id="term-copy-cmd" class="text-zinc-500 hover:text-green-400 transition-colors" title="Copy command">' +
-            '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>' +
-          '</button>' +
-          '<span class="text-xs text-zinc-500 font-mono">' + label + '</span>' +
+        '<div class="flex flex-col">' +
+          '<div class="flex items-center gap-2">' +
+            '<span class="text-green-400 text-sm font-mono font-bold">$ </span>' +
+            '<span class="text-sm font-mono text-zinc-200">' + cmdLine + '</span>' +
+            '<button id="term-copy-cmd" class="text-zinc-500 hover:text-green-400 transition-colors" title="Copy command">' +
+              '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>' +
+            '</button>' +
+          '</div>' +
+          '<span class="text-[11px] text-zinc-500 font-mono">' + (session.work_dir || '') + '</span>' +
         '</div>' +
         '<button id="term-close-x" class="text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
       '</div>' +

@@ -21,6 +21,7 @@ type TermSession struct {
 	Command  string `json:"command"`
 	Region   string `json:"region,omitempty"`
 	CmdLine  string `json:"cmd_line"` // Full command string for display
+	WorkDir  string `json:"work_dir"` // Working directory for display
 	Status   string `json:"status"`   // "running", "done", "error"
 	ExitCode int    `json:"exit_code"`
 
@@ -248,6 +249,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		Command: command,
 		Region:  region,
 		CmdLine: strings.Join(cmdArgs, " "),
+		WorkDir: workDir,
 		Status:  "running",
 		clients: make(map[chan string]struct{}),
 	}
