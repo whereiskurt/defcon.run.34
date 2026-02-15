@@ -957,15 +957,19 @@ function updateSectionToggle(section) {
 
   var enabledCount = panels.filter(function(p) { return p.checkbox.checked; }).length;
 
+  var label = document.getElementById('section-toggle-label-' + section);
   if (enabledCount === panels.length) {
     slider.checked = true;
     slider.classList.remove('partial');
+    if (label) label.textContent = 'all';
   } else if (enabledCount === 0) {
     slider.checked = false;
     slider.classList.remove('partial');
+    if (label) label.textContent = 'none';
   } else {
     slider.checked = false;
     slider.classList.add('partial');
+    if (label) label.textContent = enabledCount + '/' + panels.length;
   }
 }
 

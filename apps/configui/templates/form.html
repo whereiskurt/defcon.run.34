@@ -23,7 +23,10 @@
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-2" data-section="infra">
     <button type="button" onclick="toggleSection('infra')" class="global-fold-btn" id="section-chevron-infra" title="Expand/Collapse">+</button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Infrastructure Modules</h2>
-    <input type="checkbox" class="section-toggle" id="section-toggle-infra" onclick="toggleAllModules('infra', this)" title="Enable/Disable all modules">
+    <label class="flex items-center gap-1 cursor-pointer ml-1" title="Enable/Disable all modules">
+      <input type="checkbox" class="section-toggle" id="section-toggle-infra" onclick="toggleAllModules('infra', this)">
+      <span class="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500 select-none" id="section-toggle-label-infra">all</span>
+    </label>
     <div class="term-actions flex items-center gap-1 ml-1" id="infra-all-actions">
       <button type="button" class="term-btn term-btn-plan" onclick="openTerminal('all', 'plan-all', '')">Plan All</button>
       <button type="button" class="term-btn term-btn-apply" onclick="confirmApplyAll()">Apply All</button>
