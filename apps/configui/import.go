@@ -664,7 +664,12 @@ func importSiteHCL(path string) (*SiteConfig, error) {
 				cfg.GitHubOIDC.EC2RunnerProfile.Enabled = v
 			}
 			if v, ok := extractString(profileBlock, "name"); ok {
-				cfg.GitHubOIDC.EC2RunnerProfile.Name = v
+				// Template: "${local.site.label}-github-runner" → extract suffix after "}-"
+				if idx := strings.Index(v, "}-"); idx >= 0 {
+					cfg.GitHubOIDC.EC2RunnerProfile.Name = v[idx+2:]
+				} else {
+					cfg.GitHubOIDC.EC2RunnerProfile.Name = v
+				}
 			}
 		}
 	}

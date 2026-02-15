@@ -150,7 +150,7 @@ func (a *App) handleSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `<div id="save-result" class="px-4 py-2 rounded-md bg-green-900/30 text-green-400 text-sm">%s</div>`, msg)
+	fmt.Fprintf(w, `<script>showToast('%s')</script>`, template.JSEscapeString(msg))
 }
 
 func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
@@ -311,7 +311,7 @@ func (a *App) handleSSOLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Fprintf(w, `<div class="py-2"><span class="text-xs text-red-400">SSO login failed: %s</span></div>`, template.HTMLEscapeString(out))
 	} else {
-		fmt.Fprintf(w, `<div class="py-2"><span class="text-xs text-green-400">SSO login complete for session: %s</span></div>`, template.HTMLEscapeString(session))
+		fmt.Fprintf(w, `<script>showToast('SSO login complete for session: %s')</script>`, template.JSEscapeString(session))
 	}
 }
 
@@ -606,7 +606,7 @@ func (a *App) parseEnvLocalForm(r *http.Request) *EnvLocalConfig {
 		ApplicationAccountID: formStr(r, "envlocal.application_account_id", a.envLocal.ApplicationAccountID),
 		TerraformAccountID:   formStr(r, "envlocal.terraform_account_id", a.envLocal.TerraformAccountID),
 		ManagementAccountID:  formStr(r, "envlocal.management_account_id", a.envLocal.ManagementAccountID),
-		ProfilePrefix:        formStr(r, "envlocal.profile_prefix", a.envLocal.ProfilePrefix),
+		ProfilePrefix:        r.FormValue("envlocal.profile_prefix"),
 		GitHubOrg:            formStr(r, "envlocal.github_org", a.envLocal.GitHubOrg),
 		FwdEmailToAddress:    formStr(r, "envlocal.fwd_email_to_address", a.envLocal.FwdEmailToAddress),
 		SOPSKMSKeyID:         formStr(r, "envlocal.sops_kms_key_id", a.envLocal.SOPSKMSKeyID),

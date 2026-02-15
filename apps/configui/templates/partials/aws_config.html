@@ -24,13 +24,13 @@
 
     <!-- SSO tab content -->
     <div id="aws-tab-sso" class="relative">
-      <button onclick="copyAwsBlock('aws-config-preview')" class="absolute top-2 right-2 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs" title="Copy to clipboard">Copy</button>
+      <button onclick="copyAwsBlock('aws-config-preview')" class="absolute top-2 right-2 z-10 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs" title="Copy to clipboard">Copy</button>
       <pre id="aws-config-preview" class="rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed text-zinc-700 dark:text-zinc-300 pii-blur" onclick="this.classList.add('pii-revealed')"></pre>
     </div>
 
     <!-- IAM tab content -->
     <div id="aws-tab-iam" class="relative hidden">
-      <button onclick="copyAwsBlock('aws-creds-preview')" class="absolute top-2 right-2 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs" title="Copy to clipboard">Copy</button>
+      <button onclick="copyAwsBlock('aws-creds-preview')" class="absolute top-2 right-2 z-10 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs" title="Copy to clipboard">Copy</button>
       <pre id="aws-creds-preview" class="rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed text-zinc-700 dark:text-zinc-300 pii-blur" onclick="this.classList.add('pii-revealed')"></pre>
     </div>
   </div>

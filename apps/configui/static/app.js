@@ -517,5 +517,20 @@ function confirmExport() {
   document.addEventListener('keydown', onEsc);
 }
 
+// Toast notifications
+function showToast(message, duration) {
+  duration = duration || 4000;
+  var container = document.getElementById('toast-container');
+  if (!container) return;
+  var toast = document.createElement('div');
+  toast.className = 'rounded-md bg-green-900/90 border border-green-700 text-green-300 px-4 py-2 text-sm font-mono shadow-lg transition-opacity duration-300';
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(function() {
+    toast.style.opacity = '0';
+    setTimeout(function() { toast.remove(); }, 300);
+  }, duration);
+}
+
 // Initialize on load
 initTheme();

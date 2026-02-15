@@ -313,7 +313,7 @@ locals {
     # Enables SSM access for debugging and includes ECR read access
     ec2_runner_instance_profile = {
       enabled = <<boolHCL .GitHubOIDC.EC2RunnerProfile.Enabled>>
-      name    = "<<.GitHubOIDC.EC2RunnerProfile.Name>>"
+      name    = "${local.site.label}-<<.GitHubOIDC.EC2RunnerProfile.Name>>"
     }
 
     roles = [
