@@ -529,3 +529,84 @@ body.preview-dragging {
   color: #4ade80;
 }
 
+/* Terminal pill bar — minimized session indicators */
+#term-pill-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 55;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(24,24,27,0.95);
+  border-top: 1px solid #3f3f46;
+}
+
+.term-pill {
+  font-size: 11px;
+  font-family: 'Fira Code', monospace;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  color: #a1a1aa;
+  transition: background 0.15s;
+}
+
+.term-pill:hover { background: #3f3f46; }
+.term-pill.running { border-color: #22c55e; color: #4ade80; }
+.term-pill.done { border-color: #22c55e; color: #86efac; }
+.term-pill.error { border-color: #ef4444; color: #fca5a5; }
+
+.term-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.term-pill-dot.running {
+  background: #22c55e;
+  animation: pill-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pill-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.term-pill-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+
+.term-pill-icon.done { color: #22c55e; }
+.term-pill-icon.error { color: #ef4444; }
+
+.term-pill-label {
+  white-space: nowrap;
+}
+
+.term-pill-close {
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0.5;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+.term-pill-close:hover {
+  opacity: 1;
+}
+
+/* Minimize button styling */
+.term-minimize-btn {
+  font-weight: bold;
+  line-height: 1;
+}
+

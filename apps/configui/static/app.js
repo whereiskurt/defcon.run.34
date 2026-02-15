@@ -1267,7 +1267,7 @@ function markDefaults() {
 }
 
 // =====================================================
-// Terminal — Terragrunt execution modal
+// Terminal — Concurrent Terragrunt execution with minimize/restore
 // =====================================================
 
 // Module definitions: which panels are global vs regional
@@ -1288,7 +1288,8 @@ var TERMINAL_MODULES = {
   upload_proc:  { global: false }
 };
 
-var _termEventSource = null;
+// Multi-session tracking: id → { es, overlay, minimized, processRunning, label, exitCode }
+var _termSessions = {};
 
 // Check if AWS is authenticated by looking at the aws-status container
 function isAWSAuthed() {
@@ -1396,6 +1397,125 @@ function updateTerminalButtonsVisibility() {
   });
 }
 
+// --- Pill bar management ---
+
+function ensurePillBar() {
+  var bar = document.getElementById('term-pill-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'term-pill-bar';
+    document.body.appendChild(bar);
+  }
+  return bar;
+}
+
+function updatePillBar() {
+  var bar = document.getElementById('term-pill-bar');
+  if (!bar) return;
+  var ids = Object.keys(_termSessions);
+  if (ids.length === 0) {
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = '';
+  bar.innerHTML = '';
+  ids.forEach(function(id) {
+    var s = _termSessions[id];
+    var pill = document.createElement('div');
+    pill.className = 'term-pill';
+    pill.dataset.sessionId = id;
+
+    var icon, statusText;
+    if (s.processRunning) {
+      pill.classList.add('running');
+      icon = '<span class="term-pill-dot running"></span>';
+      statusText = 'running';
+    } else if (s.exitCode === 0) {
+      pill.classList.add('done');
+      icon = '<span class="term-pill-icon done">&#10003;</span>';
+      statusText = '0';
+    } else {
+      pill.classList.add('error');
+      icon = '<span class="term-pill-icon error">&#10007;</span>';
+      statusText = '' + (s.exitCode != null ? s.exitCode : '?');
+    }
+
+    pill.innerHTML = icon +
+      '<span class="term-pill-label">' + s.label + ': ' + statusText + '</span>' +
+      '<span class="term-pill-close" title="Dismiss">&times;</span>';
+
+    // Click pill → restore session
+    pill.addEventListener('click', function(e) {
+      if (e.target.classList.contains('term-pill-close')) return;
+      restoreSession(id);
+    });
+
+    // Click × → dismiss session
+    pill.querySelector('.term-pill-close').addEventListener('click', function(e) {
+      e.stopPropagation();
+      dismissSession(id);
+    });
+
+    bar.appendChild(pill);
+  });
+}
+
+function minimizeSession(id) {
+  var s = _termSessions[id];
+  if (!s) return;
+  s.minimized = true;
+  if (s.overlay) s.overlay.style.display = 'none';
+  updatePillBar();
+}
+
+function restoreSession(id) {
+  var s = _termSessions[id];
+  if (!s) return;
+  s.minimized = false;
+  if (s.overlay) {
+    s.overlay.style.display = '';
+    // Scroll output to bottom
+    var output = s.overlay.querySelector('.terminal-output');
+    if (output) output.scrollTop = output.scrollHeight;
+  }
+  updatePillBar();
+}
+
+function dismissSession(id) {
+  var s = _termSessions[id];
+  if (!s) return;
+
+  if (s.processRunning) {
+    showConfirmDialog({
+      title: 'Process still running',
+      message: 'Stop the process and dismiss this session?',
+      confirmLabel: 'Stop & Dismiss',
+      confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+      onConfirm: function() {
+        var body = new URLSearchParams();
+        body.append('id', id);
+        fetch('/api/terminal/stop', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body.toString() });
+        doCleanupSession(id);
+      }
+    });
+    return;
+  }
+  doCleanupSession(id);
+}
+
+function doCleanupSession(id) {
+  var s = _termSessions[id];
+  if (!s) return;
+  if (s.es) { s.es.close(); s.es = null; }
+  if (s.overlay) s.overlay.remove();
+  if (s.onEsc) document.removeEventListener('keydown', s.onEsc);
+  delete _termSessions[id];
+  updatePillBar();
+  htmx.trigger(document.body, 'refreshDiscovery');
+}
+
+// --- Terminal open / modal ---
+
 function openTerminal(module, command, region) {
   var body = new URLSearchParams();
   body.append('module', module);
@@ -1420,14 +1540,15 @@ function openTerminal(module, command, region) {
 }
 
 function showTerminalModal(session) {
+  var id = session.id;
   var label = session.module.replace(/_/g, '-');
   if (session.region) label += ' (' + session.region + ')';
 
   var cmdLine = session.cmd_line || ('terragrunt ' + session.command);
 
   var overlay = document.createElement('div');
-  overlay.id = 'terminal-modal';
-  overlay.className = 'fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.dataset.sessionId = id;
   overlay.innerHTML =
     '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-5xl w-full mx-auto">' +
       '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
@@ -1435,31 +1556,50 @@ function showTerminalModal(session) {
           '<div class="flex items-center gap-2">' +
             '<span class="text-green-400 text-sm font-mono font-bold">$ </span>' +
             '<span class="text-sm font-mono text-zinc-200">' + cmdLine + '</span>' +
-            '<button id="term-copy-cmd" class="text-zinc-500 hover:text-green-400 transition-colors" title="Copy command">' +
+            '<button class="term-copy-cmd text-zinc-500 hover:text-green-400 transition-colors" title="Copy command">' +
               '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>' +
             '</button>' +
           '</div>' +
           '<span class="text-[11px] text-zinc-500 font-mono" style="padding-left:1.1rem;">' + (session.work_dir || '') + '</span>' +
         '</div>' +
-        '<button id="term-close-x" class="text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
+        '<div class="flex items-center gap-1">' +
+          '<button class="term-minimize-btn text-zinc-500 hover:text-zinc-200 text-sm px-2 font-mono" title="Minimize">_</button>' +
+          '<button class="term-close-x text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
+        '</div>' +
       '</div>' +
-      '<pre id="term-output" class="terminal-output flex-1"></pre>' +
-      '<div id="term-footer" class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
-        '<span id="term-status" class="text-xs font-mono text-zinc-400">Running...</span>' +
+      '<pre class="terminal-output flex-1"></pre>' +
+      '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
+        '<span class="term-status text-xs font-mono text-zinc-400">Running...</span>' +
         '<div class="flex gap-2">' +
-          '<button id="term-stop-btn" class="rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-3 py-1 text-xs font-mono">Stop</button>' +
-          '<button id="term-close-btn" class="rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
+          '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-3 py-1 text-xs font-mono">Stop</button>' +
+          '<button class="term-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
         '</div>' +
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
 
-  var output = document.getElementById('term-output');
-  var statusEl = document.getElementById('term-status');
-  var stopBtn = document.getElementById('term-stop-btn');
-  var closeBtn = document.getElementById('term-close-btn');
-  var closeX = document.getElementById('term-close-x');
-  var copyCmd = document.getElementById('term-copy-cmd');
+  var output = overlay.querySelector('.terminal-output');
+  var statusEl = overlay.querySelector('.term-status');
+  var stopBtn = overlay.querySelector('.term-stop-btn');
+  var closeBtn = overlay.querySelector('.term-close-btn');
+  var closeX = overlay.querySelector('.term-close-x');
+  var minimizeBtn = overlay.querySelector('.term-minimize-btn');
+  var copyCmd = overlay.querySelector('.term-copy-cmd');
+
+  // Track session
+  var sessionState = {
+    es: null,
+    overlay: overlay,
+    minimized: false,
+    processRunning: true,
+    label: label,
+    exitCode: null,
+    onEsc: null
+  };
+  _termSessions[id] = sessionState;
+
+  ensurePillBar();
+  updatePillBar();
 
   if (copyCmd) {
     copyCmd.onclick = function(e) {
@@ -1470,33 +1610,32 @@ function showTerminalModal(session) {
     };
   }
 
-  var processRunning = true;
+  minimizeBtn.onclick = function(e) {
+    e.stopPropagation();
+    minimizeSession(id);
+  };
 
-  function doCloseModal() {
-    if (_termEventSource) {
-      _termEventSource.close();
-      _termEventSource = null;
-    }
-    overlay.remove();
-    document.removeEventListener('keydown', onEsc);
-    htmx.trigger(document.body, 'refreshDiscovery');
+  function doClose() {
+    doCleanupSession(id);
   }
 
   function closeModal() {
-    if (processRunning) {
+    if (sessionState.processRunning) {
       showConfirmDialog({
         title: 'Process still running',
         message: 'A terragrunt process is still running. Close anyway? The process will be stopped.',
         confirmLabel: 'Stop & Close',
         confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
         onConfirm: function() {
-          fetch('/api/terminal/stop', { method: 'POST' });
-          doCloseModal();
+          var body = new URLSearchParams();
+          body.append('id', id);
+          fetch('/api/terminal/stop', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body.toString() });
+          doClose();
         }
       });
       return;
     }
-    doCloseModal();
+    doClose();
   }
 
   closeBtn.onclick = closeModal;
@@ -1509,7 +1648,9 @@ function showTerminalModal(session) {
       confirmLabel: 'Stop',
       confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
       onConfirm: function() {
-        fetch('/api/terminal/stop', { method: 'POST' });
+        var body = new URLSearchParams();
+        body.append('id', id);
+        fetch('/api/terminal/stop', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body.toString() });
         stopBtn.disabled = true;
         stopBtn.textContent = 'Stopping...';
       }
@@ -1519,14 +1660,20 @@ function showTerminalModal(session) {
   // Escape key handler
   function onEsc(e) {
     if (e.key === 'Escape') {
+      // Only handle if this session's overlay is visible (not minimized)
+      if (sessionState.minimized) return;
+      // Check no confirm dialog is open
+      if (document.querySelector('.fixed.inset-0.z-\\[60\\]:not(.terminal-modal)')) return;
       e.stopImmediatePropagation();
       closeModal();
     }
   }
+  sessionState.onEsc = onEsc;
   document.addEventListener('keydown', onEsc);
 
   // Connect SSE — batch lines into a text buffer, flush via rAF
-  _termEventSource = new EventSource('/api/terminal/stream');
+  var es = new EventSource('/api/terminal/stream?id=' + encodeURIComponent(id));
+  sessionState.es = es;
 
   var _lineBuf = [];
   var _flushPending = false;
@@ -1539,7 +1686,7 @@ function showTerminalModal(session) {
     output.scrollTop = output.scrollHeight;
   }
 
-  _termEventSource.onmessage = function(e) {
+  es.onmessage = function(e) {
     _lineBuf.push(e.data);
     if (!_flushPending) {
       _flushPending = true;
@@ -1547,13 +1694,14 @@ function showTerminalModal(session) {
     }
   };
 
-  _termEventSource.addEventListener('done', function(e) {
-    flushLines(); // flush any remaining buffered lines
+  es.addEventListener('done', function(e) {
+    flushLines();
     var exitCode = parseInt(e.data, 10);
-    processRunning = false;
-    if (_termEventSource) {
-      _termEventSource.close();
-      _termEventSource = null;
+    sessionState.processRunning = false;
+    sessionState.exitCode = exitCode;
+    if (sessionState.es) {
+      sessionState.es.close();
+      sessionState.es = null;
     }
     stopBtn.style.display = 'none';
     if (exitCode === 0) {
@@ -1561,18 +1709,47 @@ function showTerminalModal(session) {
     } else {
       statusEl.innerHTML = '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
     }
+    updatePillBar();
   });
 
-  _termEventSource.onerror = function() {
+  es.onerror = function() {
     flushLines();
-    processRunning = false;
-    if (_termEventSource) {
-      _termEventSource.close();
-      _termEventSource = null;
+    sessionState.processRunning = false;
+    sessionState.exitCode = -1;
+    if (sessionState.es) {
+      sessionState.es.close();
+      sessionState.es = null;
     }
     stopBtn.style.display = 'none';
     statusEl.innerHTML = '<span class="text-zinc-500">Connection closed</span>';
+    updatePillBar();
   };
+}
+
+// Recover sessions on page load (e.g., after reload)
+function recoverTerminalSessions() {
+  fetch('/api/terminal/list')
+    .then(function(resp) { return resp.json(); })
+    .then(function(sessions) {
+      if (!sessions || sessions.length === 0) return;
+      sessions.forEach(function(s) {
+        if (_termSessions[s.id]) return; // already tracked
+        // Only recover running sessions or recently completed ones
+        showTerminalModal(s);
+        // If not running, mark as done
+        if (s.status !== 'running') {
+          var state = _termSessions[s.id];
+          if (state) {
+            state.processRunning = false;
+            state.exitCode = s.exit_code;
+            // Close the EventSource since process is done (SSE will send done event)
+          }
+        }
+        // Start minimized
+        minimizeSession(s.id);
+      });
+    })
+    .catch(function() { /* ignore on first load */ });
 }
 
 // Re-inject buttons after htmx swaps (e.g., after AWS status loads)
@@ -1595,3 +1772,4 @@ updateSectionToggle('infra');
 updateAllFoldButtons();
 injectTerminalButtons();
 updateTerminalButtonsVisibility();
+recoverTerminalSessions();

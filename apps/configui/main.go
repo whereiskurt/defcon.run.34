@@ -34,7 +34,7 @@ type App struct {
 	config         *SiteConfig
 	envLocal       *EnvLocalConfig
 	discovery      *DiscoveryResults
-	termSession    *TermSession
+	termSessions   map[string]*TermSession
 }
 
 // reload re-imports config from site.hcl, service configs, env files, and versions.
@@ -141,6 +141,7 @@ func main() {
 		envLocalShPath: filepath.Join(repoRoot, "env.local.sh"),
 		backupDir:      filepath.Join(repoRoot, "apps", "configui", "backups"),
 		sopsFilePath:   filepath.Join(repoRoot, "infra", "terraform", "live", "site", ".secrets.sops.json"),
+		termSessions:   make(map[string]*TermSession),
 	}
 
 	// Initial config load
@@ -170,6 +171,7 @@ func main() {
 	mux.HandleFunc("POST /api/terminal/start", app.handleTerminalStart)
 	mux.HandleFunc("GET /api/terminal/stream", app.handleTerminalStream)
 	mux.HandleFunc("POST /api/terminal/stop", app.handleTerminalStop)
+	mux.HandleFunc("GET /api/terminal/list", app.handleTerminalList)
 	mux.HandleFunc("POST /api/scan-locks", app.handleScanLocks)
 	mux.HandleFunc("POST /api/fix-locks", app.handleFixLocks)
 	mux.Handle("GET /static/", http.FileServerFS(content))

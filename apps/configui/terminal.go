@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // TermSession represents a running or completed terminal session.
@@ -29,6 +30,7 @@ type TermSession struct {
 	lines   []string
 	cmd     *exec.Cmd
 	clients map[chan string]struct{}
+	doneAt  time.Time // when the process finished (for cleanup)
 }
 
 // ModuleDef maps a panel ID to a terragrunt module path.
@@ -223,11 +225,13 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		return nil, fmt.Errorf("module directory not found: %s", workDir)
 	}
 
-	// Check no session already running
+	// Prune completed sessions older than 5 minutes
 	a.mu.Lock()
-	if a.termSession != nil && a.termSession.Status == "running" {
-		a.mu.Unlock()
-		return nil, fmt.Errorf("a terminal session is already running")
+	now := time.Now()
+	for id, s := range a.termSessions {
+		if s.Status != "running" && !s.doneAt.IsZero() && now.Sub(s.doneAt) > 5*time.Minute {
+			delete(a.termSessions, id)
+		}
 	}
 	a.mu.Unlock()
 
@@ -244,7 +248,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 	}
 
 	session := &TermSession{
-		ID:      fmt.Sprintf("term-%d", os.Getpid()),
+		ID:      fmt.Sprintf("term-%d", time.Now().UnixMilli()),
 		Module:  module,
 		Command: command,
 		Region:  region,
@@ -273,7 +277,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 	}
 
 	a.mu.Lock()
-	a.termSession = session
+	a.termSessions[session.ID] = session
 	a.mu.Unlock()
 
 	// Read both pipes concurrently to avoid deadlock when one pipe's
@@ -323,6 +327,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 			session.ExitCode = 0
 		}
 
+		session.doneAt = time.Now()
 		log.Printf("Terminal session %s completed: status=%s exit=%d", session.Module, session.Status, session.ExitCode)
 		session.closeBroadcast()
 	}()
@@ -353,14 +358,15 @@ func (a *App) handleTerminalStart(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(session)
 }
 
-// handleTerminalStream serves SSE events for the current terminal session.
+// handleTerminalStream serves SSE events for a specific terminal session.
 func (a *App) handleTerminalStream(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
 	a.mu.RLock()
-	session := a.termSession
+	session := a.termSessions[id]
 	a.mu.RUnlock()
 
 	if session == nil {
-		http.Error(w, "No terminal session", 404)
+		http.Error(w, "No terminal session with id: "+id, 404)
 		return
 	}
 
@@ -415,10 +421,16 @@ func (a *App) handleTerminalStream(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleTerminalStop kills the running terminal process.
+// handleTerminalStop kills a specific terminal process.
 func (a *App) handleTerminalStop(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", 400)
+		return
+	}
+
+	id := r.FormValue("id")
 	a.mu.RLock()
-	session := a.termSession
+	session := a.termSessions[id]
 	a.mu.RUnlock()
 
 	if session == nil || session.Status != "running" {
@@ -433,4 +445,17 @@ func (a *App) handleTerminalStop(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "stopped"})
+}
+
+// handleTerminalList returns all terminal sessions as JSON.
+func (a *App) handleTerminalList(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	sessions := make([]*TermSession, 0, len(a.termSessions))
+	for _, s := range a.termSessions {
+		sessions = append(sessions, s)
+	}
+	a.mu.RUnlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sessions)
 }
