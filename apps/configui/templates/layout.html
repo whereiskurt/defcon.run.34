@@ -36,9 +36,9 @@
       </div>
       <div class="flex items-center gap-2">
         <div id="save-result"></div>
-        <button type="submit" form="config-form" formaction="/save"
+        <button type="button"
                 class="rounded-md bg-cyan-600 hover:bg-cyan-500 text-white px-4 py-2 text-sm font-medium"
-                hx-post="/save" hx-include="#config-form" hx-target="#save-result" hx-swap="innerHTML">
+                onclick="confirmSaveAll()">
           Save
         </button>
         <button type="button" id="preview-toggle-btn"

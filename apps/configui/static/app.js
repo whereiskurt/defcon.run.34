@@ -84,9 +84,10 @@ function hidePreview() {
   }
 }
 
-// Escape key closes preview
+// Escape key closes preview (unless a modal dialog is open)
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
+    if (document.querySelector('.fixed.inset-0.z-\\[60\\]')) return;
     if (isPreviewOpen()) hidePreview();
   }
 });
@@ -440,6 +441,8 @@ function confirmSaveAll() {
   overlay.addEventListener('click', function(e) {
     if (e.target === overlay) overlay.remove();
   });
+  function onEsc(e) { if (e.key === 'Escape') { e.stopImmediatePropagation(); overlay.remove(); document.removeEventListener('keydown', onEsc); } }
+  document.addEventListener('keydown', onEsc);
   overlay.querySelector('#confirm-save').onclick = function() {
     overlay.remove();
     hidePreview();

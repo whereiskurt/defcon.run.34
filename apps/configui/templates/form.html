@@ -18,20 +18,20 @@
     <h2 class="text-lg font-bold text-zinc-500 dark:text-zinc-400">Infrastructure Modules</h2>
   </div>
 
+  {{template "github_oidc.html" .}}
+  {{template "cloudtrail.html" .}}
   {{template "secrets.html" .}}
   {{template "email.html" .}}
   {{template "ec2spots.html" .}}
   {{template "cloudfront.html" .}}
   {{template "waf.html" .}}
   {{template "ecs_clusters.html" .}}
-  {{template "dynamodb.html" .}}
-  {{template "ecr.html" .}}
   {{template "ecs_tasks.html" .}}
   {{template "ecs_services.html" .}}
+  {{template "dynamodb.html" .}}
+  {{template "ecr.html" .}}
   {{template "s3_uploads.html" .}}
   {{template "upload_proc.html" .}}
-  {{template "cloudtrail.html" .}}
-  {{template "github_oidc.html" .}}
 
   <!-- Section Divider: Services -->
   <div class="md:col-span-2 border-t border-zinc-200 dark:border-zinc-700 pt-4 mt-2 section-divider">
