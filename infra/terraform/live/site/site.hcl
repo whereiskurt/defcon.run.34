@@ -8,6 +8,16 @@ locals {
     skip_regions     = ["ap-southeast-1"] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
   }
 
+  secret_values = jsondecode(
+    # Try SOPS encrypted file first (decrypt on the fly)
+    fileexists("${get_terragrunt_dir()}/.secrets.sops.json")
+    ? run_cmd("--terragrunt-quiet", "sops", "--decrypt", "${get_terragrunt_dir()}/.secrets.sops.json")
+    # Fall back to plaintext file
+    : fileexists("${get_terragrunt_dir()}/.secrets.json")
+    ? file("${get_terragrunt_dir()}/.secrets.json")
+    : "{}"
+  )
+
   dns = {
     zonename         = "defcon.run"
     subdomains       = ["email", "run", "auth", "cms", "gpx"]
@@ -331,16 +341,6 @@ locals {
       }
     }
   }
-
-  secret_values = jsondecode(
-    # Try SOPS encrypted file first (decrypt on the fly)
-    fileexists("${get_terragrunt_dir()}/.secrets.sops.json")
-    ? run_cmd("--terragrunt-quiet", "sops", "--decrypt", "${get_terragrunt_dir()}/.secrets.sops.json")
-    # Fall back to plaintext file
-    : fileexists("${get_terragrunt_dir()}/.secrets.json")
-    ? file("${get_terragrunt_dir()}/.secrets.json")
-    : "{}"
-  )
 
   # CloudTrail for IAM activity logging and policy generation
   # Records all API calls to enable least-privilege policy generation
