@@ -367,10 +367,28 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
 }
 
 // startDiscovery kicks off a background discovery run if not already running.
+// discoveryCacheTTL is how long discovery results are considered fresh.
+const discoveryCacheTTL = 2 * time.Minute
+
 func (a *App) startDiscovery() {
+	a.startDiscoveryInner(false)
+}
+
+func (a *App) forceDiscovery() {
+	a.startDiscoveryInner(true)
+}
+
+func (a *App) startDiscoveryInner(force bool) {
 	a.mu.Lock()
 	if a.discovery != nil && a.discovery.Status == DiscoveryRunning {
 		a.mu.Unlock()
+		return
+	}
+	// Skip if cached results are fresh (unless forced)
+	if !force && a.discovery != nil && a.discovery.Status == DiscoveryDone &&
+		time.Since(a.discovery.UpdatedAt) < discoveryCacheTTL {
+		a.mu.Unlock()
+		log.Printf("Discovery skipped: cached results are %s old", time.Since(a.discovery.UpdatedAt).Round(time.Second))
 		return
 	}
 	// Snapshot config so we don't hold the lock during checks.
@@ -428,9 +446,10 @@ func (a *App) handleReload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleDiscoveryRefresh(w http.ResponseWriter, r *http.Request) {
-	go a.startDiscovery()
+	go a.forceDiscovery()
+	w.Header().Set("HX-Trigger", "refreshDiscovery")
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprint(w, `<script>showToast('Discovery refresh started')</script>`)
+	fmt.Fprint(w, `<script>showToast('Re-querying AWS resources...')</script>`)
 }
 
 // sopsProfile returns the AWS profile name to use for SOPS operations.

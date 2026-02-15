@@ -598,6 +598,22 @@ function confirmReload() {
   });
 }
 
+// Re-query AWS confirmation dialog
+function confirmRequery() {
+  showConfirmDialog({
+    title: 'Re-query AWS?',
+    message: 'This will query all AWS resources across all regions. This may take a few seconds.',
+    confirmLabel: 'Re-query',
+    onConfirm: function() {
+      var btn = document.getElementById('requery-aws-btn');
+      if (btn) btn.classList.add('spinning');
+      fetch('/api/discovery/refresh', { method: 'POST' }).then(function() {
+        htmx.trigger(document.body, 'refreshDiscovery');
+      });
+    }
+  });
+}
+
 // Export confirmation dialog
 function confirmExport() {
   var overlay = document.createElement('div');
@@ -889,6 +905,14 @@ function updateDiscoveryDots() {
 document.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'discovery-container') {
     updateDiscoveryDots();
+    // Stop spinning refresh buttons when discovery is done
+    if (!discoveryRunning()) {
+      document.querySelectorAll('.term-btn-refresh.spinning').forEach(function(btn) {
+        btn.classList.remove('spinning');
+      });
+      var rqBtn = document.getElementById('requery-aws-btn');
+      if (rqBtn) rqBtn.classList.remove('spinning');
+    }
   }
 });
 
@@ -1042,8 +1066,22 @@ function injectTerminalButtons() {
       openTerminal(panelId, 'apply', region);
     };
 
+    var refreshBtn = document.createElement('button');
+    refreshBtn.type = 'button';
+    refreshBtn.className = 'term-btn term-btn-refresh';
+    refreshBtn.title = 'Re-query AWS resources';
+    refreshBtn.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg>';
+    refreshBtn.onclick = function(e) {
+      e.stopPropagation();
+      refreshBtn.classList.add('spinning');
+      fetch('/api/discovery/refresh', { method: 'POST' }).then(function() {
+        htmx.trigger(document.body, 'refreshDiscovery');
+      });
+    };
+
     container.appendChild(planBtn);
     container.appendChild(applyBtn);
+    container.appendChild(refreshBtn);
 
     // Insert before discovery dots or chevron
     var dots = header.querySelector('.discovery-dots');

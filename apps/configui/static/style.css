@@ -337,7 +337,7 @@ input:focus, select:focus, textarea:focus {
 .discovery-dot.partial { background: #f59e0b; }
 .discovery-dot.loading {
   background: transparent;
-  border: 1.5px solid #a1a1aa;
+  border: 1.5px solid #22c55e;
   border-top-color: transparent;
   animation: disc-spin 0.8s linear infinite;
 }
@@ -431,3 +431,21 @@ input:focus, select:focus, textarea:focus {
   background: #166534;
   color: #86efac;
 }
+
+.term-btn.term-btn-refresh,
+.global-fold-btn.term-btn-refresh {
+  background: none;
+  color: #22c55e;
+  padding: 1px 3px;
+  opacity: 1;
+}
+
+.term-btn.term-btn-refresh:hover,
+.global-fold-btn.term-btn-refresh:hover {
+  color: #4ade80;
+}
+
+.term-btn-refresh.spinning svg {
+  animation: disc-spin 0.8s linear infinite;
+}
+

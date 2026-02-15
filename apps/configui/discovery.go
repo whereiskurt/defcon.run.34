@@ -108,6 +108,9 @@ func regionLabel(full string) string {
 
 // runDiscovery builds and executes all AWS resource checks based on config.
 // addResult is called as each check completes, enabling incremental UI updates.
+// maxConcurrentChecks limits parallel AWS CLI calls to avoid CPU spikes.
+const maxConcurrentChecks = 6
+
 func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(ResourceResult)) {
 	profile := "terraform"
 	if envLocal.ProfilePrefix != "" {
@@ -115,6 +118,18 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	var wg sync.WaitGroup
+	sem := make(chan struct{}, maxConcurrentChecks)
+
+	// throttled runs fn in a goroutine, limited by the semaphore.
+	throttled := func(fn func()) {
+		wg.Add(1)
+		go func() {
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			defer wg.Done()
+			fn()
+		}()
+	}
 
 	skipRegions := cfg.Site.SkipRegions
 
@@ -124,16 +139,15 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		clusterName := fmt.Sprintf("%s-%s", cfg.Site.Label, cluster.Name)
 		regions := activeRegions(cluster.Regions, skipRegions)
 		for _, region := range regions {
-			wg.Add(1)
-			go func(region string) {
-				defer wg.Done()
+			region := region
+			throttled(func() {
 				rc := checkECSCluster(profile, clusterName, region)
 				addResult(ResourceResult{
 					Panel:   "ecs_clusters",
 					Name:    clusterName,
 					Regions: []RegionCheck{rc},
 				})
-			}(region)
+			})
 		}
 	}
 
@@ -153,16 +167,15 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		for _, svc := range svcs {
 			regions := activeRegions(svc.regions, skipRegions)
 			for _, region := range regions {
-				wg.Add(1)
-				go func(svcName, region string) {
-					defer wg.Done()
+				svcName, region := svc.name, region
+				throttled(func() {
 					rc := checkECSService(profile, clusterName, svcName, region)
 					addResult(ResourceResult{
 						Panel:   "ecs_services",
 						Name:    svcName,
 						Regions: []RegionCheck{rc},
 					})
-				}(svc.name, region)
+				})
 			}
 		}
 	}
@@ -182,16 +195,15 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		for _, td := range taskDefs {
 			regions := activeRegions(td.regions, skipRegions)
 			for _, region := range regions {
-				wg.Add(1)
-				go func(name, region string) {
-					defer wg.Done()
+				name, region := td.name, region
+				throttled(func() {
 					rc := checkECSTaskDef(profile, name, region)
 					addResult(ResourceResult{
 						Panel:   "ecs_tasks",
 						Name:    name,
 						Regions: []RegionCheck{rc},
 					})
-				}(td.name, region)
+				})
 			}
 		}
 	}
@@ -205,16 +217,15 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		for _, t := range allTables {
 			regions := activeRegionRefs(t.ReplicaRegions, skipRegions)
 			for _, rr := range regions {
-				wg.Add(1)
-				go func(table string, rr RegionRef) {
-					defer wg.Done()
+				table, rr := t.TableName, rr
+				throttled(func() {
 					rc := checkDynamoDBTable(profile, table, rr.Full)
 					addResult(ResourceResult{
 						Panel:   "dynamodb",
 						Name:    table,
 						Regions: []RegionCheck{rc},
 					})
-				}(t.TableName, rr)
+				})
 			}
 		}
 	}
@@ -233,46 +244,42 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		for _, repo := range ecrRepos {
 			regions := activeRegions(repo.regions, skipRegions)
 			for _, region := range regions {
-				wg.Add(1)
-				go func(name, region string) {
-					defer wg.Done()
+				name, region := repo.name, region
+				throttled(func() {
 					rc := checkECRRepo(profile, name, region)
 					addResult(ResourceResult{
 						Panel:   "ecr",
 						Name:    name,
 						Regions: []RegionCheck{rc},
 					})
-				}(repo.name, region)
+				})
 			}
 		}
 	}
 
 	// CloudFront distributions
 	if len(cfg.CloudFront.Domains) > 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		throttled(func() {
 			results := checkCloudFrontDistributions(profile, cfg.CloudFront.Domains, cfg.DNS.ZoneName)
 			for _, r := range results {
 				addResult(r)
 			}
-		}()
+		})
 	}
 
 	// EC2 Spots
 	{
 		regions := activeRegions(cfg.EC2Spots.Regions, skipRegions)
 		for _, region := range regions {
-			wg.Add(1)
-			go func(region string) {
-				defer wg.Done()
+			region := region
+			throttled(func() {
 				rc := checkEC2Spots(profile, cfg.Site.Label, region)
 				addResult(ResourceResult{
 					Panel:   "ec2spots",
 					Name:    "spot-instances",
 					Regions: []RegionCheck{rc},
 				})
-			}(region)
+			})
 		}
 	}
 
@@ -286,16 +293,15 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		}
 		emailRegions = activeRegions(emailRegions, skipRegions)
 		for _, region := range emailRegions {
-			wg.Add(1)
-			go func(region string) {
-				defer wg.Done()
+			region := region
+			throttled(func() {
 				rc := checkSESIdentity(profile, cfg.DNS.ZoneName, region)
 				addResult(ResourceResult{
 					Panel:   "email",
 					Name:    cfg.DNS.ZoneName,
 					Regions: []RegionCheck{rc},
 				})
-			}(region)
+			})
 		}
 	}
 
@@ -309,9 +315,8 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		}
 		secretsRegions = activeRegions(secretsRegions, skipRegions)
 		for _, region := range secretsRegions {
-			wg.Add(1)
-			go func(region string) {
-				defer wg.Done()
+			region := region
+			throttled(func() {
 				path := fmt.Sprintf("/%s/secrets/%s", cfg.Site.Label, regionLabel(region))
 				rc := checkSSMPath(profile, path, region)
 				addResult(ResourceResult{
@@ -319,7 +324,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 					Name:    path,
 					Regions: []RegionCheck{rc},
 				})
-			}(region)
+			})
 		}
 	}
 
@@ -337,9 +342,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 			{"cms-media", cfg.Services.CMS.Media.ReplicaRegions},
 			{"run-gpx", cfg.Services.GPX.Storage.ReplicaRegions},
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		throttled(func() {
 			bucketSet := listS3Buckets(profile)
 			if bucketSet == nil {
 				log.Printf("Discovery: listS3Buckets failed (nil)")
@@ -370,16 +373,15 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 				}
 			}
 			log.Printf("Discovery: S3 uploads checks complete")
-		}()
+		})
 	}
 
 	// Upload Processors (Lambda functions)
 	{
 		processorRegions := activeRegions(cfg.Services.Human.Task.Regions, skipRegions)
 		for _, region := range processorRegions {
-			wg.Add(2)
-			go func(region string) {
-				defer wg.Done()
+			region := region
+			throttled(func() {
 				name := fmt.Sprintf("on-upload-%s-run-human-%s", cfg.Site.Label, regionLabel(region))
 				rc := checkLambdaFunction(profile, name, region)
 				addResult(ResourceResult{
@@ -387,9 +389,8 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 					Name:    name,
 					Regions: []RegionCheck{rc},
 				})
-			}(region)
-			go func(region string) {
-				defer wg.Done()
+			})
+			throttled(func() {
 				name := fmt.Sprintf("processor-%s-run-human-%s", cfg.Site.Label, regionLabel(region))
 				rc := checkLambdaFunction(profile, name, region)
 				addResult(ResourceResult{
@@ -397,43 +398,38 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 					Name:    name,
 					Regions: []RegionCheck{rc},
 				})
-			}(region)
+			})
 		}
 	}
 
 	// WAF
 	{
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		throttled(func() {
 			rc := checkWAF(profile)
 			addResult(ResourceResult{
 				Panel:   "waf",
 				Name:    "waf-webacl",
 				Regions: []RegionCheck{rc},
 			})
-		}()
+		})
 	}
 
 	// GitHub OIDC (IAM is global)
 	{
 		// Check OIDC provider
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		throttled(func() {
 			rc := checkOIDCProvider(profile)
 			addResult(ResourceResult{
 				Panel:   "github_oidc",
 				Name:    "oidc-provider",
 				Regions: []RegionCheck{rc},
 			})
-		}()
+		})
 
 		// Check each IAM role
 		for _, role := range cfg.GitHubOIDC.Roles {
-			wg.Add(1)
-			go func(roleName string) {
-				defer wg.Done()
+			roleName := role.Name
+			throttled(func() {
 				fullName := fmt.Sprintf("%s-github-%s", cfg.Site.Label, roleName)
 				rc := checkIAMRole(profile, fullName)
 				addResult(ResourceResult{
@@ -441,29 +437,21 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 					Name:    fullName,
 					Regions: []RegionCheck{rc},
 				})
-			}(role.Name)
+			})
 		}
-
-		// Note: delegate role lives in the management account, not checkable
-		// from the terraform profile. Skipped.
-
-		// Note: EC2 runner instance profile/role is optional infrastructure,
-		// often not deployed. Skipped to avoid false negatives.
 	}
 
 	// CloudTrail
 	{
 		trailName := fmt.Sprintf("%s-cloudtrail", cfg.Site.Label)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		throttled(func() {
 			rc := checkCloudTrail(profile, trailName, "us-east-1")
 			addResult(ResourceResult{
 				Panel:   "cloudtrail",
 				Name:    trailName,
 				Regions: []RegionCheck{rc},
 			})
-		}()
+		})
 	}
 
 	wg.Wait()
