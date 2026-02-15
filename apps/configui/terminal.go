@@ -275,7 +275,15 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		scanner := bufio.NewScanner(merged)
 		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for scanner.Scan() {
-			session.broadcast(scanner.Text())
+			line := scanner.Text()
+			// Strip terragrunt's stream prefixes to reduce output noise
+			for _, prefix := range []string{"STDOUT terraform: ", "STDERR terraform: ", "STDOUT tofu: ", "STDERR tofu: "} {
+				if strings.HasPrefix(line, prefix) {
+					line = line[len(prefix):]
+					break
+				}
+			}
+			session.broadcast(line)
 		}
 
 		err := cmd.Wait()

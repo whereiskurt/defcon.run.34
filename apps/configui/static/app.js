@@ -1055,12 +1055,19 @@ function showTerminalModal(session) {
   var closeBtn = document.getElementById('term-close-btn');
   var closeX = document.getElementById('term-close-x');
 
+  var processRunning = true;
+
   function closeModal() {
+    if (processRunning) {
+      if (!confirm('A terragrunt process is still running. Close anyway? The process will be stopped.')) return;
+      fetch('/api/terminal/stop', { method: 'POST' });
+    }
     if (_termEventSource) {
       _termEventSource.close();
       _termEventSource = null;
     }
     overlay.remove();
+    document.removeEventListener('keydown', onEsc);
     // Trigger discovery refresh
     htmx.trigger(document.body, 'refreshDiscovery');
   }
@@ -1069,6 +1076,7 @@ function showTerminalModal(session) {
   closeX.onclick = closeModal;
 
   stopBtn.onclick = function() {
+    if (!confirm('Stop the running terragrunt process? This may leave resources in a partial state.')) return;
     fetch('/api/terminal/stop', { method: 'POST' });
     stopBtn.disabled = true;
     stopBtn.textContent = 'Stopping...';
@@ -1079,7 +1087,6 @@ function showTerminalModal(session) {
     if (e.key === 'Escape') {
       e.stopImmediatePropagation();
       closeModal();
-      document.removeEventListener('keydown', onEsc);
     }
   }
   document.addEventListener('keydown', onEsc);
@@ -1097,6 +1104,7 @@ function showTerminalModal(session) {
 
   _termEventSource.addEventListener('done', function(e) {
     var exitCode = parseInt(e.data, 10);
+    processRunning = false;
     if (_termEventSource) {
       _termEventSource.close();
       _termEventSource = null;
@@ -1110,6 +1118,7 @@ function showTerminalModal(session) {
   });
 
   _termEventSource.onerror = function() {
+    processRunning = false;
     if (_termEventSource) {
       _termEventSource.close();
       _termEventSource = null;
