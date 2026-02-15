@@ -351,7 +351,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .discovery-timestamp {
-  font-size: 0.6rem;
+  font-size: 1.125rem;
   font-family: 'Fira Code', monospace;
   color: #71717a;
   user-select: none;
