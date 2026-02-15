@@ -4,7 +4,7 @@
     {{if .Identity}}
       <!-- Left: identity -->
       <div class="flex items-center gap-4 min-w-0">
-        <span class="text-2xl font-bold font-mono text-green-500 dark:text-green-400 flex-shrink-0">AWS Connected</span>
+        <span class="text-2xl font-bold font-mono text-green-500 dark:text-green-400 flex-shrink-0">AWS Connected &#x2705;</span>
         <div class="flex flex-col leading-tight min-w-0">
           <div class="flex items-center gap-2">
             <span class="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400 w-10 flex-shrink-0">Acct</span>
@@ -46,11 +46,9 @@
       </div>
     {{else}}
       <!-- Not authenticated -->
-      <div class="flex items-center gap-2">
-        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400">
-          <span class="status-dot error"></span> {{if .Error}}{{.Error}}{{else}}Not authenticated{{end}}
-        </span>
-        <span class="text-xs text-zinc-500">Run SSO Login or configure credentials.</span>
+      <div class="flex items-center gap-3">
+        <span class="text-2xl font-bold font-mono text-red-500 dark:text-red-400">Not Connected</span>
+        <span class="text-xs text-zinc-500">{{if .Error}}{{.Error}} &mdash; {{end}}Run SSO Login or configure credentials.</span>
       </div>
     {{end}}
 

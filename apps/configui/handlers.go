@@ -329,7 +329,7 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
 		escaped := template.HTMLEscapeString(out)
 		fmt.Fprintf(w, `<div class="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3">
   <div class="flex items-center justify-between mb-2">
-    <span class="text-xs text-green-400 font-medium">Credentials exported for profile: %s</span>
+    <span class="text-xs text-green-400 font-medium">AWS Credentials with <code>%s</code> Profile</span>
     <div class="flex items-center gap-2">
       <button onclick="var pre=document.getElementById('creds-output'); navigator.clipboard.writeText(pre.dataset.raw).then(function(){this.textContent='Copied!'; var b=this; setTimeout(function(){b.textContent='Copy';},1500);}.bind(this));"
               class="rounded-md bg-zinc-700 hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-300">Copy</button>
