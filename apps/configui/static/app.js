@@ -582,18 +582,31 @@ document.addEventListener('click', function(e) {
   });
 });
 
-// Global blur toggle (excludes AWS status fields)
+// Global blur toggle — directly targets non-sensitive elements only
+var _globalUnblurred = false;
 function toggleGlobalBlur() {
-  var body = document.body;
   var btn = document.getElementById('blur-toggle-btn');
-  if (body.classList.contains('pii-disabled')) {
-    // Re-blur: no confirmation needed
-    body.classList.remove('pii-disabled');
+  if (_globalUnblurred) {
+    // Re-blur: remove pii-revealed from ALL elements (including individually revealed sensitive ones)
+    document.querySelectorAll('.pii-blur.pii-revealed').forEach(function(el) {
+      el.classList.remove('pii-revealed');
+    });
+    _globalUnblurred = false;
     if (btn) btn.innerHTML = 'Unblur <span class="pii-blur" style="display:inline;cursor:pointer;">All</span>';
   } else {
     // Unblur: confirm first
     confirmUnblur();
   }
+}
+
+function doGlobalUnblur() {
+  // Only reveal non-sensitive elements — pii-sensitive elements are NEVER touched
+  document.querySelectorAll('.pii-blur:not(.pii-sensitive)').forEach(function(el) {
+    el.classList.add('pii-revealed');
+  });
+  _globalUnblurred = true;
+  var btn = document.getElementById('blur-toggle-btn');
+  if (btn) btn.innerHTML = 'Blur All';
 }
 
 function confirmUnblur() {
@@ -613,13 +626,11 @@ function confirmUnblur() {
   document.getElementById('unblur-no-btn').addEventListener('click', function() { overlay.remove(); });
   document.getElementById('unblur-yes-btn').addEventListener('click', function() {
     overlay.remove();
-    document.body.classList.add('pii-disabled');
-    var btn = document.getElementById('blur-toggle-btn');
-    if (btn) btn.innerHTML = 'Blur All';
+    doGlobalUnblur();
   });
   var onKey = function(e) {
     if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); e.stopImmediatePropagation(); }
-    if (e.key === 'Enter') { overlay.remove(); document.removeEventListener('keydown', onKey); e.stopImmediatePropagation(); document.body.classList.add('pii-disabled'); var btn = document.getElementById('blur-toggle-btn'); if (btn) btn.innerHTML = 'Blur All'; }
+    if (e.key === 'Enter') { overlay.remove(); document.removeEventListener('keydown', onKey); e.stopImmediatePropagation(); doGlobalUnblur(); }
   };
   document.addEventListener('keydown', onKey);
 }
@@ -654,34 +665,94 @@ function confirmRequery() {
 
 // Fix Locks confirmation dialog
 function confirmFixLocks() {
-  showConfirmDialog({
-    title: 'Fix state locks?',
-    message: 'This will scan all DynamoDB state tables and force-remove any stuck Terraform locks.',
-    confirmLabel: 'Fix Locks',
-    confirmClass: 'bg-amber-600 hover:bg-amber-500 text-white',
-    onConfirm: function() {
-      // Show scanning overlay
-      var scanOverlay = document.createElement('div');
-      scanOverlay.className = 'fixed inset-0 z-[60] bg-black/60 flex items-center justify-center';
-      scanOverlay.innerHTML =
-        '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-8 max-w-md mx-4 text-center">' +
-          '<div class="discovery-dot loading mx-auto mb-4" style="width:24px;height:24px;border-width:3px;"></div>' +
-          '<p class="text-sm font-mono text-zinc-400">Scanning DynamoDB tables for stuck locks...</p>' +
-        '</div>';
-      document.body.appendChild(scanOverlay);
+  // Step 1: scan for locks first
+  var scanOverlay = document.createElement('div');
+  scanOverlay.className = 'fixed inset-0 z-[60] bg-black/60 flex items-center justify-center';
+  scanOverlay.innerHTML =
+    '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-8 max-w-md mx-4 text-center">' +
+      '<div class="discovery-dot loading mx-auto mb-4" style="width:24px;height:24px;border-width:3px;"></div>' +
+      '<p class="text-sm font-mono text-zinc-400">Scanning DynamoDB tables for locks...</p>' +
+    '</div>';
+  document.body.appendChild(scanOverlay);
 
-      fetch('/api/fix-locks', { method: 'POST' })
-        .then(function(resp) { return resp.json(); })
-        .then(function(data) {
-          scanOverlay.remove();
-          showFixLocksResult(data);
-        })
-        .catch(function(err) {
-          scanOverlay.remove();
-          showFixLocksResult({ found: [], removed: [], errors: ['Request failed: ' + err.message] });
-        });
-    }
-  });
+  fetch('/api/scan-locks', { method: 'POST' })
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+      scanOverlay.remove();
+      var found = (data.found && data.found.length) || 0;
+      var errors = data.errors || [];
+
+      if (found === 0 && errors.length === 0) {
+        // No locks — show clean result
+        showFixLocksResult({ found: [], removed: [], errors: [] });
+        return;
+      }
+
+      if (found === 0 && errors.length > 0) {
+        showFixLocksResult(data);
+        return;
+      }
+
+      // Step 2: show what was found, ask to remove
+      var lockRows = '';
+      data.found.forEach(function(l) {
+        lockRows += '<tr class="border-t border-zinc-700">' +
+          '<td class="py-1 pr-3 text-zinc-400">' + l.region + '</td>' +
+          '<td class="py-1 font-mono text-xs text-zinc-300 break-all">' + l.lock_id + '</td>' +
+        '</tr>';
+      });
+
+      var overlay = document.createElement('div');
+      overlay.className = 'fixed inset-0 z-[60] bg-black/60 flex items-center justify-center';
+      overlay.innerHTML =
+        '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-6 max-w-lg mx-4">' +
+          '<div class="flex items-center gap-3 mb-3">' +
+            '<span class="text-amber-400 text-3xl">&#9888;</span>' +
+            '<h3 class="text-base font-semibold">Found ' + found + ' stuck lock' + (found > 1 ? 's' : '') + '</h3>' +
+          '</div>' +
+          '<table class="w-full text-xs mb-4">' + lockRows + '</table>' +
+          '<p class="text-sm text-zinc-400 mb-4">Remove ' + (found > 1 ? 'these locks' : 'this lock') + ' from DynamoDB?</p>' +
+          '<div class="flex justify-end gap-2">' +
+            '<button class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm" id="fixlocks-cancel">Cancel</button>' +
+            '<button class="rounded-md bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 text-sm font-medium" id="fixlocks-remove">Remove Locks</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+
+      function dismiss() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+      overlay.querySelector('#fixlocks-cancel').onclick = dismiss;
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+      function onKey(e) { if (e.key === 'Escape') { e.stopImmediatePropagation(); dismiss(); } }
+      document.addEventListener('keydown', onKey);
+
+      overlay.querySelector('#fixlocks-remove').onclick = function() {
+        dismiss();
+        // Step 3: actually remove
+        var removeOverlay = document.createElement('div');
+        removeOverlay.className = 'fixed inset-0 z-[60] bg-black/60 flex items-center justify-center';
+        removeOverlay.innerHTML =
+          '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-8 max-w-md mx-4 text-center">' +
+            '<div class="discovery-dot loading mx-auto mb-4" style="width:24px;height:24px;border-width:3px;"></div>' +
+            '<p class="text-sm font-mono text-zinc-400">Removing locks...</p>' +
+          '</div>';
+        document.body.appendChild(removeOverlay);
+
+        fetch('/api/fix-locks', { method: 'POST' })
+          .then(function(resp) { return resp.json(); })
+          .then(function(result) {
+            removeOverlay.remove();
+            showFixLocksResult(result);
+          })
+          .catch(function(err) {
+            removeOverlay.remove();
+            showFixLocksResult({ found: [], removed: [], errors: ['Request failed: ' + err.message] });
+          });
+      };
+    })
+    .catch(function(err) {
+      scanOverlay.remove();
+      showFixLocksResult({ found: [], removed: [], errors: ['Scan failed: ' + err.message] });
+    });
 }
 
 function showFixLocksResult(data) {

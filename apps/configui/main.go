@@ -170,6 +170,7 @@ func main() {
 	mux.HandleFunc("POST /api/terminal/start", app.handleTerminalStart)
 	mux.HandleFunc("GET /api/terminal/stream", app.handleTerminalStream)
 	mux.HandleFunc("POST /api/terminal/stop", app.handleTerminalStop)
+	mux.HandleFunc("POST /api/scan-locks", app.handleScanLocks)
 	mux.HandleFunc("POST /api/fix-locks", app.handleFixLocks)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
@@ -181,7 +182,7 @@ func main() {
 	port := listener.Addr().(*net.TCPAddr).Port
 	app.url = fmt.Sprintf("http://127.0.0.1:%d", port)
 
-	log.Printf("ConfigUI running at %s", app.url)
+	log.Printf("%% ./ConfigUI_ running at %s", app.url)
 	log.Printf("Press Enter twice to reload configuration from disk")
 	if !*noBrowser {
 		openBrowser(app.url)
