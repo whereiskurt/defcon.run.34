@@ -371,6 +371,15 @@ function toggleFold(id) {
   }
 }
 
+// Expand all folds in a given tab's <pre> element
+function expandAllFolds(tabId) {
+  var pre = document.getElementById('pre-' + tabId);
+  if (!pre) return;
+  pre.querySelectorAll('.fold-content.fold-collapsed').forEach(function(el) {
+    expandFold(el.id);
+  });
+}
+
 // Apply folding + highlighting after htmx swaps preview content, then restore tab/scroll
 document.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'preview-content') {
