@@ -614,6 +614,34 @@ function confirmRequery() {
   });
 }
 
+// Fix Locks confirmation dialog
+function confirmFixLocks() {
+  showConfirmDialog({
+    title: 'Fix state locks?',
+    message: 'This will scan all DynamoDB state tables and force-remove any stuck Terraform locks.',
+    confirmLabel: 'Fix Locks',
+    confirmClass: 'bg-amber-600 hover:bg-amber-500 text-white',
+    onConfirm: function() {
+      showToast('Scanning for stuck locks...', 6000);
+      fetch('/api/fix-locks', { method: 'POST' })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (data.found && data.found.length > 0) {
+            showToast('Removed ' + data.removed.length + ' of ' + data.found.length + ' stuck lock(s)', 5000);
+          } else {
+            showToast('No stuck locks found', 3000);
+          }
+          if (data.errors && data.errors.length > 0) {
+            showToast('Lock errors: ' + data.errors.join('; '), 8000);
+          }
+        })
+        .catch(function(err) {
+          showToast('Fix locks failed: ' + err.message, 5000);
+        });
+    }
+  });
+}
+
 // Apply All confirmation dialog
 function confirmApplyAll() {
   showConfirmDialog({
@@ -1241,7 +1269,7 @@ function showTerminalModal(session) {
         '</div>' +
         '<button id="term-close-x" class="text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
       '</div>' +
-      '<div id="term-output" class="terminal-output flex-1"></div>' +
+      '<pre id="term-output" class="terminal-output flex-1"></pre>' +
       '<div id="term-footer" class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<span id="term-status" class="text-xs font-mono text-zinc-400">Running...</span>' +
         '<div class="flex gap-2">' +
@@ -1323,18 +1351,30 @@ function showTerminalModal(session) {
   }
   document.addEventListener('keydown', onEsc);
 
-  // Connect SSE
+  // Connect SSE — batch lines into a text buffer, flush via rAF
   _termEventSource = new EventSource('/api/terminal/stream');
 
-  _termEventSource.onmessage = function(e) {
-    var line = document.createElement('div');
-    line.className = 'terminal-line';
-    line.textContent = e.data;
-    output.appendChild(line);
+  var _lineBuf = [];
+  var _flushPending = false;
+
+  function flushLines() {
+    _flushPending = false;
+    if (_lineBuf.length === 0) return;
+    output.textContent += _lineBuf.join('\n') + '\n';
+    _lineBuf.length = 0;
     output.scrollTop = output.scrollHeight;
+  }
+
+  _termEventSource.onmessage = function(e) {
+    _lineBuf.push(e.data);
+    if (!_flushPending) {
+      _flushPending = true;
+      requestAnimationFrame(flushLines);
+    }
   };
 
   _termEventSource.addEventListener('done', function(e) {
+    flushLines(); // flush any remaining buffered lines
     var exitCode = parseInt(e.data, 10);
     processRunning = false;
     if (_termEventSource) {
@@ -1350,6 +1390,7 @@ function showTerminalModal(session) {
   });
 
   _termEventSource.onerror = function() {
+    flushLines();
     processRunning = false;
     if (_termEventSource) {
       _termEventSource.close();

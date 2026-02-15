@@ -285,7 +285,11 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		for scanner.Scan() {
 			line := scanner.Text()
 			// Strip terragrunt's stream prefixes to reduce output noise
-			for _, prefix := range []string{"STDOUT terraform: ", "STDERR terraform: ", "STDOUT tofu: ", "STDERR tofu: "} {
+			for _, prefix := range []string{
+				"STDOUT terraform: ", "STDERR terraform: ",
+				"STDOUT tofu: ", "STDERR tofu: ",
+				"STDOUT ", "STDERR ",
+			} {
 				if strings.HasPrefix(line, prefix) {
 					line = line[len(prefix):]
 					break
