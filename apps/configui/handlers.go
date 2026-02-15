@@ -209,7 +209,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	tabActive := `px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400`
 	tabInactive := `px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer`
 	copyBtn := `rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-300`
-	stickyBar := `sticky top-0 z-10 flex justify-end gap-2 py-1 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm`
+	btnBar := `absolute top-2 right-2 z-10 flex gap-1`
 	preClass := `text-xs font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 p-4 pl-6 rounded-lg overflow-auto whitespace-pre`
 
 	w.Header().Set("Content-Type", "text/html")
@@ -233,8 +233,8 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		if i > 0 {
 			hidden = ` class="hidden"`
 		}
-		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="%s"><button onclick="expandAllFolds('%s')" class="%s">Expand All</button><button onclick="copyPreviewTab('%s')" class="%s">Copy</button></div><pre id="pre-%s" class="%s">%s</pre></div>`,
-			t.ID, hidden, stickyBar, t.ID, copyBtn, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Body))
+		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="relative"><div class="%s"><button onclick="expandAllFolds('%s')" class="%s">Expand All</button><button onclick="copyPreviewTab('%s')" class="%s">Copy</button></div><pre id="pre-%s" class="%s">%s</pre></div></div>`,
+			t.ID, hidden, btnBar, t.ID, copyBtn, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Body))
 	}
 
 	fmt.Fprint(w, `</div>`)

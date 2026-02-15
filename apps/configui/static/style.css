@@ -76,9 +76,11 @@
   filter: blur(2px);
 }
 
-.pii-blur.pii-revealed {
+.pii-blur.pii-revealed,
+.pii-blur:focus {
   filter: none;
   user-select: text;
+  cursor: text;
 }
 
 /* Preview slide panel */
