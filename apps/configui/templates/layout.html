@@ -48,7 +48,7 @@
           Export
         </button>
         <button type="button"
-                hx-post="/api/reload" hx-swap="none"
+                onclick="fetch('/api/reload',{method:'POST'}).then(function(){window.location.reload();})"
                 class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm"
                 title="Reload config from site.hcl and service files">
           Reload

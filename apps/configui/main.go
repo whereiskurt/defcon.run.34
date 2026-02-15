@@ -44,8 +44,12 @@ func (a *App) reload() {
 	a.config = DefaultConfig()
 	if imported, err := importSiteHCL(a.siteHCLPath); err == nil {
 		a.config = imported
-		log.Printf("Reloaded config from site.hcl")
-	} else if !os.IsNotExist(err) {
+		log.Printf("Imported site.hcl: label=%s zone=%s suffix=%s skip=%v",
+			imported.Site.Label, imported.DNS.ZoneName,
+			imported.Site.RandomSuffix, imported.Site.SkipRegions)
+	} else if os.IsNotExist(err) {
+		log.Printf("No site.hcl found, using defaults")
+	} else {
 		log.Printf("Warning: could not import site.hcl: %v", err)
 	}
 
@@ -53,6 +57,8 @@ func (a *App) reload() {
 		svcPath := filepath.Join(a.servicesDir, svc, "service.hcl")
 		if err := importServiceHCL(svcPath, svc, a.config); err != nil {
 			log.Printf("Warning: could not import %s: %v", svc, err)
+		} else {
+			log.Printf("Imported %s/service.hcl", svc)
 		}
 	}
 

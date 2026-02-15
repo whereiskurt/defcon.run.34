@@ -416,9 +416,7 @@ func (a *App) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleReload(w http.ResponseWriter, r *http.Request) {
 	a.reload()
-	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("HX-Refresh", "true")
-	fmt.Fprint(w, `<script>showToast('Configuration reloaded from disk')</script>`)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *App) handleDiscoveryRefresh(w http.ResponseWriter, r *http.Request) {
