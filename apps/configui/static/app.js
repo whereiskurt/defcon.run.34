@@ -573,8 +573,10 @@ function confirmSaveAll() {
   };
 }
 
-// PII blur: re-blur all pii-blur elements when clicking outside them
+// PII blur: re-blur individually revealed elements when clicking outside them
+// Skip when global unblur is active — those should stay revealed until user clicks "Blur All"
 document.addEventListener('click', function(e) {
+  if (_globalUnblurred) return;
   document.querySelectorAll('.pii-blur.pii-revealed').forEach(function(el) {
     if (!el.contains(e.target) && e.target !== el) {
       el.classList.remove('pii-revealed');
