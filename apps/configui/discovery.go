@@ -106,30 +106,19 @@ func regionLabel(full string) string {
 }
 
 // runDiscovery builds and executes all AWS resource checks based on config.
-func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
+// addResult is called as each check completes, enabling incremental UI updates.
+func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(ResourceResult)) {
 	profile := "terraform"
 	if envLocal.ProfilePrefix != "" {
 		profile = envLocal.ProfilePrefix + "-terraform"
 	}
 
-	results := &DiscoveryResults{
-		Status:    DiscoveryRunning,
-		UpdatedAt: time.Now(),
-	}
-
-	var mu sync.Mutex
 	var wg sync.WaitGroup
-
-	addResult := func(r ResourceResult) {
-		mu.Lock()
-		results.Resources = append(results.Resources, r)
-		mu.Unlock()
-	}
 
 	skipRegions := cfg.Site.SkipRegions
 
 	// ECS Clusters
-	if cfg.ECSClusters.Enabled && len(cfg.ECSClusters.Clusters) > 0 {
+	if len(cfg.ECSClusters.Clusters) > 0 {
 		cluster := cfg.ECSClusters.Clusters[0]
 		clusterName := fmt.Sprintf("%s-%s", cfg.Site.Label, cluster.Name)
 		regions := activeRegions(cluster.Regions, skipRegions)
@@ -148,7 +137,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// ECS Services — check each service in each region
-	if cfg.ECSServices.Enabled {
+	{
 		clusterName := cfg.Site.Label + "-app"
 		svcs := []struct {
 			name    string
@@ -178,7 +167,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// ECS Task Definitions
-	if cfg.ECSTasks.Enabled {
+	{
 		taskDefs := []struct {
 			name    string
 			regions []string
@@ -207,7 +196,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// DynamoDB tables — check in each table's replica regions
-	if cfg.DynamoDB.Enabled {
+	{
 		var allTables []DynamoDBTableConfig
 		allTables = append(allTables, cfg.Services.Auth.DynamoDB...)
 		allTables = append(allTables, cfg.Services.Human.DynamoDB...)
@@ -230,7 +219,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// ECR repositories — check in each region where services deploy
-	if cfg.ECR.Enabled {
+	{
 		ecrRepos := []struct {
 			name    string
 			regions []string
@@ -258,7 +247,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// CloudFront distributions
-	if cfg.CloudFront.Enabled {
+	if len(cfg.CloudFront.Domains) > 0 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -270,7 +259,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// EC2 Spots
-	if cfg.EC2Spots.Enabled {
+	{
 		regions := activeRegions(cfg.EC2Spots.Regions, skipRegions)
 		for _, region := range regions {
 			wg.Add(1)
@@ -287,7 +276,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// Email (SES)
-	if cfg.Email.Enabled {
+	{
 		emailRegions := []string{cfg.Email.PrimaryRegion}
 		for _, rr := range cfg.Email.ReplicaRegions {
 			if rr.Full != cfg.Email.PrimaryRegion {
@@ -310,7 +299,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// Secrets (SSM)
-	if cfg.Secrets.Enabled {
+	{
 		secretsRegions := []string{cfg.Secrets.PrimaryRegion}
 		for _, rr := range cfg.Secrets.ReplicaRegions {
 			if rr.Full != cfg.Secrets.PrimaryRegion {
@@ -334,7 +323,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// S3 uploads buckets — all services
-	if cfg.UserUploads.Enabled {
+	{
 		s3Checks := []struct {
 			uploadName string
 			regions    []RegionRef
@@ -363,7 +352,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// Upload Processors (Lambda functions)
-	if cfg.UploadProcessors.Enabled {
+	{
 		processorRegions := activeRegions(cfg.Services.Human.Task.Regions, skipRegions)
 		for _, region := range processorRegions {
 			wg.Add(2)
@@ -391,7 +380,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// WAF
-	if cfg.WAF.Enabled {
+	{
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -405,7 +394,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// GitHub OIDC (IAM is global)
-	if cfg.GitHubOIDC.Enabled {
+	{
 		// Check OIDC provider
 		wg.Add(1)
 		go func() {
@@ -433,21 +422,11 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 			}(role.Name)
 		}
 
-		// Check delegate role
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			fullName := fmt.Sprintf("%s-%s", cfg.Site.Label, cfg.GitHubOIDC.DelegateRoleName)
-			rc := checkIAMRole(profile, fullName)
-			addResult(ResourceResult{
-				Panel:   "github_oidc",
-				Name:    fullName,
-				Regions: []RegionCheck{rc},
-			})
-		}()
+		// Note: delegate role lives in the management account, not checkable
+		// from the terraform profile. Skipped.
 
-		// Check EC2 runner instance profile if enabled
-		if cfg.GitHubOIDC.EC2RunnerProfile.Enabled {
+		// Check EC2 runner instance profile
+		if cfg.GitHubOIDC.EC2RunnerProfile.Name != "" {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -463,7 +442,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	// CloudTrail
-	if cfg.CloudTrail.Enabled {
+	{
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -477,9 +456,6 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 	}
 
 	wg.Wait()
-	results.Status = DiscoveryDone
-	results.UpdatedAt = time.Now()
-	return results
 }
 
 // --- Individual AWS check functions ---

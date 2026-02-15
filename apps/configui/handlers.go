@@ -369,14 +369,23 @@ func (a *App) startDiscovery() {
 	cfgCopy := *a.config
 	envCopy := *a.envLocal
 	a.discovery = &DiscoveryResults{Status: DiscoveryRunning, UpdatedAt: time.Now()}
+	disc := a.discovery
 	a.mu.Unlock()
 
 	go func() {
-		results := runDiscovery(&cfgCopy, &envCopy)
+		// addResult writes directly into the live discovery struct
+		addResult := func(r ResourceResult) {
+			a.mu.Lock()
+			disc.Resources = append(disc.Resources, r)
+			disc.UpdatedAt = time.Now()
+			a.mu.Unlock()
+		}
+		runDiscovery(&cfgCopy, &envCopy, addResult)
 		a.mu.Lock()
-		a.discovery = results
+		disc.Status = DiscoveryDone
+		disc.UpdatedAt = time.Now()
 		a.mu.Unlock()
-		log.Printf("Discovery complete: %d resources checked", len(results.Resources))
+		log.Printf("Discovery complete: %d resources checked", len(disc.Resources))
 	}()
 }
 

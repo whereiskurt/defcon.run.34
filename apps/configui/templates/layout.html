@@ -96,7 +96,7 @@
 
   <!-- Discovery data carrier (hidden, htmx-polled) -->
   <div id="discovery-container" class="hidden"
-       hx-get="/api/discovery" hx-trigger="load delay:2s, refreshDiscovery from:body, every 5s [discoveryRunning()]"
+       hx-get="/api/discovery" hx-trigger="load delay:2s, refreshDiscovery from:body, every 2s [discoveryRunning()]"
        hx-swap="innerHTML">
   </div>
 
