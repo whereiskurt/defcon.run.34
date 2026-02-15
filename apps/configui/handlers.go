@@ -207,16 +207,16 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tabActive := `px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400`
-	tabInactive := `px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer`
-	copyBtn := `rounded-md bg-zinc-700 hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-300`
-	stickyBar := `sticky top-0 z-10 flex justify-end gap-2 py-1 bg-zinc-900/90 backdrop-blur-sm`
-	preClass := `text-xs font-mono bg-zinc-900 text-zinc-300 p-4 pl-6 rounded-lg overflow-auto whitespace-pre`
+	tabInactive := `px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer`
+	copyBtn := `rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-300`
+	stickyBar := `sticky top-0 z-10 flex justify-end gap-2 py-1 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm`
+	preClass := `text-xs font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 p-4 pl-6 rounded-lg overflow-auto whitespace-pre`
 
 	w.Header().Set("Content-Type", "text/html")
 
 	// Tab buttons
 	fmt.Fprint(w, `<div id="preview-tabs">`)
-	fmt.Fprintf(w, `<div class="flex flex-wrap gap-1 border-b border-zinc-700 mb-3" id="ptab-bar">`)
+	fmt.Fprintf(w, `<div class="flex flex-wrap gap-1 border-b border-zinc-300 dark:border-zinc-700 mb-3" id="ptab-bar">`)
 	for i, t := range tabs {
 		cls := tabInactive
 		if i == 0 {

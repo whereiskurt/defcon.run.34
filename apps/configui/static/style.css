@@ -102,16 +102,27 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.5);
 }
 
-/* HCL Syntax highlighting */
-.hl-cmt    { color: #6b7280; font-style: italic; }  /* gray-500 */
-.hl-str    { color: #86efac; }                       /* green-300 */
-.hl-interp { color: #67e8f9; font-weight: 500; }     /* cyan-300 */
-.hl-num    { color: #fcd34d; }                       /* amber-300 */
-.hl-bool   { color: #67e8f9; font-weight: 500; }     /* cyan-300 */
-.hl-func   { color: #c4b5fd; }                       /* violet-300 */
-.hl-key    { color: #e4e4e7; }                       /* zinc-200 */
-.hl-op     { color: #a1a1aa; }                       /* zinc-400 */
-.hl-brace  { color: #a1a1aa; }                       /* zinc-400 */
+/* HCL Syntax highlighting — light mode */
+.hl-cmt    { color: #9ca3af; font-style: italic; }  /* gray-400 */
+.hl-str    { color: #16a34a; }                       /* green-600 */
+.hl-interp { color: #0891b2; font-weight: 500; }     /* cyan-600 */
+.hl-num    { color: #d97706; }                       /* amber-600 */
+.hl-bool   { color: #0891b2; font-weight: 500; }     /* cyan-600 */
+.hl-func   { color: #7c3aed; }                       /* violet-600 */
+.hl-key    { color: #3f3f46; }                       /* zinc-700 */
+.hl-op     { color: #71717a; }                       /* zinc-500 */
+.hl-brace  { color: #71717a; }                       /* zinc-500 */
+
+/* HCL Syntax highlighting — dark mode */
+.dark .hl-cmt    { color: #6b7280; }                 /* gray-500 */
+.dark .hl-str    { color: #86efac; }                 /* green-300 */
+.dark .hl-interp { color: #67e8f9; }                 /* cyan-300 */
+.dark .hl-num    { color: #fcd34d; }                 /* amber-300 */
+.dark .hl-bool   { color: #67e8f9; }                 /* cyan-300 */
+.dark .hl-func   { color: #c4b5fd; }                 /* violet-300 */
+.dark .hl-key    { color: #e4e4e7; }                 /* zinc-200 */
+.dark .hl-op     { color: #a1a1aa; }                 /* zinc-400 */
+.dark .hl-brace  { color: #a1a1aa; }                 /* zinc-400 */
 
 /* Code folding in preview */
 .fold-line {
@@ -126,11 +137,15 @@ input:focus, select:focus, textarea:focus {
   line-height: 1;
   text-align: center;
   cursor: pointer;
-  color: #52525b;
+  color: #a1a1aa;
   user-select: none;
   margin-left: -1.6em;
   margin-right: 0.2em;
   vertical-align: middle;
+}
+
+.dark .fold-icon {
+  color: #52525b;
 }
 
 .fold-icon:hover {
@@ -146,10 +161,14 @@ input:focus, select:focus, textarea:focus {
 }
 
 .fold-summary {
-  color: #52525b;
+  color: #a1a1aa;
   font-style: italic;
   cursor: pointer;
   user-select: none;
+}
+
+.dark .fold-summary {
+  color: #52525b;
 }
 
 .fold-summary:hover {

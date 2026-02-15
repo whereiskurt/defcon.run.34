@@ -97,7 +97,7 @@ var _activePreviewTab = null;
 var _previewScroll = 0;
 
 var TAB_ACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400';
-var TAB_INACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer';
+var TAB_INACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer';
 
 function switchPreviewTab(tab) {
   _activePreviewTab = tab;
