@@ -452,6 +452,45 @@ input:focus, select:focus, textarea:focus {
   animation: disc-spin 0.8s linear infinite;
 }
 
+/* Preview drag handle — resizable split pane */
+.preview-drag-handle {
+  width: 5px;
+  cursor: col-resize;
+  background: transparent;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+  height: calc(100vh - 57px);
+  position: sticky;
+  top: 57px;
+}
+
+.preview-drag-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 1px;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.preview-drag-handle:hover::after,
+.preview-drag-handle.dragging::after {
+  background: #22c55e;
+}
+
+.preview-drag-handle.dragging {
+  cursor: col-resize;
+}
+
+body.preview-dragging {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 /* Sync lock icons — linked fields across panels */
 .sync-lock {
   display: inline-flex;

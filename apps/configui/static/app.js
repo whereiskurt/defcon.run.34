@@ -138,12 +138,14 @@ function isPreviewOpen() {
 }
 
 function showPreview() {
-  const panel = document.getElementById('preview-panel');
-  const grid = document.getElementById('form-grid');
+  var panel = document.getElementById('preview-panel');
+  var handle = document.getElementById('preview-drag-handle');
+  var grid = document.getElementById('form-grid');
   if (panel) {
     panel.classList.remove('hidden');
     panel.classList.add('flex');
   }
+  if (handle) handle.classList.remove('hidden');
   if (grid) {
     grid.classList.remove('md:grid-cols-2');
     grid.classList.add('grid-cols-1');
@@ -154,12 +156,14 @@ function showPreview() {
 }
 
 function hidePreview() {
-  const panel = document.getElementById('preview-panel');
-  const grid = document.getElementById('form-grid');
+  var panel = document.getElementById('preview-panel');
+  var handle = document.getElementById('preview-drag-handle');
+  var grid = document.getElementById('form-grid');
   if (panel) {
     panel.classList.add('hidden');
     panel.classList.remove('flex');
   }
+  if (handle) handle.classList.add('hidden');
   if (grid) {
     grid.classList.add('md:grid-cols-2');
     grid.classList.remove('grid-cols-1');
@@ -168,6 +172,40 @@ function hidePreview() {
     });
   }
 }
+
+// Draggable preview resize handle
+(function() {
+  var handle = document.getElementById('preview-drag-handle');
+  var panel = document.getElementById('preview-panel');
+  if (!handle || !panel) return;
+
+  var dragging = false;
+
+  handle.addEventListener('mousedown', function(e) {
+    e.preventDefault();
+    dragging = true;
+    handle.classList.add('dragging');
+    document.body.classList.add('preview-dragging');
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    var wrapperWidth = document.getElementById('content-wrapper').offsetWidth;
+    var previewWidth = wrapperWidth - e.clientX;
+    // Clamp between 200px and 80% of wrapper
+    var minW = 200;
+    var maxW = wrapperWidth * 0.8;
+    previewWidth = Math.max(minW, Math.min(maxW, previewWidth));
+    panel.style.width = previewWidth + 'px';
+  });
+
+  document.addEventListener('mouseup', function() {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.classList.remove('preview-dragging');
+  });
+})()
 
 // Escape key closes preview (unless a modal dialog is open)
 document.addEventListener('keydown', function(e) {
@@ -551,7 +589,7 @@ function toggleGlobalBlur() {
   if (body.classList.contains('pii-disabled')) {
     // Re-blur: no confirmation needed
     body.classList.remove('pii-disabled');
-    if (btn) btn.textContent = 'Unblur All';
+    if (btn) btn.innerHTML = 'Unblur <span class="pii-blur" style="display:inline;cursor:pointer;">All</span>';
   } else {
     // Unblur: confirm first
     confirmUnblur();
@@ -577,11 +615,11 @@ function confirmUnblur() {
     overlay.remove();
     document.body.classList.add('pii-disabled');
     var btn = document.getElementById('blur-toggle-btn');
-    if (btn) btn.textContent = 'Blur All';
+    if (btn) btn.innerHTML = 'Blur All';
   });
   var onKey = function(e) {
     if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); e.stopImmediatePropagation(); }
-    if (e.key === 'Enter') { overlay.remove(); document.removeEventListener('keydown', onKey); e.stopImmediatePropagation(); document.body.classList.add('pii-disabled'); var btn = document.getElementById('blur-toggle-btn'); if (btn) btn.textContent = 'Blur All'; }
+    if (e.key === 'Enter') { overlay.remove(); document.removeEventListener('keydown', onKey); e.stopImmediatePropagation(); document.body.classList.add('pii-disabled'); var btn = document.getElementById('blur-toggle-btn'); if (btn) btn.innerHTML = 'Blur All'; }
   };
   document.addEventListener('keydown', onKey);
 }
