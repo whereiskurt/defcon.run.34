@@ -118,11 +118,23 @@ function schedulePreviewRefresh() {
     if (!isPreviewOpen()) return;
     var pc = document.getElementById('preview-content');
     if (pc) _previewScroll = pc.scrollTop;
-    htmx.ajax('POST', '/preview', {
-      source: '#config-form',
-      target: '#preview-content',
-      swap: 'innerHTML'
-    });
+    var f = document.getElementById('config-form');
+    if (!f) return;
+    fetch('/preview', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: new URLSearchParams(new FormData(f)).toString()
+    }).then(function(resp) { return resp.text(); })
+      .then(function(html) {
+        var pc = document.getElementById('preview-content');
+        if (!pc) return;
+        pc.innerHTML = html;
+        pc.querySelectorAll('pre').forEach(addCodeFolding);
+        if (_activePreviewTab) {
+          switchPreviewTab(_activePreviewTab);
+        }
+        pc.scrollTop = _previewScroll;
+      });
   }, 600);
 }
 
