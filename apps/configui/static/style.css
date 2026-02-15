@@ -50,7 +50,7 @@
   transform: translateX(1.25rem);
 }
 
-/* Global expand/collapse fold buttons */
+/* Global expand/collapse fold buttons (+/−) */
 .global-fold-btn {
   display: inline-flex;
   align-items: center;
@@ -59,9 +59,14 @@
   background: none;
   color: #a1a1aa;
   cursor: pointer;
-  padding: 4px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1;
+  width: 1.6rem;
+  height: 1.6rem;
   border-radius: 4px;
   transition: color 0.15s, background 0.15s;
+  user-select: none;
 }
 
 .global-fold-btn:hover {
