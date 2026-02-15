@@ -35,8 +35,6 @@
         <img src="/static/dcjack.svg" alt="DC" class="w-7 h-7 header-bunny drop-shadow-[0_0_6px_rgba(34,197,94,0.5)]">
         <span class="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 px-2 py-0.5 rounded font-mono">{{.Config.Site.Label}}</span>
         <span class="text-sm font-mono text-zinc-400">defcon.run</span>
-        <button type="button" onclick="expandAllPanels()" class="rounded-md bg-green-700 hover:bg-green-600 text-white px-3 py-1 text-xs font-mono">Expand All</button>
-        <button type="button" onclick="collapseAllPanels()" class="rounded-md bg-green-700 hover:bg-green-600 text-white px-3 py-1 text-xs font-mono">Collapse All</button>
       </div>
       <div class="flex items-center gap-2">
         <div id="save-result"></div>
@@ -47,8 +45,7 @@
         </button>
         <button type="button" id="preview-toggle-btn"
                 class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm"
-                hx-post="/preview" hx-include="#config-form" hx-target="#preview-content" hx-swap="innerHTML"
-                onclick="showPreview()">
+                onclick="if(isPreviewOpen()){hidePreview();}else{showPreview();htmx.ajax('POST','/preview',{source:'#config-form',target:'#preview-content',swap:'innerHTML'});}">
           Preview
         </button>
         <a href="/export" class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm">

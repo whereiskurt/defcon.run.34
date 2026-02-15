@@ -582,6 +582,7 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 
 	// GitHub OIDC
 	cfg.GitHubOIDC.Enabled = formBool(r, "github_oidc.enabled")
+	cfg.GitHubOIDC.DelegateRoleName = formStr(r, "github_oidc.delegate_role_name", "github-delegate")
 	cfg.GitHubOIDC.EC2RunnerProfile.Enabled = formBool(r, "github_oidc.ec2_runner.enabled")
 	cfg.GitHubOIDC.EC2RunnerProfile.Name = formStr(r, "github_oidc.ec2_runner.name", "github-runner")
 

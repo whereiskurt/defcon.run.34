@@ -178,11 +178,21 @@ type CloudTrailConfig struct {
 }
 
 type GitHubOIDCConfig struct {
-	Enabled          bool `json:"enabled"`
+	Enabled          bool   `json:"enabled"`
+	DelegateRoleName string `json:"delegate_role_name"`
 	EC2RunnerProfile struct {
 		Enabled bool   `json:"enabled"`
 		Name    string `json:"name"`
 	} `json:"ec2_runner_instance_profile"`
+	Roles []GitHubOIDCRole `json:"roles"`
+}
+
+type GitHubOIDCRole struct {
+	Name                   string `json:"name"`
+	Description            string `json:"description"`
+	BranchRestriction      string `json:"branch_restriction,omitempty"`
+	EnvironmentRestriction string `json:"environment_restriction,omitempty"`
+	MaxSessionDuration     int    `json:"max_session_duration"`
 }
 
 // Service configs
@@ -467,13 +477,23 @@ func DefaultConfig() *SiteConfig {
 			MonitorRoles:          []string{"terragrunt", "application", "readonly", "prowler", "e2e", "release", "deploy"},
 		},
 		GitHubOIDC: GitHubOIDCConfig{
-			Enabled: true,
+			Enabled:          true,
+			DelegateRoleName: "github-delegate",
 			EC2RunnerProfile: struct {
 				Enabled bool   `json:"enabled"`
 				Name    string `json:"name"`
 			}{
 				Enabled: true,
 				Name:    "github-runner",
+			},
+			Roles: []GitHubOIDCRole{
+				{Name: "terragrunt", Description: "Terragrunt infrastructure deployments", EnvironmentRestriction: "terraform-apply", MaxSessionDuration: 3600},
+				{Name: "application", Description: "Application deployments (ECR, S3, ECS)", BranchRestriction: "main", MaxSessionDuration: 3600},
+				{Name: "readonly", Description: "Read-only for PR plan previews", MaxSessionDuration: 3600},
+				{Name: "prowler", Description: "Prowler security scanning (read-only)", MaxSessionDuration: 3600},
+				{Name: "e2e", Description: "E2E tests against production (S3 email access)", EnvironmentRestriction: "e2e-tests", MaxSessionDuration: 3600},
+				{Name: "release", Description: "Release workflow (ECR push, S3 assets, CF invalidation)", MaxSessionDuration: 7200},
+				{Name: "deploy", Description: "Deploy workflow (ECS updates via terragrunt)", BranchRestriction: "main", MaxSessionDuration: 3600},
 			},
 		},
 		Services: ServiceConfigs{

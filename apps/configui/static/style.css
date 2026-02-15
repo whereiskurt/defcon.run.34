@@ -102,6 +102,13 @@
   cursor: text;
 }
 
+/* Global blur override (excludes pii-sensitive elements like AWS account/ARN) */
+.pii-disabled .pii-blur:not(.pii-sensitive) {
+  filter: none;
+  user-select: text;
+  cursor: text;
+}
+
 /* Preview slide panel */
 #preview-panel {
   transition: transform 0.3s ease;

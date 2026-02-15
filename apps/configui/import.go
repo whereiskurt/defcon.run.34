@@ -644,6 +644,16 @@ func importSiteHCL(path string) (*SiteConfig, error) {
 		}
 	}
 
+	// github_oidc_delegate_role_name (outside github_oidc block)
+	// Template: "${local.site.label}-github-delegate" → extract suffix after "}-"
+	if v, ok := extractString(localsContent, "github_oidc_delegate_role_name"); ok {
+		if idx := strings.Index(v, "}-"); idx >= 0 {
+			cfg.GitHubOIDC.DelegateRoleName = v[idx+2:]
+		} else {
+			cfg.GitHubOIDC.DelegateRoleName = v
+		}
+	}
+
 	// github_oidc block
 	if block, ok := isolateBlock(localsContent, "github_oidc"); ok {
 		if v, ok := extractBool(block, "enabled"); ok {

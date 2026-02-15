@@ -470,14 +470,27 @@ function confirmSaveAll() {
   };
 }
 
-// PII blur: re-blur <pre> elements when clicking outside them
+// PII blur: re-blur all pii-blur elements when clicking outside them
 document.addEventListener('click', function(e) {
-  document.querySelectorAll('pre.pii-blur.pii-revealed').forEach(function(el) {
-    if (!el.contains(e.target)) {
+  document.querySelectorAll('.pii-blur.pii-revealed').forEach(function(el) {
+    if (!el.contains(e.target) && e.target !== el) {
       el.classList.remove('pii-revealed');
     }
   });
 });
+
+// Global blur toggle (excludes AWS status fields)
+function toggleGlobalBlur() {
+  var body = document.body;
+  var btn = document.getElementById('blur-toggle-btn');
+  if (body.classList.contains('pii-disabled')) {
+    body.classList.remove('pii-disabled');
+    if (btn) btn.textContent = 'Unblur All';
+  } else {
+    body.classList.add('pii-disabled');
+    if (btn) btn.textContent = 'Blur All';
+  }
+}
 
 // Initialize on load
 initTheme();

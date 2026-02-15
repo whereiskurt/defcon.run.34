@@ -14,11 +14,11 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-1 mt-2">
           <div>
             <span class="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Account</span>
-            <p class="font-mono text-sm text-zinc-200 pii-blur" onclick="this.classList.add('pii-revealed')">{{.Identity.Account}}</p>
+            <p class="font-mono text-sm text-zinc-200 pii-blur pii-sensitive" onclick="this.classList.add('pii-revealed')">{{.Identity.Account}}</p>
           </div>
           <div class="sm:col-span-2">
             <span class="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">ARN</span>
-            <p class="font-mono text-xs text-zinc-400 pii-blur" onclick="this.classList.toggle('pii-revealed'); this.textContent = this.classList.contains('pii-revealed') ? this.dataset.full : this.dataset.short;" data-full="{{.Identity.ARN}}" data-short="{{truncMid .Identity.ARN 24}}">{{truncMid .Identity.ARN 24}}</p>
+            <p class="font-mono text-xs text-zinc-400 pii-blur pii-sensitive" onclick="this.classList.toggle('pii-revealed'); this.textContent = this.classList.contains('pii-revealed') ? this.dataset.full : this.dataset.short;" data-full="{{.Identity.ARN}}" data-short="{{truncMid .Identity.ARN 24}}">{{truncMid .Identity.ARN 24}}</p>
           </div>
         </div>
       {{else}}

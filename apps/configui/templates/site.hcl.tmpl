@@ -296,7 +296,7 @@ locals {
   }
 
   # Extracted to avoid self-reference within github_oidc block
-  github_oidc_delegate_role_name = "${local.site.label}-github-delegate" # "dc34-github-delegate"
+  github_oidc_delegate_role_name = "${local.site.label}-<<.GitHubOIDC.DelegateRoleName>>" # "dc34-<<.GitHubOIDC.DelegateRoleName>>"
 
   github_oidc = {
     enabled            = <<boolHCL .GitHubOIDC.Enabled>>
