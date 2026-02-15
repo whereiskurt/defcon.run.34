@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -277,6 +278,12 @@ func (a *App) handleAWSStatus(w http.ResponseWriter, r *http.Request) {
 	status := checkAWSStatus(prefix, suffix, regions, a.envLocal.ProfilePrefix)
 	status.SSOSession = a.envLocal.SSOSessionName
 
+	// Trigger discovery after successful AWS auth and tell client to refetch
+	if status.Identity != nil {
+		go a.startDiscovery()
+		w.Header().Set("HX-Trigger", "refreshDiscovery")
+	}
+
 	tmpl, err := template.New("aws_status.html").Funcs(template.FuncMap{
 		"truncMid": func(s string, keep int, args ...string) template.HTML {
 			mode := ""
@@ -312,8 +319,8 @@ func (a *App) handleSSOLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := runSSOLogin(session)
 	w.Header().Set("Content-Type", "text/html")
-	// Always trigger a status refresh after SSO login attempt
-	w.Header().Set("HX-Trigger", "refreshAwsStatus")
+	// Always trigger a status refresh + discovery after SSO login attempt
+	w.Header().Set("HX-Trigger", `{"refreshAwsStatus":null,"refreshDiscovery":null}`)
 	if err != nil {
 		fmt.Fprintf(w, `<div class="py-2"><span class="text-xs text-red-400">SSO login failed: %s</span></div>`, template.HTMLEscapeString(out))
 	} else {
@@ -349,6 +356,51 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
        title="Click to reveal/blur">%s</pre>
 </div>`, template.HTMLEscapeString(profile), escaped, escaped)
 	}
+}
+
+// startDiscovery kicks off a background discovery run if not already running.
+func (a *App) startDiscovery() {
+	a.mu.Lock()
+	if a.discovery != nil && a.discovery.Status == DiscoveryRunning {
+		a.mu.Unlock()
+		return
+	}
+	// Snapshot config so we don't hold the lock during checks.
+	cfgCopy := *a.config
+	envCopy := *a.envLocal
+	a.discovery = &DiscoveryResults{Status: DiscoveryRunning, UpdatedAt: time.Now()}
+	a.mu.Unlock()
+
+	go func() {
+		results := runDiscovery(&cfgCopy, &envCopy)
+		a.mu.Lock()
+		a.discovery = results
+		a.mu.Unlock()
+		log.Printf("Discovery complete: %d resources checked", len(results.Resources))
+	}()
+}
+
+func (a *App) handleDiscovery(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	disc := a.discovery
+	a.mu.RUnlock()
+
+	tmpl, err := template.New("discovery.html").ParseFS(content, "templates/partials/discovery.html")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Template error: %v", err), 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	if err := tmpl.Execute(w, disc); err != nil {
+		log.Printf("Discovery template error: %v", err)
+	}
+}
+
+func (a *App) handleDiscoveryRefresh(w http.ResponseWriter, r *http.Request) {
+	go a.startDiscovery()
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, `<script>showToast('Discovery refresh started')</script>`)
 }
 
 // sopsProfile returns the AWS profile name to use for SOPS operations.

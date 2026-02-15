@@ -33,6 +33,7 @@ type App struct {
 	mu             sync.RWMutex
 	config         *SiteConfig
 	envLocal       *EnvLocalConfig
+	discovery      *DiscoveryResults
 }
 
 // reload re-imports config from site.hcl, service configs, env files, and versions.
@@ -154,6 +155,8 @@ func main() {
 	mux.HandleFunc("GET /api/aws-status", app.handleAWSStatus)
 	mux.HandleFunc("POST /api/sso-login", app.handleSSOLogin)
 	mux.HandleFunc("POST /api/export-creds", app.handleExportCreds)
+	mux.HandleFunc("GET /api/discovery", app.handleDiscovery)
+	mux.HandleFunc("POST /api/discovery/refresh", app.handleDiscoveryRefresh)
 	mux.HandleFunc("POST /api/sops/edit", app.handleSOPSEdit)
 	mux.HandleFunc("POST /api/sops/save", app.handleSOPSSave)
 	mux.Handle("GET /static/", http.FileServerFS(content))

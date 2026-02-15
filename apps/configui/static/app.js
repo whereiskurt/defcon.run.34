@@ -609,5 +609,155 @@ function toggleAllModules(section) {
   if (btn) btn.textContent = anyEnabled ? 'Enable All' : 'Disable All';
 }
 
+// Discovery — per-region status dots on panel headers
+
+// Panels that have AWS resource discovery checks
+var DISCOVERABLE_PANELS = {
+  ecs_clusters: true, ecs_services: true, ecs_tasks: true,
+  dynamodb: true, ecr: true, cloudfront: true, ec2spots: true,
+  email: true, secrets: true, s3_uploads: true, waf: true,
+  cloudtrail: true, upload_proc: true
+};
+
+// Used by htmx conditional polling: returns true while discovery is running
+function discoveryRunning() {
+  var data = document.getElementById('discovery-data');
+  return data && data.dataset.status === 'running';
+}
+
+function updateDiscoveryDots() {
+  var container = document.getElementById('discovery-container');
+  if (!container) return;
+  var data = document.getElementById('discovery-data');
+  if (!data) return;
+
+  var status = data.dataset.status;
+  var spans = container.querySelectorAll('[data-panel][data-region]');
+
+  // Group by panel
+  var panels = {};
+  spans.forEach(function(span) {
+    var panel = span.dataset.panel;
+    if (!panels[panel]) panels[panel] = [];
+    panels[panel].push({
+      region: span.dataset.region,
+      resource: span.dataset.resource,
+      exists: span.dataset.exists === 'true',
+      error: span.dataset.error,
+      detail: span.dataset.detail
+    });
+  });
+
+  // For each discoverable panel, find or create dots container in header
+  document.querySelectorAll('[data-panel]').forEach(function(panelEl) {
+    var panelId = panelEl.dataset.panel;
+    if (!DISCOVERABLE_PANELS[panelId]) return;
+
+    var header = panelEl.querySelector('.flex.justify-between');
+    if (!header) return;
+
+    // Find or create dots container
+    var dotsContainer = header.querySelector('.discovery-dots');
+    if (!dotsContainer) {
+      dotsContainer = document.createElement('div');
+      dotsContainer.className = 'discovery-dots flex items-center gap-1.5 ml-auto mr-2';
+      // Insert before the chevron svg
+      var chevron = header.querySelector('.chevron');
+      if (chevron) {
+        chevron.parentElement.insertBefore(dotsContainer, chevron);
+      } else {
+        header.appendChild(dotsContainer);
+      }
+    }
+
+    var entries = panels[panelId];
+    if (status === 'running' && !entries) {
+      // Show loading spinner only on discoverable panels
+      dotsContainer.innerHTML = '<span class="discovery-dot loading" title="Scanning..."></span>';
+      return;
+    }
+
+    if (!entries || entries.length === 0) {
+      dotsContainer.innerHTML = '';
+      return;
+    }
+
+    // Deduplicate by region (keep best status per region)
+    var byRegion = {};
+    entries.forEach(function(e) {
+      var key = e.region;
+      if (!byRegion[key]) {
+        byRegion[key] = { exists: false, errors: [], details: [], resources: [] };
+      }
+      byRegion[key].resources.push(e.resource);
+      if (e.exists) byRegion[key].exists = true;
+      if (e.error) byRegion[key].errors.push(e.resource + ': ' + e.error);
+      if (e.detail) byRegion[key].details.push(e.resource + ': ' + e.detail);
+    });
+
+    // Count resources per region for summary
+    var html = '';
+    var regionOrder = ['use1', 'cac1', 'apse1', 'global'];
+    var sortedRegions = Object.keys(byRegion).sort(function(a, b) {
+      var ai = regionOrder.indexOf(a); if (ai < 0) ai = 99;
+      var bi = regionOrder.indexOf(b); if (bi < 0) bi = 99;
+      return ai - bi;
+    });
+
+    sortedRegions.forEach(function(region) {
+      var info = byRegion[region];
+      // Count found vs total
+      var total = info.resources.length;
+      var foundCount = 0;
+      entries.forEach(function(e) { if (e.region === region && e.exists) foundCount++; });
+      var allFound = foundCount === total;
+      var noneFound = foundCount === 0;
+
+      var cls = 'discovery-dot';
+      if (allFound) cls += ' found';
+      else if (noneFound) cls += ' missing';
+      else cls += ' partial';
+
+      var tooltip = region;
+      if (info.details.length > 0) tooltip += '\n' + info.details.join('\n');
+      if (info.errors.length > 0) tooltip += '\n' + info.errors.join('\n');
+      if (total > 1) tooltip += '\n(' + foundCount + '/' + total + ' found)';
+
+      html += '<div class="flex items-center gap-0.5" title="' + tooltip.replace(/"/g, '&quot;') + '">';
+      html += '<span class="' + cls + '"></span>';
+      html += '<span class="text-[10px] text-zinc-500">' + region + '</span>';
+      html += '</div>';
+    });
+
+    dotsContainer.innerHTML = html;
+  });
+}
+
+// Listen for htmx swaps on discovery container
+document.addEventListener('htmx:afterSwap', function(e) {
+  if (e.detail.target && e.detail.target.id === 'discovery-container') {
+    updateDiscoveryDots();
+  }
+});
+
+// Header live labels — sync form inputs to header text
+function initHeaderSync() {
+  var labelInput = document.querySelector('input[name="site.label"]');
+  var zoneInput = document.querySelector('input[name="dns.zonename"]');
+  if (labelInput) {
+    labelInput.addEventListener('input', function() {
+      var el = document.getElementById('header-site-label');
+      if (el) el.textContent = this.value || 'dc34';
+    });
+  }
+  if (zoneInput) {
+    zoneInput.addEventListener('input', function() {
+      var el = document.getElementById('header-zone-name');
+      if (el) el.textContent = this.value || 'defcon.run';
+    });
+  }
+}
+
 // Initialize on load
 initTheme();
+initHeaderSync();
