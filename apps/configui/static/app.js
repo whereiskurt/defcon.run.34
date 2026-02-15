@@ -812,6 +812,18 @@ function showFixLocksResult(data) {
   document.addEventListener('keydown', onKey);
 }
 
+// Plan All confirmation dialog
+function confirmPlanAll() {
+  showConfirmDialog({
+    title: 'Plan all modules?',
+    message: 'Are you sure you want to run terragrunt plan across all infrastructure modules?',
+    confirmLabel: 'Plan All',
+    onConfirm: function() {
+      openTerminal('all', 'plan-all', '');
+    }
+  });
+}
+
 // Apply All confirmation dialog
 function confirmApplyAll() {
   showConfirmDialog({
@@ -1377,7 +1389,14 @@ function injectTerminalButtons() {
         var regionSel = container.querySelector('.term-region-select');
         region = regionSel ? regionSel.value : '';
       }
-      openTerminal(panelId, 'plan', region);
+      var label = panelId.replace(/_/g, '-');
+      if (region) label += ' (' + region + ')';
+      showConfirmDialog({
+        title: 'Plan ' + label + '?',
+        message: 'Are you sure you want to run terragrunt plan?',
+        confirmLabel: 'Plan',
+        onConfirm: function() { openTerminal(panelId, 'plan', region); }
+      });
     };
 
     var applyBtn = document.createElement('button');
@@ -1409,9 +1428,16 @@ function injectTerminalButtons() {
     refreshBtn.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg>';
     refreshBtn.onclick = function(e) {
       e.stopPropagation();
-      refreshBtn.classList.add('spinning');
-      fetch('/api/discovery/refresh?module=' + encodeURIComponent(panelId), { method: 'POST' }).then(function() {
-        htmx.trigger(document.body, 'refreshDiscovery');
+      showConfirmDialog({
+        title: 'Re-query ' + panelId.replace(/_/g, '-') + '?',
+        message: 'Are you sure you want to re-query AWS resources?',
+        confirmLabel: 'Re-query',
+        onConfirm: function() {
+          refreshBtn.classList.add('spinning');
+          fetch('/api/discovery/refresh?module=' + encodeURIComponent(panelId), { method: 'POST' }).then(function() {
+            htmx.trigger(document.body, 'refreshDiscovery');
+          });
+        }
       });
     };
 
