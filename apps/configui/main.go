@@ -82,10 +82,21 @@ func main() {
 		backupDir:      filepath.Join(repoRoot, "apps", "configui", "backups"),
 	}
 
-	// Load config
-	app.config, err = LoadConfig(app.configPath)
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+	// Import config from site.hcl (source of truth)
+	app.config = DefaultConfig()
+	if imported, err := importSiteHCL(app.siteHCLPath); err == nil {
+		app.config = imported
+		log.Printf("Imported config from site.hcl")
+	} else if !os.IsNotExist(err) {
+		log.Printf("Warning: could not import site.hcl: %v", err)
+	}
+
+	// Import service configs
+	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx"} {
+		svcPath := filepath.Join(app.servicesDir, svc, "service.hcl")
+		if err := importServiceHCL(svcPath, svc, app.config); err != nil {
+			log.Printf("Warning: could not import %s: %v", svc, err)
+		}
 	}
 
 	// Load env.local.sh values
