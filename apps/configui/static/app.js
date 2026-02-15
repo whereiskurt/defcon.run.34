@@ -1355,8 +1355,13 @@ function injectTerminalButtons() {
       }
       var label = panelId.replace(/_/g, '-');
       if (region) label += ' (' + region + ')';
-      if (!confirm('Run terragrunt apply on ' + label + '?')) return;
-      openTerminal(panelId, 'apply', region);
+      showConfirmDialog({
+        title: 'Apply ' + label + '?',
+        message: 'This will run <span class="font-mono text-zinc-300">terragrunt apply</span> on <strong>' + label + '</strong>. Resources may be created, modified, or destroyed.',
+        confirmLabel: 'Apply',
+        confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+        onConfirm: function() { openTerminal(panelId, 'apply', region); }
+      });
     };
 
     var refreshBtn = document.createElement('button');
