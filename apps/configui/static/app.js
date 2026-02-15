@@ -1135,9 +1135,13 @@ function updateDiscoveryTimestamp() {
   }
 
   var status = data.dataset.status;
+  var rqBtn = document.getElementById('requery-aws-btn');
   if (status === 'running') {
     label.textContent = '[scanning...]';
+    if (rqBtn) rqBtn.classList.add('spinning');
     return;
+  } else {
+    if (rqBtn) rqBtn.classList.remove('spinning');
   }
 
   var ago = Math.floor((Date.now() / 1000) - ts);
