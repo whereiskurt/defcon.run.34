@@ -111,7 +111,8 @@ func regionLabel(full string) string {
 // maxConcurrentChecks limits parallel AWS CLI calls to avoid CPU spikes.
 const maxConcurrentChecks = 6
 
-func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(ResourceResult)) {
+// runDiscovery runs checks for all panels, or a single panel if onlyModule is non-empty.
+func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(ResourceResult), onlyModule string) {
 	profile := "terraform"
 	if envLocal.ProfilePrefix != "" {
 		profile = envLocal.ProfilePrefix + "-terraform"
@@ -131,10 +132,15 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		}()
 	}
 
+	// check returns true if this panel should be checked.
+	check := func(panel string) bool {
+		return onlyModule == "" || onlyModule == panel
+	}
+
 	skipRegions := cfg.Site.SkipRegions
 
 	// ECS Clusters
-	if len(cfg.ECSClusters.Clusters) > 0 {
+	if check("ecs_clusters") && len(cfg.ECSClusters.Clusters) > 0 {
 		cluster := cfg.ECSClusters.Clusters[0]
 		clusterName := fmt.Sprintf("%s-%s", cfg.Site.Label, cluster.Name)
 		regions := activeRegions(cluster.Regions, skipRegions)
@@ -152,7 +158,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// ECS Services — check each service in each region
-	{
+	if check("ecs_services") {
 		clusterName := cfg.Site.Label + "-app"
 		svcs := []struct {
 			name    string
@@ -181,7 +187,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// ECS Task Definitions
-	{
+	if check("ecs_tasks") {
 		taskDefs := []struct {
 			name    string
 			regions []string
@@ -209,7 +215,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// DynamoDB tables — check in each table's replica regions
-	{
+	if check("dynamodb") {
 		var allTables []DynamoDBTableConfig
 		allTables = append(allTables, cfg.Services.Auth.DynamoDB...)
 		allTables = append(allTables, cfg.Services.Human.DynamoDB...)
@@ -231,7 +237,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// ECR repositories — check in each region where services deploy
-	{
+	if check("ecr") {
 		ecrRepos := []struct {
 			name    string
 			regions []string
@@ -258,7 +264,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// CloudFront distributions
-	if len(cfg.CloudFront.Domains) > 0 {
+	if check("cloudfront") && len(cfg.CloudFront.Domains) > 0 {
 		throttled(func() {
 			results := checkCloudFrontDistributions(profile, cfg.CloudFront.Domains, cfg.DNS.ZoneName)
 			for _, r := range results {
@@ -268,7 +274,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// EC2 Spots
-	{
+	if check("ec2spots") {
 		regions := activeRegions(cfg.EC2Spots.Regions, skipRegions)
 		for _, region := range regions {
 			region := region
@@ -284,7 +290,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// Email (SES)
-	{
+	if check("email") {
 		emailRegions := []string{cfg.Email.PrimaryRegion}
 		for _, rr := range cfg.Email.ReplicaRegions {
 			if rr.Full != cfg.Email.PrimaryRegion {
@@ -306,7 +312,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// Secrets (SSM)
-	{
+	if check("secrets") {
 		secretsRegions := []string{cfg.Secrets.PrimaryRegion}
 		for _, rr := range cfg.Secrets.ReplicaRegions {
 			if rr.Full != cfg.Secrets.PrimaryRegion {
@@ -329,7 +335,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// S3 uploads buckets — single list-buckets call, match by name
-	{
+	if check("s3_uploads") {
 		// Use all active regions as fallback if a service has no ReplicaRegions
 		fallbackRegions := activeRegionRefs(AllRegions(), skipRegions)
 
@@ -377,7 +383,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// Upload Processors (Lambda functions)
-	{
+	if check("upload_proc") {
 		processorRegions := activeRegions(cfg.Services.Human.Task.Regions, skipRegions)
 		for _, region := range processorRegions {
 			region := region
@@ -403,7 +409,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// WAF
-	{
+	if check("waf") {
 		throttled(func() {
 			rc := checkWAF(profile)
 			addResult(ResourceResult{
@@ -415,7 +421,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// GitHub OIDC (IAM is global)
-	{
+	if check("github_oidc") {
 		// Check OIDC provider
 		throttled(func() {
 			rc := checkOIDCProvider(profile)
@@ -442,7 +448,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// CloudTrail
-	{
+	if check("cloudtrail") {
 		trailName := fmt.Sprintf("%s-cloudtrail", cfg.Site.Label)
 		throttled(func() {
 			rc := checkCloudTrail(profile, trailName, "us-east-1")

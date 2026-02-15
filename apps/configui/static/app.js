@@ -1074,7 +1074,7 @@ function injectTerminalButtons() {
     refreshBtn.onclick = function(e) {
       e.stopPropagation();
       refreshBtn.classList.add('spinning');
-      fetch('/api/discovery/refresh', { method: 'POST' }).then(function() {
+      fetch('/api/discovery/refresh?module=' + encodeURIComponent(panelId), { method: 'POST' }).then(function() {
         htmx.trigger(document.body, 'refreshDiscovery');
       });
     };

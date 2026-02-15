@@ -406,7 +406,7 @@ func (a *App) startDiscoveryInner(force bool) {
 			disc.UpdatedAt = time.Now()
 			a.mu.Unlock()
 		}
-		runDiscovery(&cfgCopy, &envCopy, addResult)
+		runDiscovery(&cfgCopy, &envCopy, addResult, "")
 		a.mu.Lock()
 		disc.Status = DiscoveryDone
 		disc.UpdatedAt = time.Now()
@@ -446,10 +446,54 @@ func (a *App) handleReload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleDiscoveryRefresh(w http.ResponseWriter, r *http.Request) {
-	go a.forceDiscovery()
+	module := r.URL.Query().Get("module")
+	if module != "" {
+		go a.refreshModule(module)
+	} else {
+		go a.forceDiscovery()
+	}
 	w.Header().Set("HX-Trigger", "refreshDiscovery")
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprint(w, `<script>showToast('Re-querying AWS resources...')</script>`)
+	if module != "" {
+		fmt.Fprintf(w, `<script>showToast('Re-querying %s...')</script>`, module)
+	} else {
+		fmt.Fprint(w, `<script>showToast('Re-querying all AWS resources...')</script>`)
+	}
+}
+
+// refreshModule re-checks only a single panel's AWS resources.
+func (a *App) refreshModule(module string) {
+	a.mu.Lock()
+	if a.discovery == nil {
+		a.discovery = &DiscoveryResults{Status: DiscoveryRunning, UpdatedAt: time.Now()}
+	}
+	// Remove old results for this module
+	filtered := a.discovery.Resources[:0]
+	for _, r := range a.discovery.Resources {
+		if r.Panel != module {
+			filtered = append(filtered, r)
+		}
+	}
+	a.discovery.Resources = filtered
+	a.discovery.Status = DiscoveryRunning
+	a.discovery.UpdatedAt = time.Now()
+	disc := a.discovery
+	cfgCopy := *a.config
+	envCopy := *a.envLocal
+	a.mu.Unlock()
+
+	addResult := func(r ResourceResult) {
+		a.mu.Lock()
+		disc.Resources = append(disc.Resources, r)
+		disc.UpdatedAt = time.Now()
+		a.mu.Unlock()
+	}
+	runDiscovery(&cfgCopy, &envCopy, addResult, module)
+	a.mu.Lock()
+	disc.Status = DiscoveryDone
+	disc.UpdatedAt = time.Now()
+	a.mu.Unlock()
+	log.Printf("Module discovery complete: %s", module)
 }
 
 // sopsProfile returns the AWS profile name to use for SOPS operations.
