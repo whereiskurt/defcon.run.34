@@ -91,34 +91,24 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-// --- Auto-refresh preview on form changes ---
-// _previewState.tab is set by switchPreviewTab (inline script from handler)
+// --- Preview tab switching (global, no inline script) ---
 var _previewDebounce = null;
-var _previewState = { tab: null, scroll: 0 };
+var _activePreviewTab = null;
+var _previewScroll = 0;
 
-function restorePreviewState() {
-  var tab = _previewState.tab;
-  if (!tab) return;
+var TAB_ACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400';
+var TAB_INACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer';
 
+function switchPreviewTab(tab) {
+  _activePreviewTab = tab;
   var pc = document.getElementById('preview-content');
   if (!pc) return;
-
-  // Show the saved tab, hide others
   pc.querySelectorAll('[id^="ptab-content-"]').forEach(function(el) {
-    var id = el.id.replace('ptab-content-', '');
-    el.classList.toggle('hidden', id !== tab);
+    el.classList.toggle('hidden', el.id !== 'ptab-content-' + tab);
   });
-
-  // Update tab button styles
-  var active = 'px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400';
-  var inactive = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer';
-  pc.querySelectorAll('[id^="ptab-"]:not([id^="ptab-content-"])').forEach(function(btn) {
-    var id = btn.id.replace('ptab-', '');
-    btn.className = id === tab ? active : inactive;
+  pc.querySelectorAll('#ptab-bar button').forEach(function(btn) {
+    btn.className = btn.id === 'ptab-' + tab ? TAB_ACTIVE : TAB_INACTIVE;
   });
-
-  // Restore scroll
-  pc.scrollTop = _previewState.scroll;
 }
 
 function schedulePreviewRefresh() {
@@ -126,9 +116,8 @@ function schedulePreviewRefresh() {
   clearTimeout(_previewDebounce);
   _previewDebounce = setTimeout(function() {
     if (!isPreviewOpen()) return;
-    // Save scroll position (tab is already tracked by switchPreviewTab)
     var pc = document.getElementById('preview-content');
-    if (pc) _previewState.scroll = pc.scrollTop;
+    if (pc) _previewScroll = pc.scrollTop;
     htmx.ajax('POST', '/preview', {
       source: '#config-form',
       target: '#preview-content',
@@ -370,11 +359,15 @@ function toggleFold(id) {
   }
 }
 
-// Apply folding + highlighting after htmx swaps preview content, then restore state
+// Apply folding + highlighting after htmx swaps preview content, then restore tab/scroll
 document.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'preview-content') {
     e.detail.target.querySelectorAll('pre').forEach(addCodeFolding);
-    restorePreviewState();
+    if (_activePreviewTab) {
+      switchPreviewTab(_activePreviewTab);
+    }
+    var pc = document.getElementById('preview-content');
+    if (pc) pc.scrollTop = _previewScroll;
   }
 });
 

@@ -214,15 +214,9 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 
-	// Build tab IDs array for JS
-	var tabIDs []string
-	for _, t := range tabs {
-		tabIDs = append(tabIDs, `'`+t.ID+`'`)
-	}
-
 	// Tab buttons
-	fmt.Fprint(w, `<div>`)
-	fmt.Fprintf(w, `<div class="flex flex-wrap gap-1 border-b border-zinc-700 mb-3">`)
+	fmt.Fprint(w, `<div id="preview-tabs">`)
+	fmt.Fprintf(w, `<div class="flex flex-wrap gap-1 border-b border-zinc-700 mb-3" id="ptab-bar">`)
 	for i, t := range tabs {
 		cls := tabInactive
 		if i == 0 {
@@ -243,17 +237,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 			t.ID, hidden, stickyBar, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Body))
 	}
 
-	// Tab switching JS — also updates _previewState.tab for restore across refreshes
-	fmt.Fprintf(w, `<script>
-function switchPreviewTab(tab) {
-  if (typeof _previewState !== 'undefined') _previewState.tab = tab;
-  [%s].forEach(function(t) {
-    document.getElementById('ptab-content-'+t).classList.toggle('hidden', t !== tab);
-    var btn = document.getElementById('ptab-'+t);
-    btn.className = t === tab ? %q : %q;
-  });
-}
-</script></div>`, strings.Join(tabIDs, ","), tabActive, tabInactive)
+	fmt.Fprint(w, `</div>`)
 }
 
 func (a *App) handleExport(w http.ResponseWriter, r *http.Request) {
