@@ -798,7 +798,257 @@ function markDefaults() {
   });
 }
 
+// =====================================================
+// Terminal — Terragrunt execution modal
+// =====================================================
+
+// Module definitions: which panels are global vs regional
+var TERMINAL_MODULES = {
+  github_oidc: { global: true },
+  cloudtrail:  { global: true },
+  cloudfront:  { global: true },
+  waf:         { global: true },
+  ecs_clusters: { global: false },
+  ecs_services: { global: false },
+  ecs_tasks:    { global: false },
+  dynamodb:     { global: false },
+  ecr:          { global: false },
+  ec2spots:     { global: false },
+  email:        { global: false },
+  secrets:      { global: false },
+  s3_uploads:   { global: false },
+  upload_proc:  { global: false }
+};
+
+var _termEventSource = null;
+
+// Check if AWS is authenticated by looking at the aws-status container
+function isAWSAuthed() {
+  var el = document.getElementById('aws-status');
+  if (!el) return false;
+  return el.querySelector('.status-dot.ok') !== null;
+}
+
+// Inject Plan/Apply buttons into discoverable panel headers
+function injectTerminalButtons() {
+  Object.keys(TERMINAL_MODULES).forEach(function(panelId) {
+    var panelEl = document.querySelector('[data-panel="' + panelId + '"]');
+    if (!panelEl) return;
+    var header = panelEl.querySelector('.flex.justify-between');
+    if (!header) return;
+
+    // Skip if already injected
+    if (header.querySelector('.term-actions')) return;
+
+    var mod = TERMINAL_MODULES[panelId];
+    var container = document.createElement('div');
+    container.className = 'term-actions flex items-center gap-1 ml-2';
+
+    if (!mod.global) {
+      // Region selector for regional modules
+      var sel = document.createElement('select');
+      sel.className = 'term-region-select text-[10px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded px-1 py-0 font-mono';
+      sel.style.height = '18px';
+      sel.dataset.panel = panelId;
+      (window.ALL_REGIONS || []).forEach(function(r) {
+        var opt = document.createElement('option');
+        opt.value = r.full;
+        opt.textContent = r.label;
+        sel.appendChild(opt);
+      });
+      container.appendChild(sel);
+    }
+
+    var planBtn = document.createElement('button');
+    planBtn.type = 'button';
+    planBtn.className = 'term-btn term-btn-plan';
+    planBtn.textContent = 'Plan';
+    planBtn.onclick = function(e) {
+      e.stopPropagation();
+      var region = '';
+      if (!mod.global) {
+        var regionSel = container.querySelector('.term-region-select');
+        region = regionSel ? regionSel.value : '';
+      }
+      openTerminal(panelId, 'plan', region);
+    };
+
+    var applyBtn = document.createElement('button');
+    applyBtn.type = 'button';
+    applyBtn.className = 'term-btn term-btn-apply';
+    applyBtn.textContent = 'Apply';
+    applyBtn.onclick = function(e) {
+      e.stopPropagation();
+      var region = '';
+      if (!mod.global) {
+        var regionSel = container.querySelector('.term-region-select');
+        region = regionSel ? regionSel.value : '';
+      }
+      var label = panelId.replace(/_/g, '-');
+      if (region) label += ' (' + region + ')';
+      if (!confirm('Run terragrunt apply on ' + label + '?')) return;
+      openTerminal(panelId, 'apply', region);
+    };
+
+    container.appendChild(planBtn);
+    container.appendChild(applyBtn);
+
+    // Insert before discovery dots or chevron
+    var dots = header.querySelector('.discovery-dots');
+    var chevron = header.querySelector('.chevron');
+    if (dots) {
+      dots.parentElement.insertBefore(container, dots);
+    } else if (chevron) {
+      chevron.parentElement.insertBefore(container, chevron);
+    } else {
+      header.appendChild(container);
+    }
+  });
+}
+
+// Show/hide terminal buttons based on AWS auth status
+function updateTerminalButtonsVisibility() {
+  var authed = isAWSAuthed();
+  document.querySelectorAll('.term-actions').forEach(function(el) {
+    el.style.display = authed ? '' : 'none';
+  });
+}
+
+function openTerminal(module, command, region) {
+  var body = new URLSearchParams();
+  body.append('module', module);
+  body.append('command', command);
+  if (region) body.append('region', region);
+
+  fetch('/api/terminal/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(function(resp) {
+    return resp.json().then(function(data) {
+      if (!resp.ok) {
+        showToast(data.error || 'Failed to start terminal', 5000);
+        return;
+      }
+      showTerminalModal(data);
+    });
+  }).catch(function(err) {
+    showToast('Terminal error: ' + err.message, 5000);
+  });
+}
+
+function showTerminalModal(session) {
+  var label = session.module.replace(/_/g, '-');
+  if (session.region) label += ' (' + session.region + ')';
+
+  var overlay = document.createElement('div');
+  overlay.id = 'terminal-modal';
+  overlay.className = 'fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.innerHTML =
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-5xl w-full mx-auto">' +
+      '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="text-green-400 text-sm font-mono font-bold">&#9654;</span>' +
+          '<span class="text-sm font-mono text-zinc-200">terragrunt ' + session.command + '</span>' +
+          '<span class="text-xs text-zinc-500 font-mono">' + label + '</span>' +
+        '</div>' +
+        '<button id="term-close-x" class="text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
+      '</div>' +
+      '<div id="term-output" class="terminal-output flex-1"></div>' +
+      '<div id="term-footer" class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
+        '<span id="term-status" class="text-xs font-mono text-zinc-400">Running...</span>' +
+        '<div class="flex gap-2">' +
+          '<button id="term-stop-btn" class="rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-3 py-1 text-xs font-mono">Stop</button>' +
+          '<button id="term-close-btn" class="rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  var output = document.getElementById('term-output');
+  var statusEl = document.getElementById('term-status');
+  var stopBtn = document.getElementById('term-stop-btn');
+  var closeBtn = document.getElementById('term-close-btn');
+  var closeX = document.getElementById('term-close-x');
+
+  function closeModal() {
+    if (_termEventSource) {
+      _termEventSource.close();
+      _termEventSource = null;
+    }
+    overlay.remove();
+    // Trigger discovery refresh
+    htmx.trigger(document.body, 'refreshDiscovery');
+  }
+
+  closeBtn.onclick = closeModal;
+  closeX.onclick = closeModal;
+
+  stopBtn.onclick = function() {
+    fetch('/api/terminal/stop', { method: 'POST' });
+    stopBtn.disabled = true;
+    stopBtn.textContent = 'Stopping...';
+  };
+
+  // Escape key handler
+  function onEsc(e) {
+    if (e.key === 'Escape') {
+      e.stopImmediatePropagation();
+      closeModal();
+      document.removeEventListener('keydown', onEsc);
+    }
+  }
+  document.addEventListener('keydown', onEsc);
+
+  // Connect SSE
+  _termEventSource = new EventSource('/api/terminal/stream');
+
+  _termEventSource.onmessage = function(e) {
+    var line = document.createElement('div');
+    line.className = 'terminal-line';
+    line.textContent = e.data;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+  };
+
+  _termEventSource.addEventListener('done', function(e) {
+    var exitCode = parseInt(e.data, 10);
+    if (_termEventSource) {
+      _termEventSource.close();
+      _termEventSource = null;
+    }
+    stopBtn.style.display = 'none';
+    if (exitCode === 0) {
+      statusEl.innerHTML = '<span class="text-green-400">&#10003; Exit code: 0</span>';
+    } else {
+      statusEl.innerHTML = '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
+    }
+  });
+
+  _termEventSource.onerror = function() {
+    if (_termEventSource) {
+      _termEventSource.close();
+      _termEventSource = null;
+    }
+    stopBtn.style.display = 'none';
+    statusEl.innerHTML = '<span class="text-zinc-500">Connection closed</span>';
+  };
+}
+
+// Re-inject buttons after htmx swaps (e.g., after AWS status loads)
+document.addEventListener('htmx:afterSwap', function(e) {
+  if (e.detail.target && e.detail.target.id === 'aws-status') {
+    // Delay slightly to let DOM settle
+    setTimeout(function() {
+      injectTerminalButtons();
+      updateTerminalButtonsVisibility();
+    }, 100);
+  }
+});
+
 // Initialize on load
 initTheme();
 initHeaderSync();
 markDefaults();
+injectTerminalButtons();
+updateTerminalButtonsVisibility();

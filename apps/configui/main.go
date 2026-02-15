@@ -34,6 +34,7 @@ type App struct {
 	config         *SiteConfig
 	envLocal       *EnvLocalConfig
 	discovery      *DiscoveryResults
+	termSession    *TermSession
 }
 
 // reload re-imports config from site.hcl, service configs, env files, and versions.
@@ -166,6 +167,9 @@ func main() {
 	mux.HandleFunc("POST /api/discovery/refresh", app.handleDiscoveryRefresh)
 	mux.HandleFunc("POST /api/sops/edit", app.handleSOPSEdit)
 	mux.HandleFunc("POST /api/sops/save", app.handleSOPSSave)
+	mux.HandleFunc("POST /api/terminal/start", app.handleTerminalStart)
+	mux.HandleFunc("GET /api/terminal/stream", app.handleTerminalStream)
+	mux.HandleFunc("POST /api/terminal/stop", app.handleTerminalStop)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port

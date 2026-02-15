@@ -282,3 +282,61 @@ input:focus, select:focus, textarea:focus {
   background: #52525b;
   border-radius: 4px;
 }
+
+/* Terminal modal output */
+.terminal-output {
+  font-family: 'Fira Code', 'SF Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #d4d4d8;
+  background: #18181b;
+  padding: 1rem;
+  overflow-y: auto;
+  max-height: calc(100vh - 12rem);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-line {
+  padding: 0 0.5rem;
+}
+
+.terminal-line:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Terminal action buttons on panel headers */
+.term-btn {
+  font-size: 0.65rem;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Fira Code', monospace;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.term-btn:hover {
+  opacity: 1;
+}
+
+.term-btn-plan {
+  background: #3f3f46;
+  color: #a1a1aa;
+}
+
+.term-btn-plan:hover {
+  background: #52525b;
+  color: #d4d4d8;
+}
+
+.term-btn-apply {
+  background: #14532d;
+  color: #4ade80;
+}
+
+.term-btn-apply:hover {
+  background: #166534;
+  color: #86efac;
+}
