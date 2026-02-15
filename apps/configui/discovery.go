@@ -453,13 +453,14 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 
 	// CloudTrail
 	{
+		trailName := fmt.Sprintf("%s-cloudtrail", cfg.Site.Label)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			rc := checkCloudTrail(profile, "us-east-1")
+			rc := checkCloudTrail(profile, trailName, "us-east-1")
 			addResult(ResourceResult{
 				Panel:   "cloudtrail",
-				Name:    "trail",
+				Name:    trailName,
 				Regions: []RegionCheck{rc},
 			})
 		}()
@@ -874,26 +875,26 @@ func checkInstanceProfile(profile, profileName string) RegionCheck {
 	return rc
 }
 
-func checkCloudTrail(profile, region string) RegionCheck {
+func checkCloudTrail(profile, trailName, region string) RegionCheck {
 	rc := RegionCheck{Region: region, Label: regionLabel(region)}
-	out, err := exec.Command("aws", "cloudtrail", "describe-trails",
+	out, err := exec.Command("aws", "cloudtrail", "get-trail-status",
+		"--name", trailName,
 		"--profile", profile,
 		"--region", region,
 		"--output", "json").Output()
 	if err != nil {
-		rc.Error = "check failed"
+		rc.Error = "not found"
 		return rc
 	}
 	var resp struct {
-		TrailList []struct {
-			Name string `json:"Name"`
-		} `json:"trailList"`
+		IsLogging bool `json:"IsLogging"`
 	}
-	if json.Unmarshal(out, &resp) == nil && len(resp.TrailList) > 0 {
+	if json.Unmarshal(out, &resp) == nil && resp.IsLogging {
 		rc.Exists = true
-		rc.Detail = fmt.Sprintf("%d trail(s)", len(resp.TrailList))
+		rc.Detail = "logging"
 	} else {
-		rc.Error = "no trails"
+		rc.Exists = true
+		rc.Detail = "stopped"
 	}
 	return rc
 }
