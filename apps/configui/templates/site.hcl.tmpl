@@ -8,6 +8,16 @@ locals {
     skip_regions     = [<<stringList .Site.SkipRegions>>]
   }
 
+  secret_values = jsondecode(
+    # Try SOPS encrypted file first (decrypt on the fly)
+    fileexists("${get_terragrunt_dir()}/.secrets.sops.json")
+    ? run_cmd("--terragrunt-quiet", "sops", "--decrypt", "${get_terragrunt_dir()}/.secrets.sops.json")
+    # Fall back to plaintext file
+    : fileexists("${get_terragrunt_dir()}/.secrets.json")
+    ? file("${get_terragrunt_dir()}/.secrets.json")
+    : "{}"
+  )
+
   dns = {
     zonename         = "<<.DNS.ZoneName>>"
     subdomains       = [<<stringList .DNS.Subdomains>>]
@@ -248,16 +258,6 @@ locals {
 <<secretDefs .Secrets.Definitions>>
     }
   }
-
-  secret_values = jsondecode(
-    # Try SOPS encrypted file first (decrypt on the fly)
-    fileexists("${get_terragrunt_dir()}/.secrets.sops.json")
-    ? run_cmd("--terragrunt-quiet", "sops", "--decrypt", "${get_terragrunt_dir()}/.secrets.sops.json")
-    # Fall back to plaintext file
-    : fileexists("${get_terragrunt_dir()}/.secrets.json")
-    ? file("${get_terragrunt_dir()}/.secrets.json")
-    : "{}"
-  )
 
   # CloudTrail for IAM activity logging and policy generation
   # Records all API calls to enable least-privilege policy generation
