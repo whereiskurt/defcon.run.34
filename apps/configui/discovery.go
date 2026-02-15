@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 	"sync"
@@ -322,8 +323,11 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		}
 	}
 
-	// S3 uploads buckets — all services
+	// S3 uploads buckets — single list-buckets call, match by name
 	{
+		// Use all active regions as fallback if a service has no ReplicaRegions
+		fallbackRegions := activeRegionRefs(AllRegions(), skipRegions)
+
 		s3Checks := []struct {
 			uploadName string
 			regions    []RegionRef
@@ -333,22 +337,40 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 			{"cms-media", cfg.Services.CMS.Media.ReplicaRegions},
 			{"run-gpx", cfg.Services.GPX.Storage.ReplicaRegions},
 		}
-		for _, s3c := range s3Checks {
-			regions := activeRegionRefs(s3c.regions, skipRegions)
-			for _, rr := range regions {
-				wg.Add(1)
-				go func(uploadName string, rr RegionRef) {
-					defer wg.Done()
-					bucketName := fmt.Sprintf("uploads-%s-%s-%s-%s", cfg.Site.Label, uploadName, rr.Label, cfg.Site.RandomSuffix)
-					rc := checkS3Bucket(profile, bucketName, rr.Full)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			bucketSet := listS3Buckets(profile)
+			if bucketSet == nil {
+				log.Printf("Discovery: listS3Buckets failed (nil)")
+			} else {
+				log.Printf("Discovery: listS3Buckets returned %d buckets", len(bucketSet))
+			}
+			for _, s3c := range s3Checks {
+				regions := activeRegionRefs(s3c.regions, skipRegions)
+				if len(regions) == 0 {
+					regions = fallbackRegions
+				}
+				for _, rr := range regions {
+					bucketName := fmt.Sprintf("uploads-%s-%s-%s-%s", cfg.Site.Label, s3c.uploadName, rr.Label, cfg.Site.RandomSuffix)
+					rc := RegionCheck{Region: rr.Full, Label: rr.Label}
+					if bucketSet == nil {
+						rc.Error = "check failed"
+					} else if bucketSet[bucketName] {
+						rc.Exists = true
+						rc.Detail = "exists"
+					} else {
+						rc.Error = "not found"
+					}
 					addResult(ResourceResult{
 						Panel:   "s3_uploads",
 						Name:    bucketName,
 						Regions: []RegionCheck{rc},
 					})
-				}(s3c.uploadName, rr)
+				}
 			}
-		}
+			log.Printf("Discovery: S3 uploads checks complete")
+		}()
 	}
 
 	// Upload Processors (Lambda functions)
@@ -425,20 +447,8 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		// Note: delegate role lives in the management account, not checkable
 		// from the terraform profile. Skipped.
 
-		// Check EC2 runner instance profile
-		if cfg.GitHubOIDC.EC2RunnerProfile.Name != "" {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				fullName := fmt.Sprintf("%s-%s", cfg.Site.Label, cfg.GitHubOIDC.EC2RunnerProfile.Name)
-				rc := checkInstanceProfile(profile, fullName)
-				addResult(ResourceResult{
-					Panel:   "github_oidc",
-					Name:    fullName,
-					Regions: []RegionCheck{rc},
-				})
-			}()
-		}
+		// Note: EC2 runner instance profile/role is optional infrastructure,
+		// often not deployed. Skipped to avoid false negatives.
 	}
 
 	// CloudTrail
@@ -714,6 +724,26 @@ func checkSSMPath(profile, path, region string) RegionCheck {
 		rc.Error = "empty"
 	}
 	return rc
+}
+
+// listS3Buckets returns a set of all bucket names visible to the profile, or nil on error.
+func listS3Buckets(profile string) map[string]bool {
+	out, err := exec.Command("aws", "s3api", "list-buckets",
+		"--query", "Buckets[].Name",
+		"--profile", profile,
+		"--output", "json").Output()
+	if err != nil {
+		return nil
+	}
+	var names []string
+	if json.Unmarshal(out, &names) != nil {
+		return nil
+	}
+	set := make(map[string]bool, len(names))
+	for _, n := range names {
+		set[n] = true
+	}
+	return set
 }
 
 func checkS3Bucket(profile, bucketName, region string) RegionCheck {

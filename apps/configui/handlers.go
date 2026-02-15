@@ -391,7 +391,15 @@ func (a *App) startDiscovery() {
 
 func (a *App) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 	a.mu.RLock()
-	disc := a.discovery
+	var snapshot *DiscoveryResults
+	if a.discovery != nil {
+		snapshot = &DiscoveryResults{
+			Status:    a.discovery.Status,
+			UpdatedAt: a.discovery.UpdatedAt,
+			Resources: make([]ResourceResult, len(a.discovery.Resources)),
+		}
+		copy(snapshot.Resources, a.discovery.Resources)
+	}
 	a.mu.RUnlock()
 
 	tmpl, err := template.New("discovery.html").ParseFS(content, "templates/partials/discovery.html")
@@ -401,9 +409,16 @@ func (a *App) handleDiscovery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	if err := tmpl.Execute(w, disc); err != nil {
+	if err := tmpl.Execute(w, snapshot); err != nil {
 		log.Printf("Discovery template error: %v", err)
 	}
+}
+
+func (a *App) handleReload(w http.ResponseWriter, r *http.Request) {
+	a.reload()
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("HX-Refresh", "true")
+	fmt.Fprint(w, `<script>showToast('Configuration reloaded from disk')</script>`)
 }
 
 func (a *App) handleDiscoveryRefresh(w http.ResponseWriter, r *http.Request) {

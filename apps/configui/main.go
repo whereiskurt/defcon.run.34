@@ -155,6 +155,7 @@ func main() {
 	mux.HandleFunc("GET /api/aws-status", app.handleAWSStatus)
 	mux.HandleFunc("POST /api/sso-login", app.handleSSOLogin)
 	mux.HandleFunc("POST /api/export-creds", app.handleExportCreds)
+	mux.HandleFunc("POST /api/reload", app.handleReload)
 	mux.HandleFunc("GET /api/discovery", app.handleDiscovery)
 	mux.HandleFunc("POST /api/discovery/refresh", app.handleDiscoveryRefresh)
 	mux.HandleFunc("POST /api/sops/edit", app.handleSOPSEdit)

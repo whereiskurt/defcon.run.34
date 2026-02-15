@@ -9,15 +9,15 @@
 
   <!-- Row 1 -->
   {{template "site.html" .}}
-  {{template "aws_config.html" .}}
+  {{template "env_general.html" .}}
 
   <!-- Row 2 -->
-  {{template "env_secrets.html" .}}
+  {{template "aws_config.html" .}}
   {{template "dns.html" .}}
 
   <!-- Row 3 -->
+  {{template "env_secrets.html" .}}
   {{template "versions.html" .}}
-  {{template "env_general.html" .}}
 
   <!-- Section Divider: Infrastructure Modules -->
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-3">
