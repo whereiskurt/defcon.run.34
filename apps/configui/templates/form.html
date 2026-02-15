@@ -20,8 +20,9 @@
   {{template "env_general.html" .}}
 
   <!-- Section Divider: Infrastructure Modules -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-3">
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Infrastructure Modules</h2>
+    <button type="button" id="toggle-infra-btn" onclick="toggleAllModules('infra')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Disable All</button>
   </div>
 
   {{template "github_oidc.html" .}}
@@ -40,8 +41,9 @@
   {{template "upload_proc.html" .}}
 
   <!-- Section Divider: Services -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-3">
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Services</h2>
+    <button type="button" id="toggle-svc-btn" onclick="toggleAllModules('svc')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Disable All</button>
   </div>
 
   {{template "svc_auth.html" .}}

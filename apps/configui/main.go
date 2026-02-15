@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"embed"
 	"flag"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
+	"time"
 )
 
 //go:embed static templates
@@ -26,8 +29,56 @@ type App struct {
 	envLocalShPath string
 	backupDir      string
 	sopsFilePath   string
+	url            string
+	mu             sync.RWMutex
 	config         *SiteConfig
 	envLocal       *EnvLocalConfig
+}
+
+// reload re-imports config from site.hcl, service configs, env files, and versions.
+func (a *App) reload() {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	a.config = DefaultConfig()
+	if imported, err := importSiteHCL(a.siteHCLPath); err == nil {
+		a.config = imported
+		log.Printf("Reloaded config from site.hcl")
+	} else if !os.IsNotExist(err) {
+		log.Printf("Warning: could not import site.hcl: %v", err)
+	}
+
+	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx"} {
+		svcPath := filepath.Join(a.servicesDir, svc, "service.hcl")
+		if err := importServiceHCL(svcPath, svc, a.config); err != nil {
+			log.Printf("Warning: could not import %s: %v", svc, err)
+		}
+	}
+
+	a.envLocal = loadEnvLocal(a.envLocalShPath)
+	a.config.Versions = readVersions(a.repoRoot)
+	loadEnvSh(a.envShPath, a.config)
+
+	log.Printf("Reload complete")
+}
+
+// watchStdin watches for double-Enter (two presses within 500ms) to trigger reload.
+func (a *App) watchStdin() {
+	scanner := bufio.NewScanner(os.Stdin)
+	var lastEnter time.Time
+	for scanner.Scan() {
+		now := time.Now()
+		if now.Sub(lastEnter) < 500*time.Millisecond {
+			log.Printf("Double-Enter detected — reloading configuration...")
+			a.reload()
+			if a.url != "" {
+				openBrowser(a.url)
+			}
+			lastEnter = time.Time{} // reset so next single Enter starts fresh
+		} else {
+			lastEnter = now
+		}
+	}
 }
 
 func findRepoRoot() (string, error) {
@@ -84,31 +135,8 @@ func main() {
 		sopsFilePath:   filepath.Join(repoRoot, "infra", "terraform", "live", "site", ".secrets.sops.json"),
 	}
 
-	// Import config from site.hcl (source of truth)
-	app.config = DefaultConfig()
-	if imported, err := importSiteHCL(app.siteHCLPath); err == nil {
-		app.config = imported
-		log.Printf("Imported config from site.hcl")
-	} else if !os.IsNotExist(err) {
-		log.Printf("Warning: could not import site.hcl: %v", err)
-	}
-
-	// Import service configs
-	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx"} {
-		svcPath := filepath.Join(app.servicesDir, svc, "service.hcl")
-		if err := importServiceHCL(svcPath, svc, app.config); err != nil {
-			log.Printf("Warning: could not import %s: %v", svc, err)
-		}
-	}
-
-	// Load env.local.sh values
-	app.envLocal = loadEnvLocal(app.envLocalShPath)
-
-	// Load VERSION files
-	app.config.Versions = readVersions(repoRoot)
-
-	// Load env.sh values into config
-	loadEnvSh(app.envShPath, app.config)
+	// Initial config load
+	app.reload()
 
 	// Startup backup
 	if backupPath, err := app.createBackup(); err != nil {
@@ -136,12 +164,15 @@ func main() {
 		log.Fatal(err)
 	}
 	port := listener.Addr().(*net.TCPAddr).Port
-	url := fmt.Sprintf("http://127.0.0.1:%d", port)
+	app.url = fmt.Sprintf("http://127.0.0.1:%d", port)
 
-	log.Printf("ConfigUI running at %s", url)
+	log.Printf("ConfigUI running at %s", app.url)
+	log.Printf("Press Enter twice to reload configuration from disk")
 	if !*noBrowser {
-		openBrowser(url)
+		openBrowser(app.url)
 	}
+
+	go app.watchStdin()
 
 	if err := http.Serve(listener, mux); err != nil {
 		log.Fatal(err)

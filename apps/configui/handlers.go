@@ -11,6 +11,9 @@ import (
 )
 
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
 		return
@@ -89,6 +92,9 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSave(w http.ResponseWriter, r *http.Request) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Failed to parse form", 400)
 		return

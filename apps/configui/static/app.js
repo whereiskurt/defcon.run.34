@@ -532,5 +532,53 @@ function showToast(message, duration) {
   }, duration);
 }
 
+// Toggle all modules in a section (infra or svc)
+function toggleAllModules(section) {
+  var btn = document.getElementById('toggle-' + section + '-btn');
+  var grid = document.getElementById('form-grid');
+  if (!grid) return;
+
+  // Find the section divider that contains this button
+  var dividers = grid.querySelectorAll('.section-divider');
+  var startDiv = null, endDiv = null;
+  for (var i = 0; i < dividers.length; i++) {
+    if (dividers[i].querySelector('#toggle-' + section + '-btn')) {
+      startDiv = dividers[i];
+      endDiv = dividers[i + 1] || null;
+      break;
+    }
+  }
+  if (!startDiv) return;
+
+  // Collect panels between this divider and the next (or end of grid)
+  var panels = [];
+  var sibling = startDiv.nextElementSibling;
+  while (sibling && sibling !== endDiv) {
+    if (sibling.hasAttribute('data-panel')) {
+      var cb = sibling.querySelector('.toggle-switch');
+      if (cb) panels.push({ card: sibling, checkbox: cb, id: sibling.getAttribute('data-panel') });
+    }
+    sibling = sibling.nextElementSibling;
+  }
+
+  // Determine action: if any are enabled, disable all; otherwise enable all
+  var anyEnabled = panels.some(function(p) { return p.checkbox.checked; });
+  panels.forEach(function(p) {
+    if (anyEnabled) {
+      p.checkbox.checked = false;
+      p.card.classList.add('panel-disabled');
+      var body = document.getElementById('body-' + p.id);
+      var chevron = document.getElementById('chevron-' + p.id);
+      if (body) body.style.display = 'none';
+      if (chevron) chevron.classList.remove('open');
+    } else {
+      p.checkbox.checked = true;
+      p.card.classList.remove('panel-disabled');
+    }
+  });
+
+  if (btn) btn.textContent = anyEnabled ? 'Enable All' : 'Disable All';
+}
+
 // Initialize on load
 initTheme();
