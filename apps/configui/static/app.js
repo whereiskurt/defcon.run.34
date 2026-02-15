@@ -1710,7 +1710,7 @@ function showTerminalModal(session) {
     }
     stopBtn.style.display = 'none';
     if (exitCode === 0) {
-      statusEl.innerHTML = '<span class="text-green-400">&#10003; Exit code: 0</span>';
+      statusEl.innerHTML = '<span class="text-green-400">&#10003; Exit Code: Success (0)</span>';
     } else {
       statusEl.innerHTML = '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
     }
