@@ -1,17 +1,16 @@
 {{define "form.html"}}
 <div class="flex items-center gap-2 mb-4">
+  <span class="text-xl font-mono font-bold text-zinc-500 dark:text-zinc-400">Terraform and Terragrunt Configuration</span>
   <button type="button" onclick="expandAllPanels()" class="global-fold-btn" title="Expand All">+</button>
+  <span class="text-zinc-400 dark:text-zinc-600 font-light select-none">/</span>
   <button type="button" onclick="collapseAllPanels()" class="global-fold-btn" title="Collapse All">&minus;</button>
-  <span class="text-xl font-mono font-bold text-zinc-500 dark:text-zinc-400 ml-1">Terraform and Terragrunt Configuration</span>
   <button type="button" id="blur-toggle-btn" onclick="toggleGlobalBlur()" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono ml-auto">Unblur All</button>
 </div>
 <div id="form-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
   <!-- Section Divider: Core Configuration -->
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 section-divider flex items-center gap-2" data-section="core">
-    <button type="button" onclick="toggleSection('core')" class="section-chevron" id="section-chevron-core" title="Expand/Collapse">
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-    </button>
+    <button type="button" onclick="toggleSection('core')" class="global-fold-btn" id="section-chevron-core" title="Expand/Collapse">+</button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Core Configuration</h2>
   </div>
 
@@ -24,9 +23,7 @@
 
   <!-- Section Divider: Infrastructure Modules -->
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-2" data-section="infra">
-    <button type="button" onclick="toggleSection('infra')" class="section-chevron" id="section-chevron-infra" title="Expand/Collapse">
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-    </button>
+    <button type="button" onclick="toggleSection('infra')" class="global-fold-btn" id="section-chevron-infra" title="Expand/Collapse">+</button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Infrastructure Modules</h2>
     <input type="checkbox" class="section-toggle" id="section-toggle-infra" onclick="toggleAllModules('infra', this)" title="Enable/Disable all modules">
   </div>
@@ -48,9 +45,7 @@
 
   <!-- Section Divider: Services -->
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-2" data-section="svc">
-    <button type="button" onclick="toggleSection('svc')" class="section-chevron" id="section-chevron-svc" title="Expand/Collapse">
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-    </button>
+    <button type="button" onclick="toggleSection('svc')" class="global-fold-btn" id="section-chevron-svc" title="Expand/Collapse">+</button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Services</h2>
   </div>
 

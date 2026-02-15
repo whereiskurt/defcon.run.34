@@ -597,7 +597,7 @@ function toggleSection(section) {
       if (body) body.style.display = 'none';
       if (ch) ch.classList.remove('open');
     });
-    if (chevron) chevron.classList.remove('open');
+    if (chevron) chevron.textContent = '+';
   } else {
     getSectionPanels(section).forEach(function(id) {
       var body = document.getElementById('body-' + id);
@@ -605,7 +605,7 @@ function toggleSection(section) {
       if (body) body.style.display = '';
       if (ch) ch.classList.add('open');
     });
-    if (chevron) chevron.classList.add('open');
+    if (chevron) chevron.textContent = '\u2212';
   }
 }
 
