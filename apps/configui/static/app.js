@@ -92,45 +92,33 @@ document.addEventListener('keydown', function(e) {
 });
 
 // --- Auto-refresh preview on form changes ---
+// _previewState.tab is set by switchPreviewTab (inline script from handler)
 var _previewDebounce = null;
 var _previewState = { tab: null, scroll: 0 };
 
-function savePreviewState() {
-  // Find which tab is active (visible)
-  var pc = document.getElementById('preview-content');
-  if (!pc) return;
-  var active = pc.querySelector('[id^="ptab-content-"]:not(.hidden)');
-  if (active) {
-    _previewState.tab = active.id.replace('ptab-content-', '');
-  }
-  // Save scroll position of the preview-content container
-  _previewState.scroll = pc.scrollTop;
-}
-
 function restorePreviewState() {
   var tab = _previewState.tab;
-  if (tab) {
-    // Directly toggle tab visibility and button classes without relying on inline script
-    var pc = document.getElementById('preview-content');
-    if (pc) {
-      pc.querySelectorAll('[id^="ptab-content-"]').forEach(function(el) {
-        var id = el.id.replace('ptab-content-', '');
-        el.classList.toggle('hidden', id !== tab);
-      });
-      pc.querySelectorAll('[id^="ptab-"]').forEach(function(btn) {
-        if (btn.id.indexOf('ptab-content-') === 0) return; // skip content divs
-        var id = btn.id.replace('ptab-', '');
-        var active = 'px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400';
-        var inactive = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer';
-        btn.className = id === tab ? active : inactive;
-      });
-    }
-  }
-  // Restore scroll position
+  if (!tab) return;
+
   var pc = document.getElementById('preview-content');
-  if (pc) {
-    pc.scrollTop = _previewState.scroll;
-  }
+  if (!pc) return;
+
+  // Show the saved tab, hide others
+  pc.querySelectorAll('[id^="ptab-content-"]').forEach(function(el) {
+    var id = el.id.replace('ptab-content-', '');
+    el.classList.toggle('hidden', id !== tab);
+  });
+
+  // Update tab button styles
+  var active = 'px-3 py-1.5 text-xs font-medium border-b-2 border-cyan-500 text-cyan-600 dark:text-cyan-400';
+  var inactive = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 cursor-pointer';
+  pc.querySelectorAll('[id^="ptab-"]:not([id^="ptab-content-"])').forEach(function(btn) {
+    var id = btn.id.replace('ptab-', '');
+    btn.className = id === tab ? active : inactive;
+  });
+
+  // Restore scroll
+  pc.scrollTop = _previewState.scroll;
 }
 
 function schedulePreviewRefresh() {
@@ -138,7 +126,9 @@ function schedulePreviewRefresh() {
   clearTimeout(_previewDebounce);
   _previewDebounce = setTimeout(function() {
     if (!isPreviewOpen()) return;
-    savePreviewState();
+    // Save scroll position (tab is already tracked by switchPreviewTab)
+    var pc = document.getElementById('preview-content');
+    if (pc) _previewState.scroll = pc.scrollTop;
     htmx.ajax('POST', '/preview', {
       source: '#config-form',
       target: '#preview-content',

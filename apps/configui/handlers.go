@@ -243,9 +243,10 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 			t.ID, hidden, stickyBar, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Body))
 	}
 
-	// Tab switching JS
+	// Tab switching JS — also updates _previewState.tab for restore across refreshes
 	fmt.Fprintf(w, `<script>
 function switchPreviewTab(tab) {
+  if (typeof _previewState !== 'undefined') _previewState.tab = tab;
   [%s].forEach(function(t) {
     document.getElementById('ptab-content-'+t).classList.toggle('hidden', t !== tab);
     var btn = document.getElementById('ptab-'+t);
