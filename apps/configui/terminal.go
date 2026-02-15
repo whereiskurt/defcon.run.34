@@ -106,6 +106,80 @@ func (s *TermSession) closeBroadcast() {
 	}
 }
 
+// buildTerminalEnv constructs the environment for a terragrunt child process.
+// Instead of sourcing env.sh (which triggers SSO login and credential export),
+// we build the equivalent env vars from ConfigUI's already-parsed config.
+func buildTerminalEnv(profile string, cfg *SiteConfig, envLocal *EnvLocalConfig) []string {
+	// Start with parent env, stripping AWS auth vars that would conflict with AWS_PROFILE
+	stripKeys := map[string]bool{
+		"AWS_PROFILE":           true,
+		"AWS_DEFAULT_PROFILE":   true,
+		"AWS_ACCESS_KEY_ID":     true,
+		"AWS_SECRET_ACCESS_KEY": true,
+		"AWS_SESSION_TOKEN":     true,
+		"AWS_SECURITY_TOKEN":    true,
+	}
+
+	// Also strip vars we'll set explicitly so there are no stale values
+	tgVars := map[string]bool{
+		"TF_VAR_profile_prefix":          true,
+		"TF_VAR_APPLICATION_ACCOUNT_ID":  true,
+		"TF_VAR_MANAGEMENT_ACCOUNT_ID":   true,
+		"TF_VAR_GITHUB_ORG":              true,
+		"TF_VAR_FWD_EMAIL_TO_ADDRESS":    true,
+		"TF_VAR_SOPS_KMS_KEY_ID":         true,
+		"SGUID":                           true,
+		"SITE_LABEL":                      true,
+		"SITE_DOMAIN":                     true,
+		"TG_BUCKET_USE1":                  true,
+		"TG_TABLE_USE1":                   true,
+		"TG_BUCKET_CAC1":                  true,
+		"TG_TABLE_CAC1":                   true,
+		"TG_BUCKET_APSE1":                 true,
+		"TG_TABLE_APSE1":                  true,
+	}
+
+	var env []string
+	for _, e := range os.Environ() {
+		key := e
+		if idx := strings.IndexByte(e, '='); idx >= 0 {
+			key = e[:idx]
+		}
+		if !stripKeys[key] && !tgVars[key] {
+			env = append(env, e)
+		}
+	}
+
+	// AWS auth — profile-based SSO (reads token cache from disk)
+	env = append(env, "AWS_PROFILE="+profile)
+
+	// env.local.sh equivalents — sensitive values from ConfigUI's parsed config
+	env = append(env, "TF_VAR_profile_prefix="+envLocal.ProfilePrefix)
+	env = append(env, "TF_VAR_APPLICATION_ACCOUNT_ID="+envLocal.ApplicationAccountID)
+	env = append(env, "TF_VAR_MANAGEMENT_ACCOUNT_ID="+envLocal.ManagementAccountID)
+	env = append(env, "TF_VAR_GITHUB_ORG="+envLocal.GitHubOrg)
+	env = append(env, "TF_VAR_FWD_EMAIL_TO_ADDRESS="+envLocal.FwdEmailToAddress)
+	env = append(env, "TF_VAR_SOPS_KMS_KEY_ID="+envLocal.SOPSKMSKeyID)
+
+	// env.sh equivalents — site identity and terragrunt state config
+	label := cfg.Site.Label
+	suffix := cfg.Site.RandomSuffix
+	env = append(env, "SGUID="+suffix)
+	env = append(env, "SITE_LABEL="+label)
+	env = append(env, "SITE_DOMAIN="+cfg.DNS.ZoneName)
+
+	// Terragrunt state bucket/table names per region
+	prefix := cfg.Site.TFStatePrefix
+	for _, r := range AllRegions() {
+		name := fmt.Sprintf("%s-%s-%s", prefix, r.Label, suffix)
+		upper := strings.ToUpper(r.Label)
+		env = append(env, fmt.Sprintf("TG_BUCKET_%s=%s", upper, name))
+		env = append(env, fmt.Sprintf("TG_TABLE_%s=%s", upper, name))
+	}
+
+	return env
+}
+
 // startTerminal validates inputs, starts a terragrunt process, and streams output.
 func (a *App) startTerminal(module, command, region string) (*TermSession, error) {
 	modDef, ok := ModuleMap[module]
@@ -151,13 +225,17 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 	}
 	a.mu.Unlock()
 
+	// Snapshot config under lock
+	a.mu.RLock()
+	cfg := a.config
+	envLocal := a.envLocal
+	a.mu.RUnlock()
+
 	// Build AWS profile
 	profile := "terraform"
-	a.mu.RLock()
-	if a.envLocal.ProfilePrefix != "" {
-		profile = a.envLocal.ProfilePrefix + "-terraform"
+	if envLocal.ProfilePrefix != "" {
+		profile = envLocal.ProfilePrefix + "-terraform"
 	}
-	a.mu.RUnlock()
 
 	session := &TermSession{
 		ID:      fmt.Sprintf("term-%d", os.Getpid()),
@@ -170,28 +248,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
 	cmd.Dir = workDir
-
-	// Build clean env: inherit parent but strip conflicting AWS auth vars
-	// so AWS_PROFILE is the sole credential source (uses SSO token cache on disk)
-	conflictVars := map[string]bool{
-		"AWS_PROFILE":            true,
-		"AWS_DEFAULT_PROFILE":    true,
-		"AWS_ACCESS_KEY_ID":      true,
-		"AWS_SECRET_ACCESS_KEY":  true,
-		"AWS_SESSION_TOKEN":      true,
-		"AWS_SECURITY_TOKEN":     true,
-	}
-	var cleanEnv []string
-	for _, e := range os.Environ() {
-		key := e
-		if idx := strings.IndexByte(e, '='); idx >= 0 {
-			key = e[:idx]
-		}
-		if !conflictVars[key] {
-			cleanEnv = append(cleanEnv, e)
-		}
-	}
-	cmd.Env = append(cleanEnv, "AWS_PROFILE="+profile)
+	cmd.Env = buildTerminalEnv(profile, cfg, envLocal)
 	session.cmd = cmd
 
 	stdout, err := cmd.StdoutPipe()
