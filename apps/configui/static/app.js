@@ -1128,9 +1128,9 @@ function updateDiscoveryTimestamp() {
     label = document.createElement('span');
     label.id = 'discovery-timestamp';
     label.className = 'discovery-timestamp';
-    var btn = document.getElementById('requery-aws-btn');
-    if (btn && btn.parentElement) {
-      btn.parentElement.insertBefore(label, btn.nextSibling);
+    var group = document.getElementById('discovery-refresh-group');
+    if (group) {
+      group.appendChild(label);
     }
   }
 

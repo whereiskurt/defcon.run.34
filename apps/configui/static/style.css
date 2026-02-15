@@ -354,7 +354,6 @@ input:focus, select:focus, textarea:focus {
   font-size: 0.6rem;
   font-family: 'Fira Code', monospace;
   color: #71717a;
-  margin-left: 0.5rem;
   user-select: none;
 }
 
