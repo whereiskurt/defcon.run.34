@@ -20,7 +20,8 @@ type TermSession struct {
 	Module   string `json:"module"`
 	Command  string `json:"command"`
 	Region   string `json:"region,omitempty"`
-	Status   string `json:"status"` // "running", "done", "error"
+	CmdLine  string `json:"cmd_line"` // Full command string for display
+	Status   string `json:"status"`   // "running", "done", "error"
 	ExitCode int    `json:"exit_code"`
 
 	mu      sync.Mutex
@@ -246,6 +247,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		Module:  module,
 		Command: command,
 		Region:  region,
+		CmdLine: strings.Join(cmdArgs, " "),
 		Status:  "running",
 		clients: make(map[chan string]struct{}),
 	}
