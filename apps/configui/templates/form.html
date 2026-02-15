@@ -24,6 +24,10 @@
     <button type="button" onclick="toggleSection('infra')" class="global-fold-btn" id="section-chevron-infra" title="Expand/Collapse">+</button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Infrastructure Modules</h2>
     <input type="checkbox" class="section-toggle" id="section-toggle-infra" onclick="toggleAllModules('infra', this)" title="Enable/Disable all modules">
+    <div class="term-actions flex items-center gap-1 ml-1" id="infra-all-actions">
+      <button type="button" class="term-btn term-btn-plan" onclick="openTerminal('all', 'plan-all', '')">Plan All</button>
+      <button type="button" class="term-btn term-btn-apply" onclick="confirmApplyAll()">Apply All</button>
+    </div>
     <button type="button" id="requery-aws-btn"
             class="global-fold-btn term-btn-refresh"
             style="width:2.4rem;height:2.4rem;"

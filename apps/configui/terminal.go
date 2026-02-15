@@ -37,6 +37,8 @@ type ModuleDef struct {
 
 // ModuleMap maps panel IDs to filesystem paths relative to infra/terraform/live/site/.
 var ModuleMap = map[string]ModuleDef{
+	// All modules (run from site root)
+	"all": {Path: "", Global: true},
 	// Global modules (run once)
 	"github_oidc": {Path: "global/github-oidc", Global: true},
 	"cloudtrail":  {Path: "global/cloudtrail", Global: true},
@@ -57,8 +59,10 @@ var ModuleMap = map[string]ModuleDef{
 
 // AllowedCommands maps command names to their terragrunt arguments.
 var AllowedCommands = map[string][]string{
-	"plan":  {"terragrunt", "plan", "--non-interactive", "--no-color"},
-	"apply": {"terragrunt", "apply", "--non-interactive", "--no-color", "-auto-approve"},
+	"plan":      {"terragrunt", "plan", "--non-interactive", "--no-color"},
+	"apply":     {"terragrunt", "apply", "--non-interactive", "--no-color", "-auto-approve"},
+	"plan-all":  {"terragrunt", "plan", "--all", "--non-interactive", "--no-color"},
+	"apply-all": {"terragrunt", "apply", "--all", "--non-interactive", "--no-color", "-auto-approve"},
 }
 
 // broadcast sends a line to all SSE clients.

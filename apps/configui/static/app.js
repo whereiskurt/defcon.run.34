@@ -614,6 +614,19 @@ function confirmRequery() {
   });
 }
 
+// Apply All confirmation dialog
+function confirmApplyAll() {
+  showConfirmDialog({
+    title: 'Are you sure you want to update your state?',
+    message: 'This will run terragrunt apply --all across every infrastructure module.',
+    confirmLabel: 'Apply All',
+    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+    onConfirm: function() {
+      openTerminal('all', 'apply-all', '');
+    }
+  });
+}
+
 // Export confirmation dialog
 function confirmExport() {
   var overlay = document.createElement('div');
