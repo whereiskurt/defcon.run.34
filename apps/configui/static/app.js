@@ -484,12 +484,41 @@ function toggleGlobalBlur() {
   var body = document.body;
   var btn = document.getElementById('blur-toggle-btn');
   if (body.classList.contains('pii-disabled')) {
+    // Re-blur: no confirmation needed
     body.classList.remove('pii-disabled');
     if (btn) btn.textContent = 'Unblur All';
   } else {
-    body.classList.add('pii-disabled');
-    if (btn) btn.textContent = 'Blur All';
+    // Unblur: confirm first
+    confirmUnblur();
   }
+}
+
+function confirmUnblur() {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[60] bg-black/50 flex items-center justify-center';
+  overlay.innerHTML =
+    '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-6 max-w-md mx-4">' +
+      '<h3 class="text-base font-semibold mb-3">Reveal Blurred Items</h3>' +
+      '<p class="text-sm text-zinc-400 mb-4">You\'re about to reveal on-screen items which have been blurred out. Do you want to continue?</p>' +
+      '<div class="flex justify-end gap-2">' +
+        '<button class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm" id="unblur-no-btn">No</button>' +
+        '<button class="rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-medium" id="unblur-yes-btn">Yes</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('unblur-no-btn').addEventListener('click', function() { overlay.remove(); });
+  document.getElementById('unblur-yes-btn').addEventListener('click', function() {
+    overlay.remove();
+    document.body.classList.add('pii-disabled');
+    var btn = document.getElementById('blur-toggle-btn');
+    if (btn) btn.textContent = 'Blur All';
+  });
+  var onKey = function(e) {
+    if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); e.stopImmediatePropagation(); }
+    if (e.key === 'Enter') { overlay.remove(); document.removeEventListener('keydown', onKey); e.stopImmediatePropagation(); document.body.classList.add('pii-disabled'); var btn = document.getElementById('blur-toggle-btn'); if (btn) btn.textContent = 'Blur All'; }
+  };
+  document.addEventListener('keydown', onKey);
 }
 
 // Export confirmation dialog
