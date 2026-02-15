@@ -1,3 +1,30 @@
+// Reusable confirmation dialog (styled, replaces browser confirm())
+// Returns nothing — calls onConfirm callback if user confirms.
+// Options: { title, message, confirmLabel, confirmClass, onConfirm }
+function showConfirmDialog(opts) {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[60] bg-black/50 flex items-center justify-center';
+  var btnClass = opts.confirmClass || 'bg-green-600 hover:bg-green-500 text-white';
+  overlay.innerHTML =
+    '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-6 max-w-sm mx-4">' +
+      '<h3 class="text-base font-semibold mb-2">' + (opts.title || 'Are you sure?') + '</h3>' +
+      '<p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">' + (opts.message || '') + '</p>' +
+      '<div class="flex gap-2 justify-end">' +
+        '<button class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm" id="cfd-cancel">Cancel</button>' +
+        '<button class="rounded-md ' + btnClass + ' px-4 py-2 text-sm font-medium" id="cfd-confirm">' + (opts.confirmLabel || 'Confirm') + '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+  function dismiss() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+  overlay.querySelector('#cfd-cancel').onclick = dismiss;
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+  overlay.querySelector('#cfd-confirm').onclick = function() { dismiss(); if (opts.onConfirm) opts.onConfirm(); };
+  function onKey(e) {
+    if (e.key === 'Escape') { e.stopImmediatePropagation(); dismiss(); }
+  }
+  document.addEventListener('keydown', onKey);
+}
+
 // Theme toggle
 function initTheme() {
   const stored = localStorage.getItem('theme');
@@ -559,6 +586,18 @@ function confirmUnblur() {
   document.addEventListener('keydown', onKey);
 }
 
+// Reload confirmation dialog
+function confirmReload() {
+  showConfirmDialog({
+    title: 'Reload configuration?',
+    message: 'This will reload from disk and overwrite any changes you have currently made.',
+    confirmLabel: 'Reload',
+    onConfirm: function() {
+      fetch('/api/reload', { method: 'POST' }).then(function() { window.location.reload(); });
+    }
+  });
+}
+
 // Export confirmation dialog
 function confirmExport() {
   var overlay = document.createElement('div');
@@ -1086,29 +1125,48 @@ function showTerminalModal(session) {
 
   var processRunning = true;
 
-  function closeModal() {
-    if (processRunning) {
-      if (!confirm('A terragrunt process is still running. Close anyway? The process will be stopped.')) return;
-      fetch('/api/terminal/stop', { method: 'POST' });
-    }
+  function doCloseModal() {
     if (_termEventSource) {
       _termEventSource.close();
       _termEventSource = null;
     }
     overlay.remove();
     document.removeEventListener('keydown', onEsc);
-    // Trigger discovery refresh
     htmx.trigger(document.body, 'refreshDiscovery');
+  }
+
+  function closeModal() {
+    if (processRunning) {
+      showConfirmDialog({
+        title: 'Process still running',
+        message: 'A terragrunt process is still running. Close anyway? The process will be stopped.',
+        confirmLabel: 'Stop & Close',
+        confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+        onConfirm: function() {
+          fetch('/api/terminal/stop', { method: 'POST' });
+          doCloseModal();
+        }
+      });
+      return;
+    }
+    doCloseModal();
   }
 
   closeBtn.onclick = closeModal;
   closeX.onclick = closeModal;
 
   stopBtn.onclick = function() {
-    if (!confirm('Stop the running terragrunt process? This may leave resources in a partial state.')) return;
-    fetch('/api/terminal/stop', { method: 'POST' });
-    stopBtn.disabled = true;
-    stopBtn.textContent = 'Stopping...';
+    showConfirmDialog({
+      title: 'Stop process?',
+      message: 'This may leave resources in a partial state.',
+      confirmLabel: 'Stop',
+      confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+      onConfirm: function() {
+        fetch('/api/terminal/stop', { method: 'POST' });
+        stopBtn.disabled = true;
+        stopBtn.textContent = 'Stopping...';
+      }
+    });
   };
 
   // Escape key handler
