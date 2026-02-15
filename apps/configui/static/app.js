@@ -947,6 +947,83 @@ function initHeaderSync() {
   }
 }
 
+// =====================================================
+// Field Sync — linked fields across panels with lock icons
+// =====================================================
+
+// Sync groups: arrays of field names that should stay in sync.
+// When any field in a group changes, all others update to match.
+var SYNC_GROUPS = [
+  { fields: ['site.label', 'env.site_label'], label: 'Site Label' },
+  { fields: ['dns.zonename', 'env.site_domain'], label: 'Domain' }
+];
+
+// Panel name lookup for human-readable "synced with X" tooltip
+var FIELD_PANEL_NAMES = {
+  'site.label': 'Site Identity',
+  'env.site_label': 'Environment',
+  'dns.zonename': 'DNS Config',
+  'env.site_domain': 'Environment'
+};
+
+var _syncLock = false; // prevent infinite loops
+
+function initFieldSync() {
+  var form = document.getElementById('config-form');
+  if (!form) return;
+
+  SYNC_GROUPS.forEach(function(group) {
+    var inputs = [];
+    group.fields.forEach(function(name) {
+      var input = form.querySelector('[name="' + name + '"]');
+      if (input) inputs.push({ name: name, el: input });
+    });
+
+    if (inputs.length < 2) return;
+
+    // Inject lock icon next to each field's label
+    inputs.forEach(function(inp) {
+      var label = inp.el.parentElement.querySelector('label');
+      if (!label || label.querySelector('.sync-lock')) return;
+
+      // Build "synced with" tooltip listing the other panels
+      var otherPanels = [];
+      inputs.forEach(function(other) {
+        if (other.name !== inp.name) {
+          otherPanels.push(FIELD_PANEL_NAMES[other.name] || other.name);
+        }
+      });
+
+      var lock = document.createElement('span');
+      lock.className = 'sync-lock';
+      lock.title = 'Synced with ' + otherPanels.join(', ');
+      lock.innerHTML =
+        '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">' +
+          '<path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>' +
+        '</svg>' +
+        '<span class="sync-label">' + otherPanels.join(', ') + '</span>';
+      label.appendChild(lock);
+    });
+
+    // Wire up bidirectional sync
+    inputs.forEach(function(source) {
+      source.el.addEventListener('input', function() {
+        if (_syncLock) return;
+        _syncLock = true;
+        var val = source.el.value;
+        inputs.forEach(function(target) {
+          if (target.name !== source.name) {
+            target.el.value = val;
+            // Trigger input event so other listeners (header sync, preview refresh, defaults) fire
+            target.el.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+        });
+        _syncLock = false;
+      });
+    });
+  });
+}
+
 // Default value indicators — dim fields that still hold default values
 function markDefaults() {
   var defaults = window.FORM_DEFAULTS;
@@ -1297,6 +1374,7 @@ document.addEventListener('htmx:afterSwap', function(e) {
 // Initialize on load
 initTheme();
 initHeaderSync();
+initFieldSync();
 markDefaults();
 updateSectionToggle('infra');
 updateAllFoldButtons();

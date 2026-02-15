@@ -449,3 +449,41 @@ input:focus, select:focus, textarea:focus {
   animation: disc-spin 0.8s linear infinite;
 }
 
+/* Sync lock icons — linked fields across panels */
+.sync-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #a1a1aa;
+  font-size: 0.6rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+  user-select: none;
+  cursor: help;
+}
+
+.sync-lock svg {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+}
+
+.sync-lock .sync-label {
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+
+.dark .sync-lock {
+  color: #71717a;
+}
+
+.sync-lock:hover {
+  color: #22c55e;
+}
+
+.dark .sync-lock:hover {
+  color: #4ade80;
+}
+
