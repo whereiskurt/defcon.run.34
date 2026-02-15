@@ -561,45 +561,6 @@ function showToast(message, duration) {
   }, duration);
 }
 
-// Toggle all modules in a section (infra or svc)
-function toggleAllModules(section) {
-  var btn = document.getElementById('toggle-' + section + '-btn');
-  var grid = document.getElementById('form-grid');
-  if (!grid) return;
-
-  var startDiv = grid.querySelector('[data-section="' + section + '"]');
-  if (!startDiv) return;
-
-  // Collect panels between this divider and the next section (or end of grid)
-  var panels = [];
-  var sibling = startDiv.nextElementSibling;
-  while (sibling && !sibling.hasAttribute('data-section')) {
-    if (sibling.hasAttribute('data-panel')) {
-      var cb = sibling.querySelector('.toggle-switch');
-      if (cb) panels.push({ card: sibling, checkbox: cb, id: sibling.getAttribute('data-panel') });
-    }
-    sibling = sibling.nextElementSibling;
-  }
-
-  // Determine action: if any are enabled, disable all; otherwise enable all
-  var anyEnabled = panels.some(function(p) { return p.checkbox.checked; });
-  panels.forEach(function(p) {
-    if (anyEnabled) {
-      p.checkbox.checked = false;
-      p.card.classList.add('panel-disabled');
-      var body = document.getElementById('body-' + p.id);
-      var chevron = document.getElementById('chevron-' + p.id);
-      if (body) body.style.display = 'none';
-      if (chevron) chevron.classList.remove('open');
-    } else {
-      p.checkbox.checked = true;
-      p.card.classList.remove('panel-disabled');
-    }
-  });
-
-  if (btn) btn.textContent = anyEnabled ? 'Enable All' : 'Disable All';
-}
-
 // Section-level expand/collapse — operates on panels within a data-section group
 function getSectionPanels(section) {
   var grid = document.getElementById('form-grid');
@@ -607,7 +568,6 @@ function getSectionPanels(section) {
   var divider = grid.querySelector('[data-section="' + section + '"]');
   if (!divider) return [];
 
-  // Walk siblings until next section-divider or end of grid
   var panels = [];
   var sibling = divider.nextElementSibling;
   while (sibling && !sibling.hasAttribute('data-section')) {
@@ -619,23 +579,119 @@ function getSectionPanels(section) {
   return panels;
 }
 
-function expandSection(section) {
-  getSectionPanels(section).forEach(function(id) {
-    var body = document.getElementById('body-' + id);
-    var chevron = document.getElementById('chevron-' + id);
-    if (body) body.style.display = '';
-    if (chevron) chevron.classList.add('open');
-  });
+function isSectionExpanded(section) {
+  var ids = getSectionPanels(section);
+  for (var i = 0; i < ids.length; i++) {
+    var body = document.getElementById('body-' + ids[i]);
+    if (body && body.style.display !== 'none') return true;
+  }
+  return false;
 }
 
-function collapseSection(section) {
-  getSectionPanels(section).forEach(function(id) {
-    var body = document.getElementById('body-' + id);
-    var chevron = document.getElementById('chevron-' + id);
-    if (body) body.style.display = 'none';
+function toggleSection(section) {
+  var chevron = document.getElementById('section-chevron-' + section);
+  if (isSectionExpanded(section)) {
+    getSectionPanels(section).forEach(function(id) {
+      var body = document.getElementById('body-' + id);
+      var ch = document.getElementById('chevron-' + id);
+      if (body) body.style.display = 'none';
+      if (ch) ch.classList.remove('open');
+    });
     if (chevron) chevron.classList.remove('open');
-  });
+  } else {
+    getSectionPanels(section).forEach(function(id) {
+      var body = document.getElementById('body-' + id);
+      var ch = document.getElementById('chevron-' + id);
+      if (body) body.style.display = '';
+      if (ch) ch.classList.add('open');
+    });
+    if (chevron) chevron.classList.add('open');
+  }
 }
+
+// Collect module panels (with toggle-switch checkboxes) in a section
+function getSectionModules(section) {
+  var grid = document.getElementById('form-grid');
+  if (!grid) return [];
+  var startDiv = grid.querySelector('[data-section="' + section + '"]');
+  if (!startDiv) return [];
+
+  var panels = [];
+  var sibling = startDiv.nextElementSibling;
+  while (sibling && !sibling.hasAttribute('data-section')) {
+    if (sibling.hasAttribute('data-panel')) {
+      var cb = sibling.querySelector('.toggle-switch');
+      if (cb) panels.push({ card: sibling, checkbox: cb, id: sibling.getAttribute('data-panel') });
+    }
+    sibling = sibling.nextElementSibling;
+  }
+  return panels;
+}
+
+// Toggle all modules in a section via the tri-state slider
+function toggleAllModules(section, slider) {
+  var panels = getSectionModules(section);
+  var enabledCount = panels.filter(function(p) { return p.checkbox.checked; }).length;
+  // If any are enabled, disable all; otherwise enable all
+  var enabling = enabledCount === 0;
+
+  panels.forEach(function(p) {
+    if (enabling) {
+      p.checkbox.checked = true;
+      p.card.classList.remove('panel-disabled');
+    } else {
+      p.checkbox.checked = false;
+      p.card.classList.add('panel-disabled');
+      var body = document.getElementById('body-' + p.id);
+      var chevron = document.getElementById('chevron-' + p.id);
+      if (body) body.style.display = 'none';
+      if (chevron) chevron.classList.remove('open');
+    }
+  });
+
+  updateSectionToggle(section);
+}
+
+// Sync the section toggle slider to reflect actual module states
+function updateSectionToggle(section) {
+  var slider = document.getElementById('section-toggle-' + section);
+  if (!slider) return;
+
+  var panels = getSectionModules(section);
+  if (panels.length === 0) return;
+
+  var enabledCount = panels.filter(function(p) { return p.checkbox.checked; }).length;
+
+  if (enabledCount === panels.length) {
+    slider.checked = true;
+    slider.classList.remove('partial');
+  } else if (enabledCount === 0) {
+    slider.checked = false;
+    slider.classList.remove('partial');
+  } else {
+    slider.checked = false;
+    slider.classList.add('partial');
+  }
+}
+
+// Listen for individual module toggle changes to update section slider
+document.addEventListener('change', function(e) {
+  if (e.target.classList.contains('toggle-switch')) {
+    // Find which section this panel belongs to
+    var panel = e.target.closest('[data-panel]');
+    if (!panel) return;
+    var grid = document.getElementById('form-grid');
+    if (!grid) return;
+    var dividers = grid.querySelectorAll('[data-section]');
+    for (var i = dividers.length - 1; i >= 0; i--) {
+      // Check if this panel comes after this divider
+      if (dividers[i].compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING) {
+        updateSectionToggle(dividers[i].dataset.section);
+        break;
+      }
+    }
+  }
+});
 
 // Discovery — per-region status dots on panel headers
 
@@ -1078,5 +1134,6 @@ document.addEventListener('htmx:afterSwap', function(e) {
 initTheme();
 initHeaderSync();
 markDefaults();
+updateSectionToggle('infra');
 injectTerminalButtons();
 updateTerminalButtonsVisibility();

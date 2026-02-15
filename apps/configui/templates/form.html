@@ -8,10 +8,11 @@
 <div id="form-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
   <!-- Section Divider: Core Configuration -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 section-divider flex items-center gap-3" data-section="core">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 section-divider flex items-center gap-2" data-section="core">
+    <button type="button" onclick="toggleSection('core')" class="section-chevron" id="section-chevron-core" title="Expand/Collapse">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Core Configuration</h2>
-    <button type="button" onclick="expandSection('core')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Expand</button>
-    <button type="button" onclick="collapseSection('core')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Collapse</button>
   </div>
 
   {{template "site.html" .}}
@@ -22,11 +23,12 @@
   {{template "versions.html" .}}
 
   <!-- Section Divider: Infrastructure Modules -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-3" data-section="infra">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-2" data-section="infra">
+    <button type="button" onclick="toggleSection('infra')" class="section-chevron" id="section-chevron-infra" title="Expand/Collapse">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Infrastructure Modules</h2>
-    <button type="button" onclick="expandSection('infra')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Expand</button>
-    <button type="button" onclick="collapseSection('infra')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Collapse</button>
-    <button type="button" id="toggle-infra-btn" onclick="toggleAllModules('infra')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Disable All</button>
+    <input type="checkbox" class="section-toggle" id="section-toggle-infra" onclick="toggleAllModules('infra', this)" title="Enable/Disable all modules">
   </div>
 
   {{template "github_oidc.html" .}}
@@ -45,10 +47,11 @@
   {{template "upload_proc.html" .}}
 
   <!-- Section Divider: Services -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-3" data-section="svc">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-2" data-section="svc">
+    <button type="button" onclick="toggleSection('svc')" class="section-chevron" id="section-chevron-svc" title="Expand/Collapse">
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Services</h2>
-    <button type="button" onclick="expandSection('svc')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Expand</button>
-    <button type="button" onclick="collapseSection('svc')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Collapse</button>
   </div>
 
   {{template "svc_auth.html" .}}
