@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -370,6 +371,37 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
 // discoveryCacheTTL is how long discovery results are considered fresh.
 const discoveryCacheTTL = 2 * time.Minute
 
+func (a *App) saveDiscoveryCache() {
+	a.mu.RLock()
+	disc := a.discovery
+	a.mu.RUnlock()
+	if disc == nil {
+		return
+	}
+	data, err := json.MarshalIndent(disc, "", "  ")
+	if err != nil {
+		log.Printf("Warning: discovery cache save failed: %v", err)
+		return
+	}
+	if err := os.WriteFile(a.discoveryCachePath, data, 0644); err != nil {
+		log.Printf("Warning: discovery cache write failed: %v", err)
+	}
+}
+
+func (a *App) loadDiscoveryCache() {
+	data, err := os.ReadFile(a.discoveryCachePath)
+	if err != nil {
+		return // no cache file, that's fine
+	}
+	var disc DiscoveryResults
+	if json.Unmarshal(data, &disc) != nil {
+		return
+	}
+	disc.Status = DiscoveryDone // ensure not stuck in "running"
+	a.discovery = &disc
+	log.Printf("Loaded discovery cache: %d resources, %s old", len(disc.Resources), time.Since(disc.UpdatedAt).Round(time.Second))
+}
+
 func (a *App) startDiscovery() {
 	a.startDiscoveryInner(false)
 }
@@ -412,6 +444,7 @@ func (a *App) startDiscoveryInner(force bool) {
 		disc.UpdatedAt = time.Now()
 		a.mu.Unlock()
 		log.Printf("Discovery complete: %d resources checked", len(disc.Resources))
+		a.saveDiscoveryCache()
 	}()
 }
 
@@ -494,6 +527,7 @@ func (a *App) refreshModule(module string) {
 	disc.UpdatedAt = time.Now()
 	a.mu.Unlock()
 	log.Printf("Module discovery complete: %s", module)
+	a.saveDiscoveryCache()
 }
 
 // sopsProfile returns the AWS profile name to use for SOPS operations.

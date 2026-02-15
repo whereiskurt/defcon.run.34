@@ -62,3 +62,4 @@ lambda_*.zip
 apps/configui/configui
 apps/configui/backups/
 apps/configui/site-config.json
+apps/configui/.discovery-cache.json

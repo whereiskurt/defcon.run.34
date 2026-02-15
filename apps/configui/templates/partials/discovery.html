@@ -1,6 +1,6 @@
 {{define "discovery.html"}}
 {{if .}}
-<div id="discovery-data" data-status="{{.Status}}">
+<div id="discovery-data" data-status="{{.Status}}" data-updated-at="{{.UpdatedAt.Unix}}">
   {{range .Resources}}
   {{$panel := .Panel}}
   {{$name := .Name}}

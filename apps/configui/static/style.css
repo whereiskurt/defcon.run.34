@@ -350,6 +350,14 @@ input:focus, select:focus, textarea:focus {
   white-space: nowrap;
 }
 
+.discovery-timestamp {
+  font-size: 0.6rem;
+  font-family: 'Fira Code', monospace;
+  color: #71717a;
+  margin-left: 0.5rem;
+  user-select: none;
+}
+
 /* Scrollbar styling for dark mode */
 @media (prefers-color-scheme: dark) {
   ::-webkit-scrollbar {

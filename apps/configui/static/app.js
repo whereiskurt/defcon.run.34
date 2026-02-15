@@ -1116,10 +1116,44 @@ function updateDiscoveryDots() {
   });
 }
 
+// Discovery timestamp — show "Xm ago" next to refresh icon
+function updateDiscoveryTimestamp() {
+  var data = document.getElementById('discovery-data');
+  if (!data) return;
+  var ts = parseInt(data.dataset.updatedAt, 10);
+  if (!ts) return;
+
+  var label = document.getElementById('discovery-timestamp');
+  if (!label) {
+    label = document.createElement('span');
+    label.id = 'discovery-timestamp';
+    label.className = 'discovery-timestamp';
+    var btn = document.getElementById('requery-aws-btn');
+    if (btn && btn.parentElement) {
+      btn.parentElement.insertBefore(label, btn.nextSibling);
+    }
+  }
+
+  var status = data.dataset.status;
+  if (status === 'running') {
+    label.textContent = '[scanning...]';
+    return;
+  }
+
+  var ago = Math.floor((Date.now() / 1000) - ts);
+  if (ago < 60) label.textContent = '[' + ago + 's ago]';
+  else if (ago < 3600) label.textContent = '[' + Math.floor(ago / 60) + 'm ago]';
+  else label.textContent = '[' + Math.floor(ago / 3600) + 'h ago]';
+}
+
+// Tick the timestamp label every 30s
+setInterval(updateDiscoveryTimestamp, 30000);
+
 // Listen for htmx swaps on discovery container
 document.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'discovery-container') {
     updateDiscoveryDots();
+    updateDiscoveryTimestamp();
     // Stop spinning refresh buttons when discovery is done
     if (!discoveryRunning()) {
       document.querySelectorAll('.term-btn-refresh.spinning').forEach(function(btn) {
