@@ -268,8 +268,6 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		return nil, fmt.Errorf("stderr pipe: %w", err)
 	}
 
-	merged := io.MultiReader(stdout, stderr)
-
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start command: %w", err)
 	}
@@ -278,14 +276,16 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 	a.termSession = session
 	a.mu.Unlock()
 
-	// Stream output in background
-	go func() {
-		scanner := bufio.NewScanner(merged)
+	// Read both pipes concurrently to avoid deadlock when one pipe's
+	// buffer fills while the other is still being read sequentially.
+	var pipeWg sync.WaitGroup
+	scanPipe := func(r io.Reader) {
+		defer pipeWg.Done()
+		scanner := bufio.NewScanner(r)
 		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
 			// Strip terragrunt's stream prefixes to reduce output noise.
-			// Match longest prefixes first to avoid partial stripping.
 			for _, prefix := range []string{
 				"STDOUT terraform: ", "STDERR terraform: ",
 				"STDOUT tofu: ", "STDERR tofu: ",
@@ -293,6 +293,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 				"STDOUT tofu:", "STDERR tofu:",
 				"STDOUT: ", "STDERR: ",
 				"STDOUT ", "STDERR ",
+				"terraform: ", "tofu: ",
 			} {
 				if strings.HasPrefix(line, prefix) {
 					line = line[len(prefix):]
@@ -301,7 +302,14 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 			}
 			session.broadcast(line)
 		}
+	}
+	pipeWg.Add(2)
+	go scanPipe(stdout)
+	go scanPipe(stderr)
 
+	// Wait for both pipes to drain, then wait for process exit
+	go func() {
+		pipeWg.Wait()
 		err := cmd.Wait()
 		if err != nil {
 			session.Status = "error"
