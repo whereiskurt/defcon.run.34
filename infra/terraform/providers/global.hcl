@@ -103,7 +103,7 @@ remote_state {
       region         = local.region
       dynamodb_table = get_env(upper("TG_TABLE_${local.region_label}"), "")
     },
-    local.is_ci ? {} : { profile = "terraform" }
+    local.is_ci ? {} : { profile = local.terraform_profile }
   )
   generate = {
     path      = "backend.globals.tf"

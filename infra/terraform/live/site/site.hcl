@@ -5,7 +5,7 @@ locals {
     github_repo_name = "defcon.run.34"
     tf_state_prefix  = "tf-dc34"
     random_suffix    = get_env("SGUID", "80a6b349")
-    skip_regions     = ["ap-southeast-1"] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
+    skip_regions     = [] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
   }
 
   secret_values = jsondecode(
