@@ -7,21 +7,25 @@
 </div>
 <div id="form-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-  <!-- Row 1 -->
+  <!-- Section Divider: Core Configuration -->
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 section-divider flex items-center gap-3" data-section="core">
+    <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Core Configuration</h2>
+    <button type="button" onclick="expandSection('core')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Expand</button>
+    <button type="button" onclick="collapseSection('core')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Collapse</button>
+  </div>
+
   {{template "site.html" .}}
   {{template "env_general.html" .}}
-
-  <!-- Row 2 -->
   {{template "aws_config.html" .}}
   {{template "dns.html" .}}
-
-  <!-- Row 3 -->
   {{template "env_secrets.html" .}}
   {{template "versions.html" .}}
 
   <!-- Section Divider: Infrastructure Modules -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-3">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-3" data-section="infra">
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Infrastructure Modules</h2>
+    <button type="button" onclick="expandSection('infra')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Expand</button>
+    <button type="button" onclick="collapseSection('infra')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Collapse</button>
     <button type="button" id="toggle-infra-btn" onclick="toggleAllModules('infra')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Disable All</button>
   </div>
 
@@ -41,8 +45,10 @@
   {{template "upload_proc.html" .}}
 
   <!-- Section Divider: Services -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-3" data-section="svc">
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Services</h2>
+    <button type="button" onclick="expandSection('svc')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Expand</button>
+    <button type="button" onclick="collapseSection('svc')" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono">Collapse</button>
   </div>
 
   {{template "svc_auth.html" .}}

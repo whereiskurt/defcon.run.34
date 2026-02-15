@@ -567,22 +567,13 @@ function toggleAllModules(section) {
   var grid = document.getElementById('form-grid');
   if (!grid) return;
 
-  // Find the section divider that contains this button
-  var dividers = grid.querySelectorAll('.section-divider');
-  var startDiv = null, endDiv = null;
-  for (var i = 0; i < dividers.length; i++) {
-    if (dividers[i].querySelector('#toggle-' + section + '-btn')) {
-      startDiv = dividers[i];
-      endDiv = dividers[i + 1] || null;
-      break;
-    }
-  }
+  var startDiv = grid.querySelector('[data-section="' + section + '"]');
   if (!startDiv) return;
 
-  // Collect panels between this divider and the next (or end of grid)
+  // Collect panels between this divider and the next section (or end of grid)
   var panels = [];
   var sibling = startDiv.nextElementSibling;
-  while (sibling && sibling !== endDiv) {
+  while (sibling && !sibling.hasAttribute('data-section')) {
     if (sibling.hasAttribute('data-panel')) {
       var cb = sibling.querySelector('.toggle-switch');
       if (cb) panels.push({ card: sibling, checkbox: cb, id: sibling.getAttribute('data-panel') });
@@ -607,6 +598,43 @@ function toggleAllModules(section) {
   });
 
   if (btn) btn.textContent = anyEnabled ? 'Enable All' : 'Disable All';
+}
+
+// Section-level expand/collapse — operates on panels within a data-section group
+function getSectionPanels(section) {
+  var grid = document.getElementById('form-grid');
+  if (!grid) return [];
+  var divider = grid.querySelector('[data-section="' + section + '"]');
+  if (!divider) return [];
+
+  // Walk siblings until next section-divider or end of grid
+  var panels = [];
+  var sibling = divider.nextElementSibling;
+  while (sibling && !sibling.hasAttribute('data-section')) {
+    if (sibling.hasAttribute('data-panel')) {
+      panels.push(sibling.getAttribute('data-panel'));
+    }
+    sibling = sibling.nextElementSibling;
+  }
+  return panels;
+}
+
+function expandSection(section) {
+  getSectionPanels(section).forEach(function(id) {
+    var body = document.getElementById('body-' + id);
+    var chevron = document.getElementById('chevron-' + id);
+    if (body) body.style.display = '';
+    if (chevron) chevron.classList.add('open');
+  });
+}
+
+function collapseSection(section) {
+  getSectionPanels(section).forEach(function(id) {
+    var body = document.getElementById('body-' + id);
+    var chevron = document.getElementById('chevron-' + id);
+    if (body) body.style.display = 'none';
+    if (chevron) chevron.classList.remove('open');
+  });
 }
 
 // Discovery — per-region status dots on panel headers
