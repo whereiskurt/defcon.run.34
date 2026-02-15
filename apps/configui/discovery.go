@@ -404,6 +404,64 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig) *DiscoveryResults {
 		}()
 	}
 
+	// GitHub OIDC (IAM is global)
+	if cfg.GitHubOIDC.Enabled {
+		// Check OIDC provider
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rc := checkOIDCProvider(profile)
+			addResult(ResourceResult{
+				Panel:   "github_oidc",
+				Name:    "oidc-provider",
+				Regions: []RegionCheck{rc},
+			})
+		}()
+
+		// Check each IAM role
+		for _, role := range cfg.GitHubOIDC.Roles {
+			wg.Add(1)
+			go func(roleName string) {
+				defer wg.Done()
+				fullName := fmt.Sprintf("%s-github-%s", cfg.Site.Label, roleName)
+				rc := checkIAMRole(profile, fullName)
+				addResult(ResourceResult{
+					Panel:   "github_oidc",
+					Name:    fullName,
+					Regions: []RegionCheck{rc},
+				})
+			}(role.Name)
+		}
+
+		// Check delegate role
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			fullName := fmt.Sprintf("%s-%s", cfg.Site.Label, cfg.GitHubOIDC.DelegateRoleName)
+			rc := checkIAMRole(profile, fullName)
+			addResult(ResourceResult{
+				Panel:   "github_oidc",
+				Name:    fullName,
+				Regions: []RegionCheck{rc},
+			})
+		}()
+
+		// Check EC2 runner instance profile if enabled
+		if cfg.GitHubOIDC.EC2RunnerProfile.Enabled {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				fullName := fmt.Sprintf("%s-%s", cfg.Site.Label, cfg.GitHubOIDC.EC2RunnerProfile.Name)
+				rc := checkInstanceProfile(profile, fullName)
+				addResult(ResourceResult{
+					Panel:   "github_oidc",
+					Name:    fullName,
+					Regions: []RegionCheck{rc},
+				})
+			}()
+		}
+	}
+
 	// CloudTrail
 	if cfg.CloudTrail.Enabled {
 		wg.Add(1)
@@ -750,6 +808,63 @@ func checkLambdaFunction(profile, functionName, region string) RegionCheck {
 	} else {
 		rc.Error = "not active"
 	}
+	return rc
+}
+
+func checkOIDCProvider(profile string) RegionCheck {
+	rc := RegionCheck{Region: "us-east-1", Label: "global"}
+	out, err := exec.Command("aws", "iam", "list-open-id-connect-providers",
+		"--profile", profile,
+		"--output", "json").Output()
+	if err != nil {
+		rc.Error = "check failed"
+		return rc
+	}
+	var resp struct {
+		OpenIDConnectProviderList []struct {
+			Arn string `json:"Arn"`
+		} `json:"OpenIDConnectProviderList"`
+	}
+	if json.Unmarshal(out, &resp) == nil {
+		for _, p := range resp.OpenIDConnectProviderList {
+			if strings.Contains(p.Arn, "token.actions.githubusercontent.com") {
+				rc.Exists = true
+				rc.Detail = "GitHub Actions"
+				return rc
+			}
+		}
+	}
+	rc.Error = "not found"
+	return rc
+}
+
+func checkIAMRole(profile, roleName string) RegionCheck {
+	rc := RegionCheck{Region: "us-east-1", Label: "global"}
+	_, err := exec.Command("aws", "iam", "get-role",
+		"--role-name", roleName,
+		"--profile", profile,
+		"--output", "json").Output()
+	if err != nil {
+		rc.Error = "not found"
+		return rc
+	}
+	rc.Exists = true
+	rc.Detail = "exists"
+	return rc
+}
+
+func checkInstanceProfile(profile, profileName string) RegionCheck {
+	rc := RegionCheck{Region: "us-east-1", Label: "global"}
+	_, err := exec.Command("aws", "iam", "get-instance-profile",
+		"--instance-profile-name", profileName,
+		"--profile", profile,
+		"--output", "json").Output()
+	if err != nil {
+		rc.Error = "not found"
+		return rc
+	}
+	rc.Exists = true
+	rc.Detail = "exists"
 	return rc
 }
 

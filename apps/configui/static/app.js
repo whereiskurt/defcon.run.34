@@ -613,7 +613,7 @@ function toggleAllModules(section) {
 
 // Panels that have AWS resource discovery checks
 var DISCOVERABLE_PANELS = {
-  ecs_clusters: true, ecs_services: true, ecs_tasks: true,
+  github_oidc: true, ecs_clusters: true, ecs_services: true, ecs_tasks: true,
   dynamodb: true, ecr: true, cloudfront: true, ec2spots: true,
   email: true, secrets: true, s3_uploads: true, waf: true,
   cloudtrail: true, upload_proc: true
