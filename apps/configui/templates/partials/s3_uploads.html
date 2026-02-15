@@ -4,7 +4,6 @@
     <div class="flex items-center gap-3">
       <input type="checkbox" name="user_uploads.enabled" class="toggle-switch" {{if .Config.UserUploads.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('s3_uploads', this)">
       <h3 class="text-base font-semibold">S3 Uploads</h3>
-      <span class="text-xs text-zinc-400">User upload buckets</span>
     </div>
     <svg class="w-4 h-4 chevron" id="chevron-s3_uploads" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
   </div>

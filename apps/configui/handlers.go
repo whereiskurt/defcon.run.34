@@ -369,7 +369,9 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
 
 // startDiscovery kicks off a background discovery run if not already running.
 // discoveryCacheTTL is how long discovery results are considered fresh.
-const discoveryCacheTTL = 2 * time.Minute
+// Cached results (including those loaded from disk) won't be re-scanned
+// until this TTL expires. Use the refresh button to force a re-scan.
+const discoveryCacheTTL = 30 * time.Minute
 
 func (a *App) saveDiscoveryCache() {
 	a.mu.RLock()
