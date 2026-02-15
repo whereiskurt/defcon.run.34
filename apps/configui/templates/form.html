@@ -1,12 +1,12 @@
 {{define "form.html"}}
 <div class="flex items-center gap-3 mb-4">
-  <button type="button" onclick="expandAllPanels()" class="section-chevron open" title="Expand All">
-    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
-  </button>
-  <button type="button" onclick="collapseAllPanels()" class="section-chevron" title="Collapse All">
-    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-  </button>
   <span class="text-xl font-mono font-bold text-zinc-500 dark:text-zinc-400">Terraform and Terragrunt Configuration</span>
+  <button type="button" onclick="expandAllPanels()" class="global-fold-btn" title="Expand All">
+    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5M20 8V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5M20 16v4m0 0h-4m4 0l-5-5"/></svg>
+  </button>
+  <button type="button" onclick="collapseAllPanels()" class="global-fold-btn" title="Collapse All">
+    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V4.5M9 9H4.5M9 9L3.5 3.5M9 15v4.5M9 15H4.5M9 15l-5.5 5.5M15 9h4.5M15 9V4.5M15 9l5.5-5.5M15 15h4.5M15 15v4.5m0-4.5l5.5 5.5"/></svg>
+  </button>
   <button type="button" id="blur-toggle-btn" onclick="toggleGlobalBlur()" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-3 py-1 text-xs font-mono ml-auto">Unblur All</button>
 </div>
 <div id="form-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">

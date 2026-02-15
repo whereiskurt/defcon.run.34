@@ -50,6 +50,25 @@
   transform: translateX(1.25rem);
 }
 
+/* Global expand/collapse fold buttons */
+.global-fold-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.global-fold-btn:hover {
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.1);
+}
+
 /* Section chevron — expand/collapse icon for section headers */
 .section-chevron {
   display: inline-flex;
