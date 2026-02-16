@@ -43,20 +43,22 @@
     </div>
   </div>
 
-  {{template "github_oidc.html" .}}
-  {{template "cloudtrail.html" .}}
-  {{template "cloudfront.html" .}}
-  {{template "waf.html" .}}
-  {{template "secrets.html" .}}
-  {{template "email.html" .}}
-  {{template "ec2spots.html" .}}
-  {{template "ecs_clusters.html" .}}
-  {{template "ecs_tasks.html" .}}
-  {{template "ecs_services.html" .}}
-  {{template "dynamodb.html" .}}
-  {{template "ecr.html" .}}
-  {{template "s3_uploads.html" .}}
-  {{template "upload_proc.html" .}}
+  <div id="infra-modules" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+    {{template "github_oidc.html" .}}
+    {{template "cloudtrail.html" .}}
+    {{template "cloudfront.html" .}}
+    {{template "waf.html" .}}
+    {{template "secrets.html" .}}
+    {{template "email.html" .}}
+    {{template "ec2spots.html" .}}
+    {{template "ecs_clusters.html" .}}
+    {{template "ecs_tasks.html" .}}
+    {{template "ecs_services.html" .}}
+    {{template "dynamodb.html" .}}
+    {{template "ecr.html" .}}
+    {{template "s3_uploads.html" .}}
+    {{template "upload_proc.html" .}}
+  </div>
 
   <!-- Section Divider: Services -->
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-2" data-section="svc">

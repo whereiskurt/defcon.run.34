@@ -2,6 +2,7 @@
 <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.ECR.Enabled}}panel-disabled{{end}}" data-panel="ecr" data-module-num="12">
   <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('ecr')">
     <div class="flex items-center gap-3">
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
       <input type="checkbox" name="ecr.enabled" class="toggle-switch" {{if .Config.ECR.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('ecr', this)">
       <h3 class="text-base font-semibold relative"><span class="module-num">#12</span>ECR</h3>
     </div>

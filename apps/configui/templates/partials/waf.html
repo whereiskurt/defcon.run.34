@@ -2,6 +2,7 @@
 <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.WAF.Enabled}}panel-disabled{{end}} mod-group-global" data-panel="waf" data-module-num="4">
   <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('waf')">
     <div class="flex items-center gap-3">
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
       <input type="checkbox" name="waf.enabled" class="toggle-switch" {{if .Config.WAF.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('waf', this)">
       <h3 class="text-base font-semibold relative"><span class="module-num">#04</span>WAF</h3>
     </div>

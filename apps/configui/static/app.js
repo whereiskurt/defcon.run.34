@@ -2380,6 +2380,37 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// --- Sortable infrastructure modules ---
+function initModuleSortable() {
+  var container = document.getElementById('infra-modules');
+  if (!container || typeof Sortable === 'undefined') return;
+
+  // Restore saved order from localStorage
+  var saved = localStorage.getItem('configui-module-order');
+  if (saved) {
+    try {
+      var order = JSON.parse(saved);
+      order.forEach(function(panelId) {
+        var el = container.querySelector('[data-panel="' + panelId + '"]');
+        if (el) container.appendChild(el);
+      });
+    } catch (e) { /* ignore bad data */ }
+  }
+
+  Sortable.create(container, {
+    handle: '.drag-handle',
+    animation: 200,
+    ghostClass: 'sortable-ghost',
+    chosenClass: 'sortable-chosen',
+    onEnd: function() {
+      var panels = container.querySelectorAll('[data-panel]');
+      var order = [];
+      panels.forEach(function(el) { order.push(el.getAttribute('data-panel')); });
+      localStorage.setItem('configui-module-order', JSON.stringify(order));
+    }
+  });
+}
+
 // Initialize on load
 initTheme();
 initHeaderSync();
@@ -2392,3 +2423,4 @@ injectTerminalButtons();
 updateTerminalButtonsVisibility();
 recoverTerminalSessions();
 updateHistoryBadge();
+initModuleSortable();

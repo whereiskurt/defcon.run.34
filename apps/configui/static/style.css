@@ -922,6 +922,31 @@ body.preview-dragging {
   pointer-events: none;
 }
 
+/* Drag handle for sortable modules */
+.drag-handle {
+  cursor: grab;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.3;
+  user-select: none;
+  padding: 2px;
+  transition: opacity 0.15s;
+}
+.drag-handle:hover {
+  opacity: 0.7;
+}
+.drag-handle:active {
+  cursor: grabbing;
+}
+/* SortableJS ghost/drag styling */
+.sortable-ghost {
+  opacity: 0.3;
+}
+.sortable-chosen {
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.5);
+  border-radius: 8px;
+}
+
 /* Core Configuration — subtle gradient */
 .mod-group-core  { background: linear-gradient(135deg, #f4f4f5, #e4e4e7) !important; }
 .dark .mod-group-core  { background: linear-gradient(135deg, #333338, #27272a) !important; }
