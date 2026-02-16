@@ -577,7 +577,7 @@ function confirmSaveAll() {
 // Skip when global unblur is active — those should stay revealed until user clicks "Blur All"
 document.addEventListener('click', function(e) {
   if (_globalUnblurred) return;
-  document.querySelectorAll('.pii-blur.pii-revealed').forEach(function(el) {
+  document.querySelectorAll('.pii-blur.pii-revealed:not(.pii-sensitive)').forEach(function(el) {
     if (!el.contains(e.target) && e.target !== el) {
       el.classList.remove('pii-revealed');
     }
@@ -589,8 +589,9 @@ var _globalUnblurred = false;
 function toggleGlobalBlur() {
   var btn = document.getElementById('blur-toggle-btn');
   if (_globalUnblurred) {
-    // Re-blur: remove pii-revealed from ALL elements (including individually revealed sensitive ones)
-    document.querySelectorAll('.pii-blur.pii-revealed').forEach(function(el) {
+    // Re-blur: remove pii-revealed from non-sensitive elements only
+    // pii-sensitive elements (like export creds) are fully independent of global toggle
+    document.querySelectorAll('.pii-blur.pii-revealed:not(.pii-sensitive)').forEach(function(el) {
       el.classList.remove('pii-revealed');
     });
     _globalUnblurred = false;

@@ -430,7 +430,7 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
               class="text-zinc-500 hover:text-zinc-300 text-lg px-1" title="Dismiss">&times;</button>
     </div>
   </div>
-  <pre id="creds-output" class="pii-blur font-mono text-xs text-zinc-300 bg-zinc-900 rounded p-3 overflow-x-auto whitespace-pre cursor-pointer"
+  <pre id="creds-output" class="pii-blur pii-sensitive font-mono text-xs text-zinc-300 bg-zinc-900 rounded p-3 overflow-x-auto whitespace-pre cursor-pointer"
        data-raw="%s"
        onclick="this.classList.toggle('pii-revealed');"
        title="Click to reveal/blur">%s</pre>
