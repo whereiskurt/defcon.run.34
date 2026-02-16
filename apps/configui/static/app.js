@@ -1563,85 +1563,63 @@ function isAWSAuthed() {
   return el.querySelector('.status-dot.ok') !== null;
 }
 
-// Build a split-button (main action + region dropdown) for a per-module Plan or Apply.
-function buildModuleSplitBtn(panelId, command, isGlobal) {
+// Build a joined action group: [Plan] [Apply] [region ▼] for regional, [Plan] [Apply] for global.
+function buildModuleActionGroup(panelId, isGlobal) {
   var regions = window.ALL_REGIONS || [];
-  var isPlan = command === 'plan';
-  var mainLabel = isPlan ? 'Plan' : 'Apply';
-  var mainClass = isPlan ? 'split-btn-plan' : 'split-btn-apply';
-  var confirmClass = isPlan ? '' : 'bg-red-600 hover:bg-red-500 text-white';
   var moduleName = panelId.replace(/_/g, '-');
+  var selectedRegion = regions.length > 0 ? regions[0].full : '';
+  var selectedLabel = regions.length > 0 ? regions[0].label : '';
 
-  function doAction(region) {
+  function doPlan(region) {
     var label = moduleName;
     if (region) label += ' (' + region + ')';
-    if (isPlan) {
-      showConfirmDialog({
-        title: 'Plan ' + label + '?',
-        message: 'Run terragrunt plan on <strong>' + label + '</strong>.',
-        confirmLabel: 'Plan',
-        onConfirm: function() { openTerminal(panelId, 'plan', region); }
-      });
-    } else {
-      showConfirmDialog({
-        title: 'Apply ' + label + '?',
-        message: 'This will run <span class="font-mono text-zinc-300">terragrunt apply</span> on <strong>' + label + '</strong>. Resources may be created, modified, or destroyed.',
-        confirmLabel: 'Apply',
-        confirmClass: confirmClass,
-        onConfirm: function() { openTerminal(panelId, 'apply', region); }
-      });
-    }
+    showConfirmDialog({
+      title: 'Plan ' + label + '?',
+      message: 'Run terragrunt plan on <strong>' + label + '</strong>.',
+      confirmLabel: 'Plan',
+      onConfirm: function() { openTerminal(panelId, 'plan', region); }
+    });
+  }
+
+  function doApply(region) {
+    var label = moduleName;
+    if (region) label += ' (' + region + ')';
+    showConfirmDialog({
+      title: 'Apply ' + label + '?',
+      message: 'This will run <span class="font-mono text-zinc-300">terragrunt apply</span> on <strong>' + label + '</strong>. Resources may be created, modified, or destroyed.',
+      confirmLabel: 'Apply',
+      confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+      onConfirm: function() { openTerminal(panelId, 'apply', region); }
+    });
   }
 
   var wrapper = document.createElement('div');
-  wrapper.className = 'split-btn split-btn-sm';
+  wrapper.className = 'action-group action-group-sm';
 
-  if (isGlobal) {
-    // Global modules: simple button, no dropdown
-    var btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'split-btn-main split-btn-solo ' + mainClass;
-    btn.textContent = mainLabel;
-    btn.onclick = function(e) { e.stopPropagation(); doAction(''); };
-    wrapper.appendChild(btn);
-  } else {
-    // Regional modules: default to first region, dropdown for others
-    var defaultRegion = regions.length > 0 ? regions[0].full : '';
-    var defaultLabel = regions.length > 0 ? regions[0].label : '';
-
-    var mainBtn = document.createElement('button');
-    mainBtn.type = 'button';
-    mainBtn.className = 'split-btn-main ' + mainClass;
-    mainBtn.textContent = mainLabel + ' ' + defaultLabel;
-    mainBtn.onclick = function(e) { e.stopPropagation(); doAction(defaultRegion); };
-    wrapper.appendChild(mainBtn);
-
-    var dropBtn = document.createElement('button');
-    dropBtn.type = 'button';
-    dropBtn.className = 'split-btn-drop ' + mainClass;
-    dropBtn.setAttribute('aria-label', 'Select region');
-    dropBtn.innerHTML = '<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
-    wrapper.appendChild(dropBtn);
+  if (!isGlobal && regions.length > 0) {
+    var regionBtn = document.createElement('button');
+    regionBtn.type = 'button';
+    regionBtn.className = 'action-group-btn action-group-region';
+    regionBtn.innerHTML = '<span class="region-badge">' + selectedLabel + '</span> <svg class="w-2.5 h-2.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+    wrapper.appendChild(regionBtn);
 
     var menu = document.createElement('div');
     menu.className = 'split-menu hidden';
     regions.forEach(function(r) {
       var item = document.createElement('div');
       item.className = 'split-menu-item';
-      item.textContent = mainLabel + ' ' + r.label + ' (' + r.full + ')';
+      item.textContent = r.label + ' (' + r.full + ')';
       item.onclick = function() {
         menu.classList.add('hidden');
-        // Update the main button to reflect the selected region
-        mainBtn.textContent = mainLabel + ' ' + r.label;
-        defaultRegion = r.full;
-        defaultLabel = r.label;
-        doAction(r.full);
+        selectedRegion = r.full;
+        selectedLabel = r.label;
+        regionBtn.innerHTML = '<span class="region-badge">' + r.label + '</span> <svg class="w-2.5 h-2.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
       };
       menu.appendChild(item);
     });
     wrapper.appendChild(menu);
 
-    dropBtn.onclick = function(e) {
+    regionBtn.onclick = function(e) {
       e.stopPropagation();
       document.querySelectorAll('.split-menu').forEach(function(m) {
         if (m !== menu) m.classList.add('hidden');
@@ -1649,6 +1627,20 @@ function buildModuleSplitBtn(panelId, command, isGlobal) {
       menu.classList.toggle('hidden');
     };
   }
+
+  var planBtn = document.createElement('button');
+  planBtn.type = 'button';
+  planBtn.className = 'action-group-btn action-group-plan';
+  planBtn.textContent = 'Plan';
+  planBtn.onclick = function(e) { e.stopPropagation(); doPlan(isGlobal ? '' : selectedRegion); };
+  wrapper.appendChild(planBtn);
+
+  var applyBtn = document.createElement('button');
+  applyBtn.type = 'button';
+  applyBtn.className = 'action-group-btn action-group-apply';
+  applyBtn.textContent = 'Apply';
+  applyBtn.onclick = function(e) { e.stopPropagation(); doApply(isGlobal ? '' : selectedRegion); };
+  wrapper.appendChild(applyBtn);
 
   return wrapper;
 }
@@ -1668,9 +1660,7 @@ function injectTerminalButtons() {
     var container = document.createElement('div');
     container.className = 'term-actions flex items-center gap-2 ml-2';
 
-    container.appendChild(buildModuleSplitBtn(panelId, 'plan', mod.global));
-    container.appendChild(buildModuleSplitBtn(panelId, 'apply', mod.global));
-
+    // Refresh button — first in the action group
     var refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
     refreshBtn.className = 'term-btn term-btn-refresh';
@@ -1699,6 +1689,8 @@ function injectTerminalButtons() {
       });
     };
     container.appendChild(refreshBtn);
+
+    container.appendChild(buildModuleActionGroup(panelId, mod.global));
 
     // Insert before discovery dots or chevron
     var dots = header.querySelector('.discovery-dots');
@@ -1964,6 +1956,7 @@ function showTerminalModal(session) {
     exitCode: null,
     onEsc: null,
     command: session.command || '',
+    module: session.module || '',
     cmdLine: cmdLine,
     workDir: session.work_dir || ''
   };
@@ -2081,6 +2074,18 @@ function showTerminalModal(session) {
     stopBtn.style.display = 'none';
     statusEl.innerHTML = formatSummaryHtml(sessionState.summary, exitCode);
     updatePillBar();
+
+    // Auto-refresh discovery after a successful apply
+    if (exitCode === 0 && sessionState.command && sessionState.command.indexOf('apply') !== -1) {
+      var mod = sessionState.module;
+      // For "all" or "region-all", refresh everything; otherwise refresh the specific module
+      var refreshUrl = (mod === 'all' || mod === 'region-all')
+        ? '/api/discovery/refresh'
+        : '/api/discovery/refresh?module=' + encodeURIComponent(mod);
+      fetch(refreshUrl, { method: 'POST' }).then(function() {
+        htmx.trigger(document.body, 'refreshDiscovery');
+      });
+    }
   });
 
   es.onerror = function() {
