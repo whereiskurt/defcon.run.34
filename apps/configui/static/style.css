@@ -356,10 +356,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .discovery-timestamp {
-  font-size: 1.125rem;
+  font-size: 0.75rem;
   font-family: 'Fira Code', monospace;
   color: #71717a;
   user-select: none;
+  white-space: nowrap;
 }
 
 /* Scrollbar styling for dark mode */

@@ -615,7 +615,7 @@ function toggleGlobalBlur() {
       el.classList.remove('pii-revealed');
     });
     _globalUnblurred = false;
-    if (btn) { btn.textContent = 'Unblur All'; btn.style.filter = 'blur(1px)'; }
+    if (btn) { btn.textContent = 'Unblur All'; btn.style.filter = 'none'; }
   } else {
     // Unblur: confirm first
     confirmUnblur();
@@ -629,7 +629,7 @@ function doGlobalUnblur() {
   });
   _globalUnblurred = true;
   var btn = document.getElementById('blur-toggle-btn');
-  if (btn) { btn.textContent = 'Blur All'; btn.style.filter = 'none'; }
+  if (btn) { btn.textContent = 'Blur All'; btn.style.filter = 'blur(1px)'; }
 }
 
 function confirmUnblur() {
@@ -688,7 +688,12 @@ function confirmRequery() {
     confirmLabel: 'Re-query',
     onConfirm: function() {
       var btn = document.getElementById('requery-aws-btn');
-      if (btn) btn.classList.add('spinning');
+      if (btn) {
+        btn.classList.add('spinning');
+        btn.disabled = true;
+        btn.style.opacity = '0.35';
+        btn.style.cursor = 'not-allowed';
+      }
       _globalDiscoveryRunning = true;
       updateModuleRefreshButtons();
       fetch('/api/discovery/refresh', { method: 'POST' }).then(function() {
@@ -699,7 +704,12 @@ function confirmRequery() {
           if (!discoveryRunning()) {
             _globalDiscoveryRunning = false;
             updateModuleRefreshButtons();
-            if (btn) btn.classList.remove('spinning');
+            if (btn) {
+              btn.classList.remove('spinning');
+              btn.disabled = false;
+              btn.style.opacity = '';
+              btn.style.cursor = '';
+            }
             clearInterval(poll);
           }
         }, 2000);
@@ -1193,8 +1203,16 @@ var _globalDiscoveryRunning = false;
 
 // Hide/show per-module refresh buttons based on global discovery state
 function updateModuleRefreshButtons() {
+  var hide = _globalDiscoveryRunning || discoveryRunning();
   document.querySelectorAll('.term-btn-refresh').forEach(function(btn) {
-    btn.style.display = _globalDiscoveryRunning ? 'none' : '';
+    // Use visibility to preserve layout (ml-auto spacing)
+    if (hide || btn.classList.contains('spinning')) {
+      btn.style.visibility = 'hidden';
+      btn.style.pointerEvents = 'none';
+    } else {
+      btn.style.visibility = '';
+      btn.style.pointerEvents = '';
+    }
   });
 }
 
@@ -1239,7 +1257,7 @@ function updateDiscoveryDots() {
     var dotsContainer = header.querySelector('.discovery-dots');
     if (!dotsContainer) {
       dotsContainer = document.createElement('div');
-      dotsContainer.className = 'discovery-dots flex items-center gap-1.5 ml-auto mr-2';
+      dotsContainer.className = 'discovery-dots flex items-center gap-1.5 mr-2';
       // Insert before the chevron svg
       var chevron = header.querySelector('.chevron');
       if (chevron) {
@@ -1359,12 +1377,21 @@ document.addEventListener('htmx:afterSwap', function(e) {
     updateDiscoveryTimestamp();
     // Stop spinning refresh buttons when discovery is done
     if (!discoveryRunning()) {
+      _globalDiscoveryRunning = false;
       document.querySelectorAll('.term-btn-refresh.spinning').forEach(function(btn) {
         btn.classList.remove('spinning');
+        btn.style.visibility = '';
+        btn.style.pointerEvents = '';
       });
       var rqBtn = document.getElementById('requery-aws-btn');
-      if (rqBtn) rqBtn.classList.remove('spinning');
+      if (rqBtn) {
+        rqBtn.classList.remove('spinning');
+        rqBtn.disabled = false;
+        rqBtn.style.opacity = '';
+        rqBtn.style.cursor = '';
+      }
     }
+    updateModuleRefreshButtons();
   }
 });
 
@@ -1676,7 +1703,7 @@ function injectTerminalButtons() {
     // Refresh button — right before the discovery dots
     var refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
-    refreshBtn.className = 'term-btn term-btn-refresh';
+    refreshBtn.className = 'term-btn term-btn-refresh ml-auto mr-2';
     refreshBtn.title = 'Re-query AWS resources';
     refreshBtn.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg>';
     refreshBtn.onclick = function(e) {
@@ -1687,6 +1714,8 @@ function injectTerminalButtons() {
         confirmLabel: 'Re-query',
         onConfirm: function() {
           refreshBtn.classList.add('spinning');
+          refreshBtn.style.visibility = 'hidden';
+          refreshBtn.style.pointerEvents = 'none';
           fetch('/api/discovery/refresh?module=' + encodeURIComponent(panelId), { method: 'POST' }).then(function() {
             htmx.trigger(document.body, 'refreshDiscovery');
             var poll = setInterval(function() {
@@ -1694,6 +1723,8 @@ function injectTerminalButtons() {
               htmx.trigger(document.body, 'refreshDiscovery');
               if (!discoveryRunning()) {
                 refreshBtn.classList.remove('spinning');
+                refreshBtn.style.visibility = '';
+                refreshBtn.style.pointerEvents = '';
                 clearInterval(poll);
               }
             }, 2000);
@@ -1710,6 +1741,8 @@ function injectTerminalButtons() {
       header.appendChild(refreshBtn);
     }
   });
+  // Hide refresh buttons if global discovery is still running
+  updateModuleRefreshButtons();
 }
 
 // Grey out infrastructure buttons when AWS is not connected
