@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -206,6 +207,18 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 			tabs = append(tabs, previewTab{"svc-" + svc.label, svc.name + "/service.hcl", out})
 		} else {
 			log.Printf("Preview: skip %s: %v", svc.name, err)
+		}
+	}
+
+	// providers/global.hcl and providers/regional.hcl (read from disk, not templated)
+	for _, prov := range []struct{ id, label, rel string }{
+		{"prov-global", "providers/global.hcl", "infra/terraform/providers/global.hcl"},
+		{"prov-regional", "providers/regional.hcl", "infra/terraform/providers/regional.hcl"},
+	} {
+		if data, err := os.ReadFile(filepath.Join(a.repoRoot, prov.rel)); err == nil {
+			tabs = append(tabs, previewTab{prov.id, prov.label, string(data)})
+		} else {
+			log.Printf("Preview: skip %s: %v", prov.label, err)
 		}
 	}
 
