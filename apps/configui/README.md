@@ -164,3 +164,9 @@ All templates and static files are embedded via `go:embed` -- the binary is self
 | POST | `/api/terminal/stop` | Kill running process |
 | POST | `/api/scan-locks` | Scan for stuck locks |
 | POST | `/api/fix-locks` | Remove stuck locks |
+
+## Visual Evolution
+
+107 commits of ConfigUI development, auto-captured at each commit with the [timelapse pipeline](docs/timelapse/README.md).
+
+![ConfigUI Preview Evolution](docs/configui-preview-evolution-20260216-161256.gif)
