@@ -170,12 +170,14 @@ function showPreview() {
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.remove('md:col-span-2');
     });
-    var infraMods = document.getElementById('infra-modules');
-    if (infraMods) {
-      infraMods.classList.remove('md:grid-cols-2');
-      infraMods.classList.add('grid-cols-1');
-      infraMods.classList.remove('md:col-span-2');
-    }
+    ['infra-modules', 'core-modules', 'svc-modules'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.classList.remove('md:grid-cols-2');
+        el.classList.add('grid-cols-1');
+        el.classList.remove('md:col-span-2');
+      }
+    });
   }
   updatePreviewToggle(true);
 }
@@ -195,12 +197,14 @@ function hidePreview() {
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.add('md:col-span-2');
     });
-    var infraMods = document.getElementById('infra-modules');
-    if (infraMods) {
-      infraMods.classList.add('md:grid-cols-2');
-      infraMods.classList.remove('grid-cols-1');
-      infraMods.classList.add('md:col-span-2');
-    }
+    ['infra-modules', 'core-modules', 'svc-modules'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.classList.add('md:grid-cols-2');
+        el.classList.remove('grid-cols-1');
+        el.classList.add('md:col-span-2');
+      }
+    });
   }
   updatePreviewToggle(false);
 }
@@ -2392,34 +2396,44 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// --- Sortable infrastructure modules ---
+// --- Sortable module groups ---
 function initModuleSortable() {
-  var container = document.getElementById('infra-modules');
-  if (!container || typeof Sortable === 'undefined') return;
+  if (typeof Sortable === 'undefined') return;
 
-  // Restore saved order from localStorage
-  var saved = localStorage.getItem('configui-module-order');
-  if (saved) {
-    try {
-      var order = JSON.parse(saved);
-      order.forEach(function(panelId) {
-        var el = container.querySelector('[data-panel="' + panelId + '"]');
-        if (el) container.appendChild(el);
-      });
-    } catch (e) { /* ignore bad data */ }
-  }
+  var groups = [
+    { id: 'core-modules',  key: 'configui-core-order' },
+    { id: 'infra-modules', key: 'configui-module-order' },
+    { id: 'svc-modules',   key: 'configui-svc-order' }
+  ];
 
-  Sortable.create(container, {
-    handle: '.drag-handle',
-    animation: 200,
-    ghostClass: 'sortable-ghost',
-    chosenClass: 'sortable-chosen',
-    onEnd: function() {
-      var panels = container.querySelectorAll('[data-panel]');
-      var order = [];
-      panels.forEach(function(el) { order.push(el.getAttribute('data-panel')); });
-      localStorage.setItem('configui-module-order', JSON.stringify(order));
+  groups.forEach(function(g) {
+    var container = document.getElementById(g.id);
+    if (!container) return;
+
+    // Restore saved order from localStorage
+    var saved = localStorage.getItem(g.key);
+    if (saved) {
+      try {
+        var order = JSON.parse(saved);
+        order.forEach(function(panelId) {
+          var el = container.querySelector('[data-panel="' + panelId + '"]');
+          if (el) container.appendChild(el);
+        });
+      } catch (e) { /* ignore bad data */ }
     }
+
+    Sortable.create(container, {
+      handle: '.drag-handle',
+      animation: 200,
+      ghostClass: 'sortable-ghost',
+      chosenClass: 'sortable-chosen',
+      onEnd: function() {
+        var panels = container.querySelectorAll('[data-panel]');
+        var order = [];
+        panels.forEach(function(el) { order.push(el.getAttribute('data-panel')); });
+        localStorage.setItem(g.key, JSON.stringify(order));
+      }
+    });
   });
 }
 

@@ -1,7 +1,10 @@
 {{define "dns.html"}}
 <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden mod-group-core" data-panel="dns" data-module-num="C4">
   <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('dns')">
-    <h3 class="text-base font-semibold relative"><span class="module-num">C4</span>DNS Config</h3>
+    <div class="flex items-center gap-3">
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
+      <h3 class="text-base font-semibold relative"><span class="module-num">C4</span>DNS Config</h3>
+    </div>
     <svg class="w-4 h-4 chevron" id="chevron-dns" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
   </div>
   <div class="border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-dns" style="display:none">

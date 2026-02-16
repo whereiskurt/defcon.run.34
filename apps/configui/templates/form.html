@@ -12,12 +12,14 @@
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Core Configuration</h2>
   </div>
 
-  {{template "env_general.html" .}}
-  {{template "site.html" .}}
-  {{template "aws_config.html" .}}
-  {{template "dns.html" .}}
-  {{template "env_secrets.html" .}}
-  {{template "versions.html" .}}
+  <div id="core-modules" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+    {{template "env_general.html" .}}
+    {{template "site.html" .}}
+    {{template "aws_config.html" .}}
+    {{template "dns.html" .}}
+    {{template "env_secrets.html" .}}
+    {{template "versions.html" .}}
+  </div>
 
   <!-- Section Divider: Infrastructure Modules -->
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex flex-wrap items-center gap-2" data-section="infra">
@@ -66,10 +68,12 @@
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500">Services</h2>
   </div>
 
-  {{template "svc_auth.html" .}}
-  {{template "svc_human.html" .}}
-  {{template "svc_cms.html" .}}
-  {{template "svc_gpx.html" .}}
+  <div id="svc-modules" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+    {{template "svc_auth.html" .}}
+    {{template "svc_human.html" .}}
+    {{template "svc_cms.html" .}}
+    {{template "svc_gpx.html" .}}
+  </div>
 
 </div>
 {{end}}
