@@ -170,6 +170,12 @@ function showPreview() {
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.remove('md:col-span-2');
     });
+    var infraMods = document.getElementById('infra-modules');
+    if (infraMods) {
+      infraMods.classList.remove('md:grid-cols-2');
+      infraMods.classList.add('grid-cols-1');
+      infraMods.classList.remove('md:col-span-2');
+    }
   }
   updatePreviewToggle(true);
 }
@@ -189,6 +195,12 @@ function hidePreview() {
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.add('md:col-span-2');
     });
+    var infraMods = document.getElementById('infra-modules');
+    if (infraMods) {
+      infraMods.classList.add('md:grid-cols-2');
+      infraMods.classList.remove('grid-cols-1');
+      infraMods.classList.add('md:col-span-2');
+    }
   }
   updatePreviewToggle(false);
 }
