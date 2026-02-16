@@ -2,49 +2,9 @@
 
 A local-only web UI for managing the defcon.run infrastructure configuration. ConfigUI reads and writes `site.hcl`, `service.hcl`, `env.sh`, and `env.local.sh` files, provides live HCL preview with syntax highlighting, runs `terragrunt plan/apply` with streaming terminal output, and shows real-time AWS resource discovery.
 
-![ConfigUI Preview Evolution](docs/configui-preview-evolution-20260216-161256.gif)
+### Form editing with live preview
 
-![ConfigUI Screenshot](docs/overview.png)
-
-## Feature Demos
-
-Animated walkthroughs of ConfigUI in action. Re-generate after UI changes with `bash apps/configui/docs/timelapse/demo.sh` ([docs](docs/timelapse/README.md#demo-workflows)).
-
-### Live HCL Preview
-
-Open the preview side panel, switch between generated config files (site.hcl, service.hcl, env.sh, env.local.sh), and close.
-
-![Preview Toggle](docs/configui-demo-preview-toggle-20260216-181045.gif)
-
-### Module Toggles
-
-Disable individual infrastructure modules (CloudFront, WAF), toggle the entire section off, then back on with the tri-state slider.
-
-![Module Toggle Demo](docs/configui-demo-module-toggle-20260216-181045.gif)
-
-### Panel Navigation
-
-Expand and collapse all 24+ panels at once, then drill into individual sections (Core, Infrastructure, Services).
-
-![Panel Navigation](docs/configui-demo-panel-navigation-20260216-181045.gif)
-
-### PII Blur
-
-Sensitive fields are blurred by default. Unblur All (with confirmation) reveals everything, Blur All re-hides them.
-
-![PII Blur Demo](docs/configui-demo-pii-blur-20260216-181245.gif)
-
-### Discovery Refresh
-
-Trigger an AWS resource scan -- status dots spin while checking each module across regions, then resolve to green/hollow/amber.
-
-![Discovery Refresh](docs/configui-demo-discovery-refresh-20260216-181046.gif)
-
-### Terragrunt Plan
-
-Run `terragrunt plan` on a module directly from the UI. The terminal modal streams real-time output via SSE, shows exit status, and auto-refreshes discovery on close.
-
-![Terragrunt Plan](docs/configui-demo-plan-module-20260216-181046.gif)
+![Form editing with live preview](docs/configui-demo-1-20260216-184357.gif)
 
 ## Quick Start
 
@@ -69,8 +29,6 @@ Three collapsible sections organize 24+ configuration panels:
 
 **Services** -- Per-service configuration for run.auth, run.human, run.cms, and run.gpx with container sizing, DynamoDB tables, S3 buckets, Lambda functions, and autoscaling.
 
-![Form Panels](docs/form-panels.png)
-
 ### Module Toggle with Status Label
 
 Each infrastructure module has an enable/disable toggle. The section header has a tri-state slider showing **all**, **none**, or a count like **5/12** to indicate how many modules are active.
@@ -87,8 +45,6 @@ Click **Preview** to open a resizable side panel showing the generated `site.hcl
 ### AWS Status Bar
 
 Shows current AWS authentication state with account ID, ARN, SSO Login and Export Creds buttons. Below the buttons, status dots indicate Terraform state bucket and lock table health per region.
-
-![AWS Status](docs/aws-status.png)
 
 ### Discovery Dots
 
@@ -116,8 +72,6 @@ Click **Plan** or **Apply** on any module panel header to run `terragrunt plan` 
 
 The **Fix Locks** button scans all DynamoDB state tables for stuck Terraform locks. It shows a count of found locks with details, then asks for confirmation before removing them.
 
-![Fix Locks](docs/fix-locks.png)
-
 ### PII Blur
 
 Sensitive fields (account IDs, SSO URLs, email addresses, random suffix, AWS credentials) are blurred by default. Click any field to reveal it individually.
@@ -139,8 +93,6 @@ A lock icon next to each synced field shows which panel it's linked to.
 ### AWS Credentials Panel
 
 Generates copy-paste-ready `~/.aws/config` (SSO) and `~/.aws/credentials` (IAM) file content from your form values. Tabbed view with a Copy button on each tab. Content updates live as you change SSO session name, account IDs, and profile prefix.
-
-![AWS Credentials](docs/aws-credentials.png)
 
 ### SOPS Secret Editor
 
@@ -208,31 +160,3 @@ All templates and static files are embedded via `go:embed` -- the binary is self
 | POST | `/api/terminal/stop` | Kill running process |
 | POST | `/api/scan-locks` | Scan for stuck locks |
 | POST | `/api/fix-locks` | Remove stuck locks |
-
-## Screenshots
-
-Add screenshots to the `docs/` directory:
-
-```
-docs/
-  overview.png         # Full page with panels visible
-  form-panels.png      # Core config panels expanded
-  module-toggle.png    # Section toggle with label
-  preview-panel.png    # Side-by-side form + HCL preview
-  aws-status.png       # AWS Connected bar with dots
-  discovery-dots.png   # Panel headers with status dots
-  terminal-modal.png   # Terragrunt plan/apply streaming
-  fix-locks.png        # Lock scan results dialog
-  pii-blur.png         # Blurred vs revealed fields
-  aws-credentials.png  # AWS config/credentials tabs
-  configui-form-evolution-*.gif       # Form view timelapse
-  configui-form-evolution-*.mp4       # Form view timelapse (HD)
-  configui-preview-evolution-*.gif    # Preview view timelapse
-  configui-preview-evolution-*.mp4    # Preview view timelapse (HD)
-  configui-demo-preview-toggle-*.gif  # Demo: preview panel workflow
-  configui-demo-module-toggle-*.gif   # Demo: module toggle workflow
-  configui-demo-panel-navigation-*.gif # Demo: panel navigation workflow
-  configui-demo-pii-blur-*.gif        # Demo: PII blur workflow
-  configui-demo-discovery-refresh-*.gif # Demo: discovery refresh workflow
-  configui-demo-plan-module-*.gif     # Demo: terragrunt plan workflow
-```
