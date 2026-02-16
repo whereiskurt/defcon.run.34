@@ -712,7 +712,7 @@ function confirmRequery() {
               btn.style.opacity = '';
               btn.style.cursor = '';
               var span = btn.querySelector('span');
-              if (span) span.textContent = 'Refresh';
+              if (span) span.textContent = 'Refresh All';
             }
             clearInterval(poll);
           }
@@ -1388,7 +1388,7 @@ document.addEventListener('htmx:afterSwap', function(e) {
         rqBtn.style.opacity = '';
         rqBtn.style.cursor = '';
         var span = rqBtn.querySelector('span');
-        if (span) span.textContent = 'Refresh';
+        if (span) span.textContent = 'Refresh All';
       }
     }
     updateModuleRefreshButtons();
