@@ -417,16 +417,16 @@ func (a *App) handleExportCreds(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.Header().Set("HX-Trigger", "refreshAwsStatus")
 	if err != nil {
-		fmt.Fprintf(w, `<div class="rounded-lg border border-red-700 bg-red-900/20 px-4 py-3 text-xs text-red-400">Export failed: %s</div>`, template.HTMLEscapeString(out))
+		fmt.Fprintf(w, `<div class="border-t border-red-700 bg-red-900/20 px-4 py-3 text-xs text-red-400">Export failed: %s</div>`, template.HTMLEscapeString(out))
 	} else {
 		escaped := template.HTMLEscapeString(out)
-		fmt.Fprintf(w, `<div class="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-3">
+		fmt.Fprintf(w, `<div class="border-t border-zinc-700 bg-zinc-800 px-4 py-3">
   <div class="flex items-center justify-between mb-2">
     <span class="text-xs text-green-400 font-medium">AWS Credentials with <code>%s</code> Profile</span>
     <div class="flex items-center gap-2">
       <button onclick="var pre=document.getElementById('creds-output'); navigator.clipboard.writeText(pre.dataset.raw).then(function(){this.textContent='Copied!'; var b=this; setTimeout(function(){b.textContent='Copy';},1500);}.bind(this));"
               class="rounded-md bg-zinc-700 hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-300">Copy</button>
-      <button onclick="document.getElementById('aws-action-result').innerHTML='';"
+      <button onclick="document.getElementById('aws-action-result').innerHTML=''; var t=document.getElementById('export-creds-toggle'); if(t) t.textContent='+';"
               class="text-zinc-500 hover:text-zinc-300 text-lg px-1" title="Dismiss">&times;</button>
     </div>
   </div>
