@@ -595,7 +595,7 @@ function toggleGlobalBlur() {
       el.classList.remove('pii-revealed');
     });
     _globalUnblurred = false;
-    if (btn) btn.innerHTML = 'Unblur <span class="pii-blur" style="display:inline;cursor:pointer;">All</span>';
+    if (btn) { btn.textContent = 'Unblur All'; btn.style.filter = 'blur(1px)'; }
   } else {
     // Unblur: confirm first
     confirmUnblur();
@@ -609,7 +609,7 @@ function doGlobalUnblur() {
   });
   _globalUnblurred = true;
   var btn = document.getElementById('blur-toggle-btn');
-  if (btn) btn.innerHTML = 'Blur All';
+  if (btn) { btn.textContent = 'Blur All'; btn.style.filter = 'none'; }
 }
 
 function confirmUnblur() {
