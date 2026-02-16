@@ -1654,12 +1654,20 @@ function injectTerminalButtons() {
   });
 }
 
-// Show/hide terminal buttons based on AWS auth status
+// Grey out infrastructure buttons when AWS is not connected
 function updateTerminalButtonsVisibility() {
   var authed = isAWSAuthed();
+  // Per-module and infra-all term-actions
   document.querySelectorAll('.term-actions').forEach(function(el) {
-    el.style.display = authed ? '' : 'none';
+    if (authed) el.classList.remove('aws-disabled');
+    else el.classList.add('aws-disabled');
   });
+  // Global re-query button
+  var rqBtn = document.getElementById('requery-aws-btn');
+  if (rqBtn) {
+    if (authed) rqBtn.classList.remove('aws-disabled');
+    else rqBtn.classList.add('aws-disabled');
+  }
 }
 
 // --- Pill bar management ---

@@ -459,6 +459,13 @@ input:focus, select:focus, textarea:focus {
   animation: disc-spin 0.8s linear infinite;
 }
 
+/* Disabled state when AWS is not connected */
+.aws-disabled {
+  opacity: 0.25 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}
+
 /* Preview drag handle — resizable split pane */
 .preview-drag-handle {
   width: 5px;
