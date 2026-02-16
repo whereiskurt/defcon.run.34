@@ -7,10 +7,10 @@ Automated pipeline that builds, runs, and screenshots a Go web app at every git 
 | Field | Value |
 |-------|-------|
 | **Date** | 2026-02-15 |
-| **Last commit included** | `23e3f32` — Add Run History dropdown and fix single-module refresh indicator |
-| **Total frames** | 85 (of 93 commits; 8 timed out on early commits without AWS status bar) |
-| **Frame numbering** | `00` through `92` (gaps where timeouts occurred) |
-| **Output files** | `configui-{form,preview}-evolution-20260215-204849.{gif,mp4}` |
+| **Last commit included** | `fb602fb` — Fix per-module refresh, suppress global scanning indicator |
+| **Total frames** | 94 (of 102 commits; 8 timed out on early commits without AWS status bar) |
+| **Frame numbering** | `00` through `101` (gaps where timeouts occurred) |
+| **Output files** | `configui-{form,preview}-evolution-20260215-224128.{gif,mp4}` |
 | **Existing frames cached at** | `/tmp/configui-timelapse/frames/` (survives until reboot) |
 
 ## Overview
@@ -56,14 +56,14 @@ Before running anything, here's what the pipeline *would* do — no files create
 $ bash orchestrate.sh --dry-run    # (conceptual, not implemented as a flag)
 
 1. DISCOVER COMMITS
-   Find all configui commits since last run (23e3f32):
-     git log --oneline --reverse 23e3f32..HEAD -- apps/configui/
+   Find all configui commits since last run (fb602fb):
+     git log --oneline --reverse fb602fb..HEAD -- apps/configui/
    → 8 new commits found (6a77630..01868db)
    Combined with 78 existing: 86 total commits to include.
 
 2. CHECK CACHED FRAMES
    Look in /tmp/configui-timelapse/frames/ for existing PNGs.
-   → Found: 70 frames (00-aa4f0f7 through 77-23e3f32), 8 gaps from timeouts.
+   → Found: 70 frames (00-aa4f0f7 through 77-fb602fb), 8 gaps from timeouts.
    → Need: 8 new frames (78-6a77630 through 85-01868db).
    Existing frames will NOT be re-rendered.
 
@@ -221,7 +221,7 @@ Yes — you can add frames without re-rendering everything. The pipeline produce
 
 ```bash
 # 1. Check what's new since last run
-git log --oneline --reverse 23e3f32..HEAD -- apps/configui/
+git log --oneline --reverse fb602fb..HEAD -- apps/configui/
 #   6a77630 Remove infra module subtitles...
 #   41e61fe Add confirmation dialogs...
 #   ...etc
