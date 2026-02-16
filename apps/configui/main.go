@@ -194,7 +194,7 @@ func main() {
 	port := listener.Addr().(*net.TCPAddr).Port
 	app.url = fmt.Sprintf("http://127.0.0.1:%d", port)
 
-	log.Printf("%% ./ConfigUI_ running at %s", app.url)
+	log.Printf("%% ./configui_ running at %s", app.url)
 	log.Printf("Press Enter twice to reload configuration from disk")
 	if !*noBrowser {
 		openBrowser(app.url)
