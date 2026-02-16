@@ -1630,6 +1630,7 @@ function buildModuleActionGroup(panelId, isGlobal) {
 
   var wrapper = document.createElement('div');
   wrapper.className = 'action-group action-group-sm';
+  wrapper.onclick = function(e) { e.stopPropagation(); };
 
   if (!isGlobal && regions.length > 0) {
     var regionBtn = document.createElement('button');
@@ -1644,7 +1645,8 @@ function buildModuleActionGroup(panelId, isGlobal) {
       var item = document.createElement('div');
       item.className = 'split-menu-item';
       item.textContent = r.label + ' (' + r.full + ')';
-      item.onclick = function() {
+      item.onclick = function(e) {
+        e.stopPropagation();
         menu.classList.add('hidden');
         selectedRegion = r.full;
         selectedLabel = r.label;
@@ -1694,6 +1696,7 @@ function injectTerminalButtons() {
     var mod = TERMINAL_MODULES[panelId];
     var container = document.createElement('div');
     container.className = 'term-actions flex items-center gap-2 ml-2';
+    container.onclick = function(e) { e.stopPropagation(); };
 
     container.appendChild(buildModuleActionGroup(panelId, mod.global));
 
