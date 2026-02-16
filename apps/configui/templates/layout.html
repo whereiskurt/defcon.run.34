@@ -98,10 +98,11 @@
       <!-- AWS Status section header + panel -->
       <div id="aws-status"
            hx-get="/api/aws-status" hx-trigger="load, refreshAwsStatus from:body" hx-swap="innerHTML">
-        <div class="flex items-center gap-2 mb-4">
+        <div class="border-t border-green-300 dark:border-green-800/50 pt-4 flex items-center gap-2 mb-4">
           <button type="button" class="global-fold-btn" title="Expand/Collapse">+</button>
           <span class="text-xl font-mono font-bold text-zinc-500 dark:text-zinc-400">Verifying AWS...</span>
         </div>
+        <div class="border-t border-green-300 dark:border-green-800/50"></div>
       </div>
 
       <form id="config-form" method="POST">

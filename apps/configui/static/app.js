@@ -1503,29 +1503,31 @@ var TERMINAL_MODULES = {
 // Multi-session tracking: id → { es, overlay, minimized, processRunning, label, exitCode }
 var _termSessions = {};
 
+// Persist AWS section open state across htmx swaps
+var _awsSectionOpen = false;
+
 // Toggle AWS section panel (identity + export creds) via the +/- button
 function toggleAwsSection(btn) {
+  _awsSectionOpen = !_awsSectionOpen;
   var panel = document.getElementById('aws-panel');
-  if (!panel) return;
-  var isOpen = panel.style.display !== 'none';
-  if (isOpen) {
-    panel.style.display = 'none';
-    var result = document.getElementById('aws-action-result');
-    if (result) result.innerHTML = '';
-    btn.textContent = '+';
-  } else {
-    panel.style.display = '';
-    htmx.ajax('POST', '/api/export-creds', {target: '#aws-action-result', swap: 'innerHTML'});
-    btn.textContent = '\u2212';
+  if (btn) btn.textContent = _awsSectionOpen ? '\u2212' : '+';
+  if (panel) {
+    panel.style.display = _awsSectionOpen ? '' : 'none';
+    if (_awsSectionOpen) {
+      htmx.ajax('POST', '/api/export-creds', {target: '#aws-action-result', swap: 'innerHTML'});
+    } else {
+      var result = document.getElementById('aws-action-result');
+      if (result) result.innerHTML = '';
+    }
   }
 }
 
-// After AWS status reloads via htmx, sync the +/- toggle state
+// After AWS status reloads via htmx, restore the open/closed state (no re-fetch)
 function syncAwsDetailsToggle() {
   var btn = document.getElementById('aws-section-toggle');
-  if (!btn) return;
   var panel = document.getElementById('aws-panel');
-  btn.textContent = (panel && panel.style.display !== 'none') ? '\u2212' : '+';
+  if (btn) btn.textContent = _awsSectionOpen ? '\u2212' : '+';
+  if (panel && _awsSectionOpen) panel.style.display = '';
 }
 
 // Check if AWS is authenticated by looking at the aws-status container
@@ -2013,15 +2015,12 @@ function recoverTerminalSessions() {
     .catch(function() { /* ignore on first load */ });
 }
 
-// Re-inject buttons after htmx swaps (e.g., after AWS status loads)
-document.addEventListener('htmx:afterSwap', function(e) {
+// Re-inject buttons after htmx settles (e.g., after AWS status loads)
+document.addEventListener('htmx:afterSettle', function(e) {
   if (e.detail.target && e.detail.target.id === 'aws-status') {
-    // Delay slightly to let DOM settle
-    setTimeout(function() {
-      injectTerminalButtons();
-      updateTerminalButtonsVisibility();
-      syncAwsDetailsToggle();
-    }, 100);
+    syncAwsDetailsToggle();
+    injectTerminalButtons();
+    updateTerminalButtonsVisibility();
   }
 });
 
