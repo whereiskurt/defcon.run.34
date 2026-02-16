@@ -892,7 +892,7 @@ function initSplitButtons() {
     if (!container) return;
     var command = container.dataset.command; // "plan" or "apply"
     var isPlan = command === 'plan';
-    var mainLabel = isPlan ? 'Plan All' : 'Apply All';
+    var mainLabel = isPlan ? 'Plan' : 'Apply';
     var mainClass = isPlan ? 'split-btn-plan' : 'split-btn-apply';
     var confirmFn = isPlan ? confirmPlanAll : confirmApplyAll;
 
