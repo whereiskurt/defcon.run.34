@@ -544,7 +544,6 @@ func (a *App) startDiscoveryInner(force bool) {
 	if !force && a.discovery != nil && a.discovery.Status == DiscoveryDone &&
 		time.Since(a.discovery.UpdatedAt) < discoveryCacheTTL {
 		a.mu.Unlock()
-		log.Printf("Discovery skipped: cached results are %s old", time.Since(a.discovery.UpdatedAt).Round(time.Second))
 		return
 	}
 	// Snapshot config so we don't hold the lock during checks.

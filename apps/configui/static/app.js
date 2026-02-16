@@ -1522,7 +1522,8 @@ function toggleAwsSection(btn) {
   }
 }
 
-// After AWS status reloads via htmx, restore the open/closed state (no re-fetch)
+// After AWS status reloads via htmx, restore the open/closed state
+// (#aws-action-result is outside the swap zone, so it persists)
 function syncAwsDetailsToggle() {
   var btn = document.getElementById('aws-section-toggle');
   var panel = document.getElementById('aws-panel');
