@@ -692,6 +692,15 @@ function confirmRequery() {
       _globalDiscoveryRunning = true;
       fetch('/api/discovery/refresh', { method: 'POST' }).then(function() {
         htmx.trigger(document.body, 'refreshDiscovery');
+        // Poll until discovery finishes in case the conditional htmx polling misses it
+        var poll = setInterval(function() {
+          htmx.trigger(document.body, 'refreshDiscovery');
+          if (!discoveryRunning()) {
+            _globalDiscoveryRunning = false;
+            if (btn) btn.classList.remove('spinning');
+            clearInterval(poll);
+          }
+        }, 2000);
       });
     }
   });
@@ -1632,6 +1641,15 @@ function injectTerminalButtons() {
           refreshBtn.classList.add('spinning');
           fetch('/api/discovery/refresh?module=' + encodeURIComponent(panelId), { method: 'POST' }).then(function() {
             htmx.trigger(document.body, 'refreshDiscovery');
+            // Poll until discovery finishes in case the conditional htmx polling misses it
+            var poll = setInterval(function() {
+              if (!refreshBtn.classList.contains('spinning')) { clearInterval(poll); return; }
+              htmx.trigger(document.body, 'refreshDiscovery');
+              if (!discoveryRunning()) {
+                refreshBtn.classList.remove('spinning');
+                clearInterval(poll);
+              }
+            }, 2000);
           });
         }
       });
