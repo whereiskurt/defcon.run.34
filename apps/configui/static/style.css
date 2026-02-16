@@ -356,11 +356,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 .discovery-timestamp {
-  font-size: 0.75rem;
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: #a1a1aa;
+  color: #18181b;
   font-family: 'Fira Code', monospace;
-  color: #71717a;
   user-select: none;
   white-space: nowrap;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
 }
 
 /* Scrollbar styling for dark mode */
@@ -428,16 +436,15 @@ input:focus, select:focus, textarea:focus {
   color: #fde68a;
 }
 
-.term-btn.term-btn-refresh,
-.global-fold-btn.term-btn-refresh {
+/* Per-module refresh — small green icon */
+.term-btn.term-btn-refresh {
   background: none;
   color: #22c55e;
   padding: 1px 3px;
   opacity: 1;
 }
 
-.term-btn.term-btn-refresh:hover,
-.global-fold-btn.term-btn-refresh:hover {
+.term-btn.term-btn-refresh:hover {
   color: #4ade80;
 }
 

@@ -1357,7 +1357,7 @@ function updateDiscoveryTimestamp() {
   var status = data.dataset.status;
   var rqBtn = document.getElementById('requery-aws-btn');
   if (status === 'running' && _globalDiscoveryRunning) {
-    label.textContent = '[in progress]';
+    label.textContent = 'in progress';
     if (rqBtn) rqBtn.classList.add('spinning');
     return;
   }
@@ -1368,9 +1368,9 @@ function updateDiscoveryTimestamp() {
   }
 
   var ago = Math.floor((Date.now() / 1000) - ts);
-  if (ago < 60) label.textContent = '[' + ago + 's ago]';
-  else if (ago < 3600) label.textContent = '[' + Math.floor(ago / 60) + 'm ago]';
-  else label.textContent = '[' + Math.floor(ago / 3600) + 'h ago]';
+  if (ago < 60) label.textContent = ago + 's ago';
+  else if (ago < 3600) label.textContent = Math.floor(ago / 60) + 'm ago';
+  else label.textContent = Math.floor(ago / 3600) + 'h ago';
 }
 
 // Tick the timestamp label every 30s
