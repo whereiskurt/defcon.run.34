@@ -1,0 +1,29 @@
+{{define "waf.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.WAF.Enabled}}panel-disabled{{end}}" data-panel="waf">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('waf')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="waf.enabled" class="toggle-switch" {{if .Config.WAF.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('waf', this)">
+      <h3 class="text-base font-semibold">WAF</h3>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-waf" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-waf" style="display:none">
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Log Mode</label>
+      <select name="waf.log_mode" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+        <option value="standard" {{if eq .Config.WAF.LogMode "standard"}}selected{{end}}>Standard</option>
+        <option value="realtime" {{if eq .Config.WAF.LogMode "realtime"}}selected{{end}}>Realtime</option>
+      </select>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Available Rulesets</h4>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Defined in <span class="font-mono">global/waf/waf.hcl</span></p>
+      <ul class="text-sm space-y-1">
+        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span class="font-mono text-xs">default</span> <span class="text-xs text-zinc-400">— Comprehensive protection (5 managed rules)</span></li>
+        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span class="font-mono text-xs">api</span> <span class="text-xs text-zinc-400">— Lightweight for APIs (2 managed rules)</span></li>
+        <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span><span class="font-mono text-xs">auth</span> <span class="text-xs text-zinc-400">— Aggressive deny-by-default (rate limits + allow list)</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+{{end}}

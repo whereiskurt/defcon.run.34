@@ -1,0 +1,19 @@
+{{define "s3_uploads.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.UserUploads.Enabled}}panel-disabled{{end}}" data-panel="s3_uploads">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('s3_uploads')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="user_uploads.enabled" class="toggle-switch" {{if .Config.UserUploads.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('s3_uploads', this)">
+      <h3 class="text-base font-semibold">S3 Uploads</h3>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-s3_uploads" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3" id="body-s3_uploads" style="display:none">
+    <p class="text-xs text-zinc-400 mb-2">Buckets aggregated from services (read-only):</p>
+    <ul class="text-sm space-y-1">
+      <li class="font-mono text-xs text-zinc-500">run-human (expire: {{.Config.Services.Human.Uploads.UploadsExpireDays}}d)</li>
+      <li class="font-mono text-xs text-zinc-500">cms-litestream, cms-media</li>
+      <li class="font-mono text-xs text-zinc-500">run-gpx</li>
+    </ul>
+  </div>
+</div>
+{{end}}

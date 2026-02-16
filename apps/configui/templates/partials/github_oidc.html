@@ -1,0 +1,68 @@
+{{define "github_oidc.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.GitHubOIDC.Enabled}}panel-disabled{{end}}" data-panel="github_oidc">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('github_oidc')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="github_oidc.enabled" class="toggle-switch" {{if .Config.GitHubOIDC.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('github_oidc', this)">
+      <h3 class="text-base font-semibold">GitHub OIDC</h3>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-github_oidc" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-github_oidc" style="display:none">
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Delegate Role Suffix</label>
+        <div class="flex items-center gap-1">
+          <span id="delegate-role-prefix" class="text-xs text-zinc-500 font-mono">{{.Config.Site.Label}}-</span>
+          <input type="text" name="github_oidc.delegate_role_name" value="{{.Config.GitHubOIDC.DelegateRoleName}}" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-green-500">
+        </div>
+        <script>
+        (function(){var el=document.querySelector('input[name="site.label"]');if(el){el.addEventListener('input',function(){var v=el.value+'-';var d=document.getElementById('delegate-role-prefix');if(d)d.textContent=v;var r=document.getElementById('runner-profile-prefix');if(r)r.textContent=v;});}})();
+        </script>
+        <p class="text-xs text-zinc-500 mt-1">Cross-account role for management account Route53 access</p>
+      </div>
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Runner Profile Suffix</label>
+        <div class="flex items-center gap-1">
+          <span id="runner-profile-prefix" class="text-xs text-zinc-500 font-mono">{{.Config.Site.Label}}-</span>
+          <input type="text" name="github_oidc.ec2_runner.name" value="{{.Config.GitHubOIDC.EC2RunnerProfile.Name}}" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-green-500">
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="github_oidc.ec2_runner.enabled" class="toggle-switch" {{if .Config.GitHubOIDC.EC2RunnerProfile.Enabled}}checked{{end}}>
+      <label class="text-sm">EC2 Runner Instance Profile</label>
+      <span class="text-xs text-zinc-500">(SSM access + ECR read for self-hosted runners)</span>
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-green-600 dark:text-green-500 mb-2 block">OIDC Roles</label>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="text-zinc-400 border-b border-zinc-700">
+              <th class="text-left py-1">Role</th>
+              <th class="text-left py-1">Description</th>
+              <th class="text-left py-1">Restriction</th>
+              <th class="text-right py-1">Duration</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{range .Config.GitHubOIDC.Roles}}
+            <tr class="border-b border-zinc-700/50">
+              <td class="py-1.5 font-mono font-medium">{{.Name}}</td>
+              <td class="py-1.5 text-zinc-400">{{.Description}}</td>
+              <td class="py-1.5 font-mono">
+                {{if .BranchRestriction}}<span class="text-amber-500" title="Branch restriction">branch: {{.BranchRestriction}}</span>
+                {{else if .EnvironmentRestriction}}<span class="text-green-500" title="Environment restriction">env: {{.EnvironmentRestriction}}</span>
+                {{else}}<span class="text-zinc-500">none</span>{{end}}
+              </td>
+              <td class="py-1.5 text-right font-mono text-zinc-500">{{.MaxSessionDuration}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-xs text-zinc-500 mt-2">IAM policies per role are managed in the site.hcl generation template. Role names are referenced by CloudTrail monitoring.</p>
+    </div>
+  </div>
+</div>
+{{end}}

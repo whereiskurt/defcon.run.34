@@ -1,0 +1,62 @@
+{{define "aws_status.html"}}
+<!-- Section header: matches "Core Configuration" / "Infrastructure Modules" pattern -->
+<div class="border-t border-green-300 dark:border-green-800/50 pt-4 flex flex-wrap items-center gap-2 mb-4">
+  <button type="button" class="global-fold-btn" id="aws-section-toggle" onclick="toggleAwsSection(this)" title="Expand/Collapse">+</button>
+  {{if .Identity}}
+    <span class="text-xl font-mono font-bold text-green-500 dark:text-green-400">AWS Credentials &#x2705;</span>
+  {{else}}
+    <span class="text-xl font-mono font-bold text-red-500 dark:text-red-400">AWS Credentials &mdash; Not Connected</span>
+    <span class="text-xs text-zinc-500">{{if .Error}}{{.Error}} &mdash; {{end}}Run SSO Login or configure credentials.</span>
+  {{end}}
+  {{if .Identity}}
+    <div class="flex items-center gap-3 ml-auto">
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">State</span>
+        {{range $label, $status := .StateBuckets}}
+          <div class="flex items-center gap-1" title="{{$status.Name}}">
+            {{if $status.Exists}}<span class="status-dot ok"></span>
+            {{else if eq $status.Error "access denied"}}<span class="status-dot warning"></span>
+            {{else if eq $status.Error ""}}<span class="status-dot unknown"></span>
+            {{else}}<span class="status-dot error"></span>{{end}}
+            <span class="text-[11px] font-medium text-zinc-300">{{$label}}</span>
+          </div>
+        {{end}}
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Lock</span>
+        {{range $label, $status := .LockTables}}
+          <div class="flex items-center gap-1" title="{{$status.Name}}">
+            {{if $status.Exists}}<span class="status-dot ok"></span>
+            {{else if eq $status.Error ""}}<span class="status-dot unknown"></span>
+            {{else}}<span class="status-dot error"></span>{{end}}
+            <span class="text-[11px] font-medium text-zinc-300">{{$label}}</span>
+          </div>
+        {{end}}
+      </div>
+    </div>
+  {{end}}
+</div>
+
+{{if .Identity}}
+<!-- Panel card: matches "Site Identity" / "CloudTrail" pattern -->
+<div id="aws-panel" class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden mb-4" style="display:none">
+  <div class="flex justify-between items-center px-4 py-3">
+    <h3 class="text-base font-semibold">{{.Profile}}</h3>
+  </div>
+  <div class="border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-2">
+    <div class="flex items-center gap-2">
+      <span class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 flex-shrink-0">AWS Account</span>
+      <span class="font-mono text-xs text-zinc-200 pii-blur pii-sensitive" onclick="this.classList.add('pii-revealed')">{{.Identity.Account}}</span>
+    </div>
+    <div class="flex items-start gap-2">
+      <span class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 flex-shrink-0 mt-0.5">ARN</span>
+      <span class="font-mono text-[11px] text-zinc-400 break-all pii-blur pii-sensitive" onclick="this.classList.toggle('pii-revealed'); this.textContent = this.classList.contains('pii-revealed') ? this.dataset.full : this.dataset.short;" data-full="{{.Identity.ARN}}" data-short="{{truncMid .Identity.ARN 24}}">{{truncMid .Identity.ARN 24}}</span>
+    </div>
+  </div>
+</div>
+{{else}}
+<div id="aws-panel" class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden mb-4" style="display:none">
+</div>
+{{end}}
+<div class="border-t border-green-300 dark:border-green-800/50"></div>
+{{end}}

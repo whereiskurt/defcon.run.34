@@ -1,0 +1,38 @@
+{{define "cloudtrail.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.CloudTrail.Enabled}}panel-disabled{{end}}" data-panel="cloudtrail">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('cloudtrail')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="cloudtrail.enabled" class="toggle-switch" {{if .Config.CloudTrail.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('cloudtrail', this)">
+      <h3 class="text-base font-semibold">CloudTrail</h3>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-cloudtrail" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-cloudtrail" style="display:none">
+    <div class="flex flex-wrap gap-4">
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="cloudtrail.multi_region" class="toggle-switch" {{if .Config.CloudTrail.MultiRegion}}checked{{end}}> Multi-Region</label>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="cloudtrail.enable_access_analyzer" class="toggle-switch" {{if .Config.CloudTrail.EnableAccessAnalyzer}}checked{{end}}> Access Analyzer</label>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="cloudtrail.enable_athena" class="toggle-switch" {{if .Config.CloudTrail.EnableAthena}}checked{{end}}> Athena</label>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="cloudtrail.enable_kms_encryption" class="toggle-switch" {{if .Config.CloudTrail.EnableKMSEncryption}}checked{{end}}> KMS Encryption</label>
+      <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="cloudtrail.enable_alerts" class="toggle-switch" {{if .Config.CloudTrail.EnableAlerts}}checked{{end}}> Alerts</label>
+    </div>
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Log Retention (days)</label>
+        <input type="number" name="cloudtrail.log_retention_days" value="{{.Config.CloudTrail.LogRetentionDays}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+      </div>
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Glacier Transition (days)</label>
+        <input type="number" name="cloudtrail.glacier_transition_days" value="{{.Config.CloudTrail.GlacierTransitionDays}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+      </div>
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Alert Email</label>
+      <input type="email" name="cloudtrail.alert_email" value="{{.Config.CloudTrail.AlertEmail}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Monitor Roles (comma-separated)</label>
+      <input type="text" name="cloudtrail.monitor_roles" value="{{join .Config.CloudTrail.MonitorRoles ","}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+    </div>
+  </div>
+</div>
+{{end}}

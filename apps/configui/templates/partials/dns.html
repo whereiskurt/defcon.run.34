@@ -1,0 +1,22 @@
+{{define "dns.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden" data-panel="dns">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('dns')">
+    <h3 class="text-base font-semibold">DNS Config</h3>
+    <svg class="w-4 h-4 chevron" id="chevron-dns" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-dns" style="display:none">
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Zone Name</label>
+      <input type="text" name="dns.zonename" value="{{.Config.DNS.ZoneName}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Subdomains (comma-separated)</label>
+      <input type="text" name="dns.subdomains" value="{{join .Config.DNS.Subdomains ","}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">TTL</label>
+      <input type="number" name="dns.ttl" value="{{.Config.DNS.TTL}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+    </div>
+  </div>
+</div>
+{{end}}

@@ -1,0 +1,54 @@
+{{define "env_general.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden" data-panel="env">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('env')">
+    <h3 class="text-base font-semibold">Environment</h3>
+    <svg class="w-4 h-4 chevron" id="chevron-env" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-env" style="display:none">
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Site Domain</label>
+        <input type="text" name="env.site_domain" value="{{.Config.Env.SiteDomain}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+      </div>
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Site Label</label>
+        <input type="text" name="env.site_label" value="{{.Config.Env.SiteLabel}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Default Region</h4>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs text-zinc-400 mb-1 block">AWS Region</label>
+          <input type="text" name="env.aws_region" value="{{.Config.Env.AWSRegion}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500" placeholder="us-east-1">
+        </div>
+        <div>
+          <label class="text-xs text-zinc-400 mb-1 block">Region Short</label>
+          <input type="text" name="env.region_short" value="{{.Config.Env.RegionShort}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500" placeholder="use1">
+        </div>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Localhost Ports</h4>
+      <div class="grid grid-cols-4 gap-3">
+      <div>
+        <label class="text-xs text-zinc-400 mb-1 block">Run</label>
+        <input type="number" name="env.local_ports.run" value="{{.Config.Env.LocalPorts.Run}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+      </div>
+      <div>
+        <label class="text-xs text-zinc-400 mb-1 block">Auth</label>
+        <input type="number" name="env.local_ports.auth" value="{{.Config.Env.LocalPorts.Auth}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+      </div>
+      <div>
+        <label class="text-xs text-zinc-400 mb-1 block">GPX</label>
+        <input type="number" name="env.local_ports.gpx" value="{{.Config.Env.LocalPorts.GPX}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+      </div>
+      <div>
+        <label class="text-xs text-zinc-400 mb-1 block">CMS</label>
+        <input type="number" name="env.local_ports.cms" value="{{.Config.Env.LocalPorts.CMS}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

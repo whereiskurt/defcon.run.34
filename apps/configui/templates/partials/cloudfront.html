@@ -1,0 +1,58 @@
+{{define "cloudfront.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.CloudFront.Enabled}}panel-disabled{{end}}" data-panel="cloudfront">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('cloudfront')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="cloudfront.enabled" class="toggle-switch" {{if .Config.CloudFront.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('cloudfront', this)">
+      <h3 class="text-base font-semibold">CloudFront</h3>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-cloudfront" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-cloudfront" style="display:none">
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Domains (comma-separated)</label>
+      <input type="text" name="cloudfront.domains" value="{{join .Config.CloudFront.Domains ","}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Price Class</label>
+      <select name="cloudfront.price_class" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500">
+        <option value="PriceClass_100" {{if eq .Config.CloudFront.PriceClass "PriceClass_100"}}selected{{end}}>PriceClass_100 (NA + EU)</option>
+        <option value="PriceClass_200" {{if eq .Config.CloudFront.PriceClass "PriceClass_200"}}selected{{end}}>PriceClass_200 (+ Asia)</option>
+        <option value="PriceClass_All" {{if eq .Config.CloudFront.PriceClass "PriceClass_All"}}selected{{end}}>PriceClass_All (Global)</option>
+      </select>
+    </div>
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="cloudfront.logging.enabled" class="toggle-switch" {{if .Config.CloudFront.Logging.Enabled}}checked{{end}}>
+      <label class="text-sm">Enable Logging</label>
+    </div>
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="cloudfront.logging.include_cookies" class="toggle-switch" {{if .Config.CloudFront.Logging.IncludeCookies}}checked{{end}}>
+      <label class="text-sm">Include Cookies</label>
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Regions</label>
+      <div class="flex gap-4">
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="cloudfront.regions.use1" {{if hasRegion .Config.CloudFront.Regions "use1"}}checked{{end}} class="rounded"> us-east-1</label>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="cloudfront.regions.cac1" {{if hasRegion .Config.CloudFront.Regions "cac1"}}checked{{end}} class="rounded"> ca-central-1</label>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="cloudfront.regions.apse1" {{if hasRegion .Config.CloudFront.Regions "apse1"}}checked{{end}} class="rounded"> ap-southeast-1</label>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">WAF Ruleset Mapping</h4>
+      <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Map each CloudFront domain to a WAF ruleset (from <span class="font-mono">waf.hcl</span>). Leave empty for no WAF.</p>
+      <div class="space-y-2">
+        {{range .Config.CloudFront.Domains}}
+        <div class="flex items-center gap-3">
+          <span class="text-sm font-mono w-20">{{.}}</span>
+          <select name="cloudfront.waf_rulesets.{{.}}" class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-sm focus:ring-2 focus:ring-green-500">
+            <option value="">None</option>
+            <option value="default" {{if eq (mapGet $.Config.CloudFront.WAFRulesets .) "default"}}selected{{end}}>default</option>
+            <option value="api" {{if eq (mapGet $.Config.CloudFront.WAFRulesets .) "api"}}selected{{end}}>api</option>
+            <option value="auth" {{if eq (mapGet $.Config.CloudFront.WAFRulesets .) "auth"}}selected{{end}}>auth</option>
+          </select>
+        </div>
+        {{end}}
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

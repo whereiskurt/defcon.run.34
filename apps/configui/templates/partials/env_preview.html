@@ -1,0 +1,173 @@
+{{define "env_preview.html"}}
+<div class="md:col-span-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden" data-panel="envpreview">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('envpreview')">
+    <div class="flex items-center gap-2">
+      <h3 class="text-base font-semibold">Environment Files</h3>
+      <span class="text-xs text-zinc-400">Preview generated env.sh &amp; env.local.sh</span>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-envpreview" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-envpreview" style="display:none">
+    <p class="text-xs text-zinc-400">Generated from form values. Click <strong>Save</strong> to write these files.</p>
+
+    <!-- Tab switcher -->
+    <div class="flex gap-1 border-b border-zinc-200 dark:border-zinc-700">
+      <button type="button" id="tab-envsh" onclick="switchEnvTab('envsh')"
+        class="px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400">
+        env.sh
+      </button>
+      <button type="button" id="tab-envlocal" onclick="switchEnvTab('envlocal')"
+        class="px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300">
+        env.local.sh
+      </button>
+    </div>
+
+    <!-- env.sh tab -->
+    <div id="env-tab-envsh" class="relative">
+      <button onclick="copyAwsBlock('envsh-preview')" class="absolute top-2 right-2 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs" title="Copy to clipboard">Copy</button>
+      <pre id="envsh-preview" class="rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed text-zinc-700 dark:text-zinc-300 max-h-96 overflow-y-auto"></pre>
+    </div>
+
+    <!-- env.local.sh tab -->
+    <div id="env-tab-envlocal" class="relative hidden">
+      <button onclick="copyAwsBlock('envlocal-preview')" class="absolute top-2 right-2 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs" title="Copy to clipboard">Copy</button>
+      <pre id="envlocal-preview" class="rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed text-zinc-700 dark:text-zinc-300 pii-blur" onclick="this.classList.add('pii-revealed')"></pre>
+    </div>
+  </div>
+</div>
+<script>
+function switchEnvTab(tab) {
+  var envshTab = document.getElementById('tab-envsh');
+  var envlocalTab = document.getElementById('tab-envlocal');
+  var envshContent = document.getElementById('env-tab-envsh');
+  var envlocalContent = document.getElementById('env-tab-envlocal');
+
+  var activeClasses = 'border-green-500 text-green-600 dark:text-green-400';
+  var inactiveClasses = 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300';
+
+  if (tab === 'envsh') {
+    envshContent.classList.remove('hidden');
+    envlocalContent.classList.add('hidden');
+    envshTab.className = 'px-3 py-1.5 text-xs font-medium border-b-2 ' + activeClasses;
+    envlocalTab.className = 'px-3 py-1.5 text-xs font-medium border-b-2 ' + inactiveClasses;
+  } else {
+    envlocalContent.classList.remove('hidden');
+    envshContent.classList.add('hidden');
+    envlocalTab.className = 'px-3 py-1.5 text-xs font-medium border-b-2 ' + activeClasses;
+    envshTab.className = 'px-3 py-1.5 text-xs font-medium border-b-2 ' + inactiveClasses;
+  }
+}
+
+function updateEnvPreview() {
+  var domain = (document.querySelector('[name="env.site_domain"]') || {}).value || 'defcon.run';
+  var label = (document.querySelector('[name="env.site_label"]') || {}).value || 'dc34';
+  var region = (document.querySelector('[name="env.aws_region"]') || {}).value || 'us-east-1';
+  var regionShort = (document.querySelector('[name="env.region_short"]') || {}).value || 'use1';
+  var portRun = (document.querySelector('[name="env.local_ports.run"]') || {}).value || '3001';
+  var portAuth = (document.querySelector('[name="env.local_ports.auth"]') || {}).value || '3002';
+  var portGpx = (document.querySelector('[name="env.local_ports.gpx"]') || {}).value || '3003';
+  var portCms = (document.querySelector('[name="env.local_ports.cms"]') || {}).value || '1337';
+
+  var appAcct = (document.querySelector('[name="envlocal.application_account_id"]') || {}).value || '000000000000';
+  var mgmtAcct = (document.querySelector('[name="envlocal.management_account_id"]') || {}).value || '000000000000';
+  var githubOrg = (document.querySelector('[name="envlocal.github_org"]') || {}).value || 'your-github-org';
+  var fwdEmail = (document.querySelector('[name="envlocal.fwd_email_to_address"]') || {}).value || 'admin@example.com';
+  var sopsKey = (document.querySelector('[name="envlocal.sops_kms_key_id"]') || {}).value || 'mrk-00000000000000000000000000000000';
+  var ssoSession = (document.querySelector('[name="envlocal.sso_session_name"]') || {}).value || 'Developer';
+  var prefix = (document.querySelector('[name="envlocal.profile_prefix"]') || {}).value || '';
+  var tfProfile = prefix ? prefix + '-terraform' : 'terraform';
+
+  // env.sh preview
+  document.getElementById('envsh-preview').textContent =
+    '#!/bin/bash\n' +
+    '\n' +
+    'export GUID=${GUID:-$(uuidgen | tr \'[:upper:]\' \'[:lower:]\' )}\n' +
+    'export SGUID="${SGUID:-${GUID:0:8}}"\n' +
+    '\n' +
+    '## Local development ports\n' +
+    'export LOCAL_RUN_PORT="${LOCAL_RUN_PORT:-' + portRun + '}"\n' +
+    'export LOCAL_AUTH_PORT="${LOCAL_AUTH_PORT:-' + portAuth + '}"\n' +
+    'export LOCAL_GPX_PORT="${LOCAL_GPX_PORT:-' + portGpx + '}"\n' +
+    'export LOCAL_CMS_PORT="${LOCAL_CMS_PORT:-' + portCms + '}"\n' +
+    '\n' +
+    '## Site domain configuration\n' +
+    'export SITE_DOMAIN="${SITE_DOMAIN:-' + domain + '}"\n' +
+    'export SITE_LABEL="${SITE_LABEL:-' + label + '}"\n' +
+    '\n' +
+    'export AWS_REGION="${AWS_REGION:-' + region + '}"\n' +
+    'export REGION_SHORT="${REGION_SHORT:-' + regionShort + '}"\n' +
+    '\n' +
+    '## URL configuration for cross-service communication (local development defaults)\n' +
+    'export AUTH_PUBLIC_URL="${AUTH_PUBLIC_URL:-http://localhost:${LOCAL_AUTH_PORT}}"\n' +
+    'export AUTH_INTERNAL_URL="${AUTH_INTERNAL_URL:-http://localhost:${LOCAL_AUTH_PORT}}"\n' +
+    'export RUN_PUBLIC_URL="${RUN_PUBLIC_URL:-http://localhost:${LOCAL_RUN_PORT}}"\n' +
+    'export GPX_PUBLIC_URL="${GPX_PUBLIC_URL:-http://localhost:${LOCAL_GPX_PORT}}"\n' +
+    'export CMS_PUBLIC_URL="${CMS_PUBLIC_URL:-http://localhost:${LOCAL_CMS_PORT}}"\n' +
+    '\n' +
+    '## Sensitive configuration - override these before sourcing this file\n' +
+    '## Example: export TF_VAR_APPLICATION_ACCOUNT_ID="123456789012" && source env.sh\n' +
+    'export TF_VAR_APPLICATION_ACCOUNT_ID="${TF_VAR_APPLICATION_ACCOUNT_ID:-000000000000}"\n' +
+    'export TF_VAR_MANAGEMENT_ACCOUNT_ID="${TF_VAR_MANAGEMENT_ACCOUNT_ID:-000000000000}"\n' +
+    'export TF_VAR_GITHUB_ORG="${TF_VAR_GITHUB_ORG:-your-github-org}"\n' +
+    'export TF_VAR_FWD_EMAIL_TO_ADDRESS="${TF_VAR_FWD_EMAIL_TO_ADDRESS:-admin@example.com}"\n' +
+    'export TF_VAR_SOPS_KMS_KEY_ID="${TF_VAR_SOPS_KMS_KEY_ID:-mrk-00000000000000000000000000000000}"\n' +
+    '\n' +
+    '## The state is stored in the bucket and the table is used for locking\n' +
+    '## One entry per region supported\n' +
+    'export TG_TABLE_CAC1="tf-${SITE_LABEL}-cac1-${SGUID}"\n' +
+    'export TG_BUCKET_CAC1="tf-${SITE_LABEL}-cac1-${SGUID}"\n' +
+    'export TG_BUCKET_USE1="tf-${SITE_LABEL}-use1-${SGUID}"\n' +
+    'export TG_TABLE_USE1="tf-${SITE_LABEL}-use1-${SGUID}"\n' +
+    'export TG_BUCKET_USW2="tf-${SITE_LABEL}-usw2-${SGUID}"\n' +
+    'export TG_TABLE_USW2="tf-${SITE_LABEL}-usw2-${SGUID}"\n' +
+    'export TG_BUCKET_APSE1="tf-${SITE_LABEL}-apse1-${SGUID}"\n' +
+    'export TG_TABLE_APSE1="tf-${SITE_LABEL}-apse1-${SGUID}"\n' +
+    '\n' +
+    'unset AWS_ACCESS_KEY_ID\n' +
+    'unset AWS_SECRET_ACCESS_KEY\n' +
+    'unset AWS_SESSION_TOKEN\n' +
+    'unset AWS_CREDENTIAL_EXPIRATION\n' +
+    '\n' +
+    '### Comment this out if you\'re not using SSO\n' +
+    '##aws sso logout\n' +
+    'aws sso login --sso-session=' + ssoSession + '\n' +
+    '\n' +
+    '## Terragrunt uses AWS to setup s3/dynamo and uses the default profile,\n' +
+    '## doing this sets makes terragrunt use the terraform profile for it\'s s3/dynamo creations\n' +
+    '$(aws configure export-credentials --profile ' + tfProfile + ' --format env)';
+
+  // env.local.sh preview
+  var localLines = [
+    '#!/bin/bash',
+    '# env.local.sh - Real values (gitignored)',
+    '# Generated by configui - do not edit manually',
+    ''
+  ];
+  if (appAcct && appAcct !== '000000000000') localLines.push('export TF_VAR_APPLICATION_ACCOUNT_ID="' + appAcct + '"');
+  if (mgmtAcct && mgmtAcct !== '000000000000') localLines.push('export TF_VAR_MANAGEMENT_ACCOUNT_ID="' + mgmtAcct + '"');
+  if (githubOrg && githubOrg !== 'your-github-org') localLines.push('export TF_VAR_GITHUB_ORG="' + githubOrg + '"');
+  if (fwdEmail && fwdEmail !== 'admin@example.com') localLines.push('export TF_VAR_FWD_EMAIL_TO_ADDRESS="' + fwdEmail + '"');
+  if (sopsKey && sopsKey !== 'mrk-00000000000000000000000000000000') localLines.push('export TF_VAR_SOPS_KMS_KEY_ID="' + sopsKey + '"');
+  if (prefix) localLines.push('export TF_VAR_profile_prefix="' + prefix + '"');
+
+  document.getElementById('envlocal-preview').textContent = localLines.join('\n');
+}
+
+// Watch all fields that feed into the env preview
+document.addEventListener('DOMContentLoaded', function() {
+  updateEnvPreview();
+  var fields = [
+    'env.site_domain', 'env.site_label', 'env.aws_region', 'env.region_short',
+    'env.local_ports.run', 'env.local_ports.auth', 'env.local_ports.gpx', 'env.local_ports.cms',
+    'envlocal.application_account_id', 'envlocal.management_account_id',
+    'envlocal.github_org', 'envlocal.fwd_email_to_address', 'envlocal.sops_kms_key_id',
+    'envlocal.sso_session_name', 'envlocal.profile_prefix'
+  ];
+  fields.forEach(function(name) {
+    var el = document.querySelector('[name="' + name + '"]');
+    if (el) el.addEventListener('input', updateEnvPreview);
+  });
+});
+if (document.readyState !== 'loading') updateEnvPreview();
+</script>
+{{end}}

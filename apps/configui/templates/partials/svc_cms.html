@@ -1,0 +1,54 @@
+{{define "svc_cms.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden" data-panel="svc_cms">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('svc_cms')">
+    <div class="flex items-center gap-3">
+      <h3 class="text-base font-semibold">run.cms</h3>
+      <span class="text-xs text-zinc-400">Strapi CMS (master + worker)</span>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-svc_cms" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-4" id="body-svc_cms" style="display:none">
+    <!-- Master -->
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Master Task (us-east-1 only)</h4>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">Task CPU</label><input type="number" name="svc.cms.master.task_cpu" value="{{.Config.Services.CMS.MasterTask.TaskCPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Task Memory</label><input type="number" name="svc.cms.master.task_memory" value="{{.Config.Services.CMS.MasterTask.TaskMemory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-zinc-500 mb-2">Master Nginx</h4>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">CPU</label><input type="number" name="svc.cms.master.nginx.cpu" value="{{.Config.Services.CMS.MasterNginx.CPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Memory</label><input type="number" name="svc.cms.master.nginx.memory" value="{{.Config.Services.CMS.MasterNginx.Memory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-zinc-500 mb-2">Master App</h4>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">CPU</label><input type="number" name="svc.cms.master.app.cpu" value="{{.Config.Services.CMS.MasterApp.CPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Memory</label><input type="number" name="svc.cms.master.app.memory" value="{{.Config.Services.CMS.MasterApp.Memory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Mem Reservation</label><input type="number" name="svc.cms.master.app.mem_reservation" value="{{.Config.Services.CMS.MasterApp.MemoryReservation}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+      </div>
+    </div>
+    <div class="border-t border-zinc-700 pt-3">
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Worker Task (all regions)</h4>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">Task CPU</label><input type="number" name="svc.cms.worker.task_cpu" value="{{.Config.Services.CMS.WorkerTask.TaskCPU}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Task Memory</label><input type="number" name="svc.cms.worker.task_memory" value="{{.Config.Services.CMS.WorkerTask.TaskMemory}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+      </div>
+    </div>
+    <div>
+      <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Worker Service</h4>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-zinc-400 mb-1 block">Desired Count</label><input type="number" name="svc.cms.worker.desired_count" value="{{.Config.Services.CMS.WorkerService.DesiredCount}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+        <div class="flex items-end gap-3 pb-2"><label class="flex items-center gap-2 text-sm"><input type="checkbox" name="svc.cms.worker.autoscaling.enabled" class="toggle-switch" {{if .Config.Services.CMS.WorkerService.Autoscaling.Enabled}}checked{{end}}> Autoscaling</label></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mt-2">
+        <div><label class="text-xs text-zinc-400 mb-1 block">Min</label><input type="number" name="svc.cms.worker.autoscaling.min" value="{{.Config.Services.CMS.WorkerService.Autoscaling.MinCapacity}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+        <div><label class="text-xs text-zinc-400 mb-1 block">Max</label><input type="number" name="svc.cms.worker.autoscaling.max" value="{{.Config.Services.CMS.WorkerService.Autoscaling.MaxCapacity}}" class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm focus:ring-2 focus:ring-green-500"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

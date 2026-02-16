@@ -1,0 +1,15 @@
+{{define "discovery.html"}}
+{{if .}}
+<div id="discovery-data" data-status="{{.Status}}" data-updated-at="{{.UpdatedAt.Unix}}">
+  {{range .Resources}}
+  {{$panel := .Panel}}
+  {{$name := .Name}}
+  {{range .Regions}}
+  <span data-panel="{{$panel}}" data-resource="{{$name}}" data-region="{{.Label}}" data-exists="{{.Exists}}" data-error="{{.Error}}" data-detail="{{.Detail}}" class="hidden"></span>
+  {{end}}
+  {{end}}
+</div>
+{{else}}
+<div id="discovery-data" data-status="idle"></div>
+{{end}}
+{{end}}

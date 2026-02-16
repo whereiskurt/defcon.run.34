@@ -24,7 +24,7 @@ locals {
   # In CI, profiles are not used (credentials come from environment)
   application_profile = local.profile_prefix != "" ? "${local.profile_prefix}-application" : "application"
   management_profile  = local.profile_prefix != "" ? "${local.profile_prefix}-management" : "management"
-  terraform_profile   = "terraform"
+  terraform_profile   = local.profile_prefix != "" ? "${local.profile_prefix}-terraform" : "terraform"
 
   # Generate profile line only when not in CI
   application_profile_line = local.is_ci ? "" : "profile = \"${local.application_profile}\""
@@ -103,7 +103,7 @@ remote_state {
       region         = local.region
       dynamodb_table = get_env(upper("TG_TABLE_${local.region_label}"), "")
     },
-    local.is_ci ? {} : { profile = "terraform" }
+    local.is_ci ? {} : { profile = local.terraform_profile }
   )
   generate = {
     path      = "backend.globals.tf"

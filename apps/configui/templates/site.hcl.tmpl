@@ -1,11 +1,11 @@
 locals {
 
   site = {
-    label            = "dc34"
-    github_repo_name = "defcon.run.34"
-    tf_state_prefix  = "tf-dc34"
-    random_suffix    = get_env("SGUID", "80a6b349")
-    skip_regions     = [] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
+    label            = "<<.Site.Label>>"
+    github_repo_name = "<<.Site.GitHubRepoName>>"
+    tf_state_prefix  = "<<.Site.TFStatePrefix>>"
+    random_suffix    = get_env("SGUID", "<<.Site.RandomSuffix>>")
+    skip_regions     = [<<stringList .Site.SkipRegions>>]
   }
 
   secret_values = jsondecode(
@@ -19,9 +19,9 @@ locals {
   )
 
   dns = {
-    zonename         = "defcon.run"
-    subdomains       = ["email", "run", "auth", "cms", "gpx"]
-    ttl              = 300
+    zonename         = "<<.DNS.ZoneName>>"
+    subdomains       = [<<stringList .DNS.Subdomains>>]
+    ttl              = <<.DNS.TTL>>
   }
 
   # URL configuration for services
@@ -31,18 +31,14 @@ locals {
     # Service subdomains (combined with dns.zonename to form full domains)
     # e.g., "auth" + "defcon.run" = "auth.defcon.run"
     subdomains = {
-      auth = "auth"
-      run  = "run"
-      gpx  = "gpx"
-      cms  = "cms"
+<<mapEntries .URLs.Subdomains>>
     }
 
     # Local development ports (for .env.local files and development defaults)
     local_ports = {
-      auth = 3002
-      run  = 3001
-      gpx  = 3003
-      cms  = 1337
+<<- range $k, $v := .URLs.LocalPorts>>
+      <<$k>> = <<$v>>
+<<- end>>
     }
 
     # Service discovery namespace pattern (used for internal container communication)
@@ -59,45 +55,33 @@ locals {
   }
 
   email = {
-    enabled        = true
-    primary_region = "us-east-1"
-    zonenames      = [for sub in ["email", "run", "auth"] : "${sub}.${local.dns.zonename}"]
-    smtp_prefix    = "s"
+    enabled        = <<boolHCL .Email.Enabled>>
+    primary_region = "<<.Email.PrimaryRegion>>"
+    zonenames      = [for sub in [<<stringList .Email.ZoneSubdomains>>] : "${sub}.${local.dns.zonename}"]
+    smtp_prefix    = "<<.Email.SMTPPrefix>>"
 
-    make_site_domain      = true
-    make_regional_domains = true
-    make_domains          = true
+    make_site_domain      = <<boolHCL .Email.MakeSiteDomain>>
+    make_regional_domains = <<boolHCL .Email.MakeRegionalDomains>>
+    make_domains          = <<boolHCL .Email.MakeDomains>>
 
     # Cross-region S3 bucket replication
     # Each region will replicate its bucket to all other regions in this list
     replica_regions = [
-      {
-        label = "use1"
-        full  = "us-east-1"
-      },
-      {
-        label = "cac1"
-        full  = "ca-central-1"
-      },
-      {
-        label = "apse1"
-        full  = "ap-southeast-1"
-      }
+      <<regionList .Email.ReplicaRegions>>
     ]
 
-    smtp_iam_users = [for sub in ["run", "auth", "cms"] : "${sub}.${local.dns.zonename}"]
+    smtp_iam_users = [for sub in [<<stringList .Email.SMTPIAMSubdomains>>] : "${sub}.${local.dns.zonename}"]
 
     fwd_rules = concat(
       [
+<<- range .Email.FwdRules>>
         {
-          match   = "admin@${local.dns.zonename}"
-          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
+          match   = <<fwdMatchExpr .Match>>
+          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "<<.SendToDefault>>")
         },
-        {
-          match   = "no-reply@run.${local.dns.zonename}"
-          send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "no-reply@run.example.com")
-        },
+<<- end>>
       ],
+<<- if .Email.CatchAllEnabled>>
       # Only include catch-all rule if TF_VAR_FWD_EMAIL_TO_ADDRESS is set
       get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "") != "" ? [
         {
@@ -105,26 +89,28 @@ locals {
           send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "")
         }
       ] : []
+<<- else>>
+      []
+<<- end>>
     )
   }
 
   waf = {
-    enabled  = true
-    log_mode = "standard" # standard | realtime
+    enabled  = <<boolHCL .WAF.Enabled>>
+    log_mode = "<<.WAF.LogMode>>" # standard | realtime
   }
 
   cloudfront = {
-    enabled = true
+    enabled = <<boolHCL .CloudFront.Enabled>>
 
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.<dns.zonename>"
-    domains = ["auth", "run", "cms", "gpx"]
+    domains = [<<stringList .CloudFront.Domains>>]
 
     ## Map fronted domain "auth.<dns.zonename>" to the ruleset called "auth"
     waf_rulesets = {
-      "auth" = "auth" # Use the 'api' ruleset from waf.hcl
-      #"run"  = "default" # Use the 'default' ruleset from waf.hcl
+<<mapEntries .CloudFront.WAFRulesets>>
     }
 
     # Regions that will provide ALB and S3 bucket origins
@@ -133,67 +119,48 @@ locals {
     # - An S3 bucket origin for /{region_label}/assets/*
     #                           /{region_label}/index.html
     regions = [
-      {
-        label = "use1"
-        full  = "us-east-1"
-      },
-      {
-        label = "cac1"
-        full  = "ca-central-1"
-      },
-      {
-        label = "apse1"
-        full  = "ap-southeast-1"
-      }
+      <<regionList .CloudFront.Regions>>
     ]
 
     logging = {
-      enabled         = true
-      include_cookies = false
+      enabled         = <<boolHCL .CloudFront.Logging.Enabled>>
+      include_cookies = <<boolHCL .CloudFront.Logging.IncludeCookies>>
     }
 
     # Price class for CloudFront distribution
     # Options: PriceClass_All, PriceClass_200, PriceClass_100
-    price_class = "PriceClass_100"
+    price_class = "<<.CloudFront.PriceClass>>"
 
   }
 
   ec2spots = {
-    enabled = false
+    enabled = <<boolHCL .EC2Spots.Enabled>>
     instances = [
       {
-        count                  = 0
-        regions                = ["us-east-1", "ca-central-1", "ap-southeast-1"]
+        count                  = <<.EC2Spots.Count>>
+        regions                = [<<stringList .EC2Spots.Regions>>]
         zone_name              = "run.${local.dns.zonename}"
-        create_dns_records     = true
-        instance_type          = "t4g.medium"
-        spot_price_multiplier  = 1.00
-        spot_price_offset      = 0.0005
-        block_duration_minutes = 0
-        ec2key_name_prefix     = "ec2spot"
-        ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
+        create_dns_records     = <<boolHCL .EC2Spots.CreateDNSRecords>>
+        instance_type          = "<<.EC2Spots.InstanceType>>"
+        spot_price_multiplier  = <<printf "%.2f" .EC2Spots.SpotPriceMultiplier>>
+        spot_price_offset      = <<printf "%.4f" .EC2Spots.SpotPriceOffset>>
+        block_duration_minutes = <<.EC2Spots.BlockDurationMin>>
+        ec2key_name_prefix     = "<<.EC2Spots.EC2KeyNamePrefix>>"
+        ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/<<.EC2Spots.EC2KeyNamePrefix>>"
         githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
-        # Per-region overrides (optional) - useful for different instance counts per region
-        # region_overrides = {
-        #   "us-east-1" = {
-        #     count = 2
-        #   }
-        #   "ca-central-1" = {
-        #     count = 1
-        #   }
-        # }
       }
     ]
   }
 
   ecs_clusters = {
-    enabled = true
+    enabled = <<boolHCL .ECSClusters.Enabled>>
     clusters = [
+<<- range .ECSClusters.Clusters>>
       {
-        name            = "app"
-        regions         = ["us-east-1", "ca-central-1", "ap-southeast-1"]
-        enable_insights = true
-        cluster_type    = "FARGATE"
+        name            = "<<.Name>>"
+        regions         = [<<stringList .Regions>>]
+        enable_insights = <<boolHCL .EnableInsights>>
+        cluster_type    = "<<.ClusterType>>"
         # Per-region overrides (optional) - merge into base config for specific regions
         # region_overrides = {
         #   "ap-southeast-1" = {
@@ -201,11 +168,12 @@ locals {
         #   }
         # }
       }
+<<- end>>
     ]
   }
 
   dynamodb = {
-    enabled = true
+    enabled = <<boolHCL .DynamoDB.Enabled>>
     tables = concat(
       local.service_conf.auth.locals.dynamodb.tables,
       local.service_conf.run_human.locals.dynamodb.tables,
@@ -214,7 +182,7 @@ locals {
   }
 
   ecr = {
-    enabled = true
+    enabled = <<boolHCL .ECR.Enabled>>
     repositories = concat(
       local.service_conf.auth.locals.ecr_repositories,
       local.service_conf.run_human.locals.ecr_repositories,
@@ -224,7 +192,7 @@ locals {
   }
 
   ecs_tasks = {
-    enabled = true
+    enabled = <<boolHCL .ECSTasks.Enabled>>
     tasks = [
       local.service_conf.auth.locals.task,
       local.service_conf.run_human.locals.task,
@@ -235,7 +203,7 @@ locals {
   }
 
   ecs_services = {
-    enabled = true
+    enabled = <<boolHCL .ECSServices.Enabled>>
     services = [
       local.service_conf.auth.locals.service,
       local.service_conf.run_human.locals.service,
@@ -246,7 +214,7 @@ locals {
   }
 
   user_uploads = {
-    enabled = true
+    enabled = <<boolHCL .UserUploads.Enabled>>
     buckets = concat(
       try(local.service_conf.run_human.locals.user_uploads, []),
       try(local.service_conf.cms.locals.cms_storage, []),
@@ -255,7 +223,7 @@ locals {
   }
 
   upload_processors = {
-    enabled = true
+    enabled = <<boolHCL .UploadProcessors.Enabled>>
     processors = concat(
       try(local.service_conf.run_human.locals.upload_processors, [])
       # Future: local.service_conf.gpx.locals.upload_processors
@@ -265,128 +233,73 @@ locals {
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)
   # Values loaded from .secrets.json file (gitignored) or TF_VAR_secret_values env var
   secrets = {
-    enabled = true
+    enabled = <<boolHCL .Secrets.Enabled>>
 
     # Set to true to use Secrets Manager with automatic replication
     # Set to false to use SSM Parameter Store (created in each region)
-    use_secrets_manager = false
+    use_secrets_manager = <<boolHCL .Secrets.UseSecretsManager>>
 
     # Primary region for Secrets Manager (only used when use_secrets_manager = true)
-    primary_region = "us-east-1"
+    primary_region = "<<.Secrets.PrimaryRegion>>"
 
     # Regions to replicate to (only used when use_secrets_manager = true)
     replica_regions = [
-      {
-        label = "cac1"
-        full  = "ca-central-1"
-      },
-      {
-        label = "apse1"
-        full  = "ap-southeast-1"
-      }
+      <<regionList .Secrets.ReplicaRegions>>
     ]
 
     # Path prefix templates - supports {{SITE_LABEL}}, {{REGION_LABEL}}, {{REGION}}
     # SSM: includes region since each region has its own parameters
-    ssm_prefix = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}"
+    ssm_prefix = "<<.Secrets.SSMPrefix>>"
     # Secrets Manager: no region since it replicates automatically
-    sm_prefix = "/{{SITE_LABEL}}/secrets"
+    sm_prefix = "<<.Secrets.SMPrefix>>"
 
     # Secret structure definitions - values come from .secrets.json or env var
     definitions = {
-      strava = {
-        description = "Strava OAuth credentials"
-        keys        = ["client_id", "client_secret"]
-      }
-      github = {
-        description = "GitHub OAuth credentials"
-        keys        = ["client_id", "client_secret"]
-      }
-      discord = {
-        description = "Discord OAuth credentials"
-        keys        = ["client_id", "client_secret"]
-      }
-      jwt = {
-        description = "JWT signing secrets"
-        keys        = ["secret", "internal_secret"]
-      }
-      oidc = {
-        description = "OIDC cookie encryption keys"
-        keys        = ["cookie_keys"]
-      }
-      runhuman = {
-        description = "RunHuman OIDC client credentials"
-        keys        = ["client_id", "client_secret"]
-      }
-      altcha = {
-        description = "ALTCHA proof-of-work secret"
-        keys        = ["secret"]
-      }
-      origin_verify = {
-        description = "CloudFront origin verification secret for multi-region routing"
-        keys        = ["secret"]
-      }
-      strapi = {
-        description = "Strapi CMS secrets"
-        keys        = ["admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "jwt_secret", "oidc_client_id", "oidc_client_secret"]
-      }
-      gpxstudio = {
-        description = "GPX Studio OIDC client credentials"
-        keys        = ["client_id", "client_secret"]
-      }
-      mapbox = {
-        description = "Mapbox API tokens"
-        keys        = ["public_token"]
-        global      = true # Global secret, not region-specific
-      }
+<<secretDefs .Secrets.Definitions>>
     }
   }
 
   # CloudTrail for IAM activity logging and policy generation
   # Records all API calls to enable least-privilege policy generation
   cloudtrail = {
-    enabled = true
+    enabled = <<boolHCL .CloudTrail.Enabled>>
 
     # Multi-region trail captures activity across all regions
-    multi_region = true
+    multi_region = <<boolHCL .CloudTrail.MultiRegion>>
 
     # How long to retain logs (90 days recommended for policy analysis)
-    log_retention_days = 90
+    log_retention_days = <<.CloudTrail.LogRetentionDays>>
 
     # Move logs to Glacier after N days (0 = disabled)
     # Set to 30+ for cost savings on long-term retention
-    glacier_transition_days = 0
+    glacier_transition_days = <<.CloudTrail.GlacierTransitionDays>>
 
     # IAM Access Analyzer generates least-privilege policies from CloudTrail
-    enable_access_analyzer = true
+    enable_access_analyzer = <<boolHCL .CloudTrail.EnableAccessAnalyzer>>
 
     # Athena enables SQL queries on CloudTrail logs
-    enable_athena = true
+    enable_athena = <<boolHCL .CloudTrail.EnableAthena>>
 
     # KMS encryption for CloudTrail logs
-    enable_kms_encryption = true
+    enable_kms_encryption = <<boolHCL .CloudTrail.EnableKMSEncryption>>
 
     # Security + cost alerts via email
-    enable_alerts = true
+    enable_alerts = <<boolHCL .CloudTrail.EnableAlerts>>
     alert_email   = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
 
     # GitHub OIDC roles to monitor (all roles by default)
     monitor_roles = [
-      "terragrunt",
-      "application",
-      "readonly",
-      "prowler",
-      "e2e",
-      "release",
-      "deploy"
+<<- range .CloudTrail.MonitorRoles>>
+      "<<.>>",
+<<- end>>
     ]
   }
 
   # Extracted to avoid self-reference within github_oidc block
-  github_oidc_delegate_role_name = "${local.site.label}-github-delegate" # "dc34-github-delegate"
+  github_oidc_delegate_role_name = "${local.site.label}-<<.GitHubOIDC.DelegateRoleName>>" # "dc34-<<.GitHubOIDC.DelegateRoleName>>"
 
   github_oidc = {
-    enabled            = true
+    enabled            = <<boolHCL .GitHubOIDC.Enabled>>
     github_org         = get_env("TF_VAR_GITHUB_ORG", "your-github-org")
     github_repo        = local.site.github_repo_name
     delegate_role_name = local.github_oidc_delegate_role_name
@@ -399,8 +312,8 @@ locals {
     # EC2 instance profile for self-hosted GitHub runners
     # Enables SSM access for debugging and includes ECR read access
     ec2_runner_instance_profile = {
-      enabled = true
-      name    = "${local.site.label}-github-runner"
+      enabled = <<boolHCL .GitHubOIDC.EC2RunnerProfile.Enabled>>
+      name    = "${local.site.label}-<<.GitHubOIDC.EC2RunnerProfile.Name>>"
     }
 
     roles = [

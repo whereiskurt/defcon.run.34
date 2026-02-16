@@ -1,0 +1,130 @@
+{{define "ec2spots.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.EC2Spots.Enabled}}panel-disabled{{end}}" data-panel="ec2spots">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('ec2spots')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="ec2spots.enabled" class="toggle-switch" {{if .Config.EC2Spots.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('ec2spots', this)">
+      <h3 class="text-base font-semibold">EC2</h3>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-ec2spots" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3" id="body-ec2spots" style="display:none">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+      <!-- Instance Count -->
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Instance Count</label>
+        <input type="number" name="ec2spots.count" value="{{.Config.EC2Spots.Count}}" min="0" max="10"
+               class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+      </div>
+
+      <!-- Instance Type -->
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Instance Type</label>
+        <select name="ec2spots.instance_type"
+                class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+          <option value="t4g.small" {{if eq .Config.EC2Spots.InstanceType "t4g.small"}}selected{{end}}>t4g.small (2 vCPU, 2 GiB)</option>
+          <option value="t4g.medium" {{if eq .Config.EC2Spots.InstanceType "t4g.medium"}}selected{{end}}>t4g.medium (2 vCPU, 4 GiB)</option>
+          <option value="t4g.large" {{if eq .Config.EC2Spots.InstanceType "t4g.large"}}selected{{end}}>t4g.large (2 vCPU, 8 GiB)</option>
+          <option value="t4g.xlarge" {{if eq .Config.EC2Spots.InstanceType "t4g.xlarge"}}selected{{end}}>t4g.xlarge (4 vCPU, 16 GiB)</option>
+          <option value="m7g.medium" {{if eq .Config.EC2Spots.InstanceType "m7g.medium"}}selected{{end}}>m7g.medium (1 vCPU, 4 GiB)</option>
+          <option value="m7g.large" {{if eq .Config.EC2Spots.InstanceType "m7g.large"}}selected{{end}}>m7g.large (2 vCPU, 8 GiB)</option>
+          <option value="c7g.medium" {{if eq .Config.EC2Spots.InstanceType "c7g.medium"}}selected{{end}}>c7g.medium (1 vCPU, 2 GiB)</option>
+          <option value="c7g.large" {{if eq .Config.EC2Spots.InstanceType "c7g.large"}}selected{{end}}>c7g.large (2 vCPU, 4 GiB)</option>
+        </select>
+      </div>
+
+      <!-- EC2 Key Name Prefix -->
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Key Name Prefix</label>
+        <input type="text" name="ec2spots.ec2key_name_prefix" value="{{.Config.EC2Spots.EC2KeyNamePrefix}}"
+               class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono">
+      </div>
+
+      <!-- Spot Price Multiplier -->
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Price Multiplier</label>
+        <input type="number" name="ec2spots.spot_price_multiplier" value="{{printf "%.2f" .Config.EC2Spots.SpotPriceMultiplier}}" step="0.01" min="0.50" max="3.00"
+               class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+        <p class="text-[10px] text-zinc-500 mt-1">Multiplied by current spot price</p>
+      </div>
+
+      <!-- Spot Price Offset -->
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Price Offset</label>
+        <input type="number" name="ec2spots.spot_price_offset" value="{{printf "%.4f" .Config.EC2Spots.SpotPriceOffset}}" step="0.0001" min="0"
+               class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+        <p class="text-[10px] text-zinc-500 mt-1">Added after multiplier</p>
+      </div>
+
+      <!-- Block Duration -->
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Block Duration (min)</label>
+        <select name="ec2spots.block_duration_minutes"
+                class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+          <option value="0" {{if eq .Config.EC2Spots.BlockDurationMin 0}}selected{{end}}>None (standard spot)</option>
+          <option value="60" {{if eq .Config.EC2Spots.BlockDurationMin 60}}selected{{end}}>60 min</option>
+          <option value="120" {{if eq .Config.EC2Spots.BlockDurationMin 120}}selected{{end}}>120 min</option>
+          <option value="180" {{if eq .Config.EC2Spots.BlockDurationMin 180}}selected{{end}}>180 min</option>
+          <option value="240" {{if eq .Config.EC2Spots.BlockDurationMin 240}}selected{{end}}>240 min</option>
+          <option value="300" {{if eq .Config.EC2Spots.BlockDurationMin 300}}selected{{end}}>300 min</option>
+          <option value="360" {{if eq .Config.EC2Spots.BlockDurationMin 360}}selected{{end}}>360 min</option>
+        </select>
+        <p class="text-[10px] text-zinc-500 mt-1">Guaranteed duration (0 = no guarantee)</p>
+      </div>
+    </div>
+
+    <!-- DNS + Regions row -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+      <!-- Create DNS Records -->
+      <div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="ec2spots.create_dns_records" class="toggle-switch" {{if .Config.EC2Spots.CreateDNSRecords}}checked{{end}}>
+          <span class="text-sm">Create DNS Records</span>
+        </label>
+        <p class="text-[10px] text-zinc-500 mt-1 ml-12">Register instances in Route53 as run.&lt;zonename&gt;</p>
+      </div>
+
+      <!-- Regions (as hidden CSV, with checkboxes) -->
+      <div>
+        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-2 block">Regions</label>
+        <input type="hidden" name="ec2spots.regions" id="ec2spots-regions-csv"
+               value="{{range $i, $r := .Config.EC2Spots.Regions}}{{if $i}},{{end}}{{$r}}{{end}}">
+        <div class="flex flex-wrap gap-3">
+          {{$regions := .Config.EC2Spots.Regions}}
+          <label class="flex items-center gap-1.5 text-sm">
+            <input type="checkbox" class="rounded" {{if hasRegionStr $regions "us-east-1"}}checked{{end}}
+                   onchange="updateEC2Regions()"> us-east-1
+          </label>
+          <label class="flex items-center gap-1.5 text-sm">
+            <input type="checkbox" class="rounded" {{if hasRegionStr $regions "ca-central-1"}}checked{{end}}
+                   onchange="updateEC2Regions()"> ca-central-1
+          </label>
+          <label class="flex items-center gap-1.5 text-sm">
+            <input type="checkbox" class="rounded" {{if hasRegionStr $regions "ap-southeast-1"}}checked{{end}}
+                   onchange="updateEC2Regions()"> ap-southeast-1
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key file info -->
+    <div class="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+      <p class="text-[10px] text-zinc-500">
+        SSH keys saved to <span class="font-mono">~/.ssh/&lt;prefix&gt;-&lt;region&gt;</span> &bull;
+        GitHub deploy key from <span class="font-mono">TF_VAR_githubdeploykey</span> env var &bull;
+        Uses Amazon Linux 2023 ARM64 AMI
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+function updateEC2Regions() {
+  var cbs = document.querySelectorAll('[data-panel="ec2spots"] input[type="checkbox"][onchange*="updateEC2Regions"]');
+  var regionNames = ['us-east-1', 'ca-central-1', 'ap-southeast-1'];
+  var selected = [];
+  cbs.forEach(function(cb, i) { if (cb.checked) selected.push(regionNames[i]); });
+  document.getElementById('ec2spots-regions-csv').value = selected.join(',');
+}
+</script>
+{{end}}

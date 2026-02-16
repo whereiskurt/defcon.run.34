@@ -1,0 +1,144 @@
+{{define "aws_config.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden" data-panel="awsconfig">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('awsconfig')">
+    <h3 class="text-base font-semibold">AWS Credentials</h3>
+    <svg class="w-4 h-4 chevron" id="chevron-awsconfig" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-awsconfig" style="display:none">
+    <p class="text-xs text-zinc-400">Generated from form values. This will <strong>never</strong> overwrite your files — copy what you need.</p>
+
+    <!-- Tab switcher -->
+    <div class="flex gap-1 border-b border-zinc-200 dark:border-zinc-700">
+      <button type="button" id="tab-sso" onclick="switchAwsTab('sso')"
+        class="px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400">
+        SSO &middot; ~/.aws/config
+      </button>
+      <button type="button" id="tab-iam" onclick="switchAwsTab('iam')"
+        class="px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300">
+        IAM &middot; ~/.aws/credentials
+      </button>
+    </div>
+
+    <!-- SSO tab content -->
+    <div id="aws-tab-sso" class="relative">
+      <button onclick="copyAwsBlock('aws-config-preview')" class="absolute top-2 right-2 z-10 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs" title="Copy to clipboard">Copy</button>
+      <pre id="aws-config-preview" class="rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed text-zinc-700 dark:text-zinc-300 pii-blur" onclick="this.classList.add('pii-revealed')"></pre>
+    </div>
+
+    <!-- IAM tab content -->
+    <div id="aws-tab-iam" class="relative hidden">
+      <button onclick="copyAwsBlock('aws-creds-preview')" class="absolute top-2 right-2 z-10 rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs" title="Copy to clipboard">Copy</button>
+      <pre id="aws-creds-preview" class="rounded-md bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 px-4 py-3 text-xs font-mono overflow-x-auto whitespace-pre leading-relaxed text-zinc-700 dark:text-zinc-300 pii-blur" onclick="this.classList.add('pii-revealed')"></pre>
+    </div>
+  </div>
+</div>
+<script>
+function switchAwsTab(tab) {
+  var ssoTab = document.getElementById('tab-sso');
+  var iamTab = document.getElementById('tab-iam');
+  var ssoContent = document.getElementById('aws-tab-sso');
+  var iamContent = document.getElementById('aws-tab-iam');
+
+  var activeClasses = 'border-green-500 text-green-600 dark:text-green-400';
+  var inactiveClasses = 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300';
+
+  if (tab === 'sso') {
+    ssoContent.classList.remove('hidden');
+    iamContent.classList.add('hidden');
+    ssoTab.className = 'px-3 py-1.5 text-xs font-medium border-b-2 ' + activeClasses;
+    iamTab.className = 'px-3 py-1.5 text-xs font-medium border-b-2 ' + inactiveClasses;
+  } else {
+    iamContent.classList.remove('hidden');
+    ssoContent.classList.add('hidden');
+    iamTab.className = 'px-3 py-1.5 text-xs font-medium border-b-2 ' + activeClasses;
+    ssoTab.className = 'px-3 py-1.5 text-xs font-medium border-b-2 ' + inactiveClasses;
+  }
+}
+
+function copyAwsBlock(preId) {
+  var pre = document.getElementById(preId);
+  if (!pre) return;
+  navigator.clipboard.writeText(pre.textContent).then(function() {
+    var btn = pre.parentElement.querySelector('button');
+    if (btn) {
+      var orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      setTimeout(function() { btn.textContent = orig; }, 1500);
+    }
+  });
+}
+
+function profileName(prefix, name) {
+  return prefix ? prefix + '-' + name : name;
+}
+
+function updateAwsConfigPreview() {
+  var session = (document.querySelector('[name="envlocal.sso_session_name"]') || {}).value || 'Developer';
+  var startUrl = (document.querySelector('[name="envlocal.sso_start_url"]') || {}).value || 'https://example.awsapps.com/start';
+  var region = (document.querySelector('[name="env.aws_region"]') || {}).value || 'us-east-1';
+  var mgmt = (document.querySelector('[name="envlocal.management_account_id"]') || {}).value || '000000000000';
+  var app = (document.querySelector('[name="envlocal.application_account_id"]') || {}).value || '000000000000';
+  var tf = (document.querySelector('[name="envlocal.terraform_account_id"]') || {}).value || '000000000000';
+  var prefix = (document.querySelector('[name="envlocal.profile_prefix"]') || {}).value || '';
+
+  var pMgmt = profileName(prefix, 'management');
+  var pApp = profileName(prefix, 'application');
+  var pTf = profileName(prefix, 'terraform');
+
+  // SSO tab: ~/.aws/config
+  document.getElementById('aws-config-preview').textContent =
+    '[sso-session ' + session + ']\n' +
+    'sso_start_url = ' + startUrl + '\n' +
+    'sso_region = ' + region + '\n' +
+    'sso_registration_scopes = sso:account:access\n' +
+    '\n' +
+    '[profile ' + pMgmt + ']\n' +
+    'sso_session = ' + session + '\n' +
+    'sso_account_id = ' + mgmt + '\n' +
+    'sso_role_name = HostedZoneAdmin\n' +
+    '\n' +
+    '[profile ' + pApp + ']\n' +
+    'sso_session = ' + session + '\n' +
+    'sso_account_id = ' + app + '\n' +
+    'sso_role_name = AdministratorAccess\n' +
+    '\n' +
+    '[profile ' + pTf + ']\n' +
+    'sso_session = ' + session + '\n' +
+    'sso_account_id = ' + tf + '\n' +
+    'sso_role_name = AdministratorAccess';
+
+  // IAM tab: ~/.aws/credentials
+  document.getElementById('aws-creds-preview').textContent =
+    '[' + pApp + ']\n' +
+    'aws_access_key_id=ASIA..........01\n' +
+    'aws_secret_access_key=Isi................NxFb7\n' +
+    'aws_session_token=IQoJb3JpZ........LWVsd....\n' +
+    '\n' +
+    '[' + pMgmt + ']\n' +
+    'aws_access_key_id=ASIA..........33\n' +
+    'aws_secret_access_key=Isi................NxFb7\n' +
+    'aws_session_token=IQoJb3JpZ........LWVsd....\n' +
+    '\n' +
+    '[' + pTf + ']\n' +
+    'aws_access_key_id=ASIA..........22\n' +
+    'aws_secret_access_key=Isi................NxFb7\n' +
+    'aws_session_token=IQoJb3JpZ........LWVsd....';
+}
+
+// Watch all fields that feed into the AWS config preview
+document.addEventListener('DOMContentLoaded', function() {
+  updateAwsConfigPreview();
+  var fields = [
+    'envlocal.sso_session_name', 'envlocal.sso_start_url', 'env.aws_region',
+    'envlocal.management_account_id', 'envlocal.application_account_id',
+    'envlocal.terraform_account_id', 'envlocal.profile_prefix'
+  ];
+  fields.forEach(function(name) {
+    var el = document.querySelector('[name="' + name + '"]');
+    if (el) el.addEventListener('input', updateAwsConfigPreview);
+  });
+});
+// Also run immediately in case DOMContentLoaded already fired
+if (document.readyState !== 'loading') updateAwsConfigPreview();
+</script>
+{{end}}
