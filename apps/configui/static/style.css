@@ -896,6 +896,16 @@ body.preview-dragging {
   color: #fca5a5;
 }
 
+/* Hierarchy: form-grid left rail — shows nesting under Terragrunt title */
+#form-grid {
+  border-left: 3px solid rgba(22, 163, 74, 0.30);
+  margin-left: 8px;
+  padding-left: 16px;
+}
+.dark #form-grid {
+  border-left-color: #306842;
+}
+
 /* Module numbers — small label above title */
 .module-num {
   position: absolute;
