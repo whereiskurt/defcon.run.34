@@ -14,37 +14,37 @@ Animated walkthroughs of ConfigUI in action. Re-generate after UI changes with `
 
 Open the preview side panel, switch between generated config files (site.hcl, service.hcl, env.sh, env.local.sh), and close.
 
-![Preview Toggle](docs/configui-demo-preview-toggle-20260216-165145.gif)
+![Preview Toggle](docs/configui-demo-preview-toggle-20260216-181045.gif)
 
 ### Module Toggles
 
 Disable individual infrastructure modules (CloudFront, WAF), toggle the entire section off, then back on with the tri-state slider.
 
-![Module Toggle Demo](docs/configui-demo-module-toggle-20260216-165145.gif)
+![Module Toggle Demo](docs/configui-demo-module-toggle-20260216-181045.gif)
 
 ### Panel Navigation
 
 Expand and collapse all 24+ panels at once, then drill into individual sections (Core, Infrastructure, Services).
 
-![Panel Navigation](docs/configui-demo-panel-navigation-20260216-165145.gif)
+![Panel Navigation](docs/configui-demo-panel-navigation-20260216-181045.gif)
 
 ### PII Blur
 
 Sensitive fields are blurred by default. Unblur All (with confirmation) reveals everything, Blur All re-hides them.
 
-![PII Blur Demo](docs/configui-demo-pii-blur-20260216-165145.gif)
+![PII Blur Demo](docs/configui-demo-pii-blur-20260216-181245.gif)
 
 ### Discovery Refresh
 
 Trigger an AWS resource scan -- status dots spin while checking each module across regions, then resolve to green/hollow/amber.
 
-![Discovery Refresh](docs/configui-demo-discovery-refresh-20260216-165833.gif)
+![Discovery Refresh](docs/configui-demo-discovery-refresh-20260216-181046.gif)
 
 ### Terragrunt Plan
 
 Run `terragrunt plan` on a module directly from the UI. The terminal modal streams real-time output via SSE, shows exit status, and auto-refreshes discovery on close.
 
-![Terragrunt Plan](docs/configui-demo-plan-module-20260216-165833.gif)
+![Terragrunt Plan](docs/configui-demo-plan-module-20260216-181046.gif)
 
 ## Quick Start
 
