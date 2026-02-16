@@ -1432,6 +1432,28 @@ var TERMINAL_MODULES = {
 // Multi-session tracking: id → { es, overlay, minimized, processRunning, label, exitCode }
 var _termSessions = {};
 
+// Toggle export creds via the +/- button on the AWS status bar
+function toggleExportCreds(btn) {
+  var result = document.getElementById('aws-action-result');
+  if (result && result.innerHTML.trim()) {
+    // Collapse — clear the result
+    result.innerHTML = '';
+    btn.textContent = '+';
+  } else {
+    // Expand — fetch export creds
+    htmx.ajax('POST', '/api/export-creds', {target: '#aws-action-result', swap: 'innerHTML'});
+    btn.textContent = '\u2212';
+  }
+}
+
+// After AWS status reloads via htmx, sync the +/- toggle state
+function syncExportCredsToggle() {
+  var btn = document.getElementById('export-creds-toggle');
+  if (!btn) return;
+  var result = document.getElementById('aws-action-result');
+  btn.textContent = (result && result.innerHTML.trim()) ? '\u2212' : '+';
+}
+
 // Check if AWS is authenticated by looking at the aws-status container
 function isAWSAuthed() {
   var el = document.getElementById('aws-status');
@@ -1919,6 +1941,7 @@ document.addEventListener('htmx:afterSwap', function(e) {
     setTimeout(function() {
       injectTerminalButtons();
       updateTerminalButtonsVisibility();
+      syncExportCredsToggle();
     }, 100);
   }
 });

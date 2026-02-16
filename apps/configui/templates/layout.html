@@ -43,6 +43,11 @@
                 onclick="if(isPreviewOpen()){hidePreview();}else{showPreview();htmx.ajax('POST','/preview',{source:'#config-form',target:'#preview-content',swap:'innerHTML'});}">
           Preview
         </button>
+        <button type="button"
+                class="rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-medium"
+                hx-post="/api/sso-login" hx-target="#aws-action-result" hx-swap="innerHTML">
+          SSO Login
+        </button>
         <button type="button" onclick="confirmExport()"
                 class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm">
           Export
