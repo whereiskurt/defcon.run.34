@@ -606,6 +606,7 @@ function confirmSaveAll() {
     overlay.remove();
     hidePreview();
     htmx.ajax('POST', '/save', {source: '#config-form', target: '#save-result', swap: 'innerHTML'});
+    setTimeout(markFormClean, 500);
   };
 }
 
@@ -686,10 +687,14 @@ document.addEventListener('htmx:afterSettle', function(e) {
 
 // Reload confirmation dialog
 function confirmReload() {
+  var msg = _formDirty
+    ? 'You have unsaved changes that will be lost. This will reload all values from disk.'
+    : 'This will reload from disk and overwrite any changes you have currently made.';
   showConfirmDialog({
-    title: 'Reload configuration?',
-    message: 'This will reload from disk and overwrite any changes you have currently made.',
-    confirmLabel: 'Reload',
+    title: _formDirty ? 'Discard unsaved changes?' : 'Reload configuration?',
+    message: msg,
+    confirmLabel: _formDirty ? 'Discard & Reload' : 'Reload',
+    confirmClass: _formDirty ? 'bg-red-600 hover:bg-red-500 text-white' : undefined,
     onConfirm: function() {
       fetch('/api/reload', { method: 'POST' }).then(function() { window.location.reload(); });
     }
@@ -2134,6 +2139,24 @@ function showTerminalModal(session) {
     statusEl.innerHTML = formatSummaryHtml(sessionState.summary, exitCode);
     updatePillBar();
 
+    // Detect state lock errors and show helpful banner
+    if (exitCode !== 0 && output.textContent.indexOf('Error acquiring the state lock') !== -1) {
+      var lockBanner = document.createElement('div');
+      lockBanner.className = 'flex items-center gap-3 px-4 py-2 bg-amber-900/40 border-t border-amber-700/50';
+      lockBanner.innerHTML =
+        '<svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>' +
+        '<span class="text-xs font-mono text-amber-300 flex-1">A stale Terraform state lock is blocking this operation. Use <strong>Fix Locks</strong> to scan and remove it.</span>' +
+        '<button class="rounded-md bg-amber-700 hover:bg-amber-600 text-white px-3 py-1 text-xs font-mono font-medium flex-shrink-0">Fix Locks</button>';
+      lockBanner.querySelector('button').onclick = function() {
+        lockBanner.remove();
+        confirmFixLocks();
+      };
+      // Insert before the status bar (last child of the modal container)
+      var modalContainer = overlay.querySelector('.flex-1.flex.flex-col');
+      var statusBar = modalContainer.lastElementChild;
+      modalContainer.insertBefore(lockBanner, statusBar);
+    }
+
     // Auto-refresh discovery after a successful apply
     if (exitCode === 0 && sessionState.command && sessionState.command.indexOf('apply') !== -1) {
       var mod = sessionState.module;
@@ -2437,6 +2460,54 @@ function initModuleSortable() {
   });
 }
 
+// --- Unsaved changes tracking ---
+var _formDirty = false;
+var _savedFormSnapshot = '';
+
+function captureFormSnapshot() {
+  var form = document.getElementById('config-form');
+  if (!form) return '';
+  return new URLSearchParams(new FormData(form)).toString();
+}
+
+function markFormClean() {
+  _formDirty = false;
+  _savedFormSnapshot = captureFormSnapshot();
+  var banner = document.getElementById('unsaved-banner');
+  if (banner) banner.classList.add('hidden');
+}
+
+function markFormDirty() {
+  if (_formDirty) return;
+  // Compare against saved snapshot to avoid false positives on initial load
+  var current = captureFormSnapshot();
+  if (current === _savedFormSnapshot) return;
+  _formDirty = true;
+  var banner = document.getElementById('unsaved-banner');
+  if (banner) banner.classList.remove('hidden');
+}
+
+function dismissUnsavedBanner() {
+  var banner = document.getElementById('unsaved-banner');
+  if (banner) banner.classList.add('hidden');
+}
+
+function doSaveAll() {
+  var banner = document.getElementById('unsaved-banner');
+  if (banner) banner.classList.add('hidden');
+  htmx.ajax('POST', '/save', {source: '#config-form', target: '#save-result', swap: 'innerHTML'});
+  // Mark clean after a short delay to let the save complete
+  setTimeout(markFormClean, 500);
+}
+
+function initDirtyTracking() {
+  _savedFormSnapshot = captureFormSnapshot();
+  var form = document.getElementById('config-form');
+  if (!form) return;
+  form.addEventListener('input', markFormDirty);
+  form.addEventListener('change', markFormDirty);
+}
+
 // Initialize on load
 initTheme();
 initHeaderSync();
@@ -2450,3 +2521,4 @@ updateTerminalButtonsVisibility();
 recoverTerminalSessions();
 updateHistoryBadge();
 initModuleSortable();
+initDirtyTracking();
