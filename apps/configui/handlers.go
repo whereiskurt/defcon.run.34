@@ -631,6 +631,8 @@ func (a *App) refreshModule(module string) {
 		}
 	}
 	a.discovery.Resources = filtered
+	// Set status to running so the frontend conditional polling picks up results.
+	a.discovery.Status = DiscoveryRunning
 	a.discovery.UpdatedAt = time.Now()
 	disc := a.discovery
 	cfgCopy := *a.config
@@ -645,8 +647,7 @@ func (a *App) refreshModule(module string) {
 	}
 	runDiscovery(&cfgCopy, &envCopy, addResult, module)
 	a.mu.Lock()
-	// Don't change Status — leave it as-is (e.g. DiscoveryDone from a prior full scan)
-	// so single-module refreshes don't trigger the global "[scanning...]" indicator.
+	disc.Status = DiscoveryDone
 	disc.UpdatedAt = time.Now()
 	a.mu.Unlock()
 	log.Printf("Module discovery complete: %s", module)

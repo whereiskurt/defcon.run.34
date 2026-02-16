@@ -689,6 +689,7 @@ function confirmRequery() {
     onConfirm: function() {
       var btn = document.getElementById('requery-aws-btn');
       if (btn) btn.classList.add('spinning');
+      _globalDiscoveryRunning = true;
       fetch('/api/discovery/refresh', { method: 'POST' }).then(function() {
         htmx.trigger(document.body, 'refreshDiscovery');
       });
@@ -1176,6 +1177,9 @@ var DISCOVERABLE_PANELS = {
   cloudtrail: true, upload_proc: true
 };
 
+// Track whether a global (all-module) discovery was triggered
+var _globalDiscoveryRunning = false;
+
 // Used by htmx conditional polling: returns true while discovery is running
 function discoveryRunning() {
   var data = document.getElementById('discovery-data');
@@ -1310,11 +1314,13 @@ function updateDiscoveryTimestamp() {
 
   var status = data.dataset.status;
   var rqBtn = document.getElementById('requery-aws-btn');
-  if (status === 'running') {
+  if (status === 'running' && _globalDiscoveryRunning) {
     label.textContent = '[scanning...]';
     if (rqBtn) rqBtn.classList.add('spinning');
     return;
-  } else {
+  }
+  if (status !== 'running') {
+    _globalDiscoveryRunning = false;
     if (rqBtn) rqBtn.classList.remove('spinning');
   }
 
