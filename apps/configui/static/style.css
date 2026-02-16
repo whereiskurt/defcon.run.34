@@ -889,3 +889,28 @@ body.preview-dragging {
   color: #fca5a5;
 }
 
+/* Module numbers — small label above title */
+.module-num {
+  position: absolute;
+  top: -9px;
+  left: 0;
+  font-size: 9px;
+  line-height: 1;
+  font-family: 'Fira Code', monospace;
+  opacity: 0.35;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Color group tints — light mode */
+.mod-group-global  { background-color: rgba(74,222,128,0.10); }
+.mod-group-config  { background-color: rgba(251,191,36,0.10); }
+.mod-group-ecs     { background-color: rgba(168,85,247,0.10); }
+.mod-group-storage { background-color: rgba(59,130,246,0.10); }
+
+/* Color group tints — dark mode */
+.dark .mod-group-global  { background-color: rgba(74,222,128,0.12); }
+.dark .mod-group-config  { background-color: rgba(251,191,36,0.12); }
+.dark .mod-group-ecs     { background-color: rgba(168,85,247,0.14); }
+.dark .mod-group-storage { background-color: rgba(59,130,246,0.14); }
+

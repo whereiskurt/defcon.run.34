@@ -694,7 +694,7 @@ function confirmRequery() {
         btn.style.opacity = '0.35';
         btn.style.cursor = 'not-allowed';
         var span = btn.querySelector('span');
-        if (span) span.textContent = 'In progress';
+        if (span) span.textContent = 'Scanning';
       }
       _globalDiscoveryRunning = true;
       updateModuleRefreshButtons();
@@ -1357,7 +1357,7 @@ function updateDiscoveryTimestamp() {
   var status = data.dataset.status;
   var rqBtn = document.getElementById('requery-aws-btn');
   if (status === 'running' && _globalDiscoveryRunning) {
-    label.textContent = '[scanning...]';
+    label.textContent = '[in progress]';
     if (rqBtn) rqBtn.classList.add('spinning');
     return;
   }

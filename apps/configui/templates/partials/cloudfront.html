@@ -1,9 +1,9 @@
 {{define "cloudfront.html"}}
-<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.CloudFront.Enabled}}panel-disabled{{end}}" data-panel="cloudfront">
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.CloudFront.Enabled}}panel-disabled{{end}} mod-group-global" data-panel="cloudfront" data-module-num="3">
   <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('cloudfront')">
     <div class="flex items-center gap-3">
       <input type="checkbox" name="cloudfront.enabled" class="toggle-switch" {{if .Config.CloudFront.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('cloudfront', this)">
-      <h3 class="text-base font-semibold">CloudFront</h3>
+      <h3 class="text-base font-semibold relative"><span class="module-num">#03</span>CloudFront</h3>
     </div>
     <svg class="w-4 h-4 chevron" id="chevron-cloudfront" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
   </div>

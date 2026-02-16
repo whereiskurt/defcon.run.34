@@ -1,9 +1,9 @@
 {{define "ec2spots.html"}}
-<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.EC2Spots.Enabled}}panel-disabled{{end}}" data-panel="ec2spots">
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.EC2Spots.Enabled}}panel-disabled{{end}}" data-panel="ec2spots" data-module-num="7">
   <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('ec2spots')">
     <div class="flex items-center gap-3">
       <input type="checkbox" name="ec2spots.enabled" class="toggle-switch" {{if .Config.EC2Spots.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('ec2spots', this)">
-      <h3 class="text-base font-semibold">EC2</h3>
+      <h3 class="text-base font-semibold relative"><span class="module-num">#07</span>EC2</h3>
     </div>
     <svg class="w-4 h-4 chevron" id="chevron-ec2spots" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
   </div>
