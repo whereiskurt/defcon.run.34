@@ -1708,6 +1708,7 @@ function dismissSession(id) {
 function doCleanupSession(id) {
   var s = _termSessions[id];
   if (!s) return;
+  saveToHistory(id);
   if (s.es) { s.es.close(); s.es = null; }
   if (s.overlay) s.overlay.remove();
   if (s.onEsc) document.removeEventListener('keydown', s.onEsc);
@@ -1796,7 +1797,10 @@ function showTerminalModal(session) {
     processRunning: true,
     label: label,
     exitCode: null,
-    onEsc: null
+    onEsc: null,
+    command: session.command || '',
+    cmdLine: cmdLine,
+    workDir: session.work_dir || ''
   };
   _termSessions[id] = sessionState;
 
@@ -1966,6 +1970,207 @@ document.addEventListener('htmx:afterSwap', function(e) {
   }
 });
 
+// =====================================================
+// Run History — persisted across session dismissals
+// =====================================================
+
+var _termHistory = [];
+var HISTORY_MAX = 20;
+
+function saveToHistory(id) {
+  var s = _termSessions[id];
+  if (!s) return;
+
+  // Capture terminal output from the overlay's <pre>
+  var outputText = '';
+  if (s.overlay) {
+    var pre = s.overlay.querySelector('.terminal-output');
+    if (pre) outputText = pre.textContent || '';
+  }
+
+  var status = 'unknown';
+  if (s.processRunning) status = 'running';
+  else if (s.exitCode === 0) status = 'success';
+  else if (s.exitCode != null) status = 'error';
+
+  var entry = {
+    id: id,
+    label: s.label || '',
+    command: s.command || '',
+    cmdLine: s.cmdLine || '',
+    workDir: s.workDir || '',
+    exitCode: s.exitCode,
+    status: status,
+    timestamp: Date.now(),
+    output: outputText
+  };
+
+  // Deduplicate by ID
+  _termHistory = _termHistory.filter(function(h) { return h.id !== id; });
+  // Add newest first
+  _termHistory.unshift(entry);
+  // Cap at max
+  if (_termHistory.length > HISTORY_MAX) _termHistory.length = HISTORY_MAX;
+
+  updateHistoryBadge();
+}
+
+function formatTimeAgo(ts) {
+  var ago = Math.floor((Date.now() - ts) / 1000);
+  if (ago < 60) return ago + 's ago';
+  if (ago < 3600) return Math.floor(ago / 60) + 'm ago';
+  if (ago < 86400) return Math.floor(ago / 3600) + 'h ago';
+  return Math.floor(ago / 86400) + 'd ago';
+}
+
+function escapeHtml(text) {
+  var d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function updateHistoryBadge() {
+  var badge = document.getElementById('history-badge');
+  if (!badge) return;
+  if (_termHistory.length > 0) {
+    badge.textContent = _termHistory.length;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function toggleHistoryDropdown() {
+  var menu = document.getElementById('history-dropdown-menu');
+  if (!menu) return;
+  if (menu.classList.contains('hidden')) {
+    renderHistoryMenu();
+    menu.classList.remove('hidden');
+  } else {
+    menu.classList.add('hidden');
+  }
+}
+
+function renderHistoryMenu() {
+  var menu = document.getElementById('history-dropdown-menu');
+  if (!menu) return;
+  menu.innerHTML = '';
+
+  if (_termHistory.length === 0) {
+    menu.innerHTML = '<div class="history-menu-empty">No runs yet</div>';
+    return;
+  }
+
+  _termHistory.forEach(function(entry) {
+    var item = document.createElement('div');
+    item.className = 'history-menu-item';
+
+    var icon;
+    if (entry.status === 'success') icon = '<span class="text-green-400">&#10003;</span>';
+    else if (entry.status === 'error') icon = '<span class="text-red-400">&#10007;</span>';
+    else icon = '<span class="text-zinc-500">&#9679;</span>';
+
+    var labelHtml = '<span class="truncate">' + escapeHtml(entry.label) + '</span>';
+    var cmdHtml = '<span class="text-zinc-500 truncate" style="max-width:120px;">' + escapeHtml(entry.command || '') + '</span>';
+    var timeHtml = '<span class="text-zinc-500 whitespace-nowrap">' + formatTimeAgo(entry.timestamp) + '</span>';
+
+    item.innerHTML =
+      '<div class="flex items-center gap-1.5 min-w-0 flex-1">' +
+        icon +
+        labelHtml +
+        cmdHtml +
+      '</div>' +
+      timeHtml;
+
+    item.onclick = function() {
+      menu.classList.add('hidden');
+      showHistoryModal(entry);
+    };
+
+    menu.appendChild(item);
+  });
+
+  // Clear History footer
+  var footer = document.createElement('div');
+  footer.className = 'history-menu-footer';
+  footer.textContent = 'Clear History';
+  footer.onclick = function() {
+    _termHistory = [];
+    updateHistoryBadge();
+    menu.classList.add('hidden');
+  };
+  menu.appendChild(footer);
+}
+
+function showHistoryModal(entry) {
+  var overlay = document.createElement('div');
+  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.innerHTML =
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-5xl w-full mx-auto">' +
+      '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
+        '<div class="flex flex-col">' +
+          '<div class="flex items-center gap-2">' +
+            '<span class="text-zinc-500 text-xs font-mono bg-zinc-700 px-1.5 py-0.5 rounded">[history]</span>' +
+            '<span class="text-green-400 text-sm font-mono font-bold">$ </span>' +
+            '<span class="text-sm font-mono text-zinc-200">' + escapeHtml(entry.cmdLine) + '</span>' +
+          '</div>' +
+          '<span class="text-[11px] text-zinc-500 font-mono" style="padding-left:1.1rem;">' + escapeHtml(entry.workDir) + '</span>' +
+        '</div>' +
+        '<div class="flex items-center gap-1">' +
+          '<button class="history-close-x text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
+        '</div>' +
+      '</div>' +
+      '<pre class="terminal-output flex-1">' + escapeHtml(entry.output) + '</pre>' +
+      '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
+        '<span class="text-xs font-mono text-zinc-400">' +
+          (entry.status === 'success'
+            ? '<span class="text-green-400">&#10003; Exit code: 0</span>'
+            : entry.status === 'error'
+              ? '<span class="text-red-400">&#10007; Exit code: ' + entry.exitCode + '</span>'
+              : '<span class="text-zinc-500">Status: ' + entry.status + '</span>') +
+          ' &mdash; ' + formatTimeAgo(entry.timestamp) +
+        '</span>' +
+        '<button class="history-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  var closeX = overlay.querySelector('.history-close-x');
+  var closeBtn = overlay.querySelector('.history-close-btn');
+
+  function dismiss() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+
+  closeX.onclick = dismiss;
+  closeBtn.onclick = dismiss;
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+
+  function onKey(e) {
+    if (e.key === 'Escape') {
+      if (document.querySelector('.fixed.inset-0.z-\\[60\\]:not(.terminal-modal)')) return;
+      e.stopImmediatePropagation();
+      dismiss();
+    }
+  }
+  document.addEventListener('keydown', onKey);
+
+  // Scroll output to bottom
+  var output = overlay.querySelector('.terminal-output');
+  if (output) output.scrollTop = output.scrollHeight;
+}
+
+// Close history dropdown on outside click (extend existing handler)
+var _origClickHandler = document.onclick;
+document.addEventListener('click', function(e) {
+  var wrapper = document.getElementById('history-dropdown-wrapper');
+  var menu = document.getElementById('history-dropdown-menu');
+  if (menu && wrapper && !wrapper.contains(e.target)) {
+    menu.classList.add('hidden');
+  }
+});
+
 // Initialize on load
 initTheme();
 initHeaderSync();
@@ -1977,3 +2182,4 @@ initSplitButtons();
 injectTerminalButtons();
 updateTerminalButtonsVisibility();
 recoverTerminalSessions();
+updateHistoryBadge();
