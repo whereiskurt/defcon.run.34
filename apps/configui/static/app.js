@@ -1660,7 +1660,20 @@ function injectTerminalButtons() {
     var container = document.createElement('div');
     container.className = 'term-actions flex items-center gap-2 ml-2';
 
-    // Refresh button — first in the action group
+    container.appendChild(buildModuleActionGroup(panelId, mod.global));
+
+    // Insert action group before discovery dots or chevron
+    var dots = header.querySelector('.discovery-dots');
+    var chevron = header.querySelector('.chevron');
+    if (dots) {
+      dots.parentElement.insertBefore(container, dots);
+    } else if (chevron) {
+      chevron.parentElement.insertBefore(container, chevron);
+    } else {
+      header.appendChild(container);
+    }
+
+    // Refresh button — right before the discovery dots
     var refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
     refreshBtn.className = 'term-btn term-btn-refresh';
@@ -1688,19 +1701,13 @@ function injectTerminalButtons() {
         }
       });
     };
-    container.appendChild(refreshBtn);
-
-    container.appendChild(buildModuleActionGroup(panelId, mod.global));
-
-    // Insert before discovery dots or chevron
-    var dots = header.querySelector('.discovery-dots');
-    var chevron = header.querySelector('.chevron');
+    dots = header.querySelector('.discovery-dots');
     if (dots) {
-      dots.parentElement.insertBefore(container, dots);
+      dots.parentElement.insertBefore(refreshBtn, dots);
     } else if (chevron) {
-      chevron.parentElement.insertBefore(container, chevron);
+      chevron.parentElement.insertBefore(refreshBtn, chevron);
     } else {
-      header.appendChild(container);
+      header.appendChild(refreshBtn);
     }
   });
 }
