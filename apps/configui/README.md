@@ -6,6 +6,10 @@ A local-only web UI for managing the defcon.run infrastructure configuration. Co
 
 ![Form editing with live preview](docs/configui-demo-1-20260216-184357.gif)
 
+### Terminal plan and discovery refresh
+
+![Terminal plan and discovery refresh](docs/configui-demo-2-20260216-184912.gif)
+
 ## Quick Start
 
 ```bash
