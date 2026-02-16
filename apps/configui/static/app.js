@@ -693,6 +693,8 @@ function confirmRequery() {
         btn.disabled = true;
         btn.style.opacity = '0.35';
         btn.style.cursor = 'not-allowed';
+        var span = btn.querySelector('span');
+        if (span) span.textContent = 'In progress';
       }
       _globalDiscoveryRunning = true;
       updateModuleRefreshButtons();
@@ -709,6 +711,8 @@ function confirmRequery() {
               btn.disabled = false;
               btn.style.opacity = '';
               btn.style.cursor = '';
+              var span = btn.querySelector('span');
+              if (span) span.textContent = 'Refresh';
             }
             clearInterval(poll);
           }
@@ -1391,6 +1395,8 @@ document.addEventListener('htmx:afterSwap', function(e) {
         rqBtn.disabled = false;
         rqBtn.style.opacity = '';
         rqBtn.style.cursor = '';
+        var span = rqBtn.querySelector('span');
+        if (span) span.textContent = 'Refresh';
       }
     }
     updateModuleRefreshButtons();
