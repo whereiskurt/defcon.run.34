@@ -370,6 +370,9 @@ input:focus, select:focus, textarea:focus {
   letter-spacing: 0.02em;
   vertical-align: middle;
 }
+.discovery-timestamp:empty {
+  display: none;
+}
 
 /* Scrollbar styling for dark mode */
 @media (prefers-color-scheme: dark) {
@@ -919,15 +922,31 @@ body.preview-dragging {
   pointer-events: none;
 }
 
-/* Color group tints — light mode (10% tint over #fff) */
-.mod-group-global  { background-color: #edfcf2 !important; }
-.mod-group-config  { background-color: #fff9e9 !important; }
-.mod-group-ecs     { background-color: #f6eefe !important; }
-.mod-group-storage { background-color: #ebf3fe !important; }
+/* Core Configuration — subtle gradient */
+.mod-group-core  { background: linear-gradient(135deg, #f4f4f5, #e4e4e7) !important; }
+.dark .mod-group-core  { background: linear-gradient(135deg, #333338, #27272a) !important; }
 
-/* Color group tints — dark mode (12-14% tint over #27272a) */
-.dark .mod-group-global  { background-color: #2b3d34 !important; }
-.dark .mod-group-config  { background-color: #403929 !important; }
-.dark .mod-group-ecs     { background-color: #392d47 !important; }
-.dark .mod-group-storage { background-color: #2a3447 !important; }
+/* Color group gradients — light mode */
+.mod-group-global  { background: linear-gradient(135deg, #f0fdf4, #dcfce7) !important; }
+.mod-group-config  { background: linear-gradient(135deg, #fffbeb, #fef3c7) !important; }
+.mod-group-ecs     { background: linear-gradient(135deg, #faf5ff, #f3e8ff) !important; }
+.mod-group-storage { background: linear-gradient(135deg, #eff6ff, #dbeafe) !important; }
+
+/* Color group gradients — dark mode */
+.dark .mod-group-global  { background: linear-gradient(135deg, #305a3e, #1e2e24) !important; }
+.dark .mod-group-config  { background: linear-gradient(135deg, #4d4228, #2a2318) !important; }
+.dark .mod-group-ecs     { background: linear-gradient(135deg, #45325e, #271e34) !important; }
+.dark .mod-group-storage { background: linear-gradient(135deg, #304158, #1e2838) !important; }
+
+/* Service gradients — light mode */
+.mod-svc-auth  { background: linear-gradient(135deg, #ecfeff, #cffafe) !important; }
+.mod-svc-human { background: linear-gradient(135deg, #fff7ed, #ffedd5) !important; }
+.mod-svc-cms   { background: linear-gradient(135deg, #fff1f2, #ffe4e6) !important; }
+.mod-svc-gpx   { background: linear-gradient(135deg, #f0fdfa, #ccfbf1) !important; }
+
+/* Service gradients — dark mode */
+.dark .mod-svc-auth  { background: linear-gradient(135deg, #2e4f52, #1a2e30) !important; }
+.dark .mod-svc-human { background: linear-gradient(135deg, #4d3a28, #2a2018) !important; }
+.dark .mod-svc-cms   { background: linear-gradient(135deg, #4d2e32, #2a1a1e) !important; }
+.dark .mod-svc-gpx   { background: linear-gradient(135deg, #2e4f46, #1a2e28) !important; }
 

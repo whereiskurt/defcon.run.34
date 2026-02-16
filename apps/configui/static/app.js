@@ -1344,15 +1344,7 @@ function updateDiscoveryTimestamp() {
   if (!ts) return;
 
   var label = document.getElementById('discovery-timestamp');
-  if (!label) {
-    label = document.createElement('span');
-    label.id = 'discovery-timestamp';
-    label.className = 'discovery-timestamp';
-    var group = document.getElementById('discovery-refresh-group');
-    if (group) {
-      group.appendChild(label);
-    }
-  }
+  if (!label) return;
 
   var status = data.dataset.status;
   var rqBtn = document.getElementById('requery-aws-btn');
