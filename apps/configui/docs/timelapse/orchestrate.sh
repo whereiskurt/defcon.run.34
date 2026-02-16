@@ -10,7 +10,7 @@ FRAME_DURATION=0.5
 
 mkdir -p "$OUTPUT_DIR" "$LOG_DIR"
 
-# All 77 configui commits in chronological order
+# All configui commits in chronological order (116 total, 107 with visual changes)
 COMMITS=(
   aa4f0f7
   726fcdf
@@ -90,6 +90,42 @@ COMMITS=(
   856b7f0
   fad74ac
   5c67e48
+  6a77630
+  41e61fe
+  c83c51e
+  492c735
+  b8f6081
+  060285c
+  60131e5
+  040285c
+  01868db
+  dfcb411
+  a28c021
+  4b9a47b
+  ab9ed88
+  fe3ee33
+  23e3f32
+  bdcf6be
+  8dc0de8
+  85173e8
+  08c67e5
+  4fb4e5a
+  3a3f8c1
+  084018b
+  fb602fb
+  6181da9
+  80c3b43
+  3efbafd
+  abc79fe
+  d9daaec
+  870ab58
+  0421253
+  1d678ca
+  f78a1a7
+  837012a
+  12529de
+  dd14d26
+  2f15a1d
 )
 
 TOTAL=${#COMMITS[@]}
