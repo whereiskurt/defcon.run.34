@@ -6,11 +6,12 @@ Automated pipeline that builds, runs, and screenshots a Go web app at every git 
 
 | Field | Value |
 |-------|-------|
-| **Date** | 2026-02-15 |
-| **Last commit included** | `fb602fb` — Fix per-module refresh, suppress global scanning indicator |
-| **Total frames** | 94 (of 102 commits; 8 timed out on early commits without AWS status bar) |
-| **Frame numbering** | `00` through `101` (gaps where timeouts occurred) |
-| **Output files** | `configui-{form,preview}-evolution-20260215-224128.{gif,mp4}` |
+| **Date** | 2026-02-16 |
+| **Last commit included** | `1bc7274` — Update timelapse with 9 new commits (94 frames through fb602fb) |
+| **Total frames** | 95 (of 103 commits; 8 timed out on early commits without AWS status bar) |
+| **Frame numbering** | `00` through `102` (gaps where timeouts occurred) |
+| **Output files** | `configui-{form,preview}-evolution-20260216-100120.{gif,mp4}` |
+| **Frame counter** | "NN / 95" badge in bottom-right corner of each video |
 | **Existing frames cached at** | `/tmp/configui-timelapse/frames/` (survives until reboot) |
 
 ## Overview
@@ -56,10 +57,10 @@ Before running anything, here's what the pipeline *would* do — no files create
 $ bash orchestrate.sh --dry-run    # (conceptual, not implemented as a flag)
 
 1. DISCOVER COMMITS
-   Find all configui commits since last run (fb602fb):
-     git log --oneline --reverse fb602fb..HEAD -- apps/configui/
-   → 8 new commits found (6a77630..01868db)
-   Combined with 78 existing: 86 total commits to include.
+   Find all configui commits since last run (1bc7274):
+     git log --oneline --reverse 1bc7274..HEAD -- apps/configui/
+   → N new commits found
+   Combined with 95 existing: 95+N total commits to include.
 
 2. CHECK CACHED FRAMES
    Look in /tmp/configui-timelapse/frames/ for existing PNGs.
@@ -94,11 +95,12 @@ $ bash orchestrate.sh --dry-run    # (conceptual, not implemented as a flag)
 6. STITCH WITH FFMPEG (~5s)
    Sort ALL frame PNGs (old + new) by filename → chronological order.
    Generate 4 output files:
-   - configui-form-evolution.gif     (960×540, 128 colors, 0.5s/frame)
-   - configui-preview-evolution.gif  (960×540, 128 colors, 0.5s/frame)
-   - configui-form-evolution.mp4     (1920×1080, h264, 0.5s/frame)
-   - configui-preview-evolution.mp4  (1920×1080, h264, 0.5s/frame)
-   Last frame held for 3s. Total duration: ~46s for 86 frames.
+   - configui-form-evolution.gif     (960×540, 128 colors, 0.3s/frame)
+   - configui-preview-evolution.gif  (960×540, 128 colors, 0.3s/frame)
+   - configui-form-evolution.mp4     (1920×1080, h264, 0.3s/frame)
+   - configui-preview-evolution.mp4  (1920×1080, h264, 0.3s/frame)
+   Each video has a "NN / total" frame counter badge in the bottom-right.
+   Last frame held for 1.5s. Total duration: ~30s for 95 frames.
 
 7. CLEANUP
    Remove all 6 worktrees from /tmp/.
@@ -131,7 +133,7 @@ npm install playwright  # if not already installed
 #   - REPO_ROOT (absolute path to your repo)
 #   - COMMITS array (add/remove commits)
 #   - NUM_WORKERS (default 6)
-#   - FRAME_DURATION (default 0.5s)
+#   - FRAME_DURATION (default 0.3s)
 
 bash orchestrate.sh
 # Output: /tmp/configui-timelapse/configui-{form,preview}-evolution.{gif,mp4}
@@ -281,7 +283,7 @@ cd "$REPO_ROOT" && git worktree remove --force "$WT"
 
 # Re-stitch (just the ffmpeg part from orchestrate.sh)
 echo "Re-stitching all frames..."
-FRAME_DURATION=0.5
+FRAME_DURATION=0.3
 # ... (copy the ffmpeg section from orchestrate.sh)
 echo "Done! Run the ffmpeg section from orchestrate.sh to regenerate GIFs."
 ```
@@ -293,11 +295,11 @@ Or simply: update the `COMMITS` array in `orchestrate.sh`, keep the old frames i
 ### Changing frame rate
 
 Edit `FRAME_DURATION` in `orchestrate.sh`:
-- `0.5` — fast (current, ~40s for 78 frames)
-- `1.0` — moderate (~80s)
-- `1.5` — slow, readable (~2 min)
+- `0.3` — fast (current, ~30s for 95 frames)
+- `0.5` — moderate (~50s)
+- `1.0` — slow, readable (~100s)
 
-The last frame is held for 3 seconds regardless.
+The last frame is held for 1.5 seconds regardless.
 
 ### Selecting commits
 

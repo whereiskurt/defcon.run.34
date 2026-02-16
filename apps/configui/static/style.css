@@ -141,6 +141,11 @@
   transform: translateX(0.5rem);
 }
 
+/* Panel cards — allow dropdown menus to overflow the card boundary */
+[data-panel] {
+  overflow: visible !important;
+}
+
 /* Panel animations */
 .panel-body {
   transition: max-height 0.2s ease-out;
@@ -351,10 +356,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 .discovery-timestamp {
-  font-size: 1.125rem;
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: #a1a1aa;
+  color: #18181b;
   font-family: 'Fira Code', monospace;
-  color: #71717a;
   user-select: none;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
 }
 
 /* Scrollbar styling for dark mode */
@@ -398,10 +412,10 @@ input:focus, select:focus, textarea:focus {
 
 /* Terminal action buttons on panel headers */
 .term-btn {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   line-height: 1;
-  padding: 2px 6px;
-  border-radius: 3px;
+  padding: 4px 10px;
+  border-radius: 4px;
   font-family: 'Fira Code', monospace;
   cursor: pointer;
   opacity: 0.7;
@@ -410,26 +424,6 @@ input:focus, select:focus, textarea:focus {
 
 .term-btn:hover {
   opacity: 1;
-}
-
-.term-btn-plan {
-  background: #3f3f46;
-  color: #a1a1aa;
-}
-
-.term-btn-plan:hover {
-  background: #52525b;
-  color: #d4d4d8;
-}
-
-.term-btn-apply {
-  background: #14532d;
-  color: #4ade80;
-}
-
-.term-btn-apply:hover {
-  background: #166534;
-  color: #86efac;
 }
 
 .term-btn-fixlocks {
@@ -442,21 +436,27 @@ input:focus, select:focus, textarea:focus {
   color: #fde68a;
 }
 
-.term-btn.term-btn-refresh,
-.global-fold-btn.term-btn-refresh {
+/* Per-module refresh — small green icon */
+.term-btn.term-btn-refresh {
   background: none;
   color: #22c55e;
   padding: 1px 3px;
   opacity: 1;
 }
 
-.term-btn.term-btn-refresh:hover,
-.global-fold-btn.term-btn-refresh:hover {
+.term-btn.term-btn-refresh:hover {
   color: #4ade80;
 }
 
 .term-btn-refresh.spinning svg {
   animation: disc-spin 0.8s linear infinite;
+}
+
+/* Disabled state when AWS is not connected */
+.aws-disabled {
+  opacity: 0.25 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
 }
 
 /* Preview drag handle — resizable split pane */
@@ -599,6 +599,12 @@ body.preview-dragging {
   white-space: nowrap;
 }
 
+.term-pill-summary {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
 .term-pill-close {
   font-size: 13px;
   line-height: 1;
@@ -633,6 +639,106 @@ body.preview-dragging {
   display: flex;
   align-items: center;
   border-left: 1px solid rgba(0,0,0,0.15);
+}
+
+/* Action group — joined [Plan] [Apply] [region ▼] button bar */
+.action-group {
+  position: relative;
+  display: inline-flex;
+}
+
+.action-group-btn {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  line-height: 1;
+  border: none;
+}
+
+.action-group-btn:first-child {
+  border-radius: 0.375rem 0 0 0.375rem;
+}
+
+.action-group-btn:last-child {
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+/* When only Plan + Apply (global, no region) */
+.action-group-btn:first-child:nth-last-child(2) {
+  border-radius: 0.375rem 0 0 0.375rem;
+}
+.action-group-btn:last-child:nth-child(2) {
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+.action-group-plan {
+  background: #e4e4e7;
+  color: #3f3f46;
+}
+.dark .action-group-plan {
+  background: #3f3f46;
+  color: #d4d4d8;
+}
+.action-group-plan:hover {
+  background: #d4d4d8;
+}
+.dark .action-group-plan:hover {
+  background: #52525b;
+}
+
+.action-group-apply {
+  background: #15803d;
+  color: white;
+  border-left: 1px solid rgba(0,0,0,0.1);
+}
+.action-group-apply:hover {
+  background: #16a34a;
+}
+
+.action-group-region {
+  background: #27272a;
+  color: #d4d4d8;
+  border-right: 1px solid #3f3f46;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0.4rem 0.5rem;
+}
+.action-group-region:hover {
+  background: #3f3f46;
+}
+
+/* Region badge — inverted pill inside the region button */
+.region-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #a1a1aa;
+  color: #18181b;
+  letter-spacing: 0.02em;
+}
+
+.dark .region-badge {
+  background: #a1a1aa;
+  color: #18181b;
+}
+
+/* Compact sizing for per-module action groups */
+.action-group-sm .action-group-btn {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
+}
+
+.action-group-sm .action-group-region {
+  padding: 0.3rem 0.45rem;
+}
+
+.action-group-sm .region-badge {
+  font-size: 0.65rem;
 }
 
 .split-btn-plan {
@@ -789,4 +895,39 @@ body.preview-dragging {
   background: #3f3f46;
   color: #fca5a5;
 }
+
+/* Hierarchy: form-grid left rail — shows nesting under Terragrunt title */
+#form-grid {
+  border-left: 3px solid rgba(22, 163, 74, 0.30);
+  margin-left: 8px;
+  padding-left: 16px;
+}
+.dark #form-grid {
+  border-left-color: #306842;
+}
+
+/* Module numbers — small label above title */
+.module-num {
+  position: absolute;
+  top: -9px;
+  left: 0;
+  font-size: 9px;
+  line-height: 1;
+  font-family: 'Fira Code', monospace;
+  opacity: 0.35;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Color group tints — light mode (10% tint over #fff) */
+.mod-group-global  { background-color: #edfcf2 !important; }
+.mod-group-config  { background-color: #fff9e9 !important; }
+.mod-group-ecs     { background-color: #f6eefe !important; }
+.mod-group-storage { background-color: #ebf3fe !important; }
+
+/* Color group tints — dark mode (12-14% tint over #27272a) */
+.dark .mod-group-global  { background-color: #2b3d34 !important; }
+.dark .mod-group-config  { background-color: #403929 !important; }
+.dark .mod-group-ecs     { background-color: #392d47 !important; }
+.dark .mod-group-storage { background-color: #2a3447 !important; }
 

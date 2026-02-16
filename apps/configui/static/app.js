@@ -615,7 +615,7 @@ function toggleGlobalBlur() {
       el.classList.remove('pii-revealed');
     });
     _globalUnblurred = false;
-    if (btn) { btn.textContent = 'Unblur All'; btn.style.filter = 'blur(1px)'; }
+    if (btn) { btn.textContent = 'Unblur All'; btn.style.filter = 'none'; }
   } else {
     // Unblur: confirm first
     confirmUnblur();
@@ -629,7 +629,7 @@ function doGlobalUnblur() {
   });
   _globalUnblurred = true;
   var btn = document.getElementById('blur-toggle-btn');
-  if (btn) { btn.textContent = 'Blur All'; btn.style.filter = 'none'; }
+  if (btn) { btn.textContent = 'Blur All'; btn.style.filter = 'blur(1px)'; }
 }
 
 function confirmUnblur() {
@@ -688,10 +688,35 @@ function confirmRequery() {
     confirmLabel: 'Re-query',
     onConfirm: function() {
       var btn = document.getElementById('requery-aws-btn');
-      if (btn) btn.classList.add('spinning');
+      if (btn) {
+        btn.classList.add('spinning');
+        btn.disabled = true;
+        btn.style.opacity = '0.35';
+        btn.style.cursor = 'not-allowed';
+        var span = btn.querySelector('span');
+        if (span) span.textContent = 'Scanning';
+      }
       _globalDiscoveryRunning = true;
+      updateModuleRefreshButtons();
       fetch('/api/discovery/refresh', { method: 'POST' }).then(function() {
         htmx.trigger(document.body, 'refreshDiscovery');
+        // Poll until discovery finishes in case the conditional htmx polling misses it
+        var poll = setInterval(function() {
+          htmx.trigger(document.body, 'refreshDiscovery');
+          if (!discoveryRunning()) {
+            _globalDiscoveryRunning = false;
+            updateModuleRefreshButtons();
+            if (btn) {
+              btn.classList.remove('spinning');
+              btn.disabled = false;
+              btn.style.opacity = '';
+              btn.style.cursor = '';
+              var span = btn.querySelector('span');
+              if (span) span.textContent = 'Refresh';
+            }
+            clearInterval(poll);
+          }
+        }, 2000);
       });
     }
   });
@@ -893,7 +918,7 @@ function initSplitButtons() {
     if (!container) return;
     var command = container.dataset.command; // "plan" or "apply"
     var isPlan = command === 'plan';
-    var mainLabel = isPlan ? 'Plan' : 'Apply';
+    var mainLabel = isPlan ? 'Plan All' : 'Apply All';
     var mainClass = isPlan ? 'split-btn-plan' : 'split-btn-apply';
     var confirmFn = isPlan ? confirmPlanAll : confirmApplyAll;
 
@@ -1180,6 +1205,23 @@ var DISCOVERABLE_PANELS = {
 // Track whether a global (all-module) discovery was triggered
 var _globalDiscoveryRunning = false;
 
+// Hide/show per-module refresh buttons based on global discovery state
+function updateModuleRefreshButtons() {
+  var hide = _globalDiscoveryRunning || discoveryRunning();
+  document.querySelectorAll('.term-btn-refresh').forEach(function(btn) {
+    // Skip the global refresh button — it gets greyed out, not hidden
+    if (btn.id === 'requery-aws-btn') return;
+    // Use visibility to preserve layout (ml-auto spacing)
+    if (hide || btn.classList.contains('spinning')) {
+      btn.style.visibility = 'hidden';
+      btn.style.pointerEvents = 'none';
+    } else {
+      btn.style.visibility = '';
+      btn.style.pointerEvents = '';
+    }
+  });
+}
+
 // Used by htmx conditional polling: returns true while discovery is running
 function discoveryRunning() {
   var data = document.getElementById('discovery-data');
@@ -1221,7 +1263,7 @@ function updateDiscoveryDots() {
     var dotsContainer = header.querySelector('.discovery-dots');
     if (!dotsContainer) {
       dotsContainer = document.createElement('div');
-      dotsContainer.className = 'discovery-dots flex items-center gap-1.5 ml-auto mr-2';
+      dotsContainer.className = 'discovery-dots flex items-center gap-1.5 mr-2';
       // Insert before the chevron svg
       var chevron = header.querySelector('.chevron');
       if (chevron) {
@@ -1315,19 +1357,20 @@ function updateDiscoveryTimestamp() {
   var status = data.dataset.status;
   var rqBtn = document.getElementById('requery-aws-btn');
   if (status === 'running' && _globalDiscoveryRunning) {
-    label.textContent = '[scanning...]';
+    label.textContent = 'in progress';
     if (rqBtn) rqBtn.classList.add('spinning');
     return;
   }
   if (status !== 'running') {
     _globalDiscoveryRunning = false;
+    updateModuleRefreshButtons();
     if (rqBtn) rqBtn.classList.remove('spinning');
   }
 
   var ago = Math.floor((Date.now() / 1000) - ts);
-  if (ago < 60) label.textContent = '[' + ago + 's ago]';
-  else if (ago < 3600) label.textContent = '[' + Math.floor(ago / 60) + 'm ago]';
-  else label.textContent = '[' + Math.floor(ago / 3600) + 'h ago]';
+  if (ago < 60) label.textContent = ago + 's ago';
+  else if (ago < 3600) label.textContent = Math.floor(ago / 60) + 'm ago';
+  else label.textContent = Math.floor(ago / 3600) + 'h ago';
 }
 
 // Tick the timestamp label every 30s
@@ -1340,12 +1383,23 @@ document.addEventListener('htmx:afterSwap', function(e) {
     updateDiscoveryTimestamp();
     // Stop spinning refresh buttons when discovery is done
     if (!discoveryRunning()) {
+      _globalDiscoveryRunning = false;
       document.querySelectorAll('.term-btn-refresh.spinning').forEach(function(btn) {
         btn.classList.remove('spinning');
+        btn.style.visibility = '';
+        btn.style.pointerEvents = '';
       });
       var rqBtn = document.getElementById('requery-aws-btn');
-      if (rqBtn) rqBtn.classList.remove('spinning');
+      if (rqBtn) {
+        rqBtn.classList.remove('spinning');
+        rqBtn.disabled = false;
+        rqBtn.style.opacity = '';
+        rqBtn.style.cursor = '';
+        var span = rqBtn.querySelector('span');
+        if (span) span.textContent = 'Refresh';
+      }
     }
+    updateModuleRefreshButtons();
   }
 });
 
@@ -1544,7 +1598,91 @@ function isAWSAuthed() {
   return el.querySelector('.status-dot.ok') !== null;
 }
 
-// Inject Plan/Apply buttons into discoverable panel headers
+// Build a joined action group: [Plan] [Apply] [region ▼] for regional, [Plan] [Apply] for global.
+function buildModuleActionGroup(panelId, isGlobal) {
+  var regions = window.ALL_REGIONS || [];
+  var moduleName = panelId.replace(/_/g, '-');
+  var selectedRegion = regions.length > 0 ? regions[0].full : '';
+  var selectedLabel = regions.length > 0 ? regions[0].label : '';
+
+  function doPlan(region) {
+    var label = moduleName;
+    if (region) label += ' (' + region + ')';
+    showConfirmDialog({
+      title: 'Plan ' + label + '?',
+      message: 'Run terragrunt plan on <strong>' + label + '</strong>.',
+      confirmLabel: 'Plan',
+      onConfirm: function() { openTerminal(panelId, 'plan', region); }
+    });
+  }
+
+  function doApply(region) {
+    var label = moduleName;
+    if (region) label += ' (' + region + ')';
+    showConfirmDialog({
+      title: 'Apply ' + label + '?',
+      message: 'This will run <span class="font-mono text-zinc-300">terragrunt apply</span> on <strong>' + label + '</strong>. Resources may be created, modified, or destroyed.',
+      confirmLabel: 'Apply',
+      confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+      onConfirm: function() { openTerminal(panelId, 'apply', region); }
+    });
+  }
+
+  var wrapper = document.createElement('div');
+  wrapper.className = 'action-group action-group-sm';
+  wrapper.onclick = function(e) { e.stopPropagation(); };
+
+  if (!isGlobal && regions.length > 0) {
+    var regionBtn = document.createElement('button');
+    regionBtn.type = 'button';
+    regionBtn.className = 'action-group-btn action-group-region';
+    regionBtn.innerHTML = '<span class="region-badge">' + selectedLabel + '</span> <svg class="w-2.5 h-2.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+    wrapper.appendChild(regionBtn);
+
+    var menu = document.createElement('div');
+    menu.className = 'split-menu hidden';
+    regions.forEach(function(r) {
+      var item = document.createElement('div');
+      item.className = 'split-menu-item';
+      item.textContent = r.label + ' (' + r.full + ')';
+      item.onclick = function(e) {
+        e.stopPropagation();
+        menu.classList.add('hidden');
+        selectedRegion = r.full;
+        selectedLabel = r.label;
+        regionBtn.innerHTML = '<span class="region-badge">' + r.label + '</span> <svg class="w-2.5 h-2.5 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+      };
+      menu.appendChild(item);
+    });
+    wrapper.appendChild(menu);
+
+    regionBtn.onclick = function(e) {
+      e.stopPropagation();
+      document.querySelectorAll('.split-menu').forEach(function(m) {
+        if (m !== menu) m.classList.add('hidden');
+      });
+      menu.classList.toggle('hidden');
+    };
+  }
+
+  var planBtn = document.createElement('button');
+  planBtn.type = 'button';
+  planBtn.className = 'action-group-btn action-group-plan';
+  planBtn.textContent = 'Plan';
+  planBtn.onclick = function(e) { e.stopPropagation(); doPlan(isGlobal ? '' : selectedRegion); };
+  wrapper.appendChild(planBtn);
+
+  var applyBtn = document.createElement('button');
+  applyBtn.type = 'button';
+  applyBtn.className = 'action-group-btn action-group-apply';
+  applyBtn.textContent = 'Apply';
+  applyBtn.onclick = function(e) { e.stopPropagation(); doApply(isGlobal ? '' : selectedRegion); };
+  wrapper.appendChild(applyBtn);
+
+  return wrapper;
+}
+
+// Inject Plan/Apply split-buttons into discoverable panel headers
 function injectTerminalButtons() {
   Object.keys(TERMINAL_MODULES).forEach(function(panelId) {
     var panelEl = document.querySelector('[data-panel="' + panelId + '"]');
@@ -1557,69 +1695,26 @@ function injectTerminalButtons() {
 
     var mod = TERMINAL_MODULES[panelId];
     var container = document.createElement('div');
-    container.className = 'term-actions flex items-center gap-1 ml-2';
+    container.className = 'term-actions flex items-center gap-2 ml-2';
+    container.onclick = function(e) { e.stopPropagation(); };
 
-    if (!mod.global) {
-      // Region selector for regional modules
-      var sel = document.createElement('select');
-      sel.className = 'term-region-select text-[10px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded px-1 py-0 font-mono';
-      sel.style.height = '18px';
-      sel.dataset.panel = panelId;
-      (window.ALL_REGIONS || []).forEach(function(r) {
-        var opt = document.createElement('option');
-        opt.value = r.full;
-        opt.textContent = r.label;
-        sel.appendChild(opt);
-      });
-      container.appendChild(sel);
+    container.appendChild(buildModuleActionGroup(panelId, mod.global));
+
+    // Insert action group before discovery dots or chevron
+    var dots = header.querySelector('.discovery-dots');
+    var chevron = header.querySelector('.chevron');
+    if (dots) {
+      dots.parentElement.insertBefore(container, dots);
+    } else if (chevron) {
+      chevron.parentElement.insertBefore(container, chevron);
+    } else {
+      header.appendChild(container);
     }
 
-    var planBtn = document.createElement('button');
-    planBtn.type = 'button';
-    planBtn.className = 'term-btn term-btn-plan';
-    planBtn.textContent = 'Plan';
-    planBtn.onclick = function(e) {
-      e.stopPropagation();
-      var region = '';
-      if (!mod.global) {
-        var regionSel = container.querySelector('.term-region-select');
-        region = regionSel ? regionSel.value : '';
-      }
-      var label = panelId.replace(/_/g, '-');
-      if (region) label += ' (' + region + ')';
-      showConfirmDialog({
-        title: 'Plan ' + label + '?',
-        message: 'Are you sure you want to run terragrunt plan?',
-        confirmLabel: 'Plan',
-        onConfirm: function() { openTerminal(panelId, 'plan', region); }
-      });
-    };
-
-    var applyBtn = document.createElement('button');
-    applyBtn.type = 'button';
-    applyBtn.className = 'term-btn term-btn-apply';
-    applyBtn.textContent = 'Apply';
-    applyBtn.onclick = function(e) {
-      e.stopPropagation();
-      var region = '';
-      if (!mod.global) {
-        var regionSel = container.querySelector('.term-region-select');
-        region = regionSel ? regionSel.value : '';
-      }
-      var label = panelId.replace(/_/g, '-');
-      if (region) label += ' (' + region + ')';
-      showConfirmDialog({
-        title: 'Apply ' + label + '?',
-        message: 'This will run <span class="font-mono text-zinc-300">terragrunt apply</span> on <strong>' + label + '</strong>. Resources may be created, modified, or destroyed.',
-        confirmLabel: 'Apply',
-        confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
-        onConfirm: function() { openTerminal(panelId, 'apply', region); }
-      });
-    };
-
+    // Refresh button — right before the discovery dots
     var refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
-    refreshBtn.className = 'term-btn term-btn-refresh';
+    refreshBtn.className = 'term-btn term-btn-refresh ml-auto mr-2';
     refreshBtn.title = 'Re-query AWS resources';
     refreshBtn.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg>';
     refreshBtn.onclick = function(e) {
@@ -1630,36 +1725,51 @@ function injectTerminalButtons() {
         confirmLabel: 'Re-query',
         onConfirm: function() {
           refreshBtn.classList.add('spinning');
+          refreshBtn.style.visibility = 'hidden';
+          refreshBtn.style.pointerEvents = 'none';
           fetch('/api/discovery/refresh?module=' + encodeURIComponent(panelId), { method: 'POST' }).then(function() {
             htmx.trigger(document.body, 'refreshDiscovery');
+            var poll = setInterval(function() {
+              if (!refreshBtn.classList.contains('spinning')) { clearInterval(poll); return; }
+              htmx.trigger(document.body, 'refreshDiscovery');
+              if (!discoveryRunning()) {
+                refreshBtn.classList.remove('spinning');
+                refreshBtn.style.visibility = '';
+                refreshBtn.style.pointerEvents = '';
+                clearInterval(poll);
+              }
+            }, 2000);
           });
         }
       });
     };
-
-    container.appendChild(planBtn);
-    container.appendChild(applyBtn);
-    container.appendChild(refreshBtn);
-
-    // Insert before discovery dots or chevron
-    var dots = header.querySelector('.discovery-dots');
-    var chevron = header.querySelector('.chevron');
+    dots = header.querySelector('.discovery-dots');
     if (dots) {
-      dots.parentElement.insertBefore(container, dots);
+      dots.parentElement.insertBefore(refreshBtn, dots);
     } else if (chevron) {
-      chevron.parentElement.insertBefore(container, chevron);
+      chevron.parentElement.insertBefore(refreshBtn, chevron);
     } else {
-      header.appendChild(container);
+      header.appendChild(refreshBtn);
     }
   });
+  // Hide refresh buttons if global discovery is still running
+  updateModuleRefreshButtons();
 }
 
-// Show/hide terminal buttons based on AWS auth status
+// Grey out infrastructure buttons when AWS is not connected
 function updateTerminalButtonsVisibility() {
   var authed = isAWSAuthed();
+  // Per-module and infra-all term-actions
   document.querySelectorAll('.term-actions').forEach(function(el) {
-    el.style.display = authed ? '' : 'none';
+    if (authed) el.classList.remove('aws-disabled');
+    else el.classList.add('aws-disabled');
   });
+  // Global re-query button
+  var rqBtn = document.getElementById('requery-aws-btn');
+  if (rqBtn) {
+    if (authed) rqBtn.classList.remove('aws-disabled');
+    else rqBtn.classList.add('aws-disabled');
+  }
 }
 
 // --- Pill bar management ---
@@ -1702,8 +1812,14 @@ function updatePillBar() {
       icon = '<span class="term-pill-icon error">&#10007;</span>';
     }
 
+    var summaryBit = '';
+    if (!s.processRunning && s.summary) {
+      summaryBit = '<span class="term-pill-summary">' + formatPillSummary(s.summary) + '</span>';
+    }
+
     pill.innerHTML = icon +
       '<span class="term-pill-label">' + s.label + '</span>' +
+      summaryBit +
       '<span class="term-pill-close" title="Dismiss">&times;</span>';
 
     // Click pill → restore session
@@ -1775,6 +1891,38 @@ function doCleanupSession(id) {
   delete _termSessions[id];
   updatePillBar();
   htmx.trigger(document.body, 'refreshDiscovery');
+}
+
+// --- Terraform summary formatting ---
+
+function formatSummaryHtml(summary, exitCode) {
+  var icon = exitCode === 0
+    ? '<span class="text-green-400">&#10003;</span>'
+    : '<span class="text-red-400">&#10007;</span>';
+  if (!summary) {
+    // Fallback to exit code display
+    if (exitCode === 0) return '<span class="text-green-400">&#10003; Done</span>';
+    return '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
+  }
+  if (summary.no_change) {
+    return icon + ' <span class="text-zinc-400">No changes — infrastructure matches configuration</span>';
+  }
+  var parts = [];
+  parts.push('<span class="' + (summary.add > 0 ? 'text-green-400' : 'text-zinc-500') + '">' + summary.add + ' to add</span>');
+  parts.push('<span class="' + (summary.change > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">' + summary.change + ' to change</span>');
+  parts.push('<span class="' + (summary.destroy > 0 ? 'text-red-400' : 'text-zinc-500') + '">' + summary.destroy + ' to destroy</span>');
+  return icon + ' ' + parts.join(', ');
+}
+
+function formatPillSummary(summary) {
+  if (!summary) return '';
+  if (summary.no_change) return '(no changes)';
+  var parts = [];
+  if (summary.add > 0) parts.push('+' + summary.add + ' add');
+  if (summary.change > 0) parts.push('~' + summary.change + ' chg');
+  if (summary.destroy > 0) parts.push('-' + summary.destroy + ' del');
+  if (parts.length === 0) return '(no changes)';
+  return parts.join(' ');
 }
 
 // --- Terminal open / modal ---
@@ -1859,6 +2007,7 @@ function showTerminalModal(session) {
     exitCode: null,
     onEsc: null,
     command: session.command || '',
+    module: session.module || '',
     cmdLine: cmdLine,
     workDir: session.work_dir || ''
   };
@@ -1923,7 +2072,7 @@ function showTerminalModal(session) {
     });
   };
 
-  // Escape key handler — minimize if running, dismiss if done
+  // Escape key handler — always minimize (user can explicitly close via X or Close button)
   function onEsc(e) {
     if (e.key === 'Escape') {
       // Only handle if this session's overlay is visible (not minimized)
@@ -1931,11 +2080,7 @@ function showTerminalModal(session) {
       // Check no confirm dialog is open
       if (document.querySelector('.fixed.inset-0.z-\\[60\\]:not(.terminal-modal)')) return;
       e.stopImmediatePropagation();
-      if (sessionState.processRunning) {
-        minimizeSession(id);
-      } else {
-        doCleanupSession(id);
-      }
+      minimizeSession(id);
     }
   }
   sessionState.onEsc = onEsc;
@@ -1964,6 +2109,10 @@ function showTerminalModal(session) {
     }
   };
 
+  es.addEventListener('summary', function(e) {
+    try { sessionState.summary = JSON.parse(e.data); } catch(err) {}
+  });
+
   es.addEventListener('done', function(e) {
     flushLines();
     var exitCode = parseInt(e.data, 10);
@@ -1974,12 +2123,20 @@ function showTerminalModal(session) {
       sessionState.es = null;
     }
     stopBtn.style.display = 'none';
-    if (exitCode === 0) {
-      statusEl.innerHTML = '<span class="text-green-400">&#10003; Exit Code: Success (0)</span>';
-    } else {
-      statusEl.innerHTML = '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
-    }
+    statusEl.innerHTML = formatSummaryHtml(sessionState.summary, exitCode);
     updatePillBar();
+
+    // Auto-refresh discovery after a successful apply
+    if (exitCode === 0 && sessionState.command && sessionState.command.indexOf('apply') !== -1) {
+      var mod = sessionState.module;
+      // For "all" or "region-all", refresh everything; otherwise refresh the specific module
+      var refreshUrl = (mod === 'all' || mod === 'region-all')
+        ? '/api/discovery/refresh'
+        : '/api/discovery/refresh?module=' + encodeURIComponent(mod);
+      fetch(refreshUrl, { method: 'POST' }).then(function() {
+        htmx.trigger(document.body, 'refreshDiscovery');
+      });
+    }
   });
 
   es.onerror = function() {
@@ -2062,6 +2219,7 @@ function saveToHistory(id) {
     workDir: s.workDir || '',
     exitCode: s.exitCode,
     status: status,
+    summary: s.summary || null,
     timestamp: Date.now(),
     output: outputText
   };
@@ -2132,6 +2290,7 @@ function renderHistoryMenu() {
     else icon = '<span class="text-zinc-500">&#9679;</span>';
 
     var labelHtml = '<span class="truncate">' + escapeHtml(entry.label) + '</span>';
+    var summaryBit = entry.summary ? '<span class="term-pill-summary">' + formatPillSummary(entry.summary) + '</span>' : '';
     var cmdHtml = '<span class="text-zinc-500 truncate" style="max-width:120px;">' + escapeHtml(entry.command || '') + '</span>';
     var timeHtml = '<span class="text-zinc-500 whitespace-nowrap">' + formatTimeAgo(entry.timestamp) + '</span>';
 
@@ -2139,6 +2298,7 @@ function renderHistoryMenu() {
       '<div class="flex items-center gap-1.5 min-w-0 flex-1">' +
         icon +
         labelHtml +
+        summaryBit +
         cmdHtml +
       '</div>' +
       timeHtml;
@@ -2184,11 +2344,7 @@ function showHistoryModal(entry) {
       '<pre class="terminal-output flex-1">' + escapeHtml(entry.output) + '</pre>' +
       '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<span class="text-xs font-mono text-zinc-400">' +
-          (entry.status === 'success'
-            ? '<span class="text-green-400">&#10003; Exit code: 0</span>'
-            : entry.status === 'error'
-              ? '<span class="text-red-400">&#10007; Exit code: ' + entry.exitCode + '</span>'
-              : '<span class="text-zinc-500">Status: ' + entry.status + '</span>') +
+          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1) +
           ' &mdash; ' + formatTimeAgo(entry.timestamp) +
         '</span>' +
         '<button class="history-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
