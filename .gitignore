@@ -59,6 +59,7 @@ lambda_*.zip
 !.claude/settings.local.json
 
 # ConfigUI
+apps/configui/configui_
 apps/configui/configui
 apps/configui/backups/
 apps/configui/site-config.json
