@@ -2,7 +2,7 @@
 
 A local-only web UI for managing the defcon.run infrastructure configuration. ConfigUI reads and writes `site.hcl`, `service.hcl`, `env.sh`, and `env.local.sh` files, provides live HCL preview with syntax highlighting, runs `terragrunt plan/apply` with streaming terminal output, and shows real-time AWS resource discovery.
 
-![ConfigUI Preview Evolution](docs/configui-preview-evolution-20260215-200131.gif)
+![ConfigUI Preview Evolution](docs/configui-preview-evolution-20260215-204849.gif)
 
 ![ConfigUI Screenshot](docs/overview.png)
 
