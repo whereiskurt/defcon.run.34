@@ -291,6 +291,12 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
+			// Strip leading timestamp (e.g. "20:44:15.356 ") that terragrunt
+			// prepends before the stream prefix.
+			cleaned := line
+			if len(cleaned) > 13 && cleaned[2] == ':' && cleaned[5] == ':' && cleaned[12] == ' ' {
+				cleaned = cleaned[13:]
+			}
 			// Strip terragrunt's stream prefixes to reduce output noise.
 			for _, prefix := range []string{
 				"STDOUT terraform: ", "STDERR terraform: ",
@@ -301,12 +307,12 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 				"STDOUT ", "STDERR ",
 				"terraform: ", "tofu: ",
 			} {
-				if strings.HasPrefix(line, prefix) {
-					line = line[len(prefix):]
+				if strings.HasPrefix(cleaned, prefix) {
+					cleaned = cleaned[len(prefix):]
 					break
 				}
 			}
-			session.broadcast(line)
+			session.broadcast(cleaned)
 		}
 	}
 	pipeWg.Add(2)

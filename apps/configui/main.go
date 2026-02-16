@@ -169,6 +169,7 @@ func main() {
 	mux.HandleFunc("POST /save", app.handleSave)
 	mux.HandleFunc("POST /preview", app.handlePreview)
 	mux.HandleFunc("GET /export", app.handleExport)
+	mux.HandleFunc("POST /import", app.handleImport)
 	mux.HandleFunc("GET /api/aws-status", app.handleAWSStatus)
 	mux.HandleFunc("POST /api/sso-login", app.handleSSOLogin)
 	mux.HandleFunc("POST /api/export-creds", app.handleExportCreds)

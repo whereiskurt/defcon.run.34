@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -265,6 +266,56 @@ func (a *App) handleExport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition", "attachment; filename=site-config.json")
 	w.Write(data)
+}
+
+func (a *App) handleImport(w http.ResponseWriter, r *http.Request) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<script>showToast('No file selected', 5000)</script>`)
+		return
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(io.LimitReader(file, 2<<20)) // 2 MB max
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprint(w, `<script>showToast('Failed to read file', 5000)</script>`)
+		return
+	}
+
+	cfg := DefaultConfig()
+	if err := json.Unmarshal(data, cfg); err != nil {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprintf(w, `<script>showToast('Invalid JSON: %s', 5000)</script>`, template.JSEscapeString(err.Error()))
+		return
+	}
+
+	// Backup before importing
+	backupPath, err := a.createBackup()
+	if err != nil {
+		log.Printf("Backup failed: %v", err)
+	}
+
+	a.config = cfg
+
+	// Save JSON sidecar
+	if err := SaveConfig(a.configPath, cfg); err != nil {
+		w.Header().Set("Content-Type", "text/html")
+		fmt.Fprintf(w, `<script>showToast('Failed to save config: %s', 5000)</script>`, template.JSEscapeString(err.Error()))
+		return
+	}
+
+	msg := "Configuration imported successfully. Reloading..."
+	if backupPath != "" {
+		msg = fmt.Sprintf("Configuration imported. Backup: %s. Reloading...", backupPath)
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<script>showToast('%s'); setTimeout(function(){ window.location.reload(); }, 1500);</script>`, template.JSEscapeString(msg))
 }
 
 // AWSStatusCache wraps AWSStatus with a timestamp for disk caching.

@@ -973,6 +973,57 @@ function confirmExport() {
   document.addEventListener('keydown', onEsc);
 }
 
+// Import confirmation dialog — file picker + upload
+function confirmImport() {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[60] bg-black/50 flex items-center justify-center';
+  overlay.innerHTML =
+    '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-6 max-w-md mx-4">' +
+      '<h3 class="text-base font-semibold mb-3">Import Configuration</h3>' +
+      '<p class="text-sm text-zinc-400 mb-3">Select a <span class="font-mono text-zinc-300">site-config.json</span> file to import. This will overwrite the current configuration. A backup will be created first.</p>' +
+      '<div class="mb-4">' +
+        '<input type="file" id="import-file-input" accept=".json,application/json" class="block w-full text-sm text-zinc-400 file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-zinc-200 dark:file:bg-zinc-700 file:text-zinc-700 dark:file:text-zinc-200 hover:file:bg-zinc-300 dark:hover:file:bg-zinc-600 file:cursor-pointer">' +
+      '</div>' +
+      '<div class="flex justify-end gap-2">' +
+        '<button class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm" id="import-cancel-btn">Cancel</button>' +
+        '<button class="rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-medium" id="import-confirm-btn">Import</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  function dismiss() { overlay.remove(); document.removeEventListener('keydown', onEsc); }
+  overlay.querySelector('#import-cancel-btn').onclick = dismiss;
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+
+  overlay.querySelector('#import-confirm-btn').onclick = function() {
+    var fileInput = document.getElementById('import-file-input');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+      showToast('Please select a file first', 3000);
+      return;
+    }
+    var formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    dismiss();
+    fetch('/import', { method: 'POST', body: formData })
+      .then(function(resp) { return resp.text(); })
+      .then(function(html) {
+        var container = document.getElementById('save-result');
+        if (container) container.innerHTML = html;
+        // The server response includes a script that shows toast + reloads
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        var script = tmp.querySelector('script');
+        if (script) eval(script.textContent);
+      })
+      .catch(function(err) { showToast('Import failed: ' + err.message, 5000); });
+  };
+
+  var onEsc = function(e) {
+    if (e.key === 'Escape') { dismiss(); e.stopImmediatePropagation(); }
+  };
+  document.addEventListener('keydown', onEsc);
+}
+
 // Toast notifications
 function showToast(message, duration) {
   duration = duration || 4000;
@@ -1627,23 +1678,20 @@ function updatePillBar() {
     pill.className = 'term-pill';
     pill.dataset.sessionId = id;
 
-    var icon, statusText;
+    var icon;
     if (s.processRunning) {
       pill.classList.add('running');
       icon = '<span class="term-pill-dot running"></span>';
-      statusText = 'running';
     } else if (s.exitCode === 0) {
       pill.classList.add('done');
       icon = '<span class="term-pill-icon done">&#10003;</span>';
-      statusText = '0';
     } else {
       pill.classList.add('error');
       icon = '<span class="term-pill-icon error">&#10007;</span>';
-      statusText = '' + (s.exitCode != null ? s.exitCode : '?');
     }
 
     pill.innerHTML = icon +
-      '<span class="term-pill-label">' + s.label + ': ' + statusText + '</span>' +
+      '<span class="term-pill-label">' + s.label + '</span>' +
       '<span class="term-pill-close" title="Dismiss">&times;</span>';
 
     // Click pill → restore session
@@ -1863,7 +1911,7 @@ function showTerminalModal(session) {
     });
   };
 
-  // Escape key handler
+  // Escape key handler — minimize if running, dismiss if done
   function onEsc(e) {
     if (e.key === 'Escape') {
       // Only handle if this session's overlay is visible (not minimized)
@@ -1871,7 +1919,11 @@ function showTerminalModal(session) {
       // Check no confirm dialog is open
       if (document.querySelector('.fixed.inset-0.z-\\[60\\]:not(.terminal-modal)')) return;
       e.stopImmediatePropagation();
-      closeModal();
+      if (sessionState.processRunning) {
+        minimizeSession(id);
+      } else {
+        doCleanupSession(id);
+      }
     }
   }
   sessionState.onEsc = onEsc;
