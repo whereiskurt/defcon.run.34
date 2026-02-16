@@ -902,15 +902,15 @@ body.preview-dragging {
   pointer-events: none;
 }
 
-/* Color group tints — light mode */
-.mod-group-global  { background-color: rgba(74,222,128,0.10); }
-.mod-group-config  { background-color: rgba(251,191,36,0.10); }
-.mod-group-ecs     { background-color: rgba(168,85,247,0.10); }
-.mod-group-storage { background-color: rgba(59,130,246,0.10); }
+/* Color group tints — light mode (10% tint over #fff) */
+.mod-group-global  { background-color: #edfcf2 !important; }
+.mod-group-config  { background-color: #fff9e9 !important; }
+.mod-group-ecs     { background-color: #f6eefe !important; }
+.mod-group-storage { background-color: #ebf3fe !important; }
 
-/* Color group tints — dark mode */
-.dark .mod-group-global  { background-color: rgba(74,222,128,0.12); }
-.dark .mod-group-config  { background-color: rgba(251,191,36,0.12); }
-.dark .mod-group-ecs     { background-color: rgba(168,85,247,0.14); }
-.dark .mod-group-storage { background-color: rgba(59,130,246,0.14); }
+/* Color group tints — dark mode (12-14% tint over #27272a) */
+.dark .mod-group-global  { background-color: #2b3d34 !important; }
+.dark .mod-group-config  { background-color: #403929 !important; }
+.dark .mod-group-ecs     { background-color: #392d47 !important; }
+.dark .mod-group-storage { background-color: #2a3447 !important; }
 
