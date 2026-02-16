@@ -637,6 +637,16 @@ function confirmUnblur() {
   document.addEventListener('keydown', onKey);
 }
 
+// After any htmx swap, apply global unblur state to newly injected elements
+document.addEventListener('htmx:afterSettle', function(e) {
+  if (!_globalUnblurred) return;
+  var target = e.detail.target || e.detail.elt;
+  if (!target) return;
+  target.querySelectorAll('.pii-blur:not(.pii-sensitive):not(.pii-revealed)').forEach(function(el) {
+    el.classList.add('pii-revealed');
+  });
+});
+
 // Reload confirmation dialog
 function confirmReload() {
   showConfirmDialog({
