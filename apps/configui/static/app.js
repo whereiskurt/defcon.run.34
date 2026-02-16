@@ -1205,6 +1205,8 @@ var _globalDiscoveryRunning = false;
 function updateModuleRefreshButtons() {
   var hide = _globalDiscoveryRunning || discoveryRunning();
   document.querySelectorAll('.term-btn-refresh').forEach(function(btn) {
+    // Skip the global refresh button — it gets greyed out, not hidden
+    if (btn.id === 'requery-aws-btn') return;
     // Use visibility to preserve layout (ml-auto spacing)
     if (hide || btn.classList.contains('spinning')) {
       btn.style.visibility = 'hidden';
