@@ -137,6 +137,24 @@ function isPreviewOpen() {
   return panel && !panel.classList.contains('hidden');
 }
 
+function updatePreviewToggle(open) {
+  var btn = document.getElementById('preview-toggle-btn');
+  var iconOpen = document.getElementById('preview-icon-open');
+  var iconClose = document.getElementById('preview-icon-close');
+  if (!btn) return;
+  if (open) {
+    btn.classList.remove('border-green-600', 'text-green-400', 'hover:bg-green-700', 'hover:text-white');
+    btn.classList.add('bg-green-700', 'text-white', 'border-green-700');
+    if (iconOpen) iconOpen.classList.add('hidden');
+    if (iconClose) iconClose.classList.remove('hidden');
+  } else {
+    btn.classList.add('border-green-600', 'text-green-400', 'hover:bg-green-700', 'hover:text-white');
+    btn.classList.remove('bg-green-700', 'text-white', 'border-green-700');
+    if (iconOpen) iconOpen.classList.remove('hidden');
+    if (iconClose) iconClose.classList.add('hidden');
+  }
+}
+
 function showPreview() {
   var panel = document.getElementById('preview-panel');
   var handle = document.getElementById('preview-drag-handle');
@@ -153,6 +171,7 @@ function showPreview() {
       el.classList.remove('md:col-span-2');
     });
   }
+  updatePreviewToggle(true);
 }
 
 function hidePreview() {
@@ -171,6 +190,7 @@ function hidePreview() {
       el.classList.add('md:col-span-2');
     });
   }
+  updatePreviewToggle(false);
 }
 
 // Draggable preview resize handle
