@@ -350,3 +350,71 @@ This is a good candidate for a reusable Claude Code skill:
 - `{app}-preview-evolution-{DTS}.mp4`
 
 The skill would generate the three scripts dynamically based on inputs, execute the pipeline, and copy results to the app's docs folder.
+
+## Demo Workflows
+
+In addition to the commit-by-commit timelapse, the pipeline includes a **feature demo** system that captures animated GIFs of specific ConfigUI workflows in action.
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `demo.sh` | Builds ConfigUI, starts server, runs workflows, stitches GIFs with ffmpeg. |
+| `demo-capture.mjs` | Playwright ESM script that executes named step sequences and captures numbered PNGs. |
+
+### Usage
+
+```bash
+# Run a single workflow
+bash apps/configui/docs/timelapse/demo.sh preview-toggle
+
+# Run all 6 workflows
+bash apps/configui/docs/timelapse/demo.sh
+
+# Frames are preserved in /tmp/configui-demos/{workflow}/
+# GIFs are output to apps/configui/docs/configui-demo-{workflow}-{DTS}.gif
+```
+
+### Available Workflows
+
+| Workflow | Frames | AWS? | Description |
+|----------|--------|------|-------------|
+| `preview-toggle` | ~7 | No | Open preview, switch tabs, close |
+| `module-toggle` | ~5 | No | Toggle CloudFront, WAF, toggle-all off/on |
+| `panel-navigation` | ~6 | No | Expand all, collapse all, expand sections |
+| `pii-blur` | ~3 | No | Unblur All → revealed → Blur All |
+| `discovery-refresh` | ~3 | Yes | Refresh → scanning → complete |
+| `plan-module` | ~4 | Yes | Plan → terminal streams → complete → close |
+
+### Adding a New Workflow
+
+Edit `demo-capture.mjs` and add a new entry to the `WORKFLOWS` object:
+
+```js
+'my-workflow': {
+  title: 'My Feature',
+  // needsAWS: true,  // set if workflow requires AWS connectivity
+  steps: [
+    { type: 'screenshot', label: 'Initial state' },
+    { type: 'click', selector: '#my-button' },
+    { type: 'wait', ms: 500 },
+    { type: 'screenshot', label: 'After click' },
+  ],
+},
+```
+
+**Step types**: `screenshot`, `click`, `wait`, `waitFor`, `waitForText`, `evaluate`, `scroll`, `awsWait`
+
+Each `screenshot` step injects a fixed overlay at the bottom of the viewport with a green label, step counter, and progress bar. Frames are numbered `01.png`, `02.png`, etc.
+
+### GIF Settings
+
+Configured in `demo.sh`:
+
+| Setting | Default | Notes |
+|---------|---------|-------|
+| `FRAME_DURATION` | 0.8s | Time per frame (slower than timelapse for readability) |
+| `LAST_FRAME_DURATION` | 2.0s | Hold last frame longer |
+| `GIF_WIDTH` | 960 | Half of 1920 viewport |
+| `GIF_HEIGHT` | 540 | Half of 1080 viewport |
+| `GIF_COLORS` | 128 | Palette size (128 = good balance of quality/size) |

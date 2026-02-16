@@ -6,6 +6,46 @@ A local-only web UI for managing the defcon.run infrastructure configuration. Co
 
 ![ConfigUI Screenshot](docs/overview.png)
 
+## Feature Demos
+
+Animated walkthroughs of ConfigUI in action. Re-generate after UI changes with `bash apps/configui/docs/timelapse/demo.sh` ([docs](docs/timelapse/README.md#demo-workflows)).
+
+### Live HCL Preview
+
+Open the preview side panel, switch between generated config files (site.hcl, service.hcl, env.sh, env.local.sh), and close.
+
+![Preview Toggle](docs/configui-demo-preview-toggle-20260216-165145.gif)
+
+### Module Toggles
+
+Disable individual infrastructure modules (CloudFront, WAF), toggle the entire section off, then back on with the tri-state slider.
+
+![Module Toggle Demo](docs/configui-demo-module-toggle-20260216-165145.gif)
+
+### Panel Navigation
+
+Expand and collapse all 24+ panels at once, then drill into individual sections (Core, Infrastructure, Services).
+
+![Panel Navigation](docs/configui-demo-panel-navigation-20260216-165145.gif)
+
+### PII Blur
+
+Sensitive fields are blurred by default. Unblur All (with confirmation) reveals everything, Blur All re-hides them.
+
+![PII Blur Demo](docs/configui-demo-pii-blur-20260216-165145.gif)
+
+### Discovery Refresh
+
+Trigger an AWS resource scan -- status dots spin while checking each module across regions, then resolve to green/hollow/amber.
+
+![Discovery Refresh](docs/configui-demo-discovery-refresh-20260216-165833.gif)
+
+### Terragrunt Plan
+
+Run `terragrunt plan` on a module directly from the UI. The terminal modal streams real-time output via SSE, shows exit status, and auto-refreshes discovery on close.
+
+![Terragrunt Plan](docs/configui-demo-plan-module-20260216-165833.gif)
+
 ## Quick Start
 
 ```bash
@@ -35,8 +75,6 @@ Three collapsible sections organize 24+ configuration panels:
 
 Each infrastructure module has an enable/disable toggle. The section header has a tri-state slider showing **all**, **none**, or a count like **5/12** to indicate how many modules are active.
 
-![Module Toggle](docs/module-toggle.png)
-
 ### Live HCL Preview
 
 Click **Preview** to open a resizable side panel showing the generated `site.hcl`, `service.hcl` (per service), `env.sh`, and `env.local.sh` files in tabbed view. The preview updates live as you edit form fields.
@@ -45,8 +83,6 @@ Click **Preview** to open a resizable side panel showing the generated `site.hcl
 - Code folding on blocks and arrays
 - Copy to clipboard per tab
 - Draggable resize handle between form and preview
-
-![Preview Panel](docs/preview-panel.png)
 
 ### AWS Status Bar
 
@@ -65,8 +101,6 @@ Each infrastructure module panel header shows per-region status dots indicating 
 
 Dots auto-refresh on page load and after terminal commands complete. Click the refresh button to manually re-scan.
 
-![Discovery Dots](docs/discovery-dots.png)
-
 ### Terminal (Terragrunt Execution)
 
 Click **Plan** or **Apply** on any module panel header to run `terragrunt plan` or `terragrunt apply` in a streaming terminal modal. For regional modules, a region selector appears.
@@ -77,8 +111,6 @@ Click **Plan** or **Apply** on any module panel header to run `terragrunt plan` 
 - Stop button to kill running process
 - Discovery auto-refreshes on close
 - **Plan All** / **Apply All** buttons on the Infrastructure Modules section header
-
-![Terminal Modal](docs/terminal-modal.png)
 
 ### Fix Locks
 
@@ -94,8 +126,6 @@ Sensitive fields (account IDs, SSO URLs, email addresses, random suffix, AWS cre
 - **Blur All** -- re-blurs everything
 - AWS Status bar (Account + ARN) stays blurred even when Unblur All is active
 - The word "All" in the button is itself blurred
-
-![PII Blur](docs/pii-blur.png)
 
 ### Field Sync
 
@@ -195,8 +225,14 @@ docs/
   fix-locks.png        # Lock scan results dialog
   pii-blur.png         # Blurred vs revealed fields
   aws-credentials.png  # AWS config/credentials tabs
-  configui-form-evolution-*.gif  # Form view timelapse
-  configui-form-evolution-*.mp4  # Form view timelapse (HD)
-  configui-preview-evolution-*.gif  # Preview view timelapse
-  configui-preview-evolution-*.mp4  # Preview view timelapse (HD)
+  configui-form-evolution-*.gif       # Form view timelapse
+  configui-form-evolution-*.mp4       # Form view timelapse (HD)
+  configui-preview-evolution-*.gif    # Preview view timelapse
+  configui-preview-evolution-*.mp4    # Preview view timelapse (HD)
+  configui-demo-preview-toggle-*.gif  # Demo: preview panel workflow
+  configui-demo-module-toggle-*.gif   # Demo: module toggle workflow
+  configui-demo-panel-navigation-*.gif # Demo: panel navigation workflow
+  configui-demo-pii-blur-*.gif        # Demo: PII blur workflow
+  configui-demo-discovery-refresh-*.gif # Demo: discovery refresh workflow
+  configui-demo-plan-module-*.gif     # Demo: terragrunt plan workflow
 ```
