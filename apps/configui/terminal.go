@@ -10,21 +10,60 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
+// TerraformSummary captures the plan/apply summary line from terraform output.
+type TerraformSummary struct {
+	Add      int    `json:"add"`
+	Change   int    `json:"change"`
+	Destroy  int    `json:"destroy"`
+	Text     string `json:"text"`
+	NoChange bool   `json:"no_change"`
+}
+
+// Regex patterns for extracting terraform plan/apply summaries.
+var (
+	rePlanSummary  = regexp.MustCompile(`Plan:\s*(\d+)\s+to add,\s*(\d+)\s+to change,\s*(\d+)\s+to destroy`)
+	reApplySummary = regexp.MustCompile(`Resources:\s*(\d+)\s+added,\s*(\d+)\s+changed,\s*(\d+)\s+destroyed`)
+	reNoChanges    = regexp.MustCompile(`No changes\.\s+Your infrastructure matches the configuration`)
+)
+
+// parseSummaryLine checks a line for terraform plan/apply summary patterns.
+func parseSummaryLine(line string) *TerraformSummary {
+	if m := rePlanSummary.FindStringSubmatch(line); m != nil {
+		add, _ := strconv.Atoi(m[1])
+		chg, _ := strconv.Atoi(m[2])
+		del, _ := strconv.Atoi(m[3])
+		return &TerraformSummary{Add: add, Change: chg, Destroy: del, Text: m[0]}
+	}
+	if m := reApplySummary.FindStringSubmatch(line); m != nil {
+		add, _ := strconv.Atoi(m[1])
+		chg, _ := strconv.Atoi(m[2])
+		del, _ := strconv.Atoi(m[3])
+		return &TerraformSummary{Add: add, Change: chg, Destroy: del, Text: m[0]}
+	}
+	if reNoChanges.MatchString(line) {
+		return &TerraformSummary{NoChange: true, Text: "No changes"}
+	}
+	return nil
+}
+
 // TermSession represents a running or completed terminal session.
 type TermSession struct {
-	ID       string `json:"id"`
-	Module   string `json:"module"`
-	Command  string `json:"command"`
-	Region   string `json:"region,omitempty"`
-	CmdLine  string `json:"cmd_line"` // Full command string for display
-	WorkDir  string `json:"work_dir"` // Working directory for display
-	Status   string `json:"status"`   // "running", "done", "error"
-	ExitCode int    `json:"exit_code"`
+	ID       string             `json:"id"`
+	Module   string             `json:"module"`
+	Command  string             `json:"command"`
+	Region   string             `json:"region,omitempty"`
+	CmdLine  string             `json:"cmd_line"`           // Full command string for display
+	WorkDir  string             `json:"work_dir"`           // Working directory for display
+	Status   string             `json:"status"`             // "running", "done", "error"
+	ExitCode int                `json:"exit_code"`
+	Summary  *TerraformSummary  `json:"summary,omitempty"`
 
 	mu      sync.Mutex
 	lines   []string
@@ -312,6 +351,11 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 					break
 				}
 			}
+			if summary := parseSummaryLine(cleaned); summary != nil {
+				session.mu.Lock()
+				session.Summary = summary
+				session.mu.Unlock()
+			}
 			session.broadcast(cleaned)
 		}
 	}
@@ -398,10 +442,22 @@ func (a *App) handleTerminalStream(w http.ResponseWriter, r *http.Request) {
 	}
 	flusher.Flush()
 
-	// If already done, send done event immediately
-	if session.Status != "running" {
+	// sendSummaryAndDone emits a summary SSE event (if available) then the done event.
+	sendSummaryAndDone := func() {
+		session.mu.Lock()
+		summary := session.Summary
+		session.mu.Unlock()
+		if summary != nil {
+			summaryJSON, _ := json.Marshal(summary)
+			fmt.Fprintf(w, "event: summary\ndata: %s\n\n", summaryJSON)
+		}
 		fmt.Fprintf(w, "event: done\ndata: %d\n\n", session.ExitCode)
 		flusher.Flush()
+	}
+
+	// If already done, send done event immediately
+	if session.Status != "running" {
+		sendSummaryAndDone()
 		return
 	}
 
@@ -413,14 +469,12 @@ func (a *App) handleTerminalStream(w http.ResponseWriter, r *http.Request) {
 		case line, ok := <-ch:
 			if !ok {
 				// Channel closed
-				fmt.Fprintf(w, "event: done\ndata: %d\n\n", session.ExitCode)
-				flusher.Flush()
+				sendSummaryAndDone()
 				return
 			}
 			if line == "" && session.Status != "running" {
 				// Empty line = done signal
-				fmt.Fprintf(w, "event: done\ndata: %d\n\n", session.ExitCode)
-				flusher.Flush()
+				sendSummaryAndDone()
 				return
 			}
 			fmt.Fprintf(w, "data: %s\n\n", line)

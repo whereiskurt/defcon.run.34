@@ -690,6 +690,7 @@ function confirmRequery() {
       var btn = document.getElementById('requery-aws-btn');
       if (btn) btn.classList.add('spinning');
       _globalDiscoveryRunning = true;
+      updateModuleRefreshButtons();
       fetch('/api/discovery/refresh', { method: 'POST' }).then(function() {
         htmx.trigger(document.body, 'refreshDiscovery');
         // Poll until discovery finishes in case the conditional htmx polling misses it
@@ -697,6 +698,7 @@ function confirmRequery() {
           htmx.trigger(document.body, 'refreshDiscovery');
           if (!discoveryRunning()) {
             _globalDiscoveryRunning = false;
+            updateModuleRefreshButtons();
             if (btn) btn.classList.remove('spinning');
             clearInterval(poll);
           }
@@ -902,7 +904,7 @@ function initSplitButtons() {
     if (!container) return;
     var command = container.dataset.command; // "plan" or "apply"
     var isPlan = command === 'plan';
-    var mainLabel = isPlan ? 'Plan' : 'Apply';
+    var mainLabel = isPlan ? 'Plan All' : 'Apply All';
     var mainClass = isPlan ? 'split-btn-plan' : 'split-btn-apply';
     var confirmFn = isPlan ? confirmPlanAll : confirmApplyAll;
 
@@ -1189,6 +1191,13 @@ var DISCOVERABLE_PANELS = {
 // Track whether a global (all-module) discovery was triggered
 var _globalDiscoveryRunning = false;
 
+// Hide/show per-module refresh buttons based on global discovery state
+function updateModuleRefreshButtons() {
+  document.querySelectorAll('.term-btn-refresh').forEach(function(btn) {
+    btn.style.display = _globalDiscoveryRunning ? 'none' : '';
+  });
+}
+
 // Used by htmx conditional polling: returns true while discovery is running
 function discoveryRunning() {
   var data = document.getElementById('discovery-data');
@@ -1330,6 +1339,7 @@ function updateDiscoveryTimestamp() {
   }
   if (status !== 'running') {
     _globalDiscoveryRunning = false;
+    updateModuleRefreshButtons();
     if (rqBtn) rqBtn.classList.remove('spinning');
   }
 
@@ -1553,7 +1563,97 @@ function isAWSAuthed() {
   return el.querySelector('.status-dot.ok') !== null;
 }
 
-// Inject Plan/Apply buttons into discoverable panel headers
+// Build a split-button (main action + region dropdown) for a per-module Plan or Apply.
+function buildModuleSplitBtn(panelId, command, isGlobal) {
+  var regions = window.ALL_REGIONS || [];
+  var isPlan = command === 'plan';
+  var mainLabel = isPlan ? 'Plan' : 'Apply';
+  var mainClass = isPlan ? 'split-btn-plan' : 'split-btn-apply';
+  var confirmClass = isPlan ? '' : 'bg-red-600 hover:bg-red-500 text-white';
+  var moduleName = panelId.replace(/_/g, '-');
+
+  function doAction(region) {
+    var label = moduleName;
+    if (region) label += ' (' + region + ')';
+    if (isPlan) {
+      showConfirmDialog({
+        title: 'Plan ' + label + '?',
+        message: 'Run terragrunt plan on <strong>' + label + '</strong>.',
+        confirmLabel: 'Plan',
+        onConfirm: function() { openTerminal(panelId, 'plan', region); }
+      });
+    } else {
+      showConfirmDialog({
+        title: 'Apply ' + label + '?',
+        message: 'This will run <span class="font-mono text-zinc-300">terragrunt apply</span> on <strong>' + label + '</strong>. Resources may be created, modified, or destroyed.',
+        confirmLabel: 'Apply',
+        confirmClass: confirmClass,
+        onConfirm: function() { openTerminal(panelId, 'apply', region); }
+      });
+    }
+  }
+
+  var wrapper = document.createElement('div');
+  wrapper.className = 'split-btn split-btn-sm';
+
+  if (isGlobal) {
+    // Global modules: simple button, no dropdown
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'split-btn-main split-btn-solo ' + mainClass;
+    btn.textContent = mainLabel;
+    btn.onclick = function(e) { e.stopPropagation(); doAction(''); };
+    wrapper.appendChild(btn);
+  } else {
+    // Regional modules: default to first region, dropdown for others
+    var defaultRegion = regions.length > 0 ? regions[0].full : '';
+    var defaultLabel = regions.length > 0 ? regions[0].label : '';
+
+    var mainBtn = document.createElement('button');
+    mainBtn.type = 'button';
+    mainBtn.className = 'split-btn-main ' + mainClass;
+    mainBtn.textContent = mainLabel + ' ' + defaultLabel;
+    mainBtn.onclick = function(e) { e.stopPropagation(); doAction(defaultRegion); };
+    wrapper.appendChild(mainBtn);
+
+    var dropBtn = document.createElement('button');
+    dropBtn.type = 'button';
+    dropBtn.className = 'split-btn-drop ' + mainClass;
+    dropBtn.setAttribute('aria-label', 'Select region');
+    dropBtn.innerHTML = '<svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+    wrapper.appendChild(dropBtn);
+
+    var menu = document.createElement('div');
+    menu.className = 'split-menu hidden';
+    regions.forEach(function(r) {
+      var item = document.createElement('div');
+      item.className = 'split-menu-item';
+      item.textContent = mainLabel + ' ' + r.label + ' (' + r.full + ')';
+      item.onclick = function() {
+        menu.classList.add('hidden');
+        // Update the main button to reflect the selected region
+        mainBtn.textContent = mainLabel + ' ' + r.label;
+        defaultRegion = r.full;
+        defaultLabel = r.label;
+        doAction(r.full);
+      };
+      menu.appendChild(item);
+    });
+    wrapper.appendChild(menu);
+
+    dropBtn.onclick = function(e) {
+      e.stopPropagation();
+      document.querySelectorAll('.split-menu').forEach(function(m) {
+        if (m !== menu) m.classList.add('hidden');
+      });
+      menu.classList.toggle('hidden');
+    };
+  }
+
+  return wrapper;
+}
+
+// Inject Plan/Apply split-buttons into discoverable panel headers
 function injectTerminalButtons() {
   Object.keys(TERMINAL_MODULES).forEach(function(panelId) {
     var panelEl = document.querySelector('[data-panel="' + panelId + '"]');
@@ -1566,65 +1666,10 @@ function injectTerminalButtons() {
 
     var mod = TERMINAL_MODULES[panelId];
     var container = document.createElement('div');
-    container.className = 'term-actions flex items-center gap-1 ml-2';
+    container.className = 'term-actions flex items-center gap-2 ml-2';
 
-    if (!mod.global) {
-      // Region selector for regional modules
-      var sel = document.createElement('select');
-      sel.className = 'term-region-select text-[10px] bg-zinc-800 border border-zinc-600 text-zinc-300 rounded px-1 py-0 font-mono';
-      sel.style.height = '18px';
-      sel.dataset.panel = panelId;
-      (window.ALL_REGIONS || []).forEach(function(r) {
-        var opt = document.createElement('option');
-        opt.value = r.full;
-        opt.textContent = r.label;
-        sel.appendChild(opt);
-      });
-      container.appendChild(sel);
-    }
-
-    var planBtn = document.createElement('button');
-    planBtn.type = 'button';
-    planBtn.className = 'term-btn term-btn-plan';
-    planBtn.textContent = 'Plan';
-    planBtn.onclick = function(e) {
-      e.stopPropagation();
-      var region = '';
-      if (!mod.global) {
-        var regionSel = container.querySelector('.term-region-select');
-        region = regionSel ? regionSel.value : '';
-      }
-      var label = panelId.replace(/_/g, '-');
-      if (region) label += ' (' + region + ')';
-      showConfirmDialog({
-        title: 'Plan ' + label + '?',
-        message: 'Are you sure you want to run terragrunt plan?',
-        confirmLabel: 'Plan',
-        onConfirm: function() { openTerminal(panelId, 'plan', region); }
-      });
-    };
-
-    var applyBtn = document.createElement('button');
-    applyBtn.type = 'button';
-    applyBtn.className = 'term-btn term-btn-apply';
-    applyBtn.textContent = 'Apply';
-    applyBtn.onclick = function(e) {
-      e.stopPropagation();
-      var region = '';
-      if (!mod.global) {
-        var regionSel = container.querySelector('.term-region-select');
-        region = regionSel ? regionSel.value : '';
-      }
-      var label = panelId.replace(/_/g, '-');
-      if (region) label += ' (' + region + ')';
-      showConfirmDialog({
-        title: 'Apply ' + label + '?',
-        message: 'This will run <span class="font-mono text-zinc-300">terragrunt apply</span> on <strong>' + label + '</strong>. Resources may be created, modified, or destroyed.',
-        confirmLabel: 'Apply',
-        confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
-        onConfirm: function() { openTerminal(panelId, 'apply', region); }
-      });
-    };
+    container.appendChild(buildModuleSplitBtn(panelId, 'plan', mod.global));
+    container.appendChild(buildModuleSplitBtn(panelId, 'apply', mod.global));
 
     var refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
@@ -1641,7 +1686,6 @@ function injectTerminalButtons() {
           refreshBtn.classList.add('spinning');
           fetch('/api/discovery/refresh?module=' + encodeURIComponent(panelId), { method: 'POST' }).then(function() {
             htmx.trigger(document.body, 'refreshDiscovery');
-            // Poll until discovery finishes in case the conditional htmx polling misses it
             var poll = setInterval(function() {
               if (!refreshBtn.classList.contains('spinning')) { clearInterval(poll); return; }
               htmx.trigger(document.body, 'refreshDiscovery');
@@ -1654,9 +1698,6 @@ function injectTerminalButtons() {
         }
       });
     };
-
-    container.appendChild(planBtn);
-    container.appendChild(applyBtn);
     container.appendChild(refreshBtn);
 
     // Insert before discovery dots or chevron
@@ -1728,8 +1769,14 @@ function updatePillBar() {
       icon = '<span class="term-pill-icon error">&#10007;</span>';
     }
 
+    var summaryBit = '';
+    if (!s.processRunning && s.summary) {
+      summaryBit = '<span class="term-pill-summary">' + formatPillSummary(s.summary) + '</span>';
+    }
+
     pill.innerHTML = icon +
       '<span class="term-pill-label">' + s.label + '</span>' +
+      summaryBit +
       '<span class="term-pill-close" title="Dismiss">&times;</span>';
 
     // Click pill → restore session
@@ -1801,6 +1848,38 @@ function doCleanupSession(id) {
   delete _termSessions[id];
   updatePillBar();
   htmx.trigger(document.body, 'refreshDiscovery');
+}
+
+// --- Terraform summary formatting ---
+
+function formatSummaryHtml(summary, exitCode) {
+  var icon = exitCode === 0
+    ? '<span class="text-green-400">&#10003;</span>'
+    : '<span class="text-red-400">&#10007;</span>';
+  if (!summary) {
+    // Fallback to exit code display
+    if (exitCode === 0) return '<span class="text-green-400">&#10003; Done</span>';
+    return '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
+  }
+  if (summary.no_change) {
+    return icon + ' <span class="text-zinc-400">No changes — infrastructure matches configuration</span>';
+  }
+  var parts = [];
+  parts.push('<span class="' + (summary.add > 0 ? 'text-green-400' : 'text-zinc-500') + '">' + summary.add + ' to add</span>');
+  parts.push('<span class="' + (summary.change > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">' + summary.change + ' to change</span>');
+  parts.push('<span class="' + (summary.destroy > 0 ? 'text-red-400' : 'text-zinc-500') + '">' + summary.destroy + ' to destroy</span>');
+  return icon + ' ' + parts.join(', ');
+}
+
+function formatPillSummary(summary) {
+  if (!summary) return '';
+  if (summary.no_change) return '(no changes)';
+  var parts = [];
+  if (summary.add > 0) parts.push('+' + summary.add + ' add');
+  if (summary.change > 0) parts.push('~' + summary.change + ' chg');
+  if (summary.destroy > 0) parts.push('-' + summary.destroy + ' del');
+  if (parts.length === 0) return '(no changes)';
+  return parts.join(' ');
 }
 
 // --- Terminal open / modal ---
@@ -1949,7 +2028,7 @@ function showTerminalModal(session) {
     });
   };
 
-  // Escape key handler — minimize if running, dismiss if done
+  // Escape key handler — always minimize (user can explicitly close via X or Close button)
   function onEsc(e) {
     if (e.key === 'Escape') {
       // Only handle if this session's overlay is visible (not minimized)
@@ -1957,11 +2036,7 @@ function showTerminalModal(session) {
       // Check no confirm dialog is open
       if (document.querySelector('.fixed.inset-0.z-\\[60\\]:not(.terminal-modal)')) return;
       e.stopImmediatePropagation();
-      if (sessionState.processRunning) {
-        minimizeSession(id);
-      } else {
-        doCleanupSession(id);
-      }
+      minimizeSession(id);
     }
   }
   sessionState.onEsc = onEsc;
@@ -1990,6 +2065,10 @@ function showTerminalModal(session) {
     }
   };
 
+  es.addEventListener('summary', function(e) {
+    try { sessionState.summary = JSON.parse(e.data); } catch(err) {}
+  });
+
   es.addEventListener('done', function(e) {
     flushLines();
     var exitCode = parseInt(e.data, 10);
@@ -2000,11 +2079,7 @@ function showTerminalModal(session) {
       sessionState.es = null;
     }
     stopBtn.style.display = 'none';
-    if (exitCode === 0) {
-      statusEl.innerHTML = '<span class="text-green-400">&#10003; Exit Code: Success (0)</span>';
-    } else {
-      statusEl.innerHTML = '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
-    }
+    statusEl.innerHTML = formatSummaryHtml(sessionState.summary, exitCode);
     updatePillBar();
   });
 
@@ -2088,6 +2163,7 @@ function saveToHistory(id) {
     workDir: s.workDir || '',
     exitCode: s.exitCode,
     status: status,
+    summary: s.summary || null,
     timestamp: Date.now(),
     output: outputText
   };
@@ -2158,6 +2234,7 @@ function renderHistoryMenu() {
     else icon = '<span class="text-zinc-500">&#9679;</span>';
 
     var labelHtml = '<span class="truncate">' + escapeHtml(entry.label) + '</span>';
+    var summaryBit = entry.summary ? '<span class="term-pill-summary">' + formatPillSummary(entry.summary) + '</span>' : '';
     var cmdHtml = '<span class="text-zinc-500 truncate" style="max-width:120px;">' + escapeHtml(entry.command || '') + '</span>';
     var timeHtml = '<span class="text-zinc-500 whitespace-nowrap">' + formatTimeAgo(entry.timestamp) + '</span>';
 
@@ -2165,6 +2242,7 @@ function renderHistoryMenu() {
       '<div class="flex items-center gap-1.5 min-w-0 flex-1">' +
         icon +
         labelHtml +
+        summaryBit +
         cmdHtml +
       '</div>' +
       timeHtml;
@@ -2210,11 +2288,7 @@ function showHistoryModal(entry) {
       '<pre class="terminal-output flex-1">' + escapeHtml(entry.output) + '</pre>' +
       '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<span class="text-xs font-mono text-zinc-400">' +
-          (entry.status === 'success'
-            ? '<span class="text-green-400">&#10003; Exit code: 0</span>'
-            : entry.status === 'error'
-              ? '<span class="text-red-400">&#10007; Exit code: ' + entry.exitCode + '</span>'
-              : '<span class="text-zinc-500">Status: ' + entry.status + '</span>') +
+          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1) +
           ' &mdash; ' + formatTimeAgo(entry.timestamp) +
         '</span>' +
         '<button class="history-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +

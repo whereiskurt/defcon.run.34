@@ -139,6 +139,72 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 
 	skipRegions := cfg.Site.SkipRegions
 
+	// --- Global services first (fast, single-region checks) ---
+
+	// GitHub OIDC (IAM is global)
+	if check("github_oidc") {
+		// Check OIDC provider
+		throttled(func() {
+			rc := checkOIDCProvider(profile)
+			addResult(ResourceResult{
+				Panel:   "github_oidc",
+				Name:    "oidc-provider",
+				Regions: []RegionCheck{rc},
+			})
+		})
+
+		// Check each IAM role
+		for _, role := range cfg.GitHubOIDC.Roles {
+			roleName := role.Name
+			throttled(func() {
+				fullName := fmt.Sprintf("%s-github-%s", cfg.Site.Label, roleName)
+				rc := checkIAMRole(profile, fullName)
+				addResult(ResourceResult{
+					Panel:   "github_oidc",
+					Name:    fullName,
+					Regions: []RegionCheck{rc},
+				})
+			})
+		}
+	}
+
+	// CloudFront distributions
+	if check("cloudfront") && len(cfg.CloudFront.Domains) > 0 {
+		throttled(func() {
+			results := checkCloudFrontDistributions(profile, cfg.CloudFront.Domains, cfg.DNS.ZoneName)
+			for _, r := range results {
+				addResult(r)
+			}
+		})
+	}
+
+	// WAF
+	if check("waf") {
+		throttled(func() {
+			rc := checkWAF(profile)
+			addResult(ResourceResult{
+				Panel:   "waf",
+				Name:    "waf-webacl",
+				Regions: []RegionCheck{rc},
+			})
+		})
+	}
+
+	// CloudTrail
+	if check("cloudtrail") {
+		trailName := fmt.Sprintf("%s-cloudtrail", cfg.Site.Label)
+		throttled(func() {
+			rc := checkCloudTrail(profile, trailName, "us-east-1")
+			addResult(ResourceResult{
+				Panel:   "cloudtrail",
+				Name:    trailName,
+				Regions: []RegionCheck{rc},
+			})
+		})
+	}
+
+	// --- Regional services ---
+
 	// ECS Clusters
 	if check("ecs_clusters") && len(cfg.ECSClusters.Clusters) > 0 {
 		cluster := cfg.ECSClusters.Clusters[0]
@@ -261,16 +327,6 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 				})
 			}
 		}
-	}
-
-	// CloudFront distributions
-	if check("cloudfront") && len(cfg.CloudFront.Domains) > 0 {
-		throttled(func() {
-			results := checkCloudFrontDistributions(profile, cfg.CloudFront.Domains, cfg.DNS.ZoneName)
-			for _, r := range results {
-				addResult(r)
-			}
-		})
 	}
 
 	// EC2 Spots
@@ -406,58 +462,6 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 				})
 			})
 		}
-	}
-
-	// WAF
-	if check("waf") {
-		throttled(func() {
-			rc := checkWAF(profile)
-			addResult(ResourceResult{
-				Panel:   "waf",
-				Name:    "waf-webacl",
-				Regions: []RegionCheck{rc},
-			})
-		})
-	}
-
-	// GitHub OIDC (IAM is global)
-	if check("github_oidc") {
-		// Check OIDC provider
-		throttled(func() {
-			rc := checkOIDCProvider(profile)
-			addResult(ResourceResult{
-				Panel:   "github_oidc",
-				Name:    "oidc-provider",
-				Regions: []RegionCheck{rc},
-			})
-		})
-
-		// Check each IAM role
-		for _, role := range cfg.GitHubOIDC.Roles {
-			roleName := role.Name
-			throttled(func() {
-				fullName := fmt.Sprintf("%s-github-%s", cfg.Site.Label, roleName)
-				rc := checkIAMRole(profile, fullName)
-				addResult(ResourceResult{
-					Panel:   "github_oidc",
-					Name:    fullName,
-					Regions: []RegionCheck{rc},
-				})
-			})
-		}
-	}
-
-	// CloudTrail
-	if check("cloudtrail") {
-		trailName := fmt.Sprintf("%s-cloudtrail", cfg.Site.Label)
-		throttled(func() {
-			rc := checkCloudTrail(profile, trailName, "us-east-1")
-			addResult(ResourceResult{
-				Panel:   "cloudtrail",
-				Name:    trailName,
-				Regions: []RegionCheck{rc},
-			})
-		})
 	}
 
 	wg.Wait()
