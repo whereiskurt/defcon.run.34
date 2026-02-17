@@ -640,6 +640,25 @@ body.preview-dragging {
   opacity: 1;
 }
 
+/* Infra action buttons: 2×2 grid in single-panel (preview-open) mode */
+.single-panel #infra-all-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  width: 100%;
+}
+.single-panel #infra-all-actions > * {
+  width: 100%;
+  justify-content: center;
+}
+.single-panel #infra-all-actions > .split-btn {
+  display: flex;
+}
+.single-panel #infra-all-actions > .split-btn .split-btn-main {
+  flex: 1;
+  text-align: center;
+}
+
 /* Split-button — main action + dropdown arrow */
 .split-btn {
   position: relative;

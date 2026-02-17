@@ -167,6 +167,7 @@ function showPreview() {
   if (grid) {
     grid.classList.remove('md:grid-cols-2');
     grid.classList.add('grid-cols-1');
+    grid.classList.add('single-panel');
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.remove('md:col-span-2');
     });
@@ -194,6 +195,7 @@ function hidePreview() {
   if (grid) {
     grid.classList.add('md:grid-cols-2');
     grid.classList.remove('grid-cols-1');
+    grid.classList.remove('single-panel');
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.add('md:col-span-2');
     });
@@ -2105,19 +2107,24 @@ function showTerminalModal(session) {
           '</div>' +
         '</div>' +
         '<div class="flex items-center gap-2">' +
-          '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-4 py-1.5 text-sm font-mono">Stop</button>' +
-          '<button class="term-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
           '<button class="term-minimize-btn text-zinc-500 hover:text-zinc-200 text-sm px-2 font-mono" title="Minimize">_</button>' +
           '<button class="term-close-x text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
       '<pre class="terminal-output flex-1"></pre>' +
+      '<div class="term-footer flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
+        '<span class="term-footer-status text-sm font-mono text-zinc-400"></span>' +
+        '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-4 py-1.5 text-sm font-mono">Stop</button>' +
+        '<button class="term-close-btn hidden rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
+      '</div>' +
     '</div>';
   document.body.appendChild(overlay);
 
   var output = overlay.querySelector('.terminal-output');
   var statusEl = overlay.querySelector('.term-status');
   var stopBtn = overlay.querySelector('.term-stop-btn');
+  var footer = overlay.querySelector('.term-footer');
+  var footerStatus = overlay.querySelector('.term-footer-status');
   var closeBtn = overlay.querySelector('.term-close-btn');
   var closeX = overlay.querySelector('.term-close-x');
   var minimizeBtn = overlay.querySelector('.term-minimize-btn');
@@ -2273,8 +2280,13 @@ function showTerminalModal(session) {
       sessionState.es.close();
       sessionState.es = null;
     }
-    stopBtn.style.display = 'none';
-    statusEl.innerHTML = formatSummaryHtml(sessionState.summary, exitCode);
+    stopBtn.classList.add('hidden');
+    statusEl.textContent = exitCode === 0 ? 'Done' : 'Failed';
+    statusEl.className = 'term-status text-[11px] font-mono ' +
+      (exitCode === 0 ? 'text-green-400' : 'text-red-400');
+    // Show exit code and close button in footer
+    footerStatus.innerHTML = formatSummaryHtml(sessionState.summary, exitCode);
+    closeBtn.classList.remove('hidden');
     // Make Close button pop when done
     closeBtn.className = 'term-close-btn rounded-md px-4 py-1.5 text-sm font-mono font-bold ' +
       (exitCode === 0
@@ -2294,10 +2306,9 @@ function showTerminalModal(session) {
         lockBanner.remove();
         confirmFixLocks();
       };
-      // Insert before the status bar (last child of the modal container)
+      // Insert before the footer
       var modalContainer = overlay.querySelector('.flex-1.flex.flex-col');
-      var statusBar = modalContainer.lastElementChild;
-      modalContainer.insertBefore(lockBanner, statusBar);
+      modalContainer.insertBefore(lockBanner, footer);
     }
 
     // Auto-refresh discovery after a successful apply
