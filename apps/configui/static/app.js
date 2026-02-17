@@ -2574,20 +2574,17 @@ document.addEventListener('click', function(e) {
 });
 
 // --- Sortable module groups ---
-function initModuleSortable() {
-  if (typeof Sortable === 'undefined') return;
+var _sortableGroups = [
+  { id: 'core-modules',  key: 'configui-core-order' },
+  { id: 'infra-modules', key: 'configui-module-order' },
+  { id: 'svc-modules',   key: 'configui-svc-order' }
+];
 
-  var groups = [
-    { id: 'core-modules',  key: 'configui-core-order' },
-    { id: 'infra-modules', key: 'configui-module-order' },
-    { id: 'svc-modules',   key: 'configui-svc-order' }
-  ];
-
-  groups.forEach(function(g) {
+// Restore saved panel order before masonry splits them into columns
+function restoreModuleOrder() {
+  _sortableGroups.forEach(function(g) {
     var container = document.getElementById(g.id);
     if (!container) return;
-
-    // Restore saved order from localStorage
     var saved = localStorage.getItem(g.key);
     if (saved) {
       try {
@@ -2598,19 +2595,47 @@ function initModuleSortable() {
         });
       } catch (e) { /* ignore bad data */ }
     }
+  });
+}
 
-    Sortable.create(container, {
-      handle: '.drag-handle',
-      animation: 200,
-      ghostClass: 'sortable-ghost',
-      chosenClass: 'sortable-chosen',
-      onEnd: function() {
-        var panels = container.querySelectorAll('[data-panel]');
-        var order = [];
-        panels.forEach(function(el) { order.push(el.getAttribute('data-panel')); });
-        localStorage.setItem(g.key, JSON.stringify(order));
-      }
-    });
+function saveSortOrder(container, key) {
+  // Collect panels from both masonry columns in visual order (left then right)
+  var panels = container.querySelectorAll('[data-panel]');
+  var order = [];
+  panels.forEach(function(el) { order.push(el.getAttribute('data-panel')); });
+  localStorage.setItem(key, JSON.stringify(order));
+}
+
+function initModuleSortable() {
+  if (typeof Sortable === 'undefined') return;
+
+  _sortableGroups.forEach(function(g) {
+    var container = document.getElementById(g.id);
+    if (!container) return;
+
+    var cols = container.querySelectorAll('.masonry-col');
+    if (cols.length > 0) {
+      // Create sortable on each masonry column with shared group
+      cols.forEach(function(col) {
+        Sortable.create(col, {
+          group: g.id,
+          handle: '.drag-handle',
+          animation: 200,
+          ghostClass: 'sortable-ghost',
+          chosenClass: 'sortable-chosen',
+          onEnd: function() { saveSortOrder(container, g.key); }
+        });
+      });
+    } else {
+      // No masonry columns, sort container directly
+      Sortable.create(container, {
+        handle: '.drag-handle',
+        animation: 200,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: function() { saveSortOrder(container, g.key); }
+      });
+    }
   });
 }
 
@@ -2696,6 +2721,7 @@ injectTerminalButtons();
 updateTerminalButtonsVisibility();
 recoverTerminalSessions();
 updateHistoryBadge();
-initModuleSortable();
+restoreModuleOrder();
 initMasonry();
+initModuleSortable();
 initDirtyTracking();
