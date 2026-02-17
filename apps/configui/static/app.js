@@ -2621,7 +2621,9 @@ var _savedFormSnapshot = '';
 function captureFormSnapshot() {
   var form = document.getElementById('config-form');
   if (!form) return '';
-  return new URLSearchParams(new FormData(form)).toString();
+  var params = Array.from(new URLSearchParams(new FormData(form)).entries());
+  params.sort(function(a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
+  return params.map(function(p) { return p[0] + '=' + p[1]; }).join('&');
 }
 
 function markFormClean() {
