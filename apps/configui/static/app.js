@@ -11,7 +11,7 @@ function showConfirmDialog(opts) {
       '<p class="text-sm text-zinc-500 dark:text-zinc-400 mb-4">' + (opts.message || '') + '</p>' +
       '<div class="flex gap-2 justify-end">' +
         '<button class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm" id="cfd-cancel">Cancel</button>' +
-        '<button class="rounded-md ' + btnClass + ' px-4 py-2 text-sm font-medium" id="cfd-confirm">' + (opts.confirmLabel || 'Confirm') + '</button>' +
+        '<button class="rounded-md ' + btnClass + ' px-4 py-2 text-sm font-medium" style="display:inline-flex;align-items:center;gap:6px;" id="cfd-confirm">' + (opts.confirmLabel || 'Confirm') + '</button>' +
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -786,7 +786,7 @@ function confirmRequery() {
   showConfirmDialog({
     title: 'Re-query AWS?',
     message: 'This will query all AWS resources across all regions. This may take a few seconds.',
-    confirmLabel: 'Re-query',
+    confirmLabel: '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg> Re-query',
     onConfirm: function() {
       var btn = document.getElementById('requery-aws-btn');
       if (btn) {
