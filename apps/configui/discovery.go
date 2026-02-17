@@ -224,6 +224,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// ECS Services — check each service in each region
+	// Actual service names in AWS are: {name}-{regionLabel} (e.g. run-auth-use1)
 	if check("ecs_services") {
 		clusterName := cfg.Site.Label + "-app"
 		svcs := []struct {
@@ -240,8 +241,9 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 			regions := activeRegions(svc.regions, skipRegions)
 			for _, region := range regions {
 				svcName, region := svc.name, region
+				fullSvcName := fmt.Sprintf("%s-%s", svcName, regionLabel(region))
 				throttled(func() {
-					rc := checkECSService(profile, clusterName, svcName, region)
+					rc := checkECSService(profile, clusterName, fullSvcName, region)
 					addResult(ResourceResult{
 						Panel:   "ecs_services",
 						Name:    svcName,
@@ -253,6 +255,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// ECS Task Definitions
+	// Actual family names in AWS are: {name}-{regionLabel}-{siteLabel} (e.g. run-auth-use1-dc34)
 	if check("ecs_tasks") {
 		taskDefs := []struct {
 			name    string
@@ -268,8 +271,9 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 			regions := activeRegions(td.regions, skipRegions)
 			for _, region := range regions {
 				name, region := td.name, region
+				fullName := fmt.Sprintf("%s-%s-%s", name, regionLabel(region), cfg.Site.Label)
 				throttled(func() {
-					rc := checkECSTaskDef(profile, name, region)
+					rc := checkECSTaskDef(profile, fullName, region)
 					addResult(ResourceResult{
 						Panel:   "ecs_tasks",
 						Name:    name,
@@ -303,25 +307,30 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// ECR repositories — check in each region where services deploy
+	// Actual repo names in AWS are: {site.label}-{repo_name} (e.g. dc34-run-auth-app)
 	if check("ecr") {
 		ecrRepos := []struct {
 			name    string
 			regions []string
 		}{
-			{"run-auth", cfg.Services.Auth.Task.Regions},
-			{"run-human", cfg.Services.Human.Task.Regions},
-			{"run-cms", unique(cfg.Services.CMS.MasterTask.Regions, cfg.Services.CMS.WorkerTask.Regions)},
-			{"run-gpx", cfg.Services.GPX.Task.Regions},
+			{"run-auth-app", cfg.Services.Auth.Task.Regions},
+			{"run-auth-nginx", cfg.Services.Auth.Task.Regions},
+			{"run-human-app", cfg.Services.Human.Task.Regions},
+			{"run-human-nginx", cfg.Services.Human.Task.Regions},
+			{"run-cms-app", unique(cfg.Services.CMS.MasterTask.Regions, cfg.Services.CMS.WorkerTask.Regions)},
+			{"run-cms-nginx", unique(cfg.Services.CMS.MasterTask.Regions, cfg.Services.CMS.WorkerTask.Regions)},
+			{"run-gpx-app", cfg.Services.GPX.Task.Regions},
 		}
 		for _, repo := range ecrRepos {
 			regions := activeRegions(repo.regions, skipRegions)
 			for _, region := range regions {
 				name, region := repo.name, region
+				fullName := fmt.Sprintf("%s-%s", cfg.Site.Label, name)
 				throttled(func() {
-					rc := checkECRRepo(profile, name, region)
+					rc := checkECRRepo(profile, fullName, region)
 					addResult(ResourceResult{
 						Panel:   "ecr",
-						Name:    name,
+						Name:    fullName,
 						Regions: []RegionCheck{rc},
 					})
 				})

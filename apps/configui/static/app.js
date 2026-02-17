@@ -2017,7 +2017,7 @@ function doCleanupSession(id) {
 
 // --- Terraform summary formatting ---
 
-function formatSummaryHtml(summary, exitCode) {
+function formatSummaryHtml(summary, exitCode, command) {
   var icon = exitCode === 0
     ? '<span class="text-green-400">&#10003;</span>'
     : '<span class="text-red-400">&#10007;</span>';
@@ -2026,14 +2026,16 @@ function formatSummaryHtml(summary, exitCode) {
     if (exitCode === 0) return '<span class="text-green-400">&#10003; Done</span>';
     return '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
   }
+  var isApply = command && command.indexOf('apply') !== -1;
+  var prefix = isApply ? 'Applied ' : 'Planned ';
   if (summary.no_change) {
     return icon + ' <span class="text-zinc-400">No changes — infrastructure matches configuration</span>';
   }
   var parts = [];
-  parts.push('<span class="' + (summary.add > 0 ? 'text-green-400' : 'text-zinc-500') + '">' + summary.add + ' to add</span>');
-  parts.push('<span class="' + (summary.change > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">' + summary.change + ' to change</span>');
-  parts.push('<span class="' + (summary.destroy > 0 ? 'text-red-400' : 'text-zinc-500') + '">' + summary.destroy + ' to destroy</span>');
-  return icon + ' ' + parts.join(', ');
+  parts.push('<span class="' + (summary.add > 0 ? 'text-green-400' : 'text-zinc-500') + '">+' + summary.add + '</span>');
+  parts.push('<span class="' + (summary.change > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">~' + summary.change + '</span>');
+  parts.push('<span class="' + (summary.destroy > 0 ? 'text-red-400' : 'text-zinc-500') + '">-' + summary.destroy + '</span>');
+  return icon + ' ' + prefix + parts.join(', ');
 }
 
 function formatPillSummary(summary) {
@@ -2277,7 +2279,7 @@ function showTerminalModal(session) {
     statusEl.className = 'term-status text-[11px] font-mono ' +
       (exitCode === 0 ? 'text-green-400' : 'text-red-400');
     // Show exit code and close button in footer
-    footerStatus.innerHTML = formatSummaryHtml(sessionState.summary, exitCode);
+    footerStatus.innerHTML = formatSummaryHtml(sessionState.summary, exitCode, sessionState.command);
     closeBtn.classList.remove('hidden');
     // Make Close button pop when done
     closeBtn.className = 'term-close-btn rounded-md px-4 py-1.5 text-sm font-mono font-bold ' +
@@ -2527,7 +2529,7 @@ function showHistoryModal(entry) {
       '<pre class="terminal-output flex-1">' + escapeHtml(entry.output) + '</pre>' +
       '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<span class="text-xs font-mono text-zinc-400">' +
-          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1) +
+          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command) +
           ' &mdash; ' + formatTimeAgo(entry.timestamp) +
         '</span>' +
         '<button class="history-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
