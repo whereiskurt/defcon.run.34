@@ -1430,31 +1430,47 @@ function updateDiscoveryDots() {
 
     // Count resources per region for summary
     var html = '';
-    var regionOrder = ['use1', 'cac1', 'apse1', 'global'];
-    var sortedRegions = Object.keys(byRegion).sort(function(a, b) {
-      var ai = regionOrder.indexOf(a); if (ai < 0) ai = 99;
-      var bi = regionOrder.indexOf(b); if (bi < 0) bi = 99;
-      return ai - bi;
-    });
+    var regionalLabels = ['use1', 'cac1', 'apse1'];
+    var regionOrder = regionalLabels.concat(['global']);
 
-    sortedRegions.forEach(function(region) {
+    // Determine if this panel is global-only or regional
+    var hasGlobal = !!byRegion['global'];
+    var hasRegional = regionalLabels.some(function(r) { return !!byRegion[r]; });
+
+    // Always show all regional labels (greyed out if no result), or just global
+    var displayRegions;
+    if (hasGlobal && !hasRegional) {
+      displayRegions = ['global'];
+    } else {
+      displayRegions = regionalLabels.slice();
+      if (hasGlobal) displayRegions.push('global');
+    }
+
+    displayRegions.forEach(function(region) {
       var info = byRegion[region];
-      // Count found vs total
-      var total = info.resources.length;
-      var foundCount = 0;
-      entries.forEach(function(e) { if (e.region === region && e.exists) foundCount++; });
-      var allFound = foundCount === total;
-      var noneFound = foundCount === 0;
 
       var cls = 'discovery-dot';
-      if (allFound) cls += ' found';
-      else if (noneFound) cls += ' missing';
-      else cls += ' partial';
-
       var tooltip = region;
-      if (info.details.length > 0) tooltip += '\n' + info.details.join('\n');
-      if (info.errors.length > 0) tooltip += '\n' + info.errors.join('\n');
-      if (total > 1) tooltip += '\n(' + foundCount + '/' + total + ' found)';
+
+      if (!info) {
+        // Region not checked — show as unchecked grey
+        cls += ' unchecked';
+        tooltip += '\nnot checked';
+      } else {
+        var total = info.resources.length;
+        var foundCount = 0;
+        entries.forEach(function(e) { if (e.region === region && e.exists) foundCount++; });
+        var allFound = foundCount === total;
+        var noneFound = foundCount === 0;
+
+        if (allFound) cls += ' found';
+        else if (noneFound) cls += ' missing';
+        else cls += ' partial';
+
+        if (info.details.length > 0) tooltip += '\n' + info.details.join('\n');
+        if (info.errors.length > 0) tooltip += '\n' + info.errors.join('\n');
+        if (total > 1) tooltip += '\n(' + foundCount + '/' + total + ' found)';
+      }
 
       html += '<div class="flex items-center gap-0.5" title="' + tooltip.replace(/"/g, '&quot;') + '">';
       html += '<span class="' + cls + '"></span>';
