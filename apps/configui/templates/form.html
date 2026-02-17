@@ -7,7 +7,7 @@
 <div id="form-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
   <!-- Section Divider: Core Configuration -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 pl-4 section-divider flex items-center gap-2" data-section="core">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 section-divider flex items-center gap-2" data-section="core">
     <button type="button" onclick="toggleSection('core')" class="global-fold-btn" id="section-chevron-core" title="Expand/Collapse">+</button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('core')">Core Configuration</h2>
     <button type="button" onclick="toggleSectionRollup('core')" class="section-chevron open ml-auto" id="section-roll-core" title="Show/Hide section">
@@ -25,7 +25,7 @@
   </div>
 
   <!-- Section Divider: Infrastructure Modules -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 pl-4 section-divider" data-section="infra">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider" data-section="infra">
     <div class="flex items-center gap-2">
       <button type="button" onclick="toggleSection('infra')" class="global-fold-btn" id="section-chevron-infra" title="Expand/Collapse">+</button>
       <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('infra')">Infrastructure Modules</h2>
@@ -37,7 +37,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
       </button>
     </div>
-    <div class="term-actions flex flex-wrap items-center gap-2 mt-2" id="infra-all-actions">
+    <div class="term-actions flex flex-wrap items-center justify-end gap-2 mt-2" id="infra-all-actions">
       <button type="button" id="requery-aws-btn"
               class="rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-medium term-btn-refresh"
               style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap;"
@@ -74,7 +74,7 @@
   </div>
 
   <!-- Section Divider: Services -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 pl-4 section-divider flex items-center gap-2" data-section="svc">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-2" data-section="svc">
     <button type="button" onclick="toggleSection('svc')" class="global-fold-btn" id="section-chevron-svc" title="Expand/Collapse">+</button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('svc')">Services</h2>
     <button type="button" onclick="toggleSectionRollup('svc')" class="section-chevron ml-auto" id="section-roll-svc" title="Show/Hide section">
