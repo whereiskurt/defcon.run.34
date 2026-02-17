@@ -15,7 +15,7 @@
     </button>
   </div>
 
-  <div id="core-modules" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 items-start">
+  <div id="core-modules" class="module-masonry md:col-span-2">
     {{template "env_general.html" .}}
     {{template "site.html" .}}
     {{template "aws_config.html" .}}
@@ -25,14 +25,19 @@
   </div>
 
   <!-- Section Divider: Infrastructure Modules -->
-  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 pl-4 section-divider flex flex-wrap items-center gap-2" data-section="infra">
-    <button type="button" onclick="toggleSection('infra')" class="global-fold-btn" id="section-chevron-infra" title="Expand/Collapse">+</button>
-    <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('infra')">Infrastructure Modules</h2>
-    <label class="flex items-center gap-1 cursor-pointer ml-1" title="Enable/Disable all modules">
-      <input type="checkbox" class="section-toggle" id="section-toggle-infra" onclick="toggleAllModules('infra', this)">
-      <span class="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500 select-none" id="section-toggle-label-infra">all</span>
-    </label>
-    <div class="term-actions flex items-center gap-2 ml-auto" id="infra-all-actions">
+  <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 pl-4 section-divider" data-section="infra">
+    <div class="flex items-center gap-2">
+      <button type="button" onclick="toggleSection('infra')" class="global-fold-btn" id="section-chevron-infra" title="Expand/Collapse">+</button>
+      <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('infra')">Infrastructure Modules</h2>
+      <label class="flex items-center gap-1 cursor-pointer ml-1" title="Enable/Disable all modules">
+        <input type="checkbox" class="section-toggle" id="section-toggle-infra" onclick="toggleAllModules('infra', this)">
+        <span class="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500 select-none" id="section-toggle-label-infra">all</span>
+      </label>
+      <button type="button" onclick="toggleSectionRollup('infra')" class="section-chevron shrink-0 ml-auto" id="section-roll-infra" title="Show/Hide section">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+    <div class="term-actions flex flex-wrap items-center gap-2 mt-2" id="infra-all-actions">
       <button type="button" id="requery-aws-btn"
               class="rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-medium term-btn-refresh"
               style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; white-space: nowrap;"
@@ -49,12 +54,9 @@
         <span>Fix Locks</span>
       </button>
     </div>
-    <button type="button" onclick="toggleSectionRollup('infra')" class="section-chevron shrink-0" id="section-roll-infra" title="Show/Hide section">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-    </button>
   </div>
 
-  <div id="infra-modules" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 items-start" style="display:none">
+  <div id="infra-modules" class="module-masonry md:col-span-2" style="display:none">
     {{template "github_oidc.html" .}}
     {{template "cloudtrail.html" .}}
     {{template "cloudfront.html" .}}
@@ -80,7 +82,7 @@
     </button>
   </div>
 
-  <div id="svc-modules" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2 items-start" style="display:none">
+  <div id="svc-modules" class="module-masonry md:col-span-2" style="display:none">
     {{template "svc_auth.html" .}}
     {{template "svc_human.html" .}}
     {{template "svc_cms.html" .}}

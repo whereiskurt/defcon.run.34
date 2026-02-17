@@ -173,11 +173,7 @@ function showPreview() {
     });
     ['infra-modules', 'core-modules', 'svc-modules'].forEach(function(id) {
       var el = document.getElementById(id);
-      if (el) {
-        el.classList.remove('md:grid-cols-2');
-        el.classList.add('grid-cols-1');
-        el.classList.remove('md:col-span-2');
-      }
+      if (el) el.classList.remove('md:col-span-2');
     });
   }
   updatePreviewToggle(true);
@@ -201,11 +197,7 @@ function hidePreview() {
     });
     ['infra-modules', 'core-modules', 'svc-modules'].forEach(function(id) {
       var el = document.getElementById(id);
-      if (el) {
-        el.classList.add('md:grid-cols-2');
-        el.classList.remove('grid-cols-1');
-        el.classList.add('md:col-span-2');
-      }
+      if (el) el.classList.add('md:col-span-2');
     });
   }
   updatePreviewToggle(false);
@@ -2668,6 +2660,26 @@ function initDirtyTracking() {
   form.addEventListener('change', markFormDirty);
 }
 
+// Split module-masonry containers into two fixed columns
+function initMasonry() {
+  document.querySelectorAll('.module-masonry').forEach(function(container) {
+    if (container.querySelector('.masonry-col')) return;
+    var children = Array.from(container.children);
+    if (children.length < 2) return;
+    var left = document.createElement('div');
+    left.className = 'masonry-col';
+    var right = document.createElement('div');
+    right.className = 'masonry-col';
+    var half = Math.ceil(children.length / 2);
+    children.forEach(function(child, i) {
+      if (i < half) left.appendChild(child);
+      else right.appendChild(child);
+    });
+    container.appendChild(left);
+    container.appendChild(right);
+  });
+}
+
 // Initialize on load
 initTheme();
 initHeaderSync();
@@ -2681,4 +2693,5 @@ updateTerminalButtonsVisibility();
 recoverTerminalSessions();
 updateHistoryBadge();
 initModuleSortable();
+initMasonry();
 initDirtyTracking();
