@@ -206,17 +206,18 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	// --- Regional services ---
 
 	// ECS Clusters
+	// Actual cluster names in AWS are: {name}-{regionLabel}-{siteLabel} (e.g. app-use1-dc34)
 	if check("ecs_clusters") && len(cfg.ECSClusters.Clusters) > 0 {
 		cluster := cfg.ECSClusters.Clusters[0]
-		clusterName := fmt.Sprintf("%s-%s", cfg.Site.Label, cluster.Name)
 		regions := activeRegions(cluster.Regions, skipRegions)
 		for _, region := range regions {
 			region := region
+			fullName := fmt.Sprintf("%s-%s-%s", cluster.Name, regionLabel(region), cfg.Site.Label)
 			throttled(func() {
-				rc := checkECSCluster(profile, clusterName, region)
+				rc := checkECSCluster(profile, fullName, region)
 				addResult(ResourceResult{
 					Panel:   "ecs_clusters",
-					Name:    clusterName,
+					Name:    cluster.Name,
 					Regions: []RegionCheck{rc},
 				})
 			})
@@ -225,8 +226,12 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 
 	// ECS Services — check each service in each region
 	// Actual service names in AWS are: {name}-{regionLabel} (e.g. run-auth-use1)
+	// Cluster name is: {clusterName}-{regionLabel}-{siteLabel} (e.g. app-use1-dc34)
 	if check("ecs_services") {
-		clusterName := cfg.Site.Label + "-app"
+		clusterBaseName := "app"
+		if len(cfg.ECSClusters.Clusters) > 0 {
+			clusterBaseName = cfg.ECSClusters.Clusters[0].Name
+		}
 		svcs := []struct {
 			name    string
 			regions []string
@@ -242,6 +247,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 			for _, region := range regions {
 				svcName, region := svc.name, region
 				fullSvcName := fmt.Sprintf("%s-%s", svcName, regionLabel(region))
+				clusterName := fmt.Sprintf("%s-%s-%s", clusterBaseName, regionLabel(region), cfg.Site.Label)
 				throttled(func() {
 					rc := checkECSService(profile, clusterName, fullSvcName, region)
 					addResult(ResourceResult{
