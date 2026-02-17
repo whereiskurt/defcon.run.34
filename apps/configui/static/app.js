@@ -1206,6 +1206,15 @@ function isSectionExpanded(section) {
 function toggleSection(section) {
   var ids = getSectionPanels(section);
   var expanding = !isSectionExpanded(section);
+  // If expanding and the section is rolled up (hidden), unhide it first
+  if (expanding) {
+    var container = document.getElementById(section + '-modules');
+    if (container && container.style.display === 'none') {
+      container.style.display = '';
+      var btn = document.getElementById('section-roll-' + section);
+      if (btn) btn.classList.add('open');
+    }
+  }
   ids.forEach(function(id) {
     var body = document.getElementById('body-' + id);
     var ch = document.getElementById('chevron-' + id);
