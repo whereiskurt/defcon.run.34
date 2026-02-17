@@ -382,7 +382,7 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		}
 	}
 
-	// Secrets (SSM)
+	// Secrets (SSM Parameter Store or Secrets Manager)
 	if check("secrets") {
 		secretsRegions := []string{cfg.Secrets.PrimaryRegion}
 		for _, rr := range cfg.Secrets.ReplicaRegions {
@@ -391,17 +391,34 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 			}
 		}
 		secretsRegions = activeRegions(secretsRegions, skipRegions)
-		for _, region := range secretsRegions {
-			region := region
-			throttled(func() {
-				path := fmt.Sprintf("/%s/secrets/%s", cfg.Site.Label, regionLabel(region))
-				rc := checkSSMPath(profile, path, region)
-				addResult(ResourceResult{
-					Panel:   "secrets",
-					Name:    path,
-					Regions: []RegionCheck{rc},
+		if cfg.Secrets.UseSecretsManager {
+			// Secrets Manager mode: check for secrets at /{site}/secrets/{name}
+			smPrefix := fmt.Sprintf("/%s/secrets", cfg.Site.Label)
+			for _, region := range secretsRegions {
+				region := region
+				throttled(func() {
+					rc := checkSecretsManager(profile, smPrefix, region)
+					addResult(ResourceResult{
+						Panel:   "secrets",
+						Name:    smPrefix,
+						Regions: []RegionCheck{rc},
+					})
 				})
-			})
+			}
+		} else {
+			// SSM Parameter Store mode: check for params at /{site}/secrets/{region}/
+			for _, region := range secretsRegions {
+				region := region
+				throttled(func() {
+					path := fmt.Sprintf("/%s/secrets/%s", cfg.Site.Label, regionLabel(region))
+					rc := checkSSMPath(profile, path, region)
+					addResult(ResourceResult{
+						Panel:   "secrets",
+						Name:    path,
+						Regions: []RegionCheck{rc},
+					})
+				})
+			}
 		}
 	}
 
@@ -720,6 +737,7 @@ func checkSSMPath(profile, path, region string) RegionCheck {
 	rc := RegionCheck{Region: region, Label: regionLabel(region)}
 	out, err := exec.Command("aws", "ssm", "get-parameters-by-path",
 		"--path", path,
+		"--recursive",
 		"--max-results", "1",
 		"--profile", profile,
 		"--region", region,
@@ -734,6 +752,30 @@ func checkSSMPath(profile, path, region string) RegionCheck {
 	if json.Unmarshal(out, &resp) == nil && len(resp.Parameters) > 0 {
 		rc.Exists = true
 		rc.Detail = "parameters exist"
+	} else {
+		rc.Error = "empty"
+	}
+	return rc
+}
+
+func checkSecretsManager(profile, prefix, region string) RegionCheck {
+	rc := RegionCheck{Region: region, Label: regionLabel(region)}
+	out, err := exec.Command("aws", "secretsmanager", "list-secrets",
+		"--filters", "Key=name,Values="+prefix,
+		"--max-results", "1",
+		"--profile", profile,
+		"--region", region,
+		"--output", "json").Output()
+	if err != nil {
+		rc.Error = "check failed"
+		return rc
+	}
+	var resp struct {
+		SecretList []interface{} `json:"SecretList"`
+	}
+	if json.Unmarshal(out, &resp) == nil && len(resp.SecretList) > 0 {
+		rc.Exists = true
+		rc.Detail = "secrets exist"
 	} else {
 		rc.Error = "empty"
 	}
