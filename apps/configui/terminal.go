@@ -65,11 +65,12 @@ type TermSession struct {
 	ExitCode int                `json:"exit_code"`
 	Summary  *TerraformSummary  `json:"summary,omitempty"`
 
-	mu      sync.Mutex
-	lines   []string
-	cmd     *exec.Cmd
-	clients map[chan string]struct{}
-	doneAt  time.Time // when the process finished (for cleanup)
+	mu       sync.Mutex
+	lines    []string
+	cmd      *exec.Cmd
+	clients  map[chan string]struct{}
+	startAt  time.Time // when the process started
+	doneAt   time.Time // when the process finished (for cleanup)
 }
 
 // ModuleDef maps a panel ID to a terragrunt module path.
@@ -296,6 +297,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		CmdLine: strings.Join(cmdArgs, " "),
 		WorkDir: workDir,
 		Status:  "running",
+		startAt: time.Now(),
 		clients: make(map[chan string]struct{}),
 	}
 
@@ -462,10 +464,17 @@ func (a *App) handleTerminalStream(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-ticker.C:
+			// Send elapsed-time tick so the client knows the process is alive
+			elapsed := int(time.Since(session.startAt).Seconds())
+			fmt.Fprintf(w, "event: tick\ndata: %d\n\n", elapsed)
+			flusher.Flush()
 		case line, ok := <-ch:
 			if !ok {
 				// Channel closed

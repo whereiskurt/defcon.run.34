@@ -2105,10 +2105,17 @@ function showTerminalModal(session) {
 
   var _lineBuf = [];
   var _flushPending = false;
+  var _hasOutput = false;
 
   function flushLines() {
     _flushPending = false;
     if (_lineBuf.length === 0) return;
+    // Remove waiting placeholder on first real output
+    if (!_hasOutput) {
+      _hasOutput = true;
+      var placeholder = output.querySelector('.term-waiting');
+      if (placeholder) placeholder.remove();
+    }
     output.textContent += _lineBuf.join('\n') + '\n';
     _lineBuf.length = 0;
     output.scrollTop = output.scrollHeight;
@@ -2121,6 +2128,24 @@ function showTerminalModal(session) {
       requestAnimationFrame(flushLines);
     }
   };
+
+  es.addEventListener('tick', function(e) {
+    var secs = parseInt(e.data, 10);
+    if (sessionState.processRunning) {
+      var m = Math.floor(secs / 60);
+      var s = secs % 60;
+      var elapsed = m > 0 ? m + 'm ' + s + 's' : s + 's';
+      statusEl.textContent = 'Running... ' + elapsed;
+      // Show waiting placeholder if no output after 3 seconds
+      if (!_hasOutput && secs >= 3 && !output.querySelector('.term-waiting')) {
+        var el = document.createElement('div');
+        el.className = 'term-waiting';
+        el.style.cssText = 'color:#a1a1aa;font-style:italic;padding:8px 0;';
+        el.textContent = 'Waiting for terraform output...';
+        output.appendChild(el);
+      }
+    }
+  });
 
   es.addEventListener('summary', function(e) {
     try { sessionState.summary = JSON.parse(e.data); } catch(err) {}
