@@ -398,6 +398,69 @@ function highlightLine(raw) {
   return html;
 }
 
+// --- Diff (LCS) ---
+// Compare old (on-disk) vs new (generated) lines. Returns {lines: string[]}
+// where lines[i] is 'equal', 'add', or 'mod' for each newLine.
+function computeDiff(oldLines, newLines) {
+  var m = oldLines.length, n = newLines.length;
+  if (m === 0) {
+    var r = [];
+    for (var i = 0; i < n; i++) r[i] = 'add';
+    return {lines: r};
+  }
+  if (n === 0) return {lines: []};
+
+  // Build LCS table
+  var dp = [];
+  for (var i = 0; i <= m; i++) {
+    dp[i] = new Array(n + 1);
+    for (var j = 0; j <= n; j++) {
+      if (i === 0 || j === 0) dp[i][j] = 0;
+      else if (oldLines[i - 1] === newLines[j - 1]) dp[i][j] = dp[i - 1][j - 1] + 1;
+      else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+
+  // Backtrack to ordered edit operations
+  var ops = [];
+  var i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && oldLines[i - 1] === newLines[j - 1]) {
+      ops.push({type: 'eq', ni: j - 1});
+      i--; j--;
+    } else if (i > 0 && (j === 0 || dp[i - 1][j] >= dp[i][j - 1])) {
+      ops.push({type: 'del'});
+      i--;
+    } else {
+      ops.push({type: 'ins', ni: j - 1});
+      j--;
+    }
+  }
+  ops.reverse();
+
+  // Merge adjacent del+ins pairs into 'mod'
+  var result = new Array(n);
+  for (var k = 0; k < n; k++) result[k] = 'equal';
+  var o = 0;
+  while (o < ops.length) {
+    if (ops[o].type === 'eq') {
+      result[ops[o].ni] = 'equal';
+      o++;
+    } else {
+      var dels = [], ins = [];
+      while (o < ops.length && ops[o].type !== 'eq') {
+        if (ops[o].type === 'del') dels.push(ops[o]);
+        else ins.push(ops[o]);
+        o++;
+      }
+      var paired = Math.min(dels.length, ins.length);
+      for (var p = 0; p < paired; p++) result[ins[p].ni] = 'mod';
+      for (var p = paired; p < ins.length; p++) result[ins[p].ni] = 'add';
+    }
+  }
+  return {lines: result};
+}
+
 // --- Folding ---
 function isFoldOpener(trimmed) {
   return (trimmed.endsWith('{') || trimmed.endsWith('[')) && trimmed.length > 1;
@@ -425,13 +488,15 @@ function findMatchingClose(lines, start, openChar, closeChar) {
 }
 
 // Recursively process lines into folded + highlighted HTML
-function processLines(lines, from, to) {
+// diffMap: optional array where diffMap[i] is 'equal'|'add'|'mod' per line
+function processLines(lines, from, to, diffMap) {
   var html = '';
   var i = from;
 
   while (i < to) {
     var line = lines[i];
     var trimmed = line.trimEnd();
+    var dt = diffMap ? diffMap[i] : null;
 
     if (isFoldOpener(trimmed)) {
       var openChar = trimmed[trimmed.length - 1];
@@ -440,20 +505,25 @@ function processLines(lines, from, to) {
       if (end > to) end = to; // safety
       var innerCount = end - i - 1;
       var id = 'fold-' + (_foldUid++);
+      var dc = (dt && dt !== 'equal') ? ' diff-' + dt : '';
 
       // Fold header line
-      html += '<span class="fold-line" data-fold="' + id + '" data-count="' + innerCount + '">';
+      html += '<span class="fold-line' + dc + '" data-fold="' + id + '" data-count="' + innerCount + '">';
       html += '<span class="fold-icon" onclick="toggleFold(\'' + id + '\')">▾</span>';
       html += highlightLine(line);
       html += '</span>\n';
 
       // Inner content — recurse for nested folds
       html += '<span id="' + id + '" class="fold-content">';
-      html += processLines(lines, i + 1, end);
+      html += processLines(lines, i + 1, end, diffMap);
       html += '</span>';
       i = end;
     } else {
-      html += highlightLine(line) + '\n';
+      var lh = highlightLine(line);
+      if (dt && dt !== 'equal') {
+        lh = '<span class="diff-' + dt + '">' + lh + '</span>';
+      }
+      html += lh + '\n';
       i++;
     }
   }
@@ -466,7 +536,23 @@ function addCodeFolding(pre) {
   pre.dataset.raw = raw;
 
   var lines = raw.split('\n');
-  pre.innerHTML = processLines(lines, 0, lines.length);
+
+  // Compute diff if original on-disk content is available
+  var diffMap = null;
+  if (pre.dataset.original !== undefined) {
+    var orig = pre.dataset.original;
+    if (orig !== raw) {
+      if (orig === '') {
+        // New file (doesn't exist on disk yet) — all lines are additions
+        diffMap = [];
+        for (var k = 0; k < lines.length; k++) diffMap[k] = 'add';
+      } else {
+        diffMap = computeDiff(orig.split('\n'), lines).lines;
+      }
+    }
+  }
+
+  pre.innerHTML = processLines(lines, 0, lines.length, diffMap);
 }
 
 // --- Fold toggle ---
@@ -1088,6 +1174,16 @@ function showToast(message, duration) {
 
 // Section-level expand/collapse — operates on panels within a data-section group
 function getSectionPanels(section) {
+  // Look inside the section's module container first
+  var container = document.getElementById(section + '-modules');
+  if (container) {
+    var panels = [];
+    container.querySelectorAll('[data-panel]').forEach(function(el) {
+      panels.push(el.getAttribute('data-panel'));
+    });
+    return panels;
+  }
+  // Fallback: walk siblings from the section divider
   var grid = document.getElementById('form-grid');
   if (!grid) return [];
   var divider = grid.querySelector('[data-section="' + section + '"]');
@@ -1123,6 +1219,20 @@ function toggleSection(section) {
     if (ch) { if (expanding) ch.classList.add('open'); else ch.classList.remove('open'); }
   });
   updateAllFoldButtons();
+}
+
+// Roll up/down entire section — hides the modules container
+function toggleSectionRollup(section) {
+  var container = document.getElementById(section + '-modules');
+  if (!container) return;
+  var btn = document.getElementById('section-roll-' + section);
+  if (container.style.display === 'none') {
+    container.style.display = '';
+    if (btn) btn.classList.add('open');
+  } else {
+    container.style.display = 'none';
+    if (btn) btn.classList.remove('open');
+  }
 }
 
 // Collect module panels (with toggle-switch checkboxes) in a section
@@ -1989,21 +2099,19 @@ function showTerminalModal(session) {
               '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>' +
             '</button>' +
           '</div>' +
-          '<span class="text-[11px] text-zinc-500 font-mono" style="padding-left:1.1rem;">' + (session.work_dir || '') + '</span>' +
+          '<div class="flex items-center gap-2" style="padding-left:1.1rem;">' +
+            '<span class="text-[11px] text-zinc-500 font-mono">' + (session.work_dir || '') + '</span>' +
+            '<span class="term-status text-[11px] font-mono text-yellow-400">Running...</span>' +
+          '</div>' +
         '</div>' +
-        '<div class="flex items-center gap-1">' +
+        '<div class="flex items-center gap-2">' +
+          '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-4 py-1.5 text-sm font-mono">Stop</button>' +
+          '<button class="term-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
           '<button class="term-minimize-btn text-zinc-500 hover:text-zinc-200 text-sm px-2 font-mono" title="Minimize">_</button>' +
           '<button class="term-close-x text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
       '<pre class="terminal-output flex-1"></pre>' +
-      '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
-        '<span class="term-status text-xs font-mono text-zinc-400">Running...</span>' +
-        '<div class="flex gap-2">' +
-          '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-3 py-1 text-xs font-mono">Stop</button>' +
-          '<button class="term-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
-        '</div>' +
-      '</div>' +
     '</div>';
   document.body.appendChild(overlay);
 
@@ -2167,6 +2275,11 @@ function showTerminalModal(session) {
     }
     stopBtn.style.display = 'none';
     statusEl.innerHTML = formatSummaryHtml(sessionState.summary, exitCode);
+    // Make Close button pop when done
+    closeBtn.className = 'term-close-btn rounded-md px-4 py-1.5 text-sm font-mono font-bold ' +
+      (exitCode === 0
+        ? 'bg-green-500 hover:bg-green-400 text-black'
+        : 'bg-red-500 hover:bg-red-400 text-white');
     updatePillBar();
 
     // Detect state lock errors and show helpful banner
@@ -2222,17 +2335,9 @@ function recoverTerminalSessions() {
       if (!sessions || sessions.length === 0) return;
       sessions.forEach(function(s) {
         if (_termSessions[s.id]) return; // already tracked
-        // Only recover running sessions or recently completed ones
+        // Only recover sessions that are still running
+        if (s.status !== 'running') return;
         showTerminalModal(s);
-        // If not running, mark as done
-        if (s.status !== 'running') {
-          var state = _termSessions[s.id];
-          if (state) {
-            state.processRunning = false;
-            state.exitCode = s.exit_code;
-            // Close the EventSource since process is done (SSE will send done event)
-          }
-        }
         // Start minimized
         minimizeSession(s.id);
       });
@@ -2255,6 +2360,18 @@ document.addEventListener('htmx:afterSettle', function(e) {
 
 var _termHistory = [];
 var HISTORY_MAX = 20;
+
+// Load history from localStorage on init
+(function() {
+  try {
+    var saved = localStorage.getItem('configui-term-history');
+    if (saved) _termHistory = JSON.parse(saved);
+  } catch(e) {}
+})();
+
+function persistHistory() {
+  try { localStorage.setItem('configui-term-history', JSON.stringify(_termHistory)); } catch(e) {}
+}
 
 function saveToHistory(id) {
   var s = _termSessions[id];
@@ -2292,6 +2409,7 @@ function saveToHistory(id) {
   // Cap at max
   if (_termHistory.length > HISTORY_MAX) _termHistory.length = HISTORY_MAX;
 
+  persistHistory();
   updateHistoryBadge();
 }
 
@@ -2378,6 +2496,7 @@ function renderHistoryMenu() {
   footer.textContent = 'Clear History';
   footer.onclick = function() {
     _termHistory = [];
+    persistHistory();
     updateHistoryBadge();
     menu.classList.add('hidden');
   };

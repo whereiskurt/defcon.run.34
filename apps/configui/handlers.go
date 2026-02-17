@@ -181,19 +181,34 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	envLocal := a.parseEnvLocalForm(r)
 
 	type previewTab struct {
-		ID    string
-		Label string
-		Body  string
+		ID       string
+		Label    string
+		Body     string
+		Original string
 	}
 
 	var tabs []previewTab
 
 	// site.hcl
 	if out, err := renderSiteHCL(cfg); err == nil {
-		tabs = append(tabs, previewTab{"sitehcl", "site.hcl", out})
+		tabs = append(tabs, previewTab{"sitehcl", "site.hcl", out, ""})
 	} else {
 		http.Error(w, fmt.Sprintf("Failed to generate site.hcl: %v", err), 500)
 		return
+	}
+
+	// env.sh
+	if out, err := renderEnvSh(cfg); err == nil {
+		tabs = append(tabs, previewTab{"envsh", "env.sh", out, ""})
+	} else {
+		log.Printf("Preview: skip env.sh: %v", err)
+	}
+
+	// env.local.sh
+	if out, err := renderEnvLocalSh(envLocal); err == nil {
+		tabs = append(tabs, previewTab{"envlocal", "env.local.sh", out, ""})
+	} else {
+		log.Printf("Preview: skip env.local.sh: %v", err)
 	}
 
 	// Service HCLs
@@ -204,7 +219,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		{"run.gpx", "gpx"},
 	} {
 		if out, err := renderServiceHCL(svc.name, cfg); err == nil {
-			tabs = append(tabs, previewTab{"svc-" + svc.label, svc.name + "/service.hcl", out})
+			tabs = append(tabs, previewTab{"svc-" + svc.label, svc.name + "/service.hcl", out, ""})
 		} else {
 			log.Printf("Preview: skip %s: %v", svc.name, err)
 		}
@@ -216,24 +231,45 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		{"prov-regional", "providers/regional.hcl", "infra/terraform/providers/regional.hcl"},
 	} {
 		if data, err := os.ReadFile(filepath.Join(a.repoRoot, prov.rel)); err == nil {
-			tabs = append(tabs, previewTab{prov.id, prov.label, string(data)})
+			tabs = append(tabs, previewTab{prov.id, prov.label, string(data), ""})
 		} else {
 			log.Printf("Preview: skip %s: %v", prov.label, err)
 		}
 	}
 
-	// env.sh
-	if out, err := renderEnvSh(cfg); err == nil {
-		tabs = append(tabs, previewTab{"envsh", "env.sh", out})
-	} else {
-		log.Printf("Preview: skip env.sh: %v", err)
-	}
+	// Render originals using saved config for diff comparison.
+	// This ensures both sides go through the same template so only
+	// actual form value changes produce diff markers (not comment stripping,
+	// map ordering, or key quoting differences vs on-disk files).
+	a.mu.RLock()
+	savedCfg := a.config
+	savedEnvLocal := a.envLocal
+	a.mu.RUnlock()
 
-	// env.local.sh
-	if out, err := renderEnvLocalSh(envLocal); err == nil {
-		tabs = append(tabs, previewTab{"envlocal", "env.local.sh", out})
-	} else {
-		log.Printf("Preview: skip env.local.sh: %v", err)
+	originals := make(map[string]string)
+	if out, err := renderSiteHCL(savedCfg); err == nil {
+		originals["sitehcl"] = out
+	}
+	if out, err := renderEnvSh(savedCfg); err == nil {
+		originals["envsh"] = out
+	}
+	if out, err := renderEnvLocalSh(savedEnvLocal); err == nil {
+		originals["envlocal"] = out
+	}
+	for _, svc := range []struct{ name, label string }{
+		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"},
+	} {
+		if out, err := renderServiceHCL(svc.name, savedCfg); err == nil {
+			originals["svc-"+svc.label] = out
+		}
+	}
+	for i := range tabs {
+		if orig, ok := originals[tabs[i].ID]; ok {
+			tabs[i].Original = orig
+		} else {
+			// Provider tabs: original equals content (no diff possible)
+			tabs[i].Original = tabs[i].Body
+		}
 	}
 
 	tabActive := `px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400`
@@ -252,8 +288,12 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		if i == 0 {
 			cls = tabActive
 		}
-		fmt.Fprintf(w, `<button type="button" onclick="switchPreviewTab('%s')" id="ptab-%s" class="%s">%s</button>`,
-			t.ID, t.ID, cls, template.HTMLEscapeString(t.Label))
+		svcAttr := ""
+		if strings.HasPrefix(t.ID, "svc-") {
+			svcAttr = fmt.Sprintf(` data-svc="%s"`, strings.TrimPrefix(t.ID, "svc-"))
+		}
+		fmt.Fprintf(w, `<button type="button" onclick="switchPreviewTab('%s')" id="ptab-%s" class="%s"%s>%s</button>`,
+			t.ID, t.ID, cls, svcAttr, template.HTMLEscapeString(t.Label))
 	}
 	fmt.Fprint(w, `</div>`)
 
@@ -263,8 +303,8 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		if i > 0 {
 			hidden = ` class="hidden"`
 		}
-		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="relative"><div class="%s"><button onclick="expandAllFolds('%s')" class="%s">Expand All</button><button onclick="copyPreviewTab('%s')" class="%s">Copy</button></div><pre id="pre-%s" class="%s">%s</pre></div></div>`,
-			t.ID, hidden, btnBar, t.ID, copyBtn, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Body))
+		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="relative"><div class="%s"><button onclick="expandAllFolds('%s')" class="%s">Expand All</button><button onclick="copyPreviewTab('%s')" class="%s">Copy</button></div><pre id="pre-%s" class="%s" data-original="%s">%s</pre></div></div>`,
+			t.ID, hidden, btnBar, t.ID, copyBtn, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Original), template.HTMLEscapeString(t.Body))
 	}
 
 	fmt.Fprint(w, `</div>`)
@@ -889,6 +929,10 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Secrets.Enabled = formBool(r, "secrets.enabled")
 	cfg.Secrets.UseSecretsManager = formBool(r, "secrets.use_secrets_manager")
 	cfg.Secrets.PrimaryRegion = formStr(r, "secrets.primary_region", cfg.Secrets.PrimaryRegion)
+	// Preserve saved definitions (not editable via form)
+	if a.config != nil && a.config.Secrets.Definitions != nil {
+		cfg.Secrets.Definitions = a.config.Secrets.Definitions
+	}
 
 	// CloudTrail
 	cfg.CloudTrail.Enabled = formBool(r, "cloudtrail.enabled")
@@ -908,7 +952,11 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.GitHubOIDC.EC2RunnerProfile.Enabled = formBool(r, "github_oidc.ec2_runner.enabled")
 	cfg.GitHubOIDC.EC2RunnerProfile.Name = formStr(r, "github_oidc.ec2_runner.name", "github-runner")
 
-	// Service configs
+	// Service configs — start from saved values to preserve deep nested
+	// fields not exposed in the form (ReplicaRegions, DynamoDB, Storage, etc.)
+	if a.config != nil {
+		cfg.Services = a.config.Services
+	}
 	parseServiceForm(r, cfg)
 
 	// Versions

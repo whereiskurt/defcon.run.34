@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 )
@@ -44,15 +45,26 @@ var genFuncs = template.FuncMap{
 		return strings.Join(quoted, ", ")
 	},
 	"mapEntries": func(m map[string]string) string {
+		keys := make([]string, 0, len(m))
+		for k := range m {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
 		var parts []string
-		for k, v := range m {
-			parts = append(parts, fmt.Sprintf(`      "%s" = "%s"`, k, v))
+		for _, k := range keys {
+			parts = append(parts, fmt.Sprintf(`      "%s" = "%s"`, k, m[k]))
 		}
 		return strings.Join(parts, "\n")
 	},
 	"secretDefs": func(defs map[string]SecretDefinition) string {
+		names := make([]string, 0, len(defs))
+		for name := range defs {
+			names = append(names, name)
+		}
+		sort.Strings(names)
 		var parts []string
-		for name, def := range defs {
+		for _, name := range names {
+			def := defs[name]
 			keys := make([]string, len(def.Keys))
 			for i, k := range def.Keys {
 				keys[i] = fmt.Sprintf(`"%s"`, k)
@@ -76,6 +88,18 @@ var genFuncs = template.FuncMap{
 			return fmt.Sprintf(`"%s@%s.${local.dns.zonename}"`, parts[0], parts[1])
 		}
 		return fmt.Sprintf(`"%s@${local.dns.zonename}"`, match)
+	},
+	"mapIntEntries": func(m map[string]int) string {
+		keys := make([]string, 0, len(m))
+		for k := range m {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		var parts []string
+		for _, k := range keys {
+			parts = append(parts, fmt.Sprintf("      %s = %d", k, m[k]))
+		}
+		return strings.Join(parts, "\n")
 	},
 	"indent": func(n int, s string) string {
 		prefix := strings.Repeat(" ", n)

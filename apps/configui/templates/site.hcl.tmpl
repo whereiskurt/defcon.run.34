@@ -36,9 +36,7 @@ locals {
 
     # Local development ports (for .env.local files and development defaults)
     local_ports = {
-<<- range $k, $v := .URLs.LocalPorts>>
-      <<$k>> = <<$v>>
-<<- end>>
+<<mapIntEntries .URLs.LocalPorts>>
     }
 
     # Service discovery namespace pattern (used for internal container communication)

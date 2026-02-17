@@ -328,6 +328,26 @@ input:focus, select:focus, textarea:focus {
   color: #22c55e;
 }
 
+/* Diff markers in preview — colored left border per line */
+.diff-add  { border-left: 3px solid #4ade80; background: rgba(74,222,128,0.06); }
+.diff-mod  { border-left: 3px solid #fb923c; background: rgba(251,146,60,0.06); }
+.diff-del  { border-left: 3px solid #f87171; background: rgba(248,113,113,0.06); text-decoration: line-through; opacity: 0.5; }
+
+.dark .diff-add { background: rgba(74,222,128,0.10); }
+.dark .diff-mod { background: rgba(251,146,60,0.10); }
+.dark .diff-del { background: rgba(248,113,113,0.10); }
+
+/* Service tab color hints in preview — matches panel gradient tints */
+#ptab-bar button[data-svc="auth"]  { background: rgba(34,211,238,0.10); border-radius: 4px 4px 0 0; }
+#ptab-bar button[data-svc="human"] { background: rgba(251,146,60,0.10); border-radius: 4px 4px 0 0; }
+#ptab-bar button[data-svc="cms"]   { background: rgba(251,113,133,0.10); border-radius: 4px 4px 0 0; }
+#ptab-bar button[data-svc="gpx"]   { background: rgba(45,212,191,0.10); border-radius: 4px 4px 0 0; }
+
+.dark #ptab-bar button[data-svc="auth"]  { background: rgba(34,211,238,0.15); }
+.dark #ptab-bar button[data-svc="human"] { background: rgba(251,146,60,0.15); }
+.dark #ptab-bar button[data-svc="cms"]   { background: rgba(251,113,133,0.15); }
+.dark #ptab-bar button[data-svc="gpx"]   { background: rgba(45,212,191,0.15); }
+
 /* Discovery dots — per-region resource status */
 .discovery-dot {
   width: 8px;
@@ -745,21 +765,25 @@ body.preview-dragging {
 }
 
 .split-btn-plan {
-  background: #e4e4e7;
-  color: #3f3f46;
+  background: #15803d;
+  color: white;
 }
 
 .dark .split-btn-plan {
-  background: #3f3f46;
-  color: #d4d4d8;
+  background: #15803d;
+  color: white;
 }
 
 .split-btn-plan:hover {
-  background: #d4d4d8;
+  background: #16a34a;
 }
 
 .dark .split-btn-plan:hover {
-  background: #52525b;
+  background: #16a34a;
+}
+
+.split-btn-drop.split-btn-plan {
+  border-left-color: rgba(255,255,255,0.2);
 }
 
 .split-btn-apply {
