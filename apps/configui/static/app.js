@@ -1127,19 +1127,31 @@ function toggleSection(section) {
 
 // Collect module panels (with toggle-switch checkboxes) in a section
 function getSectionModules(section) {
-  var grid = document.getElementById('form-grid');
-  if (!grid) return [];
-  var startDiv = grid.querySelector('[data-section="' + section + '"]');
-  if (!startDiv) return [];
-
-  var panels = [];
-  var sibling = startDiv.nextElementSibling;
-  while (sibling && !sibling.hasAttribute('data-section')) {
-    if (sibling.hasAttribute('data-panel')) {
-      var cb = sibling.querySelector('.toggle-switch');
-      if (cb) panels.push({ card: sibling, checkbox: cb, id: sibling.getAttribute('data-panel') });
+  // Each section has a container: core-modules, infra-modules, svc-modules
+  var container = document.getElementById(section + '-modules');
+  if (!container) {
+    // Fallback: walk siblings from the section divider
+    var grid = document.getElementById('form-grid');
+    if (!grid) return [];
+    var startDiv = grid.querySelector('[data-section="' + section + '"]');
+    if (!startDiv) return [];
+    var panels = [];
+    var sibling = startDiv.nextElementSibling;
+    while (sibling && !sibling.hasAttribute('data-section')) {
+      if (sibling.hasAttribute('data-panel')) {
+        var cb = sibling.querySelector('.toggle-switch');
+        if (cb) panels.push({ card: sibling, checkbox: cb, id: sibling.getAttribute('data-panel') });
+      }
+      sibling = sibling.nextElementSibling;
     }
-    sibling = sibling.nextElementSibling;
+    return panels;
+  }
+
+  var cards = container.querySelectorAll('[data-panel]');
+  var panels = [];
+  for (var i = 0; i < cards.length; i++) {
+    var cb = cards[i].querySelector('.toggle-switch');
+    if (cb) panels.push({ card: cards[i], checkbox: cb, id: cards[i].getAttribute('data-panel') });
   }
   return panels;
 }
@@ -1197,18 +1209,11 @@ function updateSectionToggle(section) {
 // Listen for individual module toggle changes to update section slider
 document.addEventListener('change', function(e) {
   if (e.target.classList.contains('toggle-switch')) {
-    // Find which section this panel belongs to
-    var panel = e.target.closest('[data-panel]');
-    if (!panel) return;
-    var grid = document.getElementById('form-grid');
-    if (!grid) return;
-    var dividers = grid.querySelectorAll('[data-section]');
-    for (var i = dividers.length - 1; i >= 0; i--) {
-      // Check if this panel comes after this divider
-      if (dividers[i].compareDocumentPosition(panel) & Node.DOCUMENT_POSITION_FOLLOWING) {
-        updateSectionToggle(dividers[i].dataset.section);
-        break;
-      }
+    // Find which section container this panel belongs to
+    var container = e.target.closest('#core-modules, #infra-modules, #svc-modules');
+    if (container) {
+      var section = container.id.replace('-modules', '');
+      updateSectionToggle(section);
     }
   }
 });
