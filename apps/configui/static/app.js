@@ -1967,7 +1967,7 @@ function ensurePillBar() {
 function updatePillBar() {
   var bar = document.getElementById('term-pill-bar');
   if (!bar) return;
-  var ids = Object.keys(_termSessions);
+  var ids = Object.keys(_termSessions).reverse();
   if (ids.length === 0) {
     bar.style.display = 'none';
     return;
