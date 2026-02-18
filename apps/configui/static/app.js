@@ -781,12 +781,12 @@ function confirmReload() {
   });
 }
 
-// Re-query AWS confirmation dialog
+// Refresh AWS confirmation dialog
 function confirmRequery() {
   showConfirmDialog({
-    title: 'Re-query AWS?',
+    title: 'Refresh AWS?',
     message: 'This will query all AWS resources across all regions. This may take a few seconds.',
-    confirmLabel: '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg> Re-query',
+    confirmLabel: '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg> Refresh',
     onConfirm: function() {
       var btn = document.getElementById('requery-aws-btn');
       if (btn) {
@@ -1895,14 +1895,14 @@ function injectTerminalButtons() {
     var refreshBtn = document.createElement('button');
     refreshBtn.type = 'button';
     refreshBtn.className = 'term-btn term-btn-refresh ml-auto mr-2';
-    refreshBtn.title = 'Re-query AWS resources';
+    refreshBtn.title = 'Refresh AWS resources';
     refreshBtn.innerHTML = '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg>';
     refreshBtn.onclick = function(e) {
       e.stopPropagation();
       showConfirmDialog({
-        title: 'Re-query ' + panelId.replace(/_/g, '-') + '?',
-        message: 'Are you sure you want to re-query AWS resources?',
-        confirmLabel: 'Re-query',
+        title: 'Refresh ' + panelId.replace(/_/g, '-') + '?',
+        message: 'Are you sure you want to refresh AWS resources?',
+        confirmLabel: 'Refresh',
         onConfirm: function() {
           refreshBtn.classList.add('spinning');
           refreshBtn.style.visibility = 'hidden';

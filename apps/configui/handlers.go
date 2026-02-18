@@ -664,9 +664,9 @@ func (a *App) handleDiscoveryRefresh(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("HX-Trigger", "refreshDiscovery")
 	w.Header().Set("Content-Type", "text/html")
 	if module != "" {
-		fmt.Fprintf(w, `<script>showToast('Re-querying %s...')</script>`, module)
+		fmt.Fprintf(w, `<script>showToast('Refreshing %s...')</script>`, module)
 	} else {
-		fmt.Fprint(w, `<script>showToast('Re-querying all AWS resources...')</script>`)
+		fmt.Fprint(w, `<script>showToast('Refreshing all AWS resources...')</script>`)
 	}
 }
 
