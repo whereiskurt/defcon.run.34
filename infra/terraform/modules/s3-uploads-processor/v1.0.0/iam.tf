@@ -104,7 +104,7 @@ resource "aws_iam_role_policy" "processor_lambda" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       # CloudWatch Logs
       {
         Effect = "Allow"
@@ -115,17 +115,19 @@ resource "aws_iam_role_policy" "processor_lambda" {
         ]
         Resource = "arn:aws:logs:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/*"
       },
-      # DynamoDB Streams - read stream events
-      {
-        Effect = "Allow"
-        Action = [
-          "dynamodb:GetRecords",
-          "dynamodb:GetShardIterator",
-          "dynamodb:DescribeStream",
-          "dynamodb:ListStreams"
-        ]
-        Resource = each.value.dynamodb_stream_arn
-      },
+    ],
+    # DynamoDB Streams - read stream events (only when stream ARN is known)
+    each.value.dynamodb_stream_arn != "" ? [{
+      Effect = "Allow"
+      Action = [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:DescribeStream",
+        "dynamodb:ListStreams"
+      ]
+      Resource = each.value.dynamodb_stream_arn
+    }] : [],
+    [
       # DynamoDB - update upload records
       {
         Effect = "Allow"
@@ -153,6 +155,6 @@ resource "aws_iam_role_policy" "processor_lambda" {
         ]
         Resource = "${each.value.bucket_arn}/processed/*"
       }
-    ]
+    ])
   })
 }

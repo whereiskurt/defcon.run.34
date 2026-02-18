@@ -15,14 +15,15 @@ exclude {
   actions = ["all"]
 }
 
-# Depend on us-east-1 DynamoDB (primary region) for global table replicas
-# Tables must be created in primary region first before replicas can be looked up
-dependency "use1_dynamodb" {
-  config_path  = "../../us-east-1/dynamodb"
-  skip_outputs = true
+# Ensure primary region (us-east-1) completes first so global table replicas exist.
+# Read replica_stream_arns from the primary so we don't need a data source lookup.
+dependency "primary_region_dynamodb" {
+  config_path = "../../us-east-1/dynamodb"
 
   mock_outputs_allowed_terraform_commands = ["validate", "plan"]
-  mock_outputs = {}
+  mock_outputs = {
+    replica_stream_arns = {}
+  }
 }
 
 include "module" {
@@ -38,4 +39,9 @@ terraform {
   source = "${include.module.locals.module_path}/v1.0.0"
 }
 
-inputs = include.module.locals.merged_inputs
+inputs = merge(
+  include.module.locals.merged_inputs,
+  {
+    primary_replica_streams = dependency.primary_region_dynamodb.outputs.replica_stream_arns
+  }
+)

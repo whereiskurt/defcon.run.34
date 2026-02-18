@@ -48,3 +48,15 @@ output "region" {
   description = "The AWS region where the tables are deployed"
   value       = var.region.full
 }
+
+# Replica stream ARNs — only populated in the primary region.
+# Non-primary regions read this output via a cross-region Terragrunt dependency
+# and pass it back as var.primary_replica_streams so they don't need a data source.
+output "replica_stream_arns" {
+  description = "Map of table name → region → stream ARN for global table replicas"
+  value = {
+    for name, table in aws_dynamodb_table.this : name => {
+      for r in table.replica : r.region_name => r.stream_arn
+    }
+  }
+}

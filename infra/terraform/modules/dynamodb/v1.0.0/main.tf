@@ -194,9 +194,9 @@ resource "aws_dynamodb_table" "this" {
 }
 
 # Unified output map for tables
-# Non-primary regions use computed ARNs instead of a data source so that
-# `terragrunt plan --all` succeeds even before the primary region has been
-# applied (the global table replica doesn't exist yet in that case).
+# Primary regions use the aws_dynamodb_table resource attributes directly.
+# Non-primary regions use computed ARNs and replica stream ARNs passed from
+# the primary region via var.primary_replica_streams (no data source needed).
 locals {
   tables_output = {
     for name, config in local.table_configs : name => {
@@ -211,12 +211,11 @@ locals {
         ) : (
         config.table_name
       )
-      # Stream ARN for replicas is only known after the primary region creates
-      # the global table; subsequent plans/applies will pick up the real value
-      # via the SSM parameter once the table exists.
-      stream_arn = config.config.stream_enabled && config.is_primary_region ? (
-        aws_dynamodb_table.this[name].stream_arn
-      ) : ""
+      stream_arn = config.is_primary_region ? (
+        config.config.stream_enabled ? aws_dynamodb_table.this[name].stream_arn : ""
+        ) : (
+        try(var.primary_replica_streams[name][var.region.full], "")
+      )
       is_primary_region = config.is_primary_region
     }
   }

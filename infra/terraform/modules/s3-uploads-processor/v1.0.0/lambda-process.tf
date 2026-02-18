@@ -60,9 +60,11 @@ resource "aws_cloudwatch_log_group" "processor" {
   }
 }
 
-# DynamoDB Stream event source mapping
+# DynamoDB Stream event source mapping (only when stream ARN is known)
 resource "aws_lambda_event_source_mapping" "processor" {
-  for_each = local.processors_map
+  for_each = {
+    for name, p in local.processors_map : name => p if p.dynamodb_stream_arn != ""
+  }
 
   event_source_arn  = each.value.dynamodb_stream_arn
   function_name     = aws_lambda_function.processor[each.key].arn

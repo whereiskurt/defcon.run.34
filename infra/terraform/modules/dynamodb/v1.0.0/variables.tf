@@ -17,6 +17,14 @@ variable "region" {
   })
 }
 
+# Replica stream ARNs passed from the primary region's output.
+# Non-primary regions receive this so they don't need a data source lookup.
+# Structure: { "table-name" = { "ca-central-1" = "arn:...", ... } }
+variable "primary_replica_streams" {
+  type    = map(map(string))
+  default = {}
+}
+
 variable "dynamodb" {
   type = object({
     tables = list(object({
