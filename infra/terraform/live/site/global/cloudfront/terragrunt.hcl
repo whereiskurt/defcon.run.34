@@ -1,6 +1,9 @@
 # Read site config to check if cloudfront is enabled
 locals {
   site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  _zone     = local.site_vars.locals.dns.zonename
+  _subs     = local.site_vars.locals.dns.subdomains
+  _cf_doms  = local.site_vars.locals.cloudfront.domains
 }
 
 # Exclude if cloudfront is disabled (Terragrunt 0.96+)
@@ -185,28 +188,21 @@ dependency "site" {
   config_path = "../.."
 
   mock_outputs = {
-    zone_map = {
-      "example.com" = {
-        zone_id = "Z1234567890ABC"
-        name    = "example.com"
+    zone_map = merge(
+      {
+        (local._zone) = {
+          zone_id = "Z1234567890ABC"
+          name    = local._zone
+        }
+      },
+      {
+        for i, sub in local._subs :
+        "${sub}.${local._zone}" => {
+          zone_id = format("Z1234567890AB%s", upper(substr("defghijklmnop", i, 1)))
+          name    = "${sub}.${local._zone}"
+        }
       }
-      "auth.example.com" = {
-        zone_id = "Z1234567890ABD"
-        name    = "auth.example.com"
-      }
-      "run.example.com" = {
-        zone_id = "Z1234567890ABE"
-        name    = "run.example.com"
-      }
-      "cms.example.com" = {
-        zone_id = "Z1234567890ABF"
-        name    = "cms.example.com"
-      }
-      "gpx.example.com" = {
-        zone_id = "Z1234567890ABG"
-        name    = "gpx.example.com"
-      }
-    }
+    )
     waf = {
       default = {
         web_acl_arn = "arn:aws:wafv2:us-east-1:123456789012:global/webacl/mock-default/mock-id"
@@ -225,17 +221,9 @@ dependency "use1_certs" {
 
   mock_outputs = {
     cert_map = {
-      "run.example.com" = {
-        arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-id"
-      }
-      "auth.example.com" = {
-        arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-auth-id"
-      }
-      "cms.example.com" = {
-        arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-cms-id"
-      }
-      "gpx.example.com" = {
-        arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-gpx-id"
+      for dom in local._cf_doms :
+      "${dom}.${local._zone}" => {
+        arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-${dom}-id"
       }
     }
   }

@@ -9,10 +9,10 @@ dependency "certs" {
 
   mock_outputs = {
     cert_map = {
-      "example.com" = {
+      (local._zone) = {
         arn                       = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-id"
-        domain_name               = "example.com"
-        subject_alternative_names = ["*.example.com"]
+        domain_name               = local._zone
+        subject_alternative_names = ["*.${local._zone}"]
         validation_method         = "DNS"
       }
     }
@@ -34,6 +34,8 @@ terraform {
 }
 
 locals {
+  _site        = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  _zone        = local._site.locals.dns.zonename
   network_vars = read_terragrunt_config("network.hcl")
 }
 
