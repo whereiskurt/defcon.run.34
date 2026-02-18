@@ -999,8 +999,8 @@ function confirmApplyAll(region) {
   showConfirmDialog({
     title: label + '?',
     message: msg,
-    confirmLabel: region ? '🚀 Apply ' + region : '🚀 Apply All',
-    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+    confirmLabel: region ? 'Apply ' + region + ' 🚀' : 'Apply All 🚀',
+    confirmClass: 'bg-green-600 hover:bg-green-500 text-white',
     onConfirm: function() {
       if (region) {
         openTerminal('region-all', 'apply-all', region);
@@ -1802,8 +1802,8 @@ function buildModuleActionGroup(panelId, isGlobal) {
     showConfirmDialog({
       title: 'Apply ' + label + '?',
       message: 'This will run <span class="font-mono text-zinc-300">terragrunt apply</span> on <strong>' + label + '</strong>. Resources may be created, modified, or destroyed.',
-      confirmLabel: '🚀 Apply',
-      confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+      confirmLabel: 'Apply 🚀',
+      confirmClass: 'bg-green-600 hover:bg-green-500 text-white',
       onConfirm: function() { openTerminal(panelId, 'apply', region); }
     });
   }
