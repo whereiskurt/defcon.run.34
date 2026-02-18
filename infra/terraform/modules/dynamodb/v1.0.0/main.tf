@@ -193,22 +193,10 @@ resource "aws_dynamodb_table" "this" {
   }
 }
 
-# Data source to reference the table in non-primary regions
-# In non-primary regions, the table is created automatically by the global table
-# We just need to reference it
-data "aws_dynamodb_table" "this" {
-  for_each = {
-    for name, config in local.table_configs :
-    name => config if !config.is_primary_region
-  }
-
-  name = each.value.table_name
-
-  # Wait for the global table to be replicated
-  depends_on = []
-}
-
-# Create unified output map for tables
+# Unified output map for tables
+# Non-primary regions use computed ARNs instead of a data source so that
+# `terragrunt plan --all` succeeds even before the primary region has been
+# applied (the global table replica doesn't exist yet in that case).
 locals {
   tables_output = {
     for name, config in local.table_configs : name => {
@@ -216,19 +204,18 @@ locals {
       table_arn = config.is_primary_region ? (
         aws_dynamodb_table.this[name].arn
         ) : (
-        data.aws_dynamodb_table.this[name].arn
+        "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${config.table_name}"
       )
       table_id = config.is_primary_region ? (
         aws_dynamodb_table.this[name].id
         ) : (
-        data.aws_dynamodb_table.this[name].name
+        config.table_name
       )
-      stream_arn = config.config.stream_enabled ? (
-        config.is_primary_region ? (
-          aws_dynamodb_table.this[name].stream_arn
-          ) : (
-          data.aws_dynamodb_table.this[name].stream_arn
-        )
+      # Stream ARN for replicas is only known after the primary region creates
+      # the global table; subsequent plans/applies will pick up the real value
+      # via the SSM parameter once the table exists.
+      stream_arn = config.config.stream_enabled && config.is_primary_region ? (
+        aws_dynamodb_table.this[name].stream_arn
       ) : ""
       is_primary_region = config.is_primary_region
     }
