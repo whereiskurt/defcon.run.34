@@ -613,6 +613,7 @@ body.preview-dragging {
 .term-pill:hover { background: #3f3f46; }
 .term-pill.running { border-color: #22c55e; color: #4ade80; }
 .term-pill.done { border-color: #22c55e; color: #86efac; }
+.term-pill.plan { border-color: #71717a; color: #a1a1aa; }
 .term-pill.error { border-color: #ef4444; color: #fca5a5; }
 
 .term-pill-dot {
@@ -638,6 +639,7 @@ body.preview-dragging {
 }
 
 .term-pill-icon.done { color: #22c55e; }
+.term-pill-icon.plan { color: #71717a; }
 .term-pill-icon.error { color: #ef4444; }
 
 .term-pill-label {

@@ -1981,15 +1981,19 @@ function updatePillBar() {
     pill.dataset.sessionId = id;
 
     var icon;
+    var isApply = s.command && s.command.indexOf('apply') !== -1;
     if (s.processRunning) {
       pill.classList.add('running');
       icon = '<span class="term-pill-dot running"></span>';
-    } else if (s.exitCode === 0) {
+    } else if (s.exitCode !== 0) {
+      pill.classList.add('error');
+      icon = '<span class="term-pill-icon error">&#10007;</span>';
+    } else if (isApply) {
       pill.classList.add('done');
       icon = '<span class="term-pill-icon done">&#10003;</span>';
     } else {
-      pill.classList.add('error');
-      icon = '<span class="term-pill-icon error">&#10007;</span>';
+      pill.classList.add('plan');
+      icon = '<span class="term-pill-icon plan">&#10003;</span>';
     }
 
     var summaryBit = '';
