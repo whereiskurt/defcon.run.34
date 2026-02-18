@@ -49,7 +49,7 @@ resource "aws_ssm_parameter" "table_arn" {
 resource "aws_ssm_parameter" "stream_arn" {
   for_each = {
     for name, config in local.table_configs :
-    name => config if config.config.stream_enabled
+    name => config if config.config.stream_enabled && config.is_primary_region
   }
 
   name        = "${local.ssm_prefixes[each.key]}/stream_arn"
