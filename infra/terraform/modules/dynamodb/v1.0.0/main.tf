@@ -204,7 +204,7 @@ locals {
       table_arn = config.is_primary_region ? (
         aws_dynamodb_table.this[name].arn
         ) : (
-        "arn:aws:dynamodb:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:table/${config.table_name}"
+        "arn:aws:dynamodb:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:table/${config.table_name}"
       )
       table_id = config.is_primary_region ? (
         aws_dynamodb_table.this[name].id
