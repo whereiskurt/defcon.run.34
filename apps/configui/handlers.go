@@ -602,7 +602,12 @@ func (a *App) startDiscoveryInner(force bool) {
 	// Snapshot config so we don't hold the lock during checks.
 	cfgCopy := *a.config
 	envCopy := *a.envLocal
-	a.discovery = &DiscoveryResults{Status: DiscoveryRunning, UpdatedAt: time.Now()}
+	// Preserve the previous UpdatedAt so timestamp reflects last completed run
+	var prevUpdatedAt time.Time
+	if a.discovery != nil {
+		prevUpdatedAt = a.discovery.UpdatedAt
+	}
+	a.discovery = &DiscoveryResults{Status: DiscoveryRunning, UpdatedAt: prevUpdatedAt}
 	disc := a.discovery
 	a.mu.Unlock()
 
@@ -611,7 +616,6 @@ func (a *App) startDiscoveryInner(force bool) {
 		addResult := func(r ResourceResult) {
 			a.mu.Lock()
 			disc.Resources = append(disc.Resources, r)
-			disc.UpdatedAt = time.Now()
 			a.mu.Unlock()
 		}
 		runDiscovery(&cfgCopy, &envCopy, addResult, "")
@@ -674,7 +678,7 @@ func (a *App) handleDiscoveryRefresh(w http.ResponseWriter, r *http.Request) {
 func (a *App) refreshModule(module string) {
 	a.mu.Lock()
 	if a.discovery == nil {
-		a.discovery = &DiscoveryResults{Status: DiscoveryRunning, UpdatedAt: time.Now()}
+		a.discovery = &DiscoveryResults{Status: DiscoveryRunning}
 	}
 	// Remove old results for this module
 	filtered := a.discovery.Resources[:0]
@@ -686,7 +690,6 @@ func (a *App) refreshModule(module string) {
 	a.discovery.Resources = filtered
 	// Set status to running so the frontend conditional polling picks up results.
 	a.discovery.Status = DiscoveryRunning
-	a.discovery.UpdatedAt = time.Now()
 	disc := a.discovery
 	cfgCopy := *a.config
 	envCopy := *a.envLocal
@@ -695,7 +698,6 @@ func (a *App) refreshModule(module string) {
 	addResult := func(r ResourceResult) {
 		a.mu.Lock()
 		disc.Resources = append(disc.Resources, r)
-		disc.UpdatedAt = time.Now()
 		a.mu.Unlock()
 	}
 	runDiscovery(&cfgCopy, &envCopy, addResult, module)
