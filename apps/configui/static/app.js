@@ -1545,6 +1545,39 @@ document.addEventListener('htmx:afterSwap', function(e) {
         var span = rqBtn.querySelector('span');
         if (span) span.textContent = 'Refresh All';
       }
+      // Check if none of the discovery results found anything — may indicate expired creds
+      var allSpans = document.querySelectorAll('#discovery-container [data-panel][data-region]');
+      var anyFound = false;
+      allSpans.forEach(function(s) { if (s.dataset.exists === 'true') anyFound = true; });
+      if (!anyFound && allSpans.length > 0) {
+        // Re-check AWS auth — if creds are expired, warn the user
+        fetch('/api/aws-status').then(function(r) { return r.text(); }).then(function(html) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          var ok = tmp.querySelector('.status-dot.ok');
+          if (!ok) {
+            showConfirmDialog({
+              title: 'AWS SSO Session Expired',
+              message: 'Discovery found <strong>0 resources</strong> — your AWS SSO session appears to have expired. Re-authenticate to get accurate results.',
+              confirmLabel: '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.003 4.003 0 003 15z"/></svg> SSO Login',
+              onConfirm: function() {
+                fetch('/api/sso-login', { method: 'POST' }).then(function(resp) {
+                  return resp.text();
+                }).then(function(h) {
+                  var result = document.getElementById('aws-action-result');
+                  if (result) result.innerHTML = h;
+                  // Refresh AWS status display
+                  htmx.trigger(document.body, 'refreshAwsStatus');
+                });
+              }
+            });
+            // Also update the AWS status bar
+            var awsEl = document.getElementById('aws-status');
+            if (awsEl) awsEl.innerHTML = html;
+            updateTerminalButtonsVisibility();
+          }
+        });
+      }
     }
     updateModuleRefreshButtons();
   }
