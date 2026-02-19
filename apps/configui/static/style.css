@@ -614,7 +614,7 @@ body.preview-dragging {
 .term-pill.running { border-color: #22c55e; color: #4ade80; }
 .term-pill.done { border-color: #22c55e; color: #86efac; }
 .term-pill.plan { border-color: #71717a; color: #a1a1aa; }
-.term-pill.error { border-color: #ef4444; color: #fca5a5; }
+.term-pill.error { border-color: #f59e0b; color: #fcd34d; }
 
 .term-pill-dot {
   width: 6px;
@@ -640,7 +640,7 @@ body.preview-dragging {
 
 .term-pill-icon.done { color: #22c55e; }
 .term-pill-icon.plan { color: #71717a; }
-.term-pill-icon.error { color: #ef4444; }
+.term-pill-icon.error { color: #f59e0b; }
 
 .term-pill-label {
   white-space: nowrap;
@@ -1041,4 +1041,63 @@ body.preview-dragging {
 .dark .mod-svc-human { background: linear-gradient(135deg, #4d3a28, #2a2018) !important; }
 .dark .mod-svc-cms   { background: linear-gradient(135deg, #4d2e32, #2a1a1e) !important; }
 .dark .mod-svc-gpx   { background: linear-gradient(135deg, #2e4f46, #1a2e28) !important; }
+
+/* ========== Destroy Mode ========== */
+
+/* Progressive dimming + reddening while typing "destroy" */
+body.destroy-dimming #content-wrapper {
+  filter: brightness(var(--destroy-dim, 1)) sepia(var(--destroy-sepia, 0)) saturate(var(--destroy-sat, 1)) hue-rotate(var(--destroy-hue, 0deg));
+  transition: filter 0.15s ease;
+}
+
+/* Red perimeter glow when destroy mode is active */
+body.destroy-mode::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  box-shadow: inset 0 0 30px rgba(220,38,38,0.6), inset 0 0 60px rgba(220,38,38,0.2);
+  animation: destroy-glow-pulse 2s ease-in-out infinite;
+}
+
+@keyframes destroy-glow-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* Explosion overlay — canvas for procedural effect */
+#destroy-explosion {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+#destroy-explosion.active {
+  opacity: 1;
+}
+
+/* Red button classes — destroy variants */
+.split-btn-destroy {
+  background: #991b1b;
+  color: white;
+}
+.split-btn-destroy:hover {
+  background: #b91c1c;
+}
+.split-btn-drop.split-btn-destroy {
+  border-left-color: rgba(255,255,255,0.2);
+}
+
+.action-group-destroy {
+  background: #991b1b;
+  color: white;
+  border-left: 1px solid rgba(0,0,0,0.1);
+}
+.action-group-destroy:hover {
+  background: #b91c1c;
+}
 

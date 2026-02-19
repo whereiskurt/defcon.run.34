@@ -20,7 +20,7 @@ exclude {
 dependency "primary_region_dynamodb" {
   config_path = "../../us-east-1/dynamodb"
 
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
   mock_outputs = {
     replica_stream_arns = {}
   }

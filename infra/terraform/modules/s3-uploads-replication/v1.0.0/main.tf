@@ -10,7 +10,7 @@ locals {
     if contains(upload.regions, var.region.full) && upload.replication.enabled && var.site.random_suffix != ""
   }
 
-  # Replication configuration per upload
+  # Replication configuration per upload (skip if source bucket not yet available, e.g. mock outputs)
   replication_config = {
     for name, upload in local.region_uploads :
     name => {
@@ -27,6 +27,7 @@ locals {
         if region.full != var.region.full && !contains(var.site.skip_regions, region.full)
       }
     }
+    if contains(keys(var.source_buckets), name)
   }
 
   # Only include configs with actual destinations

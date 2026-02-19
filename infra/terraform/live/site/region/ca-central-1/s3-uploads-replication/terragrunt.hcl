@@ -31,25 +31,23 @@ terraform {
 # Local s3-uploads — source bucket info
 dependency "s3_uploads" {
   config_path = "../s3-uploads"
+
+  mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
+  mock_outputs = {
+    buckets = {}
+  }
 }
 
 # Cross-region dependencies — ensure ALL destination buckets exist before replication
+# We don't need their outputs, just ordering
 dependency "s3_uploads_use1" {
-  config_path = "../../us-east-1/s3-uploads"
-
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
-  mock_outputs = {
-    buckets = {}
-  }
+  config_path  = "../../us-east-1/s3-uploads"
+  skip_outputs = true
 }
 
 dependency "s3_uploads_apse1" {
-  config_path = "../../ap-southeast-1/s3-uploads"
-
-  mock_outputs_allowed_terraform_commands = ["validate", "plan"]
-  mock_outputs = {
-    buckets = {}
-  }
+  config_path  = "../../ap-southeast-1/s3-uploads"
+  skip_outputs = true
 }
 
 inputs = merge(

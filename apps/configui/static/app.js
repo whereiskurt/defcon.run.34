@@ -25,6 +25,345 @@ function showConfirmDialog(opts) {
   document.addEventListener('keydown', onKey);
 }
 
+// ========== Destroy Mode ==========
+var _destroyCode = 'destroy';
+var _destroyIndex = 0;
+var _destroyActive = false;
+var _escapeCount = 0;
+
+// Capture-phase keydown: tracks "destroy" sequence, handles Escape deactivation
+document.addEventListener('keydown', function(e) {
+  // Skip when typing in form fields
+  var tag = (e.target.tagName || '').toUpperCase();
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+  // In destroy mode: count Escape presses to deactivate
+  if (_destroyActive) {
+    if (e.key === 'Escape') {
+      _escapeCount++;
+      if (_escapeCount >= 3) {
+        deactivateDestroyMode();
+      }
+    } else {
+      _escapeCount = 0;
+    }
+    return;
+  }
+
+  // Track sequential letter matches against "destroy"
+  if (e.key === _destroyCode[_destroyIndex]) {
+    _destroyIndex++;
+    updateDestroyDim(_destroyIndex);
+    if (_destroyIndex === _destroyCode.length) {
+      _destroyIndex = 0;
+      activateDestroyMode();
+    }
+  } else {
+    // Non-matching key resets
+    _destroyIndex = 0;
+    updateDestroyDim(0);
+  }
+}, true); // capture phase
+
+function updateDestroyDim(letterCount) {
+  if (letterCount === 0) {
+    document.body.classList.remove('destroy-dimming');
+    document.body.style.removeProperty('--destroy-dim');
+    document.body.style.removeProperty('--destroy-sepia');
+    document.body.style.removeProperty('--destroy-sat');
+    document.body.style.removeProperty('--destroy-hue');
+    return;
+  }
+  document.body.classList.add('destroy-dimming');
+  var t = letterCount / 7; // 0..1 over 7 letters
+  // Darker: 1.0 → 0.35
+  document.body.style.setProperty('--destroy-dim', (1.0 - t * 0.65).toFixed(2));
+  // Redder: sepia shifts to warm tones, saturate intensifies, hue-rotate nudges toward red
+  document.body.style.setProperty('--destroy-sepia', (t * 0.9).toFixed(2));
+  document.body.style.setProperty('--destroy-sat', (1 + t * 3).toFixed(2));
+  document.body.style.setProperty('--destroy-hue', Math.round(t * -15) + 'deg');
+}
+
+function activateDestroyMode() {
+  _destroyActive = true;
+  _escapeCount = 0;
+
+  // Remove dimming
+  updateDestroyDim(0);
+
+  // Play chaos attractor activation animation
+  playDestroyAnimation();
+
+  // Red perimeter glow
+  document.body.classList.add('destroy-mode');
+
+  // Morph buttons
+  morphButtonsToDestroy();
+
+  // Persist across page reloads
+  sessionStorage.setItem('destroyMode', 'active');
+
+  // Red toast
+  showDestroyToast('DESTROY MODE ACTIVATED — all Apply buttons are now Destroy. Press Esc x3 to exit.');
+}
+
+function deactivateDestroyMode() {
+  _destroyActive = false;
+  _escapeCount = 0;
+  _destroyIndex = 0;
+
+  document.body.classList.remove('destroy-mode');
+
+  // Clear persistence
+  sessionStorage.removeItem('destroyMode');
+
+  // Restore buttons
+  morphButtonsToApply();
+
+  showToast('Destroy mode deactivated');
+}
+
+function showDestroyToast(message) {
+  var container = document.getElementById('toast-container');
+  if (!container) return;
+  var toast = document.createElement('div');
+  toast.className = 'rounded-md bg-red-900/90 border border-red-700 text-red-300 px-4 py-2 text-sm font-mono shadow-lg transition-opacity duration-300';
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(function() {
+    toast.style.opacity = '0';
+    setTimeout(function() { toast.remove(); }, 300);
+  }, 6000);
+}
+
+// Procedural destroy animation: Lorenz attractor spirals into chaos
+function playDestroyAnimation() {
+  var container = document.getElementById('destroy-explosion');
+  if (!container) return;
+
+  var canvas = document.createElement('canvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.cssText = 'width:100%;height:100%';
+  container.innerHTML = '';
+  container.appendChild(canvas);
+  container.classList.add('active');
+
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  var cx = w / 2, cy = h / 2;
+
+  // Lorenz system parameters
+  var sigma = 10, rho = 28, beta = 8 / 3;
+  var x = 0.1, y = 0, z = 0;
+  var dt = 0.005;
+  var scale = 12;
+
+  // Pre-compute a batch of Lorenz points
+  var points = [];
+  for (var i = 0; i < 6000; i++) {
+    var dx = sigma * (y - x) * dt;
+    var dy = (x * (rho - z) - y) * dt;
+    var dz = (x * y - beta * z) * dt;
+    x += dx; y += dy; z += dz;
+    points.push({ x: x, y: z }); // project x,z for the butterfly shape
+  }
+
+  var frame = 0;
+  var totalFrames = 90; // ~1.5s at 60fps
+  var startTime = performance.now();
+  var duration = 1500;
+
+  function draw(now) {
+    var elapsed = now - startTime;
+    var t = Math.min(elapsed / duration, 1);
+
+    ctx.fillStyle = 'rgba(0,0,0,' + (0.15 + t * 0.3) + ')';
+    ctx.fillRect(0, 0, w, h);
+
+    // How many points to draw this frame (accelerating)
+    var pointCount = Math.floor(t * t * points.length);
+    var drawScale = scale * (1 + t * 0.5);
+
+    // Collapse toward center as t increases
+    var collapse = 1 - t * t * 0.6;
+
+    for (var i = Math.max(0, pointCount - 400); i < pointCount; i++) {
+      var p = points[i];
+      var px = cx + p.x * drawScale * collapse;
+      var py = cy - (p.y - 25) * drawScale * collapse; // offset z center (~25)
+
+      // Age: older points are dimmer
+      var age = 1 - (pointCount - i) / 400;
+      if (age < 0) continue;
+
+      // Color: red with hints of orange/yellow at the edges
+      var r = 220 + Math.floor(age * 35);
+      var g = Math.floor(30 + age * 30 + Math.sin(i * 0.02) * 20);
+      var b = Math.floor(20 + Math.sin(i * 0.03) * 15);
+      ctx.fillStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + (age * 0.8) + ')';
+
+      var size = 1.5 + age * 2;
+      ctx.beginPath();
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Red shockwave ring expanding outward at the end
+    if (t > 0.3) {
+      var ringT = (t - 0.3) / 0.7;
+      var radius = ringT * Math.max(w, h) * 0.6;
+      ctx.strokeStyle = 'rgba(220,38,38,' + ((1 - ringT) * 0.5) + ')';
+      ctx.lineWidth = 2 + (1 - ringT) * 4;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (t < 1) {
+      requestAnimationFrame(draw);
+    } else {
+      // Fade out
+      container.style.transition = 'opacity 0.3s';
+      container.style.opacity = '0';
+      setTimeout(function() {
+        container.classList.remove('active');
+        container.style.transition = '';
+        container.style.opacity = '';
+        container.innerHTML = '';
+      }, 300);
+    }
+  }
+
+  requestAnimationFrame(draw);
+}
+
+function morphButtonsToDestroy() {
+  // Global split buttons: morph Apply All → Destroy All
+  var applyAllContainer = document.getElementById('split-apply-all');
+  if (applyAllContainer) {
+    var mainBtn = applyAllContainer.querySelector('.split-btn-main');
+    if (mainBtn) {
+      mainBtn.textContent = 'Destroy All';
+      mainBtn.className = mainBtn.className.replace('split-btn-apply', 'split-btn-destroy');
+      mainBtn.onclick = function(e) { e.stopPropagation(); confirmDestroyAll(); };
+    }
+    var dropBtn = applyAllContainer.querySelector('.split-btn-drop');
+    if (dropBtn) {
+      dropBtn.className = dropBtn.className.replace('split-btn-apply', 'split-btn-destroy');
+    }
+    // Update menu items
+    var menuItems = applyAllContainer.querySelectorAll('.split-menu-item');
+    if (menuItems.length > 0) {
+      menuItems[0].textContent = 'Destroy All Regions';
+      menuItems[0].onclick = function() {
+        applyAllContainer.querySelector('.split-menu').classList.add('hidden');
+        confirmDestroyAll();
+      };
+      var regions = window.ALL_REGIONS || [];
+      for (var i = 0; i < regions.length; i++) {
+        if (menuItems[i + 2]) { // +2 to skip "all" item and separator
+          (function(r) {
+            menuItems[i + 2].onclick = function() {
+              applyAllContainer.querySelector('.split-menu').classList.add('hidden');
+              confirmDestroyAll(r.full);
+            };
+          })(regions[i]);
+        }
+      }
+    }
+  }
+
+  // Per-module action groups: morph Apply → Destroy
+  document.querySelectorAll('.action-group-apply').forEach(function(btn) {
+    btn.textContent = 'Destroy';
+    btn.classList.remove('action-group-apply');
+    btn.classList.add('action-group-destroy');
+
+    // Find parent action group to get panelId and region
+    var wrapper = btn.closest('.action-group');
+    if (!wrapper) return;
+    var termActions = wrapper.closest('.term-actions');
+    if (!termActions) return;
+    var panelEl = termActions.closest('[data-panel]');
+    if (!panelEl) return;
+    var panelId = panelEl.dataset.panel;
+    var isGlobal = TERMINAL_MODULES[panelId] && TERMINAL_MODULES[panelId].global;
+
+    // Clone and replace to remove old click handlers
+    var newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+
+    newBtn.onclick = function(e) {
+      e.stopPropagation();
+      // Get the currently selected region from the region button
+      var region = '';
+      if (!isGlobal) {
+        var regionBadge = wrapper.querySelector('.region-badge');
+        if (regionBadge) {
+          var regions = window.ALL_REGIONS || [];
+          var label = regionBadge.textContent;
+          for (var i = 0; i < regions.length; i++) {
+            if (regions[i].label === label) { region = regions[i].full; break; }
+          }
+        }
+      }
+      confirmDestroy(panelId, region);
+    };
+  });
+}
+
+function morphButtonsToApply() {
+  // Re-run the standard button builders to restore global split buttons
+  initSplitButtons();
+  // Remove only per-module .term-actions (injected by injectTerminalButtons),
+  // NOT #infra-all-actions which is the global toolbar from the HTML template.
+  document.querySelectorAll('[data-panel] .term-actions').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('[data-panel] .term-btn-refresh').forEach(function(el) { el.remove(); });
+  injectTerminalButtons();
+}
+
+function confirmDestroyAll(region) {
+  var label = region ? 'Destroy ' + region : 'Destroy ALL modules';
+  var msg = region
+    ? 'This will run <span class="font-mono text-red-300">terragrunt destroy --all</span> in <strong>' + region + '</strong>. All resources in this region will be permanently deleted.'
+    : 'This will run <span class="font-mono text-red-300">terragrunt destroy --all</span> across <strong>every infrastructure module</strong>. ALL resources will be permanently deleted.';
+  showConfirmDialog({
+    title: label + '?',
+    message: msg,
+    confirmLabel: region ? 'Destroy ' + region + ' \uD83D\uDD25' : 'Destroy Everything \uD83D\uDD25',
+    confirmClass: 'bg-red-700 hover:bg-red-600 text-white',
+    onConfirm: function() {
+      if (region) {
+        openTerminal('region-all', 'destroy-all', region);
+      } else {
+        openTerminal('all', 'destroy-all', '');
+      }
+    }
+  });
+}
+
+function confirmDestroy(panelId, region) {
+  var moduleName = panelId.replace(/_/g, '-');
+  var label = moduleName;
+  if (region) label += ' (' + region + ')';
+  showConfirmDialog({
+    title: 'Destroy ' + label + '?',
+    message: 'This will run <span class="font-mono text-red-300">terragrunt destroy</span> on <strong>' + label + '</strong>. All resources in this module will be permanently deleted.',
+    confirmLabel: 'Destroy \uD83D\uDD25',
+    confirmClass: 'bg-red-700 hover:bg-red-600 text-white',
+    onConfirm: function() { openTerminal(panelId, 'destroy', region); }
+  });
+}
+
+function initDestroyMode() {
+  if (sessionStorage.getItem('destroyMode') === 'active') {
+    _destroyActive = true;
+    document.body.classList.add('destroy-mode');
+    morphButtonsToDestroy();
+  }
+}
+
 // Theme toggle
 function initTheme() {
   const stored = localStorage.getItem('theme');
@@ -1019,9 +1358,10 @@ function initSplitButtons() {
     if (!container) return;
     var command = container.dataset.command; // "plan" or "apply"
     var isPlan = command === 'plan';
-    var mainLabel = isPlan ? 'Plan All' : 'Apply All';
-    var mainClass = isPlan ? 'split-btn-plan' : 'split-btn-apply';
-    var confirmFn = isPlan ? confirmPlanAll : confirmApplyAll;
+    var isDestroyApply = !isPlan && _destroyActive;
+    var mainLabel = isDestroyApply ? 'Destroy All' : (isPlan ? 'Plan All' : 'Apply All');
+    var mainClass = isDestroyApply ? 'split-btn-destroy' : (isPlan ? 'split-btn-plan' : 'split-btn-apply');
+    var confirmFn = isDestroyApply ? confirmDestroyAll : (isPlan ? confirmPlanAll : confirmApplyAll);
 
     container.innerHTML =
       '<button type="button" class="split-btn-main ' + mainClass + '">' + mainLabel + '</button>' +
@@ -1854,9 +2194,15 @@ function buildModuleActionGroup(panelId, isGlobal) {
 
   var applyBtn = document.createElement('button');
   applyBtn.type = 'button';
-  applyBtn.className = 'action-group-btn action-group-apply';
-  applyBtn.textContent = 'Apply';
-  applyBtn.onclick = function(e) { e.stopPropagation(); doApply(isGlobal ? '' : selectedRegion); };
+  if (_destroyActive) {
+    applyBtn.className = 'action-group-btn action-group-destroy';
+    applyBtn.textContent = 'Destroy';
+    applyBtn.onclick = function(e) { e.stopPropagation(); confirmDestroy(panelId, isGlobal ? '' : selectedRegion); };
+  } else {
+    applyBtn.className = 'action-group-btn action-group-apply';
+    applyBtn.textContent = 'Apply';
+    applyBtn.onclick = function(e) { e.stopPropagation(); doApply(isGlobal ? '' : selectedRegion); };
+  }
   wrapper.appendChild(applyBtn);
 
   return wrapper;
@@ -1967,7 +2313,16 @@ function ensurePillBar() {
 function updatePillBar() {
   var bar = document.getElementById('term-pill-bar');
   if (!bar) return;
-  var ids = Object.keys(_termSessions).reverse();
+  // Sort: minimized sessions first (most recently minimized), then by creation order (newest first)
+  var ids = Object.keys(_termSessions);
+  ids.sort(function(a, b) {
+    var sa = _termSessions[a], sb = _termSessions[b];
+    var aMin = sa.minimized ? 1 : 0;
+    var bMin = sb.minimized ? 1 : 0;
+    if (aMin !== bMin) return bMin - aMin; // minimized first
+    if (sa.minimized && sb.minimized) return (sb.minimizedAt || 0) - (sa.minimizedAt || 0);
+    return (sb.createdAt || 0) - (sa.createdAt || 0); // most recently run first
+  });
   if (ids.length === 0) {
     bar.style.display = 'none';
     return;
@@ -1981,19 +2336,22 @@ function updatePillBar() {
     pill.dataset.sessionId = id;
 
     var icon;
-    var isApply = s.command && s.command.indexOf('apply') !== -1;
+    var isDestroy = s.command && s.command.indexOf('destroy') !== -1;
     if (s.processRunning) {
       pill.classList.add('running');
-      icon = '<span class="term-pill-dot running"></span>';
+      if (isDestroy) {
+        pill.style.borderColor = '#ef4444';
+        pill.style.color = '#fca5a5';
+        icon = '<span class="term-pill-dot running" style="background:#ef4444"></span>';
+      } else {
+        icon = '<span class="term-pill-dot running"></span>';
+      }
     } else if (s.exitCode !== 0) {
       pill.classList.add('error');
       icon = '<span class="term-pill-icon error">&#10007;</span>';
-    } else if (isApply) {
+    } else {
       pill.classList.add('done');
       icon = '<span class="term-pill-icon done">&#10003;</span>';
-    } else {
-      pill.classList.add('plan');
-      icon = '<span class="term-pill-icon plan">&#10003;</span>';
     }
 
     var summaryBit = '';
@@ -2026,6 +2384,7 @@ function minimizeSession(id) {
   var s = _termSessions[id];
   if (!s) return;
   s.minimized = true;
+  s.minimizedAt = Date.now();
   if (s.overlay) s.overlay.style.display = 'none';
   updatePillBar();
 }
@@ -2138,7 +2497,8 @@ function openTerminal(module, command, region) {
 
 function showTerminalModal(session) {
   var id = session.id;
-  var label = session.module.replace(/_/g, '-');
+  var cmdPrefix = (session.command || '').replace(/-all$/, '');
+  var label = cmdPrefix + ' ' + session.module.replace(/_/g, '-');
   if (session.region) label += ' (' + session.region + ')';
 
   var cmdLine = session.cmd_line || ('terragrunt ' + session.command);
@@ -2191,6 +2551,8 @@ function showTerminalModal(session) {
     es: null,
     overlay: overlay,
     minimized: false,
+    minimizedAt: 0,
+    createdAt: Date.now(),
     processRunning: true,
     label: label,
     exitCode: null,
@@ -2219,27 +2581,23 @@ function showTerminalModal(session) {
     minimizeSession(id);
   };
 
-  function doClose() {
-    doCleanupSession(id);
-  }
-
   function closeModal() {
     if (sessionState.processRunning) {
       showConfirmDialog({
         title: 'Process still running',
-        message: 'A terragrunt process is still running. Close anyway? The process will be stopped.',
-        confirmLabel: 'Stop & Close',
+        message: 'A terragrunt process is still running. Stop and minimize?',
+        confirmLabel: 'Stop & Minimize',
         confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
         onConfirm: function() {
           var body = new URLSearchParams();
           body.append('id', id);
           fetch('/api/terminal/stop', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: body.toString() });
-          doClose();
+          minimizeSession(id);
         }
       });
       return;
     }
-    doClose();
+    minimizeSession(id);
   }
 
   closeBtn.onclick = closeModal;
@@ -2796,6 +3154,7 @@ function initMasonry() {
 
 // Initialize on load
 initTheme();
+initDestroyMode();
 initHeaderSync();
 initFieldSync();
 markDefaults();

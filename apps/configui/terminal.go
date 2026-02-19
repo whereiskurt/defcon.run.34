@@ -26,11 +26,12 @@ type TerraformSummary struct {
 	NoChange bool   `json:"no_change"`
 }
 
-// Regex patterns for extracting terraform plan/apply summaries.
+// Regex patterns for extracting terraform plan/apply/destroy summaries.
 var (
-	rePlanSummary  = regexp.MustCompile(`Plan:\s*(\d+)\s+to add,\s*(\d+)\s+to change,\s*(\d+)\s+to destroy`)
-	reApplySummary = regexp.MustCompile(`Resources:\s*(\d+)\s+added,\s*(\d+)\s+changed,\s*(\d+)\s+destroyed`)
-	reNoChanges    = regexp.MustCompile(`No changes\.\s+Your infrastructure matches the configuration`)
+	rePlanSummary    = regexp.MustCompile(`Plan:\s*(\d+)\s+to add,\s*(\d+)\s+to change,\s*(\d+)\s+to destroy`)
+	reApplySummary   = regexp.MustCompile(`Resources:\s*(\d+)\s+added,\s*(\d+)\s+changed,\s*(\d+)\s+destroyed`)
+	reDestroySummary = regexp.MustCompile(`Destroy complete! Resources:\s*(\d+)\s+destroyed`)
+	reNoChanges      = regexp.MustCompile(`No changes\.\s+Your infrastructure matches the configuration`)
 )
 
 // parseSummaryLine checks a line for terraform plan/apply summary patterns.
@@ -46,6 +47,10 @@ func parseSummaryLine(line string) *TerraformSummary {
 		chg, _ := strconv.Atoi(m[2])
 		del, _ := strconv.Atoi(m[3])
 		return &TerraformSummary{Add: add, Change: chg, Destroy: del, Text: m[0]}
+	}
+	if m := reDestroySummary.FindStringSubmatch(line); m != nil {
+		del, _ := strconv.Atoi(m[1])
+		return &TerraformSummary{Destroy: del, Text: m[0]}
 	}
 	if reNoChanges.MatchString(line) {
 		return &TerraformSummary{NoChange: true, Text: "No changes"}
@@ -105,10 +110,12 @@ var ModuleMap = map[string]ModuleDef{
 
 // AllowedCommands maps command names to their terragrunt arguments.
 var AllowedCommands = map[string][]string{
-	"plan":      {"terragrunt", "plan", "--non-interactive", "--no-color"},
-	"apply":     {"terragrunt", "apply", "--non-interactive", "--no-color", "-auto-approve"},
-	"plan-all":  {"terragrunt", "plan", "--all", "--non-interactive", "--no-color"},
-	"apply-all": {"terragrunt", "apply", "--all", "--non-interactive", "--no-color", "-auto-approve"},
+	"plan":        {"terragrunt", "plan", "--non-interactive", "--no-color"},
+	"apply":       {"terragrunt", "apply", "--non-interactive", "--no-color", "-auto-approve"},
+	"plan-all":    {"terragrunt", "plan", "--all", "--non-interactive", "--no-color"},
+	"apply-all":   {"terragrunt", "apply", "--all", "--non-interactive", "--no-color", "-auto-approve"},
+	"destroy":     {"terragrunt", "destroy", "--non-interactive", "--no-color", "-auto-approve"},
+	"destroy-all": {"terragrunt", "destroy", "--all", "--non-interactive", "--no-color", "-auto-approve"},
 }
 
 // broadcast sends a line to all SSE clients.
@@ -355,7 +362,23 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 			}
 			if summary := parseSummaryLine(cleaned); summary != nil {
 				session.mu.Lock()
-				session.Summary = summary
+				if session.Summary == nil {
+					session.Summary = summary
+				} else {
+					session.Summary.Add += summary.Add
+					session.Summary.Change += summary.Change
+					session.Summary.Destroy += summary.Destroy
+					if !summary.NoChange {
+						session.Summary.NoChange = false
+					}
+				}
+				// Update Text to reflect aggregate totals
+				s := session.Summary
+				if s.NoChange {
+					s.Text = "No changes"
+				} else {
+					s.Text = fmt.Sprintf("Plan: %d to add, %d to change, %d to destroy", s.Add, s.Change, s.Destroy)
+				}
 				session.mu.Unlock()
 			}
 			session.broadcast(cleaned)
