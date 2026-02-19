@@ -256,6 +256,7 @@ type S3BucketConfig struct {
 	Versioning         bool        `json:"versioning"`
 	ReplicationEnabled bool        `json:"replication_enabled"`
 	ReplicaRegions     []RegionRef `json:"replica_regions"`
+	SSMReplicateTo     []RegionRef `json:"ssm_replicate_to"`
 	FullBucketAccess   bool        `json:"full_bucket_access"`
 	CloudFrontAccess   bool        `json:"cloudfront_access"`
 }
@@ -565,6 +566,10 @@ func DefaultConfig() *SiteConfig {
 				Litestream: S3BucketConfig{
 					UploadsExpireDays: 0, Versioning: true, ReplicationEnabled: false, FullBucketAccess: true,
 					ReplicaRegions: []RegionRef{{Label: "use1", Full: "us-east-1"}},
+					SSMReplicateTo: []RegionRef{
+						{Label: "cac1", Full: "ca-central-1"},
+						{Label: "apse1", Full: "ap-southeast-1"},
+					},
 				},
 				Media: S3BucketConfig{
 					UploadsExpireDays: 0, Versioning: true, ReplicationEnabled: true, CloudFrontAccess: true,

@@ -2164,7 +2164,7 @@ function showTerminalModal(session) {
         '</div>' +
         '<div class="flex items-center gap-2">' +
           '<button class="term-minimize-btn text-zinc-500 hover:text-zinc-200 text-sm px-2 font-mono" title="Minimize">_</button>' +
-          '<button class="term-close-x text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
+          '<button class="term-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
       '<pre class="terminal-output flex-1"></pre>' +

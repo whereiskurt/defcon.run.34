@@ -428,13 +428,14 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		fallbackRegions := activeRegionRefs(AllRegions(), skipRegions)
 
 		s3Checks := []struct {
-			uploadName string
-			regions    []RegionRef
+			uploadName     string
+			regions        []RegionRef
+			ssmReplicateTo []RegionRef
 		}{
-			{"run-human", cfg.Services.Human.Uploads.ReplicaRegions},
-			{"cms-litestream", cfg.Services.CMS.Litestream.ReplicaRegions},
-			{"cms-media", cfg.Services.CMS.Media.ReplicaRegions},
-			{"run-gpx", cfg.Services.GPX.Storage.ReplicaRegions},
+			{"run-human", cfg.Services.Human.Uploads.ReplicaRegions, nil},
+			{"cms-litestream", cfg.Services.CMS.Litestream.ReplicaRegions, cfg.Services.CMS.Litestream.SSMReplicateTo},
+			{"cms-media", cfg.Services.CMS.Media.ReplicaRegions, nil},
+			{"run-gpx", cfg.Services.GPX.Storage.ReplicaRegions, nil},
 		}
 		throttled(func() {
 			bucketSet := listS3Buckets(profile)
@@ -464,6 +465,28 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 						Name:    bucketName,
 						Regions: []RegionCheck{rc},
 					})
+				}
+				// SSM-replicated buckets: consumer regions reference the primary bucket
+				// (e.g. cms-litestream exists in use1 but cac1/apse1 access it via SSM params)
+				if len(s3c.ssmReplicateTo) > 0 && len(regions) > 0 {
+					primaryLabel := regions[0].Label
+					primaryBucket := fmt.Sprintf("uploads-%s-%s-%s-%s", cfg.Site.Label, s3c.uploadName, primaryLabel, cfg.Site.RandomSuffix)
+					for _, rr := range activeRegionRefs(s3c.ssmReplicateTo, skipRegions) {
+						rc := RegionCheck{Region: rr.Full, Label: rr.Label}
+						if bucketSet == nil {
+							rc.Error = "check failed"
+						} else if bucketSet[primaryBucket] {
+							rc.Exists = true
+							rc.Detail = fmt.Sprintf("via SSM from %s", primaryLabel)
+						} else {
+							rc.Error = fmt.Sprintf("source bucket in %s not found", primaryLabel)
+						}
+						addResult(ResourceResult{
+							Panel:   "s3_uploads",
+							Name:    fmt.Sprintf("%s (ssm→%s)", primaryBucket, rr.Label),
+							Regions: []RegionCheck{rc},
+						})
+					}
 				}
 			}
 			log.Printf("Discovery: S3 uploads checks complete")
