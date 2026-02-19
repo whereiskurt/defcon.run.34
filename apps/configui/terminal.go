@@ -26,12 +26,20 @@ type TerraformSummary struct {
 	NoChange bool   `json:"no_change"`
 }
 
+// ResourceStats breaks down plan/apply counts by module and resource type.
+type ResourceStats struct {
+	ByModule map[string]*TerraformSummary `json:"by_module"`
+	ByType   map[string]*TerraformSummary `json:"by_type"`
+}
+
 // Regex patterns for extracting terraform plan/apply/destroy summaries.
 var (
 	rePlanSummary    = regexp.MustCompile(`Plan:\s*(\d+)\s+to add,\s*(\d+)\s+to change,\s*(\d+)\s+to destroy`)
 	reApplySummary   = regexp.MustCompile(`Resources:\s*(\d+)\s+added,\s*(\d+)\s+changed,\s*(\d+)\s+destroyed`)
 	reDestroySummary = regexp.MustCompile(`Destroy complete! Resources:\s*(\d+)\s+destroyed`)
 	reNoChanges      = regexp.MustCompile(`No changes\.\s+Your infrastructure matches the configuration`)
+	reModulePrefix   = regexp.MustCompile(`^\[([^\]]+)\]\s*(.*)`)
+	reResourceAction = regexp.MustCompile(`#\s+(?:module\.[\w.]+\.)?(\w+)\.([\w\[\]"]+)\s+(?:will be (created|updated in-place|destroyed)|must be (replaced))`)
 )
 
 // parseSummaryLine checks a line for terraform plan/apply summary patterns.
@@ -58,6 +66,61 @@ func parseSummaryLine(line string) *TerraformSummary {
 	return nil
 }
 
+// parseResourceAction extracts resource type and action from a terraform plan line.
+// Returns the resource type (e.g. "aws_iam_role"), the action, and whether it matched.
+func parseResourceAction(line string) (resourceType, action string, ok bool) {
+	m := reResourceAction.FindStringSubmatch(line)
+	if m == nil {
+		return "", "", false
+	}
+	resourceType = m[1]
+	switch {
+	case m[3] == "created":
+		action = "create"
+	case m[3] == "updated in-place":
+		action = "update"
+	case m[3] == "destroyed":
+		action = "destroy"
+	case m[4] == "replaced":
+		action = "replace"
+	default:
+		return "", "", false
+	}
+	return resourceType, action, true
+}
+
+// accumulateStats adds a resource action to the stats maps.
+func accumulateStats(stats *ResourceStats, module, resourceType, action string) {
+	// Helper to get-or-create a summary entry in a map
+	getOrCreate := func(m map[string]*TerraformSummary, key string) *TerraformSummary {
+		s, ok := m[key]
+		if !ok {
+			s = &TerraformSummary{}
+			m[key] = s
+		}
+		return s
+	}
+
+	targets := []*TerraformSummary{
+		getOrCreate(stats.ByModule, module),
+		getOrCreate(stats.ByType, resourceType),
+	}
+
+	for _, t := range targets {
+		switch action {
+		case "create":
+			t.Add++
+		case "update":
+			t.Change++
+		case "destroy":
+			t.Destroy++
+		case "replace":
+			t.Add++
+			t.Destroy++
+		}
+	}
+}
+
 // TermSession represents a running or completed terminal session.
 type TermSession struct {
 	ID       string             `json:"id"`
@@ -69,6 +132,7 @@ type TermSession struct {
 	Status   string             `json:"status"`             // "running", "done", "error"
 	ExitCode int                `json:"exit_code"`
 	Summary  *TerraformSummary  `json:"summary,omitempty"`
+	Stats    *ResourceStats    `json:"stats,omitempty"`
 
 	mu       sync.Mutex
 	lines    []string
@@ -304,6 +368,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		CmdLine: strings.Join(cmdArgs, " "),
 		WorkDir: workDir,
 		Status:  "running",
+		Stats:   &ResourceStats{ByModule: make(map[string]*TerraformSummary), ByType: make(map[string]*TerraformSummary)},
 		startAt: time.Now(),
 		clients: make(map[chan string]struct{}),
 	}
@@ -360,7 +425,19 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 					break
 				}
 			}
-			if summary := parseSummaryLine(cleaned); summary != nil {
+			// Extract per-module resource actions for stats breakdown
+		innerLine := cleaned
+		moduleName := session.Module
+		if m := reModulePrefix.FindStringSubmatch(cleaned); m != nil {
+			moduleName = m[1]
+			innerLine = m[2]
+		}
+		if resType, action, ok := parseResourceAction(innerLine); ok {
+			session.mu.Lock()
+			accumulateStats(session.Stats, moduleName, resType, action)
+			session.mu.Unlock()
+		}
+		if summary := parseSummaryLine(cleaned); summary != nil {
 				session.mu.Lock()
 				if session.Summary == nil {
 					session.Summary = summary
@@ -471,9 +548,14 @@ func (a *App) handleTerminalStream(w http.ResponseWriter, r *http.Request) {
 	sendSummaryAndDone := func() {
 		session.mu.Lock()
 		summary := session.Summary
+		stats := session.Stats
 		session.mu.Unlock()
 		if summary != nil {
-			summaryJSON, _ := json.Marshal(summary)
+			payload := struct {
+				*TerraformSummary
+				Stats *ResourceStats `json:"stats,omitempty"`
+			}{TerraformSummary: summary, Stats: stats}
+			summaryJSON, _ := json.Marshal(payload)
 			fmt.Fprintf(w, "event: summary\ndata: %s\n\n", summaryJSON)
 		}
 		fmt.Fprintf(w, "event: done\ndata: %d\n\n", session.ExitCode)
@@ -497,6 +579,14 @@ func (a *App) handleTerminalStream(w http.ResponseWriter, r *http.Request) {
 			// Send elapsed-time tick so the client knows the process is alive
 			elapsed := int(time.Since(session.startAt).Seconds())
 			fmt.Fprintf(w, "event: tick\ndata: %d\n\n", elapsed)
+			// Stream live stats so the client can show mid-execution breakdown
+			session.mu.Lock()
+			liveStats := session.Stats
+			session.mu.Unlock()
+			if liveStats != nil && (len(liveStats.ByModule) > 0 || len(liveStats.ByType) > 0) {
+				statsJSON, _ := json.Marshal(liveStats)
+				fmt.Fprintf(w, "event: stats\ndata: %s\n\n", statsJSON)
+			}
 			flusher.Flush()
 		case line, ok := <-ch:
 			if !ok {

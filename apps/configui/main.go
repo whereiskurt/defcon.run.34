@@ -184,6 +184,8 @@ func main() {
 	mux.HandleFunc("GET /api/terminal/list", app.handleTerminalList)
 	mux.HandleFunc("POST /api/scan-locks", app.handleScanLocks)
 	mux.HandleFunc("POST /api/fix-locks", app.handleFixLocks)
+	mux.HandleFunc("GET /api/outputs", app.handleOutputs)
+	mux.HandleFunc("GET /api/outputs/modules", app.handleOutputsList)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port
