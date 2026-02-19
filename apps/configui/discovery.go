@@ -361,6 +361,8 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 	}
 
 	// Email (SES)
+	// In the primary region, terraform creates the root domain identity (defcon.run).
+	// In non-primary regions, it creates regional identities ({label}.defcon.run).
 	if check("email") {
 		emailRegions := []string{cfg.Email.PrimaryRegion}
 		for _, rr := range cfg.Email.ReplicaRegions {
@@ -372,10 +374,14 @@ func runDiscovery(cfg *SiteConfig, envLocal *EnvLocalConfig, addResult func(Reso
 		for _, region := range emailRegions {
 			region := region
 			throttled(func() {
-				rc := checkSESIdentity(profile, cfg.DNS.ZoneName, region)
+				domain := cfg.DNS.ZoneName
+				if region != cfg.Email.PrimaryRegion {
+					domain = regionLabel(region) + "." + cfg.DNS.ZoneName
+				}
+				rc := checkSESIdentity(profile, domain, region)
 				addResult(ResourceResult{
 					Panel:   "email",
-					Name:    cfg.DNS.ZoneName,
+					Name:    domain,
 					Regions: []RegionCheck{rc},
 				})
 			})

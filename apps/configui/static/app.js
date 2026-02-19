@@ -1782,18 +1782,11 @@ function updateDiscoveryDots() {
     var regionalLabels = ['use1', 'cac1', 'apse1'];
     var regionOrder = regionalLabels.concat(['global']);
 
-    // Determine if this panel is global-only or regional
-    var hasGlobal = !!byRegion['global'];
-    var hasRegional = regionalLabels.some(function(r) { return !!byRegion[r]; });
-
-    // Always show all regional labels (greyed out if no result), or just global
-    var displayRegions;
-    if (hasGlobal && !hasRegional) {
-      displayRegions = ['global'];
-    } else {
-      displayRegions = regionalLabels.slice();
-      if (hasGlobal) displayRegions.push('global');
-    }
+    // Only show dots for regions that have actual discovery data
+    var displayRegions = [];
+    regionOrder.forEach(function(r) {
+      if (byRegion[r]) displayRegions.push(r);
+    });
 
     displayRegions.forEach(function(region) {
       var info = byRegion[region];
@@ -1801,25 +1794,19 @@ function updateDiscoveryDots() {
       var cls = 'discovery-dot';
       var tooltip = region;
 
-      if (!info) {
-        // Region not checked — show as unchecked grey
-        cls += ' unchecked';
-        tooltip += '\nnot checked';
-      } else {
-        var total = info.resources.length;
-        var foundCount = 0;
-        entries.forEach(function(e) { if (e.region === region && e.exists) foundCount++; });
-        var allFound = foundCount === total;
-        var noneFound = foundCount === 0;
+      var total = info.resources.length;
+      var foundCount = 0;
+      entries.forEach(function(e) { if (e.region === region && e.exists) foundCount++; });
+      var allFound = foundCount === total;
+      var noneFound = foundCount === 0;
 
-        if (allFound) cls += ' found';
-        else if (noneFound) cls += ' missing';
-        else cls += ' partial';
+      if (allFound) cls += ' found';
+      else if (noneFound) cls += ' missing';
+      else cls += ' partial';
 
-        if (info.details.length > 0) tooltip += '\n' + info.details.join('\n');
-        if (info.errors.length > 0) tooltip += '\n' + info.errors.join('\n');
-        if (total > 1) tooltip += '\n(' + foundCount + '/' + total + ' found)';
-      }
+      if (info.details.length > 0) tooltip += '\n' + info.details.join('\n');
+      if (info.errors.length > 0) tooltip += '\n' + info.errors.join('\n');
+      if (total > 1) tooltip += '\n(' + foundCount + '/' + total + ' found)';
 
       html += '<div class="flex items-center gap-0.5" title="' + tooltip.replace(/"/g, '&quot;') + '">';
       html += '<span class="' + cls + '"></span>';
@@ -2438,7 +2425,7 @@ function doCleanupSession(id) {
 
 // --- Terraform summary formatting ---
 
-function formatSummaryHtml(summary, exitCode, command) {
+function formatSummaryHtml(summary, exitCode, command, sessionId) {
   var icon = exitCode === 0
     ? '<span class="text-green-400">&#10003;</span>'
     : '<span class="text-red-400">&#10007;</span>';
@@ -2456,7 +2443,16 @@ function formatSummaryHtml(summary, exitCode, command) {
   parts.push('<span class="' + (summary.add > 0 ? 'text-green-400' : 'text-zinc-500') + '">+' + summary.add + '</span>');
   parts.push('<span class="' + (summary.change > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">~' + summary.change + '</span>');
   parts.push('<span class="' + (summary.destroy > 0 ? 'text-red-400' : 'text-zinc-500') + '">-' + summary.destroy + '</span>');
-  return icon + ' ' + prefix + parts.join(', ');
+  var html = icon + ' ' + prefix + parts.join(', ');
+  // Add stats button if we have per-module or per-type breakdown
+  if (sessionId) {
+    var s = _termSessions[sessionId];
+    var stats = s && s.stats;
+    if (stats && (Object.keys(stats.by_module || {}).length > 1 || Object.keys(stats.by_type || {}).length > 0)) {
+      html += ' <button onclick="showStatsPopup(\'' + sessionId + '\')" class="text-sm font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded-md px-4 py-1.5 ml-2 transition-colors">[Stats]</button>';
+    }
+  }
+  return html;
 }
 
 function formatPillSummary(summary) {
@@ -2523,15 +2519,20 @@ function showTerminalModal(session) {
           '</div>' +
         '</div>' +
         '<div class="flex items-center gap-2">' +
-          '<button class="term-minimize-btn text-zinc-500 hover:text-zinc-200 text-sm px-2 font-mono" title="Minimize">_</button>' +
+          '<button class="term-minimize-btn rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-zinc-200 text-lg px-3 py-0.5 font-mono leading-none" title="Minimize">_</button>' +
           '<button class="term-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
       '<pre class="terminal-output flex-1"></pre>' +
       '<div class="term-footer flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
-        '<span class="term-footer-status text-sm font-mono text-zinc-400"></span>' +
-        '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-4 py-1.5 text-sm font-mono">Stop</button>' +
-        '<button class="term-close-btn hidden rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
+        '<div class="flex items-center gap-3">' +
+          '<button class="term-live-stats-btn hidden rounded-md border border-zinc-600 hover:border-green-600 text-zinc-400 hover:text-green-400 px-4 py-1.5 text-sm font-mono transition-colors">[Stats]</button>' +
+          '<span class="term-footer-status text-sm font-mono text-zinc-400"></span>' +
+        '</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-4 py-1.5 text-sm font-mono">Stop</button>' +
+          '<button class="term-close-btn hidden rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
+        '</div>' +
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -2545,6 +2546,7 @@ function showTerminalModal(session) {
   var closeX = overlay.querySelector('.term-close-x');
   var minimizeBtn = overlay.querySelector('.term-minimize-btn');
   var copyCmd = overlay.querySelector('.term-copy-cmd');
+  var liveStatsBtn = overlay.querySelector('.term-live-stats-btn');
 
   // Track session
   var sessionState = {
@@ -2579,6 +2581,11 @@ function showTerminalModal(session) {
   minimizeBtn.onclick = function(e) {
     e.stopPropagation();
     minimizeSession(id);
+  };
+
+  liveStatsBtn.onclick = function(e) {
+    e.stopPropagation();
+    showStatsPopup(id);
   };
 
   function closeModal() {
@@ -2624,7 +2631,8 @@ function showTerminalModal(session) {
     if (e.key === 'Escape') {
       // Only handle if this session's overlay is visible (not minimized)
       if (sessionState.minimized) return;
-      // Check no confirm dialog is open
+      // Defer to higher-z overlays (stats z-[70], confirm dialogs)
+      if (document.querySelector('.fixed.inset-0.z-\\[70\\]')) return;
       if (document.querySelector('.fixed.inset-0.z-\\[60\\]:not(.terminal-modal)')) return;
       e.stopImmediatePropagation();
       minimizeSession(id);
@@ -2681,8 +2689,25 @@ function showTerminalModal(session) {
     }
   });
 
+  es.addEventListener('stats', function(e) {
+    try {
+      sessionState.stats = JSON.parse(e.data);
+      // Show live stats button once we have data
+      if (liveStatsBtn && liveStatsBtn.classList.contains('hidden')) {
+        var stats = sessionState.stats;
+        if (stats && (Object.keys(stats.by_module || {}).length > 0 || Object.keys(stats.by_type || {}).length > 0)) {
+          liveStatsBtn.classList.remove('hidden');
+        }
+      }
+    } catch(err) {}
+  });
+
   es.addEventListener('summary', function(e) {
-    try { sessionState.summary = JSON.parse(e.data); } catch(err) {}
+    try {
+      var data = JSON.parse(e.data);
+      sessionState.summary = data;
+      if (data.stats) sessionState.stats = data.stats;
+    } catch(err) {}
   });
 
   es.addEventListener('done', function(e) {
@@ -2695,11 +2720,12 @@ function showTerminalModal(session) {
       sessionState.es = null;
     }
     stopBtn.classList.add('hidden');
+    if (liveStatsBtn) liveStatsBtn.classList.add('hidden');
     statusEl.textContent = exitCode === 0 ? 'Done' : 'Failed';
     statusEl.className = 'term-status text-[11px] font-mono ' +
       (exitCode === 0 ? 'text-green-400' : 'text-red-400');
     // Show exit code and close button in footer
-    footerStatus.innerHTML = formatSummaryHtml(sessionState.summary, exitCode, sessionState.command);
+    footerStatus.innerHTML = formatSummaryHtml(sessionState.summary, exitCode, sessionState.command, id);
     closeBtn.classList.remove('hidden');
     // Make Close button pop when done
     closeBtn.className = 'term-close-btn rounded-md px-4 py-1.5 text-sm font-mono font-bold ' +
@@ -2846,6 +2872,7 @@ function saveToHistory(id) {
     exitCode: s.exitCode,
     status: status,
     summary: s.summary || null,
+    stats: s.stats || null,
     timestamp: Date.now(),
     output: outputText
   };
@@ -2966,13 +2993,16 @@ function showHistoryModal(entry) {
           '<span class="text-[11px] text-zinc-500 font-mono" style="padding-left:1.1rem;">' + escapeHtml(entry.workDir) + '</span>' +
         '</div>' +
         '<div class="flex items-center gap-1">' +
-          '<button class="history-close-x text-zinc-500 hover:text-zinc-200 text-lg px-2" title="Close">&times;</button>' +
+          '<button class="history-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
       '<pre class="terminal-output flex-1">' + escapeHtml(entry.output) + '</pre>' +
       '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<span class="text-xs font-mono text-zinc-400">' +
-          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command) +
+          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command, null) +
+          (entry.stats && (Object.keys(entry.stats.by_module || {}).length > 1 || Object.keys(entry.stats.by_type || {}).length > 0)
+            ? ' <button class="history-stats-btn text-[10px] font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded px-1.5 py-0.5 ml-2 transition-colors">[Stats]</button>'
+            : '') +
           ' &mdash; ' + formatTimeAgo(entry.timestamp) +
         '</span>' +
         '<button class="history-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
@@ -2991,6 +3021,14 @@ function showHistoryModal(entry) {
   closeX.onclick = dismiss;
   closeBtn.onclick = dismiss;
   overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+
+  var histStatsBtn = overlay.querySelector('.history-stats-btn');
+  if (histStatsBtn && entry.stats) {
+    histStatsBtn.onclick = function(e) {
+      e.stopPropagation();
+      showHistoryStatsPopup(entry.stats);
+    };
+  }
 
   function onKey(e) {
     if (e.key === 'Escape') {
@@ -3015,6 +3053,346 @@ document.addEventListener('click', function(e) {
     menu.classList.add('hidden');
   }
 });
+
+// --- Resource Stats Popup ---
+
+function showStatsPopup(sessionId) {
+  var s = _termSessions[sessionId];
+  var stats = s && s.stats;
+  if (!stats) return;
+
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4';
+  overlay.onclick = function(e) { if (e.target === overlay) dismiss(); };
+
+  var byMod = stats.by_module || {};
+  var byType = stats.by_type || {};
+
+  function statCell(val, cls) {
+    if (val === 0) return '<td class="px-3 py-1 text-right text-zinc-600">0</td>';
+    return '<td class="px-3 py-1 text-right ' + cls + ' font-medium">' + val + '</td>';
+  }
+
+  function buildTable(title, data, sortByName) {
+    var keys = Object.keys(data);
+    if (keys.length === 0) return '';
+    if (sortByName) {
+      keys.sort();
+    } else {
+      keys.sort(function(a, b) {
+        var ta = (data[a].add || 0) + (data[a].change || 0) + (data[a].destroy || 0);
+        var tb = (data[b].add || 0) + (data[b].change || 0) + (data[b].destroy || 0);
+        return tb - ta;
+      });
+    }
+    var html = '<h3 class="text-sm font-mono font-bold text-zinc-300 mb-2">' + title + '</h3>';
+    html += '<div class="overflow-auto max-h-64"><table class="w-full text-xs font-mono">';
+    html += '<thead><tr class="border-b border-zinc-700"><th class="text-left px-3 py-1 text-zinc-400">Name</th><th class="text-right px-3 py-1 text-green-400">+Add</th><th class="text-right px-3 py-1 text-yellow-400">~Chg</th><th class="text-right px-3 py-1 text-red-400">-Del</th></tr></thead><tbody>';
+    keys.forEach(function(k) {
+      var d = data[k];
+      html += '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50">';
+      html += '<td class="px-3 py-1 text-zinc-200 truncate" style="max-width:300px;" title="' + escapeHtml(k) + '">' + escapeHtml(k) + '</td>';
+      html += statCell(d.add || 0, 'text-green-400');
+      html += statCell(d.change || 0, 'text-yellow-400');
+      html += statCell(d.destroy || 0, 'text-red-400');
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    return html;
+  }
+
+  var content = '';
+  content += buildTable('By Module', byMod, true);
+  if (Object.keys(byMod).length > 0 && Object.keys(byType).length > 0) {
+    content += '<div class="border-t border-zinc-700 my-4"></div>';
+  }
+  content += buildTable('By Resource Type', byType, false);
+
+  overlay.innerHTML =
+    '<div class="bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">' +
+      '<div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">' +
+        '<span class="text-sm font-mono font-bold text-zinc-200">Resource Stats Breakdown</span>' +
+        '<button class="stats-close rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
+      '</div>' +
+      '<div class="p-4 overflow-auto flex-1">' + content + '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  function dismiss() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+
+  overlay.querySelector('.stats-close').onclick = dismiss;
+
+  function onKey(e) {
+    if (e.key === 'Escape') { e.stopImmediatePropagation(); dismiss(); }
+  }
+  document.addEventListener('keydown', onKey);
+}
+
+function showHistoryStatsPopup(stats) {
+  if (!stats) return;
+  // Reuse the same popup logic but with a fake session
+  var fakeId = '_history_stats_' + Date.now();
+  _termSessions[fakeId] = { stats: stats };
+  showStatsPopup(fakeId);
+  delete _termSessions[fakeId];
+}
+
+// =====================================================
+// Output Explorer — browse terragrunt outputs
+// =====================================================
+
+function openOutputExplorer() {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.innerHTML =
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-4xl w-full mx-auto">' +
+      '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
+        '<div class="flex items-center gap-2">' +
+          '<svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>' +
+          '<span class="text-sm font-mono font-bold text-zinc-200">Output Explorer</span>' +
+        '</div>' +
+        '<button class="output-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
+      '</div>' +
+      '<div class="output-tree flex-1 overflow-auto p-4 font-mono text-sm">' +
+        '<div class="text-zinc-500 text-xs">Loading modules...</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  function dismiss() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+
+  overlay.querySelector('.output-close-x').onclick = dismiss;
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+
+  function onKey(e) {
+    if (e.key === 'Escape') {
+      if (document.querySelector('.fixed.inset-0.z-\\[70\\]')) return;
+      e.stopImmediatePropagation();
+      dismiss();
+    }
+  }
+  document.addEventListener('keydown', onKey);
+
+  // Fetch module list
+  fetch('/api/outputs/modules')
+    .then(function(resp) { return resp.json(); })
+    .then(function(modules) {
+      renderOutputTree(overlay.querySelector('.output-tree'), modules);
+    })
+    .catch(function(err) {
+      overlay.querySelector('.output-tree').innerHTML =
+        '<div class="text-red-400 text-xs">Failed to load modules: ' + escapeHtml(err.message) + '</div>';
+    });
+}
+
+function renderOutputTree(container, modules) {
+  container.innerHTML = '';
+
+  // Group by category: global vs regional
+  var globalMods = [];
+  var regionalMods = [];
+  modules.forEach(function(m) {
+    if (m.global) globalMods.push(m);
+    else regionalMods.push(m);
+  });
+
+  // Build regions list from window.ALL_REGIONS
+  var regions = (window.ALL_REGIONS || []).map(function(r) { return r.Full || r.full; });
+
+  // Render global section
+  if (globalMods.length > 0) {
+    var section = createOutputSection('Global', globalMods, null);
+    container.appendChild(section);
+  }
+
+  // Render regional sections
+  regions.forEach(function(region) {
+    var section = createOutputSection(region, regionalMods, region);
+    container.appendChild(section);
+  });
+}
+
+function createOutputSection(title, modules, region) {
+  var section = document.createElement('div');
+  section.className = 'mb-3';
+
+  var header = document.createElement('div');
+  header.className = 'flex items-center gap-2 cursor-pointer py-1 text-zinc-300 hover:text-green-400 transition-colors';
+  header.innerHTML =
+    '<span class="output-chevron text-[10px]">&#9654;</span>' +
+    '<span class="font-bold text-xs uppercase tracking-wider">' + escapeHtml(title) + '</span>' +
+    '<span class="text-zinc-600 text-[10px]">(' + modules.length + ')</span>';
+
+  var body = document.createElement('div');
+  body.className = 'hidden pl-4 border-l border-zinc-800 ml-1.5';
+
+  modules.forEach(function(mod) {
+    var modNode = createOutputModuleNode(mod, region);
+    body.appendChild(modNode);
+  });
+
+  header.onclick = function() {
+    var chevron = header.querySelector('.output-chevron');
+    if (body.classList.contains('hidden')) {
+      body.classList.remove('hidden');
+      chevron.innerHTML = '&#9660;';
+    } else {
+      body.classList.add('hidden');
+      chevron.innerHTML = '&#9654;';
+    }
+  };
+
+  section.appendChild(header);
+  section.appendChild(body);
+  return section;
+}
+
+function createOutputModuleNode(mod, region) {
+  var node = document.createElement('div');
+  node.className = 'my-0.5';
+
+  var header = document.createElement('div');
+  header.className = 'flex items-center gap-2 cursor-pointer py-1 px-1 rounded hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200 transition-colors group';
+  var displayName = mod.panel.replace(/_/g, '-');
+  header.innerHTML =
+    '<span class="output-chevron text-[10px]">&#9654;</span>' +
+    '<span class="text-xs">' + escapeHtml(displayName) + '</span>' +
+    '<button class="output-refresh hidden group-hover:inline-block text-zinc-600 hover:text-green-400 text-[10px] ml-auto" title="Refresh">&#8635;</button>';
+
+  var body = document.createElement('div');
+  body.className = 'hidden pl-4 border-l border-zinc-800/50 ml-1.5';
+
+  var loaded = false;
+
+  function doFetch() {
+    body.innerHTML = '<div class="text-zinc-600 text-[10px] py-1">Loading outputs...</div>';
+    body.classList.remove('hidden');
+    header.querySelector('.output-chevron').innerHTML = '&#9660;';
+    fetchModuleOutputs(mod.panel, region, body);
+    loaded = true;
+  }
+
+  header.onclick = function(e) {
+    if (e.target.classList.contains('output-refresh')) return;
+    var chevron = header.querySelector('.output-chevron');
+    if (body.classList.contains('hidden')) {
+      if (!loaded) { doFetch(); return; }
+      body.classList.remove('hidden');
+      chevron.innerHTML = '&#9660;';
+    } else {
+      body.classList.add('hidden');
+      chevron.innerHTML = '&#9654;';
+    }
+  };
+
+  var refreshBtn = header.querySelector('.output-refresh');
+  if (refreshBtn) {
+    refreshBtn.onclick = function(e) {
+      e.stopPropagation();
+      doFetch();
+    };
+  }
+
+  node.appendChild(header);
+  node.appendChild(body);
+  return node;
+}
+
+function fetchModuleOutputs(panel, region, container) {
+  var url = '/api/outputs?module=' + encodeURIComponent(panel);
+  if (region) url += '&region=' + encodeURIComponent(region);
+
+  fetch(url)
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+      container.innerHTML = '';
+      if (data.error) {
+        container.innerHTML = '<div class="text-red-400 text-[11px] py-1">' + escapeHtml(data.error) + '</div>';
+        return;
+      }
+      var outputs = data.outputs || {};
+      var keys = Object.keys(outputs);
+      if (keys.length === 0) {
+        container.innerHTML = '<div class="text-zinc-600 text-[10px] py-1">No outputs defined</div>';
+        return;
+      }
+      keys.sort();
+      keys.forEach(function(key) {
+        var out = outputs[key];
+        var row = document.createElement('div');
+        row.className = 'py-0.5 text-[11px]';
+
+        var valPreview = formatOutputValue(out.value);
+        var isComplex = out.value !== null && typeof out.value === 'object';
+
+        if (out.sensitive) {
+          row.innerHTML =
+            '<span class="text-green-400">' + escapeHtml(key) + '</span>' +
+            ' <span class="text-zinc-600">=</span> ' +
+            '<span class="pii-blur text-zinc-300" onclick="this.classList.toggle(\'pii-revealed\')">(sensitive)</span>';
+        } else if (isComplex) {
+          var chevron = document.createElement('span');
+          chevron.className = 'output-chevron text-[9px] cursor-pointer mr-1';
+          chevron.innerHTML = '&#9654;';
+
+          var label = document.createElement('span');
+          label.className = 'text-green-400 cursor-pointer';
+          label.textContent = key;
+
+          var preview = document.createElement('span');
+          preview.className = 'text-zinc-600 ml-1';
+          preview.textContent = '= ' + valPreview;
+
+          var detail = document.createElement('pre');
+          detail.className = 'hidden text-zinc-400 text-[10px] pl-4 py-1 overflow-x-auto max-h-48 bg-zinc-800/30 rounded mt-0.5 mb-1';
+          detail.textContent = JSON.stringify(out.value, null, 2);
+
+          function toggleDetail() {
+            if (detail.classList.contains('hidden')) {
+              detail.classList.remove('hidden');
+              chevron.innerHTML = '&#9660;';
+            } else {
+              detail.classList.add('hidden');
+              chevron.innerHTML = '&#9654;';
+            }
+          }
+          chevron.onclick = toggleDetail;
+          label.onclick = toggleDetail;
+
+          row.appendChild(chevron);
+          row.appendChild(label);
+          row.appendChild(preview);
+          row.appendChild(detail);
+        } else {
+          row.innerHTML =
+            '<span class="text-green-400">' + escapeHtml(key) + '</span>' +
+            ' <span class="text-zinc-600">=</span> ' +
+            '<span class="text-zinc-300">' + escapeHtml(valPreview) + '</span>';
+        }
+
+        container.appendChild(row);
+      });
+    })
+    .catch(function(err) {
+      container.innerHTML = '<div class="text-red-400 text-[11px] py-1">Error: ' + escapeHtml(err.message) + '</div>';
+    });
+}
+
+function formatOutputValue(value) {
+  if (value === null || value === undefined) return 'null';
+  if (typeof value === 'string') return '"' + value + '"';
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return '[' + value.length + ' items]';
+  if (typeof value === 'object') return '{' + Object.keys(value).length + ' keys}';
+  return String(value);
+}
 
 // --- Sortable module groups ---
 var _sortableGroups = [
