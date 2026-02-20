@@ -2431,7 +2431,8 @@ function formatSummaryHtml(summary, exitCode, command, sessionId) {
     : '<span class="text-red-400">&#10007;</span>';
   if (!summary) {
     // Fallback to exit code display
-    if (exitCode === 0) return '<span class="text-green-400">&#10003; Done</span>';
+    var elapsed = sessionId && _termSessions[sessionId] ? _termSessions[sessionId].lastElapsed : null;
+    if (exitCode === 0) return '<span class="text-green-400">&#10003; ' + (elapsed || 'Done') + '</span>';
     return '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
   }
   var isApply = command && command.indexOf('apply') !== -1;
@@ -2519,7 +2520,7 @@ function showTerminalModal(session) {
           '</div>' +
         '</div>' +
         '<div class="flex items-center gap-2">' +
-          '<button class="term-minimize-btn rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-zinc-200 text-lg px-3 py-0.5 font-mono leading-none" title="Minimize">_</button>' +
+          '<button class="term-minimize-btn rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-zinc-200 text-lg px-3 pt-0.5 pb-1.5 font-mono leading-none" title="Minimize">_</button>' +
           '<button class="term-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
@@ -2677,6 +2678,7 @@ function showTerminalModal(session) {
       var m = Math.floor(secs / 60);
       var s = secs % 60;
       var elapsed = m > 0 ? m + 'm ' + s + 's' : s + 's';
+      sessionState.lastElapsed = elapsed;
       statusEl.textContent = 'Running... ' + elapsed;
       // Show waiting placeholder if no output after 3 seconds
       if (!_hasOutput && secs >= 3 && !output.querySelector('.term-waiting')) {
@@ -2721,7 +2723,10 @@ function showTerminalModal(session) {
     }
     stopBtn.classList.add('hidden');
     if (liveStatsBtn) liveStatsBtn.classList.add('hidden');
-    statusEl.textContent = exitCode === 0 ? 'Done' : 'Failed';
+    var doneText = exitCode === 0
+      ? (sessionState.lastElapsed ? sessionState.lastElapsed : 'Done')
+      : 'Failed';
+    statusEl.textContent = doneText;
     statusEl.className = 'term-status text-[11px] font-mono ' +
       (exitCode === 0 ? 'text-green-400' : 'text-red-400');
     // Show exit code and close button in footer

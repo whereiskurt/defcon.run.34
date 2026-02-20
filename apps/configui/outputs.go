@@ -132,10 +132,25 @@ func (a *App) handleOutputs(w http.ResponseWriter, r *http.Request) {
 		profile = envLocal.ProfilePrefix + "-terraform"
 	}
 
+	// Resolve explicit credentials so terragrunt/terraform don't need to
+	// resolve SSO tokens themselves (which can fail with stale caches).
+	env := buildTerminalEnv(profile, cfg, envLocal)
+	if creds, err := runExportCredentials(profile); err == nil {
+		for _, line := range strings.Split(creds, "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "export ") {
+				line = strings.TrimPrefix(line, "export ")
+			}
+			if strings.HasPrefix(line, "AWS_") && strings.Contains(line, "=") {
+				env = append(env, line)
+			}
+		}
+	}
+
 	cmd := exec.Command("terragrunt", "output", "-json",
 		"--non-interactive", "--no-color", "--log-disable")
 	cmd.Dir = workDir
-	cmd.Env = buildTerminalEnv(profile, cfg, envLocal)
+	cmd.Env = env
 
 	out, err := cmd.Output()
 	if err != nil {
