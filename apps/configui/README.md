@@ -1,14 +1,16 @@
 # ConfigUI
 
-A local-only web UI for managing the defcon.run infrastructure configuration. ConfigUI reads and writes `site.hcl`, `service.hcl`, `env.sh`, and `env.local.sh` files, provides live HCL preview with syntax highlighting, runs `terragrunt plan/apply` with streaming terminal output, and shows real-time AWS resource discovery.
+A local-only web UI for managing the defcon.run infrastructure configuration. ConfigUI reads and writes `site.hcl`, `service.hcl`, `env.sh`, and `env.local.sh` files, provides live HCL preview with syntax highlighting, runs `terragrunt plan/apply` with streaming terminal output, browses terraform outputs, and shows real-time AWS resource discovery.
+
+![ConfigUI Overview](docs/overview-new.png)
 
 ### Form editing with live preview
 
 ![Form editing with live preview](docs/configui-demo-1-20260216-184357.gif)
 
-### Terminal plan and discovery refresh
+### Plan All, Apply All, and Destroy All
 
-![Terminal plan and discovery refresh](docs/configui-demo-2-20260216-184912.gif)
+![Plan All, Apply All, and Destroy All](docs/configui-demo-plan-apply-destroy-20260220-142204.gif)
 
 ## Quick Start
 
@@ -33,9 +35,13 @@ Three collapsible sections organize 24+ configuration panels:
 
 **Services** -- Per-service configuration for run.auth, run.human, run.cms, and run.gpx with container sizing, DynamoDB tables, S3 buckets, Lambda functions, and autoscaling.
 
+![PII Blur, Default Values, and Field Sync](docs/pii-blur.png)
+
 ### Module Toggle with Status Label
 
 Each infrastructure module has an enable/disable toggle. The section header has a tri-state slider showing **all**, **none**, or a count like **5/12** to indicate how many modules are active.
+
+![Module Toggle](docs/module-toggle.png)
 
 ### Live HCL Preview
 
@@ -46,9 +52,13 @@ Click **Preview** to open a resizable side panel showing the generated `site.hcl
 - Copy to clipboard per tab
 - Draggable resize handle between form and preview
 
+![Live HCL Preview](docs/preview-panel.png)
+
 ### AWS Status Bar
 
 Shows current AWS authentication state with account ID, ARN, SSO Login and Export Creds buttons. Below the buttons, status dots indicate Terraform state bucket and lock table health per region.
+
+![AWS Status Bar](docs/aws-status.png)
 
 ### Discovery Dots
 
@@ -61,6 +71,8 @@ Each infrastructure module panel header shows per-region status dots indicating 
 
 Dots auto-refresh on page load and after terminal commands complete. Click the refresh button to manually re-scan.
 
+![Discovery Dots](docs/discovery-dots.png)
+
 ### Terminal (Terragrunt Execution)
 
 Click **Plan** or **Apply** on any module panel header to run `terragrunt plan` or `terragrunt apply` in a streaming terminal modal. For regional modules, a region selector appears.
@@ -72,9 +84,36 @@ Click **Plan** or **Apply** on any module panel header to run `terragrunt plan` 
 - Discovery auto-refreshes on close
 - **Plan All** / **Apply All** buttons on the Infrastructure Modules section header
 
+![Terminal](docs/terminal-modal.png)
+
+### Resource Stats Breakdown
+
+After a `terragrunt plan` or `apply` completes, an inline **[Stats]** button appears on the terminal summary line. Clicking it opens a popup breaking down add/change/destroy counts:
+
+- **By Module** -- shows which Terraform modules have changes, sorted alphabetically
+- **By Resource Type** -- shows which AWS resource types are affected, sorted by total change count
+- Color-coded columns: green (+Add), yellow (~Chg), red (-Del)
+- Available for both live terminal runs and historical runs via the **Runs** dropdown
+
+![Resource Stats Breakdown](docs/resource-stats.png)
+
+### Output Explorer
+
+The **Outputs** button in the header opens a full-screen modal for browsing `terraform output` values across all modules.
+
+- Modules grouped by **Global** vs per-region (us-east-1, ca-central-1, etc.)
+- Lazy-loads outputs per module on expand (runs `terragrunt output -json` on demand)
+- Sensitive values display as `(sensitive)` with click-to-reveal (uses PII blur)
+- Complex objects (maps, lists) are collapsible with a JSON detail view
+- Refresh button per module to re-fetch outputs
+
+![Output Explorer](docs/output-explorer.png)
+
 ### Fix Locks
 
 The **Fix Locks** button scans all DynamoDB state tables for stuck Terraform locks. It shows a count of found locks with details, then asks for confirmation before removing them.
+
+![Fix Locks](docs/fix-locks.png)
 
 ### PII Blur
 
@@ -97,6 +136,8 @@ A lock icon next to each synced field shows which panel it's linked to.
 ### AWS Credentials Panel
 
 Generates copy-paste-ready `~/.aws/config` (SSO) and `~/.aws/credentials` (IAM) file content from your form values. Tabbed view with a Copy button on each tab. Content updates live as you change SSO session name, account IDs, and profile prefix.
+
+![AWS Credentials](docs/aws-credentials.png)
 
 ### SOPS Secret Editor
 
@@ -124,6 +165,7 @@ apps/configui/
   envfiles.go      # env.sh / env.local.sh parsing and generation
   discovery.go     # AWS resource existence checks (14 modules)
   terminal.go      # Terragrunt process management, SSE streaming
+  outputs.go       # Terraform output browsing API
   locks.go         # DynamoDB lock scanning and removal
   aws.go           # AWS identity, state bucket, lock table checks
   sops.go          # SOPS decrypt/encrypt via CLI
@@ -131,7 +173,7 @@ apps/configui/
   versions.go      # VERSION file reading
 
   static/
-    app.js         # All frontend JS (~1600 lines)
+    app.js         # All frontend JS (~3500 lines)
     style.css      # Custom CSS (toggles, blur, discovery, terminal, etc.)
     dcjack.svg     # DC Jack bunny logo
 
@@ -164,6 +206,8 @@ All templates and static files are embedded via `go:embed` -- the binary is self
 | POST | `/api/terminal/stop` | Kill running process |
 | POST | `/api/scan-locks` | Scan for stuck locks |
 | POST | `/api/fix-locks` | Remove stuck locks |
+| GET | `/api/outputs/modules` | List available terraform modules |
+| GET | `/api/outputs` | Get terraform outputs for a module |
 
 ## Visual Evolution
 
