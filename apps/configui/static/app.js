@@ -2784,7 +2784,14 @@ function formatSummaryHtml(summary, exitCode, command, sessionId) {
     var s = _termSessions[sessionId];
     var stats = s && s.stats;
     if (stats && (Object.keys(stats.by_module || {}).length > 1 || Object.keys(stats.by_type || {}).length > 0)) {
-      html += ' <button onclick="showStatsPopup(\'' + sessionId + '\')" class="text-sm font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded-md px-4 py-1.5 ml-2 transition-colors">[Stats]</button>';
+      var sa = 0, sc = 0, sd = 0, sm = stats.by_module || {};
+      for (var sk in sm) { sa += sm[sk].add || 0; sc += sm[sk].change || 0; sd += sm[sk].destroy || 0; }
+      html += ' <button onclick="showStatsPopup(\'' + sessionId + '\')" class="text-sm font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded-md px-4 py-1.5 ml-2 transition-colors">' +
+        '<span class="text-zinc-500">[</span>Stats ' +
+        '<span class="' + (sa > 0 ? 'text-green-400' : 'text-zinc-600') + '">+' + sa + '</span> ' +
+        '<span class="' + (sc > 0 ? 'text-yellow-400' : 'text-zinc-600') + '">~' + sc + '</span> ' +
+        '<span class="' + (sd > 0 ? 'text-red-400' : 'text-zinc-600') + '">-' + sd + '</span>' +
+        '<span class="text-zinc-500">]</span></button>';
     }
   }
   return html;
@@ -3072,11 +3079,20 @@ function showTerminalModal(session) {
   es.addEventListener('stats', function(e) {
     try {
       sessionState.stats = JSON.parse(e.data);
-      // Show live stats button once we have data
-      if (liveStatsBtn && liveStatsBtn.classList.contains('hidden')) {
+      // Show live stats button and update its label with running totals
+      if (liveStatsBtn) {
         var stats = sessionState.stats;
         if (stats && (Object.keys(stats.by_module || {}).length > 0 || Object.keys(stats.by_type || {}).length > 0)) {
           liveStatsBtn.classList.remove('hidden');
+          // Sum totals across all modules
+          var a = 0, c = 0, d = 0;
+          var mods = stats.by_module || {};
+          for (var k in mods) { a += mods[k].add || 0; c += mods[k].change || 0; d += mods[k].destroy || 0; }
+          liveStatsBtn.innerHTML = '<span class="text-zinc-500">[</span>Stats ' +
+            '<span class="' + (a > 0 ? 'text-green-400' : 'text-zinc-600') + '">+' + a + '</span> ' +
+            '<span class="' + (c > 0 ? 'text-yellow-400' : 'text-zinc-600') + '">~' + c + '</span> ' +
+            '<span class="' + (d > 0 ? 'text-red-400' : 'text-zinc-600') + '">-' + d + '</span>' +
+            '<span class="text-zinc-500">]</span>';
         }
       }
     } catch(err) {}
@@ -3391,7 +3407,7 @@ function showHistoryModal(entry) {
         '<span class="text-xs font-mono text-zinc-400">' +
           formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command, null) +
           (entry.stats && (Object.keys(entry.stats.by_module || {}).length > 1 || Object.keys(entry.stats.by_type || {}).length > 0)
-            ? ' <button class="history-stats-btn text-[10px] font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded px-1.5 py-0.5 ml-2 transition-colors">[Stats]</button>'
+            ? (function() { var ha=0,hc=0,hd=0,hm=entry.stats.by_module||{}; for(var hk in hm){ha+=hm[hk].add||0;hc+=hm[hk].change||0;hd+=hm[hk].destroy||0;} return ' <button class="history-stats-btn text-[10px] font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded px-1.5 py-0.5 ml-2 transition-colors"><span class="text-zinc-500">[</span>Stats <span class="'+(ha>0?'text-green-400':'text-zinc-600')+'">+'+ha+'</span> <span class="'+(hc>0?'text-yellow-400':'text-zinc-600')+'">~'+hc+'</span> <span class="'+(hd>0?'text-red-400':'text-zinc-600')+'">-'+hd+'</span><span class="text-zinc-500">]</span></button>'; })()
             : '') +
           ' &mdash; ' + formatTimeAgo(entry.timestamp) +
         '</span>' +
