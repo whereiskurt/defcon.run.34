@@ -721,8 +721,12 @@ func checkCloudFrontDistributions(profile string, domains []string, zoneName str
 
 func checkEC2Spots(profile, siteLabel, region string) RegionCheck {
 	rc := RegionCheck{Region: region, Label: regionLabel(region)}
+	// Spot instance requests don't propagate tags to EC2 instances,
+	// so filter by the security group name pattern instead.
+	sgPattern := fmt.Sprintf("ec2spot-%s-*", regionLabel(region))
 	out, err := exec.Command("aws", "ec2", "describe-instances",
-		"--filters", fmt.Sprintf("Name=tag:Site,Values=%s", siteLabel),
+		"--filters",
+		fmt.Sprintf("Name=instance.group-name,Values=%s", sgPattern),
 		"Name=instance-state-name,Values=running,pending",
 		"--profile", profile,
 		"--region", region,

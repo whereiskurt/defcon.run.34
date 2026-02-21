@@ -188,6 +188,7 @@ func main() {
 	mux.HandleFunc("GET /api/outputs", app.handleOutputs)
 	mux.HandleFunc("GET /api/outputs/modules", app.handleOutputsList)
 	mux.HandleFunc("GET /api/waf/fleet", app.handleWAFFleetStatus)
+	mux.HandleFunc("POST /api/waf/node/delete", app.handleWAFNodeDelete)
 	mux.HandleFunc("POST /api/waf/command", app.handleWAFCommand)
 	mux.HandleFunc("POST /api/waf/campaign", app.handleWAFCampaign)
 	mux.HandleFunc("GET /api/waf/logs", app.handleWAFLogs)

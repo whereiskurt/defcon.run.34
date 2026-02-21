@@ -364,7 +364,16 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	if len(nodes) == 0 {
 		fmt.Fprint(w, `<div class="text-xs text-zinc-500 py-4 text-center">No nodes registered. Deploy fleet to see active nodes.</div>`)
+		fmt.Fprint(w, `<script>var pb=document.getElementById('waf-purge-stale-btn');if(pb)pb.style.display='none';</script>`)
 		return
+	}
+
+	// Count stale nodes for purge button
+	staleCount := 0
+	for _, n := range nodes {
+		if n.Status == "stale" || n.Status == "unregistered" {
+			staleCount++
+		}
 	}
 
 	fmt.Fprint(w, `<table class="w-full text-xs"><thead><tr class="text-left text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700">`)
@@ -385,15 +394,63 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `<td class="py-1.5 px-2 text-zinc-400">%d</td>`, i+1)
 		fmt.Fprintf(w, `<td class="py-1.5 px-2">%s</td>`, n.Flag)
 		fmt.Fprintf(w, `<td class="py-1.5 px-2 font-mono">%s</td>`, template.HTMLEscapeString(n.IP))
-		fmt.Fprintf(w, `<td class="py-1.5 px-2"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-zinc-700 text-zinc-300">%s</span></td>`, template.HTMLEscapeString(n.NodeType))
+		typeLabel := n.NodeType
+		typeBg := "bg-zinc-700 text-zinc-300"
+		if typeLabel == "fargate" || typeLabel == "ecs" {
+			typeLabel = "ecs"
+			typeBg = "bg-indigo-900/40 text-indigo-300"
+		} else if typeLabel == "ec2" {
+			typeBg = "bg-amber-900/40 text-amber-300"
+		}
+		fmt.Fprintf(w, `<td class="py-1.5 px-2"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium %s">%s</span></td>`, typeBg, template.HTMLEscapeString(typeLabel))
 		fmt.Fprintf(w, `<td class="py-1.5 px-2">%s</td>`, statusBadge)
 		fmt.Fprintf(w, `<td class="py-1.5 px-2 font-mono">%s</td>`, template.HTMLEscapeString(n.Rank))
 		fmt.Fprintf(w, `<td class="py-1.5 px-2 text-zinc-400">%s</td>`, template.HTMLEscapeString(n.Uptime))
-		fmt.Fprintf(w, `<td class="py-1.5 px-2"><button type="button" onclick="navigator.clipboard.writeText('%s');showToast('Copied IP')" class="text-zinc-400 hover:text-zinc-200" title="Copy IP">&#128203;</button> <button type="button" onclick="sendWAFCommand('%s')" class="text-zinc-400 hover:text-zinc-200 ml-1" title="Send script">&#128228;</button></td>`,
-			template.HTMLEscapeString(n.IP), template.HTMLEscapeString(n.IP))
+		ipEsc := template.HTMLEscapeString(n.IP)
+		deleteBtn := ""
+		if n.Status == "stale" || n.Status == "unregistered" {
+			deleteBtn = fmt.Sprintf(` <button type="button" onclick="deleteWAFNode('%s')" class="text-zinc-500 hover:text-red-400 ml-1" title="Remove node">&#128465;</button>`, ipEsc)
+		}
+		fmt.Fprintf(w, `<td class="py-1.5 px-2"><button type="button" onclick="navigator.clipboard.writeText('%s');showToast('Copied IP')" class="text-zinc-400 hover:text-zinc-200" title="Copy IP">&#128203;</button> <button type="button" onclick="sendWAFCommand('%s')" class="text-zinc-400 hover:text-zinc-200 ml-1" title="Send script">&#128228;</button>%s</td>`,
+			ipEsc, ipEsc, deleteBtn)
 		fmt.Fprint(w, `</tr>`)
 	}
 	fmt.Fprint(w, `</tbody></table>`)
+
+	// Toggle purge button in header
+	if staleCount > 0 {
+		fmt.Fprintf(w, `<script>var pb=document.getElementById('waf-purge-stale-btn');if(pb){pb.style.display='';pb.textContent='Purge %d stale';}</script>`, staleCount)
+	} else {
+		fmt.Fprint(w, `<script>var pb=document.getElementById('waf-purge-stale-btn');if(pb)pb.style.display='none';</script>`)
+	}
+}
+
+// handleWAFNodeDelete removes a node's S3 registration (meta.json + alive.txt).
+func (a *App) handleWAFNodeDelete(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	accountID := a.envLocal.ApplicationAccountID
+	a.mu.RUnlock()
+
+	if accountID == "" {
+		http.Error(w, "No account ID", 400)
+		return
+	}
+
+	ip := r.FormValue("ip")
+	if ip == "" {
+		http.Error(w, "Missing ip", 400)
+		return
+	}
+
+	bucket := controlBucketName(accountID)
+	profile := a.wafProfile()
+	region := "us-east-1"
+
+	s3DeleteKey(profile, bucket, fmt.Sprintf("nodes/%s/meta.json", ip), region)
+	s3DeleteKey(profile, bucket, fmt.Sprintf("nodes/%s/alive.txt", ip), region)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "ip": ip})
 }
 
 // discoverEC2Instances queries EC2 for running waffaw instances that may not

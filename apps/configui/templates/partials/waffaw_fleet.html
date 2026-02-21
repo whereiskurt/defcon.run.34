@@ -129,8 +129,12 @@
   <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
     <div class="flex items-center justify-between mb-2">
       <h4 class="text-xs uppercase tracking-wide text-green-500">Active Nodes</h4>
-      <button type="button" onclick="document.getElementById('waf-fleet-table').dispatchEvent(new Event('refresh'))"
-              class="text-xs text-zinc-400 hover:text-zinc-200">Refresh</button>
+      <div class="flex items-center gap-3">
+        <button type="button" id="waf-purge-stale-btn" onclick="purgeStaleWAFNodes()" style="display:none"
+                class="text-xs text-zinc-500 hover:text-red-400 transition-colors">Purge stale</button>
+        <button type="button" onclick="document.getElementById('waf-fleet-table').dispatchEvent(new Event('refresh'))"
+                class="text-xs text-zinc-400 hover:text-zinc-200">Refresh</button>
+      </div>
     </div>
     <div id="waf-fleet-table"
          hx-get="/api/waf/fleet"

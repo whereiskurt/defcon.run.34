@@ -2907,7 +2907,7 @@ function showTerminalModal(session) {
         '</div>' +
         '<div class="flex items-center gap-2">' +
           '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-4 py-1.5 text-sm font-mono">Stop</button>' +
-          '<button class="term-close-btn hidden rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
+          '<button class="term-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -4586,6 +4586,54 @@ function sendWAFCommand(targetIP) {
     });
   }).catch(function(err) {
     showToast('Command failed: ' + err.message, 5000);
+  });
+}
+
+function deleteWAFNode(ip) {
+  var body = new URLSearchParams();
+  body.append('ip', ip);
+  fetch('/api/waf/node/delete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(function(r) {
+    if (r.ok) {
+      showToast('Removed ' + ip);
+      document.getElementById('waf-fleet-table').dispatchEvent(new Event('refresh'));
+    } else {
+      showToast('Failed to remove node', 5000);
+    }
+  });
+}
+
+function purgeStaleWAFNodes() {
+  var rows = document.querySelectorAll('#waf-fleet-table tr[class*="opacity"]');
+  var ips = [];
+  rows.forEach(function(row) {
+    var ipCell = row.querySelector('td.font-mono');
+    if (ipCell) ips.push(ipCell.textContent.trim());
+  });
+  if (ips.length === 0) { showToast('No stale nodes'); return; }
+  showConfirmDialog({
+    title: 'Purge ' + ips.length + ' stale node(s)?',
+    message: 'This removes S3 registrations for: ' + ips.join(', '),
+    confirmLabel: 'Purge',
+    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+    onConfirm: function() {
+      var promises = ips.map(function(ip) {
+        var body = new URLSearchParams();
+        body.append('ip', ip);
+        return fetch('/api/waf/node/delete', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: body.toString()
+        });
+      });
+      Promise.all(promises).then(function() {
+        showToast('Purged ' + ips.length + ' node(s)');
+        document.getElementById('waf-fleet-table').dispatchEvent(new Event('refresh'));
+      });
+    }
   });
 }
 

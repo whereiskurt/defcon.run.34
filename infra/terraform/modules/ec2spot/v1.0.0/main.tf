@@ -229,6 +229,31 @@ resource "aws_spot_instance_request" "ec2spot" {
   ]
 }
 
+# Tag the actual EC2 instances (spot requests don't propagate tags)
+resource "aws_ec2_tag" "ec2spot_name" {
+  for_each = local.ec2spot_map
+
+  resource_id = aws_spot_instance_request.ec2spot[each.key].spot_instance_id
+  key         = "Name"
+  value       = each.value.instance_name
+}
+
+resource "aws_ec2_tag" "ec2spot_site" {
+  for_each = local.ec2spot_map
+
+  resource_id = aws_spot_instance_request.ec2spot[each.key].spot_instance_id
+  key         = "Site"
+  value       = var.site.label
+}
+
+resource "aws_ec2_tag" "ec2spot_region" {
+  for_each = local.ec2spot_map
+
+  resource_id = aws_spot_instance_request.ec2spot[each.key].spot_instance_id
+  key         = "Region"
+  value       = var.region.label
+}
+
 # Route53 DNS records for EC2 spot instances (optional)
 resource "aws_route53_record" "ec2spot" {
   for_each = {
