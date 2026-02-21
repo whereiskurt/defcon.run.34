@@ -4532,6 +4532,8 @@ function buildWaffaw() {
               statusEl.textContent = 'Done in ' + formatElapsed(data.elapsed || 0);
               elapsedEl.textContent = '';
               showToast('Build completed successfully');
+              // Re-check ECR badge now that the image is pushed
+              if (typeof checkWaffawImage === 'function') checkWaffawImage();
             } else {
               statusEl.textContent = 'Failed (exit ' + data.exit + ')';
               statusEl.className = statusEl.className.replace('text-green-400', 'text-red-400');
