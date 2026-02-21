@@ -144,32 +144,40 @@ type TermSession struct {
 
 // ModuleDef maps a panel ID to a terragrunt module path.
 type ModuleDef struct {
-	Path   string // relative to infra/terraform/live/site/, use %s for region
-	Global bool   // true = no region needed
+	Path     string // relative to infra/terraform/live/site/, use %s for region
+	Global   bool   // true = no region needed
+	Category string // "infra", "services", "apps", "meta"
 }
 
 // ModuleMap maps panel IDs to filesystem paths relative to infra/terraform/live/site/.
 var ModuleMap = map[string]ModuleDef{
 	// All modules (run from site root)
-	"all": {Path: "", Global: true},
+	"all": {Path: "", Global: true, Category: "meta"},
 	// All modules in a single region
-	"region-all": {Path: "region/%s"},
+	"region-all": {Path: "region/%s", Category: "meta"},
 	// Global modules (run once)
-	"github_oidc": {Path: "global/github-oidc", Global: true},
-	"cloudtrail":  {Path: "global/cloudtrail", Global: true},
-	"cloudfront":  {Path: "global/cloudfront", Global: true},
-	"waf":         {Path: "global/waf", Global: true},
+	"github_oidc": {Path: "global/github-oidc", Global: true, Category: "infra"},
+	"cloudtrail":  {Path: "global/cloudtrail", Global: true, Category: "infra"},
+	"cloudfront":  {Path: "global/cloudfront", Global: true, Category: "infra"},
+	"waf":         {Path: "global/waf", Global: true, Category: "infra"},
 	// Regional modules (need region param)
-	"ecs_clusters": {Path: "region/%s/ecs-cluster"},
-	"ecs_services": {Path: "region/%s/ecs-service"},
-	"ecs_tasks":    {Path: "region/%s/ecs-task"},
-	"dynamodb":     {Path: "region/%s/dynamodb"},
-	"ecr":          {Path: "region/%s/ecr"},
-	"ec2spots":     {Path: "region/%s/ec2spot"},
-	"email":        {Path: "region/%s/email"},
-	"secrets":      {Path: "region/%s/secrets"},
-	"s3_uploads":   {Path: "region/%s/s3-uploads"},
-	"upload_proc":  {Path: "region/%s/s3-uploads-processor"},
+	"ecs_clusters": {Path: "region/%s/ecs-cluster", Category: "infra"},
+	"ecs_services": {Path: "region/%s/ecs-service", Category: "infra"},
+	"ecs_tasks":    {Path: "region/%s/ecs-task", Category: "infra"},
+	"dynamodb":     {Path: "region/%s/dynamodb", Category: "infra"},
+	"ecr":          {Path: "region/%s/ecr", Category: "infra"},
+	"ec2spots":     {Path: "region/%s/ec2spot", Category: "infra"},
+	"email":        {Path: "region/%s/email", Category: "infra"},
+	"secrets":      {Path: "region/%s/secrets", Category: "infra"},
+	"s3_uploads":   {Path: "region/%s/s3-uploads", Category: "infra"},
+	"upload_proc":  {Path: "region/%s/s3-uploads-processor", Category: "infra"},
+	// Services (global — single terragrunt config per service)
+	"svc_auth":  {Path: "services/run.auth", Global: true, Category: "services"},
+	"svc_human": {Path: "services/run.human", Global: true, Category: "services"},
+	"svc_cms":   {Path: "services/run.cms", Global: true, Category: "services"},
+	"svc_gpx":   {Path: "services/run.gpx", Global: true, Category: "services"},
+	// Apps (regional)
+	"waffaw": {Path: "region/%s/waffaw", Category: "apps"},
 }
 
 // AllowedCommands maps command names to their terragrunt arguments.

@@ -299,36 +299,21 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// Try to read roster for rank info — sort IPs numerically to match consensus protocol
-	rosterObjects, _ := s3ListKeys(profile, bucket, "consensus/current/roster.d/", region)
-	var rosterIPs []string
-	for _, obj := range rosterObjects {
-		parts := strings.Split(obj.Key, "/")
-		if len(parts) >= 4 {
-			ip := strings.TrimSuffix(parts[3], ".json")
-			if ip != "" {
-				rosterIPs = append(rosterIPs, ip)
-			}
+	// Sort nodes by IP (deterministic numeric sort) and assign rank from online nodes
+	sort.Slice(nodes, func(i, j int) bool {
+		return compareIPsNumerically(nodes[i].IP, nodes[j].IP)
+	})
+	onlineCount := 0
+	for _, n := range nodes {
+		if n.Status == "online" {
+			onlineCount++
 		}
 	}
-	// Deterministic numeric IP sort (matches consensus.sh: sort -t. -k1,1n -k2,2n -k3,3n -k4,4n)
-	sort.Slice(rosterIPs, func(i, j int) bool {
-		return compareIPsNumerically(rosterIPs[i], rosterIPs[j])
-	})
-	rosterRanks := map[string]int{}
-	rosterTotal := len(rosterIPs)
-	for i, ip := range rosterIPs {
-		rosterRanks[ip] = i + 1
-	}
-
-	// Sort nodes by IP
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].IP < nodes[j].IP
-	})
-
+	rank := 0
 	for i := range nodes {
-		if rank, ok := rosterRanks[nodes[i].IP]; ok {
-			nodes[i].Rank = fmt.Sprintf("%d/%d", rank, rosterTotal)
+		if nodes[i].Status == "online" {
+			rank++
+			nodes[i].Rank = fmt.Sprintf("%d/%d", rank, onlineCount)
 		}
 	}
 
@@ -483,6 +468,7 @@ echo "[waffaw] Starting campaign: $CAMPAIGN -> $TARGET_URL (log=$LOG_LEVEL)"
 # Run consensus protocol to determine node rank
 if [[ -f /opt/waffaw/consensus.sh ]]; then
   source /opt/waffaw/consensus.sh
+  run_consensus "${EXPECTED_NODES:-1}"
   echo "[waffaw] Consensus complete: node $NODE_RANK of $NODE_TOTAL"
 else
   echo "[waffaw] WARNING: consensus.sh not found, running without coordination"
@@ -561,7 +547,7 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	startTime := time.Now().Add(-5 * time.Minute).UnixMilli()
+	startTime := time.Now().Add(-24 * time.Hour).UnixMilli()
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
@@ -601,11 +587,24 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 			}
 
 			for _, event := range resp.Events {
+				ts := time.UnixMilli(event.Timestamp).Format("15:04:05.000")
+
 				var logEntry map[string]interface{}
 				if json.Unmarshal([]byte(event.Message), &logEntry) != nil {
+					// Plain-text log message (agent lifecycle, etc.)
+					lineJSON, _ := json.Marshal(map[string]interface{}{
+						"line":   fmt.Sprintf("%s  %s", ts, event.Message),
+						"status": 0,
+						"raw":    true,
+					})
+					fmt.Fprintf(w, "data: %s\n\n", lineJSON)
+					if event.Timestamp > startTime {
+						startTime = event.Timestamp + 1
+					}
 					continue
 				}
 
+				// Structured JSON log (HTTP request details)
 				ip, _ := logEntry["source_ip"].(string)
 				logRegion, _ := logEntry["region"].(string)
 				method, _ := logEntry["method"].(string)
@@ -628,7 +627,6 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 				}
 
 				flag := flagForRegion(logRegion)
-				ts := time.UnixMilli(event.Timestamp).Format("15:04:05.000")
 
 				path := targetURL
 				if idx := strings.Index(targetURL, "://"); idx >= 0 {
@@ -772,7 +770,14 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	accountID := a.envLocal.ApplicationAccountID
 	profilePrefix := a.envLocal.ProfilePrefix
 	siteLabel := a.config.Site.Label
+	imageURI := a.config.Waffaw.ImageURI
 	a.mu.RUnlock()
+
+	// Extract tag from image_uri (e.g. "dc34-waffaw:1.0.1" -> "1.0.1")
+	imageTag := "latest"
+	if i := strings.LastIndex(imageURI, ":"); i > 0 {
+		imageTag = imageURI[i+1:]
+	}
 
 	buildScript := fmt.Sprintf("%s/apps/waffaw/build.sh", a.repoRoot)
 
@@ -788,6 +793,7 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		"AWS_PROFILE="+profile,
 		"AWS_ACCOUNT_ID="+accountID,
 		"SITE_LABEL="+siteLabel,
+		"IMAGE_TAG="+imageTag,
 	)
 
 	stdout, err := cmd.StdoutPipe()

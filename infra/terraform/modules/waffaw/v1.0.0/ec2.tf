@@ -36,6 +36,7 @@ resource "aws_launch_template" "waffaw" {
     ecr_repo       = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region.full}.amazonaws.com"
     image_uri      = var.image_uri
     control_bucket = aws_s3_bucket.control[0].bucket
+    log_group      = aws_cloudwatch_log_group.waffaw[0].name
     log_level      = "normal"
   }))
 

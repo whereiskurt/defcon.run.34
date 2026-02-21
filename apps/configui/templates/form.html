@@ -14,10 +14,22 @@
     </button>
     <div class="split-btn" id="split-plan-all" data-command="plan"></div>
     <div class="split-btn" id="split-apply-all" data-command="apply"></div>
-    <button type="button" class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm font-medium" style="display: inline-flex; align-items: center; gap: 6px;" onclick="confirmFixLocks()">
-      <svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/><path stroke-linecap="round" stroke-linejoin="round" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101"/><line x1="4" y1="4" x2="20" y2="20" stroke-width="2.5"/></svg>
-      <span>Fix Locks</span>
-    </button>
+    <div class="split-btn" id="split-fix-locks" style="position:relative;display:inline-flex;">
+      <button type="button" class="split-btn-main split-btn-neutral" onclick="confirmFixLocks()" style="display:inline-flex;align-items:center;gap:6px;">
+        <svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/><path stroke-linecap="round" stroke-linejoin="round" d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.102 1.101"/><line x1="4" y1="4" x2="20" y2="20" stroke-width="2.5"/></svg>
+        <span>Fix Locks</span>
+      </button>
+      <button type="button" class="split-btn-drop split-btn-neutral" aria-label="Lock options" onclick="toggleFixLocksMenu(event)">
+        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="split-menu hidden" id="fix-locks-menu" style="min-width:200px;">
+        <label class="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-zinc-700 rounded text-sm" onclick="event.stopPropagation()">
+          <input type="checkbox" id="aggressive-locks-toggle" onchange="toggleAggressiveLocks(this.checked)">
+          <span>Aggressive Mode</span>
+        </label>
+        <div class="px-3 py-1 text-[10px] text-zinc-500 leading-tight">Auto-clear all locks before every plan, apply, or destroy</div>
+      </div>
+    </div>
   </div>
   <button type="button" id="blur-toggle-btn" onclick="toggleGlobalBlur()" class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-4 py-2 text-sm font-mono ml-auto" style="filter: none;">Unblur All</button>
 </div>

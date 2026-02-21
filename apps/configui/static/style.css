@@ -895,6 +895,24 @@ body.preview-dragging {
   border-left-color: rgba(255,255,255,0.2);
 }
 
+.split-btn-neutral {
+  background: #3f3f46;
+  color: #e4e4e7;
+}
+.split-btn-neutral:hover {
+  background: #52525b;
+}
+.split-btn-drop.split-btn-neutral {
+  border-left-color: rgba(255,255,255,0.15);
+}
+.split-btn-active-warn {
+  background: #92400e !important;
+  color: #fef3c7 !important;
+}
+.split-btn-active-warn:hover {
+  background: #a16207 !important;
+}
+
 .split-menu {
   position: absolute;
   top: 100%;

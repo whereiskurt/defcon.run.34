@@ -1458,6 +1458,44 @@ function confirmRequery() {
   });
 }
 
+// Aggressive Locks mode
+var _aggressiveLocks = localStorage.getItem('aggressiveLocks') === 'true';
+
+function toggleAggressiveLocks(on) {
+  _aggressiveLocks = on;
+  localStorage.setItem('aggressiveLocks', on ? 'true' : 'false');
+  updateAggressiveLocksUI();
+}
+
+function updateAggressiveLocksUI() {
+  var cb = document.getElementById('aggressive-locks-toggle');
+  if (cb) cb.checked = _aggressiveLocks;
+  var mainBtn = document.querySelector('#split-fix-locks .split-btn-main');
+  if (mainBtn) {
+    if (_aggressiveLocks) {
+      mainBtn.classList.add('split-btn-active-warn');
+    } else {
+      mainBtn.classList.remove('split-btn-active-warn');
+    }
+  }
+}
+
+function toggleFixLocksMenu(e) {
+  e.stopPropagation();
+  var menu = document.getElementById('fix-locks-menu');
+  if (!menu) return;
+  menu.classList.toggle('hidden');
+  if (!menu.classList.contains('hidden')) {
+    var close = function() { menu.classList.add('hidden'); document.removeEventListener('click', close); };
+    setTimeout(function() { document.addEventListener('click', close); }, 0);
+  }
+}
+
+// Init aggressive locks state on load
+document.addEventListener('DOMContentLoaded', function() {
+  updateAggressiveLocksUI();
+});
+
 // Fix Locks confirmation dialog
 function confirmFixLocks() {
   // Step 1: scan for locks first
@@ -2766,26 +2804,56 @@ function formatPillSummary(summary) {
 // --- Terminal open / modal ---
 
 function openTerminal(module, command, region) {
-  var body = new URLSearchParams();
-  body.append('module', module);
-  body.append('command', command);
-  if (region) body.append('region', region);
+  var isInfraCmd = /^(plan|apply|destroy|plan-all|apply-all|destroy-all)$/.test(command);
 
-  fetch('/api/terminal/start', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: body.toString()
-  }).then(function(resp) {
-    return resp.json().then(function(data) {
-      if (!resp.ok) {
-        showToast(data.error || 'Failed to start terminal', 5000);
-        return;
-      }
-      showTerminalModal(data);
+  function doStart(prependLines) {
+    var body = new URLSearchParams();
+    body.append('module', module);
+    body.append('command', command);
+    if (region) body.append('region', region);
+
+    fetch('/api/terminal/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: body.toString()
+    }).then(function(resp) {
+      return resp.json().then(function(data) {
+        if (!resp.ok) {
+          showToast(data.error || 'Failed to start terminal', 5000);
+          return;
+        }
+        data._prependLines = prependLines || [];
+        showTerminalModal(data);
+      });
+    }).catch(function(err) {
+      showToast('Terminal error: ' + err.message, 5000);
     });
-  }).catch(function(err) {
-    showToast('Terminal error: ' + err.message, 5000);
-  });
+  }
+
+  if (_aggressiveLocks && isInfraCmd) {
+    fetch('/api/fix-locks', { method: 'POST' })
+      .then(function(resp) { return resp.json(); })
+      .then(function(result) {
+        var lines = ['\x1b[33m>>> Aggressive Mode: clearing all locks before ' + command + '\x1b[0m'];
+        var removed = (result.removed && result.removed.length) || 0;
+        var errors = (result.errors && result.errors.length) || 0;
+        if (removed > 0) {
+          lines.push('\x1b[33m>>> Removed ' + removed + ' lock' + (removed > 1 ? 's' : '') + '\x1b[0m');
+        } else if (errors === 0) {
+          lines.push('\x1b[33m>>> No locks found (clean)\x1b[0m');
+        }
+        if (errors > 0) {
+          result.errors.forEach(function(e) { lines.push('\x1b[31m>>> Lock error: ' + e + '\x1b[0m'); });
+        }
+        lines.push('');
+        doStart(lines);
+      })
+      .catch(function(err) {
+        doStart(['\x1b[31m>>> Aggressive lock clear failed: ' + err.message + '\x1b[0m', '']);
+      });
+  } else {
+    doStart();
+  }
 }
 
 function showTerminalModal(session) {
@@ -2939,12 +3007,19 @@ function showTerminalModal(session) {
   document.addEventListener('keydown', onEsc);
 
   // Connect SSE — batch lines into a text buffer, flush via rAF
+  // Prepend aggressive-lock-clear lines if present
+  if (session._prependLines && session._prependLines.length) {
+    session._prependLines.forEach(function(line) {
+      output.appendChild(document.createTextNode(line + '\n'));
+    });
+  }
+
   var es = new EventSource('/api/terminal/stream?id=' + encodeURIComponent(id));
   sessionState.es = es;
 
   var _lineBuf = [];
   var _flushPending = false;
-  var _hasOutput = false;
+  var _hasOutput = session._prependLines && session._prependLines.length > 0;
 
   function flushLines() {
     _flushPending = false;
@@ -3522,27 +3597,41 @@ function openOutputExplorer() {
 function renderOutputTree(container, modules) {
   container.innerHTML = '';
 
-  // Group by category: global vs regional
-  var globalMods = [];
-  var regionalMods = [];
+  // Group by category
+  var categories = { infra: { global: [], regional: [] }, services: { global: [], regional: [] }, apps: { global: [], regional: [] } };
   modules.forEach(function(m) {
-    if (m.global) globalMods.push(m);
-    else regionalMods.push(m);
+    var cat = categories[m.category || 'infra'];
+    if (!cat) cat = categories.infra;
+    if (m.global) cat.global.push(m);
+    else cat.regional.push(m);
   });
 
-  // Build regions list from window.ALL_REGIONS
   var regions = (window.ALL_REGIONS || []).map(function(r) { return r.Full || r.full; });
+  var catLabels = { infra: 'Infrastructure', services: 'Services', apps: 'Apps' };
 
-  // Render global section
-  if (globalMods.length > 0) {
-    var section = createOutputSection('Global', globalMods, null);
-    container.appendChild(section);
-  }
+  ['infra', 'services', 'apps'].forEach(function(catKey) {
+    var cat = categories[catKey];
+    if (cat.global.length === 0 && cat.regional.length === 0) return;
 
-  // Render regional sections
-  regions.forEach(function(region) {
-    var section = createOutputSection(region, regionalMods, region);
-    container.appendChild(section);
+    // Category header
+    var catHeader = document.createElement('div');
+    catHeader.className = 'text-[10px] uppercase tracking-widest text-green-600 font-bold mt-3 mb-1 px-1';
+    catHeader.textContent = catLabels[catKey];
+    container.appendChild(catHeader);
+
+    // Global modules in this category
+    if (cat.global.length > 0) {
+      var section = createOutputSection('Global', cat.global, null);
+      container.appendChild(section);
+    }
+
+    // Regional modules in this category
+    if (cat.regional.length > 0) {
+      regions.forEach(function(region) {
+        var section = createOutputSection(region, cat.regional, region);
+        container.appendChild(section);
+      });
+    }
   });
 }
 
@@ -3902,11 +3991,9 @@ function switchWaffawTab(tabName) {
     el.classList.toggle('waffaw-tab-visible', el.dataset.tab === tabName);
   });
 
-  // SSE lifecycle: start log stream when switching to logs tab, stop when leaving
-  if (tabName === 'logs') {
+  // SSE lifecycle: start log stream when switching to logs tab (keeps running in background)
+  if (tabName === 'logs' && !_wafLogEventSource) {
     startWAFLogStream();
-  } else {
-    stopWAFLogStream();
   }
 }
 
@@ -4061,6 +4148,8 @@ document.addEventListener('change', function(e) {
 document.addEventListener('DOMContentLoaded', function() {
   updateWafQuotaBar();
   fetchWafQuotas();
+  // Start log stream immediately so logs accumulate across tab switches and survive reloads
+  startWAFLogStream();
 });
 // Also run after htmx swaps (in case the waffaw tab loads late)
 document.addEventListener('htmx:afterSettle', updateWafQuotaBar);
@@ -4386,7 +4475,7 @@ function fetchWAFCampaignState() {
 }
 document.addEventListener('DOMContentLoaded', fetchWAFCampaignState);
 
-function startWAFLogStream() {
+function startWAFLogStream(clearViewer) {
   stopWAFLogStream(); // Close any existing connection
 
   var nodeFilter = '';
@@ -4395,7 +4484,7 @@ function startWAFLogStream() {
   _wafLogNodeFilter = nodeFilter;
 
   var viewer = document.getElementById('waf-log-viewer');
-  if (viewer) viewer.innerHTML = '';
+  if (viewer && clearViewer) viewer.innerHTML = '';
 
   var dot = document.getElementById('waf-log-dot');
   var statusEl = document.getElementById('waf-log-status');
@@ -4409,17 +4498,44 @@ function startWAFLogStream() {
 
   _wafLogEventSource = new EventSource(url);
   var lineCount = 0;
+  var lastMsgText = '';
+  var lastMsgEl = null;
+  var lastMsgCount = 0;
 
   _wafLogEventSource.onmessage = function(e) {
     if (!viewer) return;
     try {
       var data = JSON.parse(e.data);
+      var lineText = data.line || e.data;
+
+      // Extract message without timestamp for dedup comparison
+      var msgBody = lineText.replace(/^\d{2}:\d{2}:\d{2}\.\d{3}\s+/, '');
+
+      // Collapse consecutive identical messages
+      if (msgBody === lastMsgText && lastMsgEl) {
+        lastMsgCount++;
+        var badge = lastMsgEl.querySelector('.waf-log-repeat');
+        if (!badge) {
+          badge = document.createElement('span');
+          badge.className = 'waf-log-repeat';
+          badge.style.cssText = 'margin-left:8px;padding:0 5px;border-radius:8px;background:#3f3f46;color:#a1a1aa;font-size:10px;font-style:normal;';
+          lastMsgEl.appendChild(badge);
+        }
+        badge.textContent = '\u00d7' + lastMsgCount;
+        return;
+      }
+      lastMsgText = msgBody;
+      lastMsgCount = 1;
+
       var line = document.createElement('div');
       line.className = 'waf-log-line';
 
       // Color code by status
       var status = data.status || 0;
-      if (status === 403) {
+      if (data.raw) {
+        line.style.color = '#71717a'; // zinc-500 (agent lifecycle)
+        line.style.fontStyle = 'italic';
+      } else if (status === 403) {
         line.style.color = '#f87171'; // red-400
       } else if (status >= 500) {
         line.style.color = '#fbbf24'; // yellow-400
@@ -4427,8 +4543,9 @@ function startWAFLogStream() {
         line.style.color = '#a1a1aa'; // zinc-400
       }
 
-      line.textContent = data.line || e.data;
+      line.textContent = lineText;
       viewer.appendChild(line);
+      lastMsgEl = line;
       lineCount++;
 
       // Cap displayed lines
@@ -4474,7 +4591,7 @@ function startWAFLogStream() {
 }
 
 function restartWAFLogStream() {
-  startWAFLogStream();
+  startWAFLogStream(true);
 }
 
 function stopWAFLogStream() {

@@ -122,9 +122,9 @@ run_scripts() {
     chmod +x "$tmp_script"
     local log_file="${OUTPUT_DIR}/${script_name}.$(date -u +%Y%m%d-%H%M%S).log"
 
-    # Run in background, capture output, upload log when done
+    # Run in background, tee to both log file and stdout (CloudWatch)
     (
-      "$tmp_script" > "$log_file" 2>&1
+      "$tmp_script" 2>&1 | tee "$log_file"
       aws s3 cp "$log_file" "s3://${CONTROL_BUCKET}/nodes/${MY_IP}/output/$(basename "$log_file")" --quiet 2>/dev/null || true
     ) &
 
