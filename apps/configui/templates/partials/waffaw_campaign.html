@@ -5,6 +5,9 @@
     <div class="flex items-center gap-2">
       <span class="w-2 h-2 rounded-full bg-zinc-400" id="waf-campaign-dot"></span>
       <span class="text-sm text-zinc-400" id="waf-campaign-text">No campaign running</span>
+      <button type="button" id="waf-campaign-clear-btn" onclick="clearWAFCampaign()" style="display:none;"
+              class="ml-2 rounded px-2 py-0.5 text-xs bg-zinc-700 hover:bg-zinc-600 text-zinc-300 border border-zinc-600"
+              title="Clear stale campaign state">&times; Clear</button>
       <span class="text-xs text-zinc-500 font-mono ml-auto" id="waf-campaign-time"></span>
     </div>
   </div>

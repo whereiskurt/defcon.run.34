@@ -4728,6 +4728,7 @@ function updateWAFCampaignStatus(status, campaign, startedAt) {
   var dot = document.getElementById('waf-campaign-dot');
   var text = document.getElementById('waf-campaign-text');
   var timeEl = document.getElementById('waf-campaign-time');
+  var clearBtn = document.getElementById('waf-campaign-clear-btn');
   if (!dot || !text) return;
 
   if (status === 'running') {
@@ -4744,6 +4745,11 @@ function updateWAFCampaignStatus(status, campaign, startedAt) {
     text.textContent = 'No campaign running';
   }
 
+  // Show clear button when campaign is running or halted (allows clearing stale state)
+  if (clearBtn) {
+    clearBtn.style.display = (status === 'running' || status === 'halted') ? '' : 'none';
+  }
+
   if (timeEl) {
     if (startedAt) {
       var d = new Date(startedAt);
@@ -4752,6 +4758,16 @@ function updateWAFCampaignStatus(status, campaign, startedAt) {
       timeEl.textContent = '';
     }
   }
+}
+
+function clearWAFCampaign() {
+  var fd = new FormData();
+  fd.append('action', 'clear');
+  fetch('/api/waf/campaign', { method: 'POST', body: fd }).then(function(r) {
+    if (r.ok) {
+      updateWAFCampaignStatus('none', '', '');
+    }
+  });
 }
 
 // Fetch campaign state from S3 on load to restore status across reloads

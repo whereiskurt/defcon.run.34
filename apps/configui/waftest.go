@@ -534,6 +534,13 @@ echo "[waffaw] Campaign $CAMPAIGN finished on node $NODE_RANK"
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "halted"})
 
+	case "clear":
+		// Delete campaign-state.json to reset stale status
+		s3DeleteKey(profile, bucket, "campaign-state.json", region)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "cleared"})
+
 	default:
 		http.Error(w, "Unknown action", 400)
 	}
