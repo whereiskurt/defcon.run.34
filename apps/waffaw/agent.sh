@@ -3,19 +3,29 @@
 # Runs as PID 1 on every node (EC2 and Fargate).
 set -euo pipefail
 
-AGENT_VERSION="1.0.1"
+AGENT_VERSION="1.0.2"
 POLL_INTERVAL=30
 EXECUTED_DIR="/tmp/waffaw/executed"
 OUTPUT_DIR="/tmp/waffaw/output"
 
 mkdir -p "$EXECUTED_DIR" "$OUTPUT_DIR"
 
+# --- IMDSv2 helper (EC2 requires token-based requests) ---
+imds_get() {
+  local path="$1"
+  local token
+  token=$(curl -sf --connect-timeout 2 -X PUT "http://169.254.169.254/latest/api/token" \
+    -H "X-aws-ec2-metadata-token-ttl-seconds: 60" 2>/dev/null) || return 1
+  curl -sf --connect-timeout 2 -H "X-aws-ec2-metadata-token: $token" \
+    "http://169.254.169.254/latest/meta-data/${path}" 2>/dev/null
+}
+
 # --- IP Discovery ---
 discover_ip() {
-  # Try IMDS first (works on EC2 and Fargate with task metadata)
   local ip
-  ip=$(curl -sf --connect-timeout 2 http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null) && { echo "$ip"; return; }
-  # Fallback: checkip.amazonaws.com
+  # Try IMDSv2 first (EC2 with http_tokens=required)
+  ip=$(imds_get "public-ipv4") && [[ -n "$ip" ]] && { echo "$ip"; return; }
+  # Fallback: checkip.amazonaws.com (works on Fargate and when IMDS unavailable)
   ip=$(curl -sf --connect-timeout 5 https://checkip.amazonaws.com 2>/dev/null | tr -d '[:space:]') && { echo "$ip"; return; }
   echo "FATAL: could not discover public IP" >&2
   exit 1
@@ -23,16 +33,14 @@ discover_ip() {
 
 # --- Determine node identity ---
 discover_node_id() {
-  # EC2: instance ID from IMDS
   local nid
-  nid=$(curl -sf --connect-timeout 2 http://169.254.169.254/latest/meta-data/instance-id 2>/dev/null) && { echo "$nid"; return; }
-  # Fargate: hostname
+  nid=$(imds_get "instance-id") && [[ -n "$nid" ]] && { echo "$nid"; return; }
   echo "$(hostname)"
 }
 
 discover_instance_type() {
   local itype
-  itype=$(curl -sf --connect-timeout 2 http://169.254.169.254/latest/meta-data/instance-type 2>/dev/null) && { echo "$itype"; return; }
+  itype=$(imds_get "instance-type") && [[ -n "$itype" ]] && { echo "$itype"; return; }
   echo "fargate"
 }
 

@@ -255,7 +255,7 @@ locals {
 
   waffaw = {
     enabled         = true
-    ec2_count       = 0
+    ec2_count       = 1
     ec2_max_count   = 10
     ec2_instance_type = "t3.medium"
     ec2_use_spot    = true
@@ -264,7 +264,7 @@ locals {
     ecs_use_spot    = true
     ecs_task_cpu    = 1024
     ecs_task_memory = 2048
-    image_uri       = "dc34-waffaw:1.0.5"
+    image_uri       = "dc34-waffaw:1.0.6"
   }
 
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)
