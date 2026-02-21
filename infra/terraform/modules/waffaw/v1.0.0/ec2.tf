@@ -31,6 +31,14 @@ resource "aws_launch_template" "waffaw" {
 
   vpc_security_group_ids = [aws_security_group.node[0].id]
 
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size = 20
+      volume_type = "gp3"
+    }
+  }
+
   user_data = base64encode(templatefile("${path.module}/ec2-userdata.sh.tpl", {
     region         = var.region.full
     ecr_repo       = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region.full}.amazonaws.com"
