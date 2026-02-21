@@ -196,6 +196,7 @@ func main() {
 	mux.HandleFunc("POST /api/waf/check-image", app.handleWAFCheckImage)
 	mux.HandleFunc("GET /api/waf/quota", app.handleWAFQuota)
 	mux.HandleFunc("POST /api/waf/campaign-template", app.handleWAFCampaignTemplateSave)
+	mux.HandleFunc("GET /api/waf/campaign-state", app.handleWAFCampaignState)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port

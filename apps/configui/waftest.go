@@ -78,12 +78,12 @@ func controlBucketName(accountID string) string {
 	return fmt.Sprintf("waffaw-control-%s", accountID)
 }
 
-// wafProfile returns the AWS profile for waffaw operations.
+// wafProfile returns the AWS profile for waffaw operations (application account).
 func (a *App) wafProfile() string {
 	if a.envLocal.ProfilePrefix != "" {
-		return a.envLocal.ProfilePrefix + "-terraform"
+		return a.envLocal.ProfilePrefix + "-application"
 	}
-	return "terraform"
+	return "application"
 }
 
 // s3ListKeys lists object keys under a prefix using the AWS CLI.
@@ -91,15 +91,17 @@ func s3ListKeys(profile, bucket, prefix, region string) ([]struct {
 	Key          string
 	LastModified time.Time
 }, error) {
-	out, err := exec.Command("aws", "s3api", "list-objects-v2",
+	cmd := exec.Command("aws", "s3api", "list-objects-v2",
 		"--bucket", bucket,
 		"--prefix", prefix,
 		"--profile", profile,
 		"--region", region,
 		"--output", "json",
-	).Output()
+	)
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		log.Printf("s3ListKeys error (bucket=%s prefix=%s profile=%s): %v: %s", bucket, prefix, profile, err, string(out))
+		return nil, fmt.Errorf("%v: %s", err, string(out))
 	}
 
 	var resp struct {
@@ -132,13 +134,25 @@ func s3ListKeys(profile, bucket, prefix, region string) ([]struct {
 
 // s3GetJSON fetches an S3 object and decodes it as JSON.
 func s3GetJSON(profile, bucket, key, region string, out interface{}) error {
-	data, err := exec.Command("aws", "s3api", "get-object",
+	tmp, err := os.CreateTemp("", "waffaw-get-*.json")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	tmp.Close()
+
+	cmdOut, err := exec.Command("aws", "s3api", "get-object",
 		"--bucket", bucket,
 		"--key", key,
 		"--profile", profile,
 		"--region", region,
-		"/dev/stdout",
-	).Output()
+		tmp.Name(),
+	).CombinedOutput()
+	if err != nil {
+		log.Printf("s3GetJSON error (bucket=%s key=%s profile=%s): %v: %s", bucket, key, profile, err, string(cmdOut))
+		return fmt.Errorf("%v: %s", err, string(cmdOut))
+	}
+	data, err := os.ReadFile(tmp.Name())
 	if err != nil {
 		return err
 	}
@@ -147,16 +161,28 @@ func s3GetJSON(profile, bucket, key, region string, out interface{}) error {
 
 // s3PutString uploads a string to S3.
 func s3PutString(profile, bucket, key, region, body string) error {
-	cmd := exec.Command("aws", "s3api", "put-object",
+	tmp, err := os.CreateTemp("", "waffaw-s3-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp file: %v", err)
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.WriteString(body); err != nil {
+		tmp.Close()
+		return fmt.Errorf("write temp file: %v", err)
+	}
+	tmp.Close()
+
+	out, cerr := exec.Command("aws", "s3api", "put-object",
 		"--bucket", bucket,
 		"--key", key,
-		"--body", "/dev/stdin",
+		"--body", tmp.Name(),
 		"--profile", profile,
 		"--region", region,
-	)
-	cmd.Stdin = strings.NewReader(body)
-	_, err := cmd.Output()
-	return err
+	).CombinedOutput()
+	if cerr != nil {
+		return fmt.Errorf("%v: %s", cerr, string(out))
+	}
+	return nil
 }
 
 // s3DeleteKey deletes an S3 object.
@@ -473,7 +499,9 @@ echo "[waffaw] Campaign $CAMPAIGN finished on node $NODE_RANK"
 
 		ts := time.Now().Format("20060102-150405")
 		triggerKey := fmt.Sprintf("global/run/campaign-%s-%s.sh", campaignName, ts)
+		log.Printf("WAF campaign: deploying trigger to s3://%s/%s (profile=%s, region=%s)", bucket, triggerKey, profile, region)
 		if err := s3PutString(profile, bucket, triggerKey, region, triggerScript); err != nil {
+			log.Printf("WAF campaign: trigger deploy failed: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to deploy trigger script: %v", err), 500)
 			return
 		}
@@ -824,6 +852,32 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	})
 	fmt.Fprintf(w, "data: %s\n\n", doneJSON)
 	flusher.Flush()
+}
+
+// handleWAFCampaignState returns the current campaign state from S3.
+func (a *App) handleWAFCampaignState(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	accountID := a.envLocal.ApplicationAccountID
+	a.mu.RUnlock()
+
+	if accountID == "" {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "unknown"})
+		return
+	}
+
+	bucket := controlBucketName(accountID)
+	profile := a.wafProfile()
+
+	var state wafCampaignState
+	if err := s3GetJSON(profile, bucket, "campaign-state.json", "us-east-1", &state); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "none"})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(state)
 }
 
 // validCampaignTemplates lists allowed campaign template IDs.

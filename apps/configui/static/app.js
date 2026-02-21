@@ -4295,14 +4295,13 @@ function launchWAFCampaign() {
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: body.toString()
       }).then(function(resp) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Launch Campaign'; }
+        if (!resp.ok) {
+          return resp.text().then(function(t) { showToast('Launch error: ' + t, 5000); });
+        }
         return resp.json().then(function(data) {
-          if (btn) { btn.disabled = false; btn.textContent = 'Launch Campaign'; }
-          if (!resp.ok) {
-            showToast('Launch error: ' + (data.error || resp.statusText), 5000);
-            return;
-          }
           showToast('Campaign launched: ' + data.campaign);
-          updateWAFCampaignStatus('running', data.campaign);
+          updateWAFCampaignStatus('running', data.campaign, new Date().toISOString());
         });
       }).catch(function(err) {
         if (btn) { btn.disabled = false; btn.textContent = 'Launch Campaign'; }
@@ -4347,9 +4346,10 @@ function haltWAFFleet() {
   });
 }
 
-function updateWAFCampaignStatus(status, campaign) {
+function updateWAFCampaignStatus(status, campaign, startedAt) {
   var dot = document.getElementById('waf-campaign-dot');
   var text = document.getElementById('waf-campaign-text');
+  var timeEl = document.getElementById('waf-campaign-time');
   if (!dot || !text) return;
 
   if (status === 'running') {
@@ -4365,7 +4365,26 @@ function updateWAFCampaignStatus(status, campaign) {
     text.className = 'text-sm text-zinc-400';
     text.textContent = 'No campaign running';
   }
+
+  if (timeEl) {
+    if (startedAt) {
+      var d = new Date(startedAt);
+      timeEl.textContent = 'Started ' + d.toLocaleString();
+    } else {
+      timeEl.textContent = '';
+    }
+  }
 }
+
+// Fetch campaign state from S3 on load to restore status across reloads
+function fetchWAFCampaignState() {
+  fetch('/api/waf/campaign-state').then(function(r) { return r.json(); }).then(function(data) {
+    if (data.status === 'running' || data.status === 'halted') {
+      updateWAFCampaignStatus(data.status, data.campaign || '', data.started_at || '');
+    }
+  }).catch(function() {});
+}
+document.addEventListener('DOMContentLoaded', fetchWAFCampaignState);
 
 function startWAFLogStream() {
   stopWAFLogStream(); // Close any existing connection
