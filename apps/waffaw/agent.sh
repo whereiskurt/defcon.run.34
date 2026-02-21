@@ -3,7 +3,7 @@
 # Runs as PID 1 on every node (EC2 and Fargate).
 set -euo pipefail
 
-AGENT_VERSION="1.0.0"
+AGENT_VERSION="1.0.1"
 POLL_INTERVAL=30
 EXECUTED_DIR="/tmp/waffaw/executed"
 OUTPUT_DIR="/tmp/waffaw/output"
@@ -89,9 +89,12 @@ heartbeat() {
 
 # --- Deregister on shutdown ---
 deregister() {
+  # Prevent re-entry (kill 0 sends SIGTERM to our process group)
+  trap - SIGTERM SIGINT
   echo "[agent] SIGTERM received — deregistering"
   # Kill all children
-  kill 0 2>/dev/null || true
+  kill -- -$$ 2>/dev/null || kill 0 2>/dev/null || true
+  wait 2>/dev/null || true
   aws s3 rm "s3://${CONTROL_BUCKET}/nodes/${MY_IP}/" --recursive --quiet 2>/dev/null || true
   echo "[agent] deregistered, exiting"
   exit 0
@@ -122,14 +125,15 @@ run_scripts() {
     chmod +x "$tmp_script"
     local log_file="${OUTPUT_DIR}/${script_name}.$(date -u +%Y%m%d-%H%M%S).log"
 
-    # Run in background, tee to both log file and stdout (CloudWatch)
+    # Mark as executed BEFORE launching (prevents re-execution on next poll)
+    touch "${EXECUTED_DIR}/${hash}"
+
+    # Run in background; cleanup script file INSIDE the subshell after execution
     (
       "$tmp_script" 2>&1 | tee "$log_file"
+      rm -f "$tmp_script"
       aws s3 cp "$log_file" "s3://${CONTROL_BUCKET}/nodes/${MY_IP}/output/$(basename "$log_file")" --quiet 2>/dev/null || true
     ) &
-
-    touch "${EXECUTED_DIR}/${hash}"
-    rm -f "$tmp_script"
   done
 }
 
@@ -163,7 +167,7 @@ while true; do
   # Halt check
   if check_halt; then
     echo "[agent] HALT flag detected — killing children"
-    kill 0 2>/dev/null || true
+    jobs -p | xargs -r kill 2>/dev/null || true
     wait 2>/dev/null || true
     echo "[agent] halted, waiting for halt to clear..."
     while check_halt; do
