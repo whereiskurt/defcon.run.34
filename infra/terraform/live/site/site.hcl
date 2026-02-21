@@ -210,7 +210,7 @@ locals {
       local.service_conf.run_human.locals.ecr_repositories,
       local.service_conf.cms.locals.ecr_repositories,
       local.service_conf.gpx.locals.ecr_repositories,
-      local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "MUTABLE" }] : []
+      local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "IMMUTABLE" }] : []
     )
   }
 
@@ -264,7 +264,7 @@ locals {
     ecs_use_spot    = true
     ecs_task_cpu    = 1024
     ecs_task_memory = 2048
-    image_uri       = "dc34-waffaw:1.0.1"
+    image_uri       = "dc34-waffaw:1.0.2"
   }
 
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)
