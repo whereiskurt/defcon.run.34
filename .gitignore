@@ -22,7 +22,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-.playwright-mcp/*.png
 
 terraform.tfstate*
 .terraform.lock*
@@ -65,3 +64,5 @@ apps/configui/backups/
 apps/configui/site-config.json
 apps/configui/.discovery-cache.json
 apps/configui/.aws-status-cache.json
+
+.playwright-mcp/*
