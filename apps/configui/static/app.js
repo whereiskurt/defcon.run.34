@@ -2646,6 +2646,7 @@ function updatePillBar() {
   });
   if (ids.length === 0) {
     bar.style.display = 'none';
+    document.body.style.paddingBottom = '';
     return;
   }
   bar.style.display = '';
@@ -2699,6 +2700,8 @@ function updatePillBar() {
 
     bar.appendChild(pill);
   });
+  // Add bottom padding to body so content isn't hidden behind the fixed pill bar
+  document.body.style.paddingBottom = bar.offsetHeight + 'px';
 }
 
 function minimizeSession(id) {
