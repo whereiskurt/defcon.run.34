@@ -4761,9 +4761,13 @@ function updateWAFCampaignStatus(status, campaign, startedAt) {
 }
 
 function clearWAFCampaign() {
-  var fd = new FormData();
-  fd.append('action', 'clear');
-  fetch('/api/waf/campaign', { method: 'POST', body: fd }).then(function(r) {
+  var body = new URLSearchParams();
+  body.append('action', 'clear');
+  fetch('/api/waf/campaign', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(function(r) {
     if (r.ok) {
       updateWAFCampaignStatus('none', '', '');
     }
