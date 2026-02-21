@@ -4414,16 +4414,31 @@ function buildWaffaw() {
       }
 
       function onKey(e) {
-        if (e.key === 'Escape' && !running) { e.stopImmediatePropagation(); closeModal(); }
+        if (e.key === 'Escape') {
+          e.stopImmediatePropagation();
+          if (!running) { closeModal(); return; }
+          if (confirm('Build is still running. Close anyway?')) forceClose();
+        }
       }
       document.addEventListener('keydown', onKey);
 
-      closeX.onclick = function() {
-        if (running) return; // don't close while building
+      function forceClose() {
+        if (es) { es.close(); es = null; }
+        running = false;
+        resetBtn();
         closeModal();
+      }
+      closeX.onclick = function() {
+        if (!running) { closeModal(); return; }
+        // Build still running — confirm close
+        if (confirm('Build is still running. Close anyway?')) forceClose();
       };
       closeBtn.onclick = closeModal;
-      overlay.addEventListener('click', function(e) { if (e.target === overlay && !running) closeModal(); });
+      overlay.addEventListener('click', function(e) {
+        if (e.target !== overlay) return;
+        if (!running) { closeModal(); return; }
+        if (confirm('Build is still running. Close anyway?')) forceClose();
+      });
 
       es = new EventSource('/api/waf/build');
       es.onmessage = function(e) {
