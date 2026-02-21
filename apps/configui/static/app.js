@@ -4320,14 +4320,16 @@ function buildWaffaw() {
       overlay.innerHTML =
         '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-[90%] w-full mx-auto">' +
           '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
-            '<div class="flex flex-col">' +
+            '<div class="flex flex-col gap-1">' +
               '<div class="flex items-center gap-2">' +
                 '<span class="text-green-400 text-sm font-mono font-bold">$ </span>' +
                 '<span class="text-sm font-mono text-zinc-200">apps/waffaw/build.sh</span>' +
               '</div>' +
-              '<div class="flex items-center gap-2" style="padding-left:1.1rem;">' +
-                '<span class="waf-build-status text-[11px] font-mono text-green-400">Building...</span>' +
+              '<div class="flex items-center gap-3" style="padding-left:1.1rem;">' +
+                '<span class="waf-build-status text-[11px] font-mono text-green-400">Starting...</span>' +
+                '<span class="waf-build-elapsed text-[11px] font-mono text-zinc-500"></span>' +
               '</div>' +
+              '<div class="waf-build-steps flex items-center gap-1" style="padding-left:1.1rem;"></div>' +
             '</div>' +
             '<div class="flex items-center gap-2">' +
               '<button class="waf-build-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
@@ -4342,10 +4344,62 @@ function buildWaffaw() {
 
       var output = overlay.querySelector('.terminal-output');
       var statusEl = overlay.querySelector('.waf-build-status');
+      var elapsedEl = overlay.querySelector('.waf-build-elapsed');
+      var stepsEl = overlay.querySelector('.waf-build-steps');
       var closeBtn = overlay.querySelector('.waf-build-close-btn');
       var closeX = overlay.querySelector('.waf-build-close-x');
       var running = true;
       var es = null;
+      var buildPhase = '';
+
+      // Build step definitions
+      var buildSteps = [
+        { id: 'ecr-login', label: 'ECR Login' },
+        { id: 'docker-build', label: 'Docker Build' },
+        { id: 'docker-push', label: 'Push to ECR' },
+        { id: 'complete', label: 'Done' }
+      ];
+
+      function renderSteps(activePhase) {
+        var reached = false;
+        var html = '';
+        for (var i = 0; i < buildSteps.length; i++) {
+          var step = buildSteps[i];
+          var isCurrent = step.id === activePhase;
+          var isPast = false;
+          // All steps before the current one are "past"
+          if (!reached && !isCurrent) {
+            // Check if the current phase comes after this step
+            for (var j = i + 1; j < buildSteps.length; j++) {
+              if (buildSteps[j].id === activePhase) { isPast = true; break; }
+            }
+          }
+          if (isCurrent) reached = true;
+
+          var cls = 'build-step';
+          if (isPast) cls += ' build-step-done';
+          else if (isCurrent) cls += ' build-step-active';
+          else cls += ' build-step-pending';
+
+          html += '<span class="' + cls + '">';
+          if (isPast) html += '<span class="text-green-400 text-[9px]">&#10003;</span> ';
+          else if (isCurrent) html += '<span class="build-step-dot"></span> ';
+          html += step.label + '</span>';
+
+          if (i < buildSteps.length - 1) {
+            html += '<span class="text-zinc-600 text-[9px]">&#9656;</span>';
+          }
+        }
+        stepsEl.innerHTML = html;
+      }
+
+      function formatElapsed(secs) {
+        var m = Math.floor(secs / 60);
+        var s = secs % 60;
+        return m > 0 ? m + 'm ' + s + 's' : s + 's';
+      }
+
+      renderSteps('');
 
       function resetBtn() {
         if (btn) {
@@ -4375,6 +4429,23 @@ function buildWaffaw() {
       es.onmessage = function(e) {
         try {
           var data = JSON.parse(e.data);
+
+          // Tick event — update elapsed timer
+          if (data.tick !== undefined) {
+            elapsedEl.textContent = formatElapsed(data.tick);
+            return;
+          }
+
+          // Phase event — update step indicators
+          if (data.phase) {
+            buildPhase = data.phase;
+            renderSteps(buildPhase);
+            var phaseLabels = { 'ecr-login': 'Logging into ECR...', 'docker-build': 'Building Docker image...', 'docker-push': 'Pushing to ECR...', 'complete': 'Complete' };
+            statusEl.textContent = phaseLabels[data.phase] || data.phase;
+            return;
+          }
+
+          // Line event
           var line = document.createElement('div');
           line.style.color = data.done ? (data.exit === 0 ? '#4ade80' : '#f87171') : '#a1a1aa';
           line.textContent = data.line || e.data;
@@ -4394,9 +4465,11 @@ function buildWaffaw() {
             running = false;
             resetBtn();
             closeBtn.classList.remove('hidden');
+            renderSteps('complete');
             if (data.exit === 0) {
-              statusEl.textContent = 'Done';
+              statusEl.textContent = 'Done in ' + formatElapsed(data.elapsed || 0);
               statusEl.className = statusEl.className.replace('text-green-400', 'text-green-400');
+              elapsedEl.textContent = '';
               showToast('Build completed successfully');
             } else {
               statusEl.textContent = 'Failed (exit ' + data.exit + ')';

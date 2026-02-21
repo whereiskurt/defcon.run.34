@@ -813,6 +813,8 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		"AWS_ACCOUNT_ID="+accountID,
 		"SITE_LABEL="+siteLabel,
 		"IMAGE_TAG="+imageTag,
+		"DOCKER_BUILDKIT=1",
+		"BUILDKIT_PROGRESS=plain",
 	)
 
 	stdout, err := cmd.StdoutPipe()
@@ -833,9 +835,61 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	startTime := time.Now()
+
+	// Send elapsed tick events every 2 seconds in background
+	ctx := r.Context()
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				secs := int(time.Since(startTime).Seconds())
+				tickJSON, _ := json.Marshal(map[string]interface{}{"tick": secs})
+				fmt.Fprintf(w, "data: %s\n\n", tickJSON)
+				flusher.Flush()
+			}
+		}
+	}()
+
+	// Detect build phases from output and send phase events
+	phase := ""
+	sendPhase := func(p string) {
+		if p != phase {
+			phase = p
+			phaseJSON, _ := json.Marshal(map[string]interface{}{"phase": p})
+			fmt.Fprintf(w, "data: %s\n\n", phaseJSON)
+			flusher.Flush()
+		}
+	}
+
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		// Detect phases from output
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "login succeeded") || strings.Contains(lower, "get-login-password") {
+			sendPhase("ecr-login")
+		} else if strings.Contains(line, "docker buildx build") || strings.HasPrefix(line, "=== Building waffaw") {
+			sendPhase("docker-build")
+		} else if strings.Contains(lower, "step ") || strings.HasPrefix(line, "#") {
+			if phase != "docker-push" {
+				sendPhase("docker-build")
+			}
+		} else if strings.Contains(line, "docker push") || strings.Contains(lower, "pushing") || strings.Contains(lower, "the push refers to") {
+			sendPhase("docker-push")
+		} else if strings.HasPrefix(line, "Image pushed to ") {
+			sendPhase("complete")
+		}
+
 		lineJSON, _ := json.Marshal(map[string]interface{}{
 			"line": line,
 			"done": false,
@@ -844,8 +898,6 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 
 		// Extract image name:tag from the "Image pushed to" line
-		// build.sh prints: "Image pushed to 123456789012.dkr.ecr.us-east-1.amazonaws.com/{label}-waffaw:1.0.0"
-		// We extract just "{label}-waffaw:1.0.0" since the module constructs the regional ECR prefix
 		if strings.HasPrefix(line, "Image pushed to ") {
 			fullURI := strings.TrimSpace(strings.TrimPrefix(line, "Image pushed to "))
 			imageNameTag := fullURI
@@ -870,10 +922,12 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	elapsed := time.Since(startTime).Round(time.Second)
 	doneJSON, _ := json.Marshal(map[string]interface{}{
-		"line": fmt.Sprintf("Build finished (exit code %d)", exitCode),
-		"done": true,
-		"exit": exitCode,
+		"line":    fmt.Sprintf("Build finished in %s (exit code %d)", elapsed, exitCode),
+		"done":    true,
+		"exit":    exitCode,
+		"elapsed": int(elapsed.Seconds()),
 	})
 	fmt.Fprintf(w, "data: %s\n\n", doneJSON)
 	flusher.Flush()
