@@ -75,6 +75,21 @@
         </select>
       </div>
     </div>
+
+    <!-- IP & Quota Summary -->
+    <div id="waf-quota-bar" class="mt-3 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-mono flex items-center gap-4 flex-wrap">
+      <span class="text-zinc-400">Public IPs:</span>
+      <span id="waf-ip-total" class="text-zinc-200 font-medium">0</span>
+      <span class="text-zinc-600">|</span>
+      <span class="text-zinc-400">EIPs (EC2):</span>
+      <span id="waf-eip-count" class="text-zinc-200">0</span>
+      <span class="text-zinc-400">Transient (Fargate):</span>
+      <span id="waf-fargate-ips" class="text-zinc-200">0</span>
+      <span class="text-zinc-600">|</span>
+      <span class="text-zinc-400">IPv4 cost:</span>
+      <span id="waf-ip-cost" class="text-zinc-200">$0/mo</span>
+      <span id="waf-eip-warn" class="hidden text-amber-400 font-medium ml-auto">EIP quota default is 5/region</span>
+    </div>
   </div>
 
   <!-- Image URI + Build -->
@@ -82,11 +97,20 @@
     <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Container Image</h4>
     <div class="flex items-end gap-3">
       <div class="flex-1">
-        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Image URI</label>
+        <div class="flex items-center gap-2 mb-1">
+          <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Image URI</label>
+          <span id="waffaw-ecr-badge" class="ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400" style="display:none"></span>
+        </div>
         <input type="text" name="waffaw.image_uri" id="waffaw-image-uri" value="{{.Config.Waffaw.ImageURI}}"
                placeholder="{{.Config.Site.Label}}-waffaw:1.0.0"
                class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono">
       </div>
+      <button type="button" onclick="checkWaffawImage()" id="waf-check-btn"
+              class="rounded-md bg-zinc-600 hover:bg-zinc-500 text-white px-4 py-2 text-sm font-medium whitespace-nowrap"
+              style="display: inline-flex; align-items: center; gap: 6px;">
+        <svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        Check
+      </button>
       <button type="button" onclick="buildWaffaw()" id="waf-build-btn"
               class="rounded-md bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 text-sm font-medium whitespace-nowrap"
               style="display: inline-flex; align-items: center; gap: 6px;">

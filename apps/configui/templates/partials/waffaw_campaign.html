@@ -42,6 +42,25 @@
     </div>
   </div>
 
+  <!-- User-Agent & Custom Header -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">User-Agent</label>
+      <input type="text" name="waffaw.user_agent" id="waf-campaign-ua" value="{{.Config.Waffaw.UserAgent}}" placeholder="WafFAw/1.0 (defcon.run)"
+             class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono">
+    </div>
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Custom Header</label>
+      <div class="flex items-center gap-1.5">
+        <input type="text" name="waffaw.custom_header_key" id="waf-campaign-hdr-key" value="{{.Config.Waffaw.CustomHeaderKey}}" placeholder="X-WafFAw-Token"
+               class="w-40 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono">
+        <span class="text-zinc-400 text-sm">:</span>
+        <input type="text" name="waffaw.custom_header_value" id="waf-campaign-hdr-val" value="{{.Config.Waffaw.CustomHeaderVal}}" placeholder="dc34-allow-xyz"
+               class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono">
+      </div>
+    </div>
+  </div>
+
   <!-- Action Buttons -->
   <div class="flex gap-2">
     <button type="button" onclick="launchWAFCampaign()" id="waf-launch-btn"

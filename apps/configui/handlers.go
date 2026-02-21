@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -289,23 +290,43 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	copyBtn := `rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-2 py-1 text-xs text-zinc-600 dark:text-zinc-300`
 	btnBar := `absolute top-2 right-2 z-10 flex gap-1`
 	preClass := `text-xs font-mono bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-300 p-4 pl-6 rounded-lg overflow-auto whitespace-pre`
-
 	w.Header().Set("Content-Type", "text/html")
 
-	// Tab buttons
 	fmt.Fprint(w, `<div id="preview-tabs">`)
-	fmt.Fprintf(w, `<div class="flex flex-wrap gap-1 border-b border-zinc-300 dark:border-zinc-700 mb-3" id="ptab-bar">`)
+
+	// Single combined bar: category dropdown + file tabs
+	fmt.Fprint(w, `<div class="flex flex-wrap items-center gap-1 border-b border-zinc-300 dark:border-zinc-700 mb-3" id="ptab-bar" data-active-cat="config">`)
+
+	// Category dropdown trigger
+	fmt.Fprint(w, `<div class="pcat-dropdown relative mr-1" id="pcat-bar">`)
+	fmt.Fprint(w, `<button type="button" onclick="togglePcatDropdown()" id="pcat-trigger" class="pcat-pill pcat-config" title="Switch area">Config <svg class="inline w-3 h-3 ml-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>`)
+	fmt.Fprint(w, `<div id="pcat-menu" class="pcat-menu hidden">`)
+	for _, cat := range []struct{ id, label string }{
+		{"config", "Config"},
+		{"services", "Services"},
+		{"infra", "Infra"},
+		{"campaigns", "Campaigns"},
+	} {
+		fmt.Fprintf(w, `<button type="button" onclick="selectPcatItem('%s','%s')" class="pcat-pill pcat-%s">%s</button>`,
+			cat.id, cat.label, cat.id, cat.label)
+	}
+	fmt.Fprint(w, `</div></div>`)
 	for i, t := range tabs {
+		cat := categoryOf(t.ID)
 		cls := tabInactive
 		if i == 0 {
 			cls = tabActive
+		}
+		vis := ""
+		if cat != "config" {
+			vis = ` style="display:none"`
 		}
 		svcAttr := ""
 		if strings.HasPrefix(t.ID, "svc-") {
 			svcAttr = fmt.Sprintf(` data-svc="%s"`, strings.TrimPrefix(t.ID, "svc-"))
 		}
-		fmt.Fprintf(w, `<button type="button" onclick="switchPreviewTab('%s')" id="ptab-%s" class="%s"%s>%s</button>`,
-			t.ID, t.ID, cls, svcAttr, template.HTMLEscapeString(t.Label))
+		fmt.Fprintf(w, `<button type="button" onclick="switchPreviewTab('%s')" id="ptab-%s" class="%s" data-category="%s"%s%s>%s</button>`,
+			t.ID, t.ID, cls, cat, svcAttr, vis, template.HTMLEscapeString(t.Label))
 	}
 	fmt.Fprint(w, `</div>`)
 
@@ -315,11 +336,30 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		if i > 0 {
 			hidden = ` class="hidden"`
 		}
-		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="relative"><div class="%s"><button onclick="expandAllFolds('%s')" class="%s">Expand All</button><button onclick="copyPreviewTab('%s')" class="%s">Copy</button></div><pre id="pre-%s" class="%s" data-original="%s">%s</pre></div></div>`,
-			t.ID, hidden, btnBar, t.ID, copyBtn, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Original), template.HTMLEscapeString(t.Body))
+		langAttr := ""
+		if strings.HasPrefix(t.ID, "camp-") {
+			langAttr = ` data-lang="yaml"`
+		}
+		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="relative"><div class="%s"><button onclick="expandAllFolds('%s')" class="%s">Expand All</button><button onclick="copyPreviewTab('%s')" class="%s">Copy</button></div><pre id="pre-%s" class="%s" data-original="%s"%s>%s</pre></div></div>`,
+			t.ID, hidden, btnBar, t.ID, copyBtn, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Original), langAttr, template.HTMLEscapeString(t.Body))
 	}
 
 	fmt.Fprint(w, `</div>`)
+}
+
+func categoryOf(id string) string {
+	switch {
+	case id == "sitehcl" || id == "envsh" || id == "envlocal":
+		return "config"
+	case strings.HasPrefix(id, "svc-"):
+		return "services"
+	case strings.HasPrefix(id, "prov-"):
+		return "infra"
+	case strings.HasPrefix(id, "camp-"):
+		return "campaigns"
+	default:
+		return "config"
+	}
 }
 
 func (a *App) handleExport(w http.ResponseWriter, r *http.Request) {
@@ -819,6 +859,83 @@ func (a *App) handleSOPSSave(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `<div class="rounded-md border border-green-700 bg-green-900/20 px-3 py-2 text-xs text-green-400">Saved &ldquo;%s&rdquo; successfully. Re-encrypted .secrets.sops.json.</div>`, template.HTMLEscapeString(name))
 }
 
+// ECRTagResult holds the check result for a single ECR repo+tag combo.
+type ECRTagResult struct {
+	Exists bool   `json:"exists"`
+	Error  string `json:"error,omitempty"`
+}
+
+func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Failed to parse form", 400)
+		return
+	}
+
+	// Read current form version values
+	authApp := r.FormValue("versions.auth.app")
+	authNginx := r.FormValue("versions.auth.nginx")
+	humanApp := r.FormValue("versions.human.app")
+	humanNginx := r.FormValue("versions.human.nginx")
+	cmsApp := r.FormValue("versions.cms.app")
+	cmsNginx := r.FormValue("versions.cms.nginx")
+	gpxApp := r.FormValue("versions.gpx.app")
+
+	a.mu.RLock()
+	siteLabel := a.config.Site.Label
+	profilePrefix := a.envLocal.ProfilePrefix
+	a.mu.RUnlock()
+
+	profile := "terraform"
+	if profilePrefix != "" {
+		profile = profilePrefix + "-terraform"
+	}
+	region := "us-east-1"
+
+	checks := []struct {
+		key      string
+		repoName string
+		tag      string
+	}{
+		{"auth-app", siteLabel + "-run-auth-app", authApp},
+		{"auth-nginx", siteLabel + "-run-auth-nginx", authNginx},
+		{"human-app", siteLabel + "-run-human-app", humanApp},
+		{"human-nginx", siteLabel + "-run-human-nginx", humanNginx},
+		{"cms-app", siteLabel + "-run-cms-app", cmsApp},
+		{"cms-nginx", siteLabel + "-run-cms-nginx", cmsNginx},
+		{"gpx-app", siteLabel + "-run-gpx-app", gpxApp},
+	}
+
+	results := make(map[string]ECRTagResult)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	for _, c := range checks {
+		if c.tag == "" {
+			mu.Lock()
+			results[c.key] = ECRTagResult{Error: "no version set"}
+			mu.Unlock()
+			continue
+		}
+		c := c
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			exists, err := checkECRImage(profile, c.repoName, c.tag, region)
+			res := ECRTagResult{Exists: exists}
+			if err != nil {
+				res.Error = "not found"
+			}
+			mu.Lock()
+			results[c.key] = res
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
+}
+
 // parseForm reads form values into a SiteConfig.
 func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg := DefaultConfig()
@@ -985,6 +1102,9 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Waffaw.ECSTaskCPU = formInt(r, "waffaw.ecs_task_cpu", 1024)
 	cfg.Waffaw.ECSTaskMemory = formInt(r, "waffaw.ecs_task_memory", 2048)
 	cfg.Waffaw.ImageURI = formStr(r, "waffaw.image_uri", cfg.Waffaw.ImageURI)
+	cfg.Waffaw.UserAgent = formStr(r, "waffaw.user_agent", cfg.Waffaw.UserAgent)
+	cfg.Waffaw.CustomHeaderKey = formStr(r, "waffaw.custom_header_key", cfg.Waffaw.CustomHeaderKey)
+	cfg.Waffaw.CustomHeaderVal = formStr(r, "waffaw.custom_header_value", cfg.Waffaw.CustomHeaderVal)
 
 	// Versions
 	cfg.Versions.Auth.App = formStr(r, "versions.auth.app", cfg.Versions.Auth.App)

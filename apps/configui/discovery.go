@@ -647,6 +647,19 @@ func checkECRRepo(profile, repoName, region string) RegionCheck {
 	return rc
 }
 
+func checkECRImage(profile, repoName, imageTag, region string) (exists bool, err error) {
+	_, err = exec.Command("aws", "ecr", "describe-images",
+		"--repository-name", repoName,
+		"--image-ids", "imageTag="+imageTag,
+		"--profile", profile,
+		"--region", region,
+		"--output", "json").Output()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func checkCloudFrontDistributions(profile string, domains []string, zoneName string) []ResourceResult {
 	out, err := exec.Command("aws", "cloudfront", "list-distributions",
 		"--profile", profile,

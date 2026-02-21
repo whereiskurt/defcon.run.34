@@ -50,6 +50,9 @@ type WaffawConfig struct {
 	ECSTaskCPU      int    `json:"ecs_task_cpu"`
 	ECSTaskMemory   int    `json:"ecs_task_memory"`
 	ImageURI        string `json:"image_uri"`
+	UserAgent       string `json:"user_agent,omitempty"`
+	CustomHeaderKey string `json:"custom_header_key,omitempty"`
+	CustomHeaderVal string `json:"custom_header_value,omitempty"`
 }
 
 type SiteIdentity struct {

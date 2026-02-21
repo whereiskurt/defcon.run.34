@@ -2,8 +2,9 @@
 <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.Waffaw.Enabled}}panel-disabled{{end}}" data-panel="waffaw" data-module-num="A1">
   <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('waffaw')">
     <div class="flex items-center gap-3">
+      <span class="drag-handle" title="Drag to reorder">⠿</span>
       <input type="checkbox" name="waffaw.enabled" class="toggle-switch" {{if .Config.Waffaw.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('waffaw', this)">
-      <h3 class="text-base font-semibold relative"><span class="module-num">#A1</span>Waffaw <span class="text-xs font-normal text-zinc-400">WAF Testing Platform</span></h3>
+      <h3 class="text-base font-semibold relative"><span class="module-num">#A1</span>WafFAw <span class="text-xs font-normal text-zinc-400">Massage your WebApps Face</span></h3>
     </div>
     <svg class="w-4 h-4 chevron" id="chevron-waffaw" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
   </div>

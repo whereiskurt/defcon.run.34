@@ -651,10 +651,76 @@ document.addEventListener('keydown', function(e) {
 // --- Preview tab switching (global, no inline script) ---
 var _previewDebounce = null;
 var _activePreviewTab = null;
+var _activePreviewCategory = 'config';
 var _previewScroll = 0;
 
-var TAB_ACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400';
+var _tabActiveColors = {
+  config:    'border-green-500 text-green-600 dark:text-green-400',
+  services:  'border-cyan-500 text-cyan-600 dark:text-cyan-400',
+  infra:     'border-purple-500 text-purple-600 dark:text-purple-400',
+  campaigns: 'border-orange-500 text-orange-600 dark:text-orange-400'
+};
+function tabActive() {
+  var colors = _tabActiveColors[_activePreviewCategory] || _tabActiveColors.config;
+  return 'px-3 py-1.5 text-xs font-medium border-b-2 ' + colors;
+}
 var TAB_INACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer';
+var _pcatLabels = { config: 'Config', services: 'Services', infra: 'Infra', campaigns: 'Campaigns' };
+
+function togglePcatDropdown() {
+  var menu = document.getElementById('pcat-menu');
+  if (menu) menu.classList.toggle('hidden');
+}
+
+function selectPcatItem(cat, label) {
+  var menu = document.getElementById('pcat-menu');
+  if (menu) menu.classList.add('hidden');
+  var trigger = document.getElementById('pcat-trigger');
+  if (trigger) {
+    trigger.innerHTML = label + ' <svg class="inline w-3 h-3 ml-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+    trigger.className = 'pcat-pill pcat-' + cat;
+  }
+  switchPreviewCategory(cat);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('pcat-bar');
+  var menu = document.getElementById('pcat-menu');
+  if (dd && menu && !dd.contains(e.target)) menu.classList.add('hidden');
+});
+
+function switchPreviewCategory(cat) {
+  _activePreviewCategory = cat;
+  var pc = document.getElementById('preview-content');
+  if (!pc) return;
+
+  // Update trigger pill style
+  var trigger = document.getElementById('pcat-trigger');
+  if (trigger) {
+    var lbl = _pcatLabels[cat] || cat;
+    trigger.innerHTML = lbl + ' <svg class="inline w-3 h-3 ml-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+    trigger.className = 'pcat-pill pcat-' + cat;
+  }
+
+  // Theme tab bar with category colour
+  var bar = pc.querySelector('#ptab-bar');
+  if (bar) bar.dataset.activeCat = cat;
+
+  // Show/hide tab buttons by data-category
+  var firstVisible = null;
+  pc.querySelectorAll('#ptab-bar button[data-category]').forEach(function(btn) {
+    var show = btn.dataset.category === cat;
+    btn.style.display = show ? '' : 'none';
+    if (show && !firstVisible) firstVisible = btn;
+  });
+
+  // Auto-select first visible tab
+  if (firstVisible) {
+    var tabId = firstVisible.id.replace('ptab-', '');
+    switchPreviewTab(tabId);
+  }
+}
 
 function switchPreviewTab(tab) {
   _activePreviewTab = tab;
@@ -663,8 +729,11 @@ function switchPreviewTab(tab) {
   pc.querySelectorAll('[id^="ptab-content-"]').forEach(function(el) {
     el.classList.toggle('hidden', el.id !== 'ptab-content-' + tab);
   });
-  pc.querySelectorAll('#ptab-bar button').forEach(function(btn) {
-    btn.className = btn.id === 'ptab-' + tab ? TAB_ACTIVE : TAB_INACTIVE;
+  pc.querySelectorAll('#ptab-bar button[data-category]').forEach(function(btn) {
+    var isVisible = btn.style.display !== 'none';
+    if (isVisible) {
+      btn.className = btn.id === 'ptab-' + tab ? tabActive() : TAB_INACTIVE;
+    }
   });
 }
 
@@ -687,6 +756,9 @@ function schedulePreviewRefresh() {
         if (!pc) return;
         pc.innerHTML = html;
         pc.querySelectorAll('pre').forEach(addCodeFolding);
+        if (_activePreviewCategory) {
+          switchPreviewCategory(_activePreviewCategory);
+        }
         if (_activePreviewTab) {
           switchPreviewTab(_activePreviewTab);
         }
@@ -795,6 +867,100 @@ function highlightLine(raw) {
   return html;
 }
 
+// --- YAML Syntax Highlighting ---
+function highlightYAMLLine(raw) {
+  var html = '';
+  var i = 0;
+
+  // Leading whitespace
+  while (i < raw.length && (raw[i] === ' ' || raw[i] === '\t')) {
+    html += raw[i];
+    i++;
+  }
+
+  if (i >= raw.length) return html;
+
+  // Comment: # to end of line
+  if (raw[i] === '#') {
+    html += '<span class="hl-cmt">' + esc(raw.substring(i)) + '</span>';
+    return html;
+  }
+
+  // List item marker: "- "
+  if (raw[i] === '-' && i + 1 < raw.length && raw[i + 1] === ' ') {
+    html += '<span class="hl-op">-</span>';
+    i++;
+    // Continue to parse the rest of the line
+  }
+
+  var rest = raw.substring(i);
+
+  // Key: value pattern
+  var kvMatch = rest.match(/^(\s*)([\w./$][^:]*?)(\s*:\s*)(.*)/);
+  if (kvMatch) {
+    html += kvMatch[1]; // whitespace before key
+    html += '<span class="hl-key">' + esc(kvMatch[2]) + '</span>';
+    html += '<span class="hl-op">' + esc(kvMatch[3]) + '</span>';
+    var val = kvMatch[4];
+
+    if (val) {
+      // Inline comment
+      var commentIdx = -1;
+      var inQuote = false;
+      for (var c = 0; c < val.length; c++) {
+        if (val[c] === '"' || val[c] === "'") inQuote = !inQuote;
+        if (!inQuote && val[c] === '#') { commentIdx = c; break; }
+      }
+      var valPart = commentIdx >= 0 ? val.substring(0, commentIdx) : val;
+      var commentPart = commentIdx >= 0 ? val.substring(commentIdx) : '';
+      html += highlightYAMLValue(valPart.trimEnd());
+      if (valPart.length < (commentIdx >= 0 ? commentIdx : val.length)) {
+        html += val.substring(valPart.trimEnd().length, commentIdx >= 0 ? commentIdx : val.length);
+      }
+      if (commentPart) {
+        html += '<span class="hl-cmt">' + esc(commentPart) + '</span>';
+      }
+    }
+    return html;
+  }
+
+  // Plain value line (after list marker, etc.)
+  html += highlightYAMLValue(rest);
+  return html;
+}
+
+function highlightYAMLValue(val) {
+  val = val.trim();
+  if (!val) return '';
+
+  // {{ }} interpolation
+  if (/\{\{.*\}\}/.test(val)) {
+    return esc(val).replace(/\{\{([^}]*)\}\}/g, function(m) {
+      return '<span class="hl-interp">' + m + '</span>';
+    });
+  }
+
+  // Quoted string
+  if ((val[0] === '"' && val[val.length - 1] === '"') || (val[0] === "'" && val[val.length - 1] === "'")) {
+    var inner = esc(val).replace(/\{\{([^}]*)\}\}/g, function(m) {
+      return '</span><span class="hl-interp">' + m + '</span><span class="hl-str">';
+    });
+    return '<span class="hl-str">' + inner + '</span>';
+  }
+
+  // Boolean
+  if (val === 'true' || val === 'false' || val === 'null' || val === '~') {
+    return '<span class="hl-bool">' + val + '</span>';
+  }
+
+  // Number
+  if (/^-?\d+\.?\d*$/.test(val)) {
+    return '<span class="hl-num">' + val + '</span>';
+  }
+
+  return esc(val);
+}
+
 // --- Diff (LCS) ---
 // Compare old (on-disk) vs new (generated) lines. Returns {lines: string[]}
 // where lines[i] is 'equal', 'add', or 'mod' for each newLine.
@@ -886,7 +1052,9 @@ function findMatchingClose(lines, start, openChar, closeChar) {
 
 // Recursively process lines into folded + highlighted HTML
 // diffMap: optional array where diffMap[i] is 'equal'|'add'|'mod' per line
-function processLines(lines, from, to, diffMap) {
+// hlFn: highlighter function (highlightLine or highlightYAMLLine)
+function processLines(lines, from, to, diffMap, hlFn) {
+  if (!hlFn) hlFn = highlightLine;
   var html = '';
   var i = from;
 
@@ -907,16 +1075,16 @@ function processLines(lines, from, to, diffMap) {
       // Fold header line
       html += '<span class="fold-line' + dc + '" data-fold="' + id + '" data-count="' + innerCount + '">';
       html += '<span class="fold-icon" onclick="toggleFold(\'' + id + '\')">▾</span>';
-      html += highlightLine(line);
+      html += hlFn(line);
       html += '</span>\n';
 
       // Inner content — recurse for nested folds
       html += '<span id="' + id + '" class="fold-content">';
-      html += processLines(lines, i + 1, end, diffMap);
+      html += processLines(lines, i + 1, end, diffMap, hlFn);
       html += '</span>';
       i = end;
     } else {
-      var lh = highlightLine(line);
+      var lh = hlFn(line);
       if (dt && dt !== 'equal') {
         lh = '<span class="diff-' + dt + '">' + lh + '</span>';
       }
@@ -949,7 +1117,8 @@ function addCodeFolding(pre) {
     }
   }
 
-  pre.innerHTML = processLines(lines, 0, lines.length, diffMap);
+  var hlFn = pre.dataset.lang === 'yaml' ? highlightYAMLLine : highlightLine;
+  pre.innerHTML = processLines(lines, 0, lines.length, diffMap, hlFn);
 }
 
 // --- Fold toggle ---
@@ -1027,6 +1196,9 @@ function expandAllFolds(tabId) {
 document.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'preview-content') {
     e.detail.target.querySelectorAll('pre').forEach(addCodeFolding);
+    if (_activePreviewCategory) {
+      switchPreviewCategory(_activePreviewCategory);
+    }
     if (_activePreviewTab) {
       switchPreviewTab(_activePreviewTab);
     }
@@ -1060,6 +1232,59 @@ function setAllVersions() {
       input.value = version;
     }
   });
+}
+
+// Check ECR for image tag existence
+function checkECRTags() {
+  var btn = document.getElementById('ecr-check-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('opacity-50');
+  }
+
+  // Set all badge spans to loading state
+  document.querySelectorAll('.ecr-badge').forEach(function(el) {
+    el.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400';
+    el.textContent = '...';
+  });
+  showToast('Checking ECR...');
+
+  // Build form data from current version inputs
+  var form = document.getElementById('config-form');
+  var formData = new FormData(form);
+
+  fetch('/api/ecr-tags', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      Object.keys(data).forEach(function(key) {
+        var el = document.getElementById('ecr-' + key);
+        if (!el) return;
+        var result = data[key];
+        if (result.exists) {
+          el.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+          el.innerHTML = '<span class="status-dot ok"></span> exists';
+        } else if (result.error) {
+          el.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+          el.innerHTML = '<span class="status-dot warning"></span> needs build';
+        }
+      });
+      showToast('ECR check complete');
+    })
+    .catch(function(err) {
+      document.querySelectorAll('.ecr-badge').forEach(function(el) {
+        if (el.textContent === '...') {
+          el.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+          el.innerHTML = '<span class="status-dot error"></span> error';
+        }
+      });
+      showToast('ECR check failed: ' + err.message, 5000);
+    })
+    .finally(function() {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+      }
+    });
 }
 
 // Save All from preview with confirmation dialog
@@ -3500,7 +3725,8 @@ function formatOutputValue(value) {
 var _sortableGroups = [
   { id: 'core-modules',  key: 'configui-core-order' },
   { id: 'infra-modules', key: 'configui-module-order' },
-  { id: 'svc-modules',   key: 'configui-svc-order' }
+  { id: 'svc-modules',   key: 'configui-svc-order' },
+  { id: 'apps-modules',  key: 'configui-apps-order' }
 ];
 
 // Restore saved panel order before masonry splits them into columns
@@ -3617,7 +3843,7 @@ function initMasonry() {
   document.querySelectorAll('.module-masonry').forEach(function(container) {
     if (container.querySelector('.masonry-col')) return;
     var children = Array.from(container.children);
-    if (children.length < 2) return;
+    if (children.length === 0) return;
     var left = document.createElement('div');
     left.className = 'masonry-col';
     var right = document.createElement('div');
@@ -3638,6 +3864,24 @@ function initMasonry() {
 
 var _wafLogEventSource = null;
 var _wafLogNodeFilter = 'all';
+
+// Auto-populate UA from target URL when UA hasn't been manually edited
+var _wafUAManuallySet = false;
+(function() {
+  var target = document.getElementById('waf-campaign-target');
+  var ua = document.getElementById('waf-campaign-ua');
+  if (!target || !ua) return;
+  // If UA already has a saved value, mark as manually set
+  if (ua.value) _wafUAManuallySet = true;
+  ua.addEventListener('input', function() { _wafUAManuallySet = true; });
+  target.addEventListener('input', function() {
+    if (_wafUAManuallySet) return;
+    try {
+      var host = new URL(target.value).hostname;
+      ua.value = 'WafFAw/1.0 (' + host + ')';
+    } catch (e) { /* invalid URL, skip */ }
+  });
+})();
 
 function switchWaffawTab(tabName) {
   // Update tab buttons
@@ -3665,6 +3909,91 @@ function switchWaffawTab(tabName) {
     stopWAFLogStream();
   }
 }
+
+function checkWaffawImage() {
+  var btn = document.getElementById('waf-check-btn');
+  var badge = document.getElementById('waffaw-ecr-badge');
+  var uri = (document.getElementById('waffaw-image-uri') || {}).value;
+  if (!uri) { showToast('No image URI set'); return; }
+
+  if (btn) { btn.disabled = true; btn.classList.add('opacity-50'); }
+  if (badge) {
+    badge.style.display = '';
+    badge.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400';
+    badge.textContent = '...';
+  }
+
+  fetch('/api/waf/check-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'image_uri=' + encodeURIComponent(uri)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!badge) return;
+      if (data.exists) {
+        badge.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+        badge.innerHTML = '<span class="status-dot ok"></span> ' + data.repo + ':' + data.tag;
+      } else {
+        badge.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+        badge.innerHTML = '<span class="status-dot warning"></span> not found';
+      }
+    })
+    .catch(function(err) {
+      if (badge) {
+        badge.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+        badge.innerHTML = '<span class="status-dot error"></span> error';
+      }
+      showToast('ECR check failed: ' + err.message, 5000);
+    })
+    .finally(function() {
+      if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+    });
+}
+
+// Waffaw IP quota/cost calculator
+function updateWafQuotaBar() {
+  var ec2Input = document.querySelector('input[name="waffaw.ec2_count"]');
+  var fargateInput = document.querySelector('input[name="waffaw.ecs_desired_count"]');
+  if (!ec2Input || !fargateInput) return;
+
+  var ec2Count = parseInt(ec2Input.value, 10) || 0;
+  var fargateCount = parseInt(fargateInput.value, 10) || 0;
+  var totalIPs = ec2Count + fargateCount;
+  var monthlyCost = totalIPs * 0.005 * 24 * 30; // $0.005/hr per IPv4
+
+  var totalEl = document.getElementById('waf-ip-total');
+  var eipEl = document.getElementById('waf-eip-count');
+  var fargateEl = document.getElementById('waf-fargate-ips');
+  var costEl = document.getElementById('waf-ip-cost');
+  var warnEl = document.getElementById('waf-eip-warn');
+
+  if (totalEl) totalEl.textContent = totalIPs;
+  if (eipEl) eipEl.textContent = ec2Count;
+  if (fargateEl) fargateEl.textContent = fargateCount;
+  if (costEl) costEl.textContent = '$' + monthlyCost.toFixed(0) + '/mo';
+
+  if (warnEl) {
+    if (ec2Count > 5) {
+      warnEl.classList.remove('hidden');
+      warnEl.textContent = 'EIP quota default is 5/region — request increase via Service Quotas';
+    } else {
+      warnEl.classList.add('hidden');
+    }
+  }
+}
+
+// Bind to input changes
+document.addEventListener('input', function(e) {
+  if (e.target.name === 'waffaw.ec2_count' || e.target.name === 'waffaw.ecs_desired_count') {
+    updateWafQuotaBar();
+  }
+});
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', updateWafQuotaBar);
+// Also run after htmx swaps (in case the waffaw tab loads late)
+document.addEventListener('htmx:afterSettle', updateWafQuotaBar);
 
 function buildWaffaw() {
   var btn = document.getElementById('waf-build-btn');
@@ -3829,11 +4158,18 @@ function launchWAFCampaign() {
       var btn = document.getElementById('waf-launch-btn');
       if (btn) { btn.disabled = true; btn.textContent = 'Launching...'; }
 
+      var uaEl = document.getElementById('waf-campaign-ua');
+      var hdrKeyEl = document.getElementById('waf-campaign-hdr-key');
+      var hdrValEl = document.getElementById('waf-campaign-hdr-val');
+
       var body = new URLSearchParams();
       body.append('action', 'start');
       body.append('template', templateVal);
       body.append('log_level', logLevel);
       body.append('target_url', targetURL);
+      if (uaEl && uaEl.value) body.append('user_agent', uaEl.value);
+      if (hdrKeyEl && hdrKeyEl.value) body.append('custom_header_key', hdrKeyEl.value);
+      if (hdrValEl && hdrValEl.value) body.append('custom_header_value', hdrValEl.value);
 
       fetch('/api/waf/campaign', {
         method: 'POST',

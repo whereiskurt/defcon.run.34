@@ -61,13 +61,16 @@ type wafNodeStatus struct {
 
 // wafCampaignState represents the S3 campaign-state.json.
 type wafCampaignState struct {
-	Status        string `json:"status"`
-	Campaign      string `json:"campaign"`
-	StartedAt     string `json:"started_at"`
-	StartedBy     string `json:"started_by"`
-	TargetURL     string `json:"target_url"`
-	LogLevel      string `json:"log_level"`
-	ExpectedNodes int    `json:"expected_nodes"`
+	Status         string `json:"status"`
+	Campaign       string `json:"campaign"`
+	StartedAt      string `json:"started_at"`
+	StartedBy      string `json:"started_by"`
+	TargetURL      string `json:"target_url"`
+	LogLevel       string `json:"log_level"`
+	UserAgent      string `json:"user_agent,omitempty"`
+	CustomHeaderKey string `json:"custom_header_key,omitempty"`
+	CustomHeaderVal string `json:"custom_header_value,omitempty"`
+	ExpectedNodes  int    `json:"expected_nodes"`
 }
 
 // controlBucketName returns the waffaw control bucket name.
@@ -397,6 +400,9 @@ func (a *App) handleWAFCampaign(w http.ResponseWriter, r *http.Request) {
 		campaignName := r.FormValue("template")
 		targetURL := r.FormValue("target_url")
 		logLevel := r.FormValue("log_level")
+		userAgent := r.FormValue("user_agent")
+		customHeaderKey := r.FormValue("custom_header_key")
+		customHeaderVal := r.FormValue("custom_header_value")
 
 		// Check if a campaign is already running
 		var state wafCampaignState
@@ -418,12 +424,15 @@ func (a *App) handleWAFCampaign(w http.ResponseWriter, r *http.Request) {
 
 		// Write campaign-state.json
 		newState := wafCampaignState{
-			Status:    "running",
-			Campaign:  campaignName,
-			StartedAt: time.Now().UTC().Format(time.RFC3339),
-			StartedBy: "configui",
-			TargetURL: targetURL,
-			LogLevel:  logLevel,
+			Status:         "running",
+			Campaign:       campaignName,
+			StartedAt:      time.Now().UTC().Format(time.RFC3339),
+			StartedBy:      "configui",
+			TargetURL:      targetURL,
+			LogLevel:       logLevel,
+			UserAgent:      userAgent,
+			CustomHeaderKey: customHeaderKey,
+			CustomHeaderVal: customHeaderVal,
 		}
 		stateJSON, _ := json.Marshal(newState)
 		s3PutString(profile, bucket, "campaign-state.json", region, string(stateJSON))
@@ -437,8 +446,13 @@ set -euo pipefail
 export TARGET_URL="%s"
 export LOG_LEVEL="%s"
 export CAMPAIGN="%s"
+export WAFFAW_USER_AGENT="%s"
+export WAFFAW_HEADER_KEY="%s"
+export WAFFAW_HEADER_VALUE="%s"
 
 echo "[waffaw] Starting campaign: $CAMPAIGN -> $TARGET_URL (log=$LOG_LEVEL)"
+[[ -n "$WAFFAW_USER_AGENT" ]] && echo "[waffaw] User-Agent: $WAFFAW_USER_AGENT"
+[[ -n "$WAFFAW_HEADER_KEY" ]] && echo "[waffaw] Custom header: $WAFFAW_HEADER_KEY: $WAFFAW_HEADER_VALUE"
 
 # Run consensus protocol to determine node rank
 if [[ -f /opt/waffaw/consensus.sh ]]; then
@@ -455,7 +469,7 @@ cd /opt/waffaw
 npx artillery run "templates/%s.yml" 2>&1 | tee -a "/tmp/campaign-${CAMPAIGN}.log"
 
 echo "[waffaw] Campaign $CAMPAIGN finished on node $NODE_RANK"
-`, campaignName, targetURL, logLevel, targetURL, logLevel, campaignName, campaignName)
+`, campaignName, targetURL, logLevel, targetURL, logLevel, campaignName, userAgent, customHeaderKey, customHeaderVal, campaignName)
 
 		ts := time.Now().Format("20060102-150405")
 		triggerKey := fmt.Sprintf("global/run/campaign-%s-%s.sh", campaignName, ts)
@@ -687,6 +701,38 @@ func (a *App) handleWAFIntel(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleWAFBuild runs apps/waffaw/build.sh and streams output via SSE.
+func (a *App) handleWAFCheckImage(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", 400)
+		return
+	}
+	imageURI := r.FormValue("image_uri")
+	if imageURI == "" {
+		json.NewEncoder(w).Encode(map[string]any{"error": "no image URI"})
+		return
+	}
+
+	// Split repo:tag
+	repo, tag := imageURI, "latest"
+	if i := strings.LastIndex(imageURI, ":"); i > 0 {
+		repo = imageURI[:i]
+		tag = imageURI[i+1:]
+	}
+
+	a.mu.RLock()
+	profilePrefix := a.envLocal.ProfilePrefix
+	a.mu.RUnlock()
+
+	profile := "terraform"
+	if profilePrefix != "" {
+		profile = profilePrefix + "-terraform"
+	}
+
+	exists, _ := checkECRImage(profile, repo, tag, "us-east-1")
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"exists": exists, "repo": repo, "tag": tag})
+}
+
 func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {

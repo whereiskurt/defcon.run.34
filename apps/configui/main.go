@@ -182,6 +182,7 @@ func main() {
 	mux.HandleFunc("GET /api/terminal/stream", app.handleTerminalStream)
 	mux.HandleFunc("POST /api/terminal/stop", app.handleTerminalStop)
 	mux.HandleFunc("GET /api/terminal/list", app.handleTerminalList)
+	mux.HandleFunc("POST /api/ecr-tags", app.handleECRTags)
 	mux.HandleFunc("POST /api/scan-locks", app.handleScanLocks)
 	mux.HandleFunc("POST /api/fix-locks", app.handleFixLocks)
 	mux.HandleFunc("GET /api/outputs", app.handleOutputs)
@@ -192,6 +193,7 @@ func main() {
 	mux.HandleFunc("GET /api/waf/logs", app.handleWAFLogs)
 	mux.HandleFunc("POST /api/waf/intel", app.handleWAFIntel)
 	mux.HandleFunc("GET /api/waf/build", app.handleWAFBuild)
+	mux.HandleFunc("POST /api/waf/check-image", app.handleWAFCheckImage)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port
