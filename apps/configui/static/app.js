@@ -2759,7 +2759,7 @@ function doCleanupSession(id) {
 
 // --- Terraform summary formatting ---
 
-function formatSummaryHtml(summary, exitCode, command, sessionId) {
+function formatSummaryHtml(summary, exitCode, command, sessionId, stats) {
   var icon = exitCode === 0
     ? '<span class="text-green-400">&#10003;</span>'
     : '<span class="text-red-400">&#10007;</span>';
@@ -2769,32 +2769,33 @@ function formatSummaryHtml(summary, exitCode, command, sessionId) {
     if (exitCode === 0) return '<span class="text-green-400">&#10003; ' + (elapsed || 'Done') + '</span>';
     return '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
   }
-  var isApply = command && command.indexOf('apply') !== -1;
-  var prefix = isApply ? 'Applied ' : 'Planned ';
   if (summary.no_change) {
     return icon + ' <span class="text-zinc-400">No changes — infrastructure matches configuration</span>';
   }
-  var parts = [];
-  parts.push('<span class="' + (summary.add > 0 ? 'text-green-400' : 'text-zinc-500') + '">+' + summary.add + '</span>');
-  parts.push('<span class="' + (summary.change > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">~' + summary.change + '</span>');
-  parts.push('<span class="' + (summary.destroy > 0 ? 'text-red-400' : 'text-zinc-500') + '">-' + summary.destroy + '</span>');
-  var html = icon + ' ' + prefix + parts.join(', ');
-  // Add stats button if we have per-module or per-type breakdown
-  if (sessionId) {
-    var s = _termSessions[sessionId];
-    var stats = s && s.stats;
-    if (stats && (Object.keys(stats.by_module || {}).length > 1 || Object.keys(stats.by_type || {}).length > 0)) {
-      var sa = 0, sc = 0, sd = 0, sm = stats.by_module || {};
-      for (var sk in sm) { sa += sm[sk].add || 0; sc += sm[sk].change || 0; sd += sm[sk].destroy || 0; }
-      html += ' <button onclick="showStatsPopup(\'' + sessionId + '\')" class="text-sm font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded-md px-4 py-1.5 ml-2 transition-colors">' +
-        '<span class="text-zinc-500">[</span>Stats ' +
-        '<span class="' + (sa > 0 ? 'text-green-400' : 'text-zinc-600') + '">+' + sa + '</span> ' +
-        '<span class="' + (sc > 0 ? 'text-yellow-400' : 'text-zinc-600') + '">~' + sc + '</span> ' +
-        '<span class="' + (sd > 0 ? 'text-red-400' : 'text-zinc-600') + '">-' + sd + '</span>' +
-        '<span class="text-zinc-500">]</span></button>';
-    }
+  // Use summary totals (from terraform's Apply/Plan complete line) as authoritative
+  var sa = summary.add || 0, sc = summary.change || 0, sd = summary.destroy || 0;
+  // Resolve stats from session if not passed directly
+  if (!stats && sessionId && _termSessions[sessionId]) {
+    stats = _termSessions[sessionId].stats;
   }
-  return html;
+  // If we have per-module stats, show only the Stats button (no separate Applied/Planned text)
+  var hasStats = stats && (Object.keys(stats.by_module || {}).length > 1 || Object.keys(stats.by_type || {}).length > 0);
+  if (hasStats && sessionId) {
+    return icon + ' <button onclick="showStatsPopup(\'' + sessionId + '\')" class="text-sm font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded-md px-4 py-1.5 ml-1 transition-colors">' +
+      '<span class="text-zinc-500">[</span>Stats ' +
+      '<span class="' + (sa > 0 ? 'text-green-400' : 'text-zinc-600') + '">+' + sa + '</span> ' +
+      '<span class="' + (sc > 0 ? 'text-yellow-400' : 'text-zinc-600') + '">~' + sc + '</span> ' +
+      '<span class="' + (sd > 0 ? 'text-red-400' : 'text-zinc-600') + '">-' + sd + '</span>' +
+      '<span class="text-zinc-500">]</span></button>';
+  }
+  // Fallback: no per-module stats, show inline summary
+  var isApply = command && command.indexOf('apply') !== -1;
+  var prefix = isApply ? 'Applied ' : 'Planned ';
+  var parts = [];
+  parts.push('<span class="' + (sa > 0 ? 'text-green-400' : 'text-zinc-500') + '">+' + sa + '</span>');
+  parts.push('<span class="' + (sc > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">~' + sc + '</span>');
+  parts.push('<span class="' + (sd > 0 ? 'text-red-400' : 'text-zinc-500') + '">-' + sd + '</span>');
+  return icon + ' ' + prefix + parts.join(', ');
 }
 
 function formatPillSummary(summary) {
@@ -3483,10 +3484,7 @@ function showHistoryModal(entry) {
       '<pre class="terminal-output flex-1">' + escapeHtml(entry.output) + '</pre>' +
       '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<span class="text-xs font-mono text-zinc-400">' +
-          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command, null) +
-          (entry.stats && (Object.keys(entry.stats.by_module || {}).length > 1 || Object.keys(entry.stats.by_type || {}).length > 0)
-            ? (function() { var ha=0,hc=0,hd=0,hm=entry.stats.by_module||{}; for(var hk in hm){ha+=hm[hk].add||0;hc+=hm[hk].change||0;hd+=hm[hk].destroy||0;} return ' <button class="history-stats-btn text-[10px] font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded px-1.5 py-0.5 ml-2 transition-colors"><span class="text-zinc-500">[</span>Stats <span class="'+(ha>0?'text-green-400':'text-zinc-600')+'">+'+ha+'</span> <span class="'+(hc>0?'text-yellow-400':'text-zinc-600')+'">~'+hc+'</span> <span class="'+(hd>0?'text-red-400':'text-zinc-600')+'">-'+hd+'</span><span class="text-zinc-500">]</span></button>'; })()
-            : '') +
+          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command, null, entry.stats || null) +
           ' &mdash; ' + formatTimeAgo(entry.timestamp) +
         '</span>' +
         '<button class="history-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
