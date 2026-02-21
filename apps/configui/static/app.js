@@ -1127,6 +1127,13 @@ function confirmRequery() {
     message: 'This will query all AWS resources across all regions. This may take a few seconds.',
     confirmLabel: '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg> Refresh',
     onConfirm: function() {
+      // Expand Infrastructure Modules section if hidden
+      var infraContainer = document.getElementById('infra-modules');
+      if (infraContainer && infraContainer.style.display === 'none') {
+        infraContainer.style.display = '';
+        var rollBtn = document.getElementById('section-roll-infra');
+        if (rollBtn) rollBtn.classList.add('open');
+      }
       var btn = document.getElementById('requery-aws-btn');
       if (btn) {
         btn.classList.add('spinning');
@@ -2779,8 +2786,15 @@ function showTerminalModal(session) {
       modalContainer.insertBefore(sopsBanner, footer);
     }
 
-    // Auto-refresh discovery after a successful apply
-    if (exitCode === 0 && sessionState.command && sessionState.command.indexOf('apply') !== -1) {
+    // Auto-refresh discovery after any apply/destroy (partial applies still change state)
+    if (sessionState.command && sessionState.command.indexOf('apply') !== -1) {
+      // Expand Infrastructure Modules section if hidden so dots are visible
+      var infraContainer = document.getElementById('infra-modules');
+      if (infraContainer && infraContainer.style.display === 'none') {
+        infraContainer.style.display = '';
+        var rollBtn = document.getElementById('section-roll-infra');
+        if (rollBtn) rollBtn.classList.add('open');
+      }
       var mod = sessionState.module;
       // For "all" or "region-all", refresh everything; otherwise refresh the specific module
       var refreshUrl = (mod === 'all' || mod === 'region-all')
