@@ -377,7 +377,7 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprint(w, `<table class="w-full text-xs"><thead><tr class="text-left text-zinc-500 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-700">`)
-	fmt.Fprint(w, `<th class="py-1 px-2">##</th><th class="py-1 px-2"></th><th class="py-1 px-2">IP Address</th><th class="py-1 px-2">Type</th><th class="py-1 px-2">Status</th><th class="py-1 px-2">Rank</th><th class="py-1 px-2">Uptime</th><th class="py-1 px-2">Actions</th>`)
+	fmt.Fprint(w, `<th class="py-1 px-2">##</th><th class="py-1 px-2"></th><th class="py-1 px-2">IP Address</th><th class="py-1 px-2">Type</th><th class="py-1 px-2">Agent</th><th class="py-1 px-2">Status</th><th class="py-1 px-2">Rank</th><th class="py-1 px-2">Uptime</th><th class="py-1 px-2">Actions</th>`)
 	fmt.Fprint(w, `</tr></thead><tbody>`)
 
 	for i, n := range nodes {
@@ -403,6 +403,11 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 			typeBg = "bg-amber-900/40 text-amber-300"
 		}
 		fmt.Fprintf(w, `<td class="py-1.5 px-2"><span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium %s">%s</span></td>`, typeBg, template.HTMLEscapeString(typeLabel))
+		agentVer := n.AgentVersion
+		if agentVer == "" {
+			agentVer = "-"
+		}
+		fmt.Fprintf(w, `<td class="py-1.5 px-2 font-mono text-zinc-400">%s</td>`, template.HTMLEscapeString(agentVer))
 		fmt.Fprintf(w, `<td class="py-1.5 px-2">%s</td>`, statusBadge)
 		fmt.Fprintf(w, `<td class="py-1.5 px-2 font-mono">%s</td>`, template.HTMLEscapeString(n.Rank))
 		fmt.Fprintf(w, `<td class="py-1.5 px-2 text-zinc-400">%s</td>`, template.HTMLEscapeString(n.Uptime))
