@@ -4445,10 +4445,45 @@ function buildWaffaw() {
             return;
           }
 
-          // Line event
+          // Layer summary event — update push progress in-place
+          if (data.layers) {
+            var lc = data.layers;
+            var total = data.total || 0;
+            var pushed = (lc['Pushed'] || 0) + (lc['Layer already exists'] || 0);
+            var pushing = lc['Pushing'] || 0;
+            var waiting = (lc['Waiting'] || 0) + (lc['Preparing'] || 0);
+
+            statusEl.textContent = 'Pushing to ECR... ' + pushed + '/' + total + ' layers';
+
+            // Update or create the layer progress element
+            var layerEl = output.querySelector('.build-layer-progress');
+            if (!layerEl) {
+              layerEl = document.createElement('div');
+              layerEl.className = 'build-layer-progress';
+              layerEl.style.cssText = 'border-left:2px solid #22c55e; padding-left:8px; margin:4px 0; color:#71717a; font-size:10px; line-height:1.6;';
+              output.appendChild(layerEl);
+            }
+            var pct = total > 0 ? Math.round(pushed / total * 100) : 0;
+            var barW = 20;
+            var filled = Math.round(barW * pushed / (total || 1));
+            var bar = '<span style="color:#22c55e">' + '\u2588'.repeat(filled) + '</span>' +
+                      '<span style="color:#3f3f46">' + '\u2588'.repeat(barW - filled) + '</span>';
+            var html = '<span style="color:#a1a1aa; font-style:italic;">\u2B06 Pushing ' + total + ' layers to ECR...</span>\n';
+            html += '  ' + bar + ' ' + pct + '%\n';
+            html += '  <span style="color:#4ade80">\u2713 ' + pushed + ' done</span>';
+            if (pushing > 0) html += '  <span style="color:#fbbf24">\u2191 ' + pushing + ' uploading</span>';
+            if (waiting > 0) html += '  <span style="color:#52525b">\u23f3 ' + waiting + ' waiting</span>';
+            layerEl.innerHTML = html;
+            output.scrollTop = output.scrollHeight;
+            return;
+          }
+
+          // Line event — skip if data.line is missing/undefined (not empty string)
+          if (data.line === undefined && !data.done) return;
+
           var line = document.createElement('div');
           line.style.color = data.done ? (data.exit === 0 ? '#4ade80' : '#f87171') : '#a1a1aa';
-          line.textContent = data.line || e.data;
+          line.textContent = data.line || '';
           output.appendChild(line);
           output.scrollTop = output.scrollHeight;
 
@@ -4466,9 +4501,11 @@ function buildWaffaw() {
             resetBtn();
             closeBtn.classList.remove('hidden');
             renderSteps('complete');
+            // Freeze the layer progress block if present
+            var layerEl = output.querySelector('.build-layer-progress');
+            if (layerEl) layerEl.style.borderLeftColor = '#3f3f46';
             if (data.exit === 0) {
               statusEl.textContent = 'Done in ' + formatElapsed(data.elapsed || 0);
-              statusEl.className = statusEl.className.replace('text-green-400', 'text-green-400');
               elapsedEl.textContent = '';
               showToast('Build completed successfully');
             } else {
@@ -4478,10 +4515,14 @@ function buildWaffaw() {
             }
           }
         } catch(err) {
-          var line = document.createElement('div');
-          line.style.color = '#a1a1aa';
-          line.textContent = e.data;
-          output.appendChild(line);
+          // Only show non-empty unparseable lines
+          var raw = (e.data || '').trim();
+          if (raw && raw.charAt(0) !== '{') {
+            var line = document.createElement('div');
+            line.style.color = '#a1a1aa';
+            line.textContent = raw;
+            output.appendChild(line);
+          }
         }
       };
       es.addEventListener('error', function() {

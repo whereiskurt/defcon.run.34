@@ -9,8 +9,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -778,6 +780,9 @@ func (a *App) handleWAFCheckImage(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{"exists": exists, "repo": repo, "tag": tag})
 }
 
+// dockerLayerRe matches docker push layer status lines like "a5612b7c5253: Waiting"
+var dockerLayerRe = regexp.MustCompile(`^[0-9a-f]{12}: (Waiting|Preparing|Layer already exists|Pushed|Pushing .*)$`)
+
 func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -837,24 +842,32 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 
 	startTime := time.Now()
 
+	// Mutex protects SSE writes — tick goroutine and scanner both write to w
+	var sseMu sync.Mutex
+	sendSSE := func(data []byte) {
+		sseMu.Lock()
+		fmt.Fprintf(w, "data: %s\n\n", data)
+		flusher.Flush()
+		sseMu.Unlock()
+	}
+
 	// Send elapsed tick events every 2 seconds in background
 	ctx := r.Context()
-	done := make(chan struct{})
-	defer close(done)
+	doneCh := make(chan struct{})
+	defer close(doneCh)
 	go func() {
 		ticker := time.NewTicker(2 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
-			case <-done:
+			case <-doneCh:
 				return
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				secs := int(time.Since(startTime).Seconds())
 				tickJSON, _ := json.Marshal(map[string]interface{}{"tick": secs})
-				fmt.Fprintf(w, "data: %s\n\n", tickJSON)
-				flusher.Flush()
+				sendSSE(tickJSON)
 			}
 		}
 	}()
@@ -865,14 +878,33 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		if p != phase {
 			phase = p
 			phaseJSON, _ := json.Marshal(map[string]interface{}{"phase": p})
-			fmt.Fprintf(w, "data: %s\n\n", phaseJSON)
-			flusher.Flush()
+			sendSSE(phaseJSON)
 		}
+	}
+
+	// Layer tracking for docker push — collapse into summary events
+	layers := map[string]string{} // layerID → status
+	sendLayerSummary := func() {
+		counts := map[string]int{}
+		for _, s := range layers {
+			counts[s]++
+		}
+		total := len(layers)
+		sumJSON, _ := json.Marshal(map[string]interface{}{
+			"layers": counts,
+			"total":  total,
+		})
+		sendSSE(sumJSON)
 	}
 
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		// Skip empty lines (BuildKit blank separators)
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
 
 		// Detect phases from output
 		lower := strings.ToLower(line)
@@ -884,18 +916,32 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 			if phase != "docker-push" {
 				sendPhase("docker-build")
 			}
-		} else if strings.Contains(line, "docker push") || strings.Contains(lower, "pushing") || strings.Contains(lower, "the push refers to") {
+		} else if strings.Contains(lower, "the push refers to") {
 			sendPhase("docker-push")
 		} else if strings.HasPrefix(line, "Image pushed to ") {
 			sendPhase("complete")
+		}
+
+		// Collapse docker push layer status lines into summary events
+		if phase == "docker-push" {
+			if m := dockerLayerRe.FindStringSubmatch(line); m != nil {
+				layerID := line[:12]
+				status := m[1]
+				// Normalize "Pushing 123MB/456MB" to just "Pushing"
+				if strings.HasPrefix(status, "Pushing") {
+					status = "Pushing"
+				}
+				layers[layerID] = status
+				sendLayerSummary()
+				continue
+			}
 		}
 
 		lineJSON, _ := json.Marshal(map[string]interface{}{
 			"line": line,
 			"done": false,
 		})
-		fmt.Fprintf(w, "data: %s\n\n", lineJSON)
-		flusher.Flush()
+		sendSSE(lineJSON)
 
 		// Extract image name:tag from the "Image pushed to" line
 		if strings.HasPrefix(line, "Image pushed to ") {
@@ -909,8 +955,7 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 				"done":      false,
 				"image_uri": imageNameTag,
 			})
-			fmt.Fprintf(w, "data: %s\n\n", uriJSON)
-			flusher.Flush()
+			sendSSE(uriJSON)
 		}
 	}
 
@@ -929,8 +974,7 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		"exit":    exitCode,
 		"elapsed": int(elapsed.Seconds()),
 	})
-	fmt.Fprintf(w, "data: %s\n\n", doneJSON)
-	flusher.Flush()
+	sendSSE(doneJSON)
 }
 
 // handleWAFCampaignState returns the current campaign state from S3.
