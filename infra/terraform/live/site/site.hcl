@@ -158,10 +158,10 @@ locals {
   }
 
   ec2spots = {
-    enabled = true
+    enabled = false
     instances = [
       {
-        count                  = 1
+        count                  = 0
         regions                = ["us-east-1", "ca-central-1", "ap-southeast-1"]
         zone_name              = "run.${local.dns.zonename}"
         create_dns_records     = true
@@ -255,16 +255,16 @@ locals {
 
   waffaw = {
     enabled         = true
-    ec2_count       = 1
+    ec2_count       = 0
     ec2_max_count   = 10
     ec2_instance_type = "t3.medium"
     ec2_use_spot    = true
     ec2_multi_eni   = false
-    ecs_desired_count = 1
+    ecs_desired_count = 0
     ecs_use_spot    = true
     ecs_task_cpu    = 1024
     ecs_task_memory = 2048
-    image_uri       = "dc34-waffaw:1.0.3"
+    image_uri       = "dc34-waffaw:1.0.4"
   }
 
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)
