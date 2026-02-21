@@ -2834,22 +2834,22 @@ function openTerminal(module, command, region) {
     fetch('/api/fix-locks', { method: 'POST' })
       .then(function(resp) { return resp.json(); })
       .then(function(result) {
-        var lines = ['\x1b[33m>>> Aggressive Mode: clearing all locks before ' + command + '\x1b[0m'];
+        var lines = [{text: '>>> Aggressive Mode: clearing all locks before ' + command, cls: 'text-amber-400'}];
         var removed = (result.removed && result.removed.length) || 0;
         var errors = (result.errors && result.errors.length) || 0;
         if (removed > 0) {
-          lines.push('\x1b[33m>>> Removed ' + removed + ' lock' + (removed > 1 ? 's' : '') + '\x1b[0m');
+          lines.push({text: '>>> Removed ' + removed + ' lock' + (removed > 1 ? 's' : ''), cls: 'text-amber-400'});
         } else if (errors === 0) {
-          lines.push('\x1b[33m>>> No locks found (clean)\x1b[0m');
+          lines.push({text: '>>> No locks found (clean)', cls: 'text-amber-400'});
         }
         if (errors > 0) {
-          result.errors.forEach(function(e) { lines.push('\x1b[31m>>> Lock error: ' + e + '\x1b[0m'); });
+          result.errors.forEach(function(e) { lines.push({text: '>>> Lock error: ' + e, cls: 'text-red-400'}); });
         }
-        lines.push('');
+        lines.push({text: '', cls: ''});
         doStart(lines);
       })
       .catch(function(err) {
-        doStart(['\x1b[31m>>> Aggressive lock clear failed: ' + err.message + '\x1b[0m', '']);
+        doStart([{text: '>>> Aggressive lock clear failed: ' + err.message, cls: 'text-red-400'}, {text: '', cls: ''}]);
       });
   } else {
     doStart();
@@ -3009,8 +3009,15 @@ function showTerminalModal(session) {
   // Connect SSE — batch lines into a text buffer, flush via rAF
   // Prepend aggressive-lock-clear lines if present
   if (session._prependLines && session._prependLines.length) {
-    session._prependLines.forEach(function(line) {
-      output.appendChild(document.createTextNode(line + '\n'));
+    session._prependLines.forEach(function(entry) {
+      if (entry.cls) {
+        var span = document.createElement('span');
+        span.className = entry.cls;
+        span.textContent = entry.text + '\n';
+        output.appendChild(span);
+      } else {
+        output.appendChild(document.createTextNode((entry.text || '') + '\n'));
+      }
     });
   }
 
