@@ -1182,6 +1182,46 @@ body.destroy-mode::after {
   flex-shrink: 0;
 }
 
+/* Terminal progress block — collapsed "Still creating/modifying/destroying" lines */
+.term-progress-block {
+  border-left: 2px solid #22c55e;
+  padding-left: 8px;
+  margin: 4px 0;
+  color: #71717a;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.term-progress-block .tp-header {
+  color: #a1a1aa;
+  font-style: italic;
+}
+
+.term-progress-block .tp-collapsed {
+  color: #52525b;
+  font-size: 9px;
+}
+
+.term-progress-block .tp-mod {
+  color: #52525b;
+  min-width: 0;
+}
+
+.term-progress-block .tp-creating  { color: #4ade80; }
+.term-progress-block .tp-modifying { color: #fbbf24; }
+.term-progress-block .tp-destroying { color: #f87171; }
+
+.term-progress-block .tp-count {
+  color: #52525b;
+  font-size: 9px;
+}
+
+/* Frozen (completed) progress blocks dim slightly */
+.term-progress-block.tp-frozen {
+  border-left-color: #3f3f46;
+  opacity: 0.6;
+}
+
 /* Output explorer — tree chevrons and refresh button */
 .output-chevron {
   display: inline-block;

@@ -3035,6 +3035,59 @@ function showTerminalModal(session) {
   var _flushPending = false;
   var _hasOutput = session._prependLines && session._prependLines.length > 0;
 
+  // Progress block — collapses "Still creating/modifying/destroying" lines
+  var _stillRe = /^\[([^\]]+)\]\s+(\S+):\s+Still\s+(\w+)\.\.\.\s+\[([^\]]+)\s+elapsed\]/;
+  var _progMap = {};    // "module|resource" → { module, resource, action, elapsed, count }
+  var _progEl = null;   // live-updating DOM element
+  var _progLines = 0;   // total "Still..." lines collapsed
+
+  function shortMod(mod) {
+    var parts = mod.split('/');
+    return parts[parts.length - 1] || mod;
+  }
+
+  function renderProgress() {
+    if (!_progEl) {
+      _progEl = document.createElement('div');
+      _progEl.className = 'term-progress-block';
+      output.appendChild(_progEl);
+    }
+    var keys = Object.keys(_progMap).sort();
+    if (keys.length === 0) return;
+
+    // Count distinct actions
+    var actions = {};
+    keys.forEach(function(k) { actions[_progMap[k].action] = true; });
+    var actionLabel = Object.keys(actions).join('/');
+
+    var html = '<span class="tp-header">\u23f3 Still ' + escapeHtml(actionLabel) +
+      ' ' + keys.length + ' resource' + (keys.length !== 1 ? 's' : '') +
+      '... <span class="tp-collapsed">' + _progLines + ' line' + (_progLines !== 1 ? 's' : '') + ' collapsed</span></span>\n';
+
+    keys.forEach(function(k) {
+      var p = _progMap[k];
+      var acls = p.action === 'creating' ? 'tp-creating' : p.action === 'destroying' ? 'tp-destroying' : 'tp-modifying';
+      html += '  <span class="tp-mod">' + escapeHtml(shortMod(p.module)) + '</span> ' +
+        escapeHtml(p.resource) + '  <span class="' + acls + '">' + escapeHtml(p.elapsed) + '</span>' +
+        (p.count > 1 ? ' <span class="tp-count">\u00d7' + p.count + '</span>' : '') + '\n';
+    });
+
+    _progEl.innerHTML = html;
+  }
+
+  function freezeProgress() {
+    if (!_progEl) return;
+    // Leave the frozen block in place, detach tracking
+    _progEl.classList.add('tp-frozen');
+    _progEl = null;
+    _progMap = {};
+    _progLines = 0;
+  }
+
+  function appendText(text) {
+    output.appendChild(document.createTextNode(text));
+  }
+
   function flushLines() {
     _flushPending = false;
     if (_lineBuf.length === 0) return;
@@ -3044,7 +3097,32 @@ function showTerminalModal(session) {
       var placeholder = output.querySelector('.term-waiting');
       if (placeholder) placeholder.remove();
     }
-    output.textContent += _lineBuf.join('\n') + '\n';
+
+    var textChunk = [];
+    function drainText() {
+      if (textChunk.length > 0) {
+        appendText(textChunk.join('\n') + '\n');
+        textChunk = [];
+      }
+    }
+
+    for (var i = 0; i < _lineBuf.length; i++) {
+      var line = _lineBuf[i];
+      var m = _stillRe.exec(line);
+      if (m) {
+        drainText();
+        var key = m[1] + '|' + m[2];
+        var prev = _progMap[key];
+        _progMap[key] = { module: m[1], resource: m[2], action: m[3], elapsed: m[4], count: (prev ? prev.count : 0) + 1 };
+        _progLines++;
+        renderProgress();
+      } else {
+        // Normal line — freeze any active progress block first
+        if (_progEl) { drainText(); freezeProgress(); }
+        textChunk.push(line);
+      }
+    }
+    drainText();
     _lineBuf.length = 0;
     output.scrollTop = output.scrollHeight;
   }
