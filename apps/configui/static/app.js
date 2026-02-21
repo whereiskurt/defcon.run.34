@@ -65,6 +65,70 @@ document.addEventListener('keydown', function(e) {
   }
 }, true); // capture phase
 
+// ========== Keyboard Shortcuts ==========
+// Two-key sequences: ra=Refresh All, pa=Plan All, aa=Apply All
+// Single key: - = collapse all panels (headers stay visible)
+(function() {
+  var _shortcutFirst = '';
+  var _shortcutTimer = null;
+
+  document.addEventListener('keydown', function(e) {
+    var tag = (e.target.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (_destroyActive) return;
+    if (document.querySelector('.fixed.inset-0.z-\\[60\\]')) return;
+
+    var key = e.key.toLowerCase();
+
+    // Single-key: minus collapses all
+    if (key === '-' && !_shortcutFirst) {
+      e.preventDefault();
+      var s = countAllPanelStates();
+      if (s.open > 0) {
+        // Collapse all
+        document.querySelectorAll('[data-panel]').forEach(function(panel) {
+          var id = panel.dataset.panel;
+          var body = document.getElementById('body-' + id);
+          var chevron = document.getElementById('chevron-' + id);
+          if (body) body.style.display = 'none';
+          if (chevron) chevron.classList.remove('open');
+        });
+        updateAllFoldButtons();
+        showToast('All panels collapsed');
+      } else {
+        // Already collapsed — expand all
+        toggleAllPanels();
+        showToast('All panels expanded');
+      }
+      return;
+    }
+
+    // Two-key sequences
+    if (_shortcutFirst) {
+      clearTimeout(_shortcutTimer);
+      var combo = _shortcutFirst + key;
+      _shortcutFirst = '';
+      if (combo === 'ra') {
+        e.preventDefault();
+        confirmRequery();
+      } else if (combo === 'pa') {
+        e.preventDefault();
+        confirmPlanAll();
+      } else if (combo === 'aa') {
+        e.preventDefault();
+        confirmApplyAll();
+      }
+      return;
+    }
+
+    // Start tracking first key of a two-key sequence
+    if (key === 'r' || key === 'p' || key === 'a') {
+      _shortcutFirst = key;
+      _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
+    }
+  });
+})();
+
 function updateDestroyDim(letterCount) {
   if (letterCount === 0) {
     document.body.classList.remove('destroy-dimming');
@@ -2508,10 +2572,10 @@ function showTerminalModal(session) {
   var cmdLine = session.cmd_line || ('terragrunt ' + session.command);
 
   var overlay = document.createElement('div');
-  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-3 md:p-5';
   overlay.dataset.sessionId = id;
   overlay.innerHTML =
-    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-5xl w-full mx-auto">' +
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-[90%] w-full mx-auto">' +
       '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
         '<div class="flex flex-col">' +
           '<div class="flex items-center gap-2">' +
@@ -2999,9 +3063,9 @@ function renderHistoryMenu() {
 
 function showHistoryModal(entry) {
   var overlay = document.createElement('div');
-  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-3 md:p-5';
   overlay.innerHTML =
-    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-5xl w-full mx-auto">' +
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-[90%] w-full mx-auto">' +
       '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
         '<div class="flex flex-col">' +
           '<div class="flex items-center gap-2">' +
@@ -3120,7 +3184,26 @@ function showStatsPopup(sessionId) {
     return html;
   }
 
+  // Aggregate by service: extract service name from module paths
+  // e.g. "region/us-east-1/waffaw" → "waffaw", "region/us-east-1/ecs/run-auth" → "run-auth",
+  // "global/cloudfront" → "cloudfront", "region/us-east-1/ecr" → "ecr"
+  var byService = {};
+  Object.keys(byMod).forEach(function(mod) {
+    var parts = mod.replace(/^\.\//, '').split('/');
+    // Last meaningful segment is the service name
+    var svc = parts[parts.length - 1] || mod;
+    if (!byService[svc]) byService[svc] = { add: 0, change: 0, destroy: 0 };
+    byService[svc].add += (byMod[mod].add || 0);
+    byService[svc].change += (byMod[mod].change || 0);
+    byService[svc].destroy += (byMod[mod].destroy || 0);
+  });
+
   var content = '';
+  // Show By Service first — most useful overview
+  if (Object.keys(byService).length > 1) {
+    content += buildTable('By Service', byService, true);
+    content += '<div class="border-t border-zinc-700 my-4"></div>';
+  }
   content += buildTable('By Module', byMod, true);
   if (Object.keys(byMod).length > 0 && Object.keys(byType).length > 0) {
     content += '<div class="border-t border-zinc-700 my-4"></div>';
@@ -3547,6 +3630,504 @@ function initMasonry() {
     container.appendChild(left);
     container.appendChild(right);
   });
+}
+
+// =====================================================
+// WAF Testing (waffaw) — Fleet management, campaigns, log streaming, intel
+// =====================================================
+
+var _wafLogEventSource = null;
+var _wafLogNodeFilter = 'all';
+
+function switchWaffawTab(tabName) {
+  // Update tab buttons
+  document.querySelectorAll('.waffaw-tab-btn').forEach(function(btn) {
+    if (btn.dataset.tab === tabName) {
+      btn.classList.add('active');
+      btn.classList.remove('border-transparent', 'text-zinc-500', 'dark:text-zinc-400');
+      btn.classList.add('border-green-500', 'text-green-600', 'dark:text-green-400');
+    } else {
+      btn.classList.remove('active');
+      btn.classList.remove('border-green-500', 'text-green-600', 'dark:text-green-400');
+      btn.classList.add('border-transparent', 'text-zinc-500', 'dark:text-zinc-400');
+    }
+  });
+
+  // Show/hide tab content
+  document.querySelectorAll('.waffaw-tab-content').forEach(function(el) {
+    el.style.display = el.dataset.tab === tabName ? '' : 'none';
+  });
+
+  // SSE lifecycle: start log stream when switching to logs tab, stop when leaving
+  if (tabName === 'logs') {
+    startWAFLogStream();
+  } else {
+    stopWAFLogStream();
+  }
+}
+
+function buildWaffaw() {
+  var btn = document.getElementById('waf-build-btn');
+
+  showConfirmDialog({
+    title: 'Build & Push Waffaw Image?',
+    message: 'This will build the Docker image and push it to ECR. This may take a few minutes.',
+    confirmLabel: 'Build',
+    confirmClass: 'bg-zinc-600 hover:bg-zinc-500 text-white',
+    onConfirm: function() {
+      if (btn) { btn.disabled = true; btn.textContent = 'Building...'; }
+
+      // Create terminal modal (same pattern as showTerminalModal)
+      var overlay = document.createElement('div');
+      overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-3 md:p-5';
+      overlay.innerHTML =
+        '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-[90%] w-full mx-auto">' +
+          '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
+            '<div class="flex flex-col">' +
+              '<div class="flex items-center gap-2">' +
+                '<span class="text-green-400 text-sm font-mono font-bold">$ </span>' +
+                '<span class="text-sm font-mono text-zinc-200">apps/waffaw/build.sh</span>' +
+              '</div>' +
+              '<div class="flex items-center gap-2" style="padding-left:1.1rem;">' +
+                '<span class="waf-build-status text-[11px] font-mono text-green-400">Building...</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="flex items-center gap-2">' +
+              '<button class="waf-build-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
+            '</div>' +
+          '</div>' +
+          '<pre class="terminal-output flex-1"></pre>' +
+          '<div class="flex items-center justify-end px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
+            '<button class="waf-build-close-btn hidden rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+
+      var output = overlay.querySelector('.terminal-output');
+      var statusEl = overlay.querySelector('.waf-build-status');
+      var closeBtn = overlay.querySelector('.waf-build-close-btn');
+      var closeX = overlay.querySelector('.waf-build-close-x');
+      var running = true;
+      var es = null;
+
+      function resetBtn() {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg> Build &amp; Push';
+        }
+      }
+
+      function closeModal() {
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+      }
+
+      function onKey(e) {
+        if (e.key === 'Escape' && !running) { e.stopImmediatePropagation(); closeModal(); }
+      }
+      document.addEventListener('keydown', onKey);
+
+      closeX.onclick = function() {
+        if (running) return; // don't close while building
+        closeModal();
+      };
+      closeBtn.onclick = closeModal;
+      overlay.addEventListener('click', function(e) { if (e.target === overlay && !running) closeModal(); });
+
+      es = new EventSource('/api/waf/build');
+      es.onmessage = function(e) {
+        try {
+          var data = JSON.parse(e.data);
+          var line = document.createElement('div');
+          line.style.color = data.done ? (data.exit === 0 ? '#4ade80' : '#f87171') : '#a1a1aa';
+          line.textContent = data.line || e.data;
+          output.appendChild(line);
+          output.scrollTop = output.scrollHeight;
+
+          if (data.image_uri) {
+            var uriInput = document.getElementById('waffaw-image-uri');
+            if (uriInput) {
+              uriInput.value = data.image_uri;
+              showToast('Image URI auto-filled');
+            }
+          }
+
+          if (data.done) {
+            es.close();
+            running = false;
+            resetBtn();
+            closeBtn.classList.remove('hidden');
+            if (data.exit === 0) {
+              statusEl.textContent = 'Done';
+              statusEl.className = statusEl.className.replace('text-green-400', 'text-green-400');
+              showToast('Build completed successfully');
+            } else {
+              statusEl.textContent = 'Failed (exit ' + data.exit + ')';
+              statusEl.className = statusEl.className.replace('text-green-400', 'text-red-400');
+              showToast('Build failed (exit ' + data.exit + ')', 5000);
+            }
+          }
+        } catch(err) {
+          var line = document.createElement('div');
+          line.style.color = '#a1a1aa';
+          line.textContent = e.data;
+          output.appendChild(line);
+        }
+      };
+      es.addEventListener('error', function() {
+        es.close();
+        running = false;
+        resetBtn();
+        closeBtn.classList.remove('hidden');
+        statusEl.textContent = 'Connection lost';
+        statusEl.className = statusEl.className.replace('text-green-400', 'text-red-400');
+      });
+    }
+  });
+}
+
+function sendWAFCommand(targetIP) {
+  var script = prompt('Enter shell script to send to ' + (targetIP || 'all nodes') + ':');
+  if (!script) return;
+
+  var body = new URLSearchParams();
+  body.append('target', targetIP || 'global');
+  body.append('script', script);
+
+  fetch('/api/waf/command', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(function(resp) {
+    return resp.json().then(function(data) {
+      if (!resp.ok) {
+        showToast('Command error: ' + (data.error || resp.statusText), 5000);
+        return;
+      }
+      showToast('Script uploaded: ' + data.key);
+    });
+  }).catch(function(err) {
+    showToast('Command failed: ' + err.message, 5000);
+  });
+}
+
+function launchWAFCampaign() {
+  var templateEl = document.getElementById('waf-campaign-template');
+  var loglevelEl = document.getElementById('waf-campaign-loglevel');
+  var targetEl = document.getElementById('waf-campaign-target');
+
+  var templateVal = templateEl ? templateEl.value : 'low-and-slow';
+  var logLevel = loglevelEl ? loglevelEl.value : 'normal';
+  var targetURL = targetEl ? targetEl.value : 'https://defcon.run';
+
+  showConfirmDialog({
+    title: 'Launch Campaign?',
+    message: 'Start <strong>' + templateVal + '</strong> campaign against <strong>' + escapeHtml(targetURL) + '</strong>.',
+    confirmLabel: 'Launch',
+    confirmClass: 'bg-green-600 hover:bg-green-500 text-white',
+    onConfirm: function() {
+      var btn = document.getElementById('waf-launch-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Launching...'; }
+
+      var body = new URLSearchParams();
+      body.append('action', 'start');
+      body.append('template', templateVal);
+      body.append('log_level', logLevel);
+      body.append('target_url', targetURL);
+
+      fetch('/api/waf/campaign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body.toString()
+      }).then(function(resp) {
+        return resp.json().then(function(data) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Launch Campaign'; }
+          if (!resp.ok) {
+            showToast('Launch error: ' + (data.error || resp.statusText), 5000);
+            return;
+          }
+          showToast('Campaign launched: ' + data.campaign);
+          updateWAFCampaignStatus('running', data.campaign);
+        });
+      }).catch(function(err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Launch Campaign'; }
+        showToast('Launch failed: ' + err.message, 5000);
+      });
+    }
+  });
+}
+
+function haltWAFFleet() {
+  showConfirmDialog({
+    title: 'Halt Fleet?',
+    message: 'This will send a halt signal to all waffaw nodes. Running campaigns will be stopped.',
+    confirmLabel: 'Halt Fleet',
+    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+    onConfirm: function() {
+      var btn = document.getElementById('waf-halt-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Halting...'; }
+
+      var body = new URLSearchParams();
+      body.append('action', 'halt');
+
+      fetch('/api/waf/campaign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body.toString()
+      }).then(function(resp) {
+        return resp.json().then(function(data) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Halt Fleet'; }
+          if (!resp.ok) {
+            showToast('Halt error: ' + (data.error || resp.statusText), 5000);
+            return;
+          }
+          showToast('Fleet halted');
+          updateWAFCampaignStatus('halted', '');
+        });
+      }).catch(function(err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Halt Fleet'; }
+        showToast('Halt failed: ' + err.message, 5000);
+      });
+    }
+  });
+}
+
+function updateWAFCampaignStatus(status, campaign) {
+  var dot = document.getElementById('waf-campaign-dot');
+  var text = document.getElementById('waf-campaign-text');
+  if (!dot || !text) return;
+
+  if (status === 'running') {
+    dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse';
+    text.className = 'text-sm text-green-400';
+    text.textContent = 'Campaign running: ' + campaign;
+  } else if (status === 'halted') {
+    dot.className = 'w-2 h-2 rounded-full bg-red-400';
+    text.className = 'text-sm text-red-400';
+    text.textContent = 'Campaign halted';
+  } else {
+    dot.className = 'w-2 h-2 rounded-full bg-zinc-400';
+    text.className = 'text-sm text-zinc-400';
+    text.textContent = 'No campaign running';
+  }
+}
+
+function startWAFLogStream() {
+  stopWAFLogStream(); // Close any existing connection
+
+  var nodeFilter = '';
+  var filterEl = document.getElementById('waf-log-node-filter');
+  if (filterEl) nodeFilter = filterEl.value;
+  _wafLogNodeFilter = nodeFilter;
+
+  var viewer = document.getElementById('waf-log-viewer');
+  if (viewer) viewer.innerHTML = '';
+
+  var dot = document.getElementById('waf-log-dot');
+  var statusEl = document.getElementById('waf-log-status');
+  if (dot) dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block';
+  if (statusEl) statusEl.textContent = 'Connected';
+
+  var url = '/api/waf/logs';
+  if (nodeFilter && nodeFilter !== 'all') {
+    url += '?node=' + encodeURIComponent(nodeFilter);
+  }
+
+  _wafLogEventSource = new EventSource(url);
+  var lineCount = 0;
+
+  _wafLogEventSource.onmessage = function(e) {
+    if (!viewer) return;
+    try {
+      var data = JSON.parse(e.data);
+      var line = document.createElement('div');
+      line.className = 'waf-log-line';
+
+      // Color code by status
+      var status = data.status || 0;
+      if (status === 403) {
+        line.style.color = '#f87171'; // red-400
+      } else if (status >= 500) {
+        line.style.color = '#fbbf24'; // yellow-400
+      } else {
+        line.style.color = '#a1a1aa'; // zinc-400
+      }
+
+      line.textContent = data.line || e.data;
+      viewer.appendChild(line);
+      lineCount++;
+
+      // Cap displayed lines
+      if (lineCount > 2000) {
+        var first = viewer.firstChild;
+        if (first) viewer.removeChild(first);
+      }
+
+      // Auto-scroll if checkbox checked
+      var autoScroll = document.getElementById('waf-log-autoscroll');
+      if (autoScroll && autoScroll.checked) {
+        viewer.scrollTop = viewer.scrollHeight;
+      }
+
+      // Update rate display
+      var rateEl = document.getElementById('waf-log-rate');
+      if (rateEl) rateEl.textContent = lineCount + ' events';
+
+      // Update blocked count
+      if (status === 403) {
+        var blockedEl = document.getElementById('waf-log-blocked');
+        if (blockedEl) {
+          var current = parseInt(blockedEl.dataset.blocked || '0', 10);
+          current++;
+          blockedEl.dataset.blocked = current;
+          blockedEl.textContent = current + ' blocked';
+        }
+      }
+    } catch(err) {
+      // Plain text fallback
+      var line = document.createElement('div');
+      line.className = 'waf-log-line';
+      line.style.color = '#a1a1aa';
+      line.textContent = e.data;
+      viewer.appendChild(line);
+    }
+  };
+
+  _wafLogEventSource.addEventListener('error', function() {
+    if (dot) dot.className = 'w-2 h-2 rounded-full bg-red-400 inline-block';
+    if (statusEl) statusEl.textContent = 'Disconnected';
+  });
+}
+
+function restartWAFLogStream() {
+  startWAFLogStream();
+}
+
+function stopWAFLogStream() {
+  if (_wafLogEventSource) {
+    _wafLogEventSource.close();
+    _wafLogEventSource = null;
+  }
+  var dot = document.getElementById('waf-log-dot');
+  var statusEl = document.getElementById('waf-log-status');
+  if (dot) dot.className = 'w-2 h-2 rounded-full bg-zinc-600 inline-block';
+  if (statusEl) statusEl.textContent = 'Disconnected';
+}
+
+function runWAFIntel() {
+  var btn = document.getElementById('waf-intel-btn');
+  var dashboard = document.getElementById('waf-intel-dashboard');
+  var timestamp = document.getElementById('waf-intel-timestamp');
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Querying Athena...'; }
+  if (dashboard) dashboard.innerHTML = '<div class="text-xs text-zinc-500 py-8 text-center">Running Athena queries...</div>';
+
+  fetch('/api/waf/intel', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'campaign='
+  }).then(function(resp) {
+    return resp.json().then(function(data) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Run Analysis'; }
+      if (timestamp) timestamp.textContent = new Date().toLocaleTimeString();
+
+      if (!resp.ok) {
+        if (dashboard) dashboard.innerHTML = '<div class="text-xs text-red-400 py-4">Query error: ' + escapeHtml(JSON.stringify(data)) + '</div>';
+        return;
+      }
+      renderWAFIntelDashboard(data);
+    });
+  }).catch(function(err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Run Analysis'; }
+    if (dashboard) dashboard.innerHTML = '<div class="text-xs text-red-400 py-4">Failed: ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function renderWAFIntelDashboard(data) {
+  var dashboard = document.getElementById('waf-intel-dashboard');
+  if (!dashboard) return;
+  dashboard.innerHTML = '';
+
+  // Extract summary metrics for cards
+  function renderSummaryCards(summaryRows) {
+    if (!summaryRows || summaryRows.length < 2) return '';
+    var headers = summaryRows[0];
+    var row = summaryRows[1]; // First data row
+
+    function findCol(name) {
+      for (var i = 0; i < headers.length; i++) {
+        if (headers[i].toLowerCase().indexOf(name) >= 0) return row[i] || '0';
+      }
+      return '0';
+    }
+
+    var cards = [
+      { label: 'Total Requests', value: findCol('total_requests'), color: 'text-zinc-200' },
+      { label: 'Unique IPs', value: findCol('unique_ips'), color: 'text-blue-400' },
+      { label: 'Blocked (403)', value: findCol('blocked'), color: 'text-red-400' },
+      { label: 'Block Rate', value: findCol('block_rate') + '%', color: 'text-yellow-400' },
+      { label: 'Avg Response', value: findCol('avg_response') + 'ms', color: 'text-green-400' },
+      { label: 'Duration', value: findCol('duration') + ' min', color: 'text-purple-400' }
+    ];
+
+    var html = '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">';
+    cards.forEach(function(card) {
+      html += '<div class="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-center">';
+      html += '<div class="text-[10px] uppercase tracking-wide text-zinc-500 mb-1">' + escapeHtml(card.label) + '</div>';
+      html += '<div class="text-lg font-bold font-mono ' + card.color + '">' + escapeHtml(card.value) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderTable(title, rows) {
+    if (!rows || rows.length === 0) {
+      return '<div class="text-xs text-zinc-500 py-2">' + escapeHtml(title) + ': No data</div>';
+    }
+    var html = '<div class="mb-4">';
+    html += '<h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">' + escapeHtml(title) + '</h4>';
+    html += '<div class="overflow-auto"><table class="w-full text-xs font-mono"><thead><tr class="border-b border-zinc-700">';
+    var headers = rows[0];
+    headers.forEach(function(h) {
+      html += '<th class="text-left px-2 py-1 text-zinc-400">' + escapeHtml(h) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+    for (var i = 1; i < rows.length; i++) {
+      var isBlockRow = false;
+      rows[i].forEach(function(cell) {
+        if (cell && cell.indexOf && cell.indexOf('403') >= 0) isBlockRow = true;
+      });
+      var rowClass = isBlockRow ? 'border-b border-zinc-800 bg-red-900/10' : 'border-b border-zinc-800 hover:bg-zinc-800/50';
+      html += '<tr class="' + rowClass + '">';
+      rows[i].forEach(function(cell, idx) {
+        var cellClass = 'px-2 py-1 text-zinc-300';
+        // Highlight block rate percentages
+        if (headers[idx] && headers[idx].toLowerCase().indexOf('block_rate') >= 0) {
+          var pct = parseFloat(cell || '0');
+          if (pct >= 80) cellClass = 'px-2 py-1 text-red-400 font-bold';
+          else if (pct >= 50) cellClass = 'px-2 py-1 text-yellow-400';
+          else if (pct > 0) cellClass = 'px-2 py-1 text-green-400';
+        }
+        html += '<td class="' + cellClass + '">' + escapeHtml(cell || '') + '</td>';
+      });
+      html += '</tr>';
+    }
+    html += '</tbody></table></div></div>';
+    return html;
+  }
+
+  var html = '';
+  if (data.summary) html += renderSummaryCards(data.summary);
+  if (data.summary) html += renderTable('Campaign Summary', data.summary);
+  if (data.detection) html += renderTable('Detection Timeline', data.detection);
+  if (data.scenarios) html += renderTable('Scenario Breakdown', data.scenarios);
+  if (data.hourly) html += renderTable('Hourly Distribution', data.hourly);
+  if (data.correlation) html += renderTable('Node Type Correlation', data.correlation);
+
+  if (html === '') html = '<div class="text-xs text-zinc-500 py-4 text-center">No analytics data available. Run a campaign first.</div>';
+
+  dashboard.innerHTML = html;
 }
 
 // Initialize on load

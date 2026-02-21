@@ -1,0 +1,38 @@
+{{define "waffaw_logs.html"}}
+<div class="space-y-3">
+  <!-- Controls -->
+  <div class="flex items-center gap-3">
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Node Filter</label>
+      <select id="waf-log-node-filter"
+              class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-xs"
+              onchange="restartWAFLogStream()">
+        <option value="all">All Nodes</option>
+      </select>
+    </div>
+    <div class="mt-4">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="waf-log-autoscroll" checked class="toggle-switch">
+        <span class="text-xs">Auto-scroll</span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Log Viewer -->
+  <div id="waf-log-viewer"
+       class="rounded-md bg-zinc-950 border border-zinc-700 font-mono text-xs overflow-auto"
+       style="height: 400px; padding: 8px;">
+    <div class="text-zinc-600 text-center py-8">Log stream will start when you switch to this tab during a running campaign.</div>
+  </div>
+
+  <!-- Footer -->
+  <div class="flex items-center gap-3 text-xs text-zinc-500">
+    <span class="flex items-center gap-1">
+      <span id="waf-log-dot" class="w-2 h-2 rounded-full bg-zinc-600 inline-block"></span>
+      <span id="waf-log-status">Disconnected</span>
+    </span>
+    <span id="waf-log-rate" class="ml-auto"></span>
+    <span id="waf-log-blocked"></span>
+  </div>
+</div>
+{{end}}

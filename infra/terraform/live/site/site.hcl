@@ -5,7 +5,7 @@ locals {
     github_repo_name = "defcon.run.34"
     tf_state_prefix  = "tf-dc34"
     random_suffix    = get_env("SGUID", "80a6b349")
-    skip_regions     = [] # Remove "ap-southeast-1" to enable apse1 region after bootstrapping state bucket
+    skip_regions     = ["ap-southeast-1", "ca-central-1"]
   }
 
   secret_values = jsondecode(
@@ -31,18 +31,18 @@ locals {
     # Service subdomains (combined with dns.zonename to form full domains)
     # e.g., "auth" + "defcon.run" = "auth.defcon.run"
     subdomains = {
-      auth = "auth"
-      run  = "run"
-      gpx  = "gpx"
-      cms  = "cms"
+      "auth" = "auth"
+      "cms" = "cms"
+      "gpx" = "gpx"
+      "run" = "run"
     }
 
     # Local development ports (for .env.local files and development defaults)
     local_ports = {
       auth = 3002
-      run  = 3001
-      gpx  = 3003
-      cms  = 1337
+      cms = 1337
+      gpx = 3003
+      run = 3001
     }
 
     # Service discovery namespace pattern (used for internal container communication)
@@ -123,8 +123,7 @@ locals {
 
     ## Map fronted domain "auth.<dns.zonename>" to the ruleset called "auth"
     waf_rulesets = {
-      "auth" = "auth" # Use the 'api' ruleset from waf.hcl
-      #"run"  = "default" # Use the 'default' ruleset from waf.hcl
+      "auth" = "auth"
     }
 
     # Regions that will provide ALB and S3 bucket origins
@@ -159,10 +158,10 @@ locals {
   }
 
   ec2spots = {
-    enabled = false
+    enabled = true
     instances = [
       {
-        count                  = 0
+        count                  = 1
         regions                = ["us-east-1", "ca-central-1", "ap-southeast-1"]
         zone_name              = "run.${local.dns.zonename}"
         create_dns_records     = true
@@ -173,15 +172,6 @@ locals {
         ec2key_name_prefix     = "ec2spot"
         ec2key_filename_prefix = "${get_env("HOME", "/tmp")}/.ssh/ec2spot"
         githubdeploykey        = get_env("TF_VAR_githubdeploykey", "NOT_SET")
-        # Per-region overrides (optional) - useful for different instance counts per region
-        # region_overrides = {
-        #   "us-east-1" = {
-        #     count = 2
-        #   }
-        #   "ca-central-1" = {
-        #     count = 1
-        #   }
-        # }
       }
     ]
   }
@@ -219,7 +209,8 @@ locals {
       local.service_conf.auth.locals.ecr_repositories,
       local.service_conf.run_human.locals.ecr_repositories,
       local.service_conf.cms.locals.ecr_repositories,
-      local.service_conf.gpx.locals.ecr_repositories
+      local.service_conf.gpx.locals.ecr_repositories,
+      local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "MUTABLE" }] : []
     )
   }
 
@@ -262,6 +253,20 @@ locals {
     )
   }
 
+  waffaw = {
+    enabled         = true
+    ec2_count       = 1
+    ec2_max_count   = 10
+    ec2_instance_type = "t3.medium"
+    ec2_use_spot    = true
+    ec2_multi_eni   = false
+    ecs_desired_count = 1
+    ecs_use_spot    = true
+    ecs_task_cpu    = 1024
+    ecs_task_memory = 2048
+    image_uri       = "dc34-waffaw:1.0.0"
+  }
+
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)
   # Values loaded from .secrets.json file (gitignored) or TF_VAR_secret_values env var
   secrets = {
@@ -294,50 +299,50 @@ locals {
 
     # Secret structure definitions - values come from .secrets.json or env var
     definitions = {
-      strava = {
-        description = "Strava OAuth credentials"
+      altcha = {
+        description = "ALTCHA proof-of-work secret"
+        keys        = ["secret"]
+      }
+      discord = {
+        description = "Discord OAuth credentials"
         keys        = ["client_id", "client_secret"]
       }
       github = {
         description = "GitHub OAuth credentials"
         keys        = ["client_id", "client_secret"]
       }
-      discord = {
-        description = "Discord OAuth credentials"
+      gpxstudio = {
+        description = "GPX Studio OIDC client credentials"
         keys        = ["client_id", "client_secret"]
       }
       jwt = {
         description = "JWT signing secrets"
         keys        = ["secret", "internal_secret"]
       }
+      mapbox = {
+        description = "Mapbox API tokens"
+        keys        = ["public_token"]
+        global      = true
+      }
       oidc = {
         description = "OIDC cookie encryption keys"
         keys        = ["cookie_keys"]
-      }
-      runhuman = {
-        description = "RunHuman OIDC client credentials"
-        keys        = ["client_id", "client_secret"]
-      }
-      altcha = {
-        description = "ALTCHA proof-of-work secret"
-        keys        = ["secret"]
       }
       origin_verify = {
         description = "CloudFront origin verification secret for multi-region routing"
         keys        = ["secret"]
       }
+      runhuman = {
+        description = "RunHuman OIDC client credentials"
+        keys        = ["client_id", "client_secret"]
+      }
       strapi = {
         description = "Strapi CMS secrets"
         keys        = ["admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "jwt_secret", "oidc_client_id", "oidc_client_secret"]
       }
-      gpxstudio = {
-        description = "GPX Studio OIDC client credentials"
+      strava = {
+        description = "Strava OAuth credentials"
         keys        = ["client_id", "client_secret"]
-      }
-      mapbox = {
-        description = "Mapbox API tokens"
-        keys        = ["public_token"]
-        global      = true # Global secret, not region-specific
       }
     }
   }
@@ -378,7 +383,7 @@ locals {
       "prowler",
       "e2e",
       "release",
-      "deploy"
+      "deploy",
     ]
   }
 

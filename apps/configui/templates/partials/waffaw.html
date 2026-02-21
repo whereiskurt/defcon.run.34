@@ -1,0 +1,39 @@
+{{define "waffaw.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.Waffaw.Enabled}}panel-disabled{{end}}" data-panel="waffaw" data-module-num="A1">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('waffaw')">
+    <div class="flex items-center gap-3">
+      <input type="checkbox" name="waffaw.enabled" class="toggle-switch" {{if .Config.Waffaw.Enabled}}checked{{end}} onclick="event.stopPropagation(); toggleModule('waffaw', this)">
+      <h3 class="text-base font-semibold relative"><span class="module-num">#A1</span>Waffaw <span class="text-xs font-normal text-zinc-400">WAF Testing Platform</span></h3>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-waffaw" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3" id="body-waffaw" style="display:none">
+
+    <!-- Tab Bar -->
+    <div class="flex gap-1 border-b border-zinc-300 dark:border-zinc-700 mb-3" id="waffaw-tab-bar">
+      <button type="button" onclick="switchWaffawTab('fleet')" data-tab="fleet"
+              class="waffaw-tab-btn active px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400 cursor-pointer">Fleet</button>
+      <button type="button" onclick="switchWaffawTab('campaign')" data-tab="campaign"
+              class="waffaw-tab-btn px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer">Campaign</button>
+      <button type="button" onclick="switchWaffawTab('logs')" data-tab="logs"
+              class="waffaw-tab-btn px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer">Logs</button>
+      <button type="button" onclick="switchWaffawTab('intel')" data-tab="intel"
+              class="waffaw-tab-btn px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer">Intel</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="waffaw-tab-content" data-tab="fleet">
+      {{template "waffaw_fleet.html" .}}
+    </div>
+    <div class="waffaw-tab-content" data-tab="campaign" style="display:none">
+      {{template "waffaw_campaign.html" .}}
+    </div>
+    <div class="waffaw-tab-content" data-tab="logs" style="display:none">
+      {{template "waffaw_logs.html" .}}
+    </div>
+    <div class="waffaw-tab-content" data-tab="intel" style="display:none">
+      {{template "waffaw_intel.html" .}}
+    </div>
+  </div>
+</div>
+{{end}}

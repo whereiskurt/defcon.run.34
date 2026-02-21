@@ -431,6 +431,14 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		if m := reModulePrefix.FindStringSubmatch(cleaned); m != nil {
 			moduleName = m[1]
 			innerLine = m[2]
+			// Strip "terraform: " / "tofu: " from inside [module] prefix
+			for _, p := range []string{"terraform: ", "tofu: "} {
+				if strings.HasPrefix(innerLine, p) {
+					innerLine = innerLine[len(p):]
+					cleaned = "[" + moduleName + "] " + innerLine
+					break
+				}
+			}
 		}
 		if resType, action, ok := parseResourceAction(innerLine); ok {
 			session.mu.Lock()

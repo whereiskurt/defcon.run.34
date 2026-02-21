@@ -34,7 +34,22 @@ type SiteConfig struct {
 	CloudTrail       CloudTrailConfig   `json:"cloudtrail"`
 	GitHubOIDC       GitHubOIDCConfig   `json:"github_oidc"`
 	Services         ServiceConfigs     `json:"services"`
+	Waffaw           WaffawConfig       `json:"waffaw"`
 	Versions         VersionConfig      `json:"versions"`
+}
+
+type WaffawConfig struct {
+	Enabled         bool   `json:"enabled"`
+	EC2Count        int    `json:"ec2_count"`
+	EC2MaxCount     int    `json:"ec2_max_count"`
+	EC2InstanceType string `json:"ec2_instance_type"`
+	EC2UseSpot      bool   `json:"ec2_use_spot"`
+	EC2MultiENI     bool   `json:"ec2_multi_eni"`
+	ECSDesiredCount int    `json:"ecs_desired_count"`
+	ECSUseSpot      bool   `json:"ecs_use_spot"`
+	ECSTaskCPU      int    `json:"ecs_task_cpu"`
+	ECSTaskMemory   int    `json:"ecs_task_memory"`
+	ImageURI        string `json:"image_uri"`
 }
 
 type SiteIdentity struct {
@@ -602,6 +617,19 @@ func DefaultConfig() *SiteConfig {
 					Autoscaling: AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
 				},
 			},
+		},
+		Waffaw: WaffawConfig{
+			Enabled:         false,
+			EC2Count:        0,
+			EC2MaxCount:     10,
+			EC2InstanceType: "t3.medium",
+			EC2UseSpot:      true,
+			EC2MultiENI:     false,
+			ECSDesiredCount: 0,
+			ECSUseSpot:      true,
+			ECSTaskCPU:      1024,
+			ECSTaskMemory:   2048,
+			ImageURI:        "",
 		},
 		Versions: VersionConfig{
 			Auth:  ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},

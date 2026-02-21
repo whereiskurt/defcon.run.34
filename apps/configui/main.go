@@ -186,6 +186,12 @@ func main() {
 	mux.HandleFunc("POST /api/fix-locks", app.handleFixLocks)
 	mux.HandleFunc("GET /api/outputs", app.handleOutputs)
 	mux.HandleFunc("GET /api/outputs/modules", app.handleOutputsList)
+	mux.HandleFunc("GET /api/waf/fleet", app.handleWAFFleetStatus)
+	mux.HandleFunc("POST /api/waf/command", app.handleWAFCommand)
+	mux.HandleFunc("POST /api/waf/campaign", app.handleWAFCampaign)
+	mux.HandleFunc("GET /api/waf/logs", app.handleWAFLogs)
+	mux.HandleFunc("POST /api/waf/intel", app.handleWAFIntel)
+	mux.HandleFunc("GET /api/waf/build", app.handleWAFBuild)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port

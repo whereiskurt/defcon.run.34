@@ -1,0 +1,72 @@
+{{define "waffaw_campaign.html"}}
+<div class="space-y-4">
+  <!-- Campaign Status -->
+  <div id="waf-campaign-status" class="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-4 py-3">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-zinc-400" id="waf-campaign-dot"></span>
+      <span class="text-sm text-zinc-400" id="waf-campaign-text">No campaign running</span>
+    </div>
+  </div>
+
+  <!-- Campaign Form -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <!-- Template -->
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Template</label>
+      <select id="waf-campaign-template"
+              class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+        <option value="low-and-slow">Low & Slow</option>
+        <option value="auth-cycle">Auth Cycle</option>
+        <option value="public-flood">Public Flood</option>
+        <option value="crawl-and-probe">Crawl & Probe</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+
+    <!-- Log Level -->
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Log Level</label>
+      <select id="waf-campaign-loglevel"
+              class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+        <option value="normal">Normal</option>
+        <option value="verbose">Verbose (+ headers)</option>
+        <option value="debug">Debug (+ response body)</option>
+      </select>
+    </div>
+
+    <!-- Target URL -->
+    <div>
+      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Target URL</label>
+      <input type="text" id="waf-campaign-target" value="https://defcon.run" placeholder="https://defcon.run"
+             class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm font-mono">
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="flex gap-2">
+    <button type="button" onclick="launchWAFCampaign()" id="waf-launch-btn"
+            class="rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-medium"
+            style="display: inline-flex; align-items: center; gap: 6px;">
+      <svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      Launch Campaign
+    </button>
+    <button type="button" onclick="haltWAFFleet()" id="waf-halt-btn"
+            class="rounded-md bg-red-700 hover:bg-red-600 text-white px-4 py-2 text-sm font-medium"
+            style="display: inline-flex; align-items: center; gap: 6px;">
+      <svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+      Halt Fleet
+    </button>
+  </div>
+
+  <!-- Campaign Templates Description -->
+  <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
+    <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Template Reference</h4>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-400">
+      <div><span class="font-mono text-zinc-300">low-and-slow</span> &mdash; 1 req/sec sustained over 8h, random scenarios</div>
+      <div><span class="font-mono text-zinc-300">auth-cycle</span> &mdash; Login/browse/logout loops, 1 cycle per 5min</div>
+      <div><span class="font-mono text-zinc-300">public-flood</span> &mdash; High-rate 50-200 req/sec (HTTP engine)</div>
+      <div><span class="font-mono text-zinc-300">crawl-and-probe</span> &mdash; Spider + SQLi/XSS probes, 5-10 req/sec</div>
+    </div>
+  </div>
+</div>
+{{end}}

@@ -55,6 +55,10 @@ func cleanOutputError(stderr string) string {
 		strings.Contains(lower, "credential") {
 		return "AWS credentials expired — run SSO Login"
 	}
+	if strings.Contains(lower, "s3") && (strings.Contains(lower, "nosuchbucket") ||
+		strings.Contains(lower, "bucket") || strings.Contains(lower, "exit status")) {
+		return "S3 state bucket not found — region may not be bootstrapped"
+	}
 
 	// Fall back to first non-empty, non-timestamp ERROR line
 	for _, line := range strings.Split(stderr, "\n") {

@@ -237,6 +237,18 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Campaign template YAMLs (read-only from apps/waffaw/templates/)
+	for _, camp := range []struct{ id, label, file string }{
+		{"camp-low-and-slow", "Low & Slow", "apps/waffaw/templates/low-and-slow.yml"},
+		{"camp-auth-cycle", "Auth Cycle", "apps/waffaw/templates/auth-cycle.yml"},
+		{"camp-public-flood", "Public Flood", "apps/waffaw/templates/public-flood.yml"},
+		{"camp-crawl-and-probe", "Crawl & Probe", "apps/waffaw/templates/crawl-and-probe.yml"},
+	} {
+		if data, err := os.ReadFile(filepath.Join(a.repoRoot, camp.file)); err == nil {
+			tabs = append(tabs, previewTab{camp.id, camp.label, string(data), string(data)})
+		}
+	}
+
 	// Render originals using saved config for diff comparison.
 	// This ensures both sides go through the same template so only
 	// actual form value changes produce diff markers (not comment stripping,
@@ -960,6 +972,19 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 		cfg.Services = a.config.Services
 	}
 	parseServiceForm(r, cfg)
+
+	// Waffaw
+	cfg.Waffaw.Enabled = formBool(r, "waffaw.enabled")
+	cfg.Waffaw.EC2Count = formInt(r, "waffaw.ec2_count", 0)
+	cfg.Waffaw.EC2MaxCount = formInt(r, "waffaw.ec2_max_count", 10)
+	cfg.Waffaw.EC2InstanceType = formStr(r, "waffaw.ec2_instance_type", "t3.medium")
+	cfg.Waffaw.EC2UseSpot = formBool(r, "waffaw.ec2_use_spot")
+	cfg.Waffaw.EC2MultiENI = formBool(r, "waffaw.ec2_multi_eni")
+	cfg.Waffaw.ECSDesiredCount = formInt(r, "waffaw.ecs_desired_count", 0)
+	cfg.Waffaw.ECSUseSpot = formBool(r, "waffaw.ecs_use_spot")
+	cfg.Waffaw.ECSTaskCPU = formInt(r, "waffaw.ecs_task_cpu", 1024)
+	cfg.Waffaw.ECSTaskMemory = formInt(r, "waffaw.ecs_task_memory", 2048)
+	cfg.Waffaw.ImageURI = formStr(r, "waffaw.image_uri", cfg.Waffaw.ImageURI)
 
 	// Versions
 	cfg.Versions.Auth.App = formStr(r, "versions.auth.app", cfg.Versions.Auth.App)
