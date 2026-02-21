@@ -100,7 +100,9 @@ func s3ListKeys(profile, bucket, prefix, region string) ([]struct {
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("s3ListKeys error (bucket=%s prefix=%s profile=%s): %v: %s", bucket, prefix, profile, err, string(out))
+		if strings.Contains(string(out), "NoSuchBucket") {
+			return nil, fmt.Errorf("bucket not found — apply waffaw module first")
+		}
 		return nil, fmt.Errorf("%v: %s", err, string(out))
 	}
 
@@ -149,7 +151,9 @@ func s3GetJSON(profile, bucket, key, region string, out interface{}) error {
 		tmp.Name(),
 	).CombinedOutput()
 	if err != nil {
-		log.Printf("s3GetJSON error (bucket=%s key=%s profile=%s): %v: %s", bucket, key, profile, err, string(cmdOut))
+		if strings.Contains(string(cmdOut), "NoSuchBucket") {
+			return fmt.Errorf("bucket not found — apply waffaw module first")
+		}
 		return fmt.Errorf("%v: %s", err, string(cmdOut))
 	}
 	data, err := os.ReadFile(tmp.Name())
@@ -180,6 +184,9 @@ func s3PutString(profile, bucket, key, region, body string) error {
 		"--region", region,
 	).CombinedOutput()
 	if cerr != nil {
+		if strings.Contains(string(out), "NoSuchBucket") {
+			return fmt.Errorf("bucket not found — apply waffaw module first")
+		}
 		return fmt.Errorf("%v: %s", cerr, string(out))
 	}
 	return nil
@@ -231,7 +238,7 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 	objects, err := s3ListKeys(profile, bucket, "nodes/", region)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprintf(w, `<div class="text-xs text-red-400 py-2">S3 error: %s</div>`, template.HTMLEscapeString(err.Error()))
+		fmt.Fprintf(w, `<div class="text-xs py-3 text-center"><span class="inline-block px-3 py-1 rounded-full bg-zinc-800 text-zinc-300">%s</span></div>`, template.HTMLEscapeString(err.Error()))
 		return
 	}
 
@@ -570,9 +577,6 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 
 			out, err := exec.Command("aws", args...).Output()
 			if err != nil {
-				log.Printf("WAF logs: CloudWatch error: %v", err)
-				fmt.Fprintf(w, "event: error\ndata: CloudWatch query failed\n\n")
-				flusher.Flush()
 				continue
 			}
 

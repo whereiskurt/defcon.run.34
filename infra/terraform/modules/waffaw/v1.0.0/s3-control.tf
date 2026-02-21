@@ -2,7 +2,8 @@
 resource "aws_s3_bucket" "control" {
   count = var.waffaw.enabled ? 1 : 0
 
-  bucket = "waffaw-control-${data.aws_caller_identity.current.account_id}"
+  bucket        = "waffaw-control-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = {
     Name   = "waffaw-control"
