@@ -1163,6 +1163,25 @@ body.destroy-mode::after {
   border-left-color: rgba(255,255,255,0.2);
 }
 
+/* Stats popup — flash changed cells and live indicator */
+@keyframes stats-flash-anim {
+  0%   { background: rgba(255,255,255,0.2); }
+  100% { background: transparent; }
+}
+.stats-flash {
+  animation: stats-flash-anim 1.2s ease-out;
+}
+
+.stats-live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: pill-pulse 1.5s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
 /* Output explorer — tree chevrons and refresh button */
 .output-chevron {
   display: inline-block;

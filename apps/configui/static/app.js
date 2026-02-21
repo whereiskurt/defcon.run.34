@@ -3471,15 +3471,27 @@ function showStatsPopup(sessionId) {
   overlay.className = 'fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4';
   overlay.onclick = function(e) { if (e.target === overlay) dismiss(); };
 
-  var byMod = stats.by_module || {};
-  var byType = stats.by_type || {};
-
-  function statCell(val, cls) {
-    if (val === 0) return '<td class="px-3 py-1 text-right text-zinc-600">0</td>';
-    return '<td class="px-3 py-1 text-right ' + cls + ' font-medium">' + val + '</td>';
+  // Snapshot previous values so we can detect deltas between refreshes
+  var prevSnapshot = {};
+  function snapshotData(data) {
+    var snap = {};
+    for (var k in data) {
+      snap[k] = { add: data[k].add || 0, change: data[k].change || 0, destroy: data[k].destroy || 0 };
+    }
+    return snap;
+  }
+  function hasChanged(key, field, prev, cur) {
+    if (!prev[key]) return (cur[key][field] || 0) > 0;
+    return (cur[key][field] || 0) !== (prev[key][field] || 0);
   }
 
-  function buildTable(title, data, sortByName) {
+  function statCell(val, cls, changed) {
+    if (val === 0) return '<td class="px-3 py-1 text-right text-zinc-600">0</td>';
+    var flash = changed ? ' stats-flash' : '';
+    return '<td class="px-3 py-1 text-right ' + cls + ' font-medium' + flash + '">' + val + '</td>';
+  }
+
+  function buildTable(title, data, sortByName, prev) {
     var keys = Object.keys(data);
     if (keys.length === 0) return '';
     if (sortByName) {
@@ -3496,55 +3508,91 @@ function showStatsPopup(sessionId) {
     html += '<thead><tr class="border-b border-zinc-700"><th class="text-left px-3 py-1 text-zinc-400">Name</th><th class="text-right px-3 py-1 text-green-400">+Add</th><th class="text-right px-3 py-1 text-yellow-400">~Chg</th><th class="text-right px-3 py-1 text-red-400">-Del</th></tr></thead><tbody>';
     keys.forEach(function(k) {
       var d = data[k];
-      html += '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50">';
+      var isNew = prev && !prev[k];
+      html += '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50' + (isNew ? ' stats-flash' : '') + '">';
       html += '<td class="px-3 py-1 text-zinc-200 truncate" style="max-width:300px;" title="' + escapeHtml(k) + '">' + escapeHtml(k) + '</td>';
-      html += statCell(d.add || 0, 'text-green-400');
-      html += statCell(d.change || 0, 'text-yellow-400');
-      html += statCell(d.destroy || 0, 'text-red-400');
+      html += statCell(d.add || 0, 'text-green-400', prev && hasChanged(k, 'add', prev, data));
+      html += statCell(d.change || 0, 'text-yellow-400', prev && hasChanged(k, 'change', prev, data));
+      html += statCell(d.destroy || 0, 'text-red-400', prev && hasChanged(k, 'destroy', prev, data));
       html += '</tr>';
     });
     html += '</tbody></table></div>';
     return html;
   }
 
-  // Aggregate by service: extract service name from module paths
-  // e.g. "region/us-east-1/waffaw" → "waffaw", "region/us-east-1/ecs/run-auth" → "run-auth",
-  // "global/cloudfront" → "cloudfront", "region/us-east-1/ecr" → "ecr"
-  var byService = {};
-  Object.keys(byMod).forEach(function(mod) {
-    var parts = mod.replace(/^\.\//, '').split('/');
-    // Last meaningful segment is the service name
-    var svc = parts[parts.length - 1] || mod;
-    if (!byService[svc]) byService[svc] = { add: 0, change: 0, destroy: 0 };
-    byService[svc].add += (byMod[mod].add || 0);
-    byService[svc].change += (byMod[mod].change || 0);
-    byService[svc].destroy += (byMod[mod].destroy || 0);
-  });
+  function renderContent() {
+    var curStats = (_termSessions[sessionId] && _termSessions[sessionId].stats) || stats;
+    var byMod = curStats.by_module || {};
+    var byType = curStats.by_type || {};
 
-  var content = '';
-  // Show By Service first — most useful overview
-  if (Object.keys(byService).length > 1) {
-    content += buildTable('By Service', byService, true);
-    content += '<div class="border-t border-zinc-700 my-4"></div>';
+    // Aggregate by service
+    var byService = {};
+    Object.keys(byMod).forEach(function(mod) {
+      var parts = mod.replace(/^\.\//, '').split('/');
+      var svc = parts[parts.length - 1] || mod;
+      if (!byService[svc]) byService[svc] = { add: 0, change: 0, destroy: 0 };
+      byService[svc].add += (byMod[mod].add || 0);
+      byService[svc].change += (byMod[mod].change || 0);
+      byService[svc].destroy += (byMod[mod].destroy || 0);
+    });
+
+    var prevMod = prevSnapshot.mod || null;
+    var prevType = prevSnapshot.type || null;
+    var prevSvc = prevSnapshot.svc || null;
+
+    var content = '';
+    if (Object.keys(byService).length > 1) {
+      content += buildTable('By Service', byService, true, prevSvc);
+      content += '<div class="border-t border-zinc-700 my-4"></div>';
+    }
+    content += buildTable('By Module', byMod, true, prevMod);
+    if (Object.keys(byMod).length > 0 && Object.keys(byType).length > 0) {
+      content += '<div class="border-t border-zinc-700 my-4"></div>';
+    }
+    content += buildTable('By Resource Type', byType, false, prevType);
+
+    // Save snapshot for next interval
+    prevSnapshot = { mod: snapshotData(byMod), type: snapshotData(byType), svc: snapshotData(byService) };
+
+    return content;
   }
-  content += buildTable('By Module', byMod, true);
-  if (Object.keys(byMod).length > 0 && Object.keys(byType).length > 0) {
-    content += '<div class="border-t border-zinc-700 my-4"></div>';
-  }
-  content += buildTable('By Resource Type', byType, false);
+
+  var isRunning = s && s.processRunning;
 
   overlay.innerHTML =
     '<div class="bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">' +
       '<div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">' +
-        '<span class="text-sm font-mono font-bold text-zinc-200">Resource Stats Breakdown</span>' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="text-sm font-mono font-bold text-zinc-200">Resource Stats Breakdown</span>' +
+          (isRunning ? '<span class="stats-live-dot"></span>' : '') +
+        '</div>' +
         '<button class="stats-close rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
       '</div>' +
-      '<div class="p-4 overflow-auto flex-1">' + content + '</div>' +
+      '<div class="stats-content p-4 overflow-auto flex-1">' + renderContent() + '</div>' +
     '</div>';
 
   document.body.appendChild(overlay);
 
+  var contentEl = overlay.querySelector('.stats-content');
+  var refreshTimer = null;
+
+  // Auto-refresh while process is running
+  if (isRunning) {
+    refreshTimer = setInterval(function() {
+      var cur = _termSessions[sessionId];
+      if (!cur || !cur.processRunning) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+        var dot = overlay.querySelector('.stats-live-dot');
+        if (dot) dot.remove();
+        return;
+      }
+      if (contentEl) contentEl.innerHTML = renderContent();
+    }, 5000);
+  }
+
   function dismiss() {
+    if (refreshTimer) clearInterval(refreshTimer);
     overlay.remove();
     document.removeEventListener('keydown', onKey);
   }
