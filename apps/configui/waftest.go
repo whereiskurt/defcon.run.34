@@ -227,6 +227,7 @@ func compareIPsNumerically(a, b string) bool {
 func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 	a.mu.RLock()
 	accountID := a.envLocal.ApplicationAccountID
+	profilePrefix := a.envLocal.ProfilePrefix
 	a.mu.RUnlock()
 
 	if accountID == "" {
@@ -328,7 +329,12 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 	for _, n := range nodes {
 		registeredIPs[n.IP] = true
 	}
-	if ec2Nodes := discoverEC2Instances(profile, region); len(ec2Nodes) > 0 {
+	// EC2 discovery needs terraform profile (application profile lacks ec2:DescribeInstances)
+	tfProfile := "terraform"
+	if profilePrefix != "" {
+		tfProfile = profilePrefix + "-terraform"
+	}
+	if ec2Nodes := discoverEC2Instances(tfProfile, region); len(ec2Nodes) > 0 {
 		for _, ec2n := range ec2Nodes {
 			if !registeredIPs[ec2n.IP] {
 				nodes = append(nodes, ec2n)
