@@ -826,6 +826,129 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 }
 
+// quotaDef describes a single AWS Service Quota to fetch.
+type quotaDef struct {
+	Key         string // JSON key in response
+	ServiceCode string
+	QuotaCode   string
+	Unit        string // "count" or "vcpu"
+}
+
+// waffaw-relevant quotas
+var wafQuotas = []quotaDef{
+	{Key: "eip", ServiceCode: "ec2", QuotaCode: "L-0263D0A3", Unit: "count"},
+	{Key: "ec2_ondemand_vcpu", ServiceCode: "ec2", QuotaCode: "L-1216C47A", Unit: "vcpu"},
+	{Key: "ec2_spot_vcpu", ServiceCode: "ec2", QuotaCode: "L-34B43A08", Unit: "vcpu"},
+	{Key: "fargate_ondemand_vcpu", ServiceCode: "fargate", QuotaCode: "L-3032A538", Unit: "vcpu"},
+	{Key: "fargate_spot_vcpu", ServiceCode: "fargate", QuotaCode: "L-36FBB829", Unit: "vcpu"},
+}
+
+// handleWAFQuota queries AWS Service Quotas for each waffaw region.
+func (a *App) handleWAFQuota(w http.ResponseWriter, r *http.Request) {
+	profile := a.wafProfile()
+
+	allRegs := AllRegions()
+	regions := make([]string, len(allRegs))
+	for i, r := range allRegs {
+		regions[i] = r.Full
+	}
+
+	type quotaValue struct {
+		Region string  `json:"region"`
+		Value  float64 `json:"value"`
+		Err    string  `json:"error,omitempty"`
+	}
+
+	type quotaResult struct {
+		Key    string       `json:"key"`
+		Unit   string       `json:"unit"`
+		Min    float64      `json:"min"`
+		Values []quotaValue `json:"regions"`
+	}
+
+	// Fetch all quotas x all regions in parallel
+	type fetchResult struct {
+		quotaIdx  int
+		regionIdx int
+		value     float64
+		err       string
+	}
+
+	total := len(wafQuotas) * len(regions)
+	ch := make(chan fetchResult, total)
+
+	for qi, qd := range wafQuotas {
+		for ri, reg := range regions {
+			go func(qi, ri int, qd quotaDef, region string) {
+				out, err := exec.Command("aws", "service-quotas", "get-service-quota",
+					"--service-code", qd.ServiceCode,
+					"--quota-code", qd.QuotaCode,
+					"--profile", profile,
+					"--region", region,
+					"--output", "json",
+				).Output()
+				if err != nil {
+					ch <- fetchResult{qi, ri, 0, err.Error()}
+					return
+				}
+				var resp struct {
+					Quota struct {
+						Value float64 `json:"Value"`
+					} `json:"Quota"`
+				}
+				if json.Unmarshal(out, &resp) != nil {
+					ch <- fetchResult{qi, ri, 0, "parse error"}
+					return
+				}
+				ch <- fetchResult{qi, ri, resp.Quota.Value, ""}
+			}(qi, ri, qd, reg)
+		}
+	}
+
+	// Collect results
+	results := make([]quotaResult, len(wafQuotas))
+	for i, qd := range wafQuotas {
+		results[i] = quotaResult{
+			Key:    qd.Key,
+			Unit:   qd.Unit,
+			Values: make([]quotaValue, len(regions)),
+		}
+		for j, reg := range regions {
+			results[i].Values[j] = quotaValue{Region: reg}
+		}
+	}
+
+	for i := 0; i < total; i++ {
+		fr := <-ch
+		results[fr.quotaIdx].Values[fr.regionIdx].Value = fr.value
+		results[fr.quotaIdx].Values[fr.regionIdx].Err = fr.err
+	}
+
+	// Compute min per quota
+	for i := range results {
+		minVal := results[i].Values[0].Value
+		for _, v := range results[i].Values[1:] {
+			if v.Value > 0 && v.Value < minVal {
+				minVal = v.Value
+			}
+		}
+		results[i].Min = minVal
+	}
+
+	// Build a flat map for easy JS access: { eip: {min, regions}, ... }
+	out := map[string]interface{}{}
+	for _, r := range results {
+		out[r.Key] = map[string]interface{}{
+			"min":     r.Min,
+			"unit":    r.Unit,
+			"regions": r.Values,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(out)
+}
+
 // athenaStartQuery starts an Athena query via AWS CLI and returns the execution ID.
 func athenaStartQuery(profile, sql, workgroup, outputLocation string) (string, error) {
 	out, err := exec.Command("aws", "athena", "start-query-execution",

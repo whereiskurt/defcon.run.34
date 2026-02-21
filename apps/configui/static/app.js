@@ -3952,6 +3952,12 @@ function checkWaffawImage() {
 }
 
 // Waffaw IP quota/cost calculator
+var wafQuotas = {}; // populated by fetchWafQuotas()
+
+function wafQuotaMin(key) {
+  return wafQuotas[key] ? wafQuotas[key].min : 0;
+}
+
 function updateWafQuotaBar() {
   var ec2Input = document.querySelector('input[name="waffaw.ec2_count"]');
   var fargateInput = document.querySelector('input[name="waffaw.ecs_desired_count"]');
@@ -3973,25 +3979,89 @@ function updateWafQuotaBar() {
   if (fargateEl) fargateEl.textContent = fargateCount;
   if (costEl) costEl.textContent = '$' + monthlyCost.toFixed(0) + '/mo';
 
-  if (warnEl) {
-    if (ec2Count > 5) {
+  // EIP warning
+  var eipQuota = wafQuotaMin('eip');
+  if (warnEl && eipQuota > 0) {
+    if (ec2Count > eipQuota) {
       warnEl.classList.remove('hidden');
-      warnEl.textContent = 'EIP quota default is 5/region — request increase via Service Quotas';
+      warnEl.textContent = 'EIP quota is ' + eipQuota + '/region — request increase via Service Quotas';
     } else {
       warnEl.classList.add('hidden');
     }
   }
+
+  // EC2 instance limit (vCPU quota / vCPUs per instance)
+  var ec2LimitEl = document.getElementById('waf-ec2-limit');
+  if (ec2LimitEl) {
+    var ec2Spot = document.querySelector('input[name="waffaw.ec2_use_spot"]');
+    var isSpot = ec2Spot && ec2Spot.checked;
+    var vcpuQuota = wafQuotaMin(isSpot ? 'ec2_spot_vcpu' : 'ec2_ondemand_vcpu');
+    var ec2TypeSel = document.querySelector('select[name="waffaw.ec2_instance_type"]');
+    var ec2Vcpus = 2; // default for t3.medium/t3.large/m5.large
+    if (ec2TypeSel) {
+      var match = ec2TypeSel.options[ec2TypeSel.selectedIndex].text.match(/(\d+)\s*vCPU/);
+      if (match) ec2Vcpus = parseInt(match[1], 10);
+    }
+    if (vcpuQuota > 0) {
+      var maxInstances = Math.floor(vcpuQuota / ec2Vcpus);
+      var eipLimit = eipQuota > 0 ? eipQuota : maxInstances;
+      var effectiveMax = Math.min(maxInstances, eipLimit);
+      ec2LimitEl.textContent = '(max ~' + effectiveMax + ': ' + eipLimit + ' EIP, ' + maxInstances + ' vCPU)';
+      if (ec2Count > effectiveMax) ec2LimitEl.className = 'text-amber-400';
+      else ec2LimitEl.className = 'text-zinc-600';
+    }
+  }
+
+  // Fargate task limit (vCPU quota / vCPUs per task)
+  var fgLimitEl = document.getElementById('waf-fargate-limit');
+  if (fgLimitEl) {
+    var fgSpot = document.querySelector('input[name="waffaw.ecs_use_spot"]');
+    var isFgSpot = fgSpot && fgSpot.checked;
+    var fgVcpuQuota = wafQuotaMin(isFgSpot ? 'fargate_spot_vcpu' : 'fargate_ondemand_vcpu');
+    var cpuSel = document.querySelector('select[name="waffaw.ecs_task_cpu"]');
+    var taskVcpus = 1;
+    if (cpuSel) taskVcpus = parseInt(cpuSel.value, 10) / 1024;
+    if (fgVcpuQuota > 0) {
+      var maxTasks = Math.floor(fgVcpuQuota / taskVcpus);
+      fgLimitEl.textContent = '(max ~' + maxTasks + ' from ' + fgVcpuQuota + ' vCPU quota)';
+      if (fargateCount > maxTasks) fgLimitEl.className = 'text-amber-400';
+      else fgLimitEl.className = 'text-zinc-600';
+    }
+  }
 }
 
-// Bind to input changes
-document.addEventListener('input', function(e) {
-  if (e.target.name === 'waffaw.ec2_count' || e.target.name === 'waffaw.ecs_desired_count') {
+function fetchWafQuotas() {
+  fetch('/api/waf/quota').then(function(r) { return r.json(); }).then(function(data) {
+    wafQuotas = data;
     updateWafQuotaBar();
-  }
+    // Render per-region EIP breakdown
+    var container = document.getElementById('waf-region-quotas');
+    if (container && data.eip && data.eip.regions) {
+      var html = '<span class="text-zinc-400">EIP Quotas:</span>';
+      data.eip.regions.forEach(function(rq) {
+        var color = rq.error ? 'text-red-400' : (rq.value <= 5 ? 'text-amber-400' : 'text-green-400');
+        var label = rq.region.replace(/-\d+$/, '').replace(/-/g, '\u2011');
+        html += '<span class="' + color + '">' + label + ' <span class="text-zinc-200">' + rq.value + '</span></span>';
+      });
+      container.innerHTML = html;
+      container.style.display = '';
+    }
+  }).catch(function() { /* keep defaults */ });
+}
+
+// Bind to input changes — recalculate on count, type, cpu, or spot toggle changes
+document.addEventListener('input', function(e) {
+  if (e.target.name && e.target.name.startsWith('waffaw.')) updateWafQuotaBar();
+});
+document.addEventListener('change', function(e) {
+  if (e.target.name && e.target.name.startsWith('waffaw.')) updateWafQuotaBar();
 });
 
 // Initialize on load
-document.addEventListener('DOMContentLoaded', updateWafQuotaBar);
+document.addEventListener('DOMContentLoaded', function() {
+  updateWafQuotaBar();
+  fetchWafQuotas();
+});
 // Also run after htmx swaps (in case the waffaw tab loads late)
 document.addEventListener('htmx:afterSettle', updateWafQuotaBar);
 
