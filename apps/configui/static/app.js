@@ -4488,6 +4488,15 @@ function buildWaffaw() {
             html += '  <span style="color:#4ade80">\u2713 ' + pushed + ' done</span>';
             if (pushing > 0) html += '  <span style="color:#fbbf24">\u2191 ' + pushing + ' uploading</span>';
             if (waiting > 0) html += '  <span style="color:#52525b">\u23f3 ' + waiting + ' waiting</span>';
+            // Show pending layer details when few remain
+            var pendingLayers = data.pending || [];
+            if (pendingLayers.length > 0 && pendingLayers.length <= 5) {
+              html += '\n';
+              pendingLayers.forEach(function(pl) {
+                var statusColor = pl.status === 'Pushing' ? '#fbbf24' : '#52525b';
+                html += '  <span style="color:#52525b">' + escapeHtml(pl.id) + '</span> <span style="color:' + statusColor + '">' + escapeHtml(pl.detail) + '</span>\n';
+              });
+            }
             layerEl.innerHTML = html;
             output.scrollTop = output.scrollHeight;
             return;

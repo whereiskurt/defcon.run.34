@@ -883,16 +883,26 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Layer tracking for docker push — collapse into summary events
-	layers := map[string]string{} // layerID → status
+	type layerInfo struct {
+		Status string // normalized: Waiting, Preparing, Pushing, Pushed, Layer already exists, Mounted
+		Detail string // raw status for display (e.g. "Pushing 12.3MB/45.6MB")
+	}
+	layers := map[string]*layerInfo{} // layerID → info
 	sendLayerSummary := func() {
 		counts := map[string]int{}
-		for _, s := range layers {
-			counts[s]++
+		var pending []map[string]string
+		for id, li := range layers {
+			counts[li.Status]++
+			// Include details for non-done layers
+			if li.Status != "Pushed" && li.Status != "Layer already exists" && li.Status != "Mounted" {
+				pending = append(pending, map[string]string{"id": id, "status": li.Status, "detail": li.Detail})
+			}
 		}
 		total := len(layers)
 		sumJSON, _ := json.Marshal(map[string]interface{}{
-			"layers": counts,
-			"total":  total,
+			"layers":  counts,
+			"total":   total,
+			"pending": pending,
 		})
 		sendSSE(sumJSON)
 	}
@@ -926,14 +936,15 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		if phase == "docker-push" {
 			if m := dockerLayerRe.FindStringSubmatch(line); m != nil {
 				layerID := line[:12]
-				status := m[1]
+				rawStatus := m[1]
+				normStatus := rawStatus
 				// Normalize variable-suffix statuses
-				if strings.HasPrefix(status, "Pushing") {
-					status = "Pushing"
-				} else if strings.HasPrefix(status, "Mounted from") {
-					status = "Mounted"
+				if strings.HasPrefix(normStatus, "Pushing") {
+					normStatus = "Pushing"
+				} else if strings.HasPrefix(normStatus, "Mounted from") {
+					normStatus = "Mounted"
 				}
-				layers[layerID] = status
+				layers[layerID] = &layerInfo{Status: normStatus, Detail: rawStatus}
 				sendLayerSummary()
 				continue
 			}
