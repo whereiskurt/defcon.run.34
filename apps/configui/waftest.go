@@ -781,7 +781,7 @@ func (a *App) handleWAFCheckImage(w http.ResponseWriter, r *http.Request) {
 }
 
 // dockerLayerRe matches docker push layer status lines like "a5612b7c5253: Waiting"
-var dockerLayerRe = regexp.MustCompile(`^[0-9a-f]{12}: (Waiting|Preparing|Layer already exists|Pushed|Pushing .*)$`)
+var dockerLayerRe = regexp.MustCompile(`^[0-9a-f]{12}: (Waiting|Preparing|Layer already exists|Pushed|Pushing .*|Mounted from .*)$`)
 
 func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
@@ -927,9 +927,11 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 			if m := dockerLayerRe.FindStringSubmatch(line); m != nil {
 				layerID := line[:12]
 				status := m[1]
-				// Normalize "Pushing 123MB/456MB" to just "Pushing"
+				// Normalize variable-suffix statuses
 				if strings.HasPrefix(status, "Pushing") {
 					status = "Pushing"
+				} else if strings.HasPrefix(status, "Mounted from") {
+					status = "Mounted"
 				}
 				layers[layerID] = status
 				sendLayerSummary()

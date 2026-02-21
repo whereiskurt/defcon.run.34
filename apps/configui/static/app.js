@@ -4449,7 +4449,7 @@ function buildWaffaw() {
           if (data.layers) {
             var lc = data.layers;
             var total = data.total || 0;
-            var pushed = (lc['Pushed'] || 0) + (lc['Layer already exists'] || 0);
+            var pushed = (lc['Pushed'] || 0) + (lc['Layer already exists'] || 0) + (lc['Mounted'] || 0);
             var pushing = lc['Pushing'] || 0;
             var waiting = (lc['Waiting'] || 0) + (lc['Preparing'] || 0);
 
