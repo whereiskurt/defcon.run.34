@@ -260,11 +260,11 @@ locals {
     ec2_instance_type = "t3.medium"
     ec2_use_spot    = true
     ec2_multi_eni   = false
-    ecs_desired_count = 0
+    ecs_desired_count = 1
     ecs_use_spot    = true
     ecs_task_cpu    = 1024
     ecs_task_memory = 2048
-    image_uri       = "dc34-waffaw:1.0.4"
+    image_uri       = "dc34-waffaw:1.0.5"
   }
 
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)
