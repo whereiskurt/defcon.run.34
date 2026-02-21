@@ -323,6 +323,19 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// Discover EC2 instances via AWS API to catch unregistered nodes
+	registeredIPs := map[string]bool{}
+	for _, n := range nodes {
+		registeredIPs[n.IP] = true
+	}
+	if ec2Nodes := discoverEC2Instances(profile, region); len(ec2Nodes) > 0 {
+		for _, ec2n := range ec2Nodes {
+			if !registeredIPs[ec2n.IP] {
+				nodes = append(nodes, ec2n)
+			}
+		}
+	}
+
 	// Sort nodes by IP (deterministic numeric sort) and assign rank from online nodes
 	sort.Slice(nodes, func(i, j int) bool {
 		return compareIPsNumerically(nodes[i].IP, nodes[j].IP)
@@ -358,6 +371,9 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 		if n.Status == "stale" {
 			rowClass = ` class="opacity-50"`
 			statusBadge = `<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-900/30 text-yellow-400">stale</span>`
+		} else if n.Status == "unregistered" {
+			rowClass = ` class="opacity-60"`
+			statusBadge = `<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-red-900/30 text-red-400">no agent</span>`
 		}
 		fmt.Fprintf(w, `<tr%s>`, rowClass)
 		fmt.Fprintf(w, `<td class="py-1.5 px-2 text-zinc-400">%d</td>`, i+1)
@@ -372,6 +388,73 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, `</tr>`)
 	}
 	fmt.Fprint(w, `</tbody></table>`)
+}
+
+// discoverEC2Instances queries EC2 for running waffaw instances that may not
+// have registered in S3 (e.g. agent failed to start).
+func discoverEC2Instances(profile, region string) []wafNodeStatus {
+	cmd := exec.Command("aws", "ec2", "describe-instances",
+		"--profile", profile,
+		"--region", region,
+		"--filters",
+		"Name=instance-state-name,Values=running",
+		"Name=tag:Name,Values=waffaw-*",
+		"--query", "Reservations[].Instances[].{ip:PublicIpAddress,id:InstanceId,type:InstanceType,launch:LaunchTime,region:Placement.AvailabilityZone}",
+		"--output", "json",
+	)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil
+	}
+
+	var instances []struct {
+		IP     string `json:"ip"`
+		ID     string `json:"id"`
+		Type   string `json:"type"`
+		Launch string `json:"launch"`
+		Region string `json:"region"`
+	}
+	if json.Unmarshal(out, &instances) != nil {
+		return nil
+	}
+
+	var nodes []wafNodeStatus
+	for _, inst := range instances {
+		if inst.IP == "" {
+			continue
+		}
+		// Derive region label from AZ (e.g. "us-east-1a" → "us-east-1")
+		instRegion := inst.Region
+		if len(instRegion) > 0 {
+			instRegion = instRegion[:len(instRegion)-1] // strip AZ letter
+		}
+
+		uptime := ""
+		if t, err := time.Parse(time.RFC3339, inst.Launch); err == nil {
+			d := time.Since(t)
+			if d.Hours() >= 1 {
+				uptime = fmt.Sprintf("%.0fh %dm", d.Hours(), int(d.Minutes())%60)
+			} else {
+				uptime = fmt.Sprintf("%dm", int(d.Minutes()))
+			}
+		}
+
+		nodes = append(nodes, wafNodeStatus{
+			wafNodeMeta: wafNodeMeta{
+				IP:           inst.IP,
+				Region:       instRegion,
+				NodeID:       inst.ID,
+				NodeType:     "ec2",
+				InstanceType: inst.Type,
+				StartedAt:    inst.Launch,
+			},
+			Flag:   flagForRegion(instRegion),
+			Status: "unregistered",
+			Rank:   "-",
+			Uptime: uptime,
+		})
+	}
+	return nodes
 }
 
 // handleWAFCommand uploads a script to the S3 control bucket.
