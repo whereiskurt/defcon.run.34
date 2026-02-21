@@ -17,6 +17,20 @@
   font-weight: normal;
 }
 
+/* Waffaw tab stack — all tabs occupy same grid cell so height = tallest tab */
+.waffaw-tab-stack {
+  display: grid;
+}
+.waffaw-tab-stack > .waffaw-tab-content {
+  grid-area: 1 / 1;
+  visibility: hidden;
+  pointer-events: none;
+}
+.waffaw-tab-stack > .waffaw-tab-content.waffaw-tab-visible {
+  visibility: visible;
+  pointer-events: auto;
+}
+
 /* Module masonry layout — two fixed columns, no reordering on expand */
 .module-masonry {
   display: flex;

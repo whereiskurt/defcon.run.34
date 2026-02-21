@@ -826,6 +826,40 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 }
 
+// validCampaignTemplates lists allowed campaign template IDs.
+var validCampaignTemplates = map[string]string{
+	"camp-low-and-slow":    "apps/waffaw/templates/low-and-slow.yml",
+	"camp-auth-cycle":      "apps/waffaw/templates/auth-cycle.yml",
+	"camp-public-flood":    "apps/waffaw/templates/public-flood.yml",
+	"camp-crawl-and-probe": "apps/waffaw/templates/crawl-and-probe.yml",
+}
+
+// handleWAFCampaignTemplateSave saves edited campaign YAML back to disk.
+func (a *App) handleWAFCampaignTemplateSave(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", 400)
+		return
+	}
+
+	tabID := r.FormValue("tab_id")
+	content := r.FormValue("content")
+
+	relPath, ok := validCampaignTemplates[tabID]
+	if !ok {
+		http.Error(w, "unknown template", 400)
+		return
+	}
+
+	absPath := fmt.Sprintf("%s/%s", a.repoRoot, relPath)
+	if err := os.WriteFile(absPath, []byte(content), 0644); err != nil {
+		http.Error(w, fmt.Sprintf("write error: %v", err), 500)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "path": relPath})
+}
+
 // quotaDef describes a single AWS Service Quota to fetch.
 type quotaDef struct {
 	Key         string // JSON key in response

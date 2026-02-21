@@ -3897,9 +3897,9 @@ function switchWaffawTab(tabName) {
     }
   });
 
-  // Show/hide tab content
+  // Show/hide tab content (visibility swap — height stays stable)
   document.querySelectorAll('.waffaw-tab-content').forEach(function(el) {
-    el.style.display = el.dataset.tab === tabName ? '' : 'none';
+    el.classList.toggle('waffaw-tab-visible', el.dataset.tab === tabName);
   });
 
   // SSE lifecycle: start log stream when switching to logs tab, stop when leaving
@@ -4208,6 +4208,55 @@ function sendWAFCommand(targetIP) {
   }).catch(function(err) {
     showToast('Command failed: ' + err.message, 5000);
   });
+}
+
+// Open preview pane to the selected campaign template for editing
+function editCampaignTemplate() {
+  var sel = document.getElementById('waf-campaign-template');
+  if (!sel) return;
+  var val = sel.value; // e.g. "low-and-slow"
+  if (val === 'custom') {
+    showToast('Custom templates cannot be edited here', 'warning');
+    return;
+  }
+  var tabId = 'camp-' + val;
+
+  // Open preview pane if not already open
+  if (!isPreviewOpen()) {
+    showPreview();
+    htmx.ajax('POST', '/preview', {
+      source: '#config-form',
+      target: '#preview-content',
+      swap: 'innerHTML'
+    }).then(function() {
+      switchPreviewCategory('campaigns');
+      switchPreviewTab(tabId);
+    });
+  } else {
+    switchPreviewCategory('campaigns');
+    switchPreviewTab(tabId);
+  }
+}
+
+// Save edited campaign template YAML back to disk
+function saveCampaignTemplate(tabId) {
+  var pre = document.getElementById('pre-' + tabId);
+  if (!pre) return;
+  var content = pre.innerText;
+
+  fetch('/api/waf/campaign-template', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'tab_id=' + encodeURIComponent(tabId) + '&content=' + encodeURIComponent(content)
+  }).then(function(r) {
+    if (r.ok) {
+      showToast('Template saved');
+      // Update the data-original so diff tracking resets
+      pre.dataset.original = content;
+    } else {
+      r.text().then(function(t) { showToast('Save failed: ' + t, 'error'); });
+    }
+  }).catch(function(e) { showToast('Save error: ' + e, 'error'); });
 }
 
 function launchWAFCampaign() {

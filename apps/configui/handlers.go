@@ -337,11 +337,15 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 			hidden = ` class="hidden"`
 		}
 		langAttr := ""
+		editableAttr := ""
+		saveBtn := ""
 		if strings.HasPrefix(t.ID, "camp-") {
 			langAttr = ` data-lang="yaml"`
+			editableAttr = ` contenteditable="true" spellcheck="false"`
+			saveBtn = fmt.Sprintf(`<button onclick="saveCampaignTemplate('%s')" class="%s">Save</button>`, t.ID, copyBtn)
 		}
-		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="relative"><div class="%s"><button onclick="expandAllFolds('%s')" class="%s">Expand All</button><button onclick="copyPreviewTab('%s')" class="%s">Copy</button></div><pre id="pre-%s" class="%s" data-original="%s"%s>%s</pre></div></div>`,
-			t.ID, hidden, btnBar, t.ID, copyBtn, t.ID, copyBtn, t.ID, preClass, template.HTMLEscapeString(t.Original), langAttr, template.HTMLEscapeString(t.Body))
+		fmt.Fprintf(w, `<div id="ptab-content-%s"%s><div class="relative"><div class="%s"><button onclick="expandAllFolds('%s')" class="%s">Expand All</button><button onclick="copyPreviewTab('%s')" class="%s">Copy</button>%s</div><pre id="pre-%s" class="%s" data-original="%s"%s%s>%s</pre></div></div>`,
+			t.ID, hidden, btnBar, t.ID, copyBtn, t.ID, copyBtn, saveBtn, t.ID, preClass, template.HTMLEscapeString(t.Original), langAttr, editableAttr, template.HTMLEscapeString(t.Body))
 	}
 
 	fmt.Fprint(w, `</div>`)

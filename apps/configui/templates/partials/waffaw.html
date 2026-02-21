@@ -22,18 +22,20 @@
               class="waffaw-tab-btn px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer">Intel</button>
     </div>
 
-    <!-- Tab Content -->
-    <div class="waffaw-tab-content" data-tab="fleet">
-      {{template "waffaw_fleet.html" .}}
-    </div>
-    <div class="waffaw-tab-content" data-tab="campaign" style="display:none">
-      {{template "waffaw_campaign.html" .}}
-    </div>
-    <div class="waffaw-tab-content" data-tab="logs" style="display:none">
-      {{template "waffaw_logs.html" .}}
-    </div>
-    <div class="waffaw-tab-content" data-tab="intel" style="display:none">
-      {{template "waffaw_intel.html" .}}
+    <!-- Tab Content — grid overlay keeps height stable across tab switches -->
+    <div class="waffaw-tab-stack">
+      <div class="waffaw-tab-content waffaw-tab-visible" data-tab="fleet">
+        {{template "waffaw_fleet.html" .}}
+      </div>
+      <div class="waffaw-tab-content" data-tab="campaign">
+        {{template "waffaw_campaign.html" .}}
+      </div>
+      <div class="waffaw-tab-content" data-tab="logs">
+        {{template "waffaw_logs.html" .}}
+      </div>
+      <div class="waffaw-tab-content" data-tab="intel">
+        {{template "waffaw_intel.html" .}}
+      </div>
     </div>
   </div>
 </div>
