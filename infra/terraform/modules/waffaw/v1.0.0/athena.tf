@@ -181,7 +181,7 @@ resource "aws_athena_named_query" "campaign_summary" {
       COUNT(DISTINCT source_ip) AS unique_ips,
       MIN(timestamp) AS started,
       MAX(timestamp) AS ended,
-      date_diff('minute', MIN(timestamp), MAX(timestamp)) AS duration_minutes,
+      date_diff('minute', MIN(from_iso8601_timestamp(timestamp)), MAX(from_iso8601_timestamp(timestamp))) AS duration_minutes,
       AVG(response_time_ms) AS avg_response_ms,
       COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked,
       ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct
@@ -206,8 +206,8 @@ resource "aws_athena_named_query" "time_to_detection" {
       MIN(timestamp) AS first_request,
       MIN(CASE WHEN status_code = 403 THEN timestamp END) AS first_block,
       date_diff('minute',
-        MIN(timestamp),
-        MIN(CASE WHEN status_code = 403 THEN timestamp END)
+        MIN(from_iso8601_timestamp(timestamp)),
+        MIN(CASE WHEN status_code = 403 THEN from_iso8601_timestamp(timestamp) END)
       ) AS minutes_to_detect,
       COUNT(*) AS total_requests,
       COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked_requests
@@ -249,13 +249,13 @@ resource "aws_athena_named_query" "hourly_volume" {
 
   query = <<-SQL
     SELECT
-      date_format(timestamp, '%Y-%m-%d %H:00') AS hour,
+      date_format(from_iso8601_timestamp(timestamp), '%Y-%m-%d %H:00') AS hour,
       COUNT(*) AS requests,
       COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked,
       ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct
     FROM waffaw_logs
     WHERE campaign = '{campaign}'
-    GROUP BY date_format(timestamp, '%Y-%m-%d %H:00')
+    GROUP BY date_format(from_iso8601_timestamp(timestamp), '%Y-%m-%d %H:00')
     ORDER BY hour
   SQL
 }

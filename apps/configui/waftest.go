@@ -722,7 +722,9 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-	startTime := time.Now().Add(-24 * time.Hour).UnixMilli()
+	startTime := time.Now().Add(-15 * time.Minute).UnixMilli()
+	totalSent := 0
+	const maxEvents = 2000
 	ticker := time.NewTicker(3 * time.Second)
 	defer ticker.Stop()
 
@@ -731,10 +733,17 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			if totalSent >= maxEvents {
+				continue
+			}
+			batchLimit := 200
+			if totalSent+batchLimit > maxEvents {
+				batchLimit = maxEvents - totalSent
+			}
 			args := []string{"logs", "filter-log-events",
 				"--log-group-name", logGroupName,
 				"--start-time", fmt.Sprintf("%d", startTime),
-				"--limit", "50",
+				"--limit", fmt.Sprintf("%d", batchLimit),
 				"--profile", profile,
 				"--region", logRegion,
 				"--output", "json",
@@ -770,6 +779,7 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 						"raw":    true,
 					})
 					fmt.Fprintf(w, "data: %s\n\n", lineJSON)
+					totalSent++
 					if event.Timestamp > startTime {
 						startTime = event.Timestamp + 1
 					}
@@ -818,6 +828,7 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 					"body":    logEntry["response_body_preview"],
 				})
 				fmt.Fprintf(w, "data: %s\n\n", lineJSON)
+				totalSent++
 
 				if event.Timestamp > startTime {
 					startTime = event.Timestamp + 1
@@ -853,11 +864,13 @@ func (a *App) handleWAFIntel(w http.ResponseWriter, r *http.Request) {
 	outputLocation := fmt.Sprintf("s3://waffaw-logs-%s-%s-%s/athena-results/",
 		"use1", a.config.Site.Label, a.config.Site.RandomSuffix)
 
+	// Note: timestamp column is varchar (ISO 8601), cast with from_iso8601_timestamp() for date functions.
+	// Alias: ts = from_iso8601_timestamp(timestamp)
 	queries := map[string]string{
-		"summary":     fmt.Sprintf(`SELECT campaign, COUNT(*) AS total_requests, COUNT(DISTINCT source_ip) AS unique_ips, MIN(timestamp) AS started, MAX(timestamp) AS ended, date_diff('minute', MIN(timestamp), MAX(timestamp)) AS duration_minutes, ROUND(AVG(response_time_ms), 0) AS avg_response_ms, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked, ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY campaign`, campaign),
-		"detection":   fmt.Sprintf(`SELECT source_ip, node_type, MIN(timestamp) AS first_request, MIN(CASE WHEN status_code = 403 THEN timestamp END) AS first_block, date_diff('minute', MIN(timestamp), MIN(CASE WHEN status_code = 403 THEN timestamp END)) AS minutes_to_detect, COUNT(*) AS total_requests, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked_requests FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY source_ip, node_type ORDER BY minutes_to_detect ASC NULLS LAST`, campaign),
+		"summary":     fmt.Sprintf(`SELECT campaign, COUNT(*) AS total_requests, COUNT(DISTINCT source_ip) AS unique_ips, MIN(timestamp) AS started, MAX(timestamp) AS ended, date_diff('minute', MIN(from_iso8601_timestamp(timestamp)), MAX(from_iso8601_timestamp(timestamp))) AS duration_minutes, ROUND(AVG(response_time_ms), 0) AS avg_response_ms, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked, ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY campaign`, campaign),
+		"detection":   fmt.Sprintf(`SELECT source_ip, node_type, MIN(timestamp) AS first_request, MIN(CASE WHEN status_code = 403 THEN timestamp END) AS first_block, date_diff('minute', MIN(from_iso8601_timestamp(timestamp)), MIN(CASE WHEN status_code = 403 THEN from_iso8601_timestamp(timestamp) END)) AS minutes_to_detect, COUNT(*) AS total_requests, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked_requests FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY source_ip, node_type ORDER BY minutes_to_detect ASC NULLS LAST`, campaign),
 		"scenarios":   fmt.Sprintf(`SELECT scenario, COUNT(*) AS total, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked, ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY scenario ORDER BY block_rate_pct DESC`, campaign),
-		"hourly":      fmt.Sprintf(`SELECT date_format(timestamp, '%%%%Y-%%%%m-%%%%d %%%%H:00') AS hour, COUNT(*) AS requests, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked, ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY date_format(timestamp, '%%%%Y-%%%%m-%%%%d %%%%H:00') ORDER BY hour`, campaign),
+		"hourly":      fmt.Sprintf(`SELECT date_format(from_iso8601_timestamp(timestamp), '%%%%Y-%%%%m-%%%%d %%%%H:00') AS hour, COUNT(*) AS requests, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked, ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY date_format(from_iso8601_timestamp(timestamp), '%%%%Y-%%%%m-%%%%d %%%%H:00') ORDER BY hour`, campaign),
 		"correlation": fmt.Sprintf(`SELECT node_type, COUNT(DISTINCT source_ip) AS unique_ips, COUNT(*) AS total_requests, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked, ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY node_type`, campaign),
 	}
 

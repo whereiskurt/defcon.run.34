@@ -5011,20 +5011,14 @@ function startWAFLogStream(clearViewer) {
       }
 
       line.textContent = lineText;
-      viewer.appendChild(line);
+      viewer.insertBefore(line, viewer.firstChild);
       lastMsgEl = line;
       lineCount++;
 
-      // Cap displayed lines
+      // Cap displayed lines (trim oldest from bottom)
       if (lineCount > 2000) {
-        var first = viewer.firstChild;
-        if (first) viewer.removeChild(first);
-      }
-
-      // Auto-scroll if checkbox checked
-      var autoScroll = document.getElementById('waf-log-autoscroll');
-      if (autoScroll && autoScroll.checked) {
-        viewer.scrollTop = viewer.scrollHeight;
+        var last = viewer.lastChild;
+        if (last) viewer.removeChild(last);
       }
 
       // Update rate display
