@@ -607,7 +607,7 @@ function showPreview() {
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.remove('md:col-span-2');
     });
-    ['infra-modules', 'core-modules', 'svc-modules'].forEach(function(id) {
+    ['infra-modules', 'core-modules', 'svc-modules', 'apps-modules'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.classList.remove('md:col-span-2');
     });
@@ -631,7 +631,7 @@ function hidePreview() {
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.add('md:col-span-2');
     });
-    ['infra-modules', 'core-modules', 'svc-modules'].forEach(function(id) {
+    ['infra-modules', 'core-modules', 'svc-modules', 'apps-modules'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.classList.add('md:col-span-2');
     });
@@ -4183,6 +4183,8 @@ function initMasonry() {
     if (container.querySelector('.masonry-col')) return;
     var children = Array.from(container.children);
     if (children.length === 0) return;
+    // Skip masonry split if only 1 child or container is marked no-masonry
+    if (children.length <= 1 || container.classList.contains('no-masonry')) return;
     var left = document.createElement('div');
     left.className = 'masonry-col';
     var right = document.createElement('div');
