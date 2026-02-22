@@ -2,13 +2,13 @@ import { Page } from "playwright";
 
 /**
  * Logout scenario — click logout button/link, wait for session teardown.
+ * Resilient: tries multiple selectors and falls back to direct URL navigation.
  */
 export async function logout(
   page: Page,
   vuContext: { vars: Record<string, string> },
   events: { emit: (name: string, ...args: unknown[]) => void }
 ) {
-  // Try common logout selectors
   const logoutSelectors = [
     'a[href*="logout"]',
     'a[href*="signout"]',
@@ -19,16 +19,24 @@ export async function logout(
   ];
 
   for (const selector of logoutSelectors) {
-    const element = await page.$(selector);
-    if (element) {
-      await page.waitForTimeout(500 + Math.random() * 1000);
-      await element.click();
-      await page.waitForLoadState("networkidle");
-      return;
+    try {
+      const element = await page.$(selector);
+      if (element) {
+        await page.waitForTimeout(500 + Math.random() * 1000);
+        await element.click();
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
+        return;
+      }
+    } catch {
+      continue;
     }
   }
 
   // Fallback: navigate to logout URL directly
   const url = process.env.TARGET_URL || vuContext.vars.target || "https://defcon.run";
-  await page.goto(`${url}/logout`, { waitUntil: "networkidle" });
+  try {
+    await page.goto(`${url}/logout`, { waitUntil: "domcontentloaded", timeout: 15000 });
+  } catch {
+    // Logout failed — VU continues
+  }
 }

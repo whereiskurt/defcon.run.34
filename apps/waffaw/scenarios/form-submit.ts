@@ -2,6 +2,7 @@ import { Page } from "playwright";
 
 /**
  * Form submit scenario — navigate to URL, fill form fields, submit.
+ * Resilient: catches missing elements and navigation failures gracefully.
  */
 export async function submitForm(
   page: Page,
@@ -11,13 +12,15 @@ export async function submitForm(
   const baseUrl = process.env.TARGET_URL || vuContext.vars.target || "https://defcon.run";
   const targetUrl = vuContext.vars.url || `${baseUrl}/contact`;
 
-  await page.goto(targetUrl, { waitUntil: "networkidle" });
+  try {
+    await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 15000 });
+  } catch {
+    return; // Page failed to load
+  }
 
-  // Think before starting to fill
   await page.waitForTimeout(1000 + Math.random() * 2000);
 
   // Parse fields from vars: field_name=selector pairs
-  // e.g., vuContext.vars.fields = "name:#name,email:#email,message:#message"
   const fieldsStr = vuContext.vars.fields || "";
   const fields = fieldsStr.split(",").filter(Boolean);
 
@@ -25,34 +28,41 @@ export async function submitForm(
     const [name, selector] = field.split(":");
     if (!name || !selector) continue;
 
-    // Generate plausible test data based on field name
-    const value = generateFieldValue(name);
-    await page.fill(selector, value);
-
-    // Human-like pause between fields
-    await page.waitForTimeout(300 + Math.random() * 800);
+    try {
+      const value = generateFieldValue(name);
+      await page.fill(selector, value);
+      await page.waitForTimeout(300 + Math.random() * 800);
+    } catch {
+      // Field not found — continue to next
+    }
   }
 
   // If no fields specified, try to fill any visible text inputs
   if (fields.length === 0) {
-    const inputs = await page.$$('input[type="text"], input[type="email"], textarea');
-    for (const input of inputs) {
-      const inputType = await input.getAttribute("type");
-      const inputName = await input.getAttribute("name");
-      const value = generateFieldValue(inputName || inputType || "text");
-      await input.fill(value);
-      await page.waitForTimeout(300 + Math.random() * 500);
+    try {
+      const inputs = await page.$$('input[type="text"], input[type="email"], textarea');
+      for (const input of inputs) {
+        const inputType = await input.getAttribute("type");
+        const inputName = await input.getAttribute("name");
+        const value = generateFieldValue(inputName || inputType || "text");
+        await input.fill(value);
+        await page.waitForTimeout(300 + Math.random() * 500);
+      }
+    } catch {
+      // Auto-fill failed
     }
   }
 
-  // Think before submitting
   await page.waitForTimeout(500 + Math.random() * 1500);
 
-  // Submit the form
-  const submitBtn = await page.$('button[type="submit"], input[type="submit"]');
-  if (submitBtn) {
-    await submitBtn.click();
-    await page.waitForLoadState("networkidle");
+  try {
+    const submitBtn = await page.$('button[type="submit"]') || await page.$('input[type="submit"]');
+    if (submitBtn) {
+      await submitBtn.click();
+      await page.waitForLoadState("domcontentloaded").catch(() => {});
+    }
+  } catch {
+    // Submit failed
   }
 }
 
