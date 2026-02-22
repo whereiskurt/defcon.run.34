@@ -13,9 +13,6 @@ config:
           - "--no-sandbox"
           - "--disable-dev-shm-usage"
   processor: "../scenarios/index.ts"
-  plugins:
-    waffaw-logger:
-      logLevel: "{{ $processEnvironment.LOG_LEVEL }}"
   payload:
     - path: "../data/pages.csv"
       fields:

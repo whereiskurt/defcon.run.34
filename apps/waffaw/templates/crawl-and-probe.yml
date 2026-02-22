@@ -13,9 +13,6 @@ config:
           - "--no-sandbox"
           - "--disable-dev-shm-usage"
   processor: "../scenarios/index.ts"
-  plugins:
-    waffaw-logger:
-      logLevel: "{{ $processEnvironment.LOG_LEVEL }}"
   payload:
     - path: "../data/pages.csv"
       fields:
@@ -35,6 +32,7 @@ scenarios:
     flow: []
   - name: "SQLi probe in query params"
     weight: 3
+    afterResponse: "waffawLog"
     flow:
       - get:
           url: "/search?q=' OR '1'='1"
@@ -44,6 +42,7 @@ scenarios:
           url: "/search?q=' UNION SELECT NULL,NULL--"
   - name: "XSS probe"
     weight: 3
+    afterResponse: "waffawLog"
     flow:
       - get:
           url: "/search?q=<script>alert(1)</script>"
@@ -53,6 +52,7 @@ scenarios:
           url: "/search?q=javascript:alert(document.cookie)"
   - name: "Path traversal probe"
     weight: 2
+    afterResponse: "waffawLog"
     flow:
       - get:
           url: "/../../etc/passwd"

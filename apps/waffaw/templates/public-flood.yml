@@ -17,9 +17,7 @@ config:
       rampTo: 10
       name: "Ramp down"
   # HTTP engine for volume — no Playwright needed
-  plugins:
-    waffaw-logger:
-      logLevel: "{{ $processEnvironment.LOG_LEVEL }}"
+  processor: "../plugins/artillery-plugin-waffaw-logger/index.js"
   payload:
     - path: "../data/pages.csv"
       fields:
@@ -29,16 +27,19 @@ config:
 scenarios:
   - name: "Public page GET"
     weight: 8
+    afterResponse: "waffawLog"
     flow:
       - get:
           url: "/{{ path }}"
   - name: "Root page"
     weight: 4
+    afterResponse: "waffawLog"
     flow:
       - get:
           url: "/"
   - name: "Static assets"
     weight: 2
+    afterResponse: "waffawLog"
     flow:
       - get:
           url: "/favicon.ico"
