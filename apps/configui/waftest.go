@@ -131,7 +131,10 @@ func s3ListKeys(profile, bucket, prefix, region string) ([]struct {
 		LastModified time.Time
 	}
 	for _, obj := range resp.Contents {
-		t, _ := time.Parse(time.RFC3339, obj.LastModified)
+		t, err := time.Parse(time.RFC3339, obj.LastModified)
+		if err != nil {
+			t, _ = time.Parse(time.RFC3339Nano, obj.LastModified)
+		}
 		results = append(results, struct {
 			Key          string
 			LastModified time.Time
