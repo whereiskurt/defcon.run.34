@@ -109,10 +109,11 @@
     </div>
   </header>
 
-  <!-- Unsaved changes banner -->
-  <div id="unsaved-banner" class="hidden sticky top-[57px] z-30 bg-amber-900/90 border-b border-amber-700/50 px-4 py-2 flex items-center gap-3">
+  <!-- Unsaved changes banner (fixed bottom-right, no layout shift) -->
+  <div id="unsaved-banner" class="hidden fixed bottom-4 right-4 z-50 bg-amber-900/95 border border-amber-700/50 rounded-lg px-4 py-2.5 flex items-center gap-3 shadow-lg backdrop-blur-sm transition-opacity duration-200"
+       style="max-width:480px;">
     <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-    <span class="text-xs font-mono text-amber-300 flex-1">You have unsaved changes. Click <strong>Save All</strong> to write site.hcl, service files, and env scripts.</span>
+    <span class="text-xs font-mono text-amber-300">Unsaved changes</span>
     <button type="button" onclick="doSaveAll()" class="rounded-md bg-green-600 hover:bg-green-500 text-white px-3 py-1 text-xs font-mono font-medium flex-shrink-0">Save All</button>
     <button type="button" onclick="dismissUnsavedBanner()" class="text-amber-500 hover:text-amber-300 text-lg leading-none px-1" title="Dismiss">&times;</button>
   </div>
