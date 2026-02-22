@@ -4290,6 +4290,85 @@ function checkWaffawImage() {
     });
 }
 
+// 5-bit binary toggle widget
+function initBitToggles() {
+  document.querySelectorAll('.bit-toggle').forEach(function(wrap) {
+    if (wrap.dataset.init) return;
+    wrap.dataset.init = '1';
+    var bits = parseInt(wrap.dataset.bits, 10) || 5;
+    var max = (1 << bits) - 1;
+    var input = wrap.querySelector('input[type="hidden"]');
+    var val = Math.min(Math.max(parseInt(input.value, 10) || 0, 0), max);
+
+    // Build DOM: [▼] [□□□□□] [▲] dec
+    wrap.style.display = 'flex';
+    wrap.style.alignItems = 'center';
+    wrap.style.gap = '4px';
+
+    var downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.className = 'bit-arrow text-zinc-500 hover:text-zinc-200 text-xs px-1 py-0.5 leading-none select-none';
+    downBtn.innerHTML = '&#9660;';
+    downBtn.title = 'Decrement';
+
+    var boxWrap = document.createElement('div');
+    boxWrap.style.display = 'flex';
+    boxWrap.style.gap = '3px';
+
+    var boxes = [];
+    for (var b = bits - 1; b >= 0; b--) {
+      var box = document.createElement('div');
+      box.className = 'bit-box';
+      box.dataset.bit = b;
+      box.style.cssText = 'width:20px;height:20px;border-radius:3px;cursor:pointer;border:1px solid;transition:all 0.1s;';
+      box.title = '' + (1 << b);
+      boxWrap.appendChild(box);
+      boxes.push({ el: box, bit: b });
+    }
+
+    var upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.className = 'bit-arrow text-zinc-500 hover:text-zinc-200 text-xs px-1 py-0.5 leading-none select-none';
+    upBtn.innerHTML = '&#9650;';
+    upBtn.title = 'Increment';
+
+    var dec = document.createElement('span');
+    dec.className = 'bit-dec text-xs font-mono text-zinc-400 ml-1 min-w-[1.5em] text-right';
+
+    wrap.appendChild(downBtn);
+    wrap.appendChild(boxWrap);
+    wrap.appendChild(upBtn);
+    wrap.appendChild(dec);
+
+    function render() {
+      val = Math.min(Math.max(val, 0), max);
+      input.value = val;
+      dec.textContent = val;
+      for (var i = 0; i < boxes.length; i++) {
+        var on = (val >> boxes[i].bit) & 1;
+        boxes[i].el.style.backgroundColor = on ? '#22c55e' : '#27272a';
+        boxes[i].el.style.borderColor = on ? '#4ade80' : '#52525b';
+      }
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    boxes.forEach(function(b) {
+      b.el.addEventListener('click', function() {
+        val ^= (1 << b.bit);
+        render();
+      });
+    });
+
+    downBtn.addEventListener('click', function() { if (val > 0) { val--; render(); } });
+    upBtn.addEventListener('click', function() { if (val < max) { val++; render(); } });
+
+    render();
+  });
+}
+
+// Re-init after htmx swaps
+document.addEventListener('htmx:afterSettle', initBitToggles);
+
 // Waffaw IP quota/cost calculator
 var wafQuotas = {}; // populated by fetchWafQuotas()
 
@@ -4398,6 +4477,7 @@ document.addEventListener('change', function(e) {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', function() {
+  initBitToggles();
   updateWafQuotaBar();
   fetchWafQuotas();
   // Start log stream immediately so logs accumulate across tab switches and survive reloads

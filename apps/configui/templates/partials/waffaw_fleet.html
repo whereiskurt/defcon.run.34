@@ -5,11 +5,12 @@
     <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Fleet Configuration</h4>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-      <!-- EC2 Count -->
+      <!-- EC2 Count (5-bit binary toggle) -->
       <div>
         <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">EC2 Bastion</label>
-        <input type="number" name="waffaw.ec2_count" value="{{.Config.Waffaw.EC2Count}}" min="0" max="10"
-               class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+        <div class="bit-toggle" data-bits="5">
+          <input type="hidden" name="waffaw.ec2_count" value="{{.Config.Waffaw.EC2Count}}">
+        </div>
         <p class="text-[10px] text-zinc-500 mt-1">0 = no EC2 (Fargate only) <span id="waf-ec2-limit" class="text-zinc-600"></span></p>
       </div>
 
@@ -24,11 +25,12 @@
         </select>
       </div>
 
-      <!-- ECS Desired Count -->
+      <!-- ECS Desired Count (5-bit binary toggle) -->
       <div>
         <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Fargate Tasks</label>
-        <input type="number" name="waffaw.ecs_desired_count" value="{{.Config.Waffaw.ECSDesiredCount}}" min="0" max="20"
-               class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
+        <div class="bit-toggle" data-bits="5">
+          <input type="hidden" name="waffaw.ecs_desired_count" value="{{.Config.Waffaw.ECSDesiredCount}}">
+        </div>
         <p class="text-[10px] text-zinc-500 mt-1">0 = stopped (no cost) <span id="waf-fargate-limit" class="text-zinc-600"></span></p>
       </div>
 
