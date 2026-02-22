@@ -14,7 +14,7 @@ export async function browsePublic(
   const baseUrl = process.env.TARGET_URL || vuContext.vars.target || "https://defcon.run";
   const thinkTimeBase = parseInt(vuContext.vars.thinkTime || "3000", 10);
 
-  const defaultPaths = ["/", "/schedule", "/about", "/faq", "/contact"];
+  const defaultPaths = ["/", "/use1/", "/use1/api/auth/session", "/dashboard", "/profile"];
   const paths = vuContext.vars.urls
     ? vuContext.vars.urls.split(",")
     : defaultPaths;

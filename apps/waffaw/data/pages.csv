@@ -1,11 +1,7 @@
 path
 /
-/schedule
-/about
-/faq
-/contact
-/speakers
-/events
-/villages
-/map
-/register
+/use1/
+/use1/api/auth/session
+/dashboard
+/profile
+https://auth.defcon.run/use1/login
