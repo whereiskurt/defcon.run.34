@@ -18,10 +18,14 @@
             <option value="t3.large" {{if eq .Config.Waffaw.EC2InstanceType "t3.large"}}selected{{end}}>t3.large</option>
             <option value="m5.large" {{if eq .Config.Waffaw.EC2InstanceType "m5.large"}}selected{{end}}>m5.large</option>
           </select>
-          <label class="flex items-center gap-1 cursor-pointer text-[10px] text-zinc-500 ml-auto" title="Multi-ENI: up to 18 IPs per EC2">
-            <input type="checkbox" name="waffaw.ec2_multi_eni" class="w-3 h-3 rounded" {{if .Config.Waffaw.EC2MultiENI}}checked{{end}}>
-            <span>Multi-ENI</span>
-          </label>
+          <div class="flex items-center gap-1.5 text-[10px] text-zinc-500" title="ENI count per EC2 (1 = single, 2+ = multi-ENI)">
+            <span class="text-zinc-500">ENI</span>
+            <input type="range" name="waffaw.ec2_eni_count" id="waf-eni-slider" min="1" max="4" value="{{if .Config.Waffaw.EC2MultiENI}}4{{else}}1{{end}}"
+                   class="w-16 h-1 accent-green-500 cursor-pointer"
+                   oninput="document.getElementById('waf-eni-val').textContent=this.value;document.getElementById('waf-eni-hidden').value=this.value>1?'on':''">
+            <span id="waf-eni-val" class="font-mono text-zinc-400 w-3 text-center">{{if .Config.Waffaw.EC2MultiENI}}4{{else}}1{{end}}</span>
+            <input type="hidden" name="waffaw.ec2_multi_eni" id="waf-eni-hidden" value="{{if .Config.Waffaw.EC2MultiENI}}on{{end}}">
+          </div>
         </div>
         <div class="flex items-center gap-2">
           <div class="bit-toggle" data-bits="5">
