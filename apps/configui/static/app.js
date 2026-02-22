@@ -2643,15 +2643,18 @@ function ensurePillBar() {
 function updatePillBar() {
   var bar = document.getElementById('term-pill-bar');
   if (!bar) return;
-  // Sort: minimized sessions first (most recently minimized), then by creation order (newest first)
+  // Sort: running first, then minimized, then completed — within each group newest first
   var ids = Object.keys(_termSessions);
   ids.sort(function(a, b) {
     var sa = _termSessions[a], sb = _termSessions[b];
+    var aRun = sa.processRunning ? 1 : 0;
+    var bRun = sb.processRunning ? 1 : 0;
+    if (aRun !== bRun) return bRun - aRun; // running first
     var aMin = sa.minimized ? 1 : 0;
     var bMin = sb.minimized ? 1 : 0;
-    if (aMin !== bMin) return bMin - aMin; // minimized first
+    if (aMin !== bMin) return bMin - aMin; // minimized before completed
     if (sa.minimized && sb.minimized) return (sb.minimizedAt || 0) - (sa.minimizedAt || 0);
-    return (sb.createdAt || 0) - (sa.createdAt || 0); // most recently run first
+    return (sb.createdAt || 0) - (sa.createdAt || 0);
   });
   if (ids.length === 0) {
     bar.style.display = 'none';
@@ -5058,6 +5061,15 @@ function startWAFLogStream(clearViewer) {
 
 function restartWAFLogStream() {
   startWAFLogStream(true);
+}
+
+function clearWAFLogs() {
+  var viewer = document.getElementById('waf-log-viewer');
+  if (viewer) viewer.innerHTML = '';
+  var rateEl = document.getElementById('waf-log-rate');
+  if (rateEl) rateEl.textContent = '';
+  var blockedEl = document.getElementById('waf-log-blocked');
+  if (blockedEl) blockedEl.textContent = '';
 }
 
 function stopWAFLogStream() {
