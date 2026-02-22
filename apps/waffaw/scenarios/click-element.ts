@@ -1,4 +1,5 @@
 import { Page } from "playwright";
+import { instrumentPage } from "./index";
 
 /**
  * Click element scenario — navigate to URL and click random elements.
@@ -9,6 +10,7 @@ export async function clickElement(
   vuContext: { vars: Record<string, string> },
   events: { emit: (name: string, ...args: unknown[]) => void }
 ) {
+  instrumentPage(page, "click-element");
   const baseUrl = process.env.TARGET_URL || vuContext.vars.target || "https://defcon.run";
   const targetUrl = vuContext.vars.url || baseUrl;
   const selector = vuContext.vars.selector || "a";

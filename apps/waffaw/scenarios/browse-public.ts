@@ -1,4 +1,5 @@
 import { Page } from "playwright";
+import { instrumentPage } from "./index";
 
 /**
  * Browse public pages — visit a list of public URLs with configurable think time.
@@ -9,6 +10,7 @@ export async function browsePublic(
   vuContext: { vars: Record<string, string> },
   events: { emit: (name: string, ...args: unknown[]) => void }
 ) {
+  instrumentPage(page, "browse-public");
   const baseUrl = process.env.TARGET_URL || vuContext.vars.target || "https://defcon.run";
   const thinkTimeBase = parseInt(vuContext.vars.thinkTime || "3000", 10);
 

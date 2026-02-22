@@ -1,4 +1,5 @@
 import { Page } from "playwright";
+import { instrumentPage } from "./index";
 
 /**
  * Login scenario — navigate to login page, fill credentials, submit.
@@ -9,6 +10,7 @@ export async function login(
   vuContext: { vars: Record<string, string> },
   events: { emit: (name: string, ...args: unknown[]) => void }
 ) {
+  instrumentPage(page, "login");
   const url = process.env.TARGET_URL || vuContext.vars.target || "https://defcon.run";
   const user = process.env.TEST_USER || vuContext.vars.username || "testuser";
   const pass = process.env.TEST_PASS || vuContext.vars.password || "testpass";

@@ -1,4 +1,5 @@
 import { Page } from "playwright";
+import { instrumentPage } from "./index";
 
 /**
  * Logout scenario — click logout button/link, wait for session teardown.
@@ -9,6 +10,7 @@ export async function logout(
   vuContext: { vars: Record<string, string> },
   events: { emit: (name: string, ...args: unknown[]) => void }
 ) {
+  instrumentPage(page, "logout");
   const logoutSelectors = [
     'a[href*="logout"]',
     'a[href*="signout"]',

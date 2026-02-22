@@ -1,4 +1,5 @@
 import { Page } from "playwright";
+import { instrumentPage } from "./index";
 
 /**
  * Form submit scenario — navigate to URL, fill form fields, submit.
@@ -9,6 +10,7 @@ export async function submitForm(
   vuContext: { vars: Record<string, string> },
   events: { emit: (name: string, ...args: unknown[]) => void }
 ) {
+  instrumentPage(page, "form-submit");
   const baseUrl = process.env.TARGET_URL || vuContext.vars.target || "https://defcon.run";
   const targetUrl = vuContext.vars.url || `${baseUrl}/contact`;
 
