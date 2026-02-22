@@ -3,78 +3,57 @@
   <!-- Fleet Configuration (Terraform Inputs) -->
   <div>
     <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Fleet Configuration</h4>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-      <!-- EC2 Count (5-bit binary toggle) -->
-      <div>
-        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">EC2 Bastion</label>
-        <div class="bit-toggle" data-bits="5">
-          <input type="hidden" name="waffaw.ec2_count" value="{{.Config.Waffaw.EC2Count}}">
+      <!-- EC2 Column -->
+      <div class="space-y-2">
+        <input type="hidden" name="waffaw.ec2_use_spot" id="waf-ec2-spot-val" value="{{if .Config.Waffaw.EC2UseSpot}}on{{end}}">
+        <div class="flex items-center gap-2">
+          <div class="seg-group inline-flex rounded-md text-xs font-medium" data-target="waf-ec2-spot-val" data-on-value="on" data-off-value="">
+            <button type="button" data-seg="on" class="seg-btn rounded-l-md px-3 py-1 border border-zinc-600">EC2 Spot</button>
+            <button type="button" data-seg="" class="seg-btn rounded-r-md px-3 py-1 border border-l-0 border-zinc-600">EC2 Reserved</button>
+          </div>
+          <select name="waffaw.ec2_instance_type" class="rounded-md border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs font-mono">
+            <option value="t3.medium" {{if eq .Config.Waffaw.EC2InstanceType "t3.medium"}}selected{{end}}>t3.medium</option>
+            <option value="t3.large" {{if eq .Config.Waffaw.EC2InstanceType "t3.large"}}selected{{end}}>t3.large</option>
+            <option value="m5.large" {{if eq .Config.Waffaw.EC2InstanceType "m5.large"}}selected{{end}}>m5.large</option>
+          </select>
+          <label class="flex items-center gap-1 cursor-pointer text-[10px] text-zinc-500 ml-auto" title="Multi-ENI: up to 18 IPs per EC2">
+            <input type="checkbox" name="waffaw.ec2_multi_eni" class="w-3 h-3 rounded" {{if .Config.Waffaw.EC2MultiENI}}checked{{end}}>
+            <span>Multi-ENI</span>
+          </label>
         </div>
-        <p class="text-[10px] text-zinc-500 mt-1">0 = no EC2 (Fargate only) <span id="waf-ec2-limit" class="text-zinc-600"></span></p>
-      </div>
-
-      <!-- EC2 Instance Type -->
-      <div>
-        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">EC2 Instance Type</label>
-        <select name="waffaw.ec2_instance_type"
-                class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
-          <option value="t3.medium" {{if eq .Config.Waffaw.EC2InstanceType "t3.medium"}}selected{{end}}>t3.medium (2 vCPU, 4 GiB)</option>
-          <option value="t3.large" {{if eq .Config.Waffaw.EC2InstanceType "t3.large"}}selected{{end}}>t3.large (2 vCPU, 8 GiB)</option>
-          <option value="m5.large" {{if eq .Config.Waffaw.EC2InstanceType "m5.large"}}selected{{end}}>m5.large (2 vCPU, 8 GiB)</option>
-        </select>
-      </div>
-
-      <!-- ECS Desired Count (5-bit binary toggle) -->
-      <div>
-        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Fargate Tasks</label>
-        <div class="bit-toggle" data-bits="5">
-          <input type="hidden" name="waffaw.ecs_desired_count" value="{{.Config.Waffaw.ECSDesiredCount}}">
+        <div class="flex items-center gap-2">
+          <div class="bit-toggle" data-bits="5">
+            <input type="hidden" name="waffaw.ec2_count" value="{{.Config.Waffaw.EC2Count}}">
+          </div>
+          <span class="text-[10px] text-zinc-500"><span id="waf-ec2-limit" class="text-zinc-600"></span></span>
         </div>
-        <p class="text-[10px] text-zinc-500 mt-1">0 = stopped (no cost) <span id="waf-fargate-limit" class="text-zinc-600"></span></p>
       </div>
 
-      <!-- ECS Task CPU -->
-      <div>
-        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Task CPU</label>
-        <select name="waffaw.ecs_task_cpu"
-                class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
-          <option value="1024" {{if eq .Config.Waffaw.ECSTaskCPU 1024}}selected{{end}}>1024 (1 vCPU)</option>
-          <option value="2048" {{if eq .Config.Waffaw.ECSTaskCPU 2048}}selected{{end}}>2048 (2 vCPU)</option>
-        </select>
-      </div>
-    </div>
-
-    <!-- Toggle row -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
-      <div>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="waffaw.ec2_use_spot" class="toggle-switch" {{if .Config.Waffaw.EC2UseSpot}}checked{{end}}>
-          <span class="text-sm">EC2 Spot Instances</span>
-        </label>
-        <p class="text-[10px] text-zinc-500 mt-1 ml-12">~85% cost savings</p>
-      </div>
-      <div>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="waffaw.ec2_multi_eni" class="toggle-switch" {{if .Config.Waffaw.EC2MultiENI}}checked{{end}}>
-          <span class="text-sm">Multi-ENI (IP density)</span>
-        </label>
-        <p class="text-[10px] text-zinc-500 mt-1 ml-12">Up to 18 IPs per EC2</p>
-      </div>
-      <div>
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="waffaw.ecs_use_spot" class="toggle-switch" {{if .Config.Waffaw.ECSUseSpot}}checked{{end}}>
-          <span class="text-sm">Fargate Spot</span>
-        </label>
-        <p class="text-[10px] text-zinc-500 mt-1 ml-12">~70% cost savings</p>
-      </div>
-      <div>
-        <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Task Memory</label>
-        <select name="waffaw.ecs_task_memory"
-                class="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
-          <option value="2048" {{if eq .Config.Waffaw.ECSTaskMemory 2048}}selected{{end}}>2048 MiB (2 GB)</option>
-          <option value="4096" {{if eq .Config.Waffaw.ECSTaskMemory 4096}}selected{{end}}>4096 MiB (4 GB)</option>
-        </select>
+      <!-- Fargate Column -->
+      <div class="space-y-2">
+        <input type="hidden" name="waffaw.ecs_use_spot" id="waf-ecs-spot-val" value="{{if .Config.Waffaw.ECSUseSpot}}on{{end}}">
+        <div class="flex items-center gap-2">
+          <div class="seg-group inline-flex rounded-md text-xs font-medium" data-target="waf-ecs-spot-val" data-on-value="on" data-off-value="">
+            <button type="button" data-seg="on" class="seg-btn rounded-l-md px-3 py-1 border border-zinc-600">Fargate Spot</button>
+            <button type="button" data-seg="" class="seg-btn rounded-r-md px-3 py-1 border border-l-0 border-zinc-600">On-Demand</button>
+          </div>
+          <select name="waffaw.ecs_task_cpu" class="rounded-md border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs font-mono">
+            <option value="1024" {{if eq .Config.Waffaw.ECSTaskCPU 1024}}selected{{end}}>1 vCPU</option>
+            <option value="2048" {{if eq .Config.Waffaw.ECSTaskCPU 2048}}selected{{end}}>2 vCPU</option>
+          </select>
+          <select name="waffaw.ecs_task_memory" class="rounded-md border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs font-mono">
+            <option value="2048" {{if eq .Config.Waffaw.ECSTaskMemory 2048}}selected{{end}}>2 GB</option>
+            <option value="4096" {{if eq .Config.Waffaw.ECSTaskMemory 4096}}selected{{end}}>4 GB</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="bit-toggle" data-bits="5">
+            <input type="hidden" name="waffaw.ecs_desired_count" value="{{.Config.Waffaw.ECSDesiredCount}}">
+          </div>
+          <span class="text-[10px] text-zinc-500"><span id="waf-fargate-limit" class="text-zinc-600"></span></span>
+        </div>
       </div>
     </div>
 

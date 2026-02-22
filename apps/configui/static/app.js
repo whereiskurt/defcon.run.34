@@ -4290,6 +4290,40 @@ function checkWaffawImage() {
     });
 }
 
+// Segmented button groups (Spot/Reserved, Spot/On-Demand)
+function initSegGroups() {
+  document.querySelectorAll('.seg-group').forEach(function(group) {
+    if (group.dataset.init) return;
+    group.dataset.init = '1';
+    var target = document.getElementById(group.dataset.target);
+    if (!target) return;
+
+    var buttons = group.querySelectorAll('.seg-btn');
+    function render() {
+      var val = target.value;
+      buttons.forEach(function(btn) {
+        var active = btn.dataset.seg === val;
+        btn.className = btn.className
+          .replace(/bg-green-600|bg-zinc-800|bg-zinc-900|text-white|text-zinc-400/g, '');
+        if (active) {
+          btn.classList.add('bg-green-600', 'text-white');
+        } else {
+          btn.classList.add('bg-zinc-900', 'text-zinc-400');
+        }
+      });
+    }
+    buttons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        target.value = btn.dataset.seg;
+        render();
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+    render();
+  });
+}
+document.addEventListener('htmx:afterSettle', initSegGroups);
+
 // 5-bit binary toggle widget
 function initBitToggles() {
   document.querySelectorAll('.bit-toggle').forEach(function(wrap) {
@@ -4332,8 +4366,11 @@ function initBitToggles() {
     upBtn.innerHTML = '&#9650;';
     upBtn.title = 'Increment';
 
-    var dec = document.createElement('span');
-    dec.className = 'bit-dec text-xs font-mono text-zinc-400 ml-1 min-w-[1.5em] text-right';
+    var dec = document.createElement('input');
+    dec.type = 'text';
+    dec.inputMode = 'numeric';
+    dec.className = 'bit-dec text-xs font-mono text-zinc-400 bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-green-500 focus:text-zinc-200 outline-none ml-1 w-[2em] text-center';
+    dec.title = 'Type a value (0\u2013' + max + ')';
 
     wrap.appendChild(downBtn);
     wrap.appendChild(boxWrap);
@@ -4343,7 +4380,7 @@ function initBitToggles() {
     function render() {
       val = Math.min(Math.max(val, 0), max);
       input.value = val;
-      dec.textContent = val;
+      if (document.activeElement !== dec) dec.value = val;
       for (var i = 0; i < boxes.length; i++) {
         var on = (val >> boxes[i].bit) & 1;
         boxes[i].el.style.backgroundColor = on ? '#22c55e' : '#27272a';
@@ -4361,6 +4398,13 @@ function initBitToggles() {
 
     downBtn.addEventListener('click', function() { if (val > 0) { val--; render(); } });
     upBtn.addEventListener('click', function() { if (val < max) { val++; render(); } });
+
+    dec.addEventListener('input', function() {
+      var n = parseInt(dec.value, 10);
+      if (!isNaN(n)) { val = Math.min(Math.max(n, 0), max); render(); }
+    });
+    dec.addEventListener('blur', function() { dec.value = val; });
+    dec.addEventListener('keydown', function(e) { if (e.key === 'Enter') dec.blur(); });
 
     render();
   });
@@ -4412,7 +4456,7 @@ function updateWafQuotaBar() {
   var ec2LimitEl = document.getElementById('waf-ec2-limit');
   if (ec2LimitEl) {
     var ec2Spot = document.querySelector('input[name="waffaw.ec2_use_spot"]');
-    var isSpot = ec2Spot && ec2Spot.checked;
+    var isSpot = ec2Spot && ec2Spot.value === 'on';
     var vcpuQuota = wafQuotaMin(isSpot ? 'ec2_spot_vcpu' : 'ec2_ondemand_vcpu');
     var ec2TypeSel = document.querySelector('select[name="waffaw.ec2_instance_type"]');
     var ec2Vcpus = 2; // default for t3.medium/t3.large/m5.large
@@ -4477,6 +4521,7 @@ document.addEventListener('change', function(e) {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', function() {
+  initSegGroups();
   initBitToggles();
   updateWafQuotaBar();
   fetchWafQuotas();

@@ -1233,7 +1233,8 @@ func formFloat(r *http.Request, key string, fallback float64) float64 {
 }
 
 func formBool(r *http.Request, key string) bool {
-	return r.Form.Has(key)
+	v := r.FormValue(key)
+	return v == "on" || v == "true" || v == "1" || v == "yes"
 }
 
 func formCSV(r *http.Request, key string) []string {
