@@ -57,6 +57,7 @@ resource "aws_ecs_task_definition" "waffaw" {
         { name = "REGION", value = var.region.full },
         { name = "NODE_TYPE", value = "fargate" },
         { name = "LOG_LEVEL", value = "normal" },
+        { name = "IMAGE_TAG", value = element(split(":", var.image_uri), 1) },
       ]
 
       logConfiguration = {

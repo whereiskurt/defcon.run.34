@@ -3,7 +3,7 @@
 # Runs as PID 1 on every node (EC2 and Fargate).
 set -euo pipefail
 
-AGENT_VERSION="1.0.2"
+AGENT_VERSION="${IMAGE_TAG:-1.0.7}"
 POLL_INTERVAL=30
 EXECUTED_DIR="/tmp/waffaw/executed"
 OUTPUT_DIR="/tmp/waffaw/output"

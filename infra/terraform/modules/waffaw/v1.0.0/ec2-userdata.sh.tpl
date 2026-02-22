@@ -22,4 +22,5 @@ docker run -d \
   -e REGION=${region} \
   -e NODE_TYPE=ec2 \
   -e LOG_LEVEL=${log_level} \
+  -e IMAGE_TAG=${image_tag} \
   ${ecr_repo}/${image_uri}
