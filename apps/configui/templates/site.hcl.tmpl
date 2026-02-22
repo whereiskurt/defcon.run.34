@@ -186,7 +186,7 @@ locals {
       local.service_conf.run_human.locals.ecr_repositories,
       local.service_conf.cms.locals.ecr_repositories,
       local.service_conf.gpx.locals.ecr_repositories,
-      local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "MUTABLE" }] : []
+      local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "IMMUTABLE" }] : []
     )
   }
 
