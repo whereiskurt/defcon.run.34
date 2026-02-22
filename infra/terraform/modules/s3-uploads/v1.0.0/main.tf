@@ -161,9 +161,14 @@ resource "aws_s3_bucket_cors_configuration" "uploads" {
   }
 }
 
-# Bucket policy to allow replication from other regions
+# Bucket policy to allow replication and deny non-HTTPS
+# Skipped for cloudfront_access buckets — CloudFront module manages their full policy
 resource "aws_s3_bucket_policy" "uploads" {
-  for_each = local.uploads_map
+  for_each = {
+    for name, upload in local.uploads_map :
+    name => upload
+    if !try(upload.cloudfront_access, false)
+  }
 
   bucket = aws_s3_bucket.uploads[each.key].id
 

@@ -435,6 +435,21 @@ resource "aws_s3_bucket_policy" "cf_oac_access_use1" {
             "AWS:SourceArn" = aws_cloudfront_distribution.main[each.key].arn
           }
         }
+      },
+      {
+        Sid       = "DenyNonHTTPS"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          each.value.s3_bucket_arn,
+          "${each.value.s3_bucket_arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
       }
     ]
   })
@@ -467,6 +482,21 @@ resource "aws_s3_bucket_policy" "cf_oac_access_cac1" {
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.main[each.key].arn
+          }
+        }
+      },
+      {
+        Sid       = "DenyNonHTTPS"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          each.value.s3_bucket_arn,
+          "${each.value.s3_bucket_arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
           }
         }
       }
@@ -505,6 +535,21 @@ resource "aws_s3_bucket_policy" "cms_media_oac_access_use1" {
             "AWS:SourceArn" = aws_cloudfront_distribution.main["cms"].arn
           }
         }
+      },
+      {
+        Sid       = "DenyNonHTTPS"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          var.cms_media_origins["use1"].s3_bucket_arn,
+          "${var.cms_media_origins["use1"].s3_bucket_arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
       }
     ]
   })
@@ -538,6 +583,21 @@ resource "aws_s3_bucket_policy" "cms_media_oac_access_cac1" {
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.main["cms"].arn
+          }
+        }
+      },
+      {
+        Sid       = "DenyNonHTTPS"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          var.cms_media_origins["cac1"].s3_bucket_arn,
+          "${var.cms_media_origins["cac1"].s3_bucket_arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
           }
         }
       }
@@ -574,6 +634,21 @@ resource "aws_s3_bucket_policy" "cf_oac_access_apse1" {
             "AWS:SourceArn" = aws_cloudfront_distribution.main[each.key].arn
           }
         }
+      },
+      {
+        Sid       = "DenyNonHTTPS"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          each.value.s3_bucket_arn,
+          "${each.value.s3_bucket_arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
+          }
+        }
       }
     ]
   })
@@ -607,6 +682,21 @@ resource "aws_s3_bucket_policy" "cms_media_oac_access_apse1" {
         Condition = {
           StringEquals = {
             "AWS:SourceArn" = aws_cloudfront_distribution.main["cms"].arn
+          }
+        }
+      },
+      {
+        Sid       = "DenyNonHTTPS"
+        Effect    = "Deny"
+        Principal = "*"
+        Action    = "s3:*"
+        Resource = [
+          var.cms_media_origins["apse1"].s3_bucket_arn,
+          "${var.cms_media_origins["apse1"].s3_bucket_arn}/*"
+        ]
+        Condition = {
+          Bool = {
+            "aws:SecureTransport" = "false"
           }
         }
       }
