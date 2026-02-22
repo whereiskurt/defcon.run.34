@@ -90,9 +90,11 @@ EOF
   echo "[agent] registered at nodes/${MY_IP}/meta.json"
 }
 
-# --- Heartbeat ---
+# --- Heartbeat (must not fail under set -e) ---
 heartbeat() {
-  date -u +"%Y-%m-%dT%H:%M:%SZ" | aws s3 cp - "s3://${CONTROL_BUCKET}/nodes/${MY_IP}/alive.txt" --quiet
+  if ! date -u +"%Y-%m-%dT%H:%M:%SZ" | aws s3 cp - "s3://${CONTROL_BUCKET}/nodes/${MY_IP}/alive.txt" --quiet 2>/dev/null; then
+    echo "[agent] heartbeat failed (transient?)" >&2
+  fi
 }
 
 # --- Deregister on shutdown ---
