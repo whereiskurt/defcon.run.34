@@ -627,7 +627,8 @@ set -euo pipefail
 
 export TARGET_URL="%s"
 export LOG_LEVEL="%s"
-export CAMPAIGN="%s"
+export CAMPAIGN_NAME="%s"
+export CAMPAIGN="$CAMPAIGN_NAME"
 export WAFFAW_USER_AGENT="%s"
 export WAFFAW_HEADER_KEY="%s"
 export WAFFAW_HEADER_VALUE="%s"
