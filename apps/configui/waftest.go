@@ -1026,6 +1026,11 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	imageURI := a.config.Waffaw.ImageURI
 	a.mu.RUnlock()
 
+	// Prefer image_uri from query param (unsaved form value) over saved config
+	if qURI := r.URL.Query().Get("image_uri"); qURI != "" {
+		imageURI = qURI
+	}
+
 	// Extract tag from image_uri (e.g. "dc34-waffaw:1.0.1" -> "1.0.1")
 	imageTag := "latest"
 	if i := strings.LastIndex(imageURI, ":"); i > 0 {

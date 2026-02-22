@@ -4334,16 +4334,16 @@ function initBitToggles() {
     var input = wrap.querySelector('input[type="hidden"]');
     var val = Math.min(Math.max(parseInt(input.value, 10) || 0, 0), max);
 
-    // Build DOM: [▼] [□□□□□] [▲] dec
+    // Build DOM: [▲] [□□□□□] [▼] dec
     wrap.style.display = 'flex';
     wrap.style.alignItems = 'center';
     wrap.style.gap = '4px';
 
-    var downBtn = document.createElement('button');
-    downBtn.type = 'button';
-    downBtn.className = 'bit-arrow text-zinc-500 hover:text-zinc-200 text-xs px-1 py-0.5 leading-none select-none';
-    downBtn.innerHTML = '&#9660;';
-    downBtn.title = 'Decrement';
+    var upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.className = 'bit-arrow text-zinc-500 hover:text-zinc-200 text-xs px-1 py-0.5 leading-none select-none';
+    upBtn.innerHTML = '&#9650;';
+    upBtn.title = 'Increment';
 
     var boxWrap = document.createElement('div');
     boxWrap.style.display = 'flex';
@@ -4360,11 +4360,11 @@ function initBitToggles() {
       boxes.push({ el: box, bit: b });
     }
 
-    var upBtn = document.createElement('button');
-    upBtn.type = 'button';
-    upBtn.className = 'bit-arrow text-zinc-500 hover:text-zinc-200 text-xs px-1 py-0.5 leading-none select-none';
-    upBtn.innerHTML = '&#9650;';
-    upBtn.title = 'Increment';
+    var downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.className = 'bit-arrow text-zinc-500 hover:text-zinc-200 text-xs px-1 py-0.5 leading-none select-none';
+    downBtn.innerHTML = '&#9660;';
+    downBtn.title = 'Decrement';
 
     var dec = document.createElement('input');
     dec.type = 'text';
@@ -4372,9 +4372,9 @@ function initBitToggles() {
     dec.className = 'bit-dec text-xs font-mono text-zinc-400 bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-green-500 focus:text-zinc-200 outline-none ml-1 w-[2em] text-center';
     dec.title = 'Type a value (0\u2013' + max + ')';
 
-    wrap.appendChild(downBtn);
-    wrap.appendChild(boxWrap);
     wrap.appendChild(upBtn);
+    wrap.appendChild(boxWrap);
+    wrap.appendChild(downBtn);
     wrap.appendChild(dec);
 
     function render() {
@@ -4698,7 +4698,12 @@ function buildWaffaw() {
         if (confirm('Build is still running. Close anyway?')) forceClose();
       });
 
-      es = new EventSource('/api/waf/build');
+      var imageInput = document.getElementById('waffaw-image-uri');
+      var buildUrl = '/api/waf/build';
+      if (imageInput && imageInput.value.trim()) {
+        buildUrl += '?image_uri=' + encodeURIComponent(imageInput.value.trim());
+      }
+      es = new EventSource(buildUrl);
       es.onmessage = function(e) {
         try {
           var data = JSON.parse(e.data);
