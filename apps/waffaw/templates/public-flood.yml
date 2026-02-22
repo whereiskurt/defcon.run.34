@@ -18,7 +18,7 @@ config:
       name: "Ramp down"
   # HTTP engine for volume — no Playwright needed
   plugins:
-    waffaw-logger:
+    ./plugins/waffaw-logger:
       logLevel: "{{ $processEnvironment.LOG_LEVEL }}"
   payload:
     - path: "../data/pages.csv"
