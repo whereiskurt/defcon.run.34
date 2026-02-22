@@ -251,9 +251,9 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, `<div class="text-xs py-3 text-center flex items-center justify-center gap-2">`+
 				`<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-800 text-zinc-300">`+
 				`<span class="font-mono text-zinc-400">s3://%s</span> not found</span>`+
-				`<button type="button" onclick="openTerminal('waffaw','apply','us-east-1')" `+
-				`class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-700 hover:bg-zinc-600 text-zinc-300 text-[11px] font-medium transition-colors">`+
-				`&#9654; Apply waffaw</button></div>`,
+				`<button type="button" onclick="confirmApplyAll()" `+
+				`class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-600 hover:bg-green-500 text-white text-[11px] font-medium transition-colors">`+
+				`&#9654; Apply All</button></div>`,
 				template.HTMLEscapeString(missingBucket))
 		} else {
 			fmt.Fprintf(w, `<div class="text-xs py-3 text-center"><span class="inline-block px-3 py-1 rounded-full bg-zinc-800 text-zinc-300">%s</span></div>`, template.HTMLEscapeString(errMsg))
