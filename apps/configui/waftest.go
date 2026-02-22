@@ -864,8 +864,15 @@ func (a *App) handleWAFIntel(w http.ResponseWriter, r *http.Request) {
 	outputLocation := fmt.Sprintf("s3://waffaw-logs-%s-%s-%s/athena-results/",
 		"use1", a.config.Site.Label, a.config.Site.RandomSuffix)
 
+	// Register any new S3 partitions before querying
+	repairID, err := athenaStartQuery(profile, "MSCK REPAIR TABLE waffaw_logs", "waffaw", outputLocation)
+	if err != nil {
+		log.Printf("WAF intel: MSCK REPAIR TABLE failed to start: %v", err)
+	} else if _, err := athenaWaitAndFetch(profile, repairID); err != nil {
+		log.Printf("WAF intel: MSCK REPAIR TABLE failed: %v", err)
+	}
+
 	// Note: timestamp column is varchar (ISO 8601), cast with from_iso8601_timestamp() for date functions.
-	// Alias: ts = from_iso8601_timestamp(timestamp)
 	queries := map[string]string{
 		"summary":     fmt.Sprintf(`SELECT campaign, COUNT(*) AS total_requests, COUNT(DISTINCT source_ip) AS unique_ips, MIN(timestamp) AS started, MAX(timestamp) AS ended, date_diff('minute', MIN(from_iso8601_timestamp(timestamp)), MAX(from_iso8601_timestamp(timestamp))) AS duration_minutes, ROUND(AVG(response_time_ms), 0) AS avg_response_ms, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked, ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY campaign`, campaign),
 		"detection":   fmt.Sprintf(`SELECT source_ip, node_type, MIN(timestamp) AS first_request, MIN(CASE WHEN status_code = 403 THEN timestamp END) AS first_block, date_diff('minute', MIN(from_iso8601_timestamp(timestamp)), MIN(CASE WHEN status_code = 403 THEN from_iso8601_timestamp(timestamp) END)) AS minutes_to_detect, COUNT(*) AS total_requests, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked_requests FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY source_ip, node_type ORDER BY minutes_to_detect ASC NULLS LAST`, campaign),

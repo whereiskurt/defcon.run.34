@@ -20,6 +20,9 @@ resource "aws_glue_catalog_table" "waffaw_logs" {
     EXTERNAL          = "TRUE"
   }
 
+  # Note: partitions are Hive-style (campaign=X/date=Y/hour=Z/region=W).
+  # ConfigUI runs MSCK REPAIR TABLE before queries to register new partitions.
+
   partition_keys {
     name = "campaign"
     type = "string"
