@@ -682,8 +682,42 @@ echo "[waffaw] Campaign $CAMPAIGN finished on node $NODE_RANK"
 		// Delete campaign-state.json to reset stale status
 		s3DeleteKey(profile, bucket, "campaign-state.json", region)
 
+		// Auto-purge stale node registrations (alive.txt > 2min old)
+		purged := 0
+		if objects, err := s3ListKeys(profile, bucket, "nodes/", region); err == nil {
+			nodeAlive := map[string]time.Time{}
+			for _, obj := range objects {
+				parts := strings.Split(obj.Key, "/")
+				if len(parts) >= 3 && parts[2] == "alive.txt" {
+					nodeAlive[parts[1]] = obj.LastModified
+				}
+			}
+			for ip, aliveAt := range nodeAlive {
+				if time.Since(aliveAt) > 2*time.Minute {
+					s3DeleteKey(profile, bucket, fmt.Sprintf("nodes/%s/meta.json", ip), region)
+					s3DeleteKey(profile, bucket, fmt.Sprintf("nodes/%s/alive.txt", ip), region)
+					purged++
+				}
+			}
+			// Also purge nodes with meta.json but no alive.txt
+			nodeMeta := map[string]bool{}
+			for _, obj := range objects {
+				parts := strings.Split(obj.Key, "/")
+				if len(parts) >= 3 && parts[2] == "meta.json" {
+					nodeMeta[parts[1]] = true
+				}
+			}
+			for ip := range nodeMeta {
+				if _, hasAlive := nodeAlive[ip]; !hasAlive {
+					s3DeleteKey(profile, bucket, fmt.Sprintf("nodes/%s/meta.json", ip), region)
+					purged++
+				}
+			}
+		}
+		log.Printf("WAF campaign: cleared, purged %d stale node(s)", purged)
+
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "cleared"})
+		json.NewEncoder(w).Encode(map[string]string{"status": "cleared", "purged": fmt.Sprintf("%d", purged)})
 
 	default:
 		http.Error(w, "Unknown action", 400)

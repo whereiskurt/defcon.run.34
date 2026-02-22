@@ -4926,10 +4926,15 @@ function clearWAFCampaign() {
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
     body: body.toString()
   }).then(function(r) {
-    if (r.ok) {
-      updateWAFCampaignStatus('none', '', '');
-    }
-  });
+    if (r.ok) return r.json(); else throw new Error('clear failed');
+  }).then(function(data) {
+    updateWAFCampaignStatus('none', '', '');
+    var purged = parseInt(data.purged || '0', 10);
+    if (purged > 0) showToast('Purged ' + purged + ' stale node(s)');
+    // Refresh fleet table to remove purged nodes
+    var ft = document.getElementById('waf-fleet-table');
+    if (ft) ft.dispatchEvent(new Event('refresh'));
+  }).catch(function() {});
 }
 
 // Fetch campaign state from S3 on load to restore status across reloads
