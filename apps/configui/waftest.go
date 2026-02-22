@@ -601,6 +601,16 @@ func (a *App) handleWAFCampaign(w http.ResponseWriter, r *http.Request) {
 			s3DeleteKey(profile, bucket, obj.Key, region)
 		}
 
+		// Purge old campaign trigger scripts so fresh nodes don't re-execute them
+		if runObjs, err := s3ListKeys(profile, bucket, "global/run/", region); err == nil {
+			for _, obj := range runObjs {
+				s3DeleteKey(profile, bucket, obj.Key, region)
+			}
+			if len(runObjs) > 0 {
+				log.Printf("WAF campaign: purged %d old trigger scripts from global/run/", len(runObjs))
+			}
+		}
+
 		// Remove halt flag
 		s3DeleteKey(profile, bucket, "global/halt", region)
 
@@ -718,10 +728,19 @@ echo "[waffaw] Campaign $CAMPAIGN finished on node $NODE_RANK"
 				}
 			}
 		}
-		log.Printf("WAF campaign: cleared, purged %d stale node(s)", purged)
+		// Purge old campaign trigger scripts from global/run/
+		runPurged := 0
+		if runObjs, err := s3ListKeys(profile, bucket, "global/run/", region); err == nil {
+			for _, obj := range runObjs {
+				s3DeleteKey(profile, bucket, obj.Key, region)
+			}
+			runPurged = len(runObjs)
+		}
+
+		log.Printf("WAF campaign: cleared, purged %d stale node(s), %d old trigger scripts", purged, runPurged)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "cleared", "purged": fmt.Sprintf("%d", purged)})
+		json.NewEncoder(w).Encode(map[string]string{"status": "cleared", "purged": fmt.Sprintf("%d", purged), "scripts_purged": fmt.Sprintf("%d", runPurged)})
 
 	default:
 		http.Error(w, "Unknown action", 400)
