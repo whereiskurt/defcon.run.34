@@ -28,8 +28,9 @@ type TerraformSummary struct {
 
 // ResourceStats breaks down plan/apply counts by module and resource type.
 type ResourceStats struct {
-	ByModule map[string]*TerraformSummary `json:"by_module"`
-	ByType   map[string]*TerraformSummary `json:"by_type"`
+	ByModule     map[string]*TerraformSummary `json:"by_module"`
+	ByType       map[string]*TerraformSummary `json:"by_type"`
+	ByModuleType map[string]*TerraformSummary `json:"by_module_type,omitempty"`
 }
 
 // Regex patterns for extracting terraform plan/apply/destroy summaries.
@@ -104,6 +105,7 @@ func accumulateStats(stats *ResourceStats, module, resourceType, action string) 
 	targets := []*TerraformSummary{
 		getOrCreate(stats.ByModule, module),
 		getOrCreate(stats.ByType, resourceType),
+		getOrCreate(stats.ByModuleType, module+"|"+resourceType),
 	}
 
 	for _, t := range targets {
@@ -134,12 +136,13 @@ type TermSession struct {
 	Summary  *TerraformSummary  `json:"summary,omitempty"`
 	Stats    *ResourceStats    `json:"stats,omitempty"`
 
-	mu       sync.Mutex
-	lines    []string
-	cmd      *exec.Cmd
-	clients  map[chan string]struct{}
-	startAt  time.Time // when the process started
-	doneAt   time.Time // when the process finished (for cleanup)
+	mu        sync.Mutex
+	lines     []string
+	cmd       *exec.Cmd
+	clients   map[chan string]struct{}
+	startAt   time.Time // when the process started
+	doneAt    time.Time // when the process finished (for cleanup)
+	siteLabel string    // from Site.Label, used to replace [.] in output
 }
 
 // ModuleDef maps a panel ID to a terragrunt module path.
@@ -369,16 +372,17 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 	}
 
 	session := &TermSession{
-		ID:      fmt.Sprintf("term-%d", time.Now().UnixMilli()),
-		Module:  module,
-		Command: command,
-		Region:  region,
-		CmdLine: strings.Join(cmdArgs, " "),
-		WorkDir: workDir,
-		Status:  "running",
-		Stats:   &ResourceStats{ByModule: make(map[string]*TerraformSummary), ByType: make(map[string]*TerraformSummary)},
-		startAt: time.Now(),
-		clients: make(map[chan string]struct{}),
+		ID:        fmt.Sprintf("term-%d", time.Now().UnixMilli()),
+		Module:    module,
+		Command:   command,
+		Region:    region,
+		CmdLine:   strings.Join(cmdArgs, " "),
+		WorkDir:   workDir,
+		Status:    "running",
+		Stats:     &ResourceStats{ByModule: make(map[string]*TerraformSummary), ByType: make(map[string]*TerraformSummary), ByModuleType: make(map[string]*TerraformSummary)},
+		startAt:   time.Now(),
+		clients:   make(map[chan string]struct{}),
+		siteLabel: cfg.Site.Label,
 	}
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
@@ -439,14 +443,18 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		if m := reModulePrefix.FindStringSubmatch(cleaned); m != nil {
 			moduleName = m[1]
 			innerLine = m[2]
+			// Replace [.] with site label for readability
+			if moduleName == "." && session.siteLabel != "" {
+				moduleName = session.siteLabel
+			}
 			// Strip "terraform: " / "tofu: " from inside [module] prefix
 			for _, p := range []string{"terraform: ", "tofu: "} {
 				if strings.HasPrefix(innerLine, p) {
 					innerLine = innerLine[len(p):]
-					cleaned = "[" + moduleName + "] " + innerLine
 					break
 				}
 			}
+			cleaned = "[" + moduleName + "] " + innerLine
 		}
 		if resType, action, ok := parseResourceAction(innerLine); ok {
 			session.mu.Lock()
@@ -498,6 +506,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		}
 
 		session.doneAt = time.Now()
+		go a.rrdbRecord(session)
 		log.Printf("Terminal session %s completed: status=%s exit=%d", session.Module, session.Status, session.ExitCode)
 		session.closeBroadcast()
 	}()

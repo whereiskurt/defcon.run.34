@@ -1140,6 +1140,8 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		"elapsed": int(elapsed.Seconds()),
 	})
 	sendSSE(doneJSON)
+
+	go a.rrdbRecordBuild("waffaw", "build", startTime, exitCode)
 }
 
 // handleWAFCampaignState returns the current campaign state from S3.

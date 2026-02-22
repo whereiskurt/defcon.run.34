@@ -31,6 +31,7 @@ type App struct {
 	sopsFilePath         string
 	discoveryCachePath   string
 	awsStatusCachePath   string
+	rrdb                 *RRDB
 	url                  string
 	mu                   sync.RWMutex
 	config               *SiteConfig
@@ -146,6 +147,7 @@ func main() {
 		sopsFilePath:       filepath.Join(repoRoot, "infra", "terraform", "live", "site", ".secrets.sops.json"),
 		discoveryCachePath: filepath.Join(repoRoot, "apps", "configui", ".discovery-cache.json"),
 		awsStatusCachePath: filepath.Join(repoRoot, "apps", "configui", ".aws-status-cache.json"),
+		rrdb:               newRRDB(filepath.Join(repoRoot, "apps", "configui", ".rrdb.json")),
 		termSessions:       make(map[string]*TermSession),
 	}
 
@@ -155,6 +157,7 @@ func main() {
 	// Load cached discovery and AWS status results (if any)
 	app.loadDiscoveryCache()
 	app.loadAWSStatusCache()
+	app.loadRRDB()
 
 	// Startup backup
 	if backupPath, err := app.createBackup(); err != nil {
@@ -198,6 +201,8 @@ func main() {
 	mux.HandleFunc("GET /api/waf/quota", app.handleWAFQuota)
 	mux.HandleFunc("POST /api/waf/campaign-template", app.handleWAFCampaignTemplateSave)
 	mux.HandleFunc("GET /api/waf/campaign-state", app.handleWAFCampaignState)
+	mux.HandleFunc("GET /api/rrdb/stats", app.handleRRDBStats)
+	mux.HandleFunc("POST /api/rrdb/reset", app.handleRRDBReset)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port

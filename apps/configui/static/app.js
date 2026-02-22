@@ -65,6 +65,15 @@ document.addEventListener('keydown', function(e) {
   }
 }, true); // capture phase
 
+// hasVisibleOverlay — returns true if any element matching selector is rendered (not display:none).
+function hasVisibleOverlay(sel) {
+  var els = document.querySelectorAll(sel);
+  for (var i = 0; i < els.length; i++) {
+    if (els[i].style.display !== 'none') return true;
+  }
+  return false;
+}
+
 // ========== Keyboard Shortcuts ==========
 // Two-key sequences: ra=Refresh All, pa=Plan All, aa=Apply All
 // Single key: - = collapse all panels (headers stay visible)
@@ -76,7 +85,7 @@ document.addEventListener('keydown', function(e) {
     var tag = (e.target.tagName || '').toUpperCase();
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (_destroyActive) return;
-    if (document.querySelector('.fixed.inset-0.z-\\[60\\]')) return;
+    if (hasVisibleOverlay('.fixed.inset-0.z-\\[60\\]')) return;
 
     var key = e.key.toLowerCase();
 
@@ -643,7 +652,7 @@ function hidePreview() {
 // Escape key closes preview (unless a modal dialog is open)
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
-    if (document.querySelector('.fixed.inset-0.z-\\[60\\]')) return;
+    if (hasVisibleOverlay('.fixed.inset-0.z-\\[60\\]')) return;
     if (isPreviewOpen()) hidePreview();
   }
 });
@@ -2899,7 +2908,7 @@ function showTerminalModal(session) {
           '<button class="term-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
-      '<pre class="terminal-output flex-1"></pre>' +
+      '<div class="terminal-output-wrap flex-1"><pre class="terminal-output"></pre></div>' +
       '<div class="term-footer flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<div class="flex items-center gap-3">' +
           '<button class="term-live-stats-btn hidden rounded-md border border-zinc-600 hover:border-green-600 text-zinc-400 hover:text-green-400 px-4 py-1.5 text-sm font-mono transition-colors">[Stats]</button>' +
@@ -2923,6 +2932,8 @@ function showTerminalModal(session) {
   var minimizeBtn = overlay.querySelector('.term-minimize-btn');
   var copyCmd = overlay.querySelector('.term-copy-cmd');
   var liveStatsBtn = overlay.querySelector('.term-live-stats-btn');
+  var _minimap = attachMinimap(output, classifyTermLine);
+  var _scrollPin = initScrollPin(output);
 
   // Track session
   var sessionState = {
@@ -3127,8 +3138,10 @@ function showTerminalModal(session) {
       }
     }
     drainText();
+    var _fc = _lineBuf.length;
     _lineBuf.length = 0;
-    output.scrollTop = output.scrollHeight;
+    _scrollPin.onNewLines(_fc);
+    if (_minimap) _minimap.update();
   }
 
   es.onmessage = function(e) {
@@ -3484,7 +3497,7 @@ function showHistoryModal(entry) {
           '<button class="history-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
-      '<pre class="terminal-output flex-1">' + escapeHtml(entry.output) + '</pre>' +
+      '<div class="terminal-output-wrap flex-1"><pre class="terminal-output">' + escapeHtml(entry.output) + '</pre></div>' +
       '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<span class="text-xs font-mono text-zinc-400">' +
           formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command, null, entry.stats || null) +
@@ -3494,6 +3507,7 @@ function showHistoryModal(entry) {
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
+  attachMinimap(overlay.querySelector('.terminal-output'), classifyTermLine);
 
   var closeX = overlay.querySelector('.history-close-x');
   var closeBtn = overlay.querySelector('.history-close-btn');
@@ -3570,7 +3584,10 @@ function showStatsPopup(sessionId) {
     return '<td class="px-3 py-1 text-right ' + cls + ' font-medium' + flash + '">' + val + '</td>';
   }
 
-  function buildTable(title, data, sortByName, prev) {
+  var _selectedService = null;
+
+  function buildTable(title, data, sortByName, prev, opts) {
+    opts = opts || {};
     var keys = Object.keys(data);
     if (keys.length === 0) return '';
     if (sortByName) {
@@ -3582,13 +3599,20 @@ function showStatsPopup(sessionId) {
         return tb - ta;
       });
     }
-    var html = '<h3 class="text-sm font-mono font-bold text-zinc-300 mb-2">' + title + '</h3>';
+    var headerExtra = '';
+    if (opts.filterLabel) {
+      headerExtra = ' <span class="text-[10px] text-green-400 font-normal ml-2">\u2190 ' + escapeHtml(opts.filterLabel) + '</span>' +
+        ' <button class="stats-clear-filter text-[10px] text-zinc-500 hover:text-zinc-300 ml-1" title="Clear filter">\u2715</button>';
+    }
+    var html = '<h3 class="text-sm font-mono font-bold text-zinc-300 mb-2">' + title + headerExtra + '</h3>';
     html += '<div class="overflow-auto max-h-64"><table class="w-full text-xs font-mono">';
     html += '<thead><tr class="border-b border-zinc-700"><th class="text-left px-3 py-1 text-zinc-400">Name</th><th class="text-right px-3 py-1 text-green-400">+Add</th><th class="text-right px-3 py-1 text-yellow-400">~Chg</th><th class="text-right px-3 py-1 text-red-400">-Del</th></tr></thead><tbody>';
     keys.forEach(function(k) {
       var d = data[k];
       var isNew = prev && !prev[k];
-      html += '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50' + (isNew ? ' stats-flash' : '') + '">';
+      var clickable = opts.clickable ? ' cursor-pointer' : '';
+      var selected = (opts.clickable && opts.selectedKey === k) ? ' bg-zinc-700/50 border-l-2 border-green-500' : '';
+      html += '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50' + (isNew ? ' stats-flash' : '') + clickable + selected + '" data-svc-key="' + escapeHtml(k) + '">';
       html += '<td class="px-3 py-1 text-zinc-200 truncate" style="max-width:300px;" title="' + escapeHtml(k) + '">' + escapeHtml(k) + '</td>';
       html += statCell(d.add || 0, 'text-green-400', prev && hasChanged(k, 'add', prev, data));
       html += statCell(d.change || 0, 'text-yellow-400', prev && hasChanged(k, 'change', prev, data));
@@ -3599,21 +3623,53 @@ function showStatsPopup(sessionId) {
     return html;
   }
 
+  // Map module path → service name (last path component)
+  function modToService(mod) {
+    var parts = mod.replace(/^\.\//, '').split('/');
+    return parts[parts.length - 1] || mod;
+  }
+
   function renderContent() {
     var curStats = (_termSessions[sessionId] && _termSessions[sessionId].stats) || stats;
     var byMod = curStats.by_module || {};
     var byType = curStats.by_type || {};
+    var byModuleType = curStats.by_module_type || {};
 
     // Aggregate by service
     var byService = {};
+    var serviceModules = {}; // service → [module names]
     Object.keys(byMod).forEach(function(mod) {
-      var parts = mod.replace(/^\.\//, '').split('/');
-      var svc = parts[parts.length - 1] || mod;
-      if (!byService[svc]) byService[svc] = { add: 0, change: 0, destroy: 0 };
+      var svc = modToService(mod);
+      if (!byService[svc]) { byService[svc] = { add: 0, change: 0, destroy: 0 }; serviceModules[svc] = []; }
+      serviceModules[svc].push(mod);
       byService[svc].add += (byMod[mod].add || 0);
       byService[svc].change += (byMod[mod].change || 0);
       byService[svc].destroy += (byMod[mod].destroy || 0);
     });
+
+    // Apply service filter
+    var filteredMod = byMod;
+    var filteredType = byType;
+    var filterLabel = '';
+    if (_selectedService && serviceModules[_selectedService]) {
+      filterLabel = _selectedService;
+      var allowedMods = {};
+      serviceModules[_selectedService].forEach(function(m) { allowedMods[m] = true; });
+      filteredMod = {};
+      Object.keys(byMod).forEach(function(k) { if (allowedMods[k]) filteredMod[k] = byMod[k]; });
+      // Filter types using by_module_type data
+      filteredType = {};
+      Object.keys(byModuleType).forEach(function(key) {
+        var parts = key.split('|');
+        if (allowedMods[parts[0]]) {
+          var t = parts[1];
+          if (!filteredType[t]) filteredType[t] = { add: 0, change: 0, destroy: 0 };
+          filteredType[t].add += (byModuleType[key].add || 0);
+          filteredType[t].change += (byModuleType[key].change || 0);
+          filteredType[t].destroy += (byModuleType[key].destroy || 0);
+        }
+      });
+    }
 
     var prevMod = prevSnapshot.mod || null;
     var prevType = prevSnapshot.type || null;
@@ -3621,14 +3677,14 @@ function showStatsPopup(sessionId) {
 
     var content = '';
     if (Object.keys(byService).length > 1) {
-      content += buildTable('By Service', byService, true, prevSvc);
+      content += buildTable('By Service', byService, true, prevSvc, { clickable: true, selectedKey: _selectedService });
       content += '<div class="border-t border-zinc-700 my-4"></div>';
     }
-    content += buildTable('By Module', byMod, true, prevMod);
-    if (Object.keys(byMod).length > 0 && Object.keys(byType).length > 0) {
+    content += buildTable('By Module', filteredMod, true, prevMod, filterLabel ? { filterLabel: filterLabel } : {});
+    if (Object.keys(filteredMod).length > 0 && Object.keys(filteredType).length > 0) {
       content += '<div class="border-t border-zinc-700 my-4"></div>';
     }
-    content += buildTable('By Resource Type', byType, false, prevType);
+    content += buildTable('By Resource Type', filteredType, false, prevType, filterLabel ? { filterLabel: filterLabel } : {});
 
     // Save snapshot for next interval
     prevSnapshot = { mod: snapshotData(byMod), type: snapshotData(byType), svc: snapshotData(byService) };
@@ -3654,6 +3710,23 @@ function showStatsPopup(sessionId) {
 
   var contentEl = overlay.querySelector('.stats-content');
   var refreshTimer = null;
+
+  // Service filter click delegation
+  contentEl.addEventListener('click', function(e) {
+    // Click on clear-filter button
+    if (e.target.classList.contains('stats-clear-filter')) {
+      _selectedService = null;
+      contentEl.innerHTML = renderContent();
+      return;
+    }
+    // Click on service row
+    var row = e.target.closest('tr[data-svc-key]');
+    if (row && row.classList.contains('cursor-pointer')) {
+      var key = row.getAttribute('data-svc-key');
+      _selectedService = (_selectedService === key) ? null : key;
+      contentEl.innerHTML = renderContent();
+    }
+  });
 
   // Auto-refresh while process is running
   if (isRunning) {
@@ -4333,25 +4406,52 @@ function buildWaffaw() {
               '<div class="waf-build-steps flex items-center gap-1" style="padding-left:1.1rem;"></div>' +
             '</div>' +
             '<div class="flex items-center gap-2">' +
+              '<button class="waf-build-minimize-btn rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-zinc-200 text-lg px-3 pt-0.5 pb-1.5 font-mono leading-none" title="Minimize">_</button>' +
               '<button class="waf-build-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
             '</div>' +
           '</div>' +
-          '<pre class="terminal-output flex-1"></pre>' +
+          '<div class="terminal-output-wrap flex-1"><pre class="terminal-output"></pre></div>' +
           '<div class="flex items-center justify-end px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
             '<button class="waf-build-close-btn hidden rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
           '</div>' +
         '</div>';
       document.body.appendChild(overlay);
 
+      // Register into _termSessions for pill bar minimize/restore
+      var wafBuildId = 'waf-build-' + Date.now();
+      var wafSession = {
+        overlay: overlay,
+        minimized: false,
+        minimizedAt: 0,
+        createdAt: Date.now(),
+        processRunning: true,
+        label: 'waffaw build',
+        exitCode: null,
+        command: 'build',
+        module: 'waffaw',
+        es: null,
+        onEsc: null
+      };
+      _termSessions[wafBuildId] = wafSession;
+      ensurePillBar();
+      updatePillBar();
+
       var output = overlay.querySelector('.terminal-output');
+      attachMinimap(output, classifyTermLine);
       var statusEl = overlay.querySelector('.waf-build-status');
       var elapsedEl = overlay.querySelector('.waf-build-elapsed');
       var stepsEl = overlay.querySelector('.waf-build-steps');
       var closeBtn = overlay.querySelector('.waf-build-close-btn');
       var closeX = overlay.querySelector('.waf-build-close-x');
+      var minimizeBtn = overlay.querySelector('.waf-build-minimize-btn');
       var running = true;
       var es = null;
       var buildPhase = '';
+
+      minimizeBtn.onclick = function(e) {
+        e.stopPropagation();
+        minimizeSession(wafBuildId);
+      };
 
       // Build step definitions
       var buildSteps = [
@@ -4412,15 +4512,18 @@ function buildWaffaw() {
       function closeModal() {
         overlay.remove();
         document.removeEventListener('keydown', onKey);
+        delete _termSessions[wafBuildId];
+        updatePillBar();
       }
 
       function onKey(e) {
         if (e.key === 'Escape') {
+          if (wafSession.minimized) return;
           e.stopImmediatePropagation();
-          if (!running) { closeModal(); return; }
-          if (confirm('Build is still running. Close anyway?')) forceClose();
+          minimizeSession(wafBuildId);
         }
       }
+      wafSession.onEsc = onKey;
       document.addEventListener('keydown', onKey);
 
       function forceClose() {
@@ -4523,6 +4626,9 @@ function buildWaffaw() {
           if (data.done) {
             es.close();
             running = false;
+            wafSession.processRunning = false;
+            wafSession.exitCode = data.exit || 0;
+            updatePillBar();
             resetBtn();
             closeBtn.classList.remove('hidden');
             renderSteps('complete');
@@ -4555,6 +4661,9 @@ function buildWaffaw() {
       es.addEventListener('error', function() {
         es.close();
         running = false;
+        wafSession.processRunning = false;
+        wafSession.exitCode = 1;
+        updatePillBar();
         resetBtn();
         closeBtn.classList.remove('hidden');
         statusEl.textContent = 'Connection lost';
@@ -5096,3 +5205,426 @@ restoreModuleOrder();
 initMasonry();
 initModuleSortable();
 initDirtyTracking();
+
+// ============================================================
+// Minimap — VS Code-style overview scrollbar for terminal/code
+// ============================================================
+
+var MINIMAP_MIN_LINES = 15;
+
+function classifyTermLine(line) {
+  if (!line || !line.trim()) return null;
+  if (/Error|error|ERRO|failed|FAILED/.test(line)) return '#f87171';
+  if (/Plan:|Resources:|No changes|Apply complete|Destroy complete/.test(line)) return '#4ade80';
+  if (/Still (creating|modifying|destroying)/.test(line)) return '#fbbf24';
+  if (/# .* will be (created|updated|destroyed|replaced)/.test(line)) return '#67e8f9';
+  return 'rgba(161, 161, 170, 0.25)';
+}
+
+function classifyCodeLine(line) {
+  if (!line || !line.trim()) return null;
+  if (/^\s*[#\/]/.test(line)) return 'rgba(74, 222, 128, 0.25)';
+  if (/^\s*(locals|inputs|dependency|terraform|include|generate|resource|data|variable|output|module)\s/.test(line)) return 'rgba(167, 139, 250, 0.35)';
+  return 'rgba(161, 161, 170, 0.18)';
+}
+
+function attachMinimap(pre, classifierFn) {
+  if (!pre) return null;
+  var wrap = pre.closest('.terminal-output-wrap');
+  var isOverlay = !wrap;
+
+  var mm = document.createElement('div');
+  mm.className = 'terminal-minimap' + (isOverlay ? ' terminal-minimap-overlay' : '');
+  mm.innerHTML = '<canvas></canvas><div class="minimap-viewport"></div>';
+
+  if (wrap) {
+    wrap.appendChild(mm);
+  } else {
+    var parent = pre.parentNode;
+    if (!parent || parent.querySelector('.terminal-minimap')) return null;
+    if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+    parent.appendChild(mm);
+    pre.style.paddingRight = (parseInt(getComputedStyle(pre).paddingRight) || 0) + 52 + 'px';
+  }
+
+  var canvas = mm.querySelector('canvas');
+  var vp = mm.querySelector('.minimap-viewport');
+  var ctx = canvas.getContext('2d');
+  var _pending = false;
+  var _cachedN = 0;
+  var _cachedLineH = 1;
+  var _cachedOY = 0;
+  var _ro = null;
+
+  function render() {
+    _pending = false;
+    var w = mm.clientWidth;
+    var h = mm.clientHeight;
+    if (w < 2 || h < 2) return;
+
+    var text = pre.textContent || '';
+    var lines = text.split('\n');
+    var n = lines.length;
+    if (n < MINIMAP_MIN_LINES) { mm.style.display = 'none'; return; }
+    mm.style.display = '';
+
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    var lineH = Math.min(3, h / n);
+    var totalH = lineH * n;
+    var oY = totalH < h ? (h - totalH) / 2 : 0;
+    if (totalH > h) lineH = h / n;
+
+    _cachedN = n; _cachedLineH = lineH; _cachedOY = oY;
+
+    ctx.clearRect(0, 0, w, h);
+    for (var i = 0; i < n; i++) {
+      var color = classifierFn(lines[i]);
+      if (!color) continue;
+      ctx.fillStyle = color;
+      var len = Math.min(lines[i].length, 120);
+      var barW = 4 + (len / 120) * (w - 6);
+      ctx.fillRect(1, oY + i * lineH, barW, Math.max(0.8, lineH - 0.3));
+    }
+
+    updateVP();
+  }
+
+  function updateVP() {
+    var sh = pre.scrollHeight;
+    var cH = pre.clientHeight;
+    var ch = mm.clientHeight;
+    if (sh <= cH || _cachedN < MINIMAP_MIN_LINES) { vp.style.display = 'none'; return; }
+    vp.style.display = '';
+    var totalH = _cachedLineH * _cachedN;
+    var visH = Math.max(8, (cH / sh) * Math.min(totalH, ch));
+    var scrollR = pre.scrollTop / (sh - cH);
+    var top = _cachedOY + scrollR * (Math.min(totalH, ch) - visH);
+    top = Math.max(0, Math.min(ch - visH, top));
+    vp.style.top = top + 'px';
+    vp.style.height = visH + 'px';
+  }
+
+  function scheduleRender() {
+    if (!_pending) { _pending = true; requestAnimationFrame(render); }
+  }
+
+  pre.addEventListener('scroll', updateVP);
+
+  // Click/drag to navigate
+  mm.addEventListener('mousedown', function(e) {
+    e.preventDefault();
+    var rect = mm.getBoundingClientRect();
+    function jump(clientY) {
+      var ratio = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      pre.scrollTop = ratio * (pre.scrollHeight - pre.clientHeight);
+    }
+    jump(e.clientY);
+    function onMove(ev) { jump(ev.clientY); }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // Auto-update on content mutations (handles WAF build, preview, etc.)
+  var _mo = new MutationObserver(scheduleRender);
+  _mo.observe(pre, { childList: true, characterData: true, subtree: true });
+
+  if (window.ResizeObserver) {
+    _ro = new ResizeObserver(scheduleRender);
+    _ro.observe(mm);
+  }
+
+  requestAnimationFrame(render);
+
+  return {
+    update: scheduleRender,
+    destroy: function() { if (_ro) _ro.disconnect(); _mo.disconnect(); }
+  };
+}
+
+// Scroll pinning — auto-scroll to bottom unless user scrolls up
+function initScrollPin(pre) {
+  var pinned = true;
+  var newLines = 0;
+
+  var btn = document.createElement('button');
+  btn.className = 'terminal-scroll-bottom';
+  btn.textContent = '\u2193 Bottom';
+  var wrap = pre.closest('.terminal-output-wrap') || pre.parentNode;
+  wrap.appendChild(btn);
+
+  btn.onclick = function() {
+    pre.scrollTop = pre.scrollHeight;
+    pinned = true;
+    newLines = 0;
+    btn.style.display = 'none';
+  };
+
+  pre.addEventListener('scroll', function() {
+    var atBottom = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
+    if (atBottom) {
+      pinned = true;
+      newLines = 0;
+      btn.style.display = 'none';
+    } else {
+      pinned = false;
+    }
+  });
+
+  return {
+    isPinned: function() { return pinned; },
+    onNewLines: function(count) {
+      if (pinned) {
+        pre.scrollTop = pre.scrollHeight;
+      } else {
+        newLines += count;
+        btn.textContent = '\u2193 Bottom (' + newLines + ')';
+        btn.style.display = '';
+      }
+    }
+  };
+}
+
+// Preview minimap — attaches to pre elements after htmx load
+document.body.addEventListener('htmx:afterSettle', function(e) {
+  if (e.detail.target && e.detail.target.id === 'preview-content') {
+    setTimeout(function() {
+      var pres = document.querySelectorAll('#preview-content pre[id^="ptab-content-"]');
+      for (var i = 0; i < pres.length; i++) {
+        if ((pres[i].textContent || '').split('\n').length >= MINIMAP_MIN_LINES) {
+          attachMinimap(pres[i], classifyCodeLine);
+        }
+      }
+    }, 100);
+  }
+});
+
+// ============================================================
+// RRDB Execution Stats Explorer
+// ============================================================
+
+function openRRDBExplorer() {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.innerHTML =
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-4xl w-full mx-auto">' +
+      '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
+        '<div class="flex items-center gap-2">' +
+          '<svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' +
+          '<span class="text-sm font-mono font-bold text-zinc-200">Execution Stats</span>' +
+        '</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<button class="rrdb-reset rounded-md bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-zinc-300 text-xs px-2 py-1 font-mono" title="Clear all stats">Reset</button>' +
+          '<button class="rrdb-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rrdb-body flex-1 overflow-auto p-4 font-mono text-sm">' +
+        '<div class="text-zinc-500 text-xs">Loading stats...</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  function dismiss() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+  overlay.querySelector('.rrdb-close-x').onclick = dismiss;
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+
+  function onKey(e) {
+    if (e.key === 'Escape') {
+      if (document.querySelector('.fixed.inset-0.z-\\[70\\]')) return;
+      e.stopImmediatePropagation();
+      dismiss();
+    }
+  }
+  document.addEventListener('keydown', onKey);
+
+  overlay.querySelector('.rrdb-reset').onclick = function() {
+    if (!confirm('Clear all execution stats? This cannot be undone.')) return;
+    fetch('/api/rrdb/reset', { method: 'POST' })
+      .then(function() { loadRRDBStats(overlay.querySelector('.rrdb-body')); });
+  };
+
+  loadRRDBStats(overlay.querySelector('.rrdb-body'));
+}
+
+function loadRRDBStats(container) {
+  fetch('/api/rrdb/stats')
+    .then(function(resp) { return resp.json(); })
+    .then(function(stats) { renderRRDBExplorer(container, stats); })
+    .catch(function(err) {
+      container.innerHTML = '<div class="text-red-400 text-xs">Failed to load stats: ' + escapeHtml(err.message) + '</div>';
+    });
+}
+
+function renderRRDBExplorer(container, stats) {
+  container.innerHTML = '';
+
+  if (stats.total_runs === 0) {
+    container.innerHTML =
+      '<div class="flex flex-col items-center justify-center h-full text-zinc-500 gap-2">' +
+        '<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' +
+        '<div class="text-xs">No execution data yet. Run a plan or apply to start collecting stats.</div>' +
+      '</div>';
+    return;
+  }
+
+  // Summary cards
+  var avgSec = (stats.avg_ms / 1000).toFixed(1);
+  var predHtml = '';
+  if (stats.prediction) {
+    var predSec = (stats.prediction.duration_ms / 1000).toFixed(1);
+    var arrow = stats.prediction.trend === 'up' ? '\u2191' : stats.prediction.trend === 'down' ? '\u2193' : '\u2192';
+    var arrowColor = stats.prediction.trend === 'up' ? 'text-red-400' : stats.prediction.trend === 'down' ? 'text-green-400' : 'text-zinc-400';
+    predHtml = '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Predicted</div>' +
+      '<div class="text-base font-bold text-zinc-200">~' + predSec + 's <span class="' + arrowColor + '">' + arrow + '</span></div>' +
+    '</div>';
+  }
+
+  var summaryRow = document.createElement('div');
+  summaryRow.className = 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-4';
+  summaryRow.innerHTML =
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Total Runs</div>' +
+      '<div class="text-base font-bold text-zinc-200">' + stats.total_runs + '</div>' +
+    '</div>' +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Success Rate</div>' +
+      '<div class="text-base font-bold ' + (stats.success_pct >= 90 ? 'text-green-400' : stats.success_pct >= 70 ? 'text-yellow-400' : 'text-red-400') + '">' + stats.success_pct + '%</div>' +
+    '</div>' +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Avg Duration</div>' +
+      '<div class="text-base font-bold text-zinc-200">' + avgSec + 's</div>' +
+    '</div>' +
+    predHtml;
+  container.appendChild(summaryRow);
+
+  // Sparkline
+  if (stats.timeline && stats.timeline.length > 1) {
+    var sparkDiv = document.createElement('div');
+    sparkDiv.className = 'mb-4 bg-zinc-800 rounded-lg border border-zinc-700 p-3';
+    sparkDiv.innerHTML = '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Duration Timeline (last ' + stats.timeline.length + ' runs)</div>';
+    var svgContainer = document.createElement('div');
+    renderRRDBSparkline(svgContainer, stats.timeline, stats.prediction);
+    sparkDiv.appendChild(svgContainer);
+    container.appendChild(sparkDiv);
+  }
+
+  // Breakdown tabs
+  var tabData = [
+    { key: 'by_module', label: 'By Module' },
+    { key: 'by_command', label: 'By Command' },
+    { key: 'by_region', label: 'By Region' }
+  ];
+
+  var tabBar = document.createElement('div');
+  tabBar.className = 'flex gap-1 mb-2';
+  var tableContainer = document.createElement('div');
+
+  tabData.forEach(function(tab, idx) {
+    var btn = document.createElement('button');
+    btn.className = 'px-3 py-1 text-xs font-mono rounded-md border transition-colors ' +
+      (idx === 0 ? 'bg-zinc-700 border-zinc-600 text-zinc-200' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300');
+    btn.textContent = tab.label;
+    btn.onclick = function() {
+      tabBar.querySelectorAll('button').forEach(function(b) {
+        b.className = 'px-3 py-1 text-xs font-mono rounded-md border transition-colors bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300';
+      });
+      btn.className = 'px-3 py-1 text-xs font-mono rounded-md border transition-colors bg-zinc-700 border-zinc-600 text-zinc-200';
+      renderRRDBTable(tableContainer, stats[tab.key], tab.label);
+    };
+    tabBar.appendChild(btn);
+  });
+
+  container.appendChild(tabBar);
+  container.appendChild(tableContainer);
+  renderRRDBTable(tableContainer, stats[tabData[0].key], tabData[0].label);
+}
+
+function renderRRDBSparkline(container, timeline, prediction) {
+  var W = 400, H = 60, PAD = 4;
+  var maxMs = 0;
+  timeline.forEach(function(p) { if (p.duration_ms > maxMs) maxMs = p.duration_ms; });
+  if (maxMs === 0) maxMs = 1000;
+
+  var n = timeline.length;
+  var points = [];
+  timeline.forEach(function(p, i) {
+    var x = PAD + (i / Math.max(n - 1, 1)) * (W - 2 * PAD);
+    var y = H - PAD - (p.duration_ms / maxMs) * (H - 2 * PAD);
+    points.push({ x: x, y: y, status: p.status });
+  });
+
+  var polyline = points.map(function(p) { return p.x + ',' + p.y; }).join(' ');
+  var dots = points.map(function(p) {
+    var color = p.status === 'success' ? '#4ade80' : '#f87171';
+    return '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" fill="' + color + '" stroke="' + color + '" stroke-width="1" opacity="0.9"/>';
+  }).join('');
+
+  // Prediction dashed line
+  var predLine = '';
+  if (prediction && points.length > 0) {
+    var predY = H - PAD - (prediction.duration_ms / maxMs) * (H - 2 * PAD);
+    predY = Math.max(PAD, Math.min(H - PAD, predY));
+    predLine = '<line x1="' + PAD + '" y1="' + predY + '" x2="' + (W - PAD) + '" y2="' + predY + '" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>';
+  }
+
+  container.innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" class="w-full h-16" preserveAspectRatio="none">' +
+      predLine +
+      '<polyline points="' + polyline + '" fill="none" stroke="#71717a" stroke-width="1.5" stroke-linejoin="round"/>' +
+      dots +
+    '</svg>';
+}
+
+function renderRRDBTable(container, bucketMap, label) {
+  if (!bucketMap || Object.keys(bucketMap).length === 0) {
+    container.innerHTML = '<div class="text-zinc-500 text-xs py-4 text-center">No data for ' + label + '</div>';
+    return;
+  }
+
+  // Sort by run count descending
+  var entries = Object.keys(bucketMap).map(function(key) {
+    return { name: key, stats: bucketMap[key] };
+  }).sort(function(a, b) { return b.stats.runs - a.stats.runs; });
+
+  var rows = entries.map(function(e) {
+    var s = e.stats;
+    var durSec = (s.avg_ms / 1000).toFixed(1);
+    var okColor = s.success_pct >= 90 ? 'text-green-400' : s.success_pct >= 70 ? 'text-yellow-400' : 'text-red-400';
+    return '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50">' +
+      '<td class="py-1.5 px-2 text-zinc-300">' + escapeHtml(e.name) + '</td>' +
+      '<td class="py-1.5 px-2 text-right text-zinc-400">' + s.runs + '</td>' +
+      '<td class="py-1.5 px-2 text-right ' + okColor + '">' + s.success_pct + '%</td>' +
+      '<td class="py-1.5 px-2 text-right text-zinc-400">' + durSec + 's</td>' +
+      '<td class="py-1.5 px-2 text-right text-green-400/70">+' + s.avg_add + '</td>' +
+      '<td class="py-1.5 px-2 text-right text-yellow-400/70">~' + s.avg_change + '</td>' +
+      '<td class="py-1.5 px-2 text-right text-red-400/70">-' + s.avg_destroy + '</td>' +
+    '</tr>';
+  }).join('');
+
+  container.innerHTML =
+    '<div class="overflow-x-auto">' +
+      '<table class="w-full text-xs">' +
+        '<thead><tr class="text-[10px] uppercase tracking-wider text-zinc-500 border-b border-zinc-700">' +
+          '<th class="py-1.5 px-2 text-left font-medium">Name</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">Runs</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">OK%</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">Avg</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">+Add</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">~Chg</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">-Del</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
+}
