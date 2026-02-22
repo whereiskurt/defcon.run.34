@@ -126,12 +126,36 @@ function hasVisibleOverlay(sel) {
       } else if (combo === 'aa') {
         e.preventDefault();
         confirmApplyAll();
+      } else if (combo === 'ga') {
+        e.preventDefault();
+        toggleSection('apps');
+      } else if (combo === 'gs') {
+        e.preventDefault();
+        toggleSection('svc');
+      } else if (combo === 'gi') {
+        e.preventDefault();
+        toggleSection('infra');
+      } else if (combo === 'gc') {
+        e.preventDefault();
+        toggleSection('core');
+      } else if (combo === 'ha') {
+        e.preventDefault();
+        toggleSectionRollup('apps');
+      } else if (combo === 'hs') {
+        e.preventDefault();
+        toggleSectionRollup('svc');
+      } else if (combo === 'hi') {
+        e.preventDefault();
+        toggleSectionRollup('infra');
+      } else if (combo === 'hc') {
+        e.preventDefault();
+        toggleSectionRollup('core');
       }
       return;
     }
 
     // Start tracking first key of a two-key sequence
-    if (key === 'r' || key === 'p' || key === 'a') {
+    if (key === 'r' || key === 'p' || key === 'a' || key === 'g' || key === 'h') {
       _shortcutFirst = key;
       _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
     }

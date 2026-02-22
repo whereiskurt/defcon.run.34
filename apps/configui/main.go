@@ -39,6 +39,7 @@ type App struct {
 	discovery            *DiscoveryResults
 	awsStatusCache       *AWSStatusCache
 	termSessions         map[string]*TermSession
+	gitHash              string
 }
 
 // reload re-imports config from site.hcl, service configs, env files, and versions.
@@ -136,8 +137,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	gitHash := ""
+	if out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--short=7", "HEAD").Output(); err == nil {
+		gitHash = string(out[:len(out)-1]) // trim newline
+	}
+
 	app := &App{
 		repoRoot:           repoRoot,
+		gitHash:            gitHash,
 		configPath:         filepath.Join(repoRoot, "apps", "configui", "site-config.json"),
 		siteHCLPath:        filepath.Join(repoRoot, "infra", "terraform", "live", "site", "site.hcl"),
 		servicesDir:        filepath.Join(repoRoot, "infra", "terraform", "live", "site", "services"),

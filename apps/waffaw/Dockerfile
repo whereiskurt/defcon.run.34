@@ -16,13 +16,13 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-$(uname -m).zip" -o "aws
 # Artillery + Playwright engine
 WORKDIR /opt/waffaw
 COPY package.json package-lock.json* ./
+COPY plugins/ ./plugins/
 RUN npm ci --production || npm install --production
 
 # Agent and scenarios
 COPY agent.sh consensus.sh ./
 COPY scenarios/ ./scenarios/
 COPY templates/ ./templates/
-COPY plugins/ ./plugins/
 COPY data/ ./data/
 
 RUN chmod +x agent.sh consensus.sh

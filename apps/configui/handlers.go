@@ -87,9 +87,11 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		EnvLocal       *EnvLocalConfig
 		DefaultsJSON   template.JS
 		AllRegionsJSON template.JS
+		GitHash        string
 	}{
 		Config:   a.config,
 		EnvLocal: a.envLocal,
+		GitHash:  a.gitHash,
 	}
 	if dj, err := json.Marshal(DefaultFormValues()); err == nil {
 		data.DefaultsJSON = template.JS(dj)
