@@ -78,6 +78,10 @@
 
     <!-- IP & Quota Summary -->
     <div id="waf-quota-bar" class="mt-3 rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-xs font-mono space-y-1">
+      <div id="waf-region-quotas" class="flex items-center gap-4 flex-wrap text-zinc-500" style="display:none">
+        <span class="text-zinc-400">EIP Quotas:</span>
+        <span id="waf-eip-warn" class="hidden text-amber-400 font-medium ml-auto">Checking EIP quota...</span>
+      </div>
       <div class="flex items-center gap-4 flex-wrap">
         <span class="text-zinc-400">Public IPs:</span>
         <span id="waf-ip-total" class="text-zinc-200 font-medium">0</span>
@@ -89,10 +93,6 @@
         <span class="text-zinc-600">|</span>
         <span class="text-zinc-400">IPv4 cost:</span>
         <span id="waf-ip-cost" class="text-zinc-200">$0/mo</span>
-        <span id="waf-eip-warn" class="hidden text-amber-400 font-medium ml-auto">Checking EIP quota...</span>
-      </div>
-      <div id="waf-region-quotas" class="flex items-center gap-4 flex-wrap text-zinc-500" style="display:none">
-        <span class="text-zinc-400">EIP Quotas:</span>
       </div>
     </div>
   </div>

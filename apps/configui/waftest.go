@@ -76,8 +76,9 @@ type wafCampaignState struct {
 }
 
 // controlBucketName returns the waffaw control bucket name.
-func controlBucketName(accountID string) string {
-	return fmt.Sprintf("waffaw-control-%s", accountID)
+func (a *App) controlBucketName() string {
+	return fmt.Sprintf("waffaw-control-%s-%s-%s",
+		"use1", a.config.Site.Label, a.config.Site.RandomSuffix)
 }
 
 // errBucketNotFound is a sentinel prefix for NoSuchBucket errors.
@@ -236,7 +237,7 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bucket := controlBucketName(accountID)
+	bucket := a.controlBucketName()
 	profile := a.wafProfile()
 	region := "us-east-1"
 
@@ -447,7 +448,7 @@ func (a *App) handleWAFNodeDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bucket := controlBucketName(accountID)
+	bucket := a.controlBucketName()
 	profile := a.wafProfile()
 	region := "us-east-1"
 
@@ -539,11 +540,7 @@ func (a *App) handleWAFCommand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.mu.RLock()
-	accountID := a.envLocal.ApplicationAccountID
-	a.mu.RUnlock()
-
-	bucket := controlBucketName(accountID)
+	bucket := a.controlBucketName()
 	profile := a.wafProfile()
 	region := "us-east-1"
 
@@ -573,11 +570,7 @@ func (a *App) handleWAFCampaign(w http.ResponseWriter, r *http.Request) {
 
 	action := r.FormValue("action")
 
-	a.mu.RLock()
-	accountID := a.envLocal.ApplicationAccountID
-	a.mu.RUnlock()
-
-	bucket := controlBucketName(accountID)
+	bucket := a.controlBucketName()
 	profile := a.wafProfile()
 	region := "us-east-1"
 
@@ -857,7 +850,8 @@ func (a *App) handleWAFIntel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	profile := a.wafProfile()
-	outputLocation := fmt.Sprintf("s3://waffaw-logs-%s/athena-results/", accountID)
+	outputLocation := fmt.Sprintf("s3://waffaw-logs-%s-%s-%s/athena-results/",
+		"use1", a.config.Site.Label, a.config.Site.RandomSuffix)
 
 	queries := map[string]string{
 		"summary":     fmt.Sprintf(`SELECT campaign, COUNT(*) AS total_requests, COUNT(DISTINCT source_ip) AS unique_ips, MIN(timestamp) AS started, MAX(timestamp) AS ended, date_diff('minute', MIN(timestamp), MAX(timestamp)) AS duration_minutes, ROUND(AVG(response_time_ms), 0) AS avg_response_ms, COUNT(CASE WHEN status_code = 403 THEN 1 END) AS blocked, ROUND(COUNT(CASE WHEN status_code = 403 THEN 1 END) * 100.0 / COUNT(*), 1) AS block_rate_pct FROM waffaw_logs WHERE campaign LIKE '%s' GROUP BY campaign`, campaign),
@@ -1160,7 +1154,7 @@ func (a *App) handleWAFCampaignState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bucket := controlBucketName(accountID)
+	bucket := a.controlBucketName()
 	profile := a.wafProfile()
 
 	var state wafCampaignState
