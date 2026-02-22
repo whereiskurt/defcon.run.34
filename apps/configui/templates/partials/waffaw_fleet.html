@@ -11,7 +11,7 @@
         <div class="flex items-center gap-2">
           <div class="seg-group inline-flex rounded-md text-xs font-medium" data-target="waf-ec2-spot-val" data-on-value="on" data-off-value="">
             <button type="button" data-seg="on" class="seg-btn rounded-l-md px-3 py-1 border border-zinc-600">EC2 Spot</button>
-            <button type="button" data-seg="" class="seg-btn rounded-r-md px-3 py-1 border border-l-0 border-zinc-600">EC2 Reserved</button>
+            <button type="button" data-seg="" class="seg-btn rounded-r-md px-3 py-1 border border-l-0 border-zinc-600">Reserved</button>
           </div>
           <select name="waffaw.ec2_instance_type" class="rounded-md border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs font-mono">
             <option value="t3.medium" {{if eq .Config.Waffaw.EC2InstanceType "t3.medium"}}selected{{end}}>t3.medium</option>
@@ -37,7 +37,7 @@
         <div class="flex items-center gap-2">
           <div class="seg-group inline-flex rounded-md text-xs font-medium" data-target="waf-ecs-spot-val" data-on-value="on" data-off-value="">
             <button type="button" data-seg="on" class="seg-btn rounded-l-md px-3 py-1 border border-zinc-600">Fargate Spot</button>
-            <button type="button" data-seg="" class="seg-btn rounded-r-md px-3 py-1 border border-l-0 border-zinc-600">On-Demand</button>
+            <button type="button" data-seg="" class="seg-btn rounded-r-md px-3 py-1 border border-l-0 border-zinc-600">Reserved</button>
           </div>
           <select name="waffaw.ecs_task_cpu" class="rounded-md border border-zinc-600 bg-zinc-900 px-2 py-1 text-xs font-mono">
             <option value="1024" {{if eq .Config.Waffaw.ECSTaskCPU 1024}}selected{{end}}>1 vCPU</option>
