@@ -21,7 +21,6 @@
         <select id="waf-campaign-template"
                 class="flex-1 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-2 text-sm">
           <option value="low-and-slow">Low & Slow</option>
-          <option value="auth-cycle">Auth Cycle</option>
           <option value="auth-probe">Auth Probe</option>
           <option value="public-flood">Public Flood</option>
           <option value="crawl-and-probe">Crawl & Probe</option>
@@ -93,8 +92,7 @@
     <h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">Template Reference</h4>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-400">
       <div><span class="font-mono text-zinc-300">low-and-slow</span> &mdash; 1 req/sec sustained over 8h, random scenarios</div>
-      <div><span class="font-mono text-zinc-300">auth-cycle</span> &mdash; Login/browse/logout loops, 1 cycle per 5min</div>
-      <div><span class="font-mono text-zinc-300">auth-probe</span> &mdash; Real OIDC login + email MFA + /profile check, 1 per 10s</div>
+      <div><span class="font-mono text-zinc-300">auth-probe</span> &mdash; Full OIDC login (ALTCHA + email MFA) + browse + logout</div>
       <div><span class="font-mono text-zinc-300">public-flood</span> &mdash; High-rate 50-200 req/sec (HTTP engine)</div>
       <div><span class="font-mono text-zinc-300">crawl-and-probe</span> &mdash; Spider + SQLi/XSS probes, 5-10 req/sec</div>
     </div>

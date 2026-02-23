@@ -243,7 +243,6 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	// Campaign template YAMLs (read-only from apps/waffaw/templates/)
 	for _, camp := range []struct{ id, label, file string }{
 		{"camp-low-and-slow", "Low & Slow", "apps/waffaw/templates/low-and-slow.yml"},
-		{"camp-auth-cycle", "Auth Cycle", "apps/waffaw/templates/auth-cycle.yml"},
 		{"camp-public-flood", "Public Flood", "apps/waffaw/templates/public-flood.yml"},
 		{"camp-crawl-and-probe", "Crawl & Probe", "apps/waffaw/templates/crawl-and-probe.yml"},
 		{"camp-auth-probe", "Auth Probe", "apps/waffaw/templates/auth-probe.yml"},

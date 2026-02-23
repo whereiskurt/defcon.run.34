@@ -1458,7 +1458,6 @@ func (a *App) handleWAFCampaignState(w http.ResponseWriter, r *http.Request) {
 // validCampaignTemplates lists allowed campaign template IDs.
 var validCampaignTemplates = map[string]string{
 	"camp-low-and-slow":    "apps/waffaw/templates/low-and-slow.yml",
-	"camp-auth-cycle":      "apps/waffaw/templates/auth-cycle.yml",
 	"camp-public-flood":    "apps/waffaw/templates/public-flood.yml",
 	"camp-crawl-and-probe": "apps/waffaw/templates/crawl-and-probe.yml",
 	"camp-auth-probe":      "apps/waffaw/templates/auth-probe.yml",
