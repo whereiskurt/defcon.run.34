@@ -116,12 +116,12 @@ export async function authProbe(
 
   // ── Phase 1: Authenticate at auth.defcon.run ──
 
-  // Step 1: Navigate to auth login page
+  // Step 1: Navigate to auth login page (follow redirects, wait for React hydration)
   try {
-    await page.goto(`${AUTH_ORIGIN}${REGION_PREFIX}/login`, { waitUntil: "domcontentloaded", timeout: 15000 });
-    await page.locator("text=Welcome!").waitFor({ timeout: 10000 });
+    await page.goto(`${AUTH_ORIGIN}${REGION_PREFIX}/login`, { waitUntil: "load", timeout: 30000 });
+    await page.locator("text=Welcome!").waitFor({ timeout: 15000 });
   } catch (err) {
-    console.error("[auth-probe] Auth login page failed:", err);
+    console.error(`[auth-probe] Auth login page failed (url=${page.url()}):`, err);
     return;
   }
 
@@ -167,29 +167,34 @@ export async function authProbe(
   }
 
   // Step 6: Complete MFA callback on auth.defcon.run (establishes auth session)
+  // The callback redirects: /api/auth/callback/nodemailer → /use1/ (auth homepage)
   try {
     const callbackUrl = `${AUTH_ORIGIN}${REGION_PREFIX}/api/auth/callback/nodemailer?token=${mfaCode}&email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent(`${REGION_PREFIX}/`)}`;
-    await page.goto(callbackUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.goto(callbackUrl, { waitUntil: "load", timeout: 30000 });
+    // Wait for redirect chain to settle on auth.defcon.run
+    await page.waitForURL(`${AUTH_ORIGIN}/**`, { timeout: 15000 });
+    console.log(`[auth-probe] MFA callback complete, landed on: ${page.url()}`);
   } catch (err) {
-    console.error("[auth-probe] MFA callback failed:", err);
+    console.error(`[auth-probe] MFA callback failed (url=${page.url()}):`, err);
     return;
   }
 
   // ── Phase 2: OIDC sign-in at run.defcon.run ──
 
   // Step 7: Navigate to run.defcon.run and trigger OIDC flow
-  // The auto-signin route initiates the OIDC redirect to auth.defcon.run,
-  // which recognizes the existing session and redirects back with an auth code.
+  // Click "Sign In" → redirects to auth.defcon.run (session exists) → redirects back with auth code
   try {
-    await page.goto(`${APP_ORIGIN}${REGION_PREFIX}/`, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await page.goto(`${APP_ORIGIN}${REGION_PREFIX}/`, { waitUntil: "load", timeout: 30000 });
+    console.log(`[auth-probe] App homepage loaded: ${page.url()}`);
     // Click "Sign In" button to trigger OIDC flow
     const signInBtn = page.locator("text=Sign In").first();
-    await signInBtn.waitFor({ timeout: 5000 });
+    await signInBtn.waitFor({ timeout: 10000 });
     await signInBtn.click();
-    // Wait for OIDC redirect chain to complete (auth.defcon.run → back to run.defcon.run)
+    // Wait for OIDC redirect chain to complete (run → auth → run)
     await page.waitForURL(`${APP_ORIGIN}/**`, { timeout: 30000 });
+    console.log(`[auth-probe] OIDC complete, landed on: ${page.url()}`);
   } catch (err) {
-    console.error("[auth-probe] OIDC sign-in at run.defcon.run failed:", err);
+    console.error(`[auth-probe] OIDC sign-in failed (url=${page.url()}):`, err);
     return;
   }
 
@@ -197,18 +202,20 @@ export async function authProbe(
 
   // Step 8: Check profile page on run.defcon.run (authenticated)
   try {
-    await page.goto(`${APP_ORIGIN}${REGION_PREFIX}/profile`, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await page.goto(`${APP_ORIGIN}${REGION_PREFIX}/profile`, { waitUntil: "load", timeout: 15000 });
+    console.log(`[auth-probe] Profile page loaded: ${page.url()}`);
     await page.waitForTimeout(1000 + Math.random() * 2000);
   } catch (err) {
-    console.error("[auth-probe] Profile page failed:", err);
+    console.error(`[auth-probe] Profile page failed (url=${page.url()}):`, err);
   }
 
   // Step 9: Logout from run.defcon.run
   try {
     await page.goto(`${APP_ORIGIN}${REGION_PREFIX}/api/auth/signout`, {
-      waitUntil: "domcontentloaded",
+      waitUntil: "load",
       timeout: 15000,
     });
+    console.log("[auth-probe] Logout complete");
   } catch {
     // Logout failure is non-fatal
   }
