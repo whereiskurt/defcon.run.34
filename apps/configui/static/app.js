@@ -5176,7 +5176,10 @@ function fetchWAFLogsLatest() {
         } else {
           line.style.color = '#a1a1aa';
         }
-        line.textContent = ev.line;
+        // Highlight IP addresses in log lines (escape HTML first)
+        var escaped = ev.line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        line.innerHTML = escaped.replace(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g,
+          '<span class="text-cyan-400 font-semibold">$1</span>');
         viewer.appendChild(line);
       }
 
@@ -5200,9 +5203,9 @@ function startWAFLogStream() {
   var dot = document.getElementById('waf-log-dot');
   var statusEl = document.getElementById('waf-log-status');
   if (dot) dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block';
-  if (statusEl) statusEl.textContent = 'Polling every 5s';
+  if (statusEl) statusEl.textContent = 'Polling every 2.5s';
   fetchWAFLogsLatest();
-  _wafLogPollTimer = setInterval(fetchWAFLogsLatest, 5000);
+  _wafLogPollTimer = setInterval(fetchWAFLogsLatest, 2500);
 }
 
 function clearWAFLogs() {
