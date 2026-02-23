@@ -5168,7 +5168,7 @@ function fetchWAFLogsLatest() {
         if (ev.raw) {
           line.style.color = '#71717a';
           line.style.fontStyle = 'italic';
-        } else if (ev.status === 403) {
+        } else if (ev.status === 403 || ev.status === 469) {
           line.style.color = '#f87171';
           blocked++;
         } else if (ev.status >= 500) {
