@@ -338,7 +338,7 @@ locals {
       }
       strapi = {
         description = "Strapi CMS secrets"
-        keys        = ["admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "jwt_secret", "oidc_client_id", "oidc_client_secret"]
+        keys        = ["admin_email", "admin_password", "admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "jwt_secret", "oidc_client_id", "oidc_client_secret"]
       }
       strava = {
         description = "Strava OAuth credentials"

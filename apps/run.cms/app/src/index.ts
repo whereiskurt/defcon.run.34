@@ -27,5 +27,31 @@ export default {
     if (mode === 'worker') {
       strapi.log.info('Worker mode: Write operations are disabled');
     }
+
+    // Auto-seed admin user if none exists
+    try {
+      const adminExists = await strapi.service('admin::user').exists();
+      if (!adminExists) {
+        const email = process.env.STRAPI_ADMIN_EMAIL;
+        const password = process.env.STRAPI_ADMIN_PASSWORD;
+        if (email && password) {
+          const superAdminRole = await strapi.service('admin::role').getSuperAdmin();
+          await strapi.service('admin::user').create({
+            email,
+            password,
+            firstname: 'Admin',
+            lastname: 'User',
+            isActive: true,
+            registrationToken: null,
+            roles: [superAdminRole.id],
+          });
+          strapi.log.info(`Seeded admin user: ${email}`);
+        } else {
+          strapi.log.warn('No admin user exists and STRAPI_ADMIN_EMAIL not set — register-admin endpoint may be exposed');
+        }
+      }
+    } catch (err) {
+      strapi.log.error('Failed to seed admin user:', err);
+    }
   },
 };

@@ -41,8 +41,9 @@ const getRegionFromPath = (): string | null => {
 const shouldRedirectToSSO = (): boolean => {
   if (typeof window === 'undefined') return false;
   const path = window.location.pathname;
-  // Match both /admin/auth/login and /{region}/admin/auth/login
-  return path.includes('/admin/auth/login') || path.endsWith('/admin/auth/login');
+  // Match login and register-admin pages (both with and without region prefix)
+  // Belt-and-suspenders: nginx blocks register-admin, but redirect if it somehow gets through
+  return path.includes('/admin/auth/login') || path.includes('/admin/auth/register-admin');
 };
 
 // Redirect to SSO login
