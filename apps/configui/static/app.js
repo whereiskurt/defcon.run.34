@@ -5179,10 +5179,15 @@ function fetchWAFLogsLatest() {
         } else {
           line.style.color = '#a1a1aa';
         }
-        // Highlight IP addresses in log lines (escape HTML first)
+        // Highlight IP addresses with unique colors derived from octets
         var escaped = ev.line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        line.innerHTML = escaped.replace(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/g,
-          '<span class="text-cyan-400 font-semibold">$1</span>');
+        line.innerHTML = escaped.replace(/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/g,
+          function(match, a, b, c, d) {
+            var hue = ((+a * 37 + +b * 59 + +c * 13 + +d * 97) % 360);
+            var sat = 60 + (+c % 4) * 10;  // 60-90%
+            var lit = 65 + (+d % 3) * 5;   // 65-75%
+            return '<span style="color:hsl(' + hue + ',' + sat + '%,' + lit + '%);font-weight:600">' + match + '</span>';
+          });
         viewer.appendChild(line);
       }
 
