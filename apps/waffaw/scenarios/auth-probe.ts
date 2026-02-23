@@ -105,7 +105,29 @@ async function waitForMfaCode(email: string, afterTimestamp: Date): Promise<stri
  *   Phase 2: OIDC sign-in at run.defcon.run using the auth session
  *   Phase 3: Verify profile, then logout
  */
+// Minimum time (ms) each probe cycle must take, even on failure.
+// Prevents rapid-fire retries that trip WAF rate limits (200 req/5min global).
+const MIN_CYCLE_MS = 120_000; // 2 minutes
+
 export async function authProbe(
+  page: Page,
+  vuContext: { vars: Record<string, string> },
+  events: { emit: (name: string, ...args: unknown[]) => void },
+) {
+  const cycleStart = Date.now();
+  try {
+    await _authProbeInner(page, vuContext, events);
+  } finally {
+    const elapsed = Date.now() - cycleStart;
+    if (elapsed < MIN_CYCLE_MS) {
+      const wait = MIN_CYCLE_MS - elapsed;
+      console.log(`[auth-probe] Cooldown ${Math.round(wait / 1000)}s (min cycle ${MIN_CYCLE_MS / 1000}s)`);
+      await page.waitForTimeout(wait);
+    }
+  }
+}
+
+async function _authProbeInner(
   page: Page,
   vuContext: { vars: Record<string, string> },
   events: { emit: (name: string, ...args: unknown[]) => void },
