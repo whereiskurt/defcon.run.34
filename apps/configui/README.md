@@ -211,6 +211,6 @@ All templates and static files are embedded via `go:embed` -- the binary is self
 
 ## Visual Evolution
 
-107 commits of ConfigUI development, auto-captured at each commit with the [timelapse pipeline](docs/timelapse/README.md).
+218 commits of ConfigUI development (150 frames captured), auto-captured at each commit with the [timelapse pipeline](docs/timelapse/README.md).
 
-![ConfigUI Preview Evolution](docs/configui-preview-evolution-20260216-161256.gif)
+![ConfigUI Preview Evolution](docs/configui-preview-evolution-20260223-014628.gif)
