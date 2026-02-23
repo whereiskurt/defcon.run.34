@@ -122,7 +122,7 @@ export async function authProbe(
     if (elapsed < MIN_CYCLE_MS) {
       const wait = MIN_CYCLE_MS - elapsed;
       console.log(`[auth-probe] Cooldown ${Math.round(wait / 1000)}s (min cycle ${MIN_CYCLE_MS / 1000}s)`);
-      await page.waitForTimeout(wait);
+      await new Promise(resolve => setTimeout(resolve, wait));
     }
   }
 }
