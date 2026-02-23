@@ -5143,64 +5143,88 @@ function fetchWAFCampaignState() {
 }
 document.addEventListener('DOMContentLoaded', fetchWAFCampaignState);
 
-function fetchWAFLogsLatest() {
+var _wafLogFetchInFlight = false;
+var _wafLogBtnSvg = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>';
+
+function _renderWAFLogLine(ev) {
+  var line = document.createElement('div');
+  line.className = 'waf-log-line';
+  if (ev.raw) {
+    line.style.color = '#71717a';
+    line.style.fontStyle = 'italic';
+  } else if (ev.status === 403 || ev.status === 469) {
+    line.style.color = '#f87171';
+  } else if (ev.status >= 500) {
+    line.style.color = '#fbbf24';
+  } else {
+    line.style.color = '#a1a1aa';
+  }
+  var escaped = ev.line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  line.innerHTML = escaped.replace(/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/g,
+    function(match, a, b, c, d) {
+      var hue = ((+a * 37 + +b * 59 + +c * 13 + +d * 97) % 360);
+      var sat = 60 + (+c % 4) * 10;
+      var lit = 65 + (+d % 3) * 5;
+      return '<span style="color:hsl(' + hue + ',' + sat + '%,' + lit + '%);font-weight:600">' + match + '</span>';
+    });
+  return line;
+}
+
+function fetchWAFLogsLatest(manual) {
+  if (_wafLogFetchInFlight) return;
+  _wafLogFetchInFlight = true;
+
   var btn = document.getElementById('waf-log-fetch-btn');
   var viewer = document.getElementById('waf-log-viewer');
   var rateEl = document.getElementById('waf-log-rate');
   var blockedEl = document.getElementById('waf-log-blocked');
 
-  if (btn) { btn.disabled = true; btn.textContent = 'Fetching...'; }
-  if (viewer) viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">Loading...</div>';
+  // Only show loading state on manual click, never during auto-poll
+  if (manual && btn) { btn.disabled = true; btn.textContent = 'Fetching...'; }
+  if (manual && viewer && !viewer.querySelector('.waf-log-line')) {
+    viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">Loading...</div>';
+  }
 
   fetch('/api/waf/logs/latest')
     .then(function(resp) { return resp.json(); })
     .then(function(data) {
-      if (btn) { btn.disabled = false; btn.innerHTML = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Fetch Latest'; }
+      _wafLogFetchInFlight = false;
+      if (btn) { btn.disabled = false; btn.innerHTML = _wafLogBtnSvg + ' Fetch Latest'; }
       if (!viewer) return;
-      viewer.innerHTML = '';
 
       var events = data.events || [];
       var blocked = 0;
 
-      // Render newest first
+      if (events.length === 0) {
+        viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">No log events found in the last 5 minutes.</div>';
+        if (rateEl) rateEl.textContent = '0 events';
+        if (blockedEl) blockedEl.textContent = '';
+        return;
+      }
+
+      // Build new content off-screen in a fragment (single DOM swap, no flicker)
+      var frag = document.createDocumentFragment();
       for (var i = events.length - 1; i >= 0; i--) {
         var ev = events[i];
-        var line = document.createElement('div');
-        line.className = 'waf-log-line';
-
-        if (ev.raw) {
-          line.style.color = '#71717a';
-          line.style.fontStyle = 'italic';
-        } else if (ev.status === 403 || ev.status === 469) {
-          line.style.color = '#f87171';
-          blocked++;
-        } else if (ev.status >= 500) {
-          line.style.color = '#fbbf24';
-        } else {
-          line.style.color = '#a1a1aa';
-        }
-        // Highlight IP addresses with unique colors derived from octets
-        var escaped = ev.line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        line.innerHTML = escaped.replace(/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/g,
-          function(match, a, b, c, d) {
-            var hue = ((+a * 37 + +b * 59 + +c * 13 + +d * 97) % 360);
-            var sat = 60 + (+c % 4) * 10;  // 60-90%
-            var lit = 65 + (+d % 3) * 5;   // 65-75%
-            return '<span style="color:hsl(' + hue + ',' + sat + '%,' + lit + '%);font-weight:600">' + match + '</span>';
-          });
-        viewer.appendChild(line);
+        if (ev.status === 403 || ev.status === 469) blocked++;
+        frag.appendChild(_renderWAFLogLine(ev));
       }
 
-      if (events.length === 0) {
-        viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">No log events found in the last 60 minutes.</div>';
-      }
+      // Preserve scroll: if user is scrolled to top (newest), stay there
+      var wasAtTop = viewer.scrollTop <= 5;
+
+      // Single swap: replace all children at once
+      viewer.replaceChildren(frag);
+
+      if (wasAtTop) viewer.scrollTop = 0;
 
       if (rateEl) rateEl.textContent = events.length + ' events';
       if (blockedEl) blockedEl.textContent = blocked > 0 ? blocked + ' blocked' : '';
     })
     .catch(function(err) {
-      if (btn) { btn.disabled = false; btn.innerHTML = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Fetch Latest'; }
-      if (viewer) viewer.innerHTML = '<div class="text-red-400 text-center py-4">Failed: ' + err.message + '</div>';
+      _wafLogFetchInFlight = false;
+      if (btn) { btn.disabled = false; btn.innerHTML = _wafLogBtnSvg + ' Fetch Latest'; }
+      if (manual && viewer) viewer.innerHTML = '<div class="text-red-400 text-center py-4">Failed: ' + err.message + '</div>';
     });
 }
 
@@ -5212,8 +5236,8 @@ function startWAFLogStream() {
   var statusEl = document.getElementById('waf-log-status');
   if (dot) dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block';
   if (statusEl) statusEl.textContent = 'Polling every 2.5s';
-  fetchWAFLogsLatest();
-  _wafLogPollTimer = setInterval(fetchWAFLogsLatest, 2500);
+  fetchWAFLogsLatest(true);
+  _wafLogPollTimer = setInterval(function() { fetchWAFLogsLatest(false); }, 2500);
 }
 
 function clearWAFLogs() {

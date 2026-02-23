@@ -924,7 +924,7 @@ func (a *App) handleWAFLogsLatest(w http.ResponseWriter, r *http.Request) {
 
 	limit := r.URL.Query().Get("limit")
 	if limit == "" {
-		limit = "500"
+		limit = "1000"
 	}
 
 	startTime := time.Now().Add(-5 * time.Minute).UnixMilli()
