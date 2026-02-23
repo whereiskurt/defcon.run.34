@@ -146,7 +146,8 @@ resource "aws_glue_catalog_table" "waffaw_logs" {
 resource "aws_athena_workgroup" "waffaw" {
   count = var.waffaw.enabled ? 1 : 0
 
-  name = "waffaw"
+  name          = "waffaw"
+  force_destroy = true
 
   configuration {
     enforce_workgroup_configuration = true
