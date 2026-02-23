@@ -5329,7 +5329,7 @@ function renderWAFIntelDashboard(data) {
     var cards = [
       { label: 'Total Requests', value: findCol('total_requests'), color: 'text-zinc-200' },
       { label: 'Unique IPs', value: findCol('unique_ips'), color: 'text-blue-400' },
-      { label: 'Blocked (403)', value: findCol('blocked'), color: 'text-red-400' },
+      { label: 'Blocked', value: findCol('blocked'), color: 'text-red-400' },
       { label: 'Block Rate', value: findCol('block_rate') + '%', color: 'text-yellow-400' },
       { label: 'Avg Response', value: findCol('avg_response') + 'ms', color: 'text-green-400' },
       { label: 'Duration', value: findCol('duration') + ' min', color: 'text-purple-400' }

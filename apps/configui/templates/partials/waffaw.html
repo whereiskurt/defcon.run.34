@@ -1,5 +1,5 @@
 {{define "waffaw.html"}}
-<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden {{if not .Config.Waffaw.Enabled}}panel-disabled{{end}}" data-panel="waffaw" data-module-num="A1">
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden w-full {{if not .Config.Waffaw.Enabled}}panel-disabled{{end}}" data-panel="waffaw" data-module-num="A1">
   <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('waffaw')">
     <div class="flex items-center gap-3">
       <span class="drag-handle" title="Drag to reorder">⠿</span>
@@ -23,7 +23,7 @@
     </div>
 
     <!-- Tab Content — grid overlay keeps height stable across tab switches -->
-    <div class="waffaw-tab-stack">
+    <div class="waffaw-tab-stack min-w-0 overflow-hidden">
       <div class="waffaw-tab-content waffaw-tab-visible" data-tab="fleet">
         {{template "waffaw_fleet.html" .}}
       </div>
