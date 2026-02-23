@@ -88,9 +88,9 @@ function hasVisibleOverlay(sel) {
 
     var key = e.key.toLowerCase();
 
-    // If a confirm dialog is open, allow second "aa" to auto-confirm it
+    // If a confirm dialog is open, allow double-tap (aa, bb, etc.) to auto-confirm it
     if (hasVisibleOverlay('.fixed.inset-0.z-\\[60\\]')) {
-      if (_shortcutFirst === 'a' && key === 'a') {
+      if (_shortcutFirst && _shortcutFirst === key) {
         e.preventDefault();
         _shortcutFirst = '';
         clearTimeout(_shortcutTimer);
@@ -98,8 +98,8 @@ function hasVisibleOverlay(sel) {
         if (cfBtn) cfBtn.click();
         return;
       }
-      // Track first key even while overlay is open (for aa sequence)
-      if (key === 'a' && !_shortcutFirst) {
+      // Track first key even while overlay is open
+      if (!_shortcutFirst) {
         _shortcutFirst = key;
         _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
       }
@@ -171,12 +171,15 @@ function hasVisibleOverlay(sel) {
         e.preventDefault();
         toggleAggressiveLocks(!_aggressiveLocks);
         showToast('Aggressive locks ' + (_aggressiveLocks ? 'ON' : 'OFF'), 2000);
+      } else if (combo === 'bb') {
+        e.preventDefault();
+        buildWaffaw();
       }
       return;
     }
 
     // Start tracking first key of a two-key sequence
-    if (key === 'r' || key === 'p' || key === 'a' || key === 'g' || key === 'h' || key === 'x') {
+    if (key === 'r' || key === 'p' || key === 'a' || key === 'b' || key === 'g' || key === 'h' || key === 'x') {
       _shortcutFirst = key;
       _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
     }
