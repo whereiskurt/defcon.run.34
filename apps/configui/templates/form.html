@@ -39,12 +39,12 @@
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 section-divider flex items-center gap-2" data-section="core">
     <button type="button" onclick="toggleSection('core')" class="global-fold-btn" id="section-chevron-core" title="Expand/Collapse">+</button>
     <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('core')">Core Configuration</h2>
-    <button type="button" onclick="toggleSectionRollup('core')" class="section-chevron open ml-auto" id="section-roll-core" title="Show/Hide section">
+    <button type="button" onclick="toggleSectionRollup('core')" class="section-chevron ml-auto" id="section-roll-core" title="Show/Hide section">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
     </button>
   </div>
 
-  <div id="core-modules" class="module-masonry md:col-span-2">
+  <div id="core-modules" class="module-masonry md:col-span-2" style="display:none">
     {{template "env_general.html" .}}
     {{template "site.html" .}}
     {{template "aws_config.html" .}}
@@ -105,7 +105,7 @@
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider" data-section="apps">
     <div class="flex items-center gap-2">
       <button type="button" onclick="toggleSection('apps')" class="global-fold-btn" id="section-chevron-apps" title="Expand/Collapse">+</button>
-      <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('apps')">Apps</h2>
+      <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('apps')">Local Apps</h2>
       <button type="button" onclick="toggleSectionRollup('apps')" class="section-chevron shrink-0 ml-auto" id="section-roll-apps" title="Show/Hide section">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
       </button>
