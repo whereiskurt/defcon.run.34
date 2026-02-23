@@ -4569,7 +4569,7 @@ function buildWaffaw() {
     title: 'Build & Push Waffaw Image?',
     message: 'This will build the Docker image and push it to ECR. This may take a few minutes.',
     confirmLabel: 'Build',
-    confirmClass: 'bg-zinc-600 hover:bg-zinc-500 text-white',
+    confirmClass: 'bg-green-700 hover:bg-green-600 text-white',
     onConfirm: function() {
       if (btn) { btn.disabled = true; btn.textContent = 'Building...'; }
 

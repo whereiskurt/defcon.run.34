@@ -305,6 +305,10 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 		status := "stale"
 		if info.hasAlive && time.Since(info.aliveAt) < 2*time.Minute {
 			status = "online"
+		} else if meta.StartedAt != "" {
+			if t, err := time.Parse(time.RFC3339, meta.StartedAt); err == nil && time.Since(t) < 5*time.Minute {
+				status = "starting"
+			}
 		}
 
 		uptime := ""
@@ -387,7 +391,9 @@ func (a *App) handleWAFFleetStatus(w http.ResponseWriter, r *http.Request) {
 	for i, n := range nodes {
 		rowClass := ""
 		statusBadge := `<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-900/30 text-green-400">online</span>`
-		if n.Status == "stale" {
+		if n.Status == "starting" {
+			statusBadge = `<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-900/30 text-blue-400">starting</span>`
+		} else if n.Status == "stale" {
 			rowClass = ` class="opacity-50"`
 			statusBadge = `<span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-yellow-900/30 text-yellow-400">stale</span>`
 		} else if n.Status == "unregistered" {
