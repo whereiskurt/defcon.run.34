@@ -118,11 +118,13 @@ export async function authProbe(
   try {
     await _authProbeInner(page, vuContext, events);
   } finally {
-    const elapsed = Date.now() - cycleStart;
-    if (elapsed < MIN_CYCLE_MS) {
-      const wait = MIN_CYCLE_MS - elapsed;
-      console.log(`[auth-probe] Cooldown ${Math.round(wait / 1000)}s (min cycle ${MIN_CYCLE_MS / 1000}s)`);
-      await new Promise(resolve => setTimeout(resolve, wait));
+    if (!process.env.WAFFAW_NO_COOLDOWN) {
+      const elapsed = Date.now() - cycleStart;
+      if (elapsed < MIN_CYCLE_MS) {
+        const wait = MIN_CYCLE_MS - elapsed;
+        console.log(`[auth-probe] Cooldown ${Math.round(wait / 1000)}s (min cycle ${MIN_CYCLE_MS / 1000}s)`);
+        await new Promise(resolve => setTimeout(resolve, wait));
+      }
     }
   }
 }

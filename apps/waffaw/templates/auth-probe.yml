@@ -2,11 +2,11 @@ config:
   target: "{{ $processEnvironment.TARGET_URL }}"
   phases:
     - duration: 1800       # 30 minutes
-      arrivalRate: 1       # 1 VU per second (throttled by maxVusers)
+      arrivalCount: 15     # 15 total VUs across the phase (1 every 2 min)
       name: "Auth probe — full OIDC login + MFA + browse + logout"
   plugins:
     ensure: {}
-  maxVusers: 1              # Only 1 probe at a time (each takes 30-90s)
+  maxVusers: 1              # Only 1 probe at a time per node
   engines:
     playwright:
       launchOptions:
