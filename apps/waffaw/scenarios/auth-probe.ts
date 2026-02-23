@@ -13,7 +13,7 @@ const REGION_PREFIX = `/${REGION_LABEL}`;
 const AUTH_ORIGIN = "https://auth.defcon.run";
 const APP_ORIGIN = "https://run.defcon.run";
 
-const EMAIL_PREFIX = "inbox/defcon.run/";
+const EMAIL_PREFIX = "inbox/email.defcon.run/";
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 30; // 60 seconds max
 
@@ -148,10 +148,13 @@ export async function authProbe(
 
   // Step 4: Submit login to auth service
   try {
+    console.log(`[auth-probe] Submitting login for ${email}...`);
     const loginResp = await page.request.post(`${AUTH_ORIGIN}${REGION_PREFIX}/api/login`, {
       data: { email, inviteCode: INVITE_CODE, csrfToken, altcha: altchaPayload },
     });
-    if (!loginResp.ok()) throw new Error(`Login POST returned ${loginResp.status()}`);
+    const loginBody = await loginResp.text();
+    console.log(`[auth-probe] Login POST: ${loginResp.status()} — ${loginBody.slice(0, 200)}`);
+    if (!loginResp.ok()) throw new Error(`Login POST returned ${loginResp.status()}: ${loginBody.slice(0, 200)}`);
   } catch (err) {
     console.error("[auth-probe] Login POST failed:", err);
     return;
