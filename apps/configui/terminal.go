@@ -28,8 +28,9 @@ type TerraformSummary struct {
 
 // ResourceStats breaks down plan/apply counts by module and resource type.
 type ResourceStats struct {
-	ByModule map[string]*TerraformSummary `json:"by_module"`
-	ByType   map[string]*TerraformSummary `json:"by_type"`
+	ByModule     map[string]*TerraformSummary `json:"by_module"`
+	ByType       map[string]*TerraformSummary `json:"by_type"`
+	ByModuleType map[string]*TerraformSummary `json:"by_module_type,omitempty"`
 }
 
 // Regex patterns for extracting terraform plan/apply/destroy summaries.
@@ -104,6 +105,7 @@ func accumulateStats(stats *ResourceStats, module, resourceType, action string) 
 	targets := []*TerraformSummary{
 		getOrCreate(stats.ByModule, module),
 		getOrCreate(stats.ByType, resourceType),
+		getOrCreate(stats.ByModuleType, module+"|"+resourceType),
 	}
 
 	for _, t := range targets {
@@ -134,42 +136,51 @@ type TermSession struct {
 	Summary  *TerraformSummary  `json:"summary,omitempty"`
 	Stats    *ResourceStats    `json:"stats,omitempty"`
 
-	mu       sync.Mutex
-	lines    []string
-	cmd      *exec.Cmd
-	clients  map[chan string]struct{}
-	startAt  time.Time // when the process started
-	doneAt   time.Time // when the process finished (for cleanup)
+	mu        sync.Mutex
+	lines     []string
+	cmd       *exec.Cmd
+	clients   map[chan string]struct{}
+	startAt   time.Time // when the process started
+	doneAt    time.Time // when the process finished (for cleanup)
+	siteLabel string    // from Site.Label, used to replace [.] in output
 }
 
 // ModuleDef maps a panel ID to a terragrunt module path.
 type ModuleDef struct {
-	Path   string // relative to infra/terraform/live/site/, use %s for region
-	Global bool   // true = no region needed
+	Path     string // relative to infra/terraform/live/site/, use %s for region
+	Global   bool   // true = no region needed
+	Category string // "infra", "services", "apps", "meta"
 }
 
 // ModuleMap maps panel IDs to filesystem paths relative to infra/terraform/live/site/.
 var ModuleMap = map[string]ModuleDef{
 	// All modules (run from site root)
-	"all": {Path: "", Global: true},
+	"all": {Path: "", Global: true, Category: "meta"},
 	// All modules in a single region
-	"region-all": {Path: "region/%s"},
+	"region-all": {Path: "region/%s", Category: "meta"},
 	// Global modules (run once)
-	"github_oidc": {Path: "global/github-oidc", Global: true},
-	"cloudtrail":  {Path: "global/cloudtrail", Global: true},
-	"cloudfront":  {Path: "global/cloudfront", Global: true},
-	"waf":         {Path: "global/waf", Global: true},
+	"github_oidc": {Path: "global/github-oidc", Global: true, Category: "infra"},
+	"cloudtrail":  {Path: "global/cloudtrail", Global: true, Category: "infra"},
+	"cloudfront":  {Path: "global/cloudfront", Global: true, Category: "infra"},
+	"waf":         {Path: "global/waf", Global: true, Category: "infra"},
 	// Regional modules (need region param)
-	"ecs_clusters": {Path: "region/%s/ecs-cluster"},
-	"ecs_services": {Path: "region/%s/ecs-service"},
-	"ecs_tasks":    {Path: "region/%s/ecs-task"},
-	"dynamodb":     {Path: "region/%s/dynamodb"},
-	"ecr":          {Path: "region/%s/ecr"},
-	"ec2spots":     {Path: "region/%s/ec2spot"},
-	"email":        {Path: "region/%s/email"},
-	"secrets":      {Path: "region/%s/secrets"},
-	"s3_uploads":   {Path: "region/%s/s3-uploads"},
-	"upload_proc":  {Path: "region/%s/s3-uploads-processor"},
+	"ecs_clusters": {Path: "region/%s/ecs-cluster", Category: "infra"},
+	"ecs_services": {Path: "region/%s/ecs-service", Category: "infra"},
+	"ecs_tasks":    {Path: "region/%s/ecs-task", Category: "infra"},
+	"dynamodb":     {Path: "region/%s/dynamodb", Category: "infra"},
+	"ecr":          {Path: "region/%s/ecr", Category: "infra"},
+	"ec2spots":     {Path: "region/%s/ec2spot", Category: "infra"},
+	"email":        {Path: "region/%s/email", Category: "infra"},
+	"secrets":      {Path: "region/%s/secrets", Category: "infra"},
+	"s3_uploads":   {Path: "region/%s/s3-uploads", Category: "infra"},
+	"upload_proc":  {Path: "region/%s/s3-uploads-processor", Category: "infra"},
+	// Services (global — single terragrunt config per service)
+	"svc_auth":  {Path: "services/run.auth", Global: true, Category: "services"},
+	"svc_human": {Path: "services/run.human", Global: true, Category: "services"},
+	"svc_cms":   {Path: "services/run.cms", Global: true, Category: "services"},
+	"svc_gpx":   {Path: "services/run.gpx", Global: true, Category: "services"},
+	// Apps (regional)
+	"waffaw": {Path: "region/%s/waffaw", Category: "apps"},
 }
 
 // AllowedCommands maps command names to their terragrunt arguments.
@@ -361,16 +372,17 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 	}
 
 	session := &TermSession{
-		ID:      fmt.Sprintf("term-%d", time.Now().UnixMilli()),
-		Module:  module,
-		Command: command,
-		Region:  region,
-		CmdLine: strings.Join(cmdArgs, " "),
-		WorkDir: workDir,
-		Status:  "running",
-		Stats:   &ResourceStats{ByModule: make(map[string]*TerraformSummary), ByType: make(map[string]*TerraformSummary)},
-		startAt: time.Now(),
-		clients: make(map[chan string]struct{}),
+		ID:        fmt.Sprintf("term-%d", time.Now().UnixMilli()),
+		Module:    module,
+		Command:   command,
+		Region:    region,
+		CmdLine:   strings.Join(cmdArgs, " "),
+		WorkDir:   workDir,
+		Status:    "running",
+		Stats:     &ResourceStats{ByModule: make(map[string]*TerraformSummary), ByType: make(map[string]*TerraformSummary), ByModuleType: make(map[string]*TerraformSummary)},
+		startAt:   time.Now(),
+		clients:   make(map[chan string]struct{}),
+		siteLabel: cfg.Site.Label,
 	}
 
 	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
@@ -431,6 +443,18 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		if m := reModulePrefix.FindStringSubmatch(cleaned); m != nil {
 			moduleName = m[1]
 			innerLine = m[2]
+			// Replace [.] with site label for readability
+			if moduleName == "." && session.siteLabel != "" {
+				moduleName = session.siteLabel
+			}
+			// Strip "terraform: " / "tofu: " from inside [module] prefix
+			for _, p := range []string{"terraform: ", "tofu: "} {
+				if strings.HasPrefix(innerLine, p) {
+					innerLine = innerLine[len(p):]
+					break
+				}
+			}
+			cleaned = "[" + moduleName + "] " + innerLine
 		}
 		if resType, action, ok := parseResourceAction(innerLine); ok {
 			session.mu.Lock()
@@ -482,6 +506,7 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 		}
 
 		session.doneAt = time.Now()
+		go a.rrdbRecord(session)
 		log.Printf("Terminal session %s completed: status=%s exit=%d", session.Module, session.Status, session.ExitCode)
 		session.closeBroadcast()
 	}()

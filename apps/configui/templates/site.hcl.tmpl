@@ -185,7 +185,8 @@ locals {
       local.service_conf.auth.locals.ecr_repositories,
       local.service_conf.run_human.locals.ecr_repositories,
       local.service_conf.cms.locals.ecr_repositories,
-      local.service_conf.gpx.locals.ecr_repositories
+      local.service_conf.gpx.locals.ecr_repositories,
+      local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "IMMUTABLE" }] : []
     )
   }
 
@@ -226,6 +227,20 @@ locals {
       try(local.service_conf.run_human.locals.upload_processors, [])
       # Future: local.service_conf.gpx.locals.upload_processors
     )
+  }
+
+  waffaw = {
+    enabled         = <<boolHCL .Waffaw.Enabled>>
+    ec2_count       = <<.Waffaw.EC2Count>>
+    ec2_max_count   = <<.Waffaw.EC2MaxCount>>
+    ec2_instance_type = "<<.Waffaw.EC2InstanceType>>"
+    ec2_use_spot    = <<boolHCL .Waffaw.EC2UseSpot>>
+    ec2_multi_eni   = <<boolHCL .Waffaw.EC2MultiENI>>
+    ecs_desired_count = <<.Waffaw.ECSDesiredCount>>
+    ecs_use_spot    = <<boolHCL .Waffaw.ECSUseSpot>>
+    ecs_task_cpu    = <<.Waffaw.ECSTaskCPU>>
+    ecs_task_memory = <<.Waffaw.ECSTaskMemory>>
+    image_uri       = "<<.Waffaw.ImageURI>>"
   }
 
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)

@@ -1,6 +1,6 @@
 name: "🚀 Deploy: Release"
 
-run-name: "Deploy → ${{ inputs.region }} (${{ inputs.runner }})"
+run-name: "Deploy → ${{ inputs.region }} (${{ inputs.runner }}) PR:${{ inputs.pr_number }}"
 
 on:
   workflow_dispatch:
@@ -67,12 +67,11 @@ jobs:
               --jq '[.[] | select(.title | startswith("Release"))] | sort_by(.createdAt) | reverse | .[0].number')
 
             if [[ -z "$PR_NUMBER" || "$PR_NUMBER" == "null" ]]; then
-              echo "::error::No open release PRs found"
-              echo "**Error:** No open Release PRs found" >> $GITHUB_STEP_SUMMARY
-              echo "" >> $GITHUB_STEP_SUMMARY
-              echo "### Open PRs (looking for title starting with 'Release'):" >> $GITHUB_STEP_SUMMARY
-              gh pr list --state open --json number,title,headRefName --jq '.[] | "- #\(.number): \(.title)"' >> $GITHUB_STEP_SUMMARY
-              exit 1
+              echo "No open release PRs found — skipping merge, deploying from main/HEAD"
+              echo "**Skipped:** No open Release PRs — deploying from main/HEAD" >> $GITHUB_STEP_SUMMARY
+              echo "sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+              echo "skipped=true" >> $GITHUB_OUTPUT
+              exit 0
             fi
             echo "Found latest release PR: #$PR_NUMBER"
           else

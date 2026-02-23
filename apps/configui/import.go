@@ -566,6 +566,43 @@ func importSiteHCL(path string) (*SiteConfig, error) {
 		}
 	}
 
+	// waffaw block
+	if block, ok := isolateBlock(localsContent, "waffaw"); ok {
+		if v, ok := extractBool(block, "enabled"); ok {
+			cfg.Waffaw.Enabled = v
+		}
+		if v, ok := extractInt(block, "ec2_count"); ok {
+			cfg.Waffaw.EC2Count = v
+		}
+		if v, ok := extractInt(block, "ec2_max_count"); ok {
+			cfg.Waffaw.EC2MaxCount = v
+		}
+		if v, ok := extractString(block, "ec2_instance_type"); ok {
+			cfg.Waffaw.EC2InstanceType = v
+		}
+		if v, ok := extractBool(block, "ec2_use_spot"); ok {
+			cfg.Waffaw.EC2UseSpot = v
+		}
+		if v, ok := extractBool(block, "ec2_multi_eni"); ok {
+			cfg.Waffaw.EC2MultiENI = v
+		}
+		if v, ok := extractInt(block, "ecs_desired_count"); ok {
+			cfg.Waffaw.ECSDesiredCount = v
+		}
+		if v, ok := extractBool(block, "ecs_use_spot"); ok {
+			cfg.Waffaw.ECSUseSpot = v
+		}
+		if v, ok := extractInt(block, "ecs_task_cpu"); ok {
+			cfg.Waffaw.ECSTaskCPU = v
+		}
+		if v, ok := extractInt(block, "ecs_task_memory"); ok {
+			cfg.Waffaw.ECSTaskMemory = v
+		}
+		if v, ok := extractString(block, "image_uri"); ok {
+			cfg.Waffaw.ImageURI = v
+		}
+	}
+
 	// Toggle-only modules
 	for _, pair := range []struct {
 		name   string

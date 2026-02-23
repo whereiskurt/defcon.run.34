@@ -28,9 +28,10 @@ type ModuleOutputs struct {
 
 // OutputModuleInfo describes a module available for output browsing.
 type OutputModuleInfo struct {
-	Panel  string `json:"panel"`
-	Path   string `json:"path"`
-	Global bool   `json:"global"`
+	Panel    string `json:"panel"`
+	Path     string `json:"path"`
+	Global   bool   `json:"global"`
+	Category string `json:"category"`
 }
 
 // cleanOutputError extracts a short, useful error from raw terragrunt stderr.
@@ -54,6 +55,10 @@ func cleanOutputError(stderr string) string {
 	if strings.Contains(lower, "expired") || strings.Contains(lower, "sso") ||
 		strings.Contains(lower, "credential") {
 		return "AWS credentials expired — run SSO Login"
+	}
+	if strings.Contains(lower, "s3") && (strings.Contains(lower, "nosuchbucket") ||
+		strings.Contains(lower, "bucket") || strings.Contains(lower, "exit status")) {
+		return "S3 state bucket not found — region may not be bootstrapped"
 	}
 
 	// Fall back to first non-empty, non-timestamp ERROR line
@@ -190,17 +195,23 @@ func (a *App) handleOutputs(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleOutputsList(w http.ResponseWriter, r *http.Request) {
 	var modules []OutputModuleInfo
 	for panel, def := range ModuleMap {
-		if panel == "all" || panel == "region-all" {
+		if def.Category == "meta" {
 			continue
 		}
 		modules = append(modules, OutputModuleInfo{
-			Panel:  panel,
-			Path:   def.Path,
-			Global: def.Global,
+			Panel:    panel,
+			Path:     def.Path,
+			Global:   def.Global,
+			Category: def.Category,
 		})
 	}
+	// Sort by category order (infra, services, apps), then alphabetical
+	catOrder := map[string]int{"infra": 0, "services": 1, "apps": 2}
 	sort.Slice(modules, func(i, j int) bool {
-		// Sort global first, then alphabetical
+		ci, cj := catOrder[modules[i].Category], catOrder[modules[j].Category]
+		if ci != cj {
+			return ci < cj
+		}
 		if modules[i].Global != modules[j].Global {
 			return modules[i].Global
 		}

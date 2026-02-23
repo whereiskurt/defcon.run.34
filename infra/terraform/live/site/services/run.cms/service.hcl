@@ -452,7 +452,7 @@ locals {
       replication = {
         enabled = false
         replica_regions = [
-          { label = "use1", full = "us-east-1" }
+          
         ]
       }
 
@@ -462,8 +462,7 @@ locals {
       # Replicate SSM parameters to these regions so workers can access master bucket credentials
       # This creates /<site_label>/uploads/cac1/cms-litestream/* params pointing to the use1 bucket
       ssm_replicate_to = [
-        { label = "cac1", full = "ca-central-1" },
-        { label = "apse1", full = "ap-southeast-1" }
+        
       ]
     },
     # Media storage bucket (both regions with replication)
@@ -481,9 +480,7 @@ locals {
       replication = {
         enabled = true
         replica_regions = [
-          { label = "use1", full = "us-east-1" },
-          { label = "cac1", full = "ca-central-1" },
-          { label = "apse1", full = "ap-southeast-1" }
+          
         ]
       }
 

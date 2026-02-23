@@ -647,6 +647,19 @@ func checkECRRepo(profile, repoName, region string) RegionCheck {
 	return rc
 }
 
+func checkECRImage(profile, repoName, imageTag, region string) (exists bool, err error) {
+	_, err = exec.Command("aws", "ecr", "describe-images",
+		"--repository-name", repoName,
+		"--image-ids", "imageTag="+imageTag,
+		"--profile", profile,
+		"--region", region,
+		"--output", "json").Output()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func checkCloudFrontDistributions(profile string, domains []string, zoneName string) []ResourceResult {
 	out, err := exec.Command("aws", "cloudfront", "list-distributions",
 		"--profile", profile,
@@ -708,8 +721,12 @@ func checkCloudFrontDistributions(profile string, domains []string, zoneName str
 
 func checkEC2Spots(profile, siteLabel, region string) RegionCheck {
 	rc := RegionCheck{Region: region, Label: regionLabel(region)}
+	// Spot instance requests don't propagate tags to EC2 instances,
+	// so filter by the security group name pattern instead.
+	sgPattern := fmt.Sprintf("ec2spot-%s-*", regionLabel(region))
 	out, err := exec.Command("aws", "ec2", "describe-instances",
-		"--filters", fmt.Sprintf("Name=tag:Site,Values=%s", siteLabel),
+		"--filters",
+		fmt.Sprintf("Name=instance.group-name,Values=%s", sgPattern),
 		"Name=instance-state-name,Values=running,pending",
 		"--profile", profile,
 		"--region", region,

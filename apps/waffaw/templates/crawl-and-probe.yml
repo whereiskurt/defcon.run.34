@@ -1,0 +1,69 @@
+config:
+  target: "{{ $processEnvironment.TARGET_URL }}"
+  phases:
+    - duration: 1800   # 30 minutes
+      arrivalRate: 5   # 5 VUs per second
+      name: "Crawl and probe"
+  engines:
+    playwright:
+      testIdAttribute: "data-testid"
+      launchOptions:
+        headless: true
+        args:
+          - "--no-sandbox"
+          - "--disable-dev-shm-usage"
+  processor: "../scenarios/index.ts"
+  payload:
+    - path: "../data/pages.csv"
+      fields:
+        - "path"
+      order: random
+
+scenarios:
+  - name: "Spider and browse"
+    engine: playwright
+    weight: 6
+    flowFunction: "browsePublic"
+    flow: []
+  - name: "Click discovered links"
+    engine: playwright
+    weight: 4
+    flowFunction: "clickElement"
+    flow: []
+  - name: "SQLi probe in query params"
+    weight: 3
+    afterResponse: "waffawLog"
+    flow:
+      - get:
+          url: "/search?q=' OR '1'='1"
+      - get:
+          url: "/search?q=1; DROP TABLE users--"
+      - get:
+          url: "/search?q=' UNION SELECT NULL,NULL--"
+  - name: "XSS probe"
+    weight: 3
+    afterResponse: "waffawLog"
+    flow:
+      - get:
+          url: "/search?q=<script>alert(1)</script>"
+      - get:
+          url: "/search?q=\"><img src=x onerror=alert(1)>"
+      - get:
+          url: "/search?q=javascript:alert(document.cookie)"
+  - name: "Path traversal probe"
+    weight: 2
+    afterResponse: "waffawLog"
+    flow:
+      - get:
+          url: "/../../etc/passwd"
+      - get:
+          url: "/.env"
+      - get:
+          url: "/wp-admin/"
+      - get:
+          url: "/admin/"
+  - name: "Form submit with SQLi payload"
+    engine: playwright
+    weight: 2
+    flowFunction: "submitForm"
+    flow: []

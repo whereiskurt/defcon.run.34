@@ -1,0 +1,23 @@
+config:
+  target: "{{ $processEnvironment.TARGET_URL }}"
+  phases:
+    - duration: 1800       # 30 minutes
+      arrivalCount: 15     # 15 total VUs across the phase (1 every 2 min)
+      name: "Auth probe — full OIDC login + MFA + browse + logout"
+  plugins:
+    ensure: {}
+  maxVusers: 1              # Only 1 probe at a time per node
+  engines:
+    playwright:
+      launchOptions:
+        headless: true
+        args:
+          - "--no-sandbox"
+          - "--disable-dev-shm-usage"
+  processor: "../scenarios/index.ts"
+
+scenarios:
+  - name: "Full auth probe (login + MFA + browse + logout)"
+    engine: playwright
+    flowFunction: "authProbe"
+    flow: []

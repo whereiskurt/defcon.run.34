@@ -65,6 +65,127 @@ document.addEventListener('keydown', function(e) {
   }
 }, true); // capture phase
 
+// hasVisibleOverlay — returns true if any element matching selector is rendered (not display:none).
+function hasVisibleOverlay(sel) {
+  var els = document.querySelectorAll(sel);
+  for (var i = 0; i < els.length; i++) {
+    if (els[i].style.display !== 'none') return true;
+  }
+  return false;
+}
+
+// ========== Keyboard Shortcuts ==========
+// Two-key sequences: ra=Refresh All, pa=Plan All, aa=Apply All
+// Single key: - = collapse all panels (headers stay visible)
+(function() {
+  var _shortcutFirst = '';
+  var _shortcutTimer = null;
+
+  document.addEventListener('keydown', function(e) {
+    var tag = (e.target.tagName || '').toUpperCase();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+    if (_destroyActive) return;
+
+    var key = e.key.toLowerCase();
+
+    // If a confirm dialog is open, allow double-tap (aa, bb, etc.) to auto-confirm it
+    if (hasVisibleOverlay('.fixed.inset-0.z-\\[60\\]')) {
+      if (_shortcutFirst && _shortcutFirst === key) {
+        e.preventDefault();
+        _shortcutFirst = '';
+        clearTimeout(_shortcutTimer);
+        var cfBtn = document.getElementById('cfd-confirm');
+        if (cfBtn) cfBtn.click();
+        return;
+      }
+      // Track first key even while overlay is open
+      if (!_shortcutFirst) {
+        _shortcutFirst = key;
+        _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
+      }
+      return;
+    }
+
+    // Single-key: minus collapses all
+    if (key === '-' && !_shortcutFirst) {
+      e.preventDefault();
+      var s = countAllPanelStates();
+      if (s.open > 0) {
+        // Collapse all
+        document.querySelectorAll('[data-panel]').forEach(function(panel) {
+          var id = panel.dataset.panel;
+          var body = document.getElementById('body-' + id);
+          var chevron = document.getElementById('chevron-' + id);
+          if (body) body.style.display = 'none';
+          if (chevron) chevron.classList.remove('open');
+        });
+        updateAllFoldButtons();
+        showToast('All panels collapsed');
+      } else {
+        // Already collapsed — expand all
+        toggleAllPanels();
+        showToast('All panels expanded');
+      }
+      return;
+    }
+
+    // Two-key sequences
+    if (_shortcutFirst) {
+      clearTimeout(_shortcutTimer);
+      var combo = _shortcutFirst + key;
+      _shortcutFirst = '';
+      if (combo === 'ra') {
+        e.preventDefault();
+        confirmRequery();
+      } else if (combo === 'pa') {
+        e.preventDefault();
+        confirmPlanAll();
+      } else if (combo === 'aa') {
+        e.preventDefault();
+        confirmApplyAll();
+      } else if (combo === 'ga') {
+        e.preventDefault();
+        toggleSection('apps');
+      } else if (combo === 'gs') {
+        e.preventDefault();
+        toggleSection('svc');
+      } else if (combo === 'gi') {
+        e.preventDefault();
+        toggleSection('infra');
+      } else if (combo === 'gc') {
+        e.preventDefault();
+        toggleSection('core');
+      } else if (combo === 'ha') {
+        e.preventDefault();
+        toggleSectionRollup('apps');
+      } else if (combo === 'hs') {
+        e.preventDefault();
+        toggleSectionRollup('svc');
+      } else if (combo === 'hi') {
+        e.preventDefault();
+        toggleSectionRollup('infra');
+      } else if (combo === 'hc') {
+        e.preventDefault();
+        toggleSectionRollup('core');
+      } else if (combo === 'xl') {
+        e.preventDefault();
+        toggleAggressiveLocks(!_aggressiveLocks);
+        showToast('Aggressive locks ' + (_aggressiveLocks ? 'ON' : 'OFF'), 2000);
+      } else if (combo === 'bb') {
+        e.preventDefault();
+        buildWaffaw();
+      }
+      return;
+    }
+
+    // Start tracking first key of a two-key sequence
+    if (key === 'r' || key === 'p' || key === 'a' || key === 'b' || key === 'g' || key === 'h' || key === 'x') {
+      _shortcutFirst = key;
+      _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
+    }
+  });
+})();
+
 function updateDestroyDim(letterCount) {
   if (letterCount === 0) {
     document.body.classList.remove('destroy-dimming');
@@ -510,7 +631,7 @@ function showPreview() {
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.remove('md:col-span-2');
     });
-    ['infra-modules', 'core-modules', 'svc-modules'].forEach(function(id) {
+    ['infra-modules', 'core-modules', 'svc-modules', 'apps-modules'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.classList.remove('md:col-span-2');
     });
@@ -534,7 +655,7 @@ function hidePreview() {
     grid.querySelectorAll('.section-divider').forEach(function(el) {
       el.classList.add('md:col-span-2');
     });
-    ['infra-modules', 'core-modules', 'svc-modules'].forEach(function(id) {
+    ['infra-modules', 'core-modules', 'svc-modules', 'apps-modules'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.classList.add('md:col-span-2');
     });
@@ -579,7 +700,7 @@ function hidePreview() {
 // Escape key closes preview (unless a modal dialog is open)
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
-    if (document.querySelector('.fixed.inset-0.z-\\[60\\]')) return;
+    if (hasVisibleOverlay('.fixed.inset-0.z-\\[60\\]')) return;
     if (isPreviewOpen()) hidePreview();
   }
 });
@@ -587,10 +708,76 @@ document.addEventListener('keydown', function(e) {
 // --- Preview tab switching (global, no inline script) ---
 var _previewDebounce = null;
 var _activePreviewTab = null;
+var _activePreviewCategory = 'config';
 var _previewScroll = 0;
 
-var TAB_ACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-green-500 text-green-600 dark:text-green-400';
+var _tabActiveColors = {
+  config:    'border-green-500 text-green-600 dark:text-green-400',
+  services:  'border-cyan-500 text-cyan-600 dark:text-cyan-400',
+  infra:     'border-purple-500 text-purple-600 dark:text-purple-400',
+  campaigns: 'border-orange-500 text-orange-600 dark:text-orange-400'
+};
+function tabActive() {
+  var colors = _tabActiveColors[_activePreviewCategory] || _tabActiveColors.config;
+  return 'px-3 py-1.5 text-xs font-medium border-b-2 ' + colors;
+}
 var TAB_INACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer';
+var _pcatLabels = { config: 'Config', services: 'Services', infra: 'Infra', campaigns: 'Campaigns' };
+
+function togglePcatDropdown() {
+  var menu = document.getElementById('pcat-menu');
+  if (menu) menu.classList.toggle('hidden');
+}
+
+function selectPcatItem(cat, label) {
+  var menu = document.getElementById('pcat-menu');
+  if (menu) menu.classList.add('hidden');
+  var trigger = document.getElementById('pcat-trigger');
+  if (trigger) {
+    trigger.innerHTML = label + ' <svg class="inline w-3 h-3 ml-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+    trigger.className = 'pcat-pill pcat-' + cat;
+  }
+  switchPreviewCategory(cat);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('pcat-bar');
+  var menu = document.getElementById('pcat-menu');
+  if (dd && menu && !dd.contains(e.target)) menu.classList.add('hidden');
+});
+
+function switchPreviewCategory(cat) {
+  _activePreviewCategory = cat;
+  var pc = document.getElementById('preview-content');
+  if (!pc) return;
+
+  // Update trigger pill style
+  var trigger = document.getElementById('pcat-trigger');
+  if (trigger) {
+    var lbl = _pcatLabels[cat] || cat;
+    trigger.innerHTML = lbl + ' <svg class="inline w-3 h-3 ml-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+    trigger.className = 'pcat-pill pcat-' + cat;
+  }
+
+  // Theme tab bar with category colour
+  var bar = pc.querySelector('#ptab-bar');
+  if (bar) bar.dataset.activeCat = cat;
+
+  // Show/hide tab buttons by data-category
+  var firstVisible = null;
+  pc.querySelectorAll('#ptab-bar button[data-category]').forEach(function(btn) {
+    var show = btn.dataset.category === cat;
+    btn.style.display = show ? '' : 'none';
+    if (show && !firstVisible) firstVisible = btn;
+  });
+
+  // Auto-select first visible tab
+  if (firstVisible) {
+    var tabId = firstVisible.id.replace('ptab-', '');
+    switchPreviewTab(tabId);
+  }
+}
 
 function switchPreviewTab(tab) {
   _activePreviewTab = tab;
@@ -599,8 +786,11 @@ function switchPreviewTab(tab) {
   pc.querySelectorAll('[id^="ptab-content-"]').forEach(function(el) {
     el.classList.toggle('hidden', el.id !== 'ptab-content-' + tab);
   });
-  pc.querySelectorAll('#ptab-bar button').forEach(function(btn) {
-    btn.className = btn.id === 'ptab-' + tab ? TAB_ACTIVE : TAB_INACTIVE;
+  pc.querySelectorAll('#ptab-bar button[data-category]').forEach(function(btn) {
+    var isVisible = btn.style.display !== 'none';
+    if (isVisible) {
+      btn.className = btn.id === 'ptab-' + tab ? tabActive() : TAB_INACTIVE;
+    }
   });
 }
 
@@ -623,6 +813,9 @@ function schedulePreviewRefresh() {
         if (!pc) return;
         pc.innerHTML = html;
         pc.querySelectorAll('pre').forEach(addCodeFolding);
+        if (_activePreviewCategory) {
+          switchPreviewCategory(_activePreviewCategory);
+        }
         if (_activePreviewTab) {
           switchPreviewTab(_activePreviewTab);
         }
@@ -731,6 +924,100 @@ function highlightLine(raw) {
   return html;
 }
 
+// --- YAML Syntax Highlighting ---
+function highlightYAMLLine(raw) {
+  var html = '';
+  var i = 0;
+
+  // Leading whitespace
+  while (i < raw.length && (raw[i] === ' ' || raw[i] === '\t')) {
+    html += raw[i];
+    i++;
+  }
+
+  if (i >= raw.length) return html;
+
+  // Comment: # to end of line
+  if (raw[i] === '#') {
+    html += '<span class="hl-cmt">' + esc(raw.substring(i)) + '</span>';
+    return html;
+  }
+
+  // List item marker: "- "
+  if (raw[i] === '-' && i + 1 < raw.length && raw[i + 1] === ' ') {
+    html += '<span class="hl-op">-</span>';
+    i++;
+    // Continue to parse the rest of the line
+  }
+
+  var rest = raw.substring(i);
+
+  // Key: value pattern
+  var kvMatch = rest.match(/^(\s*)([\w./$][^:]*?)(\s*:\s*)(.*)/);
+  if (kvMatch) {
+    html += kvMatch[1]; // whitespace before key
+    html += '<span class="hl-key">' + esc(kvMatch[2]) + '</span>';
+    html += '<span class="hl-op">' + esc(kvMatch[3]) + '</span>';
+    var val = kvMatch[4];
+
+    if (val) {
+      // Inline comment
+      var commentIdx = -1;
+      var inQuote = false;
+      for (var c = 0; c < val.length; c++) {
+        if (val[c] === '"' || val[c] === "'") inQuote = !inQuote;
+        if (!inQuote && val[c] === '#') { commentIdx = c; break; }
+      }
+      var valPart = commentIdx >= 0 ? val.substring(0, commentIdx) : val;
+      var commentPart = commentIdx >= 0 ? val.substring(commentIdx) : '';
+      html += highlightYAMLValue(valPart.trimEnd());
+      if (valPart.length < (commentIdx >= 0 ? commentIdx : val.length)) {
+        html += val.substring(valPart.trimEnd().length, commentIdx >= 0 ? commentIdx : val.length);
+      }
+      if (commentPart) {
+        html += '<span class="hl-cmt">' + esc(commentPart) + '</span>';
+      }
+    }
+    return html;
+  }
+
+  // Plain value line (after list marker, etc.)
+  html += highlightYAMLValue(rest);
+  return html;
+}
+
+function highlightYAMLValue(val) {
+  val = val.trim();
+  if (!val) return '';
+
+  // {{ }} interpolation
+  if (/\{\{.*\}\}/.test(val)) {
+    return esc(val).replace(/\{\{([^}]*)\}\}/g, function(m) {
+      return '<span class="hl-interp">' + m + '</span>';
+    });
+  }
+
+  // Quoted string
+  if ((val[0] === '"' && val[val.length - 1] === '"') || (val[0] === "'" && val[val.length - 1] === "'")) {
+    var inner = esc(val).replace(/\{\{([^}]*)\}\}/g, function(m) {
+      return '</span><span class="hl-interp">' + m + '</span><span class="hl-str">';
+    });
+    return '<span class="hl-str">' + inner + '</span>';
+  }
+
+  // Boolean
+  if (val === 'true' || val === 'false' || val === 'null' || val === '~') {
+    return '<span class="hl-bool">' + val + '</span>';
+  }
+
+  // Number
+  if (/^-?\d+\.?\d*$/.test(val)) {
+    return '<span class="hl-num">' + val + '</span>';
+  }
+
+  return esc(val);
+}
+
 // --- Diff (LCS) ---
 // Compare old (on-disk) vs new (generated) lines. Returns {lines: string[]}
 // where lines[i] is 'equal', 'add', or 'mod' for each newLine.
@@ -822,7 +1109,9 @@ function findMatchingClose(lines, start, openChar, closeChar) {
 
 // Recursively process lines into folded + highlighted HTML
 // diffMap: optional array where diffMap[i] is 'equal'|'add'|'mod' per line
-function processLines(lines, from, to, diffMap) {
+// hlFn: highlighter function (highlightLine or highlightYAMLLine)
+function processLines(lines, from, to, diffMap, hlFn) {
+  if (!hlFn) hlFn = highlightLine;
   var html = '';
   var i = from;
 
@@ -843,16 +1132,16 @@ function processLines(lines, from, to, diffMap) {
       // Fold header line
       html += '<span class="fold-line' + dc + '" data-fold="' + id + '" data-count="' + innerCount + '">';
       html += '<span class="fold-icon" onclick="toggleFold(\'' + id + '\')">▾</span>';
-      html += highlightLine(line);
+      html += hlFn(line);
       html += '</span>\n';
 
       // Inner content — recurse for nested folds
       html += '<span id="' + id + '" class="fold-content">';
-      html += processLines(lines, i + 1, end, diffMap);
+      html += processLines(lines, i + 1, end, diffMap, hlFn);
       html += '</span>';
       i = end;
     } else {
-      var lh = highlightLine(line);
+      var lh = hlFn(line);
       if (dt && dt !== 'equal') {
         lh = '<span class="diff-' + dt + '">' + lh + '</span>';
       }
@@ -885,7 +1174,8 @@ function addCodeFolding(pre) {
     }
   }
 
-  pre.innerHTML = processLines(lines, 0, lines.length, diffMap);
+  var hlFn = pre.dataset.lang === 'yaml' ? highlightYAMLLine : highlightLine;
+  pre.innerHTML = processLines(lines, 0, lines.length, diffMap, hlFn);
 }
 
 // --- Fold toggle ---
@@ -963,6 +1253,9 @@ function expandAllFolds(tabId) {
 document.addEventListener('htmx:afterSwap', function(e) {
   if (e.detail.target && e.detail.target.id === 'preview-content') {
     e.detail.target.querySelectorAll('pre').forEach(addCodeFolding);
+    if (_activePreviewCategory) {
+      switchPreviewCategory(_activePreviewCategory);
+    }
     if (_activePreviewTab) {
       switchPreviewTab(_activePreviewTab);
     }
@@ -996,6 +1289,59 @@ function setAllVersions() {
       input.value = version;
     }
   });
+}
+
+// Check ECR for image tag existence
+function checkECRTags() {
+  var btn = document.getElementById('ecr-check-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('opacity-50');
+  }
+
+  // Set all badge spans to loading state
+  document.querySelectorAll('.ecr-badge').forEach(function(el) {
+    el.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400';
+    el.textContent = '...';
+  });
+  showToast('Checking ECR...');
+
+  // Build form data from current version inputs
+  var form = document.getElementById('config-form');
+  var formData = new FormData(form);
+
+  fetch('/api/ecr-tags', { method: 'POST', body: formData })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      Object.keys(data).forEach(function(key) {
+        var el = document.getElementById('ecr-' + key);
+        if (!el) return;
+        var result = data[key];
+        if (result.exists) {
+          el.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+          el.innerHTML = '<span class="status-dot ok"></span> exists';
+        } else if (result.error) {
+          el.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+          el.innerHTML = '<span class="status-dot warning"></span> needs build';
+        }
+      });
+      showToast('ECR check complete');
+    })
+    .catch(function(err) {
+      document.querySelectorAll('.ecr-badge').forEach(function(el) {
+        if (el.textContent === '...') {
+          el.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+          el.innerHTML = '<span class="status-dot error"></span> error';
+        }
+      });
+      showToast('ECR check failed: ' + err.message, 5000);
+    })
+    .finally(function() {
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+      }
+    });
 }
 
 // Save All from preview with confirmation dialog
@@ -1127,6 +1473,13 @@ function confirmRequery() {
     message: 'This will query all AWS resources across all regions. This may take a few seconds.',
     confirmLabel: '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M4.93 9A10 10 0 0119.07 9M19.07 15A10 10 0 014.93 15"/></svg> Refresh',
     onConfirm: function() {
+      // Expand Infrastructure Modules section if hidden
+      var infraContainer = document.getElementById('infra-modules');
+      if (infraContainer && infraContainer.style.display === 'none') {
+        infraContainer.style.display = '';
+        var rollBtn = document.getElementById('section-roll-infra');
+        if (rollBtn) rollBtn.classList.add('open');
+      }
       var btn = document.getElementById('requery-aws-btn');
       if (btn) {
         btn.classList.add('spinning');
@@ -1161,6 +1514,44 @@ function confirmRequery() {
     }
   });
 }
+
+// Aggressive Locks mode
+var _aggressiveLocks = localStorage.getItem('aggressiveLocks') === 'true';
+
+function toggleAggressiveLocks(on) {
+  _aggressiveLocks = on;
+  localStorage.setItem('aggressiveLocks', on ? 'true' : 'false');
+  updateAggressiveLocksUI();
+}
+
+function updateAggressiveLocksUI() {
+  var cb = document.getElementById('aggressive-locks-toggle');
+  if (cb) cb.checked = _aggressiveLocks;
+  var mainBtn = document.querySelector('#split-fix-locks .split-btn-main');
+  if (mainBtn) {
+    if (_aggressiveLocks) {
+      mainBtn.classList.add('split-btn-active-warn');
+    } else {
+      mainBtn.classList.remove('split-btn-active-warn');
+    }
+  }
+}
+
+function toggleFixLocksMenu(e) {
+  e.stopPropagation();
+  var menu = document.getElementById('fix-locks-menu');
+  if (!menu) return;
+  menu.classList.toggle('hidden');
+  if (!menu.classList.contains('hidden')) {
+    var close = function() { menu.classList.add('hidden'); document.removeEventListener('click', close); };
+    setTimeout(function() { document.addEventListener('click', close); }, 0);
+  }
+}
+
+// Init aggressive locks state on load
+document.addEventListener('DOMContentLoaded', function() {
+  updateAggressiveLocksUI();
+});
 
 // Fix Locks confirmation dialog
 function confirmFixLocks() {
@@ -2300,18 +2691,22 @@ function ensurePillBar() {
 function updatePillBar() {
   var bar = document.getElementById('term-pill-bar');
   if (!bar) return;
-  // Sort: minimized sessions first (most recently minimized), then by creation order (newest first)
+  // Sort: running first, then minimized, then completed — within each group newest first
   var ids = Object.keys(_termSessions);
   ids.sort(function(a, b) {
     var sa = _termSessions[a], sb = _termSessions[b];
+    var aRun = sa.processRunning ? 1 : 0;
+    var bRun = sb.processRunning ? 1 : 0;
+    if (aRun !== bRun) return bRun - aRun; // running first
     var aMin = sa.minimized ? 1 : 0;
     var bMin = sb.minimized ? 1 : 0;
-    if (aMin !== bMin) return bMin - aMin; // minimized first
+    if (aMin !== bMin) return bMin - aMin; // minimized before completed
     if (sa.minimized && sb.minimized) return (sb.minimizedAt || 0) - (sa.minimizedAt || 0);
-    return (sb.createdAt || 0) - (sa.createdAt || 0); // most recently run first
+    return (sb.createdAt || 0) - (sa.createdAt || 0);
   });
   if (ids.length === 0) {
     bar.style.display = 'none';
+    document.body.style.paddingBottom = '';
     return;
   }
   bar.style.display = '';
@@ -2365,6 +2760,8 @@ function updatePillBar() {
 
     bar.appendChild(pill);
   });
+  // Add bottom padding to body so content isn't hidden behind the fixed pill bar
+  document.body.style.paddingBottom = bar.offsetHeight + 'px';
 }
 
 function minimizeSession(id) {
@@ -2425,7 +2822,7 @@ function doCleanupSession(id) {
 
 // --- Terraform summary formatting ---
 
-function formatSummaryHtml(summary, exitCode, command, sessionId) {
+function formatSummaryHtml(summary, exitCode, command, sessionId, stats) {
   var icon = exitCode === 0
     ? '<span class="text-green-400">&#10003;</span>'
     : '<span class="text-red-400">&#10007;</span>';
@@ -2435,25 +2832,33 @@ function formatSummaryHtml(summary, exitCode, command, sessionId) {
     if (exitCode === 0) return '<span class="text-green-400">&#10003; ' + (elapsed || 'Done') + '</span>';
     return '<span class="text-red-400">&#10007; Exit code: ' + exitCode + '</span>';
   }
-  var isApply = command && command.indexOf('apply') !== -1;
-  var prefix = isApply ? 'Applied ' : 'Planned ';
   if (summary.no_change) {
     return icon + ' <span class="text-zinc-400">No changes — infrastructure matches configuration</span>';
   }
-  var parts = [];
-  parts.push('<span class="' + (summary.add > 0 ? 'text-green-400' : 'text-zinc-500') + '">+' + summary.add + '</span>');
-  parts.push('<span class="' + (summary.change > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">~' + summary.change + '</span>');
-  parts.push('<span class="' + (summary.destroy > 0 ? 'text-red-400' : 'text-zinc-500') + '">-' + summary.destroy + '</span>');
-  var html = icon + ' ' + prefix + parts.join(', ');
-  // Add stats button if we have per-module or per-type breakdown
-  if (sessionId) {
-    var s = _termSessions[sessionId];
-    var stats = s && s.stats;
-    if (stats && (Object.keys(stats.by_module || {}).length > 1 || Object.keys(stats.by_type || {}).length > 0)) {
-      html += ' <button onclick="showStatsPopup(\'' + sessionId + '\')" class="text-sm font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded-md px-4 py-1.5 ml-2 transition-colors">[Stats]</button>';
-    }
+  // Use summary totals (from terraform's Apply/Plan complete line) as authoritative
+  var sa = summary.add || 0, sc = summary.change || 0, sd = summary.destroy || 0;
+  // Resolve stats from session if not passed directly
+  if (!stats && sessionId && _termSessions[sessionId]) {
+    stats = _termSessions[sessionId].stats;
   }
-  return html;
+  // If we have per-module stats, show only the Stats button (no separate Applied/Planned text)
+  var hasStats = stats && (Object.keys(stats.by_module || {}).length > 1 || Object.keys(stats.by_type || {}).length > 0);
+  if (hasStats && sessionId) {
+    return icon + ' <button onclick="showStatsPopup(\'' + sessionId + '\')" class="text-sm font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded-md px-4 py-1.5 ml-1 transition-colors">' +
+      '<span class="text-zinc-500">[</span>Stats ' +
+      '<span class="' + (sa > 0 ? 'text-green-400' : 'text-zinc-600') + '">+' + sa + '</span> ' +
+      '<span class="' + (sc > 0 ? 'text-yellow-400' : 'text-zinc-600') + '">~' + sc + '</span> ' +
+      '<span class="' + (sd > 0 ? 'text-red-400' : 'text-zinc-600') + '">-' + sd + '</span>' +
+      '<span class="text-zinc-500">]</span></button>';
+  }
+  // Fallback: no per-module stats, show inline summary
+  var isApply = command && command.indexOf('apply') !== -1;
+  var prefix = isApply ? 'Applied ' : 'Planned ';
+  var parts = [];
+  parts.push('<span class="' + (sa > 0 ? 'text-green-400' : 'text-zinc-500') + '">+' + sa + '</span>');
+  parts.push('<span class="' + (sc > 0 ? 'text-yellow-400' : 'text-zinc-500') + '">~' + sc + '</span>');
+  parts.push('<span class="' + (sd > 0 ? 'text-red-400' : 'text-zinc-500') + '">-' + sd + '</span>');
+  return icon + ' ' + prefix + parts.join(', ');
 }
 
 function formatPillSummary(summary) {
@@ -2470,26 +2875,56 @@ function formatPillSummary(summary) {
 // --- Terminal open / modal ---
 
 function openTerminal(module, command, region) {
-  var body = new URLSearchParams();
-  body.append('module', module);
-  body.append('command', command);
-  if (region) body.append('region', region);
+  var isInfraCmd = /^(plan|apply|destroy|plan-all|apply-all|destroy-all)$/.test(command);
 
-  fetch('/api/terminal/start', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: body.toString()
-  }).then(function(resp) {
-    return resp.json().then(function(data) {
-      if (!resp.ok) {
-        showToast(data.error || 'Failed to start terminal', 5000);
-        return;
-      }
-      showTerminalModal(data);
+  function doStart(prependLines) {
+    var body = new URLSearchParams();
+    body.append('module', module);
+    body.append('command', command);
+    if (region) body.append('region', region);
+
+    fetch('/api/terminal/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: body.toString()
+    }).then(function(resp) {
+      return resp.json().then(function(data) {
+        if (!resp.ok) {
+          showToast(data.error || 'Failed to start terminal', 5000);
+          return;
+        }
+        data._prependLines = prependLines || [];
+        showTerminalModal(data);
+      });
+    }).catch(function(err) {
+      showToast('Terminal error: ' + err.message, 5000);
     });
-  }).catch(function(err) {
-    showToast('Terminal error: ' + err.message, 5000);
-  });
+  }
+
+  if (_aggressiveLocks && isInfraCmd) {
+    fetch('/api/fix-locks', { method: 'POST' })
+      .then(function(resp) { return resp.json(); })
+      .then(function(result) {
+        var lines = [{text: '>>> Aggressive Mode: clearing all locks before ' + command, cls: 'text-amber-400'}];
+        var removed = (result.removed && result.removed.length) || 0;
+        var errors = (result.errors && result.errors.length) || 0;
+        if (removed > 0) {
+          lines.push({text: '>>> Removed ' + removed + ' lock' + (removed > 1 ? 's' : ''), cls: 'text-amber-400'});
+        } else if (errors === 0) {
+          lines.push({text: '>>> No locks found (clean)', cls: 'text-amber-400'});
+        }
+        if (errors > 0) {
+          result.errors.forEach(function(e) { lines.push({text: '>>> Lock error: ' + e, cls: 'text-red-400'}); });
+        }
+        lines.push({text: '', cls: ''});
+        doStart(lines);
+      })
+      .catch(function(err) {
+        doStart([{text: '>>> Aggressive lock clear failed: ' + err.message, cls: 'text-red-400'}, {text: '', cls: ''}]);
+      });
+  } else {
+    doStart();
+  }
 }
 
 function showTerminalModal(session) {
@@ -2501,10 +2936,10 @@ function showTerminalModal(session) {
   var cmdLine = session.cmd_line || ('terragrunt ' + session.command);
 
   var overlay = document.createElement('div');
-  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-3 md:p-5';
   overlay.dataset.sessionId = id;
   overlay.innerHTML =
-    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-5xl w-full mx-auto">' +
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-[90%] w-full mx-auto">' +
       '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
         '<div class="flex flex-col">' +
           '<div class="flex items-center gap-2">' +
@@ -2524,7 +2959,7 @@ function showTerminalModal(session) {
           '<button class="term-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
-      '<pre class="terminal-output flex-1"></pre>' +
+      '<div class="terminal-output-wrap flex-1"><pre class="terminal-output"></pre></div>' +
       '<div class="term-footer flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<div class="flex items-center gap-3">' +
           '<button class="term-live-stats-btn hidden rounded-md border border-zinc-600 hover:border-green-600 text-zinc-400 hover:text-green-400 px-4 py-1.5 text-sm font-mono transition-colors">[Stats]</button>' +
@@ -2532,7 +2967,7 @@ function showTerminalModal(session) {
         '</div>' +
         '<div class="flex items-center gap-2">' +
           '<button class="term-stop-btn rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 px-4 py-1.5 text-sm font-mono">Stop</button>' +
-          '<button class="term-close-btn hidden rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
+          '<button class="term-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -2548,6 +2983,8 @@ function showTerminalModal(session) {
   var minimizeBtn = overlay.querySelector('.term-minimize-btn');
   var copyCmd = overlay.querySelector('.term-copy-cmd');
   var liveStatsBtn = overlay.querySelector('.term-live-stats-btn');
+  var _minimap = attachMinimap(output, classifyTermLine);
+  var _scrollPin = initScrollPin(output);
 
   // Track session
   var sessionState = {
@@ -2605,7 +3042,8 @@ function showTerminalModal(session) {
       });
       return;
     }
-    minimizeSession(id);
+    // Process done — close fully and add to Runs history
+    doCleanupSession(id);
   }
 
   closeBtn.onclick = closeModal;
@@ -2643,12 +3081,79 @@ function showTerminalModal(session) {
   document.addEventListener('keydown', onEsc);
 
   // Connect SSE — batch lines into a text buffer, flush via rAF
+  // Prepend aggressive-lock-clear lines if present
+  if (session._prependLines && session._prependLines.length) {
+    session._prependLines.forEach(function(entry) {
+      if (entry.cls) {
+        var span = document.createElement('span');
+        span.className = entry.cls;
+        span.textContent = entry.text + '\n';
+        output.appendChild(span);
+      } else {
+        output.appendChild(document.createTextNode((entry.text || '') + '\n'));
+      }
+    });
+  }
+
   var es = new EventSource('/api/terminal/stream?id=' + encodeURIComponent(id));
   sessionState.es = es;
 
   var _lineBuf = [];
   var _flushPending = false;
-  var _hasOutput = false;
+  var _hasOutput = session._prependLines && session._prependLines.length > 0;
+
+  // Progress block — collapses "Still creating/modifying/destroying" lines
+  var _stillRe = /^\[([^\]]+)\]\s+(\S+):\s+Still\s+(\w+)\.\.\.\s+\[([^\]]+)\s+elapsed\]/;
+  var _progMap = {};    // "module|resource" → { module, resource, action, elapsed, count }
+  var _progEl = null;   // live-updating DOM element
+  var _progLines = 0;   // total "Still..." lines collapsed
+
+  function shortMod(mod) {
+    var parts = mod.split('/');
+    return parts[parts.length - 1] || mod;
+  }
+
+  function renderProgress() {
+    if (!_progEl) {
+      _progEl = document.createElement('div');
+      _progEl.className = 'term-progress-block';
+      output.appendChild(_progEl);
+    }
+    var keys = Object.keys(_progMap).sort();
+    if (keys.length === 0) return;
+
+    // Count distinct actions
+    var actions = {};
+    keys.forEach(function(k) { actions[_progMap[k].action] = true; });
+    var actionLabel = Object.keys(actions).join('/');
+
+    var html = '<span class="tp-header">\u23f3 Still ' + escapeHtml(actionLabel) +
+      ' ' + keys.length + ' resource' + (keys.length !== 1 ? 's' : '') +
+      '... <span class="tp-collapsed">' + _progLines + ' line' + (_progLines !== 1 ? 's' : '') + ' collapsed</span></span>\n';
+
+    keys.forEach(function(k) {
+      var p = _progMap[k];
+      var acls = p.action === 'creating' ? 'tp-creating' : p.action === 'destroying' ? 'tp-destroying' : 'tp-modifying';
+      html += '  <span class="tp-mod">' + escapeHtml(shortMod(p.module)) + '</span> ' +
+        escapeHtml(p.resource) + '  <span class="' + acls + '">' + escapeHtml(p.elapsed) + '</span>' +
+        (p.count > 1 ? ' <span class="tp-count">\u00d7' + p.count + '</span>' : '') + '\n';
+    });
+
+    _progEl.innerHTML = html;
+  }
+
+  function freezeProgress() {
+    if (!_progEl) return;
+    // Leave the frozen block in place, detach tracking
+    _progEl.classList.add('tp-frozen');
+    _progEl = null;
+    _progMap = {};
+    _progLines = 0;
+  }
+
+  function appendText(text) {
+    output.appendChild(document.createTextNode(text));
+  }
 
   function flushLines() {
     _flushPending = false;
@@ -2659,9 +3164,36 @@ function showTerminalModal(session) {
       var placeholder = output.querySelector('.term-waiting');
       if (placeholder) placeholder.remove();
     }
-    output.textContent += _lineBuf.join('\n') + '\n';
+
+    var textChunk = [];
+    function drainText() {
+      if (textChunk.length > 0) {
+        appendText(textChunk.join('\n') + '\n');
+        textChunk = [];
+      }
+    }
+
+    for (var i = 0; i < _lineBuf.length; i++) {
+      var line = _lineBuf[i];
+      var m = _stillRe.exec(line);
+      if (m) {
+        drainText();
+        var key = m[1] + '|' + m[2];
+        var prev = _progMap[key];
+        _progMap[key] = { module: m[1], resource: m[2], action: m[3], elapsed: m[4], count: (prev ? prev.count : 0) + 1 };
+        _progLines++;
+        renderProgress();
+      } else {
+        // Normal line — freeze any active progress block first
+        if (_progEl) { drainText(); freezeProgress(); }
+        textChunk.push(line);
+      }
+    }
+    drainText();
+    var _fc = _lineBuf.length;
     _lineBuf.length = 0;
-    output.scrollTop = output.scrollHeight;
+    _scrollPin.onNewLines(_fc);
+    if (_minimap) _minimap.update();
   }
 
   es.onmessage = function(e) {
@@ -2694,11 +3226,20 @@ function showTerminalModal(session) {
   es.addEventListener('stats', function(e) {
     try {
       sessionState.stats = JSON.parse(e.data);
-      // Show live stats button once we have data
-      if (liveStatsBtn && liveStatsBtn.classList.contains('hidden')) {
+      // Show live stats button and update its label with running totals
+      if (liveStatsBtn) {
         var stats = sessionState.stats;
         if (stats && (Object.keys(stats.by_module || {}).length > 0 || Object.keys(stats.by_type || {}).length > 0)) {
           liveStatsBtn.classList.remove('hidden');
+          // Sum totals across all modules
+          var a = 0, c = 0, d = 0;
+          var mods = stats.by_module || {};
+          for (var k in mods) { a += mods[k].add || 0; c += mods[k].change || 0; d += mods[k].destroy || 0; }
+          liveStatsBtn.innerHTML = '<span class="text-zinc-500">[</span>Stats ' +
+            '<span class="' + (a > 0 ? 'text-green-400' : 'text-zinc-600') + '">+' + a + '</span> ' +
+            '<span class="' + (c > 0 ? 'text-yellow-400' : 'text-zinc-600') + '">~' + c + '</span> ' +
+            '<span class="' + (d > 0 ? 'text-red-400' : 'text-zinc-600') + '">-' + d + '</span>' +
+            '<span class="text-zinc-500">]</span>';
         }
       }
     } catch(err) {}
@@ -2779,8 +3320,15 @@ function showTerminalModal(session) {
       modalContainer.insertBefore(sopsBanner, footer);
     }
 
-    // Auto-refresh discovery after a successful apply
-    if (exitCode === 0 && sessionState.command && sessionState.command.indexOf('apply') !== -1) {
+    // Auto-refresh discovery after any apply/destroy (partial applies still change state)
+    if (sessionState.command && sessionState.command.indexOf('apply') !== -1) {
+      // Expand Infrastructure Modules section if hidden so dots are visible
+      var infraContainer = document.getElementById('infra-modules');
+      if (infraContainer && infraContainer.style.display === 'none') {
+        infraContainer.style.display = '';
+        var rollBtn = document.getElementById('section-roll-infra');
+        if (rollBtn) rollBtn.classList.add('open');
+      }
       var mod = sessionState.module;
       // For "all" or "region-all", refresh everything; otherwise refresh the specific module
       var refreshUrl = (mod === 'all' || mod === 'region-all')
@@ -2985,9 +3533,9 @@ function renderHistoryMenu() {
 
 function showHistoryModal(entry) {
   var overlay = document.createElement('div');
-  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-3 md:p-5';
   overlay.innerHTML =
-    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-5xl w-full mx-auto">' +
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-[90%] w-full mx-auto">' +
       '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
         '<div class="flex flex-col">' +
           '<div class="flex items-center gap-2">' +
@@ -3001,19 +3549,17 @@ function showHistoryModal(entry) {
           '<button class="history-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
         '</div>' +
       '</div>' +
-      '<pre class="terminal-output flex-1">' + escapeHtml(entry.output) + '</pre>' +
+      '<div class="terminal-output-wrap flex-1"><pre class="terminal-output">' + escapeHtml(entry.output) + '</pre></div>' +
       '<div class="flex items-center justify-between px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
         '<span class="text-xs font-mono text-zinc-400">' +
-          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command, null) +
-          (entry.stats && (Object.keys(entry.stats.by_module || {}).length > 1 || Object.keys(entry.stats.by_type || {}).length > 0)
-            ? ' <button class="history-stats-btn text-[10px] font-mono text-zinc-400 hover:text-green-400 border border-zinc-600 hover:border-green-600 rounded px-1.5 py-0.5 ml-2 transition-colors">[Stats]</button>'
-            : '') +
+          formatSummaryHtml(entry.summary || null, entry.exitCode != null ? entry.exitCode : -1, entry.command, null, entry.stats || null) +
           ' &mdash; ' + formatTimeAgo(entry.timestamp) +
         '</span>' +
         '<button class="history-close-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-3 py-1 text-xs font-mono">Close</button>' +
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
+  attachMinimap(overlay.querySelector('.terminal-output'), classifyTermLine);
 
   var closeX = overlay.querySelector('.history-close-x');
   var closeBtn = overlay.querySelector('.history-close-btn');
@@ -3070,15 +3616,30 @@ function showStatsPopup(sessionId) {
   overlay.className = 'fixed inset-0 z-[70] bg-black/70 flex items-center justify-center p-4';
   overlay.onclick = function(e) { if (e.target === overlay) dismiss(); };
 
-  var byMod = stats.by_module || {};
-  var byType = stats.by_type || {};
-
-  function statCell(val, cls) {
-    if (val === 0) return '<td class="px-3 py-1 text-right text-zinc-600">0</td>';
-    return '<td class="px-3 py-1 text-right ' + cls + ' font-medium">' + val + '</td>';
+  // Snapshot previous values so we can detect deltas between refreshes
+  var prevSnapshot = {};
+  function snapshotData(data) {
+    var snap = {};
+    for (var k in data) {
+      snap[k] = { add: data[k].add || 0, change: data[k].change || 0, destroy: data[k].destroy || 0 };
+    }
+    return snap;
+  }
+  function hasChanged(key, field, prev, cur) {
+    if (!prev[key]) return (cur[key][field] || 0) > 0;
+    return (cur[key][field] || 0) !== (prev[key][field] || 0);
   }
 
-  function buildTable(title, data, sortByName) {
+  function statCell(val, cls, changed) {
+    if (val === 0) return '<td class="px-3 py-1 text-right text-zinc-600">0</td>';
+    var flash = changed ? ' stats-flash' : '';
+    return '<td class="px-3 py-1 text-right ' + cls + ' font-medium' + flash + '">' + val + '</td>';
+  }
+
+  var _selectedService = null;
+
+  function buildTable(title, data, sortByName, prev, opts) {
+    opts = opts || {};
     var keys = Object.keys(data);
     if (keys.length === 0) return '';
     if (sortByName) {
@@ -3090,41 +3651,152 @@ function showStatsPopup(sessionId) {
         return tb - ta;
       });
     }
-    var html = '<h3 class="text-sm font-mono font-bold text-zinc-300 mb-2">' + title + '</h3>';
+    var headerExtra = '';
+    if (opts.filterLabel) {
+      headerExtra = ' <span class="text-[10px] text-green-400 font-normal ml-2">\u2190 ' + escapeHtml(opts.filterLabel) + '</span>' +
+        ' <button class="stats-clear-filter text-[10px] text-zinc-500 hover:text-zinc-300 ml-1" title="Clear filter">\u2715</button>';
+    }
+    var html = '<h3 class="text-sm font-mono font-bold text-zinc-300 mb-2">' + title + headerExtra + '</h3>';
     html += '<div class="overflow-auto max-h-64"><table class="w-full text-xs font-mono">';
     html += '<thead><tr class="border-b border-zinc-700"><th class="text-left px-3 py-1 text-zinc-400">Name</th><th class="text-right px-3 py-1 text-green-400">+Add</th><th class="text-right px-3 py-1 text-yellow-400">~Chg</th><th class="text-right px-3 py-1 text-red-400">-Del</th></tr></thead><tbody>';
     keys.forEach(function(k) {
       var d = data[k];
-      html += '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50">';
+      var isNew = prev && !prev[k];
+      var clickable = opts.clickable ? ' cursor-pointer' : '';
+      var selected = (opts.clickable && opts.selectedKey === k) ? ' bg-zinc-700/50 border-l-2 border-green-500' : '';
+      html += '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50' + (isNew ? ' stats-flash' : '') + clickable + selected + '" data-svc-key="' + escapeHtml(k) + '">';
       html += '<td class="px-3 py-1 text-zinc-200 truncate" style="max-width:300px;" title="' + escapeHtml(k) + '">' + escapeHtml(k) + '</td>';
-      html += statCell(d.add || 0, 'text-green-400');
-      html += statCell(d.change || 0, 'text-yellow-400');
-      html += statCell(d.destroy || 0, 'text-red-400');
+      html += statCell(d.add || 0, 'text-green-400', prev && hasChanged(k, 'add', prev, data));
+      html += statCell(d.change || 0, 'text-yellow-400', prev && hasChanged(k, 'change', prev, data));
+      html += statCell(d.destroy || 0, 'text-red-400', prev && hasChanged(k, 'destroy', prev, data));
       html += '</tr>';
     });
     html += '</tbody></table></div>';
     return html;
   }
 
-  var content = '';
-  content += buildTable('By Module', byMod, true);
-  if (Object.keys(byMod).length > 0 && Object.keys(byType).length > 0) {
-    content += '<div class="border-t border-zinc-700 my-4"></div>';
+  // Map module path → service name (last path component)
+  function modToService(mod) {
+    var parts = mod.replace(/^\.\//, '').split('/');
+    return parts[parts.length - 1] || mod;
   }
-  content += buildTable('By Resource Type', byType, false);
+
+  function renderContent() {
+    var curStats = (_termSessions[sessionId] && _termSessions[sessionId].stats) || stats;
+    var byMod = curStats.by_module || {};
+    var byType = curStats.by_type || {};
+    var byModuleType = curStats.by_module_type || {};
+
+    // Aggregate by service
+    var byService = {};
+    var serviceModules = {}; // service → [module names]
+    Object.keys(byMod).forEach(function(mod) {
+      var svc = modToService(mod);
+      if (!byService[svc]) { byService[svc] = { add: 0, change: 0, destroy: 0 }; serviceModules[svc] = []; }
+      serviceModules[svc].push(mod);
+      byService[svc].add += (byMod[mod].add || 0);
+      byService[svc].change += (byMod[mod].change || 0);
+      byService[svc].destroy += (byMod[mod].destroy || 0);
+    });
+
+    // Apply service filter
+    var filteredMod = byMod;
+    var filteredType = byType;
+    var filterLabel = '';
+    if (_selectedService && serviceModules[_selectedService]) {
+      filterLabel = _selectedService;
+      var allowedMods = {};
+      serviceModules[_selectedService].forEach(function(m) { allowedMods[m] = true; });
+      filteredMod = {};
+      Object.keys(byMod).forEach(function(k) { if (allowedMods[k]) filteredMod[k] = byMod[k]; });
+      // Filter types using by_module_type data
+      filteredType = {};
+      Object.keys(byModuleType).forEach(function(key) {
+        var parts = key.split('|');
+        if (allowedMods[parts[0]]) {
+          var t = parts[1];
+          if (!filteredType[t]) filteredType[t] = { add: 0, change: 0, destroy: 0 };
+          filteredType[t].add += (byModuleType[key].add || 0);
+          filteredType[t].change += (byModuleType[key].change || 0);
+          filteredType[t].destroy += (byModuleType[key].destroy || 0);
+        }
+      });
+    }
+
+    var prevMod = prevSnapshot.mod || null;
+    var prevType = prevSnapshot.type || null;
+    var prevSvc = prevSnapshot.svc || null;
+
+    var content = '';
+    if (Object.keys(byService).length > 1) {
+      content += buildTable('By Service', byService, true, prevSvc, { clickable: true, selectedKey: _selectedService });
+      content += '<div class="border-t border-zinc-700 my-4"></div>';
+    }
+    content += buildTable('By Module', filteredMod, true, prevMod, filterLabel ? { filterLabel: filterLabel } : {});
+    if (Object.keys(filteredMod).length > 0 && Object.keys(filteredType).length > 0) {
+      content += '<div class="border-t border-zinc-700 my-4"></div>';
+    }
+    content += buildTable('By Resource Type', filteredType, false, prevType, filterLabel ? { filterLabel: filterLabel } : {});
+
+    // Save snapshot for next interval
+    prevSnapshot = { mod: snapshotData(byMod), type: snapshotData(byType), svc: snapshotData(byService) };
+
+    return content;
+  }
+
+  var isRunning = s && s.processRunning;
 
   overlay.innerHTML =
     '<div class="bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">' +
       '<div class="flex items-center justify-between px-4 py-3 border-b border-zinc-700">' +
-        '<span class="text-sm font-mono font-bold text-zinc-200">Resource Stats Breakdown</span>' +
+        '<div class="flex items-center gap-2">' +
+          '<span class="text-sm font-mono font-bold text-zinc-200">Resource Stats Breakdown</span>' +
+          (isRunning ? '<span class="stats-live-dot"></span>' : '') +
+        '</div>' +
         '<button class="stats-close rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
       '</div>' +
-      '<div class="p-4 overflow-auto flex-1">' + content + '</div>' +
+      '<div class="stats-content p-4 overflow-auto flex-1">' + renderContent() + '</div>' +
     '</div>';
 
   document.body.appendChild(overlay);
 
+  var contentEl = overlay.querySelector('.stats-content');
+  var refreshTimer = null;
+
+  // Service filter click delegation
+  contentEl.addEventListener('click', function(e) {
+    // Click on clear-filter button
+    if (e.target.classList.contains('stats-clear-filter')) {
+      _selectedService = null;
+      contentEl.innerHTML = renderContent();
+      return;
+    }
+    // Click on service row
+    var row = e.target.closest('tr[data-svc-key]');
+    if (row && row.classList.contains('cursor-pointer')) {
+      var key = row.getAttribute('data-svc-key');
+      _selectedService = (_selectedService === key) ? null : key;
+      contentEl.innerHTML = renderContent();
+    }
+  });
+
+  // Auto-refresh while process is running
+  if (isRunning) {
+    refreshTimer = setInterval(function() {
+      var cur = _termSessions[sessionId];
+      if (!cur || !cur.processRunning) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+        var dot = overlay.querySelector('.stats-live-dot');
+        if (dot) dot.remove();
+        return;
+      }
+      if (contentEl) contentEl.innerHTML = renderContent();
+    }, 5000);
+  }
+
   function dismiss() {
+    if (refreshTimer) clearInterval(refreshTimer);
     overlay.remove();
     document.removeEventListener('keydown', onKey);
   }
@@ -3200,27 +3872,41 @@ function openOutputExplorer() {
 function renderOutputTree(container, modules) {
   container.innerHTML = '';
 
-  // Group by category: global vs regional
-  var globalMods = [];
-  var regionalMods = [];
+  // Group by category
+  var categories = { infra: { global: [], regional: [] }, services: { global: [], regional: [] }, apps: { global: [], regional: [] } };
   modules.forEach(function(m) {
-    if (m.global) globalMods.push(m);
-    else regionalMods.push(m);
+    var cat = categories[m.category || 'infra'];
+    if (!cat) cat = categories.infra;
+    if (m.global) cat.global.push(m);
+    else cat.regional.push(m);
   });
 
-  // Build regions list from window.ALL_REGIONS
   var regions = (window.ALL_REGIONS || []).map(function(r) { return r.Full || r.full; });
+  var catLabels = { infra: 'Infrastructure', services: 'Services', apps: 'Apps' };
 
-  // Render global section
-  if (globalMods.length > 0) {
-    var section = createOutputSection('Global', globalMods, null);
-    container.appendChild(section);
-  }
+  ['infra', 'services', 'apps'].forEach(function(catKey) {
+    var cat = categories[catKey];
+    if (cat.global.length === 0 && cat.regional.length === 0) return;
 
-  // Render regional sections
-  regions.forEach(function(region) {
-    var section = createOutputSection(region, regionalMods, region);
-    container.appendChild(section);
+    // Category header
+    var catHeader = document.createElement('div');
+    catHeader.className = 'text-[10px] uppercase tracking-widest text-green-600 font-bold mt-3 mb-1 px-1';
+    catHeader.textContent = catLabels[catKey];
+    container.appendChild(catHeader);
+
+    // Global modules in this category
+    if (cat.global.length > 0) {
+      var section = createOutputSection('Global', cat.global, null);
+      container.appendChild(section);
+    }
+
+    // Regional modules in this category
+    if (cat.regional.length > 0) {
+      regions.forEach(function(region) {
+        var section = createOutputSection(region, cat.regional, region);
+        container.appendChild(section);
+      });
+    }
   });
 }
 
@@ -3403,7 +4089,8 @@ function formatOutputValue(value) {
 var _sortableGroups = [
   { id: 'core-modules',  key: 'configui-core-order' },
   { id: 'infra-modules', key: 'configui-module-order' },
-  { id: 'svc-modules',   key: 'configui-svc-order' }
+  { id: 'svc-modules',   key: 'configui-svc-order' },
+  { id: 'apps-modules',  key: 'configui-apps-order' }
 ];
 
 // Restore saved panel order before masonry splits them into columns
@@ -3477,11 +4164,24 @@ function captureFormSnapshot() {
   return params.map(function(p) { return p[0] + '=' + p[1]; }).join('&');
 }
 
+function setDirtyUI(dirty) {
+  var banner = document.getElementById('unsaved-banner');
+  var logo = document.getElementById('header-logo');
+  if (dirty) {
+    if (banner) banner.classList.remove('hidden');
+    if (logo) logo.classList.add('hidden');
+    document.body.classList.add('form-dirty');
+  } else {
+    if (banner) banner.classList.add('hidden');
+    if (logo) logo.classList.remove('hidden');
+    document.body.classList.remove('form-dirty');
+  }
+}
+
 function markFormClean() {
   _formDirty = false;
   _savedFormSnapshot = captureFormSnapshot();
-  var banner = document.getElementById('unsaved-banner');
-  if (banner) banner.classList.add('hidden');
+  setDirtyUI(false);
 }
 
 function markFormDirty() {
@@ -3490,18 +4190,15 @@ function markFormDirty() {
   var current = captureFormSnapshot();
   if (current === _savedFormSnapshot) return;
   _formDirty = true;
-  var banner = document.getElementById('unsaved-banner');
-  if (banner) banner.classList.remove('hidden');
+  setDirtyUI(true);
 }
 
 function dismissUnsavedBanner() {
-  var banner = document.getElementById('unsaved-banner');
-  if (banner) banner.classList.add('hidden');
+  setDirtyUI(false);
 }
 
 function doSaveAll() {
-  var banner = document.getElementById('unsaved-banner');
-  if (banner) banner.classList.add('hidden');
+  setDirtyUI(false);
   htmx.ajax('POST', '/save', {source: '#config-form', target: '#save-result', swap: 'innerHTML'});
   // Mark clean after a short delay to let the save complete
   setTimeout(markFormClean, 500);
@@ -3520,7 +4217,9 @@ function initMasonry() {
   document.querySelectorAll('.module-masonry').forEach(function(container) {
     if (container.querySelector('.masonry-col')) return;
     var children = Array.from(container.children);
-    if (children.length < 2) return;
+    if (children.length === 0) return;
+    // Skip masonry split if only 1 child or container is marked no-masonry
+    if (children.length <= 1 || container.classList.contains('no-masonry')) return;
     var left = document.createElement('div');
     left.className = 'masonry-col';
     var right = document.createElement('div');
@@ -3533,6 +4232,1196 @@ function initMasonry() {
     container.appendChild(left);
     container.appendChild(right);
   });
+}
+
+// =====================================================
+// WAF Testing (waffaw) — Fleet management, campaigns, log streaming, intel
+// =====================================================
+
+var _wafLogEventSource = null;
+var _wafLogNodeFilter = 'all';
+
+// Auto-populate UA from target URL when UA hasn't been manually edited
+var _wafUAManuallySet = false;
+(function() {
+  var target = document.getElementById('waf-campaign-target');
+  var ua = document.getElementById('waf-campaign-ua');
+  if (!target || !ua) return;
+  // If UA already has a saved value, mark as manually set
+  if (ua.value) _wafUAManuallySet = true;
+  ua.addEventListener('input', function() { _wafUAManuallySet = true; });
+  target.addEventListener('input', function() {
+    if (_wafUAManuallySet) return;
+    try {
+      var host = new URL(target.value).hostname;
+      ua.value = 'WafFAw/1.0 (' + host + ')';
+    } catch (e) { /* invalid URL, skip */ }
+  });
+})();
+
+function switchWaffawTab(tabName) {
+  // Update tab buttons
+  document.querySelectorAll('.waffaw-tab-btn').forEach(function(btn) {
+    if (btn.dataset.tab === tabName) {
+      btn.classList.add('active');
+      btn.classList.remove('border-transparent', 'text-zinc-500', 'dark:text-zinc-400');
+      btn.classList.add('border-green-500', 'text-green-600', 'dark:text-green-400');
+    } else {
+      btn.classList.remove('active');
+      btn.classList.remove('border-green-500', 'text-green-600', 'dark:text-green-400');
+      btn.classList.add('border-transparent', 'text-zinc-500', 'dark:text-zinc-400');
+    }
+  });
+
+  // Show/hide tab content (visibility swap — height stays stable)
+  document.querySelectorAll('.waffaw-tab-content').forEach(function(el) {
+    el.classList.toggle('waffaw-tab-visible', el.dataset.tab === tabName);
+  });
+
+  // Stop polling when leaving logs tab
+  if (tabName !== 'logs') {
+    stopWAFLogStream();
+  }
+}
+
+function checkWaffawImage() {
+  var btn = document.getElementById('waf-check-btn');
+  var badge = document.getElementById('waffaw-ecr-badge');
+  var uri = (document.getElementById('waffaw-image-uri') || {}).value;
+  if (!uri) { showToast('No image URI set'); return; }
+
+  if (btn) { btn.disabled = true; btn.classList.add('opacity-50'); }
+  if (badge) {
+    badge.style.display = '';
+    badge.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400';
+    badge.textContent = '...';
+  }
+
+  fetch('/api/waf/check-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'image_uri=' + encodeURIComponent(uri)
+  })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!badge) return;
+      if (data.exists) {
+        badge.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400';
+        badge.innerHTML = '<span class="status-dot ok"></span> ' + data.repo + ':' + data.tag;
+      } else {
+        badge.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400';
+        badge.innerHTML = '<span class="status-dot warning"></span> not found';
+      }
+    })
+    .catch(function(err) {
+      if (badge) {
+        badge.className = 'ecr-badge inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400';
+        badge.innerHTML = '<span class="status-dot error"></span> error';
+      }
+      showToast('ECR check failed: ' + err.message, 5000);
+    })
+    .finally(function() {
+      if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+    });
+}
+
+// Segmented button groups (Spot/Reserved, Spot/On-Demand)
+function initSegGroups() {
+  document.querySelectorAll('.seg-group').forEach(function(group) {
+    if (group.dataset.init) return;
+    group.dataset.init = '1';
+    var target = document.getElementById(group.dataset.target);
+    if (!target) return;
+
+    var buttons = group.querySelectorAll('.seg-btn');
+    function render() {
+      var val = target.value;
+      buttons.forEach(function(btn) {
+        var active = btn.dataset.seg === val;
+        btn.className = btn.className
+          .replace(/bg-green-600|bg-zinc-800|bg-zinc-900|text-white|text-zinc-400/g, '');
+        if (active) {
+          btn.classList.add('bg-green-600', 'text-white');
+        } else {
+          btn.classList.add('bg-zinc-900', 'text-zinc-400');
+        }
+      });
+    }
+    buttons.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        target.value = btn.dataset.seg;
+        render();
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+    render();
+  });
+}
+document.addEventListener('htmx:afterSettle', initSegGroups);
+
+// 5-bit binary toggle widget
+function initBitToggles() {
+  document.querySelectorAll('.bit-toggle').forEach(function(wrap) {
+    if (wrap.dataset.init) return;
+    wrap.dataset.init = '1';
+    var bits = parseInt(wrap.dataset.bits, 10) || 5;
+    var max = (1 << bits) - 1;
+    var input = wrap.querySelector('input[type="hidden"]');
+    var val = Math.min(Math.max(parseInt(input.value, 10) || 0, 0), max);
+
+    // Build DOM: [▲] [□□□□□] [▼] dec
+    wrap.style.display = 'flex';
+    wrap.style.alignItems = 'center';
+    wrap.style.gap = '4px';
+
+    var upBtn = document.createElement('button');
+    upBtn.type = 'button';
+    upBtn.className = 'bit-arrow text-zinc-500 hover:text-zinc-200 text-xs px-1 py-0.5 leading-none select-none';
+    upBtn.innerHTML = '&#9650;';
+    upBtn.title = 'Increment';
+
+    var boxWrap = document.createElement('div');
+    boxWrap.style.display = 'flex';
+    boxWrap.style.gap = '3px';
+
+    var boxes = [];
+    for (var b = bits - 1; b >= 0; b--) {
+      var box = document.createElement('div');
+      box.className = 'bit-box';
+      box.dataset.bit = b;
+      box.style.cssText = 'width:20px;height:20px;border-radius:3px;cursor:pointer;border:1px solid;transition:all 0.1s;';
+      box.title = '' + (1 << b);
+      boxWrap.appendChild(box);
+      boxes.push({ el: box, bit: b });
+    }
+
+    var downBtn = document.createElement('button');
+    downBtn.type = 'button';
+    downBtn.className = 'bit-arrow text-zinc-500 hover:text-zinc-200 text-xs px-1 py-0.5 leading-none select-none';
+    downBtn.innerHTML = '&#9660;';
+    downBtn.title = 'Decrement';
+
+    var dec = document.createElement('input');
+    dec.type = 'text';
+    dec.inputMode = 'numeric';
+    dec.className = 'bit-dec text-xs font-mono text-zinc-400 bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-green-500 focus:text-zinc-200 outline-none ml-1 w-[2em] text-center';
+    dec.title = 'Type a value (0\u2013' + max + ')';
+
+    wrap.appendChild(boxWrap);
+    wrap.appendChild(upBtn);
+    wrap.appendChild(downBtn);
+    wrap.appendChild(dec);
+
+    function render() {
+      val = Math.min(Math.max(val, 0), max);
+      input.value = val;
+      if (document.activeElement !== dec) dec.value = val;
+      for (var i = 0; i < boxes.length; i++) {
+        var on = (val >> boxes[i].bit) & 1;
+        boxes[i].el.style.backgroundColor = on ? '#22c55e' : '#27272a';
+        boxes[i].el.style.borderColor = on ? '#4ade80' : '#52525b';
+      }
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    boxes.forEach(function(b) {
+      b.el.addEventListener('click', function() {
+        val ^= (1 << b.bit);
+        render();
+      });
+    });
+
+    downBtn.addEventListener('click', function() { if (val > 0) { val--; render(); } });
+    upBtn.addEventListener('click', function() { if (val < max) { val++; render(); } });
+
+    dec.addEventListener('input', function() {
+      var n = parseInt(dec.value, 10);
+      if (!isNaN(n)) { val = Math.min(Math.max(n, 0), max); render(); }
+    });
+    dec.addEventListener('blur', function() { dec.value = val; });
+    dec.addEventListener('keydown', function(e) { if (e.key === 'Enter') dec.blur(); });
+
+    render();
+  });
+}
+
+// Re-init after htmx swaps
+document.addEventListener('htmx:afterSettle', initBitToggles);
+
+// Waffaw IP quota/cost calculator
+var wafQuotas = {}; // populated by fetchWafQuotas()
+
+function wafQuotaMin(key) {
+  return wafQuotas[key] ? wafQuotas[key].min : 0;
+}
+
+function updateWafQuotaBar() {
+  var ec2Input = document.querySelector('input[name="waffaw.ec2_count"]');
+  var fargateInput = document.querySelector('input[name="waffaw.ecs_desired_count"]');
+  if (!ec2Input || !fargateInput) return;
+
+  var ec2Count = parseInt(ec2Input.value, 10) || 0;
+  var fargateCount = parseInt(fargateInput.value, 10) || 0;
+  var totalIPs = ec2Count + fargateCount;
+  var monthlyCost = totalIPs * 0.005 * 24 * 30; // $0.005/hr per IPv4
+
+  var totalEl = document.getElementById('waf-ip-total');
+  var eipEl = document.getElementById('waf-eip-count');
+  var fargateEl = document.getElementById('waf-fargate-ips');
+  var costEl = document.getElementById('waf-ip-cost');
+  var warnEl = document.getElementById('waf-eip-warn');
+
+  if (totalEl) totalEl.textContent = totalIPs;
+  if (eipEl) eipEl.textContent = ec2Count;
+  if (fargateEl) fargateEl.textContent = fargateCount;
+  if (costEl) costEl.textContent = '$' + monthlyCost.toFixed(0) + '/mo';
+
+  // EIP warning
+  var eipQuota = wafQuotaMin('eip');
+  if (warnEl && eipQuota > 0) {
+    if (ec2Count > eipQuota) {
+      warnEl.classList.remove('hidden');
+      warnEl.textContent = 'EIP quota is ' + eipQuota + '/region — request increase via Service Quotas';
+    } else {
+      warnEl.classList.add('hidden');
+    }
+  }
+
+  // EC2 instance limit (vCPU quota / vCPUs per instance)
+  var ec2LimitEl = document.getElementById('waf-ec2-limit');
+  if (ec2LimitEl) {
+    var ec2Spot = document.querySelector('input[name="waffaw.ec2_use_spot"]');
+    var isSpot = ec2Spot && ec2Spot.value === 'on';
+    var vcpuQuota = wafQuotaMin(isSpot ? 'ec2_spot_vcpu' : 'ec2_ondemand_vcpu');
+    var ec2TypeSel = document.querySelector('select[name="waffaw.ec2_instance_type"]');
+    var ec2Vcpus = 2; // default for t3.medium/t3.large/m5.large
+    if (ec2TypeSel) {
+      var match = ec2TypeSel.options[ec2TypeSel.selectedIndex].text.match(/(\d+)\s*vCPU/);
+      if (match) ec2Vcpus = parseInt(match[1], 10);
+    }
+    if (vcpuQuota > 0) {
+      var maxInstances = Math.floor(vcpuQuota / ec2Vcpus);
+      var eipLimit = eipQuota > 0 ? eipQuota : maxInstances;
+      var effectiveMax = Math.min(maxInstances, eipLimit);
+      ec2LimitEl.textContent = '(max ~' + effectiveMax + ': ' + eipLimit + ' EIP, ' + maxInstances + ' vCPU)';
+      if (ec2Count > effectiveMax) ec2LimitEl.className = 'text-amber-400';
+      else ec2LimitEl.className = 'text-zinc-600';
+    }
+  }
+
+  // Fargate task limit (vCPU quota / vCPUs per task)
+  var fgLimitEl = document.getElementById('waf-fargate-limit');
+  if (fgLimitEl) {
+    var fgSpot = document.querySelector('input[name="waffaw.ecs_use_spot"]');
+    var isFgSpot = fgSpot && fgSpot.checked;
+    var fgVcpuQuota = wafQuotaMin(isFgSpot ? 'fargate_spot_vcpu' : 'fargate_ondemand_vcpu');
+    var cpuSel = document.querySelector('select[name="waffaw.ecs_task_cpu"]');
+    var taskVcpus = 1;
+    if (cpuSel) taskVcpus = parseInt(cpuSel.value, 10) / 1024;
+    if (fgVcpuQuota > 0) {
+      var maxTasks = Math.floor(fgVcpuQuota / taskVcpus);
+      fgLimitEl.textContent = '(max ~' + maxTasks + ' from ' + fgVcpuQuota + ' vCPU quota)';
+      if (fargateCount > maxTasks) fgLimitEl.className = 'text-amber-400';
+      else fgLimitEl.className = 'text-zinc-600';
+    }
+  }
+}
+
+function fetchWafQuotas() {
+  fetch('/api/waf/quota').then(function(r) { return r.json(); }).then(function(data) {
+    wafQuotas = data;
+    updateWafQuotaBar();
+    // Render per-region EIP breakdown
+    var container = document.getElementById('waf-region-quotas');
+    if (container && data.eip && data.eip.regions) {
+      var html = '<span class="text-zinc-400">EIP Quotas:</span>';
+      data.eip.regions.forEach(function(rq) {
+        var color = rq.error ? 'text-red-400' : (rq.value <= 5 ? 'text-amber-400' : 'text-green-400');
+        var label = rq.region.replace(/-\d+$/, '').replace(/-/g, '\u2011');
+        html += '<span class="' + color + '">' + label + ' <span class="text-zinc-200">' + rq.value + '</span></span>';
+      });
+      container.innerHTML = html;
+      container.style.display = '';
+    }
+  }).catch(function() { /* keep defaults */ });
+}
+
+// Bind to input changes — recalculate on count, type, cpu, or spot toggle changes
+document.addEventListener('input', function(e) {
+  if (e.target.name && e.target.name.startsWith('waffaw.')) updateWafQuotaBar();
+});
+document.addEventListener('change', function(e) {
+  if (e.target.name && e.target.name.startsWith('waffaw.')) updateWafQuotaBar();
+});
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+  initSegGroups();
+  initBitToggles();
+  updateWafQuotaBar();
+  fetchWafQuotas();
+  // Logs tab: manual fetch only (no auto-start)
+});
+// Also run after htmx swaps (in case the waffaw tab loads late)
+document.addEventListener('htmx:afterSettle', updateWafQuotaBar);
+
+function buildWaffaw() {
+  var btn = document.getElementById('waf-build-btn');
+
+  showConfirmDialog({
+    title: 'Build & Push Waffaw Image?',
+    message: 'This will build the Docker image and push it to ECR. This may take a few minutes.',
+    confirmLabel: 'Build',
+    confirmClass: 'bg-green-700 hover:bg-green-600 text-white',
+    onConfirm: function() {
+      if (btn) { btn.disabled = true; btn.textContent = 'Building...'; }
+
+      // Create terminal modal (same pattern as showTerminalModal)
+      var overlay = document.createElement('div');
+      overlay.className = 'terminal-modal fixed inset-0 z-[60] bg-black/70 flex flex-col p-3 md:p-5';
+      overlay.innerHTML =
+        '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-[90%] w-full mx-auto">' +
+          '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
+            '<div class="flex flex-col gap-1">' +
+              '<div class="flex items-center gap-2">' +
+                '<span class="text-green-400 text-sm font-mono font-bold">$ </span>' +
+                '<span class="text-sm font-mono text-zinc-200">apps/waffaw/build.sh</span>' +
+              '</div>' +
+              '<div class="flex items-center gap-3" style="padding-left:1.1rem;">' +
+                '<span class="waf-build-status text-[11px] font-mono text-green-400">Starting...</span>' +
+                '<span class="waf-build-elapsed text-[11px] font-mono text-zinc-500"></span>' +
+              '</div>' +
+              '<div class="waf-build-steps flex items-center gap-1" style="padding-left:1.1rem;"></div>' +
+            '</div>' +
+            '<div class="flex items-center gap-2">' +
+              '<button class="waf-build-minimize-btn rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-600 text-zinc-400 hover:text-zinc-200 text-lg px-3 pt-0.5 pb-1.5 font-mono leading-none" title="Minimize">_</button>' +
+              '<button class="waf-build-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="terminal-output-wrap flex-1"><pre class="terminal-output"></pre></div>' +
+          '<div class="flex items-center justify-end px-4 py-2 border-t border-zinc-700 bg-zinc-800">' +
+            '<button class="waf-build-close-btn hidden rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-1.5 text-sm font-mono">Close</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+
+      // Register into _termSessions for pill bar minimize/restore
+      var wafBuildId = 'waf-build-' + Date.now();
+      var wafSession = {
+        overlay: overlay,
+        minimized: false,
+        minimizedAt: 0,
+        createdAt: Date.now(),
+        processRunning: true,
+        label: 'waffaw build',
+        exitCode: null,
+        command: 'build',
+        module: 'waffaw',
+        es: null,
+        onEsc: null
+      };
+      _termSessions[wafBuildId] = wafSession;
+      ensurePillBar();
+      updatePillBar();
+
+      var output = overlay.querySelector('.terminal-output');
+      attachMinimap(output, classifyTermLine);
+      var statusEl = overlay.querySelector('.waf-build-status');
+      var elapsedEl = overlay.querySelector('.waf-build-elapsed');
+      var stepsEl = overlay.querySelector('.waf-build-steps');
+      var closeBtn = overlay.querySelector('.waf-build-close-btn');
+      var closeX = overlay.querySelector('.waf-build-close-x');
+      var minimizeBtn = overlay.querySelector('.waf-build-minimize-btn');
+      var running = true;
+      var es = null;
+      var buildPhase = '';
+
+      minimizeBtn.onclick = function(e) {
+        e.stopPropagation();
+        minimizeSession(wafBuildId);
+      };
+
+      // Build step definitions
+      var buildSteps = [
+        { id: 'ecr-login', label: 'ECR Login' },
+        { id: 'docker-build', label: 'Docker Build' },
+        { id: 'docker-push', label: 'Push to ECR' },
+        { id: 'complete', label: 'Done' }
+      ];
+
+      function renderSteps(activePhase) {
+        var reached = false;
+        var html = '';
+        for (var i = 0; i < buildSteps.length; i++) {
+          var step = buildSteps[i];
+          var isCurrent = step.id === activePhase;
+          var isPast = false;
+          // All steps before the current one are "past"
+          if (!reached && !isCurrent) {
+            // Check if the current phase comes after this step
+            for (var j = i + 1; j < buildSteps.length; j++) {
+              if (buildSteps[j].id === activePhase) { isPast = true; break; }
+            }
+          }
+          if (isCurrent) reached = true;
+
+          var cls = 'build-step';
+          if (isPast) cls += ' build-step-done';
+          else if (isCurrent) cls += ' build-step-active';
+          else cls += ' build-step-pending';
+
+          html += '<span class="' + cls + '">';
+          if (isPast) html += '<span class="text-green-400 text-[9px]">&#10003;</span> ';
+          else if (isCurrent) html += '<span class="build-step-dot"></span> ';
+          html += step.label + '</span>';
+
+          if (i < buildSteps.length - 1) {
+            html += '<span class="text-zinc-600 text-[9px]">&#9656;</span>';
+          }
+        }
+        stepsEl.innerHTML = html;
+      }
+
+      function formatElapsed(secs) {
+        var m = Math.floor(secs / 60);
+        var s = secs % 60;
+        return m > 0 ? m + 'm ' + s + 's' : s + 's';
+      }
+
+      renderSteps('');
+
+      function resetBtn() {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg> Build &amp; Push';
+        }
+      }
+
+      function closeModal() {
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+        delete _termSessions[wafBuildId];
+        updatePillBar();
+      }
+
+      function onKey(e) {
+        if (e.key === 'Escape') {
+          if (wafSession.minimized) return;
+          e.stopImmediatePropagation();
+          minimizeSession(wafBuildId);
+        }
+      }
+      wafSession.onEsc = onKey;
+      document.addEventListener('keydown', onKey);
+
+      function forceClose() {
+        if (es) { es.close(); es = null; }
+        running = false;
+        resetBtn();
+        closeModal();
+      }
+      closeX.onclick = function() {
+        if (!running) { closeModal(); return; }
+        // Build still running — confirm close
+        if (confirm('Build is still running. Close anyway?')) forceClose();
+      };
+      closeBtn.onclick = closeModal;
+      overlay.addEventListener('click', function(e) {
+        if (e.target !== overlay) return;
+        if (!running) { closeModal(); return; }
+        if (confirm('Build is still running. Close anyway?')) forceClose();
+      });
+
+      var imageInput = document.getElementById('waffaw-image-uri');
+      var buildUrl = '/api/waf/build';
+      if (imageInput && imageInput.value.trim()) {
+        buildUrl += '?image_uri=' + encodeURIComponent(imageInput.value.trim());
+      }
+      es = new EventSource(buildUrl);
+      es.onmessage = function(e) {
+        try {
+          var data = JSON.parse(e.data);
+
+          // Tick event — update elapsed timer
+          if (data.tick !== undefined) {
+            elapsedEl.textContent = formatElapsed(data.tick);
+            return;
+          }
+
+          // Phase event — update step indicators
+          if (data.phase) {
+            buildPhase = data.phase;
+            renderSteps(buildPhase);
+            var phaseLabels = { 'ecr-login': 'Logging into ECR...', 'docker-build': 'Building Docker image...', 'docker-push': 'Pushing to ECR...', 'complete': 'Complete' };
+            statusEl.textContent = phaseLabels[data.phase] || data.phase;
+            return;
+          }
+
+          // Layer summary event — update push progress in-place
+          if (data.layers) {
+            var lc = data.layers;
+            var total = data.total || 0;
+            var pushed = (lc['Pushed'] || 0) + (lc['Layer already exists'] || 0) + (lc['Mounted'] || 0);
+            var pushing = lc['Pushing'] || 0;
+            var waiting = (lc['Waiting'] || 0) + (lc['Preparing'] || 0);
+
+            statusEl.textContent = 'Pushing to ECR... ' + pushed + '/' + total + ' layers';
+
+            // Update or create the layer progress element
+            var layerEl = output.querySelector('.build-layer-progress');
+            if (!layerEl) {
+              layerEl = document.createElement('div');
+              layerEl.className = 'build-layer-progress';
+              layerEl.style.cssText = 'border-left:2px solid #22c55e; padding-left:8px; margin:4px 0; color:#71717a; font-size:10px; line-height:1.6;';
+              output.appendChild(layerEl);
+            }
+            var pct = total > 0 ? Math.round(pushed / total * 100) : 0;
+            var barW = 20;
+            var filled = Math.round(barW * pushed / (total || 1));
+            var bar = '<span style="color:#22c55e">' + '\u2588'.repeat(filled) + '</span>' +
+                      '<span style="color:#3f3f46">' + '\u2588'.repeat(barW - filled) + '</span>';
+            var html = '<span style="color:#a1a1aa; font-style:italic;">\u2B06 Pushing ' + total + ' layers to ECR...</span>\n';
+            html += '  ' + bar + ' ' + pct + '%\n';
+            html += '  <span style="color:#4ade80">\u2713 ' + pushed + ' done</span>';
+            if (pushing > 0) html += '  <span style="color:#fbbf24">\u2191 ' + pushing + ' uploading</span>';
+            if (waiting > 0) html += '  <span style="color:#52525b">\u23f3 ' + waiting + ' waiting</span>';
+            // Show pending layer details when few remain
+            var pendingLayers = data.pending || [];
+            if (pendingLayers.length > 0 && pendingLayers.length <= 5) {
+              html += '\n';
+              pendingLayers.forEach(function(pl) {
+                var statusColor = pl.status === 'Pushing' ? '#fbbf24' : '#52525b';
+                html += '  <span style="color:#52525b">' + escapeHtml(pl.id) + '</span> <span style="color:' + statusColor + '">' + escapeHtml(pl.detail) + '</span>\n';
+              });
+            }
+            layerEl.innerHTML = html;
+            output.scrollTop = output.scrollHeight;
+            return;
+          }
+
+          // Line event — skip if data.line is missing/undefined (not empty string)
+          if (data.line === undefined && !data.done) return;
+
+          var line = document.createElement('div');
+          line.style.color = data.done ? (data.exit === 0 ? '#4ade80' : '#f87171') : '#a1a1aa';
+          line.textContent = data.line || '';
+          output.appendChild(line);
+          output.scrollTop = output.scrollHeight;
+
+          if (data.image_uri) {
+            var uriInput = document.getElementById('waffaw-image-uri');
+            if (uriInput) {
+              uriInput.value = data.image_uri;
+              showToast('Image URI auto-filled');
+            }
+          }
+
+          if (data.done) {
+            es.close();
+            running = false;
+            wafSession.processRunning = false;
+            wafSession.exitCode = data.exit || 0;
+            updatePillBar();
+            resetBtn();
+            closeBtn.classList.remove('hidden');
+            renderSteps('complete');
+            // Freeze the layer progress block if present
+            var layerEl = output.querySelector('.build-layer-progress');
+            if (layerEl) layerEl.style.borderLeftColor = '#3f3f46';
+            if (data.exit === 0) {
+              statusEl.textContent = 'Done in ' + formatElapsed(data.elapsed || 0);
+              elapsedEl.textContent = '';
+              showToast('Build completed successfully');
+              // Re-check ECR badge now that the image is pushed
+              if (typeof checkWaffawImage === 'function') checkWaffawImage();
+            } else {
+              statusEl.textContent = 'Failed (exit ' + data.exit + ')';
+              statusEl.className = statusEl.className.replace('text-green-400', 'text-red-400');
+              showToast('Build failed (exit ' + data.exit + ')', 5000);
+            }
+          }
+        } catch(err) {
+          // Only show non-empty unparseable lines
+          var raw = (e.data || '').trim();
+          if (raw && raw.charAt(0) !== '{') {
+            var line = document.createElement('div');
+            line.style.color = '#a1a1aa';
+            line.textContent = raw;
+            output.appendChild(line);
+          }
+        }
+      };
+      es.addEventListener('error', function() {
+        es.close();
+        running = false;
+        wafSession.processRunning = false;
+        wafSession.exitCode = 1;
+        updatePillBar();
+        resetBtn();
+        closeBtn.classList.remove('hidden');
+        statusEl.textContent = 'Connection lost';
+        statusEl.className = statusEl.className.replace('text-green-400', 'text-red-400');
+      });
+    }
+  });
+}
+
+function sendWAFCommand(targetIP) {
+  var script = prompt('Enter shell script to send to ' + (targetIP || 'all nodes') + ':');
+  if (!script) return;
+
+  var body = new URLSearchParams();
+  body.append('target', targetIP || 'global');
+  body.append('script', script);
+
+  fetch('/api/waf/command', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(function(resp) {
+    return resp.json().then(function(data) {
+      if (!resp.ok) {
+        showToast('Command error: ' + (data.error || resp.statusText), 5000);
+        return;
+      }
+      showToast('Script uploaded: ' + data.key);
+    });
+  }).catch(function(err) {
+    showToast('Command failed: ' + err.message, 5000);
+  });
+}
+
+function deleteWAFNode(ip) {
+  var body = new URLSearchParams();
+  body.append('ip', ip);
+  fetch('/api/waf/node/delete', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(function(r) {
+    if (r.ok) {
+      showToast('Removed ' + ip);
+      document.getElementById('waf-fleet-table').dispatchEvent(new Event('refresh'));
+    } else {
+      showToast('Failed to remove node', 5000);
+    }
+  });
+}
+
+function purgeStaleWAFNodes() {
+  var rows = document.querySelectorAll('#waf-fleet-table tr[class*="opacity"]');
+  var ips = [];
+  rows.forEach(function(row) {
+    var ipCell = row.querySelector('td.font-mono');
+    if (ipCell) ips.push(ipCell.textContent.trim());
+  });
+  if (ips.length === 0) { showToast('No stale nodes'); return; }
+  showConfirmDialog({
+    title: 'Purge ' + ips.length + ' stale node(s)?',
+    message: 'This removes S3 registrations for: ' + ips.join(', '),
+    confirmLabel: 'Purge',
+    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+    onConfirm: function() {
+      var promises = ips.map(function(ip) {
+        var body = new URLSearchParams();
+        body.append('ip', ip);
+        return fetch('/api/waf/node/delete', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+          body: body.toString()
+        });
+      });
+      Promise.all(promises).then(function() {
+        showToast('Purged ' + ips.length + ' node(s)');
+        document.getElementById('waf-fleet-table').dispatchEvent(new Event('refresh'));
+      });
+    }
+  });
+}
+
+// Open preview pane to the selected campaign template for editing
+function editCampaignTemplate() {
+  var sel = document.getElementById('waf-campaign-template');
+  if (!sel) return;
+  var val = sel.value; // e.g. "low-and-slow"
+  if (val === 'custom') {
+    showToast('Custom templates cannot be edited here', 'warning');
+    return;
+  }
+  var tabId = 'camp-' + val;
+
+  // Open preview pane if not already open
+  if (!isPreviewOpen()) {
+    showPreview();
+    htmx.ajax('POST', '/preview', {
+      source: '#config-form',
+      target: '#preview-content',
+      swap: 'innerHTML'
+    }).then(function() {
+      switchPreviewCategory('campaigns');
+      switchPreviewTab(tabId);
+    });
+  } else {
+    switchPreviewCategory('campaigns');
+    switchPreviewTab(tabId);
+  }
+}
+
+// Save edited campaign template YAML back to disk
+function saveCampaignTemplate(tabId) {
+  var pre = document.getElementById('pre-' + tabId);
+  if (!pre) return;
+  var content = pre.innerText;
+
+  fetch('/api/waf/campaign-template', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'tab_id=' + encodeURIComponent(tabId) + '&content=' + encodeURIComponent(content)
+  }).then(function(r) {
+    if (r.ok) {
+      showToast('Template saved');
+      // Update the data-original so diff tracking resets
+      pre.dataset.original = content;
+    } else {
+      r.text().then(function(t) { showToast('Save failed: ' + t, 'error'); });
+    }
+  }).catch(function(e) { showToast('Save error: ' + e, 'error'); });
+}
+
+function launchWAFCampaign() {
+  var templateEl = document.getElementById('waf-campaign-template');
+  var loglevelEl = document.getElementById('waf-campaign-loglevel');
+  var targetEl = document.getElementById('waf-campaign-target');
+
+  var templateVal = templateEl ? templateEl.value : 'low-and-slow';
+  var logLevel = loglevelEl ? loglevelEl.value : 'normal';
+  var targetURL = targetEl ? targetEl.value : 'https://defcon.run';
+
+  showConfirmDialog({
+    title: 'Launch Campaign?',
+    message: 'Start <strong>' + templateVal + '</strong> campaign against <strong>' + escapeHtml(targetURL) + '</strong>.',
+    confirmLabel: 'Launch',
+    confirmClass: 'bg-green-600 hover:bg-green-500 text-white',
+    onConfirm: function() {
+      var btn = document.getElementById('waf-launch-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Launching...'; }
+
+      var uaEl = document.getElementById('waf-campaign-ua');
+      var hdrKeyEl = document.getElementById('waf-campaign-hdr-key');
+      var hdrValEl = document.getElementById('waf-campaign-hdr-val');
+
+      var body = new URLSearchParams();
+      body.append('action', 'start');
+      body.append('template', templateVal);
+      body.append('log_level', logLevel);
+      body.append('target_url', targetURL);
+      if (uaEl && uaEl.value) body.append('user_agent', uaEl.value);
+      if (hdrKeyEl && hdrKeyEl.value) body.append('custom_header_key', hdrKeyEl.value);
+      if (hdrValEl && hdrValEl.value) body.append('custom_header_value', hdrValEl.value);
+
+      fetch('/api/waf/campaign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body.toString()
+      }).then(function(resp) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Launch Campaign'; }
+        if (!resp.ok) {
+          return resp.text().then(function(t) { showToast('Launch error: ' + t, 5000); });
+        }
+        return resp.json().then(function(data) {
+          showToast('Campaign launched: ' + data.campaign);
+          updateWAFCampaignStatus('running', data.campaign, new Date().toISOString());
+        });
+      }).catch(function(err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Launch Campaign'; }
+        showToast('Launch failed: ' + err.message, 5000);
+      });
+    }
+  });
+}
+
+function haltWAFFleet() {
+  showConfirmDialog({
+    title: 'Halt Fleet?',
+    message: 'This will send a halt signal to all waffaw nodes. Running campaigns will be stopped.',
+    confirmLabel: 'Halt Fleet',
+    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+    onConfirm: function() {
+      var btn = document.getElementById('waf-halt-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Halting...'; }
+
+      var body = new URLSearchParams();
+      body.append('action', 'halt');
+
+      fetch('/api/waf/campaign', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: body.toString()
+      }).then(function(resp) {
+        return resp.json().then(function(data) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Halt Fleet'; }
+          if (!resp.ok) {
+            showToast('Halt error: ' + (data.error || resp.statusText), 5000);
+            return;
+          }
+          showToast('Fleet halted');
+          updateWAFCampaignStatus('halted', '');
+        });
+      }).catch(function(err) {
+        if (btn) { btn.disabled = false; btn.textContent = 'Halt Fleet'; }
+        showToast('Halt failed: ' + err.message, 5000);
+      });
+    }
+  });
+}
+
+function updateWAFCampaignStatus(status, campaign, startedAt) {
+  var dot = document.getElementById('waf-campaign-dot');
+  var text = document.getElementById('waf-campaign-text');
+  var timeEl = document.getElementById('waf-campaign-time');
+  var clearBtn = document.getElementById('waf-campaign-clear-btn');
+  if (!dot || !text) return;
+
+  if (status === 'running') {
+    dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse';
+    text.className = 'text-sm text-green-400';
+    text.textContent = 'Campaign running: ' + campaign;
+    text.dataset.campaign = campaign;
+  } else if (status === 'halted') {
+    dot.className = 'w-2 h-2 rounded-full bg-red-400';
+    text.className = 'text-sm text-red-400';
+    text.textContent = 'Campaign halted';
+    text.dataset.campaign = campaign || '';
+  } else {
+    dot.className = 'w-2 h-2 rounded-full bg-zinc-400';
+    text.className = 'text-sm text-zinc-400';
+    text.textContent = 'No campaign running';
+    text.dataset.campaign = '';
+  }
+
+  // Show clear button when campaign is running or halted (allows clearing stale state)
+  if (clearBtn) {
+    clearBtn.style.display = (status === 'running' || status === 'halted') ? '' : 'none';
+  }
+
+  if (timeEl) {
+    if (startedAt) {
+      var d = new Date(startedAt);
+      timeEl.textContent = 'Started ' + d.toLocaleString();
+    } else {
+      timeEl.textContent = '';
+    }
+  }
+}
+
+function clearWAFCampaign() {
+  var body = new URLSearchParams();
+  body.append('action', 'clear');
+  fetch('/api/waf/campaign', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: body.toString()
+  }).then(function(r) {
+    if (r.ok) return r.json(); else throw new Error('clear failed');
+  }).then(function(data) {
+    updateWAFCampaignStatus('none', '', '');
+    var purged = parseInt(data.purged || '0', 10);
+    if (purged > 0) showToast('Purged ' + purged + ' stale node(s)');
+    // Refresh fleet table to remove purged nodes
+    var ft = document.getElementById('waf-fleet-table');
+    if (ft) ft.dispatchEvent(new Event('refresh'));
+  }).catch(function() {});
+}
+
+// Fetch campaign state from S3 on load to restore status across reloads
+function fetchWAFCampaignState() {
+  fetch('/api/waf/campaign-state').then(function(r) { return r.json(); }).then(function(data) {
+    if (data.status === 'running' || data.status === 'halted') {
+      updateWAFCampaignStatus(data.status, data.campaign || '', data.started_at || '');
+    }
+  }).catch(function() {});
+}
+document.addEventListener('DOMContentLoaded', fetchWAFCampaignState);
+
+var _wafLogFetchInFlight = false;
+var _wafLogBtnSvg = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>';
+
+function _renderWAFLogLine(ev) {
+  var line = document.createElement('div');
+  line.className = 'waf-log-line';
+  if (ev.raw) {
+    line.style.color = '#71717a';
+    line.style.fontStyle = 'italic';
+  } else if (ev.status === 403 || ev.status === 469) {
+    line.style.color = '#f87171';
+  } else if (ev.status >= 500) {
+    line.style.color = '#fbbf24';
+  } else {
+    line.style.color = '#a1a1aa';
+  }
+  var escaped = ev.line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  line.innerHTML = escaped.replace(/(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/g,
+    function(match, a, b, c, d) {
+      var hue = ((+a * 37 + +b * 59 + +c * 13 + +d * 97) % 360);
+      var sat = 60 + (+c % 4) * 10;
+      var lit = 65 + (+d % 3) * 5;
+      return '<span style="color:hsl(' + hue + ',' + sat + '%,' + lit + '%);font-weight:600">' + match + '</span>';
+    });
+  return line;
+}
+
+function fetchWAFLogsLatest(manual) {
+  if (_wafLogFetchInFlight) return;
+  _wafLogFetchInFlight = true;
+
+  var btn = document.getElementById('waf-log-fetch-btn');
+  var viewer = document.getElementById('waf-log-viewer');
+  var rateEl = document.getElementById('waf-log-rate');
+  var blockedEl = document.getElementById('waf-log-blocked');
+
+  // Only show loading state on manual click, never during auto-poll
+  if (manual && btn) { btn.disabled = true; btn.textContent = 'Fetching...'; }
+  if (manual && viewer && !viewer.querySelector('.waf-log-line')) {
+    viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">Loading...</div>';
+  }
+
+  fetch('/api/waf/logs/latest')
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+      _wafLogFetchInFlight = false;
+      if (btn) { btn.disabled = false; btn.innerHTML = _wafLogBtnSvg + ' Fetch Latest'; }
+      if (!viewer) return;
+
+      var events = data.events || [];
+      var blocked = 0;
+
+      if (events.length === 0) {
+        viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">No log events found in the last 5 minutes.</div>';
+        if (rateEl) rateEl.textContent = '0 events';
+        if (blockedEl) blockedEl.textContent = '';
+        return;
+      }
+
+      // Build new content off-screen in a fragment (single DOM swap, no flicker)
+      var frag = document.createDocumentFragment();
+      for (var i = events.length - 1; i >= 0; i--) {
+        var ev = events[i];
+        if (ev.status === 403 || ev.status === 469) blocked++;
+        frag.appendChild(_renderWAFLogLine(ev));
+      }
+
+      // Preserve scroll: if user is scrolled to top (newest), stay there
+      var wasAtTop = viewer.scrollTop <= 5;
+
+      // Single swap: replace all children at once
+      viewer.replaceChildren(frag);
+
+      if (wasAtTop) viewer.scrollTop = 0;
+
+      if (rateEl) rateEl.textContent = events.length + ' events';
+      if (blockedEl) blockedEl.textContent = blocked > 0 ? blocked + ' blocked' : '';
+    })
+    .catch(function(err) {
+      _wafLogFetchInFlight = false;
+      if (btn) { btn.disabled = false; btn.innerHTML = _wafLogBtnSvg + ' Fetch Latest'; }
+      if (manual && viewer) viewer.innerHTML = '<div class="text-red-400 text-center py-4">Failed: ' + err.message + '</div>';
+    });
+}
+
+var _wafLogPollTimer = null;
+
+function startWAFLogStream() {
+  stopWAFLogStream();
+  var dot = document.getElementById('waf-log-dot');
+  var statusEl = document.getElementById('waf-log-status');
+  if (dot) dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block';
+  if (statusEl) statusEl.textContent = 'Polling every 2.5s';
+  fetchWAFLogsLatest(true);
+  _wafLogPollTimer = setInterval(function() { fetchWAFLogsLatest(false); }, 2500);
+}
+
+function clearWAFLogs() {
+  var viewer = document.getElementById('waf-log-viewer');
+  if (viewer) viewer.innerHTML = '';
+  var rateEl = document.getElementById('waf-log-rate');
+  if (rateEl) rateEl.textContent = '';
+  var blockedEl = document.getElementById('waf-log-blocked');
+  if (blockedEl) blockedEl.textContent = '';
+}
+
+function stopWAFLogStream() {
+  if (_wafLogPollTimer) {
+    clearInterval(_wafLogPollTimer);
+    _wafLogPollTimer = null;
+  }
+  if (_wafLogEventSource) {
+    _wafLogEventSource.close();
+    _wafLogEventSource = null;
+  }
+  var dot = document.getElementById('waf-log-dot');
+  var statusEl = document.getElementById('waf-log-status');
+  if (dot) dot.className = 'w-2 h-2 rounded-full bg-zinc-600 inline-block';
+  if (statusEl) statusEl.textContent = '';
+}
+
+function runWAFIntel() {
+  var btn = document.getElementById('waf-intel-btn');
+  var dashboard = document.getElementById('waf-intel-dashboard');
+  var timestamp = document.getElementById('waf-intel-timestamp');
+
+  // Use current campaign name from status bar, or the selected template, or all
+  var campaignFilter = '';
+  var statusText = document.getElementById('waf-campaign-text');
+  if (statusText && statusText.dataset.campaign) {
+    campaignFilter = statusText.dataset.campaign;
+  } else {
+    var tplSelect = document.getElementById('waf-campaign-template');
+    if (tplSelect && tplSelect.value && tplSelect.value !== 'custom') {
+      campaignFilter = tplSelect.value;
+    }
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Querying Athena...'; }
+  if (dashboard) dashboard.innerHTML = '<div class="text-xs text-zinc-500 py-8 text-center">Running Athena queries...</div>';
+
+  fetch('/api/waf/intel', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+    body: 'campaign=' + encodeURIComponent(campaignFilter)
+  }).then(function(resp) {
+    return resp.json().then(function(data) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Run Analysis'; }
+      if (timestamp) timestamp.textContent = new Date().toLocaleTimeString();
+
+      if (!resp.ok) {
+        if (dashboard) dashboard.innerHTML = '<div class="text-xs text-red-400 py-4">Query error: ' + escapeHtml(JSON.stringify(data)) + '</div>';
+        return;
+      }
+      renderWAFIntelDashboard(data);
+    });
+  }).catch(function(err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Run Analysis'; }
+    if (dashboard) dashboard.innerHTML = '<div class="text-xs text-red-400 py-4">Failed: ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function confirmIntelReset() {
+  showConfirmDialog({
+    title: 'Reset Intel Data?',
+    message: 'This will delete all S3 log data and Athena partitions. You\'ll start with a clean slate for the next campaign.',
+    confirmLabel: 'Reset',
+    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+    onConfirm: function() {
+      var btn = document.getElementById('waf-intel-reset-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Resetting...'; }
+      fetch('/api/waf/intel/reset', { method: 'POST' })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Reset Data'; }
+          var allOk = true;
+          var msgs = [];
+          (data.steps || []).forEach(function(s) {
+            if (!s.ok) allOk = false;
+            msgs.push((s.ok ? 'OK' : 'FAIL') + ': ' + s.name + (s.msg ? ' — ' + s.msg : ''));
+          });
+          showToast(allOk ? 'Intel data reset' : 'Reset had errors — check console', 4000);
+          msgs.forEach(function(m) { console.log('[intel-reset]', m); });
+          var dashboard = document.getElementById('waf-intel-dashboard');
+          if (dashboard) dashboard.innerHTML = '<div class="text-xs text-zinc-500 py-8 text-center">Data reset. Start a new campaign and run analysis.</div>';
+        })
+        .catch(function(err) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Reset Data'; }
+          showToast('Reset failed: ' + err.message, 5000);
+        });
+    }
+  });
+}
+
+function renderWAFIntelDashboard(data) {
+  var dashboard = document.getElementById('waf-intel-dashboard');
+  if (!dashboard) return;
+  dashboard.innerHTML = '';
+
+  // Extract summary metrics for cards
+  function renderSummaryCards(summaryRows) {
+    if (!summaryRows || summaryRows.length < 2) return '';
+    var headers = summaryRows[0];
+    var row = summaryRows[1]; // First data row
+
+    function findCol(name) {
+      for (var i = 0; i < headers.length; i++) {
+        if (headers[i].toLowerCase().indexOf(name) >= 0) return row[i] || '0';
+      }
+      return '0';
+    }
+
+    var cards = [
+      { label: 'Total Requests', value: findCol('total_requests'), color: 'text-zinc-200' },
+      { label: 'Unique IPs', value: findCol('unique_ips'), color: 'text-blue-400' },
+      { label: 'Blocked', value: findCol('blocked'), color: 'text-red-400' },
+      { label: 'Block Rate', value: findCol('block_rate') + '%', color: 'text-yellow-400' },
+      { label: 'Avg Response', value: findCol('avg_response') + 'ms', color: 'text-green-400' },
+      { label: 'Duration', value: findCol('duration') + ' min', color: 'text-purple-400' }
+    ];
+
+    var html = '<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">';
+    cards.forEach(function(card) {
+      html += '<div class="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-center">';
+      html += '<div class="text-[10px] uppercase tracking-wide text-zinc-500 mb-1">' + escapeHtml(card.label) + '</div>';
+      html += '<div class="text-lg font-bold font-mono ' + card.color + '">' + escapeHtml(card.value) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderTable(title, rows) {
+    if (!rows || rows.length === 0) {
+      return '<div class="text-xs text-zinc-500 py-2">' + escapeHtml(title) + ': No data</div>';
+    }
+    var html = '<div class="mb-4">';
+    html += '<h4 class="text-xs uppercase tracking-wide text-green-500 mb-2">' + escapeHtml(title) + '</h4>';
+    html += '<div class="overflow-auto"><table class="w-full text-xs font-mono"><thead><tr class="border-b border-zinc-700">';
+    var headers = rows[0];
+    headers.forEach(function(h) {
+      html += '<th class="text-left px-2 py-1 text-zinc-400">' + escapeHtml(h) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+    for (var i = 1; i < rows.length; i++) {
+      var isBlockRow = false;
+      rows[i].forEach(function(cell) {
+        if (cell && cell.indexOf && cell.indexOf('403') >= 0) isBlockRow = true;
+      });
+      var rowClass = isBlockRow ? 'border-b border-zinc-800 bg-red-900/10' : 'border-b border-zinc-800 hover:bg-zinc-800/50';
+      html += '<tr class="' + rowClass + '">';
+      rows[i].forEach(function(cell, idx) {
+        var cellClass = 'px-2 py-1 text-zinc-300';
+        // Highlight block rate percentages
+        if (headers[idx] && headers[idx].toLowerCase().indexOf('block_rate') >= 0) {
+          var pct = parseFloat(cell || '0');
+          if (pct >= 80) cellClass = 'px-2 py-1 text-red-400 font-bold';
+          else if (pct >= 50) cellClass = 'px-2 py-1 text-yellow-400';
+          else if (pct > 0) cellClass = 'px-2 py-1 text-green-400';
+        }
+        html += '<td class="' + cellClass + '">' + escapeHtml(cell || '') + '</td>';
+      });
+      html += '</tr>';
+    }
+    html += '</tbody></table></div></div>';
+    return html;
+  }
+
+  var html = '';
+  if (data.summary) html += renderSummaryCards(data.summary);
+  if (data.summary) html += renderTable('Campaign Summary', data.summary);
+  if (data.detection) html += renderTable('Detection Timeline', data.detection);
+  if (data.scenarios) html += renderTable('Scenario Breakdown', data.scenarios);
+  if (data.hourly) html += renderTable('Hourly Distribution', data.hourly);
+  if (data.correlation) html += renderTable('Node Type Correlation', data.correlation);
+
+  if (html === '') html = '<div class="text-xs text-zinc-500 py-4 text-center">No analytics data available. Run a campaign first.</div>';
+
+  dashboard.innerHTML = html;
 }
 
 // Initialize on load
@@ -3552,3 +5441,438 @@ restoreModuleOrder();
 initMasonry();
 initModuleSortable();
 initDirtyTracking();
+
+// ============================================================
+// Minimap — VS Code-style overview scrollbar for terminal/code
+// ============================================================
+
+var MINIMAP_MIN_LINES = 15;
+
+function classifyTermLine(line) {
+  if (!line || !line.trim()) return null;
+  if (/Error|error|ERRO|failed|FAILED/.test(line)) return '#f87171';
+  if (/Plan:|Resources:|No changes|Apply complete|Destroy complete/.test(line)) return '#4ade80';
+  if (/Still (creating|modifying|destroying)/.test(line)) return '#fbbf24';
+  if (/# .* will be (created|updated|destroyed|replaced)/.test(line)) return '#67e8f9';
+  return 'rgba(161, 161, 170, 0.25)';
+}
+
+function classifyCodeLine(line) {
+  if (!line || !line.trim()) return null;
+  if (/^\s*[#\/]/.test(line)) return 'rgba(74, 222, 128, 0.25)';
+  if (/^\s*(locals|inputs|dependency|terraform|include|generate|resource|data|variable|output|module)\s/.test(line)) return 'rgba(167, 139, 250, 0.35)';
+  return 'rgba(161, 161, 170, 0.18)';
+}
+
+function attachMinimap(pre, classifierFn) {
+  if (!pre) return null;
+  var wrap = pre.closest('.terminal-output-wrap');
+  var isOverlay = !wrap;
+
+  var mm = document.createElement('div');
+  mm.className = 'terminal-minimap' + (isOverlay ? ' terminal-minimap-overlay' : '');
+  mm.innerHTML = '<canvas></canvas><div class="minimap-viewport"></div>';
+
+  if (wrap) {
+    wrap.appendChild(mm);
+  } else {
+    var parent = pre.parentNode;
+    if (!parent || parent.querySelector('.terminal-minimap')) return null;
+    if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+    parent.appendChild(mm);
+    pre.style.paddingRight = (parseInt(getComputedStyle(pre).paddingRight) || 0) + 52 + 'px';
+  }
+
+  var canvas = mm.querySelector('canvas');
+  var vp = mm.querySelector('.minimap-viewport');
+  var ctx = canvas.getContext('2d');
+  var _pending = false;
+  var _cachedN = 0;
+  var _cachedLineH = 1;
+  var _cachedOY = 0;
+  var _ro = null;
+
+  function render() {
+    _pending = false;
+    var w = mm.clientWidth;
+    var h = mm.clientHeight;
+    if (w < 2 || h < 2) return;
+
+    var text = pre.textContent || '';
+    var lines = text.split('\n');
+    var n = lines.length;
+    if (n < MINIMAP_MIN_LINES) { mm.style.display = 'none'; return; }
+    mm.style.display = '';
+
+    var dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    var lineH = Math.min(3, h / n);
+    var totalH = lineH * n;
+    var oY = totalH < h ? (h - totalH) / 2 : 0;
+    if (totalH > h) lineH = h / n;
+
+    _cachedN = n; _cachedLineH = lineH; _cachedOY = oY;
+
+    ctx.clearRect(0, 0, w, h);
+    for (var i = 0; i < n; i++) {
+      var color = classifierFn(lines[i]);
+      if (!color) continue;
+      ctx.fillStyle = color;
+      var len = Math.min(lines[i].length, 120);
+      var barW = 4 + (len / 120) * (w - 6);
+      ctx.fillRect(1, oY + i * lineH, barW, Math.max(0.8, lineH - 0.3));
+    }
+
+    updateVP();
+  }
+
+  function updateVP() {
+    var sh = pre.scrollHeight;
+    var cH = pre.clientHeight;
+    var ch = mm.clientHeight;
+    if (sh <= cH || _cachedN < MINIMAP_MIN_LINES) { vp.style.display = 'none'; return; }
+    vp.style.display = '';
+    var totalH = _cachedLineH * _cachedN;
+    var visH = Math.max(8, (cH / sh) * Math.min(totalH, ch));
+    var scrollR = pre.scrollTop / (sh - cH);
+    var top = _cachedOY + scrollR * (Math.min(totalH, ch) - visH);
+    top = Math.max(0, Math.min(ch - visH, top));
+    vp.style.top = top + 'px';
+    vp.style.height = visH + 'px';
+  }
+
+  function scheduleRender() {
+    if (!_pending) { _pending = true; requestAnimationFrame(render); }
+  }
+
+  pre.addEventListener('scroll', updateVP);
+
+  // Click/drag to navigate
+  mm.addEventListener('mousedown', function(e) {
+    e.preventDefault();
+    var rect = mm.getBoundingClientRect();
+    function jump(clientY) {
+      var ratio = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+      pre.scrollTop = ratio * (pre.scrollHeight - pre.clientHeight);
+    }
+    jump(e.clientY);
+    function onMove(ev) { jump(ev.clientY); }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+
+  // Auto-update on content mutations (handles WAF build, preview, etc.)
+  var _mo = new MutationObserver(scheduleRender);
+  _mo.observe(pre, { childList: true, characterData: true, subtree: true });
+
+  if (window.ResizeObserver) {
+    _ro = new ResizeObserver(scheduleRender);
+    _ro.observe(mm);
+  }
+
+  requestAnimationFrame(render);
+
+  return {
+    update: scheduleRender,
+    destroy: function() { if (_ro) _ro.disconnect(); _mo.disconnect(); }
+  };
+}
+
+// Scroll pinning — auto-scroll to bottom unless user scrolls up
+function initScrollPin(pre) {
+  var pinned = true;
+  var newLines = 0;
+
+  var btn = document.createElement('button');
+  btn.className = 'terminal-scroll-bottom';
+  btn.textContent = '\u2193 Bottom';
+  var wrap = pre.closest('.terminal-output-wrap') || pre.parentNode;
+  wrap.appendChild(btn);
+
+  btn.onclick = function() {
+    pre.scrollTop = pre.scrollHeight;
+    pinned = true;
+    newLines = 0;
+    btn.style.display = 'none';
+  };
+
+  pre.addEventListener('scroll', function() {
+    var atBottom = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
+    if (atBottom) {
+      pinned = true;
+      newLines = 0;
+      btn.style.display = 'none';
+    } else {
+      pinned = false;
+    }
+  });
+
+  return {
+    isPinned: function() { return pinned; },
+    onNewLines: function(count) {
+      if (pinned) {
+        pre.scrollTop = pre.scrollHeight;
+      } else {
+        newLines += count;
+        btn.textContent = '\u2193 Bottom (' + newLines + ')';
+        btn.style.display = '';
+      }
+    }
+  };
+}
+
+// Preview minimap — attaches to pre elements after htmx load
+document.body.addEventListener('htmx:afterSettle', function(e) {
+  if (e.detail.target && e.detail.target.id === 'preview-content') {
+    setTimeout(function() {
+      var pres = document.querySelectorAll('#preview-content pre[id^="ptab-content-"]');
+      for (var i = 0; i < pres.length; i++) {
+        if ((pres[i].textContent || '').split('\n').length >= MINIMAP_MIN_LINES) {
+          attachMinimap(pres[i], classifyCodeLine);
+        }
+      }
+    }, 100);
+  }
+});
+
+// ============================================================
+// RRDB Execution Stats Explorer
+// ============================================================
+
+function openRRDBExplorer() {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[60] bg-black/70 flex flex-col p-4 md:p-8';
+  overlay.innerHTML =
+    '<div class="flex-1 flex flex-col bg-zinc-900 rounded-lg border border-zinc-700 shadow-2xl overflow-hidden max-w-4xl w-full mx-auto">' +
+      '<div class="flex items-center justify-between px-4 py-2 border-b border-zinc-700 bg-zinc-800">' +
+        '<div class="flex items-center gap-2">' +
+          '<svg class="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' +
+          '<span class="text-sm font-mono font-bold text-zinc-200">Execution Stats</span>' +
+        '</div>' +
+        '<div class="flex items-center gap-2">' +
+          '<button class="rrdb-reset rounded-md bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-zinc-300 text-xs px-2 py-1 font-mono" title="Clear all stats">Reset</button>' +
+          '<button class="rrdb-close-x rounded-md bg-red-900/50 hover:bg-red-800/50 border border-red-700 text-red-300 text-lg px-2" title="Close">&times;</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rrdb-body flex-1 overflow-auto p-4 font-mono text-sm">' +
+        '<div class="text-zinc-500 text-xs">Loading stats...</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  function dismiss() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+  overlay.querySelector('.rrdb-close-x').onclick = dismiss;
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+
+  function onKey(e) {
+    if (e.key === 'Escape') {
+      if (document.querySelector('.fixed.inset-0.z-\\[70\\]')) return;
+      e.stopImmediatePropagation();
+      dismiss();
+    }
+  }
+  document.addEventListener('keydown', onKey);
+
+  overlay.querySelector('.rrdb-reset').onclick = function() {
+    if (!confirm('Clear all execution stats? This cannot be undone.')) return;
+    fetch('/api/rrdb/reset', { method: 'POST' })
+      .then(function() { loadRRDBStats(overlay.querySelector('.rrdb-body')); });
+  };
+
+  loadRRDBStats(overlay.querySelector('.rrdb-body'));
+}
+
+function loadRRDBStats(container) {
+  fetch('/api/rrdb/stats')
+    .then(function(resp) { return resp.json(); })
+    .then(function(stats) { renderRRDBExplorer(container, stats); })
+    .catch(function(err) {
+      container.innerHTML = '<div class="text-red-400 text-xs">Failed to load stats: ' + escapeHtml(err.message) + '</div>';
+    });
+}
+
+function renderRRDBExplorer(container, stats) {
+  container.innerHTML = '';
+
+  if (stats.total_runs === 0) {
+    container.innerHTML =
+      '<div class="flex flex-col items-center justify-center h-full text-zinc-500 gap-2">' +
+        '<svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>' +
+        '<div class="text-xs">No execution data yet. Run a plan or apply to start collecting stats.</div>' +
+      '</div>';
+    return;
+  }
+
+  // Summary cards
+  var avgSec = (stats.avg_ms / 1000).toFixed(1);
+  var predHtml = '';
+  if (stats.prediction) {
+    var predSec = (stats.prediction.duration_ms / 1000).toFixed(1);
+    var arrow = stats.prediction.trend === 'up' ? '\u2191' : stats.prediction.trend === 'down' ? '\u2193' : '\u2192';
+    var arrowColor = stats.prediction.trend === 'up' ? 'text-red-400' : stats.prediction.trend === 'down' ? 'text-green-400' : 'text-zinc-400';
+    predHtml = '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Predicted</div>' +
+      '<div class="text-base font-bold text-zinc-200">~' + predSec + 's <span class="' + arrowColor + '">' + arrow + '</span></div>' +
+    '</div>';
+  }
+
+  var summaryRow = document.createElement('div');
+  summaryRow.className = 'grid grid-cols-3 md:grid-cols-7 gap-2 mb-4';
+  summaryRow.innerHTML =
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Total Runs</div>' +
+      '<div class="text-base font-bold text-zinc-200">' + stats.total_runs + '</div>' +
+    '</div>' +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Success Rate</div>' +
+      '<div class="text-base font-bold ' + (stats.success_pct >= 90 ? 'text-green-400' : stats.success_pct >= 70 ? 'text-yellow-400' : 'text-red-400') + '">' + stats.success_pct + '%</div>' +
+    '</div>' +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Avg Duration</div>' +
+      '<div class="text-base font-bold text-zinc-200">' + avgSec + 's</div>' +
+    '</div>' +
+    predHtml +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Resources +</div>' +
+      '<div class="text-base font-bold text-green-400">' + (stats.total_add || 0) + '</div>' +
+    '</div>' +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Resources ~</div>' +
+      '<div class="text-base font-bold text-yellow-400">' + (stats.total_change || 0) + '</div>' +
+    '</div>' +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Resources -</div>' +
+      '<div class="text-base font-bold text-red-400">' + (stats.total_destroy || 0) + '</div>' +
+    '</div>';
+  container.appendChild(summaryRow);
+
+  // Sparkline
+  if (stats.timeline && stats.timeline.length > 1) {
+    var sparkDiv = document.createElement('div');
+    sparkDiv.className = 'mb-4 bg-zinc-800 rounded-lg border border-zinc-700 p-3';
+    sparkDiv.innerHTML = '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Duration Timeline (last ' + stats.timeline.length + ' runs)</div>';
+    var svgContainer = document.createElement('div');
+    renderRRDBSparkline(svgContainer, stats.timeline, stats.prediction);
+    sparkDiv.appendChild(svgContainer);
+    container.appendChild(sparkDiv);
+  }
+
+  // Breakdown tabs
+  var tabData = [
+    { key: 'by_module', label: 'By Module' },
+    { key: 'by_command', label: 'By Command' },
+    { key: 'by_region', label: 'By Region' }
+  ];
+
+  var tabBar = document.createElement('div');
+  tabBar.className = 'flex gap-1 mb-2';
+  var tableContainer = document.createElement('div');
+
+  tabData.forEach(function(tab, idx) {
+    var btn = document.createElement('button');
+    btn.className = 'px-3 py-1 text-xs font-mono rounded-md border transition-colors ' +
+      (idx === 0 ? 'bg-zinc-700 border-zinc-600 text-zinc-200' : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300');
+    btn.textContent = tab.label;
+    btn.onclick = function() {
+      tabBar.querySelectorAll('button').forEach(function(b) {
+        b.className = 'px-3 py-1 text-xs font-mono rounded-md border transition-colors bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300';
+      });
+      btn.className = 'px-3 py-1 text-xs font-mono rounded-md border transition-colors bg-zinc-700 border-zinc-600 text-zinc-200';
+      renderRRDBTable(tableContainer, stats[tab.key], tab.label);
+    };
+    tabBar.appendChild(btn);
+  });
+
+  container.appendChild(tabBar);
+  container.appendChild(tableContainer);
+  renderRRDBTable(tableContainer, stats[tabData[0].key], tabData[0].label);
+}
+
+function renderRRDBSparkline(container, timeline, prediction) {
+  var W = 400, H = 60, PAD = 4;
+  var maxMs = 0;
+  timeline.forEach(function(p) { if (p.duration_ms > maxMs) maxMs = p.duration_ms; });
+  if (maxMs === 0) maxMs = 1000;
+
+  var n = timeline.length;
+  var points = [];
+  timeline.forEach(function(p, i) {
+    var x = PAD + (i / Math.max(n - 1, 1)) * (W - 2 * PAD);
+    var y = H - PAD - (p.duration_ms / maxMs) * (H - 2 * PAD);
+    points.push({ x: x, y: y, status: p.status });
+  });
+
+  var polyline = points.map(function(p) { return p.x + ',' + p.y; }).join(' ');
+  var dots = points.map(function(p) {
+    var color = p.status === 'success' ? '#4ade80' : '#f87171';
+    return '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" fill="' + color + '" stroke="' + color + '" stroke-width="1" opacity="0.9"/>';
+  }).join('');
+
+  // Prediction dashed line
+  var predLine = '';
+  if (prediction && points.length > 0) {
+    var predY = H - PAD - (prediction.duration_ms / maxMs) * (H - 2 * PAD);
+    predY = Math.max(PAD, Math.min(H - PAD, predY));
+    predLine = '<line x1="' + PAD + '" y1="' + predY + '" x2="' + (W - PAD) + '" y2="' + predY + '" stroke="#a78bfa" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>';
+  }
+
+  container.innerHTML =
+    '<svg viewBox="0 0 ' + W + ' ' + H + '" class="w-full h-16" preserveAspectRatio="none">' +
+      predLine +
+      '<polyline points="' + polyline + '" fill="none" stroke="#71717a" stroke-width="1.5" stroke-linejoin="round"/>' +
+      dots +
+    '</svg>';
+}
+
+function renderRRDBTable(container, bucketMap, label) {
+  if (!bucketMap || Object.keys(bucketMap).length === 0) {
+    container.innerHTML = '<div class="text-zinc-500 text-xs py-4 text-center">No data for ' + label + '</div>';
+    return;
+  }
+
+  // Sort by run count descending
+  var entries = Object.keys(bucketMap).map(function(key) {
+    return { name: key, stats: bucketMap[key] };
+  }).sort(function(a, b) { return b.stats.runs - a.stats.runs; });
+
+  var rows = entries.map(function(e) {
+    var s = e.stats;
+    var durSec = (s.avg_ms / 1000).toFixed(1);
+    var okColor = s.success_pct >= 90 ? 'text-green-400' : s.success_pct >= 70 ? 'text-yellow-400' : 'text-red-400';
+    return '<tr class="border-b border-zinc-800 hover:bg-zinc-800/50">' +
+      '<td class="py-1.5 px-2 text-zinc-300">' + escapeHtml(e.name) + '</td>' +
+      '<td class="py-1.5 px-2 text-right text-zinc-400">' + s.runs + '</td>' +
+      '<td class="py-1.5 px-2 text-right ' + okColor + '">' + s.success_pct + '%</td>' +
+      '<td class="py-1.5 px-2 text-right text-zinc-400">' + durSec + 's</td>' +
+      '<td class="py-1.5 px-2 text-right text-green-400/70">+' + s.avg_add + '</td>' +
+      '<td class="py-1.5 px-2 text-right text-yellow-400/70">~' + s.avg_change + '</td>' +
+      '<td class="py-1.5 px-2 text-right text-red-400/70">-' + s.avg_destroy + '</td>' +
+    '</tr>';
+  }).join('');
+
+  container.innerHTML =
+    '<div class="overflow-x-auto">' +
+      '<table class="w-full text-xs">' +
+        '<thead><tr class="text-[10px] uppercase tracking-wider text-zinc-500 border-b border-zinc-700">' +
+          '<th class="py-1.5 px-2 text-left font-medium">Name</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">Runs</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">OK%</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">Avg</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">+Add</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">~Chg</th>' +
+          '<th class="py-1.5 px-2 text-right font-medium">-Del</th>' +
+        '</tr></thead>' +
+        '<tbody>' + rows + '</tbody>' +
+      '</table>' +
+    '</div>';
+}

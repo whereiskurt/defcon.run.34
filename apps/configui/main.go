@@ -31,6 +31,7 @@ type App struct {
 	sopsFilePath         string
 	discoveryCachePath   string
 	awsStatusCachePath   string
+	rrdb                 *RRDB
 	url                  string
 	mu                   sync.RWMutex
 	config               *SiteConfig
@@ -38,6 +39,7 @@ type App struct {
 	discovery            *DiscoveryResults
 	awsStatusCache       *AWSStatusCache
 	termSessions         map[string]*TermSession
+	gitHash              string
 }
 
 // reload re-imports config from site.hcl, service configs, env files, and versions.
@@ -135,8 +137,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	gitHash := ""
+	if out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--short=7", "HEAD").Output(); err == nil {
+		gitHash = string(out[:len(out)-1]) // trim newline
+	}
+
 	app := &App{
 		repoRoot:           repoRoot,
+		gitHash:            gitHash,
 		configPath:         filepath.Join(repoRoot, "apps", "configui", "site-config.json"),
 		siteHCLPath:        filepath.Join(repoRoot, "infra", "terraform", "live", "site", "site.hcl"),
 		servicesDir:        filepath.Join(repoRoot, "infra", "terraform", "live", "site", "services"),
@@ -146,6 +154,7 @@ func main() {
 		sopsFilePath:       filepath.Join(repoRoot, "infra", "terraform", "live", "site", ".secrets.sops.json"),
 		discoveryCachePath: filepath.Join(repoRoot, "apps", "configui", ".discovery-cache.json"),
 		awsStatusCachePath: filepath.Join(repoRoot, "apps", "configui", ".aws-status-cache.json"),
+		rrdb:               newRRDB(filepath.Join(repoRoot, "apps", "configui", ".rrdb.json")),
 		termSessions:       make(map[string]*TermSession),
 	}
 
@@ -155,6 +164,7 @@ func main() {
 	// Load cached discovery and AWS status results (if any)
 	app.loadDiscoveryCache()
 	app.loadAWSStatusCache()
+	app.loadRRDB()
 
 	// Startup backup
 	if backupPath, err := app.createBackup(); err != nil {
@@ -182,10 +192,26 @@ func main() {
 	mux.HandleFunc("GET /api/terminal/stream", app.handleTerminalStream)
 	mux.HandleFunc("POST /api/terminal/stop", app.handleTerminalStop)
 	mux.HandleFunc("GET /api/terminal/list", app.handleTerminalList)
+	mux.HandleFunc("POST /api/ecr-tags", app.handleECRTags)
 	mux.HandleFunc("POST /api/scan-locks", app.handleScanLocks)
 	mux.HandleFunc("POST /api/fix-locks", app.handleFixLocks)
 	mux.HandleFunc("GET /api/outputs", app.handleOutputs)
 	mux.HandleFunc("GET /api/outputs/modules", app.handleOutputsList)
+	mux.HandleFunc("GET /api/waf/fleet", app.handleWAFFleetStatus)
+	mux.HandleFunc("POST /api/waf/node/delete", app.handleWAFNodeDelete)
+	mux.HandleFunc("POST /api/waf/command", app.handleWAFCommand)
+	mux.HandleFunc("POST /api/waf/campaign", app.handleWAFCampaign)
+	mux.HandleFunc("GET /api/waf/logs", app.handleWAFLogs)
+	mux.HandleFunc("GET /api/waf/logs/latest", app.handleWAFLogsLatest)
+	mux.HandleFunc("POST /api/waf/intel", app.handleWAFIntel)
+	mux.HandleFunc("POST /api/waf/intel/reset", app.handleWAFIntelReset)
+	mux.HandleFunc("GET /api/waf/build", app.handleWAFBuild)
+	mux.HandleFunc("POST /api/waf/check-image", app.handleWAFCheckImage)
+	mux.HandleFunc("GET /api/waf/quota", app.handleWAFQuota)
+	mux.HandleFunc("POST /api/waf/campaign-template", app.handleWAFCampaignTemplateSave)
+	mux.HandleFunc("GET /api/waf/campaign-state", app.handleWAFCampaignState)
+	mux.HandleFunc("GET /api/rrdb/stats", app.handleRRDBStats)
+	mux.HandleFunc("POST /api/rrdb/reset", app.handleRRDBReset)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port

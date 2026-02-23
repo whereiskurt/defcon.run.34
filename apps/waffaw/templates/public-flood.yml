@@ -1,0 +1,47 @@
+config:
+  target: "{{ $processEnvironment.TARGET_URL }}"
+  phases:
+    - duration: 60
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp up"
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained high rate"
+    - duration: 600
+      arrivalRate: 50
+      rampTo: 200
+      name: "Peak flood"
+    - duration: 60
+      arrivalRate: 200
+      rampTo: 10
+      name: "Ramp down"
+  # HTTP engine for volume — no Playwright needed
+  processor: "../plugins/artillery-plugin-waffaw-logger/index.js"
+  payload:
+    - path: "../data/pages.csv"
+      fields:
+        - "path"
+      order: random
+
+scenarios:
+  - name: "Public page GET"
+    weight: 8
+    afterResponse: "waffawLog"
+    flow:
+      - get:
+          url: "/{{ path }}"
+  - name: "Root page"
+    weight: 4
+    afterResponse: "waffawLog"
+    flow:
+      - get:
+          url: "/"
+  - name: "Static assets"
+    weight: 2
+    afterResponse: "waffawLog"
+    flow:
+      - get:
+          url: "/favicon.ico"
+      - get:
+          url: "/robots.txt"
