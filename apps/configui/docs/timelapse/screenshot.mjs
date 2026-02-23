@@ -1,44 +1,72 @@
 // screenshot.mjs — Playwright ESM script for ConfigUI screenshots
-// Usage: node screenshot.mjs <url> <output_prefix> <commit_hash> <commit_message>
+// Usage: node screenshot.mjs <url> <output_prefix> <commit_hash> <commit_message> [frame_num] [total_frames]
 
 import { chromium } from 'playwright';
 
-const [,, url, outputPrefix, commitHash, ...msgParts] = process.argv;
+const [,, url, outputPrefix, commitHash, ...rest] = process.argv;
+
+// Last two args are optional frame/total for progress bar
+let msgParts, frameNum, totalFrames;
+if (rest.length >= 3 && !isNaN(rest[rest.length - 1]) && !isNaN(rest[rest.length - 2])) {
+  totalFrames = parseInt(rest.pop(), 10);
+  frameNum = parseInt(rest.pop(), 10);
+  msgParts = rest;
+} else {
+  msgParts = rest;
+  frameNum = 0;
+  totalFrames = 0;
+}
+
 const commitMsg = msgParts.join(' ');
 
 if (!url || !outputPrefix) {
-  console.error('Usage: node screenshot.mjs <url> <output_prefix> <commit_hash> <commit_message>');
+  console.error('Usage: node screenshot.mjs <url> <output_prefix> <commit_hash> <commit_message> [frame_num] [total_frames]');
   process.exit(1);
 }
 
 const shortHash = (commitHash || 'unknown').slice(0, 7);
 
-async function addOverlay(page, hash, msg) {
-  // Inject a fixed overlay banner at the bottom of the viewport
-  await page.evaluate(({ hash, msg }) => {
+async function addOverlay(page, hash, msg, frame, total) {
+  await page.evaluate(({ hash, msg, frame, total }) => {
     const overlay = document.createElement('div');
     overlay.id = 'commit-overlay';
     overlay.style.cssText = `
       position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999;
-      background: rgba(0,0,0,0.85); color: #00ff41; font-family: 'Fira Code', monospace;
-      font-size: 18px; padding: 8px 16px; display: flex; gap: 16px; align-items: center;
+      background: #000; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      display: flex; flex-direction: column;
     `;
-    overlay.innerHTML = `<span style="color:#ffb800;font-weight:bold">${hash}</span><span>${msg}</span>`;
+
+    // Text row: commit hash + message + frame counter
+    const textRow = document.createElement('div');
+    textRow.style.cssText = `
+      display: flex; align-items: center; gap: 16px;
+      padding: 6px 16px; font-size: 20px; line-height: 1.3;
+    `;
+    const counterText = total > 0 ? `<span style="color:#666;margin-left:auto;font-size:16px">${frame}/${total}</span>` : '';
+    textRow.innerHTML = `<span style="color:#ffb800;font-weight:bold">${hash}</span><span style="color:#00ff41">${msg}</span>${counterText}`;
+    overlay.appendChild(textRow);
+
+    // Progress bar (only if frame/total provided)
+    if (total > 0) {
+      const pct = Math.min(100, (frame / total) * 100);
+      const barBg = document.createElement('div');
+      barBg.style.cssText = 'height: 4px; background: #1a1a1a;';
+      const barFill = document.createElement('div');
+      barFill.style.cssText = `height: 100%; width: ${pct}%; background: #00ff41;`;
+      barBg.appendChild(barFill);
+      overlay.appendChild(barBg);
+    }
+
     document.body.appendChild(overlay);
-  }, { hash, msg });
+  }, { hash, msg, frame, total });
 }
 
 async function waitForAWSStatus(page) {
-  // Wait for the AWS status bar to resolve (connected or error)
-  // The HTMX div #aws-status fires on page load and fetches /api/aws-status
-  // We wait for "Not Connected" or "Connected" or similar text to appear
   try {
-    // Wait for the aws-status div to have content (not loading)
     await page.waitForFunction(() => {
       const el = document.getElementById('aws-status');
-      if (!el) return true; // no status bar in early commits
+      if (!el) return true;
       const text = el.textContent || '';
-      // Check if the status has resolved (connected, not connected, or error)
       return text.includes('Connected') ||
              text.includes('Not authenticated') ||
              text.includes('Not Connected') ||
@@ -46,10 +74,8 @@ async function waitForAWSStatus(page) {
              text.includes('Account:') ||
              text.includes('SSO Login');
     }, { timeout: 12000 });
-    // Small extra wait for any animations/rendering
     await page.waitForTimeout(500);
   } catch {
-    // If timeout, just proceed with whatever state we have
     console.log(`  [screenshot] ${shortHash} AWS status wait timed out, proceeding`);
   }
 }
@@ -59,14 +85,9 @@ async function run() {
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
 
   try {
-    // Navigate and wait for network idle
     await page.goto(url, { waitUntil: 'networkidle', timeout: 15000 });
-
-    // Wait for AWS status to resolve
     await waitForAWSStatus(page);
-
-    // Add commit overlay
-    await addOverlay(page, shortHash, commitMsg);
+    await addOverlay(page, shortHash, commitMsg, frameNum, totalFrames);
 
     // Screenshot 1: Form view
     await page.screenshot({ path: `${outputPrefix}-form.png`, fullPage: false });
@@ -98,14 +119,11 @@ async function run() {
     }
 
     if (previewClicked) {
-      // Wait for preview panel to render
       await page.waitForTimeout(1500);
-      // Screenshot 2: With preview
       await page.screenshot({ path: `${outputPrefix}-preview.png`, fullPage: false });
       console.log(`  [screenshot] ${shortHash} preview captured`);
     } else {
       console.log(`  [screenshot] ${shortHash} no preview button found, skipping preview shot`);
-      // Copy form screenshot as preview fallback
       const fs = await import('fs');
       fs.copyFileSync(`${outputPrefix}-form.png`, `${outputPrefix}-preview.png`);
     }
