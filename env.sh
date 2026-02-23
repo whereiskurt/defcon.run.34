@@ -53,4 +53,4 @@ aws sso login --sso-session=Developer
 
 ## Terragrunt uses AWS to setup s3/dynamo and uses the default profile,
 ## doing this sets makes terragrunt use the terraform profile for it's s3/dynamo creations
-$(aws configure export-credentials --profile ${SITE_LABEL}-terraform --format env)
+$(aws configure export-credentials --profile ${TF_VAR_profile_prefix}-terraform --format env)
