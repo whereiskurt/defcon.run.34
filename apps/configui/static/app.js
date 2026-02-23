@@ -85,9 +85,26 @@ function hasVisibleOverlay(sel) {
     var tag = (e.target.tagName || '').toUpperCase();
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if (_destroyActive) return;
-    if (hasVisibleOverlay('.fixed.inset-0.z-\\[60\\]')) return;
 
     var key = e.key.toLowerCase();
+
+    // If a confirm dialog is open, allow second "aa" to auto-confirm it
+    if (hasVisibleOverlay('.fixed.inset-0.z-\\[60\\]')) {
+      if (_shortcutFirst === 'a' && key === 'a') {
+        e.preventDefault();
+        _shortcutFirst = '';
+        clearTimeout(_shortcutTimer);
+        var cfBtn = document.getElementById('cfd-confirm');
+        if (cfBtn) cfBtn.click();
+        return;
+      }
+      // Track first key even while overlay is open (for aa sequence)
+      if (key === 'a' && !_shortcutFirst) {
+        _shortcutFirst = key;
+        _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
+      }
+      return;
+    }
 
     // Single-key: minus collapses all
     if (key === '-' && !_shortcutFirst) {
@@ -150,12 +167,16 @@ function hasVisibleOverlay(sel) {
       } else if (combo === 'hc') {
         e.preventDefault();
         toggleSectionRollup('core');
+      } else if (combo === 'xl') {
+        e.preventDefault();
+        toggleAggressiveLocks(!_aggressiveLocks);
+        showToast('Aggressive locks ' + (_aggressiveLocks ? 'ON' : 'OFF'), 2000);
       }
       return;
     }
 
     // Start tracking first key of a two-key sequence
-    if (key === 'r' || key === 'p' || key === 'a' || key === 'g' || key === 'h') {
+    if (key === 'r' || key === 'p' || key === 'a' || key === 'g' || key === 'h' || key === 'x') {
       _shortcutFirst = key;
       _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
     }
@@ -4139,11 +4160,24 @@ function captureFormSnapshot() {
   return params.map(function(p) { return p[0] + '=' + p[1]; }).join('&');
 }
 
+function setDirtyUI(dirty) {
+  var banner = document.getElementById('unsaved-banner');
+  var logo = document.getElementById('header-logo');
+  if (dirty) {
+    if (banner) banner.classList.remove('hidden');
+    if (logo) logo.classList.add('hidden');
+    document.body.classList.add('form-dirty');
+  } else {
+    if (banner) banner.classList.add('hidden');
+    if (logo) logo.classList.remove('hidden');
+    document.body.classList.remove('form-dirty');
+  }
+}
+
 function markFormClean() {
   _formDirty = false;
   _savedFormSnapshot = captureFormSnapshot();
-  var banner = document.getElementById('unsaved-banner');
-  if (banner) banner.classList.add('hidden');
+  setDirtyUI(false);
 }
 
 function markFormDirty() {
@@ -4152,18 +4186,15 @@ function markFormDirty() {
   var current = captureFormSnapshot();
   if (current === _savedFormSnapshot) return;
   _formDirty = true;
-  var banner = document.getElementById('unsaved-banner');
-  if (banner) banner.classList.remove('hidden');
+  setDirtyUI(true);
 }
 
 function dismissUnsavedBanner() {
-  var banner = document.getElementById('unsaved-banner');
-  if (banner) banner.classList.add('hidden');
+  setDirtyUI(false);
 }
 
 function doSaveAll() {
-  var banner = document.getElementById('unsaved-banner');
-  if (banner) banner.classList.add('hidden');
+  setDirtyUI(false);
   htmx.ajax('POST', '/save', {source: '#config-form', target: '#save-result', swap: 'innerHTML'});
   // Mark clean after a short delay to let the save complete
   setTimeout(markFormClean, 500);
@@ -4372,8 +4403,8 @@ function initBitToggles() {
     dec.className = 'bit-dec text-xs font-mono text-zinc-400 bg-transparent border-b border-transparent hover:border-zinc-600 focus:border-green-500 focus:text-zinc-200 outline-none ml-1 w-[2em] text-center';
     dec.title = 'Type a value (0\u2013' + max + ')';
 
-    wrap.appendChild(upBtn);
     wrap.appendChild(boxWrap);
+    wrap.appendChild(upBtn);
     wrap.appendChild(downBtn);
     wrap.appendChild(dec);
 
@@ -5052,14 +5083,17 @@ function updateWAFCampaignStatus(status, campaign, startedAt) {
     dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse';
     text.className = 'text-sm text-green-400';
     text.textContent = 'Campaign running: ' + campaign;
+    text.dataset.campaign = campaign;
   } else if (status === 'halted') {
     dot.className = 'w-2 h-2 rounded-full bg-red-400';
     text.className = 'text-sm text-red-400';
     text.textContent = 'Campaign halted';
+    text.dataset.campaign = campaign || '';
   } else {
     dot.className = 'w-2 h-2 rounded-full bg-zinc-400';
     text.className = 'text-sm text-zinc-400';
     text.textContent = 'No campaign running';
+    text.dataset.campaign = '';
   }
 
   // Show clear button when campaign is running or halted (allows clearing stale state)
@@ -5106,117 +5140,69 @@ function fetchWAFCampaignState() {
 }
 document.addEventListener('DOMContentLoaded', fetchWAFCampaignState);
 
-function startWAFLogStream(clearViewer) {
-  stopWAFLogStream(); // Close any existing connection
-
-  var nodeFilter = '';
-  var filterEl = document.getElementById('waf-log-node-filter');
-  if (filterEl) nodeFilter = filterEl.value;
-  _wafLogNodeFilter = nodeFilter;
-
+function fetchWAFLogsLatest() {
+  var btn = document.getElementById('waf-log-fetch-btn');
   var viewer = document.getElementById('waf-log-viewer');
-  if (viewer && clearViewer) viewer.innerHTML = '';
+  var rateEl = document.getElementById('waf-log-rate');
+  var blockedEl = document.getElementById('waf-log-blocked');
 
+  if (btn) { btn.disabled = true; btn.textContent = 'Fetching...'; }
+  if (viewer) viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">Loading...</div>';
+
+  fetch('/api/waf/logs/latest')
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Fetch Latest'; }
+      if (!viewer) return;
+      viewer.innerHTML = '';
+
+      var events = data.events || [];
+      var blocked = 0;
+
+      // Render newest first
+      for (var i = events.length - 1; i >= 0; i--) {
+        var ev = events[i];
+        var line = document.createElement('div');
+        line.className = 'waf-log-line';
+
+        if (ev.raw) {
+          line.style.color = '#71717a';
+          line.style.fontStyle = 'italic';
+        } else if (ev.status === 403) {
+          line.style.color = '#f87171';
+          blocked++;
+        } else if (ev.status >= 500) {
+          line.style.color = '#fbbf24';
+        } else {
+          line.style.color = '#a1a1aa';
+        }
+        line.textContent = ev.line;
+        viewer.appendChild(line);
+      }
+
+      if (events.length === 0) {
+        viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">No log events found in the last 60 minutes.</div>';
+      }
+
+      if (rateEl) rateEl.textContent = events.length + ' events';
+      if (blockedEl) blockedEl.textContent = blocked > 0 ? blocked + ' blocked' : '';
+    })
+    .catch(function(err) {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Fetch Latest'; }
+      if (viewer) viewer.innerHTML = '<div class="text-red-400 text-center py-4">Failed: ' + err.message + '</div>';
+    });
+}
+
+var _wafLogPollTimer = null;
+
+function startWAFLogStream() {
+  stopWAFLogStream();
   var dot = document.getElementById('waf-log-dot');
   var statusEl = document.getElementById('waf-log-status');
   if (dot) dot.className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block';
-  if (statusEl) statusEl.textContent = 'Connected';
-
-  var url = '/api/waf/logs';
-  if (nodeFilter && nodeFilter !== 'all') {
-    url += '?node=' + encodeURIComponent(nodeFilter);
-  }
-
-  _wafLogEventSource = new EventSource(url);
-  var lineCount = 0;
-  var lastMsgText = '';
-  var lastMsgEl = null;
-  var lastMsgCount = 0;
-
-  _wafLogEventSource.onmessage = function(e) {
-    if (!viewer) return;
-    try {
-      var data = JSON.parse(e.data);
-      var lineText = data.line || e.data;
-
-      // Extract message without timestamp for dedup comparison
-      var msgBody = lineText.replace(/^\d{2}:\d{2}:\d{2}\.\d{3}\s+/, '');
-
-      // Collapse consecutive identical messages
-      if (msgBody === lastMsgText && lastMsgEl) {
-        lastMsgCount++;
-        var badge = lastMsgEl.querySelector('.waf-log-repeat');
-        if (!badge) {
-          badge = document.createElement('span');
-          badge.className = 'waf-log-repeat';
-          badge.style.cssText = 'margin-left:8px;padding:0 5px;border-radius:8px;background:#3f3f46;color:#a1a1aa;font-size:10px;font-style:normal;';
-          lastMsgEl.appendChild(badge);
-        }
-        badge.textContent = '\u00d7' + lastMsgCount;
-        return;
-      }
-      lastMsgText = msgBody;
-      lastMsgCount = 1;
-
-      var line = document.createElement('div');
-      line.className = 'waf-log-line';
-
-      // Color code by status
-      var status = data.status || 0;
-      if (data.raw) {
-        line.style.color = '#71717a'; // zinc-500 (agent lifecycle)
-        line.style.fontStyle = 'italic';
-      } else if (status === 403) {
-        line.style.color = '#f87171'; // red-400
-      } else if (status >= 500) {
-        line.style.color = '#fbbf24'; // yellow-400
-      } else {
-        line.style.color = '#a1a1aa'; // zinc-400
-      }
-
-      line.textContent = lineText;
-      viewer.insertBefore(line, viewer.firstChild);
-      lastMsgEl = line;
-      lineCount++;
-
-      // Cap displayed lines (trim oldest from bottom)
-      if (lineCount > 2000) {
-        var last = viewer.lastChild;
-        if (last) viewer.removeChild(last);
-      }
-
-      // Update rate display
-      var rateEl = document.getElementById('waf-log-rate');
-      if (rateEl) rateEl.textContent = lineCount + ' events';
-
-      // Update blocked count
-      if (status === 403) {
-        var blockedEl = document.getElementById('waf-log-blocked');
-        if (blockedEl) {
-          var current = parseInt(blockedEl.dataset.blocked || '0', 10);
-          current++;
-          blockedEl.dataset.blocked = current;
-          blockedEl.textContent = current + ' blocked';
-        }
-      }
-    } catch(err) {
-      // Plain text fallback
-      var line = document.createElement('div');
-      line.className = 'waf-log-line';
-      line.style.color = '#a1a1aa';
-      line.textContent = e.data;
-      viewer.appendChild(line);
-    }
-  };
-
-  _wafLogEventSource.addEventListener('error', function() {
-    if (dot) dot.className = 'w-2 h-2 rounded-full bg-red-400 inline-block';
-    if (statusEl) statusEl.textContent = 'Disconnected';
-  });
-}
-
-function restartWAFLogStream() {
-  startWAFLogStream(true);
+  if (statusEl) statusEl.textContent = 'Polling every 5s';
+  fetchWAFLogsLatest();
+  _wafLogPollTimer = setInterval(fetchWAFLogsLatest, 5000);
 }
 
 function clearWAFLogs() {
@@ -5229,6 +5215,10 @@ function clearWAFLogs() {
 }
 
 function stopWAFLogStream() {
+  if (_wafLogPollTimer) {
+    clearInterval(_wafLogPollTimer);
+    _wafLogPollTimer = null;
+  }
   if (_wafLogEventSource) {
     _wafLogEventSource.close();
     _wafLogEventSource = null;
@@ -5236,7 +5226,7 @@ function stopWAFLogStream() {
   var dot = document.getElementById('waf-log-dot');
   var statusEl = document.getElementById('waf-log-status');
   if (dot) dot.className = 'w-2 h-2 rounded-full bg-zinc-600 inline-block';
-  if (statusEl) statusEl.textContent = 'Disconnected';
+  if (statusEl) statusEl.textContent = '';
 }
 
 function runWAFIntel() {
@@ -5244,13 +5234,25 @@ function runWAFIntel() {
   var dashboard = document.getElementById('waf-intel-dashboard');
   var timestamp = document.getElementById('waf-intel-timestamp');
 
+  // Use current campaign name from status bar, or the selected template, or all
+  var campaignFilter = '';
+  var statusText = document.getElementById('waf-campaign-text');
+  if (statusText && statusText.dataset.campaign) {
+    campaignFilter = statusText.dataset.campaign;
+  } else {
+    var tplSelect = document.getElementById('waf-campaign-template');
+    if (tplSelect && tplSelect.value && tplSelect.value !== 'custom') {
+      campaignFilter = tplSelect.value;
+    }
+  }
+
   if (btn) { btn.disabled = true; btn.textContent = 'Querying Athena...'; }
   if (dashboard) dashboard.innerHTML = '<div class="text-xs text-zinc-500 py-8 text-center">Running Athena queries...</div>';
 
   fetch('/api/waf/intel', {
     method: 'POST',
     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: 'campaign='
+    body: 'campaign=' + encodeURIComponent(campaignFilter)
   }).then(function(resp) {
     return resp.json().then(function(data) {
       if (btn) { btn.disabled = false; btn.textContent = 'Run Analysis'; }
@@ -5265,6 +5267,38 @@ function runWAFIntel() {
   }).catch(function(err) {
     if (btn) { btn.disabled = false; btn.textContent = 'Run Analysis'; }
     if (dashboard) dashboard.innerHTML = '<div class="text-xs text-red-400 py-4">Failed: ' + escapeHtml(err.message) + '</div>';
+  });
+}
+
+function confirmIntelReset() {
+  showConfirmDialog({
+    title: 'Reset Intel Data?',
+    message: 'This will delete all S3 log data and Athena partitions. You\'ll start with a clean slate for the next campaign.',
+    confirmLabel: 'Reset',
+    confirmClass: 'bg-red-600 hover:bg-red-500 text-white',
+    onConfirm: function() {
+      var btn = document.getElementById('waf-intel-reset-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Resetting...'; }
+      fetch('/api/waf/intel/reset', { method: 'POST' })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Reset Data'; }
+          var allOk = true;
+          var msgs = [];
+          (data.steps || []).forEach(function(s) {
+            if (!s.ok) allOk = false;
+            msgs.push((s.ok ? 'OK' : 'FAIL') + ': ' + s.name + (s.msg ? ' — ' + s.msg : ''));
+          });
+          showToast(allOk ? 'Intel data reset' : 'Reset had errors — check console', 4000);
+          msgs.forEach(function(m) { console.log('[intel-reset]', m); });
+          var dashboard = document.getElementById('waf-intel-dashboard');
+          if (dashboard) dashboard.innerHTML = '<div class="text-xs text-zinc-500 py-8 text-center">Data reset. Start a new campaign and run analysis.</div>';
+        })
+        .catch(function(err) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Reset Data'; }
+          showToast('Reset failed: ' + err.message, 5000);
+        });
+    }
   });
 }
 

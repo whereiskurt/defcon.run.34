@@ -264,7 +264,7 @@ locals {
     ecs_use_spot    = true
     ecs_task_cpu    = 1024
     ecs_task_memory = 2048
-    image_uri       = "${local.site.label}-waffaw:1.0.7"
+    image_uri       = "dc34-waffaw:1.0.18"
   }
 
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)

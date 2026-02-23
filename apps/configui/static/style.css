@@ -1184,6 +1184,22 @@ body.preview-dragging {
 .dark .mod-svc-cms   { background: linear-gradient(135deg, #4d2e32, #2a1a1e) !important; }
 .dark .mod-svc-gpx   { background: linear-gradient(135deg, #2e4f46, #1a2e28) !important; }
 
+/* ========== Unsaved Changes Frame ========== */
+
+body.form-dirty::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  box-shadow: inset 0 0 0 2px rgba(217,119,6,0.5), inset 0 0 20px rgba(217,119,6,0.08);
+  transition: box-shadow 0.3s ease;
+}
+
+body.form-dirty #main-header {
+  border-bottom-color: rgba(217,119,6,0.4);
+}
+
 /* ========== Destroy Mode ========== */
 
 /* Progressive dimming + reddening while typing "destroy" */

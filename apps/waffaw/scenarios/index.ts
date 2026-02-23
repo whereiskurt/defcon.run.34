@@ -5,6 +5,7 @@ export { logout } from "./logout";
 export { browsePublic } from "./browse-public";
 export { clickElement } from "./click-element";
 export { submitForm } from "./form-submit";
+export { authProbe } from "./auth-probe";
 
 /**
  * Shared env vars for NDJSON records (HTTP + Playwright).
@@ -28,8 +29,11 @@ export function instrumentPage(page: Page, scenarioName: string) {
   if ((page as any).__waffawInstrumented) return;
   (page as any).__waffawInstrumented = true;
 
-  page.on("response", (resp) => {
+  page.on("response", async (resp) => {
     if (!TRACKED_TYPES.has(resp.request().resourceType())) return;
+
+    const timing = resp.request().timing();
+    const responseTimeMs = timing.responseEnd >= 0 ? Math.round(timing.responseEnd) : 0;
 
     const record: Record<string, unknown> = {
       timestamp: new Date().toISOString(),
@@ -40,7 +44,7 @@ export function instrumentPage(page: Page, scenarioName: string) {
       target_url: resp.url(),
       method: resp.request().method(),
       status_code: resp.status(),
-      response_time_ms: 0,
+      response_time_ms: responseTimeMs,
       scenario: scenarioName,
       engine: "playwright",
       node_id: nodeId,

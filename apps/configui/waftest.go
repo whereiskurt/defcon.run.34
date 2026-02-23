@@ -780,9 +780,7 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 
 	startTime := time.Now().Add(-15 * time.Minute).UnixMilli()
-	totalSent := 0
-	const maxEvents = 2000
-	ticker := time.NewTicker(3 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -790,17 +788,10 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if totalSent >= maxEvents {
-				continue
-			}
-			batchLimit := 200
-			if totalSent+batchLimit > maxEvents {
-				batchLimit = maxEvents - totalSent
-			}
 			args := []string{"logs", "filter-log-events",
 				"--log-group-name", logGroupName,
 				"--start-time", fmt.Sprintf("%d", startTime),
-				"--limit", fmt.Sprintf("%d", batchLimit),
+				"--limit", "100",
 				"--profile", profile,
 				"--region", logRegion,
 				"--output", "json",
@@ -809,8 +800,21 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 				args = append(args, "--filter-pattern", fmt.Sprintf(`{ $.source_ip = "%s" }`, nodeFilter))
 			}
 
-			out, err := exec.Command("aws", args...).Output()
+			cmd := exec.Command("aws", args...)
+			out, err := cmd.CombinedOutput()
 			if err != nil {
+				errMsg := strings.TrimSpace(string(out))
+				if len(errMsg) > 200 {
+					errMsg = errMsg[:200]
+				}
+				log.Printf("WAF logs: filter-log-events failed: %v | %s", err, errMsg)
+				errLine, _ := json.Marshal(map[string]interface{}{
+					"line":   fmt.Sprintf("ERROR: CloudWatch query failed: %s", errMsg),
+					"status": 0,
+					"raw":    true,
+				})
+				fmt.Fprintf(w, "data: %s\n\n", errLine)
+				flusher.Flush()
 				continue
 			}
 
@@ -836,7 +840,6 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 						"raw":    true,
 					})
 					fmt.Fprintf(w, "data: %s\n\n", lineJSON)
-					totalSent++
 					if event.Timestamp > startTime {
 						startTime = event.Timestamp + 1
 					}
@@ -885,7 +888,6 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 					"body":    logEntry["response_body_preview"],
 				})
 				fmt.Fprintf(w, "data: %s\n\n", lineJSON)
-				totalSent++
 
 				if event.Timestamp > startTime {
 					startTime = event.Timestamp + 1
@@ -894,6 +896,129 @@ func (a *App) handleWAFLogs(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+// handleWAFLogsLatest fetches the most recent log events in one shot (no streaming).
+func (a *App) handleWAFLogsLatest(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	accountID := a.envLocal.ApplicationAccountID
+	a.mu.RUnlock()
+
+	if accountID == "" {
+		http.Error(w, "Application Account ID not configured", 400)
+		return
+	}
+
+	profile := a.wafProfile()
+	logRegion := r.URL.Query().Get("region")
+	if logRegion == "" {
+		logRegion = "us-east-1"
+	}
+	logGroupName := fmt.Sprintf("/waffaw/%s", logRegion)
+
+	limit := r.URL.Query().Get("limit")
+	if limit == "" {
+		limit = "500"
+	}
+
+	startTime := time.Now().Add(-60 * time.Minute).UnixMilli()
+
+	args := []string{"logs", "filter-log-events",
+		"--log-group-name", logGroupName,
+		"--start-time", fmt.Sprintf("%d", startTime),
+		"--limit", limit,
+		"--profile", profile,
+		"--region", logRegion,
+		"--output", "json",
+	}
+
+	cmd := exec.Command("aws", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		errMsg := strings.TrimSpace(string(out))
+		if len(errMsg) > 300 {
+			errMsg = errMsg[:300]
+		}
+		http.Error(w, "CloudWatch query failed: "+errMsg, 500)
+		return
+	}
+
+	var resp struct {
+		Events []struct {
+			Timestamp int64  `json:"timestamp"`
+			Message   string `json:"message"`
+		} `json:"events"`
+	}
+	if json.Unmarshal(out, &resp) != nil {
+		http.Error(w, "Failed to parse CloudWatch response", 500)
+		return
+	}
+
+	type logLine struct {
+		Line    string      `json:"line"`
+		Status  int         `json:"status"`
+		Raw     bool        `json:"raw,omitempty"`
+		Headers interface{} `json:"headers,omitempty"`
+		Body    interface{} `json:"body,omitempty"`
+	}
+	lines := make([]logLine, 0, len(resp.Events))
+
+	for _, event := range resp.Events {
+		ts := time.UnixMilli(event.Timestamp).Format("15:04:05.000")
+
+		var logEntry map[string]interface{}
+		if json.Unmarshal([]byte(event.Message), &logEntry) != nil {
+			lines = append(lines, logLine{
+				Line:   fmt.Sprintf("%s  %s", ts, event.Message),
+				Status: 0,
+				Raw:    true,
+			})
+			continue
+		}
+
+		ip, _ := logEntry["source_ip"].(string)
+		entryRegion, _ := logEntry["region"].(string)
+		method, _ := logEntry["method"].(string)
+		targetURL, _ := logEntry["target_url"].(string)
+		statusCode := 0
+		if sc, ok := logEntry["status_code"].(float64); ok {
+			statusCode = int(sc)
+		}
+		responseTime := 0
+		if rt, ok := logEntry["response_time_ms"].(float64); ok {
+			responseTime = int(rt)
+		}
+		rank := 0
+		total := 0
+		if nr, ok := logEntry["node_rank"].(float64); ok {
+			rank = int(nr)
+		}
+		if nt, ok := logEntry["node_total"].(float64); ok {
+			total = int(nt)
+		}
+
+		flag := flagForRegion(entryRegion)
+		path := targetURL
+		if idx := strings.Index(targetURL, "://"); idx >= 0 {
+			rest := targetURL[idx+3:]
+			if pidx := strings.Index(rest, "/"); pidx >= 0 {
+				path = rest[pidx:]
+			}
+		}
+
+		line := fmt.Sprintf("%s  %s %s  [%d/%d]  %s  %s  %d  %dms",
+			ts, flag, ip, rank, total, method, path, statusCode, responseTime)
+
+		lines = append(lines, logLine{
+			Line:    line,
+			Status:  statusCode,
+			Headers: logEntry["response_headers"],
+			Body:    logEntry["response_body_preview"],
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"events": lines, "count": len(lines)})
 }
 
 // handleWAFIntel runs Athena queries via AWS CLI and returns results as JSON.
@@ -974,6 +1099,78 @@ func (a *App) handleWAFIntel(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(results)
+}
+
+// handleWAFIntelReset deletes all S3 log data and Athena partitions for a fresh start.
+func (a *App) handleWAFIntelReset(w http.ResponseWriter, r *http.Request) {
+	profile := a.wafProfile()
+	bucket := fmt.Sprintf("waffaw-logs-%s-%s-%s",
+		"use1", a.config.Site.Label, a.config.Site.RandomSuffix)
+
+	type step struct {
+		Name string `json:"name"`
+		Ok   bool   `json:"ok"`
+		Msg  string `json:"msg,omitempty"`
+	}
+	var steps []step
+
+	// 1. Delete all S3 data (except athena-results/)
+	cmd := exec.Command("aws", "s3", "rm", "s3://"+bucket+"/",
+		"--recursive", "--exclude", "athena-results/*",
+		"--profile", profile, "--region", "us-east-1")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		steps = append(steps, step{"Delete S3 data", false, strings.TrimSpace(string(out))})
+	} else {
+		steps = append(steps, step{"Delete S3 data", true, ""})
+	}
+
+	// 2. Drop all Glue partitions
+	// List partitions first
+	listCmd := exec.Command("aws", "glue", "get-partitions",
+		"--database-name", "waffaw",
+		"--table-name", "waffaw_logs",
+		"--profile", profile, "--region", "us-east-1",
+		"--output", "json")
+	listOut, err := listCmd.CombinedOutput()
+	if err != nil {
+		steps = append(steps, step{"List partitions", false, strings.TrimSpace(string(listOut))})
+	} else {
+		var partResp struct {
+			Partitions []struct {
+				Values []string `json:"Values"`
+			} `json:"Partitions"`
+		}
+		if json.Unmarshal(listOut, &partResp) == nil && len(partResp.Partitions) > 0 {
+			// Build batch-delete input
+			type partVal struct {
+				Values []string `json:"Values"`
+			}
+			var batch []partVal
+			for _, p := range partResp.Partitions {
+				batch = append(batch, partVal{Values: p.Values})
+			}
+			batchJSON, _ := json.Marshal(batch)
+
+			delCmd := exec.Command("aws", "glue", "batch-delete-partition",
+				"--database-name", "waffaw",
+				"--table-name", "waffaw_logs",
+				"--partitions-to-delete", string(batchJSON),
+				"--profile", profile, "--region", "us-east-1",
+				"--output", "json")
+			delOut, err := delCmd.CombinedOutput()
+			if err != nil {
+				steps = append(steps, step{"Drop partitions", false, strings.TrimSpace(string(delOut))})
+			} else {
+				steps = append(steps, step{"Drop partitions", true, fmt.Sprintf("Removed %d partitions", len(batch))})
+			}
+		} else {
+			steps = append(steps, step{"Drop partitions", true, "No partitions to drop"})
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"steps": steps})
 }
 
 // handleWAFBuild runs apps/waffaw/build.sh and streams output via SSE.
@@ -1258,6 +1455,7 @@ var validCampaignTemplates = map[string]string{
 	"camp-auth-cycle":      "apps/waffaw/templates/auth-cycle.yml",
 	"camp-public-flood":    "apps/waffaw/templates/public-flood.yml",
 	"camp-crawl-and-probe": "apps/waffaw/templates/crawl-and-probe.yml",
+	"camp-auth-probe":      "apps/waffaw/templates/auth-probe.yml",
 }
 
 // handleWAFCampaignTemplateSave saves edited campaign YAML back to disk.

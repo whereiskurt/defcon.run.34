@@ -9,6 +9,13 @@
       Run Analysis
     </button>
     <span id="waf-intel-timestamp" class="text-xs text-zinc-500"></span>
+    <div class="ml-auto">
+      <button type="button" onclick="confirmIntelReset()" id="waf-intel-reset-btn"
+              class="rounded-md border border-red-700 text-red-400 hover:bg-red-900/30 px-3 py-1.5 text-xs font-mono"
+              title="Delete all S3 log data and Athena partitions for a fresh start">
+        Reset Data
+      </button>
+    </div>
   </div>
 
   <!-- Dashboard Container -->

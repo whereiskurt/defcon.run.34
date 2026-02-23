@@ -108,6 +108,13 @@ resource "aws_autoscaling_group" "waffaw" {
     }
   }
 
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 0
+    }
+  }
+
   tag {
     key                 = "Name"
     value               = "waffaw-${var.region.label}"

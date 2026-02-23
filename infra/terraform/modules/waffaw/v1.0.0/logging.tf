@@ -72,7 +72,27 @@ resource "aws_kinesis_firehose_delivery_stream" "waffaw" {
         }
       }
 
-      # 3. Extract campaign field for dynamic S3 partitioning
+      # 3. Split concatenated log events into individual Firehose records
+      #    CloudWatchLogProcessing outputs multiple JSON objects joined by \n
+      #    in a single record — MetadataExtraction needs one JSON per record.
+      processors {
+        type = "RecordDeAggregation"
+        parameters {
+          parameter_name  = "SubRecordType"
+          parameter_value = "DELIMITED"
+        }
+        parameters {
+          parameter_name  = "Delimiter"
+          parameter_value = "Cg=="
+        }
+      }
+
+      # 4. Append newline after each record (required for JSON SerDe in Athena)
+      processors {
+        type = "AppendDelimiterToRecord"
+      }
+
+      # 5. Extract campaign field for dynamic S3 partitioning
       processors {
         type = "MetadataExtraction"
         parameters {

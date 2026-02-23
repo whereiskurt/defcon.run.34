@@ -2,33 +2,30 @@
 <div class="space-y-3">
   <!-- Controls -->
   <div class="flex items-center gap-3">
-    <div>
-      <label class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-1 block">Node Filter</label>
-      <select id="waf-log-node-filter"
-              class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-3 py-1.5 text-xs"
-              onchange="restartWAFLogStream()">
-        <option value="all">All Nodes</option>
-      </select>
+    <button type="button" onclick="fetchWAFLogsLatest()" id="waf-log-fetch-btn"
+            class="rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-medium"
+            style="display: inline-flex; align-items: center; gap: 6px;">
+      <svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+      Fetch Latest
+    </button>
+    <button type="button" onclick="clearWAFLogs()" class="px-2 py-1.5 rounded text-[11px] bg-zinc-700 hover:bg-zinc-600 text-zinc-300">Clear</button>
+    <span id="waf-log-rate" class="text-xs text-zinc-500"></span>
+    <span id="waf-log-blocked" class="text-xs text-red-400"></span>
+    <div class="ml-auto flex items-center gap-2 text-xs text-zinc-500">
+      <span class="flex items-center gap-1">
+        <span id="waf-log-dot" class="w-2 h-2 rounded-full bg-zinc-600 inline-block"></span>
+        <span id="waf-log-status"></span>
+      </span>
+      <button type="button" onclick="startWAFLogStream(true)" class="px-2 py-1 rounded text-[10px] border border-zinc-600 text-zinc-400 hover:bg-zinc-700" title="Start SSE live stream">Stream</button>
+      <button type="button" onclick="stopWAFLogStream()" class="px-2 py-1 rounded text-[10px] border border-zinc-600 text-zinc-400 hover:bg-zinc-700" title="Stop SSE live stream">Stop</button>
     </div>
-    <button type="button" onclick="clearWAFLogs()" class="mt-4 px-2 py-1 rounded text-[11px] bg-zinc-700 hover:bg-zinc-600 text-zinc-300">Clear</button>
-    <div class="mt-4 text-xs text-zinc-500">Newest first</div>
   </div>
 
   <!-- Log Viewer -->
   <div id="waf-log-viewer"
        class="rounded-md bg-zinc-950 border border-zinc-700 font-mono text-xs overflow-auto"
        style="height: 400px; padding: 8px;">
-    <div class="text-zinc-600 text-center py-8">Log stream will start when you switch to this tab during a running campaign.</div>
-  </div>
-
-  <!-- Footer -->
-  <div class="flex items-center gap-3 text-xs text-zinc-500">
-    <span class="flex items-center gap-1">
-      <span id="waf-log-dot" class="w-2 h-2 rounded-full bg-zinc-600 inline-block"></span>
-      <span id="waf-log-status">Disconnected</span>
-    </span>
-    <span id="waf-log-rate" class="ml-auto"></span>
-    <span id="waf-log-blocked"></span>
+    <div class="text-zinc-600 text-center py-8">Click "Fetch Latest" to load the most recent 200 log events.</div>
   </div>
 </div>
 {{end}}

@@ -69,6 +69,28 @@ resource "aws_iam_role_policy" "node" {
           "ecr:GetAuthorizationToken"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "S3EmailRead"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          "arn:aws:s3:::ses-inbox-${var.site.label}-*",
+          "arn:aws:s3:::ses-inbox-${var.site.label}-*/*"
+        ]
+      },
+      {
+        Sid    = "SSMEmailBucketParam"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter"
+        ]
+        Resource = [
+          "arn:aws:ssm:${var.region.full}:${data.aws_caller_identity.current.account_id}:parameter/${var.site.label}/ses/s3/*/bucket_name"
+        ]
       }
     ]
   })
