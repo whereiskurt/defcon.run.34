@@ -3039,7 +3039,8 @@ function showTerminalModal(session) {
       });
       return;
     }
-    minimizeSession(id);
+    // Process done — close fully and add to Runs history
+    doCleanupSession(id);
   }
 
   closeBtn.onclick = closeModal;
@@ -4274,9 +4275,9 @@ function switchWaffawTab(tabName) {
     el.classList.toggle('waffaw-tab-visible', el.dataset.tab === tabName);
   });
 
-  // SSE lifecycle: start log stream when switching to logs tab (keeps running in background)
-  if (tabName === 'logs' && !_wafLogEventSource) {
-    startWAFLogStream();
+  // Stop polling when leaving logs tab
+  if (tabName !== 'logs') {
+    stopWAFLogStream();
   }
 }
 
@@ -4556,8 +4557,7 @@ document.addEventListener('DOMContentLoaded', function() {
   initBitToggles();
   updateWafQuotaBar();
   fetchWafQuotas();
-  // Start log stream immediately so logs accumulate across tab switches and survive reloads
-  startWAFLogStream();
+  // Logs tab: manual fetch only (no auto-start)
 });
 // Also run after htmx swaps (in case the waffaw tab loads late)
 document.addEventListener('htmx:afterSettle', updateWafQuotaBar);
@@ -5692,7 +5692,7 @@ function renderRRDBExplorer(container, stats) {
   }
 
   var summaryRow = document.createElement('div');
-  summaryRow.className = 'grid grid-cols-2 md:grid-cols-4 gap-2 mb-4';
+  summaryRow.className = 'grid grid-cols-3 md:grid-cols-7 gap-2 mb-4';
   summaryRow.innerHTML =
     '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
       '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Total Runs</div>' +
@@ -5706,7 +5706,19 @@ function renderRRDBExplorer(container, stats) {
       '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Avg Duration</div>' +
       '<div class="text-base font-bold text-zinc-200">' + avgSec + 's</div>' +
     '</div>' +
-    predHtml;
+    predHtml +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Resources +</div>' +
+      '<div class="text-base font-bold text-green-400">' + (stats.total_add || 0) + '</div>' +
+    '</div>' +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Resources ~</div>' +
+      '<div class="text-base font-bold text-yellow-400">' + (stats.total_change || 0) + '</div>' +
+    '</div>' +
+    '<div class="bg-zinc-800 rounded-lg border border-zinc-700 px-4 py-2 text-center">' +
+      '<div class="text-[10px] uppercase tracking-wider text-zinc-500 mb-0.5">Resources -</div>' +
+      '<div class="text-base font-bold text-red-400">' + (stats.total_destroy || 0) + '</div>' +
+    '</div>';
   container.appendChild(summaryRow);
 
   // Sparkline

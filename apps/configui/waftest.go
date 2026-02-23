@@ -921,7 +921,7 @@ func (a *App) handleWAFLogsLatest(w http.ResponseWriter, r *http.Request) {
 		limit = "500"
 	}
 
-	startTime := time.Now().Add(-60 * time.Minute).UnixMilli()
+	startTime := time.Now().Add(-5 * time.Minute).UnixMilli()
 
 	args := []string{"logs", "filter-log-events",
 		"--log-group-name", logGroupName,

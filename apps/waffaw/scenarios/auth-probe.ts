@@ -10,6 +10,9 @@ const REGION_FULL = process.env.REGION || "us-east-1";
 const INVITE_CODE = process.env.INVITE_CODE || "hacktheplanet";
 const REGION_PREFIX = `/${REGION_LABEL}`;
 
+const AUTH_ORIGIN = "https://auth.defcon.run";
+const APP_ORIGIN = "https://run.defcon.run";
+
 const EMAIL_PREFIX = "inbox/defcon.run/";
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 30; // 60 seconds max
@@ -97,8 +100,10 @@ async function waitForMfaCode(email: string, afterTimestamp: Date): Promise<stri
 }
 
 /**
- * Full auth probe — login via ALTCHA + email MFA, browse authenticated, logout.
- * Exercises the real OIDC flow against run.auth.
+ * Full auth probe — two-phase OIDC login:
+ *   Phase 1: Authenticate at auth.defcon.run (ALTCHA + email MFA)
+ *   Phase 2: OIDC sign-in at run.defcon.run using the auth session
+ *   Phase 3: Verify profile, then logout
  */
 export async function authProbe(
   page: Page,
@@ -106,23 +111,24 @@ export async function authProbe(
   events: { emit: (name: string, ...args: unknown[]) => void },
 ) {
   instrumentPage(page, "auth-probe");
-  const baseUrl = process.env.TARGET_URL || vuContext.vars.target || "https://auth.defcon.run";
   const email = randomEmail();
   const loginStartTime = new Date();
 
-  // Step 1: Navigate to login page
+  // ── Phase 1: Authenticate at auth.defcon.run ──
+
+  // Step 1: Navigate to auth login page
   try {
-    await page.goto(`${baseUrl}${REGION_PREFIX}/login`, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await page.goto(`${AUTH_ORIGIN}${REGION_PREFIX}/login`, { waitUntil: "domcontentloaded", timeout: 15000 });
     await page.locator("text=Welcome!").waitFor({ timeout: 10000 });
   } catch (err) {
-    console.error("[auth-probe] Login page failed:", err);
+    console.error("[auth-probe] Auth login page failed:", err);
     return;
   }
 
-  // Step 2: Get CSRF token
+  // Step 2: Get CSRF token from auth service
   let csrfToken: string;
   try {
-    const csrfResp = await page.request.get(`${baseUrl}${REGION_PREFIX}/api/auth/csrf`);
+    const csrfResp = await page.request.get(`${AUTH_ORIGIN}${REGION_PREFIX}/api/auth/csrf`);
     const csrfData = await csrfResp.json();
     csrfToken = csrfData.csrfToken;
     if (!csrfToken) throw new Error("Missing csrfToken");
@@ -134,15 +140,15 @@ export async function authProbe(
   // Step 3: Solve ALTCHA challenge
   let altchaPayload: string;
   try {
-    altchaPayload = await solveAltcha(baseUrl);
+    altchaPayload = await solveAltcha(AUTH_ORIGIN);
   } catch (err) {
     console.error("[auth-probe] ALTCHA solve failed:", err);
     return;
   }
 
-  // Step 4: Submit login
+  // Step 4: Submit login to auth service
   try {
-    const loginResp = await page.request.post(`${baseUrl}${REGION_PREFIX}/api/login`, {
+    const loginResp = await page.request.post(`${AUTH_ORIGIN}${REGION_PREFIX}/api/login`, {
       data: { email, inviteCode: INVITE_CODE, csrfToken, altcha: altchaPayload },
     });
     if (!loginResp.ok()) throw new Error(`Login POST returned ${loginResp.status()}`);
@@ -160,26 +166,46 @@ export async function authProbe(
     return;
   }
 
-  // Step 6: Complete MFA callback
+  // Step 6: Complete MFA callback on auth.defcon.run (establishes auth session)
   try {
-    const callbackUrl = `${baseUrl}${REGION_PREFIX}/api/auth/callback/nodemailer?token=${mfaCode}&email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent(`${REGION_PREFIX}/`)}`;
+    const callbackUrl = `${AUTH_ORIGIN}${REGION_PREFIX}/api/auth/callback/nodemailer?token=${mfaCode}&email=${encodeURIComponent(email)}&callbackUrl=${encodeURIComponent(`${REGION_PREFIX}/`)}`;
     await page.goto(callbackUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
   } catch (err) {
     console.error("[auth-probe] MFA callback failed:", err);
     return;
   }
 
-  // Step 7: Check profile page (authenticated)
+  // ── Phase 2: OIDC sign-in at run.defcon.run ──
+
+  // Step 7: Navigate to run.defcon.run and trigger OIDC flow
+  // The auto-signin route initiates the OIDC redirect to auth.defcon.run,
+  // which recognizes the existing session and redirects back with an auth code.
   try {
-    await page.goto(`${baseUrl}${REGION_PREFIX}/profile`, { waitUntil: "domcontentloaded", timeout: 15000 });
+    await page.goto(`${APP_ORIGIN}${REGION_PREFIX}/`, { waitUntil: "domcontentloaded", timeout: 15000 });
+    // Click "Sign In" button to trigger OIDC flow
+    const signInBtn = page.locator("text=Sign In").first();
+    await signInBtn.waitFor({ timeout: 5000 });
+    await signInBtn.click();
+    // Wait for OIDC redirect chain to complete (auth.defcon.run → back to run.defcon.run)
+    await page.waitForURL(`${APP_ORIGIN}/**`, { timeout: 30000 });
+  } catch (err) {
+    console.error("[auth-probe] OIDC sign-in at run.defcon.run failed:", err);
+    return;
+  }
+
+  // ── Phase 3: Verify and cleanup ──
+
+  // Step 8: Check profile page on run.defcon.run (authenticated)
+  try {
+    await page.goto(`${APP_ORIGIN}${REGION_PREFIX}/profile`, { waitUntil: "domcontentloaded", timeout: 15000 });
     await page.waitForTimeout(1000 + Math.random() * 2000);
   } catch (err) {
     console.error("[auth-probe] Profile page failed:", err);
   }
 
-  // Step 8: Logout
+  // Step 9: Logout from run.defcon.run
   try {
-    await page.goto(`${baseUrl}${REGION_PREFIX}/api/auth/signout`, {
+    await page.goto(`${APP_ORIGIN}${REGION_PREFIX}/api/auth/signout`, {
       waitUntil: "domcontentloaded",
       timeout: 15000,
     });

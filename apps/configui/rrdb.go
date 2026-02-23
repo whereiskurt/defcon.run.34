@@ -59,14 +59,17 @@ type RRDBBucketStats struct {
 
 // RRDBStats is the response for the stats API endpoint.
 type RRDBStats struct {
-	TotalRuns  int                        `json:"total_runs"`
-	SuccessPct float64                    `json:"success_pct"`
-	AvgMs      int64                      `json:"avg_ms"`
-	Prediction *RRDBPrediction            `json:"prediction,omitempty"`
-	Timeline   []RRDBTimePoint            `json:"timeline"`
-	ByModule   map[string]*RRDBBucketStats `json:"by_module"`
-	ByCommand  map[string]*RRDBBucketStats `json:"by_command"`
-	ByRegion   map[string]*RRDBBucketStats `json:"by_region"`
+	TotalRuns    int                        `json:"total_runs"`
+	SuccessPct   float64                    `json:"success_pct"`
+	AvgMs        int64                      `json:"avg_ms"`
+	TotalAdd     int                        `json:"total_add"`
+	TotalChange  int                        `json:"total_change"`
+	TotalDestroy int                        `json:"total_destroy"`
+	Prediction   *RRDBPrediction            `json:"prediction,omitempty"`
+	Timeline     []RRDBTimePoint            `json:"timeline"`
+	ByModule     map[string]*RRDBBucketStats `json:"by_module"`
+	ByCommand    map[string]*RRDBBucketStats `json:"by_command"`
+	ByRegion     map[string]*RRDBBucketStats `json:"by_region"`
 }
 
 func newRRDB(path string) *RRDB {
@@ -168,6 +171,12 @@ func (a *App) queryRRDB(module, command, region string) *RRDBStats {
 		totalMs += e.DurationMs
 		if e.Status == "success" {
 			successes++
+		}
+		// Sum resources only from individual module runs (not aggregate "all"/"region-all")
+		if e.Module != "all" && e.Module != "region-all" {
+			stats.TotalAdd += e.Add
+			stats.TotalChange += e.Change
+			stats.TotalDestroy += e.Destroy
 		}
 		// Bucket by module
 		accumulateBucket(stats.ByModule, e.Module, e)
