@@ -237,15 +237,6 @@ locals {
           {
             name      = "AUTH_INTERNAL_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
-          },
-          # Admin bootstrap credentials (master only)
-          {
-            name      = "STRAPI_ADMIN_EMAIL"
-            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/admin_email"
-          },
-          {
-            name      = "STRAPI_ADMIN_PASSWORD"
-            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/admin_password"
           }
         ]
 
