@@ -462,6 +462,15 @@ func (a *App) startTerminal(module, command, region string) (*TermSession, error
 			session.mu.Unlock()
 		}
 		if summary := parseSummaryLine(cleaned); summary != nil {
+			// For apply/destroy commands, terraform outputs both the plan preview
+			// ("Plan: X to add...") and the actual result ("Resources: X added...").
+			// Only count the result to avoid double-counting.
+			isApplyCmd := strings.HasPrefix(session.Command, "apply") || strings.HasPrefix(session.Command, "destroy")
+			isPlanLine := rePlanSummary.MatchString(cleaned)
+			if isApplyCmd && isPlanLine {
+				session.broadcast(cleaned)
+				continue
+			}
 				session.mu.Lock()
 				if session.Summary == nil {
 					session.Summary = summary
