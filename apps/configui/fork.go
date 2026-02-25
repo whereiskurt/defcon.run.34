@@ -179,10 +179,11 @@ func (a *App) handleFork(w http.ResponseWriter, r *http.Request) {
 	}
 	a.config.Site.SkipRegions = skipRegions
 
-	// Update env.local account IDs
+	// Update env.local account IDs and profile prefix
 	a.envLocal.ApplicationAccountID = req.ApplicationAccountID
 	a.envLocal.ManagementAccountID = req.ManagementAccountID
 	a.envLocal.TerraformAccountID = req.TerraformAccountID
+	a.envLocal.ProfilePrefix = req.Label
 
 	// Regenerate all template-based config files
 	if err := SaveConfig(a.configPath, a.config); err != nil {
