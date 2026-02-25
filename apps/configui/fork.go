@@ -222,7 +222,7 @@ func (a *App) handleFork(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to generate service.hcl: %v", err), 500)
 		return
 	}
-	if err := generateEnvSh(a.envShPath, a.config); err != nil {
+	if err := generateEnvSh(a.envShPath, a.config, a.envLocal); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate env.sh: %v", err), 500)
 		return
 	}

@@ -166,22 +166,27 @@ func generateServiceHCLs(servicesDir string, cfg *SiteConfig) error {
 }
 
 // generateEnvSh renders env.sh from template and writes to disk.
-func generateEnvSh(path string, cfg *SiteConfig) error {
-	out, err := renderEnvSh(cfg)
+func generateEnvSh(path string, cfg *SiteConfig, envLocal *EnvLocalConfig) error {
+	out, err := renderEnvSh(cfg, envLocal)
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(path, []byte(out), 0755)
 }
 
-func renderEnvSh(cfg *SiteConfig) (string, error) {
+func renderEnvSh(cfg *SiteConfig, envLocal *EnvLocalConfig) (string, error) {
 	tmpl, err := template.New("env.sh.tmpl").Delims("<<", ">>").Funcs(genFuncs).ParseFS(content, "templates/env.sh.tmpl")
 	if err != nil {
 		return "", fmt.Errorf("parse env.sh template: %w", err)
 	}
 
+	data := struct {
+		*SiteConfig
+		EnvLocal *EnvLocalConfig
+	}{cfg, envLocal}
+
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, cfg); err != nil {
+	if err := tmpl.Execute(&buf, data); err != nil {
 		return "", fmt.Errorf("execute env.sh template: %w", err)
 	}
 	return buf.String(), nil

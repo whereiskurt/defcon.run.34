@@ -148,7 +148,7 @@ func (a *App) handleSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate env.sh
-	if err := generateEnvSh(a.envShPath, cfg); err != nil {
+	if err := generateEnvSh(a.envShPath, cfg, envLocal); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate env.sh: %v", err), 500)
 		return
 	}
@@ -201,7 +201,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// env.sh
-	if out, err := renderEnvSh(cfg); err == nil {
+	if out, err := renderEnvSh(cfg, envLocal); err == nil {
 		tabs = append(tabs, previewTab{"envsh", "env.sh", out, ""})
 	} else {
 		log.Printf("Preview: skip env.sh: %v", err)
@@ -265,7 +265,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 	if out, err := renderSiteHCL(savedCfg); err == nil {
 		originals["sitehcl"] = out
 	}
-	if out, err := renderEnvSh(savedCfg); err == nil {
+	if out, err := renderEnvSh(savedCfg, savedEnvLocal); err == nil {
 		originals["envsh"] = out
 	}
 	if out, err := renderEnvLocalSh(savedEnvLocal); err == nil {
