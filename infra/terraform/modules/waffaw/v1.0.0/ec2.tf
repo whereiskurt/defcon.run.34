@@ -91,7 +91,7 @@ resource "aws_autoscaling_group" "waffaw" {
     launch_template {
       launch_template_specification {
         launch_template_id = aws_launch_template.waffaw[0].id
-        version            = "$Latest"
+        version            = aws_launch_template.waffaw[0].latest_version
       }
 
       override {

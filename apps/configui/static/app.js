@@ -5186,7 +5186,10 @@ function fetchWAFLogsLatest(manual) {
   }
 
   fetch('/api/waf/logs/latest')
-    .then(function(resp) { return resp.json(); })
+    .then(function(resp) {
+      if (!resp.ok) return resp.text().then(function(t) { throw new Error(t || ('HTTP ' + resp.status)); });
+      return resp.json();
+    })
     .then(function(data) {
       _wafLogFetchInFlight = false;
       if (btn) { btn.disabled = false; btn.innerHTML = _wafLogBtnSvg + ' Fetch Latest'; }
@@ -5196,7 +5199,7 @@ function fetchWAFLogsLatest(manual) {
       var blocked = 0;
 
       if (events.length === 0) {
-        viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">No log events found in the last 5 minutes.</div>';
+        viewer.innerHTML = '<div class="text-zinc-600 text-center py-8">No log events found in the last 24 hours.</div>';
         if (rateEl) rateEl.textContent = '0 events';
         if (blockedEl) blockedEl.textContent = '';
         return;

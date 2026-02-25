@@ -140,12 +140,25 @@ async function _authProbeInner(
 
   // ── Phase 1: Authenticate at auth.defcon.run ──
 
-  // Step 1: Navigate to auth login page (follow redirects, wait for React hydration)
-  try {
-    await page.goto(`${AUTH_ORIGIN}${REGION_PREFIX}/login`, { waitUntil: "load", timeout: 30000 });
-    await page.locator("text=Welcome!").waitFor({ timeout: 15000 });
-  } catch (err) {
-    console.error(`[auth-probe] Auth login page failed (url=${page.url()}):`, err);
+  // Step 1: Navigate to auth login page (with retry for transient errors like 503)
+  let loginLoaded = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await page.goto(`${AUTH_ORIGIN}${REGION_PREFIX}/login`, { waitUntil: "load", timeout: 30000 });
+      await page.locator("text=Welcome!").waitFor({ timeout: 15000 });
+      loginLoaded = true;
+      break;
+    } catch (err) {
+      console.error(`[auth-probe] Attempt ${attempt}/3: Login page failed (url=${page.url()}):`, err);
+      if (attempt < 3) {
+        const backoff = attempt * 15000;
+        console.log(`[auth-probe] Retrying in ${backoff / 1000}s...`);
+        await new Promise(r => setTimeout(r, backoff));
+      }
+    }
+  }
+  if (!loginLoaded) {
+    console.error("[auth-probe] All login attempts failed, aborting probe");
     return;
   }
 

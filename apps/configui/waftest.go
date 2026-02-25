@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -73,6 +74,22 @@ type wafCampaignState struct {
 	CustomHeaderKey string `json:"custom_header_key,omitempty"`
 	CustomHeaderVal string `json:"custom_header_value,omitempty"`
 	ExpectedNodes  int    `json:"expected_nodes"`
+}
+
+// countActiveNodes counts fleet nodes with alive.txt < 2 minutes old.
+func (a *App) countActiveNodes(profile, bucket, region string) int {
+	objects, err := s3ListKeys(profile, bucket, "nodes/", region)
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, obj := range objects {
+		parts := strings.Split(obj.Key, "/")
+		if len(parts) >= 3 && parts[2] == "alive.txt" && time.Since(obj.LastModified) < 2*time.Minute {
+			count++
+		}
+	}
+	return count
 }
 
 // controlBucketName returns the waffaw control bucket name.
@@ -620,6 +637,12 @@ func (a *App) handleWAFCampaign(w http.ResponseWriter, r *http.Request) {
 		// Remove halt flag
 		s3DeleteKey(profile, bucket, "global/halt", region)
 
+		// Count current fleet size for consensus
+		nodeCount := a.countActiveNodes(profile, bucket, region)
+		if nodeCount < 1 {
+			nodeCount = 1
+		}
+
 		// Write campaign-state.json
 		newState := wafCampaignState{
 			Status:         "running",
@@ -631,6 +654,7 @@ func (a *App) handleWAFCampaign(w http.ResponseWriter, r *http.Request) {
 			UserAgent:      userAgent,
 			CustomHeaderKey: customHeaderKey,
 			CustomHeaderVal: customHeaderVal,
+			ExpectedNodes:  nodeCount,
 		}
 		stateJSON, _ := json.Marshal(newState)
 		s3PutString(profile, bucket, "campaign-state.json", region, string(stateJSON))
@@ -648,28 +672,48 @@ export CAMPAIGN="$CAMPAIGN_NAME"
 export WAFFAW_USER_AGENT="%s"
 export WAFFAW_HEADER_KEY="%s"
 export WAFFAW_HEADER_VALUE="%s"
+export EXPECTED_NODES="%d"
+export CONTROL_BUCKET="%s"
 
 echo "[waffaw] Starting campaign: $CAMPAIGN -> $TARGET_URL (log=$LOG_LEVEL)"
 [[ -n "$WAFFAW_USER_AGENT" ]] && echo "[waffaw] User-Agent: $WAFFAW_USER_AGENT"
 [[ -n "$WAFFAW_HEADER_KEY" ]] && echo "[waffaw] Custom header: $WAFFAW_HEADER_KEY: $WAFFAW_HEADER_VALUE"
 
-# Run consensus protocol to determine node rank
-if [[ -f /opt/waffaw/consensus.sh ]]; then
-  source /opt/waffaw/consensus.sh
-  run_consensus "${EXPECTED_NODES:-1}"
-  echo "[waffaw] Consensus complete: node $NODE_RANK of $NODE_TOTAL"
-else
-  echo "[waffaw] WARNING: consensus.sh not found, running without coordination"
-  export NODE_RANK=1
-  export NODE_TOTAL=1
-fi
-
-# Run artillery with the selected campaign template
+# Loop while campaign is running
 cd /opt/waffaw
-npx artillery run "templates/%s.yml" 2>&1 | tee -a "/tmp/campaign-${CAMPAIGN}.log"
+ITERATION=0
+while true; do
+  # Check campaign state from S3
+  CAMP_STATE=$(aws s3 cp "s3://${CONTROL_BUCKET}/campaign-state.json" - --quiet 2>/dev/null || echo '{"status":"unknown"}')
+  CAMP_STATUS=$(echo "$CAMP_STATE" | jq -r '.status // "unknown"')
+  if [[ "$CAMP_STATUS" != "running" ]]; then
+    echo "[waffaw] Campaign status='${CAMP_STATUS}', stopping loop"
+    break
+  fi
 
-echo "[waffaw] Campaign $CAMPAIGN finished on node $NODE_RANK"
-`, campaignName, targetURL, logLevel, targetURL, logLevel, campaignName, userAgent, customHeaderKey, customHeaderVal, campaignName)
+  ITERATION=$((ITERATION + 1))
+  echo "[waffaw] === Iteration ${ITERATION} starting ==="
+
+  # Re-run consensus each iteration (fleet may have changed)
+  if [[ -f /opt/waffaw/consensus.sh ]]; then
+    source /opt/waffaw/consensus.sh
+    run_consensus "${EXPECTED_NODES:-1}"
+    echo "[waffaw] Consensus complete: node $NODE_RANK of $NODE_TOTAL"
+  else
+    echo "[waffaw] WARNING: consensus.sh not found, running without coordination"
+    export NODE_RANK=1
+    export NODE_TOTAL=1
+  fi
+
+  npx artillery run "templates/%s.yml" 2>&1 \
+    | tee -a "/tmp/campaign-${CAMPAIGN}.log" || true
+
+  echo "[waffaw] === Iteration ${ITERATION} complete ==="
+  sleep 10
+done
+
+echo "[waffaw] Campaign $CAMPAIGN loop exited on node ${NODE_RANK:-?}"
+`, campaignName, targetURL, logLevel, targetURL, logLevel, campaignName, userAgent, customHeaderKey, customHeaderVal, nodeCount, bucket, campaignName)
 
 		ts := time.Now().Format("20060102-150405")
 		triggerKey := fmt.Sprintf("global/run/campaign-%s-%s.sh", campaignName, ts)
@@ -924,29 +968,15 @@ func (a *App) handleWAFLogsLatest(w http.ResponseWriter, r *http.Request) {
 
 	limit := r.URL.Query().Get("limit")
 	if limit == "" {
-		limit = "1000"
+		limit = "200"
 	}
 
-	startTime := time.Now().Add(-5 * time.Minute).UnixMilli()
-
-	args := []string{"logs", "filter-log-events",
-		"--log-group-name", logGroupName,
-		"--start-time", fmt.Sprintf("%d", startTime),
-		"--limit", limit,
-		"--profile", profile,
-		"--region", logRegion,
-		"--output", "json",
-	}
-
-	cmd := exec.Command("aws", args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		errMsg := strings.TrimSpace(string(out))
-		if len(errMsg) > 300 {
-			errMsg = errMsg[:300]
+	// Progressive fallback: try recent windows, widen if empty.
+	windows := []time.Duration{5 * time.Minute, 1 * time.Hour, 24 * time.Hour}
+	if mins := r.URL.Query().Get("minutes"); mins != "" {
+		if m, err := strconv.Atoi(mins); err == nil && m > 0 {
+			windows = []time.Duration{time.Duration(m) * time.Minute}
 		}
-		http.Error(w, "CloudWatch query failed: "+errMsg, 500)
-		return
 	}
 
 	var resp struct {
@@ -955,9 +985,34 @@ func (a *App) handleWAFLogsLatest(w http.ResponseWriter, r *http.Request) {
 			Message   string `json:"message"`
 		} `json:"events"`
 	}
-	if json.Unmarshal(out, &resp) != nil {
-		http.Error(w, "Failed to parse CloudWatch response", 500)
-		return
+
+	for _, window := range windows {
+		startTime := time.Now().Add(-window).UnixMilli()
+		args := []string{"logs", "filter-log-events",
+			"--log-group-name", logGroupName,
+			"--start-time", fmt.Sprintf("%d", startTime),
+			"--limit", limit,
+			"--profile", profile,
+			"--region", logRegion,
+			"--output", "json",
+		}
+		cmd := exec.Command("aws", args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			errMsg := strings.TrimSpace(string(out))
+			if len(errMsg) > 300 {
+				errMsg = errMsg[:300]
+			}
+			http.Error(w, "CloudWatch query failed: "+errMsg, 500)
+			return
+		}
+		if json.Unmarshal(out, &resp) != nil {
+			http.Error(w, "Failed to parse CloudWatch response", 500)
+			return
+		}
+		if len(resp.Events) > 0 {
+			break
+		}
 	}
 
 	type logLine struct {
