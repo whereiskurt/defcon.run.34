@@ -5138,10 +5138,15 @@ function fetchWAFCampaignState() {
   fetch('/api/waf/campaign-state').then(function(r) { return r.json(); }).then(function(data) {
     if (data.status === 'running' || data.status === 'halted') {
       updateWAFCampaignStatus(data.status, data.campaign || '', data.started_at || '');
+    } else {
+      updateWAFCampaignStatus('none', '', '');
     }
-  }).catch(function() {});
+  }).catch(function(err) { console.warn('waffaw: campaign-state fetch failed:', err); });
 }
-document.addEventListener('DOMContentLoaded', fetchWAFCampaignState);
+document.addEventListener('DOMContentLoaded', function() {
+  fetchWAFCampaignState();
+  setInterval(fetchWAFCampaignState, 15000);
+});
 
 var _wafLogFetchInFlight = false;
 var _wafLogBtnSvg = '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>';
