@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -37,6 +39,8 @@ var defaultSkipPatterns = []string{
 type ForkState struct {
 	Domain               string      `json:"domain"`
 	Label                string      `json:"label"`
+	RandomSuffix         string      `json:"random_suffix"`
+	SuggestedSuffix      string      `json:"suggested_suffix"`
 	ApplicationAccountID string      `json:"application_account_id"`
 	ManagementAccountID  string      `json:"management_account_id"`
 	TerraformAccountID   string      `json:"terraform_account_id"`
@@ -71,6 +75,16 @@ type LineEdit struct {
 	New  string `json:"new"`
 }
 
+// generateRandomSuffix returns an 8-character hex string.
+func generateRandomSuffix() string {
+	b := make([]byte, 4)
+	if _, err := rand.Read(b); err != nil {
+		// Fallback: use timestamp-based value
+		return fmt.Sprintf("%08x", time.Now().UnixNano()&0xFFFFFFFF)
+	}
+	return hex.EncodeToString(b)
+}
+
 func (a *App) handleForkState(w http.ResponseWriter, r *http.Request) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -81,6 +95,8 @@ func (a *App) handleForkState(w http.ResponseWriter, r *http.Request) {
 	state := ForkState{
 		Domain:               a.config.DNS.ZoneName,
 		Label:                a.config.Site.Label,
+		RandomSuffix:         a.config.Site.RandomSuffix,
+		SuggestedSuffix:      generateRandomSuffix(),
 		ApplicationAccountID: a.envLocal.ApplicationAccountID,
 		ManagementAccountID:  a.envLocal.ManagementAccountID,
 		TerraformAccountID:   a.envLocal.TerraformAccountID,
@@ -113,6 +129,7 @@ func (a *App) handleFork(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Domain               string   `json:"domain"`
 		Label                string   `json:"label"`
+		RandomSuffix         string   `json:"random_suffix"`
 		ApplicationAccountID string   `json:"application_account_id"`
 		ManagementAccountID  string   `json:"management_account_id"`
 		TerraformAccountID   string   `json:"terraform_account_id"`
@@ -145,9 +162,15 @@ func (a *App) handleFork(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Default random suffix to current if not provided
+	if req.RandomSuffix == "" {
+		req.RandomSuffix = a.config.Site.RandomSuffix
+	}
+
 	// Capture old values before updating
 	oldDomain := a.config.DNS.ZoneName
 	oldLabel := a.config.Site.Label
+	oldSuffix := a.config.Site.RandomSuffix
 	oldAppAccountID := a.envLocal.ApplicationAccountID
 	oldMgmtAccountID := a.envLocal.ManagementAccountID
 	oldTfAccountID := a.envLocal.TerraformAccountID
@@ -162,6 +185,7 @@ func (a *App) handleFork(w http.ResponseWriter, r *http.Request) {
 	// Update config identity fields
 	a.config.Site.Label = req.Label
 	a.config.Site.TFStatePrefix = "tf-" + req.Label
+	a.config.Site.RandomSuffix = req.RandomSuffix
 	a.config.DNS.ZoneName = req.Domain
 	a.config.Env.SiteDomain = req.Domain
 	a.config.Env.SiteLabel = req.Label
@@ -257,6 +281,9 @@ func (a *App) handleFork(w http.ResponseWriter, r *http.Request) {
 	}
 	if oldLabel != req.Label && oldLabel != "" {
 		replacements = append(replacements, findReplace{old: oldLabel, new: req.Label})
+	}
+	if oldSuffix != req.RandomSuffix && oldSuffix != "" {
+		replacements = append(replacements, findReplace{old: oldSuffix, new: req.RandomSuffix})
 	}
 	// Also replace AWS account IDs when they change (skip placeholder "000000000000")
 	for _, acct := range []struct{ old, new string }{

@@ -1929,6 +1929,14 @@ function renderForkDialog(state) {
           '<label class="block text-xs font-medium text-zinc-400 mb-1">Site Label</label>' +
           '<input type="text" id="fork-label" value="' + (state.label || '') + '" class="w-full rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-sm text-zinc-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">' +
         '</div>' +
+        '<div>' +
+          '<label class="block text-xs font-medium text-zinc-400 mb-1">Random Suffix</label>' +
+          '<div class="flex gap-2">' +
+            '<input type="text" id="fork-suffix" value="' + (state.random_suffix || '') + '" class="flex-1 rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-sm text-zinc-100 font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="8-char hex">' +
+            '<button type="button" id="fork-suffix-new" class="rounded-md bg-zinc-600 hover:bg-zinc-500 px-3 py-1.5 text-xs text-zinc-300 font-medium whitespace-nowrap" title="Generate new random suffix">New</button>' +
+          '</div>' +
+          '<p class="text-[10px] text-zinc-500 mt-0.5">Used in S3 buckets, DynamoDB tables, TF state — must be unique per deployment</p>' +
+        '</div>' +
         '<div class="border-t border-zinc-700 pt-3">' +
           '<label class="block text-xs font-medium text-zinc-400 mb-2">AWS Account IDs</label>' +
           '<div class="space-y-2">' +
@@ -1968,6 +1976,14 @@ function renderForkDialog(state) {
 
   document.body.appendChild(overlay);
 
+  // Random suffix "New" button
+  overlay.querySelector('#fork-suffix-new').onclick = function() {
+    var arr = new Uint8Array(4);
+    crypto.getRandomValues(arr);
+    var hex = Array.from(arr, function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    overlay.querySelector('#fork-suffix').value = hex;
+  };
+
   // Skip patterns toggle
   overlay.querySelector('#fork-skip-toggle').onclick = function() {
     var body = overlay.querySelector('#fork-skip-body');
@@ -2002,6 +2018,7 @@ function renderForkDialog(state) {
     var body = {
       domain: overlay.querySelector('#fork-domain').value.trim(),
       label: overlay.querySelector('#fork-label').value.trim(),
+      random_suffix: overlay.querySelector('#fork-suffix').value.trim(),
       application_account_id: overlay.querySelector('#fork-app-account').value.trim(),
       management_account_id: overlay.querySelector('#fork-mgmt-account').value.trim(),
       terraform_account_id: overlay.querySelector('#fork-tf-account').value.trim(),
