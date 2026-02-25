@@ -212,6 +212,8 @@ func main() {
 	mux.HandleFunc("GET /api/waf/campaign-state", app.handleWAFCampaignState)
 	mux.HandleFunc("GET /api/rrdb/stats", app.handleRRDBStats)
 	mux.HandleFunc("POST /api/rrdb/reset", app.handleRRDBReset)
+	mux.HandleFunc("GET /api/fork/state", app.handleForkState)
+	mux.HandleFunc("POST /api/fork", app.handleFork)
 	mux.Handle("GET /static/", http.FileServerFS(content))
 
 	// Listen on random port

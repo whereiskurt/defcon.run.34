@@ -336,6 +336,35 @@ type ComponentVersions struct {
 	Nginx string `json:"nginx,omitempty"`
 }
 
+// KnownRegions returns a curated list of AWS regions available for deployment.
+func KnownRegions() []RegionRef {
+	return []RegionRef{
+		{Label: "use1", Full: "us-east-1"},
+		{Label: "use2", Full: "us-east-2"},
+		{Label: "usw1", Full: "us-west-1"},
+		{Label: "usw2", Full: "us-west-2"},
+		{Label: "cac1", Full: "ca-central-1"},
+		{Label: "euw1", Full: "eu-west-1"},
+		{Label: "euw2", Full: "eu-west-2"},
+		{Label: "euc1", Full: "eu-central-1"},
+		{Label: "apse1", Full: "ap-southeast-1"},
+		{Label: "apse2", Full: "ap-southeast-2"},
+		{Label: "apne1", Full: "ap-northeast-1"},
+		{Label: "aps1", Full: "ap-south-1"},
+		{Label: "sae1", Full: "sa-east-1"},
+	}
+}
+
+// RegionLabel returns the short label for a full region name, or "" if not found.
+func RegionLabel(full string) string {
+	for _, r := range KnownRegions() {
+		if r.Full == full {
+			return r.Label
+		}
+	}
+	return ""
+}
+
 // AllRegions returns the standard three-region set.
 func AllRegions() []RegionRef {
 	return []RegionRef{

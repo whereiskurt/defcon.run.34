@@ -174,12 +174,15 @@ function hasVisibleOverlay(sel) {
       } else if (combo === 'bb') {
         e.preventDefault();
         buildWaffaw();
+      } else if (combo === 'ff') {
+        e.preventDefault();
+        showForkDialog();
       }
       return;
     }
 
     // Start tracking first key of a two-key sequence
-    if (key === 'r' || key === 'p' || key === 'a' || key === 'b' || key === 'g' || key === 'h' || key === 'x') {
+    if (key === 'r' || key === 'p' || key === 'a' || key === 'b' || key === 'g' || key === 'h' || key === 'x' || key === 'f') {
       _shortcutFirst = key;
       _shortcutTimer = setTimeout(function() { _shortcutFirst = ''; }, 500);
     }
@@ -1883,6 +1886,183 @@ function confirmImport() {
 }
 
 // Toast notifications
+// ========== Fork Site Dialog ==========
+function showForkDialog() {
+  fetch('/api/fork/state')
+    .then(function(r) { return r.json(); })
+    .then(function(state) { renderForkDialog(state); })
+    .catch(function(err) { showToast('Failed to load fork state: ' + err); });
+}
+
+function renderForkDialog(state) {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[60] bg-black/50 flex items-center justify-center';
+  overlay.id = 'fork-overlay';
+
+  var activeSet = {};
+  (state.active_regions || []).forEach(function(r) { activeSet[r] = true; });
+
+  var regionCheckboxes = '';
+  (state.known_regions || []).forEach(function(r) {
+    var isUSE1 = r.full === 'us-east-1';
+    var checked = isUSE1 || !!activeSet[r.full];
+    regionCheckboxes +=
+      '<label class="flex items-center gap-2 text-sm' + (isUSE1 ? ' text-zinc-400' : '') + '">' +
+        '<input type="checkbox" name="fork-region" value="' + r.full + '"' +
+          (checked ? ' checked' : '') +
+          (isUSE1 ? ' disabled' : '') +
+          ' class="rounded border-zinc-600 bg-zinc-700 text-blue-500 focus:ring-blue-500">' +
+        r.full + ' <span class="text-zinc-500">(' + r.label + ')</span>' +
+        (isUSE1 ? ' <span class="text-zinc-500 text-xs ml-1">[required]</span>' : '') +
+      '</label>';
+  });
+
+  overlay.innerHTML =
+    '<div class="bg-white dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-xl p-6 max-w-lg mx-4 max-h-[90vh] overflow-y-auto">' +
+      '<h3 class="text-base font-semibold mb-4">Fork Site Configuration</h3>' +
+      '<div class="space-y-3">' +
+        '<div>' +
+          '<label class="block text-xs font-medium text-zinc-400 mb-1">Domain</label>' +
+          '<input type="text" id="fork-domain" value="' + (state.domain || '') + '" class="w-full rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-sm text-zinc-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">' +
+        '</div>' +
+        '<div>' +
+          '<label class="block text-xs font-medium text-zinc-400 mb-1">Site Label</label>' +
+          '<input type="text" id="fork-label" value="' + (state.label || '') + '" class="w-full rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-sm text-zinc-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">' +
+        '</div>' +
+        '<div>' +
+          '<label class="block text-xs font-medium text-zinc-400 mb-1">Random Suffix</label>' +
+          '<div class="flex gap-2">' +
+            '<input type="text" id="fork-suffix" value="' + (state.random_suffix || '') + '" class="flex-1 rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-sm text-zinc-100 font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="8-char hex">' +
+            '<button type="button" id="fork-suffix-new" class="rounded-md bg-zinc-600 hover:bg-zinc-500 px-3 py-1.5 text-xs text-zinc-300 font-medium whitespace-nowrap" title="Generate new random suffix">New</button>' +
+          '</div>' +
+          '<p class="text-[10px] text-zinc-500 mt-0.5">Used in S3 buckets, DynamoDB tables, TF state — must be unique per deployment</p>' +
+        '</div>' +
+        '<div class="border-t border-zinc-700 pt-3">' +
+          '<label class="block text-xs font-medium text-zinc-400 mb-2">AWS Account IDs</label>' +
+          '<div class="space-y-2">' +
+            '<div>' +
+              '<label class="block text-xs text-zinc-500 mb-0.5">Application</label>' +
+              '<input type="text" id="fork-app-account" value="' + (state.application_account_id || '') + '" class="w-full rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-sm text-zinc-100 font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="123456789012">' +
+            '</div>' +
+            '<div>' +
+              '<label class="block text-xs text-zinc-500 mb-0.5">Management</label>' +
+              '<input type="text" id="fork-mgmt-account" value="' + (state.management_account_id || '') + '" class="w-full rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-sm text-zinc-100 font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="123456789012">' +
+            '</div>' +
+            '<div>' +
+              '<label class="block text-xs text-zinc-500 mb-0.5">Terraform</label>' +
+              '<input type="text" id="fork-tf-account" value="' + (state.terraform_account_id || '') + '" class="w-full rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-sm text-zinc-100 font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="123456789012">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="border-t border-zinc-700 pt-3">' +
+          '<label class="block text-xs font-medium text-zinc-400 mb-2">Regions</label>' +
+          '<div class="grid grid-cols-2 gap-1.5">' + regionCheckboxes + '</div>' +
+        '</div>' +
+        '<div class="border-t border-zinc-700 pt-3">' +
+          '<button type="button" id="fork-skip-toggle" class="flex items-center gap-1 text-xs font-medium text-zinc-400 hover:text-zinc-300 mb-2">' +
+            '<span id="fork-skip-chevron" class="text-[10px] transition-transform">&#9654;</span> Skip Patterns <span class="text-zinc-500 font-normal">(' + (state.skip_patterns || []).length + ' rules)</span>' +
+          '</button>' +
+          '<div id="fork-skip-body" style="display:none">' +
+            '<p class="text-xs text-zinc-500 mb-1.5">One glob per line. No-slash patterns match filename; with-slash matches path. Lines starting with # are comments.</p>' +
+            '<textarea id="fork-skip-patterns" rows="8" class="w-full rounded-md bg-zinc-700 border border-zinc-600 px-3 py-1.5 text-xs text-zinc-100 font-mono focus:border-blue-500 focus:ring-1 focus:ring-blue-500 leading-relaxed">' + (state.skip_patterns || []).join('\n') + '</textarea>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="flex gap-2 justify-end mt-5">' +
+        '<button class="rounded-md bg-zinc-200 dark:bg-zinc-700 hover:bg-zinc-300 dark:hover:bg-zinc-600 px-4 py-2 text-sm" id="fork-cancel">Cancel</button>' +
+        '<button class="rounded-md bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 text-sm font-medium" id="fork-submit">Fork Site</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  // Random suffix "New" button
+  overlay.querySelector('#fork-suffix-new').onclick = function() {
+    var arr = new Uint8Array(4);
+    crypto.getRandomValues(arr);
+    var hex = Array.from(arr, function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+    overlay.querySelector('#fork-suffix').value = hex;
+  };
+
+  // Skip patterns toggle
+  overlay.querySelector('#fork-skip-toggle').onclick = function() {
+    var body = overlay.querySelector('#fork-skip-body');
+    var chev = overlay.querySelector('#fork-skip-chevron');
+    if (body.style.display === 'none') {
+      body.style.display = 'block';
+      chev.style.transform = 'rotate(90deg)';
+    } else {
+      body.style.display = 'none';
+      chev.style.transform = '';
+    }
+  };
+
+  function dismiss() { overlay.remove(); document.removeEventListener('keydown', onKey); }
+  overlay.querySelector('#fork-cancel').onclick = dismiss;
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) dismiss(); });
+
+  function onKey(e) {
+    if (e.key === 'Escape') { e.stopImmediatePropagation(); dismiss(); }
+  }
+  document.addEventListener('keydown', onKey);
+
+  overlay.querySelector('#fork-submit').onclick = function() {
+    var regions = ['us-east-1']; // always include
+    overlay.querySelectorAll('input[name="fork-region"]:checked').forEach(function(cb) {
+      if (cb.value !== 'us-east-1') regions.push(cb.value);
+    });
+
+    var skipText = overlay.querySelector('#fork-skip-patterns').value;
+    var skipPatterns = skipText.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l && l[0] !== '#'; });
+
+    var body = {
+      domain: overlay.querySelector('#fork-domain').value.trim(),
+      label: overlay.querySelector('#fork-label').value.trim(),
+      random_suffix: overlay.querySelector('#fork-suffix').value.trim(),
+      application_account_id: overlay.querySelector('#fork-app-account').value.trim(),
+      management_account_id: overlay.querySelector('#fork-mgmt-account').value.trim(),
+      terraform_account_id: overlay.querySelector('#fork-tf-account').value.trim(),
+      regions: regions,
+      skip_patterns: skipPatterns
+    };
+
+    if (!body.domain) { showToast('Domain is required'); return; }
+    if (!body.label) { showToast('Label is required'); return; }
+
+    var btn = overlay.querySelector('#fork-submit');
+    btn.disabled = true;
+    btn.textContent = 'Forking...';
+
+    fetch('/api/fork', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body)
+    })
+    .then(function(r) {
+      if (!r.ok) return r.text().then(function(t) { throw new Error(t); });
+      return r.json();
+    })
+    .then(function(result) {
+      dismiss();
+      var msg = 'Forked to ' + result.domain + ' (' + result.label + ')';
+      if (result.edits) msg += ' — ' + result.edits + ' edits in ' + result.files + ' files';
+      if (result.skipped) msg += ' (' + result.skipped + ' skipped)';
+      if (result.added && result.added.length) msg += ' +' + result.added.join(', ');
+      if (result.removed && result.removed.length) msg += ' -' + result.removed.join(', ');
+      showToast(msg, 8000);
+      if (result.patch_file) {
+        showToast('Patch saved: ' + result.patch_file, 8000);
+      }
+      setTimeout(function() { location.reload(); }, 2000);
+    })
+    .catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = 'Fork Site';
+      showToast('Fork failed: ' + err.message);
+    });
+  };
+}
+
 function showToast(message, duration) {
   duration = duration || 4000;
   var container = document.getElementById('toast-container');
