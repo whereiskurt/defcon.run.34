@@ -187,6 +187,7 @@ func main() {
 	mux.HandleFunc("GET /api/discovery", app.handleDiscovery)
 	mux.HandleFunc("POST /api/discovery/refresh", app.handleDiscoveryRefresh)
 	mux.HandleFunc("GET /api/sops/check", app.handleSOPSCheck)
+	mux.HandleFunc("GET /api/backend/check", app.handleBackendCheck)
 	mux.HandleFunc("POST /api/sops/setup", app.handleSOPSSetup)
 	mux.HandleFunc("POST /api/sops/edit", app.handleSOPSEdit)
 	mux.HandleFunc("POST /api/sops/save", app.handleSOPSSave)

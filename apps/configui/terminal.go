@@ -313,15 +313,22 @@ func buildTerminalEnv(profile string, cfg *SiteConfig, envLocal *EnvLocalConfig)
 }
 
 // startTerminal validates inputs, starts a terragrunt process, and streams output.
-func (a *App) startTerminal(module, command, region string) (*TermSession, error) {
+// If bootstrap is true, --backend-bootstrap is appended to create missing S3/DynamoDB state resources.
+func (a *App) startTerminal(module, command, region string, bootstrap bool) (*TermSession, error) {
 	modDef, ok := ModuleMap[module]
 	if !ok {
 		return nil, fmt.Errorf("unknown module: %s", module)
 	}
 
-	cmdArgs, ok := AllowedCommands[command]
+	cmdTemplate, ok := AllowedCommands[command]
 	if !ok {
 		return nil, fmt.Errorf("unknown command: %s", command)
+	}
+	// Copy to avoid mutating the shared template slice
+	cmdArgs := make([]string, len(cmdTemplate))
+	copy(cmdArgs, cmdTemplate)
+	if bootstrap {
+		cmdArgs = append(cmdArgs, "--backend-bootstrap")
 	}
 
 	// Resolve path
@@ -533,8 +540,9 @@ func (a *App) handleTerminalStart(w http.ResponseWriter, r *http.Request) {
 	module := r.FormValue("module")
 	command := r.FormValue("command")
 	region := r.FormValue("region")
+	bootstrap := r.FormValue("bootstrap") == "1"
 
-	session, err := a.startTerminal(module, command, region)
+	session, err := a.startTerminal(module, command, region, bootstrap)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(409)

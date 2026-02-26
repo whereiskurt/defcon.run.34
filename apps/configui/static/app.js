@@ -3116,16 +3116,55 @@ function showSOPSPreflightDialog(errorMsg, onSetup, onSkip) {
   };
 }
 
+// --- Backend pre-flight dialog ---
+
+function showBackendPreflightDialog(missingBuckets, onBootstrap, onSkip) {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[70] bg-black/70 flex items-center justify-center';
+  var bucketList = (missingBuckets || []).map(function(b) { return '<code class="text-xs bg-zinc-900 px-1 py-0.5 rounded">' + escapeHtml(b) + '</code>'; }).join(', ');
+  overlay.innerHTML =
+    '<div class="bg-zinc-800 border border-zinc-600 rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">' +
+      '<div class="px-6 py-4 border-b border-zinc-700 flex items-center gap-3">' +
+        '<svg class="w-5 h-5 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>' +
+        '<h3 class="text-lg font-semibold text-zinc-100">First Run — Backend Not Bootstrapped</h3>' +
+      '</div>' +
+      '<div class="px-6 py-4 space-y-3">' +
+        '<p class="text-sm text-zinc-300">The Terraform state S3 buckets don\'t exist yet. This is normal on a fresh fork — they need to be created before infrastructure commands can run.</p>' +
+        '<p class="text-sm text-zinc-400">Missing: ' + bucketList + '</p>' +
+        '<p class="text-sm text-zinc-300"><strong>Bootstrap Backend</strong> will add <code class="text-xs bg-zinc-900 px-1 py-0.5 rounded">--backend-bootstrap</code> to automatically create the S3 buckets and DynamoDB lock tables.</p>' +
+      '</div>' +
+      '<div class="px-6 py-4 border-t border-zinc-700 flex justify-end gap-3">' +
+        '<button class="backend-skip-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-2 text-sm font-mono">Run Anyway</button>' +
+        '<button class="backend-fix-btn rounded-md bg-blue-700 hover:bg-blue-600 text-white px-4 py-2 text-sm font-mono font-medium flex items-center gap-2">' +
+          '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>' +
+          'Bootstrap Backend</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('.backend-skip-btn').onclick = function() {
+    overlay.remove();
+    if (onSkip) onSkip();
+  };
+
+  overlay.querySelector('.backend-fix-btn').onclick = function() {
+    overlay.remove();
+    if (onBootstrap) onBootstrap();
+  };
+}
+
 // --- Terminal open / modal ---
 
-function openTerminal(module, command, region) {
+function openTerminal(module, command, region, opts) {
   var isInfraCmd = /^(plan|apply|destroy|plan-all|apply-all|destroy-all)$/.test(command);
+  var _bootstrap = (opts && opts.bootstrap) || false;
 
   function doStart(prependLines) {
     var body = new URLSearchParams();
     body.append('module', module);
     body.append('command', command);
     if (region) body.append('region', region);
+    if (_bootstrap) body.append('bootstrap', '1');
 
     fetch('/api/terminal/start', {
       method: 'POST',
@@ -3172,29 +3211,37 @@ function openTerminal(module, command, region) {
     }
   }
 
-  // SOPS pre-flight: check if SOPS can decrypt before starting slow infra commands
+  // Pre-flight chain for infra commands: SOPS check → Backend check → proceed
   if (isInfraCmd) {
     fetch('/api/sops/check')
       .then(function(resp) { return resp.json(); })
       .then(function(data) {
-        if (data.ok) {
-          proceed();
-          return;
-        }
+        if (data.ok) return checkBackend();
         // SOPS can't decrypt — show dialog before wasting 2min on terragrunt
         showSOPSPreflightDialog(data.error, function onSetup() {
-          // After setup, retry the original command
-          openTerminal(module, command, region);
+          openTerminal(module, command, region, opts);
+        }, function onSkip() {
+          checkBackend();
+        });
+      })
+      .catch(function() { checkBackend(); });
+  } else {
+    proceed();
+  }
+
+  function checkBackend() {
+    if (_bootstrap) { proceed(); return; } // already bootstrapping
+    fetch('/api/backend/check')
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        if (data.ok) { proceed(); return; }
+        showBackendPreflightDialog(data.missing, function onBootstrap() {
+          openTerminal(module, command, region, {bootstrap: true});
         }, function onSkip() {
           proceed();
         });
       })
-      .catch(function() {
-        // Check endpoint failed — proceed anyway (don't block on check errors)
-        proceed();
-      });
-  } else {
-    proceed();
+      .catch(function() { proceed(); });
   }
 }
 
