@@ -523,6 +523,10 @@ func (a *App) startTerminal(module, command, region string, bootstrap bool) (*Te
 
 		session.doneAt = time.Now()
 		go a.rrdbRecord(session)
+		if bootstrap {
+			a.invalidateAWSStatusCache()
+			log.Printf("Bootstrap session %s completed — AWS status cache invalidated", session.Module)
+		}
 		log.Printf("Terminal session %s completed: status=%s exit=%d", session.Module, session.Status, session.ExitCode)
 		session.closeBroadcast()
 	}()

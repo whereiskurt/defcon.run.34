@@ -3002,6 +3002,7 @@ function doCleanupSession(id) {
   delete _termSessions[id];
   updatePillBar();
   htmx.trigger(document.body, 'refreshDiscovery');
+  htmx.trigger(document.body, 'refreshAwsStatus');
 }
 
 // --- Terraform summary formatting ---
