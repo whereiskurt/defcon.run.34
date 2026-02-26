@@ -233,7 +233,10 @@ if ${needs_encrypt} && [[ -f "${TEMPLATE_FILE}" ]]; then
   else
     echo "Encrypting .secrets.sops.json from template..."
     cp "${TEMPLATE_FILE}" "${SECRETS_JSON}"
-    sops encrypt "${SECRETS_JSON}" > "${SOPS_FILE}"
+    # Write to temp file first — if sops fails, don't truncate the target
+    SOPS_TMP="${SOPS_FILE}.tmp"
+    sops encrypt "${SECRETS_JSON}" > "${SOPS_TMP}"
+    mv "${SOPS_TMP}" "${SOPS_FILE}"
     rm "${SECRETS_JSON}"
     echo "  Done."
   fi

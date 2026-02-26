@@ -158,14 +158,32 @@ func sopsAlreadyConfigured(repoRoot, accountID string) bool {
 	return true
 }
 
+// sopsFileHealthy checks if the SOPS-encrypted file exists, is non-empty,
+// and can be decrypted. Returns false if the file is missing, empty, or
+// encrypted with keys we can't access (e.g. truncated by a failed encrypt).
+func sopsFileHealthy(sopsPath string, envLocal *EnvLocalConfig) bool {
+	info, err := os.Stat(sopsPath)
+	if err != nil || info.Size() == 0 {
+		return false
+	}
+	profile := "terraform"
+	if envLocal.ProfilePrefix != "" {
+		profile = envLocal.ProfilePrefix + "-terraform"
+	}
+	cmd := sopsCmd(profile, "decrypt", sopsPath)
+	return cmd.Run() == nil
+}
+
 // handleSOPSSetup runs env.sops.sh --not-dry-run and returns JSON status.
 func (a *App) handleSOPSSetup(w http.ResponseWriter, r *http.Request) {
 	a.mu.RLock()
 	envLocal := a.envLocal
 	a.mu.RUnlock()
 
-	// Guard: don't create duplicate KMS keys if SOPS is already configured for this account
-	if sopsAlreadyConfigured(a.repoRoot, envLocal.ApplicationAccountID) {
+	// Guard: don't re-run if SOPS is already configured AND the secrets file is healthy.
+	// If .sops.yaml has the right ARNs but the file can't decrypt (e.g. empty from a failed
+	// prior run), we still need to re-run to re-encrypt from template.
+	if sopsAlreadyConfigured(a.repoRoot, envLocal.ApplicationAccountID) && sopsFileHealthy(a.sopsFilePath, envLocal) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(struct {
 			OK     bool   `json:"ok"`
