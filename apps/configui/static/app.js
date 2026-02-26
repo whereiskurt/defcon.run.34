@@ -3705,6 +3705,23 @@ function showTerminalModal(session) {
       modalContainer.insertBefore(sopsBanner, footer);
     }
 
+    // Detect provider timeout errors (resource exhaustion during large parallel runs)
+    if (exitCode !== 0 && output.textContent.indexOf('timeout while waiting for plugin to start') !== -1) {
+      var timeoutBanner = document.createElement('div');
+      timeoutBanner.className = 'flex items-center gap-3 px-4 py-2 bg-blue-900/40 border-t border-blue-700/50';
+      timeoutBanner.innerHTML =
+        '<svg class="w-4 h-4 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>' +
+        '<span class="text-xs font-mono text-blue-300 flex-1">Some Terraform providers timed out — this is normal on first run when many modules download providers in parallel. <strong>Retry</strong> should succeed since providers are now cached.</span>' +
+        '<button class="rounded-md bg-blue-700 hover:bg-blue-600 text-white px-3 py-1 text-xs font-mono font-medium flex-shrink-0">Retry</button>';
+      timeoutBanner.querySelector('button').onclick = function() {
+        timeoutBanner.remove();
+        overlay.remove();
+        openTerminal(sessionState.module, sessionState.command, sessionState.region);
+      };
+      var modalContainer = overlay.querySelector('.flex-1.flex.flex-col');
+      modalContainer.insertBefore(timeoutBanner, footer);
+    }
+
     // Auto-refresh discovery after any apply/destroy (partial applies still change state)
     if (sessionState.command && sessionState.command.indexOf('apply') !== -1) {
       // Expand Infrastructure Modules section if hidden so dots are visible
