@@ -3059,17 +3059,39 @@ function formatPillSummary(summary) {
 // --- SOPS pre-flight dialog ---
 
 function showSOPSPreflightDialog(errorMsg, onSetup, onSkip) {
+  // Detect whether this is an expired SSO session vs missing/wrong KMS keys
+  var isExpiredSSO = errorMsg && (
+    errorMsg.indexOf('InvalidGrantException') !== -1 ||
+    errorMsg.indexOf('ExpiredTokenException') !== -1 ||
+    errorMsg.indexOf('refresh cached SSO token failed') !== -1 ||
+    errorMsg.indexOf('expired') !== -1
+  );
+
+  var title = isExpiredSSO ? 'SSO Session Expired' : 'SOPS Not Configured';
+  var description = isExpiredSSO
+    ? '<p class="text-sm text-zinc-300">Your AWS SSO session has expired. SOPS cannot decrypt secrets without valid credentials.</p>' +
+      '<p class="text-sm text-zinc-300"><strong>SSO Login</strong> will refresh your session, then retry the command.</p>'
+    : '<p class="text-sm text-zinc-300">SOPS cannot decrypt <code class="text-xs bg-zinc-900 px-1 py-0.5 rounded">.secrets.sops.json</code>. This usually means the KMS keys belong to a different AWS account (e.g., the upstream project).</p>' +
+      '<p class="text-sm text-zinc-300">Running infrastructure commands will fail after a long wait. <strong>Setup SOPS</strong> creates KMS keys in your account and re-encrypts the secrets file.</p>';
+
+  var primaryBtn = isExpiredSSO
+    ? '<button class="sops-sso-btn rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-mono font-medium flex items-center gap-2">' +
+        '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.003 4.003 0 003 15z"/></svg>' +
+        'SSO Login</button>'
+    : '<button class="sops-fix-btn rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-mono font-medium flex items-center gap-2">' +
+        '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>' +
+        'Setup SOPS</button>';
+
   var overlay = document.createElement('div');
   overlay.className = 'fixed inset-0 z-[70] bg-black/70 flex items-center justify-center';
   overlay.innerHTML =
     '<div class="bg-zinc-800 border border-zinc-600 rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">' +
       '<div class="px-6 py-4 border-b border-zinc-700 flex items-center gap-3">' +
         '<svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
-        '<h3 class="text-lg font-semibold text-zinc-100">SOPS Not Configured</h3>' +
+        '<h3 class="text-lg font-semibold text-zinc-100">' + title + '</h3>' +
       '</div>' +
       '<div class="px-6 py-4 space-y-3">' +
-        '<p class="text-sm text-zinc-300">SOPS cannot decrypt <code class="text-xs bg-zinc-900 px-1 py-0.5 rounded">.secrets.sops.json</code>. This usually means the KMS keys belong to a different AWS account (e.g., the upstream project).</p>' +
-        '<p class="text-sm text-zinc-300">Running infrastructure commands will fail after a long wait. <strong>Setup SOPS</strong> creates KMS keys in your account and re-encrypts the secrets file.</p>' +
+        description +
         '<details class="text-xs text-zinc-500">' +
           '<summary class="cursor-pointer hover:text-zinc-400">Error details</summary>' +
           '<pre class="mt-2 p-2 bg-zinc-900 rounded text-xs overflow-x-auto max-h-32 overflow-y-auto">' + escapeHtml(errorMsg || 'Unknown error') + '</pre>' +
@@ -3077,9 +3099,7 @@ function showSOPSPreflightDialog(errorMsg, onSetup, onSkip) {
       '</div>' +
       '<div class="px-6 py-4 border-t border-zinc-700 flex justify-end gap-3">' +
         '<button class="sops-skip-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-2 text-sm font-mono">Run Anyway</button>' +
-        '<button class="sops-fix-btn rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-mono font-medium flex items-center gap-2">' +
-          '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>' +
-          'Setup SOPS</button>' +
+        primaryBtn +
       '</div>' +
     '</div>';
   document.body.appendChild(overlay);
@@ -3089,31 +3109,52 @@ function showSOPSPreflightDialog(errorMsg, onSetup, onSkip) {
     if (onSkip) onSkip();
   };
 
-  overlay.querySelector('.sops-fix-btn').onclick = function() {
-    var btn = this;
-    btn.disabled = true;
-    btn.textContent = 'Setting up SOPS...';
-    fetch('/api/sops/setup', { method: 'POST' })
-      .then(function(resp) { return resp.json(); })
-      .then(function(data) {
+  if (isExpiredSSO) {
+    overlay.querySelector('.sops-sso-btn').onclick = function() {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Logging in...';
+      fetch('/api/sso-login', { method: 'POST' }).then(function(resp) {
+        return resp.text();
+      }).then(function() {
         overlay.remove();
-        if (data.ok) {
-          showToast('SOPS configured — retrying command');
-          htmx.trigger(document.body, 'refreshAwsStatus');
-          htmx.trigger(document.body, 'refreshDiscovery');
-          if (onSetup) onSetup();
-        } else {
-          showToast('SOPS setup failed — check console', 5000);
-          console.error('SOPS setup output:', data.output);
-        }
-      })
-      .catch(function(err) {
+        showToast('SSO login triggered — retrying command');
+        htmx.trigger(document.body, 'refreshAwsStatus');
+        if (onSetup) onSetup();
+      }).catch(function(err) {
         btn.disabled = false;
-        btn.textContent = 'Setup SOPS';
-        showToast('SOPS setup request failed');
-        console.error('SOPS setup error:', err);
+        btn.textContent = 'SSO Login';
+        showToast('SSO login failed');
+        console.error('SSO login error:', err);
       });
-  };
+    };
+  } else {
+    overlay.querySelector('.sops-fix-btn').onclick = function() {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = 'Setting up SOPS...';
+      fetch('/api/sops/setup', { method: 'POST' })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          overlay.remove();
+          if (data.ok) {
+            showToast('SOPS configured — retrying command');
+            htmx.trigger(document.body, 'refreshAwsStatus');
+            htmx.trigger(document.body, 'refreshDiscovery');
+            if (onSetup) onSetup();
+          } else {
+            showToast('SOPS setup failed — check console', 5000);
+            console.error('SOPS setup output:', data.output);
+          }
+        })
+        .catch(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Setup SOPS';
+          showToast('SOPS setup request failed');
+          console.error('SOPS setup error:', err);
+        });
+    };
+  }
 }
 
 // --- Backend pre-flight dialog ---
