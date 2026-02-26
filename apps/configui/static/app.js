@@ -2452,8 +2452,10 @@ document.addEventListener('htmx:afterSwap', function(e) {
         fetch('/api/aws-status').then(function(r) { return r.text(); }).then(function(html) {
           var tmp = document.createElement('div');
           tmp.innerHTML = html;
-          var ok = tmp.querySelector('.status-dot.ok');
-          if (!ok) {
+          // Check for authenticated identity (green header), not state bucket dots.
+          // A new fork has valid auth but zero state buckets — that's not an expired session.
+          var authenticated = tmp.querySelector('.text-green-500, .dark\\:text-green-400');
+          if (!authenticated) {
             showConfirmDialog({
               title: 'AWS SSO Session Expired',
               message: 'Discovery found <strong>0 resources</strong> — your AWS SSO session appears to have expired. Re-authenticate to get accurate results.',
@@ -2669,11 +2671,13 @@ function syncAwsDetailsToggle() {
   if (panel && _awsSectionOpen) panel.style.display = '';
 }
 
-// Check if AWS is authenticated by looking at the aws-status container
+// Check if AWS is authenticated by looking at the aws-status container.
+// We check for the green identity header (text-green-500), not state bucket dots,
+// because a new fork has valid auth but zero state buckets.
 function isAWSAuthed() {
   var el = document.getElementById('aws-status');
   if (!el) return false;
-  return el.querySelector('.status-dot.ok') !== null;
+  return el.querySelector('.text-green-500') !== null;
 }
 
 // Build a joined action group: [Plan] [Apply] [region ▼] for regional, [Plan] [Apply] for global.
