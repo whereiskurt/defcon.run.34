@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -136,4 +137,124 @@ func sopsAvailable(sopsPath string) bool {
 		return false
 	}
 	return true
+}
+
+// sopsAlreadyConfigured checks if .sops.yaml exists and contains KMS ARNs
+// that belong to the given account ID. Returns false if the ARNs reference a
+// different account (e.g., upstream project keys on a fresh fork).
+func sopsAlreadyConfigured(repoRoot, accountID string) bool {
+	data, err := os.ReadFile(filepath.Join(repoRoot, ".sops.yaml"))
+	if err != nil {
+		return false
+	}
+	content := string(data)
+	if !strings.Contains(content, "arn:aws:kms:") {
+		return false
+	}
+	// If we know the account ID, verify the ARNs actually reference it
+	if accountID != "" {
+		return strings.Contains(content, ":"+accountID+":")
+	}
+	return true
+}
+
+// handleSOPSSetup runs env.sops.sh --not-dry-run and returns JSON status.
+func (a *App) handleSOPSSetup(w http.ResponseWriter, r *http.Request) {
+	a.mu.RLock()
+	envLocal := a.envLocal
+	a.mu.RUnlock()
+
+	// Guard: don't create duplicate KMS keys if SOPS is already configured for this account
+	if sopsAlreadyConfigured(a.repoRoot, envLocal.ApplicationAccountID) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(struct {
+			OK     bool   `json:"ok"`
+			Output string `json:"output"`
+		}{OK: true, Output: "SOPS is already configured (.sops.yaml has KMS ARNs). No action taken."})
+		return
+	}
+
+	profile := "terraform"
+	if envLocal.ProfilePrefix != "" {
+		profile = envLocal.ProfilePrefix + "-terraform"
+	}
+
+	scriptPath := filepath.Join(a.repoRoot, "env.sops.sh")
+
+	cmd := exec.Command("bash", scriptPath, "--not-dry-run")
+	cmd.Dir = a.repoRoot
+
+	// Build a clean environment like buildTerminalEnv
+	var env []string
+	stripKeys := map[string]bool{
+		"AWS_PROFILE":           true,
+		"AWS_ACCESS_KEY_ID":     true,
+		"AWS_SECRET_ACCESS_KEY": true,
+		"AWS_SESSION_TOKEN":     true,
+	}
+	for _, e := range os.Environ() {
+		key := e
+		if idx := strings.IndexByte(e, '='); idx >= 0 {
+			key = e[:idx]
+		}
+		if !stripKeys[key] {
+			env = append(env, e)
+		}
+	}
+	env = append(env, "AWS_PROFILE="+profile)
+	env = append(env, "TF_VAR_profile_prefix="+envLocal.ProfilePrefix)
+	env = append(env, "TF_VAR_APPLICATION_ACCOUNT_ID="+envLocal.ApplicationAccountID)
+	cmd.Env = env
+
+	out, err := cmd.CombinedOutput()
+
+	a.invalidateAWSStatusCache()
+
+	w.Header().Set("Content-Type", "application/json")
+	resp := struct {
+		OK     bool   `json:"ok"`
+		Output string `json:"output"`
+	}{
+		OK:     err == nil,
+		Output: string(out),
+	}
+	json.NewEncoder(w).Encode(resp)
+}
+
+// handleSOPSCheck tests whether SOPS can decrypt .secrets.sops.json.
+// Returns {ok: true} on success or {ok: false, error: "..."} on failure.
+// Used as a pre-flight check before plan/apply to fail fast on fork misconfigs.
+func (a *App) handleSOPSCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if !sopsAvailable(a.sopsFilePath) {
+		json.NewEncoder(w).Encode(struct {
+			OK    bool   `json:"ok"`
+			Error string `json:"error,omitempty"`
+		}{OK: true}) // no SOPS file = nothing to check
+		return
+	}
+
+	a.mu.RLock()
+	profile := "terraform"
+	if a.envLocal.ProfilePrefix != "" {
+		profile = a.envLocal.ProfilePrefix + "-terraform"
+	}
+	a.mu.RUnlock()
+
+	cmd := sopsCmd(profile, "decrypt", a.sopsFilePath)
+	_, err := cmd.Output()
+
+	resp := struct {
+		OK    bool   `json:"ok"`
+		Error string `json:"error,omitempty"`
+	}{OK: err == nil}
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			resp.Error = string(exitErr.Stderr)
+		} else {
+			resp.Error = err.Error()
+		}
+	}
+	json.NewEncoder(w).Encode(resp)
 }

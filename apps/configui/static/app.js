@@ -2394,7 +2394,7 @@ function updateDiscoveryTimestamp() {
   var data = document.getElementById('discovery-data');
   if (!data) return;
   var ts = parseInt(data.dataset.updatedAt, 10);
-  if (!ts) return;
+  if (!ts || ts <= 0) return;
 
   var label = document.getElementById('discovery-timestamp');
   if (!label) return;
@@ -2412,7 +2412,7 @@ function updateDiscoveryTimestamp() {
     if (rqBtn) rqBtn.classList.remove('spinning');
   }
 
-  var ago = Math.floor((Date.now() / 1000) - ts);
+  var ago = Math.max(0, Math.floor((Date.now() / 1000) - ts));
   if (ago < 60) label.textContent = ago + 's ago';
   else if (ago < 3600) label.textContent = Math.floor(ago / 60) + 'm ago';
   else label.textContent = Math.floor(ago / 3600) + 'h ago';
@@ -3056,6 +3056,66 @@ function formatPillSummary(summary) {
   return parts.join(' ');
 }
 
+// --- SOPS pre-flight dialog ---
+
+function showSOPSPreflightDialog(errorMsg, onSetup, onSkip) {
+  var overlay = document.createElement('div');
+  overlay.className = 'fixed inset-0 z-[70] bg-black/70 flex items-center justify-center';
+  overlay.innerHTML =
+    '<div class="bg-zinc-800 border border-zinc-600 rounded-xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden">' +
+      '<div class="px-6 py-4 border-b border-zinc-700 flex items-center gap-3">' +
+        '<svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
+        '<h3 class="text-lg font-semibold text-zinc-100">SOPS Not Configured</h3>' +
+      '</div>' +
+      '<div class="px-6 py-4 space-y-3">' +
+        '<p class="text-sm text-zinc-300">SOPS cannot decrypt <code class="text-xs bg-zinc-900 px-1 py-0.5 rounded">.secrets.sops.json</code>. This usually means the KMS keys belong to a different AWS account (e.g., the upstream project).</p>' +
+        '<p class="text-sm text-zinc-300">Running infrastructure commands will fail after a long wait. <strong>Setup SOPS</strong> creates KMS keys in your account and re-encrypts the secrets file.</p>' +
+        '<details class="text-xs text-zinc-500">' +
+          '<summary class="cursor-pointer hover:text-zinc-400">Error details</summary>' +
+          '<pre class="mt-2 p-2 bg-zinc-900 rounded text-xs overflow-x-auto max-h-32 overflow-y-auto">' + escapeHtml(errorMsg || 'Unknown error') + '</pre>' +
+        '</details>' +
+      '</div>' +
+      '<div class="px-6 py-4 border-t border-zinc-700 flex justify-end gap-3">' +
+        '<button class="sops-skip-btn rounded-md bg-zinc-700 hover:bg-zinc-600 text-zinc-200 px-4 py-2 text-sm font-mono">Run Anyway</button>' +
+        '<button class="sops-fix-btn rounded-md bg-green-700 hover:bg-green-600 text-white px-4 py-2 text-sm font-mono font-medium flex items-center gap-2">' +
+          '<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>' +
+          'Setup SOPS</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('.sops-skip-btn').onclick = function() {
+    overlay.remove();
+    if (onSkip) onSkip();
+  };
+
+  overlay.querySelector('.sops-fix-btn').onclick = function() {
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Setting up SOPS...';
+    fetch('/api/sops/setup', { method: 'POST' })
+      .then(function(resp) { return resp.json(); })
+      .then(function(data) {
+        overlay.remove();
+        if (data.ok) {
+          showToast('SOPS configured — retrying command');
+          htmx.trigger(document.body, 'refreshAwsStatus');
+          htmx.trigger(document.body, 'refreshDiscovery');
+          if (onSetup) onSetup();
+        } else {
+          showToast('SOPS setup failed — check console', 5000);
+          console.error('SOPS setup output:', data.output);
+        }
+      })
+      .catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'Setup SOPS';
+        showToast('SOPS setup request failed');
+        console.error('SOPS setup error:', err);
+      });
+  };
+}
+
 // --- Terminal open / modal ---
 
 function openTerminal(module, command, region) {
@@ -3085,29 +3145,56 @@ function openTerminal(module, command, region) {
     });
   }
 
-  if (_aggressiveLocks && isInfraCmd) {
-    fetch('/api/fix-locks', { method: 'POST' })
+  function proceed() {
+    if (_aggressiveLocks && isInfraCmd) {
+      fetch('/api/fix-locks', { method: 'POST' })
+        .then(function(resp) { return resp.json(); })
+        .then(function(result) {
+          var lines = [{text: '>>> Aggressive Mode: clearing all locks before ' + command, cls: 'text-amber-400'}];
+          var removed = (result.removed && result.removed.length) || 0;
+          var errors = (result.errors && result.errors.length) || 0;
+          if (removed > 0) {
+            lines.push({text: '>>> Removed ' + removed + ' lock' + (removed > 1 ? 's' : ''), cls: 'text-amber-400'});
+          } else if (errors === 0) {
+            lines.push({text: '>>> No locks found (clean)', cls: 'text-amber-400'});
+          }
+          if (errors > 0) {
+            result.errors.forEach(function(e) { lines.push({text: '>>> Lock error: ' + e, cls: 'text-red-400'}); });
+          }
+          lines.push({text: '', cls: ''});
+          doStart(lines);
+        })
+        .catch(function(err) {
+          doStart([{text: '>>> Aggressive lock clear failed: ' + err.message, cls: 'text-red-400'}, {text: '', cls: ''}]);
+        });
+    } else {
+      doStart();
+    }
+  }
+
+  // SOPS pre-flight: check if SOPS can decrypt before starting slow infra commands
+  if (isInfraCmd) {
+    fetch('/api/sops/check')
       .then(function(resp) { return resp.json(); })
-      .then(function(result) {
-        var lines = [{text: '>>> Aggressive Mode: clearing all locks before ' + command, cls: 'text-amber-400'}];
-        var removed = (result.removed && result.removed.length) || 0;
-        var errors = (result.errors && result.errors.length) || 0;
-        if (removed > 0) {
-          lines.push({text: '>>> Removed ' + removed + ' lock' + (removed > 1 ? 's' : ''), cls: 'text-amber-400'});
-        } else if (errors === 0) {
-          lines.push({text: '>>> No locks found (clean)', cls: 'text-amber-400'});
+      .then(function(data) {
+        if (data.ok) {
+          proceed();
+          return;
         }
-        if (errors > 0) {
-          result.errors.forEach(function(e) { lines.push({text: '>>> Lock error: ' + e, cls: 'text-red-400'}); });
-        }
-        lines.push({text: '', cls: ''});
-        doStart(lines);
+        // SOPS can't decrypt — show dialog before wasting 2min on terragrunt
+        showSOPSPreflightDialog(data.error, function onSetup() {
+          // After setup, retry the original command
+          openTerminal(module, command, region);
+        }, function onSkip() {
+          proceed();
+        });
       })
-      .catch(function(err) {
-        doStart([{text: '>>> Aggressive lock clear failed: ' + err.message, cls: 'text-red-400'}, {text: '', cls: ''}]);
+      .catch(function() {
+        // Check endpoint failed — proceed anyway (don't block on check errors)
+        proceed();
       });
   } else {
-    doStart();
+    proceed();
   }
 }
 
@@ -3487,17 +3574,43 @@ function showTerminalModal(session) {
       sopsBanner.className = 'flex items-center gap-3 px-4 py-2 bg-amber-900/40 border-t border-amber-700/50';
       sopsBanner.innerHTML =
         '<svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
-        '<span class="text-xs font-mono text-amber-300 flex-1">SOPS decryption failed — your AWS SSO session has expired. Click <strong>SSO Login</strong> to re-authenticate.</span>' +
-        '<button class="rounded-md bg-green-700 hover:bg-green-600 text-white px-3 py-1 text-xs font-mono font-medium flex-shrink-0" style="display:inline-flex;align-items:center;gap:6px;">' +
+        '<span class="text-xs font-mono text-amber-300 flex-1">SOPS decryption failed — expired SSO session or missing KMS key. Try <strong>SSO Login</strong> or <strong>Setup SOPS</strong> (creates KMS key).</span>' +
+        '<button class="sops-sso-btn rounded-md bg-green-700 hover:bg-green-600 text-white px-3 py-1 text-xs font-mono font-medium flex-shrink-0" style="display:inline-flex;align-items:center;gap:6px;">' +
           '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.003 4.003 0 003 15z"/></svg>' +
-          'SSO Login</button>';
-      sopsBanner.querySelector('button').onclick = function() {
+          'SSO Login</button>' +
+        '<button class="sops-setup-btn rounded-md bg-amber-700 hover:bg-amber-600 text-white px-3 py-1 text-xs font-mono font-medium flex-shrink-0" style="display:inline-flex;align-items:center;gap:6px;">' +
+          '<svg style="width:14px;height:14px;flex-shrink:0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>' +
+          'Setup SOPS</button>';
+      sopsBanner.querySelector('.sops-sso-btn').onclick = function() {
         sopsBanner.remove();
         fetch('/api/sso-login', { method: 'POST' }).then(function(resp) {
           return resp.text();
         }).then(function(html) {
           var result = document.getElementById('aws-action-result');
           if (result) result.innerHTML = html;
+        });
+      };
+      sopsBanner.querySelector('.sops-setup-btn').onclick = function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Setting up...';
+        fetch('/api/sops/setup', { method: 'POST' }).then(function(resp) {
+          return resp.json();
+        }).then(function(data) {
+          sopsBanner.remove();
+          if (data.ok) {
+            showToast('SOPS KMS key created and secrets template encrypted');
+          } else {
+            showToast('SOPS setup failed — check console for details');
+            console.error('SOPS setup output:', data.output);
+          }
+          htmx.trigger(document.body, 'refreshAwsStatus');
+          htmx.trigger(document.body, 'refreshDiscovery');
+        }).catch(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Setup SOPS';
+          showToast('SOPS setup request failed');
+          console.error('SOPS setup error:', err);
         });
       };
       var modalContainer = overlay.querySelector('.flex-1.flex.flex-col');
@@ -3534,6 +3647,42 @@ function showTerminalModal(session) {
     }
     stopBtn.style.display = 'none';
     statusEl.innerHTML = '<span class="text-zinc-500">Connection closed</span>';
+
+    // Check for SOPS errors in output (same detection as the done handler)
+    if (output.textContent.indexOf('Failed to get the data key required to decrypt the SOPS file') !== -1) {
+      var sopsBanner = document.createElement('div');
+      sopsBanner.className = 'flex items-center gap-3 px-4 py-2 bg-amber-900/40 border-t border-amber-700/50';
+      sopsBanner.innerHTML =
+        '<svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>' +
+        '<span class="text-xs font-mono text-amber-300 flex-1">SOPS decryption failed — expired SSO session or missing KMS key. Try <strong>SSO Login</strong> or <strong>Setup SOPS</strong>.</span>' +
+        '<button class="rounded-md bg-amber-700 hover:bg-amber-600 text-white px-3 py-1 text-xs font-mono font-medium flex-shrink-0">Setup SOPS</button>';
+      sopsBanner.querySelector('button').onclick = function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Setting up...';
+        fetch('/api/sops/setup', { method: 'POST' }).then(function(resp) {
+          return resp.json();
+        }).then(function(data) {
+          sopsBanner.remove();
+          if (data.ok) {
+            showToast('SOPS KMS key created and secrets template encrypted');
+          } else {
+            showToast('SOPS setup failed — check console for details');
+            console.error('SOPS setup output:', data.output);
+          }
+          htmx.trigger(document.body, 'refreshAwsStatus');
+          htmx.trigger(document.body, 'refreshDiscovery');
+        }).catch(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Setup SOPS';
+          showToast('SOPS setup request failed');
+          console.error('SOPS setup error:', err);
+        });
+      };
+      var modalContainer = overlay.querySelector('.flex-1.flex.flex-col');
+      modalContainer.insertBefore(sopsBanner, footer);
+    }
+
     updatePillBar();
   };
 }

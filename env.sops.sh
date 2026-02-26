@@ -1,16 +1,26 @@
 #!/bin/bash
 set -euo pipefail
 
-## setup-sops-key.sh — Create a multi-region KMS key for SOPS encryption
+## env.sops.sh — Create a multi-region KMS key for SOPS encryption
 ##
 ## Usage:
-##   ./setup-sops-key.sh
+##   ./env.sops.sh              # Dry-run: prints what would happen
+##   ./env.sops.sh --not-dry-run  # Actually create KMS keys and write .sops.yaml
 ##
 ## Prerequisites:
 ##   - AWS CLI v2 installed
 ##   - env.local.sh populated with TF_VAR_profile_prefix and TF_VAR_APPLICATION_ACCOUNT_ID
 ##     (or those variables already exported)
 ##   - SSO session active (run env.sh first)
+
+# --- Argument parsing ---
+DRY_RUN=true
+for arg in "$@"; do
+  case "${arg}" in
+    --not-dry-run) DRY_RUN=false ;;
+    *) echo "Unknown argument: ${arg}"; echo "Usage: $0 [--not-dry-run]"; exit 1 ;;
+  esac
+done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -43,12 +53,26 @@ REPLICA_REGIONS=("ca-central-1" "ap-southeast-1")
 
 ALIAS_NAME="alias/sops"
 
+if ${DRY_RUN}; then
+  echo "[DRY RUN] Pass --not-dry-run to execute"
+else
+  echo "[LIVE] Creating resources..."
+fi
+echo ""
 echo "=== SOPS KMS Key Setup ==="
 echo "  AWS Profile:   ${AWS_PROFILE}"
 echo "  Account ID:    ${ACCOUNT_ID}"
 echo "  Primary:       ${PRIMARY_REGION}"
 echo "  Replicas:      ${REPLICA_REGIONS[*]}"
 echo ""
+
+## Pre-check: If .sops.yaml already has real KMS ARNs, nothing to do
+SOPS_YAML="${SCRIPT_DIR}/.sops.yaml"
+if [[ -f "${SOPS_YAML}" ]] && grep -q "arn:aws:kms:" "${SOPS_YAML}" 2>/dev/null; then
+  echo "SOPS is already configured (${SOPS_YAML} contains KMS ARNs)."
+  echo "No KMS keys will be created. Delete .sops.yaml to re-run setup."
+  exit 0
+fi
 
 ## Step 1: Check if alias already exists in primary region
 existing_key=""
@@ -63,25 +87,34 @@ if [[ -n "${existing_key}" && "${existing_key}" != "None" ]]; then
   echo "  Key ID: ${existing_key}"
   KEY_ID="${existing_key}"
 else
-  ## Step 2: Create multi-region primary key in us-east-1
-  echo "Creating multi-region KMS key in ${PRIMARY_REGION}..."
-  KEY_ID=$(aws kms create-key \
-    --profile "${AWS_PROFILE}" \
-    --region "${PRIMARY_REGION}" \
-    --description "SOPS secrets encryption (multi-region primary)" \
-    --multi-region \
-    --query "KeyMetadata.KeyId" \
-    --output text)
+  if ${DRY_RUN}; then
+    echo "[DRY RUN] Would create multi-region KMS key in ${PRIMARY_REGION}"
+    echo "  aws kms create-key --profile ${AWS_PROFILE} --region ${PRIMARY_REGION} --description 'SOPS secrets encryption (multi-region primary)' --multi-region"
+    echo ""
+    echo "[DRY RUN] Would create alias '${ALIAS_NAME}' in ${PRIMARY_REGION}"
+    echo "  aws kms create-alias --profile ${AWS_PROFILE} --region ${PRIMARY_REGION} --alias-name ${ALIAS_NAME} --target-key-id <new-key-id>"
+    KEY_ID="<pending-key-id>"
+  else
+    ## Step 2: Create multi-region primary key in us-east-1
+    echo "Creating multi-region KMS key in ${PRIMARY_REGION}..."
+    KEY_ID=$(aws kms create-key \
+      --profile "${AWS_PROFILE}" \
+      --region "${PRIMARY_REGION}" \
+      --description "SOPS secrets encryption (multi-region primary)" \
+      --multi-region \
+      --query "KeyMetadata.KeyId" \
+      --output text)
 
-  echo "  Created key: ${KEY_ID}"
+    echo "  Created key: ${KEY_ID}"
 
-  ## Step 3: Create alias in primary region
-  echo "Creating alias '${ALIAS_NAME}' in ${PRIMARY_REGION}..."
-  aws kms create-alias \
-    --profile "${AWS_PROFILE}" \
-    --region "${PRIMARY_REGION}" \
-    --alias-name "${ALIAS_NAME}" \
-    --target-key-id "${KEY_ID}"
+    ## Step 3: Create alias in primary region
+    echo "Creating alias '${ALIAS_NAME}' in ${PRIMARY_REGION}..."
+    aws kms create-alias \
+      --profile "${AWS_PROFILE}" \
+      --region "${PRIMARY_REGION}" \
+      --alias-name "${ALIAS_NAME}" \
+      --target-key-id "${KEY_ID}"
+  fi
 fi
 
 ## Step 4: Create replicas and aliases in each replica region
@@ -112,23 +145,33 @@ for region in "${REPLICA_REGIONS[@]}"; do
     --output text 2>/dev/null) || true
 
   if [[ -z "${replica_exists}" || "${replica_exists}" == "None" ]]; then
-    echo "Creating replica in ${region}..."
-    aws kms replicate-key \
-      --profile "${AWS_PROFILE}" \
-      --region "${PRIMARY_REGION}" \
-      --key-id "${KEY_ID}" \
-      --replica-region "${region}" \
-      --description "SOPS secrets encryption (multi-region replica)" >/dev/null
+    if ${DRY_RUN}; then
+      echo "[DRY RUN] Would create replica in ${region}"
+      echo "  aws kms replicate-key --profile ${AWS_PROFILE} --region ${PRIMARY_REGION} --key-id ${KEY_ID} --replica-region ${region}"
+    else
+      echo "Creating replica in ${region}..."
+      aws kms replicate-key \
+        --profile "${AWS_PROFILE}" \
+        --region "${PRIMARY_REGION}" \
+        --key-id "${KEY_ID}" \
+        --replica-region "${region}" \
+        --description "SOPS secrets encryption (multi-region replica)" >/dev/null
+    fi
   else
     echo "Replica key already exists in ${region}"
   fi
 
-  echo "Creating alias '${ALIAS_NAME}' in ${region}..."
-  aws kms create-alias \
-    --profile "${AWS_PROFILE}" \
-    --region "${region}" \
-    --alias-name "${ALIAS_NAME}" \
-    --target-key-id "${KEY_ID}"
+  if ${DRY_RUN}; then
+    echo "[DRY RUN] Would create alias '${ALIAS_NAME}' in ${region}"
+    echo "  aws kms create-alias --profile ${AWS_PROFILE} --region ${region} --alias-name ${ALIAS_NAME} --target-key-id ${KEY_ID}"
+  else
+    echo "Creating alias '${ALIAS_NAME}' in ${region}..."
+    aws kms create-alias \
+      --profile "${AWS_PROFILE}" \
+      --region "${region}" \
+      --alias-name "${ALIAS_NAME}" \
+      --target-key-id "${KEY_ID}"
+  fi
 done
 
 ## Step 5: Update .sops.yaml
@@ -143,10 +186,44 @@ for region in "${ALL_REGIONS[@]}"; do
 done
 
 echo ""
-echo "Updating ${SOPS_YAML}..."
-cat > "${SOPS_YAML}" <<EOF
+if ${DRY_RUN}; then
+  echo "[DRY RUN] Would write ${SOPS_YAML}:"
+  echo "---"
+  cat <<EOF
 creation_rules:
   - path_regex: \.secrets(\.sops)?\.json\$
     kms: "${KMS_ARNS}"
 EOF
-echo "  Done."
+  echo "---"
+else
+  echo "Updating ${SOPS_YAML}..."
+  cat > "${SOPS_YAML}" <<EOF
+creation_rules:
+  - path_regex: \.secrets(\.sops)?\.json\$
+    kms: "${KMS_ARNS}"
+EOF
+  echo "  Done."
+fi
+
+## Step 6: Copy template if no SOPS file exists yet
+SITE_DIR="${SCRIPT_DIR}/infra/terraform/live/site"
+SOPS_FILE="${SITE_DIR}/.secrets.sops.json"
+TEMPLATE_FILE="${SITE_DIR}/.secrets.sops.json.template"
+
+if [[ ! -f "${SOPS_FILE}" && -f "${TEMPLATE_FILE}" ]]; then
+  SECRETS_JSON="${SITE_DIR}/.secrets.json"
+  if ${DRY_RUN}; then
+    echo ""
+    echo "[DRY RUN] Would copy template to plaintext for initial encryption:"
+    echo "  cp ${TEMPLATE_FILE} ${SECRETS_JSON}"
+    echo "  sops encrypt ${SECRETS_JSON} > ${SOPS_FILE}"
+    echo "  rm ${SECRETS_JSON}"
+  else
+    echo ""
+    echo "Creating initial .secrets.sops.json from template..."
+    cp "${TEMPLATE_FILE}" "${SECRETS_JSON}"
+    sops encrypt "${SECRETS_JSON}" > "${SOPS_FILE}"
+    rm "${SECRETS_JSON}"
+    echo "  Done."
+  fi
+fi
