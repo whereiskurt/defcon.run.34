@@ -66,10 +66,10 @@ echo "  Primary:       ${PRIMARY_REGION}"
 echo "  Replicas:      ${REPLICA_REGIONS[*]}"
 echo ""
 
-## Pre-check: If .sops.yaml already has real KMS ARNs, nothing to do
+## Pre-check: If .sops.yaml already has KMS ARNs for THIS account, nothing to do
 SOPS_YAML="${SCRIPT_DIR}/.sops.yaml"
-if [[ -f "${SOPS_YAML}" ]] && grep -q "arn:aws:kms:" "${SOPS_YAML}" 2>/dev/null; then
-  echo "SOPS is already configured (${SOPS_YAML} contains KMS ARNs)."
+if [[ -f "${SOPS_YAML}" ]] && grep -q ":${ACCOUNT_ID}:" "${SOPS_YAML}" 2>/dev/null; then
+  echo "SOPS is already configured for account ${ACCOUNT_ID} (${SOPS_YAML})."
   echo "No KMS keys will be created. Delete .sops.yaml to re-run setup."
   exit 0
 fi
@@ -205,22 +205,33 @@ EOF
   echo "  Done."
 fi
 
-## Step 6: Copy template if no SOPS file exists yet
+## Step 6: Create or re-encrypt .secrets.sops.json
+## On a fresh fork, the file exists but is encrypted with upstream keys we can't
+## decrypt. In that case, replace it from the template and encrypt with our keys.
 SITE_DIR="${SCRIPT_DIR}/infra/terraform/live/site"
 SOPS_FILE="${SITE_DIR}/.secrets.sops.json"
 TEMPLATE_FILE="${SITE_DIR}/.secrets.sops.json.template"
 
-if [[ ! -f "${SOPS_FILE}" && -f "${TEMPLATE_FILE}" ]]; then
+needs_encrypt=false
+if [[ ! -f "${SOPS_FILE}" ]]; then
+  needs_encrypt=true
+  echo ""
+  echo "No .secrets.sops.json found — will create from template."
+elif ! sops decrypt "${SOPS_FILE}" >/dev/null 2>&1; then
+  needs_encrypt=true
+  echo ""
+  echo "Existing .secrets.sops.json can't be decrypted (wrong KMS keys) — will replace from template."
+fi
+
+if ${needs_encrypt} && [[ -f "${TEMPLATE_FILE}" ]]; then
   SECRETS_JSON="${SITE_DIR}/.secrets.json"
   if ${DRY_RUN}; then
-    echo ""
-    echo "[DRY RUN] Would copy template to plaintext for initial encryption:"
+    echo "[DRY RUN] Would encrypt template to .secrets.sops.json:"
     echo "  cp ${TEMPLATE_FILE} ${SECRETS_JSON}"
     echo "  sops encrypt ${SECRETS_JSON} > ${SOPS_FILE}"
     echo "  rm ${SECRETS_JSON}"
   else
-    echo ""
-    echo "Creating initial .secrets.sops.json from template..."
+    echo "Encrypting .secrets.sops.json from template..."
     cp "${TEMPLATE_FILE}" "${SECRETS_JSON}"
     sops encrypt "${SECRETS_JSON}" > "${SOPS_FILE}"
     rm "${SECRETS_JSON}"
