@@ -1,341 +1,119 @@
-# E2E Testing Specification
+# e2e-testing Specification
 
-**Status:** Implemented
-**Created:** 2026-01-24
-
-## Summary
-
-End-to-end testing infrastructure for the defcon.run 34 applications using Playwright. Tests verify authentication flows, cloud storage operations, multi-user sharing, and UI interactions.
-
-## Architecture
-
-### Test Location
-
-```
-apps/
-├── e2e.sh                    # Unified orchestrator (runs auth then gpx)
-├── run.auth/e2e/             # Auth service e2e tests
-│   ├── auth.login.spec.ts    # OIDC login flow tests
-│   ├── lib/
-│   │   ├── cookie-jar.ts     # Session persistence
-│   │   ├── altcha-solver.ts  # CAPTCHA solving
-│   │   └── s3-email.ts       # Email verification via S3
-│   └── .auth/                # Cookie jars (gitignored)
-└── run.gpx/e2e/              # GPX service e2e tests
-    ├── cloud-storage.spec.ts # Cloud storage tests
-    ├── samples/              # Sample GPX files for testing
-    ├── lib/cookie-jar.ts     # Session loading from auth
-    └── test-results/         # Screenshots (gitignored)
-```
-
-### Multi-User Support
-
-Tests use three user accounts via email +addressing:
-
-| Role | Email | Purpose |
-|------|-------|---------|
-| `accounta` | jeanclaude+accounta@defcon.run | Default test user |
-| `accountb` | jeanclaude+accountb@defcon.run | File owner for share tests |
-| `accountc` | jeanclaude+accountc@defcon.run | Share recipient |
-
-### Session Management
-
-Sessions are persisted as cookie jars in `run.auth/e2e/.auth/`:
-
-```
-cookies-local-accounta.json   # Local dev sessions
-cookies-local-accountb.json
-cookies-local-accountc.json
-cookies-accounta.json         # Production sessions
-```
-
-Cookie jars include:
-- Session cookie (`sess_auth`)
-- Expiration timestamp
-- Domain binding
-
-GPX tests load auth cookies from the auth e2e directory - no separate login needed.
+## Purpose
+End-to-end testing infrastructure for defcon.run applications using Playwright. Tests verify authentication flows, cloud storage operations, multi-user sharing, and UI interactions.
 
 ## Requirements
 
-### Requirement: Session Reuse
+### Requirement: Unified Test Orchestration
+The system SHALL provide a unified orchestrator (`apps/e2e.sh`) that runs auth tests first, then GPX tests.
 
-The system SHALL persist authenticated sessions between test runs to avoid repeated logins.
+#### Scenario: Full suite execution
+- **WHEN** `./e2e.sh` is run
+- **THEN** auth credential acquisition runs first
+- **AND** GPX cloud storage tests run after
+- **AND** test cleanup is performed
+
+#### Scenario: Selective execution
+- **WHEN** `./e2e.sh --gpx` is run
+- **THEN** only GPX tests execute (assumes auth sessions exist)
+
+### Requirement: Session Reuse
+The system SHALL persist authenticated sessions as cookie jars to avoid repeated logins.
 
 #### Scenario: Valid session exists
-- **WHEN** a cookie jar exists and is not expired
-- **THEN** skip login and reuse existing session
+- **WHEN** a cookie jar exists in `run.auth/e2e/.auth/` and is not expired
+- **THEN** skip login and reuse the existing session
 
 #### Scenario: Session expired or missing
 - **WHEN** no valid cookie jar exists
-- **THEN** perform full OIDC login flow and save new session
+- **THEN** perform full OIDC login flow with ALTCHA solving and S3 email retrieval
 
 ### Requirement: Multi-User Testing
+The system SHALL support three test accounts via email +addressing for inter-user interaction testing.
 
-The system SHALL support testing interactions between multiple users.
+#### Scenario: Three user accounts
+- **GIVEN** accounts: accounta, accountb, accountc (jeanclaude+account{a,b,c}@defcon.run)
+- **WHEN** multi-user tests run
+- **THEN** each account has independent sessions and data
 
 #### Scenario: Private share between users
 - **WHEN** accountb creates a private share
 - **AND** accountc accesses the share URL
 - **THEN** accountc can view the shared content
 
-### Requirement: Test Data Cleanup
+### Requirement: Auth Service Tests
+The system SHALL verify OIDC authentication flows, session validity, and service access.
 
-The system SHALL clean up test data after each test run.
+#### Scenario: Credential acquisition
+- **WHEN** acquire-credentials runs
+- **THEN** it completes full OIDC login with email OTP via S3 email retrieval
+
+#### Scenario: Session validation
+- **WHEN** session-valid tests run
+- **THEN** stored sessions are verified as active
+
+#### Scenario: Service access verification
+- **WHEN** service-access tests run
+- **THEN** the authenticated user can access protected services
+
+### Requirement: GPX Cloud Storage Tests
+The system SHALL verify cloud storage UI operations and API endpoints.
+
+#### Scenario: Cloud storage UI tests
+- **WHEN** cloud storage UI tests run
+- **THEN** dialog opening, file operations, and share link generation are verified
+
+#### Scenario: Cloud storage API tests
+- **WHEN** API tests run
+- **THEN** file listing, folder listing, upload, and share creation are verified
+
+### Requirement: Test Data Cleanup
+The system SHALL clean up test data (files with `e2e-` prefix) after each run.
 
 #### Scenario: E2E file cleanup
 - **WHEN** test suite completes
-- **THEN** all files with `e2e-` prefix are deleted
-- **AND** quota is not restored (by design)
+- **THEN** all files with `e2e-` prefix are deleted via UI and API
 
-### Requirement: Geographic Diversity in Multi-File Tests
+### Requirement: Production and Local Support
+The system SHALL run against both local dev and production environments.
 
-The system SHALL select geographically diverse files for map testing.
+#### Scenario: Local development
+- **WHEN** `./e2e.sh` runs without `--prod`
+- **THEN** tests target localhost (auth:3002, gpx:3003)
 
-#### Scenario: Map centering verification
-- **WHEN** multiple GPX files are loaded
-- **THEN** files from different locations (Japan, NYC, Vegas) are selected
-- **AND** centering on each file moves the map to that location
-- **AND** screenshots capture each distinct view
+#### Scenario: Production
+- **WHEN** `./e2e.sh --prod` runs
+- **THEN** tests target auth.defcon.run and gpx.defcon.run
+- **AND** regional prefix is applied (default: use1, configurable via REGION_SHORT)
 
-## Running Tests
+### Requirement: CI Integration
+The system SHALL support GitHub Actions via `.github/workflows/e2e-tests.yml` (manual dispatch only).
 
-### Quick Start
+#### Scenario: CI execution
+- **WHEN** workflow_dispatch is triggered
+- **THEN** tests run against production with AWS OIDC authentication for S3 email access
 
-```bash
-# Full suite (creates sessions, uploads files, runs tests, cleans up)
-cd apps && ./e2e.sh
+## Implementation Notes
 
-# Check status of services and sessions
-./e2e.sh --status
-
-# Run with visible browser
-./e2e.sh --headed
-
-# Run with slow-mo (500ms between actions)
-./e2e.sh --slow
-
-# Only run GPX tests (assumes auth sessions exist)
-./e2e.sh --gpx
-
-# Clean up test data and sessions
-./e2e.sh --clean
-
-# Run against production (us-east-1, default region)
-./e2e.sh --prod
-
-# Run against production with visible browser
-./e2e.sh --prod --headed
-
-# Run against production ca-central-1
-REGION_SHORT=cac1 ./e2e.sh --prod
+### Test Location
+```
+apps/e2e.sh                         # Unified orchestrator
+apps/run.auth/e2e/
+  setup/acquire-credentials.spec.ts  # OIDC login flow
+  setup/cleanup-test-users.spec.ts   # Test cleanup
+  tests/session-valid.spec.ts        # Session verification
+  tests/service-access.spec.ts       # Service access checks
+  lib/{cookie-jar,altcha-solver,s3-email}.ts
+apps/run.gpx/e2e/
+  cloud-storage.spec.ts              # Cloud storage tests
+  lib/cookie-jar.ts                  # Session loading from auth
 ```
 
-### Prerequisites
-
-1. **Services running:**
-   ```bash
-   # Terminal 1: Auth service
-   cd apps/run.auth/webapp && PORT=3002 npm run dev
-
-   # Terminal 2: GPX service
-   cd apps/run.gpx/webapp && PORT=3003 npm run dev
-   ```
-
-2. **AWS credentials** for email verification (reads from S3)
-
-### Environment Variables
-
+### Key Environment Variables
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BASE_URL` | `http://localhost:3003` | GPX service URL |
 | `AUTH_URL` | `http://localhost:3002` | Auth service URL |
-| `REGION_SHORT` | `use1` | Region prefix for production (use1, cac1) |
-| `TEST_USER_ROLE` | `accounta` | User: accounta, accountb, accountc |
-| `SLOW_MO` | `0` | Milliseconds delay between actions |
-
-## Test Categories
-
-### 1. Auth & Session Tests
-
-| Test | Description |
-|------|-------------|
-| Complete full login flow | OIDC flow with email verification |
-| Reuse existing session | Cookie jar validation |
-
-### 2. Cloud Storage UI Tests
-
-| Test | Description |
-|------|-------------|
-| Open Cloud Storage dialog | Basic dialog opening |
-| Open Save As dialog | Save menu verification |
-| Open file from cloud | Single file loading |
-| Select and open multiple files | Batch open with map verification |
-| Create public share link | Share URL generation |
-| Access public share link | Share URL resolution |
-
-### 3. Multi-User Share Tests
-
-| Test | Description |
-|------|-------------|
-| Private share between users | accountb shares, accountc accesses |
-
-### 4. Cloud Storage API Tests
-
-| Test | Description |
-|------|-------------|
-| List cloud files via API | GET /api/gpx/files |
-| List folders via API | GET /api/gpx/folders |
-| Create and delete test file | Full upload flow |
-| Create public share via API | POST /api/gpx/shares |
-| Upload sample GPX files | Batch upload for test setup |
-
-### 5. Test Cleanup
-
-| Test | Description |
-|------|-------------|
-| Delete all e2e test files | UI and API cleanup |
-| Clean up accountb files | Multi-user cleanup |
-| Verify no e2e files remain | Final validation |
-
-## Sample Files
-
-The `samples/` directory contains GPX files for testing:
-
-| File | Size | Location |
-|------|------|----------|
-| guelph-loop-approx.gpx | 1KB | Guelph, Canada |
-| lvccindoor.gpx | 6KB | Las Vegas |
-| japan.gpx | 10KB | Japan |
-| Test NYC Route.gpx | 134KB | New York City |
-| Test Japan Route.gpx | 178KB | Japan (detailed) |
-
-Files under 200KB are automatically selected for upload tests to balance diversity with speed.
-
-## Screenshots
-
-The multi-file test captures screenshots in `test-results/`:
-
-| Screenshot | Content |
-|------------|---------|
-| multi-file-all-loaded.png | Initial map with all files |
-| multi-file-centered-1.png | Map centered on file 1 (e.g., Japan) |
-| multi-file-centered-2.png | Map centered on file 2 (e.g., NYC) |
-| multi-file-centered-3.png | Map centered on file 3 (e.g., Vegas) |
-| multi-file-track-hidden.png | Track visibility toggled |
-
-## Key Implementation Details
-
-### Share URL Generation
-
-Share URLs must NOT include region prefix (`/use1/`) in local development:
-
-```typescript
-// Use WEBAPP_ORIGIN (set in production Terraform config)
-const webappOrigin = process.env.WEBAPP_ORIGIN; // "gpx.defcon.run" in prod
-const regionShort = process.env.REGION_SHORT;   // "use1" or "cac1" in prod
-const isProduction = webappOrigin?.includes("defcon.run");
-
-if (isProduction && webappOrigin && regionShort) {
-  shareUrl = `https://${webappOrigin}/${regionShort}/studio/share/${shareId}`;
-} else {
-  const baseUrl = `http://localhost:${process.env.PORT || "3003"}`;
-  shareUrl = `${baseUrl}/studio/share/${shareId}`;
-}
-```
-
-### Map Centering
-
-Use `Ctrl+Enter` keyboard shortcut to center map on selected file:
-
-```typescript
-await fileTab.click();           // Select the file
-await page.keyboard.press('Control+Enter');  // Center map
-await page.waitForTimeout(2000); // Wait for animation
-```
-
-### File Selection for Diversity
-
-Select files matching geographic patterns:
-
-```typescript
-const diversePatterns = ['NYC', 'Japan', 'lvcc', 'Guelph', 'bigstar'];
-// Search file names for these patterns to ensure map shows different locations
-```
-
-## GitHub Actions CI
-
-The e2e tests can run in GitHub Actions via `.github/workflows/e2e-tests.yml`.
-
-### Purpose
-
-Run e2e tests against **production** after deployment to verify the deployed services work correctly.
-
-### Trigger
-
-**Manual only** - Via workflow_dispatch in GitHub Actions UI. Run this after deploying to production.
-
-### Target URLs
-
-- Auth: `https://auth.defcon.run`
-- GPX: `https://gpx.defcon.run`
-
-### Prerequisites
-
-#### 1. GitHub Environment
-
-Create a GitHub environment named `e2e-tests` with:
-- Variable: `AWS_ACCOUNT_ID` - Your AWS account ID
-
-#### 2. IAM Role
-
-Create an IAM role `dc34-github-e2e` with:
-- Trust policy for GitHub OIDC provider
-- Permissions for S3 (email verification bucket)
-
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["s3:GetObject", "s3:ListBucket"],
-      "Resource": [
-        "arn:aws:s3:::your-ses-email-bucket",
-        "arn:aws:s3:::your-ses-email-bucket/*"
-      ]
-    }
-  ]
-}
-```
-
-### CI Workflow Steps
-
-1. Checkout code
-2. Authenticate via AWS OIDC
-3. Install e2e test dependencies
-4. Install Playwright browsers
-5. Verify production services are reachable
-6. Run full e2e test suite against production
-7. Upload test results and screenshots as artifacts
-
-### Artifacts
-
-| Artifact | Contents | Retention |
-|----------|----------|-----------|
-| `e2e-screenshots` | Map screenshots (always) | 14 days |
-| `e2e-test-results` | Test results (on failure) | 7 days |
-
-## Troubleshooting
-
-### 401 Errors
-Session expired. Re-run: `./e2e.sh --setup`
-
-### Quota Exceeded
-Upload quota depleted. Wait for quota reset or use admin API to restore.
-
-### Share URL 404
-Check that share URL doesn't contain `/use1/` in local dev. The API uses `WEBAPP_ORIGIN` and `REGION_SHORT` to detect production.
-
-### Map Not Moving
-Ensure `Ctrl+Enter` is being sent after file selection. Double-click on file tabs does NOT center the map.
+| `BASE_URL` | `http://localhost:3003` | GPX service URL |
+| `REGION_SHORT` | `use1` | Region prefix for production |
+| `TEST_USER_ROLE` | `accounta` | Test user account |

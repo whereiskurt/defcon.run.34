@@ -1,137 +1,111 @@
-# GPX Cloud Storage Save UX Improvements
+# gpx-cloud-save-ux Specification
 
-**Status:** Implemented (pending testing)
-**Beads:** dcr34-3k1
-**Created:** 2026-01-13
+## Purpose
+Cloud storage UX for the GPX editor (run.gpx), providing save/copy semantics, layer selection, folder organization, version history, and file sharing via the gpx-studio SvelteKit frontend backed by S3 and DynamoDB.
 
-## Summary
+## Requirements
 
-Improve the cloud storage save experience by:
-1. Adding layer selection checkboxes
-2. Changing "Save" to overwrite existing files (by name match)
-3. Adding "Copy" for creating new files (current behavior)
-4. Moving save controls below the file listing
+### Requirement: Save vs Copy Semantics
+The cloud storage UI SHALL distinguish between "Save" (overwrite existing) and "Copy" (create new file).
 
-## Current Behavior
+#### Scenario: Save overwrites existing file
+- **WHEN** a user saves a file with a name matching an existing file in the current folder
+- **THEN** the existing file's content is overwritten via presigned S3 PUT
+- **AND** the file version is incremented
 
-- "Save All Layers" button saves every open layer to cloud storage
-- Each save creates a **new file**, even if a file with the same name exists
-- Save button is prominently placed at the top, file listing is in a collapsible below
+#### Scenario: Save creates new file when no match
+- **WHEN** a user saves a file with no name match in the current folder
+- **THEN** a new file is created (same behavior as copy)
 
-## Proposed Behavior
+#### Scenario: Copy always creates new file
+- **WHEN** a user uses the "Copy" action
+- **THEN** a new file is always created regardless of name matches
 
-### Layout Change
+### Requirement: Layer Selection
+The cloud storage UI SHALL allow users to select which loaded layers to save.
 
-**Before:**
-```
-[Save All Layers button]
-[Remote Files (collapsible)]
-  - folders/files table
-```
+#### Scenario: Layer selection checkboxes
+- **GIVEN** multiple GPX layers are loaded in the editor
+- **WHEN** the cloud storage dialog opens in save mode
+- **THEN** each layer is shown with a checkbox (all selected by default)
+- **AND** "Select All" and "Select None" controls are available
 
-**After:**
-```
-[Remote Files (expanded by default)]
-  - folders/files table
-[Layer Selection + Save/Copy controls]
-```
+#### Scenario: Saving selected layers
+- **WHEN** the user clicks Save or Copy with some layers unchecked
+- **THEN** only checked layers are saved to the cloud
 
-### Layer Selection
+### Requirement: Folder Organization
+The system SHALL support hierarchical folder organization for cloud files.
 
-Add a dropdown/checkbox section showing all loaded layers:
+#### Scenario: Navigate folders
+- **WHEN** a user clicks a folder in the file listing
+- **THEN** the view navigates into that folder with breadcrumb trail
 
-```
-Layers to save:
-[x] MyRoute.gpx
-[x] WaypointCollection.gpx
-[ ] TempTrack.gpx
-[Select All] [Select None]
-```
+#### Scenario: Create folder
+- **WHEN** a user creates a new folder
+- **THEN** the folder appears in the current directory
 
-- Default: all layers selected
-- Each layer shows its name from `file.metadata?.name`
-- Unchecked layers are skipped during save/copy
+#### Scenario: Global folders
+- **GIVEN** the user is at the root level
+- **WHEN** the file listing loads
+- **THEN** both user folders and global (shared) folders are displayed
 
-### Save vs Copy Behavior
+### Requirement: Version History
+The system SHALL maintain version history for cloud files (up to 50 versions via S3 versioning).
 
-| Action | Button | Behavior |
-|--------|--------|----------|
-| **Save** | Primary green | Overwrites existing file if name matches in current folder |
-| **Copy** | Secondary outline | Always creates new file (current behavior) |
+#### Scenario: View version history
+- **WHEN** a user opens the version history for a file
+- **THEN** available versions are listed with timestamps
 
-**Save logic:**
-1. For each selected layer, check if a file with matching `fileName` exists in current folder
-2. If match found: update that file's content (overwrite S3 object)
-3. If no match: create new file (same as copy)
+#### Scenario: Load specific version
+- **WHEN** a user selects a previous version
+- **THEN** that version's content is loaded into the editor
 
-### API Changes Required
+### Requirement: File Sharing
+The system SHALL support public and private share links for cloud files.
 
-The current `PUT /api/gpx/files/[id]` only updates metadata. Need to add content update support:
+#### Scenario: Create public share link
+- **WHEN** a user creates a public share for a file
+- **THEN** a share URL is generated that anyone can access
 
-**Option A: Extend PUT endpoint**
-```typescript
-// PUT /api/gpx/files/[id] with body { updateContent: true }
-// Returns { uploadUrl } for presigned S3 PUT to existing key
-```
+#### Scenario: Share URL format
+- **GIVEN** production environment
+- **WHEN** a share URL is generated
+- **THEN** it follows the pattern `https://gpx.defcon.run/{region}/studio/share/{shareId}`
 
-**Option B: New endpoint**
-```typescript
-// POST /api/gpx/files/[id]/upload
-// Returns { uploadUrl } for presigned S3 PUT to existing key
-```
+#### Scenario: Local development share URL
+- **GIVEN** development environment
+- **WHEN** a share URL is generated
+- **THEN** no region prefix is included: `http://localhost:3003/studio/share/{shareId}`
 
-**Recommendation:** Option A (extend PUT) - simpler, single endpoint
+### Requirement: File Size and Quota Limits
+The system SHALL enforce file size limits and upload quotas.
 
-### Cloud-sync.ts Changes
+#### Scenario: File too large
+- **WHEN** a user uploads a file exceeding 10 MB
+- **THEN** the upload is rejected with a clear error message
 
-Add new function:
-```typescript
-export async function updateCloudFileContent(
-  fileId: string,
-  gpxContent: string,
-  metadata?: { trackCount?: number; ... }
-): Promise<void>
-```
+#### Scenario: Quota exceeded
+- **WHEN** a user exceeds their upload quota
+- **THEN** the upload is rejected with a 429 status and remaining quota info
 
-Modify `saveToCloud` or add wrapper that:
-1. Searches `cloudFiles` store for matching `fileName`
-2. If found in current folder: call `updateCloudFileContent`
-3. If not found: call existing `saveToCloud` (create new)
+### Requirement: GPX Binary Validation
+The system SHALL validate uploaded files are valid GPX format.
 
-## UI Component Changes
+#### Scenario: Valid GPX upload
+- **WHEN** a user uploads a valid GPX file
+- **THEN** the file is confirmed and activated after S3 upload
 
-### CloudStorage.svelte
+#### Scenario: Invalid GPX upload
+- **WHEN** a user uploads an invalid GPX file
+- **THEN** the upload still counts against quota
+- **AND** an error message indicates the validation failure
 
-1. **Remove** prominent save button from top
-2. **Expand** Remote Files by default (`filesExpanded = true` initially)
-3. **Add** layer selection section below file table
-4. **Add** two buttons: "Save Selected" (primary) and "Copy Selected" (outline)
+## Implementation Notes
 
-### New Component: LayerSelector.svelte (optional)
-
-Could extract layer selection to reusable component, but keeping inline is acceptable for simplicity.
-
-## File Changes
-
-| File | Change Type |
-|------|-------------|
-| `CloudStorage.svelte` | Major UI restructure |
-| `cloud-sync.ts` | Add `updateCloudFileContent`, modify save logic |
-| `webapp/.../files/[id]/route.ts` | Extend PUT for content update |
-
-## Edge Cases
-
-1. **Name collision across folders**: Only match within current folder
-2. **Global folder files**: Follow existing permission model (uploader or admin)
-3. **No layers loaded**: Disable save/copy buttons, show message
-4. **All layers unchecked**: Disable save/copy buttons
-
-## Testing
-
-- [ ] Save overwrites existing file with same name
-- [ ] Save creates new file when no name match
-- [ ] Copy always creates new file
-- [ ] Layer checkboxes correctly filter which files are saved
-- [ ] Select All / Select None work
-- [ ] File listing appears above save controls
-- [ ] Works in subfolders and global folders
+- Cloud sync layer: `apps/run.gpx/gpx-studio/website/src/lib/cloud-sync.ts`
+- UI component: `apps/run.gpx/gpx-studio/website/src/lib/components/cloud/CloudStorage.svelte`
+- Share dialogs: `ShareDialog.svelte`, `ShareAcceptDialog.svelte`
+- Key functions: `saveOrUpdateToCloud`, `updateCloudFileContent`, `findCloudFileByName`
+- API base: `/{region}/api/gpx/` (files, folders, shares, download/presign)
+- Layout: Remote files expanded by default, save/copy controls below file listing

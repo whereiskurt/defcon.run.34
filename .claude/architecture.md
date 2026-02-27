@@ -1,357 +1,251 @@
 # Architecture
 
-Details on the defcon.run 34 multi-region AWS architecture.
+Multi-region AWS architecture for defcon.run 34 — an official DEF CON 34 event (2026).
 
-## Multi-Region Deployment Pattern
+## System Overview
 
-- **CloudFront** routes requests to regional ALBs via path prefix (`/use1/*`, `/cac1/*`)
-- Each region runs identical ECS Fargate tasks with region-specific environment variables
-- Apps use dynamic `basePath` based on region label (e.g., `/use1`, `/cac1`)
-- Static assets are synced to S3 per-region and served via CloudFront
+| Component | Domain | Stack | Purpose |
+|-----------|--------|-------|---------|
+| **run.auth** | auth.defcon.run | Next.js 16, Auth.js v5, oidc-provider v9 | Central identity provider |
+| **run.human** | run.defcon.run | Next.js 16, React 19, HeroUI, Tailwind 4 | Main application |
+| **run.gpx** | gpx.defcon.run | Next.js + vendored gpx-studio (SvelteKit) | GPX route editor |
+| **run.cms** | cms.defcon.run | Strapi 5.6, SQLite, Litestream | Content management |
+| **configui** | localhost only | Go binary | Infrastructure config UI |
+| **waffaw** | — | Artillery, Playwright, bash agent | WAF testing platform (~70% built) |
 
-## CloudFront + WAF Request Flow
+**Regions:** us-east-1 (primary), ca-central-1, ap-southeast-1
 
-Each application has its own CloudFront distribution with a dedicated WAF WebACL:
+**Path:** All traffic flows through CloudFront + WAF → regional ALBs → ECS Fargate tasks.
+
+## Authentication Architecture
+
+run.auth is the central identity provider running dual Auth.js v5 (session management) + oidc-provider v9 (OIDC server).
+
+**Auth Methods:**
+
+| Method | Purpose | Notes |
+|--------|---------|-------|
+| Email OTP | Primary login | Via SES, ALTCHA proof-of-work captcha |
+| Discord OAuth | Social login | |
+| GitHub OAuth | Social login | |
+| Strava OAuth | Account linking only | Not a login method |
+
+**OIDC Configuration:**
+
+| Setting | Value |
+|---------|-------|
+| Clients | run.human, run.gpx (gpx.studio), run.cms (cms.strapi) |
+| PKCE | Required |
+| Grants | authorization_code, refresh_token |
+| Access token TTL | 1 hour |
+| Refresh token TTL | 14 days |
+| Auth code TTL | 10 minutes |
+| Session | JWT in httpOnly cookie, 15-day TTL, 24h auto-refresh |
+| Scopes | openid, profile, email, services |
+| Claims delivery | ID token (conformIdTokenClaims: false) |
+
+The `services` scope provides `linked_providers` and `mapboxPublicToken` in claims.
+
+**Known gaps:**
+- No rate limiting on any auth endpoints
+- `sessionVersion` field exists but is not yet enforced in JWT validation
+- `allowDangerousEmailAccountLinking=true` is enabled
+
+## Service Architecture
+
+### run.human (run.defcon.run)
+
+Next.js 16 + React 19 + HeroUI + Tailwind 4. Features: user profiles, Meshtastic radio management, GPS check-ins, file uploads, quota display.
+
+- **Data:** DynamoDB via ElectroDB (RunUser, UserUpload entities)
+- **Quota:** Centralized in run.auth, consumed via HTTP client with `X-Internal-Secret` header
+- **Uploads:** S3 presigned URLs (GPX 5MB, photos 20MB)
+- **Config:** `apps/run.human/`, service def at `infra/terraform/live/site/services/run.human/`
+
+### run.gpx (gpx.defcon.run)
+
+Next.js wrapping a vendored gpx-studio (SvelteKit, built from source).
+
+- **Build:** 3-stage Docker (gpx-builder -> webapp-builder -> runner)
+- **Cloud save:** S3 + DynamoDB, 50-version history, folder organization
+- **Sharing:** Public/private with email allowlist, 21-char nanoid share tokens
+- **GPX validation:** Binary magic byte detection, control char rejection, XML structure check
+- **Auth flow:** Next.js checks session -> redirect to `/studio/app` -> gpx-studio reads `/api/auth/session`
+- **Config:** `apps/run.gpx/`, build script `apps/run.gpx/build-frontend.sh`
+
+### run.cms (cms.defcon.run)
+
+Strapi 5.6 + SQLite + Litestream replication. Master/Worker architecture.
+
+- **Master** (us-east-1 only): Handles writes, runs `litestream replicate` continuously to S3
+- **Workers** (all regions): Read-only, restore from S3 every 5 minutes via `litestream-sync.sh`
+- **Auth:** OIDC SSO via strapi-plugin-sso with service claim validation
+- **Middleware:** cookie-auth (JWT from httpOnly cookie), services-validation (re-validates cms service)
+- **Nginx:** TLS termination, regional prefix stripping, admin registration blocking
+- **Process:** supervisord manages Strapi + Litestream together
+- **Config:** `apps/run.cms/`, service def at `infra/terraform/live/site/services/run.cms/`
+
+## Multi-Region Routing
 
 ```
-                           Internet
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        CloudFront Distribution                              │
-│                     (per app: auth, cms, run-human)                         │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │                      WAF WebACL (per app)                             │  │
-│  │  - Rate limiting rules                                                │  │
-│  │  - AWS Managed Rules (Common, Known Bad Inputs, etc.)                 │  │
-│  │  - App-specific rules (auth has stricter login protection, etc.)      │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                              │                                              │
-│                        ALLOW │ BLOCK → 403                                  │
-│                              ▼                                              │
-│  ┌────────────────────────────────────────────────────────────────────┐     │
-│  │                    Origin Router (path-based)                      │     │
-│  │  /use1/* → us-east-1 ALB     /cac1/* → ca-central-1 ALB            │     │
-│  │  /_next/static/* → S3        /cms/* → S3 (media assets)            │     │
-│  └────────────────────────────────────────────────────────────────────┘     │
-└─────────────────────────────────────────────────────────────────────────────┘
-                              │
-              CloudFront-only (prefix list)
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Regional ALB (us-east-1 / ca-central-1)                  │
-│  ┌───────────────────────────────────────────────────────────────────────┐  │
-│  │  Security Group: Ingress ONLY from CloudFront prefix list             │  │
-│  │  - com.amazonaws.global.cloudfront.origin-facing                      │  │
-│  │  - Blocks direct ALB access from internet                             │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                              │                                              │
-│                              ▼                                              │
-│                      ECS Fargate Tasks                                      │
-└─────────────────────────────────────────────────────────────────────────────┘
+                        Internet
+                           |
+                    CloudFront Distribution (per domain)
+                     |-- WAF WebACL
+                     |-- Origin router (path-based)
+                           |
+              /use1/* -> us-east-1 ALB
+              /cac1/* -> ca-central-1 ALB
+              /apse1/* -> ap-southeast-1 ALB
+              /_next/static/* -> S3
+                           |
+                    Regional ALB
+                     (CloudFront-only ingress via prefix list)
+                           |
+                    ECS Fargate Tasks
 ```
 
-**Per-app WAF WebACLs:**
+- **Path routing:** CloudFront routes `/{region_label}/*` to the corresponding regional ALB
+- **basePath:** Next.js `basePath` set to `/{region}` at Docker build time
+- **Region preference:** `preferred-region` cookie, `index.html` region router at domain root
+- **Service discovery:** Cloud Map namespace per region (`app-{region}-{site}.local`)
 
-| App | WebACL | Special Rules |
-|-----|--------|---------------|
-| **auth.defcon.run** | auth-webacl | Stricter rate limits on `/api/oidc/*`, login brute-force protection |
-| **cms.defcon.run** | cms-webacl | Admin panel protection, upload size limits |
-| **run.defcon.run** | run-human-webacl | Standard protection, API rate limiting |
-| **gpx.defcon.run** | gpx-webacl | Standard protection, file upload limits |
-
-**Security layers:**
-
-1. **WAF WebACL** - First line of defense, blocks malicious requests before reaching origin
-2. **CloudFront prefix list** - ALB security groups only allow traffic from CloudFront IPs
-3. **ALB listener rules** - Route to correct target group based on path/host
-4. **nginx TLS** - End-to-end encryption to container
-
-## Container Architectures
-
-The project uses three container patterns depending on application requirements:
+## Container Patterns
 
 ### Next.js Apps (run.auth, run.human)
 
-Simple two-container architecture for stateless Next.js applications:
+Two-container ECS task: nginx (:443, TLS/proxy) -> webapp (:3000, `node server.js`).
 
-```
-┌─────────────────────────────────────────────┐
-│              ECS Task                       │
-│  ┌─────────────┐      ┌──────────────────┐  │
-│  │    nginx    │─────▶│     webapp       │  │
-│  │  (TLS/proxy)│      │ (node server.js) │  │
-│  │    :443     │      │      :3000       │  │
-│  └─────────────┘      └──────────────────┘  │
-└─────────────────────────────────────────────┘
-```
+### GPX Editor (run.gpx)
 
-- **nginx** - TLS termination, reverse proxy
-- **webapp** - Next.js server (`node server.js`)
+Single-container ECS task: webapp (:3000) serves both Next.js routes and gpx-studio static assets. ALB terminates TLS.
 
-### GPX Editor (run.gpx) - Next.js + Embedded SvelteKit
+### CMS (run.cms)
 
-Single-container architecture for the GPX route editor. TLS termination happens at the ALB.
+Two-container ECS task: nginx (:443) -> supervisord (Strapi :1337 + Litestream). Master runs `litestream replicate`; workers run periodic `litestream-sync.sh` restore.
 
-```
-┌─────────────────────────────────────────────┐
-│              ECS Task                       │
-│  ┌──────────────────────────────────────┐   │
-│  │           run-gpx-app                │   │
-│  │        (node server.js)              │   │
-│  │            :3000                     │   │
-│  │  ┌────────────────────────────────┐  │   │
-│  │  │  Next.js (auth, API routes)    │  │   │
-│  │  │  - /api/auth/* (Auth.js)       │  │   │
-│  │  │  - /api/gpx/* (file CRUD)      │  │   │
-│  │  │  - /api/user/* (mapbox token)  │  │   │
-│  │  ├────────────────────────────────┤  │   │
-│  │  │  /studio/* (gpx-studio static) │  │   │
-│  │  │  - SvelteKit prebuilt app      │  │   │
-│  │  └────────────────────────────────┘  │   │
-│  └──────────────────────────────────────┘   │
-│                    │                        │
-│           ┌───────┴───────┐                 │
-│           ▼               ▼                 │
-│       DynamoDB           S3                 │
-│    (file metadata)   (GPX files)            │
-└─────────────────────────────────────────────┘
-```
+## Infrastructure
 
-**Key components:**
+### Stack
 
-- **Next.js** - Auth, API routes, and file management
-- **gpx-studio** - SvelteKit-based GPX editor (built at deploy time via `build-frontend.sh`)
-- **DynamoDB** - File/folder metadata via ElectroDB (multi-region replicated)
-- **S3** - GPX file storage with presigned URLs
-- **Mapbox** - Map rendering (token from run-auth user profile)
+Terraform 1.14 + Terragrunt 0.97. 20 modules in `infra/terraform/modules/`.
 
-**Authentication flow:**
-1. User visits `/gpx` → Next.js checks session
-2. If authenticated and has `gpxstudio` service access → redirect to `/studio/app`
-3. gpx-studio fetches session from `/api/auth/session`
-4. File operations use `/api/gpx/*` endpoints with S3 presigned URLs
+### Modules
 
-**Why no nginx?**
-- ALB terminates TLS (HTTPS → HTTP)
-- Simpler deployment for this internal-facing tool
-- Fewer containers to manage
+| Module | Purpose |
+|--------|---------|
+| certs | ACM certificates |
+| cloudfront | CloudFront distributions |
+| cloudfront-assets | S3 + CloudFront for static assets |
+| cloudtrail | CloudTrail audit logging |
+| dynamodb | DynamoDB tables + Global Tables v2 |
+| ec2spot | EC2 Spot instances (waffaw fleet) |
+| ecr | Elastic Container Registry |
+| ecs-cluster | ECS Fargate clusters |
+| ecs-service | ECS service definitions |
+| ecs-task | ECS task definitions |
+| email | SES email configuration |
+| email-s3-replication | Cross-region email bucket replication |
+| github-oidc | GitHub Actions OIDC federation |
+| network | VPC (10.0.0.0/16, 2 AZs, public/private subnets, NAT) |
+| s3-uploads | S3 upload buckets |
+| s3-uploads-processor | Lambda upload processors |
+| s3-uploads-replication | Cross-region upload replication |
+| secrets | SSM Parameter Store secrets |
+| site | Top-level site orchestration |
+| waffaw | WAF testing infrastructure |
 
-### CMS (run.cms) - Master/Worker with Litestream
+### ECS Services (5 total)
 
-Stateful Strapi application using SQLite with master-worker replication:
+| Service | Regions | Notes |
+|---------|---------|-------|
+| auth | us-east-1, ca-central-1 | Central identity provider |
+| human | us-east-1, ca-central-1 | Main application |
+| cms-master | us-east-1 only | Strapi write node |
+| cms-worker | us-east-1, ca-central-1 | Strapi read replicas |
+| gpx | us-east-1, ca-central-1 | GPX editor |
 
-```
-┌─────────── us-east-1 (Master) ──────────────┐
-│              ECS Task                       │
-│  ┌─────────────┐      ┌──────────────────┐  │
-│  │    nginx    │─────▶│   supervisord    │  │
-│  │    :443     │      │  ┌────────────┐  │  │
-│  └─────────────┘      │  │  strapi    │  │  │
-│                       │  │   :1337    │  │  │
-│                       │  ├────────────┤  │  │
-│                       │  │ litestream │──┼──┼──▶ S3 (continuous)
-│                       │  │ (replicate)│  │  │
-│                       │  └────────────┘  │  │
-│                       └──────────────────┘  │
-└─────────────────────────────────────────────┘
+### Service Configuration
 
-┌─────── us-east-1 / ca-central-1 (Workers) ──┐
-│              ECS Task                       │
-│  ┌─────────────┐      ┌──────────────────┐  │
-│  │    nginx    │─────▶│   supervisord    │  │
-│  │    :443     │      │  ┌────────────┐  │  │
-│  └─────────────┘      │  │  strapi    │  │  │
-│                       │  │   :1337    │  │  │
-│                       │  ├────────────┤  │  │
-│   S3 ─────────────────┼──┤ litestream │  │  │
-│   (periodic restore)  │  │   (sync)   │  │  │
-│                       │  └────────────┘  │  │
-│                       └──────────────────┘  │
-└─────────────────────────────────────────────┘
-```
+Services defined in `infra/terraform/live/site/services/{service-name}/service.hcl`. Template variables:
+- `{{REGION}}` — Full AWS region (e.g., `us-east-1`)
+- `{{REGION_LABEL}}` — Short label (e.g., `use1`)
+- `{{SITE_LABEL}}` — Site prefix (e.g., `dc34`)
 
-**Key components:**
+### Secrets Management
 
-- **supervisord** - Process supervisor managing Strapi and Litestream together
-- **Strapi** - Headless CMS serving content API on port 1337
-- **Litestream** - SQLite replication to/from S3
-- **SQLite** - Embedded database at `/data/strapi.db`
-
-**Master (us-east-1 only):**
-- Handles all write operations (admin panel, content updates)
-- Runs `litestream replicate` continuously pushing WAL to S3
-- Exposed via ALB for admin access
-
-**Workers (both regions):**
-- Read-only content API for Next.js apps
-- Run `litestream-sync.sh` script:
-  1. Initial restore from S3 on startup
-  2. Periodic sync every 5 minutes (atomic swap)
-- Accessed via ECS Service Discovery (internal only, no ALB)
-- Auto-scales 1-3 instances based on CPU
-
-**Data flow:**
-1. Admin edits content via Master
-2. Litestream continuously replicates SQLite WAL to S3 (1s interval)
-3. Workers periodically restore from S3 (5 minute sync)
-4. Next.js apps query local Worker via service discovery
-
-## Service Configuration
-
-Services are defined in `infra/terraform/live/site/services/{service-name}/service.hcl`:
-- ECR repository definitions
-- ECS task definitions (containers, CPU/memory, env vars, secrets)
-- DynamoDB table definitions with optional multi-region replication
-- Load balancer configuration
-- Service-specific S3 buckets and Lambda processors
-
-### Template Variables
-
-Used in service.hcl files:
-- `{{REGION}}` - Full AWS region (e.g., `us-east-1`)
-- `{{REGION_LABEL}}` - Short region label (e.g., `use1`)
-- `{{SITE_LABEL}}` - Site prefix (e.g., `dc34`)
-
-## Secrets Management
-
-Secrets are stored in SSM Parameter Store and referenced in service.hcl via `secrets` array. Secret values come from `.secrets.sops.json` (SOPS-encrypted) or `.secrets.json` (plaintext, not recommended).
+SSM Parameter Store (not Secrets Manager), KMS-encrypted. Source: `.secrets.sops.json` (SOPS-encrypted).
 
 Path pattern: `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/{provider}/{key}`
 
-## AWS Multi-Account Architecture
+## Security Model
 
-The infrastructure uses a multi-account pattern for separation of concerns:
+| Layer | Mechanism |
+|-------|-----------|
+| Session validation | Every 5 min against auth server |
+| Server-to-server | `X-Internal-Secret` header, internal service discovery URLs |
+| Cookies | httpOnly, secure (prod), sameSite=lax |
+| CSRF | Auth.js standard + custom verification on login endpoint |
+| Uploads | Quota consumed before presign, GPX binary validation |
+| WAF (auth) | Deny-by-default WebACL |
+| WAF (others) | AWS Managed Rules (Common, Known Bad Inputs) |
+| ALB ingress | CloudFront prefix list — blocks direct internet access |
+| TLS | nginx terminates TLS within containers (except run.gpx) |
+
+**Known gaps:** No rate limiting on auth endpoints. Session invalidation (`sessionVersion`) not enforced. `allowDangerousEmailAccountLinking=true`.
+
+## AWS Account Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     management account                              │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │  Route53 Hosted Zone: defcon.run                              │  │
-│  │  - NS records delegate to application account hosted zones    │  │
-│  │  - Owns the root domain registration                          │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-                                    │
-                          NS delegation
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                     application account                             │
-│  ┌─────────────────────┐  ┌─────────────────────┐                   │
-│  │   us-east-1 (use1)  │  │  ca-central-1 (cac1)│                   │
-│  │  - ECS Fargate      │  │  - ECS Fargate      │                   │
-│  │  - ALB              │  │  - ALB              │                   │
-│  │  - ECR              │  │  - ECR              │                   │
-│  │  - S3 buckets       │  │  - S3 buckets       │                   │
-│  │  - SSM secrets      │  │  - SSM secrets      │                   │
-│  │  - DynamoDB         │  │  - DynamoDB         │                   │
-│  └─────────────────────┘  └─────────────────────┘                   │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │  Global: CloudFront, WAF, ACM (us-east-1), Route53 subzones   │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────┐
-│                      terraform account                              │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │  Terraform State Storage                                      │  │
-│  │  - S3 bucket for .tfstate files                               │  │
-│  │  - DynamoDB table for state locking                           │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+management account
+  Route53: defcon.run (root domain, NS delegation)
+       |
+application account
+  us-east-1: ECS, ALB, ECR, S3, SSM, DynamoDB
+  ca-central-1: ECS, ALB, ECR, S3, SSM, DynamoDB
+  ap-southeast-1: ECS, ALB, ECR, S3, SSM, DynamoDB
+  Global: CloudFront, WAF, ACM (us-east-1), Route53 subzones
+       |
+terraform account
+  S3 state bucket + DynamoDB lock table
 ```
 
-**Account responsibilities:**
+All three profiles can point to the same AWS account. The profile names (`management`, `application`, `terraform`) are conventions used by scripts.
 
-| Account | Purpose |
-|---------|---------|
-| **management** | Owns `defcon.run` domain, delegates subzones via NS records |
-| **application** | All runtime resources (ECS, ALB, S3, DynamoDB, CloudFront) |
-| **terraform** | Terraform state bucket and DynamoDB lock table |
-
-### AWS CLI Profiles
-
-Scripts expect these named profiles in `~/.aws/config`:
-
-| Profile | Account | Used for |
-|---------|---------|----------|
-| `management` | management | Route53 zone delegation (rarely needed) |
-| `application` | application | ECR push, S3 sync, ECS operations, deployments |
-| `terraform` | terraform | Terragrunt/Terraform state access |
-
-**Single-account option:** All three profiles can point to the same AWS account if separation isn't needed. The profile names are conventions used by scripts, not hard requirements for distinct accounts.
-
-## CI/CD Pipeline
+## CI/CD
 
 ### GitHub Actions Workflows
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `terragrunt-plan.yml` | PRs with `infra/**` changes | Preview infrastructure changes |
-| `terragrunt-apply.yml` | Merge to main with `infra/**` changes | Deploy infrastructure (requires approval) |
-| `e2e-tests.yml` | Manual / workflow_dispatch | End-to-end testing |
+| `terragrunt-apply.yml` | Merge to main with `infra/**` | Deploy infrastructure (requires approval) |
+| `deploy.yml` | Manual | Deploy app to ECS |
+| `rollback.yml` | Manual | Rollback ECS deployment |
+| `e2e-tests.yml` | Manual | End-to-end auth tests |
 | `gitleaks-scan.yml` | Push | Secret detection |
 | `checkov-scan.yml` | Push | Infrastructure security scanning |
+| `prowler-scan.yml` | Scheduled/manual | AWS security posture |
+| `npm-audit.yml` | Scheduled/manual | Dependency vulnerability scanning |
+| `ec2-runner.yml` | Called by other workflows | Self-hosted EC2 runner management |
+| `buildpub.yml` | Manual | Build public assets |
 
-### Infrastructure Deployment Flow
+### IAM Roles (OIDC Federation)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  PR with infra/ changes                                         │
-│  ↓                                                              │
-│  Terragrunt Plan (auto) ──→ Plan output in PR comment           │
-│  ↓                                                              │
-│  Merge to main                                                  │
-│  ↓                                                              │
-│  Terragrunt Apply (triggered) ──→ Waits for approval            │
-│  ↓                                                              │
-│  Approve in GitHub (terraform-apply environment)                │
-│  ↓                                                              │
-│  terragrunt run apply --all                                     │
-└─────────────────────────────────────────────────────────────────┘
-```
+7 roles, no long-lived credentials: `terragrunt`, `application`, `readonly`, `prowler`, `e2e`, `release`, `deploy`.
 
-**Environment Protection:**
+### Release Flow
 
-The `terraform-apply` GitHub environment requires manual approval before `terragrunt apply` runs. Configure required reviewers at:
-`Settings → Environments → terraform-apply → Environment protection rules`
+`./apps/release-all.sh --pr` automates: create release branch -> bump VERSION files -> build/push Docker images to ECR -> create/merge PR -> trigger terragrunt-apply if infra changed.
 
-### Release Automation
+VERSION files live at `apps/{app}/webapp/VERSION` (or `app/VERSION` for CMS) and are copied to `infra/terraform/live/site/services/{service}/VERSION.app`.
 
-The `release-all.sh` script automates the full release cycle:
+## Operational Tools
 
-```bash
-./apps/release-all.sh --pr    # Recommended: full release with PR
-```
+### ConfigUI (`apps/configui/`)
 
-**What happens:**
+Go binary, binds to 127.0.0.1 only. Embeds all templates/JS/CSS. Features: HCL generation from web form, terragrunt execution with SSE streaming, SOPS secret editing, service discovery dots, output explorer.
 
-1. Creates release branch (`release/YYYY-MM-DD-HHMMSS`)
-2. Bumps VERSION files for all apps (nginx + webapp)
-3. Copies VERSION files to terraform service directories
-4. Commits all VERSION files in single commit
-5. Pushes branch and creates PR with version summary
-6. Builds Docker images for all apps/regions
-7. Pushes images to ECR
-8. Auto-merges PR (squash merge, deletes branch)
-9. If `infra/` changed, triggers `terragrunt-apply` workflow
-10. User approves in GitHub Actions → infrastructure deploys
+### Waffaw (`apps/waffaw/`)
 
-**VERSION File Locations:**
-
-| Type | Path |
-|------|------|
-| App VERSION | `apps/{app}/webapp/VERSION` or `apps/{app}/app/VERSION` |
-| Nginx VERSION | `apps/{app}/nginx/VERSION` |
-| Terraform VERSION | `infra/terraform/live/site/services/{service}/VERSION.app` |
-| Terraform Nginx | `infra/terraform/live/site/services/{service}/VERSION.nginx` |
-
-### IAM Roles for GitHub Actions
-
-| Role | Purpose |
-|------|---------|
-| `dc34-github-readonly` | Terragrunt plan (read-only AWS access) |
-| `dc34-github-terragrunt` | Terragrunt apply (full AWS access) |
-| `dc34-github-e2e` | E2E tests (S3 email bucket access) |
-
-These roles use OIDC federation - no long-lived credentials stored in GitHub.
+WAF testing platform (~70% implemented). S3 control plane, Artillery + Playwright for real browser TLS fingerprints, EC2 Spot + ECS Fargate Spot fleet, bash agent with roll-call consensus protocol. Integrates into ConfigUI's Apps section. See `apps/waffaw/DESIGN.md`.

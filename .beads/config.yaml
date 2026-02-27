@@ -6,7 +6,7 @@
 # Issue prefix for this repository (used by bd init)
 # If not set, bd init will auto-detect from directory name
 # Example: issue-prefix: "myproject" creates issues like "myproject-1", "myproject-2", etc.
-issue-prefix: "dcr34"
+# issue-prefix: ""
 
 # Use no-db mode: load from JSONL, no SQLite, write back after each command
 # When true, bd will use .beads/issues.jsonl as the source of truth
@@ -14,7 +14,7 @@ issue-prefix: "dcr34"
 # no-db: false
 
 # Disable daemon for RPC communication (forces direct database access)
-no-daemon: true
+# no-daemon: false
 
 # Disable auto-flush of database to JSONL after mutations
 # no-auto-flush: false
@@ -42,7 +42,7 @@ no-daemon: true
 # This setting persists across clones (unlike database config which is gitignored).
 # Can also use BEADS_SYNC_BRANCH env var for local override.
 # If not set, bd sync will require you to run 'bd config set sync.branch <branch>'.
-sync-branch: "beads-sync"
+# sync-branch: "beads-sync"
 
 # Multi-repo configuration (experimental - bd-307)
 # Allows hydrating from multiple repositories and routing writes to the correct JSONL
