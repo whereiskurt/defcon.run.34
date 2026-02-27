@@ -3,7 +3,7 @@ import { Metadata, Viewport } from "next";
 import clsx from "clsx";
 import { Providers } from "@/app/providers";
 import { siteConfig } from "@site";
-import { fontSans } from "@fonts";
+import { fontSans, fontMono, fontMuseo, fontAtkinson } from "@fonts";
 import { SessionProvider } from "next-auth/react";
 import { Header } from "@header";
 import { Footer } from "@/components/footer";
@@ -11,11 +11,8 @@ import { auth } from "@auth";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
-// SessionProvider basePath - full path for client-side browser requests
-// (includes Next.js basePath because browser needs the complete URL)
 const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
 
-// Version tooltip
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
 export const metadata: Metadata = {
@@ -32,7 +29,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0f" },
   ],
 };
 
@@ -55,15 +52,18 @@ export default async function ProtectedRootLayout({
         className={clsx(
           "min-h-screen bg-background font-sans antialiased",
           fontSans.variable,
+          fontMono.variable,
+          fontMuseo.variable,
+          fontAtkinson.variable,
         )}
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
-            <div className="relative flex flex-col min-h-screen">
-              <div className="flex-shrink-0">
+            <div className="relative flex flex-col min-h-screen noise-overlay">
+              <div className="flex-shrink-0 relative z-10">
                 <Header session={session} />
               </div>
-              <main className="container mx-auto max-w-7xl px-6 flex-grow max-w-[900px] pt-4 pb-2">
+              <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-6 pb-4 relative z-10">
                 {children}
               </main>
               <Footer versionTooltip={APP_VERSION_TOOLTIP} />

@@ -3,21 +3,18 @@
 import {
   Card,
   CardBody,
-  CardHeader,
-  Divider,
   Button,
   Spinner,
 } from "@heroui/react";
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { Text, Heading } from "@components/text-effects/Common";
+import { signIn, useSession } from "next-auth/react";
+import { ChevronRight } from "lucide-react";
 
-// Callback URL needs region prefix in production for next-auth redirects
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
-const dashboardUrl = isDev ? "/dashboard" : `/${region}/dashboard`;
+const whoamiUrl = isDev ? "/whoami" : `/${region}/whoami`;
 
 function LoginContent() {
   const [mounted, setMounted] = useState(false);
@@ -30,84 +27,150 @@ function LoginContent() {
     setMounted(true);
   }, []);
 
-  // Auto-trigger sign-in when autoLogin flag is present
   useEffect(() => {
     if (autoLogin && mounted && !autoLoginTriggered) {
       setAutoLoginTriggered(true);
       console.log("[Silent SSO] Auto-login triggered, starting OIDC flow");
-      signIn("run.defcon.run", { callbackUrl: dashboardUrl });
+      signIn("run.defcon.run", { callbackUrl: whoamiUrl });
     }
   }, [autoLogin, mounted, autoLoginTriggered]);
 
-  // Show loading spinner during auto-login
   if (autoLogin && !autoLoginTriggered) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <div className="z-10 w-full max-w-md">
-          <Card className="shadow-lg bg-content1">
-            <CardBody className="flex flex-col items-center gap-4 py-8">
-              <Spinner size="lg" />
-              <Text variant="small" className="text-gray-500">
-                Signing you in...
-              </Text>
-            </CardBody>
-          </Card>
+      <div className="space-y-6 animate-fade-in">
+        <div className="text-center space-y-2">
+          <h1 className="font-museo text-4xl font-bold tracking-tight text-foreground">
+            defcon<span className="teal-dot">.</span>run
+          </h1>
         </div>
+        <Card className="glass-card">
+          <CardBody className="flex flex-col items-center gap-4 py-10">
+            <Spinner size="lg" color="primary" />
+            <p className="text-sm text-default-400 font-mono">
+              Signing you in...
+            </p>
+          </CardBody>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <div className="z-10 w-full max-w-md">
-        <Card className="shadow-lg bg-content1">
-          <CardHeader>
-            <div className="flex flex-col">
-              <Heading level={1}>Welcome to {process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run'}</Heading>
-              <Text
-                variant="small"
-                className="text-default-500"
-              >
-                Sign in to access your dashboard
-              </Text>
-            </div>
-          </CardHeader>
-          <Divider />
-          <CardBody className="flex justify-center">
+    <div className="space-y-6 animate-slide-up">
+      {/* Wordmark */}
+      <div className="text-center space-y-2">
+        <h1 className="font-museo text-4xl font-bold tracking-tight text-foreground">
+          defcon<span className="teal-dot">.</span>run
+        </h1>
+        <p className="font-mono text-xs text-default-400 tracking-widest uppercase">
+          DEF CON 34 &mdash; Las Vegas 2026
+        </p>
+      </div>
+
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="flex flex-col items-center gap-4 py-8 px-6">
+          <p className="text-sm text-default-500 text-center">
+            Sign in to access your dashboard, routes, and event features.
+          </p>
+          <Button
+            variant="solid"
+            color="primary"
+            className="font-semibold px-8"
+            size="lg"
+            onPress={() =>
+              signIn("run.defcon.run", { callbackUrl: whoamiUrl })
+            }
+          >
+            Sign In
+          </Button>
+        </CardBody>
+      </Card>
+    </div>
+  );
+}
+
+function WelcomeContent({ userName }: { userName: string }) {
+  return (
+    <div className="space-y-6 animate-slide-up">
+      {/* Wordmark */}
+      <div className="text-center space-y-2">
+        <h1 className="font-museo text-4xl font-bold tracking-tight text-foreground">
+          defcon<span className="teal-dot">.</span>run
+        </h1>
+        <p className="font-mono text-xs text-default-400 tracking-widest uppercase">
+          DEF CON 34 &mdash; Las Vegas 2026
+        </p>
+      </div>
+
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="flex flex-col items-center gap-5 py-8 px-6">
+          <p className="font-museo text-2xl font-bold text-foreground text-center">
+            Welcome back, {userName}
+          </p>
+          <div className="flex flex-col gap-2 w-full max-w-xs">
             <Button
               variant="solid"
               color="primary"
-              className="text-lg font-semibold"
-              onPress={() =>
-                signIn("run.defcon.run", { callbackUrl: dashboardUrl })
-              }
+              className="font-semibold w-full"
+              size="lg"
+              href="/whoami"
+              as="a"
+              endContent={<ChevronRight className="w-4 h-4" />}
             >
-              Sign In
+              Who Am I
             </Button>
-          </CardBody>
-        </Card>
-      </div>
+            <Button
+              variant="flat"
+              color="default"
+              className="w-full"
+              href="/routes"
+              as="a"
+              endContent={<ChevronRight className="w-4 h-4" />}
+            >
+              Routes
+            </Button>
+            <Button
+              variant="flat"
+              color="default"
+              className="w-full"
+              href="/leaderboard"
+              as="a"
+              endContent={<ChevronRight className="w-4 h-4" />}
+            >
+              Leaderboard
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
     </div>
   );
 }
 
 export default function PublicPage() {
   const [mounted, setMounted] = useState(false);
+  const { data: session, status } = useSession();
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) {
+  if (!mounted || status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <div className="z-10 w-full max-w-md">
-          <div className="bg-white/50 dark:bg-gray-900/50 shadow-lg rounded-lg p-6">
-            <p className="text-center">Loading...</p>
-          </div>
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <div className="h-10 w-48 mx-auto rounded bg-content2 animate-pulse" />
+          <div className="h-4 w-64 mx-auto rounded bg-content2 animate-pulse" />
+        </div>
+        <div className="glass-card rounded-xl p-6">
+          <div className="h-24 rounded bg-content2 animate-pulse" />
         </div>
       </div>
     );
+  }
+
+  if (session?.user) {
+    const userName = session.user.displayName || session.user.name?.split(' ')[0] || 'Runner';
+    return <WelcomeContent userName={userName} />;
   }
 
   return <LoginContent />;

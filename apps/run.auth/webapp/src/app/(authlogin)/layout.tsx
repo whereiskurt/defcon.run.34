@@ -3,13 +3,11 @@ import { Metadata, Viewport } from "next";
 import clsx from "clsx";
 import { Providers } from "@/app/providers";
 import { siteConfig } from "@site";
-import { fontSans } from "@fonts";
+import { fontSans, fontMono, fontMuseo, fontAtkinson } from "@fonts";
 import { SessionProvider } from "next-auth/react";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
-// SessionProvider basePath - full path for client-side browser requests
-// (includes Next.js basePath because browser needs the complete URL)
 const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
 
 export const metadata: Metadata = {
@@ -26,7 +24,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0f" },
   ],
 };
 
@@ -48,13 +46,16 @@ export default function AuthLayout({
         className={clsx(
           "min-h-screen bg-background font-sans antialiased",
           fontSans.variable,
+          fontMono.variable,
+          fontMuseo.variable,
+          fontAtkinson.variable,
         )}
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
-            <div className="relative flex flex-col h-screen">
-              <main className="container mx-auto h-screen flex items-center justify-center">
-                <div className="w-full max-w-md">
+            <div className="relative flex flex-col h-screen noise-overlay">
+              <main className="container mx-auto h-screen flex items-center justify-center relative z-10">
+                <div className="w-full max-w-md px-4">
                   {children}
                 </div>
               </main>

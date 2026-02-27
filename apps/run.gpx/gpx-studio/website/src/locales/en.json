@@ -286,7 +286,7 @@
         "opacity": "Overlay opacity",
         "label": {
             "basemaps": "Basemaps",
-            "overlays": "Overlays",
+            "overlays": "Real-Time Trackers",
             "custom": "Custom",
             "world": "World",
             "countries": "Countries",

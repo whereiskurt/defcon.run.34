@@ -9,7 +9,7 @@ const REGION_SHORT = process.env.REGION_SHORT || "use1";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   // Callback URL needs region prefix for next-auth redirects in production
-  const defaultCallback = `/${REGION_SHORT}/dashboard`;
+  const defaultCallback = `/${REGION_SHORT}/whoami`;
   const callbackUrl = url.searchParams.get("callbackUrl") || defaultCallback;
 
   // Trigger the OIDC flow - signIn in a route handler is allowed

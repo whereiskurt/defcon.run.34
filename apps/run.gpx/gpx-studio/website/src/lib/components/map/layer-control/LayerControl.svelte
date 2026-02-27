@@ -250,17 +250,7 @@
                             />
                         {/if}
                     </div>
-                    <Separator class="w-full" />
-                    <div class="p-2 ml-1">
-                        {#if $currentOverpassQueries}
-                            <LayerTree
-                                layerTree={$selectedOverpassTree}
-                                name="overpass"
-                                multiple={true}
-                                bind:checked={$currentOverpassQueries}
-                            />
-                        {/if}
-                    </div>
+                    <!-- POI/Overpass section removed for DEF CON -->
                 </div>
             </ScrollArea>
         </div>

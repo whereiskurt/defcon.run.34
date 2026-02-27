@@ -10,29 +10,21 @@ import {
   Tooltip,
 } from '@heroui/react';
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
-
 import { FaMoneyCheckDollar, FaRadio, FaFire } from 'react-icons/fa6';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
   loading: () => (
-    <Avatar
-      size="lg"
-      className="opacity-50 animate-pulse"
-      src=""
-    />
+    <Avatar size="sm" className="opacity-50 animate-pulse" src="" />
   ),
 });
 const LoginDropDown = dynamic(() => import('./dropdown-login'), {
   ssr: false,
   loading: () => (
-    <Button
-      variant="light"
-      className="opacity-50 animate-pulse"
-      disabled
-    >
+    <Button variant="light" className="opacity-50 animate-pulse" disabled size="sm">
       Login
     </Button>
   ),
@@ -48,115 +40,93 @@ const MenuDropDown = dynamic(() => import('./dropdown-menu'), {
 
 import { ThemeSwitch } from '../theme-switch';
 
-// Version tooltip - will be populated from environment
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
+
+const navItems = [
+  { href: '/routes', label: 'Routes', icon: GrMapLocation },
+  { href: '/heatmap', label: 'HeatMap', icon: FaFire },
+  { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio },
+  { href: '/contributors', label: 'Contributors', icon: FaMoneyCheckDollar },
+] as const;
 
 export function Header(params: any) {
   const session = params.session;
   const hasSession = session !== null;
+  const pathname = usePathname();
+
   return (
-    <Navbar isBordered className="mx-auto max-w-[900px]">
+    <Navbar
+      maxWidth="lg"
+      classNames={{
+        base: "glass-nav",
+        wrapper: "max-w-[900px]",
+      }}
+    >
+      {/* Mobile: hamburger */}
       <NavbarContent className="sm:hidden" justify="start">
         <NavbarItem>
           <MenuDropDown session={session} />
         </NavbarItem>
       </NavbarContent>
+
+      {/* Mobile: wordmark */}
       <NavbarContent className="sm:hidden" justify="center">
-        <NavbarItem className="">
+        <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href="/dashboard">
-              <span className="font-semibold text-lg">defcon.run</span>
+            <Link color="foreground" href="/">
+              <span className="font-museo text-lg font-bold tracking-tight">
+                defcon<span className="teal-dot">.</span>run
+              </span>
             </Link>
           </Tooltip>
         </NavbarItem>
       </NavbarContent>
-      <NavbarContent className="sm:flex hidden" justify="center">
-        <>
-          <NavbarItem>
-            <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-              <Link color="foreground" href="/dashboard">
-                <span className="font-semibold text-lg">defcon.run</span>
-              </Link>
-            </Tooltip>
-          </NavbarItem>
-        </>
-        {hasSession ? (
-          <>
-            <NavbarItem>
-              <Link color="foreground" href="/routes">
-                <Button variant="light">
-                  <GrMapLocation size={24} />
-                  Routes
-                </Button>
-              </Link>
-            </NavbarItem>
-            <NavbarItem>
-              <Link className='p-0 m-0' color="foreground" href="/heatmap">
-                <Button variant="light">
-                  <FaFire size={24} />
-                  HeatMap
-                </Button>
-              </Link>
-            </NavbarItem>
-          </>
-        ) : (
-          <>
-            <NavbarItem>
-              <Link color="foreground" href="/routes">
-                <Button variant="light">
-                  <GrMapLocation size={24} />
-                  Routes
-                </Button>
-              </Link>
-            </NavbarItem>
-            <NavbarItem>
-              <Link className='p-0 m-0' color="foreground" href="/heatmap">
-                <Button variant="light">
-                  <FaFire size={24} />
-                  HeatMap
-                </Button>
-              </Link>
-            </NavbarItem>
-          </>
-        )}
+
+      {/* Desktop: wordmark + nav */}
+      <NavbarContent className="sm:flex hidden gap-6" justify="center">
         <NavbarItem>
-          <Link color="foreground" href="/meshtastic">
-            <Button variant="light">
-              <FaRadio size={24} />
-              Meshtastic
-            </Button>
-          </Link>
+          <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
+            <Link color="foreground" href="/">
+              <span className="font-museo text-lg font-bold tracking-tight">
+                defcon<span className="teal-dot">.</span>run
+              </span>
+            </Link>
+          </Tooltip>
         </NavbarItem>
 
-
-        <NavbarItem>
-          <Link color="foreground" href="/contributors">
-            <Button variant="light">
-              <FaMoneyCheckDollar size={24} />
-              Contributors
-            </Button>
-          </Link>
-        </NavbarItem>
-
+        {navItems.map(({ href, label, icon: Icon }) => {
+          const isActive = pathname?.startsWith(href);
+          return (
+            <NavbarItem key={href}>
+              <Link
+                color="foreground"
+                href={href}
+                className={`text-sm flex items-center gap-1.5 transition-colors relative py-1 ${
+                  isActive
+                    ? 'text-primary font-medium nav-active'
+                    : 'text-default-500 hover:text-foreground'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </Link>
+            </NavbarItem>
+          );
+        })}
       </NavbarContent>
 
-      <NavbarContent justify="end">
+      {/* Right: theme + auth */}
+      <NavbarContent justify="end" className="gap-2">
         <NavbarItem>
           <ThemeSwitch />
         </NavbarItem>
-        {hasSession ? (
-          <>
-            <NavbarItem>
-              <UserDropDown session={session} />
-            </NavbarItem>
-          </>
-        ) : (
-          <>
-            <NavbarItem>
-              <LoginDropDown />
-            </NavbarItem>
-          </>
-        )}
+        <NavbarItem>
+          {hasSession ? (
+            <UserDropDown session={session} />
+          ) : (
+            <LoginDropDown />
+          )}
+        </NavbarItem>
       </NavbarContent>
     </Navbar>
   );

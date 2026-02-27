@@ -1,30 +1,27 @@
 'use client';
+
 import {
   addToast,
   Button,
-  Input,
   InputOtp,
-  Link,
   ToastProvider,
+  Card,
+  CardBody,
+  Divider,
 } from '@heroui/react';
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import { FaDiscord, FaGithub } from 'react-icons/fa';
 import { FaMobileScreenButton } from 'react-icons/fa6';
-import { MdOutlineMarkEmailRead } from 'react-icons/md';
+import { Mail, ArrowLeft } from 'lucide-react';
 import React from 'react';
 import { signIn } from 'next-auth/react';
 
-import { Text } from '@components/text-effects/Common';
-import { Heading } from '@components/text-effects/Common';
-
-// Get the basePath for production multi-region deployment
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
   : '';
 
-// OAuth buttons component that handles OIDC redirects
 function OAuthButtons({ oidcInteraction }: { oidcInteraction: string | null }) {
   const getCallbackUrl = () => {
     if (oidcInteraction) {
@@ -34,42 +31,39 @@ function OAuthButtons({ oidcInteraction }: { oidcInteraction: string | null }) {
   };
 
   return (
-    <Text variant="large" className="pt-2">
-      No email? Try{' '}
-      <Link
-        size="lg"
-        href="#"
+    <div className="flex gap-3 w-full">
+      <Button
+        variant="flat"
+        className="flex-1"
+        size="sm"
+        startContent={<FaDiscord className="w-3.5 h-3.5" />}
         onPress={() => signIn('discord', { callbackUrl: getCallbackUrl() })}
       >
-        &nbsp; <FaDiscord />
         Discord
-      </Link>{' '}
-      or
-      <Link
-        size="lg"
-        href="#"
+      </Button>
+      <Button
+        variant="flat"
+        className="flex-1"
+        size="sm"
+        startContent={<FaGithub className="w-3.5 h-3.5" />}
         onPress={() => signIn('github', { callbackUrl: getCallbackUrl() })}
       >
-        &nbsp; <FaGithub />
-        Github
-      </Link>
-    </Text>
+        GitHub
+      </Button>
+    </div>
   );
 }
 
-// Separate client component to handle search params
 function EmailVerificationForm() {
   const searchParams = useSearchParams();
   const [email, setEmail] = useState<string>('');
   const [code, setCode] = useState<string>('');
-
-  // Check for OIDC interaction ID in URL params
   const oidcInteraction = searchParams?.get('oidc');
 
   useEffect(() => {
     addToast({
       title: 'Email Sent',
-      description: 'You should receive an email with a magic link shortly.',
+      description: 'Check your inbox for a verification code.',
       color: 'success',
       variant: 'flat',
     });
@@ -82,13 +76,10 @@ function EmailVerificationForm() {
     setEmail(emailQuery || '');
   }, [searchParams]);
 
-  // Determine the callback URL based on whether this is an OIDC flow
   const getCallbackUrl = () => {
     if (oidcInteraction) {
-      // OIDC flow: redirect to complete the interaction
       return `${basePath}/api/oidc/interaction/${oidcInteraction}`;
     }
-    // Normal flow: redirect to home
     return `${basePath}/`;
   };
 
@@ -101,7 +92,6 @@ function EmailVerificationForm() {
   };
 
   const handlePress = (e: any) => {
-    // Prevent default if possible (for compatibility)
     if (e && typeof e.preventDefault === 'function') {
       e.preventDefault();
     }
@@ -111,55 +101,109 @@ function EmailVerificationForm() {
   };
 
   return (
-    <>
-      {email && (
-        <Text variant="large">
-          Check <b>{email.replace('%2B', '+')}</b>
-        </Text>
-      )}
-      <form onSubmit={handleValidation}>
-        <InputOtp
-          autoFocus={true}
-          name="code"
-          type="code"
-          placeholder="XXXXXX"
-          description="Enter Code"
-          length={6}
-          title="Poop"
-          value={code}
-          onChange={(e) => setCode((e.target as HTMLInputElement).value)}
-        />
+    <div className="space-y-6 animate-fade-up">
+      {/* Wordmark */}
+      <div className="text-center space-y-2">
+        <h1 className="font-museo text-4xl font-bold tracking-tight text-foreground">
+          defcon<span className="teal-dot">.</span>run
+        </h1>
+      </div>
 
-        <Button
-          className="mt-4 mb-2"
-          type="submit"
-          variant="solid"
-          color="primary"
-          onPress={handlePress}
-        >
-          <FaMobileScreenButton size={24} />
-          <Heading level={4}>Validate</Heading>
-        </Button>
-      </form>
-      <OAuthButtons oidcInteraction={oidcInteraction ?? null} />
-    </>
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="space-y-5 px-5 py-5">
+          {/* Status header */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center flex-shrink-0">
+              <Mail className="w-5 h-5 text-success" />
+            </div>
+            <div>
+              <h2 className="font-museo text-lg font-bold text-foreground">Check your email</h2>
+              {email && (
+                <p className="text-sm text-default-500">
+                  Sent to <span className="font-mono text-foreground">{email.replace('%2B', '+')}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* Code input */}
+          <form onSubmit={handleValidation} className="space-y-4">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-default-600">
+                Verification Code
+              </label>
+              <div className="flex justify-center">
+                <InputOtp
+                  autoFocus={true}
+                  name="code"
+                  type="code"
+                  placeholder="XXXXXX"
+                  length={6}
+                  value={code}
+                  onChange={(e) => setCode((e.target as HTMLInputElement).value)}
+                />
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              variant="solid"
+              color="primary"
+              className="w-full font-semibold"
+              onPress={handlePress}
+              startContent={<FaMobileScreenButton className="w-4 h-4" />}
+            >
+              Verify Code
+            </Button>
+          </form>
+
+          <div className="relative w-full">
+            <Divider />
+            <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-content1 px-3 text-xs text-default-400">
+              or try another method
+            </span>
+          </div>
+
+          <OAuthButtons oidcInteraction={oidcInteraction ?? null} />
+
+          <div className="text-center">
+            <Button
+              as="a"
+              href={`${basePath}/login`}
+              variant="light"
+              size="sm"
+              className="text-default-400"
+              startContent={<ArrowLeft className="w-3.5 h-3.5" />}
+            >
+              Back to login
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+    </div>
   );
 }
 
-// Main page component
 export default function EmailLogin() {
   return (
-    <div>
+    <>
       <ToastProvider placement="bottom-center" />
-      <div className="min-h-screen flex flex-col items-center text-center px-4">
-        <MdOutlineMarkEmailRead className="text-green-500" size={48} />
-        <Heading level={2}>Email Queued</Heading>
-        <Text variant="xxlarge">You will receive an email shortly.</Text>
-
-        <Suspense fallback={<Text variant="large">Check account</Text>}>
-          <EmailVerificationForm />
-        </Suspense>
-      </div>
-    </div>
+      <Suspense
+        fallback={
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="h-10 w-48 mx-auto rounded bg-content2 animate-pulse" />
+            </div>
+            <div className="glass-card rounded-xl p-6">
+              <div className="h-32 rounded bg-content2 animate-pulse" />
+            </div>
+          </div>
+        }
+      >
+        <EmailVerificationForm />
+      </Suspense>
+    </>
   );
 }
