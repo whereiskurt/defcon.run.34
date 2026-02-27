@@ -15,7 +15,7 @@ WEBAPP_DIR="$SCRIPT_DIR/webapp"
 OUTPUT_DIR="$WEBAPP_DIR/public/studio"
 
 echo "=== Building GPX Studio frontend ==="
-echo "Version: $(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo 'dev')"
+echo "Version: $(cat "$WEBAPP_DIR/VERSION" 2>/dev/null || echo 'dev')"
 echo ""
 
 # Check if gpx-studio submodule is initialized
