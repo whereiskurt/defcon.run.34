@@ -91,7 +91,7 @@ async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
 const providers: Provider[] = [
   {
     id: "run.defcon.run",
-    name: "DEFCON.run",
+    name: config.siteDomain,
     type: "oidc",
     issuer: `${config.urls.publicAuthServer}/api/oidc`,
     // Set redirectProxyUrl at provider level to ensure callback URL includes region prefix

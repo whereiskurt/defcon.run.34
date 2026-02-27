@@ -71,9 +71,17 @@ esac
 
 # Common AWS setup
 export PAGER=${PAGER:-}
+
+# Load profile prefix from env.local.sh (set by configui fork)
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ -f "${REPO_ROOT}/env.local.sh" ]]; then
+  PROFILE_PREFIX=$(sed -n 's/^export TF_VAR_profile_prefix="\([^"]*\)"/\1/p' "${REPO_ROOT}/env.local.sh" 2>/dev/null || true)
+fi
+APP_PROFILE="${PROFILE_PREFIX:+${PROFILE_PREFIX}-}application"
+
 # Only set AWS_PROFILE if not running in GitHub Actions (where OIDC provides credentials)
 if [[ -z "$GITHUB_ACTIONS" ]]; then
-  export AWS_PROFILE=${AWS_PROFILE:-application}
+  export AWS_PROFILE=${AWS_PROFILE:-${APP_PROFILE}}
 fi
 export AWS_REGION=${AWS_REGION:-"us-east-1"}
 export REGION_SHORT=${REGION_SHORT:-"use1"}
@@ -82,7 +90,7 @@ export AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-$(aws sts get-caller-identity --query "A
 # Helper function for AWS commands - uses profile locally, OIDC in CI
 aws_cmd() {
   if [[ -z "$GITHUB_ACTIONS" ]]; then
-    AWS_PROFILE=application aws "$@"
+    AWS_PROFILE="${APP_PROFILE}" aws "$@"
   else
     aws "$@"
   fi

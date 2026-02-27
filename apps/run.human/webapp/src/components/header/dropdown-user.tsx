@@ -236,7 +236,7 @@ function LogoutModal(isOpen: boolean, onClose: () => void) {
           <>
             <ModalHeader className="flex flex-col gap-1">Logout?</ModalHeader>
             <ModalBody>
-              <p>Do you want to Logout of DEFCON.run? </p>
+              <p>Do you want to Logout of {process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run'}? </p>
             </ModalBody>
             <ModalFooter>
               <Button color="danger" variant="light" onClick={doLogout}>

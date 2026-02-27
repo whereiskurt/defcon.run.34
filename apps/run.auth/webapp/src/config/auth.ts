@@ -385,7 +385,7 @@ export function signupHTML(params: {
       <tr>
         <td align="center"
           style="padding: 0px 0px; font-size: 22px; font-family: Helvetica, Arial, sans-serif; color: ${color.text};">
-          <strong>DEFCON.run</strong>
+          <strong>${config.siteDomain}</strong>
         </td>
       </tr>
       <tr>
@@ -425,5 +425,5 @@ export function signupHTML(params: {
 }
 export function signupText(params: { url: any }) {
   const { url } = params;
-  return `Complete your sign in to DEFCON.run with this URL:\n${url}\n\n`;
+  return `Complete your sign in to ${config.siteDomain} with this URL:\n${url}\n\n`;
 }

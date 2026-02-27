@@ -63,7 +63,7 @@ function LoginContent() {
         <Card className="shadow-lg bg-content1">
           <CardHeader>
             <div className="flex flex-col">
-              <Heading level={1}>Welcome to DEFCON.run</Heading>
+              <Heading level={1}>Welcome to {process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run'}</Heading>
               <Text
                 variant="small"
                 className="text-default-500"
