@@ -2,8 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
-import { Card, CardBody, CardHeader, Avatar, Divider, Skeleton, Chip, Button } from '@heroui/react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { Card, CardBody, CardHeader, Divider, Skeleton } from '@heroui/react';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import { apiUrl } from '@/lib/api';
 
@@ -21,31 +20,38 @@ interface UserData {
   meshtasticRadios?: any[];
   checkIns?: any[];
   checkInCount?: number;
-  quotas?: {
-    file_upload?: QuotaInfo;
-    gpx_upload?: QuotaInfo;
-    gpx_save?: QuotaInfo;
-    gpx_share?: QuotaInfo;
-    photo_upload?: QuotaInfo;
-    strava_sync?: QuotaInfo;
-    checkin?: QuotaInfo;
-    meshtastic_radio?: QuotaInfo;
-    qr_scan?: QuotaInfo;
-    displayname_change?: QuotaInfo;
-    qr_sheet?: QuotaInfo;
-  };
+  quotas?: Record<string, QuotaInfo>;
   preferences?: {
     checkinPreference?: string;
   };
   checkin_preference?: string;
 }
 
+const quotaGroups = [
+  { label: 'Uploads', items: [
+    { key: 'file_upload', label: 'Files' },
+    { key: 'gpx_upload', label: 'GPX Uploads' },
+    { key: 'gpx_save', label: 'GPX Saves' },
+    { key: 'gpx_share', label: 'GPX Shares' },
+    { key: 'photo_upload', label: 'Photos' },
+  ]},
+  { label: 'Activity', items: [
+    { key: 'checkin', label: 'Check-ins' },
+    { key: 'strava_sync', label: 'Strava Syncs' },
+    { key: 'qr_scan', label: 'QR Scans' },
+  ]},
+  { label: 'System', items: [
+    { key: 'meshtastic_radio', label: 'Radio Slots' },
+    { key: 'displayname_change', label: 'Name Changes' },
+    { key: 'qr_sheet', label: 'QR Sheets' },
+  ]},
+];
+
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -71,14 +77,10 @@ export default function ProfilePage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="flex flex-col gap-4">
-        <Card className="w-full">
-          <CardHeader className="flex gap-3">
-            <Skeleton className="w-12 h-12 rounded-full" />
-            <div className="flex flex-col gap-2">
-              <Skeleton className="h-4 w-32 rounded-lg" />
-              <Skeleton className="h-3 w-48 rounded-lg" />
-            </div>
+      <div className="max-w-2xl mx-auto py-4 space-y-4">
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-4 w-40 rounded-lg" />
           </CardHeader>
           <Divider />
           <CardBody>
@@ -100,172 +102,51 @@ export default function ProfilePage() {
   const displayName = userData?.displayname || userData?.displayName || session.user?.name || 'User';
 
   return (
-    <div className="container mx-auto py-4 space-y-4">
-      {/* User Details Card */}
-      <Card className="w-full">
-        <CardHeader className="flex justify-between items-center pb-2">
-          <div className="flex items-center gap-3">
-            <Avatar
-              src={session.user?.image || undefined}
-              size="lg"
-              isBordered
-              color="primary"
-            />
-            <div className="flex flex-col">
-              <p className="text-lg font-semibold">{displayName}</p>
-              <p className="text-small text-default-500">{session.user?.email}</p>
-              {userData?.mqttUsername && (
-                <p className="text-xs text-default-400">MQTT: {userData.mqttUsername}</p>
-              )}
-            </div>
-          </div>
-          <Button
-            isIconOnly
-            variant="light"
-            size="sm"
-            onPress={() => setDetailsExpanded(!detailsExpanded)}
-          >
-            {detailsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </Button>
-        </CardHeader>
-        <Divider />
-        {detailsExpanded && (
-          <CardBody>
-            <div className="flex flex-col gap-4">
-              {/* Session Info */}
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Session Info</h3>
-                <div className="text-sm text-default-500 space-y-1">
-                  <p>User ID: <span className="font-mono text-xs">{session.user?.id || 'N/A'}</span></p>
-                  <p>Session Version: {session.user?.sessionVersion || 'N/A'}</p>
-                  <p>Check-in Preference: {userData?.checkin_preference || userData?.preferences?.checkinPreference || 'public'}</p>
-                </div>
-              </div>
-
-              <Divider />
-
-              {/* Linked Services */}
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Linked Services</h3>
-              <div className="flex flex-wrap gap-2">
-                {session.user?.linkedProviders?.length > 0 ? (
-                  session.user.linkedProviders.map((provider: string) => (
-                    <Chip
-                      key={provider}
-                      color={
-                        provider === 'strava' ? 'warning' :
-                        provider === 'discord' ? 'secondary' :
-                        provider === 'github' ? 'default' : 'primary'
-                      }
-                      variant="flat"
-                      size="sm"
-                      className="capitalize"
-                    >
-                      {provider}
-                    </Chip>
-                  ))
-                ) : (
-                  <p className="text-default-500">No linked services</p>
-                )}
-              </div>
-            </div>
-
-            <Divider />
-
-            {/* Quota Info */}
-            {userData?.quotas && (
-              <>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Quota</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {/* Check-ins */}
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.checkin?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.checkin?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">Check-ins</p>
-                    </div>
-                    {/* Upload Quotas */}
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.file_upload?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.file_upload?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">File Uploads</p>
-                    </div>
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.gpx_upload?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.gpx_upload?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">GPX Uploads</p>
-                    </div>
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.gpx_save?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.gpx_save?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">GPX Saves</p>
-                    </div>
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.gpx_share?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.gpx_share?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">GPX Shares</p>
-                    </div>
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.photo_upload?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.photo_upload?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">Photo Uploads</p>
-                    </div>
-                    {/* Activity Quotas */}
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.strava_sync?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.strava_sync?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">Strava Syncs</p>
-                    </div>
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.meshtastic_radio?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.meshtastic_radio?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">Radio Slots</p>
-                    </div>
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.qr_scan?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.qr_scan?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">QR Scans</p>
-                    </div>
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.displayname_change?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.displayname_change?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">Name Changes</p>
-                    </div>
-                    <div className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas.qr_sheet?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas.qr_sheet?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">QR Sheets</p>
-                    </div>
-                  </div>
-                </div>
-              </>
+    <div className="max-w-2xl mx-auto py-4 space-y-4">
+      {/* Account Summary */}
+      <Card>
+        <CardBody className="flex flex-row items-center gap-3 py-3">
+          <div>
+            <p className="text-lg font-semibold">{displayName}</p>
+            {userData?.mqttUsername && (
+              <p className="font-mono text-xs text-default-400">{userData.mqttUsername}</p>
             )}
           </div>
+          <div className="ml-auto">
+            <a href="/dashboard" className="text-xs text-primary hover:underline">
+              View identity on Dashboard
+            </a>
+          </div>
         </CardBody>
-        )}
       </Card>
+
+      {/* Quotas */}
+      {userData?.quotas && (
+        <Card>
+          <CardHeader>
+            <h3 className="text-lg font-semibold">Quotas</h3>
+          </CardHeader>
+          <Divider />
+          <CardBody className="space-y-4">
+            {quotaGroups.map((group) => (
+              <div key={group.label}>
+                <p className="text-xs uppercase tracking-wide text-default-400 mb-2">{group.label}</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {group.items.map((item) => (
+                    <div key={item.key} className="text-center p-2 bg-default-100 rounded-lg">
+                      <p className="text-2xl font-bold text-primary">
+                        {userData.quotas![item.key]?.remaining ?? 0}
+                        <span className="text-sm text-default-400">/{userData.quotas![item.key]?.initial ?? 0}</span>
+                      </p>
+                      <p className="text-xs text-default-500">{item.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      )}
 
       {/* Meshtastic Radios */}
       <MeshtasticRadios
@@ -276,7 +157,7 @@ export default function ProfilePage() {
 
       {/* QR Code Card */}
       {userData?.eqr && (
-        <Card className="w-full">
+        <Card>
           <CardHeader>
             <h3 className="text-lg font-semibold">Your Social QR</h3>
           </CardHeader>
