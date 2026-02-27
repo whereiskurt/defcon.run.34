@@ -176,6 +176,11 @@ rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 cp -r build/* "$OUTPUT_DIR/"
 
+# Remove gpx.studio landing page - we only want the /app editor
+# Without this, /studio/ serves index.html (landing page) instead of
+# the rewrite to app.html (editor), causing a flash of wrong content
+rm -f "$OUTPUT_DIR/index.html"
+
 echo ""
 echo "=== Build complete ==="
 echo "Output: $OUTPUT_DIR"

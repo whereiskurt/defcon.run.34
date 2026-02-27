@@ -21,10 +21,14 @@ const nextConfig: NextConfig = {
   // With basePath, rewrites are relative to basePath (e.g., /use1/studio/app)
   async rewrites() {
     return [
-      // Map /studio to /studio/app.html (main entry point)
+      // Map /studio and /studio/ to /studio/app.html (main entry point)
       // Note: These paths are relative to basePath, so actual URL is /{region}/studio
       {
         source: "/studio",
+        destination: "/studio/app.html",
+      },
+      {
+        source: "/studio/",
         destination: "/studio/app.html",
       },
       // Map /studio/app to /studio/app.html for clean URLs
