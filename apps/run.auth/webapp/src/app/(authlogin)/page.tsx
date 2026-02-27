@@ -8,275 +8,177 @@ import {
   Button,
   Chip,
   Avatar,
+  Accordion,
+  AccordionItem,
 } from '@heroui/react';
-
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { Text, Heading } from '@components/text-effects/Common';
+import { LogOut, ChevronRight } from 'lucide-react';
+import { SiDiscord, SiGithub, SiStrava } from 'react-icons/si';
 
-import { LogOut, User, Mail, Shield, Clock, CheckCircle, Layers, ChevronRight, ChevronDown } from 'lucide-react';
-
-// Get the basePath for production multi-region deployment
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
   : '';
 
-function DashboardContent() {
-  const [isClaimsOpen, setIsClaimsOpen] = useState(false);
-  const [isRawSessionOpen, setIsRawSessionOpen] = useState(false);
-  const { data: session, status } = useSession();
+type LinkedAccount = { linked: boolean };
 
-  // Services are now included in the session directly
+function formatRelativeTime(dateStr: string): string {
+  const date = new Date(dateStr);
+  const days = Math.floor((date.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (days <= 0) return 'expired';
+  if (days === 1) return 'in 1 day';
+  if (days < 30) return `in ${days} days`;
+  return `in ${Math.floor(days / 30)} months`;
+}
+
+const providers = [
+  { key: 'discord', label: 'Discord', icon: <SiDiscord className="w-4 h-4" /> },
+  { key: 'github', label: 'GitHub', icon: <SiGithub className="w-4 h-4" /> },
+  { key: 'strava', label: 'Strava', icon: <SiStrava className="w-4 h-4" /> },
+] as const;
+
+function DashboardContent() {
+  const { data: session, status } = useSession();
+  const [linked, setLinked] = useState<Record<string, LinkedAccount> | null>(null);
   const services = (session?.user as { services?: string[] })?.services || [];
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    fetch(`${basePath}/api/profile`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.user?.linkedAccounts) setLinked(d.user.linkedAccounts); })
+      .catch(() => {});
+  }, [status]);
 
   if (status === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <div className="z-10 w-full max-w-md">
-          <div className="bg-content1 shadow-lg rounded-lg p-6">
-            <p className="text-center text-foreground">Loading session...</p>
-          </div>
-        </div>
+      <div className="bg-content1 shadow-lg rounded-lg p-6">
+        <p className="text-center text-foreground">Loading session...</p>
       </div>
     );
   }
 
   if (status === 'unauthenticated' || !session) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <div className="z-10 w-full max-w-md">
-          <Card className="shadow-lg bg-content1">
-            <CardHeader>
-              <div className="flex flex-col">
-                <Heading level={1}>Not Authenticated</Heading>
-                <Text variant="small" className="text-foreground-500">
-                  You need to log in to view this page.
-                </Text>
-              </div>
-            </CardHeader>
-            <Divider />
-            <CardBody className="flex justify-center">
-              <Button
-                as="a"
-                href={`${basePath}/login`}
-                variant="solid"
-                color="primary"
-                className="text-lg font-semibold"
-              >
-                Go to Login
-              </Button>
-            </CardBody>
-          </Card>
-        </div>
-      </div>
+      <Card className="shadow-lg bg-content1">
+        <CardBody className="flex justify-center">
+          <Button as="a" href={`${basePath}/login`} variant="solid" color="primary" className="text-lg font-semibold">
+            Go to Login
+          </Button>
+        </CardBody>
+      </Card>
     );
   }
 
   const { user } = session;
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <div className="z-10 w-full max-w-lg">
-        <Card className="shadow-lg bg-content1">
-          <CardHeader>
-            <div className="flex flex-col w-full">
-              <div className="flex items-center justify-between w-full">
-                <Heading level={1}>Session</Heading>
-                <Chip
-                  color="success"
-                  variant="flat"
-                  startContent={<CheckCircle className="w-4 h-4" />}
-                >
-                  Authenticated
-                </Chip>
-              </div>
-              <Text variant="small" className="text-foreground-500">
-                Proof of successful login - debug view
-              </Text>
-            </div>
-          </CardHeader>
-          <Divider />
-          <CardBody className="space-y-4">
-            {/* User Avatar and Name */}
-            <div className="flex items-center gap-4 p-3 rounded-lg bg-default-100">
-              <Avatar
-                src={user?.image || undefined}
-                name={user?.name || user?.email || 'U'}
-                size="lg"
-                isBordered
-                color="primary"
-              />
-              <div className="flex flex-col">
-                <span className="text-lg font-semibold text-foreground">
-                  {user?.name || 'Unknown User'}
-                </span>
-                <span className="text-sm text-foreground-500">
-                  Logged in successfully
-                </span>
-              </div>
-            </div>
-
-            {/* Session Details */}
-            <div className="space-y-3">
-              <button
-                onClick={() => setIsClaimsOpen(!isClaimsOpen)}
-                className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                {isClaimsOpen ? (
-                  <ChevronDown className="w-5 h-5 text-foreground" />
-                ) : (
-                  <ChevronRight className="w-5 h-5 text-foreground" />
-                )}
-                <Heading level={4} className="text-foreground">
-                  User Claims
-                </Heading>
-              </button>
-
-              {isClaimsOpen && (
-                <div className="space-y-2">
-                {user?.id && (
-                  <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
-                    <Shield className="w-5 h-5 text-primary" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-xs uppercase tracking-wide text-foreground-500">
-                        User ID
-                      </span>
-                      <span className="text-sm font-mono truncate text-foreground">
-                        {user.id}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {user?.displayName && (
-                  <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
-                    <User className="w-5 h-5 text-success" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-xs uppercase tracking-wide text-foreground-500">
-                        Display Name
-                      </span>
-                      <span className="text-sm truncate text-foreground">
-                        {user.displayName}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {user?.email && (
-                  <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
-                    <Mail className="w-5 h-5 text-secondary" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-xs uppercase tracking-wide text-foreground-500">
-                        Email
-                      </span>
-                      <span className="text-sm truncate text-foreground">
-                        {user.email}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {session.expires && (
-                  <div className="flex items-center gap-3 p-2 rounded-md bg-default-50">
-                    <Clock className="w-5 h-5 text-warning" />
-                    <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-xs uppercase tracking-wide text-foreground-500">
-                        Session Expires
-                      </span>
-                      <span className="text-sm truncate text-foreground">
-                        {new Date(session.expires).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Services */}
-                <div className="flex items-start gap-3 p-2 rounded-md bg-default-50">
-                  <Layers className="w-5 h-5 mt-0.5 text-primary" />
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <span className="text-xs uppercase tracking-wide text-foreground-500">
-                      Authorized Services
-                    </span>
-                    {services.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {services.map((service) => (
-                          <Chip
-                            key={service}
-                            size="sm"
-                            variant="flat"
-                            color={service === 'admin' ? 'danger' : service === 'gpx' ? 'secondary' : 'primary'}
-                          >
-                            {service}
-                          </Chip>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-foreground-500">
-                        No services assigned
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              )
-            }
-            </div>
-
-            {/* Raw Session Data */}
-            <div className="space-y-2">
-              <button
-                onClick={() => setIsRawSessionOpen(!isRawSessionOpen)}
-                className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                {isRawSessionOpen ? (
-                  <ChevronDown className="w-5 h-5 text-foreground" />
-                ) : (
-                  <ChevronRight className="w-5 h-5 text-foreground" />
-                )}
-                <Heading level={4} className="text-foreground">
-                  Raw Session Object
-                </Heading>
-              </button>
-              {isRawSessionOpen && (
-                <pre className="p-3 rounded-md text-xs overflow-x-auto bg-default-100 text-foreground">
-                  {JSON.stringify(session, null, 2)}
-                </pre>
+    <div className="space-y-4 w-full">
+      {/* Identity */}
+      <Card className="shadow-lg bg-content1">
+        <CardBody>
+          <div className="flex items-center gap-4">
+            <Avatar src={user?.image || undefined} name={user?.name || user?.email || 'U'} size="lg" isBordered color="primary" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-lg font-semibold text-foreground truncate">{user?.name || 'Unknown User'}</span>
+              <span className="text-sm text-default-500 truncate">{user?.email}</span>
+              {session.expires && (
+                <span className="text-xs text-default-400">Session expires {formatRelativeTime(session.expires)}</span>
               )}
             </div>
-          </CardBody>
-          <Divider />
-          <CardBody className="flex justify-center">
-            <Button
-              variant="flat"
-              color="danger"
-              className="text-lg font-semibold"
-              startContent={<LogOut className="w-5 h-5" />}
-              onPress={() => signOut({ callbackUrl: `${basePath}/login` })}
-            >
-              Sign Out
-            </Button>
-          </CardBody>
-        </Card>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Linked Providers */}
+      <Card className="shadow-lg bg-content1">
+        <CardHeader><span className="text-md font-semibold text-foreground">Linked Providers</span></CardHeader>
+        <Divider />
+        <CardBody className="space-y-2">
+          {providers.map(({ key, label, icon }) => {
+            const isLinked = linked ? linked[key]?.linked : undefined;
+            return (
+              <div key={key} className="flex items-center justify-between p-2 rounded-md bg-default-50">
+                <div className="flex items-center gap-3">
+                  <span className="text-default-500">{icon}</span>
+                  <span className="text-sm text-foreground">{label}</span>
+                </div>
+                {isLinked === undefined ? (
+                  <Chip size="sm" variant="flat">...</Chip>
+                ) : isLinked ? (
+                  <Chip size="sm" variant="flat" color="success">Connected</Chip>
+                ) : (
+                  <Chip size="sm" variant="flat">Not Connected</Chip>
+                )}
+              </div>
+            );
+          })}
+        </CardBody>
+      </Card>
+
+      {/* Services */}
+      <Card className="shadow-lg bg-content1">
+        <CardHeader><span className="text-md font-semibold text-foreground">Services</span></CardHeader>
+        <Divider />
+        <CardBody>
+          {services.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {services.map((svc) => (
+                <Chip key={svc} size="sm" variant="flat" color={svc === 'admin' ? 'danger' : svc === 'gpxstudio' || svc === 'gpx' ? 'secondary' : 'primary'}>
+                  {svc}
+                </Chip>
+              ))}
+            </div>
+          ) : (
+            <span className="text-sm text-default-500">No services assigned</span>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Actions */}
+      <div className="flex gap-3">
+        <Button as="a" href={`${basePath}/profile`} variant="flat" color="primary" className="flex-1" endContent={<ChevronRight className="w-4 h-4" />}>
+          View Full Profile
+        </Button>
+        <Button variant="flat" color="danger" className="flex-1" startContent={<LogOut className="w-4 h-4" />} onPress={() => signOut({ callbackUrl: `${basePath}/login` })}>
+          Sign Out
+        </Button>
       </div>
+
+      {/* Debug */}
+      <Card className="shadow-lg bg-content1">
+        <CardBody className="p-0">
+          <Accordion>
+            <AccordionItem key="debug" aria-label="Debug" title={<span className="text-md font-semibold text-foreground">Developer Info</span>}>
+              <div className="space-y-3 pb-3 px-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-default-500">User ID</span>
+                  <span className="text-xs font-mono text-foreground truncate max-w-[200px]">{user?.id}</span>
+                </div>
+                <Divider />
+                <div>
+                  <span className="text-sm text-default-500 block mb-1">Raw Session</span>
+                  <pre className="p-3 rounded-md text-xs overflow-x-auto bg-default-100 text-foreground">
+                    {JSON.stringify(session, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </AccordionItem>
+          </Accordion>
+        </CardBody>
+      </Card>
     </div>
   );
 }
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   if (!mounted) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <div className="z-10 w-full max-w-md">
-          <div className="bg-content1 shadow-lg rounded-lg p-6">
-            <p className="text-center text-foreground">Loading...</p>
-          </div>
-        </div>
+      <div className="bg-content1 shadow-lg rounded-lg p-6">
+        <p className="text-center text-foreground">Loading...</p>
       </div>
     );
   }

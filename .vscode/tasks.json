@@ -40,7 +40,7 @@
     {
       "label": "App: run.human (LOCAL_RUN_PORT/3001)",
       "type": "shell",
-      "command": "PORT=${LOCAL_RUN_PORT} npm run dev",
+      "command": "PORT=${env:LOCAL_RUN_PORT} npm run dev",
       "options": {
         "cwd": "${workspaceFolder}/apps/run.human/webapp"
       },
@@ -57,7 +57,7 @@
     {
       "label": "App: run.auth (LOCAL_AUTH_PORT/3002)",
       "type": "shell",
-      "command": "$(aws configure export-credentials --profile ${SITE_LABEL}-terraform --format env) && PORT=${LOCAL_AUTH_PORT} npm run dev",
+      "command": "$(aws configure export-credentials --profile ${env:SITE_LABEL}-terraform --format env) && PORT=${env:LOCAL_AUTH_PORT} npm run dev",
       "options": {
         "cwd": "${workspaceFolder}/apps/run.auth/webapp"
       },
@@ -74,7 +74,7 @@
     {
       "label": "App: run.gpx (LOCAL_GPX_PORT/3003)",
       "type": "shell",
-      "command": "PORT=${LOCAL_GPX_PORT} npm run dev",
+      "command": "PORT=${env:LOCAL_GPX_PORT} npm run dev",
       "options": {
         "cwd": "${workspaceFolder}/apps/run.gpx/webapp"
       },
@@ -91,7 +91,7 @@
     {
       "label": "App: run.cms (LOCAL_CMS_PORT/1337)",
       "type": "shell",
-      "command": "PORT=${LOCAL_CMS_PORT} npm run develop",
+      "command": "PORT=${env:LOCAL_CMS_PORT} npm run develop",
       "options": {
         "cwd": "${workspaceFolder}/apps/run.cms/app"
       },
@@ -108,7 +108,7 @@
     {
       "label": "E2E Tests",
       "type": "shell",
-      "command": "$(aws configure export-credentials --profile ${SITE_LABEL}-terraform --format env) && ./e2e.sh",
+      "command": "$(aws configure export-credentials --profile ${env:SITE_LABEL}-terraform --format env) && ./e2e.sh",
       "options": {
         "cwd": "${workspaceFolder}/apps"
       },
