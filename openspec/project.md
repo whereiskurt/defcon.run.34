@@ -34,12 +34,12 @@ defcon.run 34 (2026) event infrastructure monorepo. This project provides the we
 - **Email**: Custom AWS SES provider (`strapi-provider-email-aws-ses-v3`) using AWS SDK v3
 
 ### Infrastructure
-- **IaC**: Terraform 1.8 modules with Terragrunt 0.96 orchestration
+- **IaC**: Terraform 1.14 modules with Terragrunt 0.97 orchestration
 - **Container Runtime**: AWS ECS Fargate
 - **Container Registry**: AWS ECR (multi-region)
 - **CDN/Edge**: CloudFront with WAF
 - **Secrets**: AWS SSM Parameter Store with SOPS encryption
-- **Regions**: us-east-1 (use1), ca-central-1 (cac1)
+- **Regions**: us-east-1 (use1), ca-central-1 (cac1), ap-southeast-1 (apse1)
 
 ### Development
 - **Language**: TypeScript 5 (strict mode)
@@ -88,7 +88,7 @@ defcon.run 34 (2026) event infrastructure monorepo. This project provides the we
 - **run.human** (run.defcon.run): Main participant-facing application
 
 ### Key Concepts
-- **Region labels**: `use1` = us-east-1, `cac1` = ca-central-1
+- **Region labels**: `use1` = us-east-1, `cac1` = ca-central-1, `apse1` = ap-southeast-1
 - **Site label**: `dc34` (defcon.run 34)
 - **OAuth providers**: GitHub, Strava, Discord + email magic links
 - **basePath**: Next.js apps use dynamic basePath per region (e.g., `/use1`, `/cac1`)
@@ -251,3 +251,4 @@ cm context "<task description>"  # Get rules and anti-patterns
 - `auth.defcon.run` - Authentication service
 - `cms.defcon.run` - CMS service
 - `run.defcon.run` - Main application
+- `gpx.defcon.run` - GPX route editor
