@@ -41,6 +41,8 @@ var (
 	reNoChanges      = regexp.MustCompile(`No changes\.\s+Your infrastructure matches the configuration`)
 	reModulePrefix   = regexp.MustCompile(`^\[([^\]]+)\]\s*(.*)`)
 	reResourceAction = regexp.MustCompile(`#\s+(?:module\.[\w.]+\.)?(\w+)\.([\w\[\]"]+)\s+(?:will be (created|updated in-place|destroyed)|must be (replaced))`)
+	// Apply-phase lines: "aws_iam_role.example: Creating...", "aws_iam_role.example: Modifying...", "aws_iam_role.example: Destroying..."
+	reApplyAction = regexp.MustCompile(`^(?:module\.[\w.]+\.)?(\w+)\.\S+:\s+(Creating|Modifying|Destroying)\.\.\.`)
 )
 
 // parseSummaryLine checks a line for terraform plan/apply summary patterns.
@@ -84,6 +86,27 @@ func parseResourceAction(line string) (resourceType, action string, ok bool) {
 		action = "destroy"
 	case m[4] == "replaced":
 		action = "replace"
+	default:
+		return "", "", false
+	}
+	return resourceType, action, true
+}
+
+// parseApplyAction extracts resource type and action from a terraform apply-phase line.
+// Matches lines like "aws_iam_role.example: Creating..." during actual apply execution.
+func parseApplyAction(line string) (resourceType, action string, ok bool) {
+	m := reApplyAction.FindStringSubmatch(line)
+	if m == nil {
+		return "", "", false
+	}
+	resourceType = m[1]
+	switch m[2] {
+	case "Creating":
+		action = "create"
+	case "Modifying":
+		action = "update"
+	case "Destroying":
+		action = "destroy"
 	default:
 		return "", "", false
 	}
@@ -463,7 +486,16 @@ func (a *App) startTerminal(module, command, region string, bootstrap bool) (*Te
 			}
 			cleaned = "[" + moduleName + "] " + innerLine
 		}
-		if resType, action, ok := parseResourceAction(innerLine); ok {
+		isApply := strings.HasPrefix(session.Command, "apply") || strings.HasPrefix(session.Command, "destroy")
+		// For apply/destroy: capture apply-phase lines (e.g., "resource: Creating...")
+		// For plan: capture plan-phase lines (e.g., "# resource will be created")
+		if isApply {
+			if resType, action, ok := parseApplyAction(innerLine); ok {
+				session.mu.Lock()
+				accumulateStats(session.Stats, moduleName, resType, action)
+				session.mu.Unlock()
+			}
+		} else if resType, action, ok := parseResourceAction(innerLine); ok {
 			session.mu.Lock()
 			accumulateStats(session.Stats, moduleName, resType, action)
 			session.mu.Unlock()
@@ -472,9 +504,8 @@ func (a *App) startTerminal(module, command, region string, bootstrap bool) (*Te
 			// For apply/destroy commands, terraform outputs both the plan preview
 			// ("Plan: X to add...") and the actual result ("Resources: X added...").
 			// Only count the result to avoid double-counting.
-			isApplyCmd := strings.HasPrefix(session.Command, "apply") || strings.HasPrefix(session.Command, "destroy")
 			isPlanLine := rePlanSummary.MatchString(cleaned)
-			if isApplyCmd && isPlanLine {
+			if isApply && isPlanLine {
 				session.broadcast(cleaned)
 				continue
 			}
