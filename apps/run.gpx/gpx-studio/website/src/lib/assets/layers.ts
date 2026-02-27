@@ -880,87 +880,13 @@ export const defaultBasemapTree: LayerTreeType = {
     },
 };
 
-// Default overlays shown in the layer menu
+// Default overlays shown in the layer menu (stripped for DEF CON)
 export const defaultOverlayTree: LayerTreeType = {
-    overlays: {
-        world: {
-            waymarked_trails: {
-                waymarkedTrailsHiking: true,
-                waymarkedTrailsCycling: true,
-                waymarkedTrailsMTB: true,
-                waymarkedTrailsSkating: false,
-                waymarkedTrailsHorseRiding: false,
-                waymarkedTrailsWinter: false,
-            },
-            cyclOSMlite: false,
-            bikerouterGravel: false,
-            openRailwayMap: false,
-        },
-        countries: {
-            france: {
-                ignFrCadastre: false,
-                ignSlope: false,
-                ignSkiTouring: false,
-            },
-            switzerland: {
-                swisstopoSlope: false,
-                swisstopoHiking: false,
-                swisstopoHikingClosures: false,
-                swisstopoCycling: false,
-                swisstopoCyclingClosures: false,
-                swisstopoMountainBike: false,
-                swisstopoMountainBikeClosures: false,
-                swisstopoSkiTouring: false,
-            },
-        },
-    },
+    overlays: {},
 };
 
-// Default Overpass queries shown in the layer menu
-export const defaultOverpassTree: LayerTreeType = {
-    points_of_interest: {
-        food: {
-            bakery: true,
-            'food-store': true,
-            'eat-and-drink': true,
-        },
-        amenities: {
-            toilets: true,
-            water: true,
-            shower: false,
-            shelter: false,
-            barrier: false,
-            cemetery: false,
-        },
-        tourism: {
-            attraction: false,
-            viewpoint: false,
-            hotel: true,
-            campsite: true,
-            hut: true,
-            picnic: false,
-            summit: true,
-            pass: true,
-            climbing: false,
-        },
-        bicycle: {
-            'bicycle-parking': false,
-            'bicycle-rental': false,
-            'bicycle-shop': true,
-        },
-        'public-transport': {
-            'railway-station': true,
-            'tram-stop': true,
-            'bus-stop': true,
-            ferry: false,
-        },
-        motorized: {
-            'fuel-station': false,
-            parking: false,
-            garage: false,
-        },
-    },
-};
+// Default Overpass queries shown in the layer menu (disabled for DEF CON)
+export const defaultOverpassTree: LayerTreeType = {};
 
 export type CustomLayer = {
     id: string;

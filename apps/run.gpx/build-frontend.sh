@@ -174,6 +174,12 @@ else
   # Replace defaultOverpassQueries block with empty object
   perl -i -0pe 's{// Default Overpass queries used \(none\)\nexport const defaultOverpassQueries: LayerTreeType = \{[^;]*;\n}{// Default Overpass queries (disabled for DEF CON)\nexport const defaultOverpassQueries: LayerTreeType = \{\};\n}s' "$LAYERS_FILE"
 
+  # Replace defaultOverlayTree (controls layer menu visibility) with empty
+  perl -i -0pe 's{// Default overlays shown in the layer menu\nexport const defaultOverlayTree: LayerTreeType = \{[^;]*;\n}{// Default overlays shown in the layer menu (stripped for DEF CON)\nexport const defaultOverlayTree: LayerTreeType = \{\n    overlays: \{\},\n\};\n}s' "$LAYERS_FILE"
+
+  # Replace defaultOverpassTree (controls POI menu visibility) with empty
+  perl -i -0pe 's{// Default Overpass queries shown in the layer menu\nexport const defaultOverpassTree: LayerTreeType = \{[^;]*;\n}{// Default Overpass queries shown in the layer menu (disabled for DEF CON)\nexport const defaultOverpassTree: LayerTreeType = \{\};\n}s' "$LAYERS_FILE"
+
   # Rename "Overlays" to "Real-Time Trackers" in English locale
   perl -i -pe 's/"overlays": "Overlays"/"overlays": "Real-Time Trackers"/' "$LOCALE_FILE"
 
