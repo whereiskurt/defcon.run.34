@@ -109,7 +109,7 @@ locals {
   }
 
   waf = {
-    enabled  = true
+    enabled  = false
     log_mode = "standard" # standard | realtime
   }
 
@@ -254,7 +254,7 @@ locals {
   }
 
   waffaw = {
-    enabled         = true
+    enabled         = false
     ec2_count       = 0
     ec2_max_count   = 10
     ec2_instance_type = "t3.medium"
