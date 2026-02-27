@@ -3,18 +3,19 @@
 import {
   Card,
   CardBody,
-  CardHeader,
   Divider,
   Button,
   Chip,
   Avatar,
   Accordion,
   AccordionItem,
+  Tabs,
+  Tab,
 } from '@heroui/react';
 
 import { useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { LogOut, CheckCircle, X, Shield, Clock, Copy, Check } from 'lucide-react';
+import { LogOut, CheckCircle, X, Shield, Clock, Copy, Check, ArrowLeft } from 'lucide-react';
 import { SiDiscord, SiGithub, SiStrava } from 'react-icons/si';
 
 const basePath = process.env.NODE_ENV === 'production'
@@ -78,24 +79,25 @@ function ProviderRow({
   icon,
   label,
   account,
+  color,
 }: {
   icon: React.ReactNode;
   label: string;
   account: LinkedAccount;
+  color: string;
 }) {
   if (!account.linked) {
     return (
-      <div className="flex items-center justify-between p-3 rounded-lg bg-default-50 opacity-50">
+      <div className="flex items-center justify-between py-2.5 opacity-40">
         <div className="flex items-center gap-3">
           <span className="text-default-400">{icon}</span>
           <span className="text-sm text-default-400">{label}</span>
         </div>
-        <Chip size="sm" variant="flat">Not Connected</Chip>
+        <span className="text-xs text-default-400">Not linked</span>
       </div>
     );
   }
 
-  // Display name varies by provider
   let displayName = '';
   if (account.username) displayName = account.username;
   if (account.login) displayName = account.login;
@@ -104,9 +106,9 @@ function ProviderRow({
   }
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg bg-default-50">
+    <div className="flex items-center justify-between py-2.5">
       <div className="flex items-center gap-3 min-w-0">
-        <span className="text-default-500">{icon}</span>
+        <span style={{ color }}>{icon}</span>
         <div className="flex flex-col min-w-0">
           <span className="text-sm font-medium text-foreground truncate">
             {displayName || label}
@@ -123,7 +125,10 @@ function ProviderRow({
           </div>
         </div>
       </div>
-      <Chip size="sm" variant="flat" color="success">Connected</Chip>
+      <div className="flex items-center gap-1.5">
+        <div className="w-2 h-2 rounded-full bg-success" />
+        <span className="text-xs text-success">Connected</span>
+      </div>
     </div>
   );
 }
@@ -162,24 +167,28 @@ function ProfileContent() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="bg-content1 shadow-lg rounded-lg p-6">
-        <p className="text-center text-foreground">Loading profile...</p>
+      <div className="space-y-4">
+        <div className="glass-card rounded-xl p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-content2 animate-pulse" />
+            <div className="space-y-2 flex-1">
+              <div className="h-6 w-40 rounded bg-content2 animate-pulse" />
+              <div className="h-4 w-56 rounded bg-content2 animate-pulse" />
+              <div className="h-3 w-32 rounded bg-content2 animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <div className="glass-card rounded-xl p-6 h-48 bg-content2 animate-pulse" />
       </div>
     );
   }
 
   if (status === 'unauthenticated' || !session) {
     return (
-      <Card className="shadow-lg bg-content1">
-        <CardBody className="flex justify-center">
-          <Button
-            as="a"
-            href={`${basePath}/login`}
-            variant="solid"
-            color="primary"
-            className="text-lg font-semibold"
-          >
-            Go to Login
+      <Card className="glass-card">
+        <CardBody className="flex justify-center py-6">
+          <Button as="a" href={`${basePath}/login`} variant="solid" color="primary" className="font-semibold">
+            Sign In
           </Button>
         </CardBody>
       </Card>
@@ -188,7 +197,7 @@ function ProfileContent() {
 
   if (error || !profile) {
     return (
-      <Card className="shadow-lg bg-content1">
+      <Card className="glass-card">
         <CardBody>
           <p className="text-center text-danger">{error || 'Profile not found'}</p>
         </CardBody>
@@ -196,17 +205,27 @@ function ProfileContent() {
     );
   }
 
-  const tierColor = profile.quotaTier === 'admin'
-    ? 'danger'
-    : profile.quotaTier === 'upload'
-      ? 'primary'
-      : 'default';
+  const tierColor = profile.quotaTier === 'admin' ? 'danger'
+    : profile.quotaTier === 'upload' ? 'primary'
+    : 'default';
 
   return (
-    <div className="space-y-4 w-full">
-      {/* Section 1: Identity Header */}
-      <Card className="shadow-lg bg-content1">
-        <CardBody>
+    <div className="space-y-4 w-full animate-fade-up">
+      {/* Back link */}
+      <Button
+        as="a"
+        href={`${basePath}/`}
+        variant="light"
+        size="sm"
+        className="text-default-400 -ml-2"
+        startContent={<ArrowLeft className="w-3.5 h-3.5" />}
+      >
+        Dashboard
+      </Button>
+
+      {/* Identity hero */}
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="px-5 py-5">
           <div className="flex items-center gap-4">
             <Avatar
               src={profile.picture || undefined}
@@ -214,13 +233,14 @@ function ProfileContent() {
               size="lg"
               isBordered
               color="primary"
+              classNames={{ base: "ring-2 ring-primary/20 w-14 h-14" }}
             />
             <div className="flex flex-col flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-foreground truncate">
+              <div className="flex items-center gap-2">
+                <span className="font-museo text-xl font-bold text-foreground truncate">
                   {profile.displayName}
                 </span>
-                <Chip size="sm" variant="flat" color={tierColor}>
+                <Chip size="sm" variant="flat" color={tierColor} classNames={{ base: "font-mono text-xs" }}>
                   {profile.quotaTier}
                 </Chip>
               </div>
@@ -232,7 +252,7 @@ function ProfileContent() {
                   <X className="w-3.5 h-3.5 text-danger flex-shrink-0" />
                 )}
               </div>
-              <span className="text-sm text-default-400">
+              <span className="text-xs text-default-400 font-mono">
                 Member since {formatMemberSince(profile.createdAt)}
               </span>
             </div>
@@ -240,118 +260,131 @@ function ProfileContent() {
         </CardBody>
       </Card>
 
-      {/* Section 2: Linked Accounts */}
-      <Card className="shadow-lg bg-content1">
-        <CardHeader>
-          <span className="text-md font-semibold text-foreground">Linked Accounts</span>
-        </CardHeader>
-        <Divider />
-        <CardBody className="space-y-2">
-          <ProviderRow
-            icon={<SiDiscord className="w-5 h-5" />}
-            label="Discord"
-            account={profile.linkedAccounts.discord}
-          />
-          <ProviderRow
-            icon={<SiGithub className="w-5 h-5" />}
-            label="GitHub"
-            account={profile.linkedAccounts.github}
-          />
-          <ProviderRow
-            icon={<SiStrava className="w-5 h-5" />}
-            label="Strava"
-            account={profile.linkedAccounts.strava}
-          />
-        </CardBody>
-      </Card>
-
-      {/* Section 3: Authorized Services */}
-      <Card className="shadow-lg bg-content1">
-        <CardHeader>
-          <span className="text-md font-semibold text-foreground">Services</span>
-        </CardHeader>
-        <Divider />
-        <CardBody>
-          <div className="flex flex-wrap gap-2">
-            {profile.services.map((svc) => (
-              <Chip
-                key={svc}
-                size="sm"
-                variant="flat"
-                color={
-                  svc === 'admin' ? 'danger'
-                    : svc === 'strava' ? 'warning'
-                      : svc === 'gpxstudio' ? 'secondary'
-                        : 'primary'
-                }
-              >
-                {svc}
-              </Chip>
-            ))}
-          </div>
-          <p className="text-xs text-default-400 mt-2">
-            Services your account is authorized to access.
-          </p>
-        </CardBody>
-      </Card>
-
-      {/* Section 4: Session & Security */}
-      <Card className="shadow-lg bg-content1">
-        <CardHeader>
-          <span className="text-md font-semibold text-foreground">Security</span>
-        </CardHeader>
-        <Divider />
-        <CardBody className="space-y-3">
-          <div className="flex items-center justify-between p-2 rounded-md bg-default-50">
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-default-500" />
-              <span className="text-sm text-default-500">Session Version</span>
-            </div>
-            <span className="text-sm font-mono text-foreground">{profile.sessionVersion}</span>
-          </div>
-          <div className="flex items-center justify-between p-2 rounded-md bg-default-50">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-default-500" />
-              <span className="text-sm text-default-500">Session Expires</span>
-            </div>
-            <span className="text-sm text-foreground">
-              {session.expires ? new Date(session.expires).toLocaleDateString() : 'Unknown'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between p-2 rounded-md bg-default-50">
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-default-500" />
-              <span className="text-sm text-default-500">Account Status</span>
-            </div>
-            <Chip size="sm" variant="flat" color={profile.lockedOut ? 'danger' : 'success'}>
-              {profile.lockedOut ? 'Locked' : 'Active'}
-            </Chip>
-          </div>
-          <Divider />
-          <Button
-            variant="flat"
-            color="danger"
-            className="w-full"
-            startContent={<LogOut className="w-4 h-4" />}
-            onPress={() => signOut({ callbackUrl: `${basePath}/login` })}
+      {/* Tabs: Accounts / Services / Security */}
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="p-0">
+          <Tabs
+            aria-label="Profile sections"
+            variant="underlined"
+            classNames={{
+              tabList: "gap-6 w-full px-5 pt-3 border-b border-divider",
+              tab: "text-sm",
+              cursor: "bg-primary",
+              panel: "px-5 py-4",
+            }}
           >
-            Sign Out
-          </Button>
+            <Tab key="accounts" title="Accounts">
+              <div className="space-y-1">
+                <ProviderRow
+                  icon={<SiDiscord className="w-5 h-5" />}
+                  label="Discord"
+                  account={profile.linkedAccounts.discord}
+                  color="#5865F2"
+                />
+                <Divider />
+                <ProviderRow
+                  icon={<SiGithub className="w-5 h-5" />}
+                  label="GitHub"
+                  account={profile.linkedAccounts.github}
+                  color="#e4e4ef"
+                />
+                <Divider />
+                <ProviderRow
+                  icon={<SiStrava className="w-5 h-5" />}
+                  label="Strava"
+                  account={profile.linkedAccounts.strava}
+                  color="#FC4C02"
+                />
+              </div>
+            </Tab>
+
+            <Tab key="services" title="Services">
+              <div className="space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {profile.services.map((svc) => (
+                    <Chip
+                      key={svc}
+                      size="sm"
+                      variant="flat"
+                      color={
+                        svc === 'admin' ? 'danger'
+                          : svc === 'strava' ? 'warning'
+                          : svc === 'gpxstudio' ? 'secondary'
+                          : 'primary'
+                      }
+                      classNames={{ base: "font-mono text-xs" }}
+                    >
+                      {svc}
+                    </Chip>
+                  ))}
+                </div>
+                <p className="text-xs text-default-400">
+                  Services your account is authorized to access.
+                </p>
+              </div>
+            </Tab>
+
+            <Tab key="security" title="Security">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-default-400" />
+                    <span className="text-sm text-default-500">Session Version</span>
+                  </div>
+                  <span className="text-sm font-mono text-foreground">{profile.sessionVersion}</span>
+                </div>
+                <Divider />
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-default-400" />
+                    <span className="text-sm text-default-500">Session Expires</span>
+                  </div>
+                  <span className="text-sm font-mono text-foreground">
+                    {session.expires ? new Date(session.expires).toLocaleDateString() : 'Unknown'}
+                  </span>
+                </div>
+                <Divider />
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-default-400" />
+                    <span className="text-sm text-default-500">Account Status</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-2 h-2 rounded-full ${profile.lockedOut ? 'bg-danger' : 'bg-success'}`} />
+                    <span className={`text-xs ${profile.lockedOut ? 'text-danger' : 'text-success'}`}>
+                      {profile.lockedOut ? 'Locked' : 'Active'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </Tab>
+          </Tabs>
         </CardBody>
       </Card>
 
-      {/* Section 5: Debug (collapsible) */}
-      <Card className="shadow-lg bg-content1">
+      {/* Sign Out */}
+      <Button
+        variant="flat"
+        color="danger"
+        className="w-full"
+        startContent={<LogOut className="w-4 h-4" />}
+        onPress={() => signOut({ callbackUrl: `${basePath}/login` })}
+      >
+        Sign Out
+      </Button>
+
+      {/* Debug */}
+      <Card className="glass-card overflow-hidden">
         <CardBody className="p-0">
           <Accordion>
             <AccordionItem
               key="debug"
               aria-label="Developer Info"
-              title={<span className="text-md font-semibold text-foreground">Developer Info</span>}
+              title={<span className="text-sm font-semibold text-default-500">Developer Info</span>}
             >
-              <div className="space-y-3 pb-3 px-1">
+              <div className="space-y-3 pb-3 px-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-default-500">User ID</span>
+                  <span className="text-xs text-default-400">User ID</span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-mono text-foreground truncate max-w-[200px]">
                       {profile.userId}
@@ -360,14 +393,14 @@ function ProfileContent() {
                       onClick={copyUserId}
                       className="text-default-400 hover:text-foreground transition-colors cursor-pointer"
                     >
-                      {copied ? <Check className="w-4 h-4 text-success" /> : <Copy className="w-4 h-4" />}
+                      {copied ? <Check className="w-3.5 h-3.5 text-success" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
                 </div>
                 <Divider />
                 <div>
-                  <span className="text-sm text-default-500 block mb-1">Raw Session</span>
-                  <pre className="p-3 rounded-md text-xs overflow-x-auto bg-default-100 text-foreground">
+                  <span className="text-xs text-default-400 block mb-1">Raw Session</span>
+                  <pre className="terminal-block p-3 text-xs overflow-x-auto text-foreground">
                     {JSON.stringify(session, null, 2)}
                   </pre>
                 </div>
@@ -389,8 +422,16 @@ export default function ProfilePage() {
 
   if (!mounted) {
     return (
-      <div className="bg-content1 shadow-lg rounded-lg p-6">
-        <p className="text-center text-foreground">Loading...</p>
+      <div className="space-y-4">
+        <div className="glass-card rounded-xl p-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-content2 animate-pulse" />
+            <div className="space-y-2 flex-1">
+              <div className="h-6 w-40 rounded bg-content2 animate-pulse" />
+              <div className="h-4 w-56 rounded bg-content2 animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

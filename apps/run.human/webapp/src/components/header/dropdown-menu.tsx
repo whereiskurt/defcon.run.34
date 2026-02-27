@@ -12,12 +12,10 @@ import { useState } from 'react';
 
 import { FaMoneyCheckDollar, FaQuestion, FaRadio, FaFire } from 'react-icons/fa6';
 import { GrMapLocation } from 'react-icons/gr';
-import { DashboardIcon } from './icon/dashboard';
 import { MenuIcon } from './icon/menu';
-import { FaDashcube, FaDesktop, FaTrophy } from 'react-icons/fa';
+import { FaDesktop, FaTrophy } from 'react-icons/fa';
 
-const iconClasses =
-  'text-xl text-default-500 pointer-events-none flex-shrink-0';
+const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
 const MenuDropDown = (params: any) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,115 +33,104 @@ const MenuDropDown = (params: any) => {
       backdrop="blur"
       isOpen={isOpen}
       onOpenChange={(open) => setIsOpen(open)}
+      classNames={{
+        content: 'bg-content1 border border-divider',
+      }}
     >
       <DropdownTrigger>
-        <div>
+        <div className="cursor-pointer">
           <MenuIcon />
         </div>
       </DropdownTrigger>
 
       <DropdownMenu
-        aria-label="Custom item styles"
-        className="p-3"
+        aria-label="Navigation menu"
+        className="p-2"
         itemClasses={{
           base: [
-            'rounded-md',
-            'text-default-800',
-            'text-2xl',
-            'transition-opacity',
+            'rounded-lg',
+            'text-default-600',
+            'transition-all',
             'data-[hover=true]:text-foreground',
-            'data-[hover=true]:bg-default-100',
-            'dark:data-[hover=true]:bg-default-50',
-            'data-[selectable=true]:focus:bg-default-50',
+            'data-[hover=true]:bg-content2',
             'data-[pressed=true]:opacity-70',
-            'data-[focus-visible=true]:ring-default-500',
           ],
         }}
       >
-        <DropdownSection aria-label="Menu Items">
+        <DropdownSection aria-label="Navigation">
           <DropdownItem
-            className="pb-2"
             textValue="dashboard"
             startContent={<FaDesktop className={iconClasses} />}
             key="dashboard"
             showDivider
             onClick={() => handleNavigation('/dashboard')}
           >
-            <span className="text-2xl">Dashboard</span>
+            <span className="text-base">Dashboard</span>
           </DropdownItem>
 
           <DropdownItem
-            className="pb-2"
             textValue="leaderboard"
             startContent={<FaTrophy className={iconClasses} />}
             key="leaderboard"
             onClick={() => handleNavigation('/leaderboard')}
           >
-            <span className="text-2xl">Leaderboard</span>
+            <span className="text-base">Leaderboard</span>
           </DropdownItem>
 
           <DropdownItem
-            className="pb-2"
             textValue="routes"
-            startContent={<GrMapLocation size={24} className={iconClasses} />}
+            startContent={<GrMapLocation className={iconClasses} />}
             key="routes"
             onClick={() => handleNavigation('/routes')}
           >
-            <span className="text-2xl">Routes</span>
+            <span className="text-base">Routes</span>
           </DropdownItem>
 
           <DropdownItem
-            className="pb-2"
             textValue="routes-map"
-            startContent={<GrMapLocation size={24} className={iconClasses} />}
+            startContent={<GrMapLocation className={iconClasses} />}
             key="routes-map"
             onClick={() => handleNavigation('/routes-map')}
           >
-            <span className="text-2xl">Routes Map</span>
+            <span className="text-base">Routes Map</span>
           </DropdownItem>
 
           <DropdownItem
-            className="pb-2"
             textValue="heatmap"
-            startContent={<FaFire size={24} className={iconClasses} />}
+            startContent={<FaFire className={iconClasses} />}
             key="heatmap"
             onClick={() => handleNavigation('/heatmap')}
           >
-            <span className="text-2xl">HeatMap</span>
+            <span className="text-base">HeatMap</span>
           </DropdownItem>
 
           <DropdownItem
-            className="pb-2"
             textValue="meshtastic"
-            startContent={<FaRadio size={24} className={iconClasses} />}
+            startContent={<FaRadio className={iconClasses} />}
             key="meshtastic"
             onClick={() => handleNavigation('/meshtastic')}
           >
-            <span className="text-2xl">Meshtastic</span>
+            <span className="text-base">Meshtastic</span>
           </DropdownItem>
 
           <DropdownItem
-            className="pb-2"
             textValue="contributors"
-            startContent={<FaMoneyCheckDollar size={24} className={iconClasses} />}
+            startContent={<FaMoneyCheckDollar className={iconClasses} />}
             key="contributors"
             showDivider
             onClick={() => handleNavigation('/contributors')}
           >
-            <span className="text-2xl">Contributors</span>
+            <span className="text-base">Contributors</span>
           </DropdownItem>
 
           <DropdownItem
-            className="pb-2"
             textValue="faq"
-            startContent={<FaQuestion size={24} className={iconClasses} />}
+            startContent={<FaQuestion className={iconClasses} />}
             key="faq"
             onClick={() => handleNavigation('/faq')}
           >
-            <span className="text-2xl">FAQ</span>
+            <span className="text-base">FAQ</span>
           </DropdownItem>
-
-
         </DropdownSection>
       </DropdownMenu>
     </Dropdown>

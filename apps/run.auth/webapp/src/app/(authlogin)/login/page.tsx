@@ -7,31 +7,21 @@ import {
   CardFooter,
   CardHeader,
   Divider,
-  Link,
   Input,
   Avatar,
 } from '@heroui/react';
 
 import type React from 'react';
-import { fontMuseo } from '@/config/fonts';
-import { Text } from '@components/text-effects/Common';
-import { Heading } from '@components/text-effects/Common';
-
 import { Key, Wand, RefreshCw, ArrowRight } from 'lucide-react';
-import { useState, useCallback, useRef } from 'react';
-import { getCsrfToken, useSession, signOut } from "next-auth/react"
-import { useEffect } from 'react';
+import { FaDiscord, FaGithub } from 'react-icons/fa';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { getCsrfToken, useSession, signOut, signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 
-import { FaDiscord, FaGithub } from 'react-icons/fa';
-import { signIn } from 'next-auth/react';
-
-// Get the basePath for production multi-region deployment
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
   : '';
 
-// Separate component for client-side only rendering
 function ClientOnlyForm() {
   const [email, setEmail] = useState('');
   const [inviteCode, setInviteCode] = useState('');
@@ -43,14 +33,9 @@ function ClientOnlyForm() {
   const [altchaVerified, setAltchaVerified] = useState(false);
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
-
-  // Check for OIDC interaction ID in URL params
   const oidcInteraction = searchParams?.get('oidc');
-
-  // Guard to prevent multiple redirects to the interaction endpoint
   const hasRedirectedRef = useRef(false);
 
-  // Handle Altcha verification events
   const handleAltchaStateChange = useCallback((ev: CustomEvent) => {
     if (ev.detail?.state === 'verified' && ev.detail?.payload) {
       setAltchaToken(ev.detail.payload);
@@ -70,8 +55,6 @@ function ClientOnlyForm() {
     };
     fetchCsrfToken();
     setIsSubmitting(false);
-
-    // Dynamically import Altcha widget (Web Component)
     import('altcha').catch(console.error);
   }, []);
 
@@ -82,299 +65,268 @@ function ClientOnlyForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    if (!csrfToken || csrfToken === '') {
-      setError("CSRF token not handled or set properly.")
-      return
-    }
-    if (!email || email === '') {
-      setError("Provide an email to receive 🪄 magic link.")
-      return
-    }
-    if (!inviteCode || inviteCode === '') {
-      setError("Provide the invite code.")
-      return
-    }
-    if (!altchaToken || !altchaVerified) {
-      setError("Please complete the verification challenge first.")
-      return
-    }
+    e.preventDefault();
+    if (!csrfToken) { setError("CSRF token not ready."); return; }
+    if (!email) { setError("Enter your email address."); return; }
+    if (!inviteCode) { setError("Enter the invite code."); return; }
+    if (!altchaToken || !altchaVerified) { setError("Complete the verification first."); return; }
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
       const res = await fetch(`${basePath}/api/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inviteCode, email, csrfToken, altcha: altchaToken }),
-      })
+      });
       if (!res.ok || res.status != 200) {
-        const errorData = await res.json()
-        throw new Error(errorData.error)
+        const errorData = await res.json();
+        throw new Error(errorData.error);
       } else {
-        // Include OIDC interaction ID if present (for OIDC flow)
         const verifyUrl = oidcInteraction
           ? `${basePath}/login/verify?email=${email}&oidc=${oidcInteraction}`
           : `${basePath}/login/verify?email=${email}`;
         window.location.href = verifyUrl;
       }
     } catch (error: any) {
-      setError(error.message)
-      setIsSubmitting(false)
+      setError(error.message);
+      setIsSubmitting(false);
     }
-    return false
-  }
+    return false;
+  };
 
-  // Auto-redirect to complete OIDC flow when authenticated with an OIDC interaction
-  // This handles the case where user completes OAuth and returns to /login?oidc=...
   useEffect(() => {
     if (status === 'authenticated' && session && oidcInteraction && !hasRedirectedRef.current) {
-      // Mark that we've initiated the redirect to prevent double submissions
       hasRedirectedRef.current = true;
-      // Redirect to complete the OIDC interaction
       window.location.href = `${basePath}/api/oidc/interaction/${oidcInteraction}`;
     }
   }, [status, session, oidcInteraction]);
 
-  // Show logged-in view if user has a session
-  if (status === 'authenticated' && session) {
-    const continueUrl = oidcInteraction
-      ? `${basePath}/api/oidc/interaction/${oidcInteraction}`
-      : `${basePath}/`;
-
-    // If there's an OIDC interaction, show a "redirecting" message while the useEffect handles the redirect
-    if (oidcInteraction) {
-      return (
-        <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-          <div className="z-10 w-full max-w-md">
-            <Card className="shadow-lg bg-content1">
-              <CardBody className="flex justify-center items-center py-8">
-                <Text variant="large">
-                  Completing login...
-                </Text>
-              </CardBody>
-            </Card>
-          </div>
-        </div>
-      );
-    }
-
+  // Authenticated + OIDC redirect
+  if (status === 'authenticated' && session && oidcInteraction) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-        <div className="z-10 w-full max-w-md">
-          <Card className="shadow-lg bg-content1">
-            <CardHeader>
-              <div className="flex flex-col">
-                <Heading level={1}>Logged In</Heading>
-                <Text variant="small">
-                  You are currently signed in
-                </Text>
-              </div>
-            </CardHeader>
-            <Divider />
-            <CardBody className="space-y-4">
-              <div className="flex items-center gap-4 p-3 rounded-lg bg-default-100">
-                <Avatar
-                  src={session.user?.image || undefined}
-                  name={session.user?.name || session.user?.email || 'U'}
-                  size="lg"
-                  isBordered
-                  color="primary"
-                />
-                <div className="flex flex-col">
-                  <span className="text-lg font-semibold">
-                    {session.user?.name || 'User'}
-                  </span>
-                  <span className="text-sm text-default-500">
-                    {session.user?.email}
-                  </span>
-                </div>
-              </div>
-            </CardBody>
-            <Divider />
-            <CardFooter className="flex flex-col gap-3">
-              <Button
-                as="a"
-                href={continueUrl}
-                variant="solid"
-                color="primary"
-                className="text-lg font-semibold w-full"
-                endContent={<ArrowRight className="w-5 h-5" />}
-              >
-                Continue as {session.user?.name?.split(' ')[0] || 'User'}
-              </Button>
-              <Button
-                variant="flat"
-                color="default"
-                className="w-full"
-                startContent={<RefreshCw className="w-5 h-5" />}
-                onPress={handleSwitchUser}
-                isLoading={isSwitching}
-              >
-                Switch User
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
+      <div className="space-y-6 animate-fade-up">
+        <Card className="glass-card">
+          <CardBody className="flex justify-center items-center py-12">
+            <p className="text-default-500 font-mono text-sm">Completing login...</p>
+          </CardBody>
+        </Card>
       </div>
     );
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <div className="z-10 w-full max-w-md" >
-        <form onSubmit={handleSubmit} className="w-full">
-          <Card className="shadow-lg bg-content1">
-            <CardHeader>
-              <div className="flex flex-col">
-                <Heading level={1}>Welcome!</Heading>
-                <Text variant="small">
-                  We don&apos;t store passwords but require an email address.
-                </Text>
-              </div>
-            </CardHeader>
-            <Divider />
-            <CardBody className="space-y-6">
-              <div className="space-y-3 w-full">
-                <Heading level={4}>
-                  <label
-                    htmlFor="email"
-                    className="block text-lg font-medium"
-                  >
-                    Email Address
-                  </label>
-                </Heading>
-                <div className="relative w-full">
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    className="text-lg w-full"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-3 w-full">
-                <label
-                  htmlFor="inviteCode"
-                  className={`block text-lg font-medium pt-2 ${fontMuseo.className}`}
-                >
-                  Invite Codes
-                </label>
-                <div className="relative w-full">
-                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-default-400">
-                    <Key className="h-5 w-5" />
-                  </div>
-                  <Input
-                    id="inviteCode"
-                    type="text"
-                    placeholder="hacktheplanet"
-                    className="text-lg w-full"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    required
-                    disabled={isSubmitting}
-                  />
-                </div>
-              </div>
-
-              {/* Altcha proof-of-work verification */}
-              <div className="flex justify-center w-full pt-2">
-                <altcha-widget
-                  challengeurl={`${basePath}/api/captcha/challenge`}
-                  onstatechange={handleAltchaStateChange}
-                  hidefooter
-                  hidelogo
-                />
-              </div>
-
-              {error && <div><p className="error text-red-600 text-center text-xl" >{error}</p></div>}
-            </CardBody>
-            <Divider className="mt-2" />
-            <CardFooter className="justify-center">
-              <Button
-                type="submit"
-                variant="solid"
+  // Authenticated view
+  if (status === 'authenticated' && session) {
+    const continueUrl = `${basePath}/`;
+    return (
+      <div className="space-y-6 animate-fade-up">
+        <Card className="glass-card overflow-hidden">
+          <CardHeader className="pb-0 pt-5 px-5">
+            <div className="flex flex-col gap-1">
+              <h1 className="font-museo text-2xl font-bold tracking-tight text-foreground">
+                Welcome back
+              </h1>
+              <p className="text-sm text-default-500">You&apos;re signed in</p>
+            </div>
+          </CardHeader>
+          <Divider className="mt-4" />
+          <CardBody className="px-5 py-4">
+            <div className="flex items-center gap-4 p-3 rounded-lg bg-content2">
+              <Avatar
+                src={session.user?.image || undefined}
+                name={session.user?.name || session.user?.email || 'U'}
+                size="lg"
+                isBordered
                 color="primary"
-                className="text-lg font-semibold w-full"
-                disabled={isSubmitting || !altchaVerified}
-              >
-                {isSubmitting ? (
-                  <span className={fontMuseo.className}>Processing</span>
-                ) : (
-                  <>
-                    Send Magic Link <Wand />
-                  </>
-                )}
-              </Button>
-
-            </CardFooter>
-                <div className="w-full flex justify-center">
-                 <Text variant="large" className="pt-2 text-center">
-                  No email? Try{' '}
-                  <Link
-                    size="lg"
-                    href="#"
-                    onPress={() => signIn('discord', {
-                      // Always redirect back to login page with oidc param preserved
-                      // The login page will then redirect to the interaction endpoint
-                      // This prevents race conditions with duplicate requests
-                      callbackUrl: oidcInteraction
-                        ? `${basePath}/login?oidc=${oidcInteraction}`
-                        : `${basePath}/`
-                    })}
-                    >
-                    &nbsp; <FaDiscord />
-                    Discord
-                  </Link>{' '}
-                  or
-                  <Link
-                    size="lg"
-                    href="#"
-                    onPress={() => signIn('github', {
-                      // Always redirect back to login page with oidc param preserved
-                      // The login page will then redirect to the interaction endpoint
-                      // This prevents race conditions with duplicate requests
-                      callbackUrl: oidcInteraction
-                        ? `${basePath}/login?oidc=${oidcInteraction}`
-                        : `${basePath}/`
-                    })}
-                    >
-                    &nbsp; <FaGithub />
-                    Github
-                  </Link>
-                  </Text>
-                </div>  
-
-              
-          </Card>
-        </form>
+              />
+              <div className="flex flex-col min-w-0">
+                <span className="text-lg font-semibold text-foreground truncate">
+                  {session.user?.name || 'User'}
+                </span>
+                <span className="text-sm text-default-500 truncate">
+                  {session.user?.email}
+                </span>
+              </div>
+            </div>
+          </CardBody>
+          <Divider />
+          <CardFooter className="flex flex-col gap-3 px-5 py-4">
+            <Button
+              as="a"
+              href={continueUrl}
+              variant="solid"
+              color="primary"
+              className="w-full font-semibold"
+              endContent={<ArrowRight className="w-4 h-4" />}
+            >
+              Continue as {session.user?.name?.split(' ')[0] || 'User'}
+            </Button>
+            <Button
+              variant="flat"
+              color="default"
+              className="w-full"
+              startContent={<RefreshCw className="w-4 h-4" />}
+              onPress={handleSwitchUser}
+              isLoading={isSwitching}
+            >
+              Switch User
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
+    );
+  }
+
+  // Login form
+  return (
+    <div className="space-y-6 animate-slide-up">
+      {/* Wordmark */}
+      <div className="text-center space-y-2">
+        <h1 className="font-museo text-4xl font-bold tracking-tight text-foreground">
+          defcon<span className="teal-dot">.</span>run
+        </h1>
+        <p className="font-mono text-xs text-default-400 tracking-widest uppercase">
+          DEF CON 34 &mdash; Las Vegas 2026
+        </p>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="space-y-5 px-5 py-5">
+            <div className="space-y-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-default-600">
+                Email Address
+              </label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                size="lg"
+                variant="bordered"
+                classNames={{
+                  inputWrapper: "bg-content2 border-default-300 hover:border-primary focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
+                }}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="inviteCode" className="block text-sm font-medium text-default-600">
+                Invite Code
+              </label>
+              <Input
+                id="inviteCode"
+                type="text"
+                placeholder="hacktheplanet"
+                size="lg"
+                variant="bordered"
+                classNames={{
+                  inputWrapper: "bg-content2 border-default-300 hover:border-primary focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/20",
+                }}
+                startContent={<Key className="h-4 w-4 text-default-400" />}
+                value={inviteCode}
+                onChange={(e) => setInviteCode(e.target.value)}
+                required
+                disabled={isSubmitting}
+              />
+            </div>
+
+            {/* Altcha verification */}
+            <div className="flex justify-center pt-1">
+              <altcha-widget
+                challengeurl={`${basePath}/api/captcha/challenge`}
+                onstatechange={handleAltchaStateChange}
+                hidefooter
+                hidelogo
+              />
+            </div>
+
+            {error && (
+              <div className="px-3 py-2 rounded-lg bg-danger/10 border border-danger/20">
+                <p className="text-danger text-sm text-center">{error}</p>
+              </div>
+            )}
+          </CardBody>
+          <Divider />
+          <CardFooter className="flex flex-col gap-4 px-5 py-4">
+            <Button
+              type="submit"
+              variant="solid"
+              color="primary"
+              className="w-full font-semibold"
+              size="lg"
+              isLoading={isSubmitting}
+              isDisabled={isSubmitting || !altchaVerified}
+              endContent={!isSubmitting ? <Wand className="w-4 h-4" /> : undefined}
+            >
+              {isSubmitting ? 'Sending...' : 'Send Magic Link'}
+            </Button>
+
+            <div className="relative w-full">
+              <Divider />
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-content1 px-3 text-xs text-default-400">
+                or sign in with
+              </span>
+            </div>
+
+            <div className="flex gap-3 w-full">
+              <Button
+                variant="flat"
+                className="flex-1"
+                startContent={<FaDiscord className="w-4 h-4" />}
+                onPress={() => signIn('discord', {
+                  callbackUrl: oidcInteraction
+                    ? `${basePath}/login?oidc=${oidcInteraction}`
+                    : `${basePath}/`
+                })}
+              >
+                Discord
+              </Button>
+              <Button
+                variant="flat"
+                className="flex-1"
+                startContent={<FaGithub className="w-4 h-4" />}
+                onPress={() => signIn('github', {
+                  callbackUrl: oidcInteraction
+                    ? `${basePath}/login?oidc=${oidcInteraction}`
+                    : `${basePath}/`
+                })}
+              >
+                GitHub
+              </Button>
+            </div>
+          </CardFooter>
+        </Card>
+      </form>
     </div>
   );
 }
 
 export default function UnlockForm() {
   const [mounted, setMounted] = useState(false);
-  
+
   useEffect(() => {
     setMounted(true);
   }, []);
-  
-  // Only render the form client-side to avoid hydration mismatch
+
   if (!mounted) {
-    return <div className="flex min-h-screen items-center justify-center p-4 md:p-8">
-      <div className="z-10 w-full max-w-md">
-        <div className="bg-content1 shadow-lg rounded-lg p-6">
-          <p className="text-center">Loading...</p>
+    return (
+      <div className="space-y-6">
+        <div className="text-center space-y-2">
+          <div className="h-10 w-48 mx-auto rounded bg-content2 animate-pulse" />
+          <div className="h-4 w-64 mx-auto rounded bg-content2 animate-pulse" />
+        </div>
+        <div className="glass-card rounded-xl p-6">
+          <div className="space-y-4">
+            <div className="h-12 rounded bg-content2 animate-pulse" />
+            <div className="h-12 rounded bg-content2 animate-pulse" />
+            <div className="h-10 rounded bg-content2 animate-pulse" />
+          </div>
         </div>
       </div>
-    </div>;
+    );
   }
-  
+
   return <ClientOnlyForm />;
 }

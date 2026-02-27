@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useState, useEffect } from 'react';
-import { Card, CardBody, CardHeader, Divider, Skeleton } from '@heroui/react';
+import { Card, CardBody, Divider, Skeleton } from '@heroui/react';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import { apiUrl } from '@/lib/api';
 
@@ -47,6 +47,28 @@ const quotaGroups = [
   ]},
 ];
 
+function QuotaBar({ remaining, initial, label }: { remaining: number; initial: number; label: string }) {
+  const pct = initial > 0 ? (remaining / initial) * 100 : 0;
+  const barColor = pct > 50 ? 'bg-primary' : pct > 20 ? 'bg-warning' : 'bg-danger';
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs text-default-500">{label}</span>
+        <span className="font-mono text-sm text-foreground">
+          {remaining}<span className="text-default-400 text-xs">/{initial}</span>
+        </span>
+      </div>
+      <div className="w-full h-1.5 rounded-full bg-content2 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${barColor}`}
+          style={{ width: `${Math.max(pct, 2)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -77,14 +99,16 @@ export default function ProfilePage() {
 
   if (status === 'loading' || loading) {
     return (
-      <div className="max-w-2xl mx-auto py-4 space-y-4">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-4 w-40 rounded-lg" />
-          </CardHeader>
-          <Divider />
-          <CardBody>
-            <Skeleton className="h-20 w-full rounded-lg" />
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div className="h-7 w-48 rounded bg-content2 animate-pulse" />
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="p-5">
+            <Skeleton className="h-12 w-full rounded-lg" />
+          </CardBody>
+        </Card>
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="p-5">
+            <Skeleton className="h-40 w-full rounded-lg" />
           </CardBody>
         </Card>
       </div>
@@ -102,19 +126,24 @@ export default function ProfilePage() {
   const displayName = userData?.displayname || userData?.displayName || session.user?.name || 'User';
 
   return (
-    <div className="max-w-2xl mx-auto py-4 space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4 animate-fade-up">
+      {/* Page title */}
+      <h1 className="font-museo text-2xl font-bold tracking-tight text-foreground">
+        Profile
+      </h1>
+
       {/* Account Summary */}
-      <Card>
-        <CardBody className="flex flex-row items-center gap-3 py-3">
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="flex flex-row items-center gap-3 px-5 py-4">
           <div>
-            <p className="text-lg font-semibold">{displayName}</p>
+            <p className="font-museo text-lg font-bold text-foreground">{displayName}</p>
             {userData?.mqttUsername && (
               <p className="font-mono text-xs text-default-400">{userData.mqttUsername}</p>
             )}
           </div>
           <div className="ml-auto">
             <a href="/dashboard" className="text-xs text-primary hover:underline">
-              View identity on Dashboard
+              Dashboard
             </a>
           </div>
         </CardBody>
@@ -122,26 +151,29 @@ export default function ProfilePage() {
 
       {/* Quotas */}
       {userData?.quotas && (
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold">Quotas</h3>
-          </CardHeader>
-          <Divider />
-          <CardBody className="space-y-4">
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-4 space-y-5">
+            <h3 className="font-museo text-base font-bold text-foreground">Quotas</h3>
             {quotaGroups.map((group) => (
               <div key={group.label}>
-                <p className="text-xs uppercase tracking-wide text-default-400 mb-2">{group.label}</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {group.items.map((item) => (
-                    <div key={item.key} className="text-center p-2 bg-default-100 rounded-lg">
-                      <p className="text-2xl font-bold text-primary">
-                        {userData.quotas![item.key]?.remaining ?? 0}
-                        <span className="text-sm text-default-400">/{userData.quotas![item.key]?.initial ?? 0}</span>
-                      </p>
-                      <p className="text-xs text-default-500">{item.label}</p>
-                    </div>
-                  ))}
+                <p className="text-xs uppercase tracking-wider text-default-400 mb-3 font-semibold">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {group.items.map((item) => {
+                    const quota = userData.quotas![item.key];
+                    if (!quota) return null;
+                    return (
+                      <QuotaBar
+                        key={item.key}
+                        remaining={quota.remaining}
+                        initial={quota.initial}
+                        label={item.label}
+                      />
+                    );
+                  })}
                 </div>
+                {group !== quotaGroups[quotaGroups.length - 1] && <Divider className="mt-4" />}
               </div>
             ))}
           </CardBody>
@@ -155,22 +187,23 @@ export default function ProfilePage() {
         onUpdate={fetchUserData}
       />
 
-      {/* QR Code Card */}
+      {/* QR Code */}
       {userData?.eqr && (
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold">Your Social QR</h3>
-          </CardHeader>
-          <Divider />
-          <CardBody className="flex items-center justify-center">
-            <img
-              src={userData.eqr}
-              alt="Your QR Code"
-              className="max-w-[250px]"
-            />
-            <p className="text-sm text-default-500 mt-2 text-center">
-              Share this QR code to connect with other runners
-            </p>
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-4 space-y-3">
+            <h3 className="font-museo text-base font-bold text-foreground">Your Social QR</h3>
+            <div className="flex flex-col items-center">
+              <div className="bg-white p-3 rounded-lg">
+                <img
+                  src={userData.eqr}
+                  alt="Your QR Code"
+                  className="max-w-[220px]"
+                />
+              </div>
+              <p className="text-xs text-default-400 mt-3 text-center">
+                Share this QR code to connect with other runners
+              </p>
+            </div>
           </CardBody>
         </Card>
       )}

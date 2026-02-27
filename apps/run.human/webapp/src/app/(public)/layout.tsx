@@ -3,7 +3,7 @@ import { Metadata, Viewport } from "next";
 import clsx from "clsx";
 import { Providers } from "@/app/providers";
 import { siteConfig } from "@site";
-import { fontSans } from "@fonts";
+import { fontSans, fontMono, fontMuseo, fontAtkinson } from "@fonts";
 import { auth } from "@/config/auth";
 import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
@@ -12,14 +12,8 @@ import { config } from "@/config";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
-// SessionProvider basePath - full path for client-side browser requests
-// (includes Next.js basePath because browser needs the complete URL)
 const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
 
-/**
- * Check if user has a valid session on auth.defcon.run by validating
- * the sess_auth cookie via server-to-server call.
- */
 async function hasAuthSession(): Promise<boolean> {
   try {
     const cookieStore = await cookies();
@@ -32,7 +26,6 @@ async function hasAuthSession(): Promise<boolean> {
 
     console.log("[Silent SSO] Found sess_auth cookie, validating with auth server...");
 
-    // Call auth server to validate the token
     const authServerUrl = config.urls.privateAuthServer;
     const response = await fetch(`${authServerUrl}/api/session/validate/token`, {
       method: "POST",
@@ -72,7 +65,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "white" },
-    { media: "(prefers-color-scheme: dark)", color: "black" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0f" },
   ],
 };
 
@@ -81,28 +74,21 @@ export default async function PublicLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Check for existing run.human session
   const session = await auth();
 
   if (session?.user) {
     redirect("/dashboard");
   }
 
-  // Check if we're already in an auto-login flow to prevent infinite loops
-  // We detect this by checking if the request URL contains autoLogin=true
   const headersList = await headers();
   const fullUrl = headersList.get("x-url") || headersList.get("referer") || "";
   const isAutoLoginFlow = fullUrl.includes("autoLogin=true");
-
-  // Silent SSO: Check for valid auth.defcon.run session
-  // Only check if not already in auto-login flow or auto-signin route
   const isAutoSigninRoute = fullUrl.includes("/api/auth/auto-signin");
+
   if (!isAutoLoginFlow && !isAutoSigninRoute) {
     const hasAuth = await hasAuthSession();
     if (hasAuth) {
       console.log("[Silent SSO] Valid auth session found, redirecting to OIDC flow");
-      // Redirect to our auto-signin route handler which triggers the OIDC flow server-side
-      // Note: redirect() prepends basePath, but callbackUrl needs explicit prefix for next-auth
       const REGION_SHORT = process.env.REGION_SHORT || "use1";
       const callbackUrl = encodeURIComponent(`/${REGION_SHORT}/dashboard`);
       redirect(`/api/auth/auto-signin?callbackUrl=${callbackUrl}`);
@@ -121,14 +107,17 @@ export default async function PublicLayout({
       <body
         className={clsx(
           "min-h-screen bg-background font-sans antialiased",
-          fontSans.variable
+          fontSans.variable,
+          fontMono.variable,
+          fontMuseo.variable,
+          fontAtkinson.variable,
         )}
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
-            <div className="relative flex flex-col h-screen">
-              <main className="container mx-auto h-screen flex items-center justify-center">
-                <div className="w-full max-w-md">{children}</div>
+            <div className="relative flex flex-col h-screen noise-overlay">
+              <main className="container mx-auto h-screen flex items-center justify-center relative z-10">
+                <div className="w-full max-w-md px-4">{children}</div>
               </main>
             </div>
           </SessionProvider>
