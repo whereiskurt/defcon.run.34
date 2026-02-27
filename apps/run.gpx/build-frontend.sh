@@ -15,7 +15,7 @@ WEBAPP_DIR="$SCRIPT_DIR/webapp"
 OUTPUT_DIR="$WEBAPP_DIR/public/studio"
 
 echo "=== Building GPX Studio frontend ==="
-echo "Version: $(cat "$SCRIPT_DIR/VERSION")"
+echo "Version: $(cat "$SCRIPT_DIR/VERSION" 2>/dev/null || echo 'dev')"
 echo ""
 
 # Check if gpx-studio submodule is initialized
@@ -154,45 +154,34 @@ fi
 
 echo "2. Applying DEF CON UI patches..."
 
-# Strip waymarked trails, country overlays, and POI from layer control
-# Replace overlayTree with empty overlays (real-time trackers added at runtime)
-sed -i.bak '/^\/\/ Hierarchy containing all overlays/,/^};/{
-  /^\/\/ Hierarchy/!{/^};/!d}
-  /^};/c\};
-  /^\/\/ Hierarchy/c\// Hierarchy containing all overlays (stripped for DEF CON - real-time trackers only)\nexport const overlayTree: LayerTreeType = {\n    overlays: {},
-}' src/lib/assets/layers.ts
+LAYERS_FILE="src/lib/assets/layers.ts"
+LOCALE_FILE="src/locales/en.json"
+LAYER_CTRL="src/lib/components/map/layer-control/LayerControl.svelte"
 
-# Replace overpassTree with empty object
-sed -i.bak '/^\/\/ Hierachy containing all Overpass layers/,/^};/{
-  /^\/\/ Hierachy/!{/^};/!d}
-  /^};/c\};
-  /^\/\/ Hierachy/c\// Overpass layers (disabled for DEF CON)\nexport const overpassTree: LayerTreeType = {}
-}' src/lib/assets/layers.ts
+# Skip if patches already applied (idempotent check)
+if grep -q "stripped for DEF CON" "$LAYERS_FILE" 2>/dev/null; then
+  echo "   Patches already applied, skipping."
+else
+  # Replace overlayTree block with empty overlays
+  perl -i -0pe 's{// Hierarchy containing all overlays\nexport const overlayTree: LayerTreeType = \{[^}]*(\{[^}]*\}[^}]*)*\};\n}{// Hierarchy containing all overlays (stripped for DEF CON - real-time trackers only)\nexport const overlayTree: LayerTreeType = \{\n    overlays: \{\},\n\};\n}s' "$LAYERS_FILE"
 
-# Replace defaultOverlays with empty overlays
-sed -i.bak '/^\/\/ Default overlays used/,/^};/{
-  /^\/\/ Default overlays/!{/^};/!d}
-  /^};/c\};
-  /^\/\/ Default overlays/c\// Default overlays used (none - real-time trackers added at runtime)\nexport const defaultOverlays: LayerTreeType = {\n    overlays: {},
-}' src/lib/assets/layers.ts
+  # Replace overpassTree block with empty object
+  perl -i -0pe 's{// Hierachy containing all Overpass layers\nexport const overpassTree: LayerTreeType = \{[^;]*;\n}{// Overpass layers (disabled for DEF CON)\nexport const overpassTree: LayerTreeType = \{\};\n}s' "$LAYERS_FILE"
 
-# Replace defaultOverpassQueries with empty object
-sed -i.bak '/^\/\/ Default Overpass queries/,/^};/{
-  /^\/\/ Default Overpass/!{/^};/!d}
-  /^};/c\};
-  /^\/\/ Default Overpass/c\// Default Overpass queries (disabled for DEF CON)\nexport const defaultOverpassQueries: LayerTreeType = {}
-}' src/lib/assets/layers.ts
+  # Replace defaultOverlays block with empty overlays
+  perl -i -0pe 's{// Default overlays used \(none\)\nexport const defaultOverlays: LayerTreeType = \{[^;]*;\n}{// Default overlays used (none - real-time trackers added at runtime)\nexport const defaultOverlays: LayerTreeType = \{\n    overlays: \{\},\n\};\n}s' "$LAYERS_FILE"
 
-# Rename "Overlays" to "Real-Time Trackers" in English locale
-sed -i.bak 's/"overlays": "Overlays"/"overlays": "Real-Time Trackers"/' src/locales/en.json
+  # Replace defaultOverpassQueries block with empty object
+  perl -i -0pe 's{// Default Overpass queries used \(none\)\nexport const defaultOverpassQueries: LayerTreeType = \{[^;]*;\n}{// Default Overpass queries (disabled for DEF CON)\nexport const defaultOverpassQueries: LayerTreeType = \{\};\n}s' "$LAYERS_FILE"
 
-# Remove POI/Overpass section from LayerControl
-sed -i.bak '/<Separator class="w-full" \/>/,/<\/div>/{
-  /currentOverpassQueries/,/<\/div>/d
-}' src/lib/components/map/layer-control/LayerControl.svelte
+  # Rename "Overlays" to "Real-Time Trackers" in English locale
+  perl -i -pe 's/"overlays": "Overlays"/"overlays": "Real-Time Trackers"/' "$LOCALE_FILE"
 
-# Clean up .bak files
-find . -name "*.bak" -delete
+  # Remove POI/Overpass section from LayerControl
+  perl -i -0pe 's{<Separator class="w-full" />\s*<div class="p-2 ml-1">\s*\{#if \$currentOverpassQueries\}.*?\{/if\}\s*</div>}{<!-- POI/Overpass section removed for DEF CON -->}s' "$LAYER_CTRL"
+
+  echo "   Patches applied."
+fi
 
 echo "3. Installing dependencies..."
 
