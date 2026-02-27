@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { FaMoneyCheckDollar, FaQuestion, FaRadio, FaFire } from 'react-icons/fa6';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
-import { FaDesktop, FaTrophy } from 'react-icons/fa';
+import { FaUserAlt, FaTrophy } from 'react-icons/fa';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
@@ -59,13 +59,13 @@ const MenuDropDown = (params: any) => {
       >
         <DropdownSection aria-label="Navigation">
           <DropdownItem
-            textValue="dashboard"
-            startContent={<FaDesktop className={iconClasses} />}
-            key="dashboard"
+            textValue="whoami"
+            startContent={<FaUserAlt className={iconClasses} />}
+            key="whoami"
             showDivider
-            onClick={() => handleNavigation('/dashboard')}
+            onClick={() => handleNavigation('/whoami')}
           >
-            <span className="text-base">Dashboard</span>
+            <span className="text-base">Who Am I</span>
           </DropdownItem>
 
           <DropdownItem

@@ -76,9 +76,7 @@ export default async function PublicLayout({
 }) {
   const session = await auth();
 
-  if (session?.user) {
-    redirect("/dashboard");
-  }
+  // Authenticated users can stay on / (welcome page) — no redirect needed
 
   const headersList = await headers();
   const fullUrl = headersList.get("x-url") || headersList.get("referer") || "";
@@ -90,7 +88,7 @@ export default async function PublicLayout({
     if (hasAuth) {
       console.log("[Silent SSO] Valid auth session found, redirecting to OIDC flow");
       const REGION_SHORT = process.env.REGION_SHORT || "use1";
-      const callbackUrl = encodeURIComponent(`/${REGION_SHORT}/dashboard`);
+      const callbackUrl = encodeURIComponent(`/${REGION_SHORT}/whoami`);
       redirect(`/api/auth/auto-signin?callbackUrl=${callbackUrl}`);
     }
   }

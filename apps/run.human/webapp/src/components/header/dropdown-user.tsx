@@ -164,7 +164,7 @@ const UserDropDown = (params: any) => {
               key="profile"
               className="gap-2 opacity-100 py-2 text-base"
               textValue="Profile"
-              href="/profile"
+              href="/whoami"
               closeOnSelect={true}
             >
               Profile

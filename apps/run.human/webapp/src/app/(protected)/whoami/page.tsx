@@ -1,0 +1,383 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
+import { useLogout } from '@/hooks/useLogout';
+import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton } from '@heroui/react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, ExternalLink } from 'lucide-react';
+import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
+import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
+import { apiUrl } from '@/lib/api';
+
+const homeUrl = '/';
+
+interface QuotaInfo {
+  remaining: number;
+  initial: number;
+}
+
+interface UserData {
+  userId: string;
+  displayname?: string;
+  displayName?: string;
+  eqr?: string;
+  mqttUsername?: string;
+  meshtasticRadios?: any[];
+  checkIns?: any[];
+  checkInCount?: number;
+  quotas?: Record<string, QuotaInfo>;
+  preferences?: {
+    checkinPreference?: string;
+  };
+  checkin_preference?: string;
+}
+
+const quotaGroups = [
+  { label: 'Uploads', items: [
+    { key: 'file_upload', label: 'Files' },
+    { key: 'gpx_upload', label: 'GPX Uploads' },
+    { key: 'gpx_save', label: 'GPX Saves' },
+    { key: 'gpx_share', label: 'GPX Shares' },
+    { key: 'photo_upload', label: 'Photos' },
+  ]},
+  { label: 'Activity', items: [
+    { key: 'checkin', label: 'Check-ins' },
+    { key: 'strava_sync', label: 'Strava Syncs' },
+    { key: 'qr_scan', label: 'QR Scans' },
+  ]},
+  { label: 'System', items: [
+    { key: 'meshtastic_radio', label: 'Radio Slots' },
+    { key: 'displayname_change', label: 'Name Changes' },
+    { key: 'qr_sheet', label: 'QR Sheets' },
+  ]},
+];
+
+const providerList = [
+  { name: 'Discord', icon: SiDiscord, key: 'hasDiscord', color: '#5865F2' },
+  { name: 'GitHub', icon: SiGithub, key: 'hasGithub', color: '#e4e4ef' },
+  { name: 'Strava', icon: SiStrava, key: 'hasStrava', color: '#FC4C02' },
+] as const;
+
+function relativeExpiry(expires: string): string {
+  const ms = new Date(expires).getTime() - Date.now();
+  if (ms <= 0) return 'Expired';
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function QuotaBar({ remaining, initial, label }: { remaining: number; initial: number; label: string }) {
+  const pct = initial > 0 ? (remaining / initial) * 100 : 0;
+  const barColor = pct > 50 ? 'bg-primary' : pct > 20 ? 'bg-warning' : 'bg-danger';
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs text-default-500">{label}</span>
+        <span className="font-mono text-sm text-foreground">
+          {remaining}<span className="text-default-400 text-xs">/{initial}</span>
+        </span>
+      </div>
+      <div className="w-full h-1.5 rounded-full bg-content2 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${barColor}`}
+          style={{ width: `${Math.max(pct, 2)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default function WhoAmIPage() {
+  const [mounted, setMounted] = useState(false);
+  const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const { data: session, update, status } = useSession();
+  const { logout } = useLogout();
+
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchUserData();
+    }
+  }, [session?.user?.id]);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch(apiUrl('/api/user'));
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+      const data = await response.json();
+      setUserData(data.user);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError('Failed to load user data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefreshClaims = async () => {
+    setIsRefreshing(true);
+    try {
+      const result = await update({ refreshClaims: true });
+      if (!result) { await signOut({ callbackUrl: homeUrl }); return; }
+      router.refresh();
+    } catch {
+      await signOut({ callbackUrl: homeUrl });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  if (!mounted || status === 'loading' || loading) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div className="h-7 w-48 rounded bg-content2 animate-pulse" />
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="p-5">
+            <Skeleton className="h-12 w-full rounded-lg" />
+          </CardBody>
+        </Card>
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="p-5">
+            <Skeleton className="h-40 w-full rounded-lg" />
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <p className="text-default-500">Please sign in to view your profile.</p>
+      </div>
+    );
+  }
+
+  const { user } = session;
+  const displayName = userData?.displayname || userData?.displayName || user?.displayName || user?.name || 'Runner';
+  const services: string[] = user.services || [];
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-4 animate-fade-up">
+      {/* Page title */}
+      <h1 className="font-museo text-2xl font-bold tracking-tight text-foreground">
+        Who Am I
+      </h1>
+
+      {/* Identity card */}
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="px-5 py-4 space-y-4">
+          <div className="flex items-center gap-3">
+            <Avatar
+              src={user?.image || undefined}
+              name={displayName}
+              size="lg"
+              isBordered
+              color="primary"
+              classNames={{ base: "ring-2 ring-primary/20" }}
+            />
+            <div className="flex flex-col min-w-0">
+              <span className="font-museo text-lg font-bold text-foreground truncate">
+                {displayName}
+              </span>
+              {user?.email && (
+                <span className="text-xs text-default-500 truncate">{user.email}</span>
+              )}
+              {userData?.mqttUsername && (
+                <span className="font-mono text-xs text-default-400">{userData.mqttUsername}</span>
+              )}
+            </div>
+          </div>
+          {session.expires && (
+            <p className="font-mono text-xs text-default-400">
+              Session: {relativeExpiry(session.expires)} remaining
+            </p>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Two-column: Providers + Services */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Linked Providers */}
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-4 space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
+              Linked Providers
+            </span>
+            {providerList.map(({ name, icon: Icon, key, color }) => {
+              const isConnected = user[key];
+              return (
+                <div key={name} className="flex items-center justify-between py-1">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-3.5 h-3.5" style={{ color: isConnected ? color : undefined }} />
+                    <span className={`text-sm ${isConnected ? 'text-foreground' : 'text-default-400'}`}>{name}</span>
+                  </div>
+                  {isConnected ? (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-success" />
+                      <span className="text-xs text-success">Connected</span>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-default-400">-</span>
+                  )}
+                </div>
+              );
+            })}
+            <p className="text-xs text-default-400 pt-1">
+              Manage at{' '}
+              <a href="https://auth.defcon.run" className="text-primary hover:underline" target="_blank" rel="noreferrer">
+                auth.defcon.run <ExternalLink className="w-3 h-3 inline" />
+              </a>
+            </p>
+          </CardBody>
+        </Card>
+
+        {/* Authorized Services */}
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-4 space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
+              Authorized Services
+            </span>
+            {services.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {services.map((s) => (
+                  <Chip
+                    key={s}
+                    size="sm"
+                    variant="flat"
+                    color={s === 'admin' ? 'danger' : s === 'gpx' ? 'secondary' : 'primary'}
+                    classNames={{ base: "font-mono text-xs" }}
+                  >
+                    {s}
+                  </Chip>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-default-400">No services assigned</p>
+            )}
+
+            <Divider />
+
+            <Button
+              variant="flat"
+              color="danger"
+              className="w-full justify-start"
+              startContent={<LogOut className="w-4 h-4" />}
+              onPress={() => logout('/')}
+            >
+              Sign Out
+            </Button>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Quotas */}
+      {userData?.quotas && (
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-4 space-y-5">
+            <h3 className="font-museo text-base font-bold text-foreground">Quotas</h3>
+            {quotaGroups.map((group) => (
+              <div key={group.label}>
+                <p className="text-xs uppercase tracking-wider text-default-400 mb-3 font-semibold">
+                  {group.label}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {group.items.map((item) => {
+                    const quota = userData.quotas![item.key];
+                    if (!quota) return null;
+                    return (
+                      <QuotaBar
+                        key={item.key}
+                        remaining={quota.remaining}
+                        initial={quota.initial}
+                        label={item.label}
+                      />
+                    );
+                  })}
+                </div>
+                {group !== quotaGroups[quotaGroups.length - 1] && <Divider className="mt-4" />}
+              </div>
+            ))}
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Meshtastic Radios */}
+      <MeshtasticRadios
+        radios={userData?.meshtasticRadios}
+        quotas={userData?.quotas}
+        onUpdate={fetchUserData}
+      />
+
+      {/* QR Code */}
+      {userData?.eqr && (
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-4 space-y-3">
+            <h3 className="font-museo text-base font-bold text-foreground">Your Social QR</h3>
+            <div className="flex flex-col items-center">
+              <div className="bg-white p-3 rounded-lg">
+                <img
+                  src={userData.eqr}
+                  alt="Your QR Code"
+                  className="max-w-[220px]"
+                />
+              </div>
+              <p className="text-xs text-default-400 mt-3 text-center">
+                Share this QR code to connect with other runners
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Debug */}
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="px-5 py-3">
+          <button
+            onClick={() => setIsDebugOpen(!isDebugOpen)}
+            className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            {isDebugOpen ? (
+              <ChevronDown className="w-3.5 h-3.5 text-default-400" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-default-400" />
+            )}
+            <span className="text-sm font-semibold text-default-500">Debug</span>
+          </button>
+          {isDebugOpen && (
+            <div className="space-y-3 mt-3">
+              {user?.id && (
+                <p className="text-xs text-default-400">
+                  User ID: <span className="font-mono text-foreground">{user.id}</span>
+                </p>
+              )}
+              <Button
+                size="sm"
+                variant="flat"
+                color="primary"
+                isLoading={isRefreshing}
+                onPress={handleRefreshClaims}
+                startContent={<RefreshCw className="w-3 h-3" />}
+              >
+                Refresh Claims
+              </Button>
+              <pre className="terminal-block p-3 text-xs overflow-x-auto text-foreground">
+                {JSON.stringify(session, null, 2)}
+              </pre>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+    </div>
+  );
+}

@@ -16,7 +16,7 @@ import { MdOutlineMailLock } from 'react-icons/md';
 // Callback URL needs region prefix in production for next-auth redirects
 const isDev = process.env.NODE_ENV !== 'production';
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
-const dashboardUrl = isDev ? '/dashboard' : `/${region}/dashboard`;
+const whoamiUrl = isDev ? '/whoami' : `/${region}/whoami`;
 
 const iconClasses =
   'text-xl text-default-500 pointer-events-none flex-shrink-0';
@@ -66,7 +66,7 @@ const LoginDropDown = (params: any) => {
             startContent={
               <MdOutlineMailLock size={24} className={iconClasses} />
             }
-            onPress={() => signIn('email', { callbackUrl: dashboardUrl })}
+            onPress={() => signIn('email', { callbackUrl: whoamiUrl })}
           >
             Email Account
           </DropdownItem>
@@ -78,14 +78,14 @@ const LoginDropDown = (params: any) => {
           <DropdownItem
             key="a1"
             startContent={<FaDiscord size={24} className={iconClasses} />}
-            onPress={() => signIn('discord', { callbackUrl: dashboardUrl })}
+            onPress={() => signIn('discord', { callbackUrl: whoamiUrl })}
           >
             Discord
           </DropdownItem>
           <DropdownItem
             key="b1"
             startContent={<FaGithub size={24} className={iconClasses} />}
-            onPress={() => signIn('github', { callbackUrl: dashboardUrl })}
+            onPress={() => signIn('github', { callbackUrl: whoamiUrl })}
           >
             Github
           </DropdownItem>

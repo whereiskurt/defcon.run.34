@@ -73,7 +73,7 @@ export function Header(params: any) {
       <NavbarContent className="sm:hidden" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href="/dashboard">
+            <Link color="foreground" href="/">
               <span className="font-museo text-lg font-bold tracking-tight">
                 defcon<span className="teal-dot">.</span>run
               </span>
@@ -86,7 +86,7 @@ export function Header(params: any) {
       <NavbarContent className="sm:flex hidden gap-6" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href="/dashboard">
+            <Link color="foreground" href="/">
               <span className="font-museo text-lg font-bold tracking-tight">
                 defcon<span className="teal-dot">.</span>run
               </span>
