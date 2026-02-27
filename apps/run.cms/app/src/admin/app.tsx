@@ -8,7 +8,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare const window: any;
-declare function setTimeout(callback: () => void, ms: number): void;
 declare class Promise<T> {
   constructor(executor: (resolve: (value: T) => void, reject: (reason?: any) => void) => void);
 }
@@ -94,8 +93,12 @@ const redirectToOIDCLogout = (): void => {
 
 // Auto-redirect to SSO on login page (only runs in browser)
 if (typeof window !== 'undefined' && shouldRedirectToSSO()) {
-  // Small delay to ensure any cleanup happens first
-  setTimeout(redirectToSSO, 100);
+  // Hide the page immediately to prevent native login form flash
+  if (window.document?.documentElement) {
+    window.document.documentElement.style.display = 'none';
+  }
+  // Redirect immediately — no delay
+  redirectToSSO();
 }
 
 export default {
