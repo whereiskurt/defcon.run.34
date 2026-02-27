@@ -152,7 +152,50 @@ export const isAuthLoading = derived(auth, $a => $a.isLoading);
 AUTH_EOF
 fi
 
-echo "2. Installing dependencies..."
+echo "2. Applying DEF CON UI patches..."
+
+# Strip waymarked trails, country overlays, and POI from layer control
+# Replace overlayTree with empty overlays (real-time trackers added at runtime)
+sed -i.bak '/^\/\/ Hierarchy containing all overlays/,/^};/{
+  /^\/\/ Hierarchy/!{/^};/!d}
+  /^};/c\};
+  /^\/\/ Hierarchy/c\// Hierarchy containing all overlays (stripped for DEF CON - real-time trackers only)\nexport const overlayTree: LayerTreeType = {\n    overlays: {},
+}' src/lib/assets/layers.ts
+
+# Replace overpassTree with empty object
+sed -i.bak '/^\/\/ Hierachy containing all Overpass layers/,/^};/{
+  /^\/\/ Hierachy/!{/^};/!d}
+  /^};/c\};
+  /^\/\/ Hierachy/c\// Overpass layers (disabled for DEF CON)\nexport const overpassTree: LayerTreeType = {}
+}' src/lib/assets/layers.ts
+
+# Replace defaultOverlays with empty overlays
+sed -i.bak '/^\/\/ Default overlays used/,/^};/{
+  /^\/\/ Default overlays/!{/^};/!d}
+  /^};/c\};
+  /^\/\/ Default overlays/c\// Default overlays used (none - real-time trackers added at runtime)\nexport const defaultOverlays: LayerTreeType = {\n    overlays: {},
+}' src/lib/assets/layers.ts
+
+# Replace defaultOverpassQueries with empty object
+sed -i.bak '/^\/\/ Default Overpass queries/,/^};/{
+  /^\/\/ Default Overpass/!{/^};/!d}
+  /^};/c\};
+  /^\/\/ Default Overpass/c\// Default Overpass queries (disabled for DEF CON)\nexport const defaultOverpassQueries: LayerTreeType = {}
+}' src/lib/assets/layers.ts
+
+# Rename "Overlays" to "Real-Time Trackers" in English locale
+sed -i.bak 's/"overlays": "Overlays"/"overlays": "Real-Time Trackers"/' src/locales/en.json
+
+# Remove POI/Overpass section from LayerControl
+sed -i.bak '/<Separator class="w-full" \/>/,/<\/div>/{
+  /currentOverpassQueries/,/<\/div>/d
+}' src/lib/components/map/layer-control/LayerControl.svelte
+
+# Clean up .bak files
+find . -name "*.bak" -delete
+
+echo "3. Installing dependencies..."
+
 # First install gpx library dependencies (website depends on it via file:../gpx)
 echo "   Installing gpx library dependencies..."
 cd "$SCRIPT_DIR/gpx-studio/gpx"
@@ -161,7 +204,7 @@ cd "$GPX_STUDIO_DIR"
 # Now install website dependencies (will also build the gpx library)
 npm install
 
-echo "3. Building gpx.studio..."
+echo "4. Building gpx.studio..."
 # Set BASE_PATH so SvelteKit prefixes all asset URLs with /studio
 # PUBLIC_MAPBOX_TOKEN is required at build time by SvelteKit's $env/static/public
 # Source from webapp's .env or use placeholder if not set
@@ -171,7 +214,7 @@ fi
 export PUBLIC_MAPBOX_TOKEN="${MAPBOX_TOKEN:-pk.placeholder}"
 BASE_PATH=/studio npm run build
 
-echo "4. Copying build output to webapp..."
+echo "5. Copying build output to webapp..."
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"
 cp -r build/* "$OUTPUT_DIR/"

@@ -807,172 +807,24 @@ export const basemapTree: LayerTreeType = {
     },
 };
 
-// Hierarchy containing all overlays
+// Hierarchy containing all overlays (stripped for DEF CON - real-time trackers only)
 export const overlayTree: LayerTreeType = {
-    overlays: {
-        world: {
-            waymarked_trails: {
-                waymarkedTrailsHiking: true,
-                waymarkedTrailsCycling: true,
-                waymarkedTrailsMTB: true,
-                waymarkedTrailsSkating: true,
-                waymarkedTrailsHorseRiding: true,
-                waymarkedTrailsWinter: true,
-            },
-            cyclOSMlite: true,
-            bikerouterGravel: true,
-            openRailwayMap: true,
-        },
-        countries: {
-            france: {
-                ignFrCadastre: true,
-                ignSlope: true,
-                ignSkiTouring: true,
-            },
-            switzerland: {
-                swisstopoSlope: true,
-                swisstopoHiking: true,
-                swisstopoHikingClosures: true,
-                swisstopoCycling: true,
-                swisstopoCyclingClosures: true,
-                swisstopoMountainBike: true,
-                swisstopoMountainBikeClosures: true,
-                swisstopoSkiTouring: true,
-            },
-        },
-    },
+    overlays: {},
 };
 
-// Hierachy containing all Overpass layers
-export const overpassTree: LayerTreeType = {
-    points_of_interest: {
-        food: {
-            bakery: true,
-            'food-store': true,
-            'eat-and-drink': true,
-        },
-        amenities: {
-            toilets: true,
-            water: true,
-            shower: true,
-            shelter: true,
-            barrier: true,
-            cemetery: true,
-        },
-        tourism: {
-            attraction: true,
-            viewpoint: true,
-            hotel: true,
-            campsite: true,
-            hut: true,
-            picnic: true,
-            summit: true,
-            pass: true,
-            climbing: true,
-        },
-        bicycle: {
-            'bicycle-parking': true,
-            'bicycle-rental': true,
-            'bicycle-shop': true,
-        },
-        'public-transport': {
-            'railway-station': true,
-            'tram-stop': true,
-            'bus-stop': true,
-            ferry: true,
-        },
-        motorized: {
-            'fuel-station': true,
-            parking: true,
-            garage: true,
-        },
-    },
-};
+// Overpass layers (disabled for DEF CON)
+export const overpassTree: LayerTreeType = {};
 
 // Default basemap used
 export const defaultBasemap = 'mapboxOutdoors';
 
-// Default overlays used (none)
+// Default overlays used (none - real-time trackers added at runtime)
 export const defaultOverlays: LayerTreeType = {
-    overlays: {
-        world: {
-            waymarked_trails: {
-                waymarkedTrailsHiking: false,
-                waymarkedTrailsCycling: false,
-                waymarkedTrailsMTB: false,
-                waymarkedTrailsSkating: false,
-                waymarkedTrailsHorseRiding: false,
-                waymarkedTrailsWinter: false,
-            },
-            cyclOSMlite: false,
-            bikerouterGravel: false,
-            openRailwayMap: false,
-        },
-        countries: {
-            france: {
-                ignFrCadastre: false,
-                ignSlope: false,
-                ignSkiTouring: false,
-            },
-            switzerland: {
-                swisstopoSlope: false,
-                swisstopoHiking: false,
-                swisstopoHikingClosures: false,
-                swisstopoCycling: false,
-                swisstopoCyclingClosures: false,
-                swisstopoMountainBike: false,
-                swisstopoMountainBikeClosures: false,
-                swisstopoSkiTouring: false,
-            },
-        },
-    },
+    overlays: {},
 };
 
-// Default Overpass queries used (none)
-export const defaultOverpassQueries: LayerTreeType = {
-    points_of_interest: {
-        food: {
-            bakery: false,
-            'food-store': false,
-            'eat-and-drink': false,
-        },
-        amenities: {
-            toilets: false,
-            water: false,
-            shower: false,
-            shelter: false,
-            barrier: false,
-            cemetery: false,
-        },
-        tourism: {
-            attraction: false,
-            viewpoint: false,
-            hotel: false,
-            campsite: false,
-            hut: false,
-            picnic: false,
-            summit: false,
-            pass: false,
-            climbing: false,
-        },
-        bicycle: {
-            'bicycle-parking': false,
-            'bicycle-rental': false,
-            'bicycle-shop': false,
-        },
-        'public-transport': {
-            'railway-station': false,
-            'tram-stop': false,
-            'bus-stop': false,
-            ferry: false,
-        },
-        motorized: {
-            'fuel-station': false,
-            parking: false,
-            garage: false,
-        },
-    },
-};
+// Default Overpass queries (disabled for DEF CON)
+export const defaultOverpassQueries: LayerTreeType = {};
 
 // Default basemaps shown in the layer menu
 export const defaultBasemapTree: LayerTreeType = {
