@@ -350,7 +350,7 @@ locals {
   # CloudTrail for IAM activity logging and policy generation
   # Records all API calls to enable least-privilege policy generation
   cloudtrail = {
-    enabled = true
+    enabled = false
 
     # Multi-region trail captures activity across all regions
     multi_region = true

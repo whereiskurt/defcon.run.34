@@ -509,7 +509,7 @@ func DefaultConfig() *SiteConfig {
 				"runhuman":      {Description: "RunHuman OIDC client credentials", Keys: []string{"client_id", "client_secret"}},
 				"altcha":        {Description: "ALTCHA proof-of-work secret", Keys: []string{"secret"}},
 				"origin_verify": {Description: "CloudFront origin verification secret", Keys: []string{"secret"}},
-				"strapi":        {Description: "Strapi CMS secrets", Keys: []string{"admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "jwt_secret", "oidc_client_id", "oidc_client_secret"}},
+				"strapi":        {Description: "Strapi CMS secrets", Keys: []string{"admin_jwt_secret", "api_token_salt", "app_keys", "transfer_token_salt", "jwt_secret", "oidc_client_id", "oidc_client_secret", "admin_email", "admin_password"}},
 				"gpxstudio":     {Description: "GPX Studio OIDC client credentials", Keys: []string{"client_id", "client_secret"}},
 				"mapbox":        {Description: "Mapbox API tokens", Keys: []string{"public_token"}, Global: true},
 			},
