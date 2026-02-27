@@ -31,6 +31,17 @@ export class Database extends Dexie {
             overpasstiles: '[query+x+y],[x+y]',
             overpassdata: '[query+id]',
         });
+        // DEF CON: clear cached overlay/overpass settings so stripped defaults take effect
+        this.version(2).stores({}).upgrade(tx => {
+            const settings = tx.table('settings');
+            return Promise.all([
+                'selectedOverlayTree',
+                'selectedOverpassTree',
+                'currentOverlays',
+                'previousOverlays',
+                'currentOverpassQueries',
+            ].map(key => settings.delete(key)));
+        });
     }
 }
 

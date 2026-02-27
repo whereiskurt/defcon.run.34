@@ -186,6 +186,12 @@ else
   # Remove POI/Overpass section from LayerControl
   perl -i -0pe 's{<Separator class="w-full" />\s*<div class="p-2 ml-1">\s*\{#if \$currentOverpassQueries\}.*?\{/if\}\s*</div>}{<!-- POI/Overpass section removed for DEF CON -->}s' "$LAYER_CTRL"
 
+  # Add DB version 2 migration to clear cached overlay settings from IndexedDB
+  DB_FILE="src/lib/db.ts"
+  if ! grep -q "DEF CON: clear cached" "$DB_FILE" 2>/dev/null; then
+    perl -i -0pe 's{(this\.version\(1\)\.stores\(\{[^}]*\}\);)}{$1\n        // DEF CON: clear cached overlay/overpass settings so stripped defaults take effect\n        this.version(2).stores(\{\}).upgrade(tx => \{\n            const settings = tx.table('\''settings'\'');\n            return Promise.all([\n                '\''selectedOverlayTree'\'',\n                '\''selectedOverpassTree'\'',\n                '\''currentOverlays'\'',\n                '\''previousOverlays'\'',\n                '\''currentOverpassQueries'\'',\n            ].map(key => settings.delete(key)));\n        \});}s' "$DB_FILE"
+  fi
+
   echo "   Patches applied."
 fi
 
