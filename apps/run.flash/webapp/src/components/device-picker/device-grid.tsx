@@ -62,27 +62,25 @@ export function DeviceGrid({ onSelect, selectedDevice, onContinue }: DeviceGridP
 
   return (
     <div className="space-y-4">
-      {/* Row 1: Search input (compact) + Continue button */}
+      {/* Row 1: Search input + Continue button, full width */}
       <div className="flex items-center gap-3">
-        <div className="w-1/3 min-w-[200px]">
+        <div className="flex-1">
           <DeviceSearch
             search={search}
             onSearchChange={setSearch}
           />
         </div>
-        <div className="flex-1 flex justify-end">
-          <Button
-            color="primary"
-            size="lg"
-            isDisabled={!onContinue}
-            onPress={onContinue}
-            className="font-mono whitespace-nowrap"
-          >
-            {selectedDevice
-              ? `Continue with ${selectedDevice.displayName}`
-              : "Select a device to continue"}
-          </Button>
-        </div>
+        <Button
+          color="primary"
+          size="lg"
+          isDisabled={!onContinue}
+          onPress={onContinue}
+          className="font-mono whitespace-nowrap"
+        >
+          {selectedDevice
+            ? `Continue with ${selectedDevice.displayName}`
+            : "Select a device to continue"}
+        </Button>
       </div>
 
       {/* Row 2: Manufacturer filter pills — full width */}
