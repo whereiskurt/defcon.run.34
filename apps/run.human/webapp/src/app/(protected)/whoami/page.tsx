@@ -245,7 +245,12 @@ export default function WhoAmIPage() {
                     key={s}
                     size="sm"
                     variant="flat"
-                    color={s === 'admin' ? 'danger' : s === 'gpx' ? 'secondary' : 'primary'}
+                    color={
+                      s === 'admin' ? 'danger'
+                        : s === 'strava' ? 'warning'
+                        : s === 'gpxstudio' || s === 'gpx' ? 'success'
+                        : 'primary'
+                    }
                     classNames={{ base: "font-mono text-xs" }}
                   >
                     {s}
