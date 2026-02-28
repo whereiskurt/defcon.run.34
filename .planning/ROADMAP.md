@@ -1,0 +1,98 @@
+# Roadmap: DCR34 Meshtastic Flasher (flash.defcon.run)
+
+## Overview
+
+This roadmap delivers a browser-based ESP32 flasher and Meshtastic device provisioner for DEF CON Run 34. The journey moves from a hardware-free app scaffold with device browsing, through the two core serial-port phases (flash then configure), to production deployment. Each phase delivers a complete, testable vertical slice: first a working app shell with device selection, then actual firmware flashing, then device configuration with server-side secrets, and finally production infrastructure with vendored firmware.
+
+## Phases
+
+**Phase Numbering:**
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+
+Decimal phases appear between their surrounding integers in numeric order.
+
+- [ ] **Phase 1: App Scaffold + Device Picker** - Next.js app with auth, browser gate, device picker UI, and wizard shell
+- [ ] **Phase 2: Flash Engine** - Web Serial connection, esptool.js firmware flashing with progress UI
+- [ ] **Phase 3: Config Engine + Server API** - Post-flash device configuration via @meshtastic/core, authenticated config API, completion screen
+- [ ] **Phase 4: Deployment + Firmware Vendoring** - Docker build with vendored firmware, Terragrunt service, CloudFront at flash.defcon.run
+
+## Phase Details
+
+### Phase 1: App Scaffold + Device Picker
+**Goal**: Users can browse and select their ESP32 device in a guided wizard, with unsupported browsers blocked and unauthenticated users redirected
+**Depends on**: Nothing (first phase)
+**Requirements**: BRWS-01, BRWS-02, DEVC-01, DEVC-02, DEVC-03, DEVC-04, DEVC-05, WZRD-01, WZRD-02, WZRD-03
+**Success Criteria** (what must be TRUE):
+  1. A user visiting flash.defcon.run in Firefox sees a clear "use Chrome or Edge" message and cannot proceed
+  2. A user visiting in Chrome without being logged in is redirected to auth.defcon.run and returned after login
+  3. An authenticated user can browse ESP32 devices with images and manufacturer tags, and filter by name or manufacturer
+  4. Selecting a device advances the wizard to the "Connect" step, and the correct firmware filename is determined from the selection
+  5. A progress breadcrumb shows the user's current position across all wizard steps (Pick Device / Connect / Flash / Configure / Done)
+**Plans**: TBD
+
+Plans:
+- [ ] 01-01: TBD
+- [ ] 01-02: TBD
+- [ ] 01-03: TBD
+
+### Phase 2: Flash Engine
+**Goal**: Users can connect their ESP32 via USB and flash DCR34-pinned Meshtastic firmware with real-time progress feedback
+**Depends on**: Phase 1
+**Requirements**: CONN-01, CONN-02, CONN-03, FLSH-01, FLSH-02, FLSH-03, FLSH-04, FLSH-05
+**Success Criteria** (what must be TRUE):
+  1. User can click "Connect" and select their ESP32 from the browser's serial port prompt
+  2. If connection fails, user sees an actionable error message with device-specific bootloader guidance (hold BOOT, press RESET)
+  3. After connecting, firmware is erased and flashed with a progress bar showing percentage and status text (erasing, writing, verifying)
+  4. Flash completion shows clear success or failure, with retry guidance on failure
+  5. Firmware binaries are served from the app (not fetched from GitHub at runtime)
+**Plans**: TBD
+
+Plans:
+- [ ] 02-01: TBD
+- [ ] 02-02: TBD
+- [ ] 02-03: TBD
+
+### Phase 3: Config Engine + Server API
+**Goal**: After flashing, the app automatically configures the device with the user's MQTT credentials, DCR34 channels, identity, and radio settings -- all served securely from the server
+**Depends on**: Phase 2
+**Requirements**: CONF-01, CONF-02, CONF-03, CONF-04, CONF-05, CONF-06, CONF-07, SRVR-01, SRVR-02, SRVR-03, WZRD-04
+**Success Criteria** (what must be TRUE):
+  1. After flash completes, the app reconnects to the device via @meshtastic/core (handling reboot delay) and pushes all configuration atomically
+  2. User sees per-step progress as MQTT, channel, identity, and radio configs are pushed to the device
+  3. GET /api/config returns the authenticated user's complete config payload; PSK and MQTT credentials are never present in client-side JS bundles
+  4. Configuration values (MQTT server, channel PSKs, radio presets) are environment-driven with stub defaults for development
+  5. The "Done" screen shows success confirmation with the device's identity and next steps
+**Plans**: TBD
+
+Plans:
+- [ ] 03-01: TBD
+- [ ] 03-02: TBD
+- [ ] 03-03: TBD
+
+### Phase 4: Deployment + Firmware Vendoring
+**Goal**: The app is deployed to production at flash.defcon.run with firmware binaries baked into the Docker image and zero runtime external dependencies
+**Depends on**: Phase 3
+**Requirements**: DPLY-01, DPLY-02, DPLY-03, DPLY-04, DPLY-05
+**Success Criteria** (what must be TRUE):
+  1. The app lives at apps/run.flash/webapp/ with Dockerfile.webapp and Dockerfile.nginx matching monorepo conventions
+  2. Docker build downloads, extracts, and bundles Meshtastic firmware binaries -- the running container has no external dependencies
+  3. Terragrunt service definition exists at infra/terraform/live/site/services/flash/ and deploys to us-east-1 only
+  4. flash.defcon.run resolves via CloudFront to the running ECS Fargate service
+**Plans**: TBD
+
+Plans:
+- [ ] 04-01: TBD
+- [ ] 04-02: TBD
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. App Scaffold + Device Picker | 0/3 | Not started | - |
+| 2. Flash Engine | 0/3 | Not started | - |
+| 3. Config Engine + Server API | 0/3 | Not started | - |
+| 4. Deployment + Firmware Vendoring | 0/2 | Not started | - |
