@@ -81,18 +81,9 @@ const MenuDropDown = (params: any) => {
             textValue="routes"
             startContent={<GrMapLocation className={iconClasses} />}
             key="routes"
-            onClick={() => handleNavigation('/routes')}
+            onClick={() => { setIsOpen(false); window.open('https://gpx.defcon.run', '_blank'); }}
           >
             <span className="text-base">Routes</span>
-          </DropdownItem>
-
-          <DropdownItem
-            textValue="routes-map"
-            startContent={<GrMapLocation className={iconClasses} />}
-            key="routes-map"
-            onClick={() => handleNavigation('/routes-map')}
-          >
-            <span className="text-base">Routes Map</span>
           </DropdownItem>
 
           <DropdownItem

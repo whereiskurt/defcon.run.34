@@ -43,10 +43,10 @@ import { ThemeSwitch } from '../theme-switch';
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
 const navItems = [
-  { href: '/routes', label: 'Routes', icon: GrMapLocation },
-  { href: '/heatmap', label: 'HeatMap', icon: FaFire },
-  { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio },
-  { href: '/contributors', label: 'Contributors', icon: FaMoneyCheckDollar },
+  { href: 'https://gpx.defcon.run', label: 'Routes', icon: GrMapLocation, external: true },
+  { href: '/heatmap', label: 'HeatMap', icon: FaFire, external: false },
+  { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio, external: false },
+  { href: '/contributors', label: 'Contributors', icon: FaMoneyCheckDollar, external: false },
 ] as const;
 
 export function Header(params: any) {
@@ -94,13 +94,14 @@ export function Header(params: any) {
           </Tooltip>
         </NavbarItem>
 
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname?.startsWith(href);
+        {navItems.map(({ href, label, icon: Icon, external }) => {
+          const isActive = !external && pathname?.startsWith(href);
           return (
             <NavbarItem key={href}>
               <Link
                 color="foreground"
                 href={href}
+                {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
                 className={`text-sm flex items-center gap-1.5 transition-colors relative py-1 ${
                   isActive
                     ? 'text-primary font-medium nav-active'
