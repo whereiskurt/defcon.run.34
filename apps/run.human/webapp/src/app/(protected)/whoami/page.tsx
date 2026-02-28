@@ -210,25 +210,25 @@ export default function WhoAmIPage() {
             <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
               Linked Providers
             </span>
-            {providerList.map(({ name, icon: Icon, key, color }) => {
-              const isConnected = user[key];
-              return (
-                <div key={name} className="flex items-center justify-between py-1">
-                  <div className="flex items-center gap-2">
-                    <Icon className="w-3.5 h-3.5" style={{ color: isConnected ? color : undefined }} />
-                    <span className={`text-sm ${isConnected ? 'text-foreground' : 'text-default-400'}`}>{name}</span>
-                  </div>
-                  {isConnected ? (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-success" />
-                      <span className="text-xs text-success">Connected</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-default-400">-</span>
-                  )}
-                </div>
-              );
-            })}
+            <div className="flex flex-wrap gap-1.5">
+              {providerList.map(({ name, icon: Icon, key, color }) => {
+                const isConnected = user[key];
+                return (
+                  <Chip
+                    key={name}
+                    size="sm"
+                    variant="flat"
+                    color={isConnected ? 'success' : 'default'}
+                    startContent={
+                      <Icon className="w-3 h-3 ml-1" style={{ color: isConnected ? color : undefined }} />
+                    }
+                    classNames={{ base: "font-mono text-xs" }}
+                  >
+                    {name}
+                  </Chip>
+                );
+              })}
+            </div>
           </CardBody>
         </Card>
 
