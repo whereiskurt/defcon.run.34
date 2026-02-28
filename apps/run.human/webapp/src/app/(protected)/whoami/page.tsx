@@ -23,6 +23,8 @@ interface UserData {
   displayName?: string;
   eqr?: string;
   mqttUsername?: string;
+  mqttPassword?: string;
+  mqttUsertype?: string;
   meshtasticRadios?: any[];
   checkIns?: any[];
   checkInCount?: number;
@@ -92,6 +94,7 @@ function QuotaBar({ remaining, initial, label }: { remaining: number; initial: n
 export default function WhoAmIPage() {
   const [mounted, setMounted] = useState(false);
   const [isQROpen, setIsQROpen] = useState(false);
+  const [isQuotasOpen, setIsQuotasOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -296,30 +299,44 @@ export default function WhoAmIPage() {
       {/* Quotas */}
       {userData?.quotas && (
         <Card className="glass-card overflow-hidden">
-          <CardBody className="px-5 py-4 space-y-5">
-            <h3 className="font-museo text-base font-bold text-foreground">Quotas</h3>
-            {quotaGroups.map((group) => (
-              <div key={group.label}>
-                <p className="text-xs uppercase tracking-wider text-default-400 mb-3 font-semibold">
-                  {group.label}
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {group.items.map((item) => {
-                    const quota = userData.quotas![item.key];
-                    if (!quota) return null;
-                    return (
-                      <QuotaBar
-                        key={item.key}
-                        remaining={quota.remaining}
-                        initial={quota.initial}
-                        label={item.label}
-                      />
-                    );
-                  })}
-                </div>
-                {group !== quotaGroups[quotaGroups.length - 1] && <Divider className="mt-4" />}
+          <CardBody className="px-5 py-3">
+            <button
+              onClick={() => setIsQuotasOpen(!isQuotasOpen)}
+              className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              {isQuotasOpen ? (
+                <ChevronDown className="w-3.5 h-3.5 text-default-400" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-default-400" />
+              )}
+              <span className="font-museo text-base font-bold text-foreground">Quotas</span>
+            </button>
+            {isQuotasOpen && (
+              <div className="space-y-5 mt-3">
+                {quotaGroups.map((group) => (
+                  <div key={group.label}>
+                    <p className="text-xs uppercase tracking-wider text-default-400 mb-3 font-semibold">
+                      {group.label}
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {group.items.map((item) => {
+                        const quota = userData.quotas![item.key];
+                        if (!quota) return null;
+                        return (
+                          <QuotaBar
+                            key={item.key}
+                            remaining={quota.remaining}
+                            initial={quota.initial}
+                            label={item.label}
+                          />
+                        );
+                      })}
+                    </div>
+                    {group !== quotaGroups[quotaGroups.length - 1] && <Divider className="mt-4" />}
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </CardBody>
         </Card>
       )}
@@ -328,6 +345,8 @@ export default function WhoAmIPage() {
       <MeshtasticRadios
         radios={userData?.meshtasticRadios}
         quotas={userData?.quotas}
+        mqttUsername={userData?.mqttUsername}
+        mqttPassword={userData?.mqttPassword}
         onUpdate={fetchUserData}
       />
 

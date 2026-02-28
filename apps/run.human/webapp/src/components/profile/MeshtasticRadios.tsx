@@ -18,7 +18,7 @@ import {
   Switch,
   useDisclosure,
 } from '@heroui/react';
-import { Trash2, Plus, Radio, Lock, Unlock, AlertCircle, ChevronDown, ChevronUp, RefreshCw, Eye, EyeOff, UserCheck, UserX } from "lucide-react";
+import { Trash2, Plus, Radio, Lock, Unlock, AlertCircle, ChevronDown, ChevronRight, ChevronUp, RefreshCw, Eye, EyeOff, UserCheck, UserX, Copy, Check } from "lucide-react";
 import VerificationCodeInput from './VerificationCodeInput';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { apiUrl } from '@/lib/api';
@@ -46,10 +46,12 @@ interface MeshtasticRadiosProps {
   quotas?: {
     meshtastic_radio?: QuotaInfo;
   };
+  mqttUsername?: string;
+  mqttPassword?: string;
   onUpdate?: () => void;
 }
 
-export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpdate }: MeshtasticRadiosProps) {
+export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUsername, mqttPassword, onUpdate }: MeshtasticRadiosProps) {
   const [radios, setRadios] = useState<MeshtasticRadio[]>(initialRadios || []);
   const [loading, setLoading] = useState(!initialRadios);
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +80,16 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
 
   // Private key visibility state
   const [visiblePrivateKeys, setVisiblePrivateKeys] = useState<Record<string, boolean>>({});
+
+  // MQTT credential visibility
+  const [mqttVisible, setMqttVisible] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = (value: string, field: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
 
   // Get quota values with defaults
   const radioQuota = quotas?.meshtastic_radio;
@@ -443,30 +455,30 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
       />
 
       {/* Main Card */}
-      <Card className="w-full">
-        <CardHeader className="flex justify-between items-center pb-2">
-          <div className="flex items-center gap-2">
-            <Radio className="w-5 h-5" />
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <h3 className="text-lg font-semibold">Meshtastic</h3>
-                <Chip
-                  size="sm"
-                  variant="flat"
-                  color={radios.length > 0 ? "success" : "default"}
-                >
-                  {radios.length}
-                </Chip>
-              </div>
-              <p className="text-sm text-default-500">
-                {remaining} Add{remaining !== 1 ? 's' : ''} Remaining (lifetime)
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+      <Card className="glass-card overflow-hidden">
+        <CardBody className="px-5 py-3">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="flex items-center gap-2 text-left cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5 text-default-400" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-default-400" />
+              )}
+              <span className="font-museo text-base font-bold text-foreground">Meshtastic</span>
+              <Chip
+                size="sm"
+                variant="flat"
+                color={radios.length > 0 ? "success" : "default"}
+              >
+                {radios.length}
+              </Chip>
+            </button>
             <Button
               isIconOnly
-              color="success"
+              color="primary"
               variant="flat"
               size="lg"
               isDisabled={remaining <= 0}
@@ -474,19 +486,48 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
             >
               <Plus className="h-6 w-6" />
             </Button>
-            <Button
-              isIconOnly
-              variant="light"
-              size="sm"
-              onPress={() => setIsExpanded(!isExpanded)}
-            >
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </Button>
           </div>
-        </CardHeader>
-        <Divider />
         {isExpanded && (
-          <CardBody className="space-y-4">
+          <div className="space-y-4 mt-3">
+            {/* MQTT Credentials */}
+            {mqttUsername && (
+              <div className="border border-default-200 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-default-400">MQTT Credentials</span>
+                  <Button
+                    isIconOnly
+                    variant="light"
+                    size="sm"
+                    onPress={() => setMqttVisible(!mqttVisible)}
+                  >
+                    {mqttVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-xs text-default-500">Username</span>
+                    <div className="flex items-center gap-1">
+                      <p className={`font-mono text-sm ${mqttVisible ? '' : 'blur-sm select-none'}`}>{mqttUsername}</p>
+                      <Button isIconOnly variant="light" size="sm" onPress={() => copyToClipboard(mqttUsername!, 'username')}>
+                        {copiedField === 'username' ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-xs text-default-500">Password</span>
+                    <div className="flex items-center gap-1">
+                      <p className={`font-mono text-sm ${mqttVisible ? '' : 'blur-sm select-none'}`}>{mqttPassword || '—'}</p>
+                      {mqttPassword && (
+                        <Button isIconOnly variant="light" size="sm" onPress={() => copyToClipboard(mqttPassword!, 'password')}>
+                          {copiedField === 'password' ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {error && (
               <div className="bg-danger-50 border border-danger-200 text-danger-700 px-4 py-3 rounded relative flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -635,8 +676,13 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, onUpda
                 ))
               )}
             </div>
-          </CardBody>
+
+            <p className="text-xs text-default-500 text-center">
+              {remaining} Add{remaining !== 1 ? 's' : ''} remaining (lifetime)
+            </p>
+          </div>
         )}
+        </CardBody>
       </Card>
     </>
   );

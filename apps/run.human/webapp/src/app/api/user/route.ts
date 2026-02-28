@@ -66,7 +66,6 @@ export async function GET(req: NextRequest) {
   const {
     rsaprivSHA,
     seed,
-    mqttPassword,
     // Add other sensitive fields here if needed
     ...safeUserData
   } = user;
