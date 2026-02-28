@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@config "../../tailwind.config.js";
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Base background color (dark theme default) */
+  body {
+    background-color: #0a0a0f;
+  }
+
+  html.light body {
+    background-color: #fafafa;
+  }
+}
+
+/* Noise overlay */
+.noise-overlay::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* Glass card effect */
+.glass-card {
+  background: rgba(17, 17, 24, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid #2a2a3a;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: #3a3a4a;
+  box-shadow: 0 0 24px #00d4aa10;
+}
+
+html.light .glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #e0e0e0;
+}
+
+html.light .glass-card:hover {
+  border-color: #ccc;
+  box-shadow: 0 0 24px #00a88810;
+}
+
+/* Staggered animation delays */
+.stagger-1 { animation-delay: 0ms; }
+.stagger-2 { animation-delay: 80ms; }
+.stagger-3 { animation-delay: 160ms; }
+.stagger-4 { animation-delay: 240ms; }
+.stagger-5 { animation-delay: 320ms; }
+
+/* Initially hidden for animation */
+.animate-on-mount {
+  opacity: 0;
+}
+
+/* Terminal-style code blocks */
+.terminal-block {
+  background: #0a0a0f;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  font-family: var(--font-mono);
+}
+
+html.light .terminal-block {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+}
+
+/* Glow focus for inputs */
+.glow-focus:focus-within {
+  border-color: #00d4aa;
+  box-shadow: 0 0 0 2px #00d4aa20;
+}
+
+/* Glassmorphic navbar */
+.glass-nav {
+  background: rgba(10, 10, 15, 0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid #2a2a3a;
+}
+
+html.light .glass-nav {
+  background: rgba(250, 250, 250, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Nav active indicator */
+.nav-active {
+  position: relative;
+}
+
+.nav-active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #00d4aa;
+  border-radius: 1px;
+}
+
+/* Teal dot accent */
+.teal-dot {
+  color: #00d4aa;
+}
+
+/* Flasher-specific: Matrix/hacker green terminal text */
+.matrix-text {
+  color: #00ff41;
+  text-shadow: 0 0 8px #00ff4180, 0 0 16px #00ff4140;
+}
+
+/* Flasher-specific: Animated cyber border glow */
+.cyber-border {
+  border: 1px solid #00d4aa40;
+  box-shadow: 0 0 8px #00d4aa15, inset 0 0 8px #00d4aa08;
+  animation: cyber-glow 4s ease-in-out infinite;
+}
+
+@keyframes cyber-glow {
+  0%, 100% {
+    border-color: #00d4aa40;
+    box-shadow: 0 0 8px #00d4aa15, inset 0 0 8px #00d4aa08;
+  }
+  50% {
+    border-color: #00d4aa80;
+    box-shadow: 0 0 16px #00d4aa30, inset 0 0 16px #00d4aa15;
+  }
+}
