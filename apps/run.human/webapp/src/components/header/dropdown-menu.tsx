@@ -90,7 +90,7 @@ const MenuDropDown = (params: any) => {
             textValue="heatmap"
             startContent={<FaFire className={iconClasses} />}
             key="heatmap"
-            onClick={() => handleNavigation('/heatmap')}
+            onClick={() => { setIsOpen(false); window.open('https://gpx.defcon.run?overlay=heatmap', '_blank'); }}
           >
             <span className="text-base">HeatMap</span>
           </DropdownItem>

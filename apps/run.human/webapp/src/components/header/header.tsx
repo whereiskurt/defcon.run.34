@@ -44,7 +44,7 @@ const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'
 
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Routes', icon: GrMapLocation, external: true },
-  { href: '/heatmap', label: 'HeatMap', icon: FaFire, external: false },
+  { href: 'https://gpx.defcon.run?overlay=heatmap', label: 'HeatMap', icon: FaFire, external: true },
   { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio, external: false },
   { href: '/contributors', label: 'Contributors', icon: FaMoneyCheckDollar, external: false },
 ] as const;
