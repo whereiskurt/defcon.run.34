@@ -45,12 +45,11 @@ Plans:
   3. After connecting, firmware is erased and flashed with a progress bar showing percentage and status text (erasing, writing, verifying)
   4. Flash completion shows clear success or failure, with retry guidance on failure
   5. Firmware binaries are served from the app (not fetched from GitHub at runtime)
-**Plans**: TBD
+**Plans**: 0/2 plans complete
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md -- Install esptool.js, serial/flash types, firmware config, useSerial and useFlash hooks
+- [ ] 02-02-PLAN.md -- Connect step UI, Flash step UI with pipeline, wire into wizard container
 
 ### Phase 3: Config Engine + Server API
 **Goal**: After flashing, the app automatically configures the device with the user's MQTT credentials, DCR34 channels, identity, and radio settings -- all served securely from the server
@@ -92,6 +91,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. App Scaffold + Device Picker | 2/2 | Complete    | 2026-02-28 |
-| 2. Flash Engine | 0/3 | Not started | - |
+| 2. Flash Engine | 0/2 | Not started | - |
 | 3. Config Engine + Server API | 0/3 | Not started | - |
 | 4. Deployment + Firmware Vendoring | 0/2 | Not started | - |

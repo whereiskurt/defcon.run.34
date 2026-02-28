@@ -22,17 +22,17 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### USB Connection
 
-- [ ] **CONN-01**: User can initiate Web Serial connection via browser prompt (user-initiated gesture required)
-- [ ] **CONN-02**: App handles connection failures with actionable error messages
+- [x] **CONN-01**: User can initiate Web Serial connection via browser prompt (user-initiated gesture required)
+- [x] **CONN-02**: App handles connection failures with actionable error messages
 - [ ] **CONN-03**: App provides device-specific bootloader guidance (hold BOOT, press RESET) when connection fails
 
 ### Firmware Flashing
 
-- [ ] **FLSH-01**: App performs full erase before flashing (fresh provisioning, not update)
-- [ ] **FLSH-02**: App flashes DCR34-pinned Meshtastic firmware via esptool.js over Web Serial
-- [ ] **FLSH-03**: Flash progress is displayed with percentage and meaningful status text (erasing, writing, verifying)
+- [x] **FLSH-01**: App performs full erase before flashing (fresh provisioning, not update)
+- [x] **FLSH-02**: App flashes DCR34-pinned Meshtastic firmware via esptool.js over Web Serial
+- [x] **FLSH-03**: Flash progress is displayed with percentage and meaningful status text (erasing, writing, verifying)
 - [ ] **FLSH-04**: Flash completion shows clear success or failure state with actionable guidance on failure
-- [ ] **FLSH-05**: Firmware binaries are vendored into the Docker image — zero runtime external dependencies
+- [x] **FLSH-05**: Firmware binaries are vendored into the Docker image — zero runtime external dependencies
 
 ### Post-Flash Configuration
 
@@ -109,14 +109,14 @@ Deferred to future release. Tracked but not in current roadmap.
 | WZRD-01 | Phase 1 | Complete |
 | WZRD-02 | Phase 1 | Complete |
 | WZRD-03 | Phase 1 | Complete |
-| CONN-01 | Phase 2 | Pending |
-| CONN-02 | Phase 2 | Pending |
+| CONN-01 | Phase 2 | Complete |
+| CONN-02 | Phase 2 | Complete |
 | CONN-03 | Phase 2 | Pending |
-| FLSH-01 | Phase 2 | Pending |
-| FLSH-02 | Phase 2 | Pending |
-| FLSH-03 | Phase 2 | Pending |
+| FLSH-01 | Phase 2 | Complete |
+| FLSH-02 | Phase 2 | Complete |
+| FLSH-03 | Phase 2 | Complete |
 | FLSH-04 | Phase 2 | Pending |
-| FLSH-05 | Phase 2 | Pending |
+| FLSH-05 | Phase 2 | Complete |
 | CONF-01 | Phase 3 | Pending |
 | CONF-02 | Phase 3 | Pending |
 | CONF-03 | Phase 3 | Pending |
