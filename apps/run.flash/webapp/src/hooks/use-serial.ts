@@ -33,6 +33,8 @@ interface UseSerialReturn {
   clearError: () => void;
   /** Clear console logs */
   clearLogs: () => void;
+  /** Append a log entry to the console (for external callers like useFlash) */
+  appendLog: (text: string) => void;
   /** ESPLoader ref for use by useFlash (internal) */
   espLoaderRef: React.RefObject<ESPLoader | null>;
   /** Transport ref for cleanup (internal) */
@@ -152,6 +154,7 @@ export function useSerial(): UseSerialReturn {
     disconnect,
     clearError,
     clearLogs,
+    appendLog,
     espLoaderRef,
     transportRef,
   };

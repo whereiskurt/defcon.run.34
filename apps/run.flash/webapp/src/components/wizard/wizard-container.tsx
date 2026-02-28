@@ -1,11 +1,16 @@
 "use client";
 
-import { Button, Card, CardBody } from "@heroui/react";
+import { Card, CardBody } from "@heroui/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Usb, Cpu, Settings, PartyPopper } from "lucide-react";
+import { Settings, PartyPopper } from "lucide-react";
 import { useWizard } from "@/hooks/use-wizard";
+import { useSerial } from "@/hooks/use-serial";
+import { useFlash } from "@/hooks/use-flash";
+import { validateChipMatch } from "@/lib/esptool";
 import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { DeviceGrid } from "@/components/device-picker/device-grid";
+import { ConnectStep } from "@/components/connect/connect-step";
+import { FlashStep } from "@/components/flash/flash-step";
 
 function PlaceholderStep({
   icon: Icon,
@@ -42,8 +47,18 @@ export function WizardContainer() {
     canAdvance,
     advance,
     goToStep,
+    goToStepForRetry,
     selectDevice,
   } = useWizard();
+
+  const serial = useSerial();
+  const flashState = useFlash();
+
+  // Compute chip mismatch: detected chip must match selected device architecture
+  const chipMismatch =
+    serial.chipInfo && selectedDevice
+      ? !validateChipMatch(serial.chipInfo.chipName, selectedDevice.architecture)
+      : false;
 
   return (
     <div className="flex flex-col gap-4">
@@ -73,21 +88,29 @@ export function WizardContainer() {
             />
           )}
 
-          {currentStep === "connect" && (
-            <PlaceholderStep
-              icon={Usb}
-              title="Connect your device via USB"
-              description="Plug in your Meshtastic device and establish a serial connection through your browser."
-              phase="Phase 2"
+          {currentStep === "connect" && selectedDevice && (
+            <ConnectStep
+              device={selectedDevice}
+              serial={serial}
+              chipMismatch={chipMismatch}
+              onContinue={advance}
             />
           )}
 
-          {currentStep === "flash" && (
-            <PlaceholderStep
-              icon={Cpu}
-              title="Flash Meshtastic firmware"
-              description="Write the latest Meshtastic firmware to your ESP32 device over serial."
-              phase="Phase 2"
+          {currentStep === "flash" && selectedDevice && serial.chipInfo && (
+            <FlashStep
+              device={selectedDevice}
+              chipInfo={serial.chipInfo}
+              flashState={flashState}
+              espLoaderRef={serial.espLoaderRef}
+              consoleLogs={serial.consoleLogs}
+              appendLog={serial.appendLog}
+              onContinue={advance}
+              onRetry={() => {
+                flashState.reset();
+                serial.disconnect();
+                goToStepForRetry("connect");
+              }}
             />
           )}
 
