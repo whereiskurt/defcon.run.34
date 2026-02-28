@@ -34,6 +34,13 @@ export default auth((req) => {
       accessDeniedUrl.pathname = "/access-denied";
       return NextResponse.redirect(accessDeniedUrl);
     }
+
+    // Canonical URL: always redirect /studio and /studio/ to /studio/app
+    if (pathname === "/studio" || pathname === "/studio/") {
+      const appUrl = req.nextUrl.clone();
+      appUrl.pathname = "/studio/app";
+      return NextResponse.redirect(appUrl);
+    }
   }
 
   // Allow request to proceed
