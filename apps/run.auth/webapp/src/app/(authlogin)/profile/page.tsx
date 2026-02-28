@@ -309,7 +309,7 @@ function ProfileContent() {
                       color={
                         svc === 'admin' ? 'danger'
                           : svc === 'strava' ? 'warning'
-                          : svc === 'gpxstudio' ? 'secondary'
+                          : svc === 'gpxstudio' ? 'success'
                           : 'primary'
                       }
                       classNames={{ base: "font-mono text-xs" }}
