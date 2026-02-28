@@ -24,16 +24,34 @@ export function getFactoryFilename(
 }
 
 /**
- * Load firmware binary from the app's static files as Uint8Array.
+ * Convert a Uint8Array to a binary string.
+ * esptool-js expects firmware data as binary strings, not Uint8Array.
+ */
+function uint8ToBinaryString(data: Uint8Array): string {
+  // Process in chunks to avoid stack overflow for large firmware files
+  const CHUNK_SIZE = 8192;
+  const parts: string[] = [];
+  for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+    const chunk = data.subarray(i, Math.min(i + CHUNK_SIZE, data.length));
+    parts.push(String.fromCharCode(...chunk));
+  }
+  return parts.join("");
+}
+
+/**
+ * Load firmware binary from the app's static files as a binary string.
  * Firmware is served from public/firmware/ during development and
  * baked into the Docker image in Phase 4.
+ *
+ * Returns a binary string because esptool-js writeFlash expects string data,
+ * not Uint8Array. The size field reflects the original byte count.
  *
  * @throws Error if firmware file is not found (HTTP 404)
  */
 export async function loadFirmware(
   device: DeviceHardware,
   version: string = FIRMWARE_VERSION
-): Promise<{ data: Uint8Array; size: number; filename: string }> {
+): Promise<{ data: string; size: number; filename: string }> {
   const filename = getFactoryFilename(device, version);
   const url = `${FIRMWARE_BASE_PATH}/${filename}`;
 
@@ -47,8 +65,9 @@ export async function loadFirmware(
   }
 
   const buffer = await response.arrayBuffer();
-  const data = new Uint8Array(buffer);
-  return { data, size: data.length, filename };
+  const bytes = new Uint8Array(buffer);
+  const data = uint8ToBinaryString(bytes);
+  return { data, size: bytes.length, filename };
 }
 
 /**
