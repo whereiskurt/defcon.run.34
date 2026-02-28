@@ -46,9 +46,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Server-Side Config
 
-- [ ] **SRVR-01**: GET /api/config returns authenticated user's device configuration payload (MQTT creds, channels, PSK, identity, radio)
-- [ ] **SRVR-02**: PSK, MQTT credentials, and channel config are never exposed in client-side JS bundles — served via authenticated API only
-- [ ] **SRVR-03**: All TBD config values (MQTT server, channel PSKs, radio presets) are environment/config-driven with stub defaults
+- [x] **SRVR-01**: GET /api/config returns authenticated user's device configuration payload (MQTT creds, channels, PSK, identity, radio)
+- [x] **SRVR-02**: PSK, MQTT credentials, and channel config are never exposed in client-side JS bundles — served via authenticated API only
+- [x] **SRVR-03**: All TBD config values (MQTT server, channel PSKs, radio presets) are environment/config-driven with stub defaults
 
 ### Wizard Flow
 
@@ -124,9 +124,9 @@ Deferred to future release. Tracked but not in current roadmap.
 | CONF-05 | Phase 3 | Pending |
 | CONF-06 | Phase 3 | Pending |
 | CONF-07 | Phase 3 | Pending |
-| SRVR-01 | Phase 3 | Pending |
-| SRVR-02 | Phase 3 | Pending |
-| SRVR-03 | Phase 3 | Pending |
+| SRVR-01 | Phase 3 | Complete |
+| SRVR-02 | Phase 3 | Complete |
+| SRVR-03 | Phase 3 | Complete |
 | WZRD-04 | Phase 3 | Pending |
 | DPLY-01 | Phase 4 | Pending |
 | DPLY-02 | Phase 4 | Pending |

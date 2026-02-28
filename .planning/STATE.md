@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-02-28T19:19:06.380Z"
+status: in-progress
+last_updated: "2026-02-28T20:07:35Z"
 progress:
-  total_phases: 2
+  total_phases: 4
   completed_phases: 2
-  total_plans: 4
+  total_plans: 7
   completed_plans: 4
 ---
 
@@ -18,22 +18,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in a single browser session, with zero manual configuration steps.
-**Current focus:** Phase 2: Flash Engine
+**Current focus:** Phase 3: Config Engine Server API
 
 ## Current Position
 
-Phase: 2 of 4 (Flash Engine)
-Plan: 2 of 2 in current phase
+Phase: 3 of 4 (Config Engine Server API)
+Plan: 1 of 3 in current phase
 Status: In Progress
-Last activity: 2026-02-28 -- Completed 02-01 (Flash Engine Foundation)
+Last activity: 2026-02-28 -- Completed 03-01 (Config Engine Server API)
 
-Progress: [######░░░░] 30%
+Progress: [######░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 5.3min
+- Total plans completed: 4
+- Average duration: 4.8min
 - Total execution time: 0.3 hours
 
 **By Phase:**
@@ -42,10 +42,11 @@ Progress: [######░░░░] 30%
 |-------|-------|-------|----------|
 | 01-app-scaffold-device-picker | 2 | 11min | 5.5min |
 | 02-flash-engine | 1 | 5min | 5min |
+| 03-config-engine-server-api | 1 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 6min, 5min, 5min
-- Trend: stable
+- Last 5 plans: 6min, 5min, 5min, 2min
+- Trend: improving
 
 *Updated after each plan completion*
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - [02-01]: Binary string conversion for esptool-js -- writeFlash API expects string data, not Uint8Array
 - [02-01]: romBaudrate set to 115200 for ROM bootloader communication (required by esptool-js v0.5.7)
 - [02-01]: ESPLoader/Transport in useRef not useState -- mutable class instances must not be in React state
+- [03-01]: Read-only RunUser entity subset in flash app -- only 4 attributes needed for config
+- [03-01]: Server-only env vars without NEXT_PUBLIC_ prefix to prevent secrets leaking to client bundles
+- [03-01]: Dev stub MQTT credentials (dev_user/dev_pass) when DynamoDB unavailable in development
 
 ### Pending Todos
 
@@ -82,5 +86,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 02-01-PLAN.md (Flash Engine Foundation)
+Stopped at: Completed 03-01-PLAN.md (Config Engine Server API)
 Resume file: None
