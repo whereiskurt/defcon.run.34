@@ -29,12 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. An authenticated user can browse ESP32 devices with images and manufacturer tags, and filter by name or manufacturer
   4. Selecting a device advances the wizard to the "Connect" step, and the correct firmware filename is determined from the selection
   5. A progress breadcrumb shows the user's current position across all wizard steps (Pick Device / Connect / Flash / Configure / Done)
-**Plans**: TBD
+**Plans:** 2 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md -- Bootstrap Next.js 16 app with OIDC authentication via auth.defcon.run
+- [ ] 01-02-PLAN.md -- Browser gate, wizard flow, and interactive device picker UI
 
 ### Phase 2: Flash Engine
 **Goal**: Users can connect their ESP32 via USB and flash DCR34-pinned Meshtastic firmware with real-time progress feedback
@@ -92,7 +91,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. App Scaffold + Device Picker | 0/3 | Not started | - |
+| 1. App Scaffold + Device Picker | 0/2 | Planned | - |
 | 2. Flash Engine | 0/3 | Not started | - |
 | 3. Config Engine + Server API | 0/3 | Not started | - |
 | 4. Deployment + Firmware Vendoring | 0/2 | Not started | - |
