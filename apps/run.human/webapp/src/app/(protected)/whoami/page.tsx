@@ -262,17 +262,6 @@ export default function WhoAmIPage() {
               <p className="text-sm text-default-400">No services assigned</p>
             )}
 
-            <Divider />
-
-            <Button
-              variant="flat"
-              color="danger"
-              className="w-full justify-start"
-              startContent={<LogOut className="w-4 h-4" />}
-              onPress={() => logout('/')}
-            >
-              Sign Out
-            </Button>
           </CardBody>
         </Card>
       </div>
@@ -386,6 +375,17 @@ export default function WhoAmIPage() {
           )}
         </CardBody>
       </Card>
+
+      {/* Sign Out */}
+      <Button
+        variant="flat"
+        color="danger"
+        className="w-full"
+        startContent={<LogOut className="w-4 h-4" />}
+        onPress={() => logout('/')}
+      >
+        Sign Out
+      </Button>
     </div>
   );
 }
