@@ -66,25 +66,11 @@ export function WizardContainer() {
           transition={{ duration: 0.2, ease: "easeInOut" }}
         >
           {currentStep === "pick-device" && (
-            <div className="flex flex-col gap-4">
-              <DeviceGrid
-                onSelect={selectDevice}
-                selectedDevice={selectedDevice}
-              />
-              <div className="flex justify-end">
-                <Button
-                  color="primary"
-                  size="lg"
-                  isDisabled={!canAdvance("pick-device")}
-                  onPress={advance}
-                  className="font-mono"
-                >
-                  {selectedDevice
-                    ? `Continue with ${selectedDevice.displayName}`
-                    : "Select a device to continue"}
-                </Button>
-              </div>
-            </div>
+            <DeviceGrid
+              onSelect={selectDevice}
+              selectedDevice={selectedDevice}
+              onContinue={canAdvance("pick-device") ? advance : undefined}
+            />
           )}
 
           {currentStep === "connect" && (

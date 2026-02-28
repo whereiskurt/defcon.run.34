@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { Button } from "@heroui/react";
 import type { DeviceHardware } from "@/types/device";
 import { isEsp32Device } from "@/types/device";
 import {
@@ -16,9 +17,10 @@ import deviceData from "@/../public/data/hardware-list.json";
 interface DeviceGridProps {
   onSelect: (device: DeviceHardware) => void;
   selectedDevice: DeviceHardware | null;
+  onContinue?: () => void;
 }
 
-export function DeviceGrid({ onSelect, selectedDevice }: DeviceGridProps) {
+export function DeviceGrid({ onSelect, selectedDevice, onContinue }: DeviceGridProps) {
   const [search, setSearch] = useState("");
   const [manufacturer, setManufacturer] = useState<string | null>(null);
 
@@ -60,13 +62,31 @@ export function DeviceGrid({ onSelect, selectedDevice }: DeviceGridProps) {
 
   return (
     <div className="space-y-4">
-      <DeviceSearch
-        search={search}
-        onSearchChange={setSearch}
-        manufacturer={manufacturer}
-        onManufacturerChange={setManufacturer}
-        manufacturers={availableManufacturers as unknown as string[]}
-      />
+      {/* Search bar (compact) + Continue button on same row */}
+      <div className="flex items-start gap-3">
+        <div className="w-1/3 min-w-[200px]">
+          <DeviceSearch
+            search={search}
+            onSearchChange={setSearch}
+            manufacturer={manufacturer}
+            onManufacturerChange={setManufacturer}
+            manufacturers={availableManufacturers as unknown as string[]}
+          />
+        </div>
+        <div className="flex-1 flex justify-end items-start">
+          <Button
+            color="primary"
+            size="lg"
+            isDisabled={!onContinue}
+            onPress={onContinue}
+            className="font-mono whitespace-nowrap"
+          >
+            {selectedDevice
+              ? `Continue with ${selectedDevice.displayName}`
+              : "Select a device to continue"}
+          </Button>
+        </div>
+      </div>
 
       {filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

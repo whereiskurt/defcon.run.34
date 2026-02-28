@@ -58,6 +58,11 @@ export function DeviceCard({ device, isSelected, onSelect }: DeviceCardProps) {
             src={imagePath}
             alt={device.displayName}
             className="max-h-full max-w-full object-contain"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+              (e.target as HTMLImageElement).parentElement!.innerHTML =
+                '<div class="w-16 h-16 rounded-lg bg-content2 flex items-center justify-center"><span class="text-2xl font-mono text-default-400">?</span></div>';
+            }}
           />
         </div>
 
