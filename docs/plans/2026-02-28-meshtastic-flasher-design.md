@@ -18,10 +18,10 @@ A web-based flasher at `flash.defcon.run` that lets authenticated participants f
 ┌─────────────────────────────────────────────┐
 │  flash.defcon.run (Next.js 16 / React 19)   │
 │                                             │
-│  ┌──────────┐  ┌──────────┐  ┌───────────┐ │
-│  │  Device   │  │  Flash   │  │ Configure │ │
-│  │  Picker   │→ │  Step    │→ │   Step    │ │
-│  └──────────┘  └──────────┘  └───────────┘ │
+│  ┌──────────┐  ┌──────────┐  ┌───────────┐  │
+│  │  Device  │  │  Flash   │  │ Configure │  │
+│  │  Picker  │→ │  Step    │→ │   Step    │  │
+│  └──────────┘  └──────────┘  └───────────┘  │
 │       ↓              ↓             ↓        │
 │  hardware-     esptool.js    @meshtastic/   │
 │  list.json    (Web Serial)   core + web-    │
@@ -35,11 +35,11 @@ A web-based flasher at `flash.defcon.run` that lets authenticated participants f
 └─────────────────────┬───────────────────────┘
                       │ OIDC
               ┌───────┴───────┐
-              │ auth.defcon.run│
+              │auth.defcon.run│
               └───────┬───────┘
                       │ optional
               ┌───────┴───────┐
-              │ run.defcon.run │
+              │run.defcon.run │
               │ (radio reg)   │
               └───────────────┘
 ```
