@@ -1,0 +1,182 @@
+"use client";
+
+import { useState, useCallback, useRef, useEffect } from "react";
+import type { ConfigProgress, DeviceConfigPayload, ConfigStage } from "@/types/config";
+import { INITIAL_CONFIG_PROGRESS } from "@/types/config";
+import {
+  connectMeshtasticDevice,
+  pushDeviceConfig,
+  disconnectMeshtasticDevice,
+} from "@/lib/meshtastic";
+import type { MeshDevice } from "@meshtastic/core";
+
+interface UseConfigureReturn {
+  /** Current config push progress */
+  progress: ConfigProgress;
+  /** Whether config push is in progress */
+  isConfiguring: boolean;
+  /** Whether config push completed successfully */
+  isComplete: boolean;
+  /** Whether config push encountered an error */
+  isError: boolean;
+  /** The config payload (available after successful fetch, for Done screen display) */
+  configPayload: DeviceConfigPayload | null;
+  /**
+   * Start the configure pipeline:
+   * 1. Disconnect esptool transport
+   * 2. Reconnect via @meshtastic/core (with reboot delay + retry)
+   * 3. Fetch config from /api/config
+   * 4. Push MQTT -> Channels -> Identity -> Radio -> Commit
+   *
+   * @param disconnectTransport - Function to disconnect the esptool transport (from useSerial)
+   */
+  configure: (disconnectTransport: () => Promise<void>) => Promise<void>;
+  /** Reset config state to idle (for retry) */
+  reset: () => void;
+}
+
+/**
+ * Hook for orchestrating the config push pipeline.
+ *
+ * Follows the useFlash pattern: expose progress state + action function + reset.
+ * MeshDevice is stored in useRef (not useState) because it is a mutable class
+ * instance with internal state -- same pattern as ESPLoader in useSerial.
+ *
+ * Fail-fast: any step failure fails the entire config. No partial recovery --
+ * user retries from scratch.
+ *
+ * No artificial delays: each config pushes as fast as the device accepts.
+ */
+export function useConfigure(): UseConfigureReturn {
+  const [progress, setProgress] = useState<ConfigProgress>(INITIAL_CONFIG_PROGRESS);
+  const [configPayload, setConfigPayload] = useState<DeviceConfigPayload | null>(null);
+  const isConfiguringRef = useRef(false);
+  const deviceRef = useRef<MeshDevice | null>(null);
+
+  const configure = useCallback(
+    async (disconnectTransport: () => Promise<void>) => {
+      if (isConfiguringRef.current) return;
+      isConfiguringRef.current = true;
+
+      try {
+        // Stage 1: Disconnect esptool transport to release serial port
+        setProgress({
+          stage: "connecting",
+          completedStages: [],
+          stageSummaries: {},
+          error: null,
+        });
+
+        await disconnectTransport();
+
+        // Stage 2: Reconnect via @meshtastic/core (handles reboot delay + retry)
+        const device = await connectMeshtasticDevice();
+        deviceRef.current = device;
+
+        setProgress((prev) => ({
+          ...prev,
+          completedStages: [...prev.completedStages, "connecting"],
+          stageSummaries: {
+            ...prev.stageSummaries,
+            connecting: "Device connected",
+          },
+        }));
+
+        // Stage 3: Fetch config from /api/config
+        const response = await fetch("/api/config");
+        if (!response.ok) {
+          const err = await response
+            .json()
+            .catch(() => ({ error: "Unknown error" }));
+          throw new Error(
+            err.error || `Config fetch failed (HTTP ${response.status})`
+          );
+        }
+        const config: DeviceConfigPayload = await response.json();
+        setConfigPayload(config);
+
+        // Stage 4: Push config with progress callbacks
+        const stages: ConfigStage[] = [
+          "mqtt",
+          "channels",
+          "identity",
+          "radio",
+          "committing",
+        ];
+        let currentStageIndex = 0;
+
+        // Set first config push stage
+        setProgress((prev) => ({ ...prev, stage: "mqtt" }));
+
+        const onStageComplete = (stage: string, summary: string) => {
+          currentStageIndex++;
+          setProgress((prev) => ({
+            ...prev,
+            stage: stages[currentStageIndex] || "complete",
+            completedStages: [...prev.completedStages, stage as ConfigStage],
+            stageSummaries: { ...prev.stageSummaries, [stage]: summary },
+          }));
+        };
+
+        await pushDeviceConfig(device, config, onStageComplete);
+
+        // All done
+        setProgress((prev) => ({
+          ...prev,
+          stage: "complete",
+          completedStages: [...prev.completedStages],
+        }));
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Configuration failed";
+        setProgress((prev) => ({
+          ...prev,
+          stage: "error",
+          error: message,
+        }));
+      } finally {
+        // Disconnect device
+        if (deviceRef.current) {
+          await disconnectMeshtasticDevice(deviceRef.current).catch(() => {});
+          deviceRef.current = null;
+        }
+        isConfiguringRef.current = false;
+      }
+    },
+    []
+  );
+
+  const reset = useCallback(() => {
+    setProgress(INITIAL_CONFIG_PROGRESS);
+    setConfigPayload(null);
+    isConfiguringRef.current = false;
+  }, []);
+
+  // Cleanup on unmount -- disconnect device if component unmounts mid-config
+  useEffect(() => {
+    return () => {
+      if (deviceRef.current) {
+        disconnectMeshtasticDevice(deviceRef.current).catch(() => {});
+      }
+    };
+  }, []);
+
+  const activeStages: ConfigStage[] = [
+    "connecting",
+    "mqtt",
+    "channels",
+    "identity",
+    "radio",
+    "committing",
+  ];
+
+  return {
+    progress,
+    isConfiguring: activeStages.includes(progress.stage),
+    isComplete: progress.stage === "complete",
+    isError: progress.stage === "error",
+    configPayload,
+    configure,
+    reset,
+  };
+}
