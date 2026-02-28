@@ -260,6 +260,39 @@ export default function WhoAmIPage() {
         </Card>
       </div>
 
+      {/* QR Code (collapsed by default) */}
+      {userData?.eqr && (
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-3">
+            <button
+              onClick={() => setIsQROpen(!isQROpen)}
+              className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              {isQROpen ? (
+                <ChevronDown className="w-3.5 h-3.5 text-default-400" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-default-400" />
+              )}
+              <span className="font-museo text-base font-bold text-foreground">Your Social QR</span>
+            </button>
+            {isQROpen && (
+              <div className="flex flex-col items-center mt-3 space-y-3">
+                <div className="bg-white p-3 rounded-lg">
+                  <img
+                    src={userData.eqr}
+                    alt="Your QR Code"
+                    className="max-w-[220px]"
+                  />
+                </div>
+                <p className="text-xs text-default-400 text-center">
+                  Share this QR code to connect with other runners
+                </p>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
       {/* Quotas */}
       {userData?.quotas && (
         <Card className="glass-card overflow-hidden">
@@ -297,39 +330,6 @@ export default function WhoAmIPage() {
         quotas={userData?.quotas}
         onUpdate={fetchUserData}
       />
-
-      {/* QR Code (collapsed by default) */}
-      {userData?.eqr && (
-        <Card className="glass-card overflow-hidden">
-          <CardBody className="px-5 py-3">
-            <button
-              onClick={() => setIsQROpen(!isQROpen)}
-              className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
-            >
-              {isQROpen ? (
-                <ChevronDown className="w-3.5 h-3.5 text-default-400" />
-              ) : (
-                <ChevronRight className="w-3.5 h-3.5 text-default-400" />
-              )}
-              <span className="font-museo text-base font-bold text-foreground">Your Social QR</span>
-            </button>
-            {isQROpen && (
-              <div className="flex flex-col items-center mt-3 space-y-3">
-                <div className="bg-white p-3 rounded-lg">
-                  <img
-                    src={userData.eqr}
-                    alt="Your QR Code"
-                    className="max-w-[220px]"
-                  />
-                </div>
-                <p className="text-xs text-default-400 text-center">
-                  Share this QR code to connect with other runners
-                </p>
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      )}
 
       {/* Debug */}
       <Card className="glass-card overflow-hidden">
