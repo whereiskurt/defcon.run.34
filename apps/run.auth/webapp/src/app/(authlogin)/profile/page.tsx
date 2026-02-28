@@ -306,12 +306,7 @@ function ProfileContent() {
                       key={svc}
                       size="sm"
                       variant="flat"
-                      color={
-                        svc === 'admin' ? 'danger'
-                          : svc === 'strava' ? 'warning'
-                          : svc === 'gpxstudio' ? 'success'
-                          : 'primary'
-                      }
+                      color="primary"
                       classNames={{ base: "font-mono text-xs" }}
                     >
                       {svc}
