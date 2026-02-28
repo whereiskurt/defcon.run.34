@@ -62,7 +62,7 @@ function getStageStatus(
 
 function StageIcon({ status }: { status: StageStatus }) {
   if (status === "complete")
-    return <CheckCircle2 className="w-5 h-5 text-green-400" />;
+    return <CheckCircle2 className="w-5 h-5 text-teal-400" />;
   if (status === "error") return <XCircle className="w-5 h-5 text-danger" />;
   if (status === "active") return <Spinner size="sm" color="primary" />;
   return <Circle className="w-5 h-5 text-default-600" />;
@@ -99,7 +99,7 @@ function PipelineStage({
         <Icon
           className={clsx(
             "w-5 h-5",
-            status === "complete" && "text-green-400",
+            status === "complete" && "text-teal-400",
             status === "active" && "text-primary",
             status === "error" && "text-danger",
             status === "pending" && "text-default-600"
@@ -107,25 +107,21 @@ function PipelineStage({
         />
       </div>
 
-      {/* Stage content (center) */}
+      {/* Stage content + inline status indicator */}
       <div className="flex-1 min-w-0">
         <p
           className={clsx(
-            "text-sm font-mono",
-            status === "complete" && "text-green-400",
+            "text-sm font-mono inline-flex items-center gap-2",
+            status === "complete" && "text-teal-400",
             status === "active" && "text-primary",
             status === "error" && "text-danger",
             status === "pending" && "text-default-600"
           )}
         >
           {text}
+          <StageIcon status={status} />
         </p>
         {children}
-      </div>
-
-      {/* Status indicator (right) */}
-      <div className="flex-shrink-0 w-6 flex items-center justify-center pt-0.5">
-        <StageIcon status={status} />
       </div>
     </div>
   );
@@ -133,7 +129,7 @@ function PipelineStage({
 
 /**
  * Three-stage flash pipeline visualization: Erase -> Write -> Verify.
- * Per CONTEXT.md: stages light up green with checkmarks as they complete.
+ * Per CONTEXT.md: stages light up teal with checkmarks as they complete.
  * Write stage shows detailed percentage bar with bytes transferred.
  */
 export function FlashPipeline({ progress }: FlashPipelineProps) {
@@ -150,7 +146,7 @@ export function FlashPipeline({ progress }: FlashPipelineProps) {
             className={clsx(
               "w-full h-full",
               progress.stage === "complete"
-                ? "bg-green-400/40"
+                ? "bg-teal-400/40"
                 : "bg-default-700/40"
             )}
           />

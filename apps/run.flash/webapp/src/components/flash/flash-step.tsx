@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Card, CardBody } from "@heroui/react";
+import { Button } from "@heroui/react";
 import {
   Zap,
   ArrowRight,
@@ -76,76 +76,71 @@ export function FlashStep({
   };
 
   return (
-    <div className="glass-card rounded-xl p-6 space-y-6">
+    <div className="space-y-4">
       {/* Pre-flash confirmation (idle state) */}
       {progress.stage === "idle" && (
         <>
-          {/* Pre-flash info panel */}
-          <div className="glass-card rounded-xl p-5 space-y-3">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">Device</span>
-              <span className="font-mono text-default-200">
-                {device.displayName}
-              </span>
-            </div>
-            <div className="border-t border-default-200/10" />
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">Chip</span>
-              <span className="font-mono text-default-200">
-                {chipInfo.chipName}
-              </span>
-            </div>
-            <div className="border-t border-default-200/10" />
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">Firmware</span>
-              <span className="font-mono text-default-200">
-                {FIRMWARE_VERSION}
-              </span>
-            </div>
-            <div className="border-t border-default-200/10" />
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">File</span>
-              <span className="font-mono text-default-200 text-xs">
-                {getFactoryFilename(device)}
-              </span>
-            </div>
-            <div className="border-t border-default-200/10" />
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">Flash address</span>
-              <span className="font-mono text-default-200">
-                0x0 (factory image)
-              </span>
-            </div>
-          </div>
-
-          {/* Erase warning */}
-          <Card className="border-warning/40 bg-warning/5">
-            <CardBody className="flex flex-row items-center gap-3 p-4">
-              <AlertTriangle className="w-6 h-6 text-warning flex-shrink-0" />
+          {/* Top bar: erase warning + flash button on same plane */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0" />
               <div>
                 <p className="text-sm text-warning font-medium">
                   This will erase all existing firmware and data on the device
                 </p>
-                <p className="text-xs text-default-500 mt-1">
-                  Make sure your USB cable stays connected during the flash
-                  process
+                <p className="text-xs text-default-500">
+                  Keep your USB cable connected during the flash process
                 </p>
               </div>
-            </CardBody>
-          </Card>
-
-          {/* Flash button */}
-          <div className="flex justify-center">
+            </div>
             <Button
               color="danger"
               size="lg"
               startContent={<Zap className="w-5 h-5" />}
               onPress={handleFlash}
               isDisabled={!espLoaderRef.current}
-              className="font-mono"
+              className="font-mono whitespace-nowrap"
             >
               Flash Firmware
             </Button>
+          </div>
+
+          {/* Device details panel */}
+          <div className="glass-card rounded-xl p-5 space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-default-500">Device</span>
+              <span className="font-mono text-foreground">
+                {device.displayName}
+              </span>
+            </div>
+            <div className="border-t border-default-200/10" />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-default-500">Chip</span>
+              <span className="font-mono text-foreground">
+                {chipInfo.chipName}
+              </span>
+            </div>
+            <div className="border-t border-default-200/10" />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-default-500">Firmware</span>
+              <span className="font-mono text-foreground">
+                {FIRMWARE_VERSION}
+              </span>
+            </div>
+            <div className="border-t border-default-200/10" />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-default-500">File</span>
+              <span className="font-mono text-foreground text-xs">
+                {getFactoryFilename(device)}
+              </span>
+            </div>
+            <div className="border-t border-default-200/10" />
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-default-500">Flash address</span>
+              <span className="font-mono text-foreground">
+                0x0 (factory image)
+              </span>
+            </div>
           </div>
         </>
       )}
@@ -169,10 +164,10 @@ export function FlashStep({
           <FlashPipeline progress={progress} />
 
           {/* Success message */}
-          <div className="glass-card rounded-xl p-5 border-green-500/30 shadow-[0_0_16px_rgba(34,197,94,0.1)]">
+          <div className="glass-card rounded-xl p-5 border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]">
             <div className="flex flex-col items-center gap-3 text-center">
-              <CheckCircle2 className="w-10 h-10 text-green-400" />
-              <h3 className="font-mono text-lg text-green-400">
+              <CheckCircle2 className="w-10 h-10 text-teal-400" />
+              <h3 className="font-mono text-lg text-teal-400">
                 Flash Complete!
               </h3>
               <p className="text-sm text-default-400">

@@ -49,7 +49,7 @@ export function FlashConsole({ logs, defaultExpanded = false }: FlashConsoleProp
             <span className="text-default-600">Waiting for output...</span>
           ) : (
             logs.map((entry, i) => (
-              <span key={i} className="text-green-400/70 whitespace-pre-wrap">
+              <span key={i} className="text-teal-400/70 whitespace-pre-wrap">
                 {entry.text}
               </span>
             ))

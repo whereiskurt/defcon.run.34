@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import type { FlashProgress } from "@/types/serial";
 import { INITIAL_FLASH_PROGRESS } from "@/types/serial";
 import { loadFirmware, formatBytes } from "@/config/firmware";
@@ -170,6 +170,21 @@ export function useFlash(): UseFlashReturn {
     },
     []
   );
+
+  // Prevent accidental page navigation during flash (HMR, refresh, close tab)
+  useEffect(() => {
+    const isActive =
+      progress.stage === "erasing" ||
+      progress.stage === "writing" ||
+      progress.stage === "verifying";
+    if (!isActive) return;
+
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [progress.stage]);
 
   const reset = useCallback(() => {
     setProgress(INITIAL_FLASH_PROGRESS);

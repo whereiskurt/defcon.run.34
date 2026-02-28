@@ -6,21 +6,20 @@ import type { DeviceHardware } from "@/types/device";
  * This is a placeholder version -- the code works with any Meshtastic release
  * since the naming convention is stable.
  */
-export const FIRMWARE_VERSION = "2.6.6.0a23203";
+export const FIRMWARE_VERSION = "2.6.11.60ec05e";
 
 /** Base path for firmware binaries served by the app */
 export const FIRMWARE_BASE_PATH = "/firmware";
 
 /**
- * Construct the factory binary filename for a device.
- * Factory binary includes bootloader + partition table + application,
- * flashable at address 0x0 as a single file.
+ * Construct the firmware binary filename for a device.
+ * Uses the standard Meshtastic naming: firmware-{platformioTarget}-{version}.bin
  */
 export function getFactoryFilename(
   device: DeviceHardware,
   version: string = FIRMWARE_VERSION
 ): string {
-  return `firmware-${device.platformioTarget}-${version}.factory.bin`;
+  return `firmware-${device.platformioTarget}-${version}.bin`;
 }
 
 /**

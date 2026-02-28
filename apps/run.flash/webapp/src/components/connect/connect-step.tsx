@@ -35,15 +35,6 @@ const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success
   "esp32-c6": "success",
 };
 
-/**
- * Connect wizard step: selected device confirmation, serial connection UI,
- * chip info display, bootloader help, and chip mismatch warning.
- *
- * Per CONTEXT.md locked decisions:
- * - Show selected device name and image at top as confirmation
- * - After connection: show status with manual "Continue to Flash" -- no auto-advance
- * - Connection failure: expandable troubleshooting section, hidden by default
- */
 export function ConnectStep({
   device,
   serial,
@@ -59,104 +50,131 @@ export function ConnectStep({
     await serial.connect();
   };
 
+  const isConnected = serial.connectionState === "connected";
+
   return (
-    <div className="glass-card rounded-xl p-6 space-y-6">
-      {/* Top section: Selected device confirmation */}
-      <div className="flex flex-col items-center gap-3 pb-4 border-b border-default-200/20">
-        <div className="h-20 flex items-center justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imagePath}
-            alt={device.displayName}
-            className="max-h-20 max-w-full object-contain"
-          />
-        </div>
-        <h2 className="font-mono text-lg text-default-200">
-          {device.displayName}
-        </h2>
-        <Chip size="sm" variant="flat" color={archColor}>
-          {archLabel}
-        </Chip>
-      </div>
-
-      {/* Middle section: Connection state */}
-      <div className="space-y-4">
-        {/* Disconnected: Show connect button */}
-        {serial.connectionState === "disconnected" && (
-          <div className="flex flex-col items-center gap-4 py-4">
-            <Button
-              color="primary"
-              size="lg"
-              startContent={<Usb className="w-5 h-5" />}
-              onPress={() => serial.connect()}
-              className="font-mono"
-            >
-              Connect Device
-            </Button>
-            <p className="text-sm text-default-500 text-center max-w-sm">
-              Click Connect and select your device from the browser&apos;s serial
-              port dialog.
-            </p>
-          </div>
-        )}
-
-        {/* Connecting: Show spinner */}
-        {serial.connectionState === "connecting" && (
-          <div className="flex flex-col items-center gap-4 py-4">
-            <Spinner size="lg" color="primary" />
-            <p className="text-sm font-mono text-default-400">Connecting...</p>
-          </div>
-        )}
-
-        {/* Connected: Show status + continue or mismatch warning */}
-        {serial.connectionState === "connected" && serial.chipInfo && (
-          <div className="space-y-4">
-            <ConnectionStatus chipInfo={serial.chipInfo} />
-
-            {chipMismatch ? (
-              <ChipMismatchWarning
-                detectedChipName={serial.chipInfo.chipName}
-                expectedArchitecture={device.architecture}
-                deviceName={device.displayName}
-              />
-            ) : (
-              <div className="flex justify-center pt-2">
-                <Button
-                  color="primary"
-                  size="lg"
-                  endContent={<ArrowRight className="w-5 h-5" />}
-                  onPress={onContinue}
-                  className="font-mono"
-                >
-                  Continue to Flash
-                </Button>
+    <div className="space-y-4">
+      {/* Single panel: left status | center image | right action */}
+      <div className={`glass-card rounded-xl p-6 transition-all duration-500 ${isConnected ? "border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]" : ""}`}>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+          {/* Left: connection state */}
+          <div className="min-w-0">
+            {serial.connectionState === "disconnected" && (
+              <div className="space-y-1">
+                <p className="text-sm font-mono text-default-400">
+                  Ready to connect
+                </p>
+                <p className="text-xs text-default-600">
+                  Plug in USB, then click Connect
+                </p>
               </div>
             )}
+
+            {serial.connectionState === "connecting" && (
+              <div className="flex items-center gap-3">
+                <Spinner size="sm" color="primary" />
+                <p className="text-sm font-mono text-default-400">
+                  Connecting...
+                </p>
+              </div>
+            )}
+
+            {isConnected && serial.chipInfo && (
+              <ConnectionStatus chipInfo={serial.chipInfo} />
+            )}
+
+            {serial.connectionState === "error" && (
+              <p className="text-sm text-danger font-mono line-clamp-2">
+                {serial.error}
+              </p>
+            )}
           </div>
-        )}
 
-        {/* Error: Show error message + retry + bootloader help */}
-        {serial.connectionState === "error" && (
-          <div className="space-y-4">
-            <div className="glass-card rounded-xl p-4 border-danger/30 bg-danger/5">
-              <p className="text-sm text-danger font-mono">{serial.error}</p>
-            </div>
+          {/* Center: action button */}
+          <div className="flex-shrink-0">
+            {serial.connectionState === "disconnected" && (
+              <Button
+                color="primary"
+                size="lg"
+                startContent={<Usb className="w-5 h-5" />}
+                onPress={() => serial.connect()}
+                className="font-mono whitespace-nowrap"
+              >
+                Connect Device
+              </Button>
+            )}
 
-            <div className="flex justify-center">
+            {serial.connectionState === "connecting" && (
+              <Button
+                color="primary"
+                size="lg"
+                isDisabled
+                className="font-mono whitespace-nowrap"
+              >
+                Connecting...
+              </Button>
+            )}
+
+            {isConnected && !chipMismatch && (
+              <Button
+                color="primary"
+                size="lg"
+                endContent={<ArrowRight className="w-5 h-5" />}
+                onPress={onContinue}
+                className="font-mono whitespace-nowrap"
+              >
+                Continue to Flash
+              </Button>
+            )}
+
+            {serial.connectionState === "error" && (
               <Button
                 color="primary"
                 variant="bordered"
+                size="lg"
                 onPress={handleRetry}
-                className="font-mono"
+                className="font-mono whitespace-nowrap"
               >
                 Try Again
               </Button>
-            </div>
+            )}
+          </div>
 
-            <BootloaderHelp />
+          {/* Right: device image + name */}
+          <div className={`flex flex-col items-center gap-2 justify-self-end transition-opacity duration-500 ${isConnected ? "opacity-100" : "opacity-40"}`}>
+            <div className="w-[140px] h-[100px] flex items-center justify-center rounded-lg bg-default-100/5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imagePath}
+                alt={device.displayName}
+                className="max-h-full max-w-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+              />
+            </div>
+            <div className="flex flex-col items-center gap-1">
+              <span className="font-mono text-sm text-default-500">
+                {device.displayName}
+              </span>
+              <Chip size="sm" variant="flat" color={archColor}>
+                {archLabel}
+              </Chip>
+            </div>
+          </div>
+        </div>
+
+        {/* Chip mismatch warning below the row */}
+        {isConnected && chipMismatch && serial.chipInfo && (
+          <div className="mt-4">
+            <ChipMismatchWarning
+              detectedChipName={serial.chipInfo.chipName}
+              expectedArchitecture={device.architecture}
+              deviceName={device.displayName}
+            />
           </div>
         )}
       </div>
+
+      {/* Bootloader help — only on error, below the panel */}
+      {serial.connectionState === "error" && <BootloaderHelp />}
     </div>
   );
 }
