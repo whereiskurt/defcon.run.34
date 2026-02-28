@@ -9,11 +9,16 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1000.0",
+    "@aws-sdk/lib-dynamodb": "^3.1000.0",
     "@heroui/react": "^2.8.9",
+    "@meshtastic/core": "^2.6.7",
+    "@meshtastic/transport-web-serial": "^0.2.5",
     "@react-aria/ssr": "^3.9.10",
     "@react-aria/visually-hidden": "^3.8.28",
     "@react-types/shared": "^3.33.0",
     "clsx": "^2.1.1",
+    "electrodb": "^3.7.0",
     "esptool-js": "^0.5.7",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.561.0",
