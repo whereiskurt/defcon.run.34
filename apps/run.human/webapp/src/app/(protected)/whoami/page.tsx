@@ -91,6 +91,7 @@ function QuotaBar({ remaining, initial, label }: { remaining: number; initial: n
 
 export default function WhoAmIPage() {
   const [mounted, setMounted] = useState(false);
+  const [isQROpen, setIsQROpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -168,7 +169,7 @@ export default function WhoAmIPage() {
   const services: string[] = user.services || [];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 animate-fade-up">
+    <div className="max-w-2xl mx-auto space-y-2.5 animate-fade-up">
       {/* Identity card */}
       <Card className="glass-card overflow-hidden">
         <CardBody className="px-5 py-4 space-y-4">
@@ -202,7 +203,7 @@ export default function WhoAmIPage() {
       </Card>
 
       {/* Two-column: Providers + Services */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         {/* Linked Providers */}
         <Card className="glass-card overflow-hidden">
           <CardBody className="px-5 py-4 space-y-3">
@@ -314,23 +315,35 @@ export default function WhoAmIPage() {
         onUpdate={fetchUserData}
       />
 
-      {/* QR Code */}
+      {/* QR Code (collapsed by default) */}
       {userData?.eqr && (
         <Card className="glass-card overflow-hidden">
-          <CardBody className="px-5 py-4 space-y-3">
-            <h3 className="font-museo text-base font-bold text-foreground">Your Social QR</h3>
-            <div className="flex flex-col items-center">
-              <div className="bg-white p-3 rounded-lg">
-                <img
-                  src={userData.eqr}
-                  alt="Your QR Code"
-                  className="max-w-[220px]"
-                />
+          <CardBody className="px-5 py-3">
+            <button
+              onClick={() => setIsQROpen(!isQROpen)}
+              className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
+            >
+              {isQROpen ? (
+                <ChevronDown className="w-3.5 h-3.5 text-default-400" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 text-default-400" />
+              )}
+              <span className="font-museo text-base font-bold text-foreground">Your Social QR</span>
+            </button>
+            {isQROpen && (
+              <div className="flex flex-col items-center mt-3 space-y-3">
+                <div className="bg-white p-3 rounded-lg">
+                  <img
+                    src={userData.eqr}
+                    alt="Your QR Code"
+                    className="max-w-[220px]"
+                  />
+                </div>
+                <p className="text-xs text-default-400 text-center">
+                  Share this QR code to connect with other runners
+                </p>
               </div>
-              <p className="text-xs text-default-400 mt-3 text-center">
-                Share this QR code to connect with other runners
-              </p>
-            </div>
+            )}
           </CardBody>
         </Card>
       )}

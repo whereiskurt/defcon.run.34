@@ -65,7 +65,7 @@ export default async function ProtectedRootLayout({
               <div className="flex-shrink-0 relative z-10">
                 <Header session={session} />
               </div>
-              <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-6 pb-4 relative z-10">
+              <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-3 pb-4 relative z-10">
                 {children}
               </main>
               <Footer versionTooltip={APP_VERSION_TOOLTIP} />
