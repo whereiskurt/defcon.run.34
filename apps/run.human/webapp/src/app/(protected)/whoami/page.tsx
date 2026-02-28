@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, ExternalLink } from 'lucide-react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import { apiUrl } from '@/lib/api';
@@ -229,12 +229,6 @@ export default function WhoAmIPage() {
                 </div>
               );
             })}
-            <p className="text-xs text-default-400 pt-1">
-              Manage at{' '}
-              <a href="https://auth.defcon.run" className="text-primary hover:underline" target="_blank" rel="noreferrer">
-                auth.defcon.run <ExternalLink className="w-3 h-3 inline" />
-              </a>
-            </p>
           </CardBody>
         </Card>
 
