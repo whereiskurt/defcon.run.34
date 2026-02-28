@@ -9,11 +9,19 @@ import {
   NavbarItem,
   Tooltip,
 } from '@heroui/react';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { Shield } from 'lucide-react';
 import { SiStrava } from 'react-icons/si';
 import { ThemeSwitch } from '../theme-switch';
+
+const UserDropDown = dynamic(() => import('./dropdown-user'), {
+  ssr: false,
+  loading: () => (
+    <Avatar size="sm" className="opacity-50 animate-pulse" src="" />
+  ),
+});
 
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
@@ -39,7 +47,7 @@ export function Header() {
         wrapper: "max-w-[900px]",
       }}
     >
-      {/* Left: wordmark */}
+      {/* Left: wordmark + nav */}
       <NavbarContent className="gap-6" justify="start">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
@@ -80,15 +88,7 @@ export function Header() {
         </NavbarItem>
         <NavbarItem>
           {hasSession ? (
-            <Avatar
-              src={session.user?.image || undefined}
-              name={session.user?.name || session.user?.email || 'U'}
-              size="sm"
-              isBordered
-              color="primary"
-              classNames={{ base: "cursor-pointer" }}
-              onClick={() => signOut({ callbackUrl: `${basePath}/login` })}
-            />
+            <UserDropDown />
           ) : (
             <Button
               as="a"
