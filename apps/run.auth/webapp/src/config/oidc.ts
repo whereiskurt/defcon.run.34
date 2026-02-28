@@ -7,6 +7,7 @@ import { config } from "@/config";
 const LOCAL_RUN_PORT = process.env.LOCAL_RUN_PORT || "3001";
 const LOCAL_AUTH_PORT = process.env.LOCAL_AUTH_PORT || "3002";
 const LOCAL_GPX_PORT = process.env.LOCAL_GPX_PORT || "3003";
+const LOCAL_FLASH_PORT = process.env.LOCAL_FLASH_PORT || "3004";
 const LOCAL_CMS_PORT = process.env.LOCAL_CMS_PORT || "1337";
 
 // Site domain from config
@@ -107,6 +108,35 @@ const clients: ClientMetadata[] = [
       // Local development (only in dev mode)
       ...(config.isDev ? [
         `http://localhost:${LOCAL_GPX_PORT}`,
+      ] : []),
+    ],
+    grant_types: ["authorization_code", "refresh_token"],
+    response_types: ["code"],
+    scope: "openid profile email services",
+    token_endpoint_auth_method: "client_secret_post",
+  },
+  // Flash tool client (flash.{siteDomain}/{region})
+  {
+    client_id: config.oidc.clients.flashTool.clientId,
+    client_secret: config.oidc.clients.flashTool.clientSecret,
+    redirect_uris: [
+      // Production URLs - Auth.js doesn't include Next.js basePath in callback URLs
+      // so we need both prefixed and non-prefixed versions
+      `https://flash.${siteDomain}/api/auth/callback/run.${siteDomain}`,
+      `https://flash.${siteDomain}/use1/api/auth/callback/run.${siteDomain}`,
+      `https://flash.${siteDomain}/cac1/api/auth/callback/run.${siteDomain}`,
+      // Local development (only in dev mode)
+      ...(config.isDev ? [
+        `http://localhost:${LOCAL_FLASH_PORT}/api/auth/callback/run.${siteDomain}`,
+      ] : []),
+    ],
+    post_logout_redirect_uris: [
+      // Production - both regions
+      `https://flash.${siteDomain}/use1`,
+      `https://flash.${siteDomain}/cac1`,
+      // Local development (only in dev mode)
+      ...(config.isDev ? [
+        `http://localhost:${LOCAL_FLASH_PORT}`,
       ] : []),
     ],
     grant_types: ["authorization_code", "refresh_token"],

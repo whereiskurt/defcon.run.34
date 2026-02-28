@@ -70,6 +70,10 @@ export const config = {
         clientId: process.env.OIDC_GPXSTUDIO_CLIENT_ID!,
         clientSecret: process.env.OIDC_GPXSTUDIO_SECRET!,
       },
+      flashTool: {
+        clientId: process.env.OIDC_FLASH_CLIENT_ID!,
+        clientSecret: process.env.OIDC_FLASH_SECRET!,
+      },
     },
 
     ttl: {
