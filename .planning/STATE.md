@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-02-28T14:53:21.719Z"
+last_updated: "2026-02-28T15:58:04.792Z"
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -23,27 +23,28 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 2 of 4 (Flash Engine)
-Plan: 1 of 3 in current phase
-Status: Ready
-Last activity: 2026-02-28 -- Completed 01-02 (Browser Gate, Wizard, Device Picker)
+Plan: 2 of 2 in current phase
+Status: In Progress
+Last activity: 2026-02-28 -- Completed 02-01 (Flash Engine Foundation)
 
-Progress: [####░░░░░░] 20%
+Progress: [######░░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 5.5min
-- Total execution time: 0.2 hours
+- Total plans completed: 3
+- Average duration: 5.3min
+- Total execution time: 0.3 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-app-scaffold-device-picker | 2 | 11min | 5.5min |
+| 02-flash-engine | 1 | 5min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 6min, 5min
+- Last 5 plans: 6min, 5min, 5min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -64,6 +65,9 @@ Recent decisions affecting current work:
 - [01-02]: Used !important Tailwind modifiers for selected card border to override glass-card:hover
 - [01-02]: Vendored hardware-list.json and device SVGs statically rather than runtime fetch
 - [01-02]: Deduplication by hwModel to avoid showing multiple platformioTarget variants
+- [02-01]: Binary string conversion for esptool-js -- writeFlash API expects string data, not Uint8Array
+- [02-01]: romBaudrate set to 115200 for ROM bootloader communication (required by esptool-js v0.5.7)
+- [02-01]: ESPLoader/Transport in useRef not useState -- mutable class instances must not be in React state
 
 ### Pending Todos
 
@@ -78,5 +82,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 01-02-PLAN.md (Browser Gate, Wizard, Device Picker) -- Phase 1 complete
+Stopped at: Completed 02-01-PLAN.md (Flash Engine Foundation)
 Resume file: None

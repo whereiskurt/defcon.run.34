@@ -106,6 +106,23 @@
       }
     },
     {
+      "label": "App: run.flash (LOCAL_FLASH_PORT/3004)",
+      "type": "shell",
+      "command": "PORT=${env:LOCAL_FLASH_PORT} npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/run.flash/webapp"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    },
+    {
       "label": "E2E Tests",
       "type": "shell",
       "command": "$(aws configure export-credentials --profile ${env:SITE_LABEL}-terraform --format env) && ./e2e.sh",

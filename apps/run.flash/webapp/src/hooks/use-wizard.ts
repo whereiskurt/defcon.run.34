@@ -74,6 +74,22 @@ export function useWizard() {
     });
   }, []);
 
+  /**
+   * Navigate to a step for retry, removing it and all subsequent steps
+   * from completedSteps. Used by flash retry flow: go back to Connect
+   * with a clean slate so the step must be re-completed.
+   */
+  const goToStepForRetry = useCallback((step: WizardStep) => {
+    setState((prev) => {
+      const newCompleted = new Set(prev.completedSteps);
+      const stepIndex = STEPS.indexOf(step);
+      for (let i = stepIndex; i < STEPS.length; i++) {
+        newCompleted.delete(STEPS[i]);
+      }
+      return { ...prev, currentStep: step, completedSteps: newCompleted };
+    });
+  }, []);
+
   const selectDevice = useCallback((device: DeviceHardware) => {
     setState((prev) => ({ ...prev, selectedDevice: device }));
   }, []);
@@ -89,6 +105,7 @@ export function useWizard() {
     canAdvance,
     advance,
     goToStep,
+    goToStepForRetry,
     selectDevice,
     clearDevice,
     steps: STEPS,

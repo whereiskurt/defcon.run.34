@@ -1,0 +1,4 @@
+# Firmware binaries (downloaded by scripts/download-firmware.sh, vendored at Docker build)
+public/firmware/*.bin
+public/firmware/*.factory.bin
+!public/firmware/.gitkeep
