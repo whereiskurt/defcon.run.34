@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 ## Current Position
 
 Phase: 1 of 4 (App Scaffold + Device Picker)
-Plan: 0 of 3 in current phase
-Status: Ready to plan
-Last activity: 2026-02-28 -- Roadmap created
+Plan: 1 of 2 in current phase
+Status: Executing
+Last activity: 2026-02-28 -- Completed 01-01 (App Scaffold + Auth)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [##░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: 0 hours
+- Total plans completed: 1
+- Average duration: 6min
+- Total execution time: 0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01-app-scaffold-device-picker | 1 | 6min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: -
-- Trend: -
+- Last 5 plans: 6min
+- Trend: starting
 
 *Updated after each plan completion*
 
@@ -45,6 +45,9 @@ Recent decisions affecting current work:
 - [Roadmap]: 4-phase structure derived from requirement clusters -- scaffold/picker, flash, config+API, deployment
 - [Roadmap]: SRVR requirements grouped with CONF (Phase 3) because config push depends on server API for secrets
 - [Research]: Serial port handoff between flash (esptool.js) and configure (@meshtastic/core) is highest technical risk -- Phase 2/3 boundary
+- [01-01]: No service claim check for flash app -- all authenticated DCR34 users can access the flasher
+- [01-01]: Omitted mapboxPublicToken from flash auth claims -- not needed for firmware flasher
+- [01-01]: Added matrix-green accent and cyber-border CSS for hacker/cyberpunk aesthetic
 
 ### Pending Todos
 
@@ -59,5 +62,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Roadmap created, ready to plan Phase 1
+Stopped at: Completed 01-01-PLAN.md (App Scaffold + Auth)
 Resume file: None

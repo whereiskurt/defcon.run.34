@@ -10,7 +10,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Browser & Entry
 
 - [ ] **BRWS-01**: App detects Web Serial API support and gates unsupported browsers at page load with clear "use Chrome or Edge" message and download links
-- [ ] **BRWS-02**: App enforces OIDC authentication — unauthenticated users redirect to auth.defcon.run
+- [x] **BRWS-02**: App enforces OIDC authentication — unauthenticated users redirect to auth.defcon.run
 
 ### Device Selection
 
@@ -100,7 +100,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | BRWS-01 | Phase 1 | Pending |
-| BRWS-02 | Phase 1 | Pending |
+| BRWS-02 | Phase 1 | Complete |
 | DEVC-01 | Phase 1 | Pending |
 | DEVC-02 | Phase 1 | Pending |
 | DEVC-03 | Phase 1 | Pending |
