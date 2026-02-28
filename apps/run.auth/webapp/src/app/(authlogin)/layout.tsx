@@ -5,10 +5,14 @@ import { Providers } from "@/app/providers";
 import { siteConfig } from "@site";
 import { fontSans, fontMono, fontMuseo, fontAtkinson } from "@fonts";
 import { SessionProvider } from "next-auth/react";
+import { Header } from "@/components/header/header";
+import { Footer } from "@/components/footer";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
 const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
+
+const APP_VERSION_TOOLTIP = `DC34 Auth ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
 export const metadata: Metadata = {
   title: {
@@ -53,12 +57,16 @@ export default function AuthLayout({
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
-            <div className="relative flex flex-col h-screen noise-overlay">
-              <main className="container mx-auto h-screen flex items-center justify-center relative z-10">
-                <div className="w-full max-w-md px-4">
+            <div className="relative flex flex-col min-h-screen noise-overlay">
+              <div className="flex-shrink-0 relative z-10">
+                <Header />
+              </div>
+              <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-6 pb-4 relative z-10">
+                <div className="w-full max-w-md mx-auto">
                   {children}
                 </div>
               </main>
+              <Footer versionTooltip={APP_VERSION_TOOLTIP} />
             </div>
           </SessionProvider>
         </Providers>

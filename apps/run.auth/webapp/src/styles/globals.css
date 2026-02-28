@@ -116,6 +116,35 @@ darkmap {
   filter: invert(1) hue-rotate(180deg) brightness(1.25);
 }
 
+/* Glassmorphic navbar */
+.glass-nav {
+  background: rgba(10, 10, 15, 0.8);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid #2a2a3a;
+}
+
+html.light .glass-nav {
+  background: rgba(250, 250, 250, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid #e0e0e0;
+}
+
+/* Nav active indicator */
+.nav-active {
+  position: relative;
+}
+
+.nav-active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #00d4aa;
+  border-radius: 1px;
+}
+
 /* Teal dot accent for wordmark */
 .teal-dot {
   color: #00d4aa;

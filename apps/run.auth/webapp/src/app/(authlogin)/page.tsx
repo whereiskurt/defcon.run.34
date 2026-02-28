@@ -174,7 +174,7 @@ function DashboardContent() {
                     key={svc}
                     size="sm"
                     variant="flat"
-                    color={svc === 'admin' ? 'danger' : svc === 'gpxstudio' || svc === 'gpx' ? 'secondary' : 'primary'}
+                    color={svc === 'admin' ? 'danger' : svc === 'gpxstudio' || svc === 'gpx' ? 'success' : 'primary'}
                     classNames={{ base: "font-mono text-xs" }}
                   >
                     {svc}
