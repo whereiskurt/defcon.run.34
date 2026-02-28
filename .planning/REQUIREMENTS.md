@@ -36,12 +36,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Post-Flash Configuration
 
-- [ ] **CONF-01**: After flash, app reconnects to device via @meshtastic/core over Web Serial (handles reboot delay, retry logic)
-- [ ] **CONF-02**: App pushes MQTT config to device: server (mqtt.defcon.run), port, TLS, per-user credentials from RunUser entity
-- [ ] **CONF-03**: App pushes channel config to device: DCR34 primary channel with PSK, bridge channels
-- [ ] **CONF-04**: App pushes identity config to device: long name and short name from authenticated user's DCR34 profile
-- [ ] **CONF-05**: App pushes radio config to device: LoRa region (US), modem preset, hop limit
-- [ ] **CONF-06**: Configuration push uses transactional edit (beginEditSettings / commitEditSettings) for atomic apply
+- [x] **CONF-01**: After flash, app reconnects to device via @meshtastic/core over Web Serial (handles reboot delay, retry logic)
+- [x] **CONF-02**: App pushes MQTT config to device: server (mqtt.defcon.run), port, TLS, per-user credentials from RunUser entity
+- [x] **CONF-03**: App pushes channel config to device: DCR34 primary channel with PSK, bridge channels
+- [x] **CONF-04**: App pushes identity config to device: long name and short name from authenticated user's DCR34 profile
+- [x] **CONF-05**: App pushes radio config to device: LoRa region (US), modem preset, hop limit
+- [x] **CONF-06**: Configuration push uses transactional edit (beginEditSettings / commitEditSettings) for atomic apply
 - [ ] **CONF-07**: Configuration progress is displayed with per-step status
 
 ### Server-Side Config
@@ -117,12 +117,12 @@ Deferred to future release. Tracked but not in current roadmap.
 | FLSH-03 | Phase 2 | Complete |
 | FLSH-04 | Phase 2 | Pending |
 | FLSH-05 | Phase 2 | Complete |
-| CONF-01 | Phase 3 | Pending |
-| CONF-02 | Phase 3 | Pending |
-| CONF-03 | Phase 3 | Pending |
-| CONF-04 | Phase 3 | Pending |
-| CONF-05 | Phase 3 | Pending |
-| CONF-06 | Phase 3 | Pending |
+| CONF-01 | Phase 3 | Complete |
+| CONF-02 | Phase 3 | Complete |
+| CONF-03 | Phase 3 | Complete |
+| CONF-04 | Phase 3 | Complete |
+| CONF-05 | Phase 3 | Complete |
+| CONF-06 | Phase 3 | Complete |
 | CONF-07 | Phase 3 | Pending |
 | SRVR-01 | Phase 3 | Complete |
 | SRVR-02 | Phase 3 | Complete |
