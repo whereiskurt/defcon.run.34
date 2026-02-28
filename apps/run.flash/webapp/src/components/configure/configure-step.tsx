@@ -17,7 +17,7 @@ interface UseConfigureReturn {
   isComplete: boolean;
   isError: boolean;
   configPayload: DeviceConfigPayload | null;
-  configure: (disconnectTransport: () => Promise<void>) => Promise<void>;
+  configure: (disconnectTransport: () => Promise<void>, options?: { skipRebootDelay?: boolean }) => Promise<void>;
   reset: () => void;
 }
 
@@ -30,6 +30,8 @@ interface ConfigureStepProps {
   onContinue: () => void;
   /** Reset + goToStepForRetry("connect") */
   onRetry: () => void;
+  /** Skip the 4s reboot delay (device already running, e.g. ?step=configure jump) */
+  skipRebootDelay?: boolean;
 }
 
 /**
@@ -47,6 +49,7 @@ export function ConfigureStep({
   disconnectTransport,
   onContinue,
   onRetry,
+  skipRebootDelay,
 }: ConfigureStepProps) {
   const { progress } = configureState;
   const startedRef = useRef(false);
@@ -55,9 +58,9 @@ export function ConfigureStep({
   useEffect(() => {
     if (progress.stage === "idle" && !startedRef.current) {
       startedRef.current = true;
-      configureState.configure(disconnectTransport);
+      configureState.configure(disconnectTransport, { skipRebootDelay });
     }
-  }, [progress.stage, configureState, disconnectTransport]);
+  }, [progress.stage, configureState, disconnectTransport, skipRebootDelay]);
 
   const isConnecting = progress.stage === "connecting";
   const isConfiguring =

@@ -30,7 +30,7 @@ interface UseConfigureReturn {
    *
    * @param disconnectTransport - Function to disconnect the esptool transport (from useSerial)
    */
-  configure: (disconnectTransport: () => Promise<void>) => Promise<void>;
+  configure: (disconnectTransport: () => Promise<void>, options?: { skipRebootDelay?: boolean }) => Promise<void>;
   /** Reset config state to idle (for retry) */
   reset: () => void;
 }
@@ -54,7 +54,7 @@ export function useConfigure(): UseConfigureReturn {
   const deviceRef = useRef<MeshDevice | null>(null);
 
   const configure = useCallback(
-    async (disconnectTransport: () => Promise<void>) => {
+    async (disconnectTransport: () => Promise<void>, options?: { skipRebootDelay?: boolean }) => {
       if (isConfiguringRef.current) return;
       isConfiguringRef.current = true;
 
@@ -70,7 +70,7 @@ export function useConfigure(): UseConfigureReturn {
         await disconnectTransport();
 
         // Stage 2: Reconnect via @meshtastic/core (handles reboot delay + retry)
-        const device = await connectMeshtasticDevice();
+        const device = await connectMeshtasticDevice({ skipRebootDelay: options?.skipRebootDelay });
         deviceRef.current = device;
 
         setProgress((prev) => ({
@@ -83,6 +83,7 @@ export function useConfigure(): UseConfigureReturn {
         }));
 
         // Stage 3: Fetch config from /api/config
+        console.log("[configure] Fetching config from /api/config...");
         const response = await fetch("/api/config");
         if (!response.ok) {
           const err = await response
@@ -93,20 +94,22 @@ export function useConfigure(): UseConfigureReturn {
           );
         }
         const config: DeviceConfigPayload = await response.json();
+        console.log("[configure] Config received:", { mqtt: config.mqtt.server, channels: config.channels.length });
         setConfigPayload(config);
 
         // Stage 4: Push config with progress callbacks
+        console.log("[configure] Starting config push to device...");
         const stages: ConfigStage[] = [
+          "radio",
           "mqtt",
           "channels",
           "identity",
-          "radio",
           "committing",
         ];
         let currentStageIndex = 0;
 
-        // Set first config push stage
-        setProgress((prev) => ({ ...prev, stage: "mqtt" }));
+        // Set first config push stage — radio first (region needed on fresh flash)
+        setProgress((prev) => ({ ...prev, stage: "radio" }));
 
         const onStageComplete = (stage: string, summary: string) => {
           currentStageIndex++;
@@ -135,8 +138,11 @@ export function useConfigure(): UseConfigureReturn {
           error: message,
         }));
       } finally {
-        // Disconnect device
-        if (deviceRef.current) {
+        // Only disconnect on error — on success, keep the connection alive
+        // until component unmounts (Done step transition).
+        // Disconnecting on success causes "Cannot cancel a locked stream"
+        // because the transport streams are still being processed.
+        if (deviceRef.current && progress.stage === "error") {
           await disconnectMeshtasticDevice(deviceRef.current).catch(() => {});
           deviceRef.current = null;
         }

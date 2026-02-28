@@ -9,7 +9,9 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import { Chip } from "@heroui/react";
 import type { DeviceHardware } from "@/types/device";
+import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import type { ChipInfo, ConsoleEntry, FlashProgress } from "@/types/serial";
 import { FIRMWARE_VERSION, getFactoryFilename } from "@/config/firmware";
 import { FlashPipeline } from "@/components/flash/flash-pipeline";
@@ -158,35 +160,60 @@ export function FlashStep({
         </>
       )}
 
-      {/* Flash complete */}
+      {/* Flash complete — single panel: left status | center button | right device image */}
       {progress.stage === "complete" && (
         <>
-          <FlashPipeline progress={progress} />
+          <div className="glass-card rounded-xl p-6 border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+              {/* Left: success info */}
+              <div className="min-w-0 flex items-center gap-3">
+                <CheckCircle2 className="w-8 h-8 text-teal-400 flex-shrink-0" />
+                <div>
+                  <h3 className="font-mono text-lg text-teal-400">
+                    Flash Complete!
+                  </h3>
+                  <p className="text-sm text-default-400">
+                    Firmware written and verified.
+                  </p>
+                </div>
+              </div>
 
-          {/* Success message */}
-          <div className="glass-card rounded-xl p-5 border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]">
-            <div className="flex flex-col items-center gap-3 text-center">
-              <CheckCircle2 className="w-10 h-10 text-teal-400" />
-              <h3 className="font-mono text-lg text-teal-400">
-                Flash Complete!
-              </h3>
-              <p className="text-sm text-default-400">
-                Firmware has been successfully written and verified.
-              </p>
+              {/* Center: continue button */}
+              <div className="flex-shrink-0">
+                <Button
+                  color="primary"
+                  size="lg"
+                  endContent={<ArrowRight className="w-5 h-5" />}
+                  onPress={onContinue}
+                  className="font-mono whitespace-nowrap"
+                >
+                  Continue to Configure
+                </Button>
+              </div>
+
+              {/* Right: device image */}
+              <div className="flex flex-col items-center gap-2 justify-self-end">
+                <div className="w-[140px] h-[100px] flex items-center justify-center rounded-lg bg-default-100/5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getDeviceImagePath(device)}
+                    alt={device.displayName}
+                    className="max-h-full max-w-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                  />
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                  <span className="font-mono text-sm text-default-500">
+                    {device.displayName}
+                  </span>
+                  <Chip size="sm" variant="flat" color="success">
+                    {getArchLabel(device)}
+                  </Chip>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="flex justify-center">
-            <Button
-              color="primary"
-              size="lg"
-              endContent={<ArrowRight className="w-5 h-5" />}
-              onPress={onContinue}
-              className="font-mono"
-            >
-              Continue to Configure
-            </Button>
-          </div>
+          <FlashPipeline progress={progress} />
 
           <FlashConsole logs={consoleLogs} />
         </>

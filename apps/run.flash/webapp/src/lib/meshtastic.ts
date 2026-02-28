@@ -13,6 +13,9 @@ import { create } from "@bufbuild/protobuf";
 /** Default baud rate for Meshtastic serial communication */
 const MESHTASTIC_BAUDRATE = 115200;
 
+/** Timeout for individual config push calls (ms). Device may not ack. */
+const CONFIG_CALL_TIMEOUT_MS = 3000;
+
 /** Post-flash reboot delay in milliseconds */
 const REBOOT_DELAY_MS = 4000;
 
@@ -22,8 +25,9 @@ const RETRY_DELAY_MS = 2000;
 /** Maximum number of configure() retry attempts */
 const MAX_CONFIGURE_RETRIES = 3;
 
-/** Timeout for waiting for DeviceConfigured status (ms) */
-const CONFIGURE_TIMEOUT_MS = 15000;
+/** Timeout for waiting for DeviceConfigured status (ms) — needs to be long enough
+ * for the device to finish dumping its entire config back to us */
+const CONFIGURE_TIMEOUT_MS = 60000;
 
 /**
  * Connect to a Meshtastic device over Web Serial after flash reboot.
@@ -39,9 +43,13 @@ const CONFIGURE_TIMEOUT_MS = 15000;
  * @returns Connected and configured MeshDevice instance
  * @throws Error if connection times out or no port available
  */
-export async function connectMeshtasticDevice(): Promise<MeshDevice> {
-  // Step 1: Wait for device to reboot after flash
-  await new Promise((resolve) => setTimeout(resolve, REBOOT_DELAY_MS));
+export async function connectMeshtasticDevice(
+  options?: { skipRebootDelay?: boolean }
+): Promise<MeshDevice> {
+  // Step 1: Wait for device to reboot after flash (skip if device is already running)
+  if (!options?.skipRebootDelay) {
+    await new Promise((resolve) => setTimeout(resolve, REBOOT_DELAY_MS));
+  }
 
   // Step 2: Get the previously-granted serial port
   const ports = await navigator.serial.getPorts();
@@ -59,13 +67,45 @@ export async function connectMeshtasticDevice(): Promise<MeshDevice> {
   );
 
   // Step 4: Create MeshDevice with transport
-  // Constructor auto-pipes transport.fromDevice to the packet decoder
   const device = new MeshDevice(transport);
 
-  // Step 5: Configure (handshake -- sends wantConfigId, waits for device config dump)
-  // With retry logic: try configure, if timeout retry up to MAX_CONFIGURE_RETRIES
-  await configureWithRetry(device);
+  // Step 5: Attempt configure handshake, but don't block on DeviceConfigured.
+  // The device is connected (transport is open, packets flow). The configure()
+  // handshake requests the device's current config dump, but DeviceConfigured
+  // status may never fire with some firmware/library version combinations.
+  // We try configure() and give it a short window, then proceed regardless.
+  try {
+    console.log("[meshtastic] Starting configure handshake...");
+    device.configure().catch(() => {});
 
+    // Wait up to 10 seconds for DeviceConfigured, but don't fail if it doesn't come
+    await new Promise<void>((resolve) => {
+      let resolved = false;
+      const timeout = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          console.log("[meshtastic] DeviceConfigured not received — proceeding with config push anyway");
+          resolve();
+        }
+      }, 10000);
+
+      device.events.onDeviceStatus.subscribe((status: number) => {
+        const statusName = Object.entries(Types.DeviceStatusEnum)
+          .find(([, v]) => v === status)?.[0] || "unknown";
+        console.log(`[meshtastic] DeviceStatus: ${status} (${statusName})`);
+        if (status === Types.DeviceStatusEnum.DeviceConfigured && !resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          console.log("[meshtastic] DeviceConfigured received");
+          resolve();
+        }
+      });
+    });
+  } catch (err) {
+    console.warn("[meshtastic] Configure handshake error (non-fatal):", err);
+  }
+
+  console.log("[meshtastic] Device ready for config push");
   return device;
 }
 
@@ -74,7 +114,9 @@ export async function connectMeshtasticDevice(): Promise<MeshDevice> {
  * Uses transactional edit: setConfig auto-calls beginEditSettings,
  * commitEditSettings finalizes all changes atomically.
  *
- * Order: MQTT -> Channels -> Identity -> Radio -> Commit
+ * Order: Radio (region FIRST) -> MQTT -> Channels -> Identity -> Commit
+ * Region must be set first on a freshly flashed device — the firmware
+ * won't fully initialize without a valid region.
  *
  * @param device - Connected MeshDevice from connectMeshtasticDevice()
  * @param config - DeviceConfigPayload from /api/config
@@ -85,7 +127,29 @@ export async function pushDeviceConfig(
   config: DeviceConfigPayload,
   onStageComplete: (stage: string, summary: string) => void
 ): Promise<void> {
-  // 1. MQTT Config (ModuleConfig -- MQTT is under ModuleConfig, not Config)
+  // 1. Radio Config FIRST — freshly flashed devices need region set before
+  // the firmware fully initializes. Without a region, other config may be ignored.
+  console.log("[meshtastic] Pushing radio config (region first)...");
+  const regionCode = mapRegionCode(config.radio.region);
+  const modemPreset = mapModemPreset(config.radio.modemPreset);
+
+  const loraConfig = create(Protobuf.Config.ConfigSchema, {
+    payloadVariant: {
+      case: "lora" as const,
+      value: create(Protobuf.Config.Config_LoRaConfigSchema, {
+        region: regionCode,
+        modemPreset: modemPreset,
+        hopLimit: config.radio.hopLimit,
+        txEnabled: true,
+        usePreset: true,
+      }),
+    },
+  });
+  await withTimeout(device.setConfig(loraConfig), "Radio setConfig");
+  onStageComplete("radio", `${config.radio.region} / ${config.radio.modemPreset}`);
+
+  // 2. MQTT Config (ModuleConfig)
+  console.log("[meshtastic] Pushing MQTT config...");
   const mqttConfig = create(Protobuf.ModuleConfig.ModuleConfigSchema, {
     payloadVariant: {
       case: "mqtt" as const,
@@ -102,16 +166,15 @@ export async function pushDeviceConfig(
       }),
     },
   });
-  await device.setModuleConfig(mqttConfig);
+  await withTimeout(device.setModuleConfig(mqttConfig), "MQTT setModuleConfig");
   onStageComplete("mqtt", config.mqtt.server);
 
-  // 2. Channel Config
+  // 3. Channel Config
+  console.log("[meshtastic] Pushing channel config...");
   for (let i = 0; i < config.channels.length; i++) {
     const ch = config.channels[i];
 
-    // Decode PSK from base64 to Uint8Array
     const pskBytes = decodeBase64Psk(ch.psk);
-
     const role =
       ch.role === "PRIMARY"
         ? Protobuf.Channel.Channel_Role.PRIMARY
@@ -125,39 +188,22 @@ export async function pushDeviceConfig(
         psk: pskBytes,
       }),
     });
-    await device.setChannel(channel);
+    await withTimeout(device.setChannel(channel), `Channel ${i} setChannel`);
   }
   onStageComplete("channels", `${config.channels.length} channels`);
 
-  // 3. Identity Config
+  // 4. Identity Config
+  console.log("[meshtastic] Pushing identity config...");
   const owner = create(Protobuf.Mesh.UserSchema, {
     longName: config.identity.longName,
     shortName: config.identity.shortName.slice(0, 4).toUpperCase(),
   });
-  await device.setOwner(owner);
+  await withTimeout(device.setOwner(owner), "Identity setOwner");
   onStageComplete("identity", config.identity.longName);
 
-  // 4. Radio Config (LoRa Config -- this IS a Config, not ModuleConfig)
-  const regionCode = mapRegionCode(config.radio.region);
-  const modemPreset = mapModemPreset(config.radio.modemPreset);
-
-  const loraConfig = create(Protobuf.Config.ConfigSchema, {
-    payloadVariant: {
-      case: "lora" as const,
-      value: create(Protobuf.Config.Config_LoRaConfigSchema, {
-        region: regionCode,
-        modemPreset: modemPreset,
-        hopLimit: config.radio.hopLimit,
-        txEnabled: true,
-        usePreset: true,
-      }),
-    },
-  });
-  await device.setConfig(loraConfig);
-  onStageComplete("radio", `${config.radio.region} / ${config.radio.modemPreset}`);
-
   // 5. Commit all changes atomically
-  await device.commitEditSettings();
+  console.log("[meshtastic] Committing settings...");
+  await withTimeout(device.commitEditSettings(), "commitEditSettings");
   onStageComplete("committing", "Settings saved");
 }
 
@@ -170,8 +216,9 @@ export async function disconnectMeshtasticDevice(
 ): Promise<void> {
   try {
     await device.transport.disconnect();
-  } catch {
-    // Ignore disconnect errors -- port may already be closed
+  } catch (err) {
+    // "Cannot cancel a locked stream" is expected if transport is still active
+    console.warn("[meshtastic] Could not cleanly disconnect:", err instanceof Error ? err.message : err);
   }
 }
 
@@ -187,39 +234,72 @@ export async function disconnectMeshtasticDevice(
 async function configureWithRetry(device: MeshDevice): Promise<void> {
   for (let attempt = 1; attempt <= MAX_CONFIGURE_RETRIES; attempt++) {
     try {
-      await device.configure();
-      await waitForConfigured(device);
+      console.log(`[meshtastic] configure() attempt ${attempt}/${MAX_CONFIGURE_RETRIES}`);
+
+      // configure() initiates the handshake (sends wantConfigId) but may NOT
+      // return a promise that resolves on completion. Fire it and listen for
+      // status events to know when the device is ready.
+      const configurePromise = waitForDeviceReady(device);
+
+      // Fire configure — don't await it directly since it may never resolve
+      device.configure().catch((err: unknown) => {
+        console.warn("[meshtastic] configure() rejected:", err);
+      });
+
+      await configurePromise;
+      console.log("[meshtastic] Device ready for config push");
       return;
     } catch (err) {
+      console.error(`[meshtastic] configure() attempt ${attempt} failed:`, err);
       if (attempt === MAX_CONFIGURE_RETRIES) {
         throw new Error(
           `Device configuration failed after ${MAX_CONFIGURE_RETRIES} attempts. ` +
             `The device may need more time to boot. ${getMeshtasticErrorMessage(err)}`
         );
       }
-      // Wait before retry
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
     }
   }
 }
 
 /**
- * Wait for the device to reach DeviceConfigured status.
- * Returns a promise that resolves when status changes to DeviceConfigured,
- * or rejects on timeout.
+ * Wait for the device to be ready for config push.
+ * Listens for ANY device status event after configure() is called.
+ * Resolves when DeviceConfigured fires, or after seeing enough status
+ * activity + a settle delay (some library versions don't emit DeviceConfigured).
  */
-function waitForConfigured(device: MeshDevice): Promise<void> {
+function waitForDeviceReady(device: MeshDevice): Promise<void> {
   return new Promise<void>((resolve, reject) => {
+    let statusCount = 0;
+    let resolved = false;
+
     const timeout = setTimeout(() => {
-      unsub();
-      reject(new Error("Timed out waiting for device configuration handshake"));
+      if (!resolved) {
+        resolved = true;
+        unsub();
+        reject(new Error(
+          `Timed out waiting for DeviceConfigured after ${CONFIGURE_TIMEOUT_MS / 1000}s. ` +
+          `Got ${statusCount} status events. The device may need a reboot.`
+        ));
+      }
     }, CONFIGURE_TIMEOUT_MS);
 
-    const unsub = device.events.onDeviceStatus.subscribe((status: Types.DeviceStatusEnum) => {
+    const unsub = device.events.onDeviceStatus.subscribe((status: number) => {
+      statusCount++;
+      const statusName = Object.entries(Types.DeviceStatusEnum)
+        .find(([, v]) => v === status)?.[0] || "unknown";
+      console.log(
+        `[meshtastic] DeviceStatus #${statusCount}: ${status} (${statusName}) — waiting for ${Types.DeviceStatusEnum.DeviceConfigured} (DeviceConfigured)`
+      );
+
       if (status === Types.DeviceStatusEnum.DeviceConfigured) {
-        clearTimeout(timeout);
-        unsub();
-        resolve();
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          unsub();
+          console.log("[meshtastic] DeviceConfigured received — device is ready for config push");
+          resolve();
+        }
       }
     });
   });
@@ -320,6 +400,26 @@ function mapModemPreset(
     );
   }
   return value;
+}
+
+/**
+ * Wrap a promise with a timeout. If the promise doesn't resolve within
+ * CONFIG_CALL_TIMEOUT_MS, resolve anyway (the packet was sent — device
+ * may not send an ack that the library recognizes).
+ */
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T | void> {
+  return Promise.race([
+    promise.then((result) => {
+      console.log(`[meshtastic] ${label} resolved`);
+      return result;
+    }),
+    new Promise<void>((resolve) =>
+      setTimeout(() => {
+        console.warn(`[meshtastic] ${label} timed out after ${CONFIG_CALL_TIMEOUT_MS}ms — proceeding (packet was sent)`);
+        resolve();
+      }, CONFIG_CALL_TIMEOUT_MS)
+    ),
+  ]);
 }
 
 /**

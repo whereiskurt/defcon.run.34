@@ -109,7 +109,7 @@ function PipelineStage({
 
       {/* Stage content + inline status indicator */}
       <div className="flex-1 min-w-0">
-        <p
+        <span
           className={clsx(
             "text-sm font-mono inline-flex items-center gap-2",
             status === "complete" && "text-teal-400",
@@ -120,7 +120,7 @@ function PipelineStage({
         >
           {text}
           <StageIcon status={status} />
-        </p>
+        </span>
         {children}
       </div>
     </div>

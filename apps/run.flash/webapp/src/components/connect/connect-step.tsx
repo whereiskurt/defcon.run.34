@@ -22,7 +22,7 @@ interface SerialState {
 }
 
 interface ConnectStepProps {
-  device: DeviceHardware;
+  device: DeviceHardware | null;
   serial: SerialState;
   chipMismatch: boolean;
   onContinue: () => void;
@@ -41,9 +41,9 @@ export function ConnectStep({
   chipMismatch,
   onContinue,
 }: ConnectStepProps) {
-  const imagePath = getDeviceImagePath(device);
-  const archLabel = getArchLabel(device);
-  const archColor = ARCH_COLORS[device.architecture] || "primary";
+  const imagePath = device ? getDeviceImagePath(device) : null;
+  const archLabel = device ? getArchLabel(device) : null;
+  const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
 
   const handleRetry = async () => {
     serial.clearError();
@@ -140,29 +140,33 @@ export function ConnectStep({
             )}
           </div>
 
-          {/* Right: device image + name */}
-          <div className={`flex flex-col items-center gap-2 justify-self-end transition-opacity duration-500 ${isConnected ? "opacity-100" : "opacity-40"}`}>
-            <div className="w-[140px] h-[100px] flex items-center justify-center rounded-lg bg-default-100/5">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imagePath}
-                alt={device.displayName}
-                className="max-h-full max-w-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
-              />
+          {/* Right: device image + name (hidden when no device, e.g. URL jump) */}
+          {device && imagePath ? (
+            <div className={`flex flex-col items-center gap-2 justify-self-end transition-opacity duration-500 ${isConnected ? "opacity-100" : "opacity-40"}`}>
+              <div className="w-[140px] h-[100px] flex items-center justify-center rounded-lg bg-default-100/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imagePath}
+                  alt={device.displayName}
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="font-mono text-sm text-default-500">
+                  {device.displayName}
+                </span>
+                <Chip size="sm" variant="flat" color={archColor}>
+                  {archLabel}
+                </Chip>
+              </div>
             </div>
-            <div className="flex flex-col items-center gap-1">
-              <span className="font-mono text-sm text-default-500">
-                {device.displayName}
-              </span>
-              <Chip size="sm" variant="flat" color={archColor}>
-                {archLabel}
-              </Chip>
-            </div>
-          </div>
+          ) : (
+            <div />
+          )}
         </div>
 
         {/* Chip mismatch warning below the row */}
-        {isConnected && chipMismatch && serial.chipInfo && (
+        {isConnected && chipMismatch && serial.chipInfo && device && (
           <div className="mt-4">
             <ChipMismatchWarning
               detectedChipName={serial.chipInfo.chipName}

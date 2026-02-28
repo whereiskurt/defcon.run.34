@@ -11,7 +11,18 @@ export async function GET() {
   }
 
   try {
-    const user = await getRunUser(session.user.id);
+    const isDev = process.env.NODE_ENV !== "production";
+
+    // In dev without DynamoDB, skip the user lookup entirely
+    let user = null;
+    if (!isDev || process.env.RUN_ELECTRO_ENDPOINT) {
+      try {
+        user = await getRunUser(session.user.id);
+      } catch (dbErr) {
+        if (!isDev) throw dbErr;
+        console.warn("[run.flash] DynamoDB not available in dev, using stub config");
+      }
+    }
 
     // Identity: prefer RunUser.displayName, fall back to session name, then generated
     const longName =
@@ -22,7 +33,6 @@ export async function GET() {
 
     // MQTT credentials from RunUser entity
     // In dev without DynamoDB, provide stub credentials
-    const isDev = process.env.NODE_ENV !== "production";
     const mqttUsername = user?.mqttUsername || (isDev ? "dev_user" : "");
     const mqttPassword = user?.mqttPassword || (isDev ? "dev_pass" : "");
 

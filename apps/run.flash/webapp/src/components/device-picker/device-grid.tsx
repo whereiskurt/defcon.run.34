@@ -70,6 +70,12 @@ export function DeviceGrid({ onSelect, selectedDevice, onContinue }: DeviceGridP
             onSearchChange={setSearch}
           />
         </div>
+        <a
+          href="?step=configure"
+          className="text-xs font-mono text-default-500 hover:text-primary transition-colors whitespace-nowrap"
+        >
+          Already flashed? Skip to configure &rarr;
+        </a>
         <Button
           color="primary"
           size="lg"
