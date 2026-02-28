@@ -27,7 +27,7 @@ type BgPrefs = {
 
 const DEFAULT_PREFS: BgPrefs = {
   zoom: 11,
-  opacity: 6,
+  opacity: 15,
   parallax: true,
 };
 
@@ -101,6 +101,7 @@ export function MapBackground() {
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
           opacity: prefs.opacity / 100,
+          filter: 'brightness(1.8) contrast(1.2)',
           transform: 'scale(1.08)',
           willChange: 'transform',
         }}
@@ -156,7 +157,7 @@ export function MapBackground() {
                 size="sm"
                 step={1}
                 minValue={0}
-                maxValue={20}
+                maxValue={40}
                 value={prefs.opacity}
                 onChange={(v) => updatePrefs({ opacity: v as number })}
                 classNames={{
