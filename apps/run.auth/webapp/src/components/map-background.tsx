@@ -26,7 +26,7 @@ type BgPrefs = {
 };
 
 const DEFAULT_PREFS: BgPrefs = {
-  zoom: 11,
+  zoom: 10,
   opacity: 15,
   parallax: true,
 };
