@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Button } from "@heroui/react";
+import { Button, Chip } from "@heroui/react";
 import type { DeviceHardware } from "@/types/device";
 import { isEsp32Device } from "@/types/device";
 import {
@@ -62,18 +62,15 @@ export function DeviceGrid({ onSelect, selectedDevice, onContinue }: DeviceGridP
 
   return (
     <div className="space-y-4">
-      {/* Search bar (compact) + Continue button on same row */}
-      <div className="flex items-start gap-3">
+      {/* Row 1: Search input (compact) + Continue button */}
+      <div className="flex items-center gap-3">
         <div className="w-1/3 min-w-[200px]">
           <DeviceSearch
             search={search}
             onSearchChange={setSearch}
-            manufacturer={manufacturer}
-            onManufacturerChange={setManufacturer}
-            manufacturers={availableManufacturers as unknown as string[]}
           />
         </div>
-        <div className="flex-1 flex justify-end items-start">
+        <div className="flex-1 flex justify-end">
           <Button
             color="primary"
             size="lg"
@@ -86,6 +83,29 @@ export function DeviceGrid({ onSelect, selectedDevice, onContinue }: DeviceGridP
               : "Select a device to continue"}
           </Button>
         </div>
+      </div>
+
+      {/* Row 2: Manufacturer filter pills — full width */}
+      <div className="flex gap-2 flex-wrap">
+        <Chip
+          variant={manufacturer === null ? "solid" : "bordered"}
+          color="primary"
+          className="cursor-pointer"
+          onClick={() => setManufacturer(null)}
+        >
+          All
+        </Chip>
+        {(availableManufacturers as string[]).map((m) => (
+          <Chip
+            key={m}
+            variant={manufacturer === m ? "solid" : "bordered"}
+            color="primary"
+            className="cursor-pointer"
+            onClick={() => setManufacturer(m === manufacturer ? null : m)}
+          >
+            {m}
+          </Chip>
+        ))}
       </div>
 
       {filtered.length > 0 ? (
