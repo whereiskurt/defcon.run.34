@@ -1,11 +1,11 @@
 #!/bin/bash
 # Generate map background images for any city
 #
-# Usage:
-#   ./generate-map-bg.sh "Las Vegas, Nevada"
-#   ./generate-map-bg.sh "Guelph, Ontario, Canada"
-#   ./generate-map-bg.sh --lat 43.55 --lng -80.25 "Guelph"
-#   ./generate-map-bg.sh --offset-lng -0.04 "Las Vegas"   # shift center west
+# Usage (from repo root):
+#   ./apps/scripts/generate-map-bg.sh "Las Vegas, Nevada"
+#   ./apps/scripts/generate-map-bg.sh "Guelph, Ontario, Canada"
+#   ./apps/scripts/generate-map-bg.sh --lat 43.55 --lng -80.25 "Guelph"
+#   ./apps/scripts/generate-map-bg.sh --offset-lng -0.04 "Las Vegas"
 #
 # Options:
 #   --lat <num>          Override latitude (skip geocoding)
@@ -26,7 +26,7 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Defaults
 LAT=""
