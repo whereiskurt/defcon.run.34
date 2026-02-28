@@ -77,8 +77,8 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. The app lives at apps/run.flash/webapp/ with Dockerfile.webapp and Dockerfile.nginx matching monorepo conventions
   2. Docker build downloads, extracts, and bundles Meshtastic firmware binaries -- the running container has no external dependencies
-  3. Terragrunt service definition exists at infra/terraform/live/site/services/flash/ and deploys to us-east-1 only
-  4. flash.defcon.run resolves via CloudFront to the running ECS Fargate service
+  3. Terragrunt service definition exists at infra/terraform/live/site/services/flash/ and deploys to all 3 regions (us-east-1, ca-central-1, ap-southeast-1)
+  4. flash.defcon.run resolves via CloudFront with region-prefixed paths (/use1/, /cac1/, /apse1/) defaulting to /use1/
 **Plans**: TBD
 
 Plans:

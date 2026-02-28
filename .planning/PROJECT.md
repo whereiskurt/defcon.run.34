@@ -45,7 +45,7 @@ A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in
 ### Out of Scope
 
 - Radio registration in run.human from the flasher — defer to v2 (existing UI in run.human is sufficient)
-- Multi-region deployment — single region (us-east-1) only; flashing is a physical USB activity
+- Multi-region deployment — follows standard DCR34 multi-region pattern (us-east-1, ca-central-1, ap-southeast-1) with flash.defcon.run/use1/ defaulting to us-east-1
 - Firmware version picker UI — app uses 1-2 DCR34-pinned versions, no user choice
 - Custom firmware builds — stock Meshtastic firmware only
 - Firefox/Safari support — Web Serial API is Chrome/Edge only
@@ -64,7 +64,7 @@ A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in
 
 - **Tech stack:** Next.js 16, React 19, HeroUI, Tailwind 4 — matches monorepo conventions
 - **Auth:** OIDC client to `auth.defcon.run` — same pattern as run.human/run.gpx
-- **Deploy:** Single-region ECS Fargate + CloudFront at `flash.defcon.run`
+- **Deploy:** Multi-region ECS Fargate + CloudFront at `flash.defcon.run` (same pattern as run.human/run.gpx)
 - **Browser:** Chrome or Edge required (Web Serial API)
 - **Security:** All secrets (PSK, MQTT creds, channel config) served from server-side API only
 
@@ -73,7 +73,7 @@ A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Vendor firmware into Docker image | Zero runtime dependency on GitHub; reliable at event time | — Pending |
-| Single region deployment | Flashing is physical USB — multi-region adds complexity with no user benefit | — Pending |
+| Multi-region deployment | Consistency with all other DCR34 apps; follow existing pipeline and patterns | — Pending |
 | Use existing RunUser MQTT credentials | Already generated per-user; avoids duplicate credential systems | — Pending |
 | Defer radio registration to v2 | Flash + configure is the core value; registration exists in run.human UI already | — Pending |
 | Gate unsupported browsers at entry | Better UX than letting users browse then discover they can't flash | — Pending |

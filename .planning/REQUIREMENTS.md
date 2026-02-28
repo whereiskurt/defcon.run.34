@@ -62,7 +62,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **DPLY-01**: App follows monorepo pattern: apps/run.flash/webapp/ with Dockerfile.webapp + Dockerfile.nginx
 - [ ] **DPLY-02**: Terragrunt service definition at infra/terraform/live/site/services/flash/
 - [ ] **DPLY-03**: CloudFront distribution at flash.defcon.run
-- [ ] **DPLY-04**: Single-region deployment (us-east-1 only)
+- [ ] **DPLY-04**: Multi-region deployment following standard DCR34 pattern (us-east-1, ca-central-1, ap-southeast-1) with flash.defcon.run defaulting to /use1/
 - [ ] **DPLY-05**: Build-time firmware vendoring: download, extract, and bundle firmware binaries into Docker image
 
 ## v2 Requirements
@@ -88,7 +88,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | Custom firmware builds | Stock Meshtastic firmware only — not the problem we're solving |
 | BLE flashing | USB Web Serial is faster and more reliable for initial provisioning |
 | Firefox/Safari support | Web Serial API is Chromium-only, no polyfill exists |
-| Multi-region deployment | Flashing is physical USB — multi-region adds complexity with no benefit |
+| Single-region deployment | Follows standard DCR34 multi-region pattern for consistency |
 | Device auto-detection | Need exact board model (not just chip family) for correct firmware selection |
 | Offline/PWA mode | Requires auth (online) and per-user config (online); vendored firmware handles GitHub-down scenario |
 | Advanced flash settings | Baud rate, flash mode, memory addresses are footguns for non-technical users |
