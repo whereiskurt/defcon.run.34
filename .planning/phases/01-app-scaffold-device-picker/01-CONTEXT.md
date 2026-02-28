@@ -79,6 +79,29 @@ Next.js app scaffold for flash.defcon.run with browser compatibility gate (Web S
 - Next.js basePath will need region prefix in production (`/{REGION_LABEL}`)
 - Dockerfile.webapp + Dockerfile.nginx following existing dual-container pattern
 
+### CASS Playbook Learnings (from past service builds)
+
+**Auth/OIDC Setup — Known Gotchas:**
+- Cookie names MUST be service-specific: `sess_flash`, `csrf_flash`, `callback_flash`, `state_flash` — avoids conflicts with other DCR34 apps sharing `.defcon.run` domain
+- Cookie domain: `.defcon.run` (leading dot), `httpOnly=true`, `secure=true`, `sameSite='lax'`
+- OIDC redirect URI mismatch is the #1 auth bug — trace full construction path: `NODE_ENV` → `isDev` logic → nginx rewrite rules → `OIDC_REDIRECT_URI` overrides. Wrap localhost URIs in environment conditionals.
+- `AUTH_INTERNAL_SECRET` must match between run.flash `.env` and run.auth `.env` — missing values default to empty string, causing silent 401 errors on internal API calls
+- `DEFAULT_SERVICES` in auth-profile.ts only applies during initial profile creation — existing users never auto-receive new services unless migrated
+- For Auth.js v5: use client-side `signIn()` instead of direct GET to signin endpoints; wrap components using `useSession()` with `SessionProvider`
+
+**Deployment — Established Pipeline:**
+- Multi-region: us-east-1 primary + ca-central-1 + ap-southeast-1 — needs service definition in `infra/terraform/live/site/services/flash/service.hcl`
+- `release-all.sh` handles build + ECR push + deploy — new service needs `VERSION.app` and `VERSION.nginx` files
+- Docker: `Dockerfile.webapp` + `Dockerfile.nginx` dual-container ECS task pattern
+- FARGATE_SPOT 70-80% weight as primary, FARGATE as fallback for cost optimization
+- Dev port assignment needed (e.g., PORT=3004) — add to VS Code tasks.json with `runOn: folderOpen`
+
+**Code Quality — Patterns to Follow:**
+- Follow existing API route patterns from similar routes (imports, error handling, response format, auth checks) for consistency
+- For Next.js API routes: validate session first, check service permissions, then business logic
+- Use optional chaining (`session?.user?.email`) throughout React pages accessing session data
+- After schema/config changes in Next.js, restart dev server — route caching may serve stale data
+
 </code_context>
 
 <deferred>
