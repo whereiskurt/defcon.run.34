@@ -36,7 +36,8 @@ export function DeviceCard({ device, isSelected, onSelect }: DeviceCardProps) {
       onPress={onSelect}
       className={clsx(
         "glass-card min-h-[200px] transition-all duration-200 relative",
-        isSelected && "ring-2 ring-primary bg-content2 shadow-[0_0_16px_#00d4aa20]",
+        isSelected &&
+          "ring-2 ring-primary bg-content2 !border-primary/60 !shadow-[0_0_16px_#00d4aa40]",
         !device.activelySupported && "opacity-60"
       )}
     >
