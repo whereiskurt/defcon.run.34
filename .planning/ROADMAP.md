@@ -61,12 +61,12 @@ Plans:
   3. GET /api/config returns the authenticated user's complete config payload; PSK and MQTT credentials are never present in client-side JS bundles
   4. Configuration values (MQTT server, channel PSKs, radio presets) are environment-driven with stub defaults for development
   5. The "Done" screen shows success confirmation with the device's identity and next steps
-**Plans**: TBD
+**Plans**: 0/3 plans complete
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
-- [ ] 03-03: TBD
+- [ ] 03-01-PLAN.md -- Server-side foundation: types, config, DynamoDB entities, /api/config endpoint
+- [ ] 03-02-PLAN.md -- @meshtastic/core wrapper library and useConfigure hook for config push pipeline
+- [ ] 03-03-PLAN.md -- ConfigureStep UI, DoneStep UI, wire into WizardContainer
 
 ### Phase 4: Deployment + Firmware Vendoring
 **Goal**: The app is deployed to production at flash.defcon.run with firmware binaries baked into the Docker image and zero runtime external dependencies
