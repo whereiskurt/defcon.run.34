@@ -5,414 +5,462 @@
 ## Directory Layout
 
 ```
-/Users/khundeck/working/defcon.run.34/
-├── apps/                      # Web applications and tools
-│   ├── run.auth/              # Central identity provider (auth.defcon.run)
-│   ├── run.human/             # Main event app (run.defcon.run)
-│   ├── run.gpx/               # GPX editor (gpx.defcon.run)
-│   ├── run.cms/               # CMS/content server (cms.defcon.run)
-│   ├── configui/              # Infrastructure config UI (localhost only)
-│   ├── waffaw/                # WAF testing platform (AWS infrastructure)
-│   ├── scripts/               # Shared build/deploy scripts
-│   └── local/                 # Local development tools
-├── infra/                     # Infrastructure as Code
-│   ├── terraform/
-│   │   ├── modules/           # 21 reusable Terraform modules
-│   │   └── live/site/         # Terragrunt live configuration
-│   │       ├── global/        # Global resources (CloudFront, WAF, certificates)
-│   │       ├── region/        # Regional configs (us-east-1, ca-central-1, ap-southeast-1)
-│   │       └── services/      # Service-specific definitions (run.auth, run.human, run.cms, run.gpx)
-│   └── README.md
-├── .claude/                   # Internal documentation
-│   ├── architecture.md        # Existing architecture reference
-│   ├── commands.md            # CLI commands reference
-│   ├── openspec.md            # OpenSpec workflow guide
-│   └── ...
-├── .planning/                 # GSD planning output
-│   └── codebase/              # Generated codebase analysis (this directory)
-├── .vscode/                   # VS Code tasks and settings
-├── docs/                      # User documentation
-├── AGENTS.md                  # AI agent instructions
-├── README.md                  # Project overview
-└── env.sh, env.sops.sh        # Environment variable scripts
+defcon.run.34/
+├── .cass/                    # CASS memory system (cm/cass CLI)
+├── .claude/                  # Claude Code configuration
+│   ├── commands/             # Custom slash commands
+│   │   └── devflow/          # Developer workflow commands
+│   ├── hooks/                # Claude Code hooks
+│   ├── architecture.md       # Architecture reference doc
+│   ├── beads.md              # Issue tracking docs
+│   ├── best-practices.md     # Code style guide
+│   ├── cass.md               # Memory system docs
+│   ├── commands.md           # Command reference
+│   └── openspec.md           # Spec-driven development docs
+├── .devcontainer/            # VS Code dev container config
+├── .github/                  # GitHub configuration
+│   └── workflows/            # CI/CD pipelines (12 workflows)
+├── .planning/                # GSD planning documents
+│   └── codebase/             # Codebase analysis docs (this file)
+├── .prowler/                 # AWS security scanner config
+├── .venv/                    # Python virtualenv (prowler, etc.)
+├── .vscode/                  # VS Code workspace config
+│   └── tasks.json            # Auto-start dev servers on folder open
+├── apps/                     # All application code
+│   ├── build.sh              # Docker build + ECR push script
+│   ├── deploy.sh             # ECS deployment script
+│   ├── release-all.sh        # Multi-region release pipeline
+│   ├── version.sh            # Version bump utility
+│   ├── version-reset.sh      # Version reset utility
+│   ├── e2e.sh                # E2E test orchestrator
+│   ├── docker-compose.yaml   # Local dev compose (all services)
+│   ├── configui/             # Infrastructure config UI (Go)
+│   ├── local/                # Local dev infrastructure
+│   │   ├── dynamodb/         # Local DynamoDB (docker-compose)
+│   │   └── s3/               # Local S3/MinIO (docker-compose)
+│   ├── run.auth/             # Auth service (auth.defcon.run)
+│   ├── run.cms/              # CMS service (cms.defcon.run)
+│   ├── run.gpx/              # GPX editor (gpx.defcon.run)
+│   ├── run.human/            # Main app (run.defcon.run)
+│   ├── scripts/              # Utility scripts
+│   └── waffaw/               # WAF testing platform
+├── docs/                     # Design documents
+│   └── plans/                # Feature design docs
+├── infra/                    # Infrastructure code
+│   ├── aws-nuke-guelph.yaml.tpl  # AWS account cleanup template
+│   └── terraform/            # Terraform/Terragrunt
+│       ├── live/             # Terragrunt live configuration
+│       │   └── site/         # The single site (dc34)
+│       ├── modules/          # 21 reusable Terraform modules
+│       └── providers/        # AWS provider configurations
+├── AGENTS.md                 # AI assistant instructions
+├── CLAUDE.md                 # Points to AGENTS.md
+├── env.sh                    # Environment variable loader
+├── env.local.sh              # Local overrides (profile prefix)
+├── env.sops.sh               # SOPS-encrypted environment vars
+└── README.md                 # Project documentation
 ```
 
 ## Directory Purposes
 
-**apps/run.auth/:**
-- Purpose: Central identity provider, OIDC server, quota management, session validation
-- Contains: Next.js webapp, nginx reverse proxy, E2E tests
-- Key files: `webapp/src/config/auth.ts` (Auth.js config), `webapp/src/config/oidc.ts` (OIDC provider config)
-- Structure:
-  ```
-  run.auth/
-  ├── webapp/                  # Next.js application
-  │   ├── src/
-  │   │   ├── app/            # Next.js app router (routes, layouts, pages)
-  │   │   │   ├── (authlogin)/ # Login UI group
-  │   │   │   └── api/        # API routes (auth, quota, session validation, profile, captcha)
-  │   │   ├── config/         # Config files (auth.ts, oidc.ts, fonts.ts)
-  │   │   ├── entities/       # Data models (auth-profile, client config)
-  │   │   ├── lib/            # Utilities (quota-client, OIDC helpers)
-  │   │   └── pages/api/      # Legacy Pages Router API (mixed with app router)
-  │   ├── Dockerfile.webapp   # Node.js container
-  │   └── next.config.ts
-  ├── nginx/                  # TLS termination
-  │   ├── Dockerfile.nginx
-  │   └── conf.d/
-  ├── e2e/                    # Playwright end-to-end tests
-  └── VERSION
-  ```
+**`apps/run.auth/` (auth.defcon.run):**
+- Purpose: Central identity provider (Auth.js v5 + oidc-provider v9)
+- Contains:
+  - `webapp/` - Next.js 16 application
+  - `nginx/` - Reverse proxy (TLS termination, health checks)
+  - `e2e/` - Playwright end-to-end tests
+  - `redirects/` - Static region redirect HTML
+  - `index.html` - Domain root region router
+- Key files:
+  - `webapp/src/config/auth.ts` - Auth.js config (providers, JWT callbacks, email OTP)
+  - `webapp/src/config/oidc.ts` - OIDC provider config (clients, claims, routes)
+  - `webapp/src/entities/auth-profile.ts` - AuthProfile ElectroDB entity
+  - `webapp/src/entities/oidc-adapter.ts` - OIDC DynamoDB adapter
+  - `webapp/src/entities/user-quota.ts` - UserQuota ElectroDB entity
+  - `webapp/src/entities/client.ts` - DynamoDB client factory (3 clients)
+  - `webapp/src/services/quota.ts` - Quota service logic
+  - `webapp/src/lib/quota-definitions.ts` - Quota tier definitions
+  - `webapp/src/pages/api/oidc/[...path].ts` - OIDC catch-all route (Pages Router)
 
-**apps/run.human/:**
-- Purpose: Main event application, user profiles, Meshtastic radio management, file uploads, GPS check-ins
-- Contains: Next.js webapp, nginx reverse proxy
-- Key files: `webapp/src/app/(protected)/` (protected routes), `webapp/src/services/quota.ts` (local quota ops)
-- Structure:
-  ```
-  run.human/
-  ├── webapp/
-  │   ├── src/
-  │   │   ├── app/            # Next.js app router
-  │   │   │   ├── (public)/   # Public pages (landing, etc.)
-  │   │   │   ├── (protected)/ # Auth-required routes (profile, uploads, etc.)
-  │   │   │   └── api/        # API routes (auth, user, uploads, meshtastic, admin)
-  │   │   ├── components/     # React UI components (header, profile, text effects)
-  │   │   ├── entities/       # Data models (RunUser, UserUpload, DynamoDB clients)
-  │   │   ├── hooks/          # Custom React hooks
-  │   │   ├── lib/            # Utilities (quota-client, AWS SDK helpers)
-  │   │   ├── services/       # Business logic (quota management, stale upload cleanup)
-  │   │   ├── config/         # Config (auth setup, URLs, providers)
-  │   │   └── middleware.ts   # Next.js middleware (URL passing)
-  │   ├── Dockerfile.webapp
-  │   └── next.config.ts      # basePath: "/{REGION_LABEL}" at build time
-  ├── nginx/
-  │   ├── Dockerfile.nginx
-  │   ├── nginx.conf
-  │   └── conf.d/
-  └── VERSION
-  ```
+**`apps/run.human/` (run.defcon.run):**
+- Purpose: Main user-facing application (profiles, uploads, Meshtastic, QR)
+- Contains:
+  - `webapp/` - Next.js 16 application
+  - `nginx/` - Reverse proxy
+  - `index.html` - Region router with `preferred-region` cookie
+- Key files:
+  - `webapp/src/config/auth.ts` - OIDC client config (SSO via run.auth)
+  - `webapp/src/config/index.ts` - Centralized config (URLs, session, cookies)
+  - `webapp/src/entities/run-user.ts` - RunUser entity (RSA keys, QR codes, MQTT creds, Meshtastic)
+  - `webapp/src/entities/user-upload.ts` - UserUpload entity (S3 file tracking)
+  - `webapp/src/entities/client.ts` - DynamoDB client factory (2 clients)
+  - `webapp/src/lib/quota-client.ts` - HTTP client for run.auth quota API
+  - `webapp/src/lib/quota-middleware.ts` - Quota enforcement helpers
+  - `webapp/src/lib/s3-client.ts` - S3 upload client + type configs
+  - `webapp/src/app/api/upload/presign/route.ts` - Presigned URL generation
 
-**apps/run.gpx/:**
-- Purpose: GPX route editor with cloud save/versioning, public/private sharing
-- Contains: Next.js wrapper + vendored gpx-studio (SvelteKit, built from source)
-- Key characteristic: Three-stage Docker build (gpx-builder → webapp-builder → runner)
-- Structure:
-  ```
-  run.gpx/
-  ├── webapp/
-  │   ├── src/app/           # Next.js app router
-  │   │   ├── layout.tsx     # Auth check, session loading
-  │   │   ├── page.tsx       # Route to studio
-  │   │   └── studio/        # GPX editor pages
-  │   ├── public/            # Static assets (gpx-studio frontend)
-  │   └── Dockerfile.webapp  # Multi-stage: builds gpx-studio from src
-  ├── build-frontend.sh      # Build gpx-studio SvelteKit app
-  ├── nginx/
-  ├── VERSION
-  └── ...
-  ```
+**`apps/run.gpx/` (gpx.defcon.run):**
+- Purpose: GPX route editor wrapping vendored gpx-studio SvelteKit app
+- Contains:
+  - `webapp/` - Next.js 16 shell + API routes
+  - `webapp/public/studio/` - Built gpx-studio static assets (vendored)
+  - `gpx-studio/` - Vendored gpx-studio source (SvelteKit, submodule-like)
+  - `patches/` - Patches applied to gpx-studio
+  - `e2e/` - Playwright end-to-end tests
+  - `build-frontend.sh` - Build gpx-studio from source
+- Key files:
+  - `webapp/src/entities/gpx-file.ts` - GpxFile entity (50-version history)
+  - `webapp/src/entities/gpx-folder.ts` - GpxFolder entity
+  - `webapp/src/entities/gpx-share.ts` - GpxShare entity (21-char nanoid tokens)
+  - `webapp/src/lib/gpx-validator.ts` - Binary + XML validation
+  - `webapp/src/lib/quota-client.ts` - Quota HTTP client
+  - `webapp/src/lib/s3-client.ts` - S3 client for GPX file storage
 
-**apps/run.cms/:**
-- Purpose: Strapi 5 CMS with SQLite + Litestream replication (master/worker architecture)
-- Contains: Strapi app, nginx reverse proxy, supervisord process manager, Litestream config
-- Master region: us-east-1 only (handles writes, replicates to S3)
-- Worker regions: Read-only replicas, periodic S3 restore
-- Structure:
-  ```
-  run.cms/
-  ├── app/                   # Strapi application
-  │   ├── src/
-  │   │   ├── admin/         # Strapi admin plugins
-  │   │   ├── api/           # Custom API endpoints
-  │   │   ├── extensions/    # Strapi extensions
-  │   │   └── middlewares/   # Custom middleware (cookie-auth, services-validation)
-  │   ├── config/            # Strapi config (database, plugins)
-  │   ├── public/            # Strapi uploads and assets
-  │   ├── Dockerfile.app     # Node.js + supervisord
-  │   ├── supervisord.conf   # Manages Strapi + Litestream
-  │   └── litestream-sync.sh # Periodic restore from S3
-  ├── nginx/
-  │   ├── Dockerfile.nginx
-  │   └── conf.d/
-  └── VERSION
-  ```
+**`apps/run.cms/` (cms.defcon.run):**
+- Purpose: Content management system (Strapi 5.6 + SQLite + Litestream)
+- Contains:
+  - `app/` - Strapi application
+  - `nginx/` - Reverse proxy (TLS + regional prefix stripping)
+- Key files:
+  - `app/src/middlewares/cookie-auth.ts` - Cookie-based auth middleware
+  - `app/src/middlewares/services-validation.ts` - CMS service claim validation
+  - `app/src/extensions/strapi-plugin-sso/strapi-server.ts` - OIDC SSO extension
+  - `app/litestream.master.yml` - Litestream replication config (master)
+  - `app/litestream.worker.yml` - Litestream restore config (worker)
+  - `app/litestream-sync.sh` - Periodic restore script for workers
+  - `app/supervisord.master.conf` - Process management (Strapi + replicate)
+  - `app/supervisord.worker.conf` - Process management (Strapi + sync)
+  - `app/providers/strapi-provider-email-aws-ses-v3/` - Custom SES email provider
 
-**apps/configui/:**
-- Purpose: Go binary for local infrastructure configuration UI
-- Contains: Embedded HTML/CSS/JS, CLI flag parsing, Terragrunt execution, SOPS secret editing
-- Binds to: `127.0.0.1:8080` (localhost only)
-- Structure:
-  ```
-  configui/
-  ├── main.go                # Entry point, HTTP handlers
-  ├── docs/
-  │   ├── index.html         # Web UI (HCL form generator, terragrunt executor, SOPS editor)
-  │   ├── templates/         # HTML templates
-  │   └── js/                # Frontend JS
-  └── ...
-  ```
+**`apps/configui/`:**
+- Purpose: Local-only Go web UI for infrastructure management
+- Contains: Go source files, embedded templates/static/JS, HCL backups
+- Key files:
+  - `main.go` - Server initialization, route registration, embed directives
+  - `config.go` - Site config struct + defaults
+  - `generator.go` - HCL generation from web form
+  - `handlers.go` - HTTP handlers for all routes
+  - `import.go` - HCL parser for site.hcl
+  - `sops.go` - SOPS secret editing
+  - `terminal.go` - Terragrunt SSE streaming terminal
+  - `discovery.go` - AWS service discovery visualization
+  - `outputs.go` - Terraform output explorer
+  - `waftest.go` - Waffaw integration
+  - `fork.go` - Fork site configuration for parallel environments
+  - `versions.go` - Service version management
 
-**apps/waffaw/:**
-- Purpose: WAF testing platform (70% implemented) — Artillery + Playwright with EC2 Spot fleet
-- Contains: Node.js app, Dockerfile, Lambda functions, design doc
-- See: `apps/waffaw/DESIGN.md` for implementation details
-- Structure:
-  ```
-  waffaw/
-  ├── DESIGN.md              # Full design (S3 control plane, roll call consensus, Athena analytics)
-  ├── Dockerfile             # Node.js container
-  ├── src/                   # Application code (WIP)
-  └── package.json
-  ```
+**`apps/waffaw/`:**
+- Purpose: WAF testing platform (~70% implemented)
+- Contains: Artillery scenarios, bash agent, consensus protocol, Dockerfile
+- Key files:
+  - `DESIGN.md` - Comprehensive design document (55KB)
+  - `agent.sh` - EC2 Spot instance agent script
+  - `consensus.sh` - Roll-call consensus protocol
+  - `scenarios/` - Artillery test scenarios
+  - `templates/` - Test templates
+  - `test-auth-probe.ts` - Auth endpoint probe test
 
-**infra/terraform/modules/:**
-- Purpose: 21 reusable Terraform modules for AWS resources
-- Organized by: Infrastructure component type
-- Structure:
-  ```
-  modules/
-  ├── certs/                 # ACM certificates
-  ├── cloudfront/            # CloudFront distributions
-  ├── cloudfront-assets/     # S3 + CloudFront for static assets
-  ├── cloudtrail/            # CloudTrail audit logging
-  ├── dynamodb/              # DynamoDB tables + Global Tables v2
-  ├── ec2spot/               # EC2 Spot instances (waffaw fleet)
-  ├── ecr/                   # Elastic Container Registry
-  ├── ecs-cluster/           # ECS Fargate clusters
-  ├── ecs-service/           # ECS service definitions
-  ├── ecs-task/              # ECS task definitions
-  ├── email/                 # SES email configuration
-  ├── email-s3-replication/  # Cross-region email replication
-  ├── github-oidc/           # GitHub Actions OIDC federation
-  ├── network/               # VPC (10.0.0.0/16, 2 AZs, public/private subnets, NAT)
-  ├── s3-uploads/            # S3 upload buckets
-  ├── s3-uploads-processor/  # Lambda upload processors
-  ├── s3-uploads-replication/ # Cross-region upload replication
-  ├── secrets/               # SSM Parameter Store secrets
-  ├── site/                  # Top-level site orchestration
-  └── waffaw/                # WAF testing infrastructure
-  ```
+**`apps/local/`:**
+- Purpose: Local development infrastructure (Docker Compose services)
+- Contains:
+  - `dynamodb/docker-compose.yaml` - Local DynamoDB
+  - `dynamodb/init-local-db.sh` - Table creation script
+  - `s3/docker-compose.yaml` - MinIO (S3 compatible)
+  - `s3/init-s3-buckets.sh` - Bucket creation script
 
-  Each module structure:
-  ```
-  {module-name}/
-  ├── config.hcl             # Terragrunt config reference
-  ├── v1.0.0/                # Module implementation version
-  │   ├── main.tf
-  │   ├── variables.tf
-  │   └── outputs.tf
-  └── EXAMPLES.md
-  ```
+## Infrastructure Directory Layout
 
-**infra/terraform/live/site/:**
-- Purpose: Terragrunt live configuration — orchestrates modules with site-specific inputs
-- Structure:
-  ```
-  live/site/
-  ├── terragrunt.hcl         # Root config (error handling, provider includes)
-  ├── site.hcl               # Site-wide variables (site label, DNS, URLs, service configs)
-  ├── global/                # Global resources (shared across regions)
-  │   ├── cloudfront/        # CloudFront distributions
-  │   ├── cloudtrail/        # CloudTrail logging
-  │   ├── github-oidc/       # GitHub OIDC roles
-  │   └── waf/               # WAF rules and WebACLs
-  ├── region/
-  │   ├── us-east-1/         # Primary region config
-  │   │   ├── region.hcl     # Region-specific vars
-  │   │   ├── network/       # VPC, subnets, NAT
-  │   │   ├── ecs-cluster/   # ECS cluster for services
-  │   │   ├── ecs-task/      # ECS task definitions
-  │   │   ├── ecs-service/   # ECS service definitions
-  │   │   ├── dynamodb/      # DynamoDB tables
-  │   │   ├── ecr/           # ECR repositories
-  │   │   ├── secrets/       # SSM Parameter Store config
-  │   │   ├── email/         # SES email (primary region only)
-  │   │   ├── s3-uploads/    # S3 upload buckets
-  │   │   ├── s3-uploads-processor/ # Lambda upload processors
-  │   │   ├── certs/         # ACM certificates
-  │   │   └── waffaw/        # WAF test infrastructure
-  │   ├── ca-central-1/      # Secondary region (similar structure)
-  │   └── ap-southeast-1/    # Tertiary region
-  └── services/              # Service-specific definitions
-      ├── run.auth/          # run.auth service config + Lambda functions
-      │   ├── service.hcl    # ECS task, DynamoDB tables, S3 uploads, etc.
-      │   ├── VERSION.app
-      │   ├── VERSION.nginx
-      │   └── lambdas/       # On-upload/on-process Lambda code
-      ├── run.human/         # Similar structure
-      ├── run.cms/           # Similar structure
-      └── run.gpx/           # Similar structure
-  ```
+```
+infra/terraform/
+├── live/
+│   └── site/
+│       ├── terragrunt.hcl          # Root Terragrunt config (retry logic)
+│       ├── site.hcl                # Site-wide variables (dns, urls, ecs_tasks, etc.)
+│       ├── .secrets.sops.json      # SOPS-encrypted secrets
+│       ├── global/                 # Global (us-east-1) resources
+│       │   ├── cloudfront/         # CloudFront distributions
+│       │   ├── cloudtrail/         # Audit logging
+│       │   ├── github-oidc/        # GitHub Actions OIDC federation
+│       │   └── waf/                # WAF WebACL rules
+│       ├── region/
+│       │   ├── skip.hcl            # Region skip logic
+│       │   ├── us-east-1/          # Primary region
+│       │   ├── ca-central-1/       # Secondary region
+│       │   └── ap-southeast-1/     # Tertiary region
+│       │       ├── region.hcl      # Auto-derived region label
+│       │       ├── certs/          # ACM certificates
+│       │       ├── cloudfront/     # Regional CloudFront config
+│       │       ├── dynamodb/       # DynamoDB Global Tables
+│       │       ├── ec2spot/        # EC2 Spot for waffaw
+│       │       ├── ecr/            # Container registries
+│       │       ├── ecs-cluster/    # ECS Fargate cluster
+│       │       ├── ecs-task/       # Task definitions
+│       │       ├── ecs-service/    # Service definitions
+│       │       ├── email/          # SES configuration
+│       │       ├── email-s3-replication/  # Cross-region email replication
+│       │       ├── network/        # VPC, subnets, ALB, NAT
+│       │       ├── s3-uploads/     # Upload buckets
+│       │       ├── s3-uploads-processor/  # Lambda processors
+│       │       ├── s3-uploads-replication/ # Cross-region upload replication
+│       │       ├── secrets/        # SSM Parameter Store
+│       │       └── waffaw/         # WAF testing infra
+│       └── services/               # Service definitions
+│           ├── run.auth/
+│           │   └── service.hcl     # Auth service config
+│           ├── run.cms/
+│           │   └── service.hcl     # CMS service config
+│           ├── run.gpx/
+│           │   └── service.hcl     # GPX service config
+│           └── run.human/
+│               ├── service.hcl     # Human service config
+│               └── lambdas/        # Upload processor Lambdas
+│                   ├── on-upload/index.py
+│                   └── on-process/index.py
+├── modules/                        # 21 reusable Terraform modules
+│   ├── certs/
+│   │   ├── config.hcl              # Terragrunt glue config
+│   │   └── v1.0.0/                 # Versioned module code
+│   ├── cloudfront/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── cloudfront-assets/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── cloudtrail/
+│   │   ├── config.hcl
+│   │   ├── scripts/                # CloudTrail utility scripts
+│   │   └── v1.0.0/main.tf
+│   ├── dynamodb/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── ec2spot/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── ecr/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── ecs-cluster/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── ecs-service/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── ecs-task/
+│   │   ├── config.hcl              # Placeholder substitution logic
+│   │   └── v1.0.0/main.tf
+│   ├── email/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── email-s3-replication/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── github-oidc/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── network/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/                 # VPC: 10.0.0.0/16, 2 AZs, public/private subnets, NAT, ALB
+│   ├── s3-uploads/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── s3-uploads-processor/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── s3-uploads-replication/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/main.tf
+│   ├── secrets/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/
+│   ├── site/
+│   │   ├── config.hcl
+│   │   └── v1.0.0/                 # Route53, WAF WebACL
+│   │       ├── route35.tf
+│   │       ├── waf.tf
+│   │       ├── waf/                # WAF submodule
+│   │       │   ├── main.tf
+│   │       │   ├── dashboard.tf
+│   │       │   ├── variables.tf
+│   │       │   ├── outputs.tf
+│   │       │   └── versions.tf
+│   │       ├── variables.tf
+│   │       └── outputs.tf
+│   └── waffaw/
+│       ├── config.hcl
+│       └── v1.0.0/
+└── providers/
+    ├── global.hcl                  # Provider config for global resources
+    └── regional.hcl                # Provider config for regional resources
+```
 
 ## Key File Locations
 
 **Entry Points:**
-
-- `apps/run.human/webapp/src/app/layout.tsx` — Root layout, session loading, navigation
-- `apps/run.human/webapp/src/app/(public)/page.tsx` — Landing page (public route)
-- `apps/run.auth/webapp/src/app/(authlogin)/signin/page.tsx` — Sign-in page
-- `apps/run.gpx/webapp/src/app/layout.tsx` — GPX editor root
-- `apps/run.cms/app/src/index.ts` — Strapi entry point
-- `infra/terraform/live/site/terragrunt.hcl` — Infrastructure root (see locals for site config source)
+- `apps/run.auth/webapp/src/app/api/auth/[...nextauth]/route.ts`: Auth.js handler (run.auth)
+- `apps/run.human/webapp/src/app/api/auth/[...nextauth]/route.ts`: Auth.js OIDC client (run.human)
+- `apps/run.gpx/webapp/src/app/api/auth/[...nextauth]/route.ts`: Auth.js OIDC client (run.gpx)
+- `apps/run.auth/webapp/src/pages/api/oidc/[...path].ts`: OIDC provider catch-all
+- `apps/configui/main.go`: ConfigUI server entry point
 
 **Configuration:**
-
-- `apps/run.human/webapp/src/config/` — Auth.js setup, provider config, fonts
-- `apps/run.auth/webapp/src/config/auth.ts` — Auth.js + DynamoDB adapter setup
-- `apps/run.auth/webapp/src/config/oidc.ts` — OIDC provider configuration
-- `infra/terraform/live/site/site.hcl` — Global site variables (DNS, URLs, service configs)
-- `infra/terraform/live/site/region/{region}/region.hcl` — Regional variables (VPC CIDR, AZs, etc.)
-- `infra/terraform/live/site/services/run.human/service.hcl` — run.human service definition (ECS task, DynamoDB, S3, etc.)
-- `infra/terraform/live/site/.secrets.sops.json` — SOPS-encrypted secrets (source of truth for credentials)
+- `infra/terraform/live/site/site.hcl`: Master site configuration (DNS, URLs, skip_regions, secrets, ECS tasks/services)
+- `infra/terraform/live/site/services/{app}/service.hcl`: Per-service infrastructure definition
+- `infra/terraform/live/site/region/{region}/region.hcl`: Auto-derived region labels
+- `infra/terraform/live/site/region/skip.hcl`: Region skip logic
+- `infra/terraform/providers/regional.hcl`: AWS provider + remote state config (regional)
+- `infra/terraform/providers/global.hcl`: AWS provider + remote state config (global)
+- `apps/run.auth/webapp/src/config/index.ts`: Auth app runtime config
+- `apps/run.human/webapp/src/config/index.ts`: Human app runtime config
+- `.sops.yaml`: SOPS encryption config (KMS key mapping)
+- `env.sh`: Environment variable loader
+- `env.local.sh`: Local profile prefix overrides
 
 **Core Logic:**
-
-- `apps/run.human/webapp/src/entities/run-user.ts` — ElectroDB model for user profiles
-- `apps/run.human/webapp/src/entities/user-upload.ts` — ElectroDB model for file uploads
-- `apps/run.human/webapp/src/services/quota.ts` — Local quota service (stale upload cleanup)
-- `apps/run.human/webapp/src/lib/quota-client.ts` — HTTP client for central quota service in run.auth
-- `apps/run.auth/webapp/src/entities/auth-profile.ts` — ElectroDB model for user auth profiles (linked providers)
-- `apps/run.auth/webapp/src/app/api/internal/quota/` — Central quota API endpoints
-- `apps/run.cms/app/src/middlewares/` — Strapi middleware (OIDC SSO, service validation)
+- `apps/run.auth/webapp/src/config/auth.ts`: Auth.js providers, JWT callbacks, email templates
+- `apps/run.auth/webapp/src/config/oidc.ts`: OIDC provider config, client registration, claims
+- `apps/run.auth/webapp/src/entities/auth-profile.ts`: AuthProfile entity + upsert/get functions
+- `apps/run.auth/webapp/src/services/quota.ts`: Quota service implementation
+- `apps/run.human/webapp/src/entities/run-user.ts`: RunUser entity + RSA/QR/MQTT generation
+- `apps/run.human/webapp/src/entities/user-upload.ts`: Upload tracking entity
+- `apps/run.gpx/webapp/src/entities/gpx-file.ts`: GPX file entity
+- `apps/run.cms/app/src/middlewares/services-validation.ts`: CMS access control
 
 **Testing:**
+- `apps/run.auth/e2e/tests/session-valid.spec.ts`: Session validation e2e tests
+- `apps/run.auth/e2e/tests/service-access.spec.ts`: Service access e2e tests
+- `apps/run.auth/e2e/setup/acquire-credentials.spec.ts`: Test credential acquisition
+- `apps/run.gpx/e2e/cloud-storage.spec.ts`: GPX cloud storage e2e tests
+- `apps/e2e.sh`: E2E test orchestrator script
 
-- `apps/run.auth/e2e/` — Playwright end-to-end tests for auth flows
+**CI/CD Workflows:**
+- `.github/workflows/terragrunt-plan.yml`: Infra preview on PR
+- `.github/workflows/terragrunt-apply.yml`: Infra deploy on merge
+- `.github/workflows/deploy.yml`: Manual ECS deployment
+- `.github/workflows/rollback.yml`: ECS rollback
+- `.github/workflows/e2e-tests.yml`: E2E test runner
+- `.github/workflows/buildpub.yml`: Public asset builder
+- `.github/workflows/gitleaks-scan.yml`: Secret detection
+- `.github/workflows/checkov-scan.yml`: IaC security scanning
+- `.github/workflows/prowler-scan.yml`: AWS security posture
+- `.github/workflows/npm-audit.yml`: Dependency vulnerability scanning
+- `.github/workflows/ec2-runner.yml`: Self-hosted runner management
 
-**Infrastructure Code:**
-
-- `infra/terraform/modules/ecs-service/v1.0.0/main.tf` — ECS service module (creates ALB listeners, service discovery, autoscaling)
-- `infra/terraform/modules/ecs-task/v1.0.0/main.tf` — ECS task module (defines container specs, secrets injection)
-- `infra/terraform/modules/dynamodb/v1.0.0/main.tf` — DynamoDB module (Global Tables v2, TTL, streams)
-- `infra/terraform/modules/site/v1.0.0/main.tf` — Orchestrates all regional and service modules
-- `infra/terraform/live/site/services/run.human/lambdas/on-upload/index.ts` — Lambda triggered when file uploaded to S3
-- `infra/terraform/live/site/services/run.human/lambdas/on-process/index.ts` — Lambda triggered after upload processing
+**Design Documents:**
+- `docs/plans/2026-02-28-meshtastic-flasher-design.md`: Meshtastic flasher design (`flash.defcon.run`)
+- `docs/plans/2026-02-27-ui-redesign-design.md`: UI redesign design
+- `apps/waffaw/DESIGN.md`: WAF testing platform design (55KB)
 
 ## Naming Conventions
 
 **Files:**
-
-- `.ts` / `.tsx` — TypeScript source files (preferred extension for Next.js)
-- `Dockerfile.{component}` — Component-specific Dockerfiles (e.g., `Dockerfile.webapp`, `Dockerfile.nginx`)
-- `*.hcl` — Terraform/Terragrunt configuration files
-- `*.conf` — nginx configuration files
-- `.sops.json` — SOPS-encrypted JSON (source of truth for secrets)
-- `VERSION` — Plain text file with semantic version (read at Docker build time)
-- `route.ts` — Next.js app router API route handler
-- `layout.tsx` — Next.js app router layout component
-- `page.tsx` — Next.js app router page component
-- `middleware.ts` — Next.js middleware (runs before route handlers)
+- Next.js routes: `route.ts` in directory-based routing (`src/app/api/{path}/route.ts`)
+- Pages Router (OIDC only): `src/pages/api/oidc/[...path].ts`
+- Components: PascalCase (`MeshtasticRadios.tsx`, `ConfirmDialog.tsx`)
+- Utilities/libs: kebab-case (`quota-client.ts`, `s3-client.ts`, `gpx-validator.ts`)
+- Entities: kebab-case (`run-user.ts`, `auth-profile.ts`, `gpx-file.ts`)
+- Config files: kebab-case (`next.config.ts`, `tailwind.config.js`)
+- Go files: lowercase (`main.go`, `handlers.go`, `waftest.go`)
+- Terraform: lowercase with dots (`main.tf`, `variables.tf`, `outputs.tf`)
+- Terragrunt: `terragrunt.hcl` or descriptive name (`site.hcl`, `region.hcl`, `service.hcl`)
+- Shell scripts: kebab-case (`release-all.sh`, `build-frontend.sh`, `litestream-sync.sh`)
+- Dockerfiles: `Dockerfile.{component}` (`Dockerfile.webapp`, `Dockerfile.nginx`, `Dockerfile.app`)
+- Version files: `VERSION` (plain text, one line)
 
 **Directories:**
+- Apps: `run.{name}` for deployed services (`run.auth`, `run.human`, `run.gpx`, `run.cms`)
+- Terraform modules: kebab-case (`ecs-service`, `s3-uploads-processor`)
+- Module versions: semantic `v{major}.{minor}.{patch}` (`v1.0.0`)
+- Service infra: matches app name (`services/run.auth/`, `services/run.human/`)
+- Regions: full AWS region name (`us-east-1`, `ca-central-1`, `ap-southeast-1`)
 
-- `src/app/` — Next.js app router (directory-based routing)
-- `src/app/(group)/` — Route group (logical grouping, doesn't affect URL)
-- `src/components/` — React UI components
-- `src/entities/` — ElectroDB/ORM models
-- `src/services/` — Business logic functions
-- `src/lib/` — Utilities and helpers
-- `src/config/` — Configuration files
-- `src/types/` — TypeScript type definitions
-- `src/hooks/` — Custom React hooks
-- `nginx/` — nginx reverse proxy configuration and Dockerfile
-- `e2e/` — End-to-end tests (Playwright)
-- `lambdas/` — AWS Lambda function code (organized by trigger/purpose)
-- `modules/{name}/v1.0.0/` — Terraform module implementations (versioned)
-- `live/site/` — Terragrunt live config (deployed state)
-- `global/` — Shared/global infrastructure
-- `region/` — Regional infrastructure (one per AWS region)
-- `services/` — Service-specific definitions (one per app)
+**DynamoDB Tables:**
+- Pattern: `{app-slug}-{purpose}` (`run-auth-electro`, `run-human-authjs`, `run-quota-electro`)
+- Two types per app: `-authjs` (Auth.js sessions/users) and `-electro` (application entities)
 
-**Env Vars / Secrets:**
+**ECR Repositories:**
+- Pattern: `{app-slug}-{component}` (`run-auth-nginx`, `run-auth-app`, `run-human-nginx`)
 
-- `NEXT_PUBLIC_*` — Public environment variables (available in browser)
-- `AUTH_*` — Auth.js configuration (session, JWT, cookie, provider URLs)
-- `OIDC_*` — OIDC client credentials (scoped per service)
-- `RUN_*` — run.human specific (DynamoDB, SES, S3, etc.)
-- `AWS_REGION` — Current AWS region
-- `REGION_SHORT` — Short region label (e.g., `use1`, `cac1`)
-- `SITE_DOMAIN` — Root domain (e.g., `defcon.run`)
-- Pattern in SSM: `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/{category}/{key}`
-- Example: `/dc34/secrets/use1/jwt/secret` — JWT secret for us-east-1
+**SSM Parameters:**
+- Pattern: `/{site_label}/secrets/{region_label}/{provider}/{key}` (e.g., `/dc34/secrets/use1/jwt/secret`)
 
 ## Where to Add New Code
 
-**New Feature (API endpoint + UI):**
+**New Next.js Feature (e.g., in run.human):**
+- Page: `apps/run.human/webapp/src/app/(protected)/{feature}/page.tsx` (authenticated) or `src/app/(public)/{feature}/page.tsx` (public)
+- API route: `apps/run.human/webapp/src/app/api/{feature}/route.ts`
+- Component: `apps/run.human/webapp/src/components/{feature}/{ComponentName}.tsx`
+- Entity: `apps/run.human/webapp/src/entities/{entity-name}.ts`
+- Utility: `apps/run.human/webapp/src/lib/{util-name}.ts`
+- Hook: `apps/run.human/webapp/src/hooks/use{HookName}.ts`
+- Tests: `apps/run.human/e2e/tests/{feature}.spec.ts` (create e2e dir if needed)
 
-1. **Decide location:** Which app? (run.human, run.auth, run.gpx, run.cms)
-2. **API route:** Create `apps/{app}/webapp/src/app/api/{feature}/route.ts` (or nested for hierarchy)
-   - Follow existing pattern: `export async function GET/POST/PUT/DELETE(req: Request)`
-   - Use NextResponse for returns
-   - Validate input, call services/entities, handle errors
-3. **Service/Business Logic:** If logic is reusable, move to `apps/{app}/webapp/src/services/{feature}.ts`
-   - Import entities, AWS clients, external services
-   - Keep it testable (pure functions when possible)
-4. **Entity/Data Model:** If accessing DynamoDB, define ElectroDB model in `apps/{app}/webapp/src/entities/{entity}.ts`
-   - Use existing patterns (pk/sk, GSI, CRUD methods)
-5. **UI Component:** Create in `apps/{app}/webapp/src/components/{feature}/`
-   - Use HeroUI or existing design system
-   - Import hooks, services, and API client functions
-6. **Tests:** Add tests alongside in `apps/{app}/__tests__/` (mirror src structure)
-7. **Infrastructure:** If new AWS resource needed:
-   - Add to `infra/terraform/live/site/services/{app}/service.hcl` (or create new module)
-   - Update regional configs as needed
-   - Secrets go in `.secrets.sops.json` and referenced in service.hcl
+**New Deployed Service (e.g., run.flash):**
+1. Create app: `apps/run.flash/webapp/` (Next.js) or `apps/run.flash/app/` (other)
+2. Add nginx: `apps/run.flash/nginx/` (if two-container pattern)
+3. Add service def: `infra/terraform/live/site/services/run.flash/service.hcl`
+4. Add VERSION files: `apps/run.flash/webapp/VERSION`, `apps/run.flash/nginx/VERSION`
+5. Add subdomain to `site.hcl` dns.subdomains: `"flash" = "flash"`
+6. Add OIDC client in `apps/run.auth/webapp/src/config/oidc.ts` (if auth needed)
+7. Update `apps/build.sh` to support the new app
+8. Update `apps/release-all.sh` default APPS list
 
-**New Component/Module (reusable code):**
+**New Terraform Module:**
+1. Create: `infra/terraform/modules/{module-name}/v1.0.0/main.tf`
+2. Add config: `infra/terraform/modules/{module-name}/config.hcl`
+3. Add live config per region: `infra/terraform/live/site/region/{region}/{module-name}/terragrunt.hcl`
+4. Follow existing pattern: include `skip.hcl`, declare dependencies, include module config + providers
 
-- UI Component: `apps/{app}/webapp/src/components/{category}/{name}.tsx`
-- Utility Function: `apps/{app}/webapp/src/lib/{category}.ts`
-- Hook: `apps/{app}/webapp/src/hooks/use{Name}.ts`
-- Entity Model: `apps/{app}/webapp/src/entities/{entity}.ts`
+**New DynamoDB Table:**
+1. Add table definition in relevant service's `service.hcl` under `dynamodb.tables`
+2. Create ElectroDB entity in `apps/{app}/webapp/src/entities/{entity-name}.ts`
+3. Add DynamoDB client credentials to `apps/{app}/webapp/src/entities/client.ts`
+4. Add SSM parameter references in service.hcl container secrets
 
-**Utilities (shared across services):**
+**New API Endpoint (run.auth internal):**
+- Internal (server-to-server): `apps/run.auth/webapp/src/app/api/internal/{resource}/route.ts` - requires `X-Internal-Secret`
+- Admin: `apps/run.auth/webapp/src/app/api/admin/{resource}/route.ts`
+- Public (user-facing): `apps/run.auth/webapp/src/app/api/{resource}/route.ts`
+- Quota: `apps/run.auth/webapp/src/app/api/quota/{quotaId}/{action}/route.ts`
 
-- If truly shared: Consider shared npm package (monorepo) — currently not used, so add to each app for now
-- Otherwise: Keep in each app's `src/lib/` with clear domain (e.g., `quota-client`, `dynamodb-helpers`)
+**New GitHub Workflow:**
+- Location: `.github/workflows/{name}.yml`
+- Follow existing patterns: use `ec2-runner.yml` for self-hosted runners, OIDC for AWS auth
 
-**Infrastructure:**
-
-- New ECS service: Create new service definition file in `infra/terraform/live/site/services/{app}/`
-- New AWS resource type: Create new module in `infra/terraform/modules/{resource}/`
-- Regional customization: Add to `infra/terraform/live/site/region/{region}/{component}/terragrunt.hcl`
+**Design Document:**
+- Location: `docs/plans/{YYYY-MM-DD}-{feature-name}-design.md`
 
 ## Special Directories
 
-**apps/.git:**
-- Purpose: Not git directory — app structure uses monorepo at root
-- Generated: No
-- Committed: No
+**`.terragrunt-cache/`:**
+- Purpose: Terragrunt working directory (module downloads, plan files)
+- Generated: Yes (by `terragrunt plan/apply`)
+- Committed: No (in `.gitignore`)
 
-**.terragrunt-cache/:**
-- Purpose: Cached Terraform modules and generated configurations
-- Generated: Yes (by Terragrunt)
-- Committed: No (in .gitignore)
-
-**apps/{app}/webapp/public/:**
-- Purpose: Static assets served by Next.js (bundled at build time)
-- Generated: No (user-created assets)
+**`apps/run.gpx/gpx-studio/`:**
+- Purpose: Vendored gpx-studio SvelteKit source (built via `build-frontend.sh`)
+- Generated: No (manually vendored, patches applied)
 - Committed: Yes
 
-**apps/{app}/webapp/.next/:**
-- Purpose: Next.js build output (compiled code, optimized bundles)
-- Generated: Yes (by `npm run build`)
-- Committed: No (Docker build regenerates)
+**`apps/run.gpx/webapp/public/studio/`:**
+- Purpose: Built gpx-studio static assets served by Next.js
+- Generated: Yes (by `build-frontend.sh`)
+- Committed: Yes (checked in for Docker builds)
 
-**infra/terraform/live/site/.secrets.sops.json:**
-- Purpose: SOPS-encrypted source-of-truth for all secrets (credentials, keys, etc.)
-- Generated: No (manually created/edited with `sops` CLI)
-- Committed: Yes (encrypted)
+**`apps/configui/backups/`:**
+- Purpose: Timestamped config backups created by configui
+- Generated: Yes (by configui backup feature)
+- Committed: Yes
 
-**infra/terraform/live/site/.secrets.json:**
-- Purpose: Plaintext fallback (used if .secrets.sops.json not present)
+**`apps/run.cms/app/data/`:**
+- Purpose: SQLite database files for Strapi
+- Generated: Yes (by Strapi + Litestream)
+- Committed: Partially (`data.db` committed as seed, `.gitkeep` for the dir)
+
+**`infra/terraform/live/site/services/{app}/lambdas/`:**
+- Purpose: Lambda function source code co-located with service definitions
 - Generated: No
-- Committed: No (in .gitignore — security risk)
-
-**node_modules/, .next/, build/:**
-- Purpose: Build artifacts and dependencies
-- Generated: Yes
-- Committed: No (in .gitignore)
+- Committed: Yes
+- Currently only `run.human` has lambdas (`on-upload/index.py`, `on-process/index.py`)
 
 ---
 

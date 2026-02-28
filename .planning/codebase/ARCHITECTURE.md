@@ -4,233 +4,256 @@
 
 ## Pattern Overview
 
-**Overall:** Multi-region polyglot microservices architecture with AWS infrastructure (Terraform/Terragrunt), Next.js web applications, and Strapi CMS. CloudFront + regional ALBs route traffic to ECS Fargate containers across 3 regions (us-east-1 primary, ca-central-1, ap-southeast-1).
+**Overall:** Multi-region microservices with centralized identity provider, deployed as containerized applications on AWS ECS Fargate behind CloudFront CDN with path-based regional routing.
 
 **Key Characteristics:**
-- Multi-region deployment with region-prefixed URL routing (`/use1/*`, `/cac1/*`, `/apse1/*`)
-- Centralized identity provider (run.auth) using Auth.js v5 + OIDC
-- Service discovery via AWS Cloud Map namespaces per region
-- DynamoDB (multi-region Global Tables v2) with ElectroDB ORM for domain entities
-- S3 + Lambda event-driven uploads with quota tracking
-- Terragrunt-managed infrastructure code with service definitions and regional overrides
+- Central identity provider (run.auth) with dual Auth.js v5 + oidc-provider v9
+- Path-based multi-region routing via CloudFront (`/{region_label}/*` -> regional ALBs)
+- DynamoDB Global Tables for cross-region data replication
+- ElectroDB entity pattern for all DynamoDB access
+- Terragrunt/Terraform infrastructure-as-code with 21 versioned modules
+- SOPS-encrypted secrets injected via SSM Parameter Store
+- Two-container ECS tasks (nginx + app) except run.gpx (single container)
 
 ## Layers
 
-**Presentation (Next.js Apps):**
-- Purpose: Server-side and client-side rendering, API routes, static assets, forms, navigation
-- Location: `apps/run.human/webapp/src/`, `apps/run.auth/webapp/src/`, `apps/run.gpx/webapp/src/`
-- Contains: React components, Next.js app router layouts, API route handlers, middleware
-- Depends on: Config (environment variables), services (quota, upload clients), entities (DynamoDB models), Auth.js session
-- Used by: End users via CloudFront + ALB
+**CDN / Edge Layer:**
+- Purpose: TLS termination, WAF filtering, path-based origin routing, static asset serving
+- Location: `infra/terraform/modules/cloudfront/v1.0.0/`, `infra/terraform/modules/site/v1.0.0/waf/`
+- Contains: CloudFront distributions (one per domain), WAF WebACLs, S3 origin for `_next/static/*`
+- Depends on: ACM certificates, WAF rules, regional ALBs as origins
+- Used by: All internet-facing requests
 
-**Services (Business Logic):**
-- Purpose: Domain-specific operations (quota management, upload handling, profile management)
-- Location: `apps/{service}/webapp/src/services/`, `apps/{service}/webapp/src/lib/`
-- Contains: Functions for quota consumption/restoration, file validation, profile sync, etc.
-- Depends on: Entities, external clients (AWS SDK, OIDC)
-- Used by: API routes, cron jobs, Lambda functions
+**Load Balancer Layer:**
+- Purpose: Regional traffic distribution to ECS tasks, host-based routing
+- Location: `infra/terraform/modules/network/v1.0.0/` (ALBs are created as part of network module)
+- Contains: ALB per region with HTTPS listeners and host header rules
+- Depends on: VPC, ACM certificates, CloudFront prefix list (ALBs accept only CloudFront traffic)
+- Used by: ECS services via target groups
 
-**Entities (Data Models):**
-- Purpose: ORM definitions, database client configuration, type definitions
-- Location: `apps/{service}/webapp/src/entities/`
-- Contains: ElectroDB models (RunUser, UserUpload), Auth.js DynamoDB adapters, client initialization
-- Depends on: AWS SDK clients, environment variables
-- Used by: Services, API routes
+**Application Layer:**
+- Purpose: Business logic in Next.js, Strapi, and vendored SvelteKit apps
+- Location: `apps/run.auth/webapp/`, `apps/run.human/webapp/`, `apps/run.gpx/webapp/`, `apps/run.cms/app/`
+- Contains: Next.js 16 API routes, React 19 components, ElectroDB entities, Auth.js + OIDC config
+- Depends on: DynamoDB, S3, SES, auth service (for downstream apps)
+- Used by: End users via browser, other services via internal APIs
 
-**Configuration (Environment & Secrets):**
-- Purpose: Application settings, credentials, region-specific URLs
-- Location: `apps/{service}/webapp/src/config/`, environment variables, SSM Parameter Store
-- Contains: Auth.js config, provider credentials, DynamoDB endpoints, service discovery URLs
-- Depends on: Environment variables, AWS SSM ParameterStore
-- Used by: All application layers
+**Data Layer:**
+- Purpose: Persistent storage and replication
+- Location: `infra/terraform/modules/dynamodb/v1.0.0/`, `infra/terraform/modules/s3-uploads/v1.0.0/`
+- Contains: DynamoDB Global Tables (v2), S3 upload buckets with cross-region replication, SQLite + Litestream (CMS only)
+- Depends on: IAM policies for per-table credentials
+- Used by: Application layer entities via ElectroDB
 
-**Infrastructure Code:**
-- Purpose: AWS resource definitions, networking, ECS tasks, databases, secrets
-- Location: `infra/terraform/modules/`, `infra/terraform/live/site/`
-- Contains: Terraform/HCL modules (ECS, DynamoDB, CloudFront, etc.), service definitions, regional configs
-- Depends on: Terragrunt, AWS provider
-- Used by: CI/CD pipeline (GitHub Actions), manual deployments
+**Infrastructure Configuration Layer:**
+- Purpose: Terragrunt live config, service definitions, module composition
+- Location: `infra/terraform/live/site/`, `infra/terraform/modules/`
+- Contains: Terragrunt HCL files, service.hcl definitions, region configs, provider configs
+- Depends on: AWS APIs, SOPS for secrets
+- Used by: CI/CD pipelines, configui
 
 ## Data Flow
 
-**User Authentication & Session:**
+**Authentication Flow (Email OTP):**
 
-1. User visits domain (e.g., `run.defcon.run`) → CloudFront routes to region → Next.js middleware passes URL via headers
-2. Next.js checks Auth.js session cookie (httpOnly, secure)
-3. If no session and `?autoLogin=true`: redirect to `/auth/signin` on run.auth
-4. run.auth: Email OTP, Discord, GitHub, or Strava OAuth → Auth.js JWT creation → DynamoDB session table (`run-auth-authjs`)
-5. JWT stored in httpOnly cookie, domain=`.defcon.run` (shared across services)
-6. Client redirected back to run.human/gpx/etc. with valid session
+1. User visits `auth.defcon.run` -> CloudFront routes `/{region}/*` to regional ALB
+2. ALB forwards to ECS task (nginx :443 -> Next.js :3000)
+3. User submits email on `/login` page with ALTCHA proof-of-work captcha
+4. `apps/run.auth/webapp/src/app/api/login/route.ts` triggers Auth.js signIn
+5. Auth.js Email provider sends 6-digit OTP via SES (`apps/run.auth/webapp/src/config/auth.ts` -> `sendVerificationRequest()`)
+6. User enters OTP or clicks email link -> Auth.js callback verifies token
+7. JWT callback in `apps/run.auth/webapp/src/config/auth.ts` calls `upsertAuthProfile()` -> stores profile in `run-auth-electro` DynamoDB table
+8. Session JWT stored in `sess_auth` httpOnly cookie on `.defcon.run` domain
 
-**Session Validation (Every 5 minutes):**
-- Client initiates: `GET /api/session/validate` (run.auth)
-- run.auth validates JWT against DynamoDB, re-validates enabled providers
-- Returns updated session or 401 Unauthorized
-- Services re-validate before critical operations
+**OIDC SSO Flow (run.human authenticating via run.auth):**
 
-**User Data Sync:**
+1. User visits `run.defcon.run/{region}/` -> `apps/run.human/webapp/src/config/auth.ts` checks session
+2. If no `sess_run` cookie, Auth.js redirects to run.auth OIDC authorization endpoint
+3. OIDC provider (`apps/run.auth/webapp/src/config/oidc.ts`) checks for existing `sess_auth` session
+4. If authenticated, OIDC provider issues authorization code -> redirects back to run.human
+5. run.human exchanges code for tokens at `auth.defcon.run/{region}/api/oidc/token`
+6. OIDC `findAccount()` in `apps/run.auth/webapp/src/config/oidc.ts` fetches `AuthProfile` from DynamoDB -> populates claims (services, linked_providers, mapboxPublicToken)
+7. run.human JWT callback stores claims in token, calls `upsertRunUser()` to create/update `RunUser` in `run-human-electro` table
+8. Session stored in `sess_run` httpOnly cookie
 
-1. User logs in → Auth.js JWT callback upserts AuthProfile entity to DynamoDB (`run-human-electro` or `run-auth-electro`)
-2. Services and profile pages query AuthProfile for linked providers, display name, Strava status
-3. Global Table v2 replicates across regions asynchronously
+**Session Refresh / Claims Sync (run.human -> run.auth):**
 
-**Upload (Quota-Driven) Flow:**
+1. Every 5 minutes (configurable via `config.session.refreshInterval`), run.human's JWT callback fires
+2. `fetchFreshClaims()` in `apps/run.human/webapp/src/config/auth.ts` calls `apps/run.auth/webapp/src/app/api/session/validate/user/[userId]/route.ts`
+3. Uses internal service discovery URL (`run-auth.app-{region}-{slug}.local:3000/{region}`) with `X-Internal-Secret` header
+4. Returns updated services, linkedProviders, sessionVersion, lockedOut status
+5. If `lockedOut=true` or `sessionVersion` increased -> token marked as `invalidated` -> session destroyed
 
-1. Client requests presigned S3 URL: `POST /api/upload/presign` (run.human)
-2. run.human calls `restoreQuota(..., "file_upload", 1)` → run.auth via internal service discovery
-3. run.auth checks user quota in DynamoDB (`dc34/quotas`), deducts 1, returns remaining
-4. If allowed, presigned URL generated; client uploads file to S3
-5. S3 triggers `on-upload` Lambda → records UserUpload entity (status=`pending`)
-6. Object processor Lambda (triggered on tag): validates file, updates entity (status=`processed`)
-7. If file invalid/expired: Lambda calls `restoreQuota(..., "file_upload", 1)` to refund quota
+**Quota Consumption Flow (file upload example):**
 
-**Config/Infrastructure:**
+1. Browser requests presigned URL: `GET /api/upload/presign?type=gpx`
+2. `apps/run.human/webapp/src/app/api/upload/presign/route.ts` checks auth, determines user tier from services
+3. Calls `apps/run.human/webapp/src/lib/quota-client.ts` -> `consumeQuota(userId, "file_upload")` -> HTTP POST to `apps/run.auth/webapp/src/app/api/internal/quota/[userId]/[quotaId]/consume/route.ts`
+4. run.auth atomically decrements `remaining` in `run-quota-electro` DynamoDB table via `apps/run.auth/webapp/src/services/quota.ts`
+5. If insufficient quota -> 429 response -> run.human returns quota exceeded error
+6. If success -> generate S3 presigned PUT URL via `@aws-sdk/s3-request-presigner` -> create `UserUpload` record in DynamoDB with status "pending"
+7. Browser uploads directly to S3 using presigned URL
+8. S3 event triggers Lambda (`infra/terraform/live/site/services/run.human/lambdas/on-upload/index.py`) -> updates record to "uploaded"
+9. Processing Lambda (`lambdas/on-process/index.py`) processes file -> marks "completed"
 
-1. Developer commits code → GitHub Actions triggers terragrunt-plan.yml
-2. Terragrunt reads `site.hcl` (global site config), `services/run.human/service.hcl` (service config)
-3. Substitutes template vars: `{{REGION}}`, `{{REGION_LABEL}}`, `{{SITE_DOMAIN}}`
-4. Builds module graphs: ECS task → ECS service → ALB → DynamoDB → ECR → Secrets
-5. Manual approval → terragrunt-apply.yml deploys to AWS
-6. New app versions: `release-all.sh` bumps VERSION files, pushes Docker images to ECR, updates service definitions
+**CMS Master/Worker Replication Flow:**
+
+1. CMS master (us-east-1 only) runs Strapi + `litestream replicate` continuously via supervisord
+2. Litestream streams SQLite WAL changes to S3 bucket
+3. Worker instances (all regions) run `apps/run.cms/app/litestream-sync.sh` every 5 minutes via supervisord
+4. Script uses `litestream restore` from S3 to refresh local SQLite copy
+5. Workers serve read-only API requests; write requests must go to master
 
 **State Management:**
-- Session state: DynamoDB (httpOnly JWT cookie in browser)
-- User data: DynamoDB multi-region tables (RunUser, UserUpload, AuthProfile)
-- Quota state: DynamoDB (centralized in run.auth)
-- Secrets: AWS SSM Parameter Store (KMS-encrypted), sourced from `.secrets.sops.json` (SOPS)
-- Infrastructure state: S3 + DynamoDB lock table (Terraform)
+- Server-side: JWT sessions in httpOnly cookies (`sess_auth`, `sess_run`, `sess_gpx`, `strapi_admin_token`)
+- Client-side: React state via HeroUI providers, no global client store (no Redux/Zustand)
+- Cross-service: OIDC tokens and `X-Internal-Secret` headers for server-to-server calls
+- Infrastructure state: Terraform state in S3 per-region per-module
 
 ## Key Abstractions
 
-**Next.js App (run.human, run.auth, run.gpx):**
-- Purpose: Web application container with dual concerns: Next.js (Node.js server) + nginx (TLS termination/proxy)
-- Examples: `apps/run.human/webapp/` (Next.js dir structure)
-- Pattern: Two-container ECS task (nginx listening :443 → `http://localhost:3000` app container)
-  - Nginx handles TLS termination, proxy headers, regional prefix stripping
-  - Next.js serves SSR pages, API routes, static assets
-  - basePath set to `/{REGION_LABEL}` at build time for regional isolation
+**ElectroDB Entities:**
+- Purpose: Type-safe DynamoDB access with single-table design pattern
+- Examples:
+  - `apps/run.auth/webapp/src/entities/auth-profile.ts` (AuthProfile - user identity)
+  - `apps/run.auth/webapp/src/entities/oidc-adapter.ts` (OIDCModel - OIDC provider state)
+  - `apps/run.auth/webapp/src/entities/user-quota.ts` (UserQuota - quota tracking)
+  - `apps/run.human/webapp/src/entities/run-user.ts` (RunUser - application user data)
+  - `apps/run.human/webapp/src/entities/user-upload.ts` (UserUpload - file upload tracking)
+  - `apps/run.gpx/webapp/src/entities/gpx-file.ts` (GpxFile - GPX file metadata)
+  - `apps/run.gpx/webapp/src/entities/gpx-folder.ts` (GpxFolder - folder organization)
+  - `apps/run.gpx/webapp/src/entities/gpx-share.ts` (GpxShare - sharing tokens)
+- Pattern: Each entity defines `model`, `attributes`, `indexes` using ElectroDB schema. Uses composite keys (`pk`/`sk`) with GSIs (`gsi1pk`/`gsi1sk`). Separate DynamoDB clients per table (3 in run.auth: `dynamodbClient`, `electroClient`, `quotaClient`).
 
-**ElectroDB Entity:**
-- Purpose: Type-safe DynamoDB ORM abstraction for domain models
-- Examples: `apps/run.human/webapp/src/entities/run-user.ts`, `apps/run.auth/webapp/src/entities/auth-profile.ts`
-- Pattern: Define pk/sk patterns, GSIs, and queryable attributes; ElectroDB generates DynamoDB queries automatically
-  - Reduces boilerplate, provides compile-time type checking
-  - Queries use fluent API: `Entity.query.attr().eq(value).go()`
+**DynamoDB Client Factory:**
+- Purpose: Per-table IAM credential isolation
+- Examples: `apps/run.auth/webapp/src/entities/client.ts`, `apps/run.human/webapp/src/entities/client.ts`
+- Pattern: Each app exports multiple `DynamoDBDocument` clients with distinct credentials from env vars. Table names from SSM. This allows fine-grained IAM: run.human can only access run-human-* tables.
 
-**Service Discovery (Cloud Map):**
-- Purpose: Container-to-container DNS resolution within a region
-- Examples: `run-auth.app-{{REGION_LABEL}}-dc34.local:3000` (internal URL in env vars)
-- Pattern: Each ECS service registers its app container; other services resolve via local DNS
-  - `AUTH_INTERNAL_URL` = service discovery URL for run.auth
-  - Bypasses CloudFront/ALB for inter-service calls
+**Centralized Config Objects:**
+- Purpose: Single source of truth for all environment-derived configuration
+- Examples: `apps/run.human/webapp/src/config/index.ts`, `apps/run.auth/webapp/src/config/index.ts`
+- Pattern: Readonly `config` object with computed URLs for dev/prod. Handles region prefix injection, service discovery URLs, cookie configuration. All env vars consumed through config, never direct `process.env` in business logic.
 
-**Quota System (Centralized):**
-- Purpose: Track and enforce per-user limits on uploads, file sizes, requests
-- Examples: `apps/run.auth/webapp/src/lib/quota-client.ts`, API routes for consume/restore/check
-- Pattern: Centralized in run.auth; other services call via internal HTTP or Lambda
-  - Quota IDs: "file_upload", "gpx_upload", "photo_upload", etc.
-  - DynamoDB table: `{pk: userId, sk: quotaId, remaining: number, ...}`
-  - Optimistic consume: decrement; if error, client retries
+**Service Definitions (service.hcl):**
+- Purpose: Declarative service configuration consumed by Terraform modules
+- Examples:
+  - `infra/terraform/live/site/services/run.auth/service.hcl`
+  - `infra/terraform/live/site/services/run.human/service.hcl`
+  - `infra/terraform/live/site/services/run.cms/service.hcl`
+  - `infra/terraform/live/site/services/run.gpx/service.hcl`
+- Pattern: Each `service.hcl` defines `ecr_repositories`, `task` (containers, env vars, secrets, health checks), `dynamodb` tables, `service` (ALB config, autoscaling), `user_uploads`, `upload_processors`. Uses template variables `{{REGION}}`, `{{REGION_LABEL}}`, `{{SITE_LABEL}}`, `{{SITE_DOMAIN}}` replaced at plan time by `infra/terraform/modules/ecs-task/config.hcl`.
 
-**Multiregion DynamoDB:**
-- Purpose: Replicate user data across 3 AWS regions for availability
-- Examples: `run-human-electro`, `run-auth-electro` (Global Table v2)
-- Pattern: First region (us-east-1) is primary; replicas stream changes asynchronously
-  - Consistent within a region (eventual consistency across regions)
-  - All regions can read; only primary writes for global tables
-
-**Auth.js + OIDC Dual Role:**
-- Purpose: run.auth acts as both OAuth2 session manager (Auth.js) and OIDC provider (oidc-provider)
-- Examples: `apps/run.auth/webapp/src/config/auth.ts` (Auth.js), `apps/run.auth/webapp/src/config/oidc.ts` (oidc-provider)
-- Pattern: Auth.js handles login/logout for end users; oidc-provider exposes OIDC endpoints for service-to-service trust
-  - Clients: run.human, run.gpx, run.cms (Strapi) register as OIDC clients
-  - ID token includes: openid, profile, email, services (custom scope)
+**Terragrunt Module Config Pattern:**
+- Purpose: Glue between live config and versioned modules
+- Examples: `infra/terraform/modules/ecs-task/config.hcl`, `infra/terraform/modules/ecs-service/config.hcl`
+- Pattern: Each module has a `config.hcl` that reads site.hcl + region.hcl, performs placeholder substitution, and exposes `merged_inputs`. Live `terragrunt.hcl` files include the config, set dependencies, and pass outputs.
 
 ## Entry Points
 
-**run.human (run.defcon.run):**
-- Location: `apps/run.human/webapp/src/app/layout.tsx`, `app/page.tsx`, `app/api/[...route].ts`
-- Triggers: HTTP requests to CloudFront (any region label) → ALB → ECS task
-- Responsibilities: Render public/protected routes (user profile, Meshtastic radios, file uploads), call quota/upload APIs, manage auth state
+**run.auth API (auth.defcon.run):**
+- Location: `apps/run.auth/webapp/src/app/api/`
+- Key routes:
+  - `api/auth/[...nextauth]/route.ts` - Auth.js handler (login, callback, session)
+  - `api/login/route.ts` - Custom email OTP initiation with ALTCHA captcha
+  - `api/logout/route.ts` - Custom logout clearing `sess_auth` cookie
+  - `api/captcha/challenge/route.ts` - ALTCHA proof-of-work challenge generation
+  - `api/session/validate/route.ts` - Session validation for downstream services
+  - `api/session/validate/user/[userId]/route.ts` - Per-user session/claims validation (internal)
+  - `api/profile/route.ts` - User profile management
+  - `api/quota/[quotaId]/*/route.ts` - Public quota API (check, consume, restore)
+  - `api/internal/quota/[userId]/[quotaId]/*/route.ts` - Internal quota API (server-to-server)
+  - `api/admin/quota/*/route.ts` - Admin quota management
+  - `api/admin/user/[userId]/*/route.ts` - Admin user management (lock, invalidate)
+- OIDC routes (Pages API): `pages/api/oidc/[...path].ts`, `pages/api/oidc/interaction/[uid].ts`, `pages/api/oidc/.well-known/openid-configuration.ts`
 
-**run.auth (auth.defcon.run):**
-- Location: `apps/run.auth/webapp/src/app/(authlogin)/signin/page.tsx`, `app/api/auth/[...nextauth]/route.ts`
-- Triggers: OAuth redirects (from Discord/GitHub/Strava), email sign-in, service-to-service OIDC requests
-- Responsibilities: Email OTP verification, OAuth callback handling, JWT issuance, quota management, OIDC token delivery, session validation
+**run.human API (run.defcon.run):**
+- Location: `apps/run.human/webapp/src/app/api/`
+- Key routes:
+  - `api/auth/[...nextauth]/route.ts` - Auth.js OIDC client handler
+  - `api/auth/auto-signin/route.ts` - Silent SSO initiation
+  - `api/user/route.ts` - RunUser profile CRUD
+  - `api/upload/presign/route.ts` - S3 presigned URL generation with quota check
+  - `api/meshtastic-radios/route.ts` - Radio registration management
+  - `api/meshtastic-radios/resend/route.ts` - Verification code resend
+  - `api/admin/quota/route.ts` - Admin quota proxy
 
-**run.gpx (gpx.defcon.run):**
-- Location: `apps/run.gpx/webapp/src/app/layout.tsx`, `app/studio/app` (SvelteKit bundled)
-- Triggers: HTTP requests for GPX editor UI and API
-- Responsibilities: Serve Next.js + embedded gpx-studio (SvelteKit); cloud save to S3 + DynamoDB; handle OIDC auth via run.auth
+**run.gpx API (gpx.defcon.run):**
+- Location: `apps/run.gpx/webapp/src/app/api/`
+- Key routes:
+  - `api/auth/[...nextauth]/route.ts` - Auth.js OIDC client
+  - `api/gpx/files/route.ts` - GPX file CRUD
+  - `api/gpx/files/[id]/route.ts` - Single file operations
+  - `api/gpx/files/[id]/versions/route.ts` - Version history
+  - `api/gpx/files/[id]/confirm/route.ts` - Upload confirmation
+  - `api/gpx/folders/route.ts` - Folder management
+  - `api/gpx/shares/route.ts` - Sharing operations
+  - `api/gpx/shares/[token]/route.ts` - Access shared file
+  - `api/gpx/download/presign/route.ts` - Download presigned URL
+  - `api/user/mapbox-token/route.ts` - Per-user Mapbox token management
 
 **run.cms (cms.defcon.run):**
-- Location: `apps/run.cms/app/src/index.ts` (Strapi entry), supervisord manages Strapi + Litestream
-- Triggers: Admin requests to /admin, API requests to /api/...
-- Responsibilities: Serve Strapi CMS, OIDC SSO login, read-only replicas sync from master, serve API content to frontend apps
+- Location: `apps/run.cms/app/src/`
+- Custom code:
+  - `middlewares/cookie-auth.ts` - Reads JWT from httpOnly cookie, injects as Authorization header
+  - `middlewares/services-validation.ts` - Validates CMS service claim against run.auth every 5 minutes
+  - `extensions/strapi-plugin-sso/strapi-server.ts` - OIDC SSO integration
+  - `api/health/controllers/health.ts` + `api/health/routes/health.ts` - Health check endpoint
 
-**Terraform/Terragrunt:**
-- Location: `infra/terraform/live/site/terragrunt.hcl` (root), `infra/terraform/live/site/region/*/terragrunt.hcl` (regional), `infra/terraform/modules/*/v1.0.0/` (module implementations)
-- Triggers: `terragrunt plan --all`, `terragrunt apply` (manual or CI/CD)
-- Responsibilities: Provision/update VPC, ECS clusters, ALBs, DynamoDB tables, ECR repos, CloudFront, IAM roles, secrets
+**configui (localhost only):**
+- Location: `apps/configui/main.go`
+- Triggers: `go run .` from `apps/configui/`
+- Responsibilities: HCL generation from web form, terragrunt execution with SSE streaming, SOPS editing, service discovery visualization, output exploration, backup/restore
+
+**Release Pipeline:**
+- Location: `apps/release-all.sh`
+- Triggers: Manual execution or `--pr` flag for automated PR flow
+- Responsibilities: Version bump, Docker build/push to ECR (all regions), branch/PR management, optional terragrunt apply
+
+**Region Router:**
+- Location: `apps/run.human/index.html`, `apps/run.auth/redirects/region.html`
+- Triggers: Request to domain root (no region prefix)
+- Responsibilities: Read `preferred-region` cookie, redirect to `/{region}/`
 
 ## Error Handling
 
-**Strategy:** Layer-based error handling with graceful degradation.
+**Strategy:** Fail-safe with graceful degradation for cross-service calls.
 
 **Patterns:**
-
-- **API Route Errors:** Return structured JSON `{ error: string, code?: string, details?: unknown }` with appropriate HTTP status codes
-  - 401: Unauthorized (session invalid, no JWT)
-  - 403: Forbidden (insufficient permissions, quota exhausted)
-  - 400: Bad request (invalid input, malformed file)
-  - 500: Server error (log to CloudWatch, return generic message to client)
-
-- **DynamoDB Errors:** Retry logic in SDK with exponential backoff (already configured in AWS SDK)
-  - ElectroDB queries catch and re-throw; caller decides on retry vs. fail
-
-- **Quota Exhaustion:** API returns `{ remaining: 0 }` in response; client UI displays "quota exhausted" message
-
-- **Session Validation Failure:** Middleware redirects to `/api/auth/signin` with `?autoLogin=true` for SSO re-auth
-
-- **File Upload Errors:** Lambda catches exceptions, marks upload as `failed`, restores quota
-
-- **Terraform Errors:** Terragrunt retries transient network errors (configured in `terragrunt.hcl` error blocks); operator reviews and retries on plan failure
+- **Auth validation failures:** If run.auth is unreachable during claims refresh in run.human, existing cached claims are preserved (no lockout during auth server maintenance). See `fetchFreshClaims()` in `apps/run.human/webapp/src/config/auth.ts`.
+- **CMS services validation:** `apps/run.cms/app/src/middlewares/services-validation.ts` uses in-memory cache. If auth server is unreachable and no cache exists, allows through to prevent lockout.
+- **Quota errors:** Custom `QuotaExceededError` class in `apps/run.human/webapp/src/lib/quota-client.ts` with rollback pattern (if type-specific quota fails, general quota is restored).
+- **OIDC errors:** `apps/run.auth/webapp/src/config/oidc.ts` renders generic error page with server-side-only request ID for debugging.
+- **API routes:** Try/catch with structured JSON error responses including `error` and `details` fields.
 
 ## Cross-Cutting Concerns
 
 **Logging:**
-- Approach: `console.log()` / `console.error()` in Node.js apps; logs collected by ECS (CloudWatch Logs)
-- Pattern: Log at entry/exit of critical functions, errors, and quota operations
-- Example: `console.error("[cleanupStaleUploads] Scan error:", error);` in `apps/run.human/webapp/src/services/quota.ts`
+- `console.log`/`console.error` throughout (no structured logging framework)
+- Prefixed with service tags: `[run.human]`, `[OIDC Error {id}]`, `[OIDC Event]`, `[CookieAuth]`, `[ServicesValidation]`
+- CloudWatch Logs via ECS log configuration with per-container stream prefixes (`nginx`, `app`)
 
 **Validation:**
-- Approach: Type-safe validation via TypeScript, optional runtime checks via schema libraries
-- Pattern: API routes validate input `req.body` before processing; ElectroDB models validate pk/sk/attribute types at compile time
-- File validation: `apps/run.human/webapp/src/app/api/upload/presign/route.ts` validates GPX files (magic byte, control chars, XML structure)
+- GPX validation: Binary magic byte detection + control char rejection + XML structure check in `apps/run.gpx/webapp/src/lib/gpx-validator.ts`
+- Upload type/size validation in `apps/run.human/webapp/src/lib/s3-client.ts` (GPX: 5MB, photos: 20MB)
+- ALTCHA proof-of-work captcha on login in run.auth
 
 **Authentication:**
-- Approach: Auth.js v5 JWT + httpOnly cookies at session layer; `X-Internal-Secret` header for server-to-server calls
-- Pattern: Middleware intercepts requests, verifies JWT, adds session to context
-  - `apps/run.human/webapp/src/middleware.ts` passes URL to server components
-  - Auth.js sessions automatically refreshed every `session.updateAge` (24 hours default)
-  - Server-to-server: run.human → run.auth quota API uses `AUTH_INTERNAL_SECRET` env var
+- Per-service cookies: `sess_auth` (run.auth), `sess_run` (run.human), `sess_gpx` (run.gpx), `strapi_admin_token` (run.cms)
+- All cookies scoped to `.defcon.run` domain, httpOnly, secure, sameSite=lax
+- Server-to-server: `X-Internal-Secret` header validated in run.auth internal endpoints
+- OIDC: PKCE required for all clients, `client_secret_post` token auth
 
-**Authorization:**
-- Approach: Role-based at application level (no IAM roles in frontend code)
-- Pattern: run.auth manages user profiles and roles; other services check session claims
-  - Example: Admin quota endpoints in run.auth check `X-Internal-Secret` header before allowing manipulation
+**Service Discovery:**
+- AWS Cloud Map namespace per region: `app-{region_label}-dc34.local`
+- Service names registered: `run-auth`, `run-human`, `run-gpx`, `run-cms-master`, `run-cms-worker`
+- Internal URLs resolve to container port 3000 (HTTP) bypassing nginx TLS
 
-**Regional Isolation:**
-- Approach: basePath set per region; CloudFront routes by path prefix
-- Pattern: Each region's ALB listens on same port (443), processes requests for its region only
-  - `basePath: "/{REGION_LABEL}"` in Next.js config means relative links stay within region
-  - `/use1/api/...` processed by us-east-1, `/cac1/api/...` by ca-central-1
-
-**Secrets Management:**
-- Approach: AWS SSM Parameter Store (KMS-encrypted), sourced from `.secrets.sops.json` (SOPS-encrypted commit)
-- Pattern: ECS task definition injects secrets as environment variables at launch time
-  - Path pattern: `/dc34/secrets/{region_label}/{category}/{key}`
-  - Example: `/dc34/secrets/use1/jwt/secret` contains `AUTH_JWT_SECRET` for us-east-1
+**Multi-Region:**
+- Next.js `basePath` set to `/{region_label}` at Docker build time via `REGION_SHORT` env var
+- CloudFront routes `/{region_label}/*` to corresponding regional ALB
+- Region label derived from folder name: `infra/terraform/live/site/region/{region}/region.hcl`
+- Skip regions configured in `site.hcl`: `skip_regions = ["ap-southeast-1", "ca-central-1"]`
 
 ---
 

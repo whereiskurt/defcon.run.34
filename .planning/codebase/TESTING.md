@@ -4,357 +4,360 @@
 
 ## Test Framework
 
-**Runner:**
-- Playwright v1.48.0 (for E2E tests in `run.auth`)
-- No unit test runner (Jest/Vitest) configured
-- Focus: integration and end-to-end testing
-- Config: `playwright.config.ts` in each e2e directory
+**E2E Runner:**
+- Playwright ^1.48.0
+- Config: `apps/run.auth/e2e/playwright.config.ts`, `apps/run.gpx/e2e/playwright.config.ts`
+- Browser: Chromium only
+- Serial execution (workers: 1, fullyParallel: false) for cookie jar management
+
+**Go Unit Tests:**
+- Standard `testing` package
+- Config: None (built into Go toolchain)
+- One test file: `apps/configui/import_test.go`
+
+**Unit Test Framework (JavaScript):**
+- None configured. No Jest, Vitest, or other unit test framework for the Next.js apps.
+- No `*.test.ts` or `*.spec.ts` files exist in any webapp `src/` directory.
 
 **Assertion Library:**
-- Playwright's built-in `expect()` from `@playwright/test`
+- Playwright: Built-in `expect` from `@playwright/test`
+- Go: Custom `assertEqual`, `assertIntEqual`, `assertBoolEqual`, `assertSliceEqual` helpers (not using testify)
 
 **Run Commands:**
 ```bash
-# run.auth E2E tests
-cd apps/run.auth/e2e
-npm test                  # Run all tests serially (single worker)
-npm run test:headed      # Run with browser visible
-npm run test:debug       # Run in debug mode
+# E2E Tests (auth) - requires AWS credentials
+cd apps/run.auth/e2e && npm test          # Run session-valid + service-access tests
+cd apps/run.auth/e2e && npm run test:headed  # Run with visible browser
 
-# Test-specific commands
-npm run creds           # Acquire credentials for accounta
-npm run creds:all       # Acquire credentials for all test accounts (accounta, accountb, accountc)
-npm run cleanup         # Check stale test users (dry run)
-npm run cleanup:execute # Actually delete stale test users
-npm run validate        # Validate session for accounta
-npm run validate:prod   # Validate session against production
+# E2E Tests (gpx) - requires auth sessions
+cd apps/run.gpx/e2e && npm test           # Run cloud storage tests
+cd apps/run.gpx/e2e && npm run test:headed  # Run with visible browser
 
-# Setup before running tests
-npm run creds:fresh     # Clean up old credentials and acquire fresh ones
+# Unified E2E runner (all services)
+./apps/e2e.sh                    # Run all e2e tests against localhost
+./apps/e2e.sh --prod             # Run against production
+./apps/e2e.sh --setup            # Only create auth sessions
+./apps/e2e.sh --gpx --headed     # Run GPX tests with visible browser
+./apps/e2e.sh --setup --clean    # Clean DynamoDB + create fresh sessions
+
+# Credential acquisition
+cd apps/run.auth/e2e && npm run creds        # Create local session for accounta
+cd apps/run.auth/e2e && npm run creds:prod   # Create production session
+cd apps/run.auth/e2e && npm run creds:all    # Create sessions for all accounts
+cd apps/run.auth/e2e && npm run creds:fresh  # Clean + fresh session
+
+# Go tests (configui)
+cd apps/configui && go test ./...  # Run all Go tests
+
+# Linting (per app)
+cd apps/run.human/webapp && npm run lint
+cd apps/run.auth/webapp && npm run lint
+cd apps/run.gpx/webapp && npm run lint
 ```
 
 ## Test File Organization
 
 **Location:**
-- E2E tests co-located: `apps/run.auth/e2e/tests/` and `apps/run.auth/e2e/setup/`
-- No unit tests in `/src` directories (not enforced)
-- Test utilities: `apps/run.auth/e2e/lib/`
+- E2E tests live in separate `e2e/` directories alongside each app, NOT co-located with source
+- Go tests co-located with source files (`import_test.go` next to `import.go`)
+- No unit tests exist in webapp `src/` directories
 
 **Naming:**
-- Test files: `*.spec.ts` (Playwright naming convention)
-- Setup/fixture files: `*.spec.ts` (executed like tests but for setup)
-- Test libraries: regular `.ts` modules in `lib/`
+- E2E test specs: `*.spec.ts` (e.g., `session-valid.spec.ts`, `cloud-storage.spec.ts`)
+- E2E setup/teardown: `setup/*.spec.ts` (e.g., `acquire-credentials.spec.ts`, `cleanup-test-users.spec.ts`)
+- E2E helpers: `lib/*.ts` (e.g., `cookie-jar.ts`, `s3-email.ts`, `altcha-solver.ts`)
+- Go tests: `*_test.go` (e.g., `import_test.go`)
 
 **Structure:**
 ```
 apps/run.auth/e2e/
-├── tests/
-│   ├── session-valid.spec.ts      # Verify credentials are valid
-│   └── service-access.spec.ts     # Verify user permissions
-├── setup/
-│   ├── acquire-credentials.spec.ts # Playwright test that logs in and saves cookies
-│   └── cleanup-test-users.spec.ts  # Delete test users from DynamoDB
-├── lib/
-│   ├── cookie-jar.ts              # Save/load/manage session cookies
-│   ├── altcha-solver.js           # Solve ALTCHA captchas
-│   ├── s3-email.js                # Retrieve verification emails from S3
-│   └── playwright-report/         # Generated HTML reports
 ├── playwright.config.ts
-└── package.json
+├── package.json
+├── tsconfig.json
+├── setup/
+│   ├── acquire-credentials.spec.ts   # Creates auth sessions
+│   └── cleanup-test-users.spec.ts    # DynamoDB cleanup
+├── tests/
+│   ├── session-valid.spec.ts         # Session validation
+│   └── service-access.spec.ts        # Service permission checks
+└── lib/
+    ├── cookie-jar.ts                 # Cookie persistence
+    ├── s3-email.ts                   # Email verification via S3
+    └── altcha-solver.ts              # CAPTCHA solver
+
+apps/run.gpx/e2e/
+├── playwright.config.ts
+├── package.json
+├── tsconfig.json
+├── cloud-storage.spec.ts            # GPX file upload/download tests
+├── samples/                         # Test GPX files
+└── lib/
+    └── cookie-jar.ts                # Cookie persistence (shared pattern)
 ```
 
 ## Test Structure
 
-**Suite Organization:**
+**E2E Suite Organization:**
 ```typescript
 import { test, expect } from '@playwright/test';
-import { loadCookiesForUser, type UserRole } from '../lib/cookie-jar.js';
+import { loadCookiesForUser, hasCookieJarForUser, type UserRole } from '../lib/cookie-jar.js';
 
 const USER_ROLE = (process.env.TEST_USER_ROLE as UserRole) || 'accounta';
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3002';
+const isLocal = BASE_URL.includes('localhost');
+const REGION_PREFIX = isLocal ? '' : `/${REGION_SHORT}`;
 
-test.describe(`Service Access: ${USER_ROLE}`, () => {
+test.describe(`Session Validation: ${USER_ROLE}`, () => {
   test.beforeEach(async ({ context }) => {
-    // Setup: verify prerequisites, load cookies, skip if missing
     const hasJar = hasCookieJarForUser(USER_ROLE);
     test.skip(!hasJar, `No cookie jar for ${USER_ROLE} - run acquire-credentials first`);
-
     const loaded = await loadCookiesForUser(context, USER_ROLE);
     expect(loaded).toBe(true);
   });
 
-  test('has required base services (auth, run)', async ({ page }) => {
-    console.log('\n[TEST] Checking required base services...');
-
-    const response = await page.request.get(`${BASE_URL}/api/session/validate`);
+  test('session is valid', async ({ page }) => {
+    const response = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/session/validate`);
     expect(response.ok()).toBe(true);
-
     const session = await response.json();
-    console.log(`  User:     ${session.user.email}`);
-    expect(session.user.services).toContain('auth');
-    expect(session.user.services).toContain('run');
+    expect(session.valid).toBe(true);
+    expect(session.user.email).toBe(TEST_EMAIL);
   });
 });
 ```
 
+**Go Test Structure:**
+```go
+func TestImportSiteHCL(t *testing.T) {
+    repoRoot := "../.."
+    siteHCLPath := filepath.Join(repoRoot, "infra", "terraform", "live", "site", "site.hcl")
+
+    cfg, err := importSiteHCL(siteHCLPath)
+    if err != nil {
+        t.Fatalf("importSiteHCL failed: %v", err)
+    }
+
+    assertEqual(t, "Site.Label", cfg.Site.Label, "dc34")
+    assertIntEqual(t, "DNS.TTL", cfg.DNS.TTL, 300)
+}
+```
+
 **Patterns:**
-- **Setup:** `test.beforeEach()` for prerequisites (load cookies, check jar exists)
-- **Teardown:** Not used (state persists in cookies between tests)
-- **Assertion:** `expect()` from Playwright with `.toBe()`, `.toContain()`, `.ok()`
-- **Skip:** Use `test.skip()` when prerequisites missing (e.g., no credentials acquired)
-- **Logging:** `console.log()` with `[TEST]` prefix for progress tracking
+- Setup: Cookie jar loading in `beforeEach`, skip test if no credentials
+- Teardown: No explicit teardown - cookie jars persist between runs
+- Assertions: Playwright `expect()` for HTTP responses, cookie properties, and page content
 
 ## Mocking
 
-**Framework:** No mocking library configured
+**Framework:** None. No mocking framework is used.
 
-**What IS mocked:**
-- HTTP responses via Playwright's `page.request` API (not actual mocking, but HTTP client)
-- Browser context cookies: saved/loaded from JSON files for multi-user testing
-- Environment variables: set via env vars passed to test runner
+**E2E Approach:**
+- Tests run against real services (localhost dev servers or production)
+- No mocks, stubs, or test doubles
+- Real DynamoDB tables, real S3 buckets, real SES email delivery
+- Email verification uses S3 bucket polling (real emails stored by SES)
 
-**What NOT mocked:**
-- Database queries: real DynamoDB tables (tests interact with actual database)
-- Email delivery: uses real S3 bucket to retrieve verification emails
-- ALTCHA captchas: solved via actual API calls (not mocked)
-- Authentication flow: real OIDC login flow with real credentials
-
-**Patterns:**
-HTTP assertions using Playwright's built-in request API:
-```typescript
-const response = await page.request.get(`${BASE_URL}/api/session/validate`);
-expect(response.ok()).toBe(true);
-const data = await response.json();
-expect(data.valid).toBe(true);
-```
-
-Cookie persistence via JSON files (Playwright's native context.addCookies):
-```typescript
-// Save cookies after login
-export async function saveCookiesForUser(context: BrowserContext, role: UserRole): Promise<void> {
-  const cookies = await context.cookies();
-  const jar: CookieJar = { cookies, savedAt: new Date().toISOString(), expiresAt: "..." };
-  fs.writeFileSync(getCookieJarPathForUser(role), JSON.stringify(jar, null, 2));
-}
-
-// Load cookies before test
-export async function loadCookiesForUser(context: BrowserContext, role: UserRole): Promise<boolean> {
-  const jar = JSON.parse(fs.readFileSync(getCookieJarPathForUser(role), 'utf-8'));
-  await context.addCookies(jar.cookies);
-  return true;
-}
-```
+**What is NOT mocked:**
+- AWS services (DynamoDB, S3, SES)
+- Authentication flows (real OIDC, real email magic links)
+- CAPTCHA (ALTCHA challenges solved programmatically via `altcha-lib`)
+- Service-to-service communication (real HTTP calls)
 
 ## Fixtures and Factories
 
 **Test Data:**
-Cookie jars stored as JSON files after first login. Fixtures include:
-- Session cookies (from OIDC provider)
-- Expiry timestamps for credential validation
-- Multiple test users (accounta, accountb, accountc)
+- User accounts: Three roles defined via email `+` addressing:
+  ```typescript
+  export type UserRole = 'accounta' | 'accountb' | 'accountc';
 
-Location: `apps/run.auth/e2e/.auth/cookies-{local-}{role}.json`
+  export function getEmailForRole(role: UserRole): string {
+    const baseEmail = 'jeanclaude@defcon.run';
+    const [local, domain] = baseEmail.split('@');
+    return `${local}+${role}@${domain}`;
+  }
+  ```
+- Invite code: Hardcoded `'hacktheplanet'` in tests
+- GPX test files: Sample `.gpx` files in `apps/run.gpx/e2e/samples/`
 
-Format:
+**Cookie Jar (Credential Persistence):**
 ```typescript
 interface CookieJar {
-  cookies: Cookie[];          // Array of Playwright Cookie objects
-  savedAt: string;            // ISO timestamp when saved
-  expiresAt: string;          // ISO timestamp when cookie expires
+  cookies: Cookie[];
+  savedAt: string;
+  expiresAt: string;
 }
 ```
+- Saved to `e2e/.auth/cookies-{role}.json` (production) or `cookies-local-{role}.json` (localhost)
+- Auto-expire check on load; skip login if valid session exists
+- Shared across test suites (auth e2e creates cookies, gpx e2e consumes them)
 
-**Test User Generation:**
-Handled in setup test (`setup/acquire-credentials.spec.ts`):
-1. Playwright login flow (fills email, solves ALTCHA, waits for verification email)
-2. Extracts session cookie from response
-3. Saves cookie jar to `.auth/` directory
-4. Subsequent tests load cookies from jar (no login needed)
-
-```typescript
-// From cookie-jar.ts - helper to check if credentials exist
-export function hasCookieJarForUser(role: UserRole = 'accounta'): boolean {
-  const jar = JSON.parse(fs.readFileSync(getCookieJarPathForUser(role), 'utf-8'));
-  return new Date(jar.expiresAt) > new Date();  // Check not expired
-}
-```
+**Location:**
+- Cookie jars: `apps/run.auth/e2e/.auth/` and `apps/run.gpx/e2e/.auth/`
+- Sample files: `apps/run.gpx/e2e/samples/`
+- Test results/screenshots: `apps/run.gpx/e2e/test-results/`
 
 ## Coverage
 
-**Requirements:** Not enforced
+**Requirements:** None enforced. No coverage targets, no coverage reports.
 
-**View Coverage:**
-No coverage reporting configured. Tests are integration/E2E focused.
+**View Coverage:** Not applicable. No coverage tooling configured.
 
 ## Test Types
 
 **Unit Tests:**
-- Not implemented (no Jest/Vitest setup)
-- Focus is on integration/E2E testing of full auth flows
+- **Go (configui):** One test file `apps/configui/import_test.go` with 2 test functions (`TestImportSiteHCL`, `TestImportServiceHCL`). Tests HCL config import by reading actual repo files and asserting ~80 field values. Custom assertion helpers used (no testify).
+- **TypeScript/JavaScript:** No unit tests exist for any Next.js app. Zero `*.test.ts` or `*.spec.ts` files in any `webapp/src/` directory.
 
 **Integration Tests:**
-- Primary test type in `apps/run.auth/e2e/tests/`
-- Test full HTTP request/response cycles
-- Test session persistence and cookie management
-- Test API validation endpoints
+- No dedicated integration test suite. E2E tests serve double duty as integration tests since they test real service interactions.
 
-Example: `session-valid.spec.ts`
-```typescript
-test('session is valid', async ({ page }) => {
-  const response = await page.request.get(`${BASE_URL}/api/session/validate`);
-  expect(response.ok()).toBe(true);
+**E2E Tests (Playwright):**
+- **run.auth** (`apps/run.auth/e2e/`): 4 spec files
+  - `setup/acquire-credentials.spec.ts` - Full login flow: navigate to login page, solve ALTCHA, submit email, poll S3 for verification email, complete callback, save cookies
+  - `setup/cleanup-test-users.spec.ts` - DynamoDB cleanup across 4 tables (auth, profile, quota, gpx)
+  - `tests/session-valid.spec.ts` - Validate saved session is still valid, check cookie security properties
+  - `tests/service-access.spec.ts` - Verify user has correct service permissions (auth, run, gpxstudio, NOT cms)
+- **run.gpx** (`apps/run.gpx/e2e/`): 1 spec file
+  - `cloud-storage.spec.ts` - GPX file upload/download lifecycle with presigned URLs, folder management, sharing
 
-  const session = await response.json();
-  expect(session.valid).toBe(true);
-  expect(session.user.email).toBe(TEST_EMAIL);
-});
-```
-
-**E2E Tests:**
-- Full login flows in `setup/acquire-credentials.spec.ts`
-- Real browser automation with Chromium
-- Solve CAPTCHAs, wait for emails, navigate forms
-- Validate user permissions in `tests/service-access.spec.ts`
-
-Example: `setup/acquire-credentials.spec.ts`
-```typescript
-test('acquire credentials for user account', async ({ page }) => {
-  await page.goto(`${BASE_URL}/signin?invite=${INVITE_CODE}`);
-  await page.fill('input[type="email"]', TEST_EMAIL);
-
-  // Solve ALTCHA captcha
-  const altchaToken = await fetchAndSolveAltcha(page);
-
-  // Wait for verification email
-  const emailCode = await waitForVerificationEmail(TEST_EMAIL);
-
-  // Submit code and save session
-  await saveCookiesForUser(page.context(), USER_ROLE);
-});
-```
-
-## Playwright Configuration
-
-**Key Settings:**
-```typescript
-// playwright.config.ts
-export default defineConfig({
-  testDir: '.',
-  testMatch: ['setup/**/*.spec.ts', 'tests/**/*.spec.ts'],
-  timeout: 180000,           // 3 minutes per test (allows for email wait)
-  fullyParallel: false,      // Run serially to manage single cookie jar
-  workers: 1,                // Single worker (no parallelization)
-  expect: {
-    timeout: 30000,          // 30 seconds for assertions
-  },
-  use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3002',
-    trace: 'on-first-retry',  // Capture trace on first failure
-  },
-  projects: [
-    {
-      name: 'chromium',
-      use: { browserName: 'chromium' },
-    },
-  ],
-  reporter: [
-    ['list'],                 // Console output
-    ['html', { open: 'never' }], // HTML report (saved, not auto-opened)
-  ],
-});
-```
+**E2E Infrastructure:**
+- `apps/e2e.sh` - Unified runner that orchestrates auth credential acquisition then GPX tests
+- Supports `--prod` for production testing, `--headed` for visible browser, `--slow` for slow-motion debugging
+- Supports `--clean` for DynamoDB test data cleanup before fresh runs
 
 ## Common Patterns
 
-**Async Testing:**
-All tests are async (Playwright requirement). Use `async ({ page, context })` fixtures:
+**Async Testing (E2E):**
 ```typescript
-test('async operation', async ({ page, context }) => {
-  await page.goto(url);
-  const response = await page.request.get(endpoint);
-  expect(response.ok()).toBe(true);
+test('acquire and save credentials', async ({ page, context }) => {
+  // Step-based approach with console.log progress
+  console.log('\n[1/8] Navigating to login page...');
+  await page.goto(`${BASE_URL}${REGION_PREFIX}/login`);
+  await expect(page.locator('text=Welcome!')).toBeVisible({ timeout: 10000 });
+
+  // API calls via page.request
+  const csrfResponse = await page.request.get(`${BASE_URL}${REGION_PREFIX}/api/auth/csrf`);
+  expect(csrfResponse.ok()).toBe(true);
+  const csrfData = await csrfResponse.json();
+
+  // External service interaction (S3 email polling)
+  const emailResult = await waitForVerificationEmail(TEST_EMAIL, loginStartTime);
 });
 ```
 
-**Error Testing:**
-Check error responses and status codes:
+**Conditional Test Skipping:**
 ```typescript
-test('handles error responses', async ({ page }) => {
-  const response = await page.request.get(`${BASE_URL}/api/invalid`);
-  expect(response.status()).toBe(404);
-
-  const error = await response.json();
-  expect(error.error).toBeDefined();
+test.beforeEach(async ({ context }) => {
+  const hasJar = hasCookieJarForUser(USER_ROLE);
+  test.skip(!hasJar, `No cookie jar for ${USER_ROLE} - run acquire-credentials first`);
 });
 ```
 
-**Multi-User Testing:**
-Environment variable controls which user to test:
+**Environment-Aware URLs:**
 ```typescript
-// Run for accounta (default)
-npm test
-
-// Run for accountb
-TEST_USER_ROLE=accountb npm test
-
-// Run for accountc
-TEST_USER_ROLE=accountc npm test
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3002';
+const isLocal = BASE_URL.includes('localhost');
+const REGION_SHORT = process.env.REGION_SHORT || 'use1';
+const REGION_PREFIX = isLocal ? '' : `/${REGION_SHORT}`;
 ```
 
-Cookies per role: `.auth/cookies-accounta.json`, `.auth/cookies-accountb.json`, etc.
-
-**Multi-Region Testing:**
-Environment variables control target:
-```bash
-# Test against local dev (use1 region)
-npm test
-
-# Test against production
-BASE_URL=https://auth.defcon.run REGION_SHORT=use1 npm test
-
-# Test ca-central-1 production
-BASE_URL=https://auth.defcon.run REGION_SHORT=cac1 npm test
+**Screenshot Pattern (GPX E2E):**
+```typescript
+async function takeScreenshot(page: Page, name: string, description?: string): Promise<string> {
+  screenshotCounter++;
+  const paddedNum = String(screenshotCounter).padStart(3, '0');
+  const filename = `${paddedNum}-${name}.png`;
+  const filepath = path.join(TEST_RESULTS_DIR, filename);
+  await page.screenshot({ path: filepath, fullPage: false });
+  return filepath;
+}
 ```
 
-## Test Execution Environment
+**Go Test Helpers:**
+```go
+func assertEqual(t *testing.T, name, got, want string) {
+    t.Helper()
+    if got != want {
+        t.Errorf("%s = %q, want %q", name, got, want)
+    }
+}
 
-**Prerequisites:**
-- Node.js 18+
-- AWS credentials (for S3 email retrieval and DynamoDB access)
-- Playwright browser installed: `npx playwright install chromium`
+func assertSliceEqual(t *testing.T, name string, got, want []string) {
+    t.Helper()
+    if len(got) != len(want) {
+        t.Errorf("%s length = %d, want %d (got %v)", name, len(got), len(want), got)
+        return
+    }
+    for i := range got {
+        if got[i] != want[i] {
+            t.Errorf("%s[%d] = %q, want %q", name, i, got[i], want[i])
+        }
+    }
+}
+```
 
-**Setup Flow:**
-1. Run `npm run creds:fresh` to clean old credentials and log in fresh
-2. This acquires credentials for accounta automatically
-3. To acquire for other accounts: `TEST_USER_ROLE=accountb npm run creds`
-4. Run tests: `npm test`
+## Test Data Cleanup
 
-**Test Database Access:**
-Tests access real DynamoDB tables specified by environment variables:
-- `AUTH_AUTHJS_TABLE` - Auth.js session table (default: `run-auth-authjs`)
-- `AUTH_ELECTRO_TABLE` - Auth ElectroDB table (default: `run-auth-electro`)
-- `QUOTA_TABLE` - Quota service table (default: `run-quota-electro`)
-- `GPX_TABLE` - GPX editor table (default: `run-gpx-electro`)
+**DynamoDB Cleanup:**
+- `apps/run.auth/e2e/setup/cleanup-test-users.spec.ts` cleans test data from 4 tables:
+  - `run-auth-authjs` (Auth.js session/user records)
+  - `run-auth-electro` (ElectroDB profile records)
+  - `run-quota-electro` (Quota records)
+  - `run-gpx-electro` (GPX file/folder records)
+- Dry-run by default; set `CLEANUP_EXECUTE=true` to actually delete
+- Finds user by email via GSI, then cascades deletion across all tables
 
-Used in `setup/cleanup-test-users.spec.ts` to remove test data.
+**Cookie Cleanup:**
+- `./apps/e2e.sh --clean` removes all cookie jar files
+- Cookie jars auto-expire based on session token expiry
 
-## Notes on Non-Tested Code
+## Playwright Configuration
 
-**Strapi CMS (`run.cms`):**
-- No tests configured
-- No Jest/Vitest setup
-- Built-in Strapi admin interface for testing
+**run.auth:**
+```typescript
+defineConfig({
+  testDir: '.',
+  testMatch: ['setup/**/*.spec.ts', 'tests/**/*.spec.ts'],
+  timeout: 180000,     // 3 minutes (ALTCHA + email wait up to 2 min)
+  fullyParallel: false,
+  workers: 1,
+  expect: { timeout: 30000 },
+  use: { baseURL, trace: 'on-first-retry' },
+  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+  reporter: [['list'], ['html', { open: 'never' }]],
+});
+```
 
-**Next.js Apps (`run.human`, `run.gpx`):**
-- No unit tests
-- No component tests
-- Can be tested via E2E (through Playwright)
-- Internal library functions tested manually or via E2E
+**run.gpx:**
+```typescript
+defineConfig({
+  testDir: '.',
+  testMatch: '**/*.spec.ts',
+  timeout: 120000,     // 2 minutes for cloud operations
+  fullyParallel: false,
+  workers: 1,
+  expect: { timeout: 30000 },
+  use: { baseURL, trace: 'on-first-retry', launchOptions: { slowMo } },
+  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+});
+```
 
-**Terraform/Infrastructure:**
-- No Terraform tests configured
-- Validation via `terraform plan --all` and `terragrunt plan --all`
-- No TFLint or policy-as-code setup
+## What is Missing
+
+**Critical Gaps:**
+1. **No unit tests for TypeScript apps** - Zero unit tests in `apps/run.human/webapp/`, `apps/run.auth/webapp/`, `apps/run.gpx/webapp/`, or `apps/run.cms/app/`. All business logic (entities, quota, validation) is untested at the unit level.
+2. **No mocking infrastructure** - No jest/vitest config, no mock factories, no test utilities for DynamoDB/S3 operations.
+3. **No CI pipeline test execution** - No GitHub Actions or CI config found for automated test runs.
+4. **No test coverage measurement** - No coverage tool, no coverage thresholds, no coverage reports.
+5. **Minimal Go test coverage** - Only HCL import parsing is tested in configui. No tests for handlers, AWS operations, terminal sessions, or WAF test orchestration.
+6. **No API contract tests** - Session validation, quota API, and profile endpoints have no contract/schema tests.
+7. **No Terraform testing** - No terratest, no `terraform validate` CI step (461 `.tf` files untested).
+
+**Recommended Priorities for New Tests:**
+1. Unit tests for ElectroDB entity CRUD operations (mock DynamoDB client)
+2. Unit tests for quota-client consume/restore/check logic
+3. Unit tests for GPX validator (`apps/run.gpx/webapp/src/lib/gpx-validator.ts`)
+4. API route handler tests for auth guard pattern (session check, service check)
+5. Go handler tests for configui save/import/export operations
 
 ---
 
