@@ -9,16 +9,16 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Browser & Entry
 
-- [ ] **BRWS-01**: App detects Web Serial API support and gates unsupported browsers at page load with clear "use Chrome or Edge" message and download links
+- [x] **BRWS-01**: App detects Web Serial API support and gates unsupported browsers at page load with clear "use Chrome or Edge" message and download links
 - [x] **BRWS-02**: App enforces OIDC authentication — unauthenticated users redirect to auth.defcon.run
 
 ### Device Selection
 
-- [ ] **DEVC-01**: User can browse ESP32 devices from vendored Meshtastic hardware-list.json filtered to ESP32 architectures only
-- [ ] **DEVC-02**: Device picker displays device images (SVGs), display names, and manufacturer tags
-- [ ] **DEVC-03**: User can filter/search devices by name or manufacturer
-- [ ] **DEVC-04**: Device picker shows support tier and actively-supported status for sorting
-- [ ] **DEVC-05**: Selecting a device determines the correct firmware binary filename via platformioTarget
+- [x] **DEVC-01**: User can browse ESP32 devices from vendored Meshtastic hardware-list.json filtered to ESP32 architectures only
+- [x] **DEVC-02**: Device picker displays device images (SVGs), display names, and manufacturer tags
+- [x] **DEVC-03**: User can filter/search devices by name or manufacturer
+- [x] **DEVC-04**: Device picker shows support tier and actively-supported status for sorting
+- [x] **DEVC-05**: Selecting a device determines the correct firmware binary filename via platformioTarget
 
 ### USB Connection
 
@@ -52,9 +52,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Wizard Flow
 
-- [ ] **WZRD-01**: Step-by-step wizard: Pick Device → Connect → Flash → Configure → Done
-- [ ] **WZRD-02**: Each step validates completion before allowing progression to next step
-- [ ] **WZRD-03**: Progress breadcrumb shows current position in the flow
+- [x] **WZRD-01**: Step-by-step wizard: Pick Device → Connect → Flash → Configure → Done
+- [x] **WZRD-02**: Each step validates completion before allowing progression to next step
+- [x] **WZRD-03**: Progress breadcrumb shows current position in the flow
 - [ ] **WZRD-04**: Done screen shows success confirmation with device identity and next steps
 
 ### Deployment
@@ -99,16 +99,16 @@ Deferred to future release. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BRWS-01 | Phase 1 | Pending |
+| BRWS-01 | Phase 1 | Complete |
 | BRWS-02 | Phase 1 | Complete |
-| DEVC-01 | Phase 1 | Pending |
-| DEVC-02 | Phase 1 | Pending |
-| DEVC-03 | Phase 1 | Pending |
-| DEVC-04 | Phase 1 | Pending |
-| DEVC-05 | Phase 1 | Pending |
-| WZRD-01 | Phase 1 | Pending |
-| WZRD-02 | Phase 1 | Pending |
-| WZRD-03 | Phase 1 | Pending |
+| DEVC-01 | Phase 1 | Complete |
+| DEVC-02 | Phase 1 | Complete |
+| DEVC-03 | Phase 1 | Complete |
+| DEVC-04 | Phase 1 | Complete |
+| DEVC-05 | Phase 1 | Complete |
+| WZRD-01 | Phase 1 | Complete |
+| WZRD-02 | Phase 1 | Complete |
+| WZRD-03 | Phase 1 | Complete |
 | CONN-01 | Phase 2 | Pending |
 | CONN-02 | Phase 2 | Pending |
 | CONN-03 | Phase 2 | Pending |

@@ -12,7 +12,7 @@ This roadmap delivers a browser-based ESP32 flasher and Meshtastic device provis
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: App Scaffold + Device Picker** - Next.js app with auth, browser gate, device picker UI, and wizard shell
+- [x] **Phase 1: App Scaffold + Device Picker** - Next.js app with auth, browser gate, device picker UI, and wizard shell
 - [ ] **Phase 2: Flash Engine** - Web Serial connection, esptool.js firmware flashing with progress UI
 - [ ] **Phase 3: Config Engine + Server API** - Post-flash device configuration via @meshtastic/core, authenticated config API, completion screen
 - [ ] **Phase 4: Deployment + Firmware Vendoring** - Docker build with vendored firmware, Terragrunt service, CloudFront at flash.defcon.run
@@ -32,8 +32,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans:** 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md -- Bootstrap Next.js 16 app with OIDC authentication via auth.defcon.run
-- [ ] 01-02-PLAN.md -- Browser gate, wizard flow, and interactive device picker UI
+- [x] 01-01-PLAN.md -- Bootstrap Next.js 16 app with OIDC authentication via auth.defcon.run
+- [x] 01-02-PLAN.md -- Browser gate, wizard flow, and interactive device picker UI
 
 ### Phase 2: Flash Engine
 **Goal**: Users can connect their ESP32 via USB and flash DCR34-pinned Meshtastic firmware with real-time progress feedback
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. App Scaffold + Device Picker | 0/2 | Planned | - |
+| 1. App Scaffold + Device Picker | 2/2 | Complete | 2026-02-28 |
 | 2. Flash Engine | 0/3 | Not started | - |
 | 3. Config Engine + Server API | 0/3 | Not started | - |
 | 4. Deployment + Firmware Vendoring | 0/2 | Not started | - |

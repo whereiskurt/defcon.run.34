@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in a single browser session, with zero manual configuration steps.
-**Current focus:** Phase 1: App Scaffold + Device Picker
+**Current focus:** Phase 2: Flash Engine
 
 ## Current Position
 
-Phase: 1 of 4 (App Scaffold + Device Picker)
-Plan: 1 of 2 in current phase
-Status: Executing
-Last activity: 2026-02-28 -- Completed 01-01 (App Scaffold + Auth)
+Phase: 2 of 4 (Flash Engine)
+Plan: 1 of 3 in current phase
+Status: Ready
+Last activity: 2026-02-28 -- Completed 01-02 (Browser Gate, Wizard, Device Picker)
 
-Progress: [##░░░░░░░░] 10%
+Progress: [####░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 6min
-- Total execution time: 0.1 hours
+- Total plans completed: 2
+- Average duration: 5.5min
+- Total execution time: 0.2 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-app-scaffold-device-picker | 1 | 6min | 6min |
+| 01-app-scaffold-device-picker | 2 | 11min | 5.5min |
 
 **Recent Trend:**
-- Last 5 plans: 6min
-- Trend: starting
+- Last 5 plans: 6min, 5min
+- Trend: stable
 
 *Updated after each plan completion*
 
@@ -48,6 +48,9 @@ Recent decisions affecting current work:
 - [01-01]: No service claim check for flash app -- all authenticated DCR34 users can access the flasher
 - [01-01]: Omitted mapboxPublicToken from flash auth claims -- not needed for firmware flasher
 - [01-01]: Added matrix-green accent and cyber-border CSS for hacker/cyberpunk aesthetic
+- [01-02]: Used !important Tailwind modifiers for selected card border to override glass-card:hover
+- [01-02]: Vendored hardware-list.json and device SVGs statically rather than runtime fetch
+- [01-02]: Deduplication by hwModel to avoid showing multiple platformioTarget variants
 
 ### Pending Todos
 
@@ -62,5 +65,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 01-01-PLAN.md (App Scaffold + Auth)
+Stopped at: Completed 01-02-PLAN.md (Browser Gate, Wizard, Device Picker) -- Phase 1 complete
 Resume file: None
