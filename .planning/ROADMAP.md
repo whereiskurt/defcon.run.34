@@ -29,7 +29,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. An authenticated user can browse ESP32 devices with images and manufacturer tags, and filter by name or manufacturer
   4. Selecting a device advances the wizard to the "Connect" step, and the correct firmware filename is determined from the selection
   5. A progress breadcrumb shows the user's current position across all wizard steps (Pick Device / Connect / Flash / Configure / Done)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 01-01-PLAN.md -- Bootstrap Next.js 16 app with OIDC authentication via auth.defcon.run
@@ -91,7 +91,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. App Scaffold + Device Picker | 2/2 | Complete | 2026-02-28 |
+| 1. App Scaffold + Device Picker | 2/2 | Complete    | 2026-02-28 |
 | 2. Flash Engine | 0/3 | Not started | - |
 | 3. Config Engine + Server API | 0/3 | Not started | - |
 | 4. Deployment + Firmware Vendoring | 0/2 | Not started | - |
