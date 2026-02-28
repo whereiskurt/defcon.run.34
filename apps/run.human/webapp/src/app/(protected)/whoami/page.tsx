@@ -169,11 +169,6 @@ export default function WhoAmIPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-4 animate-fade-up">
-      {/* Page title */}
-      <h1 className="font-museo text-2xl font-bold tracking-tight text-foreground">
-        Who Am I
-      </h1>
-
       {/* Identity card */}
       <Card className="glass-card overflow-hidden">
         <CardBody className="px-5 py-4 space-y-4">
