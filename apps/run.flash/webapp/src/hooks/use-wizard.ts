@@ -26,6 +26,42 @@ export const STEP_LABELS: Record<WizardStep, string> = {
   done: "Done",
 };
 
+/**
+ * Parse ?step= URL param to allow jumping ahead in the wizard.
+ * Use case: flash succeeded but page reloaded — user can jump to
+ * ?step=configure to skip re-flashing (still needs to connect).
+ *
+ * When jumping ahead, all prior steps are marked completed so the
+ * stepper shows them as done.
+ */
+function getInitialState(): { step: WizardStep; completed: Set<WizardStep> } {
+  if (typeof window === "undefined") {
+    return { step: "pick-device", completed: new Set() };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const stepParam = params.get("step") as WizardStep | null;
+
+  if (stepParam && STEPS.includes(stepParam)) {
+    const targetIndex = STEPS.indexOf(stepParam);
+    // Jump to "connect" — user must reconnect to the device.
+    // Mark all steps before the target AND the flash step as completed
+    // so advance() skips flash and goes straight to the target.
+    // e.g., ?step=configure → connect step, with pick-device + flash done.
+    //        After connecting, advance() skips flash → lands on configure.
+    const completed = new Set<WizardStep>();
+    completed.add("pick-device"); // always skip device picker on jump
+    for (let i = 2; i < targetIndex; i++) {
+      completed.add(STEPS[i]); // mark intermediate steps done
+    }
+    // Mark the target's preceding steps (except connect) as done
+    if (targetIndex > 2) {
+      completed.add("flash"); // skip re-flashing
+    }
+    return { step: "connect" as WizardStep, completed };
+  }
+  return { step: "pick-device", completed: new Set() };
+}
+
 interface WizardState {
   currentStep: WizardStep;
   completedSteps: Set<WizardStep>;
@@ -33,10 +69,13 @@ interface WizardState {
 }
 
 export function useWizard() {
-  const [state, setState] = useState<WizardState>({
-    currentStep: "pick-device",
-    completedSteps: new Set(),
-    selectedDevice: null,
+  const [state, setState] = useState<WizardState>(() => {
+    const initial = getInitialState();
+    return {
+      currentStep: initial.step,
+      completedSteps: initial.completed,
+      selectedDevice: null,
+    };
   });
 
   const canAdvance = useCallback(
@@ -58,10 +97,16 @@ export function useWizard() {
       const newCompleted = new Set(prev.completedSteps);
       newCompleted.add(prev.currentStep);
 
+      // Skip over already-completed steps (supports ?step= URL jump)
+      let nextIndex = currentIndex + 1;
+      while (nextIndex < STEPS.length - 1 && newCompleted.has(STEPS[nextIndex])) {
+        nextIndex++;
+      }
+
       return {
         ...prev,
         completedSteps: newCompleted,
-        currentStep: STEPS[currentIndex + 1],
+        currentStep: STEPS[nextIndex],
       };
     });
   }, [canAdvance]);

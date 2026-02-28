@@ -9,6 +9,14 @@ const REGION_SHORT = process.env.REGION_SHORT || "use1";
 const nextConfig: NextConfig = {
   output: "standalone",
 
+  // @meshtastic/core imports { formatWithOptions, types } from "util"
+  // which doesn't exist in browsers. Custom shim provides stubs.
+  turbopack: {
+    resolveAlias: {
+      util: "./src/lib/util-shim.js",
+    },
+  },
+
   // Mount app at /{region} path in production (e.g., /use1 or /cac1)
   // In dev, no basePath so development works at root
   ...(isDev ? {} : { basePath: `/${REGION_SHORT}` }),
