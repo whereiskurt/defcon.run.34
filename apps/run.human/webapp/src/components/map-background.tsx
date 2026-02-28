@@ -73,10 +73,10 @@ export function MapBackground() {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
         if (!bgRef.current) return;
-        // Map mouse position to -15..15px offset
-        const x = ((e.clientX / window.innerWidth) - 0.5) * 30;
-        const y = ((e.clientY / window.innerHeight) - 0.5) * 30;
-        bgRef.current.style.transform = `translate(${x}px, ${y}px) scale(1.08)`;
+        // Map mouse position to -40..40px offset
+        const x = ((e.clientX / window.innerWidth) - 0.5) * 80;
+        const y = ((e.clientY / window.innerHeight) - 0.5) * 80;
+        bgRef.current.style.transform = `translate(${x}px, ${y}px) scale(1.15)`;
       });
     };
 
@@ -102,7 +102,7 @@ export function MapBackground() {
           backgroundRepeat: 'no-repeat',
           opacity: prefs.opacity / 100,
           filter: 'brightness(1.8) contrast(1.2)',
-          transform: 'scale(1.08)',
+          transform: 'scale(1.15)',
           willChange: 'transform',
         }}
       />
