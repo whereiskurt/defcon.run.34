@@ -34,7 +34,7 @@ export function WizardStepper({
                 "flex items-center gap-2 rounded-lg transition-all shrink-0",
                 isCurrent && "text-primary",
                 isCompleted &&
-                  "text-success cursor-pointer hover:bg-content2 px-2 py-1",
+                  "text-primary cursor-pointer hover:bg-content2 px-2 py-1",
                 !isCurrent &&
                   !isCompleted &&
                   "text-default-400 cursor-not-allowed opacity-50"
@@ -46,7 +46,7 @@ export function WizardStepper({
                   isCurrent &&
                     "border-primary text-primary bg-primary/10 shadow-[0_0_12px_#00d4aa30]",
                   isCompleted &&
-                    "border-success bg-success text-success-foreground",
+                    "border-primary bg-primary text-primary-foreground",
                   !isCurrent &&
                     !isCompleted &&
                     "border-default-400 text-default-400"
@@ -73,7 +73,7 @@ export function WizardStepper({
               <div
                 className={clsx(
                   "flex-1 h-px mx-2 min-w-4",
-                  isCompleted ? "bg-success" : "bg-default-300/30",
+                  isCompleted ? "bg-primary" : "bg-default-300/30",
                   !isCompleted && "border-t border-dashed border-default-300/30 bg-transparent"
                 )}
               />
