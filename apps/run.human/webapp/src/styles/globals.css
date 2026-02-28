@@ -11,20 +11,13 @@
     padding: 0;
   }
 
-  /* Dot grid background pattern */
+  /* Base background color (map image layer handles the visual) */
   body {
     background-color: #0a0a0f;
-    background-image:
-      radial-gradient(circle, #2a2a3a 1px, transparent 1px);
-    background-size: 24px 24px;
   }
 
-  /* Light mode override */
   html.light body {
     background-color: #fafafa;
-    background-image:
-      radial-gradient(circle, #e0e0e0 1px, transparent 1px);
-    background-size: 24px 24px;
   }
 }
 

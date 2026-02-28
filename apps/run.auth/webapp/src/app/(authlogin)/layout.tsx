@@ -7,6 +7,7 @@ import { fontSans, fontMono, fontMuseo, fontAtkinson } from "@fonts";
 import { SessionProvider } from "next-auth/react";
 import { Header } from "@/components/header/header";
 import { Footer } from "@/components/footer";
+import { MapBackground } from "@/components/map-background";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
@@ -57,6 +58,7 @@ export default function AuthLayout({
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
+            <MapBackground />
             <div className="relative flex flex-col min-h-screen noise-overlay">
               <div className="flex-shrink-0 relative z-10">
                 <Header />

@@ -8,6 +8,7 @@ import { auth } from "@/config/auth";
 import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { cookies, headers } from "next/headers";
+import { MapBackground } from "@/components/map-background";
 import { config } from "@/config";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -113,6 +114,7 @@ export default async function PublicLayout({
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
+            <MapBackground />
             <div className="relative flex flex-col h-screen noise-overlay">
               <main className="container mx-auto h-screen flex items-center justify-center relative z-10">
                 <div className="w-full max-w-md px-4">{children}</div>
