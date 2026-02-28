@@ -177,11 +177,47 @@ for REGION in "${REGION_LIST[@]}"; do
   fi
 done
 
+# Probe ECR availability — filter out regions without deployed infrastructure
+echo ""
+echo "--- Probing ECR availability ---"
+VALID_REGIONS=()
+SKIPPED_REGIONS=()
+for REGION in "${REGION_LIST[@]}"; do
+  _AWS_REGION=$(get_aws_region "$REGION")
+  PROBE=$(aws ecr describe-repositories --repository-names dc34-run-human-app --region "${_AWS_REGION}" 2>&1) && RC=0 || RC=$?
+
+  if [[ $RC -eq 0 ]]; then
+    VALID_REGIONS+=("$REGION")
+    echo "  ✅ $REGION ($_AWS_REGION): ECR available"
+  elif echo "$PROBE" | grep -q "RepositoryNotFoundException"; then
+    SKIPPED_REGIONS+=("$REGION")
+    echo "  ⏭️  $REGION ($_AWS_REGION): no ECR repos — skipping"
+  else
+    # Probe failed unexpectedly — assume available, let build fail clearly
+    VALID_REGIONS+=("$REGION")
+    echo "  ⚠️  $REGION ($_AWS_REGION): probe error, assuming available"
+  fi
+done
+
+if [[ ${#VALID_REGIONS[@]} -eq 0 ]]; then
+  echo "ERROR: No ECR repositories found in any selected region (${REGION_LIST[*]})"
+  exit 1
+fi
+
+if [[ ${#SKIPPED_REGIONS[@]} -gt 0 ]]; then
+  echo "  Regions skipped: ${SKIPPED_REGIONS[*]}"
+fi
+
+REGION_LIST=("${VALID_REGIONS[@]}")
+
 echo "=============================================="
 echo "  MULTI-REGION RELEASE"
 echo "=============================================="
 echo "Apps:    ${APP_LIST[*]}"
 echo "Regions: ${REGION_LIST[*]}"
+if [[ ${#SKIPPED_REGIONS[@]} -gt 0 ]]; then
+echo "Skipped: ${SKIPPED_REGIONS[*]} (no ECR repos)"
+fi
 echo "Skip bump:  $SKIP_BUMP"
 echo "Skip build: $SKIP_BUILD"
 echo "Skip nginx: $SKIP_NGINX"
@@ -584,6 +620,9 @@ echo "  RELEASE COMPLETE"
 echo "=============================================="
 echo "Apps:     ${APP_LIST[*]}"
 echo "Regions:  ${REGION_LIST[*]}"
+if [[ ${#SKIPPED_REGIONS[@]} -gt 0 ]]; then
+  echo "Skipped:  ${SKIPPED_REGIONS[*]} (no ECR repos)"
+fi
 if [[ -n "$RELEASE_BRANCH" ]]; then
   echo "Branch:   ${RELEASE_BRANCH}"
 fi

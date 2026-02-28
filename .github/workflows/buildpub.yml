@@ -104,20 +104,64 @@ jobs:
           driver-opts: |
             image=moby/buildkit:latest
 
+      - name: Discover available ECR regions
+        id: regions
+        run: |
+          REQUESTED="${{ inputs.regions }}"
+          AVAILABLE=""
+          SKIPPED=""
+
+          for code in $(echo "$REQUESTED" | tr ',' ' '); do
+            case "$code" in
+              use1)  aws_region="us-east-1" ;;
+              cac1)  aws_region="ca-central-1" ;;
+              apse1) aws_region="ap-southeast-1" ;;
+              *)     continue ;;
+            esac
+
+            # Check for a known ECR repo as proxy for "region is deployed"
+            PROBE=$(aws ecr describe-repositories \
+              --repository-names dc34-run-human-app \
+              --region "$aws_region" 2>&1) && RC=0 || RC=$?
+
+            if [[ $RC -eq 0 ]]; then
+              AVAILABLE="${AVAILABLE:+$AVAILABLE,}$code"
+              echo "✅ $code ($aws_region): ECR repos found"
+            elif echo "$PROBE" | grep -q "RepositoryNotFoundException"; then
+              SKIPPED="${SKIPPED:+$SKIPPED,}$code"
+              echo "⏭️ $code ($aws_region): no ECR repos — skipping"
+            else
+              AVAILABLE="${AVAILABLE:+$AVAILABLE,}$code"
+              echo "⚠️ $code ($aws_region): probe error, assuming available"
+            fi
+          done
+
+          if [[ -z "$AVAILABLE" ]]; then
+            echo "::error::No ECR repos found in any selected region ($REQUESTED)"
+            exit 1
+          fi
+
+          echo "regions=$AVAILABLE" >> $GITHUB_OUTPUT
+          echo "skipped=${SKIPPED:-none}" >> $GITHUB_OUTPUT
+          echo ""
+          echo "Requested: $REQUESTED"
+          echo "Available: $AVAILABLE"
+          [[ -n "$SKIPPED" ]] && echo "Skipped:   $SKIPPED"
+
       - name: Login to ECR (us-east-1)
-        if: contains(inputs.regions, 'use1')
+        if: contains(steps.regions.outputs.regions, 'use1')
         run: |
           aws ecr get-login-password --region us-east-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
       - name: Login to ECR (ca-central-1)
-        if: contains(inputs.regions, 'cac1')
+        if: contains(steps.regions.outputs.regions, 'cac1')
         run: |
           aws ecr get-login-password --region ca-central-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
 
       - name: Login to ECR (ap-southeast-1)
-        if: contains(inputs.regions, 'apse1')
+        if: contains(steps.regions.outputs.regions, 'apse1')
         run: |
           aws ecr get-login-password --region ap-southeast-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com
@@ -133,7 +177,7 @@ jobs:
           SKIP_ECR_LOGIN: "true"  # Already logged in above
           GH_TOKEN: ${{ github.token }}
         run: |
-          ARGS="--apps ${{ inputs.apps }} --regions ${{ inputs.regions }}"
+          ARGS="--apps ${{ inputs.apps }} --regions ${{ steps.regions.outputs.regions }}"
 
           if [[ "${{ inputs.parallel }}" == "true" ]]; then
             ARGS="$ARGS --parallel"
@@ -184,7 +228,11 @@ jobs:
           echo "## Build+Pub Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Regions:** ${{ steps.regions.outputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          SKIPPED="${{ steps.regions.outputs.skipped }}"
+          if [[ "$SKIPPED" != "none" ]]; then
+            echo "**Skipped:** $SKIPPED (no ECR repos)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "**Runner:** GitHub-hosted (ubuntu-latest)" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -356,20 +404,63 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
           aws-region: us-east-1
 
+      - name: Discover available ECR regions
+        id: regions
+        run: |
+          REQUESTED="${{ inputs.regions }}"
+          AVAILABLE=""
+          SKIPPED=""
+
+          for code in $(echo "$REQUESTED" | tr ',' ' '); do
+            case "$code" in
+              use1)  aws_region="us-east-1" ;;
+              cac1)  aws_region="ca-central-1" ;;
+              apse1) aws_region="ap-southeast-1" ;;
+              *)     continue ;;
+            esac
+
+            PROBE=$(aws ecr describe-repositories \
+              --repository-names dc34-run-human-app \
+              --region "$aws_region" 2>&1) && RC=0 || RC=$?
+
+            if [[ $RC -eq 0 ]]; then
+              AVAILABLE="${AVAILABLE:+$AVAILABLE,}$code"
+              echo "✅ $code ($aws_region): ECR repos found"
+            elif echo "$PROBE" | grep -q "RepositoryNotFoundException"; then
+              SKIPPED="${SKIPPED:+$SKIPPED,}$code"
+              echo "⏭️ $code ($aws_region): no ECR repos — skipping"
+            else
+              AVAILABLE="${AVAILABLE:+$AVAILABLE,}$code"
+              echo "⚠️ $code ($aws_region): probe error, assuming available"
+            fi
+          done
+
+          if [[ -z "$AVAILABLE" ]]; then
+            echo "::error::No ECR repos found in any selected region ($REQUESTED)"
+            exit 1
+          fi
+
+          echo "regions=$AVAILABLE" >> $GITHUB_OUTPUT
+          echo "skipped=${SKIPPED:-none}" >> $GITHUB_OUTPUT
+          echo ""
+          echo "Requested: $REQUESTED"
+          echo "Available: $AVAILABLE"
+          [[ -n "$SKIPPED" ]] && echo "Skipped:   $SKIPPED"
+
       - name: Login to ECR (us-east-1)
-        if: contains(inputs.regions, 'use1')
+        if: contains(steps.regions.outputs.regions, 'use1')
         run: |
           aws ecr get-login-password --region us-east-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
       - name: Login to ECR (ca-central-1)
-        if: contains(inputs.regions, 'cac1')
+        if: contains(steps.regions.outputs.regions, 'cac1')
         run: |
           aws ecr get-login-password --region ca-central-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
 
       - name: Login to ECR (ap-southeast-1)
-        if: contains(inputs.regions, 'apse1')
+        if: contains(steps.regions.outputs.regions, 'apse1')
         run: |
           aws ecr get-login-password --region ap-southeast-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com
@@ -385,7 +476,7 @@ jobs:
           SKIP_ECR_LOGIN: "true"
           GH_TOKEN: ${{ github.token }}
         run: |
-          ARGS="--apps ${{ inputs.apps }} --regions ${{ inputs.regions }}"
+          ARGS="--apps ${{ inputs.apps }} --regions ${{ steps.regions.outputs.regions }}"
 
           if [[ "${{ inputs.parallel }}" == "true" ]]; then
             ARGS="$ARGS --parallel"
@@ -435,7 +526,11 @@ jobs:
           echo "## Build+Pub Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Regions:** ${{ steps.regions.outputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          SKIPPED="${{ steps.regions.outputs.skipped }}"
+          if [[ "$SKIPPED" != "none" ]]; then
+            echo "**Skipped:** $SKIPPED (no ECR repos)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "**Runner:** Self-hosted EC2 (${{ inputs.ec2_instance_type }}, ${{ inputs.ec2_market_type }})" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -466,20 +561,63 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-release
           aws-region: us-east-1
 
+      - name: Discover available ECR regions
+        id: regions
+        run: |
+          REQUESTED="${{ inputs.regions }}"
+          AVAILABLE=""
+          SKIPPED=""
+
+          for code in $(echo "$REQUESTED" | tr ',' ' '); do
+            case "$code" in
+              use1)  aws_region="us-east-1" ;;
+              cac1)  aws_region="ca-central-1" ;;
+              apse1) aws_region="ap-southeast-1" ;;
+              *)     continue ;;
+            esac
+
+            PROBE=$(aws ecr describe-repositories \
+              --repository-names dc34-run-human-app \
+              --region "$aws_region" 2>&1) && RC=0 || RC=$?
+
+            if [[ $RC -eq 0 ]]; then
+              AVAILABLE="${AVAILABLE:+$AVAILABLE,}$code"
+              echo "✅ $code ($aws_region): ECR repos found"
+            elif echo "$PROBE" | grep -q "RepositoryNotFoundException"; then
+              SKIPPED="${SKIPPED:+$SKIPPED,}$code"
+              echo "⏭️ $code ($aws_region): no ECR repos — skipping"
+            else
+              AVAILABLE="${AVAILABLE:+$AVAILABLE,}$code"
+              echo "⚠️ $code ($aws_region): probe error, assuming available"
+            fi
+          done
+
+          if [[ -z "$AVAILABLE" ]]; then
+            echo "::error::No ECR repos found in any selected region ($REQUESTED)"
+            exit 1
+          fi
+
+          echo "regions=$AVAILABLE" >> $GITHUB_OUTPUT
+          echo "skipped=${SKIPPED:-none}" >> $GITHUB_OUTPUT
+          echo ""
+          echo "Requested: $REQUESTED"
+          echo "Available: $AVAILABLE"
+          [[ -n "$SKIPPED" ]] && echo "Skipped:   $SKIPPED"
+
       - name: Login to ECR (us-east-1)
-        if: contains(inputs.regions, 'use1')
+        if: contains(steps.regions.outputs.regions, 'use1')
         run: |
           aws ecr get-login-password --region us-east-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
       - name: Login to ECR (ca-central-1)
-        if: contains(inputs.regions, 'cac1')
+        if: contains(steps.regions.outputs.regions, 'cac1')
         run: |
           aws ecr get-login-password --region ca-central-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
 
       - name: Login to ECR (ap-southeast-1)
-        if: contains(inputs.regions, 'apse1')
+        if: contains(steps.regions.outputs.regions, 'apse1')
         run: |
           aws ecr get-login-password --region ap-southeast-1 | \
             docker login --username AWS --password-stdin ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.ap-southeast-1.amazonaws.com
@@ -495,7 +633,7 @@ jobs:
           SKIP_ECR_LOGIN: "true"
           GH_TOKEN: ${{ github.token }}
         run: |
-          ARGS="--apps ${{ inputs.apps }} --regions ${{ inputs.regions }}"
+          ARGS="--apps ${{ inputs.apps }} --regions ${{ steps.regions.outputs.regions }}"
 
           if [[ "${{ inputs.parallel }}" == "true" ]]; then
             ARGS="$ARGS --parallel"
@@ -545,7 +683,11 @@ jobs:
           echo "## Build+Pub Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Apps:** ${{ inputs.apps }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Regions:** ${{ inputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Regions:** ${{ steps.regions.outputs.regions }}" >> $GITHUB_STEP_SUMMARY
+          SKIPPED="${{ steps.regions.outputs.skipped }}"
+          if [[ "$SKIPPED" != "none" ]]; then
+            echo "**Skipped:** $SKIPPED (no ECR repos)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "**Runner:** Existing EC2 (reused)" >> $GITHUB_STEP_SUMMARY
           echo "**Parallel:** ${{ inputs.parallel }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
