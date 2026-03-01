@@ -10,6 +10,10 @@ import {
 } from "@/lib/meshtastic";
 import type { MeshDevice } from "@meshtastic/core";
 
+const basePath = process.env.NEXT_PUBLIC_REGION_SHORT
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
+  : "";
+
 interface UseConfigureReturn {
   /** Current config push progress */
   progress: ConfigProgress;
@@ -85,8 +89,8 @@ export function useConfigure(): UseConfigureReturn {
         }));
 
         // Stage 3: Fetch config from /api/config
-        console.log("[configure] Fetching config from /api/config...");
-        const response = await fetch("/api/config");
+        console.log(`[configure] Fetching config from ${basePath}/api/config...`);
+        const response = await fetch(`${basePath}/api/config`);
         if (!response.ok) {
           const err = await response
             .json()
