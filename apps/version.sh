@@ -18,7 +18,7 @@ APP="${2}"
 if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   echo "Usage: ./version.sh <component> <app>"
   echo "  component: nginx | webapp | app"
-  echo "  app: run.auth | run.human | run.cms | run.gpx"
+  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash"
   exit 1
 fi
 
@@ -27,8 +27,8 @@ if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "ap
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', or 'run.gpx'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', or 'run.flash'"
   exit 1
 fi
 

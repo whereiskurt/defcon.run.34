@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-03-01T00:30:18.751Z"
+status: in-progress
+last_updated: "2026-03-01T03:37:26Z"
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
 ---
 
 # Project State
@@ -22,18 +22,18 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 ## Current Position
 
-Phase: 3 of 4 (Config Engine Server API) -- COMPLETE
-Plan: 3 of 3 in current phase (all complete)
-Status: Phase 3 Complete, Phase 4 Not Started
-Last activity: 2026-03-01 -- Completed 03-03 (Configure + Done UI)
+Phase: 4 of 4 (Deployment + Firmware Vendoring)
+Plan: 1 of 2 in current phase (1 complete)
+Status: Phase 4 In Progress
+Last activity: 2026-03-01 -- Completed 04-01 (Containerize Flash App)
 
-Progress: [########░░] 86%
+Progress: [#########░] 89%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 4.8min
+- Total plans completed: 7
+- Average duration: 4.4min
 - Total execution time: 0.5 hours
 
 **By Phase:**
@@ -43,9 +43,10 @@ Progress: [########░░] 86%
 | 01-app-scaffold-device-picker | 2 | 11min | 5.5min |
 | 02-flash-engine | 1 | 5min | 5min |
 | 03-config-engine-server-api | 3 | 12min | 4min |
+| 04-deployment-firmware-vendoring | 1 | 2min | 2min |
 
 **Recent Trend:**
-- Last 5 plans: 5min, 5min, 2min, 5min, 5min
+- Last 5 plans: 5min, 2min, 5min, 5min, 2min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -81,6 +82,9 @@ Recent decisions affecting current work:
 - [03-03]: skipRebootDelay prop for ?step=configure URL jump flow where device is already running
 - [03-03]: No secrets shown on DoneStep -- MQTT password and PSK omitted from config summary display
 - [03-03]: Null configPayload handled gracefully with generic success message on DoneStep
+- [04-01]: FIRMWARE_BASE_PATH uses NEXT_PUBLIC_ASSET_PREFIX for production S3 paths, /firmware for dev
+- [04-01]: Exact copy of nginx sidecar from run.human -- identical two-container TLS termination pattern
+- [04-01]: Region router title updated to DCR34 Flash Tool, region.html URLs point to flash.defcon.run
 
 ### Pending Todos
 
@@ -100,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-28
-Stopped at: Completed 03-03-PLAN.md (Configure + Done UI) -- Phase 3 complete
+Last session: 2026-03-01
+Stopped at: Completed 04-01-PLAN.md (Containerize Flash App)
 Resume file: None

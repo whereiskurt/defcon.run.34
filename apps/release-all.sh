@@ -28,7 +28,7 @@
 set -e
 
 # Default configuration
-APPS="run.auth,run.human,run.cms,run.gpx"
+APPS="run.auth,run.human,run.cms,run.gpx,run.flash"
 REGIONS="use1,cac1,apse1"
 SKIP_BUMP=false
 SKIP_BUILD=false
@@ -128,6 +128,7 @@ get_cf_domain() {
     run.human) echo "run.defcon.run" ;;
     run.cms) echo "cms.defcon.run" ;;
     run.gpx) echo "gpx.defcon.run" ;;
+    run.flash) echo "flash.defcon.run" ;;
     *) echo "" ;;
   esac
 }
@@ -138,6 +139,7 @@ get_tf_service() {
     run.human) echo "run.human" ;;
     run.cms) echo "run.cms" ;;
     run.gpx) echo "run.gpx" ;;
+    run.flash) echo "run.flash" ;;
     *) echo "" ;;
   esac
 }
@@ -146,6 +148,7 @@ get_tf_service() {
 has_nginx() {
   case "$1" in
     run.gpx) echo "false" ;;
+    run.flash) echo "true" ;;
     *) echo "true" ;;
   esac
 }
@@ -154,6 +157,7 @@ has_nginx() {
 get_app_component() {
   case "$1" in
     run.cms) echo "app" ;;
+    run.flash) echo "webapp" ;;
     *) echo "webapp" ;;
   esac
 }
@@ -162,8 +166,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Validate apps
 for APP in "${APP_LIST[@]}"; do
-  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" ]]; then
-    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', or 'run.gpx'"
+  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" ]]; then
+    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', or 'run.flash'"
     exit 1
   fi
 done

@@ -125,6 +125,7 @@ const clients: ClientMetadata[] = [
       `https://flash.${siteDomain}/api/auth/callback/run.${siteDomain}`,
       `https://flash.${siteDomain}/use1/api/auth/callback/run.${siteDomain}`,
       `https://flash.${siteDomain}/cac1/api/auth/callback/run.${siteDomain}`,
+      `https://flash.${siteDomain}/apse1/api/auth/callback/run.${siteDomain}`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
         `http://localhost:${LOCAL_FLASH_PORT}/api/auth/callback/run.${siteDomain}`,
@@ -134,6 +135,7 @@ const clients: ClientMetadata[] = [
       // Production - both regions
       `https://flash.${siteDomain}/use1`,
       `https://flash.${siteDomain}/cac1`,
+      `https://flash.${siteDomain}/apse1`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
         `http://localhost:${LOCAL_FLASH_PORT}`,
