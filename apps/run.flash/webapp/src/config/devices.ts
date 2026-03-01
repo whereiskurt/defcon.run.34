@@ -32,9 +32,13 @@ export function isRecommended(device: DeviceHardware): boolean {
   return RECOMMENDED_SLUGS.has(device.hwModelSlug);
 }
 
+const basePath = process.env.NEXT_PUBLIC_REGION_SHORT
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
+  : "";
+
 export function getDeviceImagePath(device: DeviceHardware): string {
   const image = device.images?.[0];
-  return image ? `/img/devices/${image}` : "/img/devices/unknown.svg";
+  return image ? `${basePath}/img/devices/${image}` : `${basePath}/img/devices/unknown.svg`;
 }
 
 export function getManufacturer(device: DeviceHardware): string {
