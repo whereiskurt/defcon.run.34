@@ -25,6 +25,7 @@ dependency "ecs_task" {
       "run-cms-master" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-master-apse1-example-site:1"
       "run-cms-worker" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-worker-apse1-example-site:1"
       "run-gpx"        = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-gpx-apse1-example-site:1"
+      "run-flash"      = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-flash-apse1-example-site:1"
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
