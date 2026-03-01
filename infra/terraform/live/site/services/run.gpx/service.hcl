@@ -85,7 +85,7 @@ locals {
           {
             # Auth service URL for internal API calls (via service discovery)
             name  = "AUTH_SERVICE_URL"
-            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
           },
           # URL configuration for cross-service communication
           {
@@ -99,7 +99,7 @@ locals {
           {
             # Internal auth URL via service discovery (container-to-container)
             name  = "AUTH_INTERNAL_URL"
-            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
           },
           {
             name  = "RUN_PUBLIC_URL"
