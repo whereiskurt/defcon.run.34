@@ -18,6 +18,7 @@ Containerize the flash app (apps/run.flash/webapp/) and deploy to production at 
 - Download ALL ESP32 firmware variants (~60 bins from firmware-esp32*.zip archives), not just hardware-list devices — covers any device someone brings to the booth
 - Firmware version: firmware.ts `FIRMWARE_VERSION` is the single source of truth, with `--build-arg FIRMWARE_VERSION=X.Y.Z` override for testing new versions before committing
 - Existing `scripts/download-firmware.sh` pattern should be adapted for the Dockerfile RUN stage (curl + unzip from GitHub releases)
+- **Firmware binaries served from S3 static asset bucket** — same pattern as `_next/static/*` in other apps. CloudFront serves them as public static assets. NOT from inside the app container.
 
 ### Region deployment scope
 - Deploy to all 3 regions: us-east-1, ca-central-1, ap-southeast-1 (matching other DCR34 services)
@@ -32,7 +33,7 @@ Containerize the flash app (apps/run.flash/webapp/) and deploy to production at 
 - Standard CloudFront distribution matching existing apps
 
 ### Claude's Discretion
-- Firmware binary serving path (public/firmware/ in app container vs. nginx-served — pick what fits the existing two-container pattern best)
+- Firmware binary upload to S3 bucket — how binaries get from Docker build stage into the S3 static asset bucket (build script upload, or separate sync step)
 - ECS task sizing (CPU/memory) — pick appropriate for a lightweight Next.js app serving static firmware + a few API routes
 - Autoscaling vs. fixed task count — booth tool with limited concurrent users
 - DynamoDB access pattern — reuse run-human-electro table (flash only reads RunUser) or own table
@@ -40,7 +41,7 @@ Containerize the flash app (apps/run.flash/webapp/) and deploy to production at 
 - Session cookie name — follow sess_{app} convention
 - CloudFront caching for firmware binaries — firmware filenames include version so immutable caching is safe
 - WAF protection — follow existing pattern
-- S3 static asset bucket for _next/static/* — follow existing pattern or skip based on what CloudFront module expects
+- S3 bucket layout — whether firmware goes alongside `_next/static/*` or in a separate `/firmware/` prefix
 
 </decisions>
 
@@ -49,7 +50,7 @@ Containerize the flash app (apps/run.flash/webapp/) and deploy to production at 
 
 - The existing `scripts/download-firmware.sh` already handles downloading from GitHub releases, extracting bins, and filtering out -update.bin variants — reuse this logic in the Dockerfile
 - `firmware.ts` already comments "baked into the Docker image in Phase 4" — the code is ready for this
-- `loadFirmware()` fetches from `/firmware/{file}.bin` — whatever path is chosen must match this
+- `loadFirmware()` fetches from `/firmware/{file}.bin` — S3 bucket + CloudFront must serve firmware at this path
 - `build.sh` and `release-all.sh` already exist and handle multi-region ECR push — flash just needs to be added as a valid app target
 - `service.hcl` for run.human is the closest template to copy from — similar Next.js app, same auth pattern, same container structure
 
