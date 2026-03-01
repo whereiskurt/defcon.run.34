@@ -8,8 +8,13 @@ import type { DeviceHardware } from "@/types/device";
  */
 export const FIRMWARE_VERSION = "2.6.11.60ec05e";
 
-/** Base path for firmware binaries served by the app */
-export const FIRMWARE_BASE_PATH = "/firmware";
+/** Base path for firmware binaries.
+ * In production, firmware is served from S3 via CloudFront using the asset prefix.
+ * In development, served locally from public/firmware/.
+ */
+export const FIRMWARE_BASE_PATH = process.env.NEXT_PUBLIC_ASSET_PREFIX
+  ? `${process.env.NEXT_PUBLIC_ASSET_PREFIX}/firmware`
+  : "/firmware";
 
 /**
  * Construct the firmware binary filename for a device.
