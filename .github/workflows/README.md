@@ -125,7 +125,7 @@ Automated build and publish pipeline that builds Docker images, pushes to ECR, s
 
 | Input | Description | Default |
 |-------|-------------|---------|
-| `apps` | Comma-separated app list | `run.auth,run.human,run.cms,run.gpx` |
+| `apps` | Comma-separated app list | `run.auth,run.human,run.cms,run.gpx,run.flash` |
 | `regions` | Target regions | `use1` |
 | `runner` | Runner type (see below) | `github-hosted` |
 | `ec2_instance_type` | EC2 instance type | `c6i.4xlarge` |

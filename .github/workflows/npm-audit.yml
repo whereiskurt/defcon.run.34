@@ -25,6 +25,7 @@ jobs:
         app:
           - run.auth/webapp
           - run.cms/app
+          - run.flash/webapp
           - run.gpx/webapp
           - run.human/webapp
 
@@ -150,7 +151,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: npm-audit-${{ matrix.app == 'run.auth/webapp' && 'run-auth' || matrix.app == 'run.cms/app' && 'run-cms' || matrix.app == 'run.gpx/webapp' && 'run-gpx' || 'run-human' }}
+          name: npm-audit-${{ matrix.app == 'run.auth/webapp' && 'run-auth' || matrix.app == 'run.cms/app' && 'run-cms' || matrix.app == 'run.flash/webapp' && 'run-flash' || matrix.app == 'run.gpx/webapp' && 'run-gpx' || 'run-human' }}
           path: apps/${{ matrix.app }}/audit-report.json
           retention-days: 14
 

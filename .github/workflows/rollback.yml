@@ -28,6 +28,7 @@ on:
           - run.human
           - run.cms
           - run.gpx
+          - run.flash
         default: run.auth
       target_version:
         description: 'Version to rollback to (run "list" first to see options)'
@@ -73,6 +74,7 @@ jobs:
             ["run.human"]="dc34-run-human-app"
             ["run.cms"]="dc34-run-cms-app"
             ["run.gpx"]="dc34-run-gpx-app"
+            ["run.flash"]="dc34-run-flash-app"
           )
 
           # Service name mapping
@@ -81,9 +83,10 @@ jobs:
             ["run.human"]="run-human"
             ["run.cms"]="run-cms"
             ["run.gpx"]="run-gpx"
+            ["run.flash"]="run-flash"
           )
 
-          for APP in "run.auth" "run.human" "run.cms" "run.gpx"; do
+          for APP in "run.auth" "run.human" "run.cms" "run.gpx" "run.flash"; do
             REPO="${REPOS[$APP]}"
             SERVICE="${SERVICES[$APP]}"
 
@@ -184,6 +187,7 @@ jobs:
             run.human) REPO="dc34-run-human-app" ;;
             run.cms)   REPO="dc34-run-cms-app" ;;
             run.gpx)   REPO="dc34-run-gpx-app" ;;
+            run.flash) REPO="dc34-run-flash-app" ;;
           esac
 
           echo "repo=$REPO" >> $GITHUB_OUTPUT
@@ -275,6 +279,7 @@ jobs:
             run.human) DOMAIN="run.defcon.run" ;;
             run.cms)   DOMAIN="cms.defcon.run" ;;
             run.gpx)   DOMAIN="gpx.defcon.run" ;;
+            run.flash) DOMAIN="flash.defcon.run" ;;
           esac
 
           DISTRIBUTION_ID=$(aws cloudfront list-distributions \
