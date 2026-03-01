@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-last_updated: "2026-03-01T00:19:25.579Z"
+status: in-progress
+last_updated: "2026-03-01T00:25:40Z"
 progress:
-  total_phases: 3
-  completed_phases: 2
+  total_phases: 4
+  completed_phases: 3
   total_plans: 7
   completed_plans: 6
 ---
@@ -18,23 +18,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-28)
 
 **Core value:** A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in a single browser session, with zero manual configuration steps.
-**Current focus:** Phase 3: Config Engine Server API
+**Current focus:** Phase 4: Deployment + Firmware Vendoring
 
 ## Current Position
 
-Phase: 3 of 4 (Config Engine Server API)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-03-01 - Completed quick task 1: Wizard panel consistency: uniform image/button layout + animated CTA button
+Phase: 3 of 4 (Config Engine Server API) -- COMPLETE
+Plan: 3 of 3 in current phase (all complete)
+Status: Phase 3 Complete, Phase 4 Not Started
+Last activity: 2026-03-01 -- Completed 03-03 (Configure + Done UI)
 
-Progress: [#######░░░] 57%
+Progress: [########░░] 86%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
+- Total plans completed: 6
 - Average duration: 4.8min
-- Total execution time: 0.4 hours
+- Total execution time: 0.5 hours
 
 **By Phase:**
 
@@ -42,10 +42,10 @@ Progress: [#######░░░] 57%
 |-------|-------|-------|----------|
 | 01-app-scaffold-device-picker | 2 | 11min | 5.5min |
 | 02-flash-engine | 1 | 5min | 5min |
-| 03-config-engine-server-api | 2 | 7min | 3.5min |
+| 03-config-engine-server-api | 3 | 12min | 4min |
 
 **Recent Trend:**
-- Last 5 plans: 6min, 5min, 5min, 2min, 5min
+- Last 5 plans: 5min, 5min, 2min, 5min, 5min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -77,6 +77,10 @@ Recent decisions affecting current work:
 - [03-02]: TransportWebSerial.createFromPort() for port reuse after flash -- no user gesture needed
 - [03-02]: configure() handshake verified via onDeviceStatus event subscription for DeviceConfigured
 - [Phase quick]: Wizard CTA buttons moved below glass-card panels for consistent bottom-center positioning across all steps
+- [03-03]: Data-driven DISPLAY_STAGES array for config pipeline -- more maintainable than hardcoded switch/case
+- [03-03]: skipRebootDelay prop for ?step=configure URL jump flow where device is already running
+- [03-03]: No secrets shown on DoneStep -- MQTT password and PSK omitted from config summary display
+- [03-03]: Null configPayload handled gracefully with generic success message on DoneStep
 
 ### Pending Todos
 
@@ -97,5 +101,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-28
-Stopped at: Completed 03-02-PLAN.md (Config Engine Client)
+Stopped at: Completed 03-03-PLAN.md (Configure + Done UI) -- Phase 3 complete
 Resume file: None

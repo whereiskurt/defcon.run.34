@@ -42,7 +42,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **CONF-04**: App pushes identity config to device: long name and short name from authenticated user's DCR34 profile
 - [x] **CONF-05**: App pushes radio config to device: LoRa region (US), modem preset, hop limit
 - [x] **CONF-06**: Configuration push uses transactional edit (beginEditSettings / commitEditSettings) for atomic apply
-- [ ] **CONF-07**: Configuration progress is displayed with per-step status
+- [x] **CONF-07**: Configuration progress is displayed with per-step status
 
 ### Server-Side Config
 
@@ -55,7 +55,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **WZRD-01**: Step-by-step wizard: Pick Device → Connect → Flash → Configure → Done
 - [x] **WZRD-02**: Each step validates completion before allowing progression to next step
 - [x] **WZRD-03**: Progress breadcrumb shows current position in the flow
-- [ ] **WZRD-04**: Done screen shows success confirmation with device identity and next steps
+- [x] **WZRD-04**: Done screen shows success confirmation with device identity and next steps
 
 ### Deployment
 
@@ -123,11 +123,11 @@ Deferred to future release. Tracked but not in current roadmap.
 | CONF-04 | Phase 3 | Complete |
 | CONF-05 | Phase 3 | Complete |
 | CONF-06 | Phase 3 | Complete |
-| CONF-07 | Phase 3 | Pending |
+| CONF-07 | Phase 3 | Complete |
 | SRVR-01 | Phase 3 | Complete |
 | SRVR-02 | Phase 3 | Complete |
 | SRVR-03 | Phase 3 | Complete |
-| WZRD-04 | Phase 3 | Pending |
+| WZRD-04 | Phase 3 | Complete |
 | DPLY-01 | Phase 4 | Pending |
 | DPLY-02 | Phase 4 | Pending |
 | DPLY-03 | Phase 4 | Pending |
