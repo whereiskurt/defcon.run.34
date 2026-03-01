@@ -29,7 +29,18 @@ interface DisplayStage {
   completeStages: ConfigStage[];
 }
 
+/** Display stages in push order: Radio first (region needed on fresh flash),
+ *  then MQTT, Channels, Identity. Committing is grouped with Identity. */
 const DISPLAY_STAGES: DisplayStage[] = [
+  {
+    key: "radio",
+    icon: Signal,
+    label: "Radio",
+    activeLabel: "Configuring radio...",
+    completeLabel: (s) => `Radio: ${s.radio ?? "configured"}`,
+    activeStages: ["radio"],
+    completeStages: ["radio"],
+  },
   {
     key: "mqtt",
     icon: Radio,
@@ -54,17 +65,8 @@ const DISPLAY_STAGES: DisplayStage[] = [
     label: "Identity",
     activeLabel: "Setting identity...",
     completeLabel: (s) => `Identity: ${s.identity ?? "configured"}`,
-    activeStages: ["identity"],
-    completeStages: ["identity"],
-  },
-  {
-    key: "radio",
-    icon: Signal,
-    label: "Radio",
-    activeLabel: "Configuring radio...",
-    completeLabel: (s) => `Radio: ${s.radio ?? "configured"}`,
-    activeStages: ["radio", "committing"],
-    completeStages: ["radio", "committing"],
+    activeStages: ["identity", "committing"],
+    completeStages: ["identity", "committing"],
   },
 ];
 
@@ -102,7 +104,7 @@ function StageIcon({ status }: { status: StageStatus }) {
   if (status === "complete")
     return <CheckCircle2 className="w-5 h-5 text-teal-400" />;
   if (status === "error") return <XCircle className="w-5 h-5 text-danger" />;
-  if (status === "active") return <Spinner size="sm" color="primary" />;
+  if (status === "active") return <Spinner size="sm" classNames={{ circle1: "border-b-teal-400", circle2: "border-b-teal-400" }} />;
   return <Circle className="w-5 h-5 text-default-600" />;
 }
 
@@ -136,7 +138,7 @@ function PipelineStage({
           className={clsx(
             "w-5 h-5",
             status === "complete" && "text-teal-400",
-            status === "active" && "text-primary",
+            status === "active" && "text-teal-400",
             status === "error" && "text-danger",
             status === "pending" && "text-default-600"
           )}
@@ -149,7 +151,7 @@ function PipelineStage({
           className={clsx(
             "text-sm font-mono inline-flex items-center gap-2",
             status === "complete" && "text-teal-400",
-            status === "active" && "text-primary",
+            status === "active" && "text-teal-400",
             status === "error" && "text-danger",
             status === "pending" && "text-default-600"
           )}

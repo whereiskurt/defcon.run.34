@@ -30,7 +30,7 @@ interface UseConfigureReturn {
    *
    * @param disconnectTransport - Function to disconnect the esptool transport (from useSerial)
    */
-  configure: (disconnectTransport: () => Promise<void>, options?: { skipRebootDelay?: boolean }) => Promise<void>;
+  configure: (disconnectTransport: () => Promise<void>) => Promise<void>;
   /** Reset config state to idle (for retry) */
   reset: () => void;
 }
@@ -54,7 +54,7 @@ export function useConfigure(): UseConfigureReturn {
   const deviceRef = useRef<MeshDevice | null>(null);
 
   const configure = useCallback(
-    async (disconnectTransport: () => Promise<void>, options?: { skipRebootDelay?: boolean }) => {
+    async (disconnectTransport: () => Promise<void>) => {
       if (isConfiguringRef.current) return;
       isConfiguringRef.current = true;
 
@@ -69,8 +69,10 @@ export function useConfigure(): UseConfigureReturn {
 
         await disconnectTransport();
 
-        // Stage 2: Reconnect via @meshtastic/core (handles reboot delay + retry)
-        const device = await connectMeshtasticDevice({ skipRebootDelay: options?.skipRebootDelay });
+        // Stage 2: Reconnect via @meshtastic/core
+        // connectMeshtasticDevice() handles: close stale port, reboot delay,
+        // reopen for Meshtastic protocol, configure handshake with retry.
+        const device = await connectMeshtasticDevice();
         deviceRef.current = device;
 
         setProgress((prev) => ({

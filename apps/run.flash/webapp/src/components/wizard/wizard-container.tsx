@@ -103,7 +103,7 @@ export function WizardContainer() {
               configureState={configureState}
               disconnectTransport={serial.disconnect}
               onContinue={advance}
-              skipRebootDelay={!flashState.isComplete}
+
               onRetry={() => {
                 configureState.reset();
                 flashState.reset();

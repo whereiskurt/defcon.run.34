@@ -72,7 +72,9 @@ export function useSerial(): UseSerialReturn {
     setConsoleLogs((prev) => [...prev, { timestamp: Date.now(), text }]);
   }, []);
 
-  // Disconnect and clean up serial resources
+  // Disconnect esptool transport and release serial port.
+  // NOTE: Does NOT hard-reset the device — that's handled by
+  // connectMeshtasticDevice() which uses port.setSignals() directly.
   const disconnect = useCallback(async () => {
     try {
       if (transportRef.current) {

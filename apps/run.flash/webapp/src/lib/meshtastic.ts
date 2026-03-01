@@ -13,11 +13,13 @@ import { create } from "@bufbuild/protobuf";
 /** Default baud rate for Meshtastic serial communication */
 const MESHTASTIC_BAUDRATE = 115200;
 
-/** Timeout for individual config push calls (ms). Device may not ack. */
-const CONFIG_CALL_TIMEOUT_MS = 3000;
-
 /** Post-flash reboot delay in milliseconds */
 const REBOOT_DELAY_MS = 4000;
+
+/** Time to drain boot/debug text from serial buffer (ms).
+ * ESP32-S3 USB-JTAG sends boot messages + debug text on DTR assertion
+ * that contains 0x94 bytes which poison the library's framing parser. */
+const DRAIN_TIMEOUT_MS = 2000;
 
 /** Retry delay between connection attempts in milliseconds */
 const RETRY_DELAY_MS = 2000;
@@ -25,7 +27,7 @@ const RETRY_DELAY_MS = 2000;
 /** Maximum number of configure() retry attempts */
 const MAX_CONFIGURE_RETRIES = 3;
 
-/** Timeout for waiting for DeviceConfigured status (ms) — needs to be long enough
+/** Timeout for waiting for DeviceConfigured status (ms) -- needs to be long enough
  * for the device to finish dumping its entire config back to us */
 const CONFIGURE_TIMEOUT_MS = 60000;
 
@@ -38,20 +40,18 @@ const CONFIGURE_TIMEOUT_MS = 60000;
  * Includes retry logic for post-flash reboot delay:
  * - 4 second initial delay for device boot
  * - Retry configure() up to 3 times with 2s delay between attempts
- * - 15 second timeout waiting for DeviceConfigured status
+ * - 60 second timeout per attempt waiting for DeviceConfigured status
+ *
+ * IMPORTANT: The device MUST reach DeviceConfigured status (7) before
+ * admin commands (setConfig, setModuleConfig, etc.) will be accepted.
+ * The configure handshake populates myNodeInfo which is required for
+ * proper packet addressing.
  *
  * @returns Connected and configured MeshDevice instance
  * @throws Error if connection times out or no port available
  */
-export async function connectMeshtasticDevice(
-  options?: { skipRebootDelay?: boolean }
-): Promise<MeshDevice> {
-  // Step 1: Wait for device to reboot after flash (skip if device is already running)
-  if (!options?.skipRebootDelay) {
-    await new Promise((resolve) => setTimeout(resolve, REBOOT_DELAY_MS));
-  }
-
-  // Step 2: Get the previously-granted serial port
+export async function connectMeshtasticDevice(): Promise<MeshDevice> {
+  // Step 1: Get the previously-granted serial port
   const ports = await navigator.serial.getPorts();
   if (ports.length === 0) {
     throw new Error(
@@ -60,62 +60,110 @@ export async function connectMeshtasticDevice(
   }
   const port = ports[0];
 
-  // Step 3: Create TransportWebSerial from existing port
+  // Step 2: Hard-reset the device out of bootloader mode.
+  // The Connect step uses ESPLoader.main() which puts the device into ROM
+  // bootloader mode. esptool's disconnect() already closed the port, so
+  // we must reopen it briefly to toggle DTR/RTS and trigger a hardware
+  // reset via the auto-reset circuitry.
+  console.log("[meshtastic] Resetting device out of bootloader mode...");
+  try {
+    // Open the port if not already open (esptool closed it)
+    if (!port.readable || !port.writable) {
+      await port.open({ baudRate: MESHTASTIC_BAUDRATE });
+    }
+    // Reset-to-application sequence:
+    // RTS=true pulls EN LOW (reset), DTR=false keeps GPIO0 HIGH (no bootloader)
+    await port.setSignals({ dataTerminalReady: false, requestToSend: true });
+    await new Promise((r) => setTimeout(r, 100));
+    // Release EN — device boots into application firmware
+    await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+    await new Promise((r) => setTimeout(r, 50));
+    console.log("[meshtastic] DTR/RTS reset sequence sent");
+    // Close the port so we can reopen cleanly for Meshtastic
+    await port.close();
+  } catch (err) {
+    console.warn("[meshtastic] Reset via setSignals failed:", err);
+    // If port is still open, close it
+    try { if (port.readable || port.writable) await port.close(); } catch { /* ignore */ }
+  }
+
+  // Step 3: Wait for the device to boot Meshtastic firmware.
+  console.log(`[meshtastic] Waiting ${REBOOT_DELAY_MS}ms for device to boot firmware...`);
+  await new Promise((resolve) => setTimeout(resolve, REBOOT_DELAY_MS));
+
+  // Step 4: Drain boot/debug text from serial buffer.
+  // ESP32-S3 USB-JTAG sends a burst of boot messages and debug text when
+  // DTR is asserted. This text contains 0x94 bytes (from ASCII like
+  // "ESP-ROM:esp32s3...") that poison @meshtastic/core's fromDeviceStream
+  // parser — it finds the false 0x94, checks if the next byte is 0xC3,
+  // it's not, and the parser stops processing forever (never recovers
+  // from a false framing byte match). We must drain this text before
+  // creating the MeshDevice.
+  console.log("[meshtastic] Draining boot/debug text from serial buffer...");
+  await port.open({ baudRate: MESHTASTIC_BAUDRATE });
+  await port.setSignals({ dataTerminalReady: true });
+
+  const reader = port.readable!.getReader();
+  let drainedBytes = 0;
+  const drainTimeout = setTimeout(() => reader.cancel(), DRAIN_TIMEOUT_MS);
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value) drainedBytes += value.length;
+    }
+  } catch {
+    // reader.cancel() fires an error, expected
+  } finally {
+    clearTimeout(drainTimeout);
+    reader.releaseLock();
+  }
+  console.log(`[meshtastic] Drained ${drainedBytes} bytes of boot text`);
+  await port.close();
+
+  // Step 5: Reopen the port cleanly for Meshtastic protocol.
+  // The serial buffer is now clear of boot text — the library's
+  // fromDeviceStream parser won't hit false 0x94 framing bytes.
   const transport = await TransportWebSerial.createFromPort(
     port,
     MESHTASTIC_BAUDRATE
   );
+  await port.setSignals({ dataTerminalReady: true });
 
-  // Step 4: Create MeshDevice with transport
+  // Step 6: Create MeshDevice with transport
   const device = new MeshDevice(transport);
 
-  // Step 5: Attempt configure handshake, but don't block on DeviceConfigured.
-  // The device is connected (transport is open, packets flow). The configure()
-  // handshake requests the device's current config dump, but DeviceConfigured
-  // status may never fire with some firmware/library version combinations.
-  // We try configure() and give it a short window, then proceed regardless.
-  try {
-    console.log("[meshtastic] Starting configure handshake...");
-    device.configure().catch(() => {});
+  // Step 7: Wait for transport to reach DeviceConnected.
+  // TransportWebSerial.createFromPort() returns immediately -- the transport's
+  // internal ReadableStream start() callback connects asynchronously. If we
+  // call configure() before DeviceConnected fires, the wantConfigId packet
+  // is queued into sendRaw() before the serial writable stream is ready and
+  // gets silently lost. The device never receives it, so configCompleteId
+  // never comes back.
+  await waitForDeviceConnected(device);
 
-    // Wait up to 10 seconds for DeviceConfigured, but don't fail if it doesn't come
-    await new Promise<void>((resolve) => {
-      let resolved = false;
-      const timeout = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          console.log("[meshtastic] DeviceConfigured not received — proceeding with config push anyway");
-          resolve();
-        }
-      }, 10000);
+  // Step 6: Run configure handshake with retry logic.
+  // configure() sends wantConfigId to the device, which triggers a full config
+  // dump. The device sends configCompleteId when done, which fires
+  // DeviceConfigured status. We MUST wait for this before sending admin
+  // commands -- the config dump populates myNodeInfo.myNodeNum which is
+  // required for proper packet addressing (sendPacket uses it for "self").
+  await configureWithRetry(device);
 
-      device.events.onDeviceStatus.subscribe((status: number) => {
-        const statusName = Object.entries(Types.DeviceStatusEnum)
-          .find(([, v]) => v === status)?.[0] || "unknown";
-        console.log(`[meshtastic] DeviceStatus: ${status} (${statusName})`);
-        if (status === Types.DeviceStatusEnum.DeviceConfigured && !resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          console.log("[meshtastic] DeviceConfigured received");
-          resolve();
-        }
-      });
-    });
-  } catch (err) {
-    console.warn("[meshtastic] Configure handshake error (non-fatal):", err);
-  }
-
-  console.log("[meshtastic] Device ready for config push");
   return device;
 }
 
 /**
  * Push complete device configuration.
- * Uses transactional edit: setConfig auto-calls beginEditSettings,
- * commitEditSettings finalizes all changes atomically.
+ *
+ * Each admin call is awaited directly -- the @meshtastic/core library handles
+ * the internal sequencing (setConfig auto-calls beginEditSettings, packets are
+ * queued and sent in order, ACKs are awaited). Wrapping these in artificial
+ * timeouts would race past the library's internal await chains, scrambling
+ * the packet order and causing config to not be applied.
  *
  * Order: Radio (region FIRST) -> MQTT -> Channels -> Identity -> Commit
- * Region must be set first on a freshly flashed device — the firmware
+ * Region must be set first on a freshly flashed device -- the firmware
  * won't fully initialize without a valid region.
  *
  * @param device - Connected MeshDevice from connectMeshtasticDevice()
@@ -127,8 +175,9 @@ export async function pushDeviceConfig(
   config: DeviceConfigPayload,
   onStageComplete: (stage: string, summary: string) => void
 ): Promise<void> {
-  // 1. Radio Config FIRST — freshly flashed devices need region set before
+  // 1. Radio Config FIRST -- freshly flashed devices need region set before
   // the firmware fully initializes. Without a region, other config may be ignored.
+  // NOTE: setConfig() auto-calls beginEditSettings() if not already pending.
   console.log("[meshtastic] Pushing radio config (region first)...");
   const regionCode = mapRegionCode(config.radio.region);
   const modemPreset = mapModemPreset(config.radio.modemPreset);
@@ -145,7 +194,8 @@ export async function pushDeviceConfig(
       }),
     },
   });
-  await withTimeout(device.setConfig(loraConfig), "Radio setConfig");
+  await device.setConfig(loraConfig);
+  console.log("[meshtastic] Radio config applied");
   onStageComplete("radio", `${config.radio.region} / ${config.radio.modemPreset}`);
 
   // 2. MQTT Config (ModuleConfig)
@@ -160,13 +210,14 @@ export async function pushDeviceConfig(
         password: config.mqtt.password,
         tlsEnabled: config.mqtt.tls,
         root: config.mqtt.root,
-        encryptionEnabled: false,
+        encryptionEnabled: true,
         jsonEnabled: false,
         proxyToClientEnabled: false,
       }),
     },
   });
-  await withTimeout(device.setModuleConfig(mqttConfig), "MQTT setModuleConfig");
+  await device.setModuleConfig(mqttConfig);
+  console.log("[meshtastic] MQTT config applied");
   onStageComplete("mqtt", config.mqtt.server);
 
   // 3. Channel Config
@@ -188,7 +239,8 @@ export async function pushDeviceConfig(
         psk: pskBytes,
       }),
     });
-    await withTimeout(device.setChannel(channel), `Channel ${i} setChannel`);
+    await device.setChannel(channel);
+    console.log(`[meshtastic] Channel ${i} (${ch.name}) applied`);
   }
   onStageComplete("channels", `${config.channels.length} channels`);
 
@@ -198,12 +250,14 @@ export async function pushDeviceConfig(
     longName: config.identity.longName,
     shortName: config.identity.shortName.slice(0, 4).toUpperCase(),
   });
-  await withTimeout(device.setOwner(owner), "Identity setOwner");
+  await device.setOwner(owner);
+  console.log("[meshtastic] Identity applied");
   onStageComplete("identity", config.identity.longName);
 
   // 5. Commit all changes atomically
   console.log("[meshtastic] Committing settings...");
-  await withTimeout(device.commitEditSettings(), "commitEditSettings");
+  await device.commitEditSettings();
+  console.log("[meshtastic] Settings committed");
   onStageComplete("committing", "Settings saved");
 }
 
@@ -230,24 +284,34 @@ export async function disconnectMeshtasticDevice(
  * Configure device with retry logic.
  * Calls device.configure() and waits for DeviceConfigured status.
  * Retries up to MAX_CONFIGURE_RETRIES times if configure times out.
+ *
+ * The configure handshake is critical -- it:
+ * 1. Sends wantConfigId to the device
+ * 2. Device dumps its full current config (myInfo, nodeInfo, config, channels, etc.)
+ * 3. Device sends configCompleteId when done
+ * 4. Library fires DeviceConfigured status
+ *
+ * After this, myNodeInfo.myNodeNum is populated, which is required for
+ * admin commands (sendPacket addresses packets to "self" using this number).
  */
 async function configureWithRetry(device: MeshDevice): Promise<void> {
   for (let attempt = 1; attempt <= MAX_CONFIGURE_RETRIES; attempt++) {
     try {
       console.log(`[meshtastic] configure() attempt ${attempt}/${MAX_CONFIGURE_RETRIES}`);
 
-      // configure() initiates the handshake (sends wantConfigId) but may NOT
-      // return a promise that resolves on completion. Fire it and listen for
-      // status events to know when the device is ready.
+      // Set up the status listener BEFORE calling configure() to avoid
+      // any race where DeviceConfigured fires before we're listening.
       const configurePromise = waitForDeviceReady(device);
 
-      // Fire configure — don't await it directly since it may never resolve
+      // Fire configure -- don't await it directly since the promise resolves
+      // on queue ACK (or 60s queue timeout), not on DeviceConfigured.
+      // We listen for the DeviceConfigured status event instead.
       device.configure().catch((err: unknown) => {
         console.warn("[meshtastic] configure() rejected:", err);
       });
 
       await configurePromise;
-      console.log("[meshtastic] Device ready for config push");
+      console.log("[meshtastic] Device configured and ready for config push");
       return;
     } catch (err) {
       console.error(`[meshtastic] configure() attempt ${attempt} failed:`, err);
@@ -263,10 +327,10 @@ async function configureWithRetry(device: MeshDevice): Promise<void> {
 }
 
 /**
- * Wait for the device to be ready for config push.
- * Listens for ANY device status event after configure() is called.
- * Resolves when DeviceConfigured fires, or after seeing enough status
- * activity + a settle delay (some library versions don't emit DeviceConfigured).
+ * Wait for the device to reach DeviceConfigured status.
+ * Listens for onDeviceStatus events after configure() is called.
+ * Resolves when DeviceConfigured fires.
+ * Rejects after CONFIGURE_TIMEOUT_MS if DeviceConfigured is never received.
  */
 function waitForDeviceReady(device: MeshDevice): Promise<void> {
   return new Promise<void>((resolve, reject) => {
@@ -289,7 +353,7 @@ function waitForDeviceReady(device: MeshDevice): Promise<void> {
       const statusName = Object.entries(Types.DeviceStatusEnum)
         .find(([, v]) => v === status)?.[0] || "unknown";
       console.log(
-        `[meshtastic] DeviceStatus #${statusCount}: ${status} (${statusName}) — waiting for ${Types.DeviceStatusEnum.DeviceConfigured} (DeviceConfigured)`
+        `[meshtastic] DeviceStatus #${statusCount}: ${status} (${statusName}) -- waiting for ${Types.DeviceStatusEnum.DeviceConfigured} (DeviceConfigured)`
       );
 
       if (status === Types.DeviceStatusEnum.DeviceConfigured) {
@@ -297,9 +361,39 @@ function waitForDeviceReady(device: MeshDevice): Promise<void> {
           resolved = true;
           clearTimeout(timeout);
           unsub();
-          console.log("[meshtastic] DeviceConfigured received — device is ready for config push");
+          console.log("[meshtastic] DeviceConfigured received -- device is ready for config push");
           resolve();
         }
+      }
+    });
+  });
+}
+
+/**
+ * Wait for the transport to reach DeviceConnected status.
+ * TransportWebSerial connects asynchronously after construction --
+ * we must wait for it before sending any packets.
+ * Resolves immediately if device is already connected or configured.
+ */
+function waitForDeviceConnected(device: MeshDevice): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    let resolved = false;
+
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        unsub();
+        reject(new Error("Timed out waiting for transport to connect (10s)"));
+      }
+    }, 10000);
+
+    const unsub = device.events.onDeviceStatus.subscribe((status: number) => {
+      if (status >= Types.DeviceStatusEnum.DeviceConnected && !resolved) {
+        resolved = true;
+        clearTimeout(timeout);
+        unsub();
+        console.log("[meshtastic] Transport connected -- ready to configure");
+        resolve();
       }
     });
   });
@@ -400,26 +494,6 @@ function mapModemPreset(
     );
   }
   return value;
-}
-
-/**
- * Wrap a promise with a timeout. If the promise doesn't resolve within
- * CONFIG_CALL_TIMEOUT_MS, resolve anyway (the packet was sent — device
- * may not send an ack that the library recognizes).
- */
-function withTimeout<T>(promise: Promise<T>, label: string): Promise<T | void> {
-  return Promise.race([
-    promise.then((result) => {
-      console.log(`[meshtastic] ${label} resolved`);
-      return result;
-    }),
-    new Promise<void>((resolve) =>
-      setTimeout(() => {
-        console.warn(`[meshtastic] ${label} timed out after ${CONFIG_CALL_TIMEOUT_MS}ms — proceeding (packet was sent)`);
-        resolve();
-      }, CONFIG_CALL_TIMEOUT_MS)
-    ),
-  ]);
 }
 
 /**
