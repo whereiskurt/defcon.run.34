@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-last_updated: "2026-03-01T03:37:26Z"
+status: complete
+last_updated: "2026-03-01T03:39:32Z"
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -22,19 +22,19 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 ## Current Position
 
-Phase: 4 of 4 (Deployment + Firmware Vendoring)
-Plan: 1 of 2 in current phase (1 complete)
-Status: Phase 4 In Progress
-Last activity: 2026-03-01 -- Completed 04-01 (Containerize Flash App)
+Phase: 4 of 4 (Deployment + Firmware Vendoring) -- COMPLETE
+Plan: 2 of 2 in current phase (all complete)
+Status: All Phases Complete
+Last activity: 2026-03-01 -- Completed 04-02 (Infrastructure Registration)
 
-Progress: [#########░] 89%
+Progress: [##########] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 4.4min
-- Total execution time: 0.5 hours
+- Total plans completed: 8
+- Average duration: 4.3min
+- Total execution time: 0.6 hours
 
 **By Phase:**
 
@@ -43,10 +43,10 @@ Progress: [#########░] 89%
 | 01-app-scaffold-device-picker | 2 | 11min | 5.5min |
 | 02-flash-engine | 1 | 5min | 5min |
 | 03-config-engine-server-api | 3 | 12min | 4min |
-| 04-deployment-firmware-vendoring | 1 | 2min | 2min |
+| 04-deployment-firmware-vendoring | 2 | 6min | 3min |
 
 **Recent Trend:**
-- Last 5 plans: 5min, 2min, 5min, 5min, 2min
+- Last 5 plans: 2min, 5min, 5min, 2min, 4min
 - Trend: stable
 
 *Updated after each plan completion*
@@ -85,6 +85,9 @@ Recent decisions affecting current work:
 - [04-01]: FIRMWARE_BASE_PATH uses NEXT_PUBLIC_ASSET_PREFIX for production S3 paths, /firmware for dev
 - [04-01]: Exact copy of nginx sidecar from run.human -- identical two-container TLS termination pattern
 - [04-01]: Region router title updated to DCR34 Flash Tool, region.html URLs point to flash.defcon.run
+- [04-02]: Flash uses run-human-electro DynamoDB table (no own table) -- shared read-only access via SSM secrets
+- [04-02]: desired_count=1 and autoscaling disabled -- booth tool with limited concurrent users
+- [04-02]: Flash secret definition only needs client_id and client_secret -- minimal OIDC credential set
 
 ### Pending Todos
 
@@ -105,5 +108,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-01
-Stopped at: Completed 04-01-PLAN.md (Containerize Flash App)
+Stopped at: Completed 04-02-PLAN.md (Infrastructure Registration) -- Phase 4 complete, all phases complete
 Resume file: None
