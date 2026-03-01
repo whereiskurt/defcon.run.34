@@ -54,7 +54,7 @@ export function ConnectStep({
 
   return (
     <div className="space-y-4">
-      {/* Single panel: left status | center image | right action */}
+      {/* Panel: left status | center spacer | right device image */}
       <div className={`glass-card rounded-xl p-6 transition-all duration-500 ${isConnected ? "border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]" : ""}`}>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
           {/* Left: connection state */}
@@ -90,55 +90,8 @@ export function ConnectStep({
             )}
           </div>
 
-          {/* Center: action button */}
-          <div className="flex-shrink-0">
-            {serial.connectionState === "disconnected" && (
-              <Button
-                color="primary"
-                size="lg"
-                startContent={<Usb className="w-5 h-5" />}
-                onPress={() => serial.connect()}
-                className="font-mono whitespace-nowrap"
-              >
-                Connect Device
-              </Button>
-            )}
-
-            {serial.connectionState === "connecting" && (
-              <Button
-                color="primary"
-                size="lg"
-                isDisabled
-                className="font-mono whitespace-nowrap"
-              >
-                Connecting...
-              </Button>
-            )}
-
-            {isConnected && !chipMismatch && (
-              <Button
-                color="primary"
-                size="lg"
-                endContent={<ArrowRight className="w-5 h-5" />}
-                onPress={onContinue}
-                className="font-mono whitespace-nowrap"
-              >
-                Continue to Flash
-              </Button>
-            )}
-
-            {serial.connectionState === "error" && (
-              <Button
-                color="primary"
-                variant="bordered"
-                size="lg"
-                onPress={handleRetry}
-                className="font-mono whitespace-nowrap"
-              >
-                Try Again
-              </Button>
-            )}
-          </div>
+          {/* Center: spacer */}
+          <div className="flex-shrink-0" />
 
           {/* Right: device image + name (hidden when no device, e.g. URL jump) */}
           {device && imagePath ? (
@@ -174,6 +127,56 @@ export function ConnectStep({
               deviceName={device.displayName}
             />
           </div>
+        )}
+      </div>
+
+      {/* Action buttons — below the panel */}
+      <div className="flex justify-center">
+        {serial.connectionState === "disconnected" && (
+          <Button
+            color="primary"
+            size="lg"
+            startContent={<Usb className="w-5 h-5" />}
+            onPress={() => serial.connect()}
+            className="font-mono whitespace-nowrap"
+          >
+            Connect Device
+          </Button>
+        )}
+
+        {serial.connectionState === "connecting" && (
+          <Button
+            color="primary"
+            size="lg"
+            isDisabled
+            className="font-mono whitespace-nowrap"
+          >
+            Connecting...
+          </Button>
+        )}
+
+        {isConnected && !chipMismatch && (
+          <Button
+            color="primary"
+            size="lg"
+            endContent={<ArrowRight className="w-5 h-5" />}
+            onPress={onContinue}
+            className="font-mono whitespace-nowrap cta-pulse"
+          >
+            Continue to Flash
+          </Button>
+        )}
+
+        {serial.connectionState === "error" && (
+          <Button
+            color="primary"
+            variant="bordered"
+            size="lg"
+            onPress={handleRetry}
+            className="font-mono whitespace-nowrap"
+          >
+            Try Again
+          </Button>
         )}
       </div>
 

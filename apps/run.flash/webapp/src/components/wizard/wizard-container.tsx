@@ -100,6 +100,7 @@ export function WizardContainer() {
 
           {currentStep === "configure" && (
             <ConfigureStep
+              device={selectedDevice}
               configureState={configureState}
               disconnectTransport={serial.disconnect}
               onContinue={advance}
@@ -115,6 +116,7 @@ export function WizardContainer() {
 
           {currentStep === "done" && (
             <DoneStep
+              device={selectedDevice}
               configPayload={configureState.configPayload}
               onFlashAnother={resetWizard}
             />

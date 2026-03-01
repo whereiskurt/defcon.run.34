@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Button, Spinner } from "@heroui/react";
+import { Button, Chip, Spinner } from "@heroui/react";
 import {
   ArrowRight,
   RotateCcw,
@@ -9,7 +9,16 @@ import {
   XCircle,
 } from "lucide-react";
 import type { ConfigProgress, DeviceConfigPayload } from "@/types/config";
+import type { DeviceHardware } from "@/types/device";
+import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import { ConfigPipeline } from "@/components/configure/config-pipeline";
+
+const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success"> = {
+  esp32: "primary",
+  "esp32-s3": "secondary",
+  "esp32-c3": "warning",
+  "esp32-c6": "success",
+};
 
 interface UseConfigureReturn {
   progress: ConfigProgress;
@@ -22,6 +31,8 @@ interface UseConfigureReturn {
 }
 
 interface ConfigureStepProps {
+  /** Selected device for image display */
+  device: DeviceHardware | null;
   /** From useConfigure hook */
   configureState: UseConfigureReturn;
   /** From serial.disconnect -- releases esptool transport */
@@ -43,6 +54,7 @@ interface ConfigureStepProps {
  * - Retry returns to Connect step (fresh serial connection)
  */
 export function ConfigureStep({
+  device,
   configureState,
   disconnectTransport,
   onContinue,
@@ -50,6 +62,8 @@ export function ConfigureStep({
 }: ConfigureStepProps) {
   const { progress } = configureState;
   const startedRef = useRef(false);
+
+  const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
 
   // Auto-start configuration when component mounts and progress is idle
   useEffect(() => {
@@ -98,31 +112,64 @@ export function ConfigureStep({
         </>
       )}
 
-      {/* Config complete: pipeline (all checkmarks) + success card + continue */}
+      {/* Config complete: pipeline (all checkmarks) + success panel with device image + continue */}
       {progress.stage === "complete" && (
         <>
           <ConfigPipeline progress={progress} />
 
-          {/* Success message */}
-          <div className="glass-card rounded-xl p-5 border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]">
-            <div className="flex flex-col items-center gap-3 text-center">
-              <CheckCircle2 className="w-10 h-10 text-teal-400" />
-              <h3 className="font-mono text-lg text-teal-400">
-                Configuration Complete!
-              </h3>
-              <p className="text-sm text-default-400">
-                Your device has been configured for the DEF CON 34 mesh network.
-              </p>
+          {/* Success panel: left status | center spacer | right device image */}
+          <div className="glass-card rounded-xl p-6 border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+              {/* Left: success info */}
+              <div className="min-w-0 flex items-center gap-3">
+                <CheckCircle2 className="w-8 h-8 text-teal-400 flex-shrink-0" />
+                <div>
+                  <h3 className="font-mono text-lg text-teal-400">
+                    Configuration Complete!
+                  </h3>
+                  <p className="text-sm text-default-400">
+                    Your device has been configured for the DEF CON 34 mesh network.
+                  </p>
+                </div>
+              </div>
+
+              {/* Center: spacer */}
+              <div className="flex-shrink-0" />
+
+              {/* Right: device image */}
+              {device ? (
+                <div className="flex flex-col items-center gap-2 justify-self-end">
+                  <div className="w-[140px] h-[100px] flex items-center justify-center rounded-lg bg-default-100/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={getDeviceImagePath(device)}
+                      alt={device.displayName}
+                      className="max-h-full max-w-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="font-mono text-sm text-default-500">
+                      {device.displayName}
+                    </span>
+                    <Chip size="sm" variant="flat" color={archColor}>
+                      {getArchLabel(device)}
+                    </Chip>
+                  </div>
+                </div>
+              ) : (
+                <div />
+              )}
             </div>
           </div>
 
+          {/* CTA button below panel */}
           <div className="flex justify-center">
             <Button
               color="primary"
               size="lg"
               endContent={<ArrowRight className="w-5 h-5" />}
               onPress={onContinue}
-              className="font-mono"
+              className="font-mono cta-pulse"
             >
               Continue
             </Button>

@@ -128,6 +128,34 @@ html.light .glass-nav {
   text-shadow: 0 0 8px #00ff4180, 0 0 16px #00ff4140;
 }
 
+/* CTA pulse: draws attention when step is ready to advance */
+.cta-pulse {
+  animation: cta-glow 2s ease-in-out infinite;
+  position: relative;
+}
+
+@keyframes cta-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px #00d4aa30, 0 0 16px #00d4aa15;
+  }
+  50% {
+    box-shadow: 0 0 16px #00d4aa50, 0 0 32px #00d4aa25;
+  }
+}
+
+html.light .cta-pulse {
+  animation: cta-glow-light 2s ease-in-out infinite;
+}
+
+@keyframes cta-glow-light {
+  0%, 100% {
+    box-shadow: 0 0 8px #00a88830, 0 0 16px #00a88815;
+  }
+  50% {
+    box-shadow: 0 0 16px #00a88850, 0 0 32px #00a88825;
+  }
+}
+
 /* Flasher-specific: Animated cyber border glow */
 .cyber-border {
   border: 1px solid #00d4aa40;

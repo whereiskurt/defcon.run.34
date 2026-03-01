@@ -160,7 +160,7 @@ export function FlashStep({
         </>
       )}
 
-      {/* Flash complete — single panel: left status | center button | right device image */}
+      {/* Flash complete — panel: left status | center spacer | right device image; button below */}
       {progress.stage === "complete" && (
         <>
           <div className="glass-card rounded-xl p-6 border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]">
@@ -178,18 +178,8 @@ export function FlashStep({
                 </div>
               </div>
 
-              {/* Center: continue button */}
-              <div className="flex-shrink-0">
-                <Button
-                  color="primary"
-                  size="lg"
-                  endContent={<ArrowRight className="w-5 h-5" />}
-                  onPress={onContinue}
-                  className="font-mono whitespace-nowrap"
-                >
-                  Continue to Configure
-                </Button>
-              </div>
+              {/* Center: spacer */}
+              <div className="flex-shrink-0" />
 
               {/* Right: device image */}
               <div className="flex flex-col items-center gap-2 justify-self-end">
@@ -211,6 +201,19 @@ export function FlashStep({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* CTA button below panel */}
+          <div className="flex justify-center">
+            <Button
+              color="primary"
+              size="lg"
+              endContent={<ArrowRight className="w-5 h-5" />}
+              onPress={onContinue}
+              className="font-mono whitespace-nowrap cta-pulse"
+            >
+              Continue to Configure
+            </Button>
           </div>
 
           <FlashPipeline progress={progress} />

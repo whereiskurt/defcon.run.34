@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@heroui/react";
+import { Button, Chip } from "@heroui/react";
 import {
   CheckCircle2,
   RotateCcw,
@@ -9,8 +9,19 @@ import {
   Unplug,
 } from "lucide-react";
 import type { DeviceConfigPayload } from "@/types/config";
+import type { DeviceHardware } from "@/types/device";
+import { getDeviceImagePath, getArchLabel } from "@/config/devices";
+
+const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success"> = {
+  esp32: "primary",
+  "esp32-s3": "secondary",
+  "esp32-c3": "warning",
+  "esp32-c6": "success",
+};
 
 interface DoneStepProps {
+  /** Selected device for image display */
+  device: DeviceHardware | null;
   /** Config payload from useConfigure for summary display */
   configPayload: DeviceConfigPayload | null;
   /** Reset entire wizard to pick-device step */
@@ -28,18 +39,54 @@ interface DoneStepProps {
  * - Next steps: register radio, download app, disconnect USB
  * - "Flash Another Device" resets wizard for provisioning multiple boards
  */
-export function DoneStep({ configPayload, onFlashAnother }: DoneStepProps) {
+export function DoneStep({ device, configPayload, onFlashAnother }: DoneStepProps) {
+  const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
+
   return (
     <div className="space-y-4">
-      {/* Celebration header */}
-      <div className="flex flex-col items-center gap-3 py-4">
-        <div className="animate-[scale-in_0.3s_ease-out]">
-          <CheckCircle2 className="w-16 h-16 text-teal-400 drop-shadow-[0_0_24px_rgba(20,184,166,0.4)]" />
+      {/* Celebration header: glass-card with left info | right device image */}
+      <div className="glass-card rounded-xl p-6 border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+          {/* Left: celebration info */}
+          <div className="min-w-0 flex items-center gap-3">
+            <div className="animate-[scale-in_0.3s_ease-out]">
+              <CheckCircle2 className="w-12 h-12 text-teal-400 drop-shadow-[0_0_24px_rgba(20,184,166,0.4)] flex-shrink-0" />
+            </div>
+            <div>
+              <h2 className="font-mono text-2xl text-teal-400">Setup Complete!</h2>
+              <p className="text-sm text-default-400 mt-1">
+                Your device is configured and ready for the DEF CON 34 mesh network.
+              </p>
+            </div>
+          </div>
+
+          {/* Center: spacer */}
+          <div className="flex-shrink-0" />
+
+          {/* Right: device image */}
+          {device ? (
+            <div className="flex flex-col items-center gap-2 justify-self-end">
+              <div className="w-[140px] h-[100px] flex items-center justify-center rounded-lg bg-default-100/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={getDeviceImagePath(device)}
+                  alt={device.displayName}
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="font-mono text-sm text-default-500">
+                  {device.displayName}
+                </span>
+                <Chip size="sm" variant="flat" color={archColor}>
+                  {getArchLabel(device)}
+                </Chip>
+              </div>
+            </div>
+          ) : (
+            <div />
+          )}
         </div>
-        <h2 className="font-mono text-2xl text-teal-400">Setup Complete!</h2>
-        <p className="text-sm text-default-400 text-center max-w-md">
-          Your device is configured and ready for the DEF CON 34 mesh network.
-        </p>
       </div>
 
       {/* Config summary card */}
@@ -158,14 +205,14 @@ export function DoneStep({ configPayload, onFlashAnother }: DoneStepProps) {
         </ol>
       </div>
 
-      {/* Flash Another Device button */}
+      {/* Flash Another Device button — below panels with pulse */}
       <div className="flex justify-center pt-2">
         <Button
           color="primary"
           size="lg"
           startContent={<RotateCcw className="w-5 h-5" />}
           onPress={onFlashAnother}
-          className="font-mono"
+          className="font-mono cta-pulse"
         >
           Flash Another Device
         </Button>
