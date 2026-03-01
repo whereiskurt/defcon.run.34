@@ -4,8 +4,9 @@ import { NextResponse } from "next/server";
 /**
  * Middleware to protect all routes.
  *
- * All authenticated DCR34 users can access the flasher -- no service-specific
- * claim check is needed (unlike run.gpx which checks for "gpxstudio" service).
+ * Requires authentication AND "flash" service claim (like run.gpx checks
+ * for "gpxstudio"). Unauthenticated users are redirected to signin.
+ * Authenticated users without the "flash" claim get access-denied.
  *
  * Uses Auth.js v5 middleware wrapper pattern - the `auth` function wraps
  * the middleware and provides `req.auth` with the decoded session.
@@ -21,10 +22,18 @@ export default auth((req) => {
     return NextResponse.redirect(signinUrl);
   }
 
+  // Check for flash service claim
+  const services = (req.auth.user as { services?: string[] }).services ?? [];
+  if (!services.includes("flash")) {
+    const accessDeniedUrl = req.nextUrl.clone();
+    accessDeniedUrl.pathname = "/access-denied";
+    return NextResponse.redirect(accessDeniedUrl);
+  }
+
   // Allow request to proceed
   return NextResponse.next();
 });
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|signin|img|data).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|signin|access-denied|img|data).*)"],
 };

@@ -411,7 +411,7 @@ export function Header() {
           {session?.user ? (
             <UserDropDown />
           ) : (
-            <Button as="a" href="/signin" variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" onPress={() => signIn()}>
               Login
             </Button>
           )}
