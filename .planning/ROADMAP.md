@@ -77,10 +77,10 @@ Plans:
   2. Docker build downloads, extracts, and bundles Meshtastic firmware binaries -- the running container has no external dependencies
   3. Terragrunt service definition exists at infra/terraform/live/site/services/flash/ and deploys to all 3 regions (us-east-1, ca-central-1, ap-southeast-1)
   4. flash.defcon.run resolves via CloudFront with region-prefixed paths (/use1/, /cac1/, /apse1/) defaulting to /use1/
-**Plans**: 2 plans
+**Plans**: 1/2 plans complete
 
 Plans:
-- [ ] 04-01-PLAN.md -- Docker containerization with firmware vendoring, nginx sidecar, region router
+- [x] 04-01-PLAN.md -- Docker containerization with firmware vendoring, nginx sidecar, region router
 - [ ] 04-02-PLAN.md -- Infrastructure registration (service.hcl, site.hcl, CloudFront, scripts)
 
 ## Progress
@@ -93,4 +93,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4
 | 1. App Scaffold + Device Picker | 2/2 | Complete    | 2026-02-28 |
 | 2. Flash Engine | 1/2 | In Progress | - |
 | 3. Config Engine + Server API | 3/3 | Complete | 2026-02-28 |
-| 4. Deployment + Firmware Vendoring | 0/2 | Not started | - |
+| 4. Deployment + Firmware Vendoring | 1/2 | In Progress | - |
