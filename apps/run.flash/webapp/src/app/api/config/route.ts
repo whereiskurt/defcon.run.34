@@ -17,8 +17,11 @@ export async function GET() {
     let user = null;
     if (!isDev || process.env.RUN_ELECTRO_ENDPOINT) {
       try {
+        console.log(`[run.flash] Looking up user ${session.user.id} in DynamoDB table=${process.env.RUN_ELECTRO_DBNAME} region=${process.env.RUN_DYNAMODB_REGION}`);
         user = await getRunUser(session.user.id);
+        console.log(`[run.flash] User lookup result: found=${!!user}, keys=${user ? Object.keys(user).join(',') : 'null'}, mqttUsername=${user?.mqttUsername ? 'set' : 'empty'}, mqttPassword=${user?.mqttPassword ? 'set' : 'empty'}`);
       } catch (dbErr) {
+        console.error("[run.flash] DynamoDB lookup failed:", dbErr);
         if (!isDev) throw dbErr;
         console.warn("[run.flash] DynamoDB not available in dev, using stub config");
       }
@@ -37,6 +40,7 @@ export async function GET() {
     const mqttPassword = user?.mqttPassword || (isDev ? "dev_pass" : "");
 
     if (!isDev && (!mqttUsername || !mqttPassword)) {
+      console.warn(`[run.flash] MQTT not provisioned for user ${session.user.id}: mqttUsername=${mqttUsername ? 'set' : 'empty'}, mqttPassword=${mqttPassword ? 'set' : 'empty'}`);
       return NextResponse.json(
         { error: "User not provisioned for MQTT" },
         { status: 404 }
