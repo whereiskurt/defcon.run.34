@@ -17,7 +17,7 @@ interface UseConfigureReturn {
   isComplete: boolean;
   isError: boolean;
   configPayload: DeviceConfigPayload | null;
-  configure: (disconnectTransport: () => Promise<void>, options?: { skipRebootDelay?: boolean }) => Promise<void>;
+  configure: (disconnectTransport: () => Promise<void>) => Promise<void>;
   reset: () => void;
 }
 
@@ -30,8 +30,6 @@ interface ConfigureStepProps {
   onContinue: () => void;
   /** Reset + goToStepForRetry("connect") */
   onRetry: () => void;
-  /** Skip the 4s reboot delay (device already running, e.g. ?step=configure jump) */
-  skipRebootDelay?: boolean;
 }
 
 /**
@@ -49,7 +47,6 @@ export function ConfigureStep({
   disconnectTransport,
   onContinue,
   onRetry,
-  skipRebootDelay,
 }: ConfigureStepProps) {
   const { progress } = configureState;
   const startedRef = useRef(false);
@@ -58,9 +55,9 @@ export function ConfigureStep({
   useEffect(() => {
     if (progress.stage === "idle" && !startedRef.current) {
       startedRef.current = true;
-      configureState.configure(disconnectTransport, { skipRebootDelay });
+      configureState.configure(disconnectTransport);
     }
-  }, [progress.stage, configureState, disconnectTransport, skipRebootDelay]);
+  }, [progress.stage, configureState, disconnectTransport]);
 
   const isConnecting = progress.stage === "connecting";
   const isConfiguring =
@@ -76,7 +73,7 @@ export function ConfigureStep({
       {isConnecting && (
         <div className="glass-card rounded-xl p-5">
           <div className="flex flex-col items-center gap-4 text-center">
-            <Spinner size="lg" color="primary" />
+            <Spinner size="lg" classNames={{ circle1: "border-b-teal-400", circle2: "border-b-teal-400" }} />
             <div>
               <h3 className="font-mono text-lg text-foreground">
                 Reconnecting to device...
