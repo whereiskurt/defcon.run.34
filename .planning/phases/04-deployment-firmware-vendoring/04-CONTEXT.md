@@ -89,7 +89,7 @@ Containerize the flash app (apps/run.flash/webapp/) and deploy to production at 
 <deferred>
 ## Deferred Ideas
 
-None — discussion stayed within phase scope
+- **Firmware version picker wizard step** — Add a step where the user chooses which firmware image to flash before the Flash step. Start simple: "2.6.11-plain" (stock Meshtastic prebuilt) vs "2.6.11-dcr" (eventually a custom DCR34 image). The plain versions are the existing Meshtastic releases; the DCR variant will be a custom build in the future. This is a new wizard step + firmware selection UI — its own phase after deployment.
 
 </deferred>
 
