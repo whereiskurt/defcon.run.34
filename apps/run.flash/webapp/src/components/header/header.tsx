@@ -21,7 +21,7 @@ import {
   User,
   useDisclosure,
 } from "@heroui/react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signIn, signOut } from "next-auth/react";
 import { GrMapLocation } from "react-icons/gr";
 import {
   FaMoneyCheckDollar,
