@@ -146,7 +146,7 @@ jobs:
           echo ""
           echo "Requested: $REQUESTED"
           echo "Available: $AVAILABLE"
-          [[ -n "$SKIPPED" ]] && echo "Skipped:   $SKIPPED"
+          if [[ -n "$SKIPPED" ]]; then echo "Skipped:   $SKIPPED"; fi
 
       - name: Login to ECR (us-east-1)
         if: contains(steps.regions.outputs.regions, 'use1')
@@ -445,7 +445,7 @@ jobs:
           echo ""
           echo "Requested: $REQUESTED"
           echo "Available: $AVAILABLE"
-          [[ -n "$SKIPPED" ]] && echo "Skipped:   $SKIPPED"
+          if [[ -n "$SKIPPED" ]]; then echo "Skipped:   $SKIPPED"; fi
 
       - name: Login to ECR (us-east-1)
         if: contains(steps.regions.outputs.regions, 'use1')
@@ -602,7 +602,7 @@ jobs:
           echo ""
           echo "Requested: $REQUESTED"
           echo "Available: $AVAILABLE"
-          [[ -n "$SKIPPED" ]] && echo "Skipped:   $SKIPPED"
+          if [[ -n "$SKIPPED" ]]; then echo "Skipped:   $SKIPPED"; fi
 
       - name: Login to ECR (us-east-1)
         if: contains(steps.regions.outputs.regions, 'use1')
