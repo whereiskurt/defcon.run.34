@@ -17,7 +17,7 @@ APP="${2}"
 if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   echo "Usage: ./build.sh <component> <app>"
   echo "  component: nginx | webapp | app"
-  echo "  app: run.auth | run.human | run.cms | run.gpx"
+  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash"
   exit 1
 fi
 
@@ -26,8 +26,8 @@ if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "ap
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', or 'run.gpx'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', or 'run.flash'"
   exit 1
 fi
 
@@ -66,6 +66,11 @@ case "$APP" in
     REPO_PREFIX="dc34-run-gpx"
     WEBAPP_ORIGIN="gpx.defcon.run"
     SSM_PATH_SEGMENT="gpx"
+    ;;
+  "run.flash")
+    REPO_PREFIX="dc34-run-flash"
+    WEBAPP_ORIGIN="flash.defcon.run"
+    SSM_PATH_SEGMENT="flash"
     ;;
 esac
 

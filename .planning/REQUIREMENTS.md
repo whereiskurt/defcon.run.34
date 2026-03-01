@@ -59,11 +59,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Deployment
 
-- [ ] **DPLY-01**: App follows monorepo pattern: apps/run.flash/webapp/ with Dockerfile.webapp + Dockerfile.nginx
-- [ ] **DPLY-02**: Terragrunt service definition at infra/terraform/live/site/services/flash/
-- [ ] **DPLY-03**: CloudFront distribution at flash.defcon.run
-- [ ] **DPLY-04**: Multi-region deployment following standard DCR34 pattern (us-east-1, ca-central-1, ap-southeast-1) with flash.defcon.run defaulting to /use1/
-- [ ] **DPLY-05**: Build-time firmware vendoring: download, extract, and bundle firmware binaries into Docker image
+- [x] **DPLY-01**: App follows monorepo pattern: apps/run.flash/webapp/ with Dockerfile.webapp + Dockerfile.nginx
+- [x] **DPLY-02**: Terragrunt service definition at infra/terraform/live/site/services/flash/
+- [x] **DPLY-03**: CloudFront distribution at flash.defcon.run
+- [x] **DPLY-04**: Multi-region deployment following standard DCR34 pattern (us-east-1, ca-central-1, ap-southeast-1) with flash.defcon.run defaulting to /use1/
+- [x] **DPLY-05**: Build-time firmware vendoring: download, extract, and bundle firmware binaries into Docker image
 
 ## v2 Requirements
 
@@ -128,11 +128,11 @@ Deferred to future release. Tracked but not in current roadmap.
 | SRVR-02 | Phase 3 | Complete |
 | SRVR-03 | Phase 3 | Complete |
 | WZRD-04 | Phase 3 | Complete |
-| DPLY-01 | Phase 4 | Pending |
-| DPLY-02 | Phase 4 | Pending |
-| DPLY-03 | Phase 4 | Pending |
-| DPLY-04 | Phase 4 | Pending |
-| DPLY-05 | Phase 4 | Pending |
+| DPLY-01 | Phase 4 | Complete |
+| DPLY-02 | Phase 4 | Complete |
+| DPLY-03 | Phase 4 | Complete |
+| DPLY-04 | Phase 4 | Complete |
+| DPLY-05 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 34 total

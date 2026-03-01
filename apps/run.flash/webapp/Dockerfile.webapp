@@ -1,0 +1,84 @@
+# Stage 1: Download Meshtastic firmware binaries
+FROM node:current-alpine AS firmware
+RUN apk add --no-cache curl unzip
+WORKDIR /firmware
+
+# FIRMWARE_VERSION from firmware.ts is single source of truth.
+# Can be overridden with --build-arg for testing new versions.
+ARG FIRMWARE_VERSION=""
+COPY src/config/firmware.ts /tmp/firmware.ts
+
+# Use build arg if provided, otherwise extract from firmware.ts
+RUN FW_VER="${FIRMWARE_VERSION}"; \
+    if [ -z "$FW_VER" ]; then \
+      FW_VER=$(grep 'FIRMWARE_VERSION' /tmp/firmware.ts | head -1 | sed 's/.*"\(.*\)".*/\1/'); \
+    fi; \
+    echo "Firmware version: $FW_VER" && \
+    RELEASE_TAG="v${FW_VER}" && \
+    BASE_URL="https://github.com/meshtastic/firmware/releases/download/${RELEASE_TAG}" && \
+    for ARCH in esp32 esp32s3 esp32c3 esp32c6; do \
+      ZIP="firmware-${ARCH}-${FW_VER}.zip"; \
+      echo "Downloading ${ZIP}..." && \
+      curl -fL -o "/tmp/${ZIP}" "${BASE_URL}/${ZIP}" || { echo "Warning: ${ZIP} not found"; continue; }; \
+      unzip -q -o "/tmp/${ZIP}" "firmware-*.bin" -d /firmware/ 2>/dev/null || true; \
+      rm -f "/tmp/${ZIP}"; \
+    done && \
+    find /firmware -name "*-update.bin" -delete && \
+    echo "Extracted $(find /firmware -name 'firmware-*.bin' | wc -l) firmware binaries"
+
+# Stage 2: Build Next.js app
+FROM node:current-alpine AS builder
+
+RUN apk update && apk add --no-cache \
+      sudo \
+      curl \
+      build-base \
+      g++ \
+      libpng \
+      libpng-dev \
+      jpeg-dev \
+      pango-dev \
+      cairo-dev \
+      giflib-dev \
+      python3 \
+      ;
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+COPY . .
+
+# Copy firmware binaries into public/firmware/ for build.sh S3 extraction
+COPY --from=firmware /firmware/ ./public/firmware/
+
+ARG NEXT_PUBLIC_ASSET_PREFIX=""
+ARG WEBAPP_PREFIX="use1/assets"
+ARG WEBAPP_ORIGIN="flash.defcon.run"
+ARG VERSION_NGINX="unknown"
+ARG VERSION_WEBAPP="unknown"
+ARG REGION_SHORT="use1"
+ENV NEXT_PUBLIC_ASSET_PREFIX=$NEXT_PUBLIC_ASSET_PREFIX
+ENV WEBAPP_PREFIX=$WEBAPP_PREFIX
+ENV WEBAPP_ORIGIN=$WEBAPP_ORIGIN
+ENV NEXT_PUBLIC_VERSION_NGINX=$VERSION_NGINX
+ENV NEXT_PUBLIC_VERSION_APP=$VERSION_WEBAPP
+ENV REGION_SHORT=$REGION_SHORT
+
+RUN npm run build
+
+# Stage 3: Production runtime
+FROM node:current-alpine AS runner
+WORKDIR /app
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Only copy what's needed
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+USER node
+EXPOSE 3000
+CMD ["node", "server.js"]

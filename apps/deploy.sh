@@ -12,12 +12,12 @@ APP="${1}"
 
 if [[ -z "$APP" ]]; then
   echo "Usage: ./deploy.sh <app>"
-  echo "  app: run.auth | run.human | run.cms | run.gpx"
+  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash"
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', or 'run.gpx'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', or 'run.flash'"
   exit 1
 fi
 
@@ -37,6 +37,10 @@ case "$APP" in
     ;;
   "run.gpx")
     TF_SERVICE="run.gpx"
+    APP_COMPONENT="webapp"
+    ;;
+  "run.flash")
+    TF_SERVICE="run.flash"
     APP_COMPONENT="webapp"
     ;;
 esac
