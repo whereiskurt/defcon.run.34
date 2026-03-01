@@ -20,7 +20,7 @@ locals {
 
   dns = {
     zonename         = "defcon.run"
-    subdomains       = ["email", "run", "auth", "cms", "gpx"]
+    subdomains       = ["email", "run", "auth", "cms", "gpx", "flash"]
     ttl              = 300
   }
 
@@ -33,6 +33,7 @@ locals {
     subdomains = {
       "auth" = "auth"
       "cms" = "cms"
+      "flash" = "flash"
       "gpx" = "gpx"
       "run" = "run"
     }
@@ -41,6 +42,7 @@ locals {
     local_ports = {
       auth = 3002
       cms = 1337
+      flash = 3004
       gpx = 3003
       run = 3001
     }
@@ -56,6 +58,7 @@ locals {
     run_human = read_terragrunt_config("./services/run.human/service.hcl")
     cms       = read_terragrunt_config("./services/run.cms/service.hcl")
     gpx       = read_terragrunt_config("./services/run.gpx/service.hcl")
+    flash     = read_terragrunt_config("./services/run.flash/service.hcl")
   }
 
   email = {
@@ -119,7 +122,7 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.<dns.zonename>"
-    domains = ["auth", "run", "cms", "gpx"]
+    domains = ["auth", "run", "cms", "gpx", "flash"]
 
     ## Map fronted domain "auth.<dns.zonename>" to the ruleset called "auth"
     waf_rulesets = {
@@ -210,6 +213,7 @@ locals {
       local.service_conf.run_human.locals.ecr_repositories,
       local.service_conf.cms.locals.ecr_repositories,
       local.service_conf.gpx.locals.ecr_repositories,
+      local.service_conf.flash.locals.ecr_repositories,
       local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "IMMUTABLE" }] : []
     )
   }
@@ -221,7 +225,8 @@ locals {
       local.service_conf.run_human.locals.task,
       local.service_conf.cms.locals.task_master,
       local.service_conf.cms.locals.task_worker,
-      local.service_conf.gpx.locals.task
+      local.service_conf.gpx.locals.task,
+      local.service_conf.flash.locals.task
     ]
   }
 
@@ -232,7 +237,8 @@ locals {
       local.service_conf.run_human.locals.service,
       local.service_conf.cms.locals.service_master,
       local.service_conf.cms.locals.service_worker,
-      local.service_conf.gpx.locals.service
+      local.service_conf.gpx.locals.service,
+      local.service_conf.flash.locals.service
     ]
   }
 
@@ -305,6 +311,10 @@ locals {
       }
       discord = {
         description = "Discord OAuth credentials"
+        keys        = ["client_id", "client_secret"]
+      }
+      flash = {
+        description = "Flash tool OIDC client credentials"
         keys        = ["client_id", "client_secret"]
       }
       github = {
