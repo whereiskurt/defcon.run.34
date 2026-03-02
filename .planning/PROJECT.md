@@ -1,14 +1,25 @@
-# DCR34 Meshtastic Flasher (flash.defcon.run)
+# DEF CON Run 34 (defcon.run)
 
 ## What This Is
 
-A web-based Meshtastic device flasher and provisioner for DEF CON Run 34 participants. Authenticated users visit `flash.defcon.run`, pick their ESP32 device, flash DCR34-vetted firmware via Web Serial, and get their device fully configured (MQTT, channels, identity, radio settings) — all in one browser session. Eliminates manual firmware flashing and configuration that creates support burden at the event.
+The official DEF CON Run 34 platform — a suite of web apps for organizing and participating in running/hiking events at DEF CON 34. Includes device provisioning (flash.defcon.run), GPX route editing (gpx.defcon.run), content management (cms.defcon.run), authentication (auth.defcon.run), and the main participant dashboard (run.defcon.run).
 
-**Shipped v1.0** — live at flash.defcon.run with 4,900+ LOC TypeScript across 4 phases.
+**Shipped v1.0** — Meshtastic Flasher MVP (flash.defcon.run) with browser-based ESP32 flashing and configuration.
 
 ## Core Value
 
-A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in a single browser session, with zero manual configuration steps.
+Participants and organizers have a seamless digital experience for DEF CON Run 34 — from device setup to event discovery to route navigation — all through the browser.
+
+## Current Milestone: v1.1 CMS Content Types
+
+**Goal:** Event organizers can manage DCR34 events, routes, and points of interest through cms.defcon.run with a branded OIDC login experience and working REST API.
+
+**Target features:**
+- Event content type (scheduled activities with dates, locations, photo galleries, file attachments)
+- Route content type (ordered GPX file collections with type classification)
+- Point of Interest content type (standalone, reusable landmarks linked to routes)
+- Branded OIDC login page (DCR34-styled, not raw Strapi admin login)
+- REST API verified for run.human consumption
 
 ## Requirements
 
@@ -32,10 +43,7 @@ A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in
 
 ### Active
 
-- [ ] Device-specific bootloader guidance (hold BOOT, press RESET) when connection fails (CONN-03)
-- [ ] Flash completion shows clear success/failure with actionable guidance on failure (FLSH-04)
-- [ ] ConfigUI service entry for run.flash (matching run.gpx/run.human pattern)
-- [ ] Radio registration from flasher — link flashed device to run.human's Meshtastic radio system
+See `.planning/REQUIREMENTS.md` for v1.1 requirements.
 
 ### Out of Scope
 
@@ -45,22 +53,26 @@ A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in
 - MQTT broker provisioning — assumes mosquitto is already deployed
 - BLE flashing — USB Web Serial is faster and more reliable for initial provisioning
 - Offline/PWA mode — requires auth and per-user config (both online)
+- run.human dashboard UI for events/routes — separate milestone
+- Participant-facing CMS pages — CMS is organizer-only, run.human renders for participants
 
 ## Context
 
-- **Tech stack:** Next.js 16, React 19, HeroUI, Tailwind 4, esptool.js, @meshtastic/core
-- **Codebase:** ~4,900 LOC TypeScript in `apps/run.flash/webapp/src/`
-- **Architecture:** Flash app calls run.human's internal API (`/api/internal/user/:oidcSub`) for MQTT credentials rather than direct DynamoDB access. This bridges the OIDC subject → DynamoDB adapter userId gap.
-- **Deployment:** 3-stage Docker build (firmware download → Next.js build → production runner), nginx TLS sidecar, cookie-based region router defaulting to /use1/
-- **Known issue:** Image basePaths and API fetch paths needed manual region prefix — pattern to watch for in future apps
+- **Monorepo:** 5 apps (run.human, run.auth, run.gpx, run.flash, run.cms) + shared infra
+- **CMS stack:** Strapi 5.6, SQLite + Litestream (S3 backup), S3 uploads, SES email
+- **CMS auth:** strapi-plugin-sso with OIDC to auth.defcon.run, `cms` service claim required
+- **CMS state:** OIDC SSO working, health endpoint, S3/SES configured — zero content types defined
+- **CMS deployment:** Already deployed to cms.defcon.run via ECS Fargate + CloudFront
+- **Flash app:** ~4,900 LOC TypeScript in `apps/run.flash/webapp/src/`
+- **Known pattern:** basePath/region prefix handling in Next.js requires systematic review of all absolute paths
 
 ## Constraints
 
-- **Tech stack:** Next.js 16, React 19, HeroUI, Tailwind 4 — matches monorepo conventions
-- **Auth:** OIDC client to `auth.defcon.run` — same pattern as run.human/run.gpx
-- **Deploy:** Multi-region ECS Fargate + CloudFront at `flash.defcon.run`
-- **Browser:** Chrome or Edge required (Web Serial API)
-- **Security:** All secrets served from server-side API only
+- **CMS stack:** Strapi 5.6 — content types defined via schema.json in `src/api/`
+- **Auth:** OIDC client to `auth.defcon.run` — cms service claim gates access
+- **Storage:** S3 for media (photos, GPX files, videos, blobs) via Strapi upload provider
+- **Database:** SQLite (single-writer) — adequate for organizer-only CMS
+- **Deploy:** Multi-region ECS Fargate + CloudFront at `cms.defcon.run`
 
 ## Key Decisions
 
@@ -69,10 +81,12 @@ A participant can go from unboxed ESP32 to fully provisioned DCR34 mesh radio in
 | Vendor firmware into Docker image | Zero runtime dependency on GitHub; reliable at event time | ✓ Good — 3-stage build works cleanly |
 | Multi-region deployment | Consistency with all other DCR34 apps | ✓ Good — same patterns, same scripts |
 | Use run.human internal API for MQTT creds | OIDC subject ≠ DynamoDB adapter userId; direct DB access fails | ✓ Good — clean service boundary |
-| Defer radio registration to v2 | Flash + configure is the core value | ✓ Good — keeps scope tight |
 | Gate unsupported browsers at entry | Better UX than discovering inability at flash step | ✓ Good |
-| Config-driven TBD values (stubs) | Event-specific values filled in later | ✓ Good — meshtastic.ts is the single config source |
 | Flash service claim check | Gate access like gpxstudio | ✓ Good — consistent authorization model |
+| Many-to-many events↔routes | Routes reused across events, events have multiple routes | — Pending |
+| Standalone POIs | Reusable landmarks across multiple routes | — Pending |
+| Branded CMS login page | Consistent DCR34 UX, hide raw Strapi admin login | — Pending |
+| CMS serves API only, run.human renders | Clean separation of content management and presentation | — Pending |
 
 ---
-*Last updated: 2026-03-02 after v1.0 milestone*
+*Last updated: 2026-03-02 after v1.1 milestone start*
