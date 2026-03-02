@@ -135,8 +135,9 @@ locals {
             value = "https://flash.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },
           {
-            name  = "RUN_DYNAMODB_REGION"
-            value = "{{REGION}}"
+            # Internal run.human URL via service discovery (for user profile/MQTT lookup)
+            name  = "RUN_HUMAN_INTERNAL_URL"
+            value = "http://run-human.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
           }
         ]
 
@@ -156,18 +157,6 @@ locals {
           {
             name      = "AUTH_INTERNAL_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
-          },
-          {
-            name      = "RUN_ELECTRO_ID"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-electro/access_key_id"
-          },
-          {
-            name      = "RUN_ELECTRO_SECRET"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-electro/secret_access_key"
-          },
-          {
-            name      = "RUN_ELECTRO_DBNAME"
-            valueFrom = "/{{SITE_LABEL}}/dynamodb/{{REGION_LABEL}}/run-human-electro/table_name"
           }
         ]
 

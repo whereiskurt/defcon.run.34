@@ -1,8 +1,37 @@
 import { auth } from "@/config/auth";
-import { getRunUser } from "@/entities/run-user";
 import { meshtasticConfig } from "@/config/meshtastic";
 import { NextResponse } from "next/server";
 import type { DeviceConfigPayload } from "@/types/config";
+
+const isDev = process.env.NODE_ENV !== "production";
+const RUN_HUMAN_INTERNAL_URL = process.env.RUN_HUMAN_INTERNAL_URL;
+const AUTH_INTERNAL_SECRET = process.env.AUTH_INTERNAL_SECRET;
+
+/**
+ * Fetch user profile from run.human's internal API.
+ * Resolves OIDC subject → adapter userId → RunUser profile server-to-server.
+ */
+async function fetchRunUserProfile(oidcSub: string) {
+  if (!RUN_HUMAN_INTERNAL_URL || !AUTH_INTERNAL_SECRET) {
+    console.error("[run.flash] RUN_HUMAN_INTERNAL_URL or AUTH_INTERNAL_SECRET not configured");
+    return null;
+  }
+
+  const url = `${RUN_HUMAN_INTERNAL_URL}/api/internal/user/${oidcSub}`;
+  console.log(`[run.flash] Fetching user profile from ${url}`);
+
+  const response = await fetch(url, {
+    headers: { "x-internal-secret": AUTH_INTERNAL_SECRET },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`[run.flash] run.human internal API returned ${response.status}: ${text}`);
+    return null;
+  }
+
+  return response.json();
+}
 
 export async function GET() {
   const session = await auth();
@@ -11,20 +40,16 @@ export async function GET() {
   }
 
   try {
-    const isDev = process.env.NODE_ENV !== "production";
-
-    // In dev without DynamoDB, skip the user lookup entirely
+    // Fetch user profile from run.human (resolves OIDC sub → adapter userId → RunUser)
     let user = null;
-    if (!isDev || process.env.RUN_ELECTRO_ENDPOINT) {
-      try {
-        console.log(`[run.flash] Looking up user ${session.user.id} in DynamoDB table=${process.env.RUN_ELECTRO_DBNAME} region=${process.env.RUN_DYNAMODB_REGION}`);
-        user = await getRunUser(session.user.id);
-        console.log(`[run.flash] User lookup result: found=${!!user}, keys=${user ? Object.keys(user).join(',') : 'null'}, mqttUsername=${user?.mqttUsername ? 'set' : 'empty'}, mqttPassword=${user?.mqttPassword ? 'set' : 'empty'}`);
-      } catch (dbErr) {
-        console.error("[run.flash] DynamoDB lookup failed:", dbErr);
-        if (!isDev) throw dbErr;
-        console.warn("[run.flash] DynamoDB not available in dev, using stub config");
-      }
+    if (!isDev || RUN_HUMAN_INTERNAL_URL) {
+      user = await fetchRunUserProfile(session.user.id);
+    }
+
+    // In dev without run.human, use stub config
+    if (!user && isDev) {
+      console.warn("[run.flash] run.human not available in dev, using stub config");
+      user = { displayName: null, mqttUsername: "dev_user", mqttPassword: "dev_pass" };
     }
 
     // Identity: prefer RunUser.displayName, fall back to session name, then generated
@@ -34,13 +59,12 @@ export async function GET() {
       `DCR34_${session.user.id.slice(0, 4)}`;
     const shortName = longName.slice(0, 4).toUpperCase();
 
-    // MQTT credentials from RunUser entity
-    // In dev without DynamoDB, provide stub credentials
-    const mqttUsername = user?.mqttUsername || (isDev ? "dev_user" : "");
-    const mqttPassword = user?.mqttPassword || (isDev ? "dev_pass" : "");
+    // MQTT credentials from RunUser profile
+    const mqttUsername = user?.mqttUsername || "";
+    const mqttPassword = user?.mqttPassword || "";
 
     if (!isDev && (!mqttUsername || !mqttPassword)) {
-      console.warn(`[run.flash] MQTT not provisioned for user ${session.user.id}: mqttUsername=${mqttUsername ? 'set' : 'empty'}, mqttPassword=${mqttPassword ? 'set' : 'empty'}`);
+      console.warn(`[run.flash] MQTT not provisioned for user ${session.user.id}`);
       return NextResponse.json(
         { error: "User not provisioned for MQTT" },
         { status: 404 }
