@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: CMS Content Types
-status: defining_requirements
-last_updated: "2026-03-02T05:00:00.000Z"
+status: ready_to_plan
+last_updated: "2026-03-02T06:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,14 +18,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 — from device setup to event discovery to route navigation.
-**Current focus:** Milestone v1.1 — CMS Content Types (Events, Routes, POIs)
+**Current focus:** Phase 5 — Infrastructure Hardening + Content Type Schemas
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-02 — Milestone v1.1 started
+Phase: 5 of 9 (Infrastructure Hardening + Content Type Schemas)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-02 — Roadmap created for v1.1 CMS Content Types
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -47,8 +47,9 @@ Recent decisions affecting current work:
 
 - [v1.0 Retro]: Deployment plans should include mock outputs, SOPS entries, and CI workflows
 - [v1.0 Retro]: basePath affects everything in production — images, API fetches, signin redirects
-- [v1.0 Retro]: DynamoDB adapter generates its own user IDs — cross-service lookup needs OIDC sub → adapter ID mapping
-- [v1.0 Retro]: Test the full OIDC flow end-to-end before calling deployment "complete"
+- [v1.1 Roadmap]: Litestream sync fix is Phase 5 prerequisite — must ship before any content type read traffic
+- [v1.1 Roadmap]: Phase 7 (Branded Login) is independent — can run in parallel with Phases 5-6
+- [v1.1 Roadmap]: Content type build order: shared.coordinates first, then Event/Route/POI, then relations
 
 ### Pending Todos
 
@@ -60,12 +61,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Strapi 5 content type schema format — verify against current Strapi 5.6 docs
-- SQLite single-writer constraint — ensure concurrent admin access doesn't cause issues
-- Many-to-many relations in Strapi 5 — verify relation configuration syntax
+- Litestream sync script mv-swap bug — must be fixed in Phase 5 before content types go live
+- Many-to-many inversedBy/mappedBy mismatch causes silent empty arrays — verify both directions in Phase 6
+- Draft/publish strategy decision needed before Phase 5 schema creation
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Milestone v1.1 initialization — defining requirements
+Stopped at: Roadmap created — ready to plan Phase 5
 Resume file: None
