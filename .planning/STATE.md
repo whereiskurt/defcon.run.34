@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: CMS Content Types
-status: active
-last_updated: "2026-03-02T17:58:08Z"
+status: unknown
+last_updated: "2026-03-02T18:02:57.660Z"
 progress:
   total_phases: 3
   completed_phases: 3
