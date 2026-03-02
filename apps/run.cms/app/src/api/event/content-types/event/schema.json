@@ -62,6 +62,17 @@
     "sortOrder": {
       "type": "integer",
       "default": 0
+    },
+    "eventType": {
+      "type": "enumeration",
+      "enum": ["run", "social", "swag-swap", "workshop", "ceremony", "meetup"],
+      "required": false
+    },
+    "routes": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::route.route",
+      "inversedBy": "events"
     }
   }
 }

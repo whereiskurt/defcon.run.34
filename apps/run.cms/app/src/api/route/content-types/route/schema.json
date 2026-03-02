@@ -82,6 +82,18 @@
     "sortOrder": {
       "type": "integer",
       "default": 0
+    },
+    "events": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::event.event",
+      "mappedBy": "routes"
+    },
+    "pointsOfInterest": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::point-of-interest.point-of-interest",
+      "inversedBy": "routes"
     }
   }
 }

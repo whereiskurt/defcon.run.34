@@ -61,6 +61,12 @@
     "sortOrder": {
       "type": "integer",
       "default": 0
+    },
+    "routes": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::route.route",
+      "mappedBy": "pointsOfInterest"
     }
   }
 }
