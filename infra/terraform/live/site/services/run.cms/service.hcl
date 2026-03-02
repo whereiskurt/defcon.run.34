@@ -167,6 +167,11 @@ locals {
           {
             name  = "CMS_PUBLIC_URL"
             value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # SSM path prefix for publishing API tokens (master only)
+            name  = "SSM_PREFIX"
+            value = "{{SITE_LABEL}}/secrets/{{REGION_LABEL}}"
           }
         ]
 

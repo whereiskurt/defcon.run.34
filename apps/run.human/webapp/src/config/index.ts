@@ -66,6 +66,11 @@ export const config = {
     clientSecret: process.env.OIDC_RUNHUMAN_SECRET!,
   },
 
+  cms: {
+    internalUrl: process.env.CMS_INTERNAL_URL || (isDev ? 'http://localhost:1337' : ''),
+    apiToken: process.env.STRAPI_API_TOKEN || '',
+  },
+
   cookies: {
     session: { name: "sess_run" },
     csrf: { name: "csrf_run" },
