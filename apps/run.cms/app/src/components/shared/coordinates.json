@@ -1,0 +1,22 @@
+{
+  "collectionName": "components_shared_coordinates",
+  "info": {
+    "displayName": "Coordinates",
+    "description": "GPS latitude/longitude pair",
+    "icon": "map-pin"
+  },
+  "attributes": {
+    "latitude": {
+      "type": "decimal",
+      "required": true,
+      "min": -90,
+      "max": 90
+    },
+    "longitude": {
+      "type": "decimal",
+      "required": true,
+      "min": -180,
+      "max": 180
+    }
+  }
+}

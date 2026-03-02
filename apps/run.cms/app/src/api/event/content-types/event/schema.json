@@ -1,0 +1,67 @@
+{
+  "kind": "collectionType",
+  "collectionName": "events",
+  "info": {
+    "displayName": "Event",
+    "singularName": "event",
+    "pluralName": "events",
+    "description": "DCR34 events (runs, socials, swag swaps)"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "maxLength": 255
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true
+    },
+    "description": {
+      "type": "blocks"
+    },
+    "shortDescription": {
+      "type": "text",
+      "maxLength": 500
+    },
+    "startDatetime": {
+      "type": "datetime",
+      "required": true
+    },
+    "endDatetime": {
+      "type": "datetime"
+    },
+    "locationName": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "locationCoordinates": {
+      "type": "component",
+      "component": "shared.coordinates",
+      "repeatable": false
+    },
+    "coverImage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    },
+    "gallery": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": ["images"]
+    },
+    "attachments": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": ["images", "files", "videos", "audios"]
+    },
+    "sortOrder": {
+      "type": "integer",
+      "default": 0
+    }
+  }
+}
