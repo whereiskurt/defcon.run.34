@@ -1,372 +1,548 @@
 # Technology Stack
 
-**Project:** DCR34 Meshtastic Flasher (flash.defcon.run)
-**Researched:** 2026-02-28
-**Scope:** New libraries specific to this app only. Framework stack (Next.js 16, React 19, HeroUI, Tailwind 4, ECS Fargate) is inherited from the monorepo and not re-researched.
+**Project:** DCR34 CMS Content Types (cms.defcon.run) -- v1.1
+**Researched:** 2026-03-02
+**Scope:** Stack additions/changes for event, route, and POI content types with relations, media handling, REST API, and branded OIDC login. Base CMS infrastructure (Strapi 5.6, SQLite, Litestream, ECS Fargate, OIDC SSO) is already deployed and NOT re-researched.
 
 ## Recommended Stack
 
-### Flashing Engine
+### Content Types (Zero new dependencies -- Strapi built-in)
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| `esptool-js` | `^0.5.7` | Flash Meshtastic firmware to ESP32 devices via Web Serial | Espressif's official JS port. Same library used by Meshtastic's own web flasher (flasher.meshtastic.org). No alternative is worth considering -- this IS the standard. Published 2025-08-04, actively maintained. | HIGH |
+No new packages are needed. Strapi 5 content types are defined via `schema.json` files in `src/api/[name]/content-types/[name]/`. All field types needed (relations, media, enumerations, datetime, richtext, uid) are built into Strapi 5.6.
 
-**API Surface (verified from official docs and TypeScript example):**
+| Capability | Mechanism | Notes |
+|------------|-----------|-------|
+| Content type definition | `schema.json` files in `src/api/` | No CLI needed; hand-write JSON schemas |
+| Many-to-many relations | `relation: "manyToMany"` with `inversedBy`/`mappedBy` | Bidirectional; Strapi auto-creates join tables in SQLite |
+| Media fields (photos, GPX, video) | `type: "media"` with `allowedTypes` and `multiple` | S3 upload provider already configured |
+| Enumerations (route type, POI category) | `type: "enumeration"` with `enum` array | Rendered as dropdown in admin |
+| Auto-slug from title | `type: "uid"` with `targetField` | Known bug in Strapi 5 with required UIDs; see Pitfalls |
+| Draft/publish workflow | `draftAndPublish: true` in schema options | REST API returns published by default |
+| REST API | Built-in at `/api/[plural-name]` | Requires enabling permissions on Public role |
 
-```typescript
-import { ESPLoader, Transport, type LoaderOptions, type FlashOptions } from "esptool-js";
+**Confidence:** HIGH -- all verified against official Strapi 5 documentation.
 
-// 1. Get serial port from user
-const port = await navigator.serial.requestPort({ filters: [] });
+### Content Type Schema Patterns
 
-// 2. Create transport
-const transport = new Transport(port, true);
+**Event content type** (`src/api/event/content-types/event/schema.json`):
 
-// 3. Create loader
-const loaderOptions: LoaderOptions = {
-  transport,
-  baudrate: 921600,        // Higher baud = faster flash
-  terminal: {              // Optional logging terminal
-    clean() {},
-    writeLine(data: string) { console.log(data); },
-    write(data: string) { process.stdout.write(data); },
+```json
+{
+  "kind": "collectionType",
+  "collectionName": "events",
+  "info": {
+    "singularName": "event",
+    "pluralName": "events",
+    "displayName": "Event",
+    "description": "Scheduled DCR34 activities"
   },
-  debugLogging: false,
-};
-const esploader = new ESPLoader(loaderOptions);
-
-// 4. Connect and detect chip
-const chipName = await esploader.main(); // Returns e.g. "ESP32-S3"
-
-// 5. Flash firmware
-const flashOptions: FlashOptions = {
-  fileArray: [
-    { data: firmwareBinaryString, address: 0x0 },  // Address depends on chip/manifest
-  ],
-  flashSize: "keep",          // Use existing flash size
-  flashMode: "keep",          // Use existing flash mode
-  flashFreq: "keep",          // Use existing frequency
-  eraseAll: false,            // true for clean install
-  compress: true,             // Compress during transfer
-  reportProgress: (fileIndex: number, written: number, total: number) => {
-    const pct = Math.round((written / total) * 100);
-    setProgress(pct);         // Update UI
+  "options": {
+    "draftAndPublish": true
   },
-  calculateMD5Hash: (image: Uint8Array) => md5(image),  // Optional verification
-};
-await esploader.writeFlash(flashOptions);
-
-// 6. Reset device after flash
-await esploader.after();      // Hard reset, device boots new firmware
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "minLength": 3,
+      "maxLength": 200
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "title"
+    },
+    "description": {
+      "type": "richtext"
+    },
+    "startDate": {
+      "type": "datetime",
+      "required": true
+    },
+    "endDate": {
+      "type": "datetime"
+    },
+    "location": {
+      "type": "string"
+    },
+    "coordinates": {
+      "type": "json"
+    },
+    "photos": {
+      "type": "media",
+      "multiple": true,
+      "required": false,
+      "allowedTypes": ["images"]
+    },
+    "attachments": {
+      "type": "media",
+      "multiple": true,
+      "required": false,
+      "allowedTypes": ["files", "images"]
+    },
+    "routes": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::route.route",
+      "inversedBy": "events"
+    }
+  }
+}
 ```
 
-**Key details:**
-- `fileArray[].data` is a **binary string** (not Uint8Array). Convert with `String.fromCharCode(...uint8Array)`.
-- `fileArray[].address` is the flash offset. For Meshtastic clean install, multiple files at different offsets (bootloader, partition table, firmware, filesystem).
-- `reportProgress` callback fires per-file with `(fileIndex, bytesWritten, totalBytes)`.
-- After `writeFlash`, call `esploader.after()` for device reset, then **disconnect transport** to release the serial port for Meshtastic configuration step.
-- The `Transport` class wraps Web Serial. Only one consumer can hold the port at a time.
+**Route content type** (`src/api/route/content-types/route/schema.json`):
 
-**Partition offsets (from Meshtastic web flasher source):**
+```json
+{
+  "kind": "collectionType",
+  "collectionName": "routes",
+  "info": {
+    "singularName": "route",
+    "pluralName": "routes",
+    "displayName": "Route",
+    "description": "GPX routes for DCR34 events"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "title"
+    },
+    "description": {
+      "type": "richtext"
+    },
+    "routeType": {
+      "type": "enumeration",
+      "enum": ["run", "walk", "hike", "bike", "other"],
+      "default": "run",
+      "required": true
+    },
+    "distance": {
+      "type": "decimal"
+    },
+    "elevationGain": {
+      "type": "integer"
+    },
+    "difficulty": {
+      "type": "enumeration",
+      "enum": ["easy", "moderate", "hard", "expert"],
+      "default": "moderate"
+    },
+    "gpxFiles": {
+      "type": "media",
+      "multiple": true,
+      "required": false,
+      "allowedTypes": ["files"]
+    },
+    "coverImage": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": ["images"]
+    },
+    "events": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::event.event",
+      "mappedBy": "routes"
+    },
+    "pointsOfInterest": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::point-of-interest.point-of-interest",
+      "inversedBy": "routes"
+    }
+  }
+}
+```
 
-| Flash Size | OTA Offset | SPIFFS Offset |
-|-----------|-----------|---------------|
-| 4MB (default) | `0x260000` | `0x300000` |
-| 8MB (new table) | `0x5D0000` | `0x670000` |
-| 8MB (legacy) | `0x340000` | `0x670000` |
-| 16MB | `0x650000` | `0xc90000` |
+**Point of Interest content type** (`src/api/point-of-interest/content-types/point-of-interest/schema.json`):
 
-The `partitionScheme` field in `hardware-list.json` determines which offset table to use.
+```json
+{
+  "kind": "collectionType",
+  "collectionName": "points_of_interest",
+  "info": {
+    "singularName": "point-of-interest",
+    "pluralName": "points-of-interest",
+    "displayName": "Point of Interest",
+    "description": "Reusable landmarks and waypoints"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "name"
+    },
+    "description": {
+      "type": "richtext"
+    },
+    "category": {
+      "type": "enumeration",
+      "enum": ["water", "aid-station", "landmark", "viewpoint", "hazard", "parking", "restroom", "start-finish", "other"],
+      "required": true
+    },
+    "coordinates": {
+      "type": "json",
+      "required": true
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "required": false,
+      "allowedTypes": ["images"]
+    },
+    "routes": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::route.route",
+      "mappedBy": "pointsOfInterest"
+    }
+  }
+}
+```
 
-### Device Configuration
+### Relation Architecture
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| `@meshtastic/core` | `^2.6.7` | Push MQTT, channel, identity, and radio config to device after flash | Official Meshtastic JS library. The only supported way to programmatically configure Meshtastic devices from JS. Published 2025-09-11, actively maintained. Sole dependency: `crc@^4.3.2`. | HIGH |
-| `@meshtastic/transport-web-serial` | `^0.2.5` | Web Serial transport adapter for @meshtastic/core | Required transport layer for serial communication. Pairs with @meshtastic/core. Depends on `@types/w3c-web-serial@^1.0.7`. | HIGH |
+```
+Event <--manyToMany--> Route <--manyToMany--> PointOfInterest
+  |                       |                        |
+  inversedBy: events      mappedBy: routes         mappedBy: pointsOfInterest
+  (on Event.routes)       (on Route.events)        (on POI.routes)
+                          inversedBy: routes
+                          (on Route.pointsOfInterest)
+```
 
-**API Surface (verified from Meshtastic web monorepo source and JSR docs):**
+**Owner side** (has `inversedBy`): Event.routes, Route.pointsOfInterest
+**Inverse side** (has `mappedBy`): Route.events, POI.routes
+
+The owner side controls the join table. In Strapi 5, the owner side shows the relation picker widget in the admin panel by default.
+
+### S3 Upload Provider -- CRITICAL UPDATE NEEDED
+
+| Technology | Current Version | Required Version | Purpose | Why Update |
+|------------|----------------|-----------------|---------|------------|
+| `@strapi/provider-upload-aws-s3` | `^4.15.0` (v4) | `^5.6.0` (v5) | S3 media uploads | v4 package uses deprecated config format; v5 uses `s3Options.credentials` nesting. Currently works via backwards compatibility but will break on provider updates. |
+
+**Current config** (in `config/plugins.ts`) -- v4 flat format:
 
 ```typescript
-import { MeshDevice } from "@meshtastic/core";
-import { TransportWebSerial } from "@meshtastic/transport-web-serial";
+providerOptions: {
+  accessKeyId: env('S3_MEDIA_ACCESS_KEY'),
+  secretAccessKey: env('S3_MEDIA_SECRET_KEY'),
+  region: env('S3_MEDIA_REGION', 'us-east-1'),
+  params: { Bucket: s3Bucket, ACL: null },
+  rootPath: s3RootPath,
+  baseUrl: cdnBaseUrl,
+}
+```
 
-// 1. Create transport from existing port (SAME port used for flashing)
-const transport = await TransportWebSerial.createFromPort(port, 115200);
+**Required config** -- v5 `s3Options` format:
 
-// 2. Create device
-const device = new MeshDevice(transport, "device-id");
-
-// 3. Wait for device to be ready (listen for metadata)
-// Device emits events via subscription pattern
-
-// 4. Push configuration
-await device.setConfig({
-  payloadVariant: {
-    case: "mqtt",
-    value: {
-      enabled: true,
-      address: "mqtt.defcon.run",
-      username: "user-abc123",
-      password: "generated-credential",
-      encryptionEnabled: true,
-      // ... other MQTT config
+```typescript
+providerOptions: {
+  baseUrl: cdnBaseUrl,
+  rootPath: s3RootPath,
+  s3Options: {
+    credentials: {
+      accessKeyId: env('S3_MEDIA_ACCESS_KEY'),
+      secretAccessKey: env('S3_MEDIA_SECRET_KEY'),
+    },
+    region: env('S3_MEDIA_REGION', 'us-east-1'),
+    params: {
+      Bucket: s3Bucket,
+      ACL: null,
     },
   },
-});
+}
+```
 
-await device.setChannel({
-  index: 0,
-  role: "PRIMARY",   // Channel_Role enum
-  settings: {
-    name: "DCR34",
-    psk: pskBytes,    // Uint8Array
-    // ... uplink/downlink settings
+**Action required:** Update `package.json` to `"@strapi/provider-upload-aws-s3": "^5.6.0"` and refactor `config/plugins.ts` to the v5 configuration format. This is a prerequisite for media upload testing with the new content types.
+
+**Confidence:** HIGH -- verified against official Strapi 5 S3 provider documentation.
+
+### GPX File Handling
+
+GPX files are XML-based (`application/gpx+xml`). Strapi's media library accepts GPX files when uploaded through media fields with `allowedTypes: ["files"]`. No special MIME type configuration is needed because:
+
+1. Strapi's `files` allowed type accepts any non-image, non-video, non-audio file
+2. S3 stores the file as-is with the detected content type
+3. The consuming app (run.human) downloads the GPX file from the S3/CloudFront URL and parses it client-side
+
+**No GPX-specific plugin is needed.** The CMS treats GPX files as opaque file attachments. Parsing/rendering is the responsibility of run.human (which already uses gpx-studio).
+
+**Confidence:** MEDIUM -- Strapi docs confirm `files` allowedType accepts arbitrary files; GPX-specific behavior not explicitly documented but follows from general file handling.
+
+### Branded OIDC Login Page (Zero new dependencies)
+
+The branded login experience requires zero new packages. The approach uses three existing mechanisms:
+
+| Layer | Mechanism | What It Does |
+|-------|-----------|--------------|
+| 1. Strapi admin config | `config.auth.logo` in `app.tsx` | Shows DCR34 logo on the Strapi login screen |
+| 2. Strapi theme | `config.theme.light/dark` in `app.tsx` | DCR34 brand colors (replaces Strapi purple) |
+| 3. Existing SSO redirect | Current `app.tsx` code | Auto-redirects to auth.defcon.run before user sees login form |
+
+**Implementation in `src/admin/app.tsx`:**
+
+```typescript
+import AuthLogo from "./extensions/dcr34-logo.svg";
+import MenuLogo from "./extensions/dcr34-logo-small.svg";
+
+export default {
+  config: {
+    auth: {
+      logo: AuthLogo,  // Login screen logo
+    },
+    menu: {
+      logo: MenuLogo,  // Sidebar logo
+    },
+    theme: {
+      light: {
+        colors: {
+          primary100: "#e8f5e9",  // DCR34 brand light
+          primary200: "#a5d6a7",
+          primary500: "#4caf50",
+          primary600: "#388e3c",  // DCR34 brand primary
+          primary700: "#2e7d32",
+        },
+      },
+      dark: {
+        colors: {
+          primary100: "#1b5e20",
+          primary200: "#2e7d32",
+          primary500: "#4caf50",
+          primary600: "#66bb6a",
+          primary700: "#81c784",
+        },
+      },
+    },
+    locales: ['en'],
+    tutorials: false,
+    notifications: { releases: false },
   },
-});
-
-await device.setOwner({
-  longName: "Runner Alice",
-  shortName: "ALIC",
-});
-
-// 5. Commit changes
-await device.commitEditSettings();
+  bootstrap() {
+    // Existing SSO redirect and 401 handling code stays as-is
+  },
+};
 ```
 
-**Key methods on MeshDevice (verified from source):**
+**Key insight:** The current `app.tsx` already hides the native Strapi login form (`document.documentElement.style.display = 'none'`) and redirects to SSO immediately. Users never see the Strapi login form. The branded login experience is actually the auth.defcon.run OIDC login page, not a Strapi page.
 
-| Method | Purpose |
-|--------|---------|
-| `setConfig(config)` | Set device config (MQTT, LoRa, display, etc.) via protobuf AdminMessage |
-| `setModuleConfig(config)` | Set module-specific config |
-| `setChannel(channel)` | Set channel settings (name, PSK, role) |
-| `setOwner(owner)` | Set device owner (long name, short name) |
-| `getConfig(type)` | Read current config from device |
-| `getChannel(index)` | Read channel config |
-| `getOwner()` | Read owner info |
-| `getMetadata(nodeNum)` | Read device metadata |
-| `beginEditSettings()` | Start config edit session |
-| `commitEditSettings()` | Commit all pending config changes |
-| `factoryResetDevice()` | Factory reset |
-| `reboot(seconds)` | Reboot device |
+What "branded CMS login" really means is:
+1. **Logo/theme branding** for the brief flash if the SSO redirect is slow (belt and suspenders)
+2. **Sidebar branding** after login (DCR34 logo in navigation)
+3. **auth.defcon.run login page** is already branded (it is the DCR34 login)
 
-**Critical pattern: Port handoff between esptool.js and @meshtastic/core.**
+**Confidence:** HIGH -- `config.auth.logo` and `config.theme` verified against Strapi 5 official docs. Current SSO redirect already working in production.
 
-The serial port can only have one consumer at a time. After flashing with esptool.js:
+### REST API Configuration (Zero new dependencies)
 
-1. Call `esploader.after()` to reset the device
-2. Disconnect esptool's `Transport` (release the reader lock)
-3. Wait ~2-3 seconds for the device to boot the new firmware
-4. Open the same `SerialPort` at 115200 baud via `TransportWebSerial.createFromPort(port, 115200)`
-5. Create `MeshDevice` and push configuration
+Strapi 5 auto-generates REST API endpoints when content types are created:
 
-The Meshtastic web flasher handles this by toggling RTS signals, waiting 100ms, disconnecting the esptool transport, then reopening at 115200. The port object from `navigator.serial.requestPort()` persists across close/reopen cycles within the same page.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `GET /api/events` | GET | List all published events |
+| `GET /api/events/:documentId` | GET | Get single event |
+| `GET /api/routes` | GET | List all published routes |
+| `GET /api/routes/:documentId` | GET | Get single route |
+| `GET /api/points-of-interest` | GET | List all published POIs |
+| `GET /api/points-of-interest/:documentId` | GET | Get single POI |
 
-### Firmware ZIP Handling
+**Population syntax for run.human consumption:**
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| `@zip.js/zip.js` | `^2.8.21` | Extract firmware .bin files from Meshtastic firmware ZIPs | Actively maintained (last publish: 2026-02-18). Used by the official Meshtastic web flasher. Supports streaming extraction, Web Workers, modern ESM. JSZip (3.10.1) hasn't had a release since April 2022 and should NOT be used. | HIGH |
+```
+# Get events with routes populated (1 level)
+GET /api/events?populate=routes
 
-**Usage pattern (from Meshtastic web flasher):**
+# Get events with routes AND route cover images (deep)
+GET /api/events?populate[routes][populate][0]=coverImage
 
-```typescript
-import { BlobReader, ZipReader, BlobWriter } from "@zip.js/zip.js";
+# Get routes with POIs and their photos
+GET /api/routes?populate[pointsOfInterest][populate][0]=photo&populate[0]=gpxFiles&populate[1]=coverImage
 
-// Extract specific firmware binary from ZIP
-const zipReader = new ZipReader(new BlobReader(zipBlob));
-const entries = await zipReader.getEntries();
+# Wildcard populate (all 1 level -- use sparingly)
+GET /api/events?populate=*
 
-// Find the firmware file matching the device's platformioTarget
-const firmwareEntry = entries.find(e =>
-  e.filename.includes(device.platformioTarget)
-);
+# Pagination
+GET /api/events?pagination[page]=1&pagination[pageSize]=25
 
-if (firmwareEntry) {
-  const blob = await firmwareEntry.getData(new BlobWriter());
-  const arrayBuffer = await blob.arrayBuffer();
-  const firmwareBytes = new Uint8Array(arrayBuffer);
-  // Convert to binary string for esptool.js
-  const binaryString = Array.from(firmwareBytes)
-    .map(b => String.fromCharCode(b))
-    .join("");
-}
+# Filtering
+GET /api/events?filters[routeType][$eq]=run&sort=startDate:asc
 
-await zipReader.close();
+# Published only (default -- no parameter needed)
+# Draft access: add status=draft
 ```
 
-**Note on vendoring:** The design doc specifies vendoring firmware ZIPs into the Docker image. If firmware is pre-extracted at build time (individual .bin files baked into the image), `@zip.js/zip.js` becomes unnecessary at runtime. However, keeping ZIP support is recommended for flexibility -- it allows downloading firmware on-demand as a fallback and simplifies the vendoring process (vendor one ZIP per architecture instead of hundreds of individual .bin files).
+**Permission setup required:** After creating content types, enable `find` and `findOne` permissions for the Public role on each content type via the admin panel (Settings > Users & Permissions > Roles > Public). This is a manual step in the admin UI; Strapi does not support programmatic permission seeding.
 
-### Device Database
+**Important for master-worker architecture:** Workers serve the REST API for internal consumption by webapps. run.human makes private calls to the regional CMS worker (not the master). Since the SQLite database is replicated from master to workers via Litestream, all content created on the master is available on workers within seconds of replication.
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Meshtastic `hardware-list.json` | Vendored (pinned to firmware version) | Device picker data: names, images, chip architectures, platformio targets | Official Meshtastic hardware database. ~122 devices. Same source used by flasher.meshtastic.org. Vendor into app, filter to ESP32 architectures only. | HIGH |
+**Confidence:** HIGH -- REST API pattern, populate syntax, and permission model verified against official Strapi 5 docs.
 
-**Structure of each device entry:**
+### Coordinates Format Convention
 
-```typescript
-interface HardwareDevice {
-  hwModel: number;            // Numeric ID
-  hwModelSlug: string;        // e.g. "HELTEC_V3"
-  platformioTarget: string;   // e.g. "heltec-v3" -- maps to firmware filename
-  architecture: string;       // "esp32" | "esp32-s3" | "esp32-c3" | "esp32-c6" | "nrf52840" | ...
-  activelySupported: boolean;
-  supportLevel?: number;      // 1-3 (when activelySupported)
-  displayName: string;        // e.g. "Heltec V3"
-  tags: string[];             // e.g. ["Heltec"]
-  images?: string[];          // SVG filenames
-  partitionScheme?: string;   // Flash layout identifier
-  requiresDfu?: boolean;
-  hasInkHud?: boolean;
-  hasMui?: boolean;
+For `coordinates` JSON fields on Event and PointOfInterest:
+
+```json
+{
+  "lat": 36.1699,
+  "lng": -115.1398,
+  "altitude": 620
 }
 ```
 
-**Filter at build time:** Only include entries where `architecture` starts with `esp32`. This drops nRF52, RP2040, and STM32 devices that cannot be flashed via Web Serial.
+Use a simple `{ lat, lng }` object (or `{ lat, lng, altitude }`). Do NOT use GeoJSON format -- it is unnecessarily complex for point locations in a CMS with no geospatial queries. SQLite has no spatial indexing anyway. run.human will consume these coordinates directly for map rendering.
 
-### Browser API
+**Confidence:** HIGH -- architecture decision, not a library dependency.
 
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Web Serial API | Chrome 89+ / Edge 89+ | Hardware communication with ESP32 devices | The only browser API for serial port access. No polyfill exists for Firefox/Safari -- this is a hard browser requirement. Gate unsupported browsers at page load. | HIGH |
-
-**Browser detection:**
-
-```typescript
-const isWebSerialSupported = "serial" in navigator;
-
-// Gate at entry
-if (!isWebSerialSupported) {
-  // Show "Chrome or Edge required" message
-  // Do NOT let user proceed to device picker
-}
-```
-
-**Key constraints:**
-- Requires HTTPS in production (CloudFront satisfies this)
-- `localhost` is exempt from HTTPS requirement (dev works)
-- User gesture required to call `navigator.serial.requestPort()` (must be in click handler)
-- Only one tab can hold a serial port at a time
-- `navigator.serial.getPorts()` returns previously-granted ports (no re-prompt needed)
-
-### Binary Data Utilities
-
-| Technology | Version | Purpose | Why | Confidence |
-|------------|---------|---------|-----|------------|
-| Built-in `TextEncoder`/`Uint8Array` | Native | Convert between binary formats for esptool.js | No library needed. esptool.js expects binary strings (`String.fromCharCode` per byte). Simple utility function, not a dependency. | HIGH |
-
-**Conversion utility (from Meshtastic web flasher):**
-
-```typescript
-function convertToBinaryString(data: Uint8Array): string {
-  let binaryString = "";
-  for (let i = 0; i < data.length; i++) {
-    binaryString += String.fromCharCode(data[i]);
-  }
-  return binaryString;
-}
-```
-
-**Performance note:** For large firmware files (1-4MB), this loop is fast enough. The bottleneck is the serial transfer, not the conversion.
-
-## Firmware Source and Vendoring
-
-**Firmware URL pattern (from Meshtastic web flasher source):**
-
-```
-https://raw.githubusercontent.com/meshtastic/meshtastic.github.io/master/firmware-{version}/
-```
-
-Each firmware version directory contains ~296 files including:
-- `firmware-{platformioTarget}-{version}.bin` -- main firmware binary
-- `firmware-{platformioTarget}-{version}-update.bin` -- OTA update binary
-- `littlefs-{platformioTarget}-{version}.bin` -- filesystem image
-- `device-install.sh` / `device-install.bat` -- CLI install scripts
-- Bootloader and partition table binaries (shared across devices of same architecture)
-
-**For clean install (erase + flash), multiple files are needed at specific offsets.** The Meshtastic web flasher uses a manifest-driven approach where the firmware directory structure implies the file names from the `platformioTarget`.
-
-**Vendoring strategy for Docker:**
-1. At build time, download firmware ZIPs for pinned version(s)
-2. Extract and include only ESP32-architecture `.bin` files
-3. Serve from `/public/firmware/` or a Next.js API route
-4. No runtime dependency on GitHub availability
-
-## Alternatives Considered
-
-| Category | Recommended | Alternative | Why Not |
-|----------|-------------|-------------|---------|
-| ESP32 flashing | `esptool-js` (Espressif official) | `esptool.ts` (Toitware fork) | Fork is less maintained, smaller community. Espressif's version is canonical and used by Meshtastic upstream. |
-| ESP32 flashing | `esptool-js` (Espressif official) | `esp-web-tools` (ESPHome) | Different use case -- esp-web-tools is a web component for ESPHome devices. Does not support arbitrary firmware flashing with the control we need. |
-| ZIP extraction | `@zip.js/zip.js` | `jszip` | JSZip last released April 2022 (3.10.1). `@zip.js/zip.js` is actively maintained, used by Meshtastic flasher, supports streaming and Web Workers. |
-| ZIP extraction | `@zip.js/zip.js` | `fflate` | `fflate` is faster but ZIP-level API is less ergonomic. `@zip.js/zip.js` has cleaner entry-based extraction which is exactly what we need. |
-| Meshtastic config | `@meshtastic/core` | Direct protobuf + serial | Reinventing the wheel. `@meshtastic/core` handles protobuf serialization, packet framing, and the Meshtastic serial protocol. No reason to reimplement. |
-| Device database | Vendored `hardware-list.json` | Build our own | The official database is comprehensive, maintained by Meshtastic, and used by their own flasher. Vendoring it is the correct approach. |
-
-## What NOT to Use
+## What NOT to Add
 
 | Library/Approach | Why Not |
 |-----------------|---------|
-| `@meshtastic/js` (old package) | Deprecated. Code migrated to `@meshtastic/core` in the Meshtastic web monorepo. The npm package `@meshtastic/js` exists but points to stale code. |
-| `@meshtastic/meshtasticjs` | Even older deprecated package. Use `@meshtastic/core`. |
-| `jszip` | Unmaintained since 2022. Use `@zip.js/zip.js`. |
-| `esptool.ts` (senseshift fork) | Unofficial fork of Toitware's fork. Two generations removed from canonical. |
-| `web-serial-polyfill` | Only relevant for Chrome on Android. Desktop Chrome/Edge have native support. Our app is desktop-only (USB cable required). |
-| Custom protobuf implementation | `@meshtastic/core` already handles all protobuf encoding/decoding for Meshtastic protocol. |
-| `esp-web-tools` | ESPHome-specific web component. Wrong abstraction level -- we need raw flash control. |
+| PostGIS / SpatiaLite | Overkill. We have < 100 POIs and no spatial queries. SQLite JSON fields are sufficient. |
+| `strapi-plugin-slugify` | The built-in `uid` type with `targetField` handles slugs. Plugin adds unnecessary dependency. |
+| `strapi-plugin-import-export-entries` | Not needed for initial content creation. Organizers create content via admin panel. |
+| GraphQL plugin (`@strapi/plugin-graphql`) | REST API is sufficient for run.human. GraphQL adds complexity, larger bundle, and another attack surface. |
+| Custom content type generation tools | Hand-write `schema.json` files. The Content-Type Builder UI is available for experimentation but schemas should be committed as code. |
+| Strapi Cloud plugin (`@strapi/plugin-cloud`) | Already in `package.json` but serves no purpose for self-hosted deployment. Consider removing. |
+| Custom GPX parser plugin | CMS stores GPX as opaque files. Parsing happens in run.human/gpx-studio, not in CMS. |
+| `@strapi/plugin-documentation` (Swagger) | Internal API consumed only by run.human. Swagger docs add build time and maintenance burden for no audience. |
+| Database migrations plugin | Strapi auto-migrates SQLite schema when content types change. No manual migration needed. |
+
+## Required Changes Summary
+
+| Change | Type | Priority | Scope |
+|--------|------|----------|-------|
+| Create `src/api/event/` content type | New files | P0 | 4 files (schema, controller, service, routes) |
+| Create `src/api/route/` content type | New files | P0 | 4 files |
+| Create `src/api/point-of-interest/` content type | New files | P0 | 4 files |
+| Update `@strapi/provider-upload-aws-s3` to v5 | Package update | P0 | `package.json` + `config/plugins.ts` |
+| Add logo/theme to `src/admin/app.tsx` | Modify existing | P1 | `app.tsx` + new SVG files in `extensions/` |
+| Add logo SVGs to `src/admin/extensions/` | New files | P1 | 2 SVG files |
+| Enable Public role REST API permissions | Manual admin step | P0 | Admin UI configuration |
+| Test REST API with populate on workers | Verification | P0 | curl/fetch testing |
+
+### File Structure After Implementation
+
+```
+apps/run.cms/app/src/
+  admin/
+    app.tsx                          # MODIFIED: add logo imports + theme
+    extensions/
+      dcr34-logo.svg                 # NEW: auth screen logo
+      dcr34-logo-small.svg           # NEW: sidebar logo
+    vite.config.ts                   # UNCHANGED
+  api/
+    event/
+      content-types/
+        event/
+          schema.json                # NEW: event content type schema
+      controllers/
+        event.ts                     # NEW: default CRUD controller
+      services/
+        event.ts                     # NEW: default CRUD service
+      routes/
+        event.ts                     # NEW: default REST routes
+    route/
+      content-types/
+        route/
+          schema.json                # NEW: route content type schema
+      controllers/
+        route.ts                     # NEW
+      services/
+        route.ts                     # NEW
+      routes/
+        route.ts                     # NEW
+    point-of-interest/
+      content-types/
+        point-of-interest/
+          schema.json                # NEW: POI content type schema
+      controllers/
+        point-of-interest.ts         # NEW
+      services/
+        point-of-interest.ts         # NEW
+      routes/
+        point-of-interest.ts         # NEW
+    health/                          # UNCHANGED
+  middlewares/                       # UNCHANGED
+  extensions/                        # UNCHANGED
+```
+
+### Default Controller/Service/Routes Pattern
+
+Each content type needs minimal boilerplate files. Strapi 5 provides factory functions:
+
+**Controller** (`src/api/event/controllers/event.ts`):
+```typescript
+import { factories } from '@strapi/strapi';
+export default factories.createCoreController('api::event.event');
+```
+
+**Service** (`src/api/event/services/event.ts`):
+```typescript
+import { factories } from '@strapi/strapi';
+export default factories.createCoreService('api::event.event');
+```
+
+**Routes** (`src/api/event/routes/event.ts`):
+```typescript
+import { factories } from '@strapi/strapi';
+export default factories.createCoreRouter('api::event.event');
+```
+
+These one-liners give you full CRUD + REST API with zero custom logic. Custom overrides can be added later if needed.
+
+**Confidence:** HIGH -- factory pattern verified in Strapi 5 documentation.
 
 ## Installation
 
 ```bash
-# Core flashing and configuration
-npm install esptool-js@^0.5.7 @meshtastic/core@^2.6.7 @meshtastic/transport-web-serial@^0.2.5
+# Update S3 upload provider from v4 to v5
+cd apps/run.cms/app
+npm install @strapi/provider-upload-aws-s3@^5.6.0
 
-# ZIP extraction (only if not pre-extracting firmware at build time)
-npm install @zip.js/zip.js@^2.8.21
-
-# Type definitions for Web Serial (dev dependency)
-npm install -D @types/w3c-web-serial@^1.0.7
+# No other new packages needed
+# Content types, relations, media, REST API, and admin branding
+# are all built into Strapi 5.6
 ```
 
-**Note:** `@meshtastic/transport-web-serial` already depends on `@types/w3c-web-serial`, but installing it explicitly as a devDependency ensures TypeScript can resolve Web Serial types in your own code.
+## Master-Worker Architecture Implications
 
-## Version Pinning Strategy
-
-| Package | Strategy | Rationale |
-|---------|----------|-----------|
-| `esptool-js` | Pin to `^0.5.7` | Stable API since 0.5.x. Minor bumps are safe. |
-| `@meshtastic/core` | Pin to `^2.6.7` | Active development. Must match firmware version compatibility. Test after upgrades. |
-| `@meshtastic/transport-web-serial` | Pin to `^0.2.5` | Tightly coupled to `@meshtastic/core`. Upgrade together. |
-| `@zip.js/zip.js` | Pin to `^2.8.21` | Stable API. Minor bumps are safe. |
-
-## Known Issues and Browser Compatibility
-
-### Chrome 139 setSignals Bug (RESOLVED)
-Chrome 139.0.7258.66 had a bug where `setSignals` on SerialPort failed on Linux/macOS, breaking esptool.js connections. Fixed in Chrome 141+. As of February 2026 (Chrome 145+), this is a non-issue.
-
-### Single-Tab Serial Port Lock
-Only one browser tab can hold a serial port. A failed/crashed tab may not release the port. The UI should detect this and instruct the user to close other tabs or refresh.
-
-### USB Driver Requirements
-Some ESP32 boards (especially those with CH340/CH9102 USB-UART chips) require driver installation on macOS. The app should link to driver download pages when connection fails.
+| Concern | Impact | Mitigation |
+|---------|--------|------------|
+| Content type schemas must be identical | Schema files are baked into Docker image at build time | Same image deployed to master and all workers -- guaranteed consistency |
+| Public role permissions stored in SQLite | Permissions set on master replicate to workers via Litestream | Set permissions on master; workers auto-receive via DB replication |
+| Media uploads go to S3 | Workers read media from same S3/CloudFront URLs | S3 is region-agnostic (single bucket); CloudFront serves globally |
+| Draft content on master | Workers replicate full DB including drafts | REST API defaults to `status=published`; drafts only accessible with explicit parameter |
+| Join tables for relations | SQLite join tables replicate via Litestream | No special handling needed; all data is in the single SQLite file |
+| Content creation | Only master can write | Workers are read-only; webapps only read via REST API |
 
 ## Sources
 
-- [esptool-js GitHub repository](https://github.com/espressif/esptool-js) -- Espressif official, verified current
-- [esptool-js API documentation](https://espressif.github.io/esptool-js/docs/) -- ESPLoader class reference, FlashOptions interface
-- [esptool-js TypeScript example](https://github.com/espressif/esptool-js/tree/main/examples/typescript) -- Reference implementation
-- [@meshtastic/core on JSR](https://jsr.io/@meshtastic/core) -- Package exports, version 2.6.7
-- [@meshtastic/core on npm](https://www.npmjs.com/package/@meshtastic/core) -- npm distribution
-- [Meshtastic web monorepo](https://github.com/meshtastic/web) -- Source code for @meshtastic/core and transport packages
-- [Meshtastic web flasher](https://github.com/meshtastic/web-flasher) -- Reference implementation using esptool-js + @meshtastic/core
-- [Meshtastic web-flasher-events](https://github.com/meshtastic/web-flasher-events) -- Event-specific flasher variant (validates our use case)
-- [Meshtastic JS development docs](https://meshtastic.org/docs/development/js/) -- Transport options documentation
-- [Web Serial API on MDN](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API) -- Browser API reference
-- [Web Serial API on Can I Use](https://caniuse.com/web-serial) -- Browser support matrix
-- [Chrome 139 esptool-js issue #206](https://github.com/espressif/esptool-js/issues/206) -- Resolved Chrome compatibility bug
-- [Meshtastic firmware releases](https://github.com/meshtastic/firmware/releases) -- Firmware download structure
-- [Meshtastic hardware-list.json](https://github.com/meshtastic/web-flasher/blob/main/public/data/hardware-list.json) -- Device database source
-- [DeepWiki: Meshtastic Web Client](https://deepwiki.com/meshtastic/meshtastic/4.2-web-client-and-tools) -- Architecture overview
+- [Strapi 5 Content-Type Builder Documentation](https://docs.strapi.io/cms/features/content-type-builder) -- field types, relation configuration
+- [Strapi 5 Models Documentation](https://docs.strapi.io/cms/backend-customization/models) -- schema.json format, attribute types
+- [Strapi 5 Relations Documentation](https://docs.strapi.io/cms/api/rest/relations) -- relation types, inversedBy/mappedBy
+- [Strapi 5 REST API Populate and Select](https://docs.strapi.io/cms/api/rest/populate-select) -- population syntax, deep populate
+- [Strapi 5 REST API Reference](https://docs.strapi.io/cms/api/rest) -- endpoint patterns, CRUD operations
+- [Strapi 5 Draft & Publish](https://docs.strapi.io/cms/features/draft-and-publish) -- status parameter, default behavior
+- [Strapi 5 Admin Panel Customization](https://docs.strapi.io/cms/admin-panel-customization) -- logo, theme, app.tsx config
+- [Strapi 5 Logo Customization](https://docs.strapi.io/cms/admin-panel-customization/logos) -- auth logo, menu logo
+- [Strapi 5 Theme Extension](https://docs.strapi.io/cms/admin-panel-customization/theme-extension) -- color tokens, light/dark modes
+- [Strapi 5 Amazon S3 Provider](https://docs.strapi.io/cms/configurations/media-library-providers/amazon-s3) -- v5 config format, s3Options
+- [Strapi 5 Users & Permissions](https://docs.strapi.io/cms/features/users-permissions) -- Public role, permission configuration
+- [Strapi 5 Media Library](https://docs.strapi.io/cms/features/media-library) -- media field types, allowedTypes
+- [Strapi 5 Filters Documentation](https://docs.strapi.io/cms/api/rest/filters) -- query parameter syntax
+- [Strapi UID Field Issue #21472](https://github.com/strapi/strapi/issues/21472) -- known bug with uid auto-generation
+- [Strapi S3 Provider Issue #23465](https://github.com/strapi/strapi/issues/23465) -- v4/v5 compatibility issues
+- [Strapi 5 Document Service Middleware](https://strapi.io/blog/what-are-document-service-middleware-and-what-happened-to-lifecycle-hooks-1) -- replaces lifecycle hooks in v5

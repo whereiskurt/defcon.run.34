@@ -19,46 +19,75 @@ const compilerPath = path.join(
 
 const originalContent = fs.readFileSync(compilerPath, 'utf8');
 
-// Check if already patched
-if (originalContent.includes('// PATCHED: Copy schema.json files')) {
+// Check if already patched (v2 includes components)
+if (originalContent.includes('// PATCHED: Copy schema.json and component files')) {
   console.log('[patch] Already patched');
   process.exit(0);
 }
 
+// Remove old v1 patch marker if present (re-patch with v2)
+const needsRepatch = originalContent.includes('// PATCHED: Copy schema.json files') &&
+                     !originalContent.includes('// PATCHED: Copy schema.json and component files');
+
 // Add the copy function after the emit
-const patchedContent = originalContent.replace(
+// If we need to re-patch, restore the original first
+const baseContent = needsRepatch
+  ? originalContent.replace(/\n\n    \/\/ PATCHED: Copy schema\.json files[\s\S]*?copySchemas\(\);/, '')
+  : originalContent;
+
+const patchedContent = baseContent.replace(
   'const emitResults = program.emit();',
   `const emitResults = program.emit();
 
-    // PATCHED: Copy schema.json files to dist
-    const copySchemas = () => {
+    // PATCHED: Copy schema.json and component files to dist
+    const copyJsonFiles = () => {
       const fs = require('fs');
       const path = require('path');
       const outDir = compilerOptions.outDir;
       if (!outDir) return;
 
-      const srcApi = path.join(path.dirname(tsConfigPath), 'src', 'api');
-      if (!fs.existsSync(srcApi)) return;
+      const projectRoot = path.dirname(tsConfigPath);
 
-      const copyRecursive = (src, dest) => {
-        const entries = fs.readdirSync(src, { withFileTypes: true });
-        for (const entry of entries) {
-          const srcPath = path.join(src, entry.name);
-          const destPath = path.join(dest, entry.name);
-          if (entry.isDirectory()) {
-            copyRecursive(srcPath, destPath);
-          } else if (entry.name === 'schema.json') {
-            fs.mkdirSync(path.dirname(destPath), { recursive: true });
-            fs.copyFileSync(srcPath, destPath);
+      // Copy schema.json files from src/api/
+      const srcApi = path.join(projectRoot, 'src', 'api');
+      if (fs.existsSync(srcApi)) {
+        const copyRecursive = (src, dest, filter) => {
+          const entries = fs.readdirSync(src, { withFileTypes: true });
+          for (const entry of entries) {
+            const srcPath = path.join(src, entry.name);
+            const destPath = path.join(dest, entry.name);
+            if (entry.isDirectory()) {
+              copyRecursive(srcPath, destPath, filter);
+            } else if (filter(entry.name)) {
+              fs.mkdirSync(path.dirname(destPath), { recursive: true });
+              fs.copyFileSync(srcPath, destPath);
+            }
           }
-        }
-      };
+        };
+        copyRecursive(srcApi, path.join(outDir, 'src', 'api'), (name) => name === 'schema.json');
+      }
 
-      const distApi = path.join(outDir, 'src', 'api');
-      copyRecursive(srcApi, distApi);
+      // Copy component JSON files from src/components/
+      const srcComponents = path.join(projectRoot, 'src', 'components');
+      if (fs.existsSync(srcComponents)) {
+        const copyJsonRecursive = (src, dest) => {
+          const entries = fs.readdirSync(src, { withFileTypes: true });
+          for (const entry of entries) {
+            const srcPath = path.join(src, entry.name);
+            const destPath = path.join(dest, entry.name);
+            if (entry.isDirectory()) {
+              copyJsonRecursive(srcPath, destPath);
+            } else if (entry.name.endsWith('.json')) {
+              fs.mkdirSync(path.dirname(destPath), { recursive: true });
+              fs.copyFileSync(srcPath, destPath);
+            }
+          }
+        };
+        copyJsonRecursive(srcComponents, path.join(outDir, 'src', 'components'));
+      }
     };
-    copySchemas();`
+    copyJsonFiles();`
 );
 
 fs.writeFileSync(compilerPath, patchedContent);
-console.log('[patch] Successfully patched @strapi/typescript-utils to copy schema.json files');
+console.log('[patch] Successfully patched @strapi/typescript-utils to copy schema.json and component files');

@@ -1,0 +1,72 @@
+{
+  "kind": "collectionType",
+  "collectionName": "points_of_interest",
+  "info": {
+    "displayName": "Point of Interest",
+    "singularName": "point-of-interest",
+    "pluralName": "points-of-interest",
+    "description": "DCR34 points of interest along routes"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "maxLength": 255
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "name",
+      "required": true
+    },
+    "description": {
+      "type": "text"
+    },
+    "coordinates": {
+      "type": "component",
+      "component": "shared.coordinates",
+      "repeatable": false,
+      "required": true
+    },
+    "poiType": {
+      "type": "enumeration",
+      "enum": [
+        "water-station",
+        "rest-stop",
+        "start-finish",
+        "aid-station",
+        "photo-opportunity",
+        "scenic-viewpoint",
+        "lockpick-village",
+        "badge-station",
+        "swag-drop",
+        "rf-check-in",
+        "vendor",
+        "social-gathering-spot"
+      ],
+      "required": true
+    },
+    "markerImage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    },
+    "sortOrder": {
+      "type": "integer",
+      "default": 0
+    },
+    "routes": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::route.route",
+      "mappedBy": "pointsOfInterest"
+    }
+  }
+}

@@ -32,6 +32,7 @@ import {
 import { FaUserAlt, FaTrophy } from "react-icons/fa";
 import { LogOut, Menu, Zap } from "lucide-react";
 import { useState } from "react";
+import { ThemeSwitch } from "../theme-switch";
 
 const APP_VERSION_TOOLTIP = `DC34 Flash ${process.env.NEXT_PUBLIC_VERSION_APP || "dev"}`;
 
@@ -363,11 +364,9 @@ export function Header() {
       <NavbarContent className="sm:hidden" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href="/" className="flex items-center gap-2">
-              <FaRadio className="w-5 h-5 text-primary" />
+            <Link color="foreground" href="/">
               <span className="font-museo text-lg font-bold tracking-tight">
-                flash<span className="teal-dot">.</span>defcon
-                <span className="teal-dot">.</span>run
+                defcon<span className="teal-dot">.</span>run
               </span>
             </Link>
           </Tooltip>
@@ -378,11 +377,9 @@ export function Header() {
       <NavbarContent className="sm:flex hidden gap-6" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href="/" className="flex items-center gap-2">
-              <FaRadio className="w-5 h-5 text-primary" />
+            <Link color="foreground" href="/">
               <span className="font-museo text-lg font-bold tracking-tight">
-                flash<span className="teal-dot">.</span>defcon
-                <span className="teal-dot">.</span>run
+                defcon<span className="teal-dot">.</span>run
               </span>
             </Link>
           </Tooltip>
@@ -405,8 +402,11 @@ export function Header() {
         ))}
       </NavbarContent>
 
-      {/* Right: auth */}
+      {/* Right: theme + auth */}
       <NavbarContent justify="end" className="gap-2">
+        <NavbarItem>
+          <ThemeSwitch />
+        </NavbarItem>
         <NavbarItem>
           {session?.user ? (
             <UserDropDown />

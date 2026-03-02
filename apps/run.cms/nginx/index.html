@@ -1,10 +1,131 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CMS - DEF CON 34</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CMS - defcon.run</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0a0a0f;
+      font-family: 'MuseoModerno', 'Segoe UI', system-ui, sans-serif;
+      color: #e4e4e7;
+      overflow: hidden;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .bg-image {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background-image: url(/bg/vegas-z10.png);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0.15;
+      filter: brightness(1.8) contrast(1.2);
+      transform: scale(1.15);
+    }
+    .noise-overlay::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      background-repeat: repeat;
+      background-size: 256px 256px;
+    }
+    .container {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 2rem;
+      max-width: 420px;
+      width: 100%;
+      animation: fadeUp 0.6s ease-out forwards;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .wordmark h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      margin: 0;
+    }
+    .teal-dot { color: #00d4aa; }
+    .subtitle {
+      font-family: monospace;
+      font-size: 0.75rem;
+      color: #71717a;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 0.5rem;
+    }
+    .glass-card {
+      background: rgba(17, 17, 24, 0.8);
+      backdrop-filter: blur(12px);
+      border: 1px solid #2a2a3a;
+      border-radius: 12px;
+      padding: 2rem;
+      margin-top: 2rem;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .glass-card:hover {
+      border-color: #3a3a4a;
+      box-shadow: 0 0 24px rgba(0, 212, 170, 0.06);
+    }
+    .signin-button {
+      display: block;
+      width: 100%;
+      padding: 0.875rem 1.5rem;
+      background: #00d4aa;
+      color: #0a0a0f;
+      font-family: 'MuseoModerno', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      transition: background 0.2s ease, transform 0.1s ease;
+    }
+    .signin-button:hover { background: #00e8bb; }
+    .signin-button:active { transform: scale(0.98); }
+  </style>
 </head>
 <body>
-    <h1>CMS Service</h1>
-    <p>DEF CON 34 Content Management System</p>
+  <div class="bg-image"></div>
+  <div class="noise-overlay"></div>
+  <div class="container">
+    <div class="wordmark">
+      <h1>defcon<span class="teal-dot">.</span>run</h1>
+      <p class="subtitle">Content Management System</p>
+    </div>
+    <div class="glass-card">
+      <a id="signin-btn" href="/use1/strapi-plugin-sso/oidc" class="signin-button">
+        Sign in with defcon.run
+      </a>
+    </div>
+  </div>
+  <script>
+    (function() {
+      var match = window.location.pathname.match(/^\/([a-z]{3}\d)/);
+      var region = match ? match[1] : 'use1';
+      var btn = document.getElementById('signin-btn');
+      if (btn) btn.href = '/' + region + '/strapi-plugin-sso/oidc';
+    })();
+  </script>
 </body>
 </html>

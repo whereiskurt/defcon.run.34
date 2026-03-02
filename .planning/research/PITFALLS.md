@@ -1,288 +1,315 @@
-# Domain Pitfalls: Browser-Based ESP32 Meshtastic Flasher
+# Domain Pitfalls: CMS Content Types (Events, Routes, POIs)
 
-**Domain:** Web-based ESP32 firmware flasher and device provisioner
-**Project:** flash.defcon.run (DCR34 Meshtastic Flasher)
-**Researched:** 2026-02-28
+**Domain:** Strapi 5.6 CMS with SQLite + Litestream master-worker replication
+**Project:** cms.defcon.run v1.1 — Adding content types to existing deployment
+**Researched:** 2026-03-02
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause showstopper failures, bricked devices, or event-day chaos.
+Mistakes that cause data loss, broken replication, or require architectural rework.
 
-### Pitfall 1: Chrome Version Breaking Web Serial Mid-Event
+### Pitfall 1: Worker Database Swap Corrupts Active SQLite Connections
 
-**What goes wrong:** Chrome auto-updates silently. A Chrome release ships a Web Serial API regression that breaks esptool.js connectivity. Users arrive at DEF CON, open flash.defcon.run, and cannot connect to their devices. This has happened twice in 2025-2026:
-- Chrome 139 broke DTR/RTS signal handling on macOS and Linux (bad `ioctl()` pointer in `SerialSplitDtrAndRts` feature). Windows was unaffected.
-- Chrome 143 broke ESP32-S2 connections with timing changes causing "Invalid head of packet" errors.
+**What goes wrong:** The worker's `litestream-sync.sh` uses `mv "$TEMP_DB" "$DB_PATH"` to atomically replace the database file while Strapi is actively reading it. When SQLite is in WAL mode (which Litestream requires), the database is actually three files: `strapi.db`, `strapi.db-wal`, and `strapi.db-shm`. The `mv` replaces only the main file, leaving stale WAL and shared-memory files. Strapi's open connection now references an inode that no longer matches the WAL, causing `SQLITE_CORRUPT` errors or silently returning stale/garbled data.
 
-**Why it happens:** Chromium's Web Serial implementation is actively evolving. The API surface is small but touches OS-level serial drivers. Minor internal refactors cause platform-specific breakage that Chromium's test suite does not catch for all chip variants.
+**Why it happens:** The current sync script was written for a CMS with zero content types (no reads during sync). Once content types exist, run.human workers will be continuously querying the worker CMS API for events/routes/POIs. The `mv` operation races against these reads.
 
-**Consequences:** Complete inability to flash devices for affected users. No workaround exists that users can self-service at an event (launching Chrome with `--disable-features=SerialSplitDtrAndRts` is not realistic for non-technical users).
+**Consequences:** Workers serve corrupted or inconsistent data to run.human. API requests return 500 errors or partial data. With many-to-many relations (events-to-routes), join table corruption is especially dangerous because it silently drops relations rather than failing visibly.
 
 **Prevention:**
-- Pin a known-good Chrome version in documentation and pre-event communications. Test against Chrome Canary monthly in the months before DEF CON.
-- Test the full flash flow on macOS, Windows, and Linux before the event with the Chrome version that will be current at event time (DEF CON 34 is August 2026 -- test against Chrome ~128-130 era).
-- Build a "browser compatibility check" into the app that reports Chrome version and runs a quick Web Serial smoke test before entering the wizard flow.
-- Have a fallback plan: keep the Python `device-install.sh` CLI script available for volunteers to flash devices if the web flasher breaks.
+- Replace the `mv` swap with a restart-based sync: stop Strapi, perform `litestream restore`, restart Strapi. The worker supervisord config already has Strapi restart handling.
+- Alternatively, restore to a completely separate path including WAL/SHM files, then restart Strapi pointing to the new path.
+- Set `PRAGMA busy_timeout = 5000;` in Strapi's database config to handle any Litestream checkpoint lock contention.
+- Add the `acquireConnectionTimeout` (already set to 60000ms) and ensure Knex pool max stays at 1 (already configured).
 
-**Detection:** Automated CI that runs esptool.js connection tests against Chrome Canary weekly. Any failure is an early warning.
+**Detection:** Monitor worker health endpoint after each sync cycle. Log response times and error rates. Any `SQLITE_CORRUPT` or `SQLITE_IOERR` in worker logs is this pitfall.
 
-**Phase:** Phase 1 (core infrastructure). Browser detection and version checking should be the very first gate in the wizard.
+**Phase:** Phase 1 (infrastructure hardening) -- must fix BEFORE adding content types, because the first content type makes the sync script dangerous.
 
-**Confidence:** HIGH -- Chrome 139 and 143 breakages are documented in esptool-js issues [#206](https://github.com/espressif/esptool-js/issues/206) and [#227](https://github.com/espressif/esptool-js/issues/227).
+**Confidence:** HIGH -- SQLite documentation explicitly states that moving a database file while connections are open causes corruption when WAL/SHM files are not moved together. The current `litestream-sync.sh` (lines 51-58) does exactly this.
 
 ---
 
-### Pitfall 2: Serial Port State Corruption During Flash-to-Configure Handoff
+### Pitfall 2: Strapi Content Type Builder Overwrites Hand-Edited schema.json
 
-**What goes wrong:** After esptool.js finishes flashing firmware, the serial port is in a specific state (baud rate, DTR/RTS signal levels, stream locks). The app then needs to close that connection and open a new one with `@meshtastic/core` to push configuration. This handoff fails because:
-1. The readable/writable streams from esptool.js are still locked, preventing `port.close()`.
-2. The device reboots after flash and re-enumerates on the USB bus, sometimes as a different port.
-3. The device needs 5-15 seconds to fully boot Meshtastic firmware before it accepts protobuf commands, but there is no reliable "ready" signal.
-4. On some ESP32-S3/C3 devices using USB_SERIAL_JTAG (no external UART chip), the device disappears from the USB bus entirely during reboot and reappears as a new device.
+**What goes wrong:** Content types are defined as `schema.json` files in `src/api/{type}/`. If anyone uses the Strapi admin Content-Type Builder UI (available to Super Admins) to add or modify a field, Strapi regenerates the entire `schema.json`, stripping custom options like `populateCreatorFields`, custom validators, or carefully ordered attributes. The generated schema may also reformat the JSON, breaking git diffs.
 
-**Why it happens:** esptool.js and `@meshtastic/core` are independent libraries with no shared state. esptool.js was designed for "flash and done." Meshtastic's JS library was designed for "connect to an already-running device." Nobody designed the handoff between them.
+**Why it happens:** Strapi's Content-Type Builder is designed for development convenience and assumes it owns the schema. It does not preserve unknown keys or custom formatting. This is a confirmed bug (strapi/strapi#21753) that affects Strapi 5.0.4+ and is not yet fixed as of 5.6.
 
-**Consequences:** The user sees flash succeed at 100%, then the configure step fails silently or with a cryptic "port not open" error. They are stuck with a flashed but unconfigured device -- the worst outcome because they think they are done but the device has no MQTT/channel/identity config.
+**Consequences:** Custom schema options silently lost. If the content type is deployed from git, the admin-modified version in the running database diverges from the git version. Next deployment overwrites the admin changes, or the admin changes overwrite git, depending on deploy order. Either way, content types silently change shape.
 
 **Prevention:**
-- After esptool.js completes, explicitly release all stream locks (`reader.releaseLock()`, `writer.releaseLock()`), close the port, and wait.
-- After closing the port, add a mandatory delay (minimum 10 seconds, ideally with a visual countdown: "Device is rebooting...") before attempting to reconnect.
-- For USB_SERIAL_JTAG devices (ESP32-S3, C3, C6): listen for `navigator.serial` `disconnect` and `connect` events to detect the device re-enumerating. Prompt the user to re-select the port if needed.
-- Implement a connection retry loop with exponential backoff (try every 2s, up to 30s) when opening the port for configuration.
-- Show clear UI state: "Flashing complete. Waiting for device to restart..." with a progress indicator, not a blank screen.
-- Use `@meshtastic/core`'s `startConfig` handshake to confirm the device is actually ready before pushing config.
+- Disable the Content-Type Builder in production entirely. Set `config.features.contentTypeBuilder = false` or use middleware to block CTB routes.
+- Define all content types exclusively in code (`src/api/*/content-types/*/schema.json`). Never use the admin UI for schema changes.
+- Add a CI check: validate schema.json files against a known-good snapshot. Any unexpected diff blocks deploy.
+- Document for organizers: "Content types are code-managed. Request changes via GitHub issue, not admin UI."
 
-**Detection:** If the configure step fails within 5 seconds of flash completing, it is almost certainly this handoff issue, not a device problem.
+**Detection:** Git diff on `src/api/*/content-types/*/schema.json` before every deploy. Any unexpected change is this pitfall.
 
-**Phase:** Phase 2 (flash step) and Phase 3 (configure step). This lives at the boundary between them and must be designed explicitly as a "transition state" in the wizard.
+**Phase:** Phase 1 (content type creation) -- establish the code-only workflow before creating any content types.
 
-**Confidence:** HIGH -- multiple Meshtastic web-flasher issues document this pattern; the "port is already open" error is the #1 reported post-flash issue ([meshtastic/web-flasher#144](https://github.com/meshtastic/web-flasher/issues/144)).
+**Confidence:** HIGH -- confirmed in strapi/strapi#21753, reproducible in Strapi 5.6.
 
 ---
 
-### Pitfall 3: Wrong Firmware Binary for Device Hardware
+### Pitfall 3: Many-to-Many Relations Require Correct Bidirectional Schema or Data Silently Fails
 
-**What goes wrong:** The user selects "Heltec V3" in the device picker, but the firmware binary flashed is for "Heltec V2" (different chip architecture) or the wrong variant of V3. The device boots into a crash loop or does not boot at all.
+**What goes wrong:** Strapi 5 many-to-many relations require matching `inversedBy`/`mappedBy` declarations on both sides. If side A declares `inversedBy: "events"` but side B either omits `mappedBy` or uses a different attribute name, the relation appears to work in the admin UI but:
+1. The join table is created with wrong foreign key columns
+2. API population returns empty arrays for one direction
+3. Connect/disconnect operations via the Document Service API silently do nothing
 
-**Why it happens:** The Meshtastic hardware database (`hardware-list.json`) maps `hwModelSlug` to `platformioTarget`, which determines the firmware binary filename. But:
-1. Multiple hardware revisions share similar names (Heltec V3 vs V3.1, RAK4631 vs RAK4631-R).
-2. The `platformioTarget` naming does not always match the firmware ZIP filenames exactly.
-3. New hardware variants are added to the database but the firmware ZIP for the pinned version may not contain binaries for those new devices.
-4. ESP32 vs ESP32-S3 firmware ZIPs are separate downloads; selecting from the wrong architecture ZIP gives a binary that will not boot.
+**Why it happens:** Strapi 5 uses the `api::content-type.content-type` target format (e.g., `api::event.event`) and the `inversedBy`/`mappedBy` pair must reference the exact attribute name on the other side, not the content type name. This is a subtle distinction that causes silent failures.
 
-**Consequences:** Device appears bricked (crash loop). ESP32 chips are not truly brickable (the ROM bootloader always works), but users at DEF CON will panic and create a support queue. Recovery requires a full erase and reflash -- exactly the situation the flasher was supposed to prevent.
+**Consequences:** Events appear to have no routes. Routes appear to have no events. The admin UI may show the relation as connected (it reads the join table directly) but the REST API (which uses the Document Service) returns empty arrays because the population path is broken.
 
 **Prevention:**
-- Curate a whitelist of tested device/firmware pairs rather than exposing the full 122-device hardware database. For DCR34, only officially support the 5-10 most common Meshtastic ESP32 devices.
-- Validate that every `platformioTarget` in the whitelist has a corresponding `.bin` file in the vendored firmware ZIPs at build time. Fail the Docker build if any mapping is broken.
-- Map `architecture` field to the correct firmware ZIP family (`firmware-esp32-*.zip` vs `firmware-esp32s3-*.zip` vs `firmware-esp32c3-*.zip`).
-- Add a "confirm your device" step with a photo comparison before flashing begins.
-- If possible, read the chip ID after Web Serial connect and cross-reference against the selected device's expected chip family. esptool.js can detect chip type (`ESP32`, `ESP32-S3`, etc.) before flashing -- use this as a safety check.
+- For each many-to-many relation, define BOTH sides explicitly in schema.json:
+  ```json
+  // Event schema.json
+  "routes": {
+    "type": "relation",
+    "relation": "manyToMany",
+    "target": "api::route.route",
+    "inversedBy": "events"
+  }
 
-**Detection:** Build-time validation catches missing binaries. Runtime chip detection catches architecture mismatches. Visual device confirmation catches model confusion.
+  // Route schema.json
+  "events": {
+    "type": "relation",
+    "relation": "manyToMany",
+    "target": "api::event.event",
+    "mappedBy": "routes"
+  }
+  ```
+- The side with `inversedBy` owns the join table. The side with `mappedBy` is the inverse. Pick the "owner" deliberately (event owns event-route join).
+- After creating content types, verify BOTH directions work via REST API: `GET /api/events?populate=routes` AND `GET /api/routes?populate=events`. Both must return populated data.
+- Test with curl, not just the admin UI, because the admin UI uses a different query path.
 
-**Phase:** Phase 1 (device picker) and Phase 2 (flash step). The picker must be curated, and the flash step must validate before writing.
+**Detection:** API integration test that creates an event, connects a route, then queries both directions. If either returns empty, the relation is misconfigured.
 
-**Confidence:** HIGH -- boot loop issues from wrong firmware are extensively documented in Meshtastic firmware issues ([#3338](https://github.com/meshtastic/firmware/issues/3338), [#2084](https://github.com/meshtastic/firmware/issues/2084), [#4615](https://github.com/meshtastic/firmware/issues/4615)).
+**Phase:** Phase 1 (content type creation) -- relation configuration is foundational.
+
+**Confidence:** HIGH -- Strapi 5 documentation confirms the `inversedBy`/`mappedBy` requirement. Multiple forum posts report silent failures when this is wrong (forum.strapi.io/t/cannot-populate-many-to-many-relation/20733).
 
 ---
 
-### Pitfall 4: Firmware/Library Protobuf Version Mismatch
+### Pitfall 4: REST API Returns Empty Relations by Default -- run.human Gets No Data
 
-**What goes wrong:** The `@meshtastic/core` npm package used for configuration pushes protobuf messages that the freshly-flashed firmware does not understand, or vice versa. Config push appears to succeed but values are silently ignored or misinterpreted.
+**What goes wrong:** run.human calls the CMS worker API to fetch events with their routes and POIs. The response contains only scalar fields -- no relations, no media, no components. The developer concludes the content types are broken, but the data is there; it just is not populated.
 
-**Why it happens:** Meshtastic's protobuf schema evolves between firmware releases. The `@meshtastic/core` package is versioned independently of firmware releases. If the pinned firmware version is 2.5.x but `@meshtastic/core` is built against 2.6.x protobufs, fields may have different indices, new fields may not exist, and enum values may have shifted.
+**Why it happens:** Strapi 5 REST API does NOT populate any relations, media fields, components, or dynamic zones by default. This is a deliberate design choice for performance. Every relation must be explicitly requested via the `populate` query parameter. For nested relations (event -> routes -> pois), you need nested populate syntax: `populate[routes][populate][0]=pois`.
 
-**Consequences:** Configuration is silently wrong. The device connects to the mesh but with wrong channel settings, wrong MQTT credentials, or wrong radio presets. Users think they are configured but their devices do not work on the DCR34 mesh. This is worse than a visible error because it is invisible.
+**Consequences:** run.human displays events with no routes, routes with no POIs, events with no photos. Developers waste hours debugging "missing data" that is actually just unpopulated.
 
 **Prevention:**
-- Pin `@meshtastic/core` and `@meshtastic/protobufs` to the exact version that matches the pinned firmware version. Document this coupling explicitly.
-- After pushing config, read it back and verify all critical fields (MQTT server, channel PSK, region) match what was sent. Display a verification checkmark for each config category.
-- Test the complete flow (flash firmware version X, configure with @meshtastic/core version Y) as a manual QA step every time either version changes.
-- Consider using a compatibility matrix document that maps firmware versions to known-compatible npm package versions.
+- Create a custom controller or middleware on the CMS side that enforces default population for each content type. For example, an event always returns with routes and media populated.
+- Use route-level middleware pattern (recommended by Strapi) to set default populate:
+  ```js
+  // src/api/event/middlewares/default-populate.js
+  module.exports = (config, { strapi }) => {
+    return async (ctx, next) => {
+      if (!ctx.query.populate) {
+        ctx.query.populate = {
+          routes: { populate: ['pois'] },
+          photos: true,
+          attachments: true
+        };
+      }
+      await next();
+    };
+  };
+  ```
+- Document the exact populate parameters run.human must use for each endpoint.
+- Never use `populate=*` or `populate=deep` in production -- these generate expensive multi-join SQL queries that will lock SQLite for too long.
+- Limit population depth to 2 levels maximum (event -> routes -> pois). Deeper nesting means the data model needs restructuring.
 
-**Detection:** Config verification read-back catches mismatches. If any field does not round-trip correctly, surface a warning to the user.
+**Detection:** API smoke test that verifies populated fields are present in responses.
 
-**Phase:** Phase 3 (configure step). Must be addressed when selecting library versions and tested end-to-end.
+**Phase:** Phase 2 (API verification) -- after content types exist, before run.human integration.
 
-**Confidence:** MEDIUM -- version coupling is documented ([`@meshtastic/js` 2.5.9-2 was released specifically to fix protobuf decoding with firmware 2.5.11](https://www.npmjs.com/package/@meshtastic/core)), but the exact failure modes depend on which protobuf fields change between versions.
+**Confidence:** HIGH -- this is explicitly documented in Strapi 5 REST API docs (docs.strapi.io/cms/api/rest/populate-select).
 
 ---
 
-### Pitfall 5: Flash Offset Addresses Wrong for Chip Architecture
+### Pitfall 5: Media URLs Break Across Regions Due to S3 rootPath and CloudFront Mismatch
 
-**What goes wrong:** esptool.js writes firmware binaries to incorrect flash memory offsets. The bootloader, partition table, and application firmware must be written to specific addresses that differ between ESP32 variants:
-- ESP32: bootloader at `0x1000`, partition table at `0x8000`, firmware at `0x10000`
-- ESP32-S3: bootloader at `0x0000`, partition table at `0x8000`, firmware at `0x10000`
-- ESP32-C3/C6: bootloader at `0x0000`, partition table at `0x8000`, firmware at `0x10000`
+**What goes wrong:** CMS media is stored in S3 with a region-prefixed path (`use1/cms/image.png`) and served via CloudFront at `https://cms.defcon.run/use1/cms/image.png`. The master CMS in us-east-1 creates entries with media URLs containing `use1` in the path. Workers in ca-central-1 serve these same entries (via Litestream replication), but the URLs still point to `use1/cms/` paths. If run.human in ca-central-1 renders these URLs, they work (CloudFront serves from S3 regardless of region prefix in URL), BUT:
+1. The media S3 bucket has cross-region replication, and there may be a brief window where newly uploaded media exists in us-east-1 S3 but not yet in ca-central-1 S3.
+2. If CloudFront is configured with region-specific S3 origins, the `use1/cms/` path from ca-central-1 may route to the wrong S3 bucket.
 
-Writing to the wrong offset corrupts the flash layout. The device does not boot.
+**Why it happens:** The `rootPath` in plugins.ts is `${regionShort}/cms`, and `baseUrl` is `https://cms.defcon.run`. So Strapi stores media URLs as `https://cms.defcon.run/use1/cms/filename.ext`. Since only the master (us-east-1) writes, ALL media URLs contain `use1`. This is correct IF CloudFront routes all `/use1/cms/*` requests to the us-east-1 S3 origin regardless of which edge location serves the request.
 
-**Why it happens:** Meshtastic's `device-install.sh` script handles this automatically with per-architecture logic. When reimplementing in JavaScript, developers must manually specify these offsets. The Meshtastic firmware ZIP contains a `.bin` file and possibly separate bootloader/partition files, and the developer must know which files go where.
-
-**Consequences:** Device will not boot. Requires full erase and reflash to recover.
+**Consequences:** Newly uploaded images may 404 on non-master regions for a few seconds/minutes until S3 replication completes. If CloudFront origin routing is wrong, images 404 permanently in non-master regions.
 
 **Prevention:**
-- Study the Meshtastic web flasher's source code (`github.com/meshtastic/web-flasher`) to understand exactly how it maps architectures to flash offsets.
-- Use the `.factory.bin` file from the firmware ZIP when available -- this is a single combined binary that includes bootloader + partition table + firmware at correct offsets, and can be flashed to offset `0x0000`. This eliminates multi-file offset management entirely.
-- If using separate files: create an explicit offset map per architecture, validate it against the `device-install.sh` script, and unit test it.
-- Always erase flash before a full install (not just an update) to avoid stale partition table conflicts.
+- Verify that CloudFront for cms.defcon.run routes `/use1/cms/*` to the us-east-1 S3 bucket from ALL edge locations (not just use1 edges). This should already work with a single S3 origin, but verify.
+- Accept that media URLs are master-region-specific. Since the master always writes to `use1/cms/`, this is consistent. Workers replicate the DB, and the URLs are absolute. This is actually fine.
+- Set CloudFront cache TTL to allow S3 replication to complete (at least 60 seconds for new objects).
+- Test: upload an image on the master, then immediately query it from a worker in ca-central-1. If it 404s, check S3 replication lag and CloudFront cache behavior.
 
-**Detection:** After flashing, attempt to connect to the device. If the device does not respond within 30 seconds, the flash offsets are likely wrong.
+**Detection:** Monitor S3 replication metrics. Test media availability from non-master regions after upload.
 
-**Phase:** Phase 2 (flash step). This is core flash logic and must be correct before any device testing.
+**Phase:** Phase 2 (media upload testing) -- after content types with media fields exist.
 
-**Confidence:** HIGH -- flash offset requirements are well-documented in [Espressif's esptool documentation](https://docs.espressif.com/projects/esptool/en/latest/esp32/esptool/flashing-firmware.html) and ESP-IDF partition table docs.
+**Confidence:** MEDIUM -- the current CMS media setup (plugins.ts lines 17-19) hardcodes `rootPath` to `${regionShort}/cms` which is always `use1` on master. This works correctly IF CloudFront has the right origin setup. Need to verify CloudFront config.
 
 ---
 
 ## Moderate Pitfalls
 
-Issues that cause user frustration, support load, or degraded experience but are recoverable.
+Issues that cause development friction, data inconsistency, or degraded UX but are recoverable.
 
-### Pitfall 6: USB Cable Is Power-Only (No Data)
+### Pitfall 6: GPX Files Rejected by Strapi Media Library MIME Type Validation
 
-**What goes wrong:** User connects their ESP32 with a USB cable that carries power but no data lines. The device powers on (LED lights up) but does not appear in the Web Serial port picker. The user concludes the flasher is broken.
+**What goes wrong:** Route content types need GPX file attachments. When uploading a `.gpx` file through the Strapi media library, it may be rejected because GPX files have MIME type `application/gpx+xml` or sometimes `application/xml` or `text/xml` depending on the browser. Strapi's upload security middleware validates MIME types, and `application/gpx+xml` is not in the default allowed list.
 
-**Why it happens:** Cheap USB cables, especially USB-C cables, are commonly power-only. Users bring whatever cable they have. At a conference, this is the #1 hardware issue.
+**Why it happens:** Strapi's upload plugin categorizes files into images, videos, audios, and "files." The "files" category has its own allowed MIME types. Custom XML-based formats like GPX are not recognized by default.
+
+**Consequences:** Organizers cannot upload GPX files through the admin panel. They get a generic "file type not allowed" error with no guidance on which types are accepted.
 
 **Prevention:**
-- Add prominent "use a data cable" messaging with visual examples at the start of the wizard.
-- When no ports appear in the Web Serial picker dialog, show a specific troubleshooting message: "No device detected? You may need a different USB cable. Data cables are available at [location]."
-- At the event, have a supply of known-good USB data cables available for loan.
-- Consider adding a "Cable Test" feature: if a port is selected but esptool.js cannot sync, suggest trying a different cable before suggesting other troubleshooting.
+- Configure allowed MIME types in the upload security settings to include GPX:
+  ```js
+  // config/plugins.ts - upload security
+  sizeLimit: 100 * 1024 * 1024,
+  breakpoints: {},
+  // Allow GPX files (XML-based)
+  ```
+- Alternatively, store GPX as a `text` field on the Route content type (GPX is just XML text). This avoids MIME type issues entirely and makes the content searchable. However, large GPX files (multi-MB) may strain SQLite row size limits.
+- If using media library: test with actual GPX files from multiple browsers (Chrome sends `application/gpx+xml`, Firefox may send `application/xml`).
+- The middleware config already allows 100MB file size (`formidable.maxFileSize` in middlewares.ts), so size is not the issue.
 
-**Phase:** Phase 1 (connect step). UX messaging should guide users before they encounter the empty picker.
+**Detection:** Upload test with a real GPX file through the admin panel before declaring the content type complete.
 
-**Confidence:** HIGH -- this is universally reported across all ESP32 web flasher communities.
+**Phase:** Phase 1 (content type creation) -- configure upload restrictions when defining Route content type.
+
+**Confidence:** MEDIUM -- depends on whether the current `strapi::security` middleware blocks unknown MIME types. The current config (middlewares.ts) does not explicitly restrict upload MIME types, but Strapi's default may.
 
 ---
 
-### Pitfall 7: Missing USB-to-Serial Drivers
+### Pitfall 7: Litestream 5-Minute Sync Lag Creates Stale Content on Workers
 
-**What goes wrong:** The ESP32 board uses a CH340, CH9102, or CP2102 USB-to-serial chip. The user's computer does not have the appropriate driver installed. The device does not appear in the port picker.
+**What goes wrong:** An organizer publishes a new event or updates a route on the master CMS. They check the public site (served by run.human, which reads from a CMS worker). The old content is still showing. They publish again, thinking it failed. Now there are duplicate entries or the second publish overwrites the first. Five minutes later, the correct content appears.
 
-**Why it happens:** macOS and Linux ship with CP2102 drivers but may not have CH340/CH9102 drivers. Windows often needs manual driver installation for both. Newer CH340K variants require updated drivers that supersede older CH340 drivers.
+**Why it happens:** Workers sync via `litestream-sync.sh` every 5 minutes (`SYNC_INTERVAL=300`). Between syncs, workers serve the previous snapshot. This is by design for eventual consistency, but organizers do not know about the delay.
+
+**Consequences:** Organizer confusion, duplicate content creation, "it's broken" support requests. If an organizer publishes time-sensitive content (e.g., "Event starting NOW"), the 5-minute delay means 300 seconds of stale data.
 
 **Prevention:**
-- Document which USB-to-serial chips the supported devices use and link to driver downloads for each OS at the start of the wizard.
-- Detect the OS (via `navigator.userAgent`) and show OS-specific driver instructions.
-- Prefer recommending devices that use CP2102 (Silicon Labs) over CH340 (WCH) in the curated device whitelist, since CP2102 drivers are more commonly pre-installed.
-- For ESP32-S3/C3/C6 boards with native USB (USB_SERIAL_JTAG): these do NOT need external drivers. Prioritize these in the recommended device list.
+- Reduce sync interval to 60 seconds for content freshness. The sync is lightweight (S3 REST call + file swap). Cost is negligible.
+- Display "Last synced: X minutes ago" on run.human admin or status endpoint so organizers know when workers will catch up.
+- Add a "force sync" mechanism: an API endpoint on the worker that triggers an immediate litestream restore (authenticated, admin-only).
+- Make the master CMS admin panel available for both reading AND writing, with workers used only for run.human API reads. Organizers always see fresh data because they use the master.
+- Document the replication delay for organizers: "Changes may take up to X minutes to appear on the public site."
+- Consider eventually switching to Litestream's continuous replication mode on workers (instead of periodic restore), which would reduce lag to seconds. This requires workers to run `litestream replicate` in read-only mode, which Litestream supports but adds complexity.
 
-**Phase:** Phase 1 (browser/device check step). Pre-wizard compatibility check.
+**Detection:** Timestamp comparison: check worker DB modification time vs. master's latest write time.
 
-**Confidence:** HIGH -- [Meshtastic's own serial driver documentation](https://meshtastic.org/docs/getting-started/serial-drivers/esp32/) covers this extensively.
+**Phase:** Phase 3 (deployment/ops) -- sync interval tuning after content types work.
+
+**Confidence:** HIGH -- the sync interval is hardcoded in `litestream-sync.sh` line 12 (`SYNC_INTERVAL=${SYNC_INTERVAL:-300}`). This is a configuration issue, not a bug.
 
 ---
 
-### Pitfall 8: Baud Rate Failures During Flash
+### Pitfall 8: New Content Types Not Accessible via REST API Until Permissions Configured
 
-**What goes wrong:** esptool.js attempts to flash at a high baud rate (921600 or 460800) and the connection drops partway through with a timeout error. The flash is partially written, leaving the device in a non-bootable state.
+**What goes wrong:** Content types are created, data is entered via admin panel, but `GET /api/events` returns 403 Forbidden. The developer thinks the content type is misconfigured, but it is actually a permissions issue.
 
-**Why it happens:** High baud rates are unreliable over long or low-quality USB cables, through USB hubs, or with certain USB-to-serial chips (especially CH340 clones). The initial connection always happens at 115200, but esptool.js upgrades to a higher speed for data transfer. If the upgrade fails silently, subsequent writes corrupt.
+**Why it happens:** Strapi 5 makes all content types private by default. The REST API requires explicit permissions configured via Settings > Users & Permissions > Roles > Public (or Authenticated). For each content type, `find` and `findOne` must be enabled for the appropriate role. This configuration is stored in the database, not in code, so it must be set on each environment (master and, if workers need it, on workers too -- but workers are read-only, so permissions set on master replicate via Litestream).
 
-**Consequences:** Partial flash. Device does not boot. Requires full erase and reflash.
+**Consequences:** run.human cannot fetch any content. 403 errors in production that did not occur in local development (where you might have set permissions manually).
 
 **Prevention:**
-- Default to 460800 baud, not 921600. It is fast enough for Meshtastic firmware (~2MB) and much more reliable across diverse hardware.
-- Implement retry logic: if the first flash attempt fails with a timeout, automatically retry at a lower baud rate (230400 or even 115200).
-- Show flash progress percentage so users can see if it stalls (vs. no feedback where they might unplug the cable).
-- After flash completes, verify with `flashMd5sum()` to confirm data integrity before declaring success.
+- Create a database migration script or bootstrap lifecycle hook that sets default permissions programmatically:
+  ```js
+  // src/bootstrap.ts or database/migrations/
+  // Grant public find/findOne for event, route, poi content types
+  ```
+- Use Strapi's `strapi.service('plugin::users-permissions.role')` in a bootstrap script to set permissions on first run.
+- Test with a fresh database (no manual permission setup) to verify the bootstrap sets correct permissions.
+- Alternatively, use API tokens (configured in admin Settings) for run.human-to-CMS communication instead of public role permissions. API tokens are more explicit and easier to manage.
+- Remember: permissions are in the SQLite database and replicate via Litestream to workers. Set them on master, and workers get them at next sync.
 
-**Detection:** Timeout errors during `writeFlash()`. Stalled progress percentage.
+**Detection:** Integration test that fetches each content type's REST API endpoint without authentication and verifies 200 response.
 
-**Phase:** Phase 2 (flash step). Baud rate selection and retry logic are core flash configuration.
+**Phase:** Phase 1 (content type creation) -- permissions setup immediately after content types are defined.
 
-**Confidence:** HIGH -- baud rate issues are the most common esptool failure mode, documented across [esptool](https://docs.espressif.com/projects/esptool/en/latest/esp32/troubleshooting.html) and esptool-js issues.
+**Confidence:** HIGH -- Strapi 5 docs confirm all content types are private by default (docs.strapi.io/cms/features/users-permissions).
 
 ---
 
-### Pitfall 9: User Unplugs USB During Flash
+### Pitfall 9: Strapi Auto-Migration Alters SQLite Schema on Startup, Breaking Worker Reads
 
-**What goes wrong:** User disconnects the USB cable while flashing is in progress (impatient, accidental, or trying to "fix" a perceived hang). The firmware is partially written.
+**What goes wrong:** A new version of the CMS with updated content types is deployed to the master. Strapi's auto-migration runs on master startup, creating new tables and columns. Workers are still running the old version with the old database. When Litestream syncs the updated database to a worker still running old Strapi code, the old code encounters unexpected columns/tables and may crash or produce errors.
 
-**Why it happens:** The flash process takes 30-90 seconds depending on baud rate and firmware size. Users do not realize it is still working, especially if progress feedback is inadequate.
+**Why it happens:** Strapi auto-migrates the database schema to match the content type definitions on every startup. The master gets the new schema immediately. Workers get the new database (via Litestream) but run old code until they are redeployed. During this window, schema and code are mismatched.
 
-**Consequences:** Partial flash. Device will not boot until a full erase + reflash. Not truly bricked (ROM bootloader is always intact), but the user thinks it is bricked.
+**Consequences:** Workers crash or return errors for 5-10 minutes (until they are also redeployed with the new code). In a multi-region deployment, this window can be longer if regions deploy sequentially.
 
 **Prevention:**
-- Show clear, animated progress with percentage and estimated time remaining. "Flashing firmware... 47% (about 30 seconds remaining)."
-- Display a prominent warning: "Do NOT unplug your device during this step."
-- Detect USB disconnect events (`navigator.serial` `disconnect` event) and show a clear recovery message: "Device disconnected during flash. Plug it back in and click 'Retry' to start over with a full erase."
-- Always use full erase before flash (not incremental update) to ensure a clean state on retry.
+- Deploy strategy: deploy workers FIRST (new code, old database is fine because Strapi adds new columns gracefully), then deploy master (new code triggers migration, updates database, Litestream replicates to workers that already have new code).
+- Alternatively: deploy master and workers simultaneously, accepting a brief window where workers have mismatched code/schema.
+- Strapi's auto-migration is additive (adds columns, adds tables). It does NOT drop columns or rename tables. So old code reading a new database should tolerate extra columns. Verify this assumption for each schema change.
+- Test the upgrade path: run old Strapi code against new-schema database to verify it does not crash.
 
-**Phase:** Phase 2 (flash step). Progress UI and disconnect handling.
+**Detection:** Health check failures on workers after master deployment. CloudWatch log monitoring for Knex/SQLite errors.
 
-**Confidence:** HIGH -- universal flash tool concern, not Meshtastic-specific.
+**Phase:** Phase 3 (deployment) -- deployment order strategy.
+
+**Confidence:** MEDIUM -- Strapi's auto-migration is documented as additive, but edge cases (renamed fields, changed relation types) could cause issues. Need to test.
 
 ---
 
-### Pitfall 10: HTTPS Requirement Blocks Local Development
+### Pitfall 10: Draft and Publish Creates Invisible Content in REST API
 
-**What goes wrong:** Developers run `npm run dev` on `localhost:3000` and Web Serial works fine. They deploy to a staging environment over HTTP (not HTTPS) and Web Serial stops working entirely. Or they try to test from a phone/other device on the local network via IP address and it fails.
+**What goes wrong:** An organizer creates an event in the admin panel. They fill in all fields, save, and tell participants to check run.defcon.run. The event does not appear. The organizer saved a draft, not a published entry. Strapi 5's Document Service differentiates between draft and published states, and the REST API only returns published content by default.
 
-**Why it happens:** Web Serial API requires a "secure context" -- either `localhost` (exempt) or HTTPS. This is a hard browser requirement with no workaround. Local network IP addresses (`192.168.x.x`) are not considered secure contexts.
+**Why it happens:** Strapi 5 introduces a new Draft & Publish system tied to the Document concept. Content exists in `draft` or `published` status. The REST API returns only `published` content unless `status=draft` is explicitly requested. The admin panel defaults to saving as draft.
 
-**Consequences:** Development and testing friction. Features that work locally break in staging. Delays.
+**Consequences:** Organizers create content that is invisible to participants. Support requests about "missing events."
 
 **Prevention:**
-- Use `localhost` for all local development. Do not test via LAN IP.
-- For staging/preview environments, always deploy behind HTTPS (CloudFront handles this for production).
-- If testing from other devices on the network is needed, use `mkcert` to create locally-trusted certificates and serve Next.js with `--experimental-https` or a reverse proxy.
-- Document this requirement prominently in the project README so contributors do not waste time debugging it.
+- Configure content types with `draftAndPublish: false` in schema.json options if draft workflow is not needed. For an event CMS with a small team of organizers, draft mode adds complexity without value.
+  ```json
+  "options": {
+    "draftAndPublish": false
+  }
+  ```
+- If draft mode IS desired: add prominent "Publish" button guidance in organizer documentation. Create a custom dashboard widget showing unpublished content count.
+- In run.human API calls to CMS, always use the default (published-only) filter. Never request drafts.
+- Test: create content, verify it appears in REST API. If it does not, check publication status.
 
-**Phase:** Phase 0 (project setup). Address before any development begins.
+**Detection:** Count of entries in admin panel vs. count returned by REST API. Mismatch means unpublished drafts.
 
-**Confidence:** HIGH -- [MDN Web Serial API docs](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API) and [Chrome developer docs](https://developer.chrome.com/docs/capabilities/serial) confirm secure context requirement.
+**Phase:** Phase 1 (content type creation) -- decide draft/publish strategy during schema design.
+
+**Confidence:** HIGH -- Strapi 5 docs confirm draft/publish behavior with the Document system.
 
 ---
 
-### Pitfall 11: PSK and Credential Leakage in Client Bundle
+### Pitfall 11: Admin Custom Login Redirect Breaks on Strapi Upgrade
 
-**What goes wrong:** Channel PSK, MQTT credentials, or other secrets end up in the client-side JavaScript bundle. At DEF CON, attendees will inspect the bundle within minutes and extract these values.
+**What goes wrong:** The existing `app.tsx` monkey-patches `window.fetch` to intercept 401 responses and redirect to SSO login (lines 126-178). A Strapi version upgrade changes the admin panel's API patterns (different endpoint paths, different error response format), and the monkey-patch silently stops intercepting 401s. Users see the raw Strapi login form instead of the SSO redirect.
 
-**Why it happens:** Next.js makes it easy to accidentally expose server-side values to the client:
-- Environment variables without the `NEXT_PUBLIC_` prefix are supposed to be server-only, but developers sometimes reference them in client components by mistake.
-- Importing a shared config module that contains secrets into a client component pulls secrets into the bundle.
-- The `/api/config` response is intentionally sent to the client, but caching or service worker behavior could persist it beyond the session.
+**Why it happens:** The fetch interception relies on URL pattern matching (`url.includes('/admin/')`) and response status codes. Strapi's internal admin API is not a stable public interface -- it changes between minor versions. The monkey-patch was noted as fragile in the codebase concerns audit.
 
-**Consequences:** At a security conference, leaked credentials will be exploited immediately. Attackers could hijack the MQTT broker, impersonate users, or disrupt the mesh network.
+**Consequences:** Organizers see an unfamiliar login page with username/password fields (no SSO). They cannot log in because they have no local password (SSO-provisioned). CMS is effectively locked out until the monkey-patch is updated.
 
 **Prevention:**
-- The `/api/config` endpoint returns secrets only to authenticated users -- this design is correct. Maintain it.
-- Use Next.js Server Components for any code that touches secrets. Never import secret-containing modules in `"use client"` components.
-- Add a build-time check: grep the client bundle for known secret patterns (PSK format, MQTT password patterns). Fail the build if found.
-- Set `Cache-Control: no-store` on the `/api/config` response.
-- Consider fetching config only at the moment it is needed (during the configure step), not on page load.
-- Rotate PSK and MQTT broker credentials independently of the app deployment.
+- Pin Strapi version precisely (5.6.x). Do not upgrade Strapi during this milestone.
+- If upgrading: test the SSO flow end-to-end after every Strapi version change. Verify that 401 interception, logout interception, and SSO redirect all still work.
+- Consider replacing the fetch monkey-patch with Strapi's official admin extension points if available in future versions.
+- Add an e2e test for the SSO login flow: navigate to admin, verify redirect to auth.defcon.run, complete OIDC flow, verify admin panel loads.
+- The v1.0 retrospective warns: "Test the full OIDC flow end-to-end before calling deployment complete." This applies doubly here because adding content types changes admin panel behavior.
 
-**Phase:** Phase 1 (API routes) and Phase 3 (configure step). Security review before any deployment.
+**Detection:** Manual SSO login test after any Strapi package update. Automated e2e test if feasible.
 
-**Confidence:** HIGH -- this is a known Next.js footgun, and DEF CON attendees will actively audit the app.
+**Phase:** Phase 2 (branded login page) -- when modifying admin customization.
 
----
-
-### Pitfall 12: ESP32-S3/C3/C6 USB_SERIAL_JTAG Boot Mode Trap
-
-**What goes wrong:** After flashing an ESP32-S3, C3, or C6 device via its native USB_SERIAL_JTAG interface, the device reboots but stays in download mode instead of booting the application. It appears "stuck" and does not respond to `@meshtastic/core` connections.
-
-**Why it happens:** The USB_SERIAL_JTAG peripheral can only trigger a core reset, which does not re-sample the boot strapping pins. After flashing, esptool.js sends a reset command, but the boot pin remains sampled as LOW (download mode) from the previous state.
-
-**Consequences:** The configure step hangs waiting for a device that will never boot. User thinks the flash failed.
-
-**Prevention:**
-- Use the `--after watchdog-reset` equivalent in esptool.js when flashing via USB_SERIAL_JTAG. This triggers a full system reset that re-samples boot pins.
-- Detect whether the connected device uses USB_SERIAL_JTAG (ESP32-S3, C3, C6 with native USB) vs. external UART (ESP32 with CP2102/CH340) and apply the appropriate reset strategy.
-- If the device does not boot after reset, instruct the user to manually press the reset button on the device. Show this instruction prominently with a device image highlighting the reset button location.
-
-**Detection:** Device does not enumerate as a serial port within 15 seconds of flash completion.
-
-**Phase:** Phase 2 (flash step). Architecture-specific reset handling.
-
-**Confidence:** HIGH -- documented in [Espressif's ESP32-S3 boot mode documentation](https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/boot-mode-selection.html) and [esptool-js issue #41](https://github.com/espressif/esptool-js/issues/41).
+**Confidence:** HIGH -- this is explicitly called out in `.planning/codebase/CONCERNS.md` as a fragile area.
 
 ---
 
@@ -290,111 +317,162 @@ Issues that cause user frustration, support load, or degraded experience but are
 
 Issues that are annoying but have straightforward fixes.
 
-### Pitfall 13: Browser Tab Crash Leaves Serial Port Locked
+### Pitfall 12: SQLite Pool Max=1 Causes Slow Concurrent Admin Panel Operations
 
-**What goes wrong:** If the browser tab crashes or the user closes the tab while a serial port is open, the port may remain "locked" by Chrome. Reopening the page and trying to reconnect shows "port already in use" or fails silently.
+**What goes wrong:** Two organizers are simultaneously editing content in the admin panel. Operations become noticeably slow (2-5 second delays per save) because the Knex connection pool is limited to `max: 1` (database.ts line 9).
+
+**Why it happens:** SQLite single-writer constraint means only one write transaction at a time. With pool max=1, Knex serializes ALL queries (reads and writes) through a single connection. This is correct for write safety but unnecessarily restricts concurrent reads.
 
 **Prevention:**
-- Register `beforeunload` and `unload` event handlers that attempt to release serial port locks gracefully.
-- Show "close and reopen your browser if the port won't connect" as a troubleshooting step.
-- The `forget()` method (Chrome 103+) can release port permissions, which sometimes clears stale locks.
+- Keep pool max=1 for the master (single writer is correct for SQLite).
+- For workers (read-only), consider increasing pool max to 2-3 for better read concurrency. Workers never write, so multiple read connections are safe.
+- Ensure `PRAGMA busy_timeout = 5000;` is set to handle lock contention during Litestream checkpoints.
+- For the organizer-only admin panel with 2-5 concurrent users, pool max=1 is adequate. Only optimize if latency complaints arise.
 
-**Phase:** Phase 2 (flash step). Cleanup handlers.
+**Phase:** Phase 3 (deployment optimization) -- after content types work, if performance issues arise.
+
+**Confidence:** MEDIUM -- depends on actual concurrent usage patterns.
 
 ---
 
-### Pitfall 14: Firmware ZIP Download/Extraction Corruption
+### Pitfall 13: schema.json Attribute Order Affects Admin Panel Field Display Order
 
-**What goes wrong:** The vendored firmware ZIP in the Docker image is corrupted during build, or the in-browser ZIP extraction (if done client-side) produces corrupted binary data due to encoding issues.
+**What goes wrong:** Fields appear in an unexpected order in the admin panel's content editor. The "name" field is at the bottom, "description" is at the top, and organizers are confused by the layout.
+
+**Why it happens:** Strapi displays fields in the admin panel based on a combination of schema.json attribute order and stored layout configuration. The initial field order comes from the schema, but once someone configures the layout via the admin panel (Content-Type Builder > Configure the view), that layout is stored in the database and overrides the schema order.
 
 **Prevention:**
-- Vendor firmware at Docker build time, not at runtime. Extract the ZIPs during `docker build` and store the raw `.bin` files directly. No in-browser ZIP extraction needed.
-- Add SHA256 checksum verification of firmware binaries in the Dockerfile.
-- Serve `.bin` files as static assets from the Next.js public directory (or API route), not as ZIPs.
+- Define attributes in schema.json in the desired display order (most important fields first).
+- After deploying, configure the admin panel layout once on the master (drag fields into desired positions). This layout configuration replicates to workers via Litestream.
+- Do not rely solely on schema.json order for layout -- configure explicitly in admin.
 
-**Phase:** Phase 0 (project setup) and Phase 2 (flash step). Firmware vendoring is a build-time concern.
+**Phase:** Phase 1 (content type creation) -- order attributes deliberately during schema design.
+
+**Confidence:** LOW -- the exact interaction between schema order and stored layout in Strapi 5.6 needs verification.
 
 ---
 
-### Pitfall 15: Web Serial Port Picker Shows Too Many Ports
+### Pitfall 14: Missing Mock Outputs and SOPS Secrets Block Deployment
 
-**What goes wrong:** Users see a long list of serial ports (Bluetooth serial, other USB devices, virtual ports) in the browser's `requestPort()` dialog and do not know which one to select. They pick wrong, and the flash fails with a confusing error.
+**What goes wrong:** New content types require no infrastructure changes, but any code change requires a new Docker image version. The v1.0 retrospective documented that deployments are blocked by missing mock outputs in ECS service terragrunt, missing SOPS secret entries, and missing CI workflow entries.
+
+**Why it happens:** The CMS service is already deployed, so these should already exist. However, if content types require new environment variables (e.g., a new S3 bucket for GPX files, a new API token), those need SOPS entries and service.hcl updates.
 
 **Prevention:**
-- Use `requestPort()` with a filter for known USB vendor/product IDs (VID/PID) of supported ESP32 boards. Common VIDs: `0x10C4` (Silicon Labs CP2102), `0x1A86` (WCH CH340), `0x303A` (Espressif native USB).
-- Show guidance text next to the port picker: "Select the device labeled 'CP2102' or 'CH340' or 'USB JTAG'."
-- After selection, attempt a quick chip detect with esptool.js. If it fails, tell the user they may have selected the wrong port.
+- Review v1.0 deployment checklist before every CMS deploy:
+  1. Mock outputs in ecs-service terragrunt: already exist for run-cms
+  2. SOPS secrets: already exist, only add if new secrets needed
+  3. CI workflows: already include run-cms
+  4. Favicon: already deployed
+  5. basePath: already configured (`/${regionShort}/admin`)
+- If adding new env vars: update service.hcl, add SOPS entries, run `terragrunt plan` before deploy.
+- Content type additions should NOT require infrastructure changes if the schema is code-only and no new env vars are needed.
 
-**Phase:** Phase 1 (connect step). Port filtering in `requestPort()` options.
+**Phase:** Phase 3 (deployment) -- pre-deployment checklist.
+
+**Confidence:** HIGH -- v1.0 retrospective explicitly calls out these items (`.planning/RETROSPECTIVE.md` lines 24-26).
 
 ---
 
-### Pitfall 16: Event-Day Surge Overloads the Auth/Config API
+### Pitfall 15: documentId vs id Confusion in API Integration
 
-**What goes wrong:** Hundreds of participants arrive at DEF CON and try to flash their devices simultaneously. Every flash session requires an authenticated call to `/api/config` to fetch MQTT credentials and channel PSK. The server is overwhelmed.
+**What goes wrong:** run.human stores CMS content IDs and uses them for subsequent API calls. The developer uses the `id` field from API responses, but Strapi 5's Document Service expects `documentId` for fetch/update/delete operations. API calls with numeric `id` fail or return wrong content.
+
+**Why it happens:** Strapi 5 introduced the Document concept where `documentId` (a UUID string) is the primary identifier for API operations, replacing the numeric `id`. The numeric `id` still exists in responses but is a database-internal identifier that should not be used in API calls. This is a breaking change from Strapi 4.
+
+**Consequences:** run.human fetches wrong content or gets 404 errors when trying to fetch specific events/routes by ID.
 
 **Prevention:**
-- The `/api/config` endpoint is lightweight (reads from DynamoDB, returns JSON). Standard ECS Fargate autoscaling should handle this.
-- Pre-compute user configs and cache them (per-user, short TTL) to reduce DynamoDB reads.
-- The actual flashing happens entirely client-side (Web Serial + esptool.js) with no server involvement. Only the config fetch hits the server. This is inherently scalable.
-- Rate limit the `/api/config` endpoint per-user (1 request per 30 seconds) to prevent accidental hammering from retry loops.
-- Consider pre-generating and caching configs for all registered users at event start.
+- In run.human, always use `documentId` (string UUID) for CMS content references, never numeric `id`.
+- When caching CMS content in run.human, key by `documentId`.
+- Document this explicitly in API integration docs for run.human developers.
+- Test: create content, note both `id` and `documentId`, fetch by each. Only `documentId` should work for `/api/events/:documentId`.
 
-**Phase:** Phase 3 (configure step) and deployment planning.
+**Phase:** Phase 2 (API verification) -- when testing run.human-to-CMS integration.
 
-**Confidence:** MEDIUM -- the architecture (client-side flashing, server-side config only) inherently limits server load, but DynamoDB throttling under burst load is possible without proper provisioning.
+**Confidence:** HIGH -- Strapi 5 migration docs explicitly call this out as a breaking change.
+
+---
+
+## Deployment-Specific Warnings (from v1.0 Retrospective)
+
+These are not new pitfalls but recurring patterns from the v1.0 retrospective that apply to v1.1.
+
+### Pitfall 16: basePath Double-Prefix in Admin Panel Asset URLs
+
+**What goes wrong:** Strapi admin assets load from the wrong URL path. The admin panel shows a blank white page because JS/CSS files return 404.
+
+**Why it happens:** `server.url` and `admin.url` can create double-prefix paths if misconfigured. Currently: `server.url = https://cms.defcon.run` (no region), `admin.url = /use1/admin`. The Vite build base path also needs `/${REGION_SHORT}/admin/`. If any of these are wrong, asset paths break.
+
+**Prevention:**
+- Do not change `server.url` or `admin.url` configuration during this milestone. The current setup works.
+- When building the Docker image, verify `REGION_SHORT` is passed correctly as a build arg.
+- If admin assets 404 after deploy: check the Vite build output for base path, check nginx routing rules.
+
+**Phase:** Phase 3 (deployment) -- verify after any Docker image rebuild.
+
+**Confidence:** HIGH -- this is documented in v1.0 retrospective and server.ts comments (lines 4-8).
 
 ---
 
 ## Phase-Specific Warnings
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Project setup (Phase 0) | HTTPS requirement blocks dev workflow (#10) | Use `localhost` only, document the constraint |
-| Project setup (Phase 0) | Firmware vendoring corruption (#14) | Extract at build time, checksum verify, serve raw `.bin` files |
-| Device picker (Phase 1) | Wrong firmware for device (#3) | Curated whitelist, build-time validation of device-to-binary mapping |
-| Device picker (Phase 1) | Port picker confusion (#15) | VID/PID filters in `requestPort()` |
-| Connect step (Phase 1) | Missing drivers (#7), power-only cable (#6) | OS detection with driver links, prominent cable guidance |
-| Connect step (Phase 1) | Chrome version regression (#1) | Version check gate, pre-event testing against current Chrome |
-| Flash step (Phase 2) | Wrong flash offsets (#5) | Use `.factory.bin` files, per-architecture offset map |
-| Flash step (Phase 2) | Baud rate timeout (#8) | Default 460800, auto-retry at lower rate |
-| Flash step (Phase 2) | User unplugs mid-flash (#9) | Progress UI, disconnect detection, full-erase retry |
-| Flash step (Phase 2) | USB_SERIAL_JTAG boot trap (#12) | Watchdog reset for S3/C3/C6, manual reset button instruction |
-| Flash-to-configure handoff | Port state corruption (#2) | Explicit stream release, timed delay, reconnect retry loop |
-| Configure step (Phase 3) | Protobuf version mismatch (#4) | Pin @meshtastic/core to firmware version, config read-back verification |
-| Configure step (Phase 3) | Credential leakage (#11) | Server components only, bundle audit, no-store cache headers |
-| Event day | Auth/config surge (#16) | Config caching, inherently client-side architecture |
-| Event day | Chrome update breaks everything (#1) | Pre-event Chrome version testing, CLI fallback plan |
-| Event day | Mass cable/driver issues (#6, #7) | Loaner cables, driver install station, volunteers with CLI tools |
+| Phase Topic | Likely Pitfall | Severity | Mitigation |
+|-------------|---------------|----------|------------|
+| Content type schema design | Schema.json overwritten by CTB (#2) | Critical | Disable CTB in production, code-only workflow |
+| Content type schema design | Many-to-many inversedBy/mappedBy mismatch (#3) | Critical | Both sides defined, test both API directions |
+| Content type schema design | Draft/publish confusion (#10) | Moderate | Set `draftAndPublish: false` or train organizers |
+| Content type schema design | Attribute order affects UI (#13) | Minor | Order deliberately, configure layout in admin |
+| Media/file handling | GPX MIME type rejected (#6) | Moderate | Configure upload allowedTypes for GPX |
+| Media/file handling | Media URLs cross-region (#5) | Critical | Verify CloudFront origin routing |
+| REST API integration | Empty relations by default (#4) | Critical | Custom middleware for default population |
+| REST API integration | Permissions not configured (#8) | Moderate | Bootstrap script for public permissions |
+| REST API integration | documentId vs id (#15) | Moderate | Always use documentId in run.human |
+| Master-worker replication | DB swap corrupts connections (#1) | Critical | Restart-based sync, not mv swap |
+| Master-worker replication | 5-minute sync lag (#7) | Moderate | Reduce to 60 seconds, add force-sync |
+| Master-worker replication | Schema migration order (#9) | Moderate | Deploy workers first, then master |
+| Admin customization | SSO fetch patch breaks on upgrade (#11) | Moderate | Pin Strapi version, e2e test SSO flow |
+| Deployment | Missing SOPS/mock outputs (#14) | Moderate | Pre-deployment checklist from v1.0 retro |
+| Deployment | basePath double-prefix (#16) | Moderate | Do not change server.url/admin.url config |
 
 ---
 
 ## Sources
 
 ### Official Documentation (HIGH confidence)
-- [Espressif esptool Troubleshooting](https://docs.espressif.com/projects/esptool/en/latest/esp32/troubleshooting.html)
-- [Espressif ESP32-S3 Boot Mode Selection](https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/boot-mode-selection.html)
-- [Chrome Web Serial API Developer Guide](https://developer.chrome.com/docs/capabilities/serial)
-- [MDN Web Serial API Reference](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API)
-- [ESP-IDF Partition Tables](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/partition-tables.html)
-- [Meshtastic Serial Drivers](https://meshtastic.org/docs/getting-started/serial-drivers/esp32/)
-- [Meshtastic CLI Flashing](https://meshtastic.org/docs/getting-started/flashing-firmware/esp32/cli-script/)
-- [ESPLoader API Documentation](https://espressif.github.io/esptool-js/docs/classes/ESPLoader.html)
+- [Strapi 5 Models/Schema Documentation](https://docs.strapi.io/cms/backend-customization/models)
+- [Strapi 5 REST API Populate & Select](https://docs.strapi.io/cms/api/rest/populate-select)
+- [Strapi 5 Relations REST API](https://docs.strapi.io/cms/api/rest/relations)
+- [Strapi 5 Document Service API](https://docs.strapi.io/cms/api/document-service)
+- [Strapi 5 Users & Permissions](https://docs.strapi.io/cms/features/users-permissions)
+- [Strapi 5 Database Configuration](https://docs.strapi.io/cms/configurations/database)
+- [Strapi 5 Database Migrations](https://docs.strapi.io/cms/database-migrations)
+- [Strapi 5 Admin Panel Customization](https://docs.strapi.io/cms/admin-panel-customization)
+- [Strapi 5 Media Library](https://docs.strapi.io/cms/features/media-library)
+- [Litestream Tips & Caveats](https://litestream.io/tips/)
+- [Litestream How It Works](https://litestream.io/how-it-works/)
+- [SQLite WAL Documentation](https://sqlite.org/wal.html)
+- [SQLite How to Corrupt a Database](https://www.sqlite.org/howtocorrupt.html)
 
 ### GitHub Issues (MEDIUM-HIGH confidence)
-- [esptool-js #206: Chrome 139 connection failure](https://github.com/espressif/esptool-js/issues/206)
-- [esptool-js #227: Chrome 143 ESP32-S2 breakage](https://github.com/espressif/esptool-js/issues/227)
-- [esptool-js #41: ESP32-C3 USB_SERIAL_JTAG timeout](https://github.com/espressif/esptool-js/issues/41)
-- [esptool-js #233: Write failure mid-flash](https://github.com/espressif/esptool-js/issues/233)
-- [esptool-js #234: Baud rate change triggers timeout](https://github.com/espressif/esptool-js/issues/234)
-- [meshtastic/web-flasher#144: Port already open error](https://github.com/meshtastic/web-flasher/issues/144)
-- [meshtastic/web-flasher#111: Factory.bin flash corruption](https://github.com/meshtastic/web-flasher/issues/111)
-- [meshtastic/firmware#3338: Boot loop from wrong firmware](https://github.com/meshtastic/firmware/issues/3338)
-- [meshtastic/firmware#4555: Power loss corrupts device config](https://github.com/meshtastic/firmware/issues/4555)
-- [meshtastic/firmware#8543: Heltec V4 connection failure](https://github.com/meshtastic/firmware/issues/8543)
+- [strapi/strapi#21753: schema.json overwritten by CTB](https://github.com/strapi/strapi/issues/21753)
+- [strapi/strapi#23904: SQLite database locked](https://github.com/strapi/strapi/issues/23904)
+- [strapi/strapi#17625: Enable WAL mode for SQLite](https://github.com/strapi/strapi/issues/17625)
+- [benbjohnson/litestream#99: Write lock during shadow WAL sync](https://github.com/benbjohnson/litestream/issues/99)
+- [benbjohnson/litestream#58: Rules for Litestream-compatible apps](https://github.com/benbjohnson/litestream/issues/58)
 
 ### Community/Ecosystem (MEDIUM confidence)
-- [WICG Serial Port Locking Discussion](https://github.com/WICG/serial/issues/35)
-- [Meshtastic Web Flasher Repository](https://github.com/meshtastic/web-flasher)
-- [@meshtastic/core on npm](https://www.npmjs.com/package/@meshtastic/core)
-- [Meshtastic Client API Documentation](https://meshtastic.org/docs/development/device/client-api/)
+- [Why populate=deep Is Not Recommended](https://support.strapi.io/articles/8544110758-why-populate-deep-plugins-are-not-recommended-in-strapi)
+- [Strapi Forum: Cannot populate many-to-many relation](https://forum.strapi.io/t/cannot-populate-many-to-many-relation/20733)
+- [Transitioning from Strapi 4 to Strapi 5](https://strapi.io/blog/commonly-asked-questions-transitioning-from-strapi-4-to-strapi-5)
+- [Strapi 5 Flattened Response Format](https://docs.strapi.io/cms/migration/v4-to-v5/breaking-changes/new-response-format)
+
+### Internal Project Sources (HIGH confidence)
+- `.planning/RETROSPECTIVE.md` -- v1.0 deployment lessons
+- `.planning/codebase/CONCERNS.md` -- CMS fragile areas audit
+- `.planning/codebase/ARCHITECTURE.md` -- CMS replication flow documentation
+- `apps/run.cms/app/litestream-sync.sh` -- Worker sync implementation
+- `apps/run.cms/app/config/database.ts` -- SQLite pool configuration
+- `apps/run.cms/app/config/plugins.ts` -- S3 upload provider config
+- `apps/run.cms/app/src/admin/app.tsx` -- Admin SSO monkey-patch
+- `infra/terraform/live/site/services/run.cms/service.hcl` -- CMS infrastructure definition

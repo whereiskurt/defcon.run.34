@@ -7,6 +7,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 RUN mkdir /etc/nginx/html
 COPY index.html /etc/nginx/html/index.html
+COPY bg/ /etc/nginx/html/bg/
 
 EXPOSE 443
 
