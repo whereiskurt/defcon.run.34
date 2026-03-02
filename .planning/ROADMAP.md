@@ -36,11 +36,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for archived v1.0 roadmap.
   3. Organizer can create, edit, and delete an Event with all specified fields (title, slug, description, datetimes, location, cover image, gallery, attachments, sort order) via the Strapi admin panel
   4. Organizer can create, edit, and delete a Route with all specified fields (name, slug, description, route type, distance, elevation, difficulty, duration, GPX files, coordinates, cover image, map styling, sort order) via the Strapi admin panel
   5. Organizer can create, edit, and delete a Point of Interest with all specified fields (name, slug, description, coordinates, POI type, marker image, photo, sort order) via the Strapi admin panel
-**Plans**: TBD
+**Plans**: 2 plans (1 wave)
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
+- [ ] 05-01-PLAN.md — Fix worker Litestream sync safety + upgrade S3 upload provider to Strapi 5
+- [ ] 05-02-PLAN.md — Define shared coordinates component + Event, Route, and POI content type schemas
 
 ### Phase 6: Relations + API Verification
 **Goal**: Content types are linked with bidirectional many-to-many relations and the public REST API returns fully populated data
@@ -102,7 +102,7 @@ Phases 5 and 7 can execute in parallel (no dependency). Phase 6 follows 5. Phase
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 5. Infrastructure + Schemas | v1.1 | 0/0 | Not started | - |
+| 5. Infrastructure + Schemas | v1.1 | 0/2 | Planned | - |
 | 6. Relations + API | v1.1 | 0/0 | Not started | - |
 | 7. Branded Login | v1.1 | 0/0 | Not started | - |
 | 8. CMS Client | v1.1 | 0/0 | Not started | - |
