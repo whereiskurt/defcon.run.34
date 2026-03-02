@@ -9,6 +9,7 @@ import {
   Slider,
 } from '@heroui/react';
 import { Settings2 } from 'lucide-react';
+import { getApiBasePath } from '@/lib/api';
 
 const ZOOM_LEVELS = [
   { value: 9, label: 'Far' },
@@ -96,7 +97,7 @@ export function MapBackground() {
         ref={bgRef}
         className="map-bg-layer fixed inset-0 z-0 pointer-events-none transition-transform duration-300 ease-out"
         style={{
-          backgroundImage: `url(/bg/vegas-z${prefs.zoom}.png)`,
+          backgroundImage: `url(${getApiBasePath()}/bg/vegas-z${prefs.zoom}.png)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',

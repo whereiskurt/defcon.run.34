@@ -10,6 +10,10 @@ import {
 } from '@heroui/react';
 import { Settings2 } from 'lucide-react';
 
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
+
 const ZOOM_LEVELS = [
   { value: 9, label: 'Far' },
   { value: 10, label: 'City' },
@@ -96,7 +100,7 @@ export function MapBackground() {
         ref={bgRef}
         className="map-bg-layer fixed inset-0 z-0 pointer-events-none transition-transform duration-300 ease-out"
         style={{
-          backgroundImage: `url(/bg/vegas-z${prefs.zoom}.png)`,
+          backgroundImage: `url(${basePath}/bg/vegas-z${prefs.zoom}.png)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
