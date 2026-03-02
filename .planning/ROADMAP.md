@@ -65,10 +65,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Visiting cms.defcon.run root shows a DCR34-branded page with DCR34 logo and visual identity, not the default Strapi login form
   2. Clicking the sign-in button triggers the OIDC flow to auth.defcon.run and returns the organizer to the Strapi admin panel upon successful authentication
-**Plans**: TBD
+**Plans**: 1 plan (1 wave)
 
 Plans:
-- [ ] 07-01: TBD
+- [ ] 07-01-PLAN.md — Branded login page (static HTML + nginx) and branded SSO error pages
 
 ### Phase 8: run.human CMS Client
 **Goal**: run.human can fetch and render CMS content from regional workers via service discovery with type-safe code
