@@ -22,17 +22,21 @@ export default ({ env }) => {
   const uploadConfig = s3AccessKey && s3Bucket
     ? {
         config: {
-          provider: '@strapi/provider-upload-aws-s3',
+          provider: 'aws-s3',
           providerOptions: {
-            accessKeyId: s3AccessKey,
-            secretAccessKey: env('S3_MEDIA_SECRET_KEY'),
-            region: env('S3_MEDIA_REGION', 'us-east-1'),
-            params: {
-              Bucket: s3Bucket,
-              ACL: null, // Bucket policy handles access
-            },
-            rootPath: s3RootPath, // Upload to {region}/cms/ folder
             baseUrl: cdnBaseUrl, // Serve assets via CloudFront CDN
+            rootPath: s3RootPath, // Upload to {region}/cms/ folder
+            s3Options: {
+              credentials: {
+                accessKeyId: s3AccessKey,
+                secretAccessKey: env('S3_MEDIA_SECRET_KEY'),
+              },
+              region: env('S3_MEDIA_REGION', 'us-east-1'),
+              params: {
+                Bucket: s3Bucket,
+                ACL: null, // Bucket policy handles access
+              },
+            },
           },
           actionOptions: {
             upload: {},
