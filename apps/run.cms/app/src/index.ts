@@ -1,3 +1,67 @@
+async function ensurePublicPermissions(strapi) {
+  const pluginStore = strapi.store({
+    type: 'plugin',
+    name: 'users-permissions',
+  });
+
+  const publicPermissionsConfigured = await pluginStore.get({
+    key: 'publicPermissionsConfigured',
+  });
+
+  if (publicPermissionsConfigured) {
+    return; // Already configured — idempotent guard
+  }
+
+  // Find the Public role
+  const publicRole = await strapi
+    .query('plugin::users-permissions.role')
+    .findOne({ where: { type: 'public' } });
+
+  if (!publicRole) {
+    strapi.log.warn('[Bootstrap] Public role not found — skipping permission setup');
+    return;
+  }
+
+  // Grant read-only access (find + findOne) for all three content types
+  const publicActions = [
+    'api::event.event.find',
+    'api::event.event.findOne',
+    'api::route.route.find',
+    'api::route.route.findOne',
+    'api::point-of-interest.point-of-interest.find',
+    'api::point-of-interest.point-of-interest.findOne',
+  ];
+
+  for (const action of publicActions) {
+    const existing = await strapi
+      .query('plugin::users-permissions.permission')
+      .findOne({ where: { action, role: publicRole.id } });
+
+    if (existing) {
+      // Permission record exists — ensure it's enabled
+      if (!existing.enabled) {
+        await strapi.query('plugin::users-permissions.permission').update({
+          where: { id: existing.id },
+          data: { enabled: true },
+        });
+      }
+    } else {
+      // Permission record doesn't exist — create it
+      await strapi.query('plugin::users-permissions.permission').create({
+        data: { action, role: publicRole.id, enabled: true },
+      });
+    }
+  }
+
+  // Mark as configured so this doesn't re-run on every restart
+  await pluginStore.set({
+    key: 'publicPermissionsConfigured',
+    value: true,
+  });
+
+  strapi.log.info('[Bootstrap] Public API permissions configured (find + findOne for events, routes, points-of-interest)');
+}
+
 export default {
   /**
    * An asynchronous register function that runs before
@@ -52,6 +116,13 @@ export default {
       }
     } catch (err) {
       strapi.log.error('Failed to seed admin user:', err);
+    }
+
+    // Configure public read-only API permissions (idempotent)
+    try {
+      await ensurePublicPermissions(strapi);
+    } catch (err) {
+      strapi.log.error('[Bootstrap] Failed to configure public permissions:', err);
     }
   },
 };
