@@ -486,6 +486,11 @@ locals {
       service_name = "cms"
       regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
 
+      # Strapi uploads to {region}/cms/* path (not uploads/*), so the
+      # prefix-restricted IAM policy doesn't fit. Full access is appropriate
+      # since only the CMS master writes to this bucket.
+      full_bucket_access = true
+
       lifecycle = {
         uploads_expire_days   = 0
         processed_expire_days = 0
