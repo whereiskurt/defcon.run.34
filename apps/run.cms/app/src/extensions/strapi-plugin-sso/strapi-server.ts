@@ -12,6 +12,61 @@ import axios from 'axios';
 import { randomUUID } from 'node:crypto';
 import type { Core } from '@strapi/strapi';
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function renderBrandedError(title: string, message: string, actions: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)} - defcon.run CMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* EXACT values from auth.defcon.run - see globals.css and tailwind.config.js */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0f; color: #e4e4e7; font-family: 'MuseoModerno', 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .container { position: relative; z-index: 2; text-align: center; padding: 2rem; max-width: 420px; width: 100%; animation: fadeUp 0.6s ease-out forwards; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .wordmark h1 { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.025em; }
+    .teal-dot { color: #00d4aa; }
+    .subtitle { font-family: monospace; font-size: 0.75rem; color: #71717a; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.5rem; }
+    .glass-card { background: rgba(17, 17, 24, 0.8); backdrop-filter: blur(12px); border: 1px solid #2a2a3a; border-radius: 12px; padding: 2rem; margin-top: 2rem; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+    .glass-card:hover { border-color: #3a3a4a; box-shadow: 0 0 24px rgba(0, 212, 170, 0.06); }
+    .error-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem; color: #fbbf24; }
+    .error-message { font-size: 0.9rem; color: #a1a1aa; line-height: 1.6; margin-bottom: 1.5rem; }
+    .btn { display: inline-block; padding: 0.75rem 1.5rem; background: #00d4aa; color: #0a0a0f; font-family: 'MuseoModerno', sans-serif; font-size: 0.9rem; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; transition: background 0.2s ease; }
+    .btn:hover { background: #00e8bb; }
+    .btn-secondary { background: transparent; color: #a1a1aa; border: 1px solid #2a2a3a; margin-left: 0.5rem; }
+    .btn-secondary:hover { border-color: #3a3a4a; color: #e4e4e7; background: rgba(17, 17, 24, 0.5); }
+    .actions { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="wordmark">
+      <h1>defcon<span class="teal-dot">.</span>run</h1>
+      <p class="subtitle">Content Management System</p>
+    </div>
+    <div class="glass-card">
+      <h2 class="error-title">${escapeHtml(title)}</h2>
+      <p class="error-message">${escapeHtml(message)}</p>
+      <div class="actions">${actions}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 const REQUIRED_SERVICE = process.env.OIDC_REQUIRED_SERVICES || 'cms';
 
 // Refresh token cookie - httpOnly to protect from XSS
@@ -71,11 +126,19 @@ export default (plugin) => {
     const roleService = strapiInstance.plugin('strapi-plugin-sso').service('role');
 
     if (!ctx.query.code) {
-      return ctx.send(oauthService.renderSignUpError('code Not Found'));
+      return ctx.send(renderBrandedError(
+        'Authentication Failed',
+        'Authorization code was not received from the identity provider. Please try signing in again.',
+        '<a href="/" class="btn">Try Again</a>'
+      ));
     }
 
     if (!ctx.query.state || ctx.query.state !== ctx.session.oidcState) {
-      return ctx.send(oauthService.renderSignUpError('Invalid state'));
+      return ctx.send(renderBrandedError(
+        'Authentication Failed',
+        'The login session has expired or was invalid. Please try signing in again.',
+        '<a href="/" class="btn">Try Again</a>'
+      ));
     }
 
     const params = new URLSearchParams();
@@ -105,14 +168,20 @@ export default (plugin) => {
       const services: string[] = userData.services || [];
       if (!services.includes(REQUIRED_SERVICE)) {
         strapiInstance.log.warn(`[SSO] User ${userData.email} denied - missing '${REQUIRED_SERVICE}' service claim. Has: [${services.join(', ')}]`);
-        return ctx.send(oauthService.renderSignUpError(
-          `Access denied. You need the '${REQUIRED_SERVICE}' service permission to access this CMS.`
+        return ctx.send(renderBrandedError(
+          'Access Denied',
+          "You don't have permission to access the CMS. Contact an event organizer to request access.",
+          '<a href="/" class="btn">Back to Login</a>'
         ));
       }
 
       const email = userData.email;
       if (!email) {
-        return ctx.send(oauthService.renderSignUpError('Email not provided by identity provider'));
+        return ctx.send(renderBrandedError(
+          'Authentication Failed',
+          'Your identity provider did not share your email address, which is required to access the CMS.',
+          '<a href="/" class="btn">Try Again</a>'
+        ));
       }
 
       // Check if user exists
@@ -196,7 +265,11 @@ export default (plugin) => {
       ctx.body = html;
     } catch (e) {
       strapiInstance.log.error(`[SSO] Authentication error: ${(e as Error).message}`, e);
-      ctx.send(oauthService.renderSignUpError((e as Error).message));
+      ctx.send(renderBrandedError(
+        'Authentication Failed',
+        'Something went wrong during sign-in. Please try again.',
+        '<a href="/" class="btn">Try Again</a>'
+      ));
     }
   };
 
