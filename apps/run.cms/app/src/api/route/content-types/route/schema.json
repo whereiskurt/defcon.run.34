@@ -1,0 +1,87 @@
+{
+  "kind": "collectionType",
+  "collectionName": "routes",
+  "info": {
+    "displayName": "Route",
+    "singularName": "route",
+    "pluralName": "routes",
+    "description": "DCR34 running/walking routes"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true,
+      "maxLength": 255
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "name",
+      "required": true
+    },
+    "description": {
+      "type": "blocks"
+    },
+    "shortDescription": {
+      "type": "text",
+      "maxLength": 500
+    },
+    "routeType": {
+      "type": "enumeration",
+      "enum": ["point-to-point", "loop", "out-and-back"],
+      "required": true
+    },
+    "distance": {
+      "type": "decimal"
+    },
+    "elevationGain": {
+      "type": "decimal"
+    },
+    "estimatedDuration": {
+      "type": "integer"
+    },
+    "gpxFiles": {
+      "type": "media",
+      "multiple": true,
+      "allowedTypes": ["files"]
+    },
+    "startCoordinates": {
+      "type": "component",
+      "component": "shared.coordinates",
+      "repeatable": false
+    },
+    "endCoordinates": {
+      "type": "component",
+      "component": "shared.coordinates",
+      "repeatable": false
+    },
+    "coverImage": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    },
+    "mapColor": {
+      "type": "string",
+      "default": "#FF5733",
+      "maxLength": 7
+    },
+    "mapWeight": {
+      "type": "integer",
+      "default": 3,
+      "min": 1,
+      "max": 10
+    },
+    "mapOpacity": {
+      "type": "decimal",
+      "default": 0.8,
+      "min": 0,
+      "max": 1
+    },
+    "sortOrder": {
+      "type": "integer",
+      "default": 0
+    }
+  }
+}
