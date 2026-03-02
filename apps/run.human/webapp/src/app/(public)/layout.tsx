@@ -8,6 +8,8 @@ import { auth } from "@/config/auth";
 import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
 import { cookies, headers } from "next/headers";
+import { Header } from "@header";
+import { Footer } from "@/components/footer";
 import { MapBackground } from "@/components/map-background";
 import { config } from "@/config";
 
@@ -95,6 +97,7 @@ export default async function PublicLayout({
 
   const versionApp = process.env.NEXT_PUBLIC_VERSION_APP || "unknown";
   const versionNginx = process.env.NEXT_PUBLIC_VERSION_NGINX || "unknown";
+  const APP_VERSION_TOOLTIP = `DC34 ${versionApp}`;
 
   return (
     <html suppressHydrationWarning lang="en">
@@ -114,10 +117,14 @@ export default async function PublicLayout({
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
             <MapBackground />
-            <div className="relative flex flex-col h-screen noise-overlay">
-              <main className="container mx-auto h-screen flex items-center justify-center relative z-10">
-                <div className="w-full max-w-md px-4">{children}</div>
+            <div className="relative flex flex-col min-h-screen noise-overlay">
+              <div className="flex-shrink-0 relative z-10">
+                <Header session={session} />
+              </div>
+              <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-3 pb-4 relative z-10">
+                {children}
               </main>
+              <Footer versionTooltip={APP_VERSION_TOOLTIP} />
             </div>
           </SessionProvider>
         </Providers>
