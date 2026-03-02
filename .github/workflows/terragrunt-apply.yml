@@ -40,6 +40,10 @@ on:
         description: 'Modules to apply (comma-separated, e.g., ecs-task,ecs-service)'
         type: string
         default: ''
+      ref:
+        description: 'Git ref to checkout (default: workflow trigger ref)'
+        type: string
+        default: ''
 
 # Cancel in-progress runs when new commits are pushed
 concurrency:
@@ -72,6 +76,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || '' }}
 
       - name: Cache Terragrunt and SOPS
         uses: actions/cache@v4

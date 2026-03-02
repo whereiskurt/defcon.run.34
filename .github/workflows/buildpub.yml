@@ -85,6 +85,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
+    outputs:
+      merge_sha: ${{ steps.merge.outputs.merge_sha }}
+
     permissions:
       id-token: write
       contents: write
@@ -211,6 +214,7 @@ jobs:
           fi
 
       - name: Merge PR
+        id: merge
         if: inputs.create_pr && steps.release.outputs.pr_number
         env:
           GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
@@ -220,6 +224,11 @@ jobs:
 
           if gh pr merge "$PR_NUMBER" --squash --delete-branch --admin; then
             echo "✅ PR #${PR_NUMBER} merged successfully"
+            # Capture merge commit SHA so deploy jobs checkout the correct ref
+            sleep 2
+            MERGE_SHA=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid')
+            echo "merge_sha=$MERGE_SHA" >> $GITHUB_OUTPUT
+            echo "Merge SHA: $MERGE_SHA"
           else
             echo "⚠️ Auto-merge failed. PR may need manual merge."
             echo "PR: ${{ steps.release.outputs.pr_url }}"
@@ -391,6 +400,9 @@ jobs:
     runs-on: ${{ needs.start-ec2-runner.outputs.runner-label }}
     timeout-minutes: 30
 
+    outputs:
+      merge_sha: ${{ steps.merge.outputs.merge_sha }}
+
     permissions:
       id-token: write
       contents: write
@@ -510,6 +522,7 @@ jobs:
           fi
 
       - name: Merge PR
+        id: merge
         if: inputs.create_pr && steps.release.outputs.pr_number
         env:
           GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
@@ -519,6 +532,11 @@ jobs:
 
           if gh pr merge "$PR_NUMBER" --squash --delete-branch --admin; then
             echo "✅ PR #${PR_NUMBER} merged successfully"
+            # Capture merge commit SHA so deploy jobs checkout the correct ref
+            sleep 2
+            MERGE_SHA=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid')
+            echo "merge_sha=$MERGE_SHA" >> $GITHUB_OUTPUT
+            echo "Merge SHA: $MERGE_SHA"
           else
             echo "⚠️ Auto-merge failed. PR may need manual merge."
             echo "PR: ${{ steps.release.outputs.pr_url }}"
@@ -548,6 +566,9 @@ jobs:
     environment: ec2-runner
     timeout-minutes: 30
 
+    outputs:
+      merge_sha: ${{ steps.merge.outputs.merge_sha }}
+
     permissions:
       id-token: write
       contents: write
@@ -667,6 +688,7 @@ jobs:
           fi
 
       - name: Merge PR
+        id: merge
         if: inputs.create_pr && steps.release.outputs.pr_number
         env:
           GH_TOKEN: ${{ secrets.GH_RUNNER_TOKEN }}
@@ -676,6 +698,11 @@ jobs:
 
           if gh pr merge "$PR_NUMBER" --squash --delete-branch --admin; then
             echo "✅ PR #${PR_NUMBER} merged successfully"
+            # Capture merge commit SHA so deploy jobs checkout the correct ref
+            sleep 2
+            MERGE_SHA=$(gh pr view "$PR_NUMBER" --json mergeCommit --jq '.mergeCommit.oid')
+            echo "merge_sha=$MERGE_SHA" >> $GITHUB_OUTPUT
+            echo "Merge SHA: $MERGE_SHA"
           else
             echo "⚠️ Auto-merge failed. PR may need manual merge."
             echo "PR: ${{ steps.release.outputs.pr_url }}"
@@ -747,6 +774,7 @@ jobs:
       runner: github-hosted
       region: us-east-1
       modules: ecs-task,ecs-service
+      ref: ${{ needs.build-github-hosted.outputs.merge_sha || needs.build-ec2-new.outputs.merge_sha || needs.build-ec2-existing.outputs.merge_sha || '' }}
     secrets: inherit
 
   deploy-cac1:
@@ -766,6 +794,7 @@ jobs:
       runner: github-hosted
       region: ca-central-1
       modules: ecs-task,ecs-service
+      ref: ${{ needs.build-github-hosted.outputs.merge_sha || needs.build-ec2-new.outputs.merge_sha || needs.build-ec2-existing.outputs.merge_sha || '' }}
     secrets: inherit
 
   deploy-apse1:
@@ -785,6 +814,7 @@ jobs:
       runner: github-hosted
       region: ap-southeast-1
       modules: ecs-task,ecs-service
+      ref: ${{ needs.build-github-hosted.outputs.merge_sha || needs.build-ec2-new.outputs.merge_sha || needs.build-ec2-existing.outputs.merge_sha || '' }}
     secrets: inherit
 
   invalidate-cache:

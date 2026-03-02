@@ -127,6 +127,7 @@ jobs:
       runner: ${{ inputs.runner }}
       region: ${{ inputs.region }}
       modules: ecs-task,ecs-service
+      ref: ${{ needs.merge-pr.outputs.merge_sha || '' }}
     secrets: inherit
 
   # ============================================================================
