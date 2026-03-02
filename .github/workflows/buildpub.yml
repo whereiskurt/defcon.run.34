@@ -727,106 +727,75 @@ jobs:
   # Optional: Deploy to ECS + invalidate cache after build
   #
   # Chains build → deploy so you can one-click the full pipeline.
-  # Waits for whichever build variant ran, then deploys each region.
+  # Uses terragrunt-apply.yml as a reusable workflow (inherits its IAM role
+  # trust policy via job_workflow_ref). One job per region, conditionally run.
   # ============================================================================
-  deploy-ecs:
+  deploy-use1:
     if: >-
       inputs.deploy && always() &&
+      contains(inputs.regions, 'use1') &&
       (needs.build-github-hosted.result == 'success' ||
        needs.build-ec2-new.result == 'success' ||
        needs.build-ec2-existing.result == 'success')
-    name: Deploy ECS
+    name: Deploy use1
     needs: [build-github-hosted, build-ec2-new, build-ec2-existing, stop-ec2-runner]
-    runs-on: ubuntu-latest
-    environment: terraform-apply
-    timeout-minutes: 30
-
     permissions:
       id-token: write
       contents: read
+    uses: ./.github/workflows/terragrunt-apply.yml
+    with:
+      runner: github-hosted
+      region: us-east-1
+      modules: ecs-task,ecs-service
+    secrets: inherit
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+  deploy-cac1:
+    if: >-
+      inputs.deploy && always() &&
+      contains(inputs.regions, 'cac1') &&
+      (needs.build-github-hosted.result == 'success' ||
+       needs.build-ec2-new.result == 'success' ||
+       needs.build-ec2-existing.result == 'success')
+    name: Deploy cac1
+    needs: [build-github-hosted, build-ec2-new, build-ec2-existing, stop-ec2-runner]
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/terragrunt-apply.yml
+    with:
+      runner: github-hosted
+      region: ca-central-1
+      modules: ecs-task,ecs-service
+    secrets: inherit
 
-      - name: Cache Terragrunt and SOPS
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/local/bin/terragrunt
-            /usr/local/bin/sops
-          key: tools-${{ runner.os }}-terragrunt-v0.97.1-sops-v3.11.0
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/dc34-github-terragrunt
-          aws-region: us-east-1
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.14.3
-          terraform_wrapper: false
-
-      - name: Setup Terragrunt
-        run: |
-          if [ ! -f /usr/local/bin/terragrunt ]; then
-            curl -Lo /usr/local/bin/terragrunt \
-              "https://github.com/gruntwork-io/terragrunt/releases/download/v0.97.1/terragrunt_linux_amd64"
-            chmod +x /usr/local/bin/terragrunt
-          fi
-          terragrunt --version
-
-      - name: Setup SOPS
-        run: |
-          if [ ! -f /usr/local/bin/sops ]; then
-            curl -Lo /usr/local/bin/sops \
-              "https://github.com/getsops/sops/releases/download/v3.11.0/sops-v3.11.0.linux.amd64"
-            chmod +x /usr/local/bin/sops
-          fi
-          sops --version
-
-      - name: Deploy ECS (all regions)
-        working-directory: infra/terraform/live/site
-        env:
-          TG_PROVIDER_CACHE: "1"
-          TG_BUCKET_USE1: tf-${{ vars.SITE_LABEL }}-use1-${{ vars.SGUID }}
-          TG_TABLE_USE1: tf-${{ vars.SITE_LABEL }}-use1-${{ vars.SGUID }}
-          TG_BUCKET_CAC1: tf-${{ vars.SITE_LABEL }}-cac1-${{ vars.SGUID }}
-          TG_TABLE_CAC1: tf-${{ vars.SITE_LABEL }}-cac1-${{ vars.SGUID }}
-          TG_BUCKET_APSE1: tf-${{ vars.SITE_LABEL }}-apse1-${{ vars.SGUID }}
-          TG_TABLE_APSE1: tf-${{ vars.SITE_LABEL }}-apse1-${{ vars.SGUID }}
-          SGUID: ${{ vars.SGUID }}
-          TF_VAR_MANAGEMENT_ACCOUNT_ID: ${{ vars.TF_VAR_MANAGEMENT_ACCOUNT_ID }}
-          TF_VAR_APPLICATION_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-          TF_VAR_GITHUB_ORG: ${{ github.repository_owner }}
-        run: |
-          FAILED=0
-          for code in $(echo "${{ inputs.regions }}" | tr ',' ' '); do
-            case "$code" in
-              use1)  REGION="us-east-1" ;;
-              cac1)  REGION="ca-central-1" ;;
-              apse1) REGION="ap-southeast-1" ;;
-              *)     continue ;;
-            esac
-
-            echo "=== Deploying ECS in $REGION ==="
-            for MODULE in ecs-task ecs-service; do
-              echo "--- $MODULE ($REGION) ---"
-              if ! (cd "region/$REGION/$MODULE" && terragrunt apply --no-color --non-interactive -auto-approve); then
-                echo "::error::Failed to deploy $MODULE in $REGION"
-                FAILED=1
-              fi
-            done
-          done
-
-          exit $FAILED
+  deploy-apse1:
+    if: >-
+      inputs.deploy && always() &&
+      contains(inputs.regions, 'apse1') &&
+      (needs.build-github-hosted.result == 'success' ||
+       needs.build-ec2-new.result == 'success' ||
+       needs.build-ec2-existing.result == 'success')
+    name: Deploy apse1
+    needs: [build-github-hosted, build-ec2-new, build-ec2-existing, stop-ec2-runner]
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/terragrunt-apply.yml
+    with:
+      runner: github-hosted
+      region: ap-southeast-1
+      modules: ecs-task,ecs-service
+    secrets: inherit
 
   invalidate-cache:
-    if: inputs.deploy && always() && needs.deploy-ecs.result == 'success'
+    if: >-
+      inputs.deploy && always() &&
+      (needs.deploy-use1.result == 'success' || needs.deploy-use1.result == 'skipped') &&
+      (needs.deploy-cac1.result == 'success' || needs.deploy-cac1.result == 'skipped') &&
+      (needs.deploy-apse1.result == 'success' || needs.deploy-apse1.result == 'skipped') &&
+      (needs.deploy-use1.result == 'success' || needs.deploy-cac1.result == 'success' || needs.deploy-apse1.result == 'success')
     name: Invalidate Cache
-    needs: [deploy-ecs]
+    needs: [deploy-use1, deploy-cac1, deploy-apse1]
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
