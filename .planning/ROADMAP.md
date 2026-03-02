@@ -52,10 +52,11 @@ Plans:
   3. Unauthenticated GET requests to /api/events, /api/routes, and /api/pois return published content (Public role permissions working)
   4. REST API supports explicit population of nested relations and media (events with routes, routes with POIs and GPX URLs)
   5. REST API supports field selection and filtering by date, type, and slug
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — Add eventType enum + bidirectional many-to-many relations to schemas + public permission bootstrap
+- [ ] 06-02-PLAN.md — Create API verification script (population, filtering, field selection, write protection)
 
 ### Phase 7: Branded Login
 **Goal**: Organizers see a DCR34-branded login experience when accessing cms.defcon.run instead of the raw Strapi admin form
@@ -103,7 +104,7 @@ Phases 5 and 7 can execute in parallel (no dependency). Phase 6 follows 5. Phase
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 5. Infrastructure + Schemas | v1.1 | 0/2 | Planned | - |
-| 6. Relations + API | v1.1 | 0/0 | Not started | - |
+| 6. Relations + API | v1.1 | 0/2 | Planned | - |
 | 7. Branded Login | v1.1 | 0/0 | Not started | - |
 | 8. CMS Client | v1.1 | 0/0 | Not started | - |
 | 9. Seed Data + E2E | v1.1 | 0/0 | Not started | - |

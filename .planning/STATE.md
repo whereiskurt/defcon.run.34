@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: CMS Content Types
-status: unknown
-last_updated: "2026-03-02T16:19:57.324Z"
+status: in-progress
+last_updated: "2026-03-02T17:15:18.000Z"
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -18,28 +18,29 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-02)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 — from device setup to event discovery to route navigation.
-**Current focus:** Phase 5 — Infrastructure Hardening + Content Type Schemas
+**Current focus:** Phase 6 — Relations & API Verification
 
 ## Current Position
 
-Phase: 5 of 9 (Infrastructure Hardening + Content Type Schemas)
-Plan: 2 of 2 (complete)
-Status: Phase 5 complete
-Last activity: 2026-03-02 — Completed 05-02 (Content Type Schemas)
+Phase: 6 of 9 (Relations & API Verification)
+Plan: 1 of 2
+Status: 06-01 complete, 06-02 pending
+Last activity: 2026-03-02 — Completed 06-01 (Relations & API Permissions)
 
-Progress: [██████████] 100% (2/2 plans in phase 5)
+Progress: [█████-----] 50% (1/2 plans in phase 6)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 2min
-- Total execution time: 4min
+- Total execution time: 6min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 05    | 01   | 2min     | 2     | 4     |
 | 05    | 02   | 2min     | 3     | 4     |
+| 06    | 01   | 2min     | 2     | 4     |
 
 *Updated after each plan completion*
 
@@ -61,6 +62,9 @@ Recent decisions affecting current work:
 - [Phase 05]: POI description uses text type (not blocks) since POI descriptions are simpler
 - [Phase 05]: Map styling as inline Route fields (not a separate component) since only Route uses them
 - [Phase 05]: No difficulty field on Route — computed at display time from distance/elevation/GPX data
+- [06-01]: Event owns Event<->Route relation (inversedBy), Route is inverse (mappedBy)
+- [06-01]: Route owns Route<->POI relation (inversedBy), POI is inverse (mappedBy)
+- [06-01]: Plugin store key publicPermissionsConfigured used for bootstrap idempotency
 
 ### Pending Todos
 
@@ -79,5 +83,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed 05-02-PLAN.md (Content Type Schemas) — Phase 5 complete
+Stopped at: Completed 06-01-PLAN.md (Relations & API Permissions)
 Resume file: None
