@@ -25,6 +25,10 @@ echo "Sync interval: ${SYNC_INTERVAL}s"
 echo "Performing initial restore from S3..."
 if $LITESTREAM restore -config "$CONFIG" "$DB_PATH"; then
     echo "Database restored successfully"
+    # Checkpoint WAL into main database file and remove WAL/SHM for clean start
+    sqlite3 "$DB_PATH" "PRAGMA wal_checkpoint(TRUNCATE);"
+    rm -f "${DB_PATH}-wal" "${DB_PATH}-shm"
+    echo "WAL checkpointed and cleaned for initial restore"
 else
     echo "No existing database in S3 or restore failed"
     echo "Creating empty database file..."
@@ -41,21 +45,33 @@ while true; do
 
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting periodic sync..."
 
-    # Stop Strapi to safely update database
-    # Note: This causes brief downtime, but ensures data consistency
-    # Alternative: Use SQLite WAL mode for hot backup (future improvement)
-
-    # For now, we do a "hot" restore by:
-    # 1. Downloading to a temp file
-    # 2. Swapping atomically if successful
-    TEMP_DB="${DB_PATH}.new"
+    # Restore to an isolated temp directory to avoid polluting the live database
+    TEMP_DIR=$(mktemp -d)
+    TEMP_DB="${TEMP_DIR}/strapi.db"
 
     if $LITESTREAM restore -config "$CONFIG" -o "$TEMP_DB" "$DB_PATH" 2>/dev/null; then
-        # Atomic swap
+        # Checkpoint the restored database to fold WAL into the main file
+        sqlite3 "$TEMP_DB" "PRAGMA wal_checkpoint(TRUNCATE);"
+        # Remove any WAL/SHM files from the restored database (should be clean after checkpoint)
+        rm -f "${TEMP_DB}-wal" "${TEMP_DB}-shm"
+
+        # Stop Strapi briefly for a safe file swap
+        supervisorctl stop strapi 2>/dev/null
+
+        # Remove old WAL/SHM files to prevent stale WAL application on the new database
+        rm -f "${DB_PATH}-wal" "${DB_PATH}-shm"
+
+        # Move the checkpointed database into place
         mv "$TEMP_DB" "$DB_PATH"
+
+        # Restart Strapi
+        supervisorctl start strapi 2>/dev/null
+
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Sync completed successfully"
     else
         echo "$(date '+%Y-%m-%d %H:%M:%S') - Sync failed or no new data"
-        rm -f "$TEMP_DB"
     fi
+
+    # Clean up temp directory in all cases
+    rm -rf "$TEMP_DIR"
 done
