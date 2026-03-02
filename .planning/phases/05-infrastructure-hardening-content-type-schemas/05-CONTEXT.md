@@ -18,8 +18,9 @@ Fix worker litestream sync safety (WAL/SHM corruption) and upgrade S3 upload pro
 - Implemented as Strapi enumeration field
 
 ### Distance units
-- Miles only — US audience, Las Vegas event, keep it simple
-- Single decimal field for distance in miles
+- Kilometres stored in CMS (canonical unit)
+- UI in run.human handles conversion to miles and steps for display
+- Single decimal field for distance in km
 
 ### Rich text fields
 - Use Strapi 5's built-in blocks editor (rich text) for event and route descriptions
@@ -40,9 +41,16 @@ Fix worker litestream sync safety (WAL/SHM corruption) and upgrade S3 upload pro
 - Rely on Strapi's global upload size limits in server config
 - No per-field size restrictions needed for small organizer team (3-5 people)
 
+### Difficulty
+- NOT a stored field — difficulty is derived from distance, elevation, GPX data, etc.
+- Computed at display time in run.human, not entered by organizers in CMS
+- Remove difficulty from the Route schema
+
+### Route types
+- Three types: street, indoor, trail
+- Implemented as Strapi enumeration field
+
 ### Claude's Discretion
-- Difficulty level scale and values for routes
-- Route type enum values (requirements specify P2P/loop/out-and-back as minimum)
 - Map styling field implementation (color/weight/opacity inputs)
 - Admin sidebar organization and content type grouping
 - Coordinate precision for lat/lng fields
