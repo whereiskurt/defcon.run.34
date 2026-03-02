@@ -47,7 +47,7 @@ Fix worker litestream sync safety (WAL/SHM corruption) and upgrade S3 upload pro
 - Remove difficulty from the Route schema
 
 ### Route types
-- Three types: street, indoor, trail
+- As specified in requirements: point-to-point, loop, out-and-back
 - Implemented as Strapi enumeration field
 
 ### Claude's Discretion
