@@ -94,6 +94,17 @@ resource "aws_security_group" "http_only" {
       self             = true
       prefix_list_ids  = []
       security_groups  = []
+    },
+    {
+      description      = "Strapi CMS port 1337 to VPC"
+      from_port        = 1337
+      to_port          = 1337
+      protocol         = "tcp"
+      cidr_blocks      = []
+      ipv6_cidr_blocks = []
+      self             = true
+      prefix_list_ids  = []
+      security_groups  = []
     }
   ]
 
