@@ -29,7 +29,9 @@ export async function strapiHealth(): Promise<{
     throw new Error(`Health check failed: ${res.status} ${res.statusText}`);
   }
 
-  const data = await res.json();
+  // Strapi /_health returns 204 No Content — handle empty body
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : {};
   return {
     status: data.status || 'ok',
     mode: data.mode,
