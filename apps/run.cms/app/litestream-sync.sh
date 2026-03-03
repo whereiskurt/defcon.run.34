@@ -22,6 +22,8 @@ echo "Database path: $DB_PATH"
 echo "Sync interval: ${SYNC_INTERVAL}s"
 
 # Initial restore from S3
+# Remove any existing database so Litestream restore can write a fresh copy
+rm -f "$DB_PATH" "${DB_PATH}-wal" "${DB_PATH}-shm"
 echo "Performing initial restore from S3..."
 if $LITESTREAM restore -config "$CONFIG" "$DB_PATH"; then
     echo "Database restored successfully"
