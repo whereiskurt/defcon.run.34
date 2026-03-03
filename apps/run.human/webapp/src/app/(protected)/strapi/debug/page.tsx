@@ -238,7 +238,7 @@ export default function StrapiDebugPage() {
           icon={<Route className="h-5 w-5 text-success" />}
           result={data?.routes}
           loading={loading && !data}
-          fields={['title', 'slug', 'distance', 'updatedAt']}
+          fields={['name', 'slug', 'distance', 'updatedAt']}
         />
         <ContentCard
           title="Points of Interest"

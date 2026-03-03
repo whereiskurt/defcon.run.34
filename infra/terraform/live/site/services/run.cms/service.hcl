@@ -586,9 +586,9 @@ locals {
     # No load_balancers - internal service discovery only
 
     autoscaling = {
-      enabled      = true
+      enabled      = false
       min_capacity = 1
-      max_capacity = 3
+      max_capacity = 1
 
       cpu_target = {
         scale_out_threshold = 75
