@@ -24,6 +24,7 @@ interface ContentResult {
   data: ContentItem[];
   meta: unknown;
   responseTime: number;
+  error?: string;
 }
 
 interface DebugData {
@@ -37,6 +38,7 @@ interface DebugData {
       responseTime: number;
     } | null;
     error?: string;
+    hasToken: boolean;
   };
   events: ContentResult | null;
   routes: ContentResult | null;
@@ -203,6 +205,14 @@ export default function StrapiDebugPage() {
                   <span className="text-sm font-mono">{data.worker.health.responseTime}ms</span>
                 </div>
               )}
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-default-500 w-24">API Token</span>
+                {data.worker.hasToken ? (
+                  <Chip color="success" size="sm" variant="flat">configured</Chip>
+                ) : (
+                  <Chip color="danger" size="sm" variant="flat">missing</Chip>
+                )}
+              </div>
               {data.worker.error && (
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-default-500 w-24">Error</span>
@@ -316,6 +326,8 @@ function ContentCard({
           <Skeleton className="h-20 w-full rounded-lg" />
         ) : result === null || result === undefined ? (
           <div className="text-sm text-default-400">Failed to fetch or not configured</div>
+        ) : result.error ? (
+          <div className="text-sm text-danger font-mono">{result.error}</div>
         ) : result.data.length === 0 ? (
           <div className="text-sm text-default-400">No {title.toLowerCase()} found</div>
         ) : (
