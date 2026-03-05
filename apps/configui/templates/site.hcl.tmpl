@@ -50,6 +50,7 @@ locals {
     run_human = read_terragrunt_config("./services/run.human/service.hcl")
     cms       = read_terragrunt_config("./services/run.cms/service.hcl")
     gpx       = read_terragrunt_config("./services/run.gpx/service.hcl")
+    flash     = read_terragrunt_config("./services/run.flash/service.hcl")
   }
 
   email = {
@@ -186,6 +187,7 @@ locals {
       local.service_conf.run_human.locals.ecr_repositories,
       local.service_conf.cms.locals.ecr_repositories,
       local.service_conf.gpx.locals.ecr_repositories,
+      local.service_conf.flash.locals.ecr_repositories,
       local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "IMMUTABLE" }] : []
     )
   }
@@ -197,7 +199,8 @@ locals {
       local.service_conf.run_human.locals.task,
       local.service_conf.cms.locals.task_master,
       local.service_conf.cms.locals.task_worker,
-      local.service_conf.gpx.locals.task
+      local.service_conf.gpx.locals.task,
+      local.service_conf.flash.locals.task
     ]
   }
 
@@ -208,7 +211,8 @@ locals {
       local.service_conf.run_human.locals.service,
       local.service_conf.cms.locals.service_master,
       local.service_conf.cms.locals.service_worker,
-      local.service_conf.gpx.locals.service
+      local.service_conf.gpx.locals.service,
+      local.service_conf.flash.locals.service
     ]
   }
 

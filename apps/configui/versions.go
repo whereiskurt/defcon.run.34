@@ -25,6 +25,10 @@ func readVersions(repoRoot string) VersionConfig {
 		GPX: ComponentVersions{
 			App: readVersionFile(filepath.Join(svcDir, "run.gpx", "VERSION.app")),
 		},
+		Flash: ComponentVersions{
+			App:   readVersionFile(filepath.Join(svcDir, "run.flash", "VERSION.app")),
+			Nginx: readVersionFile(filepath.Join(svcDir, "run.flash", "VERSION.nginx")),
+		},
 	}
 }
 
@@ -55,6 +59,8 @@ func writeVersions(repoRoot string, versions VersionConfig) error {
 		{filepath.Join(svcDir, "run.cms", "VERSION.app"), versions.CMS.App},
 		{filepath.Join(svcDir, "run.cms", "VERSION.nginx"), versions.CMS.Nginx},
 		{filepath.Join(svcDir, "run.gpx", "VERSION.app"), versions.GPX.App},
+		{filepath.Join(svcDir, "run.flash", "VERSION.app"), versions.Flash.App},
+		{filepath.Join(svcDir, "run.flash", "VERSION.nginx"), versions.Flash.Nginx},
 		// App source VERSION files
 		{filepath.Join(appsDir, "run.auth", "webapp", "VERSION"), versions.Auth.App},
 		{filepath.Join(appsDir, "run.auth", "nginx", "VERSION"), versions.Auth.Nginx},
@@ -63,6 +69,8 @@ func writeVersions(repoRoot string, versions VersionConfig) error {
 		{filepath.Join(appsDir, "run.cms", "app", "VERSION"), versions.CMS.App},
 		{filepath.Join(appsDir, "run.cms", "nginx", "VERSION"), versions.CMS.Nginx},
 		{filepath.Join(appsDir, "run.gpx", "webapp", "VERSION"), versions.GPX.App},
+		{filepath.Join(appsDir, "run.flash", "webapp", "VERSION"), versions.Flash.App},
+		{filepath.Join(appsDir, "run.flash", "nginx", "VERSION"), versions.Flash.Nginx},
 	}
 
 	for _, vf := range files {
@@ -96,6 +104,10 @@ func versionSyncStatus(repoRoot string, versions VersionConfig) map[string]map[s
 		},
 		"gpx": {
 			"app": {filepath.Join(appsDir, "run.gpx", "webapp", "VERSION"), versions.GPX.App},
+		},
+		"flash": {
+			"app":   {filepath.Join(appsDir, "run.flash", "webapp", "VERSION"), versions.Flash.App},
+			"nginx": {filepath.Join(appsDir, "run.flash", "nginx", "VERSION"), versions.Flash.Nginx},
 		},
 	}
 

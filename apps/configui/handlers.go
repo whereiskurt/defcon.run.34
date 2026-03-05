@@ -220,6 +220,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		{"run.human", "human"},
 		{"run.cms", "cms"},
 		{"run.gpx", "gpx"},
+		{"run.flash", "flash"},
 	} {
 		if out, err := renderServiceHCL(svc.name, cfg); err == nil {
 			tabs = append(tabs, previewTab{"svc-" + svc.label, svc.name + "/service.hcl", out, ""})
@@ -272,7 +273,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		originals["envlocal"] = out
 	}
 	for _, svc := range []struct{ name, label string }{
-		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"},
+		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"}, {"run.flash", "flash"},
 	} {
 		if out, err := renderServiceHCL(svc.name, savedCfg); err == nil {
 			originals["svc-"+svc.label] = out
@@ -885,6 +886,8 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 	cmsApp := r.FormValue("versions.cms.app")
 	cmsNginx := r.FormValue("versions.cms.nginx")
 	gpxApp := r.FormValue("versions.gpx.app")
+	flashApp := r.FormValue("versions.flash.app")
+	flashNginx := r.FormValue("versions.flash.nginx")
 
 	a.mu.RLock()
 	siteLabel := a.config.Site.Label
@@ -909,6 +912,8 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 		{"cms-app", siteLabel + "-run-cms-app", cmsApp},
 		{"cms-nginx", siteLabel + "-run-cms-nginx", cmsNginx},
 		{"gpx-app", siteLabel + "-run-gpx-app", gpxApp},
+		{"flash-app", siteLabel + "-run-flash-app", flashApp},
+		{"flash-nginx", siteLabel + "-run-flash-nginx", flashNginx},
 	}
 
 	results := make(map[string]ECRTagResult)
@@ -960,16 +965,18 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 
 	// URLs
 	cfg.URLs.Subdomains = map[string]string{
-		"auth": formStr(r, "urls.subdomains.auth", "auth"),
-		"run":  formStr(r, "urls.subdomains.run", "run"),
-		"gpx":  formStr(r, "urls.subdomains.gpx", "gpx"),
-		"cms":  formStr(r, "urls.subdomains.cms", "cms"),
+		"auth":  formStr(r, "urls.subdomains.auth", "auth"),
+		"run":   formStr(r, "urls.subdomains.run", "run"),
+		"gpx":   formStr(r, "urls.subdomains.gpx", "gpx"),
+		"cms":   formStr(r, "urls.subdomains.cms", "cms"),
+		"flash": formStr(r, "urls.subdomains.flash", "flash"),
 	}
 	cfg.URLs.LocalPorts = map[string]int{
-		"auth": formInt(r, "urls.local_ports.auth", 3002),
-		"run":  formInt(r, "urls.local_ports.run", 3001),
-		"gpx":  formInt(r, "urls.local_ports.gpx", 3003),
-		"cms":  formInt(r, "urls.local_ports.cms", 1337),
+		"auth":  formInt(r, "urls.local_ports.auth", 3002),
+		"run":   formInt(r, "urls.local_ports.run", 3001),
+		"gpx":   formInt(r, "urls.local_ports.gpx", 3003),
+		"cms":   formInt(r, "urls.local_ports.cms", 1337),
+		"flash": formInt(r, "urls.local_ports.flash", 3004),
 	}
 
 	// Env
@@ -981,6 +988,7 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Env.LocalPorts.Auth = formInt(r, "env.local_ports.auth", cfg.Env.LocalPorts.Auth)
 	cfg.Env.LocalPorts.GPX = formInt(r, "env.local_ports.gpx", cfg.Env.LocalPorts.GPX)
 	cfg.Env.LocalPorts.CMS = formInt(r, "env.local_ports.cms", cfg.Env.LocalPorts.CMS)
+	cfg.Env.LocalPorts.Flash = formInt(r, "env.local_ports.flash", cfg.Env.LocalPorts.Flash)
 
 	// Email
 	cfg.Email.Enabled = formBool(r, "email.enabled")
@@ -1120,6 +1128,8 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Versions.CMS.App = formStr(r, "versions.cms.app", cfg.Versions.CMS.App)
 	cfg.Versions.CMS.Nginx = formStr(r, "versions.cms.nginx", cfg.Versions.CMS.Nginx)
 	cfg.Versions.GPX.App = formStr(r, "versions.gpx.app", cfg.Versions.GPX.App)
+	cfg.Versions.Flash.App = formStr(r, "versions.flash.app", cfg.Versions.Flash.App)
+	cfg.Versions.Flash.Nginx = formStr(r, "versions.flash.nginx", cfg.Versions.Flash.Nginx)
 
 	return cfg
 }
@@ -1191,7 +1201,13 @@ func parseServiceForm(r *http.Request, cfg *SiteConfig) {
 	cfg.Services.CMS.WorkerService.DesiredCount = formInt(r, "svc.cms.worker.desired_count", 1)
 	cfg.Services.CMS.WorkerService.Autoscaling.Enabled = formBool(r, "svc.cms.worker.autoscaling.enabled")
 	cfg.Services.CMS.WorkerService.Autoscaling.MinCapacity = formInt(r, "svc.cms.worker.autoscaling.min", 1)
-	cfg.Services.CMS.WorkerService.Autoscaling.MaxCapacity = formInt(r, "svc.cms.worker.autoscaling.max", 3)
+	cfg.Services.CMS.WorkerService.Autoscaling.MaxCapacity = formInt(r, "svc.cms.worker.autoscaling.max", 1)
+
+	// CMS storage - preserve values not exposed in form by reading from current config
+	cfg.Services.CMS.Litestream.FullBucketAccess = formBoolDefault(r, "svc.cms.litestream.full_bucket_access", cfg.Services.CMS.Litestream.FullBucketAccess)
+	cfg.Services.CMS.Media.FullBucketAccess = formBoolDefault(r, "svc.cms.media.full_bucket_access", cfg.Services.CMS.Media.FullBucketAccess)
+	cfg.Services.CMS.Media.CloudFrontAccess = formBoolDefault(r, "svc.cms.media.cloudfront_access", cfg.Services.CMS.Media.CloudFrontAccess)
+	cfg.Services.CMS.Media.ReplicationEnabled = formBoolDefault(r, "svc.cms.media.replication_enabled", cfg.Services.CMS.Media.ReplicationEnabled)
 
 	// GPX
 	cfg.Services.GPX.Task.TaskCPU = formInt(r, "svc.gpx.task_cpu", 256)
@@ -1203,6 +1219,20 @@ func parseServiceForm(r *http.Request, cfg *SiteConfig) {
 	cfg.Services.GPX.Service.Autoscaling.Enabled = formBool(r, "svc.gpx.autoscaling.enabled")
 	cfg.Services.GPX.Service.Autoscaling.MinCapacity = formInt(r, "svc.gpx.autoscaling.min", 1)
 	cfg.Services.GPX.Service.Autoscaling.MaxCapacity = formInt(r, "svc.gpx.autoscaling.max", 2)
+
+	// Flash
+	cfg.Services.Flash.Task.TaskCPU = formInt(r, "svc.flash.task_cpu", 512)
+	cfg.Services.Flash.Task.TaskMemory = formInt(r, "svc.flash.task_memory", 1024)
+	cfg.Services.Flash.Nginx.CPU = formInt(r, "svc.flash.nginx.cpu", 256)
+	cfg.Services.Flash.Nginx.Memory = formInt(r, "svc.flash.nginx.memory", 512)
+	cfg.Services.Flash.Nginx.MemoryReservation = formInt(r, "svc.flash.nginx.mem_reservation", 256)
+	cfg.Services.Flash.App.CPU = formInt(r, "svc.flash.app.cpu", 256)
+	cfg.Services.Flash.App.Memory = formInt(r, "svc.flash.app.memory", 512)
+	cfg.Services.Flash.App.MemoryReservation = formInt(r, "svc.flash.app.mem_reservation", 256)
+	cfg.Services.Flash.Service.DesiredCount = formInt(r, "svc.flash.desired_count", 1)
+	cfg.Services.Flash.Service.Autoscaling.Enabled = formBool(r, "svc.flash.autoscaling.enabled")
+	cfg.Services.Flash.Service.Autoscaling.MinCapacity = formInt(r, "svc.flash.autoscaling.min", 1)
+	cfg.Services.Flash.Service.Autoscaling.MaxCapacity = formInt(r, "svc.flash.autoscaling.max", 2)
 }
 
 // Form value helpers
@@ -1235,6 +1265,15 @@ func formFloat(r *http.Request, key string, fallback float64) float64 {
 func formBool(r *http.Request, key string) bool {
 	v := r.FormValue(key)
 	return v == "on" || v == "true" || v == "1" || v == "yes"
+}
+
+// formBoolDefault returns the form value if present, otherwise preserves the fallback.
+// Unlike formBool which returns false for absent fields, this keeps the existing config value.
+func formBoolDefault(r *http.Request, key string, fallback bool) bool {
+	if r.FormValue(key) != "" {
+		return formBool(r, key)
+	}
+	return fallback
 }
 
 func formCSV(r *http.Request, key string) []string {

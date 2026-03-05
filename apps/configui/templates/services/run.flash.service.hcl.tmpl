@@ -1,0 +1,237 @@
+locals {
+  versions = {
+    nginx = trimspace(file("${get_terragrunt_dir()}/VERSION.nginx"))
+    app   = trimspace(file("${get_terragrunt_dir()}/VERSION.app"))
+  }
+
+  # ECR repositories for this service
+  ecr_repositories = [
+    {
+      name                 = "run-flash-nginx"
+      regions              = [<<stringList .Services.Flash.Task.Regions>>]
+      image_tag_mutability = "IMMUTABLE"
+      lifecycle_policy = {
+        max_image_count = 10
+        expire_days     = 30
+      }
+    },
+    {
+      name                 = "run-flash-app"
+      regions              = [<<stringList .Services.Flash.Task.Regions>>]
+      image_tag_mutability = "IMMUTABLE"
+      lifecycle_policy = {
+        max_image_count = 10
+        expire_days     = 30
+      }
+    }
+  ]
+
+  # ECS Task definition for the run-flash service
+  task = {
+    name         = "run-flash"
+    regions      = [<<stringList .Services.Flash.Task.Regions>>]
+    cluster_name = "app"
+    task_cpu     = <<.Services.Flash.Task.TaskCPU>>
+    task_memory  = <<.Services.Flash.Task.TaskMemory>>
+
+    containers = [
+      {
+        name               = "run-flash-nginx"
+        image              = "run-flash-nginx:${local.versions.nginx}"
+        cpu                = <<.Services.Flash.Nginx.CPU>>
+        memory             = <<.Services.Flash.Nginx.Memory>>
+        memory_reservation = <<.Services.Flash.Nginx.MemoryReservation>>
+        essential          = true
+        command            = ["nginx", "-g", "daemon off;"]
+
+        # Note: readonlyRootFilesystem disabled - Fargate doesn't support tmpfs mounts
+        # and nginx requires writable paths (/var/cache/nginx, /var/run)
+        readonly_root_filesystem = false
+
+        environment = [
+          {
+            name  = "APP_URL"
+            value = "https://flash.{{SITE_DOMAIN}}"
+          }
+        ]
+
+        port_mappings = [
+          {
+            container_port = 443
+            host_port      = 443
+          }
+        ]
+
+        health_check = {
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -k -f https://localhost/hello || exit 1"]
+          interval     = <<.Services.Flash.Nginx.HealthCheck.Interval>>
+          timeout      = <<.Services.Flash.Nginx.HealthCheck.Timeout>>
+          retries      = <<.Services.Flash.Nginx.HealthCheck.Retries>>
+          start_period = <<.Services.Flash.Nginx.HealthCheck.StartPeriod>>
+        }
+
+        log_stream_prefix = "nginx"
+      },
+      {
+        name               = "run-flash-app"
+        image              = "run-flash-app:${local.versions.app}"
+        cpu                = <<.Services.Flash.App.CPU>>
+        memory             = <<.Services.Flash.App.Memory>>
+        memory_reservation = <<.Services.Flash.App.MemoryReservation>>
+        essential          = true
+        command            = ["node", "server.js"]
+
+        # Note: readonlyRootFilesystem disabled - Fargate doesn't support tmpfs mounts
+        # and Node.js requires writable paths (/tmp)
+        readonly_root_filesystem = false
+
+        environment = [
+          {
+            name  = "NODE_ENV"
+            value = "production"
+          },
+          {
+            name  = "HOSTNAME"
+            value = "0.0.0.0"
+          },
+          {
+            name  = "REGION_SHORT"
+            value = "{{REGION_LABEL}}"
+          },
+          {
+            # AUTH_URL is preferred by Auth.js v5 - must include region prefix for correct callback URL construction
+            name  = "AUTH_URL"
+            value = "https://flash.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # NEXTAUTH_URL for backwards compatibility
+            name  = "NEXTAUTH_URL"
+            value = "https://flash.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            name  = "AWS_REGION"
+            value = "{{REGION}}"
+          },
+          {
+            name  = "AUTH_COOKIE_DOMAIN"
+            value = ".{{SITE_DOMAIN}}"
+          },
+          # URL configuration for cross-service communication
+          {
+            name  = "SITE_DOMAIN"
+            value = "{{SITE_DOMAIN}}"
+          },
+          {
+            name  = "AUTH_PUBLIC_URL"
+            value = "https://auth.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # Internal auth URL via service discovery (container-to-container)
+            name  = "AUTH_INTERNAL_URL"
+            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+          },
+          {
+            name  = "FLASH_PUBLIC_URL"
+            value = "https://flash.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # Internal run.human URL via service discovery (for user profile/MQTT lookup)
+            name  = "RUN_HUMAN_INTERNAL_URL"
+            value = "http://run-human.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+          }
+        ]
+
+        secrets = [
+          {
+            name      = "AUTH_JWT_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/secret"
+          },
+          {
+            name      = "OIDC_CLIENT_ID"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/flash/client_id"
+          },
+          {
+            name      = "OIDC_CLIENT_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/flash/client_secret"
+          },
+          {
+            name      = "AUTH_INTERNAL_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
+          }
+        ]
+
+        port_mappings = [
+          {
+            container_port = 3000
+            host_port      = 3000
+          }
+        ]
+
+        health_check = {
+          # Health check path includes region prefix because Next.js basePath is /{region}
+          # {{REGION_LABEL}} is substituted by ecs-task module (e.g., use1, cac1)
+          command      = ["CMD-SHELL", "curl -A 'HealthChecker' -f http://localhost:3000/{{REGION_LABEL}}/ || exit 1"]
+          interval     = <<.Services.Flash.App.HealthCheck.Interval>>
+          timeout      = <<.Services.Flash.App.HealthCheck.Timeout>>
+          retries      = <<.Services.Flash.App.HealthCheck.Retries>>
+          start_period = <<.Services.Flash.App.HealthCheck.StartPeriod>>
+        }
+
+        log_stream_prefix = "app"
+      }
+    ]
+  }
+
+  # ECS Service definition for the flash service
+  service = {
+    name          = "run-flash"
+    regions       = [<<stringList .Services.Flash.Task.Regions>>]
+    cluster_name  = "app"
+    task_family   = "run-flash"
+    desired_count = <<.Services.Flash.Service.DesiredCount>>
+
+    service_discovery = {
+      name           = "run-flash"
+      container_name = "run-flash-app"
+    }
+
+    load_balancers = [
+      {
+        type                  = "alb"
+        container_name        = "run-flash-nginx"
+        container_port        = 443
+        target_group_protocol = "HTTPS"
+        health_check_path     = "/hello"
+        health_check_protocol = "HTTPS"
+
+        health_check = {
+          healthy_threshold   = 2
+          unhealthy_threshold = 2
+          timeout             = 5
+          interval            = 30
+          matcher             = "200-499"
+        }
+
+        listener = {
+          port         = 443
+          protocol     = "HTTPS"
+          host_headers = ["flash.{{SITE_DOMAIN}}"]
+        }
+      }
+    ]
+
+    autoscaling = {
+      enabled      = <<boolHCL .Services.Flash.Service.Autoscaling.Enabled>>
+      min_capacity = <<.Services.Flash.Service.Autoscaling.MinCapacity>>
+      max_capacity = <<.Services.Flash.Service.Autoscaling.MaxCapacity>>
+
+      cpu_target = {
+        scale_out_threshold = <<.Services.Flash.Service.Autoscaling.CPUScaleOut>>
+        scale_in_threshold  = <<.Services.Flash.Service.Autoscaling.CPUScaleIn>>
+        evaluation_periods  = 2
+        period              = 60
+        cooldown            = <<.Services.Flash.Service.Autoscaling.Cooldown>>
+      }
+    }
+  }
+}

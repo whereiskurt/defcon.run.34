@@ -741,6 +741,8 @@ func importServiceHCL(path string, svcName string, cfg *SiteConfig) error {
 		importCMSService(localsContent, cfg)
 	case "run.gpx":
 		importGPXService(localsContent, cfg)
+	case "run.flash":
+		importFlashService(localsContent, cfg)
 	}
 	return nil
 }
@@ -850,6 +852,17 @@ func importGPXService(content string, cfg *SiteConfig) {
 	}
 	if svcBlock, ok := isolateBlock(content, "service"); ok {
 		cfg.Services.GPX.Service = parseServiceRunConfig(svcBlock)
+	}
+}
+
+func importFlashService(content string, cfg *SiteConfig) {
+	if taskBlock, ok := isolateBlock(content, "task"); ok {
+		cfg.Services.Flash.Task = parseTaskConfig(taskBlock)
+		cfg.Services.Flash.Nginx = parseContainerConfig(taskBlock, "run-flash-nginx")
+		cfg.Services.Flash.App = parseContainerConfig(taskBlock, "run-flash-app")
+	}
+	if svcBlock, ok := isolateBlock(content, "service"); ok {
+		cfg.Services.Flash.Service = parseServiceRunConfig(svcBlock)
 	}
 }
 

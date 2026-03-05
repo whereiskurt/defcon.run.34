@@ -452,6 +452,9 @@ export interface ApiEventEvent extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     description: Schema.Attribute.Blocks;
     endDatetime: Schema.Attribute.DateTime;
+    eventType: Schema.Attribute.Enumeration<
+      ['run', 'social', 'swag-swap', 'workshop', 'ceremony', 'meetup']
+    >;
     gallery: Schema.Attribute.Media<'images', true>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::event.event'> &
@@ -465,6 +468,7 @@ export interface ApiEventEvent extends Struct.CollectionTypeSchema {
         maxLength: 255;
       }>;
     publishedAt: Schema.Attribute.DateTime;
+    routes: Schema.Attribute.Relation<'manyToMany', 'api::route.route'>;
     shortDescription: Schema.Attribute.Text &
       Schema.Attribute.SetMinMaxLength<{
         maxLength: 500;
@@ -533,6 +537,7 @@ export interface ApiPointOfInterestPointOfInterest
     > &
       Schema.Attribute.Required;
     publishedAt: Schema.Attribute.DateTime;
+    routes: Schema.Attribute.Relation<'manyToMany', 'api::route.route'>;
     slug: Schema.Attribute.UID<'name'> & Schema.Attribute.Required;
     sortOrder: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     updatedAt: Schema.Attribute.DateTime;
@@ -562,6 +567,7 @@ export interface ApiRouteRoute extends Struct.CollectionTypeSchema {
     elevationGain: Schema.Attribute.Decimal;
     endCoordinates: Schema.Attribute.Component<'shared.coordinates', false>;
     estimatedDuration: Schema.Attribute.Integer;
+    events: Schema.Attribute.Relation<'manyToMany', 'api::event.event'>;
     gpxFiles: Schema.Attribute.Media<'files', true>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::route.route'> &
@@ -594,6 +600,10 @@ export interface ApiRouteRoute extends Struct.CollectionTypeSchema {
       Schema.Attribute.SetMinMaxLength<{
         maxLength: 255;
       }>;
+    pointsOfInterest: Schema.Attribute.Relation<
+      'manyToMany',
+      'api::point-of-interest.point-of-interest'
+    >;
     publishedAt: Schema.Attribute.DateTime;
     routeType: Schema.Attribute.Enumeration<
       ['point-to-point', 'loop', 'out-and-back']

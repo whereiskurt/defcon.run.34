@@ -80,10 +80,11 @@ type EnvConfig struct {
 	AWSRegion   string `json:"aws_region"`
 	RegionShort string `json:"region_short"`
 	LocalPorts  struct {
-		Run  int `json:"run"`
-		Auth int `json:"auth"`
-		GPX  int `json:"gpx"`
-		CMS  int `json:"cms"`
+		Run   int `json:"run"`
+		Auth  int `json:"auth"`
+		GPX   int `json:"gpx"`
+		CMS   int `json:"cms"`
+		Flash int `json:"flash"`
 	} `json:"local_ports"`
 }
 
@@ -222,6 +223,7 @@ type ServiceConfigs struct {
 	Human HumanServiceConfig `json:"human"`
 	CMS   CMSServiceConfig   `json:"cms"`
 	GPX   GPXServiceConfig   `json:"gpx"`
+	Flash FlashServiceConfig `json:"flash"`
 }
 
 type ContainerConfig struct {
@@ -324,11 +326,19 @@ type GPXServiceConfig struct {
 	Service  ServiceRunConfig      `json:"service"`
 }
 
+type FlashServiceConfig struct {
+	Task    TaskConfig       `json:"task"`
+	Nginx   ContainerConfig  `json:"nginx"`
+	App     ContainerConfig  `json:"app"`
+	Service ServiceRunConfig `json:"service"`
+}
+
 type VersionConfig struct {
 	Auth  ComponentVersions `json:"auth"`
 	Human ComponentVersions `json:"human"`
 	CMS   ComponentVersions `json:"cms"`
 	GPX   ComponentVersions `json:"gpx"`
+	Flash ComponentVersions `json:"flash"`
 }
 
 type ComponentVersions struct {
@@ -394,21 +404,23 @@ func DefaultConfig() *SiteConfig {
 		},
 		DNS: DNSConfig{
 			ZoneName:   "defcon.run",
-			Subdomains: []string{"email", "run", "auth", "cms", "gpx"},
+			Subdomains: []string{"email", "run", "auth", "cms", "gpx", "flash"},
 			TTL:        300,
 		},
 		URLs: URLsConfig{
 			Subdomains: map[string]string{
-				"auth": "auth",
-				"run":  "run",
-				"gpx":  "gpx",
-				"cms":  "cms",
+				"auth":  "auth",
+				"run":   "run",
+				"gpx":   "gpx",
+				"cms":   "cms",
+				"flash": "flash",
 			},
 			LocalPorts: map[string]int{
-				"auth": 3002,
-				"run":  3001,
-				"gpx":  3003,
-				"cms":  1337,
+				"auth":  3002,
+				"run":   3001,
+				"gpx":   3003,
+				"cms":   1337,
+				"flash": 3004,
 			},
 		},
 		Env: EnvConfig{
@@ -417,15 +429,17 @@ func DefaultConfig() *SiteConfig {
 			AWSRegion:   "us-east-1",
 			RegionShort: "use1",
 			LocalPorts: struct {
-				Run  int `json:"run"`
-				Auth int `json:"auth"`
-				GPX  int `json:"gpx"`
-				CMS  int `json:"cms"`
+				Run   int `json:"run"`
+				Auth  int `json:"auth"`
+				GPX   int `json:"gpx"`
+				CMS   int `json:"cms"`
+				Flash int `json:"flash"`
 			}{
-				Run:  3001,
-				Auth: 3002,
-				GPX:  3003,
-				CMS:  1337,
+				Run:   3001,
+				Auth:  3002,
+				GPX:   3003,
+				CMS:   1337,
+				Flash: 3004,
 			},
 		},
 		Email: EmailConfig{
@@ -450,7 +464,7 @@ func DefaultConfig() *SiteConfig {
 		},
 		CloudFront: CloudFrontConfig{
 			Enabled:     true,
-			Domains:     []string{"auth", "run", "cms", "gpx"},
+			Domains:     []string{"auth", "run", "cms", "gpx", "flash"},
 			WAFRulesets: map[string]string{"auth": "auth"},
 			Regions:     allRegions,
 			Logging: struct {
@@ -649,6 +663,21 @@ func DefaultConfig() *SiteConfig {
 					Autoscaling: AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
 				},
 			},
+		Flash: FlashServiceConfig{
+				Task: TaskConfig{TaskCPU: 512, TaskMemory: 1024, Regions: allRegionStrings},
+				Nginx: ContainerConfig{
+					CPU: 256, Memory: 512, MemoryReservation: 256,
+					HealthCheck: HealthCheckConfig{Interval: 60, Timeout: 5, Retries: 3, StartPeriod: 120},
+				},
+				App: ContainerConfig{
+					CPU: 256, Memory: 512, MemoryReservation: 256,
+					HealthCheck: HealthCheckConfig{Interval: 30, Timeout: 5, Retries: 3, StartPeriod: 120},
+				},
+				Service: ServiceRunConfig{
+					DesiredCount: 1, HealthCheckPath: "/hello", Matcher: "200-499",
+					Autoscaling: AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
+				},
+			},
 		},
 		Waffaw: WaffawConfig{
 			Enabled:         true,
@@ -668,6 +697,7 @@ func DefaultConfig() *SiteConfig {
 			Human: ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
 			CMS:   ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
 			GPX:   ComponentVersions{App: "v0.0.27"},
+			Flash: ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
 		},
 	}
 }
@@ -709,6 +739,7 @@ func DefaultFormValues() map[string]string {
 		"env.local_ports.auth":  fmt.Sprintf("%d", d.Env.LocalPorts.Auth),
 		"env.local_ports.gpx":   fmt.Sprintf("%d", d.Env.LocalPorts.GPX),
 		"env.local_ports.cms":   fmt.Sprintf("%d", d.Env.LocalPorts.CMS),
+		"env.local_ports.flash": fmt.Sprintf("%d", d.Env.LocalPorts.Flash),
 		"email.primary_region":  d.Email.PrimaryRegion,
 		"email.smtp_prefix":     d.Email.SMTPPrefix,
 		"secrets.primary_region": d.Secrets.PrimaryRegion,

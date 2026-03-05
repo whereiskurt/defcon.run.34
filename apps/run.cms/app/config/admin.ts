@@ -18,6 +18,9 @@ export default ({ env }) => {
     // admin.url = /{region}/admin -> full URL = https://cms.defcon.run/use1/admin
     // nginx passes full path to Strapi, Strapi handles /{region}/admin/* routes
     url: `/${regionShort}/admin`,
+    secrets: {
+      encryptionKey: env('ADMIN_JWT_SECRET'),
+    },
     auth: {
       secret: env('ADMIN_JWT_SECRET'),
       // Session management for short-lived tokens with OIDC re-validation

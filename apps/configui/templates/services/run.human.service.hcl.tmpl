@@ -145,6 +145,11 @@ locals {
           {
             name  = "CMS_PUBLIC_URL"
             value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # Internal CMS worker URL via service discovery (container-to-container)
+            name  = "CMS_INTERNAL_URL"
+            value = "http://run-cms-worker.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:1337"
           }
         ]
 
@@ -208,6 +213,10 @@ locals {
           {
             name      = "S3_UPLOADS_REGION"
             valueFrom = "/{{SITE_LABEL}}/uploads/{{REGION_LABEL}}/run-human/bucket_region"
+          },
+          {
+            name      = "STRAPI_API_TOKEN"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/api_token"
           }
         ]
 

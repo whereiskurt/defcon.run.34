@@ -167,6 +167,11 @@ locals {
           {
             name  = "CMS_PUBLIC_URL"
             value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # SSM path prefix for publishing API tokens (master only)
+            name  = "SSM_PREFIX"
+            value = "{{SITE_LABEL}}/secrets/{{REGION_LABEL}}"
           }
         ]
 
@@ -493,6 +498,17 @@ locals {
           <<regionListCompact .Services.CMS.Media.ReplicaRegions>>
         ]
       }
+
+      # Strapi uploads to {region}/cms/* path (not uploads/*), so the
+      # prefix-restricted IAM policy doesn't fit. Full access is appropriate
+      # since only the CMS master writes to this bucket.
+      full_bucket_access = <<boolHCL .Services.CMS.Media.FullBucketAccess>>
+
+      # Replicate SSM parameters so workers in other regions can resolve media bucket credentials
+      # Note: params point to the source (use1) bucket, not regional replicas
+      ssm_replicate_to = [
+        <<regionListCompact .Services.CMS.Media.SSMReplicateTo>>
+      ]
 
       # Enable CloudFront OAC access for serving media via CDN
       # This allows cms.<domain>/{region}/cms/* to serve media files

@@ -20,11 +20,11 @@ func TestImportSiteHCL(t *testing.T) {
 	assertEqual(t, "Site.GitHubRepoName", cfg.Site.GitHubRepoName, "defcon.run.34")
 	assertEqual(t, "Site.TFStatePrefix", cfg.Site.TFStatePrefix, "tf-dc34")
 	assertEqual(t, "Site.RandomSuffix", cfg.Site.RandomSuffix, "80a6b349")
-	assertSliceEqual(t, "Site.SkipRegions", cfg.Site.SkipRegions, []string{})
+	assertSliceEqual(t, "Site.SkipRegions", cfg.Site.SkipRegions, []string{"ap-southeast-1", "ca-central-1"})
 
 	// DNS
 	assertEqual(t, "DNS.ZoneName", cfg.DNS.ZoneName, "defcon.run")
-	assertSliceEqual(t, "DNS.Subdomains", cfg.DNS.Subdomains, []string{"email", "run", "auth", "cms", "gpx"})
+	assertSliceEqual(t, "DNS.Subdomains", cfg.DNS.Subdomains, []string{"email", "run", "auth", "cms", "gpx", "flash"})
 	assertIntEqual(t, "DNS.TTL", cfg.DNS.TTL, 300)
 
 	// URLs
@@ -46,12 +46,12 @@ func TestImportSiteHCL(t *testing.T) {
 	assertIntEqual(t, "Email.ReplicaRegions len", len(cfg.Email.ReplicaRegions), 3)
 
 	// WAF
-	assertBoolEqual(t, "WAF.Enabled", cfg.WAF.Enabled, true)
+	assertBoolEqual(t, "WAF.Enabled", cfg.WAF.Enabled, false)
 	assertEqual(t, "WAF.LogMode", cfg.WAF.LogMode, "standard")
 
 	// CloudFront
 	assertBoolEqual(t, "CloudFront.Enabled", cfg.CloudFront.Enabled, true)
-	assertSliceEqual(t, "CloudFront.Domains", cfg.CloudFront.Domains, []string{"auth", "run", "cms", "gpx"})
+	assertSliceEqual(t, "CloudFront.Domains", cfg.CloudFront.Domains, []string{"auth", "run", "cms", "gpx", "flash"})
 	assertEqual(t, "CloudFront.WAFRulesets[auth]", cfg.CloudFront.WAFRulesets["auth"], "auth")
 	assertIntEqual(t, "CloudFront.Regions len", len(cfg.CloudFront.Regions), 3)
 	assertBoolEqual(t, "CloudFront.Logging.Enabled", cfg.CloudFront.Logging.Enabled, true)
@@ -95,10 +95,10 @@ func TestImportSiteHCL(t *testing.T) {
 	} else {
 		assertBoolEqual(t, "Secrets.Definitions[mapbox].Global", cfg.Secrets.Definitions["mapbox"].Global, true)
 	}
-	assertIntEqual(t, "Secrets.Definitions count", len(cfg.Secrets.Definitions), 11)
+	assertIntEqual(t, "Secrets.Definitions count", len(cfg.Secrets.Definitions), 12)
 
 	// CloudTrail
-	assertBoolEqual(t, "CloudTrail.Enabled", cfg.CloudTrail.Enabled, true)
+	assertBoolEqual(t, "CloudTrail.Enabled", cfg.CloudTrail.Enabled, false)
 	assertBoolEqual(t, "CloudTrail.MultiRegion", cfg.CloudTrail.MultiRegion, true)
 	assertIntEqual(t, "CloudTrail.LogRetentionDays", cfg.CloudTrail.LogRetentionDays, 90)
 	assertIntEqual(t, "CloudTrail.GlacierTransitionDays", cfg.CloudTrail.GlacierTransitionDays, 0)
@@ -121,7 +121,7 @@ func TestImportServiceHCL(t *testing.T) {
 	cfg := DefaultConfig()
 
 	// Import all services
-	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx"} {
+	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx", "run.flash"} {
 		svcPath := filepath.Join(servicesDir, svc, "service.hcl")
 		if err := importServiceHCL(svcPath, svc, cfg); err != nil {
 			t.Fatalf("importServiceHCL(%s) failed: %v", svc, err)

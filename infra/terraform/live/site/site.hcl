@@ -5,7 +5,7 @@ locals {
     github_repo_name = "defcon.run.34"
     tf_state_prefix  = "tf-dc34"
     random_suffix    = get_env("SGUID", "80a6b349")
-    skip_regions     = ["ap-southeast-1", "ca-central-1"]
+    skip_regions     = ["ap-southeast-1"]
   }
 
   secret_values = jsondecode(

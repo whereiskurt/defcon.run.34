@@ -12,7 +12,7 @@ DATA_DIR="${APP_DIR}/data"
 DB_FILE="${DATA_DIR}/data.db"
 
 # AWS Configuration
-export AWS_PROFILE=${AWS_PROFILE:-application}
+export AWS_PROFILE=${AWS_PROFILE:-${TF_VAR_profile_prefix}-application}
 export AWS_REGION=${AWS_REGION:-us-east-1}
 
 # Export credentials for tools that don't support AWS_PROFILE (like litestream)
