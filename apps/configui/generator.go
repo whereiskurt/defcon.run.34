@@ -101,6 +101,20 @@ var genFuncs = template.FuncMap{
 		}
 		return strings.Join(parts, "\n")
 	},
+	"regionPairsExcluding": func(allRegions []string, excludeRegions []string) string {
+		exclude := make(map[string]bool)
+		for _, r := range excludeRegions {
+			exclude[r] = true
+		}
+		var pairs []string
+		for _, r := range allRegions {
+			if exclude[r] {
+				continue
+			}
+			pairs = append(pairs, r+":"+RegionLabel(r))
+		}
+		return strings.Join(pairs, ",")
+	},
 	"indent": func(n int, s string) string {
 		prefix := strings.Repeat(" ", n)
 		lines := strings.Split(s, "\n")

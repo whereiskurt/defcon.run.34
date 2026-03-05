@@ -37,19 +37,38 @@ async function ensureApiTokenPublished(strapi) {
     strapi.log.info(`[Bootstrap] Created API token "${tokenName}"`);
   }
 
-  // Publish to SSM
-  const ssmPath = `/${ssmPrefix}/strapi/run_human_api_token`;
-  const region = process.env.AWS_REGION || 'us-east-1';
-  const ssm = new SSMClient({ region });
+  // Publish to SSM in all worker regions so workers can read the token
+  // SSM_REPLICATE_TO is a comma-separated list of "region:label" pairs (e.g. "ca-central-1:cac1,ap-southeast-1:apse1")
+  const localRegion = process.env.AWS_REGION || 'us-east-1';
+  const localSsmPath = `/${ssmPrefix}/strapi/run_human_api_token`;
+  const localSsm = new SSMClient({ region: localRegion });
 
-  await ssm.send(new PutParameterCommand({
-    Name: ssmPath,
+  await localSsm.send(new PutParameterCommand({
+    Name: localSsmPath,
     Value: plaintext,
     Type: 'SecureString',
     Overwrite: true,
   }));
+  strapi.log.info(`[Bootstrap] Published API token to SSM: ${localSsmPath} (${localRegion})`);
 
-  strapi.log.info(`[Bootstrap] Published API token to SSM: ${ssmPath}`);
+  // Replicate to other regions if configured
+  const siteLabel = ssmPrefix.split('/')[0]; // "dc34" from "dc34/secrets/use1"
+  const replicateTo = process.env.SSM_REPLICATE_TO || '';
+  if (replicateTo) {
+    for (const entry of replicateTo.split(',').map(s => s.trim()).filter(Boolean)) {
+      const [region, label] = entry.split(':');
+      const ssmPath = `/${siteLabel}/secrets/${label}/strapi/run_human_api_token`;
+      const ssm = new SSMClient({ region });
+
+      await ssm.send(new PutParameterCommand({
+        Name: ssmPath,
+        Value: plaintext,
+        Type: 'SecureString',
+        Overwrite: true,
+      }));
+      strapi.log.info(`[Bootstrap] Replicated API token to SSM: ${ssmPath} (${region})`);
+    }
+  }
 }
 
 async function revokePublicPermissions(strapi) {

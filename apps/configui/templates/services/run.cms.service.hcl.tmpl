@@ -172,6 +172,11 @@ locals {
             # SSM path prefix for publishing API tokens (master only)
             name  = "SSM_PREFIX"
             value = "{{SITE_LABEL}}/secrets/{{REGION_LABEL}}"
+          },
+          {
+            # Replicate API tokens to worker regions so they can read from local SSM
+            name  = "SSM_REPLICATE_TO"
+            value = "<<regionPairsExcluding .Services.CMS.WorkerTask.Regions .Services.CMS.MasterTask.Regions>>"
           }
         ]
 
