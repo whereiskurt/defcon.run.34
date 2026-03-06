@@ -15,17 +15,17 @@ Requirements for User Checkins milestone. Each maps to roadmap phases.
 
 ### API
 
-- [ ] **API-01**: User can create a check-in by submitting GPS samples, with quota enforcement and privacy flag
-- [ ] **API-02**: User can list their own check-ins with cursor-based pagination
-- [ ] **API-03**: User can toggle public/private on an individual check-in they own
-- [ ] **API-04**: User can delete their own check-in (decrements checkInCount)
+- [x] **API-01**: User can create a check-in by submitting GPS samples, with quota enforcement and privacy flag
+- [x] **API-02**: User can list their own check-ins with cursor-based pagination
+- [x] **API-03**: User can toggle public/private on an individual check-in they own
+- [x] **API-04**: User can delete their own check-in (decrements checkInCount)
 
 ### UI
 
 - [ ] **UI-01**: CheckInModal collects 3 GPS samples over 2 seconds with progress bar, privacy toggle, and quota display
 - [ ] **UI-02**: "GPS Check-in" entry in header user dropdown opens the CheckInModal
 - [ ] **UI-03**: Profile page shows paginated check-in list with Leaflet map, numbered markers, and accuracy circles
-- [ ] **UI-04**: User can set default check-in privacy preference (public/private)
+- [x] **UI-04**: User can set default check-in privacy preference (public/private)
 
 ## Future Requirements
 
@@ -61,14 +61,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHKN-01 | Phase 10 | Complete |
 | CHKN-02 | Phase 10 | Complete |
 | CHKN-03 | Phase 10 | Complete |
-| API-01 | Phase 11 | Pending |
-| API-02 | Phase 11 | Pending |
-| API-03 | Phase 11 | Pending |
-| API-04 | Phase 11 | Pending |
+| API-01 | Phase 11 | Complete |
+| API-02 | Phase 11 | Complete |
+| API-03 | Phase 11 | Complete |
+| API-04 | Phase 11 | Complete |
 | UI-01 | Phase 12 | Pending |
 | UI-02 | Phase 12 | Pending |
 | UI-03 | Phase 13 | Pending |
-| UI-04 | Phase 11 | Pending |
+| UI-04 | Phase 11 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 11 total

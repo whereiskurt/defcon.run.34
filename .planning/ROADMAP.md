@@ -27,7 +27,7 @@ See `.planning/milestones/v1.1-ROADMAP.md` for archived v1.1 roadmap.
 **Milestone Goal:** Participants can GPS check-in from the browser with privacy controls, quota enforcement, and a map-based profile view of their check-in history.
 
 - [x] **Phase 10: CheckIn Data Layer** - ElectroDB entity, indexes, and User entity side-effect fields (completed 2026-03-06)
-- [ ] **Phase 11: Check-in API Routes** - Create, list, toggle, delete, and preference endpoints with quota enforcement
+- [x] **Phase 11: Check-in API Routes** - Create, list, toggle, delete, and preference endpoints with quota enforcement (completed 2026-03-06)
 - [ ] **Phase 12: CheckInModal + Header Integration** - GPS sampling modal with progress bar, privacy toggle, and header dropdown entry
 - [ ] **Phase 13: Profile Check-in Display** - Paginated check-in list with Leaflet map, numbered markers, and accuracy circles
 
@@ -98,6 +98,6 @@ Phase 10 -> 11 -> 12 and 13 (12 and 13 can run in parallel after 11).
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 10. CheckIn Data Layer | 1/1 | Complete    | 2026-03-06 | - |
-| 11. Check-in API Routes | v1.2 | 0/1 | Not started | - |
+| 11. Check-in API Routes | 1/1 | Complete   | 2026-03-06 | - |
 | 12. CheckInModal + Header | v1.2 | 0/? | Not started | - |
 | 13. Profile Check-in Display | v1.2 | 0/? | Not started | - |
