@@ -226,13 +226,13 @@ export default function WhoAmIPage() {
                     key={name}
                     size="sm"
                     variant="flat"
-                    color={isConnected ? 'success' : 'default'}
+                    color={isConnected ? 'success' : linkable ? 'warning' : 'default'}
                     startContent={
-                      <Icon className="w-3 h-3 ml-1" style={{ color: isConnected ? color : undefined }} />
+                      <Icon className="w-3 h-3 ml-1" style={{ color: isConnected ? color : linkable ? '#FC4C02' : undefined }} />
                     }
-                    classNames={{ base: `font-mono text-xs ${linkable ? 'cursor-pointer hover:opacity-80' : ''}` }}
+                    classNames={{ base: `font-mono text-xs ${linkable ? 'cursor-pointer hover:scale-105 transition-transform border-1 border-warning/50' : ''}` }}
                   >
-                    {name}{linkable ? ' ↗' : ''}
+                    {linkable ? 'Link Strava ↗' : name}
                   </Chip>
                 );
                 if (linkable) {
