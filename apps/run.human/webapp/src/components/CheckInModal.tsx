@@ -8,10 +8,26 @@ import {
   ModalFooter,
   Button,
   Progress,
-  Switch,
+  Select,
+  SelectItem,
 } from '@heroui/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { apiUrl } from '@/lib/api';
+import dynamic from 'next/dynamic';
+import 'leaflet/dist/leaflet.css';
+
+const MapContainer = dynamic(
+  () => import('react-leaflet').then((m) => m.MapContainer),
+  { ssr: false }
+);
+const TileLayer = dynamic(
+  () => import('react-leaflet').then((m) => m.TileLayer),
+  { ssr: false }
+);
+const CircleMarker = dynamic(
+  () => import('react-leaflet').then((m) => m.CircleMarker),
+  { ssr: false }
+);
 
 interface GpsSample {
   latitude: number;
@@ -220,11 +236,20 @@ export default function CheckInModal({
                   <p className="text-success text-sm">
                     Location captured (+/-{Math.round(bestAccuracy ?? 0)}m)
                   </p>
-                  <div className="flex items-center justify-between">
-                    <Switch isSelected={isPrivate} onValueChange={setIsPrivate} size="sm">
-                      {isPrivate ? 'Private' : 'Public'}
-                    </Switch>
-                  </div>
+                  <Select
+                    label="Visibility"
+                    selectedKeys={[isPrivate ? 'private' : 'public']}
+                    onSelectionChange={(keys) => {
+                      const val = Array.from(keys)[0] as string;
+                      setIsPrivate(val === 'private');
+                    }}
+                    size="sm"
+                    variant="flat"
+                    classNames={{ trigger: 'min-h-10' }}
+                  >
+                    <SelectItem key="public">Public -- visible to other runners</SelectItem>
+                    <SelectItem key="private">Private -- only you can see it</SelectItem>
+                  </Select>
                 </div>
               )}
 
@@ -233,21 +258,58 @@ export default function CheckInModal({
                   <p className="text-success text-sm">
                     Location captured (+/-{Math.round(bestAccuracy ?? 0)}m)
                   </p>
-                  <div className="flex items-center justify-between">
-                    <Switch isSelected={isPrivate} isDisabled size="sm">
-                      {isPrivate ? 'Private' : 'Public'}
-                    </Switch>
-                  </div>
+                  <Select
+                    label="Visibility"
+                    selectedKeys={[isPrivate ? 'private' : 'public']}
+                    isDisabled
+                    size="sm"
+                    variant="flat"
+                    classNames={{ trigger: 'min-h-10' }}
+                  >
+                    <SelectItem key="public">Public -- visible to other runners</SelectItem>
+                    <SelectItem key="private">Private -- only you can see it</SelectItem>
+                  </Select>
                 </div>
               )}
 
               {phase === 'success' && (
-                <div className="flex flex-col gap-2 items-center">
+                <div className="flex flex-col gap-3 items-center">
                   <p className="text-success text-lg font-semibold">Checked in!</p>
                   {quotaRemaining !== null && (
                     <p className="text-default-400 text-xs">
                       {quotaRemaining} check-in{quotaRemaining !== 1 ? 's' : ''} remaining today
                     </p>
+                  )}
+                  {samplesRef.current.length > 0 && (
+                    <div className="w-full rounded-lg overflow-hidden" style={{ height: 160 }}>
+                      <MapContainer
+                        center={[
+                          samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length,
+                          samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length,
+                        ]}
+                        zoom={13}
+                        style={{ height: '100%', width: '100%' }}
+                        zoomControl={false}
+                        attributionControl={false}
+                        dragging={false}
+                        scrollWheelZoom={false}
+                      >
+                        <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                        <CircleMarker
+                          center={[
+                            samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length,
+                            samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length,
+                          ]}
+                          radius={8}
+                          pathOptions={{
+                            color: isPrivate ? '#71717a' : '#006FEE',
+                            fillColor: isPrivate ? '#71717a' : '#006FEE',
+                            fillOpacity: 0.8,
+                            weight: 2,
+                          }}
+                        />
+                      </MapContainer>
+                    </div>
                   )}
                 </div>
               )}
