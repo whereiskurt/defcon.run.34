@@ -393,10 +393,10 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                         <Popup>
                           <div className="text-sm">
                             <div className="flex items-baseline gap-1.5">
-                              <span className="font-bold text-blue-600">Web</span>
-                              <span className="opacity-50">(#{number})</span>
+                              <span className="font-bold">{checkin.isPrivate ? 'Private' : 'Public'}</span>
+                              <span className="text-blue-600 opacity-70">(Web)</span>
                               <span className="opacity-40">—</span>
-                              <span className="opacity-70">{checkin.isPrivate ? 'Private' : 'Public'}</span>
+                              <span className="font-bold">#{number}</span>
                             </div>
                             <div className="text-xs opacity-70">
                               {formatRelativeTime(checkin.timestamp)} · {formatDateTime(checkin.timestamp)}
