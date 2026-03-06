@@ -85,10 +85,10 @@ Plans:
   2. Profile page shows a Leaflet map with numbered markers corresponding to check-in locations
   3. Each marker on the map displays an accuracy circle showing GPS precision
   4. Pagination controls allow browsing through check-in history, and the map updates to show markers for the current page
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 13-01: TBD
+- [ ] 13-01-PLAN.md — CheckInHistory component with Leaflet map, numbered markers, accuracy circles, and paginated list
 
 ## Progress
 
@@ -100,4 +100,4 @@ Phase 10 -> 11 -> 12 and 13 (12 and 13 can run in parallel after 11).
 | 10. CheckIn Data Layer | 1/1 | Complete    | 2026-03-06 | - |
 | 11. Check-in API Routes | 1/1 | Complete    | 2026-03-06 | - |
 | 12. CheckInModal + Header | 1/1 | Complete    | 2026-03-06 | - |
-| 13. Profile Check-in Display | v1.2 | 0/? | Not started | - |
+| 13. Profile Check-in Display | v1.2 | 0/1 | Not started | - |
