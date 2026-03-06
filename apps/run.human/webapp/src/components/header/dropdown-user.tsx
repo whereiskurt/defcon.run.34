@@ -20,7 +20,8 @@ import { useSession } from 'next-auth/react';
 import { fullLogout } from '@/hooks/useLogout';
 
 import { useRouter } from 'next/navigation';
-import { FaUserAlt, FaTrophy } from 'react-icons/fa';
+import { FaUserAlt, FaTrophy, FaMapMarkerAlt } from 'react-icons/fa';
+import CheckInModal from '@/components/CheckInModal';
 import { LogoutIcon } from './icon/logout';
 import { QRIcon } from './icon/qr';
 import { useEffect, useState } from 'react';
@@ -41,6 +42,11 @@ const UserDropDown = (params: any) => {
     isOpen: isQROpen,
     onOpen: openQR,
     onClose: closeQR,
+  } = useDisclosure();
+  const {
+    isOpen: isCheckInOpen,
+    onOpen: openCheckIn,
+    onClose: closeCheckIn,
   } = useDisclosure();
   const [userDetail, setUserDetail] = useState<any>(null);
   const router = useRouter();
@@ -108,12 +114,19 @@ const UserDropDown = (params: any) => {
     };
   }, [session?.user?.email]);
 
+  const checkInQuotaExhausted = userDetail?.quotas?.checkin?.remaining === 0;
+
   if (!session || !session.user) return <></>;
 
   return (
     <>
       {LogoutModal(isLogoutOpen, closeLogout)}
       {QRModal(isQROpen, closeQR, userDetail)}
+      <CheckInModal
+        isOpen={isCheckInOpen}
+        onClose={closeCheckIn}
+        checkinPreference={userDetail?.preferences?.checkinPreference}
+      />
       <Dropdown
         backdrop="blur"
         showArrow
@@ -134,7 +147,7 @@ const UserDropDown = (params: any) => {
 
         <DropdownMenu
           aria-label="Custom item styles"
-          disabledKeys={['profile_example']}
+          disabledKeys={['profile_example', ...(checkInQuotaExhausted ? ['checkin'] : [])]}
           topContent={
             <User
               name={userDetail?.displayname ? `🐰 ${userDetail.displayname}` : session.user.name}
@@ -179,6 +192,20 @@ const UserDropDown = (params: any) => {
               closeOnSelect={true}
             >
               Leaderboard
+            </DropdownItem>
+          </DropdownSection>
+
+          <DropdownSection aria-label="Check-in" showDivider>
+            <DropdownItem
+              startContent={<FaMapMarkerAlt />}
+              key="checkin"
+              className="gap-2 opacity-100 py-2 text-base"
+              textValue="GPS Check-in"
+              onPress={() => openCheckIn()}
+              closeOnSelect={true}
+              description={checkInQuotaExhausted ? 'Check-in limit reached for today' : undefined}
+            >
+              GPS Check-in
             </DropdownItem>
           </DropdownSection>
 
