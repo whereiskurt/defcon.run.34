@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useTheme } from 'next-themes';
 import { Card, CardBody, Chip, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
 import { ChevronDown, ChevronRight, Trash2, Plus } from 'lucide-react';
 import CheckInModal from '@/components/CheckInModal';
@@ -114,7 +115,12 @@ function makeNumberedIcon(number: number, color: string) {
   });
 }
 
+const TILES_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILES_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
 export default function CheckInHistory({ checkInCount, checkinPreference }: CheckInHistoryProps) {
+  const { resolvedTheme } = useTheme();
+  const tileUrl = resolvedTheme === 'dark' ? TILES_DARK : TILES_LIGHT;
   const [isOpen, setIsOpen] = useState(true);
   const [checkIns, setCheckIns] = useState<CheckInItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -324,7 +330,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
               >
                 <TileLayer
                   attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  url={tileUrl}
                 />
                 {checkIns.map((checkin, index) => {
                   const number = getItemNumber(index);

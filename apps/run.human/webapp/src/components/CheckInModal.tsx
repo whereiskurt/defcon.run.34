@@ -12,9 +12,13 @@ import {
   SelectItem,
 } from '@heroui/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTheme } from 'next-themes';
 import { apiUrl } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
+
+const TILES_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILES_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
 const MapContainer = dynamic(
   () => import('react-leaflet').then((m) => m.MapContainer),
@@ -65,6 +69,8 @@ export default function CheckInModal({
   checkinPreference,
   onCheckInComplete,
 }: CheckInModalProps) {
+  const { resolvedTheme } = useTheme();
+  const tileUrl = resolvedTheme === 'dark' ? TILES_DARK : TILES_LIGHT;
   const [phase, setPhase] = useState<Phase>('collecting');
   const [samples, setSamples] = useState<GpsSample[]>([]);
   const [sampleCount, setSampleCount] = useState(0);
@@ -261,7 +267,7 @@ export default function CheckInModal({
                       dragging={false}
                       scrollWheelZoom={false}
                     >
-                      <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                      <TileLayer url={tileUrl} />
                       <Circle
                         center={[avgLat, avgLng]}
                         radius={acc}
@@ -344,7 +350,7 @@ export default function CheckInModal({
                           dragging={false}
                           scrollWheelZoom={false}
                         >
-                          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                          <TileLayer url={tileUrl} />
                           <Circle
                             center={[avgLat, avgLng]}
                             radius={acc}
