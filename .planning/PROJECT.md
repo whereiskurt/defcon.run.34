@@ -12,9 +12,18 @@ The official DEF CON Run 34 platform — a suite of web apps for organizing and 
 
 Participants and organizers have a seamless digital experience for DEF CON Run 34 — from device setup to event discovery to route navigation — all through the browser.
 
-## Current State
+## Current Milestone: v1.3 Meshtk Integration
 
-v1.2 shipped. Ready for next milestone planning.
+**Goal:** Replicate the defcon.run.33 MQTT/meshtk infrastructure in defcon.run.34 — mosquitto broker, meshtk proxy, meshmap, and fleet simulator deployed via NLB to both regions.
+
+**Target features:**
+- Port apps/mqtt/ container configs (mosquitto, nginx/meshmap, grpc/meshtk, ghosts) from defcon.run.33
+- Gitignored meshtk checkout at apps/mqtt/grpc/site-tld/meshtk/
+- Enable NLB in both regions with MQTT listeners (1883 TCP, 8883 TLS, 8443 WSS)
+- mqtt.defcon.run service config with 4-container ECS task
+- CloudFront distribution for mqtt.defcon.run with /{region}/meshmap path routing
+- ECR repos + build/deploy scripts for 3 container images
+- S3 logging, ACM certs, SSM params for secrets
 
 ## Requirements
 
@@ -51,7 +60,14 @@ v1.2 shipped. Ready for next milestone planning.
 
 ### Active
 
-(None — run `/gsd:new-milestone` to define next milestone requirements)
+- [ ] MQTT broker deployment (mosquitto container with auth, ACL, persistence)
+- [ ] Meshtk proxy deployment (packet inspection, rate limiting, S3 logging)
+- [ ] Meshmap deployment (nginx + meshobserv, live node visualization)
+- [ ] Fleet simulator (ghosts container, non-essential)
+- [ ] NLB with 4 listeners: 1883 TCP, 8883 TLS, 443 TLS, 8443 WSS
+- [ ] CloudFront for mqtt.defcon.run with meshmap path routing
+- [ ] ECR repos + build/deploy pipeline for 3 images
+- [ ] Both-region deployment (us-east-1 + ca-central-1)
 
 ### Out of Scope
 
@@ -100,5 +116,9 @@ v1.2 shipped. Ready for next milestone planning.
 | Relative age coloring for map markers | Visual distinction without absolute time dependency | ✓ Good |
 | Strava autoLink param for seamless OAuth | Eliminates extra button click on auth server | ✓ Good |
 
+| Meshtk as gitignored copy | Avoids submodule overhead; user manages updates manually from ~/working/meshtk | — Pending |
+| NLB direct for MQTT ports | 1883/8883/8443 must bypass CloudFront — radios connect directly to NLB | — Pending |
+| CloudFront only for meshmap | Port 443 meshmap web traffic through CloudFront; MQTT ports via NLB | — Pending |
+
 ---
-*Last updated: 2026-03-06 after v1.2 milestone completion*
+*Last updated: 2026-03-06 after v1.3 milestone start*
