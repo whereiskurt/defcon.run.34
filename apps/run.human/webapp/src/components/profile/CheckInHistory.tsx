@@ -378,11 +378,11 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                               <span className="font-bold">#{number}</span>
                               <span className="opacity-70">{checkin.isPrivate ? 'Private' : 'Public'}</span>
                             </div>
-                            <div className="text-xs">
-                              {checkin.averageCoordinates.latitude.toFixed(5)}, {checkin.averageCoordinates.longitude.toFixed(5)} (+/-{Math.round(checkin.bestAccuracy)}m)
-                            </div>
-                            <div className="text-xs mt-1 opacity-70">
+                            <div className="text-xs opacity-70">
                               {formatRelativeTime(checkin.timestamp)} · {formatDateTime(checkin.timestamp)}
+                            </div>
+                            <div className="text-xs mt-1">
+                              {checkin.averageCoordinates.latitude.toFixed(5)}, {checkin.averageCoordinates.longitude.toFixed(5)} (+/-{Math.round(checkin.bestAccuracy)}m)
                             </div>
                             <div className="text-xs mt-1 flex gap-1">
                               <a
