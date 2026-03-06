@@ -22,8 +22,8 @@ Requirements for User Checkins milestone. Each maps to roadmap phases.
 
 ### UI
 
-- [ ] **UI-01**: CheckInModal collects 3 GPS samples over 2 seconds with progress bar, privacy toggle, and quota display
-- [ ] **UI-02**: "GPS Check-in" entry in header user dropdown opens the CheckInModal
+- [x] **UI-01**: CheckInModal collects 3 GPS samples over 2 seconds with progress bar, privacy toggle, and quota display
+- [x] **UI-02**: "GPS Check-in" entry in header user dropdown opens the CheckInModal
 - [ ] **UI-03**: Profile page shows paginated check-in list with Leaflet map, numbered markers, and accuracy circles
 - [x] **UI-04**: User can set default check-in privacy preference (public/private)
 
@@ -65,8 +65,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | API-02 | Phase 11 | Complete |
 | API-03 | Phase 11 | Complete |
 | API-04 | Phase 11 | Complete |
-| UI-01 | Phase 12 | Pending |
-| UI-02 | Phase 12 | Pending |
+| UI-01 | Phase 12 | Complete |
+| UI-02 | Phase 12 | Complete |
 | UI-03 | Phase 13 | Pending |
 | UI-04 | Phase 11 | Complete |
 
