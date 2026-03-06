@@ -1,15 +1,73 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock the client module
+// We need to mock electrodb's Entity before checkin.ts is imported,
+// because it constructs the Entity at module-level.
+
+const mockEntity = {
+  model: { entity: "CheckIn", version: "1", service: "run" },
+  create: vi.fn(),
+  get: vi.fn(),
+  delete: vi.fn(),
+  patch: vi.fn(),
+  query: {
+    byUserRecent: vi.fn(),
+    byGlobalRecent: vi.fn(),
+  },
+};
+
+vi.mock("electrodb", () => {
+  class MockEntity {
+    model: any;
+    create: any;
+    get: any;
+    delete: any;
+    patch: any;
+    query: any;
+    constructor(schema: any) {
+      this.model = schema.model;
+      this.create = mockEntity.create;
+      this.get = mockEntity.get;
+      this.delete = mockEntity.delete;
+      this.patch = mockEntity.patch;
+      this.query = mockEntity.query;
+      // Update the shared reference so tests can check model
+      mockEntity.model = schema.model;
+    }
+  }
+  return { Entity: MockEntity };
+});
+
 vi.mock("../client", () => ({
   electroClient: {},
   ELECTRO_TABLE: "run-human-electro",
 }));
 
-// Mock the run-user module
+const mockRunUserPatch = vi.fn();
+
 vi.mock("../run-user", () => ({
   RunUser: {
-    patch: vi.fn().mockReturnValue({
+    patch: (...args: any[]) => mockRunUserPatch(...args),
+  },
+}));
+
+// Mock crypto.randomUUID
+vi.mock("crypto", async () => {
+  const actual = await vi.importActual<typeof import("crypto")>("crypto");
+  return {
+    ...actual,
+    default: {
+      ...actual,
+      randomUUID: () => "test-uuid-1234",
+    },
+  };
+});
+
+describe("CheckIn entity", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    // Reset RunUser.patch mock with chainable methods
+    mockRunUserPatch.mockReturnValue({
       set: vi.fn().mockReturnValue({
         add: vi.fn().mockReturnValue({
           go: vi.fn().mockResolvedValue({}),
@@ -22,21 +80,12 @@ vi.mock("../run-user", () => ({
       subtract: vi.fn().mockReturnValue({
         go: vi.fn().mockResolvedValue({}),
       }),
-    }),
-  },
-}));
+    });
+  });
 
-// Mock crypto.randomUUID
-vi.stubGlobal("crypto", {
-  ...globalThis.crypto,
-  randomUUID: () => "test-uuid-1234",
-});
-
-describe("CheckIn entity", () => {
   describe("GPSSample interface", () => {
     it("Test 1: GPSSample interface has all required fields", async () => {
       const { GPSSampleFields } = await import("../checkin");
-      // GPSSampleFields is a runtime array listing all fields of the GPSSample interface
       const expectedFields = [
         "latitude",
         "longitude",
@@ -56,7 +105,6 @@ describe("CheckIn entity", () => {
     it("Test 2: CheckIn entity has correct service/entity/version", async () => {
       const { CheckIn } = await import("../checkin");
       expect(CheckIn).toBeDefined();
-      // ElectroDB entities expose their model
       expect(CheckIn.model).toBeDefined();
       expect(CheckIn.model.entity).toBe("CheckIn");
       expect(CheckIn.model.version).toBe("1");
@@ -91,16 +139,11 @@ describe("CheckIn entity", () => {
       ],
     };
 
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it("Test 3: computes average coordinates from samples correctly", async () => {
-      const { createCheckIn, CheckIn } = await import("../checkin");
+      const { createCheckIn } = await import("../checkin");
 
-      // Mock CheckIn.create to capture what was passed
       let capturedData: any;
-      CheckIn.create = vi.fn().mockImplementation((data: any) => {
+      mockEntity.create.mockImplementation((data: any) => {
         capturedData = data;
         return { go: vi.fn().mockResolvedValue({ data }) };
       });
@@ -118,24 +161,24 @@ describe("CheckIn entity", () => {
     });
 
     it("Test 4: computes bestAccuracy as minimum accuracy from samples", async () => {
-      const { createCheckIn, CheckIn } = await import("../checkin");
+      const { createCheckIn } = await import("../checkin");
 
       let capturedData: any;
-      CheckIn.create = vi.fn().mockImplementation((data: any) => {
+      mockEntity.create.mockImplementation((data: any) => {
         capturedData = data;
         return { go: vi.fn().mockResolvedValue({ data }) };
       });
 
       await createCheckIn("user-123", sampleData);
 
-      expect(capturedData.bestAccuracy).toBe(5); // Math.min(10, 5)
+      expect(capturedData.bestAccuracy).toBe(5);
     });
 
     it("Test 5: computes duration as time between first and last sample in seconds", async () => {
-      const { createCheckIn, CheckIn } = await import("../checkin");
+      const { createCheckIn } = await import("../checkin");
 
       let capturedData: any;
-      CheckIn.create = vi.fn().mockImplementation((data: any) => {
+      mockEntity.create.mockImplementation((data: any) => {
         capturedData = data;
         return { go: vi.fn().mockResolvedValue({ data }) };
       });
@@ -147,59 +190,55 @@ describe("CheckIn entity", () => {
     });
 
     it("Test 6: calls RunUser.patch to increment checkInCount and set lastCheckInAt", async () => {
-      const { createCheckIn, CheckIn } = await import("../checkin");
-      const { RunUser } = await import("../run-user");
+      const { createCheckIn } = await import("../checkin");
 
-      CheckIn.create = vi.fn().mockImplementation((data: any) => {
+      mockEntity.create.mockImplementation((data: any) => {
         return { go: vi.fn().mockResolvedValue({ data }) };
       });
 
       await createCheckIn("user-123", sampleData);
 
-      expect(RunUser.patch).toHaveBeenCalledWith({ userId: "user-123" });
+      expect(mockRunUserPatch).toHaveBeenCalledWith({ userId: "user-123" });
+      // Verify chain: .set({ lastCheckInAt }).add({ checkInCount: 1 }).go()
+      const setResult = mockRunUserPatch.mock.results[0].value.set;
+      expect(setResult).toHaveBeenCalled();
+      const addResult = setResult.mock.results[0].value.add;
+      expect(addResult).toHaveBeenCalledWith({ checkInCount: 1 });
     });
   });
 
   describe("deleteCheckIn", () => {
-    beforeEach(() => {
-      vi.clearAllMocks();
-    });
-
     it("Test 7: calls RunUser.patch to decrement checkInCount", async () => {
-      const { deleteCheckIn, CheckIn } = await import("../checkin");
-      const { RunUser } = await import("../run-user");
+      const { deleteCheckIn } = await import("../checkin");
 
-      CheckIn.delete = vi.fn().mockReturnValue({
+      mockEntity.delete.mockReturnValue({
         go: vi.fn().mockResolvedValue({ data: {} }),
       });
 
       await deleteCheckIn("user-123", 1000000, "checkin-id-1");
 
-      expect(RunUser.patch).toHaveBeenCalledWith({ userId: "user-123" });
-      const patchResult = (RunUser.patch as any).mock.results[0].value;
-      expect(patchResult.subtract).toHaveBeenCalledWith({ checkInCount: 1 });
+      expect(mockRunUserPatch).toHaveBeenCalledWith({ userId: "user-123" });
+      const subtractResult = mockRunUserPatch.mock.results[0].value.subtract;
+      expect(subtractResult).toHaveBeenCalledWith({ checkInCount: 1 });
     });
   });
 
   describe("getCheckInsByUser", () => {
     it("Test 8: queries byUserRecent index with desc order and cursor pagination", async () => {
-      const { getCheckInsByUser, CheckIn } = await import("../checkin");
+      const { getCheckInsByUser } = await import("../checkin");
 
       const mockGo = vi.fn().mockResolvedValue({
         data: [{ userId: "user-123" }],
         cursor: "next-cursor",
       });
 
-      CheckIn.query = {
-        ...CheckIn.query,
-        byUserRecent: vi.fn().mockReturnValue({
-          go: mockGo,
-        }),
-      } as any;
+      mockEntity.query.byUserRecent.mockReturnValue({
+        go: mockGo,
+      });
 
       const result = await getCheckInsByUser("user-123", 10, "prev-cursor");
 
-      expect(CheckIn.query.byUserRecent).toHaveBeenCalledWith({
+      expect(mockEntity.query.byUserRecent).toHaveBeenCalledWith({
         userId: "user-123",
       });
       expect(mockGo).toHaveBeenCalledWith(
@@ -218,23 +257,20 @@ describe("CheckIn entity", () => {
 
   describe("getRecentCheckIns", () => {
     it("Test 9: queries byGlobalRecent index with desc order and cursor pagination", async () => {
-      const { getRecentCheckIns, CheckIn } = await import("../checkin");
+      const { getRecentCheckIns } = await import("../checkin");
 
       const mockGo = vi.fn().mockResolvedValue({
         data: [{ checkInId: "ci-1" }],
         cursor: "next-cursor",
       });
 
-      CheckIn.query = {
-        ...CheckIn.query,
-        byGlobalRecent: vi.fn().mockReturnValue({
-          go: mockGo,
-        }),
-      } as any;
+      mockEntity.query.byGlobalRecent.mockReturnValue({
+        go: mockGo,
+      });
 
       const result = await getRecentCheckIns(5, "prev-cursor");
 
-      expect(CheckIn.query.byGlobalRecent).toHaveBeenCalledWith({});
+      expect(mockEntity.query.byGlobalRecent).toHaveBeenCalledWith({});
       expect(mockGo).toHaveBeenCalledWith(
         expect.objectContaining({
           limit: 5,
@@ -251,19 +287,19 @@ describe("CheckIn entity", () => {
 
   describe("updateCheckInPrivacy", () => {
     it("Test 10: updates isPrivate field on existing check-in", async () => {
-      const { updateCheckInPrivacy, CheckIn } = await import("../checkin");
+      const { updateCheckInPrivacy } = await import("../checkin");
 
       const mockSet = vi.fn().mockReturnValue({
         go: vi.fn().mockResolvedValue({ data: {} }),
       });
 
-      CheckIn.patch = vi.fn().mockReturnValue({
+      mockEntity.patch.mockReturnValue({
         set: mockSet,
-      }) as any;
+      });
 
       await updateCheckInPrivacy("user-123", 1000000, "checkin-id-1", false);
 
-      expect(CheckIn.patch).toHaveBeenCalledWith({
+      expect(mockEntity.patch).toHaveBeenCalledWith({
         userId: "user-123",
         timestamp: 1000000,
         checkInId: "checkin-id-1",
