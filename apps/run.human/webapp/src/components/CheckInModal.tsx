@@ -231,6 +231,38 @@ export default function CheckInModal({
                 </div>
               )}
 
+              {(phase === 'ready' || phase === 'submitting') && samplesRef.current.length > 0 && (
+                <div className="w-full rounded-lg overflow-hidden" style={{ height: 140 }}>
+                  <MapContainer
+                    center={[
+                      samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length,
+                      samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length,
+                    ]}
+                    zoom={13}
+                    style={{ height: '100%', width: '100%' }}
+                    zoomControl={false}
+                    attributionControl={false}
+                    dragging={false}
+                    scrollWheelZoom={false}
+                  >
+                    <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                    <CircleMarker
+                      center={[
+                        samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length,
+                        samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length,
+                      ]}
+                      radius={8}
+                      pathOptions={{
+                        color: isPrivate ? '#71717a' : '#006FEE',
+                        fillColor: isPrivate ? '#71717a' : '#006FEE',
+                        fillOpacity: 0.8,
+                        weight: 2,
+                      }}
+                    />
+                  </MapContainer>
+                </div>
+              )}
+
               {phase === 'ready' && (
                 <div className="flex flex-col gap-4">
                   <p className="text-success text-sm">
