@@ -136,6 +136,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<Map<string, any>>(new Map());
+  const autoSelectNewest = useRef(false);
 
   const effectiveCount = localCount ?? checkInCount;
   const totalPages = Math.ceil(effectiveCount / 5);
@@ -154,6 +155,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
       setPageCache(new Map());
       setCurrentPage(1);
       setSelectedId(null);
+      autoSelectNewest.current = true;
     };
     window.addEventListener('checkin-created', handleNewCheckIn);
     return () => window.removeEventListener('checkin-created', handleNewCheckIn);
@@ -215,6 +217,14 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
   // Fit map bounds when check-ins change
   useEffect(() => {
     if (!mapRef.current || checkIns.length === 0) return;
+
+    // After a new check-in, auto-select the newest (first item) to zoom into it
+    if (autoSelectNewest.current && checkIns.length > 0) {
+      autoSelectNewest.current = false;
+      setSelectedId(checkIns[0].checkInId);
+      return; // selectedId effect will handle zoom
+    }
+
     const L = typeof window !== 'undefined' ? require('leaflet') : null;
     if (!L) return;
 
