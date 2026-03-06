@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, CardBody, Chip, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
-import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2, Plus } from 'lucide-react';
+import CheckInModal from '@/components/CheckInModal';
 import { apiUrl } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import type { CheckInItem } from '@/entities/checkin';
@@ -41,6 +42,7 @@ interface PageCache {
 
 interface CheckInHistoryProps {
   checkInCount: number;
+  checkinPreference?: string;
 }
 
 function formatRelativeTime(timestamp: number): string {
@@ -112,7 +114,7 @@ function makeNumberedIcon(number: number, color: string) {
   });
 }
 
-export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
+export default function CheckInHistory({ checkInCount, checkinPreference }: CheckInHistoryProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [checkIns, setCheckIns] = useState<CheckInItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -124,6 +126,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; number: number } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
+  const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<Map<string, any>>(new Map());
 
@@ -284,19 +287,30 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
   return (
     <Card className="glass-card overflow-hidden">
       <CardBody className="px-5 py-3">
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center gap-2 w-full text-left cursor-pointer hover:opacity-80 transition-opacity"
-        >
-          {isOpen ? (
-            <ChevronDown className="w-3.5 h-3.5 text-default-400" />
-          ) : (
-            <ChevronRight className="w-3.5 h-3.5 text-default-400" />
-          )}
-          <span className="font-museo text-base font-bold text-foreground">
-            Check-ins ({effectiveCount})
-          </span>
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center gap-2 text-left cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            {isOpen ? (
+              <ChevronDown className="w-3.5 h-3.5 text-default-400" />
+            ) : (
+              <ChevronRight className="w-3.5 h-3.5 text-default-400" />
+            )}
+            <span className="font-museo text-base font-bold text-foreground">
+              Check-ins ({effectiveCount})
+            </span>
+          </button>
+          <Button
+            isIconOnly
+            color="primary"
+            variant="flat"
+            size="lg"
+            onPress={() => setIsCheckInOpen(true)}
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        </div>
 
         {isOpen && mounted && (
           <div className="space-y-3 mt-3">
@@ -457,6 +471,13 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Check-in modal */}
+      <CheckInModal
+        isOpen={isCheckInOpen}
+        onClose={() => setIsCheckInOpen(false)}
+        checkinPreference={checkinPreference}
+      />
     </Card>
   );
 }

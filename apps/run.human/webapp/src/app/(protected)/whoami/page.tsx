@@ -265,7 +265,7 @@ export default function WhoAmIPage() {
       </div>
 
       {/* Check-in History */}
-      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} />
+      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference} />
 
       {/* QR Code (collapsed by default) */}
       {userData?.eqr && (
