@@ -86,16 +86,30 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [localCount, setLocalCount] = useState<number | null>(null);
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<Map<string, any>>(new Map());
 
-  const totalPages = Math.ceil(checkInCount / 5);
+  const effectiveCount = localCount ?? checkInCount;
+  const totalPages = Math.ceil(effectiveCount / 5);
   const PAGE_SIZE = 5;
 
   useEffect(() => {
     setMounted(true);
     require('leaflet-defaulticon-compatibility');
   }, []);
+
+  // Listen for new check-ins and refresh
+  useEffect(() => {
+    const handleNewCheckIn = () => {
+      setLocalCount((prev) => (prev ?? checkInCount) + 1);
+      setPageCache(new Map());
+      setCurrentPage(1);
+      setSelectedId(null);
+    };
+    window.addEventListener('checkin-created', handleNewCheckIn);
+    return () => window.removeEventListener('checkin-created', handleNewCheckIn);
+  }, [checkInCount]);
 
   const fetchPage = useCallback(async (page: number) => {
     // Check cache first
@@ -125,7 +139,11 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
       }
 
       const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch check-ins');
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        console.error(`GET ${url} → ${response.status}`, body);
+        throw new Error(`Failed to fetch check-ins: ${response.status}`);
+      }
       const result = await response.json();
 
       const newCache = new Map(pageCache);
@@ -139,12 +157,12 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
     }
   }, [pageCache]);
 
-  // Fetch first page on mount
+  // Fetch first page on mount or when cache is cleared (new check-in)
   useEffect(() => {
-    if (checkInCount > 0 && mounted) {
+    if (effectiveCount > 0 && mounted && pageCache.size === 0) {
       fetchPage(1);
     }
-  }, [checkInCount, mounted]);
+  }, [effectiveCount, mounted, pageCache.size]);
 
   // Fit map bounds when check-ins change
   useEffect(() => {
@@ -190,7 +208,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
   };
 
   const getItemNumber = (index: number): number => {
-    return checkInCount - ((currentPage - 1) * PAGE_SIZE) - index;
+    return effectiveCount - ((currentPage - 1) * PAGE_SIZE) - index;
   };
 
   const handleMarkerClick = (checkInId: string) => {
@@ -213,7 +231,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
             <ChevronRight className="w-3.5 h-3.5 text-default-400" />
           )}
           <span className="font-museo text-base font-bold text-foreground">
-            Check-ins ({checkInCount})
+            Check-ins ({effectiveCount})
           </span>
         </button>
 
@@ -273,7 +291,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
               </MapContainer>
 
               {/* Empty state overlay */}
-              {checkInCount === 0 && (
+              {effectiveCount === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center z-[1000] pointer-events-none">
                   <div className="bg-black/70 text-white text-sm px-4 py-3 rounded-lg text-center max-w-[280px]">
                     No check-ins yet -- use GPS Check-in from the menu to get started
@@ -290,7 +308,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
             </div>
 
             {/* Check-in list */}
-            {checkInCount > 0 && (
+            {effectiveCount > 0 && (
               <div className="space-y-1">
                 {checkIns.map((checkin, index) => {
                   const number = getItemNumber(index);

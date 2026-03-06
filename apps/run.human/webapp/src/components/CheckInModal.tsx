@@ -161,6 +161,7 @@ export default function CheckInModal({
       const data = await res.json();
       setQuotaRemaining(data.quota?.remaining ?? null);
       setPhase('success');
+      window.dispatchEvent(new Event('checkin-created'));
 
       const t = setTimeout(() => {
         if (isOpenRef.current) {
