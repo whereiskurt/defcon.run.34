@@ -76,9 +76,16 @@ function formatDateTime(timestamp: number): string {
  */
 function relativeAgeColors(checkIns: CheckInItem[]): Map<string, string> {
   const colors = new Map<string, string>();
-  const timestamps = checkIns.filter(c => !c.isPrivate).map(c => c.timestamp);
-  const newest = Math.max(...timestamps, 0);
-  const oldest = Math.min(...timestamps, 0);
+  const publicItems = checkIns.filter(c => !c.isPrivate);
+
+  if (publicItems.length === 0) {
+    for (const c of checkIns) colors.set(c.checkInId, '#71717a');
+    return colors;
+  }
+
+  const timestamps = publicItems.map(c => c.timestamp);
+  const newest = Math.max(...timestamps);
+  const oldest = Math.min(...timestamps);
   const range = newest - oldest;
 
   for (const c of checkIns) {
