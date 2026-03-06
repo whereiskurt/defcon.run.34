@@ -10,16 +10,12 @@ The official DEF CON Run 34 platform — a suite of web apps for organizing and 
 
 Participants and organizers have a seamless digital experience for DEF CON Run 34 — from device setup to event discovery to route navigation — all through the browser.
 
-## Current Milestone: v1.1 CMS Content Types
+## Current Milestone: v1.2 User Checkins
 
-**Goal:** Event organizers can manage DCR34 events, routes, and points of interest through cms.defcon.run with a branded OIDC login experience and working REST API.
+**Goal:** TBD — gathering requirements
 
 **Target features:**
-- Event content type (scheduled activities with dates, locations, photo galleries, file attachments)
-- Route content type (ordered GPX file collections with type classification)
-- Point of Interest content type (standalone, reusable landmarks linked to routes)
-- Branded OIDC login page (DCR34-styled, not raw Strapi admin login)
-- REST API verified for run.human consumption
+- TBD
 
 ## Requirements
 
@@ -40,10 +36,17 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 - ✓ Production deployment: multi-region ECS Fargate + CloudFront at flash.defcon.run — v1.0
 - ✓ Flash service claim check (like gpxstudio) with access-denied page — v1.0
 - ✓ All CI/CD workflows (buildpub, deploy, rollback, npm-audit) include run.flash — v1.0
+- ✓ Event, Route, and POI content types with shared coordinates component — v1.1
+- ✓ Bidirectional many-to-many relations (Events↔Routes, Routes↔POIs) — v1.1
+- ✓ Public REST API with population, filtering, field selection — v1.1
+- ✓ DCR34-branded OIDC login page and error pages on cms.defcon.run — v1.1
+- ✓ Litestream worker sync safety (WAL checkpoint + safe swap) — v1.1
+- ✓ S3 upload provider upgraded to Strapi 5 — v1.1
+- ✓ CMS sync verified across regions with seed data — v1.1
 
 ### Active
 
-See `.planning/REQUIREMENTS.md` for v1.1 requirements.
+See `.planning/REQUIREMENTS.md` for v1.2 requirements.
 
 ### Out of Scope
 
@@ -89,4 +92,4 @@ See `.planning/REQUIREMENTS.md` for v1.1 requirements.
 | CMS serves API only, run.human renders | Clean separation of content management and presentation | — Pending |
 
 ---
-*Last updated: 2026-03-02 after v1.1 milestone start*
+*Last updated: 2026-03-05 after v1.1 completion, v1.2 milestone start*

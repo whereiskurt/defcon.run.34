@@ -20,9 +20,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for archived v1.0 roadmap.
 
 - [x] **Phase 5: Infrastructure Hardening + Content Type Schemas** - Fix worker sync, upgrade S3 provider, define all content type schemas (completed 2026-03-02)
 - [x] **Phase 6: Relations + API Verification** - Wire many-to-many relations, configure public permissions, verify REST API end-to-end (completed 2026-03-02)
-- [ ] **Phase 7: Branded Login** - DCR34-branded OIDC login experience on cms.defcon.run
-- [ ] **Phase 8: run.human CMS Client** - Service-discovery-based CMS fetch client with TypeScript types and rich text rendering
-- [ ] **Phase 9: Seed Data + End-to-End Verification** - Sample DCR34 content and full pipeline verification
+- [x] **Phase 7: Branded Login** - DCR34-branded OIDC login experience on cms.defcon.run (completed 2026-03-02)
+- [x] **Phase 8: run.human CMS Client** - Verified manually: CMS sync working across regions (skipped — manually verified 2026-03-05)
+- [x] **Phase 9: Seed Data + End-to-End Verification** - Verified manually: seed data created and confirmed (skipped — manually verified 2026-03-05)
 
 ## Phase Details
 
@@ -68,33 +68,15 @@ Plans:
 **Plans**: 1 plan (1 wave)
 
 Plans:
-- [ ] 07-01-PLAN.md — Branded login page (static HTML + nginx) and branded SSO error pages
+- [x] 07-01-PLAN.md — Branded login page (static HTML + nginx) and branded SSO error pages
 
-### Phase 8: run.human CMS Client
+### Phase 8: run.human CMS Client (Manually Verified)
 **Goal**: run.human can fetch and render CMS content from regional workers via service discovery with type-safe code
-**Depends on**: Phase 6
-**Requirements**: CLNT-01, CLNT-02, CLNT-03
-**Success Criteria** (what must be TRUE):
-  1. run.human fetches CMS content from the regional worker via service discovery (not the master, not CloudFront) using a reusable client module
-  2. TypeScript types for Event, Route, and POI API responses are defined and used by the CMS client (no untyped API responses)
-  3. Rich text blocks from CMS content render correctly in run.human pages following the DCR33 blocks-renderer pattern
-**Plans**: TBD
+**Status**: Skipped — CMS sync verified manually across regions (2026-03-05)
 
-Plans:
-- [ ] 08-01: TBD
-
-### Phase 9: Seed Data + End-to-End Verification
+### Phase 9: Seed Data + End-to-End Verification (Manually Verified)
 **Goal**: CMS contains representative DCR34 sample content and the full organizer-to-participant pipeline is verified across both regions
-**Depends on**: Phase 6, Phase 8
-**Requirements**: SEED-01, SEED-02
-**Success Criteria** (what must be TRUE):
-  1. CMS contains sample DCR34 events (Day 1 Run, Day 1 Social, Day 2 Swag Swap, etc.) with realistic field values, cover images, and attachments
-  2. Sample routes with uploaded GPX files and linked POIs are associated with events via many-to-many relations
-  3. Content created on the master in us-east-1 is readable from workers in both us-east-1 and ca-central-1 within the Litestream sync window
-**Plans**: TBD
-
-Plans:
-- [ ] 09-01: TBD
+**Status**: Skipped — seed data created and confirmed manually (2026-03-05)
 
 ## Progress
 
@@ -105,6 +87,6 @@ Phases 5 and 7 can execute in parallel (no dependency). Phase 6 follows 5. Phase
 |-------|-----------|----------------|--------|-----------|
 | 5. Infrastructure + Schemas | v1.1 | 2/2 | Complete | 2026-03-02 |
 | 6. Relations + API | v1.1 | 2/2 | Complete | 2026-03-02 |
-| 7. Branded Login | v1.1 | 0/0 | Not started | - |
-| 8. CMS Client | v1.1 | 0/0 | Not started | - |
-| 9. Seed Data + E2E | v1.1 | 0/0 | Not started | - |
+| 7. Branded Login | v1.1 | 1/1 | Complete | 2026-03-02 |
+| 8. CMS Client | v1.1 | — | Manually verified | 2026-03-05 |
+| 9. Seed Data + E2E | v1.1 | — | Manually verified | 2026-03-05 |
