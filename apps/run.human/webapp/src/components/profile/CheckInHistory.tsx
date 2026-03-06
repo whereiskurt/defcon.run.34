@@ -57,6 +57,30 @@ function formatRelativeTime(timestamp: number): string {
   return `${months} month${months !== 1 ? 's' : ''} ago`;
 }
 
+function formatDateTime(timestamp: number): string {
+  const d = new Date(timestamp);
+  return d.toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+}
+
+/**
+ * Returns a blue that fades from bright (#006FEE) to dark (#1a3a6e) over 7 days.
+ * Recent check-ins are vivid; older ones dim toward navy.
+ */
+function ageColor(timestamp: number, isPrivate: boolean): string {
+  if (isPrivate) return '#71717a';
+  const ageMs = Date.now() - timestamp;
+  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+  const t = Math.min(ageMs / SEVEN_DAYS, 1); // 0 = just now, 1 = 7+ days
+  // Lerp RGB: bright #006FEE (0,111,238) → dark #1a3a6e (26,58,110)
+  const r = Math.round(0 + t * 26);
+  const g = Math.round(111 - t * 53);
+  const b = Math.round(238 - t * 128);
+  return `rgb(${r},${g},${b})`;
+}
+
 /** Safely extract lat/lng as numbers with fallback */
 function getCoords(checkin: CheckInItem): [number, number] {
   return [
@@ -65,10 +89,9 @@ function getCoords(checkin: CheckInItem): [number, number] {
   ];
 }
 
-function makeNumberedIcon(number: number, isPrivate: boolean) {
+function makeNumberedIcon(number: number, color: string) {
   if (typeof window === 'undefined') return undefined;
   const L = require('leaflet');
-  const color = isPrivate ? '#71717a' : '#006FEE';
   return L.divIcon({
     html: `<div style="background:${color};width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:12px;border:2px solid white">${number}</div>`,
     className: '',
@@ -279,8 +302,8 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
                 />
                 {checkIns.map((checkin, index) => {
                   const number = getItemNumber(index);
-                  const color = checkin.isPrivate ? '#71717a' : '#006FEE';
-                  const icon = makeNumberedIcon(number, checkin.isPrivate ?? false);
+                  const color = ageColor(checkin.timestamp, checkin.isPrivate ?? false);
+                  const icon = makeNumberedIcon(number, color);
 
                   return (
                     <span key={checkin.checkInId}>
@@ -298,6 +321,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
                           <div className="text-sm space-y-1">
                             <div className="font-bold">Check-in #{number}</div>
                             <div>{formatRelativeTime(checkin.timestamp)}</div>
+                            <div className="text-xs opacity-70">{formatDateTime(checkin.timestamp)}</div>
                             <div>Accuracy: +/-{Math.round(checkin.bestAccuracy)}m</div>
                             <div>{checkin.isPrivate ? 'Private' : 'Public'}</div>
                           </div>
@@ -351,11 +375,15 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
                         isSelected ? 'bg-primary/10' : 'hover:bg-default-100'
                       }`}
                     >
-                      <span className="font-mono text-sm font-bold text-foreground min-w-[3ch] text-right">
+                      <span
+                        className="font-mono text-sm font-bold min-w-[3ch] text-right"
+                        style={{ color: ageColor(checkin.timestamp, checkin.isPrivate ?? false) }}
+                      >
                         #{number}
                       </span>
-                      <span className="text-xs text-default-500">
-                        {formatRelativeTime(checkin.timestamp)}
+                      <span className="flex flex-col leading-tight">
+                        <span className="text-xs text-default-500">{formatRelativeTime(checkin.timestamp)}</span>
+                        <span className="text-[10px] text-default-400">{formatDateTime(checkin.timestamp)}</span>
                       </span>
                       <span className="text-xs text-default-400">
                         +/-{Math.round(checkin.bestAccuracy)}m
