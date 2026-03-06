@@ -224,24 +224,24 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
     mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
   }, [checkIns]);
 
-  // Fly to selected marker at max zoom so overlapping points separate
+  // Jump to selected marker at max zoom — instant, no animation
   useEffect(() => {
     if (!selectedId || !mapRef.current) return;
     const checkin = checkIns.find((c) => c.checkInId === selectedId);
     if (!checkin) return;
 
-    mapRef.current.flyTo(getCoords(checkin), 18, { duration: 0.5 });
+    // Reset all z-indexes first, then raise selected
+    markerRefs.current.forEach((ref, id) => {
+      ref.setZIndexOffset(id === selectedId ? 1000 : 0);
+    });
 
-    // Raise selected marker above others and open popup
+    mapRef.current.setView(getCoords(checkin), 18, { animate: false });
+
+    // Open popup after view settles
     const markerRef = markerRefs.current.get(selectedId);
     if (markerRef) {
-      markerRef.setZIndexOffset(1000);
       markerRef.openPopup();
     }
-    // Reset z-index on other markers
-    markerRefs.current.forEach((ref, id) => {
-      if (id !== selectedId) ref.setZIndexOffset(0);
-    });
 
     // Scroll list row into view
     document.getElementById(`checkin-row-${selectedId}`)?.scrollIntoView({
