@@ -58,23 +58,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CHKN-01 | TBD | Pending |
-| CHKN-02 | TBD | Pending |
-| CHKN-03 | TBD | Pending |
-| API-01 | TBD | Pending |
-| API-02 | TBD | Pending |
-| API-03 | TBD | Pending |
-| API-04 | TBD | Pending |
-| UI-01 | TBD | Pending |
-| UI-02 | TBD | Pending |
-| UI-03 | TBD | Pending |
-| UI-04 | TBD | Pending |
+| CHKN-01 | Phase 10 | Pending |
+| CHKN-02 | Phase 10 | Pending |
+| CHKN-03 | Phase 10 | Pending |
+| API-01 | Phase 11 | Pending |
+| API-02 | Phase 11 | Pending |
+| API-03 | Phase 11 | Pending |
+| API-04 | Phase 11 | Pending |
+| UI-01 | Phase 12 | Pending |
+| UI-02 | Phase 12 | Pending |
+| UI-03 | Phase 13 | Pending |
+| UI-04 | Phase 11 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11
+- Mapped to phases: 11
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-05*
-*Last updated: 2026-03-05 after initial definition*
+*Last updated: 2026-03-05 after roadmap creation*
