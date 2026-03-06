@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, CardBody, Chip, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
 import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { apiUrl } from '@/lib/api';
@@ -66,19 +66,30 @@ function formatDateTime(timestamp: number): string {
 }
 
 /**
- * Returns a blue that fades from bright (#006FEE) to dark (#1a3a6e) over 7 days.
- * Recent check-ins are vivid; older ones dim toward navy.
+ * Compute relative age colors for a set of check-ins.
+ * Newest on the page = bright #006FEE, oldest = dark #1a3a6e.
+ * Private check-ins always return gray.
  */
-function ageColor(timestamp: number, isPrivate: boolean): string {
-  if (isPrivate) return '#71717a';
-  const ageMs = Date.now() - timestamp;
-  const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-  const t = Math.min(ageMs / SEVEN_DAYS, 1); // 0 = just now, 1 = 7+ days
-  // Lerp RGB: bright #006FEE (0,111,238) → dark #1a3a6e (26,58,110)
-  const r = Math.round(0 + t * 26);
-  const g = Math.round(111 - t * 53);
-  const b = Math.round(238 - t * 128);
-  return `rgb(${r},${g},${b})`;
+function relativeAgeColors(checkIns: CheckInItem[]): Map<string, string> {
+  const colors = new Map<string, string>();
+  const timestamps = checkIns.filter(c => !c.isPrivate).map(c => c.timestamp);
+  const newest = Math.max(...timestamps, 0);
+  const oldest = Math.min(...timestamps, 0);
+  const range = newest - oldest;
+
+  for (const c of checkIns) {
+    if (c.isPrivate) {
+      colors.set(c.checkInId, '#71717a');
+    } else {
+      // t=0 for newest (bright), t=1 for oldest (dark). If all same time, all bright.
+      const t = range > 0 ? (newest - c.timestamp) / range : 0;
+      const r = Math.round(0 + t * 26);
+      const g = Math.round(111 - t * 53);
+      const b = Math.round(238 - t * 128);
+      colors.set(c.checkInId, `rgb(${r},${g},${b})`);
+    }
+  }
+  return colors;
 }
 
 /** Safely extract lat/lng as numbers with fallback */
@@ -119,6 +130,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
   const effectiveCount = localCount ?? checkInCount;
   const totalPages = Math.ceil(effectiveCount / 5);
   const PAGE_SIZE = 5;
+  const colorMap = useMemo(() => relativeAgeColors(checkIns), [checkIns]);
 
   useEffect(() => {
     setMounted(true);
@@ -302,7 +314,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
                 />
                 {checkIns.map((checkin, index) => {
                   const number = getItemNumber(index);
-                  const color = ageColor(checkin.timestamp, checkin.isPrivate ?? false);
+                  const color = colorMap.get(checkin.checkInId) ?? '#006FEE';
                   const icon = makeNumberedIcon(number, color);
 
                   return (
@@ -377,7 +389,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
                     >
                       <span
                         className="font-mono text-sm font-bold min-w-[3ch] text-right"
-                        style={{ color: ageColor(checkin.timestamp, checkin.isPrivate ?? false) }}
+                        style={{ color: colorMap.get(checkin.checkInId) ?? '#006FEE' }}
                       >
                         #{number}
                       </span>
