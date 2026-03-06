@@ -28,6 +28,20 @@ const CircleMarker = dynamic(
   () => import('react-leaflet').then((m) => m.CircleMarker),
   { ssr: false }
 );
+const Circle = dynamic(
+  () => import('react-leaflet').then((m) => m.Circle),
+  { ssr: false }
+);
+
+/** Compute zoom level so a circle of `radiusMeters` fits in ~60% of `pixelHeight` */
+function zoomForAccuracy(radiusMeters: number, lat: number): number {
+  // meters per pixel at zoom z = (156543.03 * cos(lat)) / 2^z
+  // We want radius to be ~30% of map height (say 42px out of 140px)
+  const targetPixels = 42;
+  const metersPerPixelAtZoom0 = 156543.03 * Math.cos((lat * Math.PI) / 180);
+  const z = Math.log2(metersPerPixelAtZoom0 * targetPixels / radiusMeters);
+  return Math.min(Math.max(Math.round(z), 10), 18);
+}
 
 interface GpsSample {
   latitude: number;
@@ -231,37 +245,37 @@ export default function CheckInModal({
                 </div>
               )}
 
-              {(phase === 'ready' || phase === 'submitting') && samplesRef.current.length > 0 && (
-                <div className="w-full rounded-lg overflow-hidden" style={{ height: 140 }}>
-                  <MapContainer
-                    center={[
-                      samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length,
-                      samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length,
-                    ]}
-                    zoom={13}
-                    style={{ height: '100%', width: '100%' }}
-                    zoomControl={false}
-                    attributionControl={false}
-                    dragging={false}
-                    scrollWheelZoom={false}
-                  >
-                    <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-                    <CircleMarker
-                      center={[
-                        samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length,
-                        samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length,
-                      ]}
-                      radius={8}
-                      pathOptions={{
-                        color: isPrivate ? '#71717a' : '#006FEE',
-                        fillColor: isPrivate ? '#71717a' : '#006FEE',
-                        fillOpacity: 0.8,
-                        weight: 2,
-                      }}
-                    />
-                  </MapContainer>
-                </div>
-              )}
+              {(phase === 'ready' || phase === 'submitting') && samplesRef.current.length > 0 && (() => {
+                const avgLat = samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length;
+                const avgLng = samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length;
+                const acc = bestAccuracy ?? 30;
+                const markerColor = isPrivate ? '#71717a' : '#006FEE';
+                return (
+                  <div className="w-full rounded-lg overflow-hidden" style={{ height: 140 }}>
+                    <MapContainer
+                      center={[avgLat, avgLng]}
+                      zoom={zoomForAccuracy(acc, avgLat)}
+                      style={{ height: '100%', width: '100%' }}
+                      zoomControl={false}
+                      attributionControl={false}
+                      dragging={false}
+                      scrollWheelZoom={false}
+                    >
+                      <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                      <Circle
+                        center={[avgLat, avgLng]}
+                        radius={acc}
+                        pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.15, weight: 1 }}
+                      />
+                      <CircleMarker
+                        center={[avgLat, avgLng]}
+                        radius={6}
+                        pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.9, weight: 2 }}
+                      />
+                    </MapContainer>
+                  </div>
+                );
+              })()}
 
               {phase === 'ready' && (
                 <div className="flex flex-col gap-4">
@@ -312,37 +326,37 @@ export default function CheckInModal({
                       {quotaRemaining} check-in{quotaRemaining !== 1 ? 's' : ''} remaining today
                     </p>
                   )}
-                  {samplesRef.current.length > 0 && (
-                    <div className="w-full rounded-lg overflow-hidden" style={{ height: 160 }}>
-                      <MapContainer
-                        center={[
-                          samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length,
-                          samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length,
-                        ]}
-                        zoom={13}
-                        style={{ height: '100%', width: '100%' }}
-                        zoomControl={false}
-                        attributionControl={false}
-                        dragging={false}
-                        scrollWheelZoom={false}
-                      >
-                        <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
-                        <CircleMarker
-                          center={[
-                            samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length,
-                            samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length,
-                          ]}
-                          radius={8}
-                          pathOptions={{
-                            color: isPrivate ? '#71717a' : '#006FEE',
-                            fillColor: isPrivate ? '#71717a' : '#006FEE',
-                            fillOpacity: 0.8,
-                            weight: 2,
-                          }}
-                        />
-                      </MapContainer>
-                    </div>
-                  )}
+                  {samplesRef.current.length > 0 && (() => {
+                    const avgLat = samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length;
+                    const avgLng = samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length;
+                    const acc = bestAccuracy ?? 30;
+                    const markerColor = isPrivate ? '#71717a' : '#006FEE';
+                    return (
+                      <div className="w-full rounded-lg overflow-hidden" style={{ height: 160 }}>
+                        <MapContainer
+                          center={[avgLat, avgLng]}
+                          zoom={zoomForAccuracy(acc, avgLat)}
+                          style={{ height: '100%', width: '100%' }}
+                          zoomControl={false}
+                          attributionControl={false}
+                          dragging={false}
+                          scrollWheelZoom={false}
+                        >
+                          <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                          <Circle
+                            center={[avgLat, avgLng]}
+                            radius={acc}
+                            pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.15, weight: 1 }}
+                          />
+                          <CircleMarker
+                            center={[avgLat, avgLng]}
+                            radius={6}
+                            pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.9, weight: 2 }}
+                          />
+                        </MapContainer>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
