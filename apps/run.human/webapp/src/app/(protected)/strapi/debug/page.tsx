@@ -11,7 +11,7 @@ import {
   Skeleton,
   Switch,
 } from '@heroui/react';
-import { RefreshCw, Database, Activity, MapPin, Route, Calendar, AlertCircle } from 'lucide-react';
+import { RefreshCw, Database, Activity, MapPin, Route, Calendar, AlertCircle, Image } from 'lucide-react';
 import { apiUrl } from '@/lib/api';
 
 interface ContentItem {
@@ -43,6 +43,22 @@ interface DebugData {
   events: ContentResult | null;
   routes: ContentResult | null;
   pointsOfInterest: ContentResult | null;
+  media: {
+    data: Array<{
+      id: number;
+      name: string;
+      url: string;
+      mime: string;
+      size: number;
+      provider: string;
+      provider_metadata?: unknown;
+      createdAt: string;
+      updatedAt: string;
+      [key: string]: unknown;
+    }>;
+    responseTime: number;
+    error?: string;
+  } | null;
   fetchedAt: string;
   timing: { total: number };
 }
@@ -248,6 +264,58 @@ export default function StrapiDebugPage() {
           fields={['name', 'slug', 'type', 'updatedAt']}
         />
       </div>
+
+      {/* Media Library */}
+      <Card className="glass-card">
+        <CardHeader className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Image className="h-5 w-5 text-secondary" />
+            <span className="font-museo font-bold">Media Library</span>
+          </div>
+          {data?.media && (
+            <div className="flex items-center gap-2">
+              <Chip size="sm" variant="flat">{data.media.data.length} files</Chip>
+              <span className="text-xs text-default-400 font-mono">{data.media.responseTime}ms</span>
+            </div>
+          )}
+        </CardHeader>
+        <CardBody>
+          {loading && !data ? (
+            <Skeleton className="h-20 w-full rounded-lg" />
+          ) : data?.media?.error ? (
+            <div className="text-sm text-danger font-mono">{data.media.error}</div>
+          ) : data?.media?.data.length === 0 ? (
+            <div className="text-sm text-default-400">No media files found</div>
+          ) : data?.media ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-default-200">
+                    <th className="text-left py-2 px-2 text-default-500 font-normal">ID</th>
+                    <th className="text-left py-2 px-2 text-default-500 font-normal">name</th>
+                    <th className="text-left py-2 px-2 text-default-500 font-normal">mime</th>
+                    <th className="text-left py-2 px-2 text-default-500 font-normal">size</th>
+                    <th className="text-left py-2 px-2 text-default-500 font-normal">url</th>
+                    <th className="text-left py-2 px-2 text-default-500 font-normal">provider</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.media.data.map((file) => (
+                    <tr key={file.id} className="border-b border-default-100">
+                      <td className="py-2 px-2 font-mono text-xs">{file.id}</td>
+                      <td className="py-2 px-2 text-xs max-w-48 truncate">{file.name}</td>
+                      <td className="py-2 px-2 text-xs">{file.mime}</td>
+                      <td className="py-2 px-2 text-xs font-mono">{(file.size / 1024).toFixed(1)}KB</td>
+                      <td className="py-2 px-2 text-xs max-w-64 truncate font-mono">{file.url}</td>
+                      <td className="py-2 px-2 text-xs">{file.provider}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </CardBody>
+      </Card>
 
       {/* Relations card */}
       {data && (data.events?.data.length || data.routes?.data.length || data.pointsOfInterest?.data.length) ? (

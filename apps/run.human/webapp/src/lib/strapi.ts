@@ -74,6 +74,27 @@ export interface ContentResult {
   error?: string;
 }
 
+export interface MediaFile {
+  id: number;
+  name: string;
+  url: string;
+  mime: string;
+  size: number;
+  width?: number;
+  height?: number;
+  provider: string;
+  provider_metadata?: unknown;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}
+
+export interface MediaResult {
+  data: MediaFile[];
+  responseTime: number;
+  error?: string;
+}
+
 export interface DebugSnapshot {
   worker: {
     url: string;
@@ -84,8 +105,25 @@ export interface DebugSnapshot {
   events: ContentResult | null;
   routes: ContentResult | null;
   pointsOfInterest: ContentResult | null;
+  media: MediaResult | null;
   fetchedAt: string;
   timing: { total: number };
+}
+
+export async function strapiMediaFiles(): Promise<MediaResult> {
+  const start = Date.now();
+  const res = await fetch(`${BASE_URL}/api/upload/files`, {
+    headers: headers(),
+    cache: 'no-store',
+  });
+  const responseTime = Date.now() - start;
+
+  if (!res.ok) {
+    throw new Error(`Media query failed: ${res.status} ${res.statusText}`);
+  }
+
+  const json = await res.json();
+  return { data: json || [], responseTime };
 }
 
 export async function strapiDebugSnapshot(): Promise<DebugSnapshot> {
@@ -95,6 +133,7 @@ export async function strapiDebugSnapshot(): Promise<DebugSnapshot> {
     events: null,
     routes: null,
     pointsOfInterest: null,
+    media: null,
     fetchedAt: new Date().toISOString(),
     timing: { total: 0 },
   };
@@ -106,12 +145,13 @@ export async function strapiDebugSnapshot(): Promise<DebugSnapshot> {
     snapshot.worker.error = err instanceof Error ? err.message : String(err);
   }
 
-  // Fetch all content types in parallel with relations populated
+  // Fetch all content types and media in parallel
   const populate = { populate: '*' };
-  const [events, routes, pois] = await Promise.allSettled([
+  const [events, routes, pois, media] = await Promise.allSettled([
     strapiQuery('events', populate),
     strapiQuery('routes', populate),
     strapiQuery('points-of-interest', populate),
+    strapiMediaFiles(),
   ]);
 
   snapshot.events = events.status === 'fulfilled'
@@ -123,6 +163,9 @@ export async function strapiDebugSnapshot(): Promise<DebugSnapshot> {
   snapshot.pointsOfInterest = pois.status === 'fulfilled'
     ? pois.value
     : { data: [], meta: {}, responseTime: 0, error: pois.reason?.message || String(pois.reason) };
+  snapshot.media = media.status === 'fulfilled'
+    ? media.value
+    : { data: [], responseTime: 0, error: media.reason?.message || String(media.reason) };
 
   snapshot.timing.total = Date.now() - totalStart;
   return snapshot;
