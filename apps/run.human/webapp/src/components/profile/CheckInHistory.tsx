@@ -176,17 +176,13 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
     mapRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 });
   }, [checkIns]);
 
-  // Fly to selected marker
+  // Pan to selected marker without changing zoom
   useEffect(() => {
     if (!selectedId || !mapRef.current) return;
     const checkin = checkIns.find((c) => c.checkInId === selectedId);
     if (!checkin) return;
 
-    mapRef.current.flyTo(
-      getCoords(checkin),
-      15,
-      { duration: 0.5 }
-    );
+    mapRef.current.panTo(getCoords(checkin), { duration: 0.5 });
 
     // Open the popup
     const markerRef = markerRefs.current.get(selectedId);
