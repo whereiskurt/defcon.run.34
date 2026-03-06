@@ -62,9 +62,10 @@ function formatRelativeTime(timestamp: number): string {
 
 function formatDateTime(timestamp: number): string {
   const d = new Date(timestamp);
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleString(undefined, {
     month: 'short', day: 'numeric', year: 'numeric',
     hour: 'numeric', minute: '2-digit',
+    timeZoneName: 'short',
   });
 }
 
