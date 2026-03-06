@@ -9,9 +9,9 @@ Requirements for User Checkins milestone. Each maps to roadmap phases.
 
 ### Data Layer
 
-- [ ] **CHKN-01**: CheckIn ElectroDB entity with GPS samples, average coordinates, best accuracy, distance, duration, privacy flag, and timestamps
-- [ ] **CHKN-02**: By-user-recent and by-global-recent indexes for paginated access patterns
-- [ ] **CHKN-03**: User entity checkInCount and lastCheckInAt updated as side effects of create/delete
+- [x] **CHKN-01**: CheckIn ElectroDB entity with GPS samples, average coordinates, best accuracy, distance, duration, privacy flag, and timestamps
+- [x] **CHKN-02**: By-user-recent and by-global-recent indexes for paginated access patterns
+- [x] **CHKN-03**: User entity checkInCount and lastCheckInAt updated as side effects of create/delete
 
 ### API
 
@@ -58,9 +58,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CHKN-01 | Phase 10 | Pending |
-| CHKN-02 | Phase 10 | Pending |
-| CHKN-03 | Phase 10 | Pending |
+| CHKN-01 | Phase 10 | Complete |
+| CHKN-02 | Phase 10 | Complete |
+| CHKN-03 | Phase 10 | Complete |
 | API-01 | Phase 11 | Pending |
 | API-02 | Phase 11 | Pending |
 | API-03 | Phase 11 | Pending |
