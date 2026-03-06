@@ -149,7 +149,7 @@ echo "Created 'run-quota-electro' table"
 ###############################################################################
 
 # Create the 'run-human-electro' table
-# Schema: pk/sk with 2 GSIs (gsi1pk-gsi1sk-index, gsi2pk-gsi2sk-index)
+# Schema: pk/sk with 3 GSIs (gsi1: RunUser.byHash, gsi2: CheckIn.byGlobalRecent, gsi3: CheckIn.byUserRecent)
 aws dynamodb create-table \
     --endpoint-url "$ENDPOINT_URL" \
     --table-name run-human-electro \
@@ -160,6 +160,8 @@ aws dynamodb create-table \
         AttributeName=gsi1sk,AttributeType=S \
         AttributeName=gsi2pk,AttributeType=S \
         AttributeName=gsi2sk,AttributeType=S \
+        AttributeName=gsi3pk,AttributeType=S \
+        AttributeName=gsi3sk,AttributeType=S \
     --key-schema \
         AttributeName=pk,KeyType=HASH \
         AttributeName=sk,KeyType=RANGE \
@@ -185,6 +187,20 @@ aws dynamodb create-table \
                 "KeySchema": [
                     {"AttributeName":"gsi2pk","KeyType":"HASH"},
                     {"AttributeName":"gsi2sk","KeyType":"RANGE"}
+                ],
+                "Projection": {
+                    "ProjectionType":"ALL"
+                },
+                "ProvisionedThroughput": {
+                    "ReadCapacityUnits": 5,
+                    "WriteCapacityUnits": 5
+                }
+            },
+            {
+                "IndexName": "gsi3pk-gsi3sk-index",
+                "KeySchema": [
+                    {"AttributeName":"gsi3pk","KeyType":"HASH"},
+                    {"AttributeName":"gsi3sk","KeyType":"RANGE"}
                 ],
                 "Projection": {
                     "ProjectionType":"ALL"
