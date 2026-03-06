@@ -384,7 +384,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                             </div>
                             <div className="text-xs mt-1">
                               <a
-                                href={`${GPX_BASE}?lat=${checkin.averageCoordinates.latitude.toFixed(5)}&lng=${checkin.averageCoordinates.longitude.toFixed(5)}&zoom=16`}
+                                href={`${GPX_BASE}/studio/app#16/${checkin.averageCoordinates.latitude.toFixed(5)}/${checkin.averageCoordinates.longitude.toFixed(5)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline"
