@@ -278,12 +278,12 @@ export default function CheckInModal({
               })()}
 
               {phase === 'ready' && (
-                <div className="flex flex-col gap-4">
-                  <p className="text-success text-sm">
-                    Location captured (+/-{Math.round(bestAccuracy ?? 0)}m)
+                <div className="flex items-center gap-3">
+                  <p className="text-success text-sm whitespace-nowrap">
+                    +/-{Math.round(bestAccuracy ?? 0)}m
                   </p>
                   <Select
-                    label="Visibility"
+                    aria-label="Visibility"
                     selectedKeys={[isPrivate ? 'private' : 'public']}
                     onSelectionChange={(keys) => {
                       const val = Array.from(keys)[0] as string;
@@ -291,29 +291,31 @@ export default function CheckInModal({
                     }}
                     size="sm"
                     variant="flat"
-                    classNames={{ trigger: 'min-h-10' }}
+                    className="flex-1"
+                    classNames={{ trigger: 'min-h-9' }}
                   >
-                    <SelectItem key="public">Public -- visible to other runners</SelectItem>
-                    <SelectItem key="private">Private -- only you can see it</SelectItem>
+                    <SelectItem key="public">Public</SelectItem>
+                    <SelectItem key="private">Private</SelectItem>
                   </Select>
                 </div>
               )}
 
               {phase === 'submitting' && (
-                <div className="flex flex-col gap-4">
-                  <p className="text-success text-sm">
-                    Location captured (+/-{Math.round(bestAccuracy ?? 0)}m)
+                <div className="flex items-center gap-3">
+                  <p className="text-success text-sm whitespace-nowrap">
+                    +/-{Math.round(bestAccuracy ?? 0)}m
                   </p>
                   <Select
-                    label="Visibility"
+                    aria-label="Visibility"
                     selectedKeys={[isPrivate ? 'private' : 'public']}
                     isDisabled
                     size="sm"
                     variant="flat"
-                    classNames={{ trigger: 'min-h-10' }}
+                    className="flex-1"
+                    classNames={{ trigger: 'min-h-9' }}
                   >
-                    <SelectItem key="public">Public -- visible to other runners</SelectItem>
-                    <SelectItem key="private">Private -- only you can see it</SelectItem>
+                    <SelectItem key="public">Public</SelectItem>
+                    <SelectItem key="private">Private</SelectItem>
                   </Select>
                 </div>
               )}
