@@ -42,10 +42,10 @@ See `.planning/milestones/v1.1-ROADMAP.md` for archived v1.1 roadmap.
   2. Check-ins for a given user can be queried in reverse-chronological order with cursor-based pagination (by-user-recent index)
   3. All check-ins across users can be queried in reverse-chronological order with cursor-based pagination (by-global-recent index)
   4. Creating or deleting a CheckIn automatically updates the User entity's checkInCount and lastCheckInAt fields
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 10-01: TBD
+- [ ] 10-01-PLAN.md — CheckIn entity, indexes, helpers, and RunUser legacy cleanup
 
 ### Phase 11: Check-in API Routes
 **Goal**: Authenticated users can create, list, toggle privacy, delete check-ins, and set their default privacy preference through API endpoints
@@ -97,7 +97,7 @@ Phase 10 -> 11 -> 12 and 13 (12 and 13 can run in parallel after 11).
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 10. CheckIn Data Layer | v1.2 | 0/? | Not started | - |
+| 10. CheckIn Data Layer | v1.2 | 0/1 | Planning complete | - |
 | 11. Check-in API Routes | v1.2 | 0/? | Not started | - |
 | 12. CheckInModal + Header | v1.2 | 0/? | Not started | - |
 | 13. Profile Check-in Display | v1.2 | 0/? | Not started | - |
