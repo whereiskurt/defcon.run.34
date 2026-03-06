@@ -409,7 +409,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline"
                               >
-                                gpx.defcon.run
+                                gpx.studio
                               </a>
                               <span className="opacity-40">|</span>
                               <a
@@ -419,6 +419,15 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                                 className="text-blue-500 hover:underline"
                               >
                                 OSM
+                              </a>
+                              <span className="opacity-40">|</span>
+                              <a
+                                href={`https://www.google.com/maps?q=${checkin.averageCoordinates.latitude.toFixed(5)},${checkin.averageCoordinates.longitude.toFixed(5)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                              >
+                                Google
                               </a>
                             </div>
                           </div>
