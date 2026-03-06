@@ -394,6 +394,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                           <div className="text-sm">
                             <div className="flex items-baseline gap-2">
                               <span className="font-bold">#{number}</span>
+                              <span className="opacity-50">Web</span>
                               <span className="opacity-70">{checkin.isPrivate ? 'Private' : 'Public'}</span>
                             </div>
                             <div className="text-xs opacity-70">
