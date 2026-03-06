@@ -240,7 +240,7 @@ export default function WhoAmIPage() {
                     ? `http://localhost:${LOCAL_AUTH_PORT}`
                     : `https://auth.${siteDomain}`;
                   return (
-                    <a key={name} href={`${authBase}/strava`} target="_blank" rel="noopener noreferrer">
+                    <a key={name} href={`${authBase}/strava?autoLink`} target="_blank" rel="noopener noreferrer">
                       {chip}
                     </a>
                   );

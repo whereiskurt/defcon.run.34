@@ -9,8 +9,9 @@ import {
   Avatar,
 } from '@heroui/react';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession, signIn } from 'next-auth/react';
+import { useSearchParams } from 'next/navigation';
 import { Link2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
 import { FaStrava } from 'react-icons/fa';
 
@@ -21,11 +22,22 @@ const basePath = process.env.NODE_ENV === 'production'
 function StravaLinkContent() {
   const [isLinking, setIsLinking] = useState(false);
   const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
 
   const handleStravaLink = async () => {
     setIsLinking(true);
     await signIn('strava', { callbackUrl: '/' });
   };
+
+  // Auto-start linking when ?autoLink is present and user is authenticated
+  useEffect(() => {
+    if (searchParams.get('autoLink') !== null && status === 'authenticated' && session) {
+      const hasStrava = (session.user as { hasStrava?: boolean })?.hasStrava ?? false;
+      if (!hasStrava) {
+        handleStravaLink();
+      }
+    }
+  }, [status, session, searchParams]);
 
   if (status === 'loading') {
     return (
