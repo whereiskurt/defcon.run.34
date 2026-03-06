@@ -8,6 +8,7 @@ import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton } from '@heroui
 import { LogOut, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
+import CheckInHistory from '@/components/profile/CheckInHistory';
 import { apiUrl } from '@/lib/api';
 
 const homeUrl = '/';
@@ -340,6 +341,9 @@ export default function WhoAmIPage() {
           </CardBody>
         </Card>
       )}
+
+      {/* Check-in History */}
+      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} />
 
       {/* Meshtastic Radios */}
       <MeshtasticRadios
