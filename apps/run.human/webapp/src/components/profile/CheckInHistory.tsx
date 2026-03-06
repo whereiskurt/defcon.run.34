@@ -382,14 +382,23 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                             <div className="text-xs mt-1">
                               +/-{Math.round(checkin.bestAccuracy)}m · {checkin.isPrivate ? 'Private' : 'Public'}
                             </div>
-                            <div className="text-xs mt-1">
+                            <div className="text-xs mt-1 flex gap-1">
+                              <a
+                                href={`${GPX_BASE}/studio/app#16/${checkin.averageCoordinates.latitude.toFixed(5)}/${checkin.averageCoordinates.longitude.toFixed(5)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                              >
+                                defcon.run
+                              </a>
+                              <span className="opacity-40">|</span>
                               <a
                                 href={`https://www.openstreetmap.org/?mlat=${checkin.averageCoordinates.latitude.toFixed(5)}&mlon=${checkin.averageCoordinates.longitude.toFixed(5)}#map=16/${checkin.averageCoordinates.latitude.toFixed(5)}/${checkin.averageCoordinates.longitude.toFixed(5)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline"
                               >
-                                {checkin.averageCoordinates.latitude.toFixed(5)}, {checkin.averageCoordinates.longitude.toFixed(5)}
+                                OSM
                               </a>
                             </div>
                           </div>
