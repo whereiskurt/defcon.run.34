@@ -98,6 +98,6 @@ Phase 10 -> 11 -> 12 and 13 (12 and 13 can run in parallel after 11).
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 10. CheckIn Data Layer | 1/1 | Complete    | 2026-03-06 | - |
-| 11. Check-in API Routes | 1/1 | Complete   | 2026-03-06 | - |
+| 11. Check-in API Routes | 1/1 | Complete    | 2026-03-06 | - |
 | 12. CheckInModal + Header | v1.2 | 0/? | Not started | - |
 | 13. Profile Check-in Display | v1.2 | 0/? | Not started | - |
