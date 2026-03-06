@@ -12,6 +12,9 @@ import CheckInHistory from '@/components/profile/CheckInHistory';
 import { apiUrl } from '@/lib/api';
 
 const homeUrl = '/';
+const isDev = process.env.NODE_ENV !== 'production';
+const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run';
+const LOCAL_AUTH_PORT = process.env.NEXT_PUBLIC_LOCAL_AUTH_PORT || '3002';
 
 interface QuotaInfo {
   remaining: number;
@@ -217,7 +220,8 @@ export default function WhoAmIPage() {
             <div className="flex flex-wrap gap-1.5">
               {providerList.map(({ name, icon: Icon, key, color }) => {
                 const isConnected = user[key];
-                return (
+                const linkable = !isConnected && name === 'Strava';
+                const chip = (
                   <Chip
                     key={name}
                     size="sm"
@@ -226,11 +230,22 @@ export default function WhoAmIPage() {
                     startContent={
                       <Icon className="w-3 h-3 ml-1" style={{ color: isConnected ? color : undefined }} />
                     }
-                    classNames={{ base: "font-mono text-xs" }}
+                    classNames={{ base: `font-mono text-xs ${linkable ? 'cursor-pointer hover:opacity-80' : ''}` }}
                   >
-                    {name}
+                    {name}{linkable ? ' ↗' : ''}
                   </Chip>
                 );
+                if (linkable) {
+                  const authBase = isDev
+                    ? `http://localhost:${LOCAL_AUTH_PORT}`
+                    : `https://auth.${siteDomain}`;
+                  return (
+                    <a key={name} href={`${authBase}/strava`} target="_blank" rel="noopener noreferrer">
+                      {chip}
+                    </a>
+                  );
+                }
+                return chip;
               })}
             </div>
           </CardBody>
