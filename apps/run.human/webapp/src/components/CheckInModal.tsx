@@ -327,44 +327,13 @@ export default function CheckInModal({
               )}
 
               {phase === 'success' && (
-                <div className="flex flex-col gap-3 items-center">
+                <div className="flex flex-col gap-2 items-center">
                   <p className="text-success text-lg font-semibold">Checked in!</p>
                   {quotaRemaining !== null && (
                     <p className="text-default-400 text-xs">
                       {quotaRemaining} check-in{quotaRemaining !== 1 ? 's' : ''} remaining today
                     </p>
                   )}
-                  {samplesRef.current.length > 0 && (() => {
-                    const avgLat = samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length;
-                    const avgLng = samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length;
-                    const acc = bestAccuracy ?? 30;
-                    const markerColor = isPrivate ? '#71717a' : '#006FEE';
-                    return (
-                      <div className="w-full rounded-lg overflow-hidden" style={{ height: 160 }}>
-                        <MapContainer
-                          center={[avgLat, avgLng]}
-                          zoom={zoomForAccuracy(acc, avgLat)}
-                          style={{ height: '100%', width: '100%' }}
-                          zoomControl={false}
-                          attributionControl={false}
-                          dragging={false}
-                          scrollWheelZoom={false}
-                        >
-                          <TileLayer url={tileUrl} />
-                          <Circle
-                            center={[avgLat, avgLng]}
-                            radius={acc}
-                            pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.15, weight: 1 }}
-                          />
-                          <CircleMarker
-                            center={[avgLat, avgLng]}
-                            radius={6}
-                            pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.9, weight: 2 }}
-                          />
-                        </MapContainer>
-                      </div>
-                    );
-                  })()}
                 </div>
               )}
 
