@@ -29,17 +29,19 @@ function StravaLinkContent() {
     await signIn('strava', { callbackUrl: '/' });
   };
 
+  const autoLink = searchParams.get('autoLink') !== null;
+
   // Auto-start linking when ?autoLink is present and user is authenticated
   useEffect(() => {
-    if (searchParams.get('autoLink') !== null && status === 'authenticated' && session) {
+    if (autoLink && status === 'authenticated' && session) {
       const hasStrava = (session.user as { hasStrava?: boolean })?.hasStrava ?? false;
       if (!hasStrava) {
         handleStravaLink();
       }
     }
-  }, [status, session, searchParams]);
+  }, [status, session, autoLink]);
 
-  if (status === 'loading') {
+  if (status === 'loading' || (autoLink && status === 'authenticated')) {
     return (
       <div className="space-y-4 animate-fade-in">
         <div className="glass-card rounded-xl p-6">
