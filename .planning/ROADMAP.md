@@ -71,10 +71,10 @@ Plans:
   2. The modal collects 3 GPS samples over 2 seconds, showing a progress bar during collection
   3. The modal displays the user's current quota usage (e.g., "3 of 10 check-ins today")
   4. The modal includes a privacy toggle pre-set to the user's default preference, and the user can override it per check-in
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 12-01: TBD
+- [ ] 12-01-PLAN.md — CheckInModal component with GPS sampling and header dropdown integration
 
 ### Phase 13: Profile Check-in Display
 **Goal**: Users can view their check-in history on their profile page as both a paginated list and a Leaflet map with visual indicators
