@@ -376,11 +376,13 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                           <div className="text-sm">
                             <div className="flex items-baseline gap-2">
                               <span className="font-bold">#{number}</span>
-                              <span className="opacity-70">{formatRelativeTime(checkin.timestamp)}</span>
+                              <span className="opacity-70">{checkin.isPrivate ? 'Private' : 'Public'}</span>
                             </div>
-                            <div className="text-xs opacity-60">{formatDateTime(checkin.timestamp)}</div>
-                            <div className="text-xs mt-1">
-                              +/-{Math.round(checkin.bestAccuracy)}m · {checkin.isPrivate ? 'Private' : 'Public'}
+                            <div className="text-xs">
+                              {checkin.averageCoordinates.latitude.toFixed(5)}, {checkin.averageCoordinates.longitude.toFixed(5)} (+/-{Math.round(checkin.bestAccuracy)}m)
+                            </div>
+                            <div className="text-xs mt-1 opacity-70">
+                              {formatRelativeTime(checkin.timestamp)} · {formatDateTime(checkin.timestamp)}
                             </div>
                             <div className="text-xs mt-1 flex gap-1">
                               <a
