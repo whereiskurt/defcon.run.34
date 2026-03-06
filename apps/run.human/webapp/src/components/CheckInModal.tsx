@@ -285,7 +285,7 @@ export default function CheckInModal({
 
               {phase === 'ready' && (
                 <div className="flex items-center gap-3">
-                  <p className="text-success text-sm whitespace-nowrap">
+                  <p className="text-primary text-sm whitespace-nowrap">
                     +/-{Math.round(bestAccuracy ?? 0)}m
                   </p>
                   <Select
@@ -308,7 +308,7 @@ export default function CheckInModal({
 
               {phase === 'submitting' && (
                 <div className="flex items-center gap-3">
-                  <p className="text-success text-sm whitespace-nowrap">
+                  <p className="text-primary text-sm whitespace-nowrap">
                     +/-{Math.round(bestAccuracy ?? 0)}m
                   </p>
                   <Select
@@ -328,7 +328,7 @@ export default function CheckInModal({
 
               {phase === 'success' && (
                 <div className="flex flex-col gap-2 items-center">
-                  <p className="text-success text-lg font-semibold">Checked in!</p>
+                  <p className="text-primary text-lg font-semibold">Checked in!</p>
                   {quotaRemaining !== null && (
                     <p className="text-default-400 text-xs">
                       {quotaRemaining} check-in{quotaRemaining !== 1 ? 's' : ''} remaining today
@@ -349,7 +349,7 @@ export default function CheckInModal({
                   <Button variant="light" onPress={handleClose}>
                     Cancel
                   </Button>
-                  <Button color="success" onPress={handleSubmit}>
+                  <Button color="primary" onPress={handleSubmit}>
                     Check In
                   </Button>
                 </>
@@ -360,7 +360,7 @@ export default function CheckInModal({
                   <Button variant="light" isDisabled>
                     Cancel
                   </Button>
-                  <Button color="success" isLoading>
+                  <Button color="primary" isLoading>
                     Check In
                   </Button>
                 </>
