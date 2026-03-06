@@ -173,7 +173,7 @@ export default function WhoAmIPage() {
   const services: string[] = user.services || [];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-2.5 animate-fade-up">
+    <div className="max-w-[900px] mx-auto space-y-2.5 animate-fade-up">
       {/* Identity card */}
       <Card className="glass-card overflow-hidden">
         <CardBody className="px-5 py-4 space-y-4">
