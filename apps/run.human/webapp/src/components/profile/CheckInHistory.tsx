@@ -411,7 +411,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline"
                               >
-                                defcon.run
+                                gpx.defcon.run
                               </a>
                               <span className="opacity-40">|</span>
                               <a
