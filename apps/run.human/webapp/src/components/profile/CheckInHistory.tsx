@@ -345,6 +345,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                 zoom={checkIns.length > 0 ? 13 : 12}
                 style={{ height: '100%', width: '100%' }}
                 ref={mapRef}
+                attributionControl={false}
               >
                 <TileLayer
                   attribution='&copy; <a href="https://carto.com/">CARTO</a>'
