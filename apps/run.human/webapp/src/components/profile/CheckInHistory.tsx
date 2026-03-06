@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardBody, Chip, Pagination } from '@heroui/react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Card, CardBody, Chip, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
+import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react';
 import { apiUrl } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import type { CheckInItem } from '@/entities/checkin';
@@ -87,6 +87,9 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [localCount, setLocalCount] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; number: number } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { isOpen: isDeleteOpen, onOpen: onDeleteOpen, onClose: onDeleteClose } = useDisclosure();
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<Map<string, any>>(new Map());
 
@@ -216,6 +219,30 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
     setSelectedId(checkInId);
   };
 
+  const confirmDelete = (checkInId: string, number: number) => {
+    setDeleteTarget({ id: checkInId, number });
+    onDeleteOpen();
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(apiUrl(`/api/checkins?checkinId=${encodeURIComponent(deleteTarget.id)}`), {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Delete failed');
+      setLocalCount((prev) => Math.max(0, (prev ?? checkInCount) - 1));
+      setPageCache(new Map());
+      setSelectedId(null);
+      onDeleteClose();
+    } catch (err) {
+      console.error('Error deleting check-in:', err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Las Vegas center for empty state
   const LAS_VEGAS: [number, number] = [36.17, -115.14];
 
@@ -316,7 +343,7 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
                   const isSelected = selectedId === checkin.checkInId;
 
                   return (
-                    <button
+                    <div
                       key={checkin.checkInId}
                       id={`checkin-row-${checkin.checkInId}`}
                       onClick={() => setSelectedId(checkin.checkInId)}
@@ -341,7 +368,13 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
                       >
                         {checkin.isPrivate ? 'Private' : 'Public'}
                       </Chip>
-                    </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); confirmDelete(checkin.checkInId, number); }}
+                        className="p-1 rounded-md text-default-400 hover:text-danger hover:bg-danger/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -362,6 +395,28 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
           </div>
         )}
       </CardBody>
+
+      {/* Delete confirmation modal */}
+      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose} backdrop="blur" size="sm">
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            Delete Check-in
+          </ModalHeader>
+          <ModalBody>
+            <p className="text-sm text-default-600">
+              Are you sure you want to delete <span className="font-bold text-foreground">Check-in #{deleteTarget?.number}</span>? This action cannot be undone.
+            </p>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="flat" onPress={onDeleteClose} size="sm">
+              Cancel
+            </Button>
+            <Button color="danger" onPress={handleDelete} isLoading={deleting} size="sm">
+              Delete
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Card>
   );
 }
