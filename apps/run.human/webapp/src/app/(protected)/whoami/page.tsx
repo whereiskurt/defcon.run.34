@@ -8,9 +8,13 @@ import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton } from '@heroui
 import { LogOut, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
+import CheckInHistory from '@/components/profile/CheckInHistory';
 import { apiUrl } from '@/lib/api';
 
 const homeUrl = '/';
+const isDev = process.env.NODE_ENV !== 'production';
+const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run';
+const LOCAL_AUTH_PORT = process.env.NEXT_PUBLIC_LOCAL_AUTH_PORT || '3002';
 
 interface QuotaInfo {
   remaining: number;
@@ -172,7 +176,7 @@ export default function WhoAmIPage() {
   const services: string[] = user.services || [];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-2.5 animate-fade-up">
+    <div className="max-w-[900px] mx-auto space-y-2.5 animate-fade-up">
       {/* Identity card */}
       <Card className="glass-card overflow-hidden">
         <CardBody className="px-5 py-4 space-y-4">
@@ -216,20 +220,32 @@ export default function WhoAmIPage() {
             <div className="flex flex-wrap gap-1.5">
               {providerList.map(({ name, icon: Icon, key, color }) => {
                 const isConnected = user[key];
-                return (
+                const linkable = !isConnected && name === 'Strava';
+                const chip = (
                   <Chip
                     key={name}
                     size="sm"
                     variant="flat"
-                    color={isConnected ? 'success' : 'default'}
+                    color={isConnected ? 'success' : linkable ? 'warning' : 'default'}
                     startContent={
-                      <Icon className="w-3 h-3 ml-1" style={{ color: isConnected ? color : undefined }} />
+                      <Icon className="w-3 h-3 ml-1" style={{ color: isConnected ? color : linkable ? '#FC4C02' : undefined }} />
                     }
-                    classNames={{ base: "font-mono text-xs" }}
+                    classNames={{ base: `font-mono text-xs ${linkable ? 'cursor-pointer hover:scale-105 transition-transform border-1 border-warning/50' : ''}` }}
                   >
-                    {name}
+                    {linkable ? 'Link Strava ↗' : name}
                   </Chip>
                 );
+                if (linkable) {
+                  const authBase = isDev
+                    ? `http://localhost:${LOCAL_AUTH_PORT}`
+                    : `https://auth.${siteDomain}`;
+                  return (
+                    <a key={name} href={`${authBase}/strava?autoLink`} target="_blank" rel="noopener noreferrer">
+                      {chip}
+                    </a>
+                  );
+                }
+                return chip;
               })}
             </div>
           </CardBody>
@@ -262,6 +278,9 @@ export default function WhoAmIPage() {
           </CardBody>
         </Card>
       </div>
+
+      {/* Check-in History */}
+      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference} />
 
       {/* QR Code (collapsed by default) */}
       {userData?.eqr && (

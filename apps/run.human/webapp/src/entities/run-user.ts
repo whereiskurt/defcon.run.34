@@ -1,6 +1,7 @@
 import { Entity } from "electrodb";
 import { electroClient, ELECTRO_TABLE } from "./client";
-import crypto, { createHash, generateKeyPairSync } from "crypto";
+import * as crypto from "crypto";
+const { createHash, generateKeyPairSync } = crypto;
 import * as qr from "qrcode";
 
 // Seed for MQTT credential generation (should be set in environment)
@@ -89,31 +90,7 @@ export const RunUser = new Entity(
         default: () => [],
       },
 
-      // GPS Check-ins
-      checkIns: {
-        type: "list",
-        items: {
-          type: "map",
-          properties: {
-            date: { type: "string" },
-            timestamp: { type: "number" },
-            source: { type: "string" },
-            samples: { type: "any" },
-            averageCoordinates: {
-              type: "map",
-              properties: {
-                latitude: { type: "number" },
-                longitude: { type: "number" },
-              },
-            },
-            bestAccuracy: { type: "number" },
-            userAgent: { type: "string" },
-          },
-        },
-        default: () => [],
-      },
-
-      // Denormalized check-in fields
+      // Denormalized check-in fields (actual check-ins stored in CheckIn entity)
       lastCheckInAt: {
         type: "number",
       },
@@ -319,19 +296,6 @@ export type MeshtasticRadio = {
   resendAttempts?: number;
 };
 
-export type CheckIn = {
-  date: string;
-  timestamp: number;
-  source: string;
-  samples?: any;
-  averageCoordinates?: {
-    latitude: number;
-    longitude: number;
-  };
-  bestAccuracy?: number;
-  userAgent?: string;
-};
-
 export type RunUserItem = {
   userId: string;
   displayName?: string;
@@ -345,7 +309,6 @@ export type RunUserItem = {
   mqttPassword?: string;
   mqttUsertype?: "rabbit" | "admin" | "wildhare" | "og";
   meshtasticRadios?: MeshtasticRadio[];
-  checkIns?: CheckIn[];
   lastCheckInAt?: number;
   checkInCount?: number;
   preferences?: {

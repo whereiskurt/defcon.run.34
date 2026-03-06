@@ -3,7 +3,8 @@
 ## Milestones
 
 - [x] **v1.0 Meshtastic Flasher MVP** - Phases 1-4 (shipped 2026-03-02)
-- [ ] **v1.1 CMS Content Types** - Phases 5-9 (in progress)
+- [x] **v1.1 CMS Content Types** - Phases 5-9 (shipped 2026-03-05)
+- [ ] **v1.2 User Checkins** - Phases 10-13 (in progress)
 
 ## Phases
 
@@ -14,79 +15,89 @@ See `.planning/milestones/v1.0-ROADMAP.md` for archived v1.0 roadmap.
 
 </details>
 
-### v1.1 CMS Content Types
+<details>
+<summary>v1.1 CMS Content Types (Phases 5-9) - SHIPPED 2026-03-05</summary>
 
-**Milestone Goal:** Event organizers can manage DCR34 events, routes, and points of interest through cms.defcon.run with a branded OIDC login experience and working REST API for run.human consumption.
+See `.planning/milestones/v1.1-ROADMAP.md` for archived v1.1 roadmap.
 
-- [x] **Phase 5: Infrastructure Hardening + Content Type Schemas** - Fix worker sync, upgrade S3 provider, define all content type schemas (completed 2026-03-02)
-- [x] **Phase 6: Relations + API Verification** - Wire many-to-many relations, configure public permissions, verify REST API end-to-end (completed 2026-03-02)
-- [x] **Phase 7: Branded Login** - DCR34-branded OIDC login experience on cms.defcon.run (completed 2026-03-02)
-- [x] **Phase 8: run.human CMS Client** - Verified manually: CMS sync working across regions (skipped — manually verified 2026-03-05)
-- [x] **Phase 9: Seed Data + End-to-End Verification** - Verified manually: seed data created and confirmed (skipped — manually verified 2026-03-05)
+</details>
+
+### v1.2 User Checkins
+
+**Milestone Goal:** Participants can GPS check-in from the browser with privacy controls, quota enforcement, and a map-based profile view of their check-in history.
+
+- [x] **Phase 10: CheckIn Data Layer** - ElectroDB entity, indexes, and User entity side-effect fields (completed 2026-03-06)
+- [x] **Phase 11: Check-in API Routes** - Create, list, toggle, delete, and preference endpoints with quota enforcement (completed 2026-03-06)
+- [x] **Phase 12: CheckInModal + Header Integration** - GPS sampling modal with progress bar, privacy toggle, and header dropdown entry (completed 2026-03-06)
+- [ ] **Phase 13: Profile Check-in Display** - Paginated check-in list with Leaflet map, numbered markers, and accuracy circles
 
 ## Phase Details
 
-### Phase 5: Infrastructure Hardening + Content Type Schemas
-**Goal**: CMS has a safe worker sync mechanism and all three content types (Event, Route, POI) defined with their schemas committed to git
-**Depends on**: Nothing (first phase of v1.1)
-**Requirements**: INFR-01, INFR-02, SCHM-01, SCHM-02, SCHM-03, SCHM-04, SCHM-07
+### Phase 10: CheckIn Data Layer
+**Goal**: The CheckIn entity exists in DynamoDB with all fields, indexes, and User entity side-effect updates so that API routes can persist and query check-ins
+**Depends on**: Nothing (first phase of v1.2)
+**Requirements**: CHKN-01, CHKN-02, CHKN-03
 **Success Criteria** (what must be TRUE):
-  1. Worker litestream sync completes without corrupting SQLite WAL/SHM files while Strapi is serving read traffic
-  2. Media uploads from Strapi admin reach S3 and serve via CloudFront URLs across both regions
-  3. Organizer can create, edit, and delete an Event with all specified fields (title, slug, description, datetimes, location, cover image, gallery, attachments, sort order) via the Strapi admin panel
-  4. Organizer can create, edit, and delete a Route with all specified fields (name, slug, description, route type, distance, elevation, difficulty, duration, GPX files, coordinates, cover image, map styling, sort order) via the Strapi admin panel
-  5. Organizer can create, edit, and delete a Point of Interest with all specified fields (name, slug, description, coordinates, POI type, marker image, photo, sort order) via the Strapi admin panel
-**Plans**: 2 plans (1 wave)
+  1. A CheckIn record can be created in DynamoDB with GPS samples, averaged coordinates, best accuracy, distance, duration, privacy flag, and timestamps
+  2. Check-ins for a given user can be queried in reverse-chronological order with cursor-based pagination (by-user-recent index)
+  3. All check-ins across users can be queried in reverse-chronological order with cursor-based pagination (by-global-recent index)
+  4. Creating or deleting a CheckIn automatically updates the User entity's checkInCount and lastCheckInAt fields
+**Plans**: 1 plan
 
 Plans:
-- [x] 05-01-PLAN.md — Fix worker Litestream sync safety + upgrade S3 upload provider to Strapi 5
-- [x] 05-02-PLAN.md — Define shared coordinates component + Event, Route, and POI content type schemas
+- [ ] 10-01-PLAN.md — CheckIn entity, indexes, helpers, and RunUser legacy cleanup
 
-### Phase 6: Relations + API Verification
-**Goal**: Content types are linked with bidirectional many-to-many relations and the public REST API returns fully populated data
-**Depends on**: Phase 5
-**Requirements**: SCHM-05, SCHM-06, API-01, API-02, API-03
+### Phase 11: Check-in API Routes
+**Goal**: Authenticated users can create, list, toggle privacy, delete check-ins, and set their default privacy preference through API endpoints
+**Depends on**: Phase 10
+**Requirements**: API-01, API-02, API-03, API-04, UI-04
 **Success Criteria** (what must be TRUE):
-  1. Events and Routes are linked bidirectionally -- populating an Event returns its Routes and populating a Route returns its Events
-  2. Routes and POIs are linked bidirectionally -- populating a Route returns its POIs and populating a POI returns its Routes
-  3. Unauthenticated GET requests to /api/events, /api/routes, and /api/pois return published content (Public role permissions working)
-  4. REST API supports explicit population of nested relations and media (events with routes, routes with POIs and GPX URLs)
-  5. REST API supports field selection and filtering by date, type, and slug
-**Plans**: 2 plans (2 waves)
+  1. User can POST GPS samples to create a check-in, receiving quota enforcement (rejected when quota exceeded) and the created check-in in the response
+  2. User can GET their own check-ins with cursor-based pagination returning consistent pages
+  3. User can PATCH a check-in they own to toggle its public/private visibility
+  4. User can DELETE a check-in they own, and their checkInCount decrements accordingly
+  5. User can GET and PUT their default check-in privacy preference (public or private)
+**Plans**: 1 plan
 
 Plans:
-- [x] 06-01-PLAN.md — Add eventType enum + bidirectional many-to-many relations to schemas + public permission bootstrap
-- [x] 06-02-PLAN.md — Create API verification script (population, filtering, field selection, write protection)
+- [ ] 11-01-PLAN.md — Check-in CRUD route + user preference PATCH handler
 
-### Phase 7: Branded Login
-**Goal**: Organizers see a DCR34-branded login experience when accessing cms.defcon.run instead of the raw Strapi admin form
-**Depends on**: Nothing (independent of Phases 5-6, can run in parallel)
-**Requirements**: AUTH-01, AUTH-02
+### Phase 12: CheckInModal + Header Integration
+**Goal**: Users can trigger a GPS check-in from anywhere in the app via the header dropdown, with real-time GPS sampling feedback and privacy controls
+**Depends on**: Phase 11
+**Requirements**: UI-01, UI-02
 **Success Criteria** (what must be TRUE):
-  1. Visiting cms.defcon.run root shows a DCR34-branded page with DCR34 logo and visual identity, not the default Strapi login form
-  2. Clicking the sign-in button triggers the OIDC flow to auth.defcon.run and returns the organizer to the Strapi admin panel upon successful authentication
-**Plans**: 1 plan (1 wave)
+  1. Clicking "GPS Check-in" in the header user dropdown opens the CheckInModal
+  2. The modal collects 3 GPS samples over 2 seconds, showing a progress bar during collection
+  3. The modal displays the user's current quota usage (e.g., "3 of 10 check-ins today")
+  4. The modal includes a privacy toggle pre-set to the user's default preference, and the user can override it per check-in
+**Plans**: 1 plan
 
 Plans:
-- [x] 07-01-PLAN.md — Branded login page (static HTML + nginx) and branded SSO error pages
+- [ ] 12-01-PLAN.md — CheckInModal component with GPS sampling and header dropdown integration
 
-### Phase 8: run.human CMS Client (Manually Verified)
-**Goal**: run.human can fetch and render CMS content from regional workers via service discovery with type-safe code
-**Status**: Skipped — CMS sync verified manually across regions (2026-03-05)
+### Phase 13: Profile Check-in Display
+**Goal**: Users can view their check-in history on their profile page as both a paginated list and a Leaflet map with visual indicators
+**Depends on**: Phase 11 (needs API list endpoint; can develop in parallel with Phase 12)
+**Requirements**: UI-03
+**Success Criteria** (what must be TRUE):
+  1. Profile page shows a paginated list of the user's check-ins with timestamps, coordinates, and privacy status
+  2. Profile page shows a Leaflet map with numbered markers corresponding to check-in locations
+  3. Each marker on the map displays an accuracy circle showing GPS precision
+  4. Pagination controls allow browsing through check-in history, and the map updates to show markers for the current page
+**Plans**: 1 plan
 
-### Phase 9: Seed Data + End-to-End Verification (Manually Verified)
-**Goal**: CMS contains representative DCR34 sample content and the full organizer-to-participant pipeline is verified across both regions
-**Status**: Skipped — seed data created and confirmed manually (2026-03-05)
+Plans:
+- [ ] 13-01-PLAN.md — CheckInHistory component with Leaflet map, numbered markers, accuracy circles, and paginated list
 
 ## Progress
 
 **Execution Order:**
-Phases 5 and 7 can execute in parallel (no dependency). Phase 6 follows 5. Phase 8 follows 6. Phase 9 follows 6 and 8.
+Phase 10 -> 11 -> 12 and 13 (12 and 13 can run in parallel after 11).
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 5. Infrastructure + Schemas | v1.1 | 2/2 | Complete | 2026-03-02 |
-| 6. Relations + API | v1.1 | 2/2 | Complete | 2026-03-02 |
-| 7. Branded Login | v1.1 | 1/1 | Complete | 2026-03-02 |
-| 8. CMS Client | v1.1 | — | Manually verified | 2026-03-05 |
-| 9. Seed Data + E2E | v1.1 | — | Manually verified | 2026-03-05 |
+| 10. CheckIn Data Layer | 1/1 | Complete    | 2026-03-06 | - |
+| 11. Check-in API Routes | 1/1 | Complete    | 2026-03-06 | - |
+| 12. CheckInModal + Header | 1/1 | Complete    | 2026-03-06 | - |
+| 13. Profile Check-in Display | v1.2 | 0/1 | Not started | - |

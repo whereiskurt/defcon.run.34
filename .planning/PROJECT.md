@@ -12,10 +12,14 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 
 ## Current Milestone: v1.2 User Checkins
 
-**Goal:** TBD — gathering requirements
+**Goal:** Participants can GPS check-in from the browser with privacy controls, quota enforcement, and a map-based profile view of their check-in history.
 
 **Target features:**
-- TBD
+- CheckIn ElectroDB entity with GPS samples, coordinates, accuracy, and privacy
+- API routes for create, list, toggle privacy, delete, and preference
+- CheckInModal with browser GPS collection (3 samples over 2 seconds)
+- Profile display with paginated list and Leaflet map visualization
+- Quota enforcement (existing quota system, "checkin" quota ID)
 
 ## Requirements
 

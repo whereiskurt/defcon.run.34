@@ -13,7 +13,7 @@ import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
-import { FaMoneyCheckDollar, FaRadio, FaFire } from 'react-icons/fa6';
+import { FaRadio } from 'react-icons/fa6';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -43,10 +43,8 @@ import { ThemeSwitch } from '../theme-switch';
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
 const navItems = [
-  { href: 'https://gpx.defcon.run', label: 'Routes', icon: GrMapLocation, external: true },
-  { href: 'https://gpx.defcon.run?overlay=heatmap', label: 'HeatMap', icon: FaFire, external: true },
+  { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
   { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio, external: false },
-  { href: '/contributors', label: 'Contributors', icon: FaMoneyCheckDollar, external: false },
 ] as const;
 
 export function Header(params: any) {

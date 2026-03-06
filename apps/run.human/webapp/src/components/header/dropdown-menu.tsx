@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { FaMoneyCheckDollar, FaQuestion, FaRadio, FaFire } from 'react-icons/fa6';
+import { FaQuestion, FaRadio } from 'react-icons/fa6';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaUserAlt, FaTrophy } from 'react-icons/fa';
@@ -78,40 +78,22 @@ const MenuDropDown = (params: any) => {
           </DropdownItem>
 
           <DropdownItem
-            textValue="routes"
+            textValue="maps"
             startContent={<GrMapLocation className={iconClasses} />}
-            key="routes"
+            key="maps"
             onClick={() => { setIsOpen(false); window.open('https://gpx.defcon.run', '_blank'); }}
           >
-            <span className="text-base">Routes</span>
-          </DropdownItem>
-
-          <DropdownItem
-            textValue="heatmap"
-            startContent={<FaFire className={iconClasses} />}
-            key="heatmap"
-            onClick={() => { setIsOpen(false); window.open('https://gpx.defcon.run?overlay=heatmap', '_blank'); }}
-          >
-            <span className="text-base">HeatMap</span>
+            <span className="text-base">Maps</span>
           </DropdownItem>
 
           <DropdownItem
             textValue="meshtastic"
             startContent={<FaRadio className={iconClasses} />}
             key="meshtastic"
+            showDivider
             onClick={() => handleNavigation('/meshtastic')}
           >
             <span className="text-base">Meshtastic</span>
-          </DropdownItem>
-
-          <DropdownItem
-            textValue="contributors"
-            startContent={<FaMoneyCheckDollar className={iconClasses} />}
-            key="contributors"
-            showDivider
-            onClick={() => handleNavigation('/contributors')}
-          >
-            <span className="text-base">Contributors</span>
           </DropdownItem>
 
           <DropdownItem

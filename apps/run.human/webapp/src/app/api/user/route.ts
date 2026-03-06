@@ -1,5 +1,5 @@
 import { auth } from "@auth";
-import { getRunUser } from "@/entities/run-user";
+import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
 import { getUserQuotas, getQuotaDefinitions, type QuotaId } from "@/lib/quota-client";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -85,4 +85,47 @@ export async function GET(req: NextRequest) {
     { message: "User Fetched.", user: responseUser },
     { status: 200 }
   );
+}
+
+/**
+ * PATCH /api/user - Update user's check-in privacy preference
+ */
+export async function PATCH(req: NextRequest) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { message: "401 Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const body = await req.json();
+    const { checkinPreference } = body;
+
+    if (
+      checkinPreference !== "public" &&
+      checkinPreference !== "private"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'checkinPreference is required and must be "public" or "private"',
+        },
+        { status: 400 }
+      );
+    }
+
+    await updateRunUserProfile(session.user.id, {
+      preferences: { checkinPreference },
+    });
+
+    return NextResponse.json({ success: true, checkinPreference });
+  } catch (error) {
+    console.error("Error updating user preference:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
