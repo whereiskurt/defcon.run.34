@@ -57,10 +57,10 @@ Plans:
   3. User can PATCH a check-in they own to toggle its public/private visibility
   4. User can DELETE a check-in they own, and their checkInCount decrements accordingly
   5. User can GET and PUT their default check-in privacy preference (public or private)
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 11-01: TBD
+- [ ] 11-01-PLAN.md — Check-in CRUD route + user preference PATCH handler
 
 ### Phase 12: CheckInModal + Header Integration
 **Goal**: Users can trigger a GPS check-in from anywhere in the app via the header dropdown, with real-time GPS sampling feedback and privacy controls
@@ -98,6 +98,6 @@ Phase 10 -> 11 -> 12 and 13 (12 and 13 can run in parallel after 11).
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 10. CheckIn Data Layer | 1/1 | Complete    | 2026-03-06 | - |
-| 11. Check-in API Routes | v1.2 | 0/? | Not started | - |
+| 11. Check-in API Routes | v1.2 | 0/1 | Not started | - |
 | 12. CheckInModal + Header | v1.2 | 0/? | Not started | - |
 | 13. Profile Check-in Display | v1.2 | 0/? | Not started | - |
