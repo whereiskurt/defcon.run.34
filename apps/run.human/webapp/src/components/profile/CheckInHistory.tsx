@@ -126,6 +126,10 @@ function makeNumberedIcon(number: number, color: string) {
 const TILES_DARK = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 const TILES_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
 
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
+const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
+const GPX_BASE = IS_PRODUCTION ? `https://gpx.defcon.run/${REGION_SHORT}` : 'http://localhost:3003';
+
 export default function CheckInHistory({ checkInCount, checkinPreference }: CheckInHistoryProps) {
   const { resolvedTheme } = useTheme();
   const tileUrl = resolvedTheme === 'dark' ? TILES_DARK : TILES_LIGHT;
@@ -369,12 +373,25 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                         }}
                       >
                         <Popup>
-                          <div className="text-sm space-y-1">
-                            <div className="font-bold">Check-in #{number}</div>
-                            <div>{formatRelativeTime(checkin.timestamp)}</div>
-                            <div className="text-xs opacity-70">{formatDateTime(checkin.timestamp)}</div>
-                            <div>Accuracy: +/-{Math.round(checkin.bestAccuracy)}m</div>
-                            <div>{checkin.isPrivate ? 'Private' : 'Public'}</div>
+                          <div className="text-sm">
+                            <div className="flex items-baseline gap-2">
+                              <span className="font-bold">#{number}</span>
+                              <span className="opacity-70">{formatRelativeTime(checkin.timestamp)}</span>
+                            </div>
+                            <div className="text-xs opacity-60">{formatDateTime(checkin.timestamp)}</div>
+                            <div className="text-xs mt-1">
+                              +/-{Math.round(checkin.bestAccuracy)}m · {checkin.isPrivate ? 'Private' : 'Public'}
+                            </div>
+                            <div className="text-xs mt-1">
+                              <a
+                                href={`${GPX_BASE}?lat=${checkin.averageCoordinates.latitude.toFixed(5)}&lng=${checkin.averageCoordinates.longitude.toFixed(5)}&zoom=16`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-500 hover:underline"
+                              >
+                                {checkin.averageCoordinates.latitude.toFixed(5)}, {checkin.averageCoordinates.longitude.toFixed(5)}
+                              </a>
+                            </div>
                           </div>
                         </Popup>
                       </Marker>
