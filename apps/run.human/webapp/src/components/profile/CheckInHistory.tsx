@@ -384,7 +384,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                             </div>
                             <div className="text-xs mt-1">
                               <a
-                                href={`${GPX_BASE}/studio/app#16/${checkin.averageCoordinates.latitude.toFixed(5)}/${checkin.averageCoordinates.longitude.toFixed(5)}`}
+                                href={`https://www.openstreetmap.org/?mlat=${checkin.averageCoordinates.latitude.toFixed(5)}&mlon=${checkin.averageCoordinates.longitude.toFixed(5)}#map=16/${checkin.averageCoordinates.latitude.toFixed(5)}/${checkin.averageCoordinates.longitude.toFixed(5)}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-blue-500 hover:underline"
