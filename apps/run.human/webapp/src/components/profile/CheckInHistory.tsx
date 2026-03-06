@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTheme } from 'next-themes';
 import { Card, CardBody, Chip, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
-import { ChevronDown, ChevronRight, Trash2, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2, Plus, Clipboard, Check } from 'lucide-react';
 import CheckInModal from '@/components/CheckInModal';
 import { apiUrl } from '@/lib/api';
 import dynamic from 'next/dynamic';
@@ -129,6 +129,24 @@ const TILES_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
 const GPX_BASE = IS_PRODUCTION ? `https://gpx.defcon.run/${REGION_SHORT}` : 'http://localhost:3003';
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+      className="p-0.5 rounded hover:bg-black/10 transition-colors"
+      title="Copy coordinates"
+    >
+      {copied ? <Check className="w-3 h-3 text-green-500" /> : <Clipboard className="w-3 h-3 opacity-50" />}
+    </button>
+  );
+}
 
 export default function CheckInHistory({ checkInCount, checkinPreference }: CheckInHistoryProps) {
   const { resolvedTheme } = useTheme();
@@ -381,8 +399,9 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                             <div className="text-xs opacity-70">
                               {formatRelativeTime(checkin.timestamp)} · {formatDateTime(checkin.timestamp)}
                             </div>
-                            <div className="text-xs mt-1">
-                              {checkin.averageCoordinates.latitude.toFixed(5)}, {checkin.averageCoordinates.longitude.toFixed(5)} (+/-{Math.round(checkin.bestAccuracy)}m)
+                            <div className="text-xs mt-1 flex items-center gap-1">
+                              <span>{checkin.averageCoordinates.latitude.toFixed(5)}, {checkin.averageCoordinates.longitude.toFixed(5)} (+/-{Math.round(checkin.bestAccuracy)}m)</span>
+                              <CopyButton text={`${checkin.averageCoordinates.latitude.toFixed(5)}, ${checkin.averageCoordinates.longitude.toFixed(5)}`} />
                             </div>
                             <div className="text-xs mt-1 flex gap-1">
                               <a
