@@ -264,6 +264,9 @@ export default function WhoAmIPage() {
         </Card>
       </div>
 
+      {/* Check-in History */}
+      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} />
+
       {/* QR Code (collapsed by default) */}
       {userData?.eqr && (
         <Card className="glass-card overflow-hidden">
@@ -341,9 +344,6 @@ export default function WhoAmIPage() {
           </CardBody>
         </Card>
       )}
-
-      {/* Check-in History */}
-      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} />
 
       {/* Meshtastic Radios */}
       <MeshtasticRadios
