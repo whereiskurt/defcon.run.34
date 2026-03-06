@@ -1,5 +1,14 @@
 # Milestones
 
+## v1.2 User Checkins (Shipped: 2026-03-06)
+
+**Phases completed:** 4 phases, 4 plans, 0 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.2 User Checkins (In Progress)
 
 **Phases:** 10-13, 4 phases

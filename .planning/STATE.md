@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: User Checkins
 status: completed
-stopped_at: Phase 13 context gathered
-last_updated: "2026-03-06T05:51:07.624Z"
-last_activity: 2026-03-06 — CheckInModal header integration complete
+stopped_at: Milestone shipped
+last_updated: "2026-03-06T23:59:00Z"
+last_activity: 2026-03-06 — v1.2 milestone shipped
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
   percent: 100
 ---
 
@@ -18,66 +18,28 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05)
+See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 — from device setup to event discovery to route navigation.
-**Current focus:** Milestone v1.2 — User Checkins, Phase 12 CheckInModal complete
+**Current focus:** v1.2 shipped — ready for next milestone
 
 ## Current Position
 
-Phase: 12 of 13 (CheckInModal Header Integration)
-Plan: 1 of 1 complete
-Status: Plan 12-01 complete
-Last activity: 2026-03-06 — CheckInModal header integration complete
+Milestone v1.2 User Checkins: SHIPPED 2026-03-06
+All 4 phases (10-13), 4 plans complete.
 
 Progress: [██████████] 100%
-
-## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 3
-- Average duration: 5.7min
-- Total execution time: 17min
-
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 10    | 01   | 5min     | 2     | 4     |
-| 11    | 01   | 4min     | 2     | 2     |
-| 12    | 01   | 8min     | 3     | 2     |
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [v1.0 Retro]: Deployment plans should include mock outputs, SOPS entries, and CI workflows
-- [v1.0 Retro]: basePath affects everything in production — images, API fetches, signin redirects
-- [v1.1]: Phases 8-9 manually verified (CMS sync + seed data) — skipped formal GSD execution
-- [v1.2]: CheckIn is a DCR33 port — patterns are well-established
-- [v1.2]: User entity already has checkIn-related fields scaffolded; quota system has "checkin" quota ID
-- [10-01]: CheckIn entity uses gsi2+gsi3 indexes, avoiding collision with RunUser's gsi1
-- [10-01]: Quota enforcement deferred to API route middleware (Phase 11), not in entity helpers
-- [11-01]: resolveCheckIn queries user check-ins (up to 100) and finds by checkinId for composite key resolution
-- [11-01]: Privacy default resolves from RunUser.preferences.checkinPreference when not explicitly provided in POST body
-- [Phase 12]: [12-01]: Dropdown item disabled via disabledKeys when quota exhausted -- GPS collection never starts
-- [Phase 12]: [12-01]: Two-phase modal pattern -- automated GPS collection then user review before submit
+See PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
-None yet.
-
-### Quick Tasks Completed
-
-(None this milestone)
+None.
 
 ### Blockers/Concerns
 
 None.
-
-## Session Continuity
-
-Last session: 2026-03-06T05:51:07.622Z
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-profile-check-in-display/13-CONTEXT.md

@@ -5,21 +5,16 @@
 The official DEF CON Run 34 platform — a suite of web apps for organizing and participating in running/hiking events at DEF CON 34. Includes device provisioning (flash.defcon.run), GPX route editing (gpx.defcon.run), content management (cms.defcon.run), authentication (auth.defcon.run), and the main participant dashboard (run.defcon.run).
 
 **Shipped v1.0** — Meshtastic Flasher MVP (flash.defcon.run) with browser-based ESP32 flashing and configuration.
+**Shipped v1.1** — CMS Content Types (cms.defcon.run) with Events, Routes, POIs, and relations.
+**Shipped v1.2** — User Checkins (run.defcon.run) with GPS check-in, privacy controls, Leaflet map profile display.
 
 ## Core Value
 
 Participants and organizers have a seamless digital experience for DEF CON Run 34 — from device setup to event discovery to route navigation — all through the browser.
 
-## Current Milestone: v1.2 User Checkins
+## Current State
 
-**Goal:** Participants can GPS check-in from the browser with privacy controls, quota enforcement, and a map-based profile view of their check-in history.
-
-**Target features:**
-- CheckIn ElectroDB entity with GPS samples, coordinates, accuracy, and privacy
-- API routes for create, list, toggle privacy, delete, and preference
-- CheckInModal with browser GPS collection (3 samples over 2 seconds)
-- Profile display with paginated list and Leaflet map visualization
-- Quota enforcement (existing quota system, "checkin" quota ID)
+v1.2 shipped. Ready for next milestone planning.
 
 ## Requirements
 
@@ -48,9 +43,15 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 - ✓ S3 upload provider upgraded to Strapi 5 — v1.1
 - ✓ CMS sync verified across regions with seed data — v1.1
 
+- ✓ CheckIn ElectroDB entity with GPS samples, indexes, and atomic counter side-effects — v1.2
+- ✓ Check-in API routes with quota enforcement, pagination, privacy toggle — v1.2
+- ✓ CheckInModal with browser GPS collection, mini map preview, privacy select — v1.2
+- ✓ Profile check-in display with Leaflet map, numbered markers, accuracy circles, age coloring — v1.2
+- ✓ Strava OAuth auto-linking from profile page — v1.2
+
 ### Active
 
-See `.planning/REQUIREMENTS.md` for v1.2 requirements.
+(None — run `/gsd:new-milestone` to define next milestone requirements)
 
 ### Out of Scope
 
@@ -68,7 +69,7 @@ See `.planning/REQUIREMENTS.md` for v1.2 requirements.
 - **Monorepo:** 5 apps (run.human, run.auth, run.gpx, run.flash, run.cms) + shared infra
 - **CMS stack:** Strapi 5.6, SQLite + Litestream (S3 backup), S3 uploads, SES email
 - **CMS auth:** strapi-plugin-sso with OIDC to auth.defcon.run, `cms` service claim required
-- **CMS state:** OIDC SSO working, health endpoint, S3/SES configured — zero content types defined
+- **CMS state:** OIDC SSO working, health endpoint, S3/SES configured, Event/Route/POI content types live
 - **CMS deployment:** Already deployed to cms.defcon.run via ECS Fargate + CloudFront
 - **Flash app:** ~4,900 LOC TypeScript in `apps/run.flash/webapp/src/`
 - **Known pattern:** basePath/region prefix handling in Next.js requires systematic review of all absolute paths
@@ -94,6 +95,10 @@ See `.planning/REQUIREMENTS.md` for v1.2 requirements.
 | Standalone POIs | Reusable landmarks across multiple routes | — Pending |
 | Branded CMS login page | Consistent DCR34 UX, hide raw Strapi admin login | — Pending |
 | CMS serves API only, run.human renders | Clean separation of content management and presentation | — Pending |
+| CheckIn uses gsi2+gsi3 to avoid RunUser gsi1 collision | Keeps entity indexes clean | ✓ Good |
+| Two-phase GPS modal: auto-collect then user-review | Better UX than single-step submit | ✓ Good |
+| Relative age coloring for map markers | Visual distinction without absolute time dependency | ✓ Good |
+| Strava autoLink param for seamless OAuth | Eliminates extra button click on auth server | ✓ Good |
 
 ---
-*Last updated: 2026-03-05 after v1.1 completion, v1.2 milestone start*
+*Last updated: 2026-03-06 after v1.2 milestone completion*
