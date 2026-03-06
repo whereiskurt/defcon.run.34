@@ -26,7 +26,9 @@ locals {
         { name = "gsi1pk", type = "S" },
         { name = "gsi1sk", type = "S" },
         { name = "gsi2pk", type = "S" },
-        { name = "gsi2sk", type = "S" }
+        { name = "gsi2sk", type = "S" },
+        { name = "gsi3pk", type = "S" },
+        { name = "gsi3sk", type = "S" }
       ]
       global_secondary_indexes = [
         {
@@ -39,6 +41,12 @@ locals {
           name            = "gsi2pk-gsi2sk-index"
           hash_key        = "gsi2pk"
           range_key       = "gsi2sk"
+          projection_type = "ALL"
+        },
+        {
+          name            = "gsi3pk-gsi3sk-index"
+          hash_key        = "gsi3pk"
+          range_key       = "gsi3sk"
           projection_type = "ALL"
         }
       ]
