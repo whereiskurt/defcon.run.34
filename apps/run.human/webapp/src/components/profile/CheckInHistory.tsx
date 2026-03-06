@@ -6,6 +6,8 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { apiUrl } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import type { CheckInItem } from '@/entities/checkin';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
 
 // Dynamic imports for react-leaflet to avoid SSR issues
 const MapContainer = dynamic(
@@ -92,9 +94,6 @@ export default function CheckInHistory({ checkInCount }: CheckInHistoryProps) {
 
   useEffect(() => {
     setMounted(true);
-    // Import leaflet CSS on client side
-    require('leaflet/dist/leaflet.css');
-    require('leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css');
     require('leaflet-defaulticon-compatibility');
   }, []);
 
