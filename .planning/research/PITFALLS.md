@@ -1,478 +1,343 @@
-# Domain Pitfalls: CMS Content Types (Events, Routes, POIs)
+# Pitfalls Research
 
-**Domain:** Strapi 5.6 CMS with SQLite + Litestream master-worker replication
-**Project:** cms.defcon.run v1.1 — Adding content types to existing deployment
-**Researched:** 2026-03-02
-
----
+**Domain:** MQTT/meshtk infrastructure integration into existing ECS Fargate platform
+**Researched:** 2026-03-06
+**Confidence:** HIGH (based on existing codebase analysis + AWS documentation + community experience)
 
 ## Critical Pitfalls
 
-Mistakes that cause data loss, broken replication, or require architectural rework.
+### Pitfall 1: Proxy Protocol v2 Auto-Enabled by ecs-service Module Breaks Mosquitto
 
-### Pitfall 1: Worker Database Swap Corrupts Active SQLite Connections
+**What goes wrong:**
+The existing `ecs-service` module (main.tf line 167) unconditionally enables Proxy Protocol v2 for all NLB TCP target groups:
+```hcl
+proxy_protocol_v2 = each.value.type == "nlb" && each.value.target_group_protocol == "TCP" ? true : false
+```
+When the NLB TLS listener terminates TLS and forwards plaintext TCP to mosquitto on port 1883, the target group prepends a Proxy Protocol v2 binary header to every connection. Mosquitto does not understand Proxy Protocol v2 -- it interprets the header bytes as a malformed MQTT CONNECT packet and immediately disconnects the client. NLB health checks also fail because the TCP health check response includes the proxy protocol header that mosquitto does not acknowledge properly.
 
-**What goes wrong:** The worker's `litestream-sync.sh` uses `mv "$TEMP_DB" "$DB_PATH"` to atomically replace the database file while Strapi is actively reading it. When SQLite is in WAL mode (which Litestream requires), the database is actually three files: `strapi.db`, `strapi.db-wal`, and `strapi.db-shm`. The `mv` replaces only the main file, leaving stale WAL and shared-memory files. Strapi's open connection now references an inode that no longer matches the WAL, causing `SQLITE_CORRUPT` errors or silently returning stale/garbled data.
+**Why it happens:**
+This logic is invisible in the service.hcl configuration. The developer defines `target_group_protocol = "TCP"` and `type = "nlb"` (both correct), and the module silently injects Proxy Protocol v2. When porting configs from defcon.run.33, the old project's ecs-service module likely did not have this auto-enable behavior, so the service.hcl worked there but silently breaks here.
 
-**Why it happens:** The current sync script was written for a CMS with zero content types (no reads during sync). Once content types exist, run.human workers will be continuously querying the worker CMS API for events/routes/POIs. The `mv` operation races against these reads.
+**How to avoid:**
+1. Add a `proxy_protocol_v2` boolean field to the `load_balancers` object in the ecs-service variable definition (variables.tf line 47-77), defaulting to `false`.
+2. Replace the auto-enable logic in main.tf line 167 with `proxy_protocol_v2 = each.value.proxy_protocol_v2`.
+3. For the mqtt service, explicitly set `proxy_protocol_v2 = false` on all load_balancer entries.
+4. If client IP visibility is ever needed, it requires an nginx TCP proxy in front of mosquitto that strips Proxy Protocol v2 headers -- mosquitto itself cannot parse them.
 
-**Consequences:** Workers serve corrupted or inconsistent data to run.human. API requests return 500 errors or partial data. With many-to-many relations (events-to-routes), join table corruption is especially dangerous because it silently drops relations rather than failing visibly.
+**Warning signs:**
+- NLB target group shows all targets as "unhealthy" despite mosquitto process running
+- Mosquitto logs show "Socket error on client <unknown>, disconnecting" immediately on connection
+- MQTT clients connect successfully via `docker exec` directly to mosquitto but fail through NLB
+- `tcpdump` on the task ENI shows 13+ extra bytes prepended to every TCP connection from NLB
 
-**Prevention:**
-- Replace the `mv` swap with a restart-based sync: stop Strapi, perform `litestream restore`, restart Strapi. The worker supervisord config already has Strapi restart handling.
-- Alternatively, restore to a completely separate path including WAL/SHM files, then restart Strapi pointing to the new path.
-- Set `PRAGMA busy_timeout = 5000;` in Strapi's database config to handle any Litestream checkpoint lock contention.
-- Add the `acquireConnectionTimeout` (already set to 60000ms) and ensure Knex pool max stays at 1 (already configured).
-
-**Detection:** Monitor worker health endpoint after each sync cycle. Log response times and error rates. Any `SQLITE_CORRUPT` or `SQLITE_IOERR` in worker logs is this pitfall.
-
-**Phase:** Phase 1 (infrastructure hardening) -- must fix BEFORE adding content types, because the first content type makes the sync script dangerous.
-
-**Confidence:** HIGH -- SQLite documentation explicitly states that moving a database file while connections are open causes corruption when WAL/SHM files are not moved together. The current `litestream-sync.sh` (lines 51-58) does exactly this.
-
----
-
-### Pitfall 2: Strapi Content Type Builder Overwrites Hand-Edited schema.json
-
-**What goes wrong:** Content types are defined as `schema.json` files in `src/api/{type}/`. If anyone uses the Strapi admin Content-Type Builder UI (available to Super Admins) to add or modify a field, Strapi regenerates the entire `schema.json`, stripping custom options like `populateCreatorFields`, custom validators, or carefully ordered attributes. The generated schema may also reformat the JSON, breaking git diffs.
-
-**Why it happens:** Strapi's Content-Type Builder is designed for development convenience and assumes it owns the schema. It does not preserve unknown keys or custom formatting. This is a confirmed bug (strapi/strapi#21753) that affects Strapi 5.0.4+ and is not yet fixed as of 5.6.
-
-**Consequences:** Custom schema options silently lost. If the content type is deployed from git, the admin-modified version in the running database diverges from the git version. Next deployment overwrites the admin changes, or the admin changes overwrite git, depending on deploy order. Either way, content types silently change shape.
-
-**Prevention:**
-- Disable the Content-Type Builder in production entirely. Set `config.features.contentTypeBuilder = false` or use middleware to block CTB routes.
-- Define all content types exclusively in code (`src/api/*/content-types/*/schema.json`). Never use the admin UI for schema changes.
-- Add a CI check: validate schema.json files against a known-good snapshot. Any unexpected diff blocks deploy.
-- Document for organizers: "Content types are code-managed. Request changes via GitHub issue, not admin UI."
-
-**Detection:** Git diff on `src/api/*/content-types/*/schema.json` before every deploy. Any unexpected change is this pitfall.
-
-**Phase:** Phase 1 (content type creation) -- establish the code-only workflow before creating any content types.
-
-**Confidence:** HIGH -- confirmed in strapi/strapi#21753, reproducible in Strapi 5.6.
+**Phase to address:**
+Phase 1 (Infrastructure/Terraform module fix) -- must patch ecs-service module before creating mqtt service definition.
 
 ---
 
-### Pitfall 3: Many-to-Many Relations Require Correct Bidirectional Schema or Data Silently Fails
+### Pitfall 2: Security Groups Block NLB Traffic to ECS Tasks on MQTT Ports
 
-**What goes wrong:** Strapi 5 many-to-many relations require matching `inversedBy`/`mappedBy` declarations on both sides. If side A declares `inversedBy: "events"` but side B either omits `mappedBy` or uses a different attribute name, the relation appears to work in the admin UI but:
-1. The join table is created with wrong foreign key columns
-2. API population returns empty arrays for one direction
-3. Connect/disconnect operations via the Document Service API silently do nothing
+**What goes wrong:**
+The `security_group_ids` output from the network module (outputs.tf lines 69-75) only includes `sshhttps` and `http_only` security groups. These allow inbound on ports 443, 80, 8080, 3000, and 1337 -- none of the MQTT ports (1883, 8883, 9001, 8443). When the mqtt ECS service is created using the default `security_group_ids`, all NLB health checks fail and no MQTT traffic reaches mosquitto. The NLB security group (`nlb` in the security_groups map, securitygroups.tf line 182-259) exists and has the right ingress rules, but it is only applied to the NLB resource itself -- not to the ECS task ENIs.
 
-**Why it happens:** Strapi 5 uses the `api::content-type.content-type` target format (e.g., `api::event.event`) and the `inversedBy`/`mappedBy` pair must reference the exact attribute name on the other side, not the content type name. This is a subtle distinction that causes silent failures.
+**Why it happens:**
+All existing services (auth, human, gpx, flash, cms) use ALB and only need port 443. The default security group list was designed for ALB-backed services. The mqtt service is the first NLB-backed service, and the network module was not designed to output a combined security group list for NLB targets.
 
-**Consequences:** Events appear to have no routes. Routes appear to have no events. The admin UI may show the relation as connected (it reads the join table directly) but the REST API (which uses the Document Service) returns empty arrays because the population path is broken.
+**How to avoid:**
+1. Create a dedicated security group for MQTT ECS tasks OR extend the existing `nlb` SG to be usable on ECS task ENIs.
+2. The MQTT task SG must allow inbound on: 1883 (MQTT from NLB), 9001 (WebSocket MQTT from NLB), 8080 (health check from NLB), and any other target ports.
+3. The mqtt service.hcl must pass both default SGs AND the MQTT SG via the `security_group_ids` parameter on the ecs-service module.
+4. NLB with security groups enabled (nlb.tf line 8 uses `security_groups`) requires that the NLB SG allows outbound to the ECS task SG on target ports. Verify the egress rule on the NLB SG allows all outbound (it does -- securitygroups.tf line 245-251).
+5. Add the MQTT SG to the network outputs for consumption by the ecs-service module.
 
-**Prevention:**
-- For each many-to-many relation, define BOTH sides explicitly in schema.json:
-  ```json
-  // Event schema.json
-  "routes": {
-    "type": "relation",
-    "relation": "manyToMany",
-    "target": "api::route.route",
-    "inversedBy": "events"
-  }
+**Warning signs:**
+- NLB targets stuck in "unhealthy" state with no logs appearing in mosquitto CloudWatch logs
+- VPC flow logs show REJECT entries on MQTT ports to ECS task ENI IPs
+- `aws ecs describe-tasks` shows task is RUNNING but NLB shows "unused" targets
 
-  // Route schema.json
-  "events": {
-    "type": "relation",
-    "relation": "manyToMany",
-    "target": "api::event.event",
-    "mappedBy": "routes"
-  }
-  ```
-- The side with `inversedBy` owns the join table. The side with `mappedBy` is the inverse. Pick the "owner" deliberately (event owns event-route join).
-- After creating content types, verify BOTH directions work via REST API: `GET /api/events?populate=routes` AND `GET /api/routes?populate=events`. Both must return populated data.
-- Test with curl, not just the admin UI, because the admin UI uses a different query path.
-
-**Detection:** API integration test that creates an event, connects a route, then queries both directions. If either returns empty, the relation is misconfigured.
-
-**Phase:** Phase 1 (content type creation) -- relation configuration is foundational.
-
-**Confidence:** HIGH -- Strapi 5 documentation confirms the `inversedBy`/`mappedBy` requirement. Multiple forum posts report silent failures when this is wrong (forum.strapi.io/t/cannot-populate-many-to-many-relation/20733).
+**Phase to address:**
+Phase 1 (Infrastructure) -- security group wiring is prerequisite for any NLB-backed service.
 
 ---
 
-### Pitfall 4: REST API Returns Empty Relations by Default -- run.human Gets No Data
+### Pitfall 3: Multi-Container HEALTHY Dependency Chain Stalls Task in PROVISIONING
 
-**What goes wrong:** run.human calls the CMS worker API to fetch events with their routes and POIs. The response contains only scalar fields -- no relations, no media, no components. The developer concludes the content types are broken, but the data is there; it just is not populated.
+**What goes wrong:**
+The mqtt task has 4 containers (mosquitto, nginx/meshmap, meshtk, ghosts). If dependencies are chained (mosquitto <- meshtk <- nginx), a slow or flapping health check on mosquitto prevents meshtk from starting, which prevents nginx from starting. The task sits in PROVISIONING for minutes, then ECS gives up and marks it STOPPED. With the deployment circuit breaker enabled (existing default: `enable = true`), this triggers a rollback loop where every new task attempt also fails.
 
-**Why it happens:** Strapi 5 REST API does NOT populate any relations, media fields, components, or dynamic zones by default. This is a deliberate design choice for performance. Every relation must be explicitly requested via the `populate` query parameter. For nested relations (event -> routes -> pois), you need nested populate syntax: `populate[routes][populate][0]=pois`.
+**Why it happens:**
+The HEALTHY condition requires the dependent container to pass its Docker health check. The health check is evaluated after `start_period` elapses, then must pass `healthy_threshold` consecutive checks at `interval` spacing. With default values (start_period=0, interval=30, retries=3), the first health check fires immediately at startup when mosquitto may still be loading its password file or ACL. The check fails, starts the retry counter, and the container oscillates between healthy and unhealthy. Meanwhile, dependent containers never start.
 
-**Consequences:** run.human displays events with no routes, routes with no POIs, events with no photos. Developers waste hours debugging "missing data" that is actually just unpopulated.
+**How to avoid:**
+1. Use a flat dependency topology, not a chain. All containers depend on mosquitto with HEALTHY; no other dependencies:
+   - meshtk: `depends_on = [{ container_name = "mosquitto", condition = "HEALTHY" }]`
+   - nginx/meshmap: `depends_on = []` (independent -- serves static files, does not need mosquitto)
+   - ghosts: `depends_on = [{ container_name = "mosquitto", condition = "HEALTHY" }]`
+2. Set generous `start_period` for mosquitto: 30 seconds minimum (password file loading, ACL parsing).
+3. Use a fast, simple health check for mosquitto: `["CMD-SHELL", "mosquitto_sub -h localhost -p 1883 -t '$SYS/broker/uptime' -C 1 -W 3 || exit 1"]` -- subscribes to a system topic, times out after 3 seconds.
+4. Mark ghosts as `essential = false` -- if the simulator crashes, the real services (mosquitto, meshtk, meshmap) should keep running.
+5. Set `health_check_grace_period_seconds = 120` on the ECS service to give the NLB time to see healthy targets after the HEALTHY dependency chain resolves.
 
-**Prevention:**
-- Create a custom controller or middleware on the CMS side that enforces default population for each content type. For example, an event always returns with routes and media populated.
-- Use route-level middleware pattern (recommended by Strapi) to set default populate:
-  ```js
-  // src/api/event/middlewares/default-populate.js
-  module.exports = (config, { strapi }) => {
-    return async (ctx, next) => {
-      if (!ctx.query.populate) {
-        ctx.query.populate = {
-          routes: { populate: ['pois'] },
-          photos: true,
-          attachments: true
-        };
-      }
-      await next();
-    };
-  };
-  ```
-- Document the exact populate parameters run.human must use for each endpoint.
-- Never use `populate=*` or `populate=deep` in production -- these generate expensive multi-join SQL queries that will lock SQLite for too long.
-- Limit population depth to 2 levels maximum (event -> routes -> pois). Deeper nesting means the data model needs restructuring.
+**Warning signs:**
+- Task stuck in PROVISIONING for >2 minutes
+- Only the mosquitto container shows logs; meshtk and nginx have zero log entries (they never started)
+- "Essential container in task exited" error when ghosts crashes (if `essential = true`)
+- Deployment circuit breaker rollback loop: new tasks keep failing, old task keeps running
 
-**Detection:** API smoke test that verifies populated fields are present in responses.
-
-**Phase:** Phase 2 (API verification) -- after content types exist, before run.human integration.
-
-**Confidence:** HIGH -- this is explicitly documented in Strapi 5 REST API docs (docs.strapi.io/cms/api/rest/populate-select).
+**Phase to address:**
+Phase 2 (Container configuration / task definition design).
 
 ---
 
-### Pitfall 5: Media URLs Break Across Regions Due to S3 rootPath and CloudFront Mismatch
+### Pitfall 4: ACM Certificate Not Validated Before NLB TLS Listener Creation
 
-**What goes wrong:** CMS media is stored in S3 with a region-prefixed path (`use1/cms/image.png`) and served via CloudFront at `https://cms.defcon.run/use1/cms/image.png`. The master CMS in us-east-1 creates entries with media URLs containing `use1` in the path. Workers in ca-central-1 serve these same entries (via Litestream replication), but the URLs still point to `use1/cms/` paths. If run.human in ca-central-1 renders these URLs, they work (CloudFront serves from S3 regardless of region prefix in URL), BUT:
-1. The media S3 bucket has cross-region replication, and there may be a brief window where newly uploaded media exists in us-east-1 S3 but not yet in ca-central-1 S3.
-2. If CloudFront is configured with region-specific S3 origins, the `use1/cms/` path from ca-central-1 may route to the wrong S3 bucket.
+**What goes wrong:**
+Terraform creates an `aws_lb_listener` with protocol TLS and a `certificate_arn`. If the ACM certificate has not completed DNS validation, the API call fails with `CertificateNotFound`. The existing certs module creates certificates, but for a new subdomain (`mqtt.defcon.run`), the DNS validation CNAME may not yet be propagated. ACM certificate validation can take 1-60 minutes after the CNAME record is created.
 
-**Why it happens:** The `rootPath` in plugins.ts is `${regionShort}/cms`, and `baseUrl` is `https://cms.defcon.run`. So Strapi stores media URLs as `https://cms.defcon.run/use1/cms/filename.ext`. Since only the master (us-east-1) writes, ALL media URLs contain `use1`. This is correct IF CloudFront routes all `/use1/cms/*` requests to the us-east-1 S3 origin regardless of which edge location serves the request.
+**Why it happens:**
+The ecs-service module creates NLB listeners (main.tf lines 216-240) with `certificate_arn` passed from service.hcl. There is no `depends_on` relationship between the listener and the certificate validation. The existing wildcard cert (`*.defcon.run`) should cover `mqtt.defcon.run`, but the cert must exist in BOTH regions. ACM certs are regional -- the us-east-1 cert cannot be used for a ca-central-1 NLB.
 
-**Consequences:** Newly uploaded images may 404 on non-master regions for a few seconds/minutes until S3 replication completes. If CloudFront origin routing is wrong, images 404 permanently in non-master regions.
+**How to avoid:**
+1. Verify the existing wildcard cert (`*.defcon.run`) is already validated in BOTH us-east-1 and ca-central-1. If it is, no new cert is needed.
+2. If a new cert is needed: run `terragrunt apply` on the certs module first, wait for validation (check ACM console shows "Issued"), then apply the network/ecs-service modules.
+3. In the Terragrunt dependency graph, ensure certs module is a dependency of the ecs-service module with `mock_outputs` for initial plan.
+4. The cert_map variable in the network module (variables.tf line 26-35) should already pass validated cert ARNs. Verify the mqtt NLB listeners reference the correct cert from this map.
 
-**Prevention:**
-- Verify that CloudFront for cms.defcon.run routes `/use1/cms/*` to the us-east-1 S3 bucket from ALL edge locations (not just use1 edges). This should already work with a single S3 origin, but verify.
-- Accept that media URLs are master-region-specific. Since the master always writes to `use1/cms/`, this is consistent. Workers replicate the DB, and the URLs are absolute. This is actually fine.
-- Set CloudFront cache TTL to allow S3 replication to complete (at least 60 seconds for new objects).
-- Test: upload an image on the master, then immediately query it from a worker in ca-central-1. If it 404s, check S3 replication lag and CloudFront cache behavior.
+**Warning signs:**
+- Terraform error: `CertificateNotFound` or `UnsupportedCertificate` during NLB listener creation
+- ACM console shows certificate in "Pending validation" state
+- `terragrunt apply` succeeds in us-east-1 but fails in ca-central-1 (cert exists in one region but not the other)
 
-**Detection:** Monitor S3 replication metrics. Test media availability from non-master regions after upload.
-
-**Phase:** Phase 2 (media upload testing) -- after content types with media fields exist.
-
-**Confidence:** MEDIUM -- the current CMS media setup (plugins.ts lines 17-19) hardcodes `rootPath` to `${regionShort}/cms` which is always `use1` on master. This works correctly IF CloudFront has the right origin setup. Need to verify CloudFront config.
-
----
-
-## Moderate Pitfalls
-
-Issues that cause development friction, data inconsistency, or degraded UX but are recoverable.
-
-### Pitfall 6: GPX Files Rejected by Strapi Media Library MIME Type Validation
-
-**What goes wrong:** Route content types need GPX file attachments. When uploading a `.gpx` file through the Strapi media library, it may be rejected because GPX files have MIME type `application/gpx+xml` or sometimes `application/xml` or `text/xml` depending on the browser. Strapi's upload security middleware validates MIME types, and `application/gpx+xml` is not in the default allowed list.
-
-**Why it happens:** Strapi's upload plugin categorizes files into images, videos, audios, and "files." The "files" category has its own allowed MIME types. Custom XML-based formats like GPX are not recognized by default.
-
-**Consequences:** Organizers cannot upload GPX files through the admin panel. They get a generic "file type not allowed" error with no guidance on which types are accepted.
-
-**Prevention:**
-- Configure allowed MIME types in the upload security settings to include GPX:
-  ```js
-  // config/plugins.ts - upload security
-  sizeLimit: 100 * 1024 * 1024,
-  breakpoints: {},
-  // Allow GPX files (XML-based)
-  ```
-- Alternatively, store GPX as a `text` field on the Route content type (GPX is just XML text). This avoids MIME type issues entirely and makes the content searchable. However, large GPX files (multi-MB) may strain SQLite row size limits.
-- If using media library: test with actual GPX files from multiple browsers (Chrome sends `application/gpx+xml`, Firefox may send `application/xml`).
-- The middleware config already allows 100MB file size (`formidable.maxFileSize` in middlewares.ts), so size is not the issue.
-
-**Detection:** Upload test with a real GPX file through the admin panel before declaring the content type complete.
-
-**Phase:** Phase 1 (content type creation) -- configure upload restrictions when defining Route content type.
-
-**Confidence:** MEDIUM -- depends on whether the current `strapi::security` middleware blocks unknown MIME types. The current config (middlewares.ts) does not explicitly restrict upload MIME types, but Strapi's default may.
+**Phase to address:**
+Phase 1 (Infrastructure) -- verify cert availability before NLB listener creation.
 
 ---
 
-### Pitfall 7: Litestream 5-Minute Sync Lag Creates Stale Content on Workers
+### Pitfall 5: Port Conflict in awsvpc Network Mode with 4 Containers
 
-**What goes wrong:** An organizer publishes a new event or updates a route on the master CMS. They check the public site (served by run.human, which reads from a CMS worker). The old content is still showing. They publish again, thinking it failed. Now there are duplicate entries or the second publish overwrites the first. Five minutes later, the correct content appears.
+**What goes wrong:**
+In Fargate's `awsvpc` mode, all containers in a task share the same network namespace (same IP, same port space). If two containers try to bind the same port -- for example, both nginx (meshmap) and meshtk listen on port 443, or both mosquitto and nginx use port 8080 for health checks -- one fails with "bind: address already in use" and the container exits. Since both are likely `essential = true`, the entire task stops.
 
-**Why it happens:** Workers sync via `litestream-sync.sh` every 5 minutes (`SYNC_INTERVAL=300`). Between syncs, workers serve the previous snapshot. This is by design for eventual consistency, but organizers do not know about the delay.
+**Why it happens:**
+When porting from defcon.run.33, the original deployment may have used separate tasks per container (each with its own ENI) or EC2 launch type with host networking where port mapping is different. Consolidating into a single 4-container Fargate task requires all port bindings to be unique across all containers.
 
-**Consequences:** Organizer confusion, duplicate content creation, "it's broken" support requests. If an organizer publishes time-sensitive content (e.g., "Event starting NOW"), the 5-minute delay means 300 seconds of stale data.
+**How to avoid:**
+1. Document and enforce the port allocation for the mqtt task:
+   - mosquitto: 1883 (MQTT plain), 9001 (WebSocket MQTT)
+   - nginx/meshmap: 443 (HTTPS for meshmap web UI), 8080 (health check HTTP)
+   - meshtk: 4403 (gRPC) -- or whatever port meshtk uses; must not collide
+   - ghosts: no listening ports (client-only, publishes to mosquitto)
+2. NLB TLS termination on port 8883 forwards to mosquitto on port 1883. The container does NOT bind 8883.
+3. NLB TLS termination on port 8443 (WSS) forwards to mosquitto on port 9001 (WS). The container does NOT bind 8443.
+4. CloudFront for meshmap routes to nginx on port 443 via the ALB. MQTT traffic bypasses CloudFront entirely.
+5. In the task definition, every `port_mappings` entry must have a unique `host_port` (which equals `container_port` in awsvpc mode).
 
-**Prevention:**
-- Reduce sync interval to 60 seconds for content freshness. The sync is lightweight (S3 REST call + file swap). Cost is negligible.
-- Display "Last synced: X minutes ago" on run.human admin or status endpoint so organizers know when workers will catch up.
-- Add a "force sync" mechanism: an API endpoint on the worker that triggers an immediate litestream restore (authenticated, admin-only).
-- Make the master CMS admin panel available for both reading AND writing, with workers used only for run.human API reads. Organizers always see fresh data because they use the master.
-- Document the replication delay for organizers: "Changes may take up to X minutes to appear on the public site."
-- Consider eventually switching to Litestream's continuous replication mode on workers (instead of periodic restore), which would reduce lag to seconds. This requires workers to run `litestream replicate` in read-only mode, which Litestream supports but adds complexity.
+**Warning signs:**
+- One container fails to start with "bind: address already in use" in CloudWatch logs
+- Task reaches RUNNING but one container keeps restarting (CrashLoopBackOff equivalent)
+- Only 3 of 4 containers show healthy in ECS task detail
 
-**Detection:** Timestamp comparison: check worker DB modification time vs. master's latest write time.
-
-**Phase:** Phase 3 (deployment/ops) -- sync interval tuning after content types work.
-
-**Confidence:** HIGH -- the sync interval is hardcoded in `litestream-sync.sh` line 12 (`SYNC_INTERVAL=${SYNC_INTERVAL:-300}`). This is a configuration issue, not a bug.
-
----
-
-### Pitfall 8: New Content Types Not Accessible via REST API Until Permissions Configured
-
-**What goes wrong:** Content types are created, data is entered via admin panel, but `GET /api/events` returns 403 Forbidden. The developer thinks the content type is misconfigured, but it is actually a permissions issue.
-
-**Why it happens:** Strapi 5 makes all content types private by default. The REST API requires explicit permissions configured via Settings > Users & Permissions > Roles > Public (or Authenticated). For each content type, `find` and `findOne` must be enabled for the appropriate role. This configuration is stored in the database, not in code, so it must be set on each environment (master and, if workers need it, on workers too -- but workers are read-only, so permissions set on master replicate via Litestream).
-
-**Consequences:** run.human cannot fetch any content. 403 errors in production that did not occur in local development (where you might have set permissions manually).
-
-**Prevention:**
-- Create a database migration script or bootstrap lifecycle hook that sets default permissions programmatically:
-  ```js
-  // src/bootstrap.ts or database/migrations/
-  // Grant public find/findOne for event, route, poi content types
-  ```
-- Use Strapi's `strapi.service('plugin::users-permissions.role')` in a bootstrap script to set permissions on first run.
-- Test with a fresh database (no manual permission setup) to verify the bootstrap sets correct permissions.
-- Alternatively, use API tokens (configured in admin Settings) for run.human-to-CMS communication instead of public role permissions. API tokens are more explicit and easier to manage.
-- Remember: permissions are in the SQLite database and replicate via Litestream to workers. Set them on master, and workers get them at next sync.
-
-**Detection:** Integration test that fetches each content type's REST API endpoint without authentication and verifies 200 response.
-
-**Phase:** Phase 1 (content type creation) -- permissions setup immediately after content types are defined.
-
-**Confidence:** HIGH -- Strapi 5 docs confirm all content types are private by default (docs.strapi.io/cms/features/users-permissions).
+**Phase to address:**
+Phase 2 (Container configuration / task definition design).
 
 ---
 
-### Pitfall 9: Strapi Auto-Migration Alters SQLite Schema on Startup, Breaking Worker Reads
+### Pitfall 6: NLB Health Checks Flood Mosquitto Logs with Connection Resets
 
-**What goes wrong:** A new version of the CMS with updated content types is deployed to the master. Strapi's auto-migration runs on master startup, creating new tables and columns. Workers are still running the old version with the old database. When Litestream syncs the updated database to a worker still running old Strapi code, the old code encounters unexpected columns/tables and may crash or produce errors.
+**What goes wrong:**
+NLB TCP health checks complete a TCP handshake (SYN -> SYN-ACK -> ACK) then immediately send RST. At 10-second intervals across 2 AZs, this generates 12 connection-reset events per minute. Mosquitto's default `connection_messages true` logs each as a new client connection and disconnection, creating massive log noise in CloudWatch that obscures real operational issues and increases CloudWatch costs.
 
-**Why it happens:** Strapi auto-migrates the database schema to match the content type definitions on every startup. The master gets the new schema immediately. Workers get the new database (via Litestream) but run old code until they are redeployed. During this window, schema and code are mismatched.
+**Why it happens:**
+NLB cannot perform HTTP-style health checks against TCP target groups. It can only do TCP connect checks (or HTTP/HTTPS health checks if configured with an HTTP health check protocol). Mosquitto on port 1883 speaks MQTT, not HTTP. The default TCP health check is the only option for direct MQTT port health checking.
 
-**Consequences:** Workers crash or return errors for 5-10 minutes (until they are also redeployed with the new code). In a multi-region deployment, this window can be longer if regions deploy sequentially.
+**How to avoid:**
+1. Use the nginx/meshmap container's HTTP health endpoint (port 8080) as the health check target for ALL NLB target groups. Set `health_check_protocol = "HTTP"` and `health_check_path = "/health"` in the service.hcl load_balancer config, with the health check port set to 8080.
+2. The ecs-service module already supports separate health check protocols (main.tf lines 139-165 with dynamic blocks for HTTP vs TCP).
+3. In mosquitto.conf, set `connection_messages false` to suppress connection/disconnection log entries.
+4. Set `log_type error` and `log_type warning` instead of `log_type all` to reduce log volume.
+5. Increase health check interval to 30 seconds to reduce connection churn.
 
-**Prevention:**
-- Deploy strategy: deploy workers FIRST (new code, old database is fine because Strapi adds new columns gracefully), then deploy master (new code triggers migration, updates database, Litestream replicates to workers that already have new code).
-- Alternatively: deploy master and workers simultaneously, accepting a brief window where workers have mismatched code/schema.
-- Strapi's auto-migration is additive (adds columns, adds tables). It does NOT drop columns or rename tables. So old code reading a new database should tolerate extra columns. Verify this assumption for each schema change.
-- Test the upgrade path: run old Strapi code against new-schema database to verify it does not crash.
+**Warning signs:**
+- CloudWatch Logs for mosquitto dominated by connection/disconnection messages from NLB IPs
+- Difficulty finding real client issues in log noise
+- CloudWatch Logs costs unexpectedly high for the mqtt service
 
-**Detection:** Health check failures on workers after master deployment. CloudWatch log monitoring for Knex/SQLite errors.
-
-**Phase:** Phase 3 (deployment) -- deployment order strategy.
-
-**Confidence:** MEDIUM -- Strapi's auto-migration is documented as additive, but edge cases (renamed fields, changed relation types) could cause issues. Need to test.
-
----
-
-### Pitfall 10: Draft and Publish Creates Invisible Content in REST API
-
-**What goes wrong:** An organizer creates an event in the admin panel. They fill in all fields, save, and tell participants to check run.defcon.run. The event does not appear. The organizer saved a draft, not a published entry. Strapi 5's Document Service differentiates between draft and published states, and the REST API only returns published content by default.
-
-**Why it happens:** Strapi 5 introduces a new Draft & Publish system tied to the Document concept. Content exists in `draft` or `published` status. The REST API returns only `published` content unless `status=draft` is explicitly requested. The admin panel defaults to saving as draft.
-
-**Consequences:** Organizers create content that is invisible to participants. Support requests about "missing events."
-
-**Prevention:**
-- Configure content types with `draftAndPublish: false` in schema.json options if draft workflow is not needed. For an event CMS with a small team of organizers, draft mode adds complexity without value.
-  ```json
-  "options": {
-    "draftAndPublish": false
-  }
-  ```
-- If draft mode IS desired: add prominent "Publish" button guidance in organizer documentation. Create a custom dashboard widget showing unpublished content count.
-- In run.human API calls to CMS, always use the default (published-only) filter. Never request drafts.
-- Test: create content, verify it appears in REST API. If it does not, check publication status.
-
-**Detection:** Count of entries in admin panel vs. count returned by REST API. Mismatch means unpublished drafts.
-
-**Phase:** Phase 1 (content type creation) -- decide draft/publish strategy during schema design.
-
-**Confidence:** HIGH -- Strapi 5 docs confirm draft/publish behavior with the Document system.
+**Phase to address:**
+Phase 1 (Infrastructure for target group health check config) + Phase 2 (mosquitto.conf tuning).
 
 ---
 
-### Pitfall 11: Admin Custom Login Redirect Breaks on Strapi Upgrade
+### Pitfall 7: DNS Split Between CloudFront and NLB Not Configured Correctly
 
-**What goes wrong:** The existing `app.tsx` monkey-patches `window.fetch` to intercept 401 responses and redirect to SSO login (lines 126-178). A Strapi version upgrade changes the admin panel's API patterns (different endpoint paths, different error response format), and the monkey-patch silently stops intercepting 401s. Users see the raw Strapi login form instead of the SSO redirect.
+**What goes wrong:**
+`mqtt.defcon.run` needs to serve two distinct traffic types: HTTP/HTTPS for meshmap web UI (via CloudFront + ALB) and raw TCP for MQTT protocols (via NLB direct). If DNS points `mqtt.defcon.run` to CloudFront, MQTT clients (Meshtastic radios) trying to connect on port 8883 hit CloudFront, which does not proxy TCP/MQTT. If DNS points to the NLB, meshmap web UI loses CloudFront caching and WAF protection.
 
-**Why it happens:** The fetch interception relies on URL pattern matching (`url.includes('/admin/')`) and response status codes. Strapi's internal admin API is not a stable public interface -- it changes between minor versions. The monkey-patch was noted as fragile in the codebase concerns audit.
+**Why it happens:**
+All existing services (auth, human, gpx, flash, cms) use a simple pattern: DNS -> CloudFront -> ALB -> ECS. The mqtt service is the first to need split routing where some ports go through CloudFront and others bypass it entirely.
 
-**Consequences:** Organizers see an unfamiliar login page with username/password fields (no SSO). They cannot log in because they have no local password (SSO-provisioned). CMS is effectively locked out until the monkey-patch is updated.
+**How to avoid:**
+1. Use a single DNS record (`mqtt.defcon.run`) pointing to CloudFront for web traffic (port 443).
+2. Use NLB DNS names directly for MQTT traffic. Meshtastic radios are configured at flash time with the NLB endpoint, not the CloudFront domain. The flash service can inject the regional NLB DNS name (e.g., `nlb-use1-defcon-run.elb.us-east-1.amazonaws.com`) as the MQTT server address.
+3. Alternatively, create a separate DNS record for MQTT (e.g., `broker.defcon.run` or `mqtt-use1.defcon.run`) pointing directly to the regional NLB. This is cleaner than using raw NLB DNS names.
+4. CloudFront distribution for `mqtt.defcon.run` handles ONLY the meshmap web UI paths (`/{region}/meshmap/*`). MQTT ports are not routed through CloudFront.
+5. Ensure WAF rules on CloudFront do not interfere with meshmap WebSocket connections if meshmap uses WebSockets for live updates.
 
-**Prevention:**
-- Pin Strapi version precisely (5.6.x). Do not upgrade Strapi during this milestone.
-- If upgrading: test the SSO flow end-to-end after every Strapi version change. Verify that 401 interception, logout interception, and SSO redirect all still work.
-- Consider replacing the fetch monkey-patch with Strapi's official admin extension points if available in future versions.
-- Add an e2e test for the SSO login flow: navigate to admin, verify redirect to auth.defcon.run, complete OIDC flow, verify admin panel loads.
-- The v1.0 retrospective warns: "Test the full OIDC flow end-to-end before calling deployment complete." This applies doubly here because adding content types changes admin panel behavior.
+**Warning signs:**
+- MQTT clients get connection refused or TLS handshake failures when connecting to `mqtt.defcon.run:8883`
+- meshmap loads but MQTT connections from JavaScript WebSocket client fail (if using same domain)
+- `dig mqtt.defcon.run` returns CloudFront IPs instead of NLB IPs
 
-**Detection:** Manual SSO login test after any Strapi package update. Automated e2e test if feasible.
-
-**Phase:** Phase 2 (branded login page) -- when modifying admin customization.
-
-**Confidence:** HIGH -- this is explicitly called out in `.planning/codebase/CONCERNS.md` as a fragile area.
-
----
-
-## Minor Pitfalls
-
-Issues that are annoying but have straightforward fixes.
-
-### Pitfall 12: SQLite Pool Max=1 Causes Slow Concurrent Admin Panel Operations
-
-**What goes wrong:** Two organizers are simultaneously editing content in the admin panel. Operations become noticeably slow (2-5 second delays per save) because the Knex connection pool is limited to `max: 1` (database.ts line 9).
-
-**Why it happens:** SQLite single-writer constraint means only one write transaction at a time. With pool max=1, Knex serializes ALL queries (reads and writes) through a single connection. This is correct for write safety but unnecessarily restricts concurrent reads.
-
-**Prevention:**
-- Keep pool max=1 for the master (single writer is correct for SQLite).
-- For workers (read-only), consider increasing pool max to 2-3 for better read concurrency. Workers never write, so multiple read connections are safe.
-- Ensure `PRAGMA busy_timeout = 5000;` is set to handle lock contention during Litestream checkpoints.
-- For the organizer-only admin panel with 2-5 concurrent users, pool max=1 is adequate. Only optimize if latency complaints arise.
-
-**Phase:** Phase 3 (deployment optimization) -- after content types work, if performance issues arise.
-
-**Confidence:** MEDIUM -- depends on actual concurrent usage patterns.
+**Phase to address:**
+Phase 1 (Infrastructure) -- DNS and CloudFront configuration.
 
 ---
 
-### Pitfall 13: schema.json Attribute Order Affects Admin Panel Field Display Order
+### Pitfall 8: Go Binary Cross-Compilation for meshtk Produces Wrong Architecture
 
-**What goes wrong:** Fields appear in an unexpected order in the admin panel's content editor. The "name" field is at the bottom, "description" is at the top, and organizers are confused by the layout.
+**What goes wrong:**
+The meshtk binary is compiled on macOS (darwin/arm64 for Apple Silicon or darwin/amd64) but needs to run in a Fargate container (linux/amd64). If `GOOS` and `GOARCH` are not explicitly set during `go build`, the binary is compiled for the build machine's architecture. The Docker image builds successfully (the binary is just a file being copied), but the container crashes at startup with "exec format error" or "no such file or directory" (the latter when the binary is dynamically linked against missing libc).
 
-**Why it happens:** Strapi displays fields in the admin panel based on a combination of schema.json attribute order and stored layout configuration. The initial field order comes from the schema, but once someone configures the layout via the admin panel (Content-Type Builder > Configure the view), that layout is stored in the database and overrides the schema order.
+**Why it happens:**
+Go's `go build` defaults to the host OS and architecture. In a multi-stage Docker build, if the build stage uses `FROM golang:1.xx` (which runs under Docker's emulation or buildx cross-compilation), the architecture may or may not match the runtime stage. Without explicit `CGO_ENABLED=0 GOOS=linux GOARCH=amd64`, the binary may be dynamically linked or compiled for the wrong target.
 
-**Prevention:**
-- Define attributes in schema.json in the desired display order (most important fields first).
-- After deploying, configure the admin panel layout once on the master (drag fields into desired positions). This layout configuration replicates to workers via Litestream.
-- Do not rely solely on schema.json order for layout -- configure explicitly in admin.
+**How to avoid:**
+1. In the meshtk Dockerfile build stage, always set:
+   ```dockerfile
+   ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+   RUN go build -o /meshtk .
+   ```
+2. If meshtk uses any CGO dependencies (C libraries, SQLite bindings), `CGO_ENABLED=0` will not work. In that case, use `golang:alpine` as the build base and install `musl-dev gcc` for static linking.
+3. In the runtime stage, use `FROM alpine:3.x` (not `scratch`) if the binary needs CA certificates for TLS connections. Copy `/etc/ssl/certs/ca-certificates.crt` from the build stage if using `scratch`.
+4. Verify the binary after build: `RUN file /meshtk` should show "ELF 64-bit LSB executable, x86-64, statically linked".
+5. Test the Docker image locally with `docker run --platform linux/amd64` before pushing to ECR.
 
-**Phase:** Phase 1 (content type creation) -- order attributes deliberately during schema design.
+**Warning signs:**
+- Container exits immediately with "exec format error" in CloudWatch logs
+- Container exits with "no such file or directory" despite the binary existing in the image
+- `docker run` works on macOS but fails in Fargate
 
-**Confidence:** LOW -- the exact interaction between schema order and stored layout in Strapi 5.6 needs verification.
-
----
-
-### Pitfall 14: Missing Mock Outputs and SOPS Secrets Block Deployment
-
-**What goes wrong:** New content types require no infrastructure changes, but any code change requires a new Docker image version. The v1.0 retrospective documented that deployments are blocked by missing mock outputs in ECS service terragrunt, missing SOPS secret entries, and missing CI workflow entries.
-
-**Why it happens:** The CMS service is already deployed, so these should already exist. However, if content types require new environment variables (e.g., a new S3 bucket for GPX files, a new API token), those need SOPS entries and service.hcl updates.
-
-**Prevention:**
-- Review v1.0 deployment checklist before every CMS deploy:
-  1. Mock outputs in ecs-service terragrunt: already exist for run-cms
-  2. SOPS secrets: already exist, only add if new secrets needed
-  3. CI workflows: already include run-cms
-  4. Favicon: already deployed
-  5. basePath: already configured (`/${regionShort}/admin`)
-- If adding new env vars: update service.hcl, add SOPS entries, run `terragrunt plan` before deploy.
-- Content type additions should NOT require infrastructure changes if the schema is code-only and no new env vars are needed.
-
-**Phase:** Phase 3 (deployment) -- pre-deployment checklist.
-
-**Confidence:** HIGH -- v1.0 retrospective explicitly calls out these items (`.planning/RETROSPECTIVE.md` lines 24-26).
+**Phase to address:**
+Phase 2 (Build scripts / Dockerfile creation).
 
 ---
 
-### Pitfall 15: documentId vs id Confusion in API Integration
+## Technical Debt Patterns
 
-**What goes wrong:** run.human stores CMS content IDs and uses them for subsequent API calls. The developer uses the `id` field from API responses, but Strapi 5's Document Service expects `documentId` for fetch/update/delete operations. API calls with numeric `id` fail or return wrong content.
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Single mosquitto instance per region (no clustering) | Much simpler architecture, single task definition | No HA within a region; broker restart = brief MQTT outage | Always acceptable -- 4-day event, devices auto-reconnect |
+| Flat-file password auth (password_file) | No external auth service dependency | Password rotation requires image rebuild and redeploy | Acceptable -- passwords are per-device, generated once at flash time |
+| Disabling mosquitto persistence | Simpler Fargate deployment, no EFS needed | Retained messages and QoS 1/2 queues lost on restart | Acceptable -- Meshtastic radios republish state on reconnect |
+| Gitignored meshtk source instead of submodule | No submodule pain, simple `cp -r` update | Manual sync required, version drift possible | Acceptable with discipline -- document the update process |
+| Hardcoding MQTT port numbers in service.hcl | Fewer variables, clearer configuration | Must update multiple places if ports change | Always acceptable -- MQTT ports are industry standard |
 
-**Why it happens:** Strapi 5 introduced the Document concept where `documentId` (a UUID string) is the primary identifier for API operations, replacing the numeric `id`. The numeric `id` still exists in responses but is a database-internal identifier that should not be used in API calls. This is a breaking change from Strapi 4.
+## Integration Gotchas
 
-**Consequences:** run.human fetches wrong content or gets 404 errors when trying to fetch specific events/routes by ID.
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| NLB TLS -> mosquitto | Expecting mosquitto to handle TLS termination (bind 8883 with certs) | NLB terminates TLS on 8883, forwards plaintext TCP to mosquitto on 1883. Mosquitto needs NO TLS configuration |
+| NLB WSS -> mosquitto | Expecting mosquitto to handle WebSocket TLS | NLB terminates TLS on 8443, forwards to mosquitto WebSocket listener on 9001 (plain WS) |
+| ecs-service module -> NLB | Assuming ALB-style host-header routing works | NLB does not support host-header routing. Each NLB listener is 1:1 with a target group. Use port-based routing only |
+| meshtk -> mosquitto | Using DNS hostname for inter-container MQTT connection | In awsvpc mode, all containers share localhost. meshtk connects to `127.0.0.1:1883`, not a DNS name |
+| CloudFront -> meshmap | Routing ALL mqtt.defcon.run traffic through CloudFront | Only route meshmap HTTP traffic. MQTT/WSS ports must bypass CloudFront entirely (NLB direct) |
+| ACM certs -> NLB | Using us-east-1 ACM cert for ca-central-1 NLB | ACM certs are regional. Each NLB needs a cert in its own region. Unlike CloudFront (which requires us-east-1 only) |
+| mosquitto ACL -> meshtk | Forgetting meshtk needs its own MQTT credentials | meshtk connects to mosquitto as a client. It needs a username/password in the password_file and topic permissions in the ACL file |
+| build.sh -> ECR | Using existing build.sh pattern for 3 new images | The mqtt service has 3 separate Docker images (mosquitto, nginx/meshmap, meshtk). Each needs its own ECR repo, build step, and VERSION file |
+| Security groups -> ECS task | Using default `security_group_ids` output | Default SGs only allow ALB ports (443, 80). MQTT task needs additional SG allowing 1883, 9001, 8080 |
 
-**Prevention:**
-- In run.human, always use `documentId` (string UUID) for CMS content references, never numeric `id`.
-- When caching CMS content in run.human, key by `documentId`.
-- Document this explicitly in API integration docs for run.human developers.
-- Test: create content, note both `id` and `documentId`, fetch by each. Only `documentId` should work for `/api/events/:documentId`.
+## Performance Traps
 
-**Phase:** Phase 2 (API verification) -- when testing run.human-to-CMS integration.
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Single-threaded mosquitto bottleneck | High CPU on one core, message latency spikes, subscriber backlog | Accept for event scale (~500 devices). Only consider EMQX if 5000+ concurrent connections needed | >2000 concurrent connections |
+| CloudWatch log volume from verbose MQTT logging | High CloudWatch Logs costs, slow log search | Set `log_type error warning` in mosquitto.conf, disable `connection_messages` | 100+ devices publishing at 30-second intervals |
+| NLB cross-AZ data transfer charges | Unexpected AWS bill line items for inter-AZ transfer | Minor at event scale. Enable cross-zone load balancing but accept the cost (pennies) | Never a real problem at this scale |
+| Large password file slows mosquitto startup | Container health check fails before password file loaded, dependency chain stalls | Keep password file under 1000 entries. Set `start_period = 30` on health check | >5000 password entries |
+| WebSocket connection limits on meshmap | Browser tab crashes or meshmap freezes with many nodes | Limit meshmap to displaying 200 most-recent nodes. Paginate or cluster markers | >500 simultaneous nodes on map |
 
-**Confidence:** HIGH -- Strapi 5 migration docs explicitly call this out as a breaking change.
+## Security Mistakes
 
----
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Exposing port 1883 (plaintext MQTT) publicly via NLB | MQTT credentials transmitted in cleartext; anyone can sniff traffic | Only expose 8883 (TLS) and 8443 (WSS/TLS) publicly. If 1883 is needed for internal testing, restrict NLB SG to VPC CIDR only. The existing NLB SG (securitygroups.tf line 205) allows 1883 from 0.0.0.0/0 -- restrict this |
+| Baking MQTT passwords into Docker image layers | Passwords visible via `docker history` or ECR image pull | Generate password_file at container startup from SSM Parameter Store secrets injected as env vars. Use an entrypoint script that runs `mosquitto_passwd` to create the file at runtime |
+| Using `allow_anonymous true` in mosquitto.conf | Any device can connect and publish/subscribe without authentication | Always `allow_anonymous false` with `password_file` and `acl_file` |
+| Wildcard ACL (`topic readwrite #`) for device users | Compromised device can read/write ALL topics including admin channels | Per-device ACL scoped to Meshtastic topic patterns. Admin/meshtk user gets broader permissions |
+| Storing meshtk source code in public ECR image | Proprietary code exposed if ECR is public | Use private ECR repos (already the pattern). Verify ECR repos have `image_tag_mutability = "IMMUTABLE"` to prevent tag overwriting |
 
-## Deployment-Specific Warnings (from v1.0 Retrospective)
+## UX Pitfalls
 
-These are not new pitfalls but recurring patterns from the v1.0 retrospective that apply to v1.1.
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Meshmap shows stale node positions after broker restart | Participants see phantom nodes that left hours ago | Clear retained messages on broker restart; meshmap should show "last seen" timestamp and age-color markers |
+| Fleet simulator ghosts appear on production meshmap | Real participants confused by fake nodes mixed with real ones | Prefix ghost names clearly (e.g., "GHOST-") and add a filter toggle in meshmap. Or run ghosts only in a test environment |
+| No visual MQTT connection status in meshmap | Users cannot tell if map is live or frozen | Add WebSocket connection status indicator (green/red dot) to meshmap header |
+| MQTT broker restart drops all WebSocket connections | meshmap goes blank with no auto-reconnect | Implement WebSocket reconnect with exponential backoff in meshmap JavaScript client |
 
-### Pitfall 16: basePath Double-Prefix in Admin Panel Asset URLs
+## "Looks Done But Isn't" Checklist
 
-**What goes wrong:** Strapi admin assets load from the wrong URL path. The admin panel shows a blank white page because JS/CSS files return 404.
+- [ ] **NLB listeners:** All listeners created (8883 TLS, 8443 TLS, 443 TLS) -- but verify target groups have healthy targets registered and proxy_protocol_v2 is disabled
+- [ ] **Security groups:** NLB SG has MQTT ingress rules -- but verify ECS task SG also allows inbound from NLB on target ports (1883, 9001, 8080)
+- [ ] **ACM certificates:** Cert exists in ACM -- but verify it is ISSUED (not Pending) in BOTH regions (us-east-1 and ca-central-1)
+- [ ] **ECR repos:** Three repos created (mosquitto, meshmap, meshtk) -- but verify images are pushed with correct tags matching VERSION files
+- [ ] **DNS records:** mqtt.defcon.run resolves -- but verify MQTT clients use NLB endpoint (not CloudFront) for ports 8883/8443
+- [ ] **mosquitto.conf:** Config exists -- but verify `password_file` and `acl_file` paths are correct inside the container and files are populated at runtime
+- [ ] **Inter-container networking:** meshtk connects to mosquitto on localhost:1883 -- but verify credentials are correct and ACL permits the meshtk user's topic patterns
+- [ ] **Build scripts:** build.sh builds images -- but verify Go binary in meshtk image is `ELF 64-bit LSB, x86-64, statically linked`
+- [ ] **CloudFront:** Distribution routes meshmap web traffic -- but verify it does NOT attempt to proxy MQTT TCP connections
+- [ ] **Both regions:** Services deploy to us-east-1 -- but verify ca-central-1 has NLB enabled (`nlb.enabled = true`), certs validated, and services running
+- [ ] **Container dependencies:** meshtk depends on mosquitto HEALTHY -- but verify mosquitto health check passes within `start_period` and does not flap
+- [ ] **Ghosts container:** Runs and publishes fake data -- but verify it is `essential = false` so crashes do not kill the whole task
 
-**Why it happens:** `server.url` and `admin.url` can create double-prefix paths if misconfigured. Currently: `server.url = https://cms.defcon.run` (no region), `admin.url = /use1/admin`. The Vite build base path also needs `/${REGION_SHORT}/admin/`. If any of these are wrong, asset paths break.
+## Recovery Strategies
 
-**Prevention:**
-- Do not change `server.url` or `admin.url` configuration during this milestone. The current setup works.
-- When building the Docker image, verify `REGION_SHORT` is passed correctly as a build arg.
-- If admin assets 404 after deploy: check the Vite build output for base path, check nginx routing rules.
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Proxy Protocol v2 enabled | LOW | Patch ecs-service module variable, `terragrunt apply` to update target group, no service restart needed |
+| Wrong security groups | LOW | Update SG rules via Terraform, changes take effect immediately, no service restart |
+| ACM cert not validated | MEDIUM | Wait for DNS propagation (up to 60 min), re-run `terragrunt apply`. Cannot be forced faster |
+| Container dependency stall | MEDIUM | Update task definition with correct health check timing, force new deployment |
+| Port conflict in task | MEDIUM | Update task definition port mappings, force new deployment. Must identify which containers collide |
+| DNS misconfiguration | LOW | Update Route53 records via Terraform. DNS propagation takes 60-300 seconds |
+| Go binary wrong arch | LOW | Rebuild with correct GOOS/GOARCH, push new image to ECR, force new deployment |
+| mosquitto.conf errors | MEDIUM | Fix config, rebuild image, push, redeploy. All MQTT sessions lost during restart |
+| S3 bucket name collision | LOW | Change naming variables in Terraform, re-run apply. Old bucket is unaffected |
 
-**Phase:** Phase 3 (deployment) -- verify after any Docker image rebuild.
+## Pitfall-to-Phase Mapping
 
-**Confidence:** HIGH -- this is documented in v1.0 retrospective and server.ts comments (lines 4-8).
-
----
-
-## Phase-Specific Warnings
-
-| Phase Topic | Likely Pitfall | Severity | Mitigation |
-|-------------|---------------|----------|------------|
-| Content type schema design | Schema.json overwritten by CTB (#2) | Critical | Disable CTB in production, code-only workflow |
-| Content type schema design | Many-to-many inversedBy/mappedBy mismatch (#3) | Critical | Both sides defined, test both API directions |
-| Content type schema design | Draft/publish confusion (#10) | Moderate | Set `draftAndPublish: false` or train organizers |
-| Content type schema design | Attribute order affects UI (#13) | Minor | Order deliberately, configure layout in admin |
-| Media/file handling | GPX MIME type rejected (#6) | Moderate | Configure upload allowedTypes for GPX |
-| Media/file handling | Media URLs cross-region (#5) | Critical | Verify CloudFront origin routing |
-| REST API integration | Empty relations by default (#4) | Critical | Custom middleware for default population |
-| REST API integration | Permissions not configured (#8) | Moderate | Bootstrap script for public permissions |
-| REST API integration | documentId vs id (#15) | Moderate | Always use documentId in run.human |
-| Master-worker replication | DB swap corrupts connections (#1) | Critical | Restart-based sync, not mv swap |
-| Master-worker replication | 5-minute sync lag (#7) | Moderate | Reduce to 60 seconds, add force-sync |
-| Master-worker replication | Schema migration order (#9) | Moderate | Deploy workers first, then master |
-| Admin customization | SSO fetch patch breaks on upgrade (#11) | Moderate | Pin Strapi version, e2e test SSO flow |
-| Deployment | Missing SOPS/mock outputs (#14) | Moderate | Pre-deployment checklist from v1.0 retro |
-| Deployment | basePath double-prefix (#16) | Moderate | Do not change server.url/admin.url config |
-
----
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Proxy Protocol v2 auto-enable (#1) | Phase 1: Terraform module fix | `terraform plan` shows `proxy_protocol_v2 = false` for MQTT target groups |
+| Security group mismatch (#2) | Phase 1: Infrastructure | NLB targets show "healthy" in AWS console after deployment |
+| Container dependency stalls (#3) | Phase 2: Task definition | Task reaches RUNNING within 90 seconds in test deployment |
+| ACM cert timing (#4) | Phase 1: Infrastructure | ACM console shows ISSUED in both regions before NLB listener apply |
+| Port conflicts (#5) | Phase 2: Container config | All 4 containers start and show logs within 60 seconds |
+| Health check log noise (#6) | Phase 1 + Phase 2 | Health check uses HTTP on nginx:8080, mosquitto logs show no connection spam |
+| DNS split (#7) | Phase 1: Infrastructure | MQTT client connects to NLB on 8883; browser loads meshmap via CloudFront on 443 |
+| Go cross-compilation (#8) | Phase 2: Build scripts | `file` command on binary in image shows "statically linked, x86-64" |
+| S3 bucket naming | Phase 1: Infrastructure | `aws s3api head-bucket` returns 404 for new bucket names before apply |
+| mosquitto ACL for meshtk | Phase 2: Container config | meshtk successfully subscribes and publishes through mosquitto |
 
 ## Sources
 
-### Official Documentation (HIGH confidence)
-- [Strapi 5 Models/Schema Documentation](https://docs.strapi.io/cms/backend-customization/models)
-- [Strapi 5 REST API Populate & Select](https://docs.strapi.io/cms/api/rest/populate-select)
-- [Strapi 5 Relations REST API](https://docs.strapi.io/cms/api/rest/relations)
-- [Strapi 5 Document Service API](https://docs.strapi.io/cms/api/document-service)
-- [Strapi 5 Users & Permissions](https://docs.strapi.io/cms/features/users-permissions)
-- [Strapi 5 Database Configuration](https://docs.strapi.io/cms/configurations/database)
-- [Strapi 5 Database Migrations](https://docs.strapi.io/cms/database-migrations)
-- [Strapi 5 Admin Panel Customization](https://docs.strapi.io/cms/admin-panel-customization)
-- [Strapi 5 Media Library](https://docs.strapi.io/cms/features/media-library)
-- [Litestream Tips & Caveats](https://litestream.io/tips/)
-- [Litestream How It Works](https://litestream.io/how-it-works/)
-- [SQLite WAL Documentation](https://sqlite.org/wal.html)
-- [SQLite How to Corrupt a Database](https://www.sqlite.org/howtocorrupt.html)
+- [AWS NLB Health Check Troubleshooting for Fargate](https://repost.aws/knowledge-center/fargate-nlb-health-checks)
+- [NLB ECS Health Check Behavior](https://repost.aws/questions/QUkk0vZKI-SR2IBwl6atxWbQ/nlb-ecs-health-check)
+- [AWS NLB MQTT Support](https://repost.aws/questions/QU1jC47iEFRYiQQLIFkwcZHg/does-nlb-support-mqtt)
+- [ECS Container Dependency API Reference](https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerDependency.html)
+- [ECS Task Definition Parameters (Fargate)](https://docs.amazonaws.cn/en_us/AmazonECS/latest/developerguide/task_definition_parameters.html)
+- [ACM Certificate Eventual Consistency in Terraform](https://github.com/hashicorp/terraform-provider-aws/issues/4687)
+- [ACM Certificate Validation Resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/acm_certificate_validation)
+- [Terraform NLB Listener CertificateNotFound](https://discuss.hashicorp.com/t/adding-a-default-certificate-to-aws-network-load-balancer-error-certificate-not-found/6351)
+- [Eclipse Mosquitto Docker Image](https://hub.docker.com/_/eclipse-mosquitto)
+- [Mosquitto Configuration Reference](https://mosquitto.org/man/mosquitto-conf-5.html)
+- [Deploying Mosquitto on AWS ECS](https://www.atom8.ai/blog/how-to-deploy-mqtt-broker-using-eclipse-mosquitto-on-amazon-ecs)
+- [Go Static Binary for Docker Scratch](https://chemidy.medium.com/create-the-smallest-and-secured-golang-docker-image-based-on-scratch-4752223b7324)
+- [NLB Proxy Protocol v2 with Ingress](https://github.com/kubernetes/ingress-nginx/issues/7905)
+- Existing codebase: `infra/terraform/modules/ecs-service/v1.0.0/main.tf` line 167 (proxy_protocol_v2 auto-enable)
+- Existing codebase: `infra/terraform/modules/network/v1.0.0/securitygroups.tf` lines 182-259 (NLB security group)
+- Existing codebase: `infra/terraform/modules/network/v1.0.0/outputs.tf` lines 69-75 (security_group_ids excludes NLB SG)
+- Existing codebase: `infra/terraform/modules/ecs-service/v1.0.0/variables.tf` lines 47-77 (load_balancer config)
 
-### GitHub Issues (MEDIUM-HIGH confidence)
-- [strapi/strapi#21753: schema.json overwritten by CTB](https://github.com/strapi/strapi/issues/21753)
-- [strapi/strapi#23904: SQLite database locked](https://github.com/strapi/strapi/issues/23904)
-- [strapi/strapi#17625: Enable WAL mode for SQLite](https://github.com/strapi/strapi/issues/17625)
-- [benbjohnson/litestream#99: Write lock during shadow WAL sync](https://github.com/benbjohnson/litestream/issues/99)
-- [benbjohnson/litestream#58: Rules for Litestream-compatible apps](https://github.com/benbjohnson/litestream/issues/58)
-
-### Community/Ecosystem (MEDIUM confidence)
-- [Why populate=deep Is Not Recommended](https://support.strapi.io/articles/8544110758-why-populate-deep-plugins-are-not-recommended-in-strapi)
-- [Strapi Forum: Cannot populate many-to-many relation](https://forum.strapi.io/t/cannot-populate-many-to-many-relation/20733)
-- [Transitioning from Strapi 4 to Strapi 5](https://strapi.io/blog/commonly-asked-questions-transitioning-from-strapi-4-to-strapi-5)
-- [Strapi 5 Flattened Response Format](https://docs.strapi.io/cms/migration/v4-to-v5/breaking-changes/new-response-format)
-
-### Internal Project Sources (HIGH confidence)
-- `.planning/RETROSPECTIVE.md` -- v1.0 deployment lessons
-- `.planning/codebase/CONCERNS.md` -- CMS fragile areas audit
-- `.planning/codebase/ARCHITECTURE.md` -- CMS replication flow documentation
-- `apps/run.cms/app/litestream-sync.sh` -- Worker sync implementation
-- `apps/run.cms/app/config/database.ts` -- SQLite pool configuration
-- `apps/run.cms/app/config/plugins.ts` -- S3 upload provider config
-- `apps/run.cms/app/src/admin/app.tsx` -- Admin SSO monkey-patch
-- `infra/terraform/live/site/services/run.cms/service.hcl` -- CMS infrastructure definition
+---
+*Pitfalls research for: MQTT/meshtk infrastructure integration into ECS Fargate platform*
+*Researched: 2026-03-06*

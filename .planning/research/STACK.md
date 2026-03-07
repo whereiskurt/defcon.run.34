@@ -1,548 +1,209 @@
-# Technology Stack
+# Technology Stack: v1.3 Meshtk Integration
 
-**Project:** DCR34 CMS Content Types (cms.defcon.run) -- v1.1
-**Researched:** 2026-03-02
-**Scope:** Stack additions/changes for event, route, and POI content types with relations, media handling, REST API, and branded OIDC login. Base CMS infrastructure (Strapi 5.6, SQLite, Litestream, ECS Fargate, OIDC SSO) is already deployed and NOT re-researched.
+**Project:** defcon.run.34 - MQTT/Meshtk Infrastructure
+**Researched:** 2026-03-06
+**Focus:** NEW stack additions only (existing Next.js/React/Strapi/ECS/CloudFront stack validated)
+
+## Critical DNS Architecture Decision
+
+**The single most important finding: you cannot point `mqtt.defcon.run` to both an NLB and a CloudFront distribution simultaneously.**
+
+Route53 alias A records for the same name can only point to one target type. DNS does not differentiate by port -- a client resolving `mqtt.defcon.run` gets the same IP(s) regardless of whether it connects on port 1883, 8883, or 443.
+
+### Recommended Approach: NLB-only for mqtt.defcon.run
+
+Point `mqtt.defcon.run` Route53 A record alias to the NLB in each region. Serve meshmap on port 443 through the NLB itself (TLS-terminating to nginx). Do NOT create a CloudFront distribution for mqtt.defcon.run.
+
+**Why:** Meshtastic radios connect via raw TCP on ports 1883/8883 -- they cannot traverse CloudFront (which only handles HTTP/HTTPS on port 443). The meshmap web UI is lightweight static content that does not benefit meaningfully from CloudFront edge caching. NLB TLS termination on port 443 with ACM certs provides the same HTTPS experience.
+
+**Alternative considered and rejected:** Separate subdomains (e.g., `broker.mqtt.defcon.run` for NLB, `map.mqtt.defcon.run` for CloudFront). This adds DNS complexity and certificate SANs for marginal caching benefit on a low-traffic admin tool.
+
+**Alternative considered and rejected:** CloudFront with NLB origin. CloudFront only forwards traffic on HTTP/HTTPS (port 443). It cannot proxy raw TCP MQTT traffic on ports 1883/8883. You would still need NLB DNS for MQTT ports, creating the dual-record problem.
+
+### DNS Configuration Per Region
+
+```
+mqtt.defcon.run -> Route53 A alias -> NLB (us-east-1)  [latency-based routing]
+mqtt.defcon.run -> Route53 A alias -> NLB (ca-central-1) [latency-based routing]
+```
+
+All four ports (1883, 8883, 443, 8443) resolve to the same NLB IPs. The NLB routes each port to the correct target group within the 4-container ECS task.
+
+**Confidence:** HIGH -- verified against AWS Route53 documentation on alias records and CloudFront port limitations.
 
 ## Recommended Stack
 
-### Content Types (Zero new dependencies -- Strapi built-in)
+### Container Images (3 new ECR repos per region)
 
-No new packages are needed. Strapi 5 content types are defined via `schema.json` files in `src/api/[name]/content-types/[name]/`. All field types needed (relations, media, enumerations, datetime, richtext, uid) are built into Strapi 5.6.
+| Image | Base | Version | Purpose | Why |
+|-------|------|---------|---------|-----|
+| `mqtt-mosquitto` | `eclipse-mosquitto` | `2.0.22-alpine` | MQTT broker | Official image, 4.7MB, production-stable. Pin to 2.0.22 not `latest`. |
+| `mqtt-nginx` | `nginx` | `1.28.2-alpine` | Meshmap web server + meshobserv reverse proxy | Stable branch. Serves static meshmap files and proxies meshobserv WebSocket. |
+| `mqtt-meshtk` | `golang` build + `alpine` runtime | Go 1.24 | gRPC/MQTT proxy, packet inspection, rate limiting, S3 logging | Multi-stage build: compile in golang:1.24, run in alpine:3.21 for minimal image. |
 
-| Capability | Mechanism | Notes |
-|------------|-----------|-------|
-| Content type definition | `schema.json` files in `src/api/` | No CLI needed; hand-write JSON schemas |
-| Many-to-many relations | `relation: "manyToMany"` with `inversedBy`/`mappedBy` | Bidirectional; Strapi auto-creates join tables in SQLite |
-| Media fields (photos, GPX, video) | `type: "media"` with `allowedTypes` and `multiple` | S3 upload provider already configured |
-| Enumerations (route type, POI category) | `type: "enumeration"` with `enum` array | Rendered as dropdown in admin |
-| Auto-slug from title | `type: "uid"` with `targetField` | Known bug in Strapi 5 with required UIDs; see Pitfalls |
-| Draft/publish workflow | `draftAndPublish: true` in schema options | REST API returns published by default |
-| REST API | Built-in at `/api/[plural-name]` | Requires enabling permissions on Public role |
+**Note:** The `ghosts` fleet simulator container uses the same `mqtt-meshtk` image with a different entrypoint/command. No separate ECR repo needed.
 
-**Confidence:** HIGH -- all verified against official Strapi 5 documentation.
+### NLB Listeners (4 per region)
 
-### Content Type Schema Patterns
+| Port | Protocol | TLS Termination | Target Group Protocol | Target Port | Container | Why |
+|------|----------|------------------|-----------------------|-------------|-----------|-----|
+| 1883 | TCP | None (plaintext) | TCP | 1883 | mqtt-mosquitto | Standard MQTT. Radios on local/trusted networks. |
+| 8883 | TLS | NLB terminates via ACM cert | TCP | 1883 | mqtt-mosquitto | Encrypted MQTT. NLB terminates TLS, forwards plaintext to mosquitto. Avoids managing certs inside container. |
+| 443 | TLS | NLB terminates via ACM cert | TCP | 80 | mqtt-nginx | Meshmap HTTPS. NLB terminates TLS, forwards HTTP to nginx. |
+| 8443 | TLS | NLB terminates via ACM cert | TCP | 9001 | mqtt-mosquitto | WebSocket-over-TLS MQTT. NLB terminates TLS, forwards to mosquitto WebSocket listener. |
 
-**Event content type** (`src/api/event/content-types/event/schema.json`):
+**Confidence:** HIGH -- the existing `ecs-service` module (line 216-240 of `ecs-service/v1.0.0/main.tf`) already supports NLB listeners with TLS termination, ACM certs, and TCP target groups. The `proxy_protocol_v2` flag is already wired for NLB TCP targets (line 167).
 
-```json
-{
-  "kind": "collectionType",
-  "collectionName": "events",
-  "info": {
-    "singularName": "event",
-    "pluralName": "events",
-    "displayName": "Event",
-    "description": "Scheduled DCR34 activities"
-  },
-  "options": {
-    "draftAndPublish": true
-  },
-  "attributes": {
-    "title": {
-      "type": "string",
-      "required": true,
-      "minLength": 3,
-      "maxLength": 200
-    },
-    "slug": {
-      "type": "uid",
-      "targetField": "title"
-    },
-    "description": {
-      "type": "richtext"
-    },
-    "startDate": {
-      "type": "datetime",
-      "required": true
-    },
-    "endDate": {
-      "type": "datetime"
-    },
-    "location": {
-      "type": "string"
-    },
-    "coordinates": {
-      "type": "json"
-    },
-    "photos": {
-      "type": "media",
-      "multiple": true,
-      "required": false,
-      "allowedTypes": ["images"]
-    },
-    "attachments": {
-      "type": "media",
-      "multiple": true,
-      "required": false,
-      "allowedTypes": ["files", "images"]
-    },
-    "routes": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::route.route",
-      "inversedBy": "events"
-    }
-  }
-}
-```
+### ACM Certificates for NLB
 
-**Route content type** (`src/api/route/content-types/route/schema.json`):
+| Certificate | Region | Purpose | How Created |
+|-------------|--------|---------|-------------|
+| `mqtt.defcon.run` | us-east-1 | NLB TLS listeners (8883, 443, 8443) | Existing `certs` module -- add `"mqtt"` to `dns.subdomains` |
+| `mqtt.defcon.run` | ca-central-1 | NLB TLS listeners (8883, 443, 8443) | Existing `certs` module -- add `"mqtt"` to `dns.subdomains` |
 
-```json
-{
-  "kind": "collectionType",
-  "collectionName": "routes",
-  "info": {
-    "singularName": "route",
-    "pluralName": "routes",
-    "displayName": "Route",
-    "description": "GPX routes for DCR34 events"
-  },
-  "options": {
-    "draftAndPublish": true
-  },
-  "attributes": {
-    "title": {
-      "type": "string",
-      "required": true
-    },
-    "slug": {
-      "type": "uid",
-      "targetField": "title"
-    },
-    "description": {
-      "type": "richtext"
-    },
-    "routeType": {
-      "type": "enumeration",
-      "enum": ["run", "walk", "hike", "bike", "other"],
-      "default": "run",
-      "required": true
-    },
-    "distance": {
-      "type": "decimal"
-    },
-    "elevationGain": {
-      "type": "integer"
-    },
-    "difficulty": {
-      "type": "enumeration",
-      "enum": ["easy", "moderate", "hard", "expert"],
-      "default": "moderate"
-    },
-    "gpxFiles": {
-      "type": "media",
-      "multiple": true,
-      "required": false,
-      "allowedTypes": ["files"]
-    },
-    "coverImage": {
-      "type": "media",
-      "multiple": false,
-      "required": false,
-      "allowedTypes": ["images"]
-    },
-    "events": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::event.event",
-      "mappedBy": "routes"
-    },
-    "pointsOfInterest": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::point-of-interest.point-of-interest",
-      "inversedBy": "routes"
-    }
-  }
-}
-```
+**Key constraint:** NLB requires ACM certificates in the same region as the NLB. This is already how the `certs` module works -- `subdomain_certs` are created per-region via the `aws.application` provider. The same ACM cert ARN is reused across all three TLS listeners on the same NLB.
 
-**Point of Interest content type** (`src/api/point-of-interest/content-types/point-of-interest/schema.json`):
+**No us-east-1 global cert needed** because there is no CloudFront distribution for mqtt.defcon.run.
 
-```json
-{
-  "kind": "collectionType",
-  "collectionName": "points_of_interest",
-  "info": {
-    "singularName": "point-of-interest",
-    "pluralName": "points-of-interest",
-    "displayName": "Point of Interest",
-    "description": "Reusable landmarks and waypoints"
-  },
-  "options": {
-    "draftAndPublish": true
-  },
-  "attributes": {
-    "name": {
-      "type": "string",
-      "required": true
-    },
-    "slug": {
-      "type": "uid",
-      "targetField": "name"
-    },
-    "description": {
-      "type": "richtext"
-    },
-    "category": {
-      "type": "enumeration",
-      "enum": ["water", "aid-station", "landmark", "viewpoint", "hazard", "parking", "restroom", "start-finish", "other"],
-      "required": true
-    },
-    "coordinates": {
-      "type": "json",
-      "required": true
-    },
-    "photo": {
-      "type": "media",
-      "multiple": false,
-      "required": false,
-      "allowedTypes": ["images"]
-    },
-    "routes": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::route.route",
-      "mappedBy": "pointsOfInterest"
-    }
-  }
-}
-```
+**Confidence:** HIGH -- verified against existing `certs/v1.0.0/acm.tf` which creates per-subdomain certs with wildcard SANs.
 
-### Relation Architecture
+### Proxy Protocol v2
 
-```
-Event <--manyToMany--> Route <--manyToMany--> PointOfInterest
-  |                       |                        |
-  inversedBy: events      mappedBy: routes         mappedBy: pointsOfInterest
-  (on Event.routes)       (on Route.events)        (on POI.routes)
-                          inversedBy: routes
-                          (on Route.pointsOfInterest)
-```
+**Use it on MQTT ports where meshtk needs source IP; skip it on meshmap port 443.**
 
-**Owner side** (has `inversedBy`): Event.routes, Route.pointsOfInterest
-**Inverse side** (has `mappedBy`): Route.events, POI.routes
+| Port | Proxy Protocol v2 | Why |
+|------|--------------------|-----|
+| 1883 | YES | Meshtk needs source IP for rate limiting and ACL enforcement |
+| 8883 | YES | Same reason -- meshtk inspects packets after NLB TLS termination |
+| 443 | NO | Nginx does not need source IP for meshmap (static content serving) |
+| 8443 | YES | Meshtk rate-limits WebSocket MQTT connections by source IP |
 
-The owner side controls the join table. In Strapi 5, the owner side shows the relation picker widget in the admin panel by default.
+**Critical caveat:** Mosquitto does NOT natively parse PROXY protocol v2 headers. If proxy_protocol_v2 is enabled on a target group pointing directly to mosquitto, it will see PROXY header bytes as invalid MQTT data and disconnect clients.
 
-### S3 Upload Provider -- CRITICAL UPDATE NEEDED
+**Solution (from defcon.run.33 architecture):** Route ports 1883/8883/8443 through meshtk first. Meshtk parses the PROXY protocol header, extracts the source IP for rate limiting, then forwards clean MQTT to mosquitto via localhost. The ECS task definition connects containers via `localhost` within the same network namespace.
 
-| Technology | Current Version | Required Version | Purpose | Why Update |
-|------------|----------------|-----------------|---------|------------|
-| `@strapi/provider-upload-aws-s3` | `^4.15.0` (v4) | `^5.6.0` (v5) | S3 media uploads | v4 package uses deprecated config format; v5 uses `s3Options.credentials` nesting. Currently works via backwards compatibility but will break on provider updates. |
+**Implementation note:** The existing `ecs-service` module auto-enables `proxy_protocol_v2 = true` when `type == "nlb" && target_group_protocol == "TCP"` (line 167). For the port 443 nginx target group, set `target_group_protocol = "HTTP"` or handle it explicitly to avoid proxy protocol on that path.
 
-**Current config** (in `config/plugins.ts`) -- v4 flat format:
+### ECS Task Definition (4-container task)
 
-```typescript
-providerOptions: {
-  accessKeyId: env('S3_MEDIA_ACCESS_KEY'),
-  secretAccessKey: env('S3_MEDIA_SECRET_KEY'),
-  region: env('S3_MEDIA_REGION', 'us-east-1'),
-  params: { Bucket: s3Bucket, ACL: null },
-  rootPath: s3RootPath,
-  baseUrl: cdnBaseUrl,
-}
-```
+| Container | CPU | Memory | Essential | Ports | Notes |
+|-----------|-----|--------|-----------|-------|-------|
+| mqtt-mosquitto | 256 | 512MB | Yes | 1883, 9001 | Broker with auth, ACL, persistence. Listens localhost only (meshtk fronts it). |
+| mqtt-meshtk | 256 | 512MB | Yes | 1883 (external), 8883, 8443 | gRPC proxy, rate limiter, S3 logger. Receives NLB traffic, forwards to mosquitto. |
+| mqtt-nginx | 128 | 256MB | Yes | 80 | Meshmap static files + meshobserv WebSocket reverse proxy |
+| mqtt-ghosts | 128 | 256MB | No | None | Fleet simulator. Non-essential -- task continues if ghosts crashes. |
 
-**Required config** -- v5 `s3Options` format:
+**Total task resources:** 768 CPU units / 1536MB memory. Fits the Fargate 1 vCPU / 2GB tier (1024 CPU / 2048 MB).
 
-```typescript
-providerOptions: {
-  baseUrl: cdnBaseUrl,
-  rootPath: s3RootPath,
-  s3Options: {
-    credentials: {
-      accessKeyId: env('S3_MEDIA_ACCESS_KEY'),
-      secretAccessKey: env('S3_MEDIA_SECRET_KEY'),
-    },
-    region: env('S3_MEDIA_REGION', 'us-east-1'),
-    params: {
-      Bucket: s3Bucket,
-      ACL: null,
-    },
-  },
-}
-```
+**Confidence:** HIGH -- follows exact pattern of existing 2-container tasks (nginx + app) in service.hcl files.
 
-**Action required:** Update `package.json` to `"@strapi/provider-upload-aws-s3": "^5.6.0"` and refactor `config/plugins.ts` to the v5 configuration format. This is a prerequisite for media upload testing with the new content types.
+### Infrastructure (Terraform modules -- existing, reused)
 
-**Confidence:** HIGH -- verified against official Strapi 5 S3 provider documentation.
+| Component | Module | Action | Notes |
+|-----------|--------|--------|-------|
+| NLB | `network/v1.0.0` | Set `nlb.enabled = true` in both region network.hcl files | NLB resource already defined but currently disabled |
+| NLB security group | `network/v1.0.0` | No changes needed | Ports 1883, 8883, 9001, 8443, 443 already configured in `aws_security_group.nlb` |
+| ECR repos | `ecr/v1.0.0` | Add 3 repos to ecr.hcl: mqtt-mosquitto, mqtt-nginx, mqtt-meshtk | Same pattern as run-auth-nginx, run-auth-app |
+| ACM certs | `certs/v1.0.0` | Add "mqtt" to `dns.subdomains` list | Creates `mqtt.defcon.run` cert in each region |
+| ECS task | `ecs-task/v1.0.0` | Add mqtt task definition in new `services/mqtt/service.hcl` | 4-container task definition |
+| ECS service | `ecs-service/v1.0.0` | Add mqtt service with 4 NLB `load_balancers` entries | Existing NLB listener creation code handles this |
+| Route53 | New resources needed | A alias records for `mqtt.defcon.run` -> NLB per region | Latency-based routing. Not in cloudfront module -- need new Route53 records. |
+| S3 logging | New bucket or reuse pattern | meshtk packet logs | Same pattern as NLB access logs bucket |
+| SSM params | `secrets/v1.0.0` | MQTT credentials, PSK, mosquitto passwd file | Same SSM parameter pattern as auth secrets |
 
-### GPX File Handling
+### New Terraform Resources Required
 
-GPX files are XML-based (`application/gpx+xml`). Strapi's media library accepts GPX files when uploaded through media fields with `allowedTypes: ["files"]`. No special MIME type configuration is needed because:
+The existing modules cover 90% of needs. New resources needed:
 
-1. Strapi's `files` allowed type accepts any non-image, non-video, non-audio file
-2. S3 stores the file as-is with the detected content type
-3. The consuming app (run.human) downloads the GPX file from the S3/CloudFront URL and parses it client-side
+1. **Route53 A alias records for mqtt.defcon.run** -- Currently, Route53 records are only created in the `cloudfront/v1.0.0/route53.tf` module (pointing to CloudFront distributions). For mqtt.defcon.run, records must point to NLB instead. Options:
+   - Add NLB alias record support to the `network` module (cleanest)
+   - Create in the `cloudfront` module with a conditional (hacky)
+   - New standalone `dns` module for non-CloudFront records
 
-**No GPX-specific plugin is needed.** The CMS treats GPX files as opaque file attachments. Parsing/rendering is the responsibility of run.human (which already uses gpx-studio).
+2. **S3 bucket for meshtk packet logs** -- One bucket per region for meshtk to write packet inspection logs. Follow the existing `nlb_logs` bucket pattern in `network/v1.0.0/nlb.tf`.
 
-**Confidence:** MEDIUM -- Strapi docs confirm `files` allowedType accepts arbitrary files; GPX-specific behavior not explicitly documented but follows from general file handling.
+### Supporting Configuration
 
-### Branded OIDC Login Page (Zero new dependencies)
+| Config | Format | Where Stored | Notes |
+|--------|--------|--------------|-------|
+| mosquitto.conf | INI-style | Baked into Docker image | Listener ports, auth plugin, ACL, persistence |
+| mosquitto passwd | hashed file | SSM Parameter -> container env -> file | Generated with `mosquitto_passwd` at build time |
+| mosquitto ACL | text file | Baked into Docker image or SSM | Topic-level access control |
+| meshtk config | YAML/env vars | ECS task env vars + SSM secrets | S3 bucket, rate limits, MQTT upstream |
+| nginx.conf | nginx conf | Baked into Docker image | Meshmap static serving, meshobserv proxy_pass |
 
-The branded login experience requires zero new packages. The approach uses three existing mechanisms:
+## Alternatives Considered
 
-| Layer | Mechanism | What It Does |
-|-------|-----------|--------------|
-| 1. Strapi admin config | `config.auth.logo` in `app.tsx` | Shows DCR34 logo on the Strapi login screen |
-| 2. Strapi theme | `config.theme.light/dark` in `app.tsx` | DCR34 brand colors (replaces Strapi purple) |
-| 3. Existing SSO redirect | Current `app.tsx` code | Auto-redirects to auth.defcon.run before user sees login form |
-
-**Implementation in `src/admin/app.tsx`:**
-
-```typescript
-import AuthLogo from "./extensions/dcr34-logo.svg";
-import MenuLogo from "./extensions/dcr34-logo-small.svg";
-
-export default {
-  config: {
-    auth: {
-      logo: AuthLogo,  // Login screen logo
-    },
-    menu: {
-      logo: MenuLogo,  // Sidebar logo
-    },
-    theme: {
-      light: {
-        colors: {
-          primary100: "#e8f5e9",  // DCR34 brand light
-          primary200: "#a5d6a7",
-          primary500: "#4caf50",
-          primary600: "#388e3c",  // DCR34 brand primary
-          primary700: "#2e7d32",
-        },
-      },
-      dark: {
-        colors: {
-          primary100: "#1b5e20",
-          primary200: "#2e7d32",
-          primary500: "#4caf50",
-          primary600: "#66bb6a",
-          primary700: "#81c784",
-        },
-      },
-    },
-    locales: ['en'],
-    tutorials: false,
-    notifications: { releases: false },
-  },
-  bootstrap() {
-    // Existing SSO redirect and 401 handling code stays as-is
-  },
-};
-```
-
-**Key insight:** The current `app.tsx` already hides the native Strapi login form (`document.documentElement.style.display = 'none'`) and redirects to SSO immediately. Users never see the Strapi login form. The branded login experience is actually the auth.defcon.run OIDC login page, not a Strapi page.
-
-What "branded CMS login" really means is:
-1. **Logo/theme branding** for the brief flash if the SSO redirect is slow (belt and suspenders)
-2. **Sidebar branding** after login (DCR34 logo in navigation)
-3. **auth.defcon.run login page** is already branded (it is the DCR34 login)
-
-**Confidence:** HIGH -- `config.auth.logo` and `config.theme` verified against Strapi 5 official docs. Current SSO redirect already working in production.
-
-### REST API Configuration (Zero new dependencies)
-
-Strapi 5 auto-generates REST API endpoints when content types are created:
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `GET /api/events` | GET | List all published events |
-| `GET /api/events/:documentId` | GET | Get single event |
-| `GET /api/routes` | GET | List all published routes |
-| `GET /api/routes/:documentId` | GET | Get single route |
-| `GET /api/points-of-interest` | GET | List all published POIs |
-| `GET /api/points-of-interest/:documentId` | GET | Get single POI |
-
-**Population syntax for run.human consumption:**
-
-```
-# Get events with routes populated (1 level)
-GET /api/events?populate=routes
-
-# Get events with routes AND route cover images (deep)
-GET /api/events?populate[routes][populate][0]=coverImage
-
-# Get routes with POIs and their photos
-GET /api/routes?populate[pointsOfInterest][populate][0]=photo&populate[0]=gpxFiles&populate[1]=coverImage
-
-# Wildcard populate (all 1 level -- use sparingly)
-GET /api/events?populate=*
-
-# Pagination
-GET /api/events?pagination[page]=1&pagination[pageSize]=25
-
-# Filtering
-GET /api/events?filters[routeType][$eq]=run&sort=startDate:asc
-
-# Published only (default -- no parameter needed)
-# Draft access: add status=draft
-```
-
-**Permission setup required:** After creating content types, enable `find` and `findOne` permissions for the Public role on each content type via the admin panel (Settings > Users & Permissions > Roles > Public). This is a manual step in the admin UI; Strapi does not support programmatic permission seeding.
-
-**Important for master-worker architecture:** Workers serve the REST API for internal consumption by webapps. run.human makes private calls to the regional CMS worker (not the master). Since the SQLite database is replicated from master to workers via Litestream, all content created on the master is available on workers within seconds of replication.
-
-**Confidence:** HIGH -- REST API pattern, populate syntax, and permission model verified against official Strapi 5 docs.
-
-### Coordinates Format Convention
-
-For `coordinates` JSON fields on Event and PointOfInterest:
-
-```json
-{
-  "lat": 36.1699,
-  "lng": -115.1398,
-  "altitude": 620
-}
-```
-
-Use a simple `{ lat, lng }` object (or `{ lat, lng, altitude }`). Do NOT use GeoJSON format -- it is unnecessarily complex for point locations in a CMS with no geospatial queries. SQLite has no spatial indexing anyway. run.human will consume these coordinates directly for map rendering.
-
-**Confidence:** HIGH -- architecture decision, not a library dependency.
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| MQTT Broker | Eclipse Mosquitto 2.0.22 | EMQX, HiveMQ, VerneMQ | Mosquitto proven from defcon.run.33. Single-node sufficient for event scale (~500 devices). Dramatically simpler deployment. |
+| Meshmap server | nginx 1.28-alpine | Caddy, Traefik | nginx matches existing pattern (all other apps use nginx sidecar). Team knows it. |
+| NLB TLS termination | ACM on NLB | Self-signed certs in container | ACM auto-renews, no cert management in containers, existing module supports it |
+| DNS strategy | NLB-only (no CloudFront) | CloudFront + split subdomains | Simpler DNS, one fewer CloudFront distribution, meshmap doesn't need edge caching |
+| Multi-region MQTT | Independent brokers per region | MQTT bridge between regions | Bridging adds complexity. Radios connect to nearest region via latency-based DNS routing. No cross-region message sync needed for this use case. |
+| Container orchestration | ECS Fargate (existing) | EKS, EC2 | Fargate matches all other services. No new infrastructure patterns to learn. |
+| Go version | 1.24 | 1.23, 1.22 | 1.24 is current stable. meshtk compiles fine on it. |
 
 ## What NOT to Add
 
-| Library/Approach | Why Not |
-|-----------------|---------|
-| PostGIS / SpatiaLite | Overkill. We have < 100 POIs and no spatial queries. SQLite JSON fields are sufficient. |
-| `strapi-plugin-slugify` | The built-in `uid` type with `targetField` handles slugs. Plugin adds unnecessary dependency. |
-| `strapi-plugin-import-export-entries` | Not needed for initial content creation. Organizers create content via admin panel. |
-| GraphQL plugin (`@strapi/plugin-graphql`) | REST API is sufficient for run.human. GraphQL adds complexity, larger bundle, and another attack surface. |
-| Custom content type generation tools | Hand-write `schema.json` files. The Content-Type Builder UI is available for experimentation but schemas should be committed as code. |
-| Strapi Cloud plugin (`@strapi/plugin-cloud`) | Already in `package.json` but serves no purpose for self-hosted deployment. Consider removing. |
-| Custom GPX parser plugin | CMS stores GPX as opaque files. Parsing happens in run.human/gpx-studio, not in CMS. |
-| `@strapi/plugin-documentation` (Swagger) | Internal API consumed only by run.human. Swagger docs add build time and maintenance burden for no audience. |
-| Database migrations plugin | Strapi auto-migrates SQLite schema when content types change. No manual migration needed. |
+| Technology | Why Not |
+|------------|---------|
+| **CloudFront distribution for mqtt.defcon.run** | NLB handles all ports directly. CloudFront cannot proxy raw TCP MQTT. Creates unsolvable DNS conflict. |
+| **Application Load Balancer for MQTT** | MQTT is raw TCP on ports 1883/8883, not HTTP. ALB only handles HTTP/HTTPS. |
+| **AWS IoT Core** | Overkill for a 4-day event with ~500 Meshtastic devices. Mosquitto is simpler, cheaper, and proven. |
+| **VPC peering / PrivateLink** | Devices connect from the public internet, not from within AWS. NLB is public-facing. |
+| **Global Accelerator** | Adds $18/month + data charges with minimal benefit over Route53 latency-based routing for two regions. |
+| **Separate ECS tasks per container** | All 4 containers MUST communicate over localhost (meshtk proxies to mosquitto). Single task = shared network namespace. Separate tasks = separate IPs = broken architecture. |
+| **mosquitto-go-auth plugin** | Static passwd file and ACL are sufficient for ~500 devices. Dynamic auth adds deployment complexity for no benefit. |
+| **EFS or EBS for mosquitto persistence** | Mosquitto persistent messages can use the ephemeral Fargate storage (20GB default). Messages are transient mesh data, not long-term state. |
 
-## Required Changes Summary
+## Integration Points with Existing Stack
 
-| Change | Type | Priority | Scope |
-|--------|------|----------|-------|
-| Create `src/api/event/` content type | New files | P0 | 4 files (schema, controller, service, routes) |
-| Create `src/api/route/` content type | New files | P0 | 4 files |
-| Create `src/api/point-of-interest/` content type | New files | P0 | 4 files |
-| Update `@strapi/provider-upload-aws-s3` to v5 | Package update | P0 | `package.json` + `config/plugins.ts` |
-| Add logo/theme to `src/admin/app.tsx` | Modify existing | P1 | `app.tsx` + new SVG files in `extensions/` |
-| Add logo SVGs to `src/admin/extensions/` | New files | P1 | 2 SVG files |
-| Enable Public role REST API permissions | Manual admin step | P0 | Admin UI configuration |
-| Test REST API with populate on workers | Verification | P0 | curl/fetch testing |
+| Integration | Mechanism | Status |
+|-------------|-----------|--------|
+| MQTT credentials from run.flash | run.flash calls run.human internal API to get MQTT username/password, provisions to device | Already implemented in v1.0 |
+| SSM parameters | Same `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/*` pattern | New params needed |
+| ECR push/deploy | Same `build.sh` / `deploy.sh` / `release-all.sh` scripts | Add mqtt service to release pipeline |
+| NLB ARN passthrough | `network` module outputs `nlb_arn` -> `ecs-service` module input `nlb_arn` | Already wired in module variables |
+| NLB security group | `network` module outputs `security_groups.nlb` | Already exists with correct port rules |
+| CloudWatch Logs | Same log group pattern as other services | `/ecs/mqtt-{container}-{region}` |
+| Meshtk checkout | Gitignored at `apps/mqtt/grpc/site-tld/meshtk/` | Manual copy from `~/working/meshtk` |
 
-### File Structure After Implementation
-
-```
-apps/run.cms/app/src/
-  admin/
-    app.tsx                          # MODIFIED: add logo imports + theme
-    extensions/
-      dcr34-logo.svg                 # NEW: auth screen logo
-      dcr34-logo-small.svg           # NEW: sidebar logo
-    vite.config.ts                   # UNCHANGED
-  api/
-    event/
-      content-types/
-        event/
-          schema.json                # NEW: event content type schema
-      controllers/
-        event.ts                     # NEW: default CRUD controller
-      services/
-        event.ts                     # NEW: default CRUD service
-      routes/
-        event.ts                     # NEW: default REST routes
-    route/
-      content-types/
-        route/
-          schema.json                # NEW: route content type schema
-      controllers/
-        route.ts                     # NEW
-      services/
-        route.ts                     # NEW
-      routes/
-        route.ts                     # NEW
-    point-of-interest/
-      content-types/
-        point-of-interest/
-          schema.json                # NEW: POI content type schema
-      controllers/
-        point-of-interest.ts         # NEW
-      services/
-        point-of-interest.ts         # NEW
-      routes/
-        point-of-interest.ts         # NEW
-    health/                          # UNCHANGED
-  middlewares/                       # UNCHANGED
-  extensions/                        # UNCHANGED
-```
-
-### Default Controller/Service/Routes Pattern
-
-Each content type needs minimal boilerplate files. Strapi 5 provides factory functions:
-
-**Controller** (`src/api/event/controllers/event.ts`):
-```typescript
-import { factories } from '@strapi/strapi';
-export default factories.createCoreController('api::event.event');
-```
-
-**Service** (`src/api/event/services/event.ts`):
-```typescript
-import { factories } from '@strapi/strapi';
-export default factories.createCoreService('api::event.event');
-```
-
-**Routes** (`src/api/event/routes/event.ts`):
-```typescript
-import { factories } from '@strapi/strapi';
-export default factories.createCoreRouter('api::event.event');
-```
-
-These one-liners give you full CRUD + REST API with zero custom logic. Custom overrides can be added later if needed.
-
-**Confidence:** HIGH -- factory pattern verified in Strapi 5 documentation.
-
-## Installation
+## Build & Deploy
 
 ```bash
-# Update S3 upload provider from v4 to v5
-cd apps/run.cms/app
-npm install @strapi/provider-upload-aws-s3@^5.6.0
+# No npm packages -- this milestone is infrastructure + Docker images only
 
-# No other new packages needed
-# Content types, relations, media, REST API, and admin branding
-# are all built into Strapi 5.6
+# ECR repos created by Terraform after adding to ecr.hcl
+
+# Build mosquitto image
+cd apps/mqtt/mosquitto && docker build -t mqtt-mosquitto .
+
+# Build nginx/meshmap image (meshobserv bundled)
+cd apps/mqtt/nginx && docker build -t mqtt-nginx .
+
+# Build meshtk image (requires meshtk Go source checkout)
+cp -r ~/working/meshtk apps/mqtt/grpc/site-tld/meshtk/
+cd apps/mqtt/grpc && docker build -t mqtt-meshtk .
+
+# Deploy uses existing patterns
+./apps/build.sh mqtt-mosquitto
+./apps/build.sh mqtt-nginx
+./apps/build.sh mqtt-meshtk
+./apps/deploy.sh mqtt
 ```
-
-## Master-Worker Architecture Implications
-
-| Concern | Impact | Mitigation |
-|---------|--------|------------|
-| Content type schemas must be identical | Schema files are baked into Docker image at build time | Same image deployed to master and all workers -- guaranteed consistency |
-| Public role permissions stored in SQLite | Permissions set on master replicate to workers via Litestream | Set permissions on master; workers auto-receive via DB replication |
-| Media uploads go to S3 | Workers read media from same S3/CloudFront URLs | S3 is region-agnostic (single bucket); CloudFront serves globally |
-| Draft content on master | Workers replicate full DB including drafts | REST API defaults to `status=published`; drafts only accessible with explicit parameter |
-| Join tables for relations | SQLite join tables replicate via Litestream | No special handling needed; all data is in the single SQLite file |
-| Content creation | Only master can write | Workers are read-only; webapps only read via REST API |
 
 ## Sources
 
-- [Strapi 5 Content-Type Builder Documentation](https://docs.strapi.io/cms/features/content-type-builder) -- field types, relation configuration
-- [Strapi 5 Models Documentation](https://docs.strapi.io/cms/backend-customization/models) -- schema.json format, attribute types
-- [Strapi 5 Relations Documentation](https://docs.strapi.io/cms/api/rest/relations) -- relation types, inversedBy/mappedBy
-- [Strapi 5 REST API Populate and Select](https://docs.strapi.io/cms/api/rest/populate-select) -- population syntax, deep populate
-- [Strapi 5 REST API Reference](https://docs.strapi.io/cms/api/rest) -- endpoint patterns, CRUD operations
-- [Strapi 5 Draft & Publish](https://docs.strapi.io/cms/features/draft-and-publish) -- status parameter, default behavior
-- [Strapi 5 Admin Panel Customization](https://docs.strapi.io/cms/admin-panel-customization) -- logo, theme, app.tsx config
-- [Strapi 5 Logo Customization](https://docs.strapi.io/cms/admin-panel-customization/logos) -- auth logo, menu logo
-- [Strapi 5 Theme Extension](https://docs.strapi.io/cms/admin-panel-customization/theme-extension) -- color tokens, light/dark modes
-- [Strapi 5 Amazon S3 Provider](https://docs.strapi.io/cms/configurations/media-library-providers/amazon-s3) -- v5 config format, s3Options
-- [Strapi 5 Users & Permissions](https://docs.strapi.io/cms/features/users-permissions) -- Public role, permission configuration
-- [Strapi 5 Media Library](https://docs.strapi.io/cms/features/media-library) -- media field types, allowedTypes
-- [Strapi 5 Filters Documentation](https://docs.strapi.io/cms/api/rest/filters) -- query parameter syntax
-- [Strapi UID Field Issue #21472](https://github.com/strapi/strapi/issues/21472) -- known bug with uid auto-generation
-- [Strapi S3 Provider Issue #23465](https://github.com/strapi/strapi/issues/23465) -- v4/v5 compatibility issues
-- [Strapi 5 Document Service Middleware](https://strapi.io/blog/what-are-document-service-middleware-and-what-happened-to-lifecycle-hooks-1) -- replaces lifecycle hooks in v5
+- [Eclipse Mosquitto Docker Hub](https://hub.docker.com/_/eclipse-mosquitto) -- v2.0.22-alpine confirmed (HIGH confidence)
+- [nginx Docker Hub](https://hub.docker.com/_/nginx) -- v1.28.2-alpine stable branch (HIGH confidence)
+- [AWS NLB TLS Listeners Documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/network/create-tls-listener.html) -- ACM cert requirement, TLS termination (HIGH confidence)
+- [AWS CloudFront HTTPS Requirements](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html) -- us-east-1 cert, HTTP-only proxying (HIGH confidence)
+- [AWS Route53 Alias Records](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-alias.html) -- single-target constraint per record name+type (HIGH confidence)
+- [AWS Route53 Latency-Based Routing](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy-weighted.html) -- multi-region DNS pattern (HIGH confidence)
+- Existing codebase `infra/terraform/modules/network/v1.0.0/nlb.tf` -- NLB already defined with SG (HIGH confidence)
+- Existing codebase `infra/terraform/modules/ecs-service/v1.0.0/main.tf` -- NLB listener + proxy_protocol_v2 support (HIGH confidence)
+- Existing codebase `infra/terraform/modules/certs/v1.0.0/acm.tf` -- per-subdomain per-region ACM certs (HIGH confidence)
+- Existing codebase `infra/terraform/modules/network/v1.0.0/securitygroups.tf` -- NLB SG with MQTT ports (HIGH confidence)
+- [Mosquitto Docker Configuration Guide](https://cedalo.com/blog/mosquitto-docker-configuration-ultimate-guide/) -- config/data/log paths (MEDIUM confidence)
+- [AWS ECS Mosquitto Deployment](https://www.atom8.ai/blog/how-to-deploy-mqtt-broker-using-eclipse-mosquitto-on-amazon-ecs) -- ECS-specific patterns (MEDIUM confidence)
