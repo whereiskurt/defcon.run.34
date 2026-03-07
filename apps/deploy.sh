@@ -5,6 +5,7 @@
 #   ./deploy.sh run.auth
 #   ./deploy.sh run.human
 #   ./deploy.sh run.cms
+#   ./deploy.sh run.mqtt
 
 set -e
 
@@ -12,12 +13,12 @@ APP="${1}"
 
 if [[ -z "$APP" ]]; then
   echo "Usage: ./deploy.sh <app>"
-  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash"
+  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash | run.mqtt"
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', or 'run.flash'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.mqtt" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', or 'run.mqtt'"
   exit 1
 fi
 
@@ -43,21 +44,36 @@ case "$APP" in
     TF_SERVICE="run.flash"
     APP_COMPONENT="webapp"
     ;;
+  "run.mqtt")
+    TF_SERVICE="run.mqtt"
+    APP_COMPONENT="mqtt"
+    ;;
 esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${SCRIPT_DIR}/${APP}"
+# mqtt uses apps/mqtt/ not apps/run.mqtt/
+if [[ "$APP" == "run.mqtt" ]]; then
+  APP_DIR="${SCRIPT_DIR}/mqtt"
+fi
 TF_SERVICE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services/${TF_SERVICE}"
 
 echo "=== Deploying ${APP} ==="
 echo "$(date)"
 
 # Copy VERSION files to terraform
-# Some apps (like run.gpx) don't have nginx component
-if [[ -f "${APP_DIR}/nginx/VERSION" ]]; then
+if [[ "$APP" == "run.mqtt" ]]; then
+  # mqtt has 3 independent container images with separate VERSION files
+  cp "${APP_DIR}/mosquitto/VERSION" "${TF_SERVICE_DIR}/VERSION.mosquitto"
+  cp "${APP_DIR}/meshtk/VERSION" "${TF_SERVICE_DIR}/VERSION.meshtk"
   cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+else
+  # Standard apps: optional nginx + single app/webapp VERSION
+  if [[ -f "${APP_DIR}/nginx/VERSION" ]]; then
+    cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+  fi
+  cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
 fi
-cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
 
 # Apply terraform to trigger ECS blue/green deployment
 # Only apply ECS modules (ecs-task then ecs-service) - not all infrastructure
