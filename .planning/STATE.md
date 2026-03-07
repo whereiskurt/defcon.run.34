@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Meshtk Integration
 status: executing
-stopped_at: Completed 16-01-PLAN.md
-last_updated: "2026-03-07T14:10:44Z"
-last_activity: 2026-03-07 -- Completed 16-01 mqtt build pipeline
+stopped_at: Completed 16-02-PLAN.md
+last_updated: "2026-03-07T14:15:38Z"
+last_activity: 2026-03-07 -- Completed 16-02 deploy/release pipeline for mqtt
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 7
-  percent: 60
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 16 of 18 (Build & Deploy Pipeline)
-Plan: 1 of 2 in current phase (16-01 complete)
-Status: In progress
-Last activity: 2026-03-07 -- Completed 16-01 mqtt build pipeline (build.sh, version.sh, VERSION files)
+Phase: 16 of 18 (Build & Deploy Pipeline) -- COMPLETE
+Plan: 2 of 2 in current phase (all complete)
+Status: Phase 16 complete
+Last activity: 2026-03-07 -- Completed 16-02 deploy/release pipeline for mqtt
 
-Progress: [======....] 60% (3/5 v1.3 phases, 1/2 phase 16 plans)
+Progress: [========..] 80% (3/5 v1.3 phases, 2/2 phase 16 plans)
 
 ## Accumulated Context
 
@@ -53,6 +53,8 @@ Recent decisions affecting current work:
 - [Phase 15]: Usernames in env vars, only passwords in SSM secrets for MQTT containers
 - [Phase 16]: APP_DIR override maps run.mqtt to apps/mqtt/ (non-standard directory naming)
 - [Phase 16]: resolve_meshtk clones from GitHub in CI, copies from symlink locally
+- [Phase 16]: get_components() replaces has_nginx+get_app_component for build loop iteration
+- [Phase 16]: --skip-nginx never skips mqtt's nginx (primary serving container)
 
 ### Pending Todos
 
@@ -66,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T14:10:44Z
-Stopped at: Completed 16-01-PLAN.md
-Resume file: .planning/phases/16-build-deploy-pipeline/16-01-SUMMARY.md
+Last session: 2026-03-07T14:15:38Z
+Stopped at: Completed 16-02-PLAN.md
+Resume file: .planning/phases/16-build-deploy-pipeline/16-02-SUMMARY.md
