@@ -26,6 +26,7 @@ dependency "ecs_task" {
       "run-cms-worker" = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-cms-worker-use1-example-site:1"
       "run-gpx"        = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-gpx-use1-example-site:1"
       "run-flash"      = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-flash-use1-example-site:1"
+      "run-mqtt"       = "arn:aws:ecs:us-east-1:123456789012:task-definition/run-mqtt-use1-example-site:1"
     }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
@@ -58,7 +59,7 @@ dependency "network" {
     security_group_ids = ["sg-mock123"]
     alb_arn            = "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/mock-alb/abc123"
     alb_listener_arn   = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/app/mock-alb/abc123/def456"
-    nlb_arn            = null
+    nlb_arn            = "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/net/mock-nlb/abc123"
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
