@@ -34,17 +34,17 @@ Requirements for Meshtk Integration milestone. Each maps to roadmap phases.
 
 ### Meshmap
 
-- [ ] **MESH-01**: Live node position display on Leaflet map from meshobserv nodes.json polling
-- [ ] **MESH-02**: Node identity display (longName, shortName, hwModel, role) in map popups
-- [ ] **MESH-03**: Device telemetry display (battery, voltage, channel utilization, air time) in map popups
-- [ ] **MESH-04**: Neighbor topology lines with SNR and distance in tooltips
-- [ ] **MESH-05**: AES-CTR decryption of Meshtastic channel traffic in meshobserv
-- [ ] **MESH-06**: Node search via leaflet-search plugin (by name or hex ID)
-- [ ] **MESH-07**: Marker clustering with leaflet.markercluster (disable at zoom 10)
-- [ ] **MESH-08**: Meshmap ported as-is from DC33 with minor label updates (event name, year)
-- [ ] **MESH-09**: Color-coded node markers by identity/role retained from DC33
-- [ ] **MESH-10**: Dark mode toggle with localStorage persistence retained from DC33
-- [ ] **MESH-11**: Node opacity based on last-seen age (36-hour fade) retained from DC33
+- [x] **MESH-01**: Live node position display on Leaflet map from meshobserv nodes.json polling
+- [x] **MESH-02**: Node identity display (longName, shortName, hwModel, role) in map popups
+- [x] **MESH-03**: Device telemetry display (battery, voltage, channel utilization, air time) in map popups
+- [x] **MESH-04**: Neighbor topology lines with SNR and distance in tooltips
+- [x] **MESH-05**: AES-CTR decryption of Meshtastic channel traffic in meshobserv
+- [x] **MESH-06**: Node search via leaflet-search plugin (by name or hex ID)
+- [x] **MESH-07**: Marker clustering with leaflet.markercluster (disable at zoom 10)
+- [x] **MESH-08**: Meshmap ported as-is from DC33 with minor label updates (event name, year)
+- [x] **MESH-09**: Color-coded node markers by identity/role retained from DC33
+- [x] **MESH-10**: Dark mode toggle with localStorage persistence retained from DC33
+- [x] **MESH-11**: Node opacity based on last-seen age (36-hour fade) retained from DC33
 
 ### Fleet & Engagement
 
@@ -108,17 +108,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONT-07 | Phase 15 | Complete |
 | CONT-08 | Phase 16 | Complete |
 | CONT-09 | Phase 16 | Complete |
-| MESH-01 | Phase 17 | Pending |
-| MESH-02 | Phase 17 | Pending |
-| MESH-03 | Phase 17 | Pending |
-| MESH-04 | Phase 17 | Pending |
-| MESH-05 | Phase 17 | Pending |
-| MESH-06 | Phase 17 | Pending |
-| MESH-07 | Phase 17 | Pending |
-| MESH-08 | Phase 17 | Pending |
-| MESH-09 | Phase 17 | Pending |
-| MESH-10 | Phase 17 | Pending |
-| MESH-11 | Phase 17 | Pending |
+| MESH-01 | Phase 17 | Complete |
+| MESH-02 | Phase 17 | Complete |
+| MESH-03 | Phase 17 | Complete |
+| MESH-04 | Phase 17 | Complete |
+| MESH-05 | Phase 17 | Complete |
+| MESH-06 | Phase 17 | Complete |
+| MESH-07 | Phase 17 | Complete |
+| MESH-08 | Phase 17 | Complete |
+| MESH-09 | Phase 17 | Complete |
+| MESH-10 | Phase 17 | Complete |
+| MESH-11 | Phase 17 | Complete |
 | FLEET-01 | Phase 18 | Pending |
 | FLEET-02 | Phase 18 | Pending |
 | FLEET-03 | Phase 18 | Pending |

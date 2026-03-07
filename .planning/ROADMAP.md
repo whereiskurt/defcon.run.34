@@ -42,7 +42,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for archived v1.2 roadmap.
 - [x] **Phase 14: Infrastructure Foundation** - NLB, security groups, ECR repos, ACM certs, Route53 DNS, S3 buckets, SSM params, ecs-service PP2 fix (completed 2026-03-07)
 - [x] **Phase 15: Container Images + Task Definition** - Mosquitto, meshtk, nginx/meshobserv, ghosts Dockerfiles and 4-container ECS task (completed 2026-03-07)
 - [x] **Phase 16: Build/Deploy Pipeline** - build.sh, deploy.sh, release-all.sh adapted for mqtt multi-container service (completed 2026-03-07)
-- [ ] **Phase 17: Meshmap Verification + Branding** - Validate meshmap features ported from DC33, apply DC34 branding
+- [x] **Phase 17: Meshmap Verification + Branding** - Validate meshmap features ported from DC33, apply DC34 branding (completed 2026-03-07)
 - [ ] **Phase 18: Fleet Simulator + Easter Egg** - Ghost fleet with GPX movement and meshmap easter egg
 
 ## Phase Details
@@ -132,5 +132,5 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 | 14. Infrastructure Foundation | 3/3 | Complete    | 2026-03-07 | - |
 | 15. Container Images + Task Definition | 3/3 | Complete    | 2026-03-07 | - |
 | 16. Build/Deploy Pipeline | 2/2 | Complete    | 2026-03-07 | - |
-| 17. Meshmap Verification + Branding | v1.3 | 0/1 | Not started | - |
+| 17. Meshmap Verification + Branding | 1/1 | Complete   | 2026-03-07 | - |
 | 18. Fleet Simulator + Easter Egg | v1.3 | 0/? | Not started | - |
