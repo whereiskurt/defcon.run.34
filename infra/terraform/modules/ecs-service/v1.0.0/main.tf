@@ -74,6 +74,7 @@ locals {
         container_port        = lb.container_port
         target_group_port     = lb.target_group_port != null ? lb.target_group_port : lb.container_port
         target_group_protocol = lb.target_group_protocol
+        proxy_protocol_v2     = lb.proxy_protocol_v2
         health_check_path     = lb.health_check_path
         health_check_protocol = lb.health_check_protocol != null ? lb.health_check_protocol : lb.target_group_protocol
         health_check          = lb.health_check
@@ -163,8 +164,8 @@ resource "aws_lb_target_group" "target_group" {
     }
   }
 
-  # Enable proxy protocol v2 for NLB TCP targets
-  proxy_protocol_v2 = each.value.type == "nlb" && each.value.target_group_protocol == "TCP" ? true : false
+  # Enable proxy protocol v2: explicit toggle if set, otherwise auto-detect for NLB TCP targets
+  proxy_protocol_v2 = each.value.proxy_protocol_v2 != null ? each.value.proxy_protocol_v2 : (each.value.type == "nlb" && each.value.target_group_protocol == "TCP" ? true : false)
 
   tags = {
     Name    = "${each.value.service_name}-${each.value.container_port}"

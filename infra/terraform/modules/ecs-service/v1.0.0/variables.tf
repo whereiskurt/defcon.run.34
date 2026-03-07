@@ -50,6 +50,7 @@ variable "ecs_services" {
       container_port        = number
       target_group_port     = optional(number, null)  # Defaults to container_port
       target_group_protocol = optional(string, "TCP") # TCP, TLS, HTTP, HTTPS
+      proxy_protocol_v2     = optional(bool, null)    # Explicit PP2 toggle; null = auto-detect (NLB+TCP=true)
       health_check_path     = optional(string, "/")
       health_check_protocol = optional(string, null) # Defaults to target_group_protocol
       health_check = optional(object({

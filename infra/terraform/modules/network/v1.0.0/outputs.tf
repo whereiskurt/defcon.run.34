@@ -68,10 +68,13 @@ output "security_groups" {
 # Default security group list for ECS services
 output "security_group_ids" {
   description = "List of default security group IDs for ECS services"
-  value = [
-    aws_security_group.sshhttps.id,
-    aws_security_group.http_only.id
-  ]
+  value = concat(
+    [
+      aws_security_group.sshhttps.id,
+      aws_security_group.http_only.id
+    ],
+    var.nlb.enabled ? [aws_security_group.nlb.id] : []
+  )
 }
 
 # Subnet aliases for compatibility
