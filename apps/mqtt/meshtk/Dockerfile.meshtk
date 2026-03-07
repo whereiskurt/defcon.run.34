@@ -1,0 +1,26 @@
+# Build stage - compile meshtk binary
+FROM golang:1.24-alpine AS builder
+
+RUN apk add --no-cache git
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /meshtk ./cmd/meshtk.go
+
+# Runtime stage
+FROM alpine:3.21
+
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /meshtk /usr/local/bin/meshtk
+
+EXPOSE 1883
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD nc -z localhost 1883 || exit 1
+
+ENTRYPOINT ["meshtk"]
+CMD ["server", "proxy"]

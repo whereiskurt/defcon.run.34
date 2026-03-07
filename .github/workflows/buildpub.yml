@@ -8,7 +8,7 @@ on:
       apps:
         description: 'Apps to build (comma-separated)'
         type: string
-        default: 'run.auth,run.human,run.cms,run.gpx,run.flash'
+        default: 'run.auth,run.human,run.cms,run.gpx,run.flash,run.mqtt'
       regions:
         description: 'Target regions'
         type: choice

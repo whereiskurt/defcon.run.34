@@ -221,6 +221,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		{"run.cms", "cms"},
 		{"run.gpx", "gpx"},
 		{"run.flash", "flash"},
+		{"run.mqtt", "mqtt"},
 	} {
 		if out, err := renderServiceHCL(svc.name, cfg); err == nil {
 			tabs = append(tabs, previewTab{"svc-" + svc.label, svc.name + "/service.hcl", out, ""})
@@ -273,7 +274,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		originals["envlocal"] = out
 	}
 	for _, svc := range []struct{ name, label string }{
-		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"}, {"run.flash", "flash"},
+		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"}, {"run.flash", "flash"}, {"run.mqtt", "mqtt"},
 	} {
 		if out, err := renderServiceHCL(svc.name, savedCfg); err == nil {
 			originals["svc-"+svc.label] = out
@@ -888,6 +889,9 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 	gpxApp := r.FormValue("versions.gpx.app")
 	flashApp := r.FormValue("versions.flash.app")
 	flashNginx := r.FormValue("versions.flash.nginx")
+	mqttMosquitto := r.FormValue("versions.mqtt.mosquitto")
+	mqttMeshtk := r.FormValue("versions.mqtt.meshtk")
+	mqttNginx := r.FormValue("versions.mqtt.nginx")
 
 	a.mu.RLock()
 	siteLabel := a.config.Site.Label
@@ -914,6 +918,9 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 		{"gpx-app", siteLabel + "-run-gpx-app", gpxApp},
 		{"flash-app", siteLabel + "-run-flash-app", flashApp},
 		{"flash-nginx", siteLabel + "-run-flash-nginx", flashNginx},
+		{"mqtt-mosquitto", siteLabel + "-mqtt-mosquitto", mqttMosquitto},
+		{"mqtt-meshtk", siteLabel + "-mqtt-meshtk", mqttMeshtk},
+		{"mqtt-nginx", siteLabel + "-mqtt-nginx", mqttNginx},
 	}
 
 	results := make(map[string]ECRTagResult)
@@ -1130,6 +1137,9 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Versions.GPX.App = formStr(r, "versions.gpx.app", cfg.Versions.GPX.App)
 	cfg.Versions.Flash.App = formStr(r, "versions.flash.app", cfg.Versions.Flash.App)
 	cfg.Versions.Flash.Nginx = formStr(r, "versions.flash.nginx", cfg.Versions.Flash.Nginx)
+	cfg.Versions.MQTT.Mosquitto = formStr(r, "versions.mqtt.mosquitto", cfg.Versions.MQTT.Mosquitto)
+	cfg.Versions.MQTT.Meshtk = formStr(r, "versions.mqtt.meshtk", cfg.Versions.MQTT.Meshtk)
+	cfg.Versions.MQTT.Nginx = formStr(r, "versions.mqtt.nginx", cfg.Versions.MQTT.Nginx)
 
 	return cfg
 }
@@ -1233,6 +1243,26 @@ func parseServiceForm(r *http.Request, cfg *SiteConfig) {
 	cfg.Services.Flash.Service.Autoscaling.Enabled = formBool(r, "svc.flash.autoscaling.enabled")
 	cfg.Services.Flash.Service.Autoscaling.MinCapacity = formInt(r, "svc.flash.autoscaling.min", 1)
 	cfg.Services.Flash.Service.Autoscaling.MaxCapacity = formInt(r, "svc.flash.autoscaling.max", 2)
+
+	// MQTT
+	cfg.Services.MQTT.Task.TaskCPU = formInt(r, "svc.mqtt.task_cpu", 1024)
+	cfg.Services.MQTT.Task.TaskMemory = formInt(r, "svc.mqtt.task_memory", 2048)
+	cfg.Services.MQTT.Mosquitto.CPU = formInt(r, "svc.mqtt.mosquitto.cpu", 256)
+	cfg.Services.MQTT.Mosquitto.Memory = formInt(r, "svc.mqtt.mosquitto.memory", 384)
+	cfg.Services.MQTT.Mosquitto.MemoryReservation = formInt(r, "svc.mqtt.mosquitto.mem_reservation", 256)
+	cfg.Services.MQTT.Meshtk.CPU = formInt(r, "svc.mqtt.meshtk.cpu", 384)
+	cfg.Services.MQTT.Meshtk.Memory = formInt(r, "svc.mqtt.meshtk.memory", 768)
+	cfg.Services.MQTT.Meshtk.MemoryReservation = formInt(r, "svc.mqtt.meshtk.mem_reservation", 512)
+	cfg.Services.MQTT.Nginx.CPU = formInt(r, "svc.mqtt.nginx.cpu", 256)
+	cfg.Services.MQTT.Nginx.Memory = formInt(r, "svc.mqtt.nginx.memory", 512)
+	cfg.Services.MQTT.Nginx.MemoryReservation = formInt(r, "svc.mqtt.nginx.mem_reservation", 384)
+	cfg.Services.MQTT.Ghosts.CPU = formInt(r, "svc.mqtt.ghosts.cpu", 128)
+	cfg.Services.MQTT.Ghosts.Memory = formInt(r, "svc.mqtt.ghosts.memory", 384)
+	cfg.Services.MQTT.Ghosts.MemoryReservation = formInt(r, "svc.mqtt.ghosts.mem_reservation", 256)
+	cfg.Services.MQTT.Service.DesiredCount = formInt(r, "svc.mqtt.desired_count", 1)
+	cfg.Services.MQTT.Service.Autoscaling.Enabled = formBool(r, "svc.mqtt.autoscaling.enabled")
+	cfg.Services.MQTT.Service.Autoscaling.MinCapacity = formInt(r, "svc.mqtt.autoscaling.min", 1)
+	cfg.Services.MQTT.Service.Autoscaling.MaxCapacity = formInt(r, "svc.mqtt.autoscaling.max", 2)
 }
 
 // Form value helpers

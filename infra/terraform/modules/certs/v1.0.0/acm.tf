@@ -14,8 +14,10 @@ resource "aws_acm_certificate" "primary_zone_cert" {
   provider          = aws.application
   validation_method = "DNS"
   domain_name       = var.dns.zonename
+  # *.defcon.run covers all single-level subdomains, so only add region-specific SANs.
+  # ACM default quota is 10 domain names per cert (primary + SANs).
   subject_alternative_names = [
-    for subdomain in concat(["*"], ["${var.region.label}"], ["*.${var.region.label}"], var.dns.subdomains) :
+    for subdomain in ["*", var.region.label, "*.${var.region.label}"] :
     "${subdomain}.${var.dns.zonename}"
   ]
 

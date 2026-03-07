@@ -24,7 +24,7 @@ func TestImportSiteHCL(t *testing.T) {
 
 	// DNS
 	assertEqual(t, "DNS.ZoneName", cfg.DNS.ZoneName, "defcon.run")
-	assertSliceEqual(t, "DNS.Subdomains", cfg.DNS.Subdomains, []string{"email", "run", "auth", "cms", "gpx", "flash"})
+	assertSliceEqual(t, "DNS.Subdomains", cfg.DNS.Subdomains, []string{"email", "run", "auth", "cms", "gpx", "flash", "mqtt"})
 	assertIntEqual(t, "DNS.TTL", cfg.DNS.TTL, 300)
 
 	// URLs
@@ -170,8 +170,8 @@ func TestImportServiceHCL(t *testing.T) {
 	assertBoolEqual(t, "CMS.Media.CloudFrontAccess", cfg.Services.CMS.Media.CloudFrontAccess, true)
 	assertBoolEqual(t, "CMS.Media.ReplicationEnabled", cfg.Services.CMS.Media.ReplicationEnabled, true)
 	assertIntEqual(t, "CMS.MasterService.Priority", cfg.Services.CMS.MasterService.Priority, 100)
-	assertBoolEqual(t, "CMS.WorkerService.Autoscaling.Enabled", cfg.Services.CMS.WorkerService.Autoscaling.Enabled, true)
-	assertIntEqual(t, "CMS.WorkerService.Autoscaling.MaxCapacity", cfg.Services.CMS.WorkerService.Autoscaling.MaxCapacity, 3)
+	assertBoolEqual(t, "CMS.WorkerService.Autoscaling.Enabled", cfg.Services.CMS.WorkerService.Autoscaling.Enabled, false)
+	assertIntEqual(t, "CMS.WorkerService.Autoscaling.MaxCapacity", cfg.Services.CMS.WorkerService.Autoscaling.MaxCapacity, 1)
 
 	// GPX service
 	assertIntEqual(t, "GPX.Task.TaskCPU", cfg.Services.GPX.Task.TaskCPU, 256)

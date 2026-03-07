@@ -224,6 +224,7 @@ type ServiceConfigs struct {
 	CMS   CMSServiceConfig   `json:"cms"`
 	GPX   GPXServiceConfig   `json:"gpx"`
 	Flash FlashServiceConfig `json:"flash"`
+	MQTT  MQTTServiceConfig  `json:"mqtt"`
 }
 
 type ContainerConfig struct {
@@ -333,17 +334,33 @@ type FlashServiceConfig struct {
 	Service ServiceRunConfig `json:"service"`
 }
 
+type MQTTServiceConfig struct {
+	Task      TaskConfig       `json:"task"`
+	Mosquitto ContainerConfig  `json:"mosquitto"`
+	Meshtk    ContainerConfig  `json:"meshtk"`
+	Nginx     ContainerConfig  `json:"nginx"`
+	Ghosts    ContainerConfig  `json:"ghosts"`
+	Service   ServiceRunConfig `json:"service"`
+}
+
 type VersionConfig struct {
-	Auth  ComponentVersions `json:"auth"`
-	Human ComponentVersions `json:"human"`
-	CMS   ComponentVersions `json:"cms"`
-	GPX   ComponentVersions `json:"gpx"`
-	Flash ComponentVersions `json:"flash"`
+	Auth  ComponentVersions     `json:"auth"`
+	Human ComponentVersions     `json:"human"`
+	CMS   ComponentVersions     `json:"cms"`
+	GPX   ComponentVersions     `json:"gpx"`
+	Flash ComponentVersions     `json:"flash"`
+	MQTT  MQTTComponentVersions `json:"mqtt"`
 }
 
 type ComponentVersions struct {
 	App   string `json:"app"`
 	Nginx string `json:"nginx,omitempty"`
+}
+
+type MQTTComponentVersions struct {
+	Mosquitto string `json:"mosquitto"`
+	Meshtk    string `json:"meshtk"`
+	Nginx     string `json:"nginx"`
 }
 
 // KnownRegions returns a curated list of AWS regions available for deployment.
@@ -678,6 +695,28 @@ func DefaultConfig() *SiteConfig {
 					Autoscaling: AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
 				},
 			},
+			MQTT: MQTTServiceConfig{
+				Task: TaskConfig{TaskCPU: 1024, TaskMemory: 2048, Regions: []string{"us-east-1", "ca-central-1"}},
+				Mosquitto: ContainerConfig{
+					CPU: 256, Memory: 384, MemoryReservation: 256,
+					HealthCheck: HealthCheckConfig{Interval: 30, Timeout: 5, Retries: 3, StartPeriod: 30},
+				},
+				Meshtk: ContainerConfig{
+					CPU: 384, Memory: 768, MemoryReservation: 512,
+					HealthCheck: HealthCheckConfig{Interval: 30, Timeout: 3, Retries: 3, StartPeriod: 10},
+				},
+				Nginx: ContainerConfig{
+					CPU: 256, Memory: 512, MemoryReservation: 384,
+					HealthCheck: HealthCheckConfig{Interval: 30, Timeout: 5, Retries: 3, StartPeriod: 15},
+				},
+				Ghosts: ContainerConfig{
+					CPU: 128, Memory: 384, MemoryReservation: 256,
+				},
+				Service: ServiceRunConfig{
+					DesiredCount: 1,
+					Autoscaling:  AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
+				},
+			},
 		},
 		Waffaw: WaffawConfig{
 			Enabled:         true,
@@ -698,6 +737,7 @@ func DefaultConfig() *SiteConfig {
 			CMS:   ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
 			GPX:   ComponentVersions{App: "v0.0.27"},
 			Flash: ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
+			MQTT:  MQTTComponentVersions{Mosquitto: "v0.1.0", Meshtk: "v0.1.0", Nginx: "v0.1.0"},
 		},
 	}
 }

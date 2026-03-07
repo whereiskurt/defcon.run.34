@@ -1,0 +1,4 @@
+# Ignore meshtk Go source (copied at build time from ~/working/meshtk)
+meshtk/*
+!meshtk/Dockerfile.meshtk
+!meshtk/VERSION

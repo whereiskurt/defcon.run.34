@@ -80,7 +80,7 @@
           </td>
           <td class="py-2"><span id="ecr-gpx-app" class="ecr-badge"></span></td>
         </tr>
-        <tr>
+        <tr class="border-b border-zinc-200 dark:border-zinc-700">
           <td class="py-2 font-medium">run.flash</td>
           <td class="py-2"><input type="text" name="versions.flash.app" value="{{.Config.Versions.Flash.App}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-green-500"></td>
           <td class="py-2"><input type="text" name="versions.flash.nginx" value="{{.Config.Versions.Flash.Nginx}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-28 focus:ring-2 focus:ring-green-500"></td>
@@ -92,6 +92,33 @@
             {{end}}
           </td>
           <td class="py-2"><span id="ecr-flash-app" class="ecr-badge"></span> <span id="ecr-flash-nginx" class="ecr-badge"></span></td>
+        </tr>
+        <tr>
+          <td class="py-2 font-medium">run.mqtt</td>
+          <td class="py-2" colspan="2">
+            <div class="flex gap-2">
+              <div class="flex flex-col gap-1">
+                <label class="text-[10px] uppercase text-zinc-400">mosquitto</label>
+                <input type="text" name="versions.mqtt.mosquitto" value="{{.Config.Versions.MQTT.Mosquitto}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-24 focus:ring-2 focus:ring-green-500">
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="text-[10px] uppercase text-zinc-400">meshtk</label>
+                <input type="text" name="versions.mqtt.meshtk" value="{{.Config.Versions.MQTT.Meshtk}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-24 focus:ring-2 focus:ring-green-500">
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="text-[10px] uppercase text-zinc-400">nginx</label>
+                <input type="text" name="versions.mqtt.nginx" value="{{.Config.Versions.MQTT.Nginx}}" class="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-2 py-1 text-sm font-mono w-24 focus:ring-2 focus:ring-green-500">
+              </div>
+            </div>
+          </td>
+          <td class="py-2">
+            {{if and (index $sync "mqtt") (index (index $sync "mqtt") "mosquitto") (index (index $sync "mqtt") "meshtk") (index (index $sync "mqtt") "nginx")}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"><span class="status-dot ok"></span> sync</span>
+            {{else}}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"><span class="status-dot warning"></span> mismatch</span>
+            {{end}}
+          </td>
+          <td class="py-2"><span id="ecr-mqtt-mosquitto" class="ecr-badge"></span> <span id="ecr-mqtt-meshtk" class="ecr-badge"></span> <span id="ecr-mqtt-nginx" class="ecr-badge"></span></td>
         </tr>
       </tbody>
     </table>

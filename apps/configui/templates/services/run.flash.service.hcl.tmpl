@@ -128,7 +128,7 @@ locals {
           {
             # Internal auth URL via service discovery (container-to-container)
             name  = "AUTH_INTERNAL_URL"
-            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
           },
           {
             name  = "FLASH_PUBLIC_URL"
@@ -137,7 +137,7 @@ locals {
           {
             # Internal run.human URL via service discovery (for user profile/MQTT lookup)
             name  = "RUN_HUMAN_INTERNAL_URL"
-            value = "http://run-human.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+            value = "http://run-human.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
           }
         ]
 

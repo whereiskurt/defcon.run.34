@@ -1,0 +1,45 @@
+# Build stage - compile meshobserv binary from meshtk source
+FROM golang:1.24-alpine AS builder
+
+RUN apk add --no-cache git
+
+WORKDIR /src
+COPY meshtk/go.mod meshtk/go.sum ./
+RUN go mod download
+
+COPY meshtk/ .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o /meshobserv ./cmd/meshtk.go
+
+# Runtime stage
+FROM alpine:3.21
+
+RUN apk add --no-cache nginx supervisor curl
+
+# Create directories
+RUN mkdir -p /var/www/html /var/log/supervisor /run/nginx
+
+# Copy meshobserv binary (same meshtk binary, different command)
+COPY --from=builder /meshobserv /usr/local/bin/meshobserv
+
+# Copy nginx config
+COPY nginx/nginx.conf /etc/nginx/nginx.conf
+
+# Copy supervisord config
+COPY nginx/supervisord.conf /etc/supervisord.conf
+
+# Copy meshmap files (ported from DC33, updated for DC34)
+COPY nginx/index.html /var/www/html/index.html
+COPY nginx/site.webmanifest /var/www/html/site.webmanifest
+COPY nginx/favicon.ico /var/www/html/favicon.ico
+COPY nginx/apple-touch-icon.png /var/www/html/apple-touch-icon.png
+COPY nginx/android-chrome-192x192.png /var/www/html/android-chrome-192x192.png
+COPY nginx/android-chrome-512x512.png /var/www/html/android-chrome-512x512.png
+COPY nginx/dc34-logo-transp.webp /var/www/html/dc34-logo-transp.webp
+COPY nginx/dc34-logo.webp /var/www/html/dc34-logo.webp
+
+EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
+  CMD curl -f http://localhost/ || exit 1
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

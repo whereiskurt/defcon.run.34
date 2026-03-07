@@ -9,6 +9,9 @@
 #   ./version.sh nginx run.cms
 #   ./version.sh app run.cms
 #   ./version.sh webapp run.gpx
+#   ./version.sh mosquitto run.mqtt
+#   ./version.sh meshtk run.mqtt
+#   ./version.sh nginx run.mqtt
 
 set -e
 
@@ -17,18 +20,18 @@ APP="${2}"
 
 if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   echo "Usage: ./version.sh <component> <app>"
-  echo "  component: nginx | webapp | app"
-  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash"
+  echo "  component: nginx | webapp | app | mosquitto | meshtk"
+  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash | run.mqtt"
   exit 1
 fi
 
-if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" ]]; then
-  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', or 'app'"
+if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" ]]; then
+  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', 'app', 'mosquitto', or 'meshtk'"
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', or 'run.flash'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.mqtt" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', or 'run.mqtt'"
   exit 1
 fi
 
@@ -48,8 +51,26 @@ if [[ "$APP" == "run.gpx" && "$COMPONENT" == "nginx" ]]; then
   exit 1
 fi
 
+# mqtt component/app validation
+if [[ "$APP" == "run.mqtt" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" && "$COMPONENT" != "nginx" ]]; then
+  echo "ERROR: run.mqtt only accepts components 'mosquitto', 'meshtk', or 'nginx'"
+  exit 1
+fi
+
+if [[ "$APP" != "run.mqtt" && ("$COMPONENT" == "mosquitto" || "$COMPONENT" == "meshtk") ]]; then
+  echo "ERROR: '$COMPONENT' component is only valid for run.mqtt"
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION_FILE="${SCRIPT_DIR}/${APP}/${COMPONENT}/VERSION"
+APP_DIR="${SCRIPT_DIR}/${APP}"
+
+# run.mqtt lives at apps/mqtt/ (not apps/run.mqtt/)
+if [[ "$APP" == "run.mqtt" ]]; then
+  APP_DIR="${SCRIPT_DIR}/mqtt"
+fi
+
+VERSION_FILE="${APP_DIR}/${COMPONENT}/VERSION"
 
 if [[ ! -f "$VERSION_FILE" ]]; then
   echo "ERROR: VERSION file not found at $VERSION_FILE"

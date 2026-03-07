@@ -9,7 +9,7 @@ import {
   Avatar,
 } from '@heroui/react';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
 import { Link2, CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react';
@@ -29,7 +29,7 @@ function StravaLinkContent() {
     await signIn('strava', { callbackUrl: '/' });
   };
 
-  const autoLink = searchParams.get('autoLink') !== null;
+  const autoLink = searchParams?.get('autoLink') !== null;
 
   // Auto-start linking when ?autoLink is present and user is authenticated
   useEffect(() => {
@@ -183,5 +183,9 @@ function StravaLinkContent() {
 }
 
 export default function StravaPage() {
-  return <StravaLinkContent />;
+  return (
+    <Suspense>
+      <StravaLinkContent />
+    </Suspense>
+  );
 }

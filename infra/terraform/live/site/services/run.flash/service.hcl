@@ -187,7 +187,7 @@ locals {
     name          = "run-flash"
     regions       = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name  = "app"
-    task_family   = "run-flash" # Must match task definition family from task above
+    task_family   = "run-flash"
     desired_count = 1
 
     service_discovery = {

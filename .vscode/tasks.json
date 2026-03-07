@@ -123,6 +123,35 @@
       }
     },
     {
+      "label": "Local: MQTT Broker",
+      "type": "shell",
+      "command": "docker compose down && docker compose up --build",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/mqtt"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "local-infra"
+      }
+    },
+    {
+      "label": "App: mqtt.meshmap (LOCAL_MQTT_PORT/3005)",
+      "type": "shell",
+      "command": "test -f nodes.json || echo '{}' > nodes.json && python3 -m http.server ${LOCAL_MQTT_PORT:-3005}",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/mqtt/nginx"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
       "label": "E2E Tests",
       "type": "shell",
       "command": "$(aws configure export-credentials --profile ${env:SITE_LABEL}-terraform --format env) && ./e2e.sh",

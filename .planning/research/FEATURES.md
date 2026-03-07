@@ -1,503 +1,211 @@
-# Feature Landscape: CMS Content Types for DEF CON Run 34
+# Feature Research: Meshtk MQTT Integration (v1.3)
 
-**Domain:** Event/route/POI content management for an organized running/hiking event at DEF CON 34
-**Researched:** 2026-03-02
-**Confidence:** HIGH (Strapi 5 schema patterns verified via official docs; domain model derived from project context, GPX standards, and real-world race event platforms)
+**Domain:** Meshtastic MQTT infrastructure -- broker, proxy, live map, fleet simulator
+**Researched:** 2026-03-06
+**Confidence:** HIGH (porting proven architecture from defcon.run.33 with direct source access)
 
-## Table Stakes
+## Feature Landscape
 
-Features organizers expect from a CMS managing running/hiking events. Missing any of these makes the admin panel feel incomplete or forces workarounds. These are baseline expectations for any event-with-routes CMS.
+### Table Stakes (Users Expect These)
 
-### Event Content Type
-
-| Feature | Why Expected | Complexity | Strapi Field | Notes |
-|---------|--------------|------------|--------------|-------|
-| **Title** | Every event needs a name. "Day 1 Morning Run", "Day 2 Swag Swap". | Low | `string`, required, maxLength 200 | Used as display name everywhere. |
-| **Slug** | URL-friendly identifier for API consumption and deep linking. | Low | `uid`, targetField: title | Auto-generated from title, editable. run.human uses this for routing. |
-| **Description** | Rich text body explaining the event: what to expect, what to bring, safety notes. | Med | `blocks` (Rich Text Blocks) | Use `blocks` not `richtext` -- Blocks provides live rendering, embedded images, structured JSON output. Pair with `@strapi/blocks-react-renderer` in run.human. |
-| **Short description** | One-liner for cards, list views, notifications. | Low | `text`, maxLength 300 | Distinct from description -- avoids truncation hacks on the frontend. |
-| **Start date/time** | When the event begins. Critical for scheduling, countdown timers, sort order. | Low | `datetime`, required | Store in UTC. run.human converts to Las Vegas local time (America/Los_Angeles). |
-| **End date/time** | When the event ends. Duration is derived (end - start). | Low | `datetime` | Optional -- some events are open-ended (e.g., "Swag Swap until supplies last"). |
-| **Location name** | Human-readable meeting point. "LVCC West Hall Entrance", "Flamingo Pool Deck". | Low | `string` | Free text, not a formal address. DEF CON venues are convention centers, not street addresses. |
-| **Location coordinates** | Lat/lng for the meeting point. Powers map pins in run.human. | Low | Component: `shared.coordinates` (lat: float, lng: float) | Use a reusable component, not inline fields. Same component reused by POI content type. |
-| **Cover image** | Hero image for event cards and detail pages. | Low | `media`, single | Standard Strapi media field. Served via CloudFront from S3. |
-| **Photo gallery** | Multiple photos showing the route, venue, past events. | Low | `media`, multiple: true | Strapi handles multi-upload natively. Organizers drag-drop photos in admin. |
-| **Status** | Published/draft lifecycle for controlling visibility. | Low | Built-in `draftAndPublish: true` | Strapi 5 draft/publish. Events stay draft until organizer clicks Publish. REST API returns only published by default, draft requires `?status=draft`. |
-| **Routes relation** | Link to associated Route entries. An event can have multiple routes (5K, 10K, fun walk). | Med | `relation: manyToMany`, target: route, inversedBy: events | Bidirectional many-to-many. A route can also be reused across events (e.g., same 5K course on Day 1 and Day 3). |
-| **Sort order** | Controls display ordering on run.human event list. | Low | `integer`, default: 0 | Simple integer sort. Organizers reorder events without changing dates. |
-
-### Route Content Type
-
-| Feature | Why Expected | Complexity | Strapi Field | Notes |
-|---------|--------------|------------|--------------|-------|
-| **Name** | Route title. "5K Loop - LVCC to Sphere", "Recovery Walk". | Low | `string`, required, maxLength 200 | |
-| **Slug** | URL-friendly identifier. | Low | `uid`, targetField: name | |
-| **Description** | Rich text with route details: terrain, difficulty, elevation notes, safety warnings. | Med | `blocks` | |
-| **Short description** | Card-level summary. | Low | `text`, maxLength 300 | |
-| **Route type** | Classification: point-to-point, loop, out-and-back. | Low | `enumeration`, enum: [point_to_point, loop, out_and_back] | Displayed as badge/icon in run.human. Affects how start/end points are rendered. |
-| **Distance** | Route distance in miles (primary) with meters stored for precision. | Low | `decimal` | Store in meters, display in miles. Derived from GPX track data but editable (GPX-derived distance may differ from official race distance). |
-| **Elevation gain** | Total ascent in meters. | Low | `decimal` | Important for Las Vegas -- participants need to know if it is flat or hilly. |
-| **Difficulty** | Easy / Moderate / Hard rating. | Low | `enumeration`, enum: [easy, moderate, hard] | Displayed as color-coded badge in run.human. |
-| **GPX files** | One or more GPX files defining the track. This is the core asset. | Med | `media`, multiple: true, allowedTypes: [files] | Store as media uploads to S3. run.human and run.gpx can download these. Strapi media library supports any file type -- GPX is just XML with .gpx extension. |
-| **Start point** | Coordinates of route start. | Low | Component: `shared.coordinates` | Separate from GPX data for quick map rendering without parsing GPX. |
-| **End point** | Coordinates of route end. | Low | Component: `shared.coordinates` | For loops, start == end. Frontend can detect this. |
-| **Cover image** | Route preview image (map screenshot, aerial photo). | Low | `media`, single | |
-| **Events relation** | Bidirectional link back to events. | Med | `relation: manyToMany`, target: event, mappedBy: routes | Inverse side of event->routes relation. |
-| **Points of interest** | Ordered list of POIs along this route. | Med | `relation: manyToMany`, target: poi, inversedBy: routes | Aid stations, photo ops, checkpoints. Many-to-many because POIs can appear on multiple routes. |
-| **Sort order** | Display ordering within an event's route list. | Low | `integer`, default: 0 | |
-| **Estimated duration** | Expected completion time in minutes. | Low | `integer` | "~45 minutes for walkers, ~25 minutes for runners". Display as human-readable range in run.human. |
-
-### Point of Interest Content Type
-
-| Feature | Why Expected | Complexity | Strapi Field | Notes |
-|---------|--------------|------------|--------------|-------|
-| **Name** | POI label. "Water Station 1", "The Sphere Photo Op", "Aid Station - Flamingo". | Low | `string`, required, maxLength 200 | |
-| **Slug** | URL-friendly identifier. | Low | `uid`, targetField: name | |
-| **Description** | What is at this location. Rich text with details about the POI. | Low | `blocks` | |
-| **Coordinates** | Lat/lng of the POI. | Low | Component: `shared.coordinates`, required | The defining attribute of a POI. |
-| **POI type** | Classification: water_station, aid_station, photo_op, checkpoint, landmark, start, finish, hazard, restroom. | Low | `enumeration`, enum: [water_station, aid_station, photo_op, checkpoint, landmark, start, finish, hazard, restroom] | Drives icon selection on the map in run.human. Extensible later via Strapi admin. |
-| **Icon / marker image** | Optional custom marker image for the map. | Low | `media`, single | Falls back to type-based default icon if not set. |
-| **Photo** | Photo of the location for identification. | Low | `media`, single | Helps runners identify the POI when approaching. |
-| **Routes relation** | Bidirectional link to routes this POI appears on. | Med | `relation: manyToMany`, target: route, mappedBy: pois | Inverse side of route->pois relation. |
-| **Sort order** | Order of POI along a route (1st checkpoint, 2nd checkpoint, etc.). | Low | `integer`, default: 0 | Note: ordering is route-specific but Strapi many-to-many does not support per-relation ordering natively. Use sort_order as a global hint and rely on route-level ordering in run.human. |
-
-### Reusable Component: shared.coordinates
-
-| Field | Type | Notes |
-|-------|------|-------|
-| **latitude** | `float`, required | Range: -90 to 90. Las Vegas is approximately 36.17N. |
-| **longitude** | `float`, required | Range: -180 to 180. Las Vegas is approximately -115.14W. |
-
-This component lives at `src/components/shared/coordinates/schema.json` and is referenced by Event (location), Route (start_point, end_point), and POI (coordinates). Using a component instead of inline float fields ensures consistent naming and validation across all content types.
-
-### Branded OIDC Login Page
+Features that must work for the MQTT infrastructure to be useful at DEF CON 34.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Custom admin login UI** | The default Strapi login page is generic. Organizers should see DCR34 branding when logging in via OIDC. | Med | Strapi 5 supports admin panel customization via `src/admin/app.tsx`. Override the login page component to show DCR34 logo, colors, and a single "Sign in with DEF CON Run" button that triggers the OIDC flow. Hide the email/password fields since all auth goes through auth.defcon.run. |
-| **OIDC-only login** | No local email/password login. All users authenticate via auth.defcon.run with `cms` service claim. | Low | Already configured via strapi-plugin-sso. The branded page just needs to surface the SSO button prominently and hide default fields. |
+| **Mosquitto broker with password auth + ACL** | Radios connect here; without auth anyone can spam the channel | LOW | Direct port from .33: `mosquitto.conf` with `password_file` + `acl_file`, named users (public, ghosts, meshmap, etc.), per-user topic ACL `readwrite #`. Listens on 1884 internally (meshtk proxies 1883->1884). WebSocket listener on 9001. |
+| **Meshtk MQTT proxy (packet inspection + rate limiting)** | Without proxy, malicious packets flood the mesh; meshtk sits in front of mosquitto inspecting every packet | MEDIUM | meshtk `server proxy` mode: listens on 1883, forwards to mosquitto on 1884. Inspects MQTT CONNECT packets (validates usernames against SHA256-seeded passwords), inspects PUBLISH payloads (unmarshals Meshtastic ServiceEnvelope protobuf), applies blocklist from S3 bucket, logs blocks. Supports PROXY protocol from NLB for real client IPs. |
+| **S3 blocklist for meshtk** | Bad actors at DEF CON are guaranteed; blocklist must be updateable without redeploy | LOW | S3 bucket `meshtk-blocklist-*` with prefix `meshtk/blocklist/`. meshtk reads on startup + periodic refresh. Already proven at DC33. |
+| **Meshmap -- live node visualization** | Organizers and participants need to see the mesh network in real-time | MEDIUM | Two-process nginx container: (1) meshobserv Go binary subscribes to mosquitto, decrypts Meshtastic protobuf packets, maintains in-memory NodeDB, writes `nodes.json` every 60s; (2) nginx serves static HTML+Leaflet map that polls `nodes.json` every 30s. |
+| **Node position tracking** | Core purpose of the mesh map -- where are runners? | LOW | meshobserv handles `POSITION_APP` portnum: extracts lat/lon/alt/precision from protobuf, stores per-node. Nodes expire after 86400s (24h). |
+| **Node identity display** | Users need to know who is who on the map | LOW | meshobserv handles `NODEINFO_APP` portnum: extracts longName, shortName, hwModel, role, publicKey. Displayed in map popups with formatted details. |
+| **Device telemetry display** | Battery level, channel utilization critical for mesh health monitoring | LOW | meshobserv handles `TELEMETRY_APP`: battery%, voltage, chUtil%, airUtilTx%, uptime for device metrics. Also temperature, humidity, pressure, wind, radiation, rainfall for environment metrics. All shown in node popup. |
+| **Neighbor info + mesh topology lines** | Understanding mesh topology is essential for debugging coverage | LOW | meshobserv handles `NEIGHBORINFO_APP`: tracks which nodes see each other + SNR. Map draws polylines between neighbors with distance and SNR in tooltip. |
+| **MapReport handling** | Nodes publish combined identity+position+config reports | LOW | meshobserv handles `MAP_REPORT_APP`: firmware version, region, modem preset, default channel, online local nodes count. Consolidated node update. |
+| **NLB with MQTT port listeners** | ESP32 radios connect via raw TCP/TLS -- cannot go through CloudFront (HTTP-only) | HIGH | 4 listeners: 1883 TCP (plaintext MQTT), 8883 TLS (MQTT over TLS), 443 TLS (meshmap HTTPS), 8443 WSS (WebSocket Secure for browser MQTT clients). NLB in both regions. This is infra work, not app work. |
+| **CloudFront for meshmap web traffic** | Meshmap UI needs CDN caching + WAF protection like all other DCR34 apps | MEDIUM | CloudFront distribution for mqtt.defcon.run with `/{region}/meshmap` path routing to nginx container port 443. TLS termination at CloudFront for web, pass-through at NLB for MQTT. |
+| **ECR repos + build/deploy pipeline** | 3 container images need CI/CD: mosquitto, meshtk (grpc), nginx/meshobserv | MEDIUM | Follow existing `build.sh`/`deploy.sh` patterns from other apps. 3 ECR repos per region. Deploy scripts already exist in .33 (`deploy.mosquitto.sh`, `deploy.grpc.sh`, `deploy.nginx.sh`). |
+| **Both-region deployment** | Multi-region is a platform constraint -- all DCR34 services run in us-east-1 + ca-central-1 | MEDIUM | Same ECS task definition in both regions. Each region gets its own mosquitto+meshtk+meshobserv. Radios connect to nearest region's NLB. No cross-region MQTT bridging (was explored in .33 clustered configs but not deployed). |
+| **AES-CTR decryption of Meshtastic packets** | Meshtastic encrypts channel traffic with AES-128/256-CTR; meshobserv must decrypt to read positions | LOW | Already implemented in meshobserv's `mqtt.go`: nonce = packetID(4) + zeros(4) + fromNodeID(4) + zeros(4), then AES-CTR XOR. Channel key configurable via `MQTT_CHANNEL_KEY` env var (base64). |
+| **Self-signed TLS between nginx and NLB** | NLB TLS passthrough requires backend TLS even for internal traffic | LOW | Self-signed certs in nginx container (`nginx-selfsigned.crt/key`). NLB terminates nothing -- passes TLS straight through. |
 
-### REST API for run.human
+### Differentiators (Competitive Advantage)
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| **Public read API** | run.human fetches events, routes, POIs via REST API. No authentication required for published content. | Low | Strapi 5 REST API at `/api/events`, `/api/routes`, `/api/pois`. Configure permissions: Public role gets `find` and `findOne` on all three content types. |
-| **Populate support** | Single API call returns event with its routes, routes with their POIs, including media URLs. | Med | Strapi 5 `?populate=*` for one level, or nested populate: `?populate[routes][populate][0]=pois&populate[routes][populate][1]=gpx_files`. run.human should use the `qs` library to build populate queries. |
-| **Field selection** | Return only needed fields to reduce payload size. | Low | `?fields[0]=title&fields[1]=slug&fields[2]=start_datetime`. Important for list views that do not need full descriptions. |
-| **Filtering and sorting** | Filter events by date range, sort by start_datetime or sort_order. | Low | Strapi 5 built-in: `?filters[start_datetime][$gte]=2026-08-06&sort=sort_order:asc`. |
-| **Draft filtering** | Published-only by default. Organizers can preview drafts with explicit `?status=draft`. | Low | Strapi 5 built-in behavior. run.human always fetches published. CMS admin panel shows both. |
-
-## Differentiators
-
-Features that elevate this CMS beyond a basic event listing. Not expected by organizers but highly valuable for the DEF CON Run experience.
+Features from .33 that made DCR stand out. Port these for DC34.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **File attachments on events** | Events can have downloadable files: GPX bundles, PDF maps, waivers, video content. Goes beyond just photos. | Low | `media`, multiple: true on Event. Strapi media library handles any file type. Separate from photo gallery -- this is for downloads, not display. |
-| **GPX file metadata display** | Show distance, elevation, track count extracted from uploaded GPX files as read-only fields in the admin. | High | Requires custom Strapi lifecycle hook or plugin to parse GPX XML on upload and populate derived fields. Defer to v1.2 -- for v1.1, organizers manually enter distance/elevation. |
-| **Route preview map in admin** | Inline map widget in Strapi admin showing the GPX track on a map. | High | Requires custom Strapi field plugin with Mapbox/Leaflet. Significant scope. Defer -- organizers use gpx.defcon.run for visual editing and just upload the final GPX to CMS. |
-| **Event countdown/status** | Auto-computed event status: upcoming, active, completed based on current time vs start/end datetime. | Med | Computed in run.human at render time, not stored in CMS. CMS just stores the datetimes. No Strapi customization needed. |
-| **Multilingual content** | Strapi 5 has built-in i18n plugin. Could support multiple languages. | Med | SKIP for v1.1. DEF CON is English-primary. i18n adds complexity to every content type and API query. |
-| **Content versioning / audit trail** | Track who changed what and when. Useful for multi-organizer teams. | Low | Strapi 5 has built-in audit logs for admin actions. Draft/publish provides basic versioning. No custom work needed for basic coverage. |
-| **Webhook notifications** | Notify run.human when content changes for cache invalidation. | Med | Strapi 5 webhooks built-in. Configure webhook to hit a run.human API endpoint on event/route/POI publish. Useful for ISR/revalidation in Next.js. Consider for v1.1 if run.human caching is implemented. |
+| **Fleet simulator (ghosts)** | Populate the mesh map before/during event with simulated nodes walking GPX routes -- makes the map look alive and tests infrastructure under load | MEDIUM | meshtk `fleet simulate` mode: reads YAML config defining fleets of simulated nodes. Each node has deterministic ID (FNV hash of seed), publishes nodeinfo + position. Supports GPX-based movement (point-to-point zigzag or loop), ramp-up/steady/ramp-down phases, configurable nodes-per-interval, jitter. Runs as 4th container in ECS task (`ghosts` mosquitto user). |
+| **Ghost mode easter egg on meshmap** | Konami code or 10x theme toggle reveals ghost nodes in green with ghost icons -- gamification for DEF CON attendees | LOW | Frontend-only: `mobileMode` toggle shows only ghost-named nodes with custom SVG ghost icon markers. Triggers accomplishment API call to `run.defcon.run`. Pure fun, zero infrastructure cost. Update branding from DC33 to DC34. |
+| **PKI-encrypted DM replies from fleet bots** | Ghost nodes can receive direct messages and reply with PKI encryption (Curve25519 + AES) -- enables interactive mesh experiences (OTP challenges, chatbot) | HIGH | meshtk fleet handler: on `TEXT_MESSAGE_APP` to a fleet node, validates OTP, unlocks chat mode, replies via `PublishPKIMessage` (ECDH shared secret from node's private key + sender's public key, then AES-CTR encrypt). Fetches sender pubkey from defcon.run API. |
+| **OTP challenge-response via mesh** | Attendees send TOTP code to ghost nodes to unlock chat mode -- CTF-style engagement | MEDIUM | meshtk OTP handler: TOTP validation with adjacent-period tolerance, configurable per fleet. Success unlocks `chatmode_unlocked` for 1 hour. Multiple chatbot types: `otp_success`, `otp_failure`, `chatmode_unlocked`, `chatmode_lyrics`. |
+| **OpenAI-powered mesh chatbot** | Ghost nodes that respond to DMs with GPT-4o-mini -- "talking to the mesh" | LOW | After OTP unlock, messages forwarded to OpenAI API with configurable system prompt. Responses chunked to 60 chars (Meshtastic message limit) and sent as PKI-encrypted replies. Requires `MESHTK_OPENAI_KEY`. |
+| **Lyrics playback via mesh** | Ghost nodes that "sing" back timestamped lyrics in real-time | LOW | Base64-encoded LRC format lyrics in config. On trigger, goroutine schedules PKI replies at lyric timestamps. Self-terminates after song duration. |
+| **Mosquitto security inspector plugin** | C plugin that forwards every PUBLISH to meshtk's gRPC inspector for deep packet analysis before delivery | HIGH | Custom mosquitto plugin (`security_inspector.so`): intercepts `MOSQ_EVT_MESSAGE`, serializes to protobuf (`PacketRequest` with topic, payload, username, client_id, ip_address, timestamp), sends to meshtk inspector via TCP socket, receives `PacketResponse` with shouldBlock + blockReason. Currently compiled but **disabled** in .33 config (commented out `plugin` line) -- meshtk proxy mode handles inspection instead. |
+| **Color-coded node markers by identity** | DCR infrastructure nodes shown in distinct colors; regular nodes in red | LOW | Frontend `getMarkerColorFromNodeName()`: purple for east, darkblue for bigstar, orange for infrastructure. Update patterns for DC34 naming convention. |
+| **Node search on meshmap** | Leaflet search control to find nodes by name or ID | LOW | `leaflet-search` plugin searches marker `searchString` property (`longName (shortName) !hexId`). Flies to node and opens popup. |
+| **Marker clustering** | Prevents map from becoming unusable with hundreds of nodes | LOW | `leaflet.markercluster` with `disableClusteringAtZoom: 10`. Already working in .33. |
+| **Node opacity based on last-seen age** | Stale nodes fade out visually -- instant visual health indicator | LOW | `opacity = 1.0 - (now - lastSeen) / 129600`. 36-hour fade. |
+| **Dark mode on meshmap** | DEF CON happens in dark rooms and at night | LOW | CSS `filter: invert(1) hue-rotate(180deg)` toggle with localStorage persistence. |
+| **Per-user MQTT credentials from flash.defcon.run** | Each flashed device gets unique MQTT username/password derived from OIDC identity | LOW | Already built in v1.0: `run.human` internal API resolves OIDC sub to adapter userId, generates deterministic MQTT password via `SHA256(mqttuser + creationSeed).slice(0, 12)`. meshtk proxy validates these on CONNECT. |
 
-## Anti-Features
+### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build. Each would add complexity disproportionate to the DCR34 use case.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| **Live timing / splits** | Race timing is a specialized domain with hardware (RFID mats, transponders). Building a timing system inside a CMS is absurd scope. Race event platforms like RACE RESULT exist for this. | DCR34 is a fun run, not a competitive race. No timing needed. If timing is ever wanted, use a dedicated race timing platform and link results externally. |
-| **Participant registration via CMS** | Registration belongs in run.human (already has user accounts, OIDC, DynamoDB). CMS is for content management, not transactional user data. | run.human handles registration. CMS provides event info that run.human renders. Clean separation. |
-| **Real-time participant tracking** | Meshtastic mesh provides location data. Building a tracking dashboard in Strapi is wrong tool for the job. | Participant tracking is a separate feature built on Meshtastic MQTT data in run.human, not CMS content. |
-| **Route editing in CMS admin** | GPX editing is a complex spatial UI. gpx.defcon.run (built on gpx-studio) already does this beautifully. | Organizers edit routes in gpx.defcon.run, export GPX files, upload finished GPX to CMS. CMS is storage and API, not an editor. |
-| **Automatic geocoding** | Converting addresses to coordinates or vice versa. Adds API dependencies (Google Maps, Mapbox) for marginal value. | Organizers enter lat/lng manually (or copy from gpx.defcon.run / Google Maps). DEF CON venues are well-known; coordinates rarely change. |
-| **Complex RBAC per content type** | Different permissions for events vs routes vs POIs. Overkill for a small organizer team (3-5 people). | All CMS users with `cms` service claim get full access to all content types. Strapi admin roles can be refined later if needed. |
-| **GraphQL API** | Adds a plugin dependency and doubles the API surface. REST with populate/select is sufficient for run.human's needs. | REST API only. Strapi 5 REST with qs-built queries handles all data fetching patterns. |
-| **SEO fields** | Meta descriptions, OpenGraph images, structured data. CMS content is consumed by run.human internally, not crawled by search engines. | run.human controls its own SEO. CMS content has no direct public web presence. |
-| **Comments / social features** | Comments on events or routes. Out of scope for an organizer-only CMS. | Social features belong in run.human or Discord, not the CMS admin panel. |
-| **Recurring event scheduling** | RRULE patterns for repeating events. DCR34 is a 4-day conference; each event is manually created. | Create each event individually. There are only ~10-20 events total. Manual is fine. |
-| **i18n / localization** | Multi-language support adds complexity to every content type definition, every API query, and the admin workflow. | English only. DEF CON is a US-based conference. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Cross-region MQTT bridging** | "All nodes everywhere should see each other" | Mosquitto bridge adds latency, message duplication, split-brain risk. DC33 explored it (`clustered/mosquitto.cac1.conf`) but did not deploy. At DEF CON, all participants are in Las Vegas -- one region handles 99% of traffic. | Keep regions independent. Primary region (us-east-1) handles event traffic. Secondary (ca-central-1) is failover. |
+| **WebSocket MQTT in the meshmap browser** | "Show real-time node updates without polling" | Adds complexity (WSS auth, connection management, reconnection logic) for marginal improvement over 30s JSON polling. meshobserv already aggregates and deduplicates. More attack surface at DEF CON. | Keep 30s `nodes.json` polling. Simple, cacheable, debuggable. |
+| **Persistent message history** | "Show chat history on the map" | Storage growth, privacy concerns, moderation burden at a hacker convention. Meshtastic messages are ephemeral by design. | Meshobserv only tracks node state (position, telemetry, identity), not message content. |
+| **Public MQTT access without auth** | "Let anyone connect" | DEF CON audience will absolutely abuse an unauthenticated MQTT broker. Spam, flooding, malicious packets guaranteed. | Per-user credentials from flash.defcon.run. Named service accounts (ghosts, meshmap) with known passwords. `public` user exists but should be ACL-restricted. |
+| **Custom Meshtastic firmware** | "Add DCR-specific features to the firmware" | Maintenance burden, update complexity, bricking risk. Stock firmware with config-only customization is the proven approach. | Stock Meshtastic firmware + MQTT config pushed via flash.defcon.run. |
+| **Mosquitto dynamic security plugin** | "Use mosquitto's built-in dynamic auth instead of flat files" | Over-engineered for this use case. Flat passwd+ACL files are simple, auditable, and work. Dynamic security adds REST API surface area that's attackable at DEF CON. | Flat `mosquitto.passwd` (SHA512-PBKDF2 hashed) + `mosquitto.acl`. Rebuild container to update. |
+| **Running meshobserv as separate ECS service** | "Decouple meshobserv from nginx for independent scaling" | meshobserv MUST write `nodes.json` to the same filesystem nginx serves. Shared EFS adds complexity and latency. supervisord in one container is proven simple. | Single nginx container with supervisord running both nginx and meshobserv. Proven pattern from .33. |
 
 ## Feature Dependencies
 
 ```
-shared.coordinates Component
-  (no dependencies -- created first, used by Event, Route, POI)
+[Mosquitto Broker]
+    ^
+    |-- requires -->  [NLB with MQTT listeners]
+    |                     (radios need network path to broker)
+    |
+    |<-- proxied by -- [Meshtk Proxy]
+    |                     (sits in front, inspects packets)
+    |                     |
+    |                     |-- requires --> [S3 Blocklist]
+    |                     |                  (runtime-updateable block rules)
+    |                     |
+    |                     |-- uses --> [Per-user MQTT creds from flash.defcon.run]
+    |                                    (validates CONNECT credentials)
+    |
+    |<-- subscribes -- [Meshobserv/Nginx]
+    |                     (reads all topics, builds NodeDB, writes nodes.json)
+    |                     |
+    |                     |-- requires --> [CloudFront distribution]
+    |                     |                  (serves meshmap web UI)
+    |                     |
+    |                     |-- requires --> [AES channel key]
+    |                                       (decrypts Meshtastic packets)
+    |
+    |<-- publishes -- [Fleet Simulator (ghosts)]
+                         (publishes fake node positions via MQTT)
+                         |
+                         |-- enhances --> [Meshobserv/Nginx]
+                         |                  (populates map with simulated nodes)
+                         |
+                         |-- uses --> [GPX routes from CMS/gpx.defcon.run]
+                                        (movement paths for simulated nodes)
 
-Event Content Type
-  -> depends on: shared.coordinates component (location)
-  -> relation to: Route (manyToMany, Event owns inversedBy)
-
-Route Content Type
-  -> depends on: shared.coordinates component (start_point, end_point)
-  -> relation to: Event (manyToMany, mappedBy from Event)
-  -> relation to: POI (manyToMany, Route owns inversedBy)
-
-POI Content Type
-  -> depends on: shared.coordinates component (coordinates)
-  -> relation to: Route (manyToMany, mappedBy from Route)
-
-Branded Login Page
-  -> depends on: existing strapi-plugin-sso OIDC config (already working)
-  -> no content type dependencies
-
-REST API Permissions
-  -> depends on: all three content types being defined
-  -> configure after content types exist
-
-run.human Integration
-  -> depends on: REST API permissions configured
-  -> depends on: at least one published event with routes and POIs
+[ECR repos + build/deploy]
+    └── required by all 3 containers
 ```
 
-**Build order:** shared.coordinates -> Event -> Route -> POI -> Permissions -> Branded Login -> run.human integration
+### Dependency Notes
 
-The component must exist before any content type that references it. Event should be created first because it is the top-level organizing unit. Route references Event via mappedBy. POI references Route via mappedBy. Relations must be created on both sides simultaneously in practice (Strapi creates both schema files when you define a bidirectional relation via the Content-Type Builder).
+- **Meshtk Proxy requires Mosquitto Broker:** Proxy forwards validated traffic to mosquitto on port 1884. Mosquitto must be healthy first (docker-compose uses `service_healthy` with nc check).
+- **Meshobserv requires Mosquitto Broker:** Subscribes to `msh/#` topics on the local broker to build the node database. Configurable via `MQTT_BROKER` env var.
+- **Fleet Simulator requires Mosquitto Broker:** Publishes simulated node data as the `ghosts` user. Non-essential -- map works without it, just looks empty.
+- **Meshobserv requires AES channel key:** Without the correct `MQTT_CHANNEL_KEY`, encrypted packets can't be decrypted and positions won't appear on the map.
+- **NLB is infrastructure prerequisite:** All MQTT traffic (from radios, meshobserv, ghosts) flows through NLB. Must be provisioned before any container deployment makes sense.
+- **Fleet Simulator enhances Meshmap:** Ghost nodes appear on the map alongside real nodes. The easter egg (ghost mode) filters to show only ghost nodes.
 
-## MVP Recommendation
+## MVP Definition
 
-### Must Have (v1.1 release)
+### Launch With (v1.3.0)
 
-1. **shared.coordinates component** -- Foundation for all geo fields
-2. **Event content type** -- All table stakes fields. The organizing unit.
-3. **Route content type** -- All table stakes fields. Links to events.
-4. **POI content type** -- All table stakes fields. Links to routes.
-5. **File attachments on events** -- GPX bundles and downloads
-6. **REST API permissions** -- Public read for all content types
-7. **Branded OIDC login page** -- DCR34 branding on admin panel
+Minimum to have a working MQTT infrastructure accepting radio connections and displaying a live map.
 
-### Should Have (v1.1 if time permits)
+- [ ] Mosquitto container with auth + ACL (port from .33 `mosquitto/site-tld/`)
+- [ ] Meshtk proxy container in `server proxy` mode (port from .33 `grpc/site-tld/`)
+- [ ] Nginx/meshobserv container with static meshmap HTML (port from .33 `nginx/`)
+- [ ] NLB with 1883/8883/443/8443 listeners in both regions
+- [ ] CloudFront distribution for mqtt.defcon.run with meshmap path routing
+- [ ] ECR repos for 3 images + build/deploy scripts
+- [ ] 4-container ECS task definition (mosquitto, meshtk, nginx, ghosts)
+- [ ] S3 blocklist bucket + meshtk configuration
+- [ ] SSM parameters for secrets (channel PSK, MQTT passwords, OpenAI key)
+- [ ] ACM certs for mqtt.defcon.run
 
-1. **Webhook for content changes** -- Cache invalidation in run.human
-2. **Populate query patterns** -- Documented and tested qs-based queries for run.human
+### Add After Validation (v1.3.x)
 
-### Defer to Later
+Features to add once the core infrastructure is verified working.
 
-- GPX file metadata extraction (v1.2 -- needs custom Strapi lifecycle hook)
-- Route preview map in admin (v1.2+ -- needs custom Strapi field plugin)
-- i18n, GraphQL, complex RBAC, SEO fields (likely never for this project)
+- [ ] DC34 branding on meshmap (logo, colors, node naming patterns)
+- [ ] Ghost mode easter egg updated for DC34
+- [ ] Fleet simulator YAML config tuned for DC34 routes (requires GPX routes from cms.defcon.run)
+- [ ] OTP challenge-response integration with run.defcon.run accomplishments API
+- [ ] OpenAI chatbot with DC34-specific system prompt
+- [ ] Lyrics playback content for DC34
 
-**Rationale:** The v1.1 goal is "organizers can manage DCR34 events, routes, and POIs." This means three content types with their relations, the shared coordinate component, file upload support, public REST API, and a branded login experience. Everything else is optimization or future scope.
+### Future Consideration (v2+)
 
-## Strapi 5 Schema Reference (Actionable)
+Features to defer until the MQTT platform is stable and event-tested.
 
-### File Structure
+- [ ] Mosquitto security inspector plugin (currently disabled in .33 -- meshtk proxy handles inspection adequately)
+- [ ] Cross-region MQTT bridging (only if multi-venue events)
+- [ ] Historical node data persistence (S3 archival of NodeDB snapshots)
+- [ ] Integration with run.defcon.run dashboard (show mesh status on participant profile)
 
-```
-src/
-  api/
-    event/
-      content-types/
-        event/
-          schema.json          # Event content type definition
-      controllers/
-        event.ts               # Auto-generated, customizable
-      routes/
-        event.ts               # Auto-generated, customizable
-      services/
-        event.ts               # Auto-generated, customizable
-    route/
-      content-types/
-        route/
-          schema.json          # Route content type definition
-      controllers/
-        route.ts
-      routes/
-        route.ts
-      services/
-        route.ts
-    poi/
-      content-types/
-        poi/
-          schema.json          # POI content type definition
-      controllers/
-        poi.ts
-      routes/
-        poi.ts
-      services/
-        poi.ts
-  components/
-    shared/
-      coordinates.json         # Reusable coordinates component
-```
+## Feature Prioritization Matrix
 
-### Schema Skeletons
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Mosquitto broker + auth | HIGH | LOW | P1 |
+| Meshtk proxy (inspection) | HIGH | MEDIUM | P1 |
+| NLB with MQTT listeners | HIGH | HIGH | P1 |
+| Meshobserv + meshmap | HIGH | MEDIUM | P1 |
+| ECR + build/deploy | HIGH | MEDIUM | P1 |
+| CloudFront for meshmap | MEDIUM | MEDIUM | P1 |
+| Both-region deployment | MEDIUM | MEDIUM | P1 |
+| S3 blocklist | MEDIUM | LOW | P1 |
+| Fleet simulator (ghosts) | MEDIUM | LOW | P2 |
+| DC34 meshmap branding | MEDIUM | LOW | P2 |
+| Ghost mode easter egg | LOW | LOW | P2 |
+| PKI DM replies | LOW | HIGH | P3 |
+| OTP challenge | LOW | MEDIUM | P3 |
+| OpenAI chatbot | LOW | LOW | P3 |
 
-**shared/coordinates.json:**
-```json
-{
-  "collectionName": "components_shared_coordinates",
-  "info": {
-    "displayName": "Coordinates",
-    "description": "Latitude/longitude coordinate pair"
-  },
-  "attributes": {
-    "latitude": {
-      "type": "float",
-      "required": true,
-      "min": -90,
-      "max": 90
-    },
-    "longitude": {
-      "type": "float",
-      "required": true,
-      "min": -180,
-      "max": 180
-    }
-  }
-}
-```
+**Priority key:**
+- P1: Must have for launch -- infrastructure and core visualization
+- P2: Should have -- enhances the event experience, low incremental cost
+- P3: Nice to have -- engagement features, can be enabled via config without code changes
 
-**event/schema.json:**
-```json
-{
-  "kind": "collectionType",
-  "collectionName": "events",
-  "info": {
-    "singularName": "event",
-    "pluralName": "events",
-    "displayName": "Event",
-    "description": "Scheduled activities for DEF CON Run 34"
-  },
-  "options": {
-    "draftAndPublish": true
-  },
-  "attributes": {
-    "title": {
-      "type": "string",
-      "required": true,
-      "maxLength": 200
-    },
-    "slug": {
-      "type": "uid",
-      "targetField": "title"
-    },
-    "description": {
-      "type": "blocks"
-    },
-    "short_description": {
-      "type": "text",
-      "maxLength": 300
-    },
-    "start_datetime": {
-      "type": "datetime",
-      "required": true
-    },
-    "end_datetime": {
-      "type": "datetime"
-    },
-    "location_name": {
-      "type": "string",
-      "maxLength": 300
-    },
-    "location": {
-      "type": "component",
-      "repeatable": false,
-      "component": "shared.coordinates"
-    },
-    "cover_image": {
-      "type": "media",
-      "multiple": false,
-      "allowedTypes": ["images"]
-    },
-    "photo_gallery": {
-      "type": "media",
-      "multiple": true,
-      "allowedTypes": ["images"]
-    },
-    "attachments": {
-      "type": "media",
-      "multiple": true
-    },
-    "routes": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::route.route",
-      "inversedBy": "events"
-    },
-    "sort_order": {
-      "type": "integer",
-      "default": 0
-    }
-  }
-}
-```
+## Existing Platform Dependencies
 
-**route/schema.json:**
-```json
-{
-  "kind": "collectionType",
-  "collectionName": "routes",
-  "info": {
-    "singularName": "route",
-    "pluralName": "routes",
-    "displayName": "Route",
-    "description": "Navigational paths for DEF CON Run 34 events"
-  },
-  "options": {
-    "draftAndPublish": true
-  },
-  "attributes": {
-    "name": {
-      "type": "string",
-      "required": true,
-      "maxLength": 200
-    },
-    "slug": {
-      "type": "uid",
-      "targetField": "name"
-    },
-    "description": {
-      "type": "blocks"
-    },
-    "short_description": {
-      "type": "text",
-      "maxLength": 300
-    },
-    "route_type": {
-      "type": "enumeration",
-      "enum": ["point_to_point", "loop", "out_and_back"],
-      "required": true
-    },
-    "distance_meters": {
-      "type": "decimal"
-    },
-    "elevation_gain_meters": {
-      "type": "decimal"
-    },
-    "difficulty": {
-      "type": "enumeration",
-      "enum": ["easy", "moderate", "hard"]
-    },
-    "estimated_duration_minutes": {
-      "type": "integer"
-    },
-    "gpx_files": {
-      "type": "media",
-      "multiple": true,
-      "allowedTypes": ["files"]
-    },
-    "start_point": {
-      "type": "component",
-      "repeatable": false,
-      "component": "shared.coordinates"
-    },
-    "end_point": {
-      "type": "component",
-      "repeatable": false,
-      "component": "shared.coordinates"
-    },
-    "cover_image": {
-      "type": "media",
-      "multiple": false,
-      "allowedTypes": ["images"]
-    },
-    "events": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::event.event",
-      "mappedBy": "routes"
-    },
-    "pois": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::poi.poi",
-      "inversedBy": "routes"
-    },
-    "sort_order": {
-      "type": "integer",
-      "default": 0
-    }
-  }
-}
-```
+These features in the existing DCR34 platform are consumed by v1.3:
 
-**poi/schema.json:**
-```json
-{
-  "kind": "collectionType",
-  "collectionName": "pois",
-  "info": {
-    "singularName": "poi",
-    "pluralName": "pois",
-    "displayName": "Point of Interest",
-    "description": "Landmarks, checkpoints, and aid stations along routes"
-  },
-  "options": {
-    "draftAndPublish": true
-  },
-  "attributes": {
-    "name": {
-      "type": "string",
-      "required": true,
-      "maxLength": 200
-    },
-    "slug": {
-      "type": "uid",
-      "targetField": "name"
-    },
-    "description": {
-      "type": "blocks"
-    },
-    "coordinates": {
-      "type": "component",
-      "repeatable": false,
-      "component": "shared.coordinates",
-      "required": true
-    },
-    "poi_type": {
-      "type": "enumeration",
-      "enum": [
-        "water_station",
-        "aid_station",
-        "photo_op",
-        "checkpoint",
-        "landmark",
-        "start",
-        "finish",
-        "hazard",
-        "restroom"
-      ],
-      "required": true
-    },
-    "marker_image": {
-      "type": "media",
-      "multiple": false,
-      "allowedTypes": ["images"]
-    },
-    "photo": {
-      "type": "media",
-      "multiple": false,
-      "allowedTypes": ["images"]
-    },
-    "routes": {
-      "type": "relation",
-      "relation": "manyToMany",
-      "target": "api::route.route",
-      "mappedBy": "pois"
-    },
-    "sort_order": {
-      "type": "integer",
-      "default": 0
-    }
-  }
-}
-```
+| Existing Feature | How v1.3 Uses It | Status |
+|-----------------|------------------|--------|
+| flash.defcon.run MQTT cred generation | Per-user credentials validated by meshtk proxy on CONNECT | Built (v1.0) |
+| run.human internal API (OIDC sub -> userId) | meshtk fetches sender public keys for PKI replies | Built (v1.0) |
+| gpx.defcon.run GPX routes | Fleet simulator uses GPX files for simulated node movement paths | Built (v1.0) |
+| CMS Events/Routes/POIs | Meshmap could link to event details (future) | Built (v1.1) |
+| run.defcon.run accomplishments API | Ghost mode easter egg triggers accomplishment on discovery | Built (v1.2, needs accomplishment endpoint) |
+| ECS Fargate multi-region infrastructure | Same cluster, same deployment patterns, same monitoring | Built (v1.0) |
+| CloudFront + WAF | Meshmap web traffic protection | Built (v1.0) |
+
+## Competitor Feature Analysis
+
+This is not a competitive product -- it's event infrastructure. The relevant comparison is against the public Meshtastic MQTT ecosystem.
+
+| Feature | meshmap.net (public) | Our Approach (DCR34) |
+|---------|---------------------|---------------------|
+| Node visualization | Global map of all public nodes, no auth | Private map of DCR34 event nodes only |
+| Broker auth | Default `meshdev`/`large4cats` credentials | Per-user credentials from flash.defcon.run |
+| Packet inspection | None -- public broker accepts everything | meshtk proxy inspects every packet, S3 blocklist |
+| Simulated nodes | None | Fleet simulator with GPX-based movement |
+| Interactive bots | None | OTP challenges, PKI chatbot, lyrics playback |
+| Node identity | Generic red markers | Color-coded by DCR role (infrastructure vs participant) |
+| Branding | meshmap.net generic | DCR34 branded with event logo and easter eggs |
+
+Note: meshobserv code is forked from [meshmap.net](https://github.com/brianshea2/meshmap.net) with DCR-specific modifications (ghost filtering, color coding, branding, event-specific topics).
 
 ## Sources
 
-- [Strapi 5 Models Documentation](https://docs.strapi.io/cms/backend-customization/models) -- Schema.json structure, field types, relation syntax (HIGH confidence)
-- [Strapi 5 Relations REST API](https://docs.strapi.io/cms/api/rest/relations) -- Connect/disconnect/set operations for many-to-many (HIGH confidence)
-- [Strapi 5 Content-Type Builder](https://docs.strapi.io/cms/features/content-type-builder) -- Field type catalog, enumeration configuration (HIGH confidence)
-- [Strapi 5 Populate & Select](https://docs.strapi.io/cms/api/rest/populate-select) -- Query parameter syntax for nested relations (HIGH confidence)
-- [Strapi 5 Understanding Populate](https://docs.strapi.io/cms/api/rest/guides/understanding-populate) -- Deep populate patterns (HIGH confidence)
-- [Strapi 5 Draft & Publish](https://docs.strapi.io/cms/features/draft-and-publish) -- Status parameter, publish workflow (HIGH confidence)
-- [Strapi 5 Media Library](https://docs.strapi.io/cms/features/media-library) -- Multi-file uploads, allowed types (HIGH confidence)
-- [Strapi 5 Upload API](https://docs.strapi.io/cms/api/rest/upload) -- File upload via REST (HIGH confidence)
-- [Strapi Rich Text Blocks + Next.js](https://strapi.io/blog/integrating-strapi-s-new-rich-text-block-editor-with-next-js-a-step-by-step-guide) -- Blocks renderer integration pattern (MEDIUM confidence)
-- [Strapi GeoData Plugin](https://market.strapi.io/plugins/strapi-geodata) -- Geo field handling patterns in Strapi 5 (MEDIUM confidence -- plugin approach, we use component instead)
-- [RACE RESULT Timing Software](https://www.raceresult.com/en/software/index) -- Race event platform features reference (MEDIUM confidence -- informed anti-features)
-- [Strapi Event Management Blog](https://strapi.io/blog/build-an-event-management-website) -- Event CMS patterns with Strapi (MEDIUM confidence)
-- [GPX 1.1 Schema Types](https://www.topografix.com/gpx.asp) -- GPX file structure: tracks, routes, waypoints (HIGH confidence -- standard)
-- [GPX Studio Source](https://github.com/gpxstudio/gpx-studio) -- GPX type definitions used in run.gpx (HIGH confidence -- direct codebase analysis)
+- defcon.run.33 source code: `/Users/khundeck/working/defcon.run.33/apps/mqtt/` (HIGH confidence -- direct source access)
+- meshmap.net source: `github.com/brianshea2/meshmap.net` (HIGH confidence -- forked into .33)
+- Meshtastic MQTT docs: training data knowledge of `msh/` topic structure and protobuf format (MEDIUM confidence)
+- meshtk source: `/Users/khundeck/working/defcon.run.33/apps/mqtt/grpc/site-tld/meshtk/` (HIGH confidence -- direct source access)
+
+---
+*Feature research for: Meshtk MQTT Integration (v1.3)*
+*Researched: 2026-03-06*

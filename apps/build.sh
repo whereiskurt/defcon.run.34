@@ -8,6 +8,9 @@
 #   ./build.sh webapp run.human
 #   ./build.sh nginx run.cms
 #   ./build.sh app run.cms
+#   ./build.sh mosquitto run.mqtt
+#   ./build.sh meshtk run.mqtt
+#   ./build.sh nginx run.mqtt
 
 set -e
 
@@ -16,18 +19,18 @@ APP="${2}"
 
 if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   echo "Usage: ./build.sh <component> <app>"
-  echo "  component: nginx | webapp | app"
-  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash"
+  echo "  component: nginx | webapp | app | mosquitto | meshtk"
+  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash | run.mqtt"
   exit 1
 fi
 
-if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" ]]; then
-  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', or 'app'"
+if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" ]]; then
+  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', 'app', 'mosquitto', or 'meshtk'"
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', or 'run.flash'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.mqtt" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', or 'run.mqtt'"
   exit 1
 fi
 
@@ -44,6 +47,17 @@ fi
 
 if [[ "$APP" == "run.gpx" && "$COMPONENT" == "nginx" ]]; then
   echo "ERROR: run.gpx is a single-container app without nginx"
+  exit 1
+fi
+
+# mqtt component/app validation
+if [[ "$APP" == "run.mqtt" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" && "$COMPONENT" != "nginx" ]]; then
+  echo "ERROR: run.mqtt only accepts components 'mosquitto', 'meshtk', or 'nginx'"
+  exit 1
+fi
+
+if [[ "$APP" != "run.mqtt" && ("$COMPONENT" == "mosquitto" || "$COMPONENT" == "meshtk") ]]; then
+  echo "ERROR: '$COMPONENT' component is only valid for run.mqtt"
   exit 1
 fi
 
@@ -71,6 +85,9 @@ case "$APP" in
     REPO_PREFIX="dc34-run-flash"
     WEBAPP_ORIGIN="flash.defcon.run"
     SSM_PATH_SEGMENT="flash"
+    ;;
+  "run.mqtt")
+    REPO_PREFIX="dc34-mqtt"
     ;;
 esac
 
@@ -106,6 +123,33 @@ echo "=== Build Config: AWS_REGION=${AWS_REGION}, REGION_SHORT=${REGION_SHORT} =
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${SCRIPT_DIR}/${APP}"
 
+# run.mqtt lives at apps/mqtt/ (not apps/run.mqtt/)
+if [[ "$APP" == "run.mqtt" ]]; then
+  APP_DIR="${SCRIPT_DIR}/mqtt"
+fi
+
+# Resolve meshtk source for mqtt builds
+# Local: copy from symlink target; CI: clone from GitHub
+resolve_meshtk() {
+  local meshtk_dir="${APP_DIR}/meshtk"
+  if [[ -n "$GITHUB_ACTIONS" ]]; then
+    # CI: always clone from GitHub (public repo, no auth needed)
+    if [[ ! -d "$meshtk_dir/.git" ]]; then
+      echo "[build] Cloning meshtk from GitHub..."
+      rm -rf "$meshtk_dir"
+      git clone --depth 1 https://github.com/whereiskurt/meshtk.git "$meshtk_dir/"
+    fi
+  elif [[ -L "$meshtk_dir" ]]; then
+    # Local: copy from symlink target, restore on exit
+    local target
+    target=$(readlink "$meshtk_dir")
+    echo "[build] Copying meshtk source from $target..."
+    rm "$meshtk_dir"
+    cp -r "$target" "$meshtk_dir"
+    trap "rm -rf '$meshtk_dir' && ln -s '$target' '$meshtk_dir'" EXIT
+  fi
+}
+
 if [[ "$COMPONENT" == "nginx" ]]; then
   # Deploy nginx
   export REPO_NAME="${REPO_PREFIX}-nginx"
@@ -119,9 +163,17 @@ if [[ "$COMPONENT" == "nginx" ]]; then
       | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
   fi
 
-  docker buildx build --load \
-    --platform linux/amd64 \
-    -f "${APP_DIR}/nginx/Dockerfile.nginx" -t "$LOCAL_TAG" "${APP_DIR}/nginx/"
+  if [[ "$APP" == "run.mqtt" ]]; then
+    # mqtt nginx needs parent dir as build context (Dockerfile.nginx builds meshobserv from meshtk/)
+    resolve_meshtk
+    docker buildx build --load \
+      --platform linux/amd64 \
+      -f "${APP_DIR}/nginx/Dockerfile.nginx" -t "$LOCAL_TAG" "${APP_DIR}/"
+  else
+    docker buildx build --load \
+      --platform linux/amd64 \
+      -f "${APP_DIR}/nginx/Dockerfile.nginx" -t "$LOCAL_TAG" "${APP_DIR}/nginx/"
+  fi
 
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
@@ -236,6 +288,51 @@ elif [[ "$COMPONENT" == "app" ]]; then
   docker buildx build --load --platform=linux/amd64 --no-cache \
     --build-arg REGION_SHORT="${REGION_SHORT}" \
     -t "$LOCAL_TAG" -f "${APP_DIR}/app/Dockerfile.app" "${APP_DIR}/app/"
+
+  docker tag "${LOCAL_TAG}" \
+    "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+  docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+  echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+elif [[ "$COMPONENT" == "mosquitto" ]]; then
+  # Deploy mqtt-mosquitto container
+  export REPO_NAME="${REPO_PREFIX}-mosquitto"
+  export IMAGE_TAG=${IMAGE_TAG:-$(cat "${APP_DIR}/mosquitto/VERSION" | tr -d '[:space:]')}
+  LOCAL_TAG="${REPO_NAME}:${IMAGE_TAG}-${REGION_SHORT}"
+
+  if [[ "${SKIP_ECR_LOGIN}" != "true" ]]; then
+    aws ecr get-login-password --region "$AWS_REGION" \
+      | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+  fi
+
+  docker buildx build --load \
+    --platform linux/amd64 \
+    -f "${APP_DIR}/mosquitto/Dockerfile.mosquitto" -t "$LOCAL_TAG" "${APP_DIR}/mosquitto/"
+
+  docker tag "${LOCAL_TAG}" \
+    "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+  docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+  echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+elif [[ "$COMPONENT" == "meshtk" ]]; then
+  # Deploy mqtt-meshtk container
+  resolve_meshtk
+  export REPO_NAME="${REPO_PREFIX}-meshtk"
+  export IMAGE_TAG=${IMAGE_TAG:-$(cat "${APP_DIR}/meshtk/VERSION" | tr -d '[:space:]')}
+  LOCAL_TAG="${REPO_NAME}:${IMAGE_TAG}-${REGION_SHORT}"
+
+  if [[ "${SKIP_ECR_LOGIN}" != "true" ]]; then
+    aws ecr get-login-password --region "$AWS_REGION" \
+      | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+  fi
+
+  docker buildx build --load \
+    --platform linux/amd64 \
+    -f "${APP_DIR}/meshtk/Dockerfile.meshtk" -t "$LOCAL_TAG" "${APP_DIR}/meshtk/"
 
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"

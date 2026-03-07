@@ -154,7 +154,7 @@ locals {
           {
             # Internal auth URL via service discovery (container-to-container)
             name  = "AUTH_INTERNAL_URL"
-            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_DOMAIN_SLUG}}.local:3000/{{REGION_LABEL}}"
+            value = "http://run-auth.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
           },
           {
             name  = "RUN_PUBLIC_URL"
@@ -491,6 +491,11 @@ locals {
       service_name = "cms"
       regions      = [<<stringList .Services.CMS.WorkerTask.Regions>>]
 
+      # Strapi uploads to {region}/cms/* path (not uploads/*), so the
+      # prefix-restricted IAM policy doesn't fit. Full access is appropriate
+      # since only the CMS master writes to this bucket.
+      full_bucket_access = <<boolHCL .Services.CMS.Media.FullBucketAccess>>
+
       lifecycle = {
         uploads_expire_days   = <<.Services.CMS.Media.UploadsExpireDays>>
         processed_expire_days = 0
@@ -503,17 +508,6 @@ locals {
           <<regionListCompact .Services.CMS.Media.ReplicaRegions>>
         ]
       }
-
-      # Strapi uploads to {region}/cms/* path (not uploads/*), so the
-      # prefix-restricted IAM policy doesn't fit. Full access is appropriate
-      # since only the CMS master writes to this bucket.
-      full_bucket_access = <<boolHCL .Services.CMS.Media.FullBucketAccess>>
-
-      # Replicate SSM parameters so workers in other regions can resolve media bucket credentials
-      # Note: params point to the source (use1) bucket, not regional replicas
-      ssm_replicate_to = [
-        <<regionListCompact .Services.CMS.Media.SSMReplicateTo>>
-      ]
 
       # Enable CloudFront OAC access for serving media via CDN
       # This allows cms.<domain>/{region}/cms/* to serve media files

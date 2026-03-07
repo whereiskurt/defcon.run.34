@@ -1,0 +1,24 @@
+# Local MQTT stack: mosquitto broker
+# Usage:  docker compose up
+#
+# MQTT broker: localhost:1884
+# Meshmap UI:  use VS Code task "App: mqtt.meshmap" (python http server)
+
+services:
+  mosquitto:
+    build:
+      context: ./mosquitto
+      dockerfile: Dockerfile.mosquitto
+    container_name: mqtt-mosquitto
+    ports:
+      - "1884:1884"
+    environment:
+      - MQTT_MESHTK_PASSWORD=localdev
+      - MQTT_MESHOBSERV_PASSWORD=localdev
+      - MQTT_GHOSTS_PASSWORD=localdev
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-p", "1884", "-t", "$$SYS/broker/uptime", "-C", "1", "-W", "3"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
