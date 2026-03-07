@@ -89,46 +89,46 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| INFRA-06 | — | Pending |
-| INFRA-07 | — | Pending |
-| INFRA-08 | — | Pending |
-| INFRA-09 | — | Pending |
-| INFRA-10 | — | Pending |
-| CONT-01 | — | Pending |
-| CONT-02 | — | Pending |
-| CONT-03 | — | Pending |
-| CONT-04 | — | Pending |
-| CONT-05 | — | Pending |
-| CONT-06 | — | Pending |
-| CONT-07 | — | Pending |
-| CONT-08 | — | Pending |
-| CONT-09 | — | Pending |
-| MESH-01 | — | Pending |
-| MESH-02 | — | Pending |
-| MESH-03 | — | Pending |
-| MESH-04 | — | Pending |
-| MESH-05 | — | Pending |
-| MESH-06 | — | Pending |
-| MESH-07 | — | Pending |
-| MESH-08 | — | Pending |
-| MESH-09 | — | Pending |
-| MESH-10 | — | Pending |
-| MESH-11 | — | Pending |
-| FLEET-01 | — | Pending |
-| FLEET-02 | — | Pending |
-| FLEET-03 | — | Pending |
-| FLEET-04 | — | Pending |
+| INFRA-01 | Phase 14 | Pending |
+| INFRA-02 | Phase 14 | Pending |
+| INFRA-03 | Phase 14 | Pending |
+| INFRA-04 | Phase 14 | Pending |
+| INFRA-05 | Phase 14 | Pending |
+| INFRA-06 | Phase 14 | Pending |
+| INFRA-07 | Phase 14 | Pending |
+| INFRA-08 | Phase 14 | Pending |
+| INFRA-09 | Phase 14 | Pending |
+| INFRA-10 | Phase 14 | Pending |
+| CONT-01 | Phase 15 | Pending |
+| CONT-02 | Phase 15 | Pending |
+| CONT-03 | Phase 15 | Pending |
+| CONT-04 | Phase 15 | Pending |
+| CONT-05 | Phase 15 | Pending |
+| CONT-06 | Phase 15 | Pending |
+| CONT-07 | Phase 15 | Pending |
+| CONT-08 | Phase 16 | Pending |
+| CONT-09 | Phase 16 | Pending |
+| MESH-01 | Phase 17 | Pending |
+| MESH-02 | Phase 17 | Pending |
+| MESH-03 | Phase 17 | Pending |
+| MESH-04 | Phase 17 | Pending |
+| MESH-05 | Phase 17 | Pending |
+| MESH-06 | Phase 17 | Pending |
+| MESH-07 | Phase 17 | Pending |
+| MESH-08 | Phase 17 | Pending |
+| MESH-09 | Phase 17 | Pending |
+| MESH-10 | Phase 17 | Pending |
+| MESH-11 | Phase 17 | Pending |
+| FLEET-01 | Phase 18 | Pending |
+| FLEET-02 | Phase 18 | Pending |
+| FLEET-03 | Phase 18 | Pending |
+| FLEET-04 | Phase 18 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 34 total
-- Mapped to phases: 0
-- Unmapped: 34
+- Mapped to phases: 34
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-06*
-*Last updated: 2026-03-06 after initial definition*
+*Last updated: 2026-03-06 after roadmap creation*

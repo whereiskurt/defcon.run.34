@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Meshtk Integration
-status: defining_requirements
+status: ready_to_plan
 stopped_at: null
 last_updated: "2026-03-06T23:59:00Z"
-last_activity: 2026-03-06 — Milestone v1.3 started
+last_activity: 2026-03-06 — Roadmap created for v1.3 Meshtk Integration
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,21 +20,28 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-03-06)
 
-**Core value:** Participants and organizers have a seamless digital experience for DCR34 — from device setup to event discovery to route navigation.
-**Current focus:** v1.3 Meshtk Integration — defining requirements
+**Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation.
+**Current focus:** Phase 14 - Infrastructure Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-06 — Milestone v1.3 started
+Phase: 14 of 18 (Infrastructure Foundation)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-03-06 -- Roadmap created for v1.3 Meshtk Integration
+
+Progress: [..........] 0% (0/5 v1.3 phases)
 
 ## Accumulated Context
 
 ### Decisions
 
 See PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- [v1.3]: NLB-only for mqtt.defcon.run (no CloudFront -- MQTT is raw TCP)
+- [v1.3]: Route53 latency routing for NLB (nearest region)
+- [v1.3]: Meshtk as gitignored copy (avoid submodule overhead)
 
 ### Pending Todos
 
@@ -42,4 +49,12 @@ None.
 
 ### Blockers/Concerns
 
-- DNS for mqtt.defcon.run must route MQTT ports (1883/8883/8443) to NLB directly, while CloudFront handles 443 for meshmap. Need to verify this is achievable with a single domain.
+- ecs-service module auto-enables Proxy Protocol v2 on NLB TCP targets -- must be fixed in Phase 14 before any container deployment
+- Security group outputs exclude MQTT ports -- must be fixed in Phase 14
+- Route53 NLB alias records not covered by existing cloudfront module -- needs new Terraform resources or module extension
+
+## Session Continuity
+
+Last session: 2026-03-06
+Stopped at: Roadmap created for v1.3 milestone
+Resume file: None
