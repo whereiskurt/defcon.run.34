@@ -25,10 +25,10 @@ Requirements for Meshtk Integration milestone. Each maps to roadmap phases.
 - [x] **CONT-01**: Mosquitto container with password auth, ACL, persistence, health check on port 1884
 - [x] **CONT-02**: Meshtk proxy container in `server proxy` mode — inspects packets, rate limits, logs to S3, validates per-user credentials
 - [x] **CONT-03**: Nginx/meshobserv container — meshobserv subscribes to MQTT and writes nodes.json, nginx serves meshmap static HTML on port 443
-- [ ] **CONT-04**: Ghosts container running meshtk `fleet simulate` mode (non-essential, can fail without stopping service)
-- [ ] **CONT-05**: 4-container ECS task definition with correct port allocation, health checks, and dependency ordering (mosquitto first)
+- [x] **CONT-04**: Ghosts container running meshtk `fleet simulate` mode (non-essential, can fail without stopping service)
+- [x] **CONT-05**: 4-container ECS task definition with correct port allocation, health checks, and dependency ordering (mosquitto first)
 - [x] **CONT-06**: meshtk checked out as gitignored directory at apps/mqtt/grpc/site-tld/meshtk/ from ~/working/meshtk
-- [ ] **CONT-07**: mqtt service.hcl with 4-container task, 4 NLB load_balancer entries, both-region deployment
+- [x] **CONT-07**: mqtt service.hcl with 4-container task, 4 NLB load_balancer entries, both-region deployment
 - [ ] **CONT-08**: Build scripts adapted for mqtt — build.sh support for mosquitto, nginx, grpc components
 - [ ] **CONT-09**: Deploy scripts adapted for mqtt — deploy.sh with VERSION files, release-all.sh integration
 
@@ -102,10 +102,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONT-01 | Phase 15 | Complete |
 | CONT-02 | Phase 15 | Complete |
 | CONT-03 | Phase 15 | Complete |
-| CONT-04 | Phase 15 | Pending |
-| CONT-05 | Phase 15 | Pending |
+| CONT-04 | Phase 15 | Complete |
+| CONT-05 | Phase 15 | Complete |
 | CONT-06 | Phase 15 | Complete |
-| CONT-07 | Phase 15 | Pending |
+| CONT-07 | Phase 15 | Complete |
 | CONT-08 | Phase 16 | Pending |
 | CONT-09 | Phase 16 | Pending |
 | MESH-01 | Phase 17 | Pending |

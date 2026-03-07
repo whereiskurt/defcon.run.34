@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Meshtk Integration
 status: executing
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-03-07T13:19:03Z"
+stopped_at: Completed 15-03-PLAN.md
+last_updated: "2026-03-07T13:24:28.236Z"
 last_activity: 2026-03-07 -- Completed 15-02 meshtk proxy + nginx/meshobserv containers
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 40
 ---
 
@@ -50,6 +50,7 @@ Recent decisions affecting current work:
 - [Phase 15]: Entrypoint generates mosquitto.conf and passwd from env vars at startup
 - [Phase 15]: Replaced meshtk symlink with tracked directory (Dockerfile tracked, Go source gitignored)
 - [Phase 15]: meshobserv is same meshtk binary invoked as 'server inspect' (single Go build)
+- [Phase 15]: Usernames in env vars, only passwords in SSM secrets for MQTT containers
 
 ### Pending Todos
 
@@ -63,6 +64,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T13:19:03Z
-Stopped at: Completed 15-02-PLAN.md
+Last session: 2026-03-07T13:24:28.235Z
+Stopped at: Completed 15-03-PLAN.md
 Resume file: None
