@@ -1,0 +1,16 @@
+FROM alpine:3.21
+
+RUN apk add --no-cache mosquitto mosquitto-clients \
+ && mkdir -p /mosquitto/config /mosquitto/data /mosquitto/log
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+COPY acl.conf /mosquitto/config/acl.conf
+
+EXPOSE 1884
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD mosquitto_sub -h localhost -p 1884 -t '$SYS/broker/uptime' -C 1 -W 3 || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
