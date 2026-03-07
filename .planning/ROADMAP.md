@@ -39,7 +39,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for archived v1.2 roadmap.
 
 **Milestone Goal:** Replicate the defcon.run.33 MQTT/meshtk infrastructure in defcon.run.34 -- mosquitto broker, meshtk proxy, meshmap, and fleet simulator deployed via NLB to both regions at mqtt.defcon.run.
 
-- [ ] **Phase 14: Infrastructure Foundation** - NLB, security groups, ECR repos, ACM certs, Route53 DNS, S3 buckets, SSM params, ecs-service PP2 fix
+- [x] **Phase 14: Infrastructure Foundation** - NLB, security groups, ECR repos, ACM certs, Route53 DNS, S3 buckets, SSM params, ecs-service PP2 fix (completed 2026-03-07)
 - [ ] **Phase 15: Container Images + Task Definition** - Mosquitto, meshtk, nginx/meshobserv, ghosts Dockerfiles and 4-container ECS task
 - [ ] **Phase 16: Build/Deploy Pipeline** - build.sh, deploy.sh, release-all.sh adapted for mqtt multi-container service
 - [ ] **Phase 17: Meshmap Verification + Branding** - Validate meshmap features ported from DC33, apply DC34 branding
@@ -127,7 +127,7 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 14. Infrastructure Foundation | 2/3 | In Progress|  | - |
+| 14. Infrastructure Foundation | 3/3 | Complete   | 2026-03-07 | - |
 | 15. Container Images + Task Definition | v1.3 | 0/? | Not started | - |
 | 16. Build/Deploy Pipeline | v1.3 | 0/? | Not started | - |
 | 17. Meshmap Verification + Branding | v1.3 | 0/? | Not started | - |
