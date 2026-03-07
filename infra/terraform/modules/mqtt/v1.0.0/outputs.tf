@@ -20,5 +20,5 @@ output "logs_bucket_arn" {
 
 output "dns_fqdn" {
   description = "FQDN of the MQTT DNS record"
-  value       = module.nlb_dns.fqdn
+  value       = aws_route53_record.nlb_alias.fqdn
 }

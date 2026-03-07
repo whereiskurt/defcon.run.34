@@ -1,4 +1,4 @@
-# MQTT regional resources: S3 buckets and NLB DNS records
+# MQTT regional resources: S3 buckets, NLB DNS records, and infra SSM parameters
 
 # --- S3 Blocklist Bucket (INFRA-06) ---
 
@@ -51,18 +51,48 @@ resource "aws_s3_bucket_lifecycle_configuration" "mqtt_logs" {
   }
 }
 
+# --- SSM Parameters for infra-created values (consumed by ECS task secrets) ---
+
+resource "aws_ssm_parameter" "logs_bucket" {
+  name  = "/${var.site.label}/infra/${var.region.label}/mqtt/logs_bucket"
+  type  = "String"
+  value = aws_s3_bucket.mqtt_logs.bucket
+  tags = {
+    Service = "run-mqtt"
+    Region  = var.region.label
+  }
+}
+
+resource "aws_ssm_parameter" "blocklist_bucket" {
+  name  = "/${var.site.label}/infra/${var.region.label}/mqtt/blocklist_bucket"
+  type  = "String"
+  value = aws_s3_bucket.mqtt_blocklist.bucket
+  tags = {
+    Service = "run-mqtt"
+    Region  = var.region.label
+  }
+}
+
 # --- NLB DNS (INFRA-04) ---
+# Inline Route53 latency-based alias record for mqtt.defcon.run -> NLB
+# (Inlined from nlb-dns module to avoid cross-module relative path issues with terragrunt cache)
 
-module "nlb_dns" {
-  source = "../../../../../modules/nlb-dns/v1.0.0"
+resource "aws_route53_record" "nlb_alias" {
+  provider = aws.global-application
 
-  zone_id      = var.mqtt_zone_id
-  domain_name  = "mqtt.${var.dns_zonename}"
-  nlb_dns_name = var.nlb_dns_name
-  nlb_zone_id  = var.nlb_zone_id
-  region       = var.region
+  zone_id = var.mqtt_zone_id
+  name    = "mqtt.${var.dns_zonename}"
+  type    = "A"
 
-  providers = {
-    aws.global-application = aws.global-application
+  set_identifier = var.region.label
+
+  alias {
+    name                   = var.nlb_dns_name
+    zone_id                = var.nlb_zone_id
+    evaluate_target_health = true
+  }
+
+  latency_routing_policy {
+    region = var.region.full
   }
 }

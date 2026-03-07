@@ -20,7 +20,7 @@ func TestImportSiteHCL(t *testing.T) {
 	assertEqual(t, "Site.GitHubRepoName", cfg.Site.GitHubRepoName, "defcon.run.34")
 	assertEqual(t, "Site.TFStatePrefix", cfg.Site.TFStatePrefix, "tf-dc34")
 	assertEqual(t, "Site.RandomSuffix", cfg.Site.RandomSuffix, "80a6b349")
-	assertSliceEqual(t, "Site.SkipRegions", cfg.Site.SkipRegions, []string{"ap-southeast-1", "us-east-1"})
+	assertSliceEqual(t, "Site.SkipRegions", cfg.Site.SkipRegions, []string{"ap-southeast-1", "ca-central-1"})
 
 	// DNS
 	assertEqual(t, "DNS.ZoneName", cfg.DNS.ZoneName, "defcon.run")
@@ -95,7 +95,7 @@ func TestImportSiteHCL(t *testing.T) {
 	} else {
 		assertBoolEqual(t, "Secrets.Definitions[mapbox].Global", cfg.Secrets.Definitions["mapbox"].Global, true)
 	}
-	assertIntEqual(t, "Secrets.Definitions count", len(cfg.Secrets.Definitions), 13)
+	assertIntEqual(t, "Secrets.Definitions count", len(cfg.Secrets.Definitions), 12)
 
 	// CloudTrail
 	assertBoolEqual(t, "CloudTrail.Enabled", cfg.CloudTrail.Enabled, false)

@@ -5,7 +5,7 @@ locals {
     github_repo_name = "defcon.run.34"
     tf_state_prefix  = "tf-dc34"
     random_suffix    = get_env("SGUID", "80a6b349")
-    skip_regions     = ["ap-southeast-1"]
+    skip_regions     = ["ap-southeast-1", "ca-central-1"]
   }
 
   secret_values = jsondecode(
@@ -357,10 +357,6 @@ locals {
       strava = {
         description = "Strava OAuth credentials"
         keys        = ["client_id", "client_secret"]
-      }
-      mqtt = {
-        description = "MQTT service infrastructure config"
-        keys        = ["blocklist_bucket", "logs_bucket"]
       }
     }
   }

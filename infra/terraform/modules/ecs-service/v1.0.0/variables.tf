@@ -153,6 +153,12 @@ variable "nlb_arn" {
   default     = ""
 }
 
+variable "nlb_default_certificate_arn" {
+  type        = string
+  description = "Default ACM certificate ARN for NLB TLS listeners when not specified in service config"
+  default     = ""
+}
+
 variable "vpc_id" {
   type        = string
   description = "VPC ID for target groups"

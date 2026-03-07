@@ -53,26 +53,29 @@ dependency "site" {
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
 
+include "module" {
+  path   = "${find_in_parent_folders("modules")}/mqtt/config.hcl"
+  expose = true
+}
+
 include "providers" {
   path   = "${find_in_parent_folders("providers")}/regional.hcl"
   expose = true
 }
 
 terraform {
-  source = "."
+  source = "${include.module.locals.module_path}/v1.0.0"
 }
 
-inputs = {
-  site = {
-    label         = local.site_vars.locals.site.label
-    random_suffix = local.site_vars.locals.site.random_suffix
+inputs = merge(
+  include.module.locals.merged_inputs,
+  {
+    region = {
+      label = include.providers.locals.region_label
+      full  = include.providers.locals.region
+    }
+    nlb_dns_name = dependency.network.outputs.nlb_dns_name
+    nlb_zone_id  = dependency.network.outputs.nlb_zone_id
+    mqtt_zone_id = dependency.site.outputs.zone_map["mqtt.${local._zone}"].zone_id
   }
-  region = {
-    label = include.providers.locals.region_label
-    full  = include.providers.locals.region
-  }
-  nlb_dns_name = dependency.network.outputs.nlb_dns_name
-  nlb_zone_id  = dependency.network.outputs.nlb_zone_id
-  mqtt_zone_id = dependency.site.outputs.zone_map["mqtt.${local._zone}"].zone_id
-  dns_zonename = local._zone
-}
+)

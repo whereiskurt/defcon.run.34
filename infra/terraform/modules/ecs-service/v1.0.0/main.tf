@@ -102,7 +102,7 @@ locals {
 resource "aws_service_discovery_service" "service" {
   for_each = {
     for name, service in local.services_map :
-    name => service if service.service_discovery != null && service.service_discovery.container_name != ""
+    name => service if try(service.service_discovery.container_name, "") != ""
   }
 
   name = each.value.service_discovery.name
@@ -130,7 +130,7 @@ resource "aws_service_discovery_service" "service" {
 resource "aws_lb_target_group" "target_group" {
   for_each = local.lb_map
 
-  name        = "${each.value.service_name}-${each.value.container_port}"
+  name        = "${each.value.service_name}-${each.value.target_group_port}"
   port        = each.value.target_group_port
   protocol    = each.value.target_group_protocol
   vpc_id      = var.vpc_id
@@ -225,7 +225,9 @@ resource "aws_lb_listener" "nlb_listener" {
   protocol          = each.value.listener.protocol
 
   ssl_policy      = contains(["TLS", "HTTPS"], each.value.listener.protocol) ? each.value.listener.ssl_policy : null
-  certificate_arn = contains(["TLS", "HTTPS"], each.value.listener.protocol) ? each.value.listener.certificate_arn : null
+  certificate_arn = contains(["TLS", "HTTPS"], each.value.listener.protocol) ? (
+    each.value.listener.certificate_arn != "" ? each.value.listener.certificate_arn : var.nlb_default_certificate_arn
+  ) : null
 
   default_action {
     type             = "forward"
@@ -259,7 +261,7 @@ resource "aws_ecs_service" "service" {
 
   # Service discovery registration
   dynamic "service_registries" {
-    for_each = each.value.service_discovery != null && each.value.service_discovery.container_name != "" ? [1] : []
+    for_each = try(each.value.service_discovery.container_name, "") != "" ? [1] : []
     content {
       registry_arn   = aws_service_discovery_service.service[each.key].arn
       container_name = each.value.service_discovery.container_name

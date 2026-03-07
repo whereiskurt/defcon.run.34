@@ -176,7 +176,7 @@ locals {
           {
             # Replicate API tokens to worker regions so they can read from local SSM
             name  = "SSM_REPLICATE_TO"
-            value = "ca-central-1:cac1"
+            value = "ca-central-1:cac1,ap-southeast-1:apse1"
           }
         ]
 

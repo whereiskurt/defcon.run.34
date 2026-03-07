@@ -170,7 +170,7 @@ locals {
 
         depends_on = [
           {
-            containerName = "mqtt-mosquitto"
+            container_name = "mqtt-mosquitto"
             condition     = "HEALTHY"
           }
         ]
@@ -242,8 +242,8 @@ locals {
 
         depends_on = [
           {
-            containerName = "mqtt-meshtk"
-            condition     = "HEALTHY"
+            container_name = "mqtt-meshtk"
+            condition      = "HEALTHY"
           }
         ]
       },
@@ -294,8 +294,8 @@ locals {
 
         depends_on = [
           {
-            containerName = "mqtt-meshtk"
-            condition     = "START"
+            container_name = "mqtt-meshtk"
+            condition      = "START"
           }
         ]
       }
@@ -309,6 +309,12 @@ locals {
     cluster_name  = "app"
     task_family   = "run-mqtt" # Must match task definition family from task above
     desired_count = 1
+
+    # MQTT uses NLB (not ALB), no service discovery needed
+    service_discovery = {
+      name           = "run-mqtt"
+      container_name = ""
+    }
 
     load_balancers = [
       # Port 1883: TCP MQTT -> meshtk:1883 (Proxy Protocol v2 enabled)
