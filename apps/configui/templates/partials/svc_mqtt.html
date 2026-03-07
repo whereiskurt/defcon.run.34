@@ -1,0 +1,63 @@
+{{define "svc_mqtt.html"}}
+<div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-sm overflow-hidden mod-svc-mqtt" data-panel="svc_mqtt" data-module-num="S5">
+  <div class="flex justify-between items-center px-4 py-3 cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-700/50" onclick="togglePanel('svc_mqtt')">
+    <div class="flex items-center gap-3">
+      <span class="drag-handle" title="Drag to reorder">&#x2807;</span>
+      <h3 class="text-base font-semibold relative"><span class="module-num">S5</span>run.mqtt</h3>
+      <span class="text-xs text-zinc-400">MQTT broker (4 containers, NLB)</span>
+    </div>
+    <svg class="w-4 h-4 chevron" id="chevron-svc_mqtt" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3 space-y-3" id="body-svc_mqtt" style="display:none">
+    <!-- Task -->
+    <div>
+      <h4 class="text-[10px] uppercase tracking-wide text-green-500 mb-1">Task</h4>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-zinc-400 font-mono w-12">CPU</span>
+        <input type="number" name="svc.mqtt.task_cpu" value="{{.Config.Services.MQTT.Task.TaskCPU}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <span class="text-xs text-zinc-400 font-mono w-12">Memory</span>
+        <input type="number" name="svc.mqtt.task_memory" value="{{.Config.Services.MQTT.Task.TaskMemory}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+      </div>
+    </div>
+    <!-- Containers -->
+    <div>
+      <h4 class="text-[10px] uppercase tracking-wide text-green-500 mb-1">Containers</h4>
+      <div class="grid grid-cols-[auto_1fr_1fr_1fr] gap-x-3 gap-y-1.5 items-center">
+        <span class="text-[10px] text-zinc-500"></span>
+        <span class="text-[10px] text-zinc-500 text-center">CPU</span>
+        <span class="text-[10px] text-zinc-500 text-center">Mem</span>
+        <span class="text-[10px] text-zinc-500 text-center">Reserve</span>
+        <span class="text-xs text-zinc-400 font-mono">mosquitto</span>
+        <input type="number" name="svc.mqtt.mosquitto.cpu" value="{{.Config.Services.MQTT.Mosquitto.CPU}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <input type="number" name="svc.mqtt.mosquitto.memory" value="{{.Config.Services.MQTT.Mosquitto.Memory}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <input type="number" name="svc.mqtt.mosquitto.mem_reservation" value="{{.Config.Services.MQTT.Mosquitto.MemoryReservation}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <span class="text-xs text-zinc-400 font-mono">meshtk</span>
+        <input type="number" name="svc.mqtt.meshtk.cpu" value="{{.Config.Services.MQTT.Meshtk.CPU}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <input type="number" name="svc.mqtt.meshtk.memory" value="{{.Config.Services.MQTT.Meshtk.Memory}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <input type="number" name="svc.mqtt.meshtk.mem_reservation" value="{{.Config.Services.MQTT.Meshtk.MemoryReservation}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <span class="text-xs text-zinc-400 font-mono">nginx</span>
+        <input type="number" name="svc.mqtt.nginx.cpu" value="{{.Config.Services.MQTT.Nginx.CPU}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <input type="number" name="svc.mqtt.nginx.memory" value="{{.Config.Services.MQTT.Nginx.Memory}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <input type="number" name="svc.mqtt.nginx.mem_reservation" value="{{.Config.Services.MQTT.Nginx.MemoryReservation}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <span class="text-xs text-zinc-400 font-mono">ghosts</span>
+        <input type="number" name="svc.mqtt.ghosts.cpu" value="{{.Config.Services.MQTT.Ghosts.CPU}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <input type="number" name="svc.mqtt.ghosts.memory" value="{{.Config.Services.MQTT.Ghosts.Memory}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <input type="number" name="svc.mqtt.ghosts.mem_reservation" value="{{.Config.Services.MQTT.Ghosts.MemoryReservation}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+      </div>
+    </div>
+    <!-- Service -->
+    <div>
+      <h4 class="text-[10px] uppercase tracking-wide text-green-500 mb-1">Service</h4>
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="text-xs text-zinc-400 font-mono">Count</span>
+        <input type="number" name="svc.mqtt.desired_count" value="{{.Config.Services.MQTT.Service.DesiredCount}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <label class="flex items-center gap-1.5 text-xs"><input type="checkbox" name="svc.mqtt.autoscaling.enabled" class="toggle-switch" {{if .Config.Services.MQTT.Service.Autoscaling.Enabled}}checked{{end}}> <span class="text-zinc-400">Autoscale</span></label>
+        <span class="text-xs text-zinc-400 font-mono">Min</span>
+        <input type="number" name="svc.mqtt.autoscaling.min" value="{{.Config.Services.MQTT.Service.Autoscaling.MinCapacity}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+        <span class="text-xs text-zinc-400 font-mono">Max</span>
+        <input type="number" name="svc.mqtt.autoscaling.max" value="{{.Config.Services.MQTT.Service.Autoscaling.MaxCapacity}}" class="w-16 rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-900 px-1.5 py-1 text-xs text-center focus:ring-1 focus:ring-green-500">
+      </div>
+    </div>
+  </div>
+</div>
+{{end}}

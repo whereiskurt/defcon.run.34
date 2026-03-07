@@ -1243,6 +1243,26 @@ func parseServiceForm(r *http.Request, cfg *SiteConfig) {
 	cfg.Services.Flash.Service.Autoscaling.Enabled = formBool(r, "svc.flash.autoscaling.enabled")
 	cfg.Services.Flash.Service.Autoscaling.MinCapacity = formInt(r, "svc.flash.autoscaling.min", 1)
 	cfg.Services.Flash.Service.Autoscaling.MaxCapacity = formInt(r, "svc.flash.autoscaling.max", 2)
+
+	// MQTT
+	cfg.Services.MQTT.Task.TaskCPU = formInt(r, "svc.mqtt.task_cpu", 1024)
+	cfg.Services.MQTT.Task.TaskMemory = formInt(r, "svc.mqtt.task_memory", 2048)
+	cfg.Services.MQTT.Mosquitto.CPU = formInt(r, "svc.mqtt.mosquitto.cpu", 256)
+	cfg.Services.MQTT.Mosquitto.Memory = formInt(r, "svc.mqtt.mosquitto.memory", 384)
+	cfg.Services.MQTT.Mosquitto.MemoryReservation = formInt(r, "svc.mqtt.mosquitto.mem_reservation", 256)
+	cfg.Services.MQTT.Meshtk.CPU = formInt(r, "svc.mqtt.meshtk.cpu", 384)
+	cfg.Services.MQTT.Meshtk.Memory = formInt(r, "svc.mqtt.meshtk.memory", 768)
+	cfg.Services.MQTT.Meshtk.MemoryReservation = formInt(r, "svc.mqtt.meshtk.mem_reservation", 512)
+	cfg.Services.MQTT.Nginx.CPU = formInt(r, "svc.mqtt.nginx.cpu", 256)
+	cfg.Services.MQTT.Nginx.Memory = formInt(r, "svc.mqtt.nginx.memory", 512)
+	cfg.Services.MQTT.Nginx.MemoryReservation = formInt(r, "svc.mqtt.nginx.mem_reservation", 384)
+	cfg.Services.MQTT.Ghosts.CPU = formInt(r, "svc.mqtt.ghosts.cpu", 128)
+	cfg.Services.MQTT.Ghosts.Memory = formInt(r, "svc.mqtt.ghosts.memory", 384)
+	cfg.Services.MQTT.Ghosts.MemoryReservation = formInt(r, "svc.mqtt.ghosts.mem_reservation", 256)
+	cfg.Services.MQTT.Service.DesiredCount = formInt(r, "svc.mqtt.desired_count", 1)
+	cfg.Services.MQTT.Service.Autoscaling.Enabled = formBool(r, "svc.mqtt.autoscaling.enabled")
+	cfg.Services.MQTT.Service.Autoscaling.MinCapacity = formInt(r, "svc.mqtt.autoscaling.min", 1)
+	cfg.Services.MQTT.Service.Autoscaling.MaxCapacity = formInt(r, "svc.mqtt.autoscaling.max", 2)
 }
 
 // Form value helpers

@@ -224,6 +224,7 @@ type ServiceConfigs struct {
 	CMS   CMSServiceConfig   `json:"cms"`
 	GPX   GPXServiceConfig   `json:"gpx"`
 	Flash FlashServiceConfig `json:"flash"`
+	MQTT  MQTTServiceConfig  `json:"mqtt"`
 }
 
 type ContainerConfig struct {
@@ -331,6 +332,15 @@ type FlashServiceConfig struct {
 	Nginx   ContainerConfig  `json:"nginx"`
 	App     ContainerConfig  `json:"app"`
 	Service ServiceRunConfig `json:"service"`
+}
+
+type MQTTServiceConfig struct {
+	Task      TaskConfig       `json:"task"`
+	Mosquitto ContainerConfig  `json:"mosquitto"`
+	Meshtk    ContainerConfig  `json:"meshtk"`
+	Nginx     ContainerConfig  `json:"nginx"`
+	Ghosts    ContainerConfig  `json:"ghosts"`
+	Service   ServiceRunConfig `json:"service"`
 }
 
 type VersionConfig struct {
@@ -683,6 +693,28 @@ func DefaultConfig() *SiteConfig {
 				Service: ServiceRunConfig{
 					DesiredCount: 1, HealthCheckPath: "/hello", Matcher: "200-499",
 					Autoscaling: AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
+				},
+			},
+			MQTT: MQTTServiceConfig{
+				Task: TaskConfig{TaskCPU: 1024, TaskMemory: 2048, Regions: []string{"us-east-1", "ca-central-1"}},
+				Mosquitto: ContainerConfig{
+					CPU: 256, Memory: 384, MemoryReservation: 256,
+					HealthCheck: HealthCheckConfig{Interval: 30, Timeout: 5, Retries: 3, StartPeriod: 30},
+				},
+				Meshtk: ContainerConfig{
+					CPU: 384, Memory: 768, MemoryReservation: 512,
+					HealthCheck: HealthCheckConfig{Interval: 30, Timeout: 3, Retries: 3, StartPeriod: 10},
+				},
+				Nginx: ContainerConfig{
+					CPU: 256, Memory: 512, MemoryReservation: 384,
+					HealthCheck: HealthCheckConfig{Interval: 30, Timeout: 5, Retries: 3, StartPeriod: 15},
+				},
+				Ghosts: ContainerConfig{
+					CPU: 128, Memory: 384, MemoryReservation: 256,
+				},
+				Service: ServiceRunConfig{
+					DesiredCount: 1,
+					Autoscaling:  AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
 				},
 			},
 		},
