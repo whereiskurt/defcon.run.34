@@ -1,8 +1,8 @@
 locals {
   versions = {
-    mosquitto = "0.1.0"
-    meshtk    = "0.1.0"
-    nginx     = "0.1.0"
+    mosquitto = trimspace(file("VERSION.mosquitto"))
+    meshtk    = trimspace(file("VERSION.meshtk"))
+    nginx     = trimspace(file("VERSION.nginx"))
   }
 
   # ECR repositories for the MQTT service
