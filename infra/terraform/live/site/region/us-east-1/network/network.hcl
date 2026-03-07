@@ -52,7 +52,7 @@ locals {
     }
 
     nlb = {
-      enabled                    = false
+      enabled                    = true
       enable_deletion_protection = false
       logs_force_destroy         = true
     }

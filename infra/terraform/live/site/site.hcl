@@ -20,7 +20,7 @@ locals {
 
   dns = {
     zonename         = "defcon.run"
-    subdomains       = ["email", "run", "auth", "cms", "gpx", "flash"]
+    subdomains       = ["email", "run", "auth", "cms", "gpx", "flash", "mqtt"]
     ttl              = 300
   }
 
@@ -59,6 +59,7 @@ locals {
     cms       = read_terragrunt_config("./services/run.cms/service.hcl")
     gpx       = read_terragrunt_config("./services/run.gpx/service.hcl")
     flash     = read_terragrunt_config("./services/run.flash/service.hcl")
+    mqtt      = read_terragrunt_config("./services/run.mqtt/service.hcl")
   }
 
   email = {
@@ -214,6 +215,7 @@ locals {
       local.service_conf.cms.locals.ecr_repositories,
       local.service_conf.gpx.locals.ecr_repositories,
       local.service_conf.flash.locals.ecr_repositories,
+      local.service_conf.mqtt.locals.ecr_repositories,
       local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "IMMUTABLE" }] : []
     )
   }
@@ -226,7 +228,8 @@ locals {
       local.service_conf.cms.locals.task_master,
       local.service_conf.cms.locals.task_worker,
       local.service_conf.gpx.locals.task,
-      local.service_conf.flash.locals.task
+      local.service_conf.flash.locals.task,
+      local.service_conf.mqtt.locals.task
     ]
   }
 
@@ -238,7 +241,8 @@ locals {
       local.service_conf.cms.locals.service_master,
       local.service_conf.cms.locals.service_worker,
       local.service_conf.gpx.locals.service,
-      local.service_conf.flash.locals.service
+      local.service_conf.flash.locals.service,
+      local.service_conf.mqtt.locals.service
     ]
   }
 
@@ -353,6 +357,10 @@ locals {
       strava = {
         description = "Strava OAuth credentials"
         keys        = ["client_id", "client_secret"]
+      }
+      mqtt = {
+        description = "MQTT service infrastructure config"
+        keys        = ["blocklist_bucket", "logs_bucket"]
       }
     }
   }
