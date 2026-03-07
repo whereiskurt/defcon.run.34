@@ -27,9 +27,15 @@ COPY nginx/nginx.conf /etc/nginx/nginx.conf
 # Copy supervisord config
 COPY nginx/supervisord.conf /etc/supervisord.conf
 
-# Copy meshmap HTML placeholder
-# TODO: Phase 17 will port the actual meshmap HTML from DC33
+# Copy meshmap files (ported from DC33, updated for DC34)
 COPY nginx/index.html /var/www/html/index.html
+COPY nginx/site.webmanifest /var/www/html/site.webmanifest
+COPY nginx/favicon.ico /var/www/html/favicon.ico
+COPY nginx/apple-touch-icon.png /var/www/html/apple-touch-icon.png
+COPY nginx/android-chrome-192x192.png /var/www/html/android-chrome-192x192.png
+COPY nginx/android-chrome-512x512.png /var/www/html/android-chrome-512x512.png
+COPY nginx/dc34-logo-transp.webp /var/www/html/dc34-logo-transp.webp
+COPY nginx/dc34-logo.webp /var/www/html/dc34-logo.webp
 
 EXPOSE 80
 
