@@ -29,7 +29,7 @@ Requirements for Meshtk Integration milestone. Each maps to roadmap phases.
 - [x] **CONT-05**: 4-container ECS task definition with correct port allocation, health checks, and dependency ordering (mosquitto first)
 - [x] **CONT-06**: meshtk checked out as gitignored directory at apps/mqtt/grpc/site-tld/meshtk/ from ~/working/meshtk
 - [x] **CONT-07**: mqtt service.hcl with 4-container task, 4 NLB load_balancer entries, both-region deployment
-- [ ] **CONT-08**: Build scripts adapted for mqtt — build.sh support for mosquitto, nginx, grpc components
+- [x] **CONT-08**: Build scripts adapted for mqtt — build.sh support for mosquitto, nginx, grpc components
 - [ ] **CONT-09**: Deploy scripts adapted for mqtt — deploy.sh with VERSION files, release-all.sh integration
 
 ### Meshmap
@@ -106,7 +106,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CONT-05 | Phase 15 | Complete |
 | CONT-06 | Phase 15 | Complete |
 | CONT-07 | Phase 15 | Complete |
-| CONT-08 | Phase 16 | Pending |
+| CONT-08 | Phase 16 | Complete |
 | CONT-09 | Phase 16 | Pending |
 | MESH-01 | Phase 17 | Pending |
 | MESH-02 | Phase 17 | Pending |

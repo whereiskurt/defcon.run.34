@@ -131,6 +131,6 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 |-------|-----------|----------------|--------|-----------|
 | 14. Infrastructure Foundation | 3/3 | Complete    | 2026-03-07 | - |
 | 15. Container Images + Task Definition | 3/3 | Complete    | 2026-03-07 | - |
-| 16. Build/Deploy Pipeline | v1.3 | 0/2 | Not started | - |
+| 16. Build/Deploy Pipeline | 1/2 | In Progress|  | - |
 | 17. Meshmap Verification + Branding | v1.3 | 0/? | Not started | - |
 | 18. Fleet Simulator + Easter Egg | v1.3 | 0/? | Not started | - |

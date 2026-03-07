@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Meshtk Integration
 status: executing
-stopped_at: Phase 16 context gathered
-last_updated: "2026-03-07T13:57:43.657Z"
-last_activity: 2026-03-07 -- Completed 15-02 meshtk proxy + nginx/meshobserv containers
+stopped_at: Completed 16-01-PLAN.md
+last_updated: "2026-03-07T14:10:44Z"
+last_activity: 2026-03-07 -- Completed 16-01 mqtt build pipeline
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 6
-  completed_plans: 6
-  percent: 40
+  completed_plans: 7
+  percent: 60
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation.
-**Current focus:** Phase 15 - Container Images & Task Definitions
+**Current focus:** Phase 16 - Build & Deploy Pipeline
 
 ## Current Position
 
-Phase: 15 of 18 (Container Images & Task Definitions)
-Plan: 2 of 3 in current phase (15-01, 15-02 complete)
+Phase: 16 of 18 (Build & Deploy Pipeline)
+Plan: 1 of 2 in current phase (16-01 complete)
 Status: In progress
-Last activity: 2026-03-07 -- Completed 15-02 meshtk proxy + nginx/meshobserv containers
+Last activity: 2026-03-07 -- Completed 16-01 mqtt build pipeline (build.sh, version.sh, VERSION files)
 
-Progress: [====......] 40% (2/5 v1.3 phases, 2/3 phase 15 plans)
+Progress: [======....] 60% (3/5 v1.3 phases, 1/2 phase 16 plans)
 
 ## Accumulated Context
 
@@ -51,6 +51,8 @@ Recent decisions affecting current work:
 - [Phase 15]: Replaced meshtk symlink with tracked directory (Dockerfile tracked, Go source gitignored)
 - [Phase 15]: meshobserv is same meshtk binary invoked as 'server inspect' (single Go build)
 - [Phase 15]: Usernames in env vars, only passwords in SSM secrets for MQTT containers
+- [Phase 16]: APP_DIR override maps run.mqtt to apps/mqtt/ (non-standard directory naming)
+- [Phase 16]: resolve_meshtk clones from GitHub in CI, copies from symlink locally
 
 ### Pending Todos
 
@@ -64,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T13:57:43.651Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-build-deploy-pipeline/16-CONTEXT.md
+Last session: 2026-03-07T14:10:44Z
+Stopped at: Completed 16-01-PLAN.md
+Resume file: .planning/phases/16-build-deploy-pipeline/16-01-SUMMARY.md
