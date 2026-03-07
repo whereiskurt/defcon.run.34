@@ -74,11 +74,12 @@ Plans:
   3. Nginx container serves meshmap HTML on port 443 and meshobserv subscribes to MQTT, decrypts Meshtastic traffic, and writes nodes.json
   4. 4-container ECS task starts successfully with mosquitto healthy before meshtk and ghosts begin, no port conflicts
   5. Ghosts container failure does not prevent the remaining three containers from running
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 15-01: TBD
-- [ ] 15-02: TBD
+- [ ] 15-01-PLAN.md — Directory setup + Mosquitto container: apps/mqtt/ dir, meshtk symlink, .gitignore, mosquitto Dockerfile/entrypoint/ACL
+- [ ] 15-02-PLAN.md — Meshtk proxy + Nginx/meshobserv containers: multi-stage Go Dockerfiles, supervisord, nginx.conf
+- [ ] 15-03-PLAN.md — ECS task definition + build script: 4-container service.hcl, NLB port updates, apps/mqtt/build.sh
 
 ### Phase 16: Build/Deploy Pipeline
 **Goal**: mqtt containers can be built, pushed, and deployed to both regions using the same scripts as other DCR34 services
@@ -128,7 +129,7 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 14. Infrastructure Foundation | 3/3 | Complete    | 2026-03-07 | - |
-| 15. Container Images + Task Definition | v1.3 | 0/? | Not started | - |
+| 15. Container Images + Task Definition | v1.3 | 0/3 | Not started | - |
 | 16. Build/Deploy Pipeline | v1.3 | 0/? | Not started | - |
 | 17. Meshmap Verification + Branding | v1.3 | 0/? | Not started | - |
 | 18. Fleet Simulator + Easter Egg | v1.3 | 0/? | Not started | - |
