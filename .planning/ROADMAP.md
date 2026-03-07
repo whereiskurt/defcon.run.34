@@ -57,11 +57,12 @@ See `.planning/milestones/v1.2-ROADMAP.md` for archived v1.2 roadmap.
   3. ECR repositories for mqtt-mosquitto, mqtt-nginx, and mqtt-meshtk exist in both regions and accept image pushes
   4. ecs-service module allows Proxy Protocol v2 to be explicitly disabled per load_balancer entry (not auto-enabled for all NLB TCP targets)
   5. Security group attached to ECS tasks permits inbound NLB traffic on all MQTT service ports (1883/8883/443/8443/9001)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 14-01: TBD
-- [ ] 14-02: TBD
+- [ ] 14-01-PLAN.md — Module patches: ecs-service PP2 toggle, network SG output, nlb-dns module
+- [ ] 14-02-PLAN.md — Config files: service.hcl, site.hcl wiring, NLB enable, SSM params
+- [ ] 14-03-PLAN.md — Regional resources: S3 buckets, nlb-dns wiring, ecs-service mock updates
 
 ### Phase 15: Container Images + Task Definition
 **Goal**: All four container images build successfully and run as a single ECS task with correct networking and health checks
@@ -126,7 +127,7 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 14. Infrastructure Foundation | v1.3 | 0/? | Not started | - |
+| 14. Infrastructure Foundation | v1.3 | 0/3 | Not started | - |
 | 15. Container Images + Task Definition | v1.3 | 0/? | Not started | - |
 | 16. Build/Deploy Pipeline | v1.3 | 0/? | Not started | - |
 | 17. Meshmap Verification + Branding | v1.3 | 0/? | Not started | - |
