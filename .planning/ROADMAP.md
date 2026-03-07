@@ -104,10 +104,10 @@ Plans:
   3. Meshobserv decrypts AES-CTR Meshtastic channel traffic and node search finds nodes by name or hex ID
   4. Dark mode toggle persists via localStorage and node markers fade in opacity based on last-seen age (36-hour fade)
   5. All labels, event name, and year references updated from DC33 to DC34
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 17-01: TBD
+- [ ] 17-01-PLAN.md — Port meshmap HTML + assets from DC33, update branding/paths/ghost mode, update Dockerfile
 
 ### Phase 18: Fleet Simulator + Easter Egg
 **Goal**: Simulated ghost fleet populates meshmap with moving nodes and a hidden easter egg rewards discovery
@@ -132,5 +132,5 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 | 14. Infrastructure Foundation | 3/3 | Complete    | 2026-03-07 | - |
 | 15. Container Images + Task Definition | 3/3 | Complete    | 2026-03-07 | - |
 | 16. Build/Deploy Pipeline | 2/2 | Complete    | 2026-03-07 | - |
-| 17. Meshmap Verification + Branding | v1.3 | 0/? | Not started | - |
+| 17. Meshmap Verification + Branding | v1.3 | 0/1 | Not started | - |
 | 18. Fleet Simulator + Easter Egg | v1.3 | 0/? | Not started | - |
