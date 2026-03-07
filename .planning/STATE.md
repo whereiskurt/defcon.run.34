@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Meshtk Integration
 status: executing
-stopped_at: Completed 15-01-PLAN.md
-last_updated: "2026-03-07T13:15:56.581Z"
-last_activity: 2026-03-07 -- Completed 15-01 mosquitto container image
+stopped_at: Completed 15-02-PLAN.md
+last_updated: "2026-03-07T13:19:03Z"
+last_activity: 2026-03-07 -- Completed 15-02 meshtk proxy + nginx/meshobserv containers
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 40
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 15 of 18 (Container Images & Task Definitions)
-Plan: 1 of 3 in current phase (15-01 complete)
+Plan: 2 of 3 in current phase (15-01, 15-02 complete)
 Status: In progress
-Last activity: 2026-03-07 -- Completed 15-01 mosquitto container image
+Last activity: 2026-03-07 -- Completed 15-02 meshtk proxy + nginx/meshobserv containers
 
-Progress: [====......] 40% (2/5 v1.3 phases, 1/3 phase 15 plans)
+Progress: [====......] 40% (2/5 v1.3 phases, 2/3 phase 15 plans)
 
 ## Accumulated Context
 
@@ -48,8 +48,8 @@ Recent decisions affecting current work:
 - [Phase 14]: Added configuration_aliases to nlb-dns module for child module provider passing
 - [Phase 15]: Alpine base with mosquitto package (not eclipse-mosquitto official image)
 - [Phase 15]: Entrypoint generates mosquitto.conf and passwd from env vars at startup
-- [Phase 15]: Alpine base with mosquitto package (not eclipse-mosquitto official image)
-- [Phase 15]: Entrypoint generates mosquitto.conf and passwd from env vars at startup
+- [Phase 15]: Replaced meshtk symlink with tracked directory (Dockerfile tracked, Go source gitignored)
+- [Phase 15]: meshobserv is same meshtk binary invoked as 'server inspect' (single Go build)
 
 ### Pending Todos
 
@@ -63,6 +63,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-07T13:15:49.338Z
-Stopped at: Completed 15-01-PLAN.md
+Last session: 2026-03-07T13:19:03Z
+Stopped at: Completed 15-02-PLAN.md
 Resume file: None

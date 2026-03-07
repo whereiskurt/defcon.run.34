@@ -23,8 +23,8 @@ Requirements for Meshtk Integration milestone. Each maps to roadmap phases.
 ### Containers
 
 - [x] **CONT-01**: Mosquitto container with password auth, ACL, persistence, health check on port 1884
-- [ ] **CONT-02**: Meshtk proxy container in `server proxy` mode — inspects packets, rate limits, logs to S3, validates per-user credentials
-- [ ] **CONT-03**: Nginx/meshobserv container — meshobserv subscribes to MQTT and writes nodes.json, nginx serves meshmap static HTML on port 443
+- [x] **CONT-02**: Meshtk proxy container in `server proxy` mode — inspects packets, rate limits, logs to S3, validates per-user credentials
+- [x] **CONT-03**: Nginx/meshobserv container — meshobserv subscribes to MQTT and writes nodes.json, nginx serves meshmap static HTML on port 443
 - [ ] **CONT-04**: Ghosts container running meshtk `fleet simulate` mode (non-essential, can fail without stopping service)
 - [ ] **CONT-05**: 4-container ECS task definition with correct port allocation, health checks, and dependency ordering (mosquitto first)
 - [x] **CONT-06**: meshtk checked out as gitignored directory at apps/mqtt/grpc/site-tld/meshtk/ from ~/working/meshtk
@@ -100,8 +100,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-09 | Phase 14 | Complete |
 | INFRA-10 | Phase 14 | Complete |
 | CONT-01 | Phase 15 | Complete |
-| CONT-02 | Phase 15 | Pending |
-| CONT-03 | Phase 15 | Pending |
+| CONT-02 | Phase 15 | Complete |
+| CONT-03 | Phase 15 | Complete |
 | CONT-04 | Phase 15 | Pending |
 | CONT-05 | Phase 15 | Pending |
 | CONT-06 | Phase 15 | Complete |
