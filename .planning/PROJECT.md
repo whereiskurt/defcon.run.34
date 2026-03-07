@@ -19,11 +19,14 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 **Target features:**
 - Port apps/mqtt/ container configs (mosquitto, nginx/meshmap, grpc/meshtk, ghosts) from defcon.run.33
 - Gitignored meshtk checkout at apps/mqtt/grpc/site-tld/meshtk/
-- Enable NLB in both regions with MQTT listeners (1883 TCP, 8883 TLS, 8443 WSS)
-- mqtt.defcon.run service config with 4-container ECS task
-- CloudFront distribution for mqtt.defcon.run with /{region}/meshmap path routing
+- Enable NLB in both regions with 4 listeners (1883 TCP, 8883 TLS, 443 TLS/meshmap, 8443 WSS)
+- mqtt.defcon.run → NLB only (no CloudFront — MQTT is raw TCP, not HTTP)
+- Route53 latency-based routing to nearest regional NLB
+- 4-container ECS task (mosquitto, meshtk, nginx/meshobserv, ghosts)
 - ECR repos + build/deploy scripts for 3 container images
-- S3 logging, ACM certs, SSM params for secrets
+- S3 logging/blocklist, ACM certs, SSM params, security group fixes
+- Fleet simulator with GPX movement + ghost mode easter egg on meshmap
+- DC34 branding on meshmap
 
 ## Requirements
 
@@ -117,8 +120,8 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 | Strava autoLink param for seamless OAuth | Eliminates extra button click on auth server | ✓ Good |
 
 | Meshtk as gitignored copy | Avoids submodule overhead; user manages updates manually from ~/working/meshtk | — Pending |
-| NLB direct for MQTT ports | 1883/8883/8443 must bypass CloudFront — radios connect directly to NLB | — Pending |
-| CloudFront only for meshmap | Port 443 meshmap web traffic through CloudFront; MQTT ports via NLB | — Pending |
+| NLB-only for mqtt.defcon.run | All 4 ports (1883/8883/443/8443) served by NLB — CloudFront can't proxy MQTT (raw TCP) | — Pending |
+| Route53 latency routing for NLB | mqtt.defcon.run → nearest regional NLB via latency-based alias records | — Pending |
 
 ---
 *Last updated: 2026-03-06 after v1.3 milestone start*
