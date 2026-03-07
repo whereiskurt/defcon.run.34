@@ -28,7 +28,7 @@
 set -e
 
 # Default configuration
-APPS="run.auth,run.human,run.cms,run.gpx,run.flash"
+APPS="run.auth,run.human,run.cms,run.gpx,run.flash,run.mqtt"
 REGIONS="use1,cac1,apse1"
 SKIP_BUMP=false
 SKIP_BUILD=false
@@ -129,6 +129,7 @@ get_cf_domain() {
     run.cms) echo "cms.defcon.run" ;;
     run.gpx) echo "gpx.defcon.run" ;;
     run.flash) echo "flash.defcon.run" ;;
+    run.mqtt) echo "" ;;  # mqtt uses NLB, no CloudFront
     *) echo "" ;;
   esac
 }
@@ -140,14 +141,16 @@ get_tf_service() {
     run.cms) echo "run.cms" ;;
     run.gpx) echo "run.gpx" ;;
     run.flash) echo "run.flash" ;;
+    run.mqtt) echo "run.mqtt" ;;
     *) echo "" ;;
   esac
 }
 
-# Check if app has nginx container (run.gpx is single container, no nginx)
+# Check if app has the standard nginx reverse proxy container
 has_nginx() {
   case "$1" in
     run.gpx) echo "false" ;;
+    run.mqtt) echo "false" ;;  # mqtt has its own nginx component, not the standard pattern
     run.flash) echo "true" ;;
     *) echo "true" ;;
   esac
@@ -157,8 +160,19 @@ has_nginx() {
 get_app_component() {
   case "$1" in
     run.cms) echo "app" ;;
+    run.mqtt) echo "mqtt" ;;
     run.flash) echo "webapp" ;;
     *) echo "webapp" ;;
+  esac
+}
+
+# Get all components to build for an app
+get_components() {
+  case "$1" in
+    run.mqtt) echo "mosquitto meshtk nginx" ;;
+    run.cms) echo "app" ;;
+    run.gpx) echo "webapp" ;;
+    *) echo "nginx webapp" ;;
   esac
 }
 
@@ -166,8 +180,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Validate apps
 for APP in "${APP_LIST[@]}"; do
-  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" ]]; then
-    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', or 'run.flash'"
+  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.mqtt" ]]; then
+    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', or 'run.mqtt'"
     exit 1
   fi
 done
@@ -259,12 +273,14 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
   for APP in "${APP_LIST[@]}"; do
     echo ""
     echo "--- Bumping versions for ${APP} ---"
-    APP_COMPONENT=$(get_app_component "$APP")
-    APP_HAS_NGINX=$(has_nginx "$APP")
-    if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
-      "${SCRIPT_DIR}/version.sh" nginx "$APP"
-    fi
-    "${SCRIPT_DIR}/version.sh" "$APP_COMPONENT" "$APP"
+    COMPONENTS=$(get_components "$APP")
+    for COMP in $COMPONENTS; do
+      # Skip nginx bump if --skip-nginx and this is the standard nginx component (not mqtt's nginx)
+      if [[ "$COMP" == "nginx" && "$SKIP_NGINX" == "true" && "$APP" != "run.mqtt" ]]; then
+        continue
+      fi
+      "${SCRIPT_DIR}/version.sh" "$COMP" "$APP"
+    done
   done
 
   echo ""
@@ -278,12 +294,22 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
     APP_DIR="${SCRIPT_DIR}/${APP}"
     TF_SERVICE_DIR="${TF_SERVICES_DIR}/${TF_SERVICE}"
 
-    if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
+    if [[ "$APP" == "run.mqtt" ]]; then
+      APP_DIR="${SCRIPT_DIR}/mqtt"
+      cp "${APP_DIR}/mosquitto/VERSION" "${TF_SERVICE_DIR}/VERSION.mosquitto"
+      cp "${APP_DIR}/meshtk/VERSION" "${TF_SERVICE_DIR}/VERSION.meshtk"
       cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+      echo "  ${TF_SERVICE}/VERSION.mosquitto: $(cat "${TF_SERVICE_DIR}/VERSION.mosquitto")"
+      echo "  ${TF_SERVICE}/VERSION.meshtk: $(cat "${TF_SERVICE_DIR}/VERSION.meshtk")"
       echo "  ${TF_SERVICE}/VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
+    else
+      if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
+        cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+        echo "  ${TF_SERVICE}/VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
+      fi
+      cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
+      echo "  ${TF_SERVICE}/VERSION.app: $(cat "${TF_SERVICE_DIR}/VERSION.app")"
     fi
-    cp "${APP_DIR}/${APP_COMPONENT}/VERSION" "${TF_SERVICE_DIR}/VERSION.app"
-    echo "  ${TF_SERVICE}/VERSION.app: $(cat "${TF_SERVICE_DIR}/VERSION.app")"
   done
 
   echo ""
@@ -296,13 +322,21 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
     APP_HAS_NGINX=$(has_nginx "$APP")
     TF_SERVICE_DIR="${TF_SERVICES_DIR}/${TF_SERVICE}"
 
-    # App VERSION files
-    if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
-      VERSION_FILES+=("${SCRIPT_DIR}/${APP}/nginx/VERSION")
-      VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.nginx")
+    if [[ "$APP" == "run.mqtt" ]]; then
+      _APP_DIR="${SCRIPT_DIR}/mqtt"
+      for COMP in mosquitto meshtk nginx; do
+        VERSION_FILES+=("${_APP_DIR}/${COMP}/VERSION")
+        VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.${COMP}")
+      done
+    else
+      # App VERSION files
+      if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
+        VERSION_FILES+=("${SCRIPT_DIR}/${APP}/nginx/VERSION")
+        VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.nginx")
+      fi
+      VERSION_FILES+=("${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
+      VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.app")
     fi
-    VERSION_FILES+=("${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
-    VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.app")
   done
 
   # Stage and commit all VERSION files in single commit
@@ -332,12 +366,20 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
     for APP in "${APP_LIST[@]}"; do
       APP_COMPONENT=$(get_app_component "$APP")
       APP_HAS_NGINX=$(has_nginx "$APP")
-      APP_VERSION=$(cat "${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
-      if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
-        NGINX_VERSION=$(cat "${SCRIPT_DIR}/${APP}/nginx/VERSION")
-        PR_VERSIONS="${PR_VERSIONS}- **${APP}**: app=${APP_VERSION}, nginx=${NGINX_VERSION}"$'\n'
+      if [[ "$APP" == "run.mqtt" ]]; then
+        _APP_DIR="${SCRIPT_DIR}/mqtt"
+        MOSQ_V=$(cat "${_APP_DIR}/mosquitto/VERSION")
+        MESHTK_V=$(cat "${_APP_DIR}/meshtk/VERSION")
+        NGINX_V=$(cat "${_APP_DIR}/nginx/VERSION")
+        PR_VERSIONS="${PR_VERSIONS}- **${APP}**: mosquitto=${MOSQ_V}, meshtk=${MESHTK_V}, nginx=${NGINX_V}"$'\n'
       else
-        PR_VERSIONS="${PR_VERSIONS}- **${APP}**: ${APP_VERSION}"$'\n'
+        APP_VERSION=$(cat "${SCRIPT_DIR}/${APP}/${APP_COMPONENT}/VERSION")
+        if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
+          NGINX_VERSION=$(cat "${SCRIPT_DIR}/${APP}/nginx/VERSION")
+          PR_VERSIONS="${PR_VERSIONS}- **${APP}**: app=${APP_VERSION}, nginx=${NGINX_VERSION}"$'\n'
+        else
+          PR_VERSIONS="${PR_VERSIONS}- **${APP}**: ${APP_VERSION}"$'\n'
+        fi
       fi
     done
 
@@ -410,8 +452,7 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         # Resolve values before spawning subshell (functions don't export in bash 3.2)
         _AWS_REGION=$(get_aws_region "$REGION")
         _REGION_DISPLAY=$(get_region_name "$REGION")
-        _APP_COMPONENT=$(get_app_component "$APP")
-        _APP_HAS_NGINX=$(has_nginx "$APP")
+        _APP_COMPONENTS=$(get_components "$APP")
         (
           # Disable set -e in subshell to handle errors explicitly
           set +e
@@ -423,21 +464,18 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
           export REGION_SHORT="${REGION}"
           export SKIP_ECR_LOGIN="true"  # Already authenticated above
 
-          if [[ "$SKIP_NGINX" == "false" && "$_APP_HAS_NGINX" == "true" ]]; then
-            echo "  Building nginx..."
-            if ! "${SCRIPT_DIR}/build.sh" nginx "$APP"; then
-              echo "FAILED: nginx build for ${APP} in ${REGION}"
-              echo "nginx" > "${BUILD_STATUS_DIR}/${APP}-${REGION}.failed"
+          for COMP in $_APP_COMPONENTS; do
+            # Skip standard nginx if --skip-nginx (but never skip mqtt's nginx)
+            if [[ "$COMP" == "nginx" && "$SKIP_NGINX" == "true" && "$APP" != "run.mqtt" ]]; then
+              continue
+            fi
+            echo "  Building ${COMP}..."
+            if ! "${SCRIPT_DIR}/build.sh" "$COMP" "$APP"; then
+              echo "FAILED: ${COMP} build for ${APP} in ${REGION}"
+              echo "${COMP}" > "${BUILD_STATUS_DIR}/${APP}-${REGION}.failed"
               exit 1
             fi
-          fi
-
-          echo "  Building ${_APP_COMPONENT}..."
-          if ! "${SCRIPT_DIR}/build.sh" "${_APP_COMPONENT}" "$APP"; then
-            echo "FAILED: ${_APP_COMPONENT} build for ${APP} in ${REGION}"
-            echo "${_APP_COMPONENT}" > "${BUILD_STATUS_DIR}/${APP}-${REGION}.failed"
-            exit 1
-          fi
+          done
 
           echo "  Build complete for ${APP} in ${REGION}"
           touch "${BUILD_STATUS_DIR}/${APP}-${REGION}.success"
@@ -474,8 +512,7 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
       for REGION in "${REGION_LIST[@]}"; do
         _AWS_REGION=$(get_aws_region "$REGION")
         _REGION_DISPLAY=$(get_region_name "$REGION")
-        _APP_COMPONENT=$(get_app_component "$APP")
-        _APP_HAS_NGINX=$(has_nginx "$APP")
+        _APP_COMPONENTS=$(get_components "$APP")
 
         echo ""
         echo ">>> Building ${APP} for ${_REGION_DISPLAY} (${_AWS_REGION}) <<<"
@@ -483,13 +520,14 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         export AWS_REGION="${_AWS_REGION}"
         export REGION_SHORT="${REGION}"
 
-        if [[ "$SKIP_NGINX" == "false" && "$_APP_HAS_NGINX" == "true" ]]; then
-          echo "  Building nginx..."
-          "${SCRIPT_DIR}/build.sh" nginx "$APP"
-        fi
-
-        echo "  Building ${_APP_COMPONENT}..."
-        "${SCRIPT_DIR}/build.sh" "${_APP_COMPONENT}" "$APP"
+        for COMP in $_APP_COMPONENTS; do
+          # Skip standard nginx if --skip-nginx (but never skip mqtt's nginx)
+          if [[ "$COMP" == "nginx" && "$SKIP_NGINX" == "true" && "$APP" != "run.mqtt" ]]; then
+            continue
+          fi
+          echo "  Building ${COMP}..."
+          "${SCRIPT_DIR}/build.sh" "$COMP" "$APP"
+        done
 
         echo "  Build complete for ${APP} in ${REGION}"
       done
