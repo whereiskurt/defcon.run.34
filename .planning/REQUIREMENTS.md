@@ -12,12 +12,12 @@ Requirements for Meshtk Integration milestone. Each maps to roadmap phases.
 - [x] **INFRA-01**: NLB enabled in both regions (us-east-1 + ca-central-1) with access logging to S3
 - [x] **INFRA-02**: NLB listeners configured for 4 ports — 1883 (TCP/MQTT), 8883 (TLS/MQTT), 443 (TLS/meshmap HTTPS), 8443 (TLS/WebSocket MQTT)
 - [x] **INFRA-03**: ACM certificates for mqtt.defcon.run verified in both regions for NLB TLS termination
-- [ ] **INFRA-04**: Route53 latency-based alias records for mqtt.defcon.run pointing to regional NLBs
+- [x] **INFRA-04**: Route53 latency-based alias records for mqtt.defcon.run pointing to regional NLBs
 - [x] **INFRA-05**: ECR repositories created for 3 container images (mqtt-mosquitto, mqtt-nginx, mqtt-meshtk) in both regions
 - [ ] **INFRA-06**: S3 blocklist bucket for meshtk runtime-updateable block rules
 - [x] **INFRA-07**: SSM parameters replicated from DC33 pattern — channel PSK, user creation seed, MQTT passwords, S3 bucket names, meshobserv MQTT credentials
-- [ ] **INFRA-08**: Security group for MQTT service allowing NLB traffic on ports 1883/8883/443/8443/9001
-- [ ] **INFRA-09**: ecs-service module patched to make Proxy Protocol v2 configurable (not auto-enabled for all NLB TCP targets)
+- [x] **INFRA-08**: Security group for MQTT service allowing NLB traffic on ports 1883/8883/443/8443/9001
+- [x] **INFRA-09**: ecs-service module patched to make Proxy Protocol v2 configurable (not auto-enabled for all NLB TCP targets)
 - [ ] **INFRA-10**: S3 logging bucket for meshtk packet inspection log rotation
 
 ### Containers
@@ -92,12 +92,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 14 | Complete |
 | INFRA-02 | Phase 14 | Complete |
 | INFRA-03 | Phase 14 | Complete |
-| INFRA-04 | Phase 14 | Pending |
+| INFRA-04 | Phase 14 | Complete |
 | INFRA-05 | Phase 14 | Complete |
 | INFRA-06 | Phase 14 | Pending |
 | INFRA-07 | Phase 14 | Complete |
-| INFRA-08 | Phase 14 | Pending |
-| INFRA-09 | Phase 14 | Pending |
+| INFRA-08 | Phase 14 | Complete |
+| INFRA-09 | Phase 14 | Complete |
 | INFRA-10 | Phase 14 | Pending |
 | CONT-01 | Phase 15 | Pending |
 | CONT-02 | Phase 15 | Pending |
