@@ -88,10 +88,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. build.sh builds and pushes all three mqtt container images (mosquitto, nginx, meshtk) to ECR in the target region
   2. deploy.sh deploys the mqtt ECS service using VERSION files and release-all.sh includes mqtt in parallel multi-region releases
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 16-01: TBD
+- [ ] 16-01-PLAN.md — Build scripts: VERSION files, build.sh + version.sh mqtt support, service.hcl VERSION file reads
+- [ ] 16-02-PLAN.md — Deploy scripts: deploy.sh mqtt VERSION copy, release-all.sh multi-component support, buildpub.yml update
 
 ### Phase 17: Meshmap Verification + Branding
 **Goal**: Meshmap displays live Meshtastic network state with DC34 branding, fully ported from DC33
@@ -130,6 +131,6 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 |-------|-----------|----------------|--------|-----------|
 | 14. Infrastructure Foundation | 3/3 | Complete    | 2026-03-07 | - |
 | 15. Container Images + Task Definition | 3/3 | Complete    | 2026-03-07 | - |
-| 16. Build/Deploy Pipeline | v1.3 | 0/? | Not started | - |
+| 16. Build/Deploy Pipeline | v1.3 | 0/2 | Not started | - |
 | 17. Meshmap Verification + Branding | v1.3 | 0/? | Not started | - |
 | 18. Fleet Simulator + Easter Egg | v1.3 | 0/? | Not started | - |
