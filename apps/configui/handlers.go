@@ -221,6 +221,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		{"run.cms", "cms"},
 		{"run.gpx", "gpx"},
 		{"run.flash", "flash"},
+		{"run.mqtt", "mqtt"},
 	} {
 		if out, err := renderServiceHCL(svc.name, cfg); err == nil {
 			tabs = append(tabs, previewTab{"svc-" + svc.label, svc.name + "/service.hcl", out, ""})
@@ -273,7 +274,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		originals["envlocal"] = out
 	}
 	for _, svc := range []struct{ name, label string }{
-		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"}, {"run.flash", "flash"},
+		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"}, {"run.flash", "flash"}, {"run.mqtt", "mqtt"},
 	} {
 		if out, err := renderServiceHCL(svc.name, savedCfg); err == nil {
 			originals["svc-"+svc.label] = out
@@ -888,6 +889,9 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 	gpxApp := r.FormValue("versions.gpx.app")
 	flashApp := r.FormValue("versions.flash.app")
 	flashNginx := r.FormValue("versions.flash.nginx")
+	mqttMosquitto := r.FormValue("versions.mqtt.mosquitto")
+	mqttMeshtk := r.FormValue("versions.mqtt.meshtk")
+	mqttNginx := r.FormValue("versions.mqtt.nginx")
 
 	a.mu.RLock()
 	siteLabel := a.config.Site.Label
@@ -914,6 +918,9 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 		{"gpx-app", siteLabel + "-run-gpx-app", gpxApp},
 		{"flash-app", siteLabel + "-run-flash-app", flashApp},
 		{"flash-nginx", siteLabel + "-run-flash-nginx", flashNginx},
+		{"mqtt-mosquitto", siteLabel + "-mqtt-mosquitto", mqttMosquitto},
+		{"mqtt-meshtk", siteLabel + "-mqtt-meshtk", mqttMeshtk},
+		{"mqtt-nginx", siteLabel + "-mqtt-nginx", mqttNginx},
 	}
 
 	results := make(map[string]ECRTagResult)
@@ -1130,6 +1137,9 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Versions.GPX.App = formStr(r, "versions.gpx.app", cfg.Versions.GPX.App)
 	cfg.Versions.Flash.App = formStr(r, "versions.flash.app", cfg.Versions.Flash.App)
 	cfg.Versions.Flash.Nginx = formStr(r, "versions.flash.nginx", cfg.Versions.Flash.Nginx)
+	cfg.Versions.MQTT.Mosquitto = formStr(r, "versions.mqtt.mosquitto", cfg.Versions.MQTT.Mosquitto)
+	cfg.Versions.MQTT.Meshtk = formStr(r, "versions.mqtt.meshtk", cfg.Versions.MQTT.Meshtk)
+	cfg.Versions.MQTT.Nginx = formStr(r, "versions.mqtt.nginx", cfg.Versions.MQTT.Nginx)
 
 	return cfg
 }

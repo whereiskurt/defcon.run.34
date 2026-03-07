@@ -29,6 +29,11 @@ func readVersions(repoRoot string) VersionConfig {
 			App:   readVersionFile(filepath.Join(svcDir, "run.flash", "VERSION.app")),
 			Nginx: readVersionFile(filepath.Join(svcDir, "run.flash", "VERSION.nginx")),
 		},
+		MQTT: MQTTComponentVersions{
+			Mosquitto: readVersionFile(filepath.Join(svcDir, "run.mqtt", "VERSION.mosquitto")),
+			Meshtk:    readVersionFile(filepath.Join(svcDir, "run.mqtt", "VERSION.meshtk")),
+			Nginx:     readVersionFile(filepath.Join(svcDir, "run.mqtt", "VERSION.nginx")),
+		},
 	}
 }
 
@@ -61,6 +66,9 @@ func writeVersions(repoRoot string, versions VersionConfig) error {
 		{filepath.Join(svcDir, "run.gpx", "VERSION.app"), versions.GPX.App},
 		{filepath.Join(svcDir, "run.flash", "VERSION.app"), versions.Flash.App},
 		{filepath.Join(svcDir, "run.flash", "VERSION.nginx"), versions.Flash.Nginx},
+		{filepath.Join(svcDir, "run.mqtt", "VERSION.mosquitto"), versions.MQTT.Mosquitto},
+		{filepath.Join(svcDir, "run.mqtt", "VERSION.meshtk"), versions.MQTT.Meshtk},
+		{filepath.Join(svcDir, "run.mqtt", "VERSION.nginx"), versions.MQTT.Nginx},
 		// App source VERSION files
 		{filepath.Join(appsDir, "run.auth", "webapp", "VERSION"), versions.Auth.App},
 		{filepath.Join(appsDir, "run.auth", "nginx", "VERSION"), versions.Auth.Nginx},
@@ -87,6 +95,7 @@ func writeVersions(repoRoot string, versions VersionConfig) error {
 // versionSyncStatus returns whether app and infra versions match.
 func versionSyncStatus(repoRoot string, versions VersionConfig) map[string]map[string]bool {
 	appsDir := filepath.Join(repoRoot, "apps")
+	svcDir := filepath.Join(repoRoot, "infra", "terraform", "live", "site", "services")
 	result := make(map[string]map[string]bool)
 
 	checks := map[string]map[string][2]string{
@@ -108,6 +117,11 @@ func versionSyncStatus(repoRoot string, versions VersionConfig) map[string]map[s
 		"flash": {
 			"app":   {filepath.Join(appsDir, "run.flash", "webapp", "VERSION"), versions.Flash.App},
 			"nginx": {filepath.Join(appsDir, "run.flash", "nginx", "VERSION"), versions.Flash.Nginx},
+		},
+		"mqtt": {
+			"mosquitto": {filepath.Join(svcDir, "run.mqtt", "VERSION.mosquitto"), versions.MQTT.Mosquitto},
+			"meshtk":    {filepath.Join(svcDir, "run.mqtt", "VERSION.meshtk"), versions.MQTT.Meshtk},
+			"nginx":     {filepath.Join(svcDir, "run.mqtt", "VERSION.nginx"), versions.MQTT.Nginx},
 		},
 	}
 

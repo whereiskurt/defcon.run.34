@@ -20,11 +20,11 @@ func TestImportSiteHCL(t *testing.T) {
 	assertEqual(t, "Site.GitHubRepoName", cfg.Site.GitHubRepoName, "defcon.run.34")
 	assertEqual(t, "Site.TFStatePrefix", cfg.Site.TFStatePrefix, "tf-dc34")
 	assertEqual(t, "Site.RandomSuffix", cfg.Site.RandomSuffix, "80a6b349")
-	assertSliceEqual(t, "Site.SkipRegions", cfg.Site.SkipRegions, []string{"ap-southeast-1", "ca-central-1"})
+	assertSliceEqual(t, "Site.SkipRegions", cfg.Site.SkipRegions, []string{"ap-southeast-1", "us-east-1"})
 
 	// DNS
 	assertEqual(t, "DNS.ZoneName", cfg.DNS.ZoneName, "defcon.run")
-	assertSliceEqual(t, "DNS.Subdomains", cfg.DNS.Subdomains, []string{"email", "run", "auth", "cms", "gpx", "flash"})
+	assertSliceEqual(t, "DNS.Subdomains", cfg.DNS.Subdomains, []string{"email", "run", "auth", "cms", "gpx", "flash", "mqtt"})
 	assertIntEqual(t, "DNS.TTL", cfg.DNS.TTL, 300)
 
 	// URLs
@@ -95,7 +95,7 @@ func TestImportSiteHCL(t *testing.T) {
 	} else {
 		assertBoolEqual(t, "Secrets.Definitions[mapbox].Global", cfg.Secrets.Definitions["mapbox"].Global, true)
 	}
-	assertIntEqual(t, "Secrets.Definitions count", len(cfg.Secrets.Definitions), 12)
+	assertIntEqual(t, "Secrets.Definitions count", len(cfg.Secrets.Definitions), 13)
 
 	// CloudTrail
 	assertBoolEqual(t, "CloudTrail.Enabled", cfg.CloudTrail.Enabled, false)
@@ -170,8 +170,8 @@ func TestImportServiceHCL(t *testing.T) {
 	assertBoolEqual(t, "CMS.Media.CloudFrontAccess", cfg.Services.CMS.Media.CloudFrontAccess, true)
 	assertBoolEqual(t, "CMS.Media.ReplicationEnabled", cfg.Services.CMS.Media.ReplicationEnabled, true)
 	assertIntEqual(t, "CMS.MasterService.Priority", cfg.Services.CMS.MasterService.Priority, 100)
-	assertBoolEqual(t, "CMS.WorkerService.Autoscaling.Enabled", cfg.Services.CMS.WorkerService.Autoscaling.Enabled, true)
-	assertIntEqual(t, "CMS.WorkerService.Autoscaling.MaxCapacity", cfg.Services.CMS.WorkerService.Autoscaling.MaxCapacity, 3)
+	assertBoolEqual(t, "CMS.WorkerService.Autoscaling.Enabled", cfg.Services.CMS.WorkerService.Autoscaling.Enabled, false)
+	assertIntEqual(t, "CMS.WorkerService.Autoscaling.MaxCapacity", cfg.Services.CMS.WorkerService.Autoscaling.MaxCapacity, 1)
 
 	// GPX service
 	assertIntEqual(t, "GPX.Task.TaskCPU", cfg.Services.GPX.Task.TaskCPU, 256)

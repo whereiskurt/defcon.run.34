@@ -334,16 +334,23 @@ type FlashServiceConfig struct {
 }
 
 type VersionConfig struct {
-	Auth  ComponentVersions `json:"auth"`
-	Human ComponentVersions `json:"human"`
-	CMS   ComponentVersions `json:"cms"`
-	GPX   ComponentVersions `json:"gpx"`
-	Flash ComponentVersions `json:"flash"`
+	Auth  ComponentVersions     `json:"auth"`
+	Human ComponentVersions     `json:"human"`
+	CMS   ComponentVersions     `json:"cms"`
+	GPX   ComponentVersions     `json:"gpx"`
+	Flash ComponentVersions     `json:"flash"`
+	MQTT  MQTTComponentVersions `json:"mqtt"`
 }
 
 type ComponentVersions struct {
 	App   string `json:"app"`
 	Nginx string `json:"nginx,omitempty"`
+}
+
+type MQTTComponentVersions struct {
+	Mosquitto string `json:"mosquitto"`
+	Meshtk    string `json:"meshtk"`
+	Nginx     string `json:"nginx"`
 }
 
 // KnownRegions returns a curated list of AWS regions available for deployment.
@@ -698,6 +705,7 @@ func DefaultConfig() *SiteConfig {
 			CMS:   ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
 			GPX:   ComponentVersions{App: "v0.0.27"},
 			Flash: ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
+			MQTT:  MQTTComponentVersions{Mosquitto: "v0.1.0", Meshtk: "v0.1.0", Nginx: "v0.1.0"},
 		},
 	}
 }
