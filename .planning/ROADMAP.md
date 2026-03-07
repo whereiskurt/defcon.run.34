@@ -127,7 +127,7 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 14. Infrastructure Foundation | 3/3 | Complete   | 2026-03-07 | - |
+| 14. Infrastructure Foundation | 3/3 | Complete    | 2026-03-07 | - |
 | 15. Container Images + Task Definition | v1.3 | 0/? | Not started | - |
 | 16. Build/Deploy Pipeline | v1.3 | 0/? | Not started | - |
 | 17. Meshmap Verification + Branding | v1.3 | 0/? | Not started | - |
