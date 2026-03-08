@@ -170,7 +170,7 @@ get_app_component() {
 get_components() {
   case "$1" in
     run.mqtt) echo "mosquitto meshtk nginx" ;;
-    run.cms) echo "app" ;;
+    run.cms) echo "nginx app" ;;
     run.gpx) echo "webapp" ;;
     *) echo "nginx webapp" ;;
   esac
