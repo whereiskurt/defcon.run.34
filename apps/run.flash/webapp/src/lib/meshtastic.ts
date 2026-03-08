@@ -418,9 +418,10 @@ function decodeBase64Psk(pskBase64: string): Uint8Array {
     bytes[i] = binary.charCodeAt(i);
   }
 
-  if (bytes.length !== 0 && bytes.length !== 16 && bytes.length !== 32) {
+  // Meshtastic accepts 0 (none), 1 (simple/default key shorthand), 16, or 32 bytes
+  if (![0, 1, 16, 32].includes(bytes.length)) {
     throw new Error(
-      `Invalid PSK length: ${bytes.length} bytes. Must be 0, 16, or 32 bytes.`
+      `Invalid PSK length: ${bytes.length} bytes. Must be 0, 1, 16, or 32 bytes.`
     );
   }
 
