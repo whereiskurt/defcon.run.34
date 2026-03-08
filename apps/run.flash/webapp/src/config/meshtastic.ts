@@ -10,17 +10,17 @@ export const meshtasticConfig = Object.freeze({
     server: process.env.MQTT_SERVER || "mqtt.defcon.run",
     port: Number(process.env.MQTT_PORT) || 8883,
     tls: process.env.MQTT_TLS !== "false",
-    root: process.env.MQTT_ROOT || "dcr34",
+    root: process.env.MQTT_ROOT || "msh",
   },
   channels: [
     {
-      name: "DCR34",
-      psk: process.env.DCR34_PRIMARY_PSK || "AAAAAAAAAAAAAAAAAAAAAA==", // 16-byte stub
+      name: "dc.run",
+      psk: process.env.DCR34_PRIMARY_PSK || "Wjt8kzHci9lqdS4tBzSF2VbQd86u6U3nhHaBl7V5TGE=",
       role: "PRIMARY" as const,
     },
     {
-      name: "defcon",
-      psk: process.env.DCR34_BRIDGE_PSK || "BBBBBBBBBBBBBBBBBBBBBB==", // 16-byte stub
+      name: "LongFast",
+      psk: process.env.DCR34_BRIDGE_PSK || "AQ==",
       role: "SECONDARY" as const,
     },
   ],
