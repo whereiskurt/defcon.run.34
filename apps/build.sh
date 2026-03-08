@@ -136,8 +136,15 @@ resolve_meshtk() {
     # CI: always clone from GitHub (public repo, no auth needed)
     if [[ ! -d "$meshtk_dir/.git" ]]; then
       echo "[build] Cloning meshtk from GitHub..."
+      # Save repo-tracked files before clone replaces the directory
+      local saved_version="" saved_config=""
+      [[ -f "$meshtk_dir/VERSION" ]] && saved_version=$(cat "$meshtk_dir/VERSION")
+      [[ -f "$meshtk_dir/meshtk.dc34.yaml" ]] && saved_config=$(cat "$meshtk_dir/meshtk.dc34.yaml")
       rm -rf "$meshtk_dir"
       git clone --depth 1 https://github.com/whereiskurt/meshtk.git "$meshtk_dir/"
+      # Restore repo-tracked files over cloned source
+      [[ -n "$saved_version" ]] && echo "$saved_version" > "$meshtk_dir/VERSION"
+      [[ -n "$saved_config" ]] && echo "$saved_config" > "$meshtk_dir/meshtk.dc34.yaml"
     fi
   elif [[ -L "$meshtk_dir" ]]; then
     # Local: copy from symlink target, restore on exit
