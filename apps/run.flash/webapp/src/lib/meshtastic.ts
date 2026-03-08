@@ -213,6 +213,7 @@ export async function pushDeviceConfig(
         encryptionEnabled: true,
         jsonEnabled: false,
         proxyToClientEnabled: false,
+        mapReportingEnabled: true,
       }),
     },
   });
@@ -237,6 +238,8 @@ export async function pushDeviceConfig(
       settings: create(Protobuf.Channel.ChannelSettingsSchema, {
         name: ch.name,
         psk: pskBytes,
+        uplinkEnabled: true,
+        downlinkEnabled: true,
       }),
     });
     await device.setChannel(channel);
