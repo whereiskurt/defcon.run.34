@@ -423,7 +423,7 @@ locals {
     # Enables SSM access for debugging and includes ECR read access
     ec2_runner_instance_profile = {
       enabled = true
-      name    = "${local.site.label}-github-runner"
+      name    = "github-runner"
     }
 
     roles = [

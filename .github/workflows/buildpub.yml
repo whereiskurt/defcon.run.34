@@ -354,7 +354,7 @@ jobs:
           market-type: ${{ inputs.ec2_market_type }}
           subnet-id: ${{ steps.vpc.outputs.subnet_id }}
           security-group-id: ${{ steps.vpc.outputs.security_group_id }}
-          iam-role-name: dc34-dc34-github-runner
+          iam-role-name: dc34-github-runner
           ec2-volume-size: 30
           label: ${{ inputs.runner == 'ec2-start-and-keep' && 'dc34-release-runner' || '' }}
           aws-resource-tags: >

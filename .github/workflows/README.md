@@ -80,7 +80,7 @@ Automated build and publish pipeline that builds Docker images, pushes to ECR, s
    RUNNER_SUBNET_ID = subnet-xxx        # Public subnet in us-east-1
    RUNNER_SG_ID = sg-xxx                # Security group allowing outbound
    ```
-   Note: IAM role name is hardcoded to `dc34-dc34-github-runner` in the workflows.
+   Note: IAM role name is hardcoded to `dc34-github-runner` in the workflows.
 
 2. **Repository Secret**:
    ```
@@ -100,14 +100,14 @@ Automated build and publish pipeline that builds Docker images, pushes to ECR, s
 
    Then create an instance profile and add the role to it:
    ```bash
-   aws iam create-role --role-name dc34-dc34-github-runner \
+   aws iam create-role --role-name dc34-github-runner \
      --assume-role-policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"Service":"ec2.amazonaws.com"},"Action":"sts:AssumeRole"}]}'
 
-   aws iam attach-role-policy --role-name dc34-dc34-github-runner \
+   aws iam attach-role-policy --role-name dc34-github-runner \
      --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
 
-   aws iam create-instance-profile --instance-profile-name dc34-dc34-github-runner
-   aws iam add-role-to-instance-profile --instance-profile-name dc34-dc34-github-runner --role-name dc34-dc34-github-runner
+   aws iam create-instance-profile --instance-profile-name dc34-github-runner
+   aws iam add-role-to-instance-profile --instance-profile-name dc34-github-runner --role-name dc34-github-runner
    ```
 
    To SSM into the runner:
