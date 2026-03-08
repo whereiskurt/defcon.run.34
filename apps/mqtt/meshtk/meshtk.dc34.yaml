@@ -10,7 +10,7 @@ Meshtastic:
   Channels:
     - Slot: "primary"
       Name: "dc.run"
-      EncryptKey: ""
+      EncryptKey: "Wjt8kzHci9lqdS4tBzSF2VbQd86u6U3nhHaBl7V5TGE="
       IsEncrypted: true
       IsPrimary: true
     - Slot: "secondary"
