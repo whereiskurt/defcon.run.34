@@ -212,7 +212,7 @@ export async function pushDeviceConfig(
         root: config.mqtt.root,
         encryptionEnabled: true,
         jsonEnabled: false,
-        proxyToClientEnabled: false,
+        proxyToClientEnabled: true,
         mapReportingEnabled: true,
       }),
     },
