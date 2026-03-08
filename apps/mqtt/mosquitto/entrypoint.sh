@@ -38,5 +38,8 @@ mosquitto_passwd -b /mosquitto/config/passwd "${MQTT_MESHOBSERV_USERNAME:-meshob
 # ghosts service account
 mosquitto_passwd -b /mosquitto/config/passwd "${MQTT_GHOSTS_USERNAME:-ghosts}" "${MQTT_GHOSTS_PASSWORD}"
 
+# public: remapped identity for validated Meshtastic clients (meshtk proxy rewrites credentials)
+mosquitto_passwd -b /mosquitto/config/passwd "public" "31337"
+
 echo "[mosquitto] Config generated, starting mosquitto..."
 exec mosquitto -c /mosquitto/config/mosquitto.conf
