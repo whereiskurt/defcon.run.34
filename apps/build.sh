@@ -136,15 +136,18 @@ resolve_meshtk() {
     # CI: always clone from GitHub (public repo, no auth needed)
     if [[ ! -d "$meshtk_dir/.git" ]]; then
       echo "[build] Cloning meshtk from GitHub..."
-      # Save repo-tracked files before clone replaces the directory
-      local saved_version="" saved_config=""
-      [[ -f "$meshtk_dir/VERSION" ]] && saved_version=$(cat "$meshtk_dir/VERSION")
-      [[ -f "$meshtk_dir/meshtk.dc34.yaml" ]] && saved_config=$(cat "$meshtk_dir/meshtk.dc34.yaml")
+      # Save repo-tracked files (Dockerfile, VERSION, dc34 config) before clone
+      local tmp_save=$(mktemp -d)
+      for f in Dockerfile.meshtk VERSION meshtk.dc34.yaml; do
+        [[ -f "$meshtk_dir/$f" ]] && cp "$meshtk_dir/$f" "$tmp_save/$f"
+      done
       rm -rf "$meshtk_dir"
       git clone --depth 1 https://github.com/whereiskurt/meshtk.git "$meshtk_dir/"
       # Restore repo-tracked files over cloned source
-      [[ -n "$saved_version" ]] && echo "$saved_version" > "$meshtk_dir/VERSION"
-      [[ -n "$saved_config" ]] && echo "$saved_config" > "$meshtk_dir/meshtk.dc34.yaml"
+      for f in "$tmp_save"/*; do
+        [[ -f "$f" ]] && cp "$f" "$meshtk_dir/"
+      done
+      rm -rf "$tmp_save"
     fi
   elif [[ -L "$meshtk_dir" ]]; then
     # Local: copy from symlink target, restore on exit
