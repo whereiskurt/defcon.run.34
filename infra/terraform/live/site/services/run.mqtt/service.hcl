@@ -141,6 +141,10 @@ locals {
           {
             name  = "AWS_REGION"
             value = "{{REGION}}"
+          },
+          {
+            name  = "USER_CREATION_SEED"
+            value = "default-seed"
           }
         ]
 
