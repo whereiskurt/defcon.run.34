@@ -21,6 +21,9 @@ RUN mkdir -p /var/www/html /var/log/supervisor /run/nginx
 # Copy meshobserv binary (same meshtk binary, different command)
 COPY --from=builder /meshobserv /usr/local/bin/meshobserv
 
+# Copy dc34 meshtk config (meshobserv uses same config for channel/topic)
+COPY meshtk/meshtk.dc34.yaml /app/meshtk.yaml
+
 # Copy nginx config
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 

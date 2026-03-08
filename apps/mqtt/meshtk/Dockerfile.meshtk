@@ -17,6 +17,9 @@ RUN apk add --no-cache ca-certificates
 
 COPY --from=builder /meshtk /usr/local/bin/meshtk
 
+WORKDIR /app
+COPY meshtk.dc34.yaml /app/meshtk.yaml
+
 EXPOSE 1883
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

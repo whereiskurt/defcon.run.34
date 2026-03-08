@@ -1,0 +1,96 @@
+NodeDbPath: "./nodes.dc34.json"
+LogFolder: "logs/"
+
+Mqtt:
+  BrokerUri: "tcp://localhost:1884"
+  Username: "meshtk-proxy"
+  ClientId: "meshtk-dc34"
+
+Meshtastic:
+  Channels:
+    - Slot: "primary"
+      Name: "dc.run"
+      EncryptKey: ""
+      IsEncrypted: true
+      IsPrimary: true
+    - Slot: "secondary"
+      Name: "LongFast"
+      EncryptKey: "AQ=="
+      IsEncrypted: true
+      IsPrimary: false
+
+NodeInfo:
+  ClientId: "!dc340001"
+  LongName: "DEF CON 34 MeshMap"
+  ShortName: "DC34"
+  HWModelId: 43
+  RoleId: 0
+  Latitude: 361354763
+  Longitude: -1151597904
+  Altitude: 420
+  Precision: 32
+  FirwareVersion: "2.5.20.4c69421"
+  Region: "US"
+  ModemPreset: "LONG_FAST"
+
+  BroadcastToAll: false
+  BroadcastOnLoad: false
+  BroadcastIntervalSec: 300
+
+  PKI:
+    PublicKey: "0x1b7644ea43ca427fdb7767c84b78fa2deff096716d4dd940ee6ebad8ea220126"
+    PrivateKey: "0xf02344fb50461c482de3a6f52885100ce637474e1869f44cf08698c59a0965b9"
+
+  ChannelSlot: "primary"
+  Topic: "msh/US/2/e/dc.run"
+  MapTopic: "msh/US/2/map/"
+
+  SubscribedTopics:
+    - "#"
+    - "msh/+/2/#"
+    - "msh/+/+/2/map"
+
+Server:
+  ProxyListenAddress: "0.0.0.0:1883"
+  ProxyForwardAddress: "localhost:1884"
+  InspectorListenAddress: "localhost:50051"
+  BlockFilenameTmpl: "./blocklist.{{.DTS}}.log"
+  ShouldLogBlocks: true
+  ShouldLogAllows: true
+  MaxMBLogSize: 2
+  CheckLogIntervalMins: 2
+  CheckLogIntervalSecs: 10
+  UseS3Bucket: true
+  S3BucketRegion: "us-east-1"
+  S3BucketPrefix: "meshtk/blocklist"
+
+Fleet:
+  - Id: "dc34-ghost-fleet"
+    Description: "DEF CON 34 ghost fleet"
+    BehaviourTag: ["nodeinfo", "position", "sayhello", "gitter"]
+    BehaviourSecs: 120
+    Seed: "dc34-2026-defcon-run"
+    ShortNameTmpl: "G{{.nodeId}}"
+    LongNameTmpl: "dc34-ghost-{{.fleetNum}}{{.nodeId}}-{{.shortseed}}"
+    NodesPerRampInterval: [4]
+    RampUpSecs: 300
+    RampSteadySecs: 12000
+    RampDownSecs: 15
+    NodesPerSteadyInterval: [1, 1, 1, 1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 300
+    LatLongAltGitter: 5000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.dc34.ghost.json"
+    Movement:
+      - Type: "start"
+        Latitude: 361565688
+        Longitude: -1151540940
+        Altitude: 420
+        Precision: 32
+
+TextMessage:
+  ChannelSlot: "primary"
+  Topic: "msh/US/2/e/dc.run"
+
+WasSuccess: false

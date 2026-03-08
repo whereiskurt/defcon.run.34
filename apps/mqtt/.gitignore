@@ -2,3 +2,4 @@
 meshtk/*
 !meshtk/Dockerfile.meshtk
 !meshtk/VERSION
+!meshtk/meshtk.dc34.yaml

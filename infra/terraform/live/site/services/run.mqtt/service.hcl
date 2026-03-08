@@ -127,6 +127,18 @@ locals {
             value = "meshtk-proxy"
           },
           {
+            name  = "MESHTK_NODEINFO_TOPIC"
+            value = "msh/US/2/e/dc.run"
+          },
+          {
+            name  = "MESHTK_NODEINFO_CHANNELSLOT"
+            value = "primary"
+          },
+          {
+            name  = "MESHTK_TEXTMESSAGE_TOPIC"
+            value = "msh/US/2/e/dc.run"
+          },
+          {
             name  = "AWS_REGION"
             value = "{{REGION}}"
           }
@@ -203,6 +215,14 @@ locals {
             value = "meshobserv"
           },
           {
+            name  = "MESHTK_NODEINFO_TOPIC"
+            value = "msh/US/2/e/dc.run"
+          },
+          {
+            name  = "MESHTK_NODEINFO_CHANNELSLOT"
+            value = "primary"
+          },
+          {
             name  = "AWS_REGION"
             value = "{{REGION}}"
           }
@@ -270,6 +290,18 @@ locals {
           {
             name  = "MESHTK_MQTT_USERNAME"
             value = "ghosts"
+          },
+          {
+            name  = "MESHTK_NODEINFO_TOPIC"
+            value = "msh/US/2/e/dc.run"
+          },
+          {
+            name  = "MESHTK_NODEINFO_CHANNELSLOT"
+            value = "primary"
+          },
+          {
+            name  = "MESHTK_TEXTMESSAGE_TOPIC"
+            value = "msh/US/2/e/dc.run"
           },
           {
             name  = "AWS_REGION"
