@@ -191,6 +191,7 @@ export async function pushDeviceConfig(
         hopLimit: config.radio.hopLimit,
         txEnabled: true,
         usePreset: true,
+        configOkToMqtt: true,
       }),
     },
   });
