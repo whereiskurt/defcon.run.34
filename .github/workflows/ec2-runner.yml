@@ -182,7 +182,7 @@ jobs:
           ec2-instance-type: ${{ inputs.instance_type }}
           subnet-id: ${{ steps.vpc.outputs.subnet_id }}
           security-group-id: ${{ steps.vpc.outputs.security_group_id }}
-          iam-role-name: dc34-github-runner
+          iam-role-name: dc34-dc34-github-runner
           label: dc34-release-runner
           market-type: ${{ inputs.market_type != 'on-demand' && 'spot' || '' }}
           ec2-volume-size: 30
@@ -222,7 +222,7 @@ jobs:
           ec2-instance-type: ${{ inputs.instance_type }}
           subnet-id: ${{ steps.vpc.outputs.subnet_id }}
           security-group-id: ${{ steps.vpc.outputs.security_group_id }}
-          iam-role-name: dc34-github-runner
+          iam-role-name: dc34-dc34-github-runner
           label: dc34-release-runner
           ec2-volume-size: 30
           aws-resource-tags: >
