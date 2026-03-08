@@ -87,7 +87,7 @@ locals {
         ]
 
         health_check = {
-          command      = ["CMD-SHELL", "mosquitto_sub -h localhost -p 1884 -t '$$SYS/broker/uptime' -C 1 -W 3 || exit 1"]
+          command      = ["CMD-SHELL", "nc -z localhost 1884 || exit 1"]
           interval     = 30
           timeout      = 5
           retries      = 3
