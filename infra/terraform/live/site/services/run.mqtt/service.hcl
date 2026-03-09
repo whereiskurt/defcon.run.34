@@ -109,7 +109,7 @@ locals {
         memory             = 768
         memory_reservation = 512
         essential          = true
-        command            = ["meshtk", "server", "proxy"]
+        command            = ["meshtk", "server", "proxy", "-v", "debug"]
 
         readonly_root_filesystem = false
 
