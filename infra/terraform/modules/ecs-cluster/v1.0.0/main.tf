@@ -110,6 +110,7 @@ resource "aws_iam_role_policy" "ecs_task_policy" {
           "servicediscovery:*",
           "ssm:*",
           "s3:*",
+          "dynamodb:*",
           "ecr:*",
           "logs:*",
           "cloudwatch:*",
