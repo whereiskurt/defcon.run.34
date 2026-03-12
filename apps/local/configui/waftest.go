@@ -1234,7 +1234,7 @@ func (a *App) handleWAFIntelReset(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"steps": steps})
 }
 
-// handleWAFBuild runs apps/waffaw/build.sh and streams output via SSE.
+// handleWAFBuild runs apps/run.waffaw/build.sh and streams output via SSE.
 func (a *App) handleWAFCheckImage(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad request", 400)
@@ -1295,7 +1295,7 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 		imageTag = imageURI[i+1:]
 	}
 
-	buildScript := fmt.Sprintf("%s/apps/waffaw/build.sh", a.repoRoot)
+	buildScript := fmt.Sprintf("%s/apps/run.waffaw/build.sh", a.repoRoot)
 
 	// Set up environment for build.sh
 	profile := "application"
@@ -1304,7 +1304,7 @@ func (a *App) handleWAFBuild(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := exec.Command("bash", buildScript)
-	cmd.Dir = fmt.Sprintf("%s/apps/waffaw", a.repoRoot)
+	cmd.Dir = fmt.Sprintf("%s/apps/run.waffaw", a.repoRoot)
 	cmd.Env = append(os.Environ(),
 		"AWS_PROFILE="+profile,
 		"AWS_ACCOUNT_ID="+accountID,
@@ -1512,10 +1512,10 @@ func (a *App) handleWAFCampaignState(w http.ResponseWriter, r *http.Request) {
 
 // validCampaignTemplates lists allowed campaign template IDs.
 var validCampaignTemplates = map[string]string{
-	"camp-low-and-slow":    "apps/waffaw/templates/low-and-slow.yml",
-	"camp-public-flood":    "apps/waffaw/templates/public-flood.yml",
-	"camp-crawl-and-probe": "apps/waffaw/templates/crawl-and-probe.yml",
-	"camp-auth-probe":      "apps/waffaw/templates/auth-probe.yml",
+	"camp-low-and-slow":    "apps/run.waffaw/templates/low-and-slow.yml",
+	"camp-public-flood":    "apps/run.waffaw/templates/public-flood.yml",
+	"camp-crawl-and-probe": "apps/run.waffaw/templates/crawl-and-probe.yml",
+	"camp-auth-probe":      "apps/run.waffaw/templates/auth-probe.yml",
 }
 
 // handleWAFCampaignTemplateSave saves edited campaign YAML back to disk.

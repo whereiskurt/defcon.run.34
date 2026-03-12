@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 /**
  * Quick local test for auth-probe — runs the full flow in a visible browser.
- * Usage: cd apps/waffaw && npx tsx test-auth-probe.ts
+ * Usage: cd apps/run.waffaw && npx tsx test-auth-probe.ts
  */
 import { chromium } from "playwright";
 import { authProbe } from "./scenarios/auth-probe";

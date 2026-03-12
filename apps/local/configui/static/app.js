@@ -5024,7 +5024,7 @@ function buildWaffaw() {
             '<div class="flex flex-col gap-1">' +
               '<div class="flex items-center gap-2">' +
                 '<span class="text-green-400 text-sm font-mono font-bold">$ </span>' +
-                '<span class="text-sm font-mono text-zinc-200">apps/waffaw/build.sh</span>' +
+                '<span class="text-sm font-mono text-zinc-200">apps/run.waffaw/build.sh</span>' +
               '</div>' +
               '<div class="flex items-center gap-3" style="padding-left:1.1rem;">' +
                 '<span class="waf-build-status text-[11px] font-mono text-green-400">Starting...</span>' +
