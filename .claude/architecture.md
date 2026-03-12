@@ -242,7 +242,7 @@ VERSION files live at `apps/{app}/webapp/VERSION` (or `app/VERSION` for CMS) and
 
 ## Operational Tools
 
-### ConfigUI (`apps/configui/`)
+### ConfigUI (`apps/local/configui/`)
 
 Go binary, binds to 127.0.0.1 only. Embeds all templates/JS/CSS. Features: HCL generation from web form, terragrunt execution with SSE streaming, SOPS secret editing, service discovery dots, output explorer.
 

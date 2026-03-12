@@ -65,10 +65,6 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${SCRIPT_DIR}/${APP}"
 
-# run.mqtt lives at apps/mqtt/ (not apps/run.mqtt/)
-if [[ "$APP" == "run.mqtt" ]]; then
-  APP_DIR="${SCRIPT_DIR}/mqtt"
-fi
 
 VERSION_FILE="${APP_DIR}/${COMPONENT}/VERSION"
 

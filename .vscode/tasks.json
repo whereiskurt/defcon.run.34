@@ -127,7 +127,7 @@
       "type": "shell",
       "command": "docker compose down && docker compose up --build",
       "options": {
-        "cwd": "${workspaceFolder}/apps/mqtt"
+        "cwd": "${workspaceFolder}/apps/run.mqtt"
       },
       "isBackground": true,
       "problemMatcher": [],
@@ -142,7 +142,7 @@
       "type": "shell",
       "command": "test -f nodes.json || echo '{}' > nodes.json && python3 -m http.server ${LOCAL_MQTT_PORT:-3005}",
       "options": {
-        "cwd": "${workspaceFolder}/apps/mqtt/nginx"
+        "cwd": "${workspaceFolder}/apps/run.mqtt/nginx"
       },
       "isBackground": true,
       "problemMatcher": [],

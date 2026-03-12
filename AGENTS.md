@@ -14,6 +14,11 @@ apps/
 ├── run.cms/        # CMS service (cms.defcon.run) - Strapi 5
 ├── run.gpx/        # GPX editor (gpx.defcon.run) - Next.js + gpx-studio
 ├── run.human/      # Main app (run.defcon.run) - Next.js
+├── run.mqtt/       # MQTT broker + meshtk + meshmap
+├── local/          # Local-only development tooling
+│   ├── configui/   # Infrastructure config UI (Go binary)
+│   ├── dynamodb/   # Local DynamoDB (Docker)
+│   └── s3/         # Local S3/MinIO (Docker)
 ├── build.sh        # Build and push Docker image to ECR
 ├── deploy.sh       # Deploy to ECS via Terragrunt
 └── release-all.sh  # Multi-region parallel release

@@ -123,10 +123,6 @@ echo "=== Build Config: AWS_REGION=${AWS_REGION}, REGION_SHORT=${REGION_SHORT} =
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${SCRIPT_DIR}/${APP}"
 
-# run.mqtt lives at apps/mqtt/ (not apps/run.mqtt/)
-if [[ "$APP" == "run.mqtt" ]]; then
-  APP_DIR="${SCRIPT_DIR}/mqtt"
-fi
 
 # Resolve meshtk source for mqtt builds
 # Local: copy from symlink target; CI: clone from GitHub
