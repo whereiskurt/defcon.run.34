@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
     },
   },
 
+  trailingSlash: true,
+
   // Mount app at /{region} path in production (e.g., /use1 or /cac1)
   // In dev, no basePath so development works at root
   ...(isDev ? {} : { basePath: `/${REGION_SHORT}` }),
