@@ -295,7 +295,7 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
     TF_SERVICE_DIR="${TF_SERVICES_DIR}/${TF_SERVICE}"
 
     if [[ "$APP" == "run.mqtt" ]]; then
-      APP_DIR="${SCRIPT_DIR}/mqtt"
+      APP_DIR="${SCRIPT_DIR}/run.mqtt"
       cp "${APP_DIR}/mosquitto/VERSION" "${TF_SERVICE_DIR}/VERSION.mosquitto"
       cp "${APP_DIR}/meshtk/VERSION" "${TF_SERVICE_DIR}/VERSION.meshtk"
       cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
@@ -323,7 +323,7 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
     TF_SERVICE_DIR="${TF_SERVICES_DIR}/${TF_SERVICE}"
 
     if [[ "$APP" == "run.mqtt" ]]; then
-      _APP_DIR="${SCRIPT_DIR}/mqtt"
+      _APP_DIR="${SCRIPT_DIR}/run.mqtt"
       for COMP in mosquitto meshtk nginx; do
         VERSION_FILES+=("${_APP_DIR}/${COMP}/VERSION")
         VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.${COMP}")
@@ -367,7 +367,7 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
       APP_COMPONENT=$(get_app_component "$APP")
       APP_HAS_NGINX=$(has_nginx "$APP")
       if [[ "$APP" == "run.mqtt" ]]; then
-        _APP_DIR="${SCRIPT_DIR}/mqtt"
+        _APP_DIR="${SCRIPT_DIR}/run.mqtt"
         MOSQ_V=$(cat "${_APP_DIR}/mosquitto/VERSION")
         MESHTK_V=$(cat "${_APP_DIR}/meshtk/VERSION")
         NGINX_V=$(cat "${_APP_DIR}/nginx/VERSION")
