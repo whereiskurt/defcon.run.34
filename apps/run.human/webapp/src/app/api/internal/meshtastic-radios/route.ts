@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { oidcSub, nodeId, privateKey } = body;
+    const { oidcSub, nodeId, privateKey, publicKey } = body;
 
     if (!oidcSub || !nodeId || privateKey === undefined) {
       return NextResponse.json(
@@ -85,8 +85,8 @@ export async function POST(req: NextRequest) {
     );
 
     if (existingIndex !== -1) {
-      // UPDATE: Re-flash -- update private key, keep everything else
-      const updated = { ...currentRadios[existingIndex], privateKey };
+      // UPDATE: Re-flash -- update keys, keep everything else
+      const updated = { ...currentRadios[existingIndex], privateKey, publicKey: publicKey || "" };
       const updatedRadios = [...currentRadios];
       updatedRadios[existingIndex] = updated;
 
@@ -96,18 +96,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ radio: updated, updated: true }, { status: 200 });
     }
 
-    // CREATE: New radio -- check quota first
+    // CREATE: New radio -- consume quota (auto-initializes on first use)
     const services = ["run"]; // Internal API, default tier
     const tier = getUserTier(services);
-    const quotaCheck = await checkQuota(adapterUserId, "meshtastic_radio", 1, tier);
-
-    if (quotaCheck.remaining <= 0) {
-      return NextResponse.json(
-        { error: "Radio quota exceeded" },
-        { status: 403 }
-      );
-    }
-
     const consumeResult = await consumeQuota(adapterUserId, "meshtastic_radio", 1, tier);
     if (!consumeResult.success) {
       return NextResponse.json(
@@ -120,6 +111,7 @@ export async function POST(req: NextRequest) {
       id: crypto.randomUUID(),
       nodeId: formattedNodeId,
       privateKey: privateKey || "",
+      publicKey: publicKey || "",
       impersonate: true,
       verificationCode: "", // Not needed -- auto-verified from flash
       verified: true,

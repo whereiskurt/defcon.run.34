@@ -77,6 +77,7 @@ export function WizardContainer() {
               device={selectedDevice}
               serial={serial}
               chipMismatch={chipMismatch}
+              skipFlash={completedSteps.has("flash")}
               onContinue={advance}
             />
           )}

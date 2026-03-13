@@ -78,6 +78,7 @@ export const RunUser = new Entity(
             id: { type: "string" },
             nodeId: { type: "string" },
             privateKey: { type: "string" },
+            publicKey: { type: "string" },
             impersonate: { type: "boolean" },
             verificationCode: { type: "string" },
             verified: { type: "boolean" },
@@ -287,6 +288,7 @@ export type MeshtasticRadio = {
   id: string;
   nodeId: string;
   privateKey: string;
+  publicKey?: string;
   impersonate?: boolean;
   verificationCode: string;
   verified: boolean;

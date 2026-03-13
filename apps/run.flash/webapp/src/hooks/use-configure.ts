@@ -137,6 +137,7 @@ export function useConfigure(): UseConfigureReturn {
             body: JSON.stringify({
               nodeId: registrationInfo.nodeId,
               privateKey: registrationInfo.privateKey,
+              publicKey: registrationInfo.publicKey,
             }),
           }).catch((err) => {
             console.warn("[configure] Radio auto-registration failed:", err);

@@ -27,6 +27,7 @@ interface MeshtasticRadio {
   id: string;
   nodeId: string;
   privateKey: string;
+  publicKey?: string;
   impersonate: boolean;
   verificationCode?: string;
   verified: boolean;
@@ -491,7 +492,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
           <div className="space-y-4 mt-3">
             {/* MQTT Credentials */}
             {mqttUsername && (
-              <div className="border border-default-200 rounded-lg p-3 space-y-2">
+              <div className="border border-default-200 rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-wider text-default-400">MQTT Credentials</span>
                   <Button
@@ -503,23 +504,31 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                     {mqttVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-1">
                     <span className="text-xs text-default-500">Username</span>
-                    <div className="flex items-center gap-1">
-                      <p className={`font-mono text-sm ${mqttVisible ? '' : 'blur-sm select-none'}`}>{mqttUsername}</p>
+                    <div className="flex items-center gap-2">
+                      <div className={`flex rounded-md border border-default-200/50 overflow-hidden ${mqttVisible ? '' : 'blur-sm select-none'}`}>
+                        {mqttUsername.split('').map((char, i) => (
+                          <span key={i} className={`font-mono text-lg text-center w-7 py-1.5 bg-default-100/50 ${i > 0 ? 'border-l border-default-200/50' : ''}`}>{char}</span>
+                        ))}
+                      </div>
                       <Button isIconOnly variant="light" size="sm" onPress={() => copyToClipboard(mqttUsername!, 'username')}>
-                        {copiedField === 'username' ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                        {copiedField === 'username' ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                       </Button>
                     </div>
                   </div>
-                  <div>
+                  <div className="space-y-1">
                     <span className="text-xs text-default-500">Password</span>
-                    <div className="flex items-center gap-1">
-                      <p className={`font-mono text-sm ${mqttVisible ? '' : 'blur-sm select-none'}`}>{mqttPassword || '—'}</p>
+                    <div className="flex items-center gap-2">
+                      <div className={`flex rounded-md border border-default-200/50 overflow-hidden ${mqttVisible ? '' : 'blur-sm select-none'}`}>
+                        {(mqttPassword || '—').split('').map((char, i) => (
+                          <span key={i} className={`font-mono text-lg text-center w-7 py-1.5 bg-default-100/50 ${i > 0 ? 'border-l border-default-200/50' : ''}`}>{char}</span>
+                        ))}
+                      </div>
                       {mqttPassword && (
                         <Button isIconOnly variant="light" size="sm" onPress={() => copyToClipboard(mqttPassword!, 'password')}>
-                          {copiedField === 'password' ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
+                          {copiedField === 'password' ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                         </Button>
                       )}
                     </div>

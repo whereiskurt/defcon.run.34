@@ -16,6 +16,8 @@ export type DeviceRegistrationInfo = {
   nodeId: string;
   /** Base64-encoded private key from device security config */
   privateKey: string;
+  /** Base64-encoded public key from device security config */
+  publicKey: string;
 };
 
 /** Default baud rate for Meshtastic serial communication */
@@ -312,9 +314,10 @@ export async function disconnectMeshtasticDevice(
 async function configureWithRetry(device: MeshDevice): Promise<DeviceRegistrationInfo> {
   // Captured across retries -- events fire during configure() handshake.
   // Use object wrapper so TypeScript doesn't narrow to `never` inside closures.
-  const captured: { nodeNum: number | null; privateKey: Uint8Array | null } = {
+  const captured: { nodeNum: number | null; privateKey: Uint8Array | null; publicKey: Uint8Array | null } = {
     nodeNum: null,
     privateKey: null,
+    publicKey: null,
   };
 
   // Subscribe to device events BEFORE any configure() call so we catch
@@ -330,7 +333,8 @@ async function configureWithRetry(device: MeshDevice): Promise<DeviceRegistratio
     (cfg: Protobuf.Config.Config) => {
       if (cfg.payloadVariant.case === "security") {
         captured.privateKey = cfg.payloadVariant.value.privateKey;
-        console.log("[meshtastic] Captured security privateKey");
+        captured.publicKey = cfg.payloadVariant.value.publicKey;
+        console.log("[meshtastic] Captured security privateKey + publicKey");
       }
     }
   );
@@ -368,7 +372,12 @@ async function configureWithRetry(device: MeshDevice): Promise<DeviceRegistratio
           privateKey = btoa(String.fromCharCode(...captured.privateKey));
         }
 
-        return { nodeId, privateKey };
+        let publicKey = "";
+        if (captured.publicKey != null && captured.publicKey.length > 0) {
+          publicKey = btoa(String.fromCharCode(...captured.publicKey));
+        }
+
+        return { nodeId, privateKey, publicKey };
       } catch (err) {
         console.error(`[meshtastic] configure() attempt ${attempt} failed:`, err);
         if (attempt === MAX_CONFIGURE_RETRIES) {
@@ -386,7 +395,7 @@ async function configureWithRetry(device: MeshDevice): Promise<DeviceRegistratio
   }
 
   // Unreachable but satisfies TypeScript
-  return { nodeId: "", privateKey: "" };
+  return { nodeId: "", privateKey: "", publicKey: "" };
 }
 
 /**

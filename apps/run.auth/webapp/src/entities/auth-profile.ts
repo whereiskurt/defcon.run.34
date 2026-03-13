@@ -2,7 +2,7 @@ import { Entity } from "electrodb";
 import { randomBytes } from "crypto";
 import { electroClient, ELECTRO_TABLE } from "./client";
 
-const DEFAULT_SERVICES = ["auth", "run", "strava", "gpxstudio"];
+const DEFAULT_SERVICES = ["auth", "run", "strava", "gpxstudio", "flash"];
 
 /**
  * Generate a random displayName like "rabbit_A1B2"

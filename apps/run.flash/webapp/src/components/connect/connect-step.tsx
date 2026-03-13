@@ -25,6 +25,7 @@ interface ConnectStepProps {
   device: DeviceHardware | null;
   serial: SerialState;
   chipMismatch: boolean;
+  skipFlash?: boolean;
   onContinue: () => void;
 }
 
@@ -39,6 +40,7 @@ export function ConnectStep({
   device,
   serial,
   chipMismatch,
+  skipFlash,
   onContinue,
 }: ConnectStepProps) {
   const imagePath = device ? getDeviceImagePath(device) : null;
@@ -163,7 +165,7 @@ export function ConnectStep({
             onPress={onContinue}
             className="font-mono whitespace-nowrap cta-pulse"
           >
-            Continue to Flash
+            {skipFlash ? 'Continue to Configure' : 'Continue to Flash'}
           </Button>
         )}
 

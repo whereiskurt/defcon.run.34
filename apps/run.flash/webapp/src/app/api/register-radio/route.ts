@@ -2,7 +2,7 @@ import { auth } from "@/config/auth";
 import { NextRequest, NextResponse } from "next/server";
 
 const isDev = process.env.NODE_ENV !== "production";
-const RUN_HUMAN_INTERNAL_URL = process.env.RUN_HUMAN_INTERNAL_URL;
+const RUN_HUMAN_INTERNAL_URL = process.env.RUN_HUMAN_INTERNAL_URL || (isDev ? "http://localhost:3001" : "");
 const AUTH_INTERNAL_SECRET = process.env.AUTH_INTERNAL_SECRET;
 
 /**
@@ -28,7 +28,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Registration service not configured" }, { status: 500 });
     }
 
-    const { nodeId, privateKey } = await req.json();
+    const { nodeId, privateKey, publicKey } = await req.json();
+
+    console.log(`[run.flash] register-radio: url=${RUN_HUMAN_INTERNAL_URL}/api/internal/meshtastic-radios secret=${AUTH_INTERNAL_SECRET ? AUTH_INTERNAL_SECRET.slice(0, 4) + '...' : 'UNSET'} oidcSub=${session.user.id} nodeId=${nodeId}`);
 
     const response = await fetch(
       `${RUN_HUMAN_INTERNAL_URL}/api/internal/meshtastic-radios`,
@@ -42,11 +44,13 @@ export async function POST(req: NextRequest) {
           oidcSub: session.user.id,
           nodeId,
           privateKey,
+          publicKey,
         }),
       }
     );
 
     const data = await response.json();
+    console.log(`[run.flash] register-radio: status=${response.status} response=${JSON.stringify(data)}`);
     return NextResponse.json(data, { status: response.status });
   } catch (error) {
     console.error("[run.flash] /api/register-radio error:", error);
