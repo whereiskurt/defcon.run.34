@@ -21,15 +21,17 @@ const nextConfig: NextConfig = {
 
   // Mount app at /{region} path in production (e.g., /use1 or /cac1)
   // In dev, no basePath so development works at root
-  ...(isDev ? {} : { basePath: `/${REGION_SHORT}` }),
+  // Uses REGION_SHORT env var presence (not NODE_ENV) since Docker builds may not set NODE_ENV
+  ...(process.env.REGION_SHORT ? { basePath: `/${REGION_SHORT}` } : {}),
 
   // Asset prefix for CDN in production - rewrites <script> / <link> tags
   // In dev, no assetPrefix needed
-  ...(isDev ? {} : { assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}` }),
+  ...(process.env.REGION_SHORT ? { assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}` } : {}),
 
-  // Expose region to client-side (only in production where basePath is set)
+  // Expose region to client-side
+  // Empty when no basePath (local dev), otherwise matches REGION_SHORT
   env: {
-    NEXT_PUBLIC_REGION_SHORT: isDev ? "" : REGION_SHORT,
+    NEXT_PUBLIC_REGION_SHORT: process.env.REGION_SHORT || "",
   },
 };
 
