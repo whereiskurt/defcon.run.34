@@ -57,13 +57,4 @@ lambda_*.zip
 ## I want share this because it makes automations is easier.
 !.claude/settings.local.json
 
-# ConfigUI
-apps/local/configui/configui_
-apps/local/configui/configui
-apps/local/configui/backups/
-apps/local/configui/site-config.json
-apps/local/configui/.discovery-cache.json
-apps/local/configui/.aws-status-cache.json
-apps/local/configui/.rrdb.json
-
 .playwright-mcp/*

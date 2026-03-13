@@ -1,0 +1,10 @@
+# Built binaries
+configui
+configui_
+
+# Runtime data
+backups/
+site-config.json
+.discovery-cache.json
+.aws-status-cache.json
+.rrdb.json
