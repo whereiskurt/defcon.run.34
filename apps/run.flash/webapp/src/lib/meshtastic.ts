@@ -10,6 +10,14 @@ import { MeshDevice, Protobuf, Types } from "@meshtastic/core";
 import { TransportWebSerial } from "@meshtastic/transport-web-serial";
 import { create } from "@bufbuild/protobuf";
 
+/** Info captured during configure handshake for auto-registration */
+export type DeviceRegistrationInfo = {
+  /** Hex node ID in "!abcd1234" format */
+  nodeId: string;
+  /** Base64-encoded private key from device security config */
+  privateKey: string;
+};
+
 /** Default baud rate for Meshtastic serial communication */
 const MESHTASTIC_BAUDRATE = 115200;
 
@@ -47,10 +55,13 @@ const CONFIGURE_TIMEOUT_MS = 60000;
  * The configure handshake populates myNodeInfo which is required for
  * proper packet addressing.
  *
- * @returns Connected and configured MeshDevice instance
+ * @returns Connected and configured MeshDevice instance with registration info
  * @throws Error if connection times out or no port available
  */
-export async function connectMeshtasticDevice(): Promise<MeshDevice> {
+export async function connectMeshtasticDevice(): Promise<{
+  device: MeshDevice;
+  registrationInfo: DeviceRegistrationInfo;
+}> {
   // Step 1: Get the previously-granted serial port
   const ports = await navigator.serial.getPorts();
   if (ports.length === 0) {
@@ -148,9 +159,9 @@ export async function connectMeshtasticDevice(): Promise<MeshDevice> {
   // DeviceConfigured status. We MUST wait for this before sending admin
   // commands -- the config dump populates myNodeInfo.myNodeNum which is
   // required for proper packet addressing (sendPacket uses it for "self").
-  await configureWithRetry(device);
+  const registrationInfo = await configureWithRetry(device);
 
-  return device;
+  return { device, registrationInfo };
 }
 
 /**
@@ -298,36 +309,84 @@ export async function disconnectMeshtasticDevice(
  * After this, myNodeInfo.myNodeNum is populated, which is required for
  * admin commands (sendPacket addresses packets to "self" using this number).
  */
-async function configureWithRetry(device: MeshDevice): Promise<void> {
-  for (let attempt = 1; attempt <= MAX_CONFIGURE_RETRIES; attempt++) {
-    try {
-      console.log(`[meshtastic] configure() attempt ${attempt}/${MAX_CONFIGURE_RETRIES}`);
+async function configureWithRetry(device: MeshDevice): Promise<DeviceRegistrationInfo> {
+  // Captured across retries -- events fire during configure() handshake.
+  // Use object wrapper so TypeScript doesn't narrow to `never` inside closures.
+  const captured: { nodeNum: number | null; privateKey: Uint8Array | null } = {
+    nodeNum: null,
+    privateKey: null,
+  };
 
-      // Set up the status listener BEFORE calling configure() to avoid
-      // any race where DeviceConfigured fires before we're listening.
-      const configurePromise = waitForDeviceReady(device);
-
-      // Fire configure -- don't await it directly since the promise resolves
-      // on queue ACK (or 60s queue timeout), not on DeviceConfigured.
-      // We listen for the DeviceConfigured status event instead.
-      device.configure().catch((err: unknown) => {
-        console.warn("[meshtastic] configure() rejected:", err);
-      });
-
-      await configurePromise;
-      console.log("[meshtastic] Device configured and ready for config push");
-      return;
-    } catch (err) {
-      console.error(`[meshtastic] configure() attempt ${attempt} failed:`, err);
-      if (attempt === MAX_CONFIGURE_RETRIES) {
-        throw new Error(
-          `Device configuration failed after ${MAX_CONFIGURE_RETRIES} attempts. ` +
-            `The device may need more time to boot. ${getMeshtasticErrorMessage(err)}`
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+  // Subscribe to device events BEFORE any configure() call so we catch
+  // the config dump that happens during the handshake.
+  const unsubNodeInfo = device.events.onMyNodeInfo.subscribe(
+    (info: Protobuf.Mesh.MyNodeInfo) => {
+      captured.nodeNum = info.myNodeNum;
+      console.log(`[meshtastic] Captured myNodeNum: ${captured.nodeNum}`);
     }
+  );
+
+  const unsubConfig = device.events.onConfigPacket.subscribe(
+    (cfg: Protobuf.Config.Config) => {
+      if (cfg.payloadVariant.case === "security") {
+        captured.privateKey = cfg.payloadVariant.value.privateKey;
+        console.log("[meshtastic] Captured security privateKey");
+      }
+    }
+  );
+
+  try {
+    for (let attempt = 1; attempt <= MAX_CONFIGURE_RETRIES; attempt++) {
+      try {
+        console.log(`[meshtastic] configure() attempt ${attempt}/${MAX_CONFIGURE_RETRIES}`);
+
+        // Set up the status listener BEFORE calling configure() to avoid
+        // any race where DeviceConfigured fires before we're listening.
+        const configurePromise = waitForDeviceReady(device);
+
+        // Fire configure -- don't await it directly since the promise resolves
+        // on queue ACK (or 60s queue timeout), not on DeviceConfigured.
+        // We listen for the DeviceConfigured status event instead.
+        device.configure().catch((err: unknown) => {
+          console.warn("[meshtastic] configure() rejected:", err);
+        });
+
+        await configurePromise;
+        console.log("[meshtastic] Device configured and ready for config push");
+
+        // Build registration info from captured events
+        let nodeId = "";
+        let privateKey = "";
+
+        if (captured.nodeNum != null) {
+          nodeId = "!" + captured.nodeNum.toString(16).padStart(8, "0");
+        } else {
+          console.warn("[meshtastic] myNodeNum was not captured during configure");
+        }
+
+        if (captured.privateKey != null && captured.privateKey.length > 0) {
+          privateKey = btoa(String.fromCharCode(...captured.privateKey));
+        }
+
+        return { nodeId, privateKey };
+      } catch (err) {
+        console.error(`[meshtastic] configure() attempt ${attempt} failed:`, err);
+        if (attempt === MAX_CONFIGURE_RETRIES) {
+          throw new Error(
+            `Device configuration failed after ${MAX_CONFIGURE_RETRIES} attempts. ` +
+              `The device may need more time to boot. ${getMeshtasticErrorMessage(err)}`
+          );
+        }
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+    }
+  } finally {
+    unsubNodeInfo();
+    unsubConfig();
   }
+
+  // Unreachable but satisfies TypeScript
+  return { nodeId: "", privateKey: "" };
 }
 
 /**
