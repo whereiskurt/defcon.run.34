@@ -5,7 +5,7 @@ milestone_name: Meshtk Integration
 status: completed
 stopped_at: Completed quick-2-PLAN.md
 last_updated: "2026-03-13T04:39:42.734Z"
-last_activity: 2026-03-07 -- Completed 17-01 meshmap port from DC33 to DC34
+last_activity: 2026-03-13 -- Completed quick task 2: Auto-register flashed radios
 progress:
   total_phases: 5
   completed_phases: 4
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 Phase: 17 of 18 (Meshmap Verification + Branding) -- COMPLETE
 Plan: 1 of 1 in current phase (all complete)
 Status: Phase 17 complete
-Last activity: 2026-03-07 -- Completed 17-01 meshmap port from DC33 to DC34
+Last activity: 2026-03-13 -- Completed quick task 2: Auto-register flashed radios
 
 Progress: [==========] 100% (5/5 v1.3 phases, 1/1 phase 17 plans)
 
@@ -67,6 +67,12 @@ None.
 - ~~ecs-service module auto-enables Proxy Protocol v2 on NLB TCP targets~~ FIXED in 14-01
 - ~~Security group outputs exclude MQTT ports~~ FIXED in 14-01 (conditional NLB SG)
 - ~~Route53 NLB alias records not covered by existing cloudfront module~~ FIXED in 14-01 (new nlb-dns module)
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 2 | Auto-register flashed radios from run.flash into run.human meshtastic radios with node ID and private key | 2026-03-13 | fa05249e | [2-auto-register-flashed-radios-from-run-fl](./quick/2-auto-register-flashed-radios-from-run-fl/) |
 
 ## Session Continuity
 
