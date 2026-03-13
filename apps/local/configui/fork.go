@@ -30,9 +30,9 @@ var defaultSkipPatterns = []string{
 	"*.min.css",
 	"*.map",
 	".claude/*",
-	"apps/configui/backups/*",
-	"apps/configui/site-config.json",
-	"apps/configui/docs/*",
+	"apps/local/configui/backups/*",
+	"apps/local/configui/site-config.json",
+	"apps/local/configui/docs/*",
 }
 
 // ForkState is returned by GET /api/fork/state for dialog pre-fill.
