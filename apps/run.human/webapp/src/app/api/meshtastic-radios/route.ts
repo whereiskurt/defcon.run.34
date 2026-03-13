@@ -5,6 +5,31 @@ import { checkQuota, consumeQuota, restoreQuota } from '@/lib/quota-client';
 import { getUserTier } from '@/lib/quota-middleware';
 import crypto from 'crypto';
 
+/**
+ * Derive X25519 public key from a base64-encoded private key.
+ * Meshtastic uses Curve25519 for key exchange.
+ */
+function derivePublicKey(privateKeyBase64: string): string {
+  try {
+    const privateKeyBytes = Buffer.from(privateKeyBase64, 'base64');
+    if (privateKeyBytes.length !== 32) return '';
+    const keyObject = crypto.createPrivateKey({
+      key: Buffer.concat([
+        // X25519 PKCS#8 prefix (16 bytes) + 32-byte raw key
+        Buffer.from('302e020100300506032b656e04220420', 'hex'),
+        privateKeyBytes,
+      ]),
+      format: 'der',
+      type: 'pkcs8',
+    });
+    const publicKeyDer = crypto.createPublicKey(keyObject).export({ format: 'der', type: 'spki' });
+    // X25519 SPKI is 44 bytes: 12-byte header + 32-byte raw key
+    return publicKeyDer.subarray(12).toString('base64');
+  } catch {
+    return '';
+  }
+}
+
 // Sanitize radio data to ensure all fields have correct types
 // (ElectroDB may return empty objects for missing string fields)
 function sanitizeRadio(radio: MeshtasticRadio): MeshtasticRadio {
@@ -12,6 +37,7 @@ function sanitizeRadio(radio: MeshtasticRadio): MeshtasticRadio {
     id: radio.id || '',
     nodeId: radio.nodeId || '',
     privateKey: typeof radio.privateKey === 'string' ? radio.privateKey : '',
+    publicKey: typeof radio.publicKey === 'string' ? radio.publicKey : '',
     impersonate: radio.impersonate ?? false,
     verificationCode: typeof radio.verificationCode === 'string' ? radio.verificationCode : '',
     verified: radio.verified ?? false,
@@ -86,7 +112,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { nodeId, privateKey, impersonate } = await req.json();
+    const { nodeId, privateKey, publicKey, impersonate } = await req.json();
 
     if (!nodeId) {
       return NextResponse.json({ error: 'Node ID is required' }, { status: 400 });
@@ -131,6 +157,7 @@ export async function POST(req: NextRequest) {
       id: crypto.randomUUID(),
       nodeId: formattedNodeId,
       privateKey: privateKey || '',
+      publicKey: publicKey || (privateKey ? derivePublicKey(privateKey) : ''),
       impersonate: impersonate || false,
       verificationCode,
       verified: false,
@@ -170,7 +197,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { radioId, verificationCode, privateKey, impersonate } = await req.json();
+    const { radioId, verificationCode, privateKey, publicKey, impersonate } = await req.json();
 
     if (!radioId) {
       return NextResponse.json({ error: 'Radio ID is required' }, { status: 400 });
@@ -212,6 +239,14 @@ export async function PATCH(req: NextRequest) {
 
     if (privateKey !== undefined) {
       radio.privateKey = privateKey;
+      // Re-derive public key if not explicitly provided
+      if (publicKey === undefined && privateKey) {
+        radio.publicKey = derivePublicKey(privateKey);
+      }
+    }
+
+    if (publicKey !== undefined) {
+      radio.publicKey = publicKey;
     }
 
     if (impersonate !== undefined) {

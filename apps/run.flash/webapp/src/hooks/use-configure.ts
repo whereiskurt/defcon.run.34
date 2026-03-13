@@ -76,7 +76,7 @@ export function useConfigure(): UseConfigureReturn {
         // Stage 2: Reconnect via @meshtastic/core
         // connectMeshtasticDevice() handles: close stale port, reboot delay,
         // reopen for Meshtastic protocol, configure handshake with retry.
-        const device = await connectMeshtasticDevice();
+        const { device, registrationInfo } = await connectMeshtasticDevice();
         deviceRef.current = device;
 
         setProgress((prev) => ({
@@ -128,6 +128,21 @@ export function useConfigure(): UseConfigureReturn {
         };
 
         await pushDeviceConfig(device, config, onStageComplete);
+
+        // Auto-register radio -- fire-and-forget, don't block completion
+        if (registrationInfo.nodeId) {
+          fetch(`${basePath}/api/register-radio`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              nodeId: registrationInfo.nodeId,
+              privateKey: registrationInfo.privateKey,
+              publicKey: registrationInfo.publicKey,
+            }),
+          }).catch((err) => {
+            console.warn("[configure] Radio auto-registration failed:", err);
+          });
+        }
 
         // All done
         setProgress((prev) => ({

@@ -282,6 +282,15 @@ export default function WhoAmIPage() {
       {/* Check-in History */}
       <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference} />
 
+      {/* Meshtastic Radios */}
+      <MeshtasticRadios
+        radios={userData?.meshtasticRadios}
+        quotas={userData?.quotas}
+        mqttUsername={userData?.mqttUsername}
+        mqttPassword={userData?.mqttPassword}
+        onUpdate={fetchUserData}
+      />
+
       {/* QR Code (collapsed by default) */}
       {userData?.eqr && (
         <Card className="glass-card overflow-hidden">
@@ -359,15 +368,6 @@ export default function WhoAmIPage() {
           </CardBody>
         </Card>
       )}
-
-      {/* Meshtastic Radios */}
-      <MeshtasticRadios
-        radios={userData?.meshtasticRadios}
-        quotas={userData?.quotas}
-        mqttUsername={userData?.mqttUsername}
-        mqttPassword={userData?.mqttPassword}
-        onUpdate={fetchUserData}
-      />
 
       {/* Debug */}
       <Card className="glass-card overflow-hidden">

@@ -203,7 +203,11 @@ export function FlashStep({
             </div>
           </div>
 
-          {/* CTA button below panel */}
+          <FlashPipeline progress={progress} />
+
+          <FlashConsole logs={consoleLogs} />
+
+          {/* CTA button below pipeline + console */}
           <div className="flex justify-center">
             <Button
               color="primary"
@@ -215,10 +219,6 @@ export function FlashStep({
               Continue to Configure
             </Button>
           </div>
-
-          <FlashPipeline progress={progress} />
-
-          <FlashConsole logs={consoleLogs} />
         </>
       )}
 

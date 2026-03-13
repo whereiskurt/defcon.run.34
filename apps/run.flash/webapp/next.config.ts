@@ -27,9 +27,9 @@ const nextConfig: NextConfig = {
   // In dev, no assetPrefix needed
   ...(isDev ? {} : { assetPrefix: `https://${WEBAPP_ORIGIN}/${WEBAPP_PREFIX}` }),
 
-  // Expose region to client-side
+  // Expose region to client-side (only in production where basePath is set)
   env: {
-    NEXT_PUBLIC_REGION_SHORT: REGION_SHORT,
+    NEXT_PUBLIC_REGION_SHORT: isDev ? "" : REGION_SHORT,
   },
 };
 

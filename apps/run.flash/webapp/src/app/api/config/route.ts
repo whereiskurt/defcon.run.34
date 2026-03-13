@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import type { DeviceConfigPayload } from "@/types/config";
 
 const isDev = process.env.NODE_ENV !== "production";
-const RUN_HUMAN_INTERNAL_URL = process.env.RUN_HUMAN_INTERNAL_URL;
+const RUN_HUMAN_INTERNAL_URL = process.env.RUN_HUMAN_INTERNAL_URL || (isDev ? "http://localhost:3001" : "");
 const AUTH_INTERNAL_SECRET = process.env.AUTH_INTERNAL_SECRET;
 
 /**
