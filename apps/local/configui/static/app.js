@@ -725,7 +725,7 @@ function tabActive() {
   return 'px-3 py-1.5 text-xs font-medium border-b-2 ' + colors;
 }
 var TAB_INACTIVE = 'px-3 py-1.5 text-xs font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 cursor-pointer';
-var _pcatLabels = { config: 'Config', services: 'Services', infra: 'Infra', campaigns: 'Campaigns' };
+var _pcatLabels = { config: 'Config', services: 'Run Services', infra: 'Infra', campaigns: 'Campaigns' };
 
 function togglePcatDropdown() {
   var menu = document.getElementById('pcat-menu');
@@ -4321,7 +4321,7 @@ function renderOutputTree(container, modules) {
   });
 
   var regions = (window.ALL_REGIONS || []).map(function(r) { return r.Full || r.full; });
-  var catLabels = { infra: 'Infrastructure', services: 'Services', apps: 'Apps' };
+  var catLabels = { infra: 'Infrastructure', services: 'Run Services', apps: 'Local Services' };
 
   ['infra', 'services', 'apps'].forEach(function(catKey) {
     var cat = categories[catKey];

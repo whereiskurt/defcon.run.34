@@ -85,10 +85,10 @@
     {{template "upload_proc.html" .}}
   </div>
 
-  <!-- Section Divider: Services -->
+  <!-- Section Divider: Run Services -->
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider flex items-center gap-2" data-section="svc">
     <button type="button" onclick="toggleSection('svc')" class="global-fold-btn" id="section-chevron-svc" title="Expand/Collapse">+</button>
-    <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('svc')">Services</h2>
+    <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('svc')">Run Services</h2>
     <button type="button" onclick="toggleSectionRollup('svc')" class="section-chevron ml-auto" id="section-roll-svc" title="Show/Hide section">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
     </button>
@@ -102,11 +102,11 @@
     {{template "svc_mqtt.html" .}}
   </div>
 
-  <!-- Section Divider: Apps -->
+  <!-- Section Divider: Local Services -->
   <div class="md:col-span-2 border-t border-green-300 dark:border-green-800/50 pt-4 mt-2 section-divider" data-section="apps">
     <div class="flex items-center gap-2">
       <button type="button" onclick="toggleSection('apps')" class="global-fold-btn" id="section-chevron-apps" title="Expand/Collapse">+</button>
-      <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('apps')">Local Apps</h2>
+      <h2 class="text-lg font-bold font-mono text-green-700 dark:text-green-500 cursor-pointer" onclick="toggleSectionRollup('apps')">Local Services</h2>
       <button type="button" onclick="toggleSectionRollup('apps')" class="section-chevron shrink-0 ml-auto" id="section-roll-apps" title="Show/Hide section">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
       </button>
