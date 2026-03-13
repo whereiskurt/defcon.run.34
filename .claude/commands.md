@@ -78,7 +78,7 @@ release-all.sh --pr
 
 ```bash
 # ConfigUI (Go web UI for infrastructure config)
-cd apps/configui && go build -o configui . && ./configui
+cd apps/local/configui && go build -o configui . && ./configui
 
 # Terragrunt — plan all modules
 cd infra/terraform/live/site && terragrunt run-all plan

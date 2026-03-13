@@ -14,9 +14,6 @@
         "reveal": "always",
         "panel": "dedicated",
         "group": "local-infra"
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
       }
     },
     {
@@ -32,9 +29,6 @@
         "reveal": "always",
         "panel": "dedicated",
         "group": "local-infra"
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
       }
     },
     {
@@ -48,10 +42,7 @@
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
-        "panel": "dedicated",
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
+        "panel": "dedicated"
       }
     },
     {
@@ -65,10 +56,7 @@
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
-        "panel": "dedicated",
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
+        "panel": "dedicated"
       }
     },
     {
@@ -82,10 +70,7 @@
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
-        "panel": "dedicated",
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
+        "panel": "dedicated"
       }
     },
     {
@@ -99,10 +84,7 @@
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
-        "panel": "dedicated",
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
+        "panel": "dedicated"
       }
     },
     {
@@ -117,32 +99,14 @@
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
-      },
-      "runOptions": {
-        "runOn": "folderOpen"
       }
     },
     {
-      "label": "Local: MQTT Broker",
+      "label": "App: run.mqtt (1883/1884/3005)",
       "type": "shell",
       "command": "docker compose down && docker compose up --build",
       "options": {
-        "cwd": "${workspaceFolder}/apps/mqtt"
-      },
-      "isBackground": true,
-      "problemMatcher": [],
-      "presentation": {
-        "reveal": "always",
-        "panel": "dedicated",
-        "group": "local-infra"
-      }
-    },
-    {
-      "label": "App: mqtt.meshmap (LOCAL_MQTT_PORT/3005)",
-      "type": "shell",
-      "command": "test -f nodes.json || echo '{}' > nodes.json && python3 -m http.server ${LOCAL_MQTT_PORT:-3005}",
-      "options": {
-        "cwd": "${workspaceFolder}/apps/mqtt/nginx"
+        "cwd": "${workspaceFolder}/apps/run.mqtt"
       },
       "isBackground": true,
       "problemMatcher": [],

@@ -8,7 +8,7 @@
 set -uo pipefail
 
 REPO_ROOT="/Users/khundeck/working/defcon.run.34"
-CONFIGUI_DIR="$REPO_ROOT/apps/configui"
+CONFIGUI_DIR="$REPO_ROOT/apps/local/configui"
 DOCS_DIR="$CONFIGUI_DIR/docs"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEMO_DIR="/tmp/configui-demos"

@@ -2,10 +2,10 @@
 # Generate map background images for any city
 #
 # Usage (from repo root):
-#   ./apps/scripts/generate-map-bg.sh "Las Vegas, Nevada"
-#   ./apps/scripts/generate-map-bg.sh "Guelph, Ontario, Canada"
-#   ./apps/scripts/generate-map-bg.sh --lat 43.55 --lng -80.25 "Guelph"
-#   ./apps/scripts/generate-map-bg.sh --offset-lng -0.04 "Las Vegas"
+#   ./apps/local/scripts/generate-map-bg.sh "Las Vegas, Nevada"
+#   ./apps/local/scripts/generate-map-bg.sh "Guelph, Ontario, Canada"
+#   ./apps/local/scripts/generate-map-bg.sh --lat 43.55 --lng -80.25 "Guelph"
+#   ./apps/local/scripts/generate-map-bg.sh --offset-lng -0.04 "Las Vegas"
 #
 # Options:
 #   --lat <num>          Override latitude (skip geocoding)

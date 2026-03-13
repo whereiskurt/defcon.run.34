@@ -242,12 +242,12 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Campaign template YAMLs (read-only from apps/waffaw/templates/)
+	// Campaign template YAMLs (read-only from apps/run.waffaw/templates/)
 	for _, camp := range []struct{ id, label, file string }{
-		{"camp-low-and-slow", "Low & Slow", "apps/waffaw/templates/low-and-slow.yml"},
-		{"camp-public-flood", "Public Flood", "apps/waffaw/templates/public-flood.yml"},
-		{"camp-crawl-and-probe", "Crawl & Probe", "apps/waffaw/templates/crawl-and-probe.yml"},
-		{"camp-auth-probe", "Auth Probe", "apps/waffaw/templates/auth-probe.yml"},
+		{"camp-low-and-slow", "Low & Slow", "apps/run.waffaw/templates/low-and-slow.yml"},
+		{"camp-public-flood", "Public Flood", "apps/run.waffaw/templates/public-flood.yml"},
+		{"camp-crawl-and-probe", "Crawl & Probe", "apps/run.waffaw/templates/crawl-and-probe.yml"},
+		{"camp-auth-probe", "Auth Probe", "apps/run.waffaw/templates/auth-probe.yml"},
 	} {
 		if data, err := os.ReadFile(filepath.Join(a.repoRoot, camp.file)); err == nil {
 			tabs = append(tabs, previewTab{camp.id, camp.label, string(data), string(data)})

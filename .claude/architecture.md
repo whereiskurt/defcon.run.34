@@ -242,10 +242,10 @@ VERSION files live at `apps/{app}/webapp/VERSION` (or `app/VERSION` for CMS) and
 
 ## Operational Tools
 
-### ConfigUI (`apps/configui/`)
+### ConfigUI (`apps/local/configui/`)
 
 Go binary, binds to 127.0.0.1 only. Embeds all templates/JS/CSS. Features: HCL generation from web form, terragrunt execution with SSE streaming, SOPS secret editing, service discovery dots, output explorer.
 
-### Waffaw (`apps/waffaw/`)
+### Waffaw (`apps/run.waffaw/`)
 
-WAF testing platform (~70% implemented). S3 control plane, Artillery + Playwright for real browser TLS fingerprints, EC2 Spot + ECS Fargate Spot fleet, bash agent with roll-call consensus protocol. Integrates into ConfigUI's Apps section. See `apps/waffaw/DESIGN.md`.
+WAF testing platform (~70% implemented). S3 control plane, Artillery + Playwright for real browser TLS fingerprints, EC2 Spot + ECS Fargate Spot fleet, bash agent with roll-call consensus protocol. Integrates into ConfigUI's Apps section. See `apps/run.waffaw/DESIGN.md`.

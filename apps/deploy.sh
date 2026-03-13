@@ -52,10 +52,6 @@ esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="${SCRIPT_DIR}/${APP}"
-# mqtt uses apps/mqtt/ not apps/run.mqtt/
-if [[ "$APP" == "run.mqtt" ]]; then
-  APP_DIR="${SCRIPT_DIR}/mqtt"
-fi
 TF_SERVICE_DIR="${SCRIPT_DIR}/../infra/terraform/live/site/services/${TF_SERVICE}"
 
 echo "=== Deploying ${APP} ==="

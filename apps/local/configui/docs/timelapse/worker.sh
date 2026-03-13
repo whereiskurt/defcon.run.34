@@ -19,7 +19,7 @@ echo "[worker-${WORKER_ID}] Starting with ${#COMMITS[@]} commits in $WORKTREE"
 SCREENSHOT_SCRIPT="$(cd "$(dirname "$0")" && pwd)/screenshot.mjs"
 # Fallback: if running from /tmp copy, use the committed path
 if [ ! -f "$SCREENSHOT_SCRIPT" ]; then
-  SCREENSHOT_SCRIPT="/Users/khundeck/working/defcon.run.34/apps/configui/docs/timelapse/screenshot.mjs"
+  SCREENSHOT_SCRIPT="/Users/khundeck/working/defcon.run.34/apps/local/configui/docs/timelapse/screenshot.mjs"
 fi
 
 IDX=0
@@ -39,11 +39,11 @@ for COMMIT in "${COMMITS[@]}"; do
   # Copy gitignored config files needed for AWS connectivity
   REPO_ROOT="/Users/khundeck/working/defcon.run.34"
   cp "$REPO_ROOT/env.local.sh" "$WORKTREE/env.local.sh" 2>/dev/null || true
-  mkdir -p "$WORKTREE/apps/configui" 2>/dev/null || true
-  cp "$REPO_ROOT/apps/configui/site-config.json" "$WORKTREE/apps/configui/site-config.json" 2>/dev/null || true
+  mkdir -p "$WORKTREE/apps/local/configui" 2>/dev/null || true
+  cp "$REPO_ROOT/apps/local/configui/site-config.json" "$WORKTREE/apps/local/configui/site-config.json" 2>/dev/null || true
 
   # Build configui
-  CONFIGUI_DIR="$WORKTREE/apps/configui"
+  CONFIGUI_DIR="$WORKTREE/apps/local/configui"
   if [ ! -d "$CONFIGUI_DIR" ]; then
     echo "[worker-${WORKER_ID}] $SHORT: apps/configui not found, skipping"
     continue

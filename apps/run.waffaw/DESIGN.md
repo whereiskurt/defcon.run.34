@@ -1089,7 +1089,7 @@ The `enabled = false` default means the entire waffaw stack is not deployed unle
 ### Waffaw Application
 
 ```
-apps/waffaw/
+apps/run.waffaw/
 +-- DESIGN.md                 # This document
 +-- Dockerfile                # Container image (Playwright + Artillery + agent)
 +-- agent.sh                  # S3 polling daemon (container entrypoint)

@@ -1,0 +1,66 @@
+# Local MQTT stack: mosquitto + meshtk proxy + meshmap + ghost fleet
+# Usage:  docker compose up --build
+#
+# MQTT proxy:   localhost:1883  (meshtk proxy — public-facing port)
+# MQTT broker:  localhost:1884  (mosquitto — direct access for debugging)
+# Meshmap UI:   localhost:3005  (nginx + meshobserv)
+# Ghost fleet:  connects to mosquitto internally
+
+services:
+  mosquitto:
+    build:
+      context: ./mosquitto
+      dockerfile: Dockerfile.mosquitto
+    container_name: mqtt-mosquitto
+    ports:
+      - "1884:1884"
+    environment:
+      - MQTT_MESHTK_PASSWORD=localdev
+      - MQTT_MESHOBSERV_PASSWORD=localdev
+      - MQTT_GHOSTS_PASSWORD=localdev
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_pub -h localhost -p 1884 -u meshobserv -P localdev -t healthcheck -m ok"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 3s
+
+  meshtk:
+    build:
+      context: ./meshtk
+      dockerfile: Dockerfile.meshtk
+    container_name: mqtt-meshtk
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./meshtk/meshtk.localdev.yaml:/app/meshtk.yaml:ro
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile.nginx
+    container_name: mqtt-nginx
+    ports:
+      - "3005:80"
+    volumes:
+      - ./meshtk/meshtk.localdev.yaml:/app/meshtk.yaml:ro
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+
+  ghosts:
+    build:
+      context: ./meshtk
+      dockerfile: Dockerfile.meshtk
+    container_name: mqtt-ghosts
+    command: ["meshtk", "fleet", "simulate"]
+    volumes:
+      - ./meshtk/meshtk.localdev.yaml:/app/meshtk.yaml:ro
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      meshtk:
+        condition: service_started
