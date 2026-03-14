@@ -349,13 +349,13 @@ locals {
     }
 
     load_balancers = [
-      # Port 1883: TCP MQTT -> meshtk:1883 (Proxy Protocol v2 enabled)
+      # Port 1883: TCP MQTT -> meshtk:1883 (PP2 disabled — meshtk has no proxy protocol support)
       {
         type                  = "nlb"
         container_name        = "mqtt-meshtk"
         container_port        = 1883
         target_group_protocol = "TCP"
-        proxy_protocol_v2     = true
+        proxy_protocol_v2     = false
         health_check_protocol = "TCP"
 
         health_check = {
@@ -369,7 +369,7 @@ locals {
           protocol = "TCP"
         }
       },
-      # Port 8883: TLS MQTT -> meshtk:1883 (PP2 enabled, NLB terminates TLS)
+      # Port 8883: TLS MQTT -> meshtk:1883 (PP2 disabled — meshtk has no proxy protocol support)
       # target_group_port = 8883 avoids target group name collision with port 1883 listener
       {
         type                  = "nlb"
@@ -377,7 +377,7 @@ locals {
         container_port        = 1883
         target_group_port     = 8883
         target_group_protocol = "TCP"
-        proxy_protocol_v2     = true
+        proxy_protocol_v2     = false
         health_check_protocol = "TCP"
 
         health_check = {

@@ -25,13 +25,13 @@ export function ConnectionStatus({ chipInfo }: ConnectionStatusProps) {
         <div className="space-y-0.5 text-sm">
           <p>
             <span className="text-default-400">Chip:</span>{" "}
-            <span className="font-mono text-default-100">
+            <span className="font-mono text-default-300">
               {chipInfo.chipName}
             </span>
           </p>
           <p className="truncate">
             <span className="text-default-400">Details:</span>{" "}
-            <span className="font-mono text-default-100">
+            <span className="font-mono text-default-300">
               {chipInfo.chipDescription}
             </span>
           </p>

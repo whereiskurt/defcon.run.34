@@ -152,11 +152,11 @@ export function FlashStep({
         <>
           <FlashPipeline progress={progress} />
 
+          <FlashConsole logs={consoleLogs} />
+
           <p className="text-sm text-warning text-center font-mono">
             Do not disconnect your device during flash
           </p>
-
-          <FlashConsole logs={consoleLogs} />
         </>
       )}
 

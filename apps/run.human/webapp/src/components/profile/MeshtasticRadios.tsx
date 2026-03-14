@@ -655,7 +655,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                     {radio.verified && (
                       <div className="pt-2 border-t border-default-100 space-y-2">
                         <div className="flex items-center justify-between text-xs text-default-500">
-                          <span>Verified: {new Date(radio.verifiedAt || radio.createdAt).toLocaleDateString()}</span>
+                          <span>Verified: {new Date(radio.verifiedAt || radio.createdAt).toLocaleString()}</span>
                         </div>
                         {radio.privateKey && (
                           <div className="flex items-center gap-2">
