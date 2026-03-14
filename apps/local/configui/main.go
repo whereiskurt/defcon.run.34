@@ -145,16 +145,16 @@ func main() {
 	app := &App{
 		repoRoot:           repoRoot,
 		gitHash:            gitHash,
-		configPath:         filepath.Join(repoRoot, "apps", "configui", "site-config.json"),
+		configPath:         filepath.Join(repoRoot, "apps", "local", "configui", "site-config.json"),
 		siteHCLPath:        filepath.Join(repoRoot, "infra", "terraform", "live", "site", "site.hcl"),
 		servicesDir:        filepath.Join(repoRoot, "infra", "terraform", "live", "site", "services"),
 		envShPath:          filepath.Join(repoRoot, "env.sh"),
 		envLocalShPath:     filepath.Join(repoRoot, "env.local.sh"),
-		backupDir:          filepath.Join(repoRoot, "apps", "configui", "backups"),
+		backupDir:          filepath.Join(repoRoot, "apps", "local", "configui", "backups"),
 		sopsFilePath:       filepath.Join(repoRoot, "infra", "terraform", "live", "site", ".secrets.sops.json"),
-		discoveryCachePath: filepath.Join(repoRoot, "apps", "configui", ".discovery-cache.json"),
-		awsStatusCachePath: filepath.Join(repoRoot, "apps", "configui", ".aws-status-cache.json"),
-		rrdb:               newRRDB(filepath.Join(repoRoot, "apps", "configui", ".rrdb.json")),
+		discoveryCachePath: filepath.Join(repoRoot, "apps", "local", "configui", ".discovery-cache.json"),
+		awsStatusCachePath: filepath.Join(repoRoot, "apps", "local", "configui", ".aws-status-cache.json"),
+		rrdb:               newRRDB(filepath.Join(repoRoot, "apps", "local", "configui", ".rrdb.json")),
 		termSessions:       make(map[string]*TermSession),
 	}
 

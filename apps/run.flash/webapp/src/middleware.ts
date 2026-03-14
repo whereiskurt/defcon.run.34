@@ -35,5 +35,8 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|signin|access-denied|img|data).*)"],
+  // Use .+ (not .*) to exclude the root path "/" — auth() middleware wrapper
+  // returns an empty response for the root path in next-auth v5 beta.30.
+  // Root page auth is handled in page.tsx via server-side auth() call instead.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|signin|access-denied|img|data).+)"],
 };
