@@ -70,7 +70,7 @@ on:
       deploy:
         description: 'Deploy to ECS + invalidate cache after build'
         type: boolean
-        default: false
+        default: true
 
 env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
