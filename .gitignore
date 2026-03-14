@@ -57,4 +57,4 @@ lambda_*.zip
 ## I want share this because it makes automations is easier.
 !.claude/settings.local.json
 
-.playwright-mcp/*
+.playwright-mcp/

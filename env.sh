@@ -30,6 +30,7 @@ export TF_VAR_MANAGEMENT_ACCOUNT_ID="${TF_VAR_MANAGEMENT_ACCOUNT_ID:-00000000000
 export TF_VAR_GITHUB_ORG="${TF_VAR_GITHUB_ORG:-your-github-org}"
 export TF_VAR_FWD_EMAIL_TO_ADDRESS="${TF_VAR_FWD_EMAIL_TO_ADDRESS:-admin@example.com}"
 export TF_VAR_SOPS_KMS_KEY_ID="${TF_VAR_SOPS_KMS_KEY_ID:-mrk-00000000000000000000000000000000}"
+export TF_VAR_profile_prefix="${TF_VAR_profile_prefix:-'dc34'}"
 
 ## The state is stored in the bucket and the table is used for locking
 ## One entry per region supported
