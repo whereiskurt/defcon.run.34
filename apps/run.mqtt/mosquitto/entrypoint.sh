@@ -11,7 +11,9 @@ acl_file /mosquitto/config/acl.conf
 
 # Logging to stdout for CloudWatch
 log_dest stdout
-log_type all
+log_type error
+log_type warning
+log_type notice
 connection_messages true
 
 # Message limits
