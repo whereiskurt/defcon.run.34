@@ -13,8 +13,7 @@ acl_file /mosquitto/config/acl.conf
 log_dest stdout
 log_type error
 log_type warning
-log_type notice
-connection_messages true
+connection_messages false
 
 # Message limits
 message_size_limit 1024
