@@ -6,6 +6,7 @@ import { INITIAL_CONFIG_PROGRESS } from "@/types/config";
 import {
   connectMeshtasticDevice,
   pushDeviceConfig,
+  requestSecurityKeys,
   disconnectMeshtasticDevice,
 } from "@/lib/meshtastic";
 import type { MeshDevice } from "@meshtastic/core";
@@ -129,6 +130,18 @@ export function useConfigure(): UseConfigureReturn {
 
         await pushDeviceConfig(device, config, onStageComplete);
 
+        // If keys weren't captured during the initial configure handshake
+        // (common on freshly flashed devices that haven't generated their
+        // X25519 keypair yet), request the security config now that the
+        // full config push is done and the device has generated keys.
+        let { privateKey, publicKey } = registrationInfo;
+        if (!privateKey && device) {
+          console.log("[configure] Keys missing from initial handshake, requesting security config...");
+          const keys = await requestSecurityKeys(device);
+          privateKey = keys.privateKey;
+          publicKey = keys.publicKey;
+        }
+
         // Auto-register radio -- fire-and-forget, don't block completion
         if (registrationInfo.nodeId) {
           fetch(`${basePath}/api/register-radio`, {
@@ -136,8 +149,8 @@ export function useConfigure(): UseConfigureReturn {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               nodeId: registrationInfo.nodeId,
-              privateKey: registrationInfo.privateKey,
-              publicKey: registrationInfo.publicKey,
+              privateKey,
+              publicKey,
             }),
           }).catch((err) => {
             console.warn("[configure] Radio auto-registration failed:", err);
