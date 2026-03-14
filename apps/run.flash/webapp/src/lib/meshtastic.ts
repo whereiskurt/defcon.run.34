@@ -279,6 +279,77 @@ export async function pushDeviceConfig(
 }
 
 /**
+ * Request the device's security config to capture X25519 keys.
+ *
+ * On a freshly flashed device, the security config captured during the
+ * initial configure handshake may have empty keys — the device hasn't
+ * generated its X25519 keypair yet at that point. After the full config
+ * push (especially region), the device generates its keypair. This
+ * function explicitly requests the security config to retrieve the
+ * now-generated keys.
+ *
+ * @param device - Connected and configured MeshDevice
+ * @returns Base64-encoded privateKey and publicKey (empty string if not available)
+ */
+export async function requestSecurityKeys(
+  device: MeshDevice
+): Promise<{ privateKey: string; publicKey: string }> {
+  const TIMEOUT_MS = 10000;
+
+  return new Promise((resolve) => {
+    let resolved = false;
+
+    const timeout = setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        unsub();
+        console.warn("[meshtastic] Timed out waiting for security config response");
+        resolve({ privateKey: "", publicKey: "" });
+      }
+    }, TIMEOUT_MS);
+
+    const unsub = device.events.onConfigPacket.subscribe(
+      (cfg: Protobuf.Config.Config) => {
+        if (cfg.payloadVariant.case === "security" && !resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          unsub();
+
+          const pk = cfg.payloadVariant.value.privateKey;
+          const pub = cfg.payloadVariant.value.publicKey;
+
+          const privateKey =
+            pk != null && pk.length > 0
+              ? btoa(String.fromCharCode(...pk))
+              : "";
+          const publicKey =
+            pub != null && pub.length > 0
+              ? btoa(String.fromCharCode(...pub))
+              : "";
+
+          console.log(
+            `[meshtastic] Security keys from getConfig: private=${privateKey ? "present" : "empty"}, public=${publicKey ? "present" : "empty"}`
+          );
+          resolve({ privateKey, publicKey });
+        }
+      }
+    );
+
+    device
+      .getConfig(Protobuf.Admin.AdminMessage_ConfigType.SECURITY_CONFIG)
+      .catch((err: unknown) => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timeout);
+          unsub();
+          console.warn("[meshtastic] getConfig(SECURITY_CONFIG) failed:", err);
+          resolve({ privateKey: "", publicKey: "" });
+        }
+      });
+  });
+}
+
+/**
  * Disconnect from a Meshtastic device.
  * Closes the transport and releases the serial port.
  */
