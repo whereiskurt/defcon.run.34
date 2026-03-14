@@ -8,7 +8,7 @@
 export const meshtasticConfig = Object.freeze({
   mqtt: {
     server: process.env.MQTT_SERVER || "mqtt.defcon.run",
-    port: Number(process.env.MQTT_PORT) || 8883,
+    port: Number(process.env.MQTT_PORT) || 4433,
     tls: process.env.MQTT_TLS !== "false",
     root: process.env.MQTT_ROOT || "msh",
   },

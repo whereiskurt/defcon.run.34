@@ -392,6 +392,29 @@ locals {
           certificate_arn = "" # Wired via terragrunt dependency in Phase 15
         }
       },
+      # Port 4433: TLS MQTT -> meshtk:1883 (Meshtastic firmware default TLS port)
+      # Same as 8883 but on port 4433 for devices using Meshtastic default settings
+      {
+        type                  = "nlb"
+        container_name        = "mqtt-meshtk"
+        container_port        = 1883
+        target_group_port     = 4433
+        target_group_protocol = "TCP"
+        proxy_protocol_v2     = false
+        health_check_protocol = "TCP"
+
+        health_check = {
+          healthy_threshold   = 2
+          unhealthy_threshold = 2
+          interval            = 30
+        }
+
+        listener = {
+          port            = 4433
+          protocol        = "TLS"
+          certificate_arn = "" # Wired via terragrunt dependency in Phase 15
+        }
+      },
       # Port 443: TLS HTTPS -> nginx:80 (NLB terminates TLS, nginx serves plain HTTP)
       {
         type                  = "nlb"
