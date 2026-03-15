@@ -7,9 +7,12 @@ import {
   ExternalLink,
   Smartphone,
   Unplug,
+  AlertTriangle,
+  Radio,
 } from "lucide-react";
 import type { DeviceConfigPayload } from "@/types/config";
 import type { DeviceHardware } from "@/types/device";
+import type { RegistrationStatus } from "@/hooks/use-configure";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 
 const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success"> = {
@@ -24,6 +27,8 @@ interface DoneStepProps {
   device: DeviceHardware | null;
   /** Config payload from useConfigure for summary display */
   configPayload: DeviceConfigPayload | null;
+  /** Radio auto-registration result */
+  registrationStatus: RegistrationStatus;
   /** Reset entire wizard to pick-device step */
   onFlashAnother: () => void;
 }
@@ -39,7 +44,7 @@ interface DoneStepProps {
  * - Next steps: register radio, download app, disconnect USB
  * - "Flash Another Device" resets wizard for provisioning multiple boards
  */
-export function DoneStep({ device, configPayload, onFlashAnother }: DoneStepProps) {
+export function DoneStep({ device, configPayload, registrationStatus, onFlashAnother }: DoneStepProps) {
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
 
   return (
@@ -143,6 +148,47 @@ export function DoneStep({ device, configPayload, onFlashAnother }: DoneStepProp
               Your device has been successfully configured.
             </p>
           </div>
+        </div>
+      )}
+
+      {/* Radio registration status */}
+      {registrationStatus.state !== "idle" && registrationStatus.state !== "pending" && (
+        <div className={`glass-card rounded-xl p-4 flex items-center gap-3 ${
+          registrationStatus.state === "success"
+            ? "border-teal-500/30"
+            : "border-warning/30"
+        }`}>
+          {registrationStatus.state === "success" ? (
+            <>
+              <Radio className="w-5 h-5 text-teal-400 flex-shrink-0" />
+              <div className="text-sm">
+                <span className="text-teal-400 font-mono">{registrationStatus.nodeId}</span>
+                <span className="text-default-400">
+                  {registrationStatus.updated
+                    ? " — keys updated on your profile"
+                    : " — registered to your profile"}
+                </span>
+              </div>
+            </>
+          ) : registrationStatus.state === "failed" ? (
+            <>
+              <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0" />
+              <div className="text-sm">
+                <span className="text-warning">Radio registration failed: </span>
+                <span className="text-default-400">{registrationStatus.error}</span>
+                <span className="text-default-500 block mt-0.5">
+                  You can manually add the radio on run.defcon.run
+                </span>
+              </div>
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="w-5 h-5 text-default-400 flex-shrink-0" />
+              <div className="text-sm text-default-400">
+                Radio registration skipped: {registrationStatus.reason}
+              </div>
+            </>
+          )}
         </div>
       )}
 
