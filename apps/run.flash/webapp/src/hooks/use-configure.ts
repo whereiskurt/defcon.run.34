@@ -45,6 +45,8 @@ interface UseConfigureReturn {
    * @param disconnectTransport - Function to disconnect the esptool transport (from useSerial)
    */
   configure: (disconnectTransport: () => Promise<void>) => Promise<void>;
+  /** Retry radio registration (only available after a failed registration) */
+  retryRegistration: () => Promise<void>;
   /** Reset config state to idle (for retry) */
   reset: () => void;
 }
@@ -65,6 +67,7 @@ export function useConfigure(): UseConfigureReturn {
   const [progress, setProgress] = useState<ConfigProgress>(INITIAL_CONFIG_PROGRESS);
   const [configPayload, setConfigPayload] = useState<DeviceConfigPayload | null>(null);
   const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatus>({ state: "idle" });
+  const registrationInfoRef = useRef<{ nodeId: string; privateKey: string; publicKey: string } | null>(null);
   const isConfiguringRef = useRef(false);
   const deviceRef = useRef<MeshDevice | null>(null);
 
@@ -154,6 +157,11 @@ export function useConfigure(): UseConfigureReturn {
 
         // Auto-register radio with run.human
         if (registrationInfo.nodeId) {
+          registrationInfoRef.current = {
+            nodeId: registrationInfo.nodeId,
+            privateKey: privateKey || "",
+            publicKey: publicKey || "",
+          };
           setRegistrationStatus({ state: "pending" });
           try {
             const regResponse = await fetch(`${basePath}/api/register-radio`, {
@@ -215,6 +223,40 @@ export function useConfigure(): UseConfigureReturn {
     []
   );
 
+  const retryRegistration = useCallback(async () => {
+    const info = registrationInfoRef.current;
+    if (!info) return;
+
+    setRegistrationStatus({ state: "pending" });
+    try {
+      const regResponse = await fetch(`${basePath}/api/register-radio`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nodeId: info.nodeId,
+          privateKey: info.privateKey,
+          publicKey: info.publicKey,
+        }),
+      });
+      const regData = await regResponse.json().catch(() => ({}));
+      if (regResponse.ok) {
+        setRegistrationStatus({
+          state: "success",
+          nodeId: info.nodeId,
+          updated: regData.updated === true,
+        });
+      } else {
+        const reason = regData.error || `HTTP ${regResponse.status}`;
+        console.warn(`[configure] Radio registration retry failed: ${reason}`);
+        setRegistrationStatus({ state: "failed", error: reason });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Network error";
+      console.warn("[configure] Radio registration retry failed:", message);
+      setRegistrationStatus({ state: "failed", error: message });
+    }
+  }, []);
+
   const reset = useCallback(() => {
     setProgress(INITIAL_CONFIG_PROGRESS);
     setConfigPayload(null);
@@ -248,6 +290,7 @@ export function useConfigure(): UseConfigureReturn {
     configPayload,
     registrationStatus,
     configure,
+    retryRegistration,
     reset,
   };
 }

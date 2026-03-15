@@ -120,6 +120,7 @@ export function WizardContainer() {
               device={selectedDevice}
               configPayload={configureState.configPayload}
               registrationStatus={configureState.registrationStatus}
+              onRetryRegistration={configureState.retryRegistration}
               onFlashAnother={resetWizard}
             />
           )}
