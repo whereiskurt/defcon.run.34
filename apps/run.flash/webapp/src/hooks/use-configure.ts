@@ -15,6 +15,13 @@ const basePath = process.env.NEXT_PUBLIC_REGION_SHORT
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
   : "";
 
+export type RegistrationStatus =
+  | { state: "idle" }
+  | { state: "pending" }
+  | { state: "success"; nodeId: string; updated: boolean }
+  | { state: "skipped"; reason: string }
+  | { state: "failed"; error: string };
+
 interface UseConfigureReturn {
   /** Current config push progress */
   progress: ConfigProgress;
@@ -26,6 +33,8 @@ interface UseConfigureReturn {
   isError: boolean;
   /** The config payload (available after successful fetch, for Done screen display) */
   configPayload: DeviceConfigPayload | null;
+  /** Radio auto-registration result */
+  registrationStatus: RegistrationStatus;
   /**
    * Start the configure pipeline:
    * 1. Disconnect esptool transport
@@ -55,6 +64,7 @@ interface UseConfigureReturn {
 export function useConfigure(): UseConfigureReturn {
   const [progress, setProgress] = useState<ConfigProgress>(INITIAL_CONFIG_PROGRESS);
   const [configPayload, setConfigPayload] = useState<DeviceConfigPayload | null>(null);
+  const [registrationStatus, setRegistrationStatus] = useState<RegistrationStatus>({ state: "idle" });
   const isConfiguringRef = useRef(false);
   const deviceRef = useRef<MeshDevice | null>(null);
 
@@ -142,19 +152,38 @@ export function useConfigure(): UseConfigureReturn {
           publicKey = keys.publicKey;
         }
 
-        // Auto-register radio -- fire-and-forget, don't block completion
+        // Auto-register radio with run.human
         if (registrationInfo.nodeId) {
-          fetch(`${basePath}/api/register-radio`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              nodeId: registrationInfo.nodeId,
-              privateKey,
-              publicKey,
-            }),
-          }).catch((err) => {
-            console.warn("[configure] Radio auto-registration failed:", err);
-          });
+          setRegistrationStatus({ state: "pending" });
+          try {
+            const regResponse = await fetch(`${basePath}/api/register-radio`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                nodeId: registrationInfo.nodeId,
+                privateKey,
+                publicKey,
+              }),
+            });
+            const regData = await regResponse.json().catch(() => ({}));
+            if (regResponse.ok) {
+              setRegistrationStatus({
+                state: "success",
+                nodeId: registrationInfo.nodeId,
+                updated: regData.updated === true,
+              });
+            } else {
+              const reason = regData.error || `HTTP ${regResponse.status}`;
+              console.warn(`[configure] Radio registration failed: ${reason}`);
+              setRegistrationStatus({ state: "failed", error: reason });
+            }
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Network error";
+            console.warn("[configure] Radio registration failed:", message);
+            setRegistrationStatus({ state: "failed", error: message });
+          }
+        } else {
+          setRegistrationStatus({ state: "skipped", reason: "Node ID not captured from device" });
         }
 
         // All done
@@ -189,6 +218,7 @@ export function useConfigure(): UseConfigureReturn {
   const reset = useCallback(() => {
     setProgress(INITIAL_CONFIG_PROGRESS);
     setConfigPayload(null);
+    setRegistrationStatus({ state: "idle" });
     isConfiguringRef.current = false;
   }, []);
 
@@ -216,6 +246,7 @@ export function useConfigure(): UseConfigureReturn {
     isComplete: progress.stage === "complete",
     isError: progress.stage === "error",
     configPayload,
+    registrationStatus,
     configure,
     reset,
   };

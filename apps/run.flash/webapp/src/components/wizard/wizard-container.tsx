@@ -119,6 +119,7 @@ export function WizardContainer() {
             <DoneStep
               device={selectedDevice}
               configPayload={configureState.configPayload}
+              registrationStatus={configureState.registrationStatus}
               onFlashAnother={resetWizard}
             />
           )}
