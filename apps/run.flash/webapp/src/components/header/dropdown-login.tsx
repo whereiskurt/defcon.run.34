@@ -16,20 +16,19 @@ import { MdOutlineMailLock } from 'react-icons/md';
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
   : '';
-const whoamiUrl = `${basePath}/whoami`;
+const callbackUrl = `${basePath}/`;
 
 const iconClasses =
   'text-xl text-default-500 pointer-events-none flex-shrink-0';
 
-const LoginDropDown = (params: any) => {
-  const session = params.session;
+const LoginDropDown = () => {
   return (
     <Dropdown
       showArrow
       radius="sm"
       backdrop="blur"
       classNames={{
-        base: 'before:bg-default-200', // change arrow background
+        base: 'before:bg-default-200',
         content: 'p-0 border-small border-divider bg-background',
       }}
     >
@@ -40,7 +39,7 @@ const LoginDropDown = (params: any) => {
       </DropdownTrigger>
 
       <DropdownMenu
-        aria-label="Custom item styles"
+        aria-label="Login options"
         className="p-3"
         itemClasses={{
           base: [
@@ -66,7 +65,7 @@ const LoginDropDown = (params: any) => {
             startContent={
               <MdOutlineMailLock size={24} className={iconClasses} />
             }
-            onPress={() => signIn('email', { callbackUrl: whoamiUrl })}
+            onPress={() => signIn('email', { callbackUrl })}
           >
             Email Account
           </DropdownItem>
@@ -78,14 +77,14 @@ const LoginDropDown = (params: any) => {
           <DropdownItem
             key="a1"
             startContent={<FaDiscord size={24} className={iconClasses} />}
-            onPress={() => signIn('discord', { callbackUrl: whoamiUrl })}
+            onPress={() => signIn('discord', { callbackUrl })}
           >
             Discord
           </DropdownItem>
           <DropdownItem
             key="b1"
             startContent={<FaGithub size={24} className={iconClasses} />}
-            onPress={() => signIn('github', { callbackUrl: whoamiUrl })}
+            onPress={() => signIn('github', { callbackUrl })}
           >
             Github
           </DropdownItem>

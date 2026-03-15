@@ -3,11 +3,6 @@
 import {
   Avatar,
   Button,
-  Dropdown,
-  DropdownItem,
-  DropdownMenu,
-  DropdownSection,
-  DropdownTrigger,
   Link,
   Navbar,
   NavbarContent,
@@ -15,12 +10,10 @@ import {
   Tooltip,
 } from '@heroui/react';
 import dynamic from 'next/dynamic';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { GrMapLocation } from 'react-icons/gr';
-import { FaMoneyCheckDollar, FaRadio, FaFire } from 'react-icons/fa6';
-import { Menu } from 'lucide-react';
-import { useState } from 'react';
-import { ThemeSwitch } from '../theme-switch';
+import { MenuIcon } from './icon/menu';
+import { FaRadio } from 'react-icons/fa6';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -28,6 +21,24 @@ const UserDropDown = dynamic(() => import('./dropdown-user'), {
     <Avatar size="sm" className="opacity-50 animate-pulse" src="" />
   ),
 });
+const LoginDropDown = dynamic(() => import('./dropdown-login'), {
+  ssr: false,
+  loading: () => (
+    <Button variant="light" className="opacity-50 animate-pulse" disabled size="sm">
+      Login
+    </Button>
+  ),
+});
+const MenuDropDown = dynamic(() => import('./dropdown-menu'), {
+  ssr: false,
+  loading: () => (
+    <div className="opacity-50 animate-pulse">
+      <MenuIcon />
+    </div>
+  ),
+});
+
+import { ThemeSwitch } from '../theme-switch';
 
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
@@ -35,71 +46,10 @@ const basePath = process.env.NODE_ENV === 'production'
 
 const APP_VERSION_TOOLTIP = `DC34 Auth ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
-const RUN_BASE = 'https://run.defcon.run';
-const GPX_BASE = 'https://gpx.defcon.run';
-
 const navItems = [
-  { href: GPX_BASE, label: 'Routes', icon: GrMapLocation },
-  { href: `${GPX_BASE}?overlay=heatmap`, label: 'HeatMap', icon: FaFire },
-  { href: `${RUN_BASE}/meshtastic`, label: 'Meshtastic', icon: FaRadio },
-  { href: `${RUN_BASE}/contributors`, label: 'Contributors', icon: FaMoneyCheckDollar },
+  { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
+  { href: `https://run.defcon.run/meshtastic`, label: 'Meshtastic', icon: FaRadio, external: true },
 ] as const;
-
-const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
-
-function MobileMenu() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <Dropdown
-      showArrow
-      radius="sm"
-      backdrop="blur"
-      isOpen={isOpen}
-      onOpenChange={(open) => setIsOpen(open)}
-      classNames={{
-        content: 'bg-content1 border border-divider',
-      }}
-    >
-      <DropdownTrigger>
-        <div className="cursor-pointer">
-          <Menu className="w-6 h-6 text-default-500" />
-        </div>
-      </DropdownTrigger>
-
-      <DropdownMenu
-        aria-label="Navigation menu"
-        className="p-2"
-        itemClasses={{
-          base: [
-            'rounded-lg',
-            'text-default-600',
-            'transition-all',
-            'data-[hover=true]:text-foreground',
-            'data-[hover=true]:bg-content2',
-            'data-[pressed=true]:opacity-70',
-          ],
-        }}
-      >
-        <DropdownSection aria-label="Navigation">
-          {navItems.map(({ href, label, icon: Icon }) => (
-            <DropdownItem
-              key={label.toLowerCase()}
-              textValue={label}
-              startContent={<Icon className={iconClasses} />}
-              onClick={() => {
-                setIsOpen(false);
-                window.open(href, '_blank');
-              }}
-            >
-              <span className="text-base">{label}</span>
-            </DropdownItem>
-          ))}
-        </DropdownSection>
-      </DropdownMenu>
-    </Dropdown>
-  );
-}
 
 export function Header() {
   const { data: session, status } = useSession();
@@ -116,7 +66,7 @@ export function Header() {
       {/* Mobile: hamburger */}
       <NavbarContent className="sm:hidden" justify="start">
         <NavbarItem>
-          <MobileMenu />
+          <MenuDropDown />
         </NavbarItem>
       </NavbarContent>
 
@@ -145,13 +95,12 @@ export function Header() {
           </Tooltip>
         </NavbarItem>
 
-        {navItems.map(({ href, label, icon: Icon }) => (
+        {navItems.map(({ href, label, icon: Icon, external }) => (
           <NavbarItem key={href}>
             <Link
               color="foreground"
               href={href}
-              target="_blank"
-              rel="noreferrer"
+              {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
               className="text-sm flex items-center gap-1.5 transition-colors relative py-1 text-default-500 hover:text-foreground"
             >
               <Icon className="w-4 h-4" />
@@ -170,13 +119,7 @@ export function Header() {
           {hasSession ? (
             <UserDropDown />
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={() => signIn()}
-            >
-              Login
-            </Button>
+            <LoginDropDown />
           )}
         </NavbarItem>
       </NavbarContent>
