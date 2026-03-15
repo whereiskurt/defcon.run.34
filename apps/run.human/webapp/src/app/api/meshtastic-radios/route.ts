@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@auth';
-import { getRunUser, updateMeshtasticRadios, type MeshtasticRadio } from '@/entities/run-user';
+import { getRunUser, updateMeshtasticRadios, sanitizeRadio, type MeshtasticRadio } from '@/entities/run-user';
 import { checkQuota, consumeQuota, restoreQuota } from '@/lib/quota-client';
 import { getUserTier } from '@/lib/quota-middleware';
 import crypto from 'crypto';
@@ -28,24 +28,6 @@ function derivePublicKey(privateKeyBase64: string): string {
   } catch {
     return '';
   }
-}
-
-// Sanitize radio data to ensure all fields have correct types
-// (ElectroDB may return empty objects for missing string fields)
-function sanitizeRadio(radio: MeshtasticRadio): MeshtasticRadio {
-  return {
-    id: radio.id || '',
-    nodeId: radio.nodeId || '',
-    privateKey: typeof radio.privateKey === 'string' ? radio.privateKey : '',
-    publicKey: typeof radio.publicKey === 'string' ? radio.publicKey : '',
-    impersonate: radio.impersonate ?? false,
-    verificationCode: typeof radio.verificationCode === 'string' ? radio.verificationCode : '',
-    verified: radio.verified ?? false,
-    createdAt: radio.createdAt ?? Date.now(),
-    verifiedAt: radio.verifiedAt,
-    verificationAttempts: radio.verificationAttempts ?? 0,
-    resendAttempts: radio.resendAttempts ?? 0,
-  };
 }
 
 function validateAndFormatNodeId(nodeId: string): { isValid: boolean; formatted: string } {

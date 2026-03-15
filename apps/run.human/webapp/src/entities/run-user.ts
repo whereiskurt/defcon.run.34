@@ -298,6 +298,29 @@ export type MeshtasticRadio = {
   resendAttempts?: number;
 };
 
+/**
+ * Sanitize radio data read from DynamoDB.
+ *
+ * DynamoDB with `convertEmptyValues: true` stores empty strings as NULL.
+ * On read-back these become objects/null instead of strings, which causes
+ * ElectroDB validation errors when the array is written back.
+ */
+export function sanitizeRadio(radio: MeshtasticRadio): MeshtasticRadio {
+  return {
+    id: radio.id || '',
+    nodeId: radio.nodeId || '',
+    privateKey: typeof radio.privateKey === 'string' ? radio.privateKey : '',
+    publicKey: typeof radio.publicKey === 'string' ? radio.publicKey : '',
+    impersonate: radio.impersonate ?? false,
+    verificationCode: typeof radio.verificationCode === 'string' ? radio.verificationCode : '',
+    verified: radio.verified ?? false,
+    createdAt: radio.createdAt ?? Date.now(),
+    verifiedAt: radio.verifiedAt,
+    verificationAttempts: radio.verificationAttempts ?? 0,
+    resendAttempts: radio.resendAttempts ?? 0,
+  };
+}
+
 export type RunUserItem = {
   userId: string;
   displayName?: string;

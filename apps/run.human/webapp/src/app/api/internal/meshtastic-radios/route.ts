@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dynamodbClient, DYNAMODB_TABLE } from "@/entities/client";
-import { getRunUser, updateMeshtasticRadios, type MeshtasticRadio } from "@/entities/run-user";
+import { getRunUser, updateMeshtasticRadios, sanitizeRadio, type MeshtasticRadio } from "@/entities/run-user";
 import { checkQuota, consumeQuota } from "@/lib/quota-client";
 import { getUserTier } from "@/lib/quota-middleware";
 import { config } from "@/config";
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const currentRadios = (user.meshtasticRadios || []) as MeshtasticRadio[];
+    const currentRadios = ((user.meshtasticRadios || []) as MeshtasticRadio[]).map(sanitizeRadio);
     const formattedNodeId = nodeId.toLowerCase();
 
     // Check for existing radio with same nodeId

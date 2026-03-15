@@ -1,23 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@auth';
-import { getRunUser, updateMeshtasticRadios, type MeshtasticRadio } from '@/entities/run-user';
-
-// Sanitize radio data to ensure all fields have correct types
-// (ElectroDB may return empty objects for missing string fields)
-function sanitizeRadio(radio: MeshtasticRadio): MeshtasticRadio {
-  return {
-    id: radio.id || '',
-    nodeId: radio.nodeId || '',
-    privateKey: typeof radio.privateKey === 'string' ? radio.privateKey : '',
-    impersonate: radio.impersonate ?? false,
-    verificationCode: typeof radio.verificationCode === 'string' ? radio.verificationCode : '',
-    verified: radio.verified ?? false,
-    createdAt: radio.createdAt ?? Date.now(),
-    verifiedAt: radio.verifiedAt,
-    verificationAttempts: radio.verificationAttempts ?? 0,
-    resendAttempts: radio.resendAttempts ?? 0,
-  };
-}
+import { getRunUser, updateMeshtasticRadios, sanitizeRadio, type MeshtasticRadio } from '@/entities/run-user';
 
 export async function POST(req: NextRequest) {
   try {
