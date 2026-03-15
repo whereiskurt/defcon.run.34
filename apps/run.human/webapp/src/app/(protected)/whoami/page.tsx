@@ -15,6 +15,7 @@ const homeUrl = '/';
 const isDev = process.env.NODE_ENV !== 'production';
 const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run';
 const LOCAL_AUTH_PORT = process.env.NEXT_PUBLIC_LOCAL_AUTH_PORT || '3002';
+const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
 
 interface QuotaInfo {
   remaining: number;
@@ -109,6 +110,18 @@ export default function WhoAmIPage() {
   const { logout } = useLogout();
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Refresh claims when tab regains focus (e.g., after linking Strava in another tab)
+  useEffect(() => {
+    const onFocus = () => {
+      if (status === 'authenticated') {
+        update({ refreshClaims: true });
+        fetchUserData();
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [status]);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -238,7 +251,7 @@ export default function WhoAmIPage() {
                 if (linkable) {
                   const authBase = isDev
                     ? `http://localhost:${LOCAL_AUTH_PORT}`
-                    : `https://auth.${siteDomain}`;
+                    : `https://auth.${siteDomain}/${REGION_SHORT}`;
                   return (
                     <a key={name} href={`${authBase}/strava?autoLink`} target="_blank" rel="noopener noreferrer">
                       {chip}
