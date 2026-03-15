@@ -29,6 +29,8 @@ interface DoneStepProps {
   configPayload: DeviceConfigPayload | null;
   /** Radio auto-registration result */
   registrationStatus: RegistrationStatus;
+  /** Retry radio registration after failure */
+  onRetryRegistration: () => Promise<void>;
   /** Reset entire wizard to pick-device step */
   onFlashAnother: () => void;
 }
@@ -44,7 +46,7 @@ interface DoneStepProps {
  * - Next steps: register radio, download app, disconnect USB
  * - "Flash Another Device" resets wizard for provisioning multiple boards
  */
-export function DoneStep({ device, configPayload, registrationStatus, onFlashAnother }: DoneStepProps) {
+export function DoneStep({ device, configPayload, registrationStatus, onRetryRegistration, onFlashAnother }: DoneStepProps) {
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
 
   return (
@@ -152,13 +154,20 @@ export function DoneStep({ device, configPayload, registrationStatus, onFlashAno
       )}
 
       {/* Radio registration status */}
-      {registrationStatus.state !== "idle" && registrationStatus.state !== "pending" && (
+      {registrationStatus.state !== "idle" && (
         <div className={`glass-card rounded-xl p-4 flex items-center gap-3 ${
           registrationStatus.state === "success"
             ? "border-teal-500/30"
+            : registrationStatus.state === "pending"
+            ? "border-primary/30"
             : "border-warning/30"
         }`}>
-          {registrationStatus.state === "success" ? (
+          {registrationStatus.state === "pending" ? (
+            <>
+              <RotateCcw className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
+              <div className="text-sm text-default-400">Registering radio...</div>
+            </>
+          ) : registrationStatus.state === "success" ? (
             <>
               <Radio className="w-5 h-5 text-teal-400 flex-shrink-0" />
               <div className="text-sm">
@@ -173,13 +182,23 @@ export function DoneStep({ device, configPayload, registrationStatus, onFlashAno
           ) : registrationStatus.state === "failed" ? (
             <>
               <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0" />
-              <div className="text-sm">
+              <div className="text-sm flex-1">
                 <span className="text-warning">Radio registration failed: </span>
                 <span className="text-default-400">{registrationStatus.error}</span>
                 <span className="text-default-500 block mt-0.5">
                   You can manually add the radio on run.defcon.run
                 </span>
               </div>
+              <Button
+                size="sm"
+                variant="flat"
+                color="warning"
+                startContent={<RotateCcw className="w-3.5 h-3.5" />}
+                onPress={onRetryRegistration}
+                className="flex-shrink-0 font-mono"
+              >
+                Retry
+              </Button>
             </>
           ) : (
             <>
