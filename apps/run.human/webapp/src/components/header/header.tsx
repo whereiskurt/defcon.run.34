@@ -40,11 +40,15 @@ const MenuDropDown = dynamic(() => import('./dropdown-menu'), {
 
 import { ThemeSwitch } from '../theme-switch';
 
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
+
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
-  { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio, external: false },
+  { href: `${basePath}/meshtastic`, label: 'Meshtastic', icon: FaRadio, external: false },
 ] as const;
 
 export function Header(params: any) {
@@ -71,7 +75,7 @@ export function Header(params: any) {
       <NavbarContent className="sm:hidden" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href="/">
+            <Link color="foreground" href={`${basePath}/`}>
               <span className="font-museo text-lg font-bold tracking-tight">
                 defcon<span className="teal-dot">.</span>run
               </span>
@@ -84,7 +88,7 @@ export function Header(params: any) {
       <NavbarContent className="sm:flex hidden gap-6" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href="/">
+            <Link color="foreground" href={`${basePath}/`}>
               <span className="font-museo text-lg font-bold tracking-tight">
                 defcon<span className="teal-dot">.</span>run
               </span>

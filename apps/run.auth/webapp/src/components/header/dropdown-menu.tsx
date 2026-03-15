@@ -7,13 +7,13 @@ import {
   DropdownSection,
   DropdownTrigger,
 } from '@heroui/react';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { FaQuestion, FaRadio } from 'react-icons/fa6';
+import { FaRadio } from 'react-icons/fa6';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
-import { FaUserAlt, FaTrophy } from 'react-icons/fa';
+import { Shield } from 'lucide-react';
+import { SiStrava } from 'react-icons/si';
 
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
@@ -21,14 +21,8 @@ const basePath = process.env.NODE_ENV === 'production'
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
-const MenuDropDown = (params: any) => {
+const MenuDropDown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter();
-
-  const handleNavigation = (href: string) => {
-    setIsOpen(false);
-    router.push(href);
-  };
 
   return (
     <Dropdown
@@ -63,22 +57,22 @@ const MenuDropDown = (params: any) => {
       >
         <DropdownSection aria-label="Navigation">
           <DropdownItem
-            textValue="whoami"
-            startContent={<FaUserAlt className={iconClasses} />}
-            key="whoami"
-            showDivider
-            onClick={() => handleNavigation(`${basePath}/whoami`)}
+            textValue="profile"
+            startContent={<Shield className={iconClasses} />}
+            key="profile"
+            onClick={() => { setIsOpen(false); window.location.href = `${basePath}/profile`; }}
           >
-            <span className="text-base">Who Am I</span>
+            <span className="text-base">Profile</span>
           </DropdownItem>
 
           <DropdownItem
-            textValue="leaderboard"
-            startContent={<FaTrophy className={iconClasses} />}
-            key="leaderboard"
-            onClick={() => handleNavigation(`${basePath}/leaderboard`)}
+            textValue="strava"
+            startContent={<SiStrava className={iconClasses} />}
+            key="strava"
+            showDivider
+            onClick={() => { setIsOpen(false); window.location.href = `${basePath}/strava`; }}
           >
-            <span className="text-base">Leaderboard</span>
+            <span className="text-base">Strava Linking</span>
           </DropdownItem>
 
           <DropdownItem
@@ -94,19 +88,9 @@ const MenuDropDown = (params: any) => {
             textValue="meshtastic"
             startContent={<FaRadio className={iconClasses} />}
             key="meshtastic"
-            showDivider
-            onClick={() => handleNavigation(`${basePath}/meshtastic`)}
+            onClick={() => { setIsOpen(false); window.open('https://run.defcon.run/meshtastic', '_blank'); }}
           >
             <span className="text-base">Meshtastic</span>
-          </DropdownItem>
-
-          <DropdownItem
-            textValue="faq"
-            startContent={<FaQuestion className={iconClasses} />}
-            key="faq"
-            onClick={() => handleNavigation(`${basePath}/faq`)}
-          >
-            <span className="text-base">FAQ</span>
           </DropdownItem>
         </DropdownSection>
       </DropdownMenu>

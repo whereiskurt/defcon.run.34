@@ -7,28 +7,22 @@ import {
   DropdownSection,
   DropdownTrigger,
 } from '@heroui/react';
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { FaQuestion, FaRadio } from 'react-icons/fa6';
-import { GrMapLocation } from 'react-icons/gr';
-import { MenuIcon } from './icon/menu';
+import { FaQuestion, FaRadio, FaFire } from 'react-icons/fa6';
 import { FaUserAlt, FaTrophy } from 'react-icons/fa';
+import { FaMoneyCheckDollar } from 'react-icons/fa6';
+import { GrMapLocation } from 'react-icons/gr';
+import { Zap } from 'lucide-react';
+import { MenuIcon } from './icon/menu';
 
-const basePath = process.env.NODE_ENV === 'production'
-  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
-  : '';
+const RUN_BASE = 'https://run.defcon.run';
+const GPX_BASE = 'https://gpx.defcon.run';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
-const MenuDropDown = (params: any) => {
+const MenuDropDown = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const router = useRouter();
-
-  const handleNavigation = (href: string) => {
-    setIsOpen(false);
-    router.push(href);
-  };
 
   return (
     <Dropdown
@@ -63,11 +57,20 @@ const MenuDropDown = (params: any) => {
       >
         <DropdownSection aria-label="Navigation">
           <DropdownItem
+            textValue="flash"
+            startContent={<Zap className={iconClasses} />}
+            key="flash"
+            showDivider
+            onClick={() => { setIsOpen(false); window.location.href = '/'; }}
+          >
+            <span className="text-base">Flash Device</span>
+          </DropdownItem>
+
+          <DropdownItem
             textValue="whoami"
             startContent={<FaUserAlt className={iconClasses} />}
             key="whoami"
-            showDivider
-            onClick={() => handleNavigation(`${basePath}/whoami`)}
+            onClick={() => { setIsOpen(false); window.open(`${RUN_BASE}/whoami`, '_blank'); }}
           >
             <span className="text-base">Who Am I</span>
           </DropdownItem>
@@ -76,35 +79,53 @@ const MenuDropDown = (params: any) => {
             textValue="leaderboard"
             startContent={<FaTrophy className={iconClasses} />}
             key="leaderboard"
-            onClick={() => handleNavigation(`${basePath}/leaderboard`)}
+            onClick={() => { setIsOpen(false); window.open(`${RUN_BASE}/leaderboard`, '_blank'); }}
           >
             <span className="text-base">Leaderboard</span>
           </DropdownItem>
 
           <DropdownItem
-            textValue="maps"
+            textValue="routes"
             startContent={<GrMapLocation className={iconClasses} />}
-            key="maps"
-            onClick={() => { setIsOpen(false); window.open('https://gpx.defcon.run', '_blank'); }}
+            key="routes"
+            onClick={() => { setIsOpen(false); window.open(GPX_BASE, '_blank'); }}
           >
-            <span className="text-base">Maps</span>
+            <span className="text-base">Routes</span>
+          </DropdownItem>
+
+          <DropdownItem
+            textValue="heatmap"
+            startContent={<FaFire className={iconClasses} />}
+            key="heatmap"
+            onClick={() => { setIsOpen(false); window.open(`${GPX_BASE}?overlay=heatmap`, '_blank'); }}
+          >
+            <span className="text-base">HeatMap</span>
           </DropdownItem>
 
           <DropdownItem
             textValue="meshtastic"
             startContent={<FaRadio className={iconClasses} />}
             key="meshtastic"
-            showDivider
-            onClick={() => handleNavigation(`${basePath}/meshtastic`)}
+            onClick={() => { setIsOpen(false); window.open(`${RUN_BASE}/meshtastic`, '_blank'); }}
           >
             <span className="text-base">Meshtastic</span>
+          </DropdownItem>
+
+          <DropdownItem
+            textValue="contributors"
+            startContent={<FaMoneyCheckDollar className={iconClasses} />}
+            key="contributors"
+            showDivider
+            onClick={() => { setIsOpen(false); window.open(`${RUN_BASE}/contributors`, '_blank'); }}
+          >
+            <span className="text-base">Contributors</span>
           </DropdownItem>
 
           <DropdownItem
             textValue="faq"
             startContent={<FaQuestion className={iconClasses} />}
             key="faq"
-            onClick={() => handleNavigation(`${basePath}/faq`)}
+            onClick={() => { setIsOpen(false); window.open(`${RUN_BASE}/faq`, '_blank'); }}
           >
             <span className="text-base">FAQ</span>
           </DropdownItem>
