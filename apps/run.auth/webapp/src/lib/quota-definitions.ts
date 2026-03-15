@@ -134,7 +134,7 @@ export const QUOTA_DEFINITIONS = {
     description: "Meshtastic radio registrations",
     tierLimits: {
       zero: 0,
-      upload: 5,
+      upload: 10,
       admin: 20,
     },
     resetPolicy: "none" as const,
