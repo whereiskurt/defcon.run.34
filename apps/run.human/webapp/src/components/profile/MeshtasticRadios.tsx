@@ -18,10 +18,15 @@ import {
   Switch,
   useDisclosure,
 } from '@heroui/react';
-import { Trash2, Plus, Radio, Lock, Unlock, AlertCircle, ChevronDown, ChevronRight, ChevronUp, RefreshCw, Eye, EyeOff, UserCheck, UserX, Copy, Check } from "lucide-react";
+import { Trash2, Plus, Radio, Lock, Unlock, AlertCircle, ChevronDown, ChevronRight, ChevronUp, RefreshCw, Eye, EyeOff, UserCheck, UserX, Copy, Check, ExternalLink, Zap } from "lucide-react";
 import VerificationCodeInput from './VerificationCodeInput';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { apiUrl } from '@/lib/api';
+
+const isDev = process.env.NODE_ENV !== 'production';
+const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run';
+const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
+const flashUrl = isDev ? 'http://localhost:3004' : `https://flash.${siteDomain}/${REGION_SHORT}/`;
 
 interface MeshtasticRadio {
   id: string;
@@ -556,14 +561,27 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                   <p className="text-default-500 mb-4">
                     No radios configured yet.
                   </p>
-                  <Button
-                    color="primary"
-                    onPress={openAdd}
-                    isDisabled={remaining <= 0}
-                    startContent={<Plus className="h-4 w-4" />}
-                  >
-                    Add Your First Radio
-                  </Button>
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      color="primary"
+                      as="a"
+                      href={flashUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      startContent={<Zap className="h-4 w-4" />}
+                      endContent={<ExternalLink className="h-3 w-3" />}
+                    >
+                      Flash
+                    </Button>
+                    <Button
+                      variant="flat"
+                      onPress={openAdd}
+                      isDisabled={remaining <= 0}
+                      startContent={<Plus className="h-4 w-4" />}
+                    >
+                      Manual Add
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 radios.map((radio) => (
