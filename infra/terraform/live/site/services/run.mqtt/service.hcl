@@ -42,18 +42,18 @@ locals {
     name         = "run-mqtt"
     regions      = ["us-east-1", "ca-central-1"]
     cluster_name = "app"
-    task_cpu     = 1024
-    task_memory  = 2048
+    task_cpu     = 256
+    task_memory  = 512
 
     containers = [
-      # Container 1: mqtt-mosquitto (256 CPU / 384 MB, essential)
+      # Container 1: mqtt-mosquitto (64 CPU / 128 MB, essential)
       # Internal MQTT broker on port 1884 — all external traffic goes through meshtk proxy
       {
         name               = "mqtt-mosquitto"
         image              = "mqtt-mosquitto:${local.versions.mosquitto}"
-        cpu                = 256
-        memory             = 384
-        memory_reservation = 256
+        cpu                = 64
+        memory             = 128
+        memory_reservation = 64
         essential          = true
 
         readonly_root_filesystem = false
@@ -99,15 +99,15 @@ locals {
         depends_on = []
       },
 
-      # Container 2: mqtt-meshtk (384 CPU / 768 MB, essential)
+      # Container 2: mqtt-meshtk (96 CPU / 192 MB, essential)
       # TCP proxy — intercepts MQTT CONNECT, validates credentials, pipes to mosquitto
       # Gets more resources as the primary traffic handler
       {
         name               = "mqtt-meshtk"
         image              = "mqtt-meshtk:${local.versions.meshtk}"
-        cpu                = 384
-        memory             = 768
-        memory_reservation = 512
+        cpu                = 96
+        memory             = 192
+        memory_reservation = 96
         essential          = true
         command            = ["meshtk", "server", "proxy", "-v", "debug"]
 
@@ -188,15 +188,15 @@ locals {
         ]
       },
 
-      # Container 3: mqtt-nginx (256 CPU / 512 MB, essential)
+      # Container 3: mqtt-nginx (64 CPU / 128 MB, essential)
       # Serves meshmap HTML + meshobserv writes nodes.json via supervisord
       # nginx listens on port 80 (NLB terminates TLS at 443)
       {
         name               = "mqtt-nginx"
         image              = "mqtt-nginx:${local.versions.nginx}"
-        cpu                = 256
-        memory             = 512
-        memory_reservation = 384
+        cpu                = 64
+        memory             = 128
+        memory_reservation = 64
         essential          = true
 
         readonly_root_filesystem = false
@@ -268,15 +268,15 @@ locals {
         ]
       },
 
-      # Container 4: mqtt-ghosts (128 CPU / 384 MB, NOT essential)
+      # Container 4: mqtt-ghosts (32 CPU / 64 MB, NOT essential)
       # Reuses mqtt-meshtk image with command override for fleet simulation
       # Task continues running even if ghosts fails
       {
         name               = "mqtt-ghosts"
         image              = "mqtt-meshtk:${local.versions.meshtk}"
-        cpu                = 128
-        memory             = 384
-        memory_reservation = 256
+        cpu                = 32
+        memory             = 64
+        memory_reservation = 32
         essential          = false
         command            = ["meshtk", "fleet", "simulate"]
 

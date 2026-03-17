@@ -31,16 +31,16 @@ locals {
     name         = "run-auth"
     regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
-    task_cpu     = 512
-    task_memory  = 1024
+    task_cpu     = 256
+    task_memory  = 512
 
     containers = [
       {
         name               = "run-auth-nginx"
         image              = "run-auth-nginx:${local.versions.nginx}"
-        cpu                = 256
-        memory             = 512
-        memory_reservation = 256
+        cpu                = 64
+        memory             = 128
+        memory_reservation = 64
         essential          = true
         command            = ["nginx", "-g", "daemon off;"]
 
@@ -75,9 +75,9 @@ locals {
       {
         name               = "run-auth-app"
         image              = "run-auth-app:${local.versions.app}"
-        cpu                = 256
-        memory             = 512
-        memory_reservation = 256
+        cpu                = 192
+        memory             = 384
+        memory_reservation = 192
         essential          = true
         command            = ["node", "server.js"]
 

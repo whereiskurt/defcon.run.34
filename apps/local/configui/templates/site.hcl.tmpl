@@ -195,7 +195,9 @@ locals {
   }
 
   ecs_tasks = {
-    enabled = <<boolHCL .ECSTasks.Enabled>>
+    enabled            = <<boolHCL .ECSTasks.Enabled>>
+    enable_logging     = <<boolHCL .ECSTasks.EnableLogging>>
+    log_retention_days = <<.ECSTasks.LogRetentionDays>>
     tasks = [
       local.service_conf.auth.locals.task,
       local.service_conf.run_human.locals.task,

@@ -31,16 +31,16 @@ locals {
     name         = "run-cms-master"
     regions      = ["us-east-1"]
     cluster_name = "app"
-    task_cpu     = 512
-    task_memory  = 1024
+    task_cpu     = 256
+    task_memory  = 512
 
     containers = [
       {
         name               = "run-cms-nginx"
         image              = "run-cms-nginx:${local.versions.nginx}"
-        cpu                = 128
-        memory             = 256
-        memory_reservation = 128
+        cpu                = 64
+        memory             = 128
+        memory_reservation = 64
         essential          = true
         command            = ["nginx", "-g", "daemon off;"]
 
@@ -73,9 +73,9 @@ locals {
       {
         name               = "run-cms-app"
         image              = "run-cms-app:${local.versions.app}"
-        cpu                = 384
-        memory             = 768
-        memory_reservation = 512
+        cpu                = 192
+        memory             = 384
+        memory_reservation = 192
         essential          = true
         command            = ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.master.conf"]
 
@@ -285,16 +285,16 @@ locals {
     name         = "run-cms-worker"
     regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
-    task_cpu     = 512
-    task_memory  = 1024
+    task_cpu     = 256
+    task_memory  = 512
 
     containers = [
       {
         name               = "run-cms-nginx"
         image              = "run-cms-nginx:${local.versions.nginx}"
-        cpu                = 128
-        memory             = 256
-        memory_reservation = 128
+        cpu                = 64
+        memory             = 128
+        memory_reservation = 64
         essential          = true
         command            = ["nginx", "-g", "daemon off;"]
 
@@ -327,9 +327,9 @@ locals {
       {
         name               = "run-cms-app"
         image              = "run-cms-app:${local.versions.app}"
-        cpu                = 384
-        memory             = 768
-        memory_reservation = 512
+        cpu                = 192
+        memory             = 384
+        memory_reservation = 192
         essential          = true
         command            = ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.worker.conf"]
 

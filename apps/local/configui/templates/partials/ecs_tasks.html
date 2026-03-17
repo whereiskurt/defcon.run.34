@@ -10,12 +10,36 @@
   </div>
   <div class="panel-body border-t border-zinc-200 dark:border-zinc-700 px-4 py-3" id="body-ecs_tasks" style="display:none">
     <p class="text-xs text-zinc-400 mb-2">Tasks aggregated from services (read-only):</p>
-    <ul class="text-sm space-y-1">
+    <ul class="text-sm space-y-1 mb-3">
       <li class="font-mono text-xs text-zinc-500">run-auth</li>
       <li class="font-mono text-xs text-zinc-500">run-human</li>
       <li class="font-mono text-xs text-zinc-500">run-cms-master, run-cms-worker</li>
       <li class="font-mono text-xs text-zinc-500">run-gpx</li>
+      <li class="font-mono text-xs text-zinc-500">run-flash</li>
+      <li class="font-mono text-xs text-zinc-500">run-mqtt</li>
     </ul>
+
+    <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3 mt-3">
+      <div class="flex items-center gap-3 mb-2">
+        <input type="checkbox" name="ecs_tasks.enable_logging" class="toggle-switch" {{if .Config.ECSTasks.EnableLogging}}checked{{end}}>
+        <label class="text-sm font-medium">CloudWatch Logging</label>
+      </div>
+      <p class="text-xs text-zinc-400 mb-2">When disabled, containers use the "none" log driver (no CloudWatch costs).</p>
+
+      <div class="mt-2">
+        <label class="block text-xs font-medium text-zinc-500 mb-1">Log Retention (days)</label>
+        <select name="ecs_tasks.log_retention_days" class="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 text-sm px-2 py-1">
+          {{$ret := .Config.ECSTasks.LogRetentionDays}}
+          <option value="1" {{if eq $ret 1}}selected{{end}}>1 day</option>
+          <option value="3" {{if eq $ret 3}}selected{{end}}>3 days</option>
+          <option value="7" {{if eq $ret 7}}selected{{end}}>7 days</option>
+          <option value="14" {{if eq $ret 14}}selected{{end}}>14 days</option>
+          <option value="30" {{if eq $ret 30}}selected{{end}}>30 days</option>
+          <option value="60" {{if eq $ret 60}}selected{{end}}>60 days</option>
+          <option value="90" {{if eq $ret 90}}selected{{end}}>90 days</option>
+        </select>
+      </div>
+    </div>
   </div>
 </div>
 {{end}}

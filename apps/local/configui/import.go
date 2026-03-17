@@ -610,7 +610,6 @@ func importSiteHCL(path string) (*SiteConfig, error) {
 	}{
 		{"dynamodb", &cfg.DynamoDB},
 		{"ecr", &cfg.ECR},
-		{"ecs_tasks", &cfg.ECSTasks},
 		{"ecs_services", &cfg.ECSServices},
 		{"user_uploads", &cfg.UserUploads},
 		{"upload_processors", &cfg.UploadProcessors},
@@ -619,6 +618,19 @@ func importSiteHCL(path string) (*SiteConfig, error) {
 			if v, ok := extractBool(block, "enabled"); ok {
 				pair.toggle.Enabled = v
 			}
+		}
+	}
+
+	// ecs_tasks block (has logging fields beyond simple toggle)
+	if block, ok := isolateBlock(localsContent, "ecs_tasks"); ok {
+		if v, ok := extractBool(block, "enabled"); ok {
+			cfg.ECSTasks.Enabled = v
+		}
+		if v, ok := extractBool(block, "enable_logging"); ok {
+			cfg.ECSTasks.EnableLogging = v
+		}
+		if v, ok := extractInt(block, "log_retention_days"); ok {
+			cfg.ECSTasks.LogRetentionDays = v
 		}
 	}
 
