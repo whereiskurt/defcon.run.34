@@ -1073,6 +1073,8 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.DynamoDB.Enabled = formBool(r, "dynamodb.enabled")
 	cfg.ECR.Enabled = formBool(r, "ecr.enabled")
 	cfg.ECSTasks.Enabled = formBool(r, "ecs_tasks.enabled")
+	cfg.ECSTasks.EnableLogging = formBool(r, "ecs_tasks.enable_logging")
+	cfg.ECSTasks.LogRetentionDays = formInt(r, "ecs_tasks.log_retention_days", 7)
 	cfg.ECSServices.Enabled = formBool(r, "ecs_services.enabled")
 	cfg.UserUploads.Enabled = formBool(r, "user_uploads.enabled")
 	cfg.UploadProcessors.Enabled = formBool(r, "upload_processors.enabled")

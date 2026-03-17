@@ -26,7 +26,7 @@ type SiteConfig struct {
 	ECSClusters      ECSClustersConfig  `json:"ecs_clusters"`
 	DynamoDB         ModuleToggle       `json:"dynamodb"`
 	ECR              ModuleToggle       `json:"ecr"`
-	ECSTasks         ModuleToggle       `json:"ecs_tasks"`
+	ECSTasks         ECSTasksConfig     `json:"ecs_tasks"`
 	ECSServices      ModuleToggle       `json:"ecs_services"`
 	UserUploads      ModuleToggle       `json:"user_uploads"`
 	UploadProcessors ModuleToggle       `json:"upload_processors"`
@@ -167,6 +167,12 @@ type ECSCluster struct {
 
 type ModuleToggle struct {
 	Enabled bool `json:"enabled"`
+}
+
+type ECSTasksConfig struct {
+	Enabled          bool `json:"enabled"`
+	EnableLogging    bool `json:"enable_logging"`
+	LogRetentionDays int  `json:"log_retention_days"`
 }
 
 type SecretsConfig struct {
@@ -510,14 +516,14 @@ func DefaultConfig() *SiteConfig {
 				{
 					Name:           "app",
 					Regions:        allRegionStrings,
-					EnableInsights: true,
+					EnableInsights: false,
 					ClusterType:    "FARGATE",
 				},
 			},
 		},
 		DynamoDB:         ModuleToggle{Enabled: true},
 		ECR:              ModuleToggle{Enabled: true},
-		ECSTasks:         ModuleToggle{Enabled: true},
+		ECSTasks:         ECSTasksConfig{Enabled: true, EnableLogging: true, LogRetentionDays: 7},
 		ECSServices:      ModuleToggle{Enabled: true},
 		UserUploads:      ModuleToggle{Enabled: true},
 		UploadProcessors: ModuleToggle{Enabled: true},

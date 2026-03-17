@@ -63,6 +63,10 @@ locals {
     {
       # Use transformed tasks with region-specific placeholders replaced
       ecs_tasks = local.tasks_with_region_placeholders
+
+      # Logging configuration from site.hcl ecs_tasks block
+      enable_logging     = try(local.site_vars.locals.ecs_tasks.enable_logging, true)
+      log_retention_days = try(local.site_vars.locals.ecs_tasks.log_retention_days, 7)
     }
   )
 }
