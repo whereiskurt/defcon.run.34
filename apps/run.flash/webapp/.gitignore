@@ -2,3 +2,6 @@
 public/firmware/*.bin
 public/firmware/*.factory.bin
 !public/firmware/.gitkeep
+
+# TypeScript build cache
+*.tsbuildinfo
