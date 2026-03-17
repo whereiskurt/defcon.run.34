@@ -88,7 +88,8 @@ const UserDropDown = () => {
             as="button"
             className="transition-transform"
             color="primary"
-            size="sm"
+            isBordered
+            size="lg"
             src={session.user.image || undefined}
             name={
               session.user.name

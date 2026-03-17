@@ -18,7 +18,7 @@ import { FaRadio } from 'react-icons/fa6';
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
   loading: () => (
-    <Avatar size="sm" className="opacity-50 animate-pulse" src="" />
+    <Avatar size="lg" className="opacity-50 animate-pulse" src="" />
   ),
 });
 const LoginDropDown = dynamic(() => import('./dropdown-login'), {

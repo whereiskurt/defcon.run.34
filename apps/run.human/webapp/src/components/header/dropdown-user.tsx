@@ -142,6 +142,8 @@ const UserDropDown = (params: any) => {
             src={session.user.image ?? DCJackIcon.src}
             ignoreFallback={true}
             size="lg"
+            isBordered
+            color="primary"
           />
         </DropdownTrigger>
 

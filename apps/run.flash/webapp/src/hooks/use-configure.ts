@@ -11,9 +11,9 @@ import {
 } from "@/lib/meshtastic";
 import type { MeshDevice } from "@meshtastic/core";
 
-const basePath = process.env.NEXT_PUBLIC_REGION_SHORT
-  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
-  : "";
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
 
 export type RegistrationStatus =
   | { state: "idle" }
