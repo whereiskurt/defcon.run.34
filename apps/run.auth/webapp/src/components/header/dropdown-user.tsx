@@ -55,7 +55,7 @@ const UserDropDown = () => {
           <Avatar
             src={user.image || undefined}
             name={user.name || user.email || 'U'}
-            size="sm"
+            size="lg"
             isBordered
             color="primary"
             classNames={{ base: "cursor-pointer" }}

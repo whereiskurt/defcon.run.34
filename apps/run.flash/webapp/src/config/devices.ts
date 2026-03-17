@@ -32,9 +32,9 @@ export function isRecommended(device: DeviceHardware): boolean {
   return RECOMMENDED_SLUGS.has(device.hwModelSlug);
 }
 
-const basePath = process.env.NEXT_PUBLIC_REGION_SHORT
-  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
-  : "";
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
 
 export function getDeviceImagePath(device: DeviceHardware): string {
   const image = device.images?.[0];
