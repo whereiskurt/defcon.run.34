@@ -14,6 +14,7 @@ import { useSession } from 'next-auth/react';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
+import { FaTrophy } from 'react-icons/fa';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -48,6 +49,7 @@ const APP_VERSION_TOOLTIP = `DC34 Flash ${process.env.NEXT_PUBLIC_VERSION_APP ||
 
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
+  { href: 'https://run.defcon.run/leaderboard', label: 'Leaderboard', icon: FaTrophy, external: true },
   { href: 'https://run.defcon.run/meshtastic', label: 'Meshtastic', icon: FaRadio, external: true },
 ] as const;
 
