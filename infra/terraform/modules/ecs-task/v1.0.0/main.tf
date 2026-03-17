@@ -5,17 +5,6 @@ locals {
   # ECR registry URL for this account and region
   ecr_registry = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com"
 
-  # Build a map of all container log groups across all tasks in this region
-  container_log_groups = var.enable_logging ? {
-    for entry in flatten([
-      for task_key, task in local.tasks_map : [
-        for container in task.containers : {
-          key        = "${container.name}-${task.family}"
-          log_group  = "/ecs/${container.name}-${task.family}"
-        }
-      ]
-    ]) : entry.key => entry.log_group
-  } : {}
 
   # Expand each task across its list of regions
   # Creates one entry per task per region
@@ -276,7 +265,7 @@ resource "aws_ecs_task_definition" "task" {
           "awslogs-region"        = data.aws_region.current.id
           "awslogs-group"         = "/ecs/${container.name}-${each.value.family}"
           "awslogs-stream-prefix" = container.log_stream_prefix
-          "awslogs-create-group"  = "false"
+          "awslogs-create-group"  = "true"
         }
       } : null
     }
@@ -291,16 +280,3 @@ resource "aws_ecs_task_definition" "task" {
   }
 }
 
-# CloudWatch Log Groups with retention policy (only when logging is enabled)
-resource "aws_cloudwatch_log_group" "container" {
-  for_each = local.container_log_groups
-
-  name              = each.value
-  retention_in_days = var.log_retention_days
-
-  tags = {
-    Name   = each.key
-    Region = var.region.label
-    Site   = var.site.label
-  }
-}

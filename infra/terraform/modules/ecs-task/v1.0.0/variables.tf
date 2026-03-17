@@ -29,12 +29,6 @@ variable "enable_logging" {
   default     = true
 }
 
-variable "log_retention_days" {
-  type        = number
-  description = "CloudWatch log group retention in days. 0 means never expire."
-  default     = 7
-}
-
 variable "ecs_tasks" {
   type = list(object({
     name               = string
