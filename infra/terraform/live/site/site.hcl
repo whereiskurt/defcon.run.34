@@ -186,7 +186,7 @@ locals {
       {
         name            = "app"
         regions         = ["us-east-1", "ca-central-1", "ap-southeast-1"]
-        enable_insights = true
+        enable_insights = false
         cluster_type    = "FARGATE"
         # Per-region overrides (optional) - merge into base config for specific regions
         # region_overrides = {
