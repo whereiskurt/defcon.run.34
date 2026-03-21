@@ -11,7 +11,7 @@ services:
     build:
       context: ./mosquitto
       dockerfile: Dockerfile.mosquitto
-    container_name: mqtt-mosquitto
+    container_name: run-mqtt-mosquitto
     ports:
       - "1884:1884"
     environment:
@@ -29,7 +29,7 @@ services:
     build:
       context: ./meshtk
       dockerfile: Dockerfile.meshtk
-    container_name: mqtt-meshtk
+    container_name: run-mqtt-meshtk
     ports:
       - "1883:1883"
     volumes:
@@ -42,7 +42,7 @@ services:
     build:
       context: .
       dockerfile: nginx/Dockerfile.nginx
-    container_name: mqtt-nginx
+    container_name: run-mqtt-nginx
     ports:
       - "3005:80"
     volumes:
@@ -55,7 +55,7 @@ services:
     build:
       context: ./meshtk
       dockerfile: Dockerfile.meshtk
-    container_name: mqtt-ghosts
+    container_name: run-mqtt-ghosts
     command: ["meshtk", "fleet", "simulate"]
     volumes:
       - ./meshtk/meshtk.localdev.yaml:/app/meshtk.yaml:ro

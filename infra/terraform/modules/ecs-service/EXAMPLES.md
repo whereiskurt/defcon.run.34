@@ -62,22 +62,22 @@ This file contains examples of how to configure different app types in `site.hcl
 
 ```hcl
 {
-  name          = "mqtt"
+  name          = "run-mqtt"
   regions       = ["us-east-1", "ca-central-1"]
   cluster_name  = "app"
-  task_family   = "mqtt"
+  task_family   = "run-mqtt"
   desired_count = 1
 
   service_discovery = {
-    name           = "mqtt"
-    container_name = "mqtt-mosquitto"
+    name           = "run-mqtt"
+    container_name = "run-mqtt-mosquitto"
   }
 
   load_balancers = [
     # HTTPS for nginx web interface
     {
       type                  = "nlb"
-      container_name        = "mqtt-nginx"
+      container_name        = "run-mqtt-nginx"
       container_port        = 443
       target_group_protocol = "TLS"
 
@@ -90,7 +90,7 @@ This file contains examples of how to configure different app types in `site.hcl
     # TCP for MQTT broker
     {
       type                  = "nlb"
-      container_name        = "mqtt-grpc"
+      container_name        = "run-mqtt-grpc"
       container_port        = 1883
       target_group_protocol = "TCP"
 
@@ -102,7 +102,7 @@ This file contains examples of how to configure different app types in `site.hcl
     # TLS for secure MQTT
     {
       type                  = "nlb"
-      container_name        = "mqtt-grpc"
+      container_name        = "run-mqtt-grpc"
       container_port        = 1883
       target_group_port     = 1883
       target_group_protocol = "TCP"
@@ -116,7 +116,7 @@ This file contains examples of how to configure different app types in `site.hcl
     # WebSocket over TLS
     {
       type                  = "nlb"
-      container_name        = "mqtt-mosquitto"
+      container_name        = "run-mqtt-mosquitto"
       container_port        = 9001
       target_group_protocol = "TCP"
 

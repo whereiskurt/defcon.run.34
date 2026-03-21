@@ -87,7 +87,7 @@ case "$APP" in
     SSM_PATH_SEGMENT="flash"
     ;;
   "run.mqtt")
-    REPO_PREFIX="dc34-mqtt"
+    REPO_PREFIX="dc34-run-mqtt"
     ;;
 esac
 

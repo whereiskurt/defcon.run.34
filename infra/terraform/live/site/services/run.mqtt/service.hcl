@@ -8,7 +8,7 @@ locals {
   # ECR repositories for the MQTT service
   ecr_repositories = [
     {
-      name                 = "mqtt-mosquitto"
+      name                 = "run-mqtt-mosquitto"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -17,7 +17,7 @@ locals {
       }
     },
     {
-      name                 = "mqtt-nginx"
+      name                 = "run-mqtt-nginx"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -26,7 +26,7 @@ locals {
       }
     },
     {
-      name                 = "mqtt-meshtk"
+      name                 = "run-mqtt-meshtk"
       regions              = ["us-east-1", "ca-central-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
@@ -46,11 +46,11 @@ locals {
     task_memory  = 512
 
     containers = [
-      # Container 1: mqtt-mosquitto (64 CPU / 128 MB, essential)
+      # Container 1: run-mqtt-mosquitto (64 CPU / 128 MB, essential)
       # Internal MQTT broker on port 1884 — all external traffic goes through meshtk proxy
       {
-        name               = "mqtt-mosquitto"
-        image              = "mqtt-mosquitto:${local.versions.mosquitto}"
+        name               = "run-mqtt-mosquitto"
+        image              = "run-mqtt-mosquitto:${local.versions.mosquitto}"
         cpu                = 64
         memory             = 128
         memory_reservation = 64
@@ -99,12 +99,12 @@ locals {
         depends_on = []
       },
 
-      # Container 2: mqtt-meshtk (96 CPU / 192 MB, essential)
+      # Container 2: run-mqtt-meshtk (96 CPU / 192 MB, essential)
       # TCP proxy — intercepts MQTT CONNECT, validates credentials, pipes to mosquitto
       # Gets more resources as the primary traffic handler
       {
-        name               = "mqtt-meshtk"
-        image              = "mqtt-meshtk:${local.versions.meshtk}"
+        name               = "run-mqtt-meshtk"
+        image              = "run-mqtt-meshtk:${local.versions.meshtk}"
         cpu                = 96
         memory             = 192
         memory_reservation = 96
@@ -182,18 +182,18 @@ locals {
 
         depends_on = [
           {
-            container_name = "mqtt-mosquitto"
+            container_name = "run-mqtt-mosquitto"
             condition     = "HEALTHY"
           }
         ]
       },
 
-      # Container 3: mqtt-nginx (64 CPU / 128 MB, essential)
+      # Container 3: run-mqtt-nginx (64 CPU / 128 MB, essential)
       # Serves meshmap HTML + meshobserv writes nodes.json via supervisord
       # nginx listens on port 80 (NLB terminates TLS at 443)
       {
-        name               = "mqtt-nginx"
-        image              = "mqtt-nginx:${local.versions.nginx}"
+        name               = "run-mqtt-nginx"
+        image              = "run-mqtt-nginx:${local.versions.nginx}"
         cpu                = 64
         memory             = 128
         memory_reservation = 64
@@ -262,18 +262,18 @@ locals {
 
         depends_on = [
           {
-            container_name = "mqtt-meshtk"
+            container_name = "run-mqtt-meshtk"
             condition      = "HEALTHY"
           }
         ]
       },
 
-      # Container 4: mqtt-ghosts (32 CPU / 64 MB, NOT essential)
-      # Reuses mqtt-meshtk image with command override for fleet simulation
+      # Container 4: run-mqtt-ghosts (32 CPU / 64 MB, NOT essential)
+      # Reuses run-mqtt-meshtk image with command override for fleet simulation
       # Task continues running even if ghosts fails
       {
-        name               = "mqtt-ghosts"
-        image              = "mqtt-meshtk:${local.versions.meshtk}"
+        name               = "run-mqtt-ghosts"
+        image              = "run-mqtt-meshtk:${local.versions.meshtk}"
         cpu                = 32
         memory             = 64
         memory_reservation = 32
@@ -326,7 +326,7 @@ locals {
 
         depends_on = [
           {
-            container_name = "mqtt-meshtk"
+            container_name = "run-mqtt-meshtk"
             condition      = "START"
           }
         ]
@@ -352,7 +352,7 @@ locals {
       # Port 1883: TCP MQTT -> meshtk:1883 (PP2 disabled — meshtk has no proxy protocol support)
       {
         type                  = "nlb"
-        container_name        = "mqtt-meshtk"
+        container_name        = "run-mqtt-meshtk"
         container_port        = 1883
         target_group_protocol = "TCP"
         proxy_protocol_v2     = false
@@ -373,7 +373,7 @@ locals {
       # target_group_port = 8883 avoids target group name collision with port 1883 listener
       {
         type                  = "nlb"
-        container_name        = "mqtt-meshtk"
+        container_name        = "run-mqtt-meshtk"
         container_port        = 1883
         target_group_port     = 8883
         target_group_protocol = "TCP"
@@ -396,7 +396,7 @@ locals {
       # Same as 8883 but on port 4433 for devices using Meshtastic default settings
       {
         type                  = "nlb"
-        container_name        = "mqtt-meshtk"
+        container_name        = "run-mqtt-meshtk"
         container_port        = 1883
         target_group_port     = 4433
         target_group_protocol = "TCP"
@@ -418,7 +418,7 @@ locals {
       # Port 443: TLS HTTPS -> nginx:80 (NLB terminates TLS, nginx serves plain HTTP)
       {
         type                  = "nlb"
-        container_name        = "mqtt-nginx"
+        container_name        = "run-mqtt-nginx"
         container_port        = 80
         target_group_protocol = "TCP"
         proxy_protocol_v2     = false
@@ -439,7 +439,7 @@ locals {
       # WebSocket MQTT (8443) — deferred, uncomment when enabling WebSocket support
       # {
       #   type                  = "nlb"
-      #   container_name        = "mqtt-mosquitto"
+      #   container_name        = "run-mqtt-mosquitto"
       #   container_port        = 9001
       #   target_group_protocol = "TCP"
       #   proxy_protocol_v2     = false

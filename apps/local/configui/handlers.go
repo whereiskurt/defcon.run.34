@@ -918,9 +918,9 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 		{"gpx-app", siteLabel + "-run-gpx-app", gpxApp},
 		{"flash-app", siteLabel + "-run-flash-app", flashApp},
 		{"flash-nginx", siteLabel + "-run-flash-nginx", flashNginx},
-		{"mqtt-mosquitto", siteLabel + "-mqtt-mosquitto", mqttMosquitto},
-		{"mqtt-meshtk", siteLabel + "-mqtt-meshtk", mqttMeshtk},
-		{"mqtt-nginx", siteLabel + "-mqtt-nginx", mqttNginx},
+		{"mqtt-mosquitto", siteLabel + "-run-mqtt-mosquitto", mqttMosquitto},
+		{"mqtt-meshtk", siteLabel + "-run-mqtt-meshtk", mqttMeshtk},
+		{"mqtt-nginx", siteLabel + "-run-mqtt-nginx", mqttNginx},
 	}
 
 	results := make(map[string]ECRTagResult)

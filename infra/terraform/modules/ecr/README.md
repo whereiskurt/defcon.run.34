@@ -38,7 +38,7 @@ Simply list all regions where you want the repository created:
 ecr = [
   # Single region
   {
-    name    = "mqtt-mosquitto"
+    name    = "run-mqtt-mosquitto"
     regions = ["us-east-1"]
     lifecycle_policy = { max_image_count = 10, expire_days = 30 }
   },
@@ -252,10 +252,10 @@ Based on site.hcl configuration:
 - `<site_label>-webapp:latest`
 
 ### MQTT
-- `<site_label>-mqtt-mosquitto:latest`
-- `<site_label>-mqtt-grpc:latest`
-- `<site_label>-mqtt-nginx:latest`
-- `<site_label>-mqtt-ghosts:latest`
+- `<site_label>-run-mqtt-mosquitto:latest`
+- `<site_label>-run-mqtt-meshtk:latest`
+- `<site_label>-run-mqtt-nginx:latest`
+- `<site_label>-run-mqtt-ghosts:latest`
 
 ### Strapi
 - `<site_label>-strapi-nginx:latest`
