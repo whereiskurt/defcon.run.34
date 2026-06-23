@@ -58,3 +58,7 @@ lambda_*.zip
 !.claude/settings.local.json
 
 .playwright-mcp/
+
+.*.json
+apps/configui/backups/
+excalidraw.log
