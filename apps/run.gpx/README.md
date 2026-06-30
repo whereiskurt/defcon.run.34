@@ -70,8 +70,3 @@ The Cloud Storage dialog operates in three modes:
 - **Save mode** (`File > Save As...` or Ctrl+Shift+K): Layers expanded, for saving local files to cloud
 - **Open mode** (`File > Open Remote...` or Ctrl+Shift+O): Remote files expanded, for batch opening cloud files
 - **Browse mode** (`View > Cloud Storage`): Both sections expanded, for general cloud file management
-
-## OpenSpec
-
-See `openspec/changes/add-gpxstudio-service/` for original service proposal.
-See `openspec/changes/refactor-gpx-cloud-dialog/` for cloud dialog multi-mode feature.

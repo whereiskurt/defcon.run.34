@@ -29,9 +29,7 @@ infra/terraform/
 │   └── region/{us-east-1,ca-central-1}/  # Regional resources
 └── modules/     # Terraform modules
 
-openspec/     # Spec-driven development
-├── changes/  # Proposals - what SHOULD change
-└── specs/    # Current truth - what IS built
+.planning/    # GSD planning — milestones, phases, and todos
 ```
 
 ## Key Technologies
@@ -65,19 +63,15 @@ cd apps/run.gpx && ./build-frontend.sh
 # Infrastructure
 cd infra/terraform/live/site && terragrunt plan --all
 
-# Issue tracking
-bd ready --json          # Find unblocked work (structured output)
-bd close <id> && bd sync # Complete and sync
-bv --robot-triage        # AI triage: ranked work, graph metrics, next steps
+# Planning & work tracking (GSD — run as Claude Code slash commands)
+/gsd:progress            # Check progress and route to the next action
+/gsd:plan-phase          # Plan the next phase before building
+/gsd:execute-phase       # Execute the planned work
 
 # E2E Tests (requires AWS credentials for S3 email retrieval)
 cd apps/run.auth/e2e && npm install && npx playwright install chromium
 npm test                 # Run all auth e2e tests
 npm run test:headed      # Run with browser visible
-
-# Memory (cm/cass) - before and after work
-cm context "<task>"      # BEFORE: Get rules and patterns for this task
-cm reflect --days 1      # AFTER: Extract learnings from session
 ```
 
 ## Detailed Documentation
@@ -88,26 +82,15 @@ Read these files for in-depth information:
 |-------|------|--------------|
 | **Architecture** | [.claude/architecture.md](.claude/architecture.md) | Multi-region patterns, containers, secrets |
 | **Commands** | [.claude/commands.md](.claude/commands.md) | Full command reference |
-| **OpenSpec** | [.claude/openspec.md](.claude/openspec.md) | Creating/implementing change proposals/TODOs |
-| **Issue Tracking** | [.claude/beads.md](.claude/beads.md) | bd/beads workflow and bv visualization |
-| **Memory (CASS)** | [.claude/cass.md](.claude/cass.md) | cm/cass workflow, reflection, playbook management |
 | **Best Practices** | [.claude/best-practices.md](.claude/best-practices.md) | Code style, naming, session protocol |
 
 ## Essential Rules
 
-1. **OpenSpec for features** — Create proposals for new capabilities, breaking changes, or architecture shifts. Skip for bug fixes and typos.
+1. **GSD for planning** — Track multi-step work as phases under `.planning/`. Use `/gsd:progress` to route to the next action and `/gsd:plan-phase` before building. New features get a planned phase; bug fixes and typos can skip planning.
 
-2. **bd for issue tracking** — Use `bd ready` to find work, `bd sync` at session end. Priority: 0-4 (not high/medium/low).
+2. **Branch workflow** — Always work in a feature branch, never commit directly to main. Create a PR for review. **Wait for explicit user approval before merging.** Never auto-merge PRs unless explicitly told.
 
-3. **Branch workflow** — Always work in a feature branch, never commit directly to main. Create a PR for review. **Wait for explicit user approval before merging.** Never auto-merge PRs unless explicitly told.
-
-4. **Simplicity first** — <100 lines, single-file until proven insufficient, boring patterns preferred.
-
-5. **Memory (cm/cass)** — Run `cm context "<task>"` before complex work; run `cm reflect --days 1` after sessions. Leave `// [cass: helpful b-xyz]` feedback inline.
-
----
-
-Remember: Specs are truth. Changes are proposals. Keep them in sync.
+3. **Simplicity first** — <100 lines, single-file until proven insufficient, boring patterns preferred.
 
 ## Landing the Plane (Session Completion)
 
@@ -115,13 +98,12 @@ Remember: Specs are truth. Changes are proposals. Keep them in sync.
 
 **MANDATORY WORKFLOW:**
 
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
+1. **Capture remaining work** - Record follow-ups as GSD todos (`/gsd:add-todo`)
 2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
+3. **Update planning status** - Mark finished phases done, note in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```

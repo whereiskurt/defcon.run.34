@@ -50,10 +50,6 @@ env.local.sh
 *.lambda.zip
 lambda_*.zip
 
-# bv (beads viewer) local config and caches
-.bv/
-.beads/.bv.lock
-
 ## I want share this because it makes automations is easier.
 !.claude/settings.local.json
 

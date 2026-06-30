@@ -77,7 +77,7 @@ Coding conventions and patterns used in the defcon.run 34 codebase.
 
 - Pattern: `run-{service}` — e.g., `run-auth`, `run-cms-master`
 
-### Change IDs (OpenSpec)
+### Branch & Phase Names
 
 - Kebab-case, verb-led: `add-two-factor-auth`, `update-gpx-validation`
 - Prefixes: `add-`, `update-`, `remove-`, `refactor-`
@@ -104,7 +104,7 @@ Never commit directly to main. Always work in a feature branch and create a PR.
 gh pr merge <number> --squash --admin
 ```
 
-Beads worktree uses main, so `git checkout main` will fail. Use:
+If a worktree has `main` checked out, `git checkout main` will fail. Use:
 
 ```bash
 git fetch origin main && git reset --hard origin/main
@@ -115,10 +115,8 @@ git fetch origin main && git reset --hard origin/main
 ```
 1. git status                    # Check what changed
 2. git add <files>               # Stage changes
-3. bd sync                       # Sync beads
-4. git commit -m "..."           # Commit
-5. bd sync                       # Sync again after commit
-6. git push -u origin <branch>   # Push
+3. git commit -m "..."           # Commit
+4. git push -u origin <branch>   # Push
 ```
 
 ## Tool Selection
@@ -129,9 +127,3 @@ git fetch origin main && git reset --hard origin/main
 | Search code content | Grep | Optimized regex search |
 | Read specific files | Read | Direct file access |
 | Explore unknown scope | Task | Multi-step investigation |
-
-## Memory (CASS)
-
-- Run `cm context "<task>"` before complex work
-- Run `cm reflect --days 1` after sessions
-- Leave `// [cass: helpful b-xyz]` feedback inline on useful patterns

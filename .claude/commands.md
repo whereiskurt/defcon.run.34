@@ -106,45 +106,13 @@ npm run test:headed   # With browser visible
 
 Requires AWS credentials for S3 email retrieval during auth flow tests.
 
-## Issue Tracking (bd/beads)
+## Planning (GSD)
 
-```bash
-bd ready                                           # Find unblocked work
-bd ready --json                                    # Structured output
-bd create --title="..." --type=task --priority=2   # Create issue
-bd update <id> --status=in_progress                # Claim work
-bd close <id>                                      # Complete work
-bd close <id1> <id2> ...                           # Close multiple
-bd dep add <issue> <depends-on>                    # Add dependency
-bd sync                                            # Sync with git
-bd stats                                           # Project statistics
+GSD planning runs as Claude Code slash commands; phase state lives under `.planning/`.
+
 ```
-
-Priority: 0-4 (0=critical, 2=medium, 4=backlog). NOT high/medium/low.
-
-### Visualization (bv)
-
-```bash
-bv                      # Interactive TUI
-bv --robot-triage       # AI triage as JSON
-bv --robot-next         # Top pick recommendation
-bv --robot-plan         # Dependency-respecting plan
-bv --search "query"     # Semantic search
-```
-
-## Memory (CASS)
-
-```bash
-cm context "<task>"    # Before complex work — get rules and patterns
-cm reflect --days 1    # After sessions — extract learnings
-```
-
-## OpenSpec
-
-```bash
-openspec list              # List active changes
-openspec list --specs      # List specifications
-openspec show [item]       # Display change or spec
-openspec validate [item]   # Validate
-openspec archive <id> -y   # Archive after deployment
+/gsd:progress        # Check progress and route to the next action
+/gsd:plan-phase      # Plan the next phase before building
+/gsd:execute-phase   # Execute the planned work
+/gsd:add-todo        # Capture a follow-up task
 ```
