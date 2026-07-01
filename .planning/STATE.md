@@ -1,36 +1,39 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Meshtk Integration
-current_phase: 3
-status: Awaiting next milestone
-stopped_at: Completed quick-2-PLAN.md
-last_updated: "2026-07-01T12:23:09.973Z"
+milestone: v1.4
+milestone_name: Bib Registration
+current_phase: 19
+status: Planned — Phase 19 ready to execute
+stopped_at: v1.4 milestone planned; Phase 19 plans authored
+last_updated: "2026-07-01T00:00:00.000Z"
 last_activity: 2026-07-01
-last_activity_desc: Milestone v1.3 completed and archived
+last_activity_desc: Planned v1.4 Bib Registration (bib.defcon.run), phases 19-22; Phase 19 fully planned
 progress:
   total_phases: 4
-  completed_phases: 4
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  completed_phases: 0
+  total_plans: 8
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-06)
+See: .planning/PROJECT.md
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation.
-**Current focus:** Phase 17 - Meshmap Verification + Branding -- COMPLETE
+**Current focus:** v1.4 Bib Registration -- Phase 19 (Infrastructure Foundation) ready to execute. See `.planning/AUTONOMOUS-BUILD.md` for the headless build runbook.
 
 ## Current Position
 
-Phase: Milestone v1.3 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-01 — Milestone v1.3 completed and archived
+Milestone: v1.4 Bib Registration (bib.defcon.run)
+Phase: 19 of 22 (Bib Infrastructure Foundation) -- PLANNED, ready to execute
+Plan: 0 of 2 in current phase
+Status: Milestone planned; Phase 19 plans authored (19-01, 19-02). Phases 20-22 have CONTEXT; plan each at its turn (GSD default).
+Last activity: 2026-07-01 -- Authored v1.4 roadmap, requirements, Phase 19 plans, and autonomous-build runbook
+
+Progress: [----------] 0% (0/4 v1.4 phases)
 
 ## Accumulated Context
 
@@ -39,24 +42,18 @@ Last activity: 2026-07-01 — Milestone v1.3 completed and archived
 See PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v1.3]: NLB-only for mqtt.defcon.run (no CloudFront -- MQTT is raw TCP)
-- [v1.3]: Route53 latency routing for NLB (nearest region)
-- [v1.3]: Meshtk as gitignored copy (avoid submodule overhead)
-- [Phase 14]: PP2 enabled only on meshtk ports (1883/8883), disabled on nginx/websocket ports
-- [Phase 14]: target_group_port=8883 to avoid TG name collision when two listeners target same container port
-- [Phase 14]: Inline Terraform (source='.') for mqtt/ terragrunt unit combining S3 resources with nlb-dns child module
-- [Phase 14]: Added configuration_aliases to nlb-dns module for child module provider passing
-- [Phase 15]: Alpine base with mosquitto package (not eclipse-mosquitto official image)
-- [Phase 15]: Entrypoint generates mosquitto.conf and passwd from env vars at startup
-- [Phase 15]: Replaced meshtk symlink with tracked directory (Dockerfile tracked, Go source gitignored)
-- [Phase 15]: meshobserv is same meshtk binary invoked as 'server inspect' (single Go build)
-- [Phase 15]: Usernames in env vars, only passwords in SSM secrets for MQTT containers
-- [Phase 16]: APP_DIR override maps run.mqtt to apps/mqtt/ (non-standard directory naming)
-- [Phase 16]: resolve_meshtk clones from GitHub in CI, copies from symlink locally
-- [Phase 16]: get_components() replaces has_nginx+get_app_component for build loop iteration
-- [Phase 16]: --skip-nginx never skips mqtt's nginx (primary serving container)
-- [Phase 17]: Ghost mode QR redirect removed; accomplishment API call kept as silent fire-and-forget
-- [Phase 17]: DC33 logo images reused with dc34 filenames (visual swap deferred)
+- [v1.4]: New service bib.defcon.run -- runner race-bib registration (name on bib + give tiers, multiple payment methods)
+- [v1.4]: Mirror flash.defcon.run layout (two-container nginx + Next.js), NOT mqtt's NLB/raw-TCP pattern -- bib is HTTP, served via ALB + CloudFront
+- [v1.4]: Reuse the shared run-human-electro DynamoDB table with a new Bib ElectroDB entity (same pattern as CheckIn) -- no new table
+- [v1.4]: Login REQUIRED to get a bib -- auth uses the run.gpx Auth.js pattern (copy gpx config/auth.ts + middleware.ts + signin/access-denied, rename cookies sess_gpx->sess_bib and claim to `bib`), with live claim re-validation; full-path AUTH_URL form, not flash's
+- [v1.4]: OIDC clients are registered in-repo (apps/run.auth config/oidc.ts + index.ts) -- registering the `bib` client is an autonomous code change + run.auth redeploy
+- [v1.4]: Payments are donation/give tiers -- preset $10 / $20 / $50 / $500 (USD), plus "Pay on site (cash)"; amount + provider recorded on the registration
+- [v1.4]: MULTIPLE payment methods at LAUNCH -- cash on-site + Stripe (cards + Apple/Google Pay) + PayPal/Venmo, all behind one provider-agnostic PaymentProvider seam (lib/payments/) with a registry, provider-generic webhook route, shared idempotent `paid` transition, and a `fake` provider for CI. A checkout method-chooser lists only enabled providers.
+- [v1.4]: Claude scaffolds working Stripe (test mode) AND PayPal/Venmo (sandbox) providers; the other dev owns only the real Stripe account/keys + go-live. Crypto (BTC/ETH) is seam-ready but DEFERRED (rail Coinbase vs BTCPay TBD; tracked as PAY-01)
+- [v1.4]: Phase 19 creates SSM slots for BOTH processors (stripe_*, paypal_*) so Phase 21 needs no infra change
+- [v1.4]: Registration UI is a standard physical-looking RACE BIB (big number + name + DC34 branding, name auto-shrinks to fit with ~32-char cap, live preview as you type) -- one swappable component; prior-year layouts are external reference the user will provide
+- [v1.4]: Ship through the EXISTING GitHub Actions held-release pipeline (buildpub.yml opens a held Release PR via release-all.sh; deploy.yml merges + deploys per-region). bib piggybacks by being added to the apps lists; no new workflow
+- [v1.4]: New milestone v1.4, phases 19-22 (numbered after v1.3's 14-17). NOTE: main had earmarked "v1.4 Flash Service Refresh" as a placeholder -- superseded by Bib Registration per user direction
 
 ### Pending Todos
 
@@ -64,36 +61,17 @@ None.
 
 ### Blockers/Concerns
 
-- ~~ecs-service module auto-enables Proxy Protocol v2 on NLB TCP targets~~ FIXED in 14-01
-- ~~Security group outputs exclude MQTT ports~~ FIXED in 14-01 (conditional NLB SG)
-- ~~Route53 NLB alias records not covered by existing cloudfront module~~ FIXED in 14-01 (new nlb-dns module)
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 2 | Auto-register flashed radios from run.flash into run.human meshtastic radios with node ID and private key | 2026-03-13 | fa05249e | [2-auto-register-flashed-radios-from-run-fl](./quick/2-auto-register-flashed-radios-from-run-fl/) |
-
-## Deferred Items
-
-Items acknowledged and deferred at v1.3 milestone close on 2026-07-01
-(pre-existing stragglers from already-shipped milestones — not v1.3 scope):
-
-| Category | Item | Status |
-|----------|------|--------|
-| verification | Phase 05 (v1.1) — 05-VERIFICATION.md | human_needed |
-| quick_task | 1-wizard-panel-consistency-uniform-image-b | unknown |
-| quick_task | 2-auto-register-flashed-radios-from-run-fl | unknown |
-
-Also deferred: **Phase 18 Fleet Simulator + Easter Egg** (v1.3 scope, non-essential
-easter egg) → `.planning/backlog/fleet-simulator-easter-egg.md`.
+- Claude scaffolds working Stripe + PayPal providers this milestone. External deps: real Stripe account/keys (other dev, go-live) and PayPal sandbox app (client id/secret + webhook id) for dev/testing -- populate the Phase-19 SSM slots out-of-band.
+- Crypto (BTC/ETH) provider deferred -- seam ready; needs a rail decision (Coinbase Commerce vs BTCPay) before implementation
+- `bib` OIDC client must be registered in run.auth (autonomous code change) + a user granted the `bib` service claim before auth E2E works
+- Open product question: whether a deferred *online* pay-later path is wanted in addition to cash-on-site, and whether organizers need a UI to mark cash registrations paid (may defer to a later phase)
 
 ## Session Continuity
 
-Last session: 2026-03-13T04:39:42.731Z
-Stopped at: Completed quick-2-PLAN.md
-Resume file: None
+Last session: 2026-07-01
+Stopped at: v1.4 plan authored and landed on main (planning only -- no implementation yet)
+Resume file: .planning/phases/19-bib-infrastructure-foundation/19-01-PLAN.md
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Execute Phase 19 (19-01-PLAN.md) -- self-contained infra. See `.planning/AUTONOMOUS-BUILD.md` for the headless/EC2 build runbook and externally-gated prerequisites.

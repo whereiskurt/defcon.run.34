@@ -1,0 +1,52 @@
+# v1.4 Bib Registration — Autonomous Build Runbook
+
+Guide for executing the v1.4 milestone **headlessly** (e.g. Claude Code on a high-powered EC2 instance with full AWS/cloud access). The goal is maximum autonomy: the agent builds, applies infra, deploys, and verifies without a human in the loop except for the small set of **externally-gated prerequisites** listed below.
+
+## TL;DR execution order
+
+```
+Phase 19 (infra)  →  Phase 20 (app + auth)  →  Phase 21 (payments)  →  Phase 22 (build/deploy/brand)
+```
+
+Run phases in numeric order. Each phase's `NN-CONTEXT.md` is the brief; Phase 19 has full executable `NN-01/02-PLAN.md`. Generate detailed plans for 20/21/22 at their turn (GSD `plan-phase`) or execute from CONTEXT directly. Do not advance past a red success-criteria/verifier gate.
+
+## GSD config for autonomy (`.planning/config.json`)
+
+Already set: `mode: yolo`, `parallelization: true`, `workflow.plan_check: true`, `workflow.verifier: true`, `workflow.research: false`. Recommended for an unattended multi-phase run: enable phase auto-chaining so the engine rolls 19→22 without stopping between phases, and keep the verifier on so each phase is checked before the next begins.
+
+## Fresh-clone safety
+
+The EC2 container clones fresh. Bib is **self-contained** — unlike run.mqtt it vendors no external source (no gitignored meshtk-style checkout), so a clean clone builds with no manual copy step. Commit everything; nothing is expected to exist outside git.
+
+## Externally-gated prerequisites (front-load these)
+
+These CANNOT be done by the agent even with cloud access — a human must provide them. Do them **before** kicking off the run so autonomy reaches the finish line; otherwise the agent stubs them and records the blocker in `STATE.md`.
+
+| # | Prerequisite | Blocks | If missing, agent should… |
+|---|--------------|--------|---------------------------|
+| 1 | **Stripe account + test-mode API keys** (`sk_test_…`, webhook secret) | Stripe E2E in Phase 21 | Build Stripe provider code; ship with `fake`/cash enabled; flag blocker |
+| 2 | **PayPal developer sandbox app** (client id/secret + webhook id) | PayPal/Venmo E2E in Phase 21 | Build PayPal provider code; leave disabled; flag blocker |
+| 3 | **Prior-year bib artwork / brand direction** (optional) | Visual polish in Phase 20 | Build the standard DC34 bib from existing dc34 logo assets |
+| 4 | **Production go-live secret values** (real Stripe live keys, live PayPal creds) | Real charges only | Never needed for build/test; ops populates SSM at go-live |
+| 5 | **Grant a user the `bib` service claim** | Auth E2E sign-in | Register the client (autonomous, below) + seed/grant a test user |
+
+Populate items 1/2 into the Phase-19 SSM placeholder slots (`/{site}/secrets/{region}/bib/stripe_*`, `/…/bib/paypal_*`) once available — that's the only wiring needed; no infra change.
+
+## What the agent CAN do autonomously (with repo + cloud access)
+
+- **All Phase 19 infra** — add `bib` subdomain, ECR repos, ACM, CloudFront, Route53, SSM param *slots* (placeholder values), `service.hcl`, `site.hcl`; `terragrunt apply` with instance AWS creds.
+- **Register the `bib` OIDC client in-repo** — edit `apps/run.auth/webapp/src/config/oidc.ts` + `config/index.ts` (mirror the `gpxStudio` client), add `OIDC_BIB_*` env + SSM, redeploy run.auth. No external console.
+- **Phase 20 app** — Next.js scaffold (from run.flash) + gpx auth pattern (copy run.gpx `config/auth.ts`/`middleware.ts`/`signin`/`access-denied`, rename to bib), `Bib` ElectroDB entity on the shared electro table, race-bib visual component (auto-shrink name, ~32-char cap), registration form + create/fetch API.
+- **Phase 21 payments (provider-independent parts + provider code)** — `PaymentProvider` seam, registry, `fake` provider, provider-generic webhook route, state machine, method-chooser UI, cash path, AND the Stripe + PayPal provider *implementations*. Only their live/sandbox **credentials + external E2E** need items 1/2.
+- **Phase 22 build/deploy** — add `run.bib` to `build.sh`/`deploy.sh`/`release-all.sh` + `buildpub.yml`/`deploy.yml`, build/push ECR images, deploy ECS to both regions via the held-release + deploy flow, invalidate CloudFront, apply DC34 branding.
+
+## Verification gates (don't skip)
+
+Each phase lists success criteria in `ROADMAP.md`; the GSD verifier runs per phase. Concrete autonomous checks: `terraform/terragrunt validate` + clean plan (19), `next build` + entity tests (20), `fake`-provider register→pay→confirm flow + idempotent webhook replay (21), both-region HTTPS reachability + sign-in + register + cash-pay E2E (22). Stripe/PayPal E2E run only when items 1/2 are present.
+
+## When blocked
+
+Prefer **stub-and-flag** over halting: enable the `fake` provider / placeholder secret / standard bib, append the blocker to `STATE.md` → Blockers, and continue. A partially-shipped bib (register + cash) is more useful than a stalled run. Real-provider activation is a later, minimal switch-on (populate SSM + flip the enable flag).
+
+---
+*Milestone: v1.4 Bib Registration — see ROADMAP.md, REQUIREMENTS.md, and phase CONTEXT files.*

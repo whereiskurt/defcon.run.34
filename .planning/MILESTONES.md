@@ -1,5 +1,12 @@
 # Milestones
 
+## v1.4 Bib Registration (Planned)
+
+**Phases:** 19-22, 4 phases
+**Goal:** Participants register a race bib at bib.defcon.run — name-on-bib (auto-shrink, ~32 chars) + give tiers ($10/$20/$50/$500), paying at launch via cash on-site, Stripe, or PayPal/Venmo behind one provider-agnostic seam (crypto BTC/ETH seam-ready, deferred) — deployed to both regions with the flash.defcon.run two-container layout, the run.gpx auth pattern, and the existing GitHub Actions held-release pipeline. See `.planning/AUTONOMOUS-BUILD.md`.
+
+---
+
 ## v1.3 Meshtk Integration (Shipped: 2026-07-01)
 
 **Phases completed:** 4 phases, 9 plans, 18 tasks

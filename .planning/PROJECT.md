@@ -15,10 +15,17 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 
 ## Current State
 
-Between milestones — v1.3 Meshtk Integration shipped 2026-07-01. Next milestone
-(**v1.4 Flash Service Refresh**) to be defined via `/gsd-new-milestone`. Phase 18
-(Fleet Simulator + Easter Egg) was deferred out of v1.3 to
-`.planning/backlog/fleet-simulator-easter-egg.md`.
+Active milestone: **v1.4 Bib Registration** (bib.defcon.run) — planned, Phase 19
+ready to execute (phases 19-22). A new race-bib registration service: name-on-bib
+(auto-shrink, ~32 chars) + give tiers ($10/$20/$50/$500) paid via cash on-site,
+Stripe, or PayPal/Venmo behind one provider-agnostic seam (crypto seam-ready,
+deferred). Mirrors the flash.defcon.run layout, uses the run.gpx auth pattern,
+reuses the shared electro table, and ships through the existing held-release
+pipeline. See `.planning/ROADMAP.md` and `.planning/AUTONOMOUS-BUILD.md`.
+
+(This supersedes the earlier "v1.4 Flash Service Refresh" placeholder.) v1.3
+Meshtk Integration shipped 2026-07-01; Phase 18 (Fleet Simulator + Easter Egg)
+was deferred to `.planning/backlog/fleet-simulator-easter-egg.md`.
 
 ## Requirements
 
@@ -64,7 +71,11 @@ Between milestones — v1.3 Meshtk Integration shipped 2026-07-01. Next mileston
 
 ### Active
 
-(Next milestone — v1.4 Flash Service Refresh — requirements defined via `/gsd-new-milestone`)
+v1.4 Bib Registration (bib.defcon.run) — see `.planning/REQUIREMENTS.md` (BIB-01…20):
+- [ ] Infra: bib subdomain + ACM/CloudFront, ECR repos, service.hcl, SSM (OIDC + Stripe + PayPal), shared electro table
+- [ ] App: Next.js scaffold, run.gpx auth pattern (`bib` claim), Bib ElectroDB entity, race-bib visual (auto-shrink name, ~32 chars), registration + API
+- [ ] Payments: provider-agnostic seam + method chooser + give tiers; cash + Stripe + PayPal/Venmo at launch (crypto deferred, PAY-01)
+- [ ] Build/deploy: run.bib in build.sh/deploy.sh/release-all.sh + buildpub.yml/deploy.yml, DC34 branding, both-region verify
 
 ### Deferred
 
