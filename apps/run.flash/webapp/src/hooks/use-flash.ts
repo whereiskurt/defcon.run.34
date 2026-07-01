@@ -101,10 +101,14 @@ export function useFlash(): UseFlashReturn {
           firmwareBytes[i] = firmware.data.charCodeAt(i);
         }
 
+        // tlora-t3s3 quirk: this board bricks-on-boot with the default "keep" flashMode; explicit "dio" is required — preserve across dep bumps.
+        let flashMode: "dio" | "keep" = "keep";
+        if (device.platformioTarget === "tlora-t3s3") flashMode = "dio";
+
         await espLoader.writeFlash({
           fileArray: [{ data: firmwareBytes, address: 0x0 }],
           flashSize: "keep",
-          flashMode: "keep",
+          flashMode,
           flashFreq: "keep",
           eraseAll: false, // Already erased in stage 1
           compress: true,
