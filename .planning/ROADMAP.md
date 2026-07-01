@@ -68,7 +68,12 @@ See `.planning/milestones/v1.3-ROADMAP.md` for archived v1.3 roadmap.
   3. `FIRMWARE_VERSION` is build-injected as the single source of truth (no manual placeholder in `src/config/firmware.ts`) and the resolved version is visible in the flasher.
   4. The device picker shows an ESP32-only hardware list regenerated at build from `api.meshtastic.org/resource/deviceHardware` (esp32/esp32-s3/esp32-c3/esp32-c6), with the DCR34 Recommended set preserved and sorted first.
   5. The running container makes no network calls to GitHub or `api.meshtastic.org` (offline-at-event guarantee verified).
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 18-01-PLAN.md — Code contract: firmware.ts env-injected FIRMWARE_VERSION + .factory.bin filename, next.config assertion, README release checklist
+- [ ] 18-02-PLAN.md — Dev-parity scripts: download-firmware.sh (API resolve + factory extract + .env.local) + new generate-hardware-list.sh
+- [ ] 18-03-PLAN.md — Dockerfile.webapp rewrite (Stage 1 API resolve + factory + hardware-list, builder env plumbing + offline grep) + FLSH-08 hardware boot verification checkpoint
 
 ### Phase 19: Dependencies & DCR34 Branding/UX
 **Goal**: The flasher runs on bumped Meshtastic/esptool dependencies with no regression, and presents a cohesive DCR34 "run.defcon.run firmware" identity with connect, bootloader-help, and error UX aligned to current flasher.meshtastic.org patterns.
@@ -167,7 +172,7 @@ Plans:
 | 15. Container Images + Task Definition | v1.3 | 3/3 | Complete | 2026-03-07 |
 | 16. Build/Deploy Pipeline | v1.3 | 2/2 | Complete | 2026-03-07 |
 | 17. Meshmap Verification + Branding | v1.3 | 1/1 | Complete | 2026-03-07 |
-| 18. Build-Time Firmware & Device List Refresh | v1.4 | 0/0 | Not started | - |
+| 18. Build-Time Firmware & Device List Refresh | v1.4 | 0/3 | Planned | - |
 | 19. Dependencies & DCR34 Branding/UX | v1.4 | 0/0 | Not started | - |
 | 20. Bib Infrastructure Foundation | v1.5 | 0/2 | Planned | - |
 | 21. Bib App Scaffold + Registration | v1.5 | 0/2 | Planned | - |
