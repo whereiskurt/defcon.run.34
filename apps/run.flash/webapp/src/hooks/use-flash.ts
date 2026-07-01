@@ -94,8 +94,15 @@ export function useFlash(): UseFlashReturn {
           stage: "writing",
         }));
 
+        // esptool-js 0.6.0 requires Uint8Array (was binary string in 0.5.x);
+        // convert here so config/firmware.ts stays untouched.
+        const firmwareBytes = new Uint8Array(firmware.size);
+        for (let i = 0; i < firmware.size; i++) {
+          firmwareBytes[i] = firmware.data.charCodeAt(i);
+        }
+
         await espLoader.writeFlash({
-          fileArray: [{ data: firmware.data, address: 0x0 }],
+          fileArray: [{ data: firmwareBytes, address: 0x0 }],
           flashSize: "keep",
           flashMode: "keep",
           flashFreq: "keep",
