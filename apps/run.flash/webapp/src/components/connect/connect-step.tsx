@@ -36,6 +36,78 @@ const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success
   "esp32-c6": "success",
 };
 
+/**
+ * Serial-connect error categories (Phase 19-02 / BRND-02).
+ *
+ * useSerial already routes DOMException.NotAllowedError (user cancelled the
+ * browser port picker) back to "disconnected" without touching error state,
+ * so the 'cancelled' branch below is defensive belt-and-braces for
+ * hook-shape drift (e.g. a future hook that surfaces "No port selected"
+ * as an error string).
+ */
+type ConnectErrorCategory = "cancelled" | "in-use" | "no-response" | "generic";
+
+function classifyConnectError(err: string | null): ConnectErrorCategory {
+  if (!err) return "generic";
+  const lower = err.toLowerCase();
+  if (
+    lower.includes("no device selected") ||
+    lower.includes("no port selected") ||
+    lower.includes("cancel") ||
+    lower.includes("user aborted") ||
+    lower.includes("user did not select")
+  ) {
+    return "cancelled";
+  }
+  if (
+    lower.includes("close any other apps") ||
+    lower.includes("in use by another") ||
+    lower.includes("already in use") ||
+    lower.includes("invalidstateerror") ||
+    lower.includes("access denied") ||
+    lower.includes("permission denied") ||
+    lower.includes("busy")
+  ) {
+    return "in-use";
+  }
+  if (
+    lower.includes("timed out") ||
+    lower.includes("timeout") ||
+    lower.includes("no compatible device") ||
+    lower.includes("networkerror") ||
+    lower.includes("no response") ||
+    lower.includes("did not respond") ||
+    lower.includes("didn't respond") ||
+    lower.includes("failed to open") ||
+    lower.includes("failed to connect") ||
+    lower.includes("no serial port")
+  ) {
+    return "no-response";
+  }
+  return "generic";
+}
+
+function categoryMessage(
+  category: ConnectErrorCategory,
+  raw: string | null
+): string | null {
+  switch (category) {
+    case "cancelled":
+      // Silent — Connect step reverts to "ready" UI.
+      return null;
+    case "in-use":
+      return "The serial port is in use by another program (Arduino IDE, PlatformIO, or another browser tab running the flasher). Close it and try again.";
+    case "no-response":
+      return "Couldn't reach the device. Try a different data USB cable (some are charge-only), or put the device in bootloader mode using the steps below.";
+    case "generic":
+    default:
+      return (
+        raw ??
+        "Serial connection failed. Try the troubleshooting steps below."
+      );
+  }
+}
+
 export function ConnectStep({
   device,
   serial,
@@ -54,6 +126,20 @@ export function ConnectStep({
 
   const isConnected = serial.connectionState === "connected";
 
+  // Classify serial errors into actionable categories (Phase 19-02 / BRND-02).
+  const errorCategory: ConnectErrorCategory | null =
+    serial.connectionState === "error"
+      ? classifyConnectError(serial.error)
+      : null;
+  const isCancelled = errorCategory === "cancelled";
+  const displayError =
+    errorCategory && !isCancelled
+      ? categoryMessage(errorCategory, serial.error)
+      : null;
+  // Treat cancellation as "ready to reconnect" — hook already routes real
+  // browser-picker cancels to "disconnected"; this handles the string-fallback path.
+  const showErrorPanel = serial.connectionState === "error" && !isCancelled;
+
   return (
     <div className="space-y-4">
       {/* Panel: left status | center spacer | right device image */}
@@ -61,7 +147,7 @@ export function ConnectStep({
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
           {/* Left: connection state */}
           <div className="min-w-0">
-            {serial.connectionState === "disconnected" && (
+            {(serial.connectionState === "disconnected" || isCancelled) && (
               <div className="space-y-1">
                 <p className="text-sm font-mono text-default-400">
                   Ready to connect
@@ -85,9 +171,9 @@ export function ConnectStep({
               <ConnectionStatus chipInfo={serial.chipInfo} />
             )}
 
-            {serial.connectionState === "error" && (
-              <p className="text-sm text-danger font-mono line-clamp-2">
-                {serial.error}
+            {showErrorPanel && (
+              <p className="text-sm text-danger font-mono line-clamp-3">
+                {displayError}
               </p>
             )}
           </div>
@@ -134,12 +220,12 @@ export function ConnectStep({
 
       {/* Action buttons — below the panel */}
       <div className="flex justify-center">
-        {serial.connectionState === "disconnected" && (
+        {(serial.connectionState === "disconnected" || isCancelled) && (
           <Button
             color="primary"
             size="lg"
             startContent={<Usb className="w-5 h-5" />}
-            onPress={() => serial.connect()}
+            onPress={() => (isCancelled ? handleRetry() : serial.connect())}
             className="font-mono whitespace-nowrap"
           >
             Connect Device
@@ -169,7 +255,7 @@ export function ConnectStep({
           </Button>
         )}
 
-        {serial.connectionState === "error" && (
+        {showErrorPanel && (
           <Button
             color="primary"
             variant="bordered"
@@ -182,8 +268,8 @@ export function ConnectStep({
         )}
       </div>
 
-      {/* Bootloader help — only on error, below the panel */}
-      {serial.connectionState === "error" && <BootloaderHelp />}
+      {/* Bootloader help — surfaced on any non-cancelled error. */}
+      {showErrorPanel && <BootloaderHelp />}
     </div>
   );
 }
