@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 
 // Environment variables for regional deployment
 const isDev = process.env.NODE_ENV !== "production";
+
+if (!isDev && !process.env.NEXT_PUBLIC_FIRMWARE_VERSION) {
+  throw new Error(
+    "NEXT_PUBLIC_FIRMWARE_VERSION is empty. Production builds must inject the resolved Meshtastic stable version. " +
+      "Set it via the Dockerfile.webapp builder ARG (FIRMWARE_VERSION -> ENV NEXT_PUBLIC_FIRMWARE_VERSION), or for local production builds run scripts/download-firmware.sh to populate .env.local."
+  );
+}
+
 const WEBAPP_ORIGIN = process.env.WEBAPP_ORIGIN || "flash.defcon.run";
 const WEBAPP_PREFIX = process.env.WEBAPP_PREFIX || "use1/assets";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
@@ -32,6 +40,7 @@ const nextConfig: NextConfig = {
   // In Docker build REGION_SHORT is set via build-arg, so client gets "use1"
   env: {
     NEXT_PUBLIC_REGION_SHORT: process.env.REGION_SHORT || "",
+    NEXT_PUBLIC_FIRMWARE_VERSION: process.env.NEXT_PUBLIC_FIRMWARE_VERSION || "",
   },
 };
 
