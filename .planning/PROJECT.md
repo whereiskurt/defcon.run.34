@@ -7,26 +7,18 @@ The official DEF CON Run 34 platform — a suite of web apps for organizing and 
 **Shipped v1.0** — Meshtastic Flasher MVP (flash.defcon.run) with browser-based ESP32 flashing and configuration.
 **Shipped v1.1** — CMS Content Types (cms.defcon.run) with Events, Routes, POIs, and relations.
 **Shipped v1.2** — User Checkins (run.defcon.run) with GPS check-in, privacy controls, Leaflet map profile display.
+**Shipped v1.3** — Meshtk Integration (mqtt.defcon.run) with mosquitto broker, meshtk proxy, and DC34-branded meshmap deployed via NLB to both regions.
 
 ## Core Value
 
 Participants and organizers have a seamless digital experience for DEF CON Run 34 — from device setup to event discovery to route navigation — all through the browser.
 
-## Current Milestone: v1.3 Meshtk Integration
+## Current State
 
-**Goal:** Replicate the defcon.run.33 MQTT/meshtk infrastructure in defcon.run.34 — mosquitto broker, meshtk proxy, meshmap, and fleet simulator deployed via NLB to both regions.
-
-**Target features:**
-- Port apps/mqtt/ container configs (mosquitto, nginx/meshmap, grpc/meshtk, ghosts) from defcon.run.33
-- Gitignored meshtk checkout at apps/mqtt/grpc/site-tld/meshtk/
-- Enable NLB in both regions with 4 listeners (1883 TCP, 8883 TLS, 443 TLS/meshmap, 8443 WSS)
-- mqtt.defcon.run → NLB only (no CloudFront — MQTT is raw TCP, not HTTP)
-- Route53 latency-based routing to nearest regional NLB
-- 4-container ECS task (mosquitto, meshtk, nginx/meshobserv, ghosts)
-- ECR repos + build/deploy scripts for 3 container images
-- S3 logging/blocklist, ACM certs, SSM params, security group fixes
-- Fleet simulator with GPX movement + ghost mode easter egg on meshmap
-- DC34 branding on meshmap
+Between milestones — v1.3 Meshtk Integration shipped 2026-07-01. Next milestone
+(**v1.4 Flash Service Refresh**) to be defined via `/gsd-new-milestone`. Phase 18
+(Fleet Simulator + Easter Egg) was deferred out of v1.3 to
+`.planning/backlog/fleet-simulator-easter-egg.md`.
 
 ## Requirements
 
@@ -61,16 +53,22 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 - ✓ Profile check-in display with Leaflet map, numbered markers, accuracy circles, age coloring — v1.2
 - ✓ Strava OAuth auto-linking from profile page — v1.2
 
+- ✓ MQTT broker deployment (mosquitto container with auth, ACL, persistence) — v1.3
+- ✓ Meshtk proxy deployment (packet inspection, rate limiting, S3 logging) — v1.3
+- ✓ Meshmap deployment (nginx + meshobserv, live node visualization) — v1.3
+- ✓ NLB with 4 listeners: 1883 TCP, 8883 TLS, 443 TLS, 8443 WSS — v1.3
+- ✓ Route53 latency routing for mqtt.defcon.run (NLB-only, no CloudFront) — v1.3
+- ✓ ECR repos + build/deploy pipeline for 3 mqtt images — v1.3
+- ✓ Both-region deployment (us-east-1 + ca-central-1) — v1.3
+- ✓ DC34 branding on meshmap — v1.3
+
 ### Active
 
-- [ ] MQTT broker deployment (mosquitto container with auth, ACL, persistence)
-- [ ] Meshtk proxy deployment (packet inspection, rate limiting, S3 logging)
-- [ ] Meshmap deployment (nginx + meshobserv, live node visualization)
-- [ ] Fleet simulator (ghosts container, non-essential)
-- [ ] NLB with 4 listeners: 1883 TCP, 8883 TLS, 443 TLS, 8443 WSS
-- [ ] CloudFront for mqtt.defcon.run with meshmap path routing
-- [ ] ECR repos + build/deploy pipeline for 3 images
-- [ ] Both-region deployment (us-east-1 + ca-central-1)
+(Next milestone — v1.4 Flash Service Refresh — requirements defined via `/gsd-new-milestone`)
+
+### Deferred
+
+- [ ] Fleet simulator + easter egg (ghosts container, GPX movement, meshmap reveal) — deferred from v1.3, see `.planning/backlog/fleet-simulator-easter-egg.md`
 
 ### Out of Scope
 
@@ -119,9 +117,11 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 | Relative age coloring for map markers | Visual distinction without absolute time dependency | ✓ Good |
 | Strava autoLink param for seamless OAuth | Eliminates extra button click on auth server | ✓ Good |
 
-| Meshtk as gitignored copy | Avoids submodule overhead; user manages updates manually from ~/working/meshtk | — Pending |
-| NLB-only for mqtt.defcon.run | All 4 ports (1883/8883/443/8443) served by NLB — CloudFront can't proxy MQTT (raw TCP) | — Pending |
-| Route53 latency routing for NLB | mqtt.defcon.run → nearest regional NLB via latency-based alias records | — Pending |
+| Meshtk as gitignored copy | Avoids submodule overhead; user manages updates manually from ~/working/meshtk | ✓ Good — CI clones from GitHub, local copies from symlink |
+| NLB-only for mqtt.defcon.run | All 4 ports (1883/8883/443/8443) served by NLB — CloudFront can't proxy MQTT (raw TCP) | ✓ Good — shipped v1.3 |
+| Route53 latency routing for NLB | mqtt.defcon.run → nearest regional NLB via latency-based alias records | ✓ Good — new nlb-dns module, shipped v1.3 |
+| PP2 only on meshtk ports | Proxy Protocol v2 enabled on 1883/8883, disabled on nginx/websocket ports | ✓ Good — per-LB toggle in ecs-service |
+| Defer Phase 18 fleet simulator | Non-essential easter egg; prioritize v1.4 flash refresh | — Deferred to backlog |
 
 ---
-*Last updated: 2026-03-06 after v1.3 milestone start*
+*Last updated: 2026-07-01 after v1.3 milestone completion*

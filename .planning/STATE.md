@@ -2,12 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Meshtk Integration
-status: completed
+current_phase: 3
+status: Awaiting next milestone
 stopped_at: Completed quick-2-PLAN.md
-last_updated: "2026-03-13T04:39:42.734Z"
-last_activity: 2026-03-13 -- Completed quick task 2: Auto-register flashed radios
+last_updated: "2026-07-01T12:23:09.973Z"
+last_activity: 2026-07-01
+last_activity_desc: Milestone v1.3 completed and archived
 progress:
-  total_phases: 5
+  total_phases: 4
   completed_phases: 4
   total_plans: 9
   completed_plans: 9
@@ -25,12 +27,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 17 of 18 (Meshmap Verification + Branding) -- COMPLETE
-Plan: 1 of 1 in current phase (all complete)
-Status: Phase 17 complete
-Last activity: 2026-03-13 -- Completed quick task 2: Auto-register flashed radios
-
-Progress: [==========] 100% (5/5 v1.3 phases, 1/1 phase 17 plans)
+Phase: Milestone v1.3 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-01 — Milestone v1.3 completed and archived
 
 ## Accumulated Context
 
@@ -74,8 +74,26 @@ None.
 |---|-------------|------|--------|-----------|
 | 2 | Auto-register flashed radios from run.flash into run.human meshtastic radios with node ID and private key | 2026-03-13 | fa05249e | [2-auto-register-flashed-radios-from-run-fl](./quick/2-auto-register-flashed-radios-from-run-fl/) |
 
+## Deferred Items
+
+Items acknowledged and deferred at v1.3 milestone close on 2026-07-01
+(pre-existing stragglers from already-shipped milestones — not v1.3 scope):
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification | Phase 05 (v1.1) — 05-VERIFICATION.md | human_needed |
+| quick_task | 1-wizard-panel-consistency-uniform-image-b | unknown |
+| quick_task | 2-auto-register-flashed-radios-from-run-fl | unknown |
+
+Also deferred: **Phase 18 Fleet Simulator + Easter Egg** (v1.3 scope, non-essential
+easter egg) → `.planning/backlog/fleet-simulator-easter-egg.md`.
+
 ## Session Continuity
 
 Last session: 2026-03-13T04:39:42.731Z
 Stopped at: Completed quick-2-PLAN.md
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

@@ -1,10 +1,29 @@
 # Milestones
 
+## v1.3 Meshtk Integration (Shipped: 2026-07-01)
+
+**Phases completed:** 4 phases, 9 plans, 18 tasks
+
+**Key accomplishments:**
+
+- Per-LB proxy_protocol_v2 toggle in ecs-service, conditional NLB SG output, and new nlb-dns latency-routing module
+- MQTT service.hcl with 3 ECR repos, 4-port NLB listener mapping (1883/8883/443/8443), NLB enabled in both regions, and mqtt.defcon.run ACM/Route53 registration
+- S3 blocklist and logs buckets per region with 30-day lifecycle, latency-based nlb-dns Route53 records for mqtt.defcon.run, and ecs-service mock outputs for run-mqtt
+- Alpine-based Mosquitto broker container with entrypoint-generated config, 3 service accounts, and port 1884 TCP-only listener
+- Multi-stage Go Dockerfiles for meshtk MQTT proxy (port 1883) and nginx/meshobserv meshmap server (port 80) with supervisord process management
+- 4-container ECS task with dependency-ordered startup (mosquitto->meshtk->nginx+ghosts), NLB 443->nginx:80 port mapping, and local build.sh
+- Extended build.sh and version.sh for 3 mqtt container components with per-component VERSION files and HCL file-based version reads
+- Extended deploy.sh, release-all.sh, and buildpub.yml with mqtt 3-component build/deploy support using get_components() abstraction
+- Full DC33 meshmap ported to DC34 with branding updates, path fixes, ghost mode cleanup, and Dockerfile asset serving
+
+---
+
 ## v1.2 User Checkins (Shipped: 2026-03-06)
 
 **Phases completed:** 4 phases, 4 plans, 0 tasks
 
 **Key accomplishments:**
+
 - (none recorded)
 
 ---
@@ -21,6 +40,7 @@
 **Phases completed:** 5 phases (5-9), 5 plans executed + 2 phases manually verified
 
 **Key accomplishments:**
+
 - Fixed worker Litestream sync safety (WAL checkpoint + safe swap)
 - Upgraded S3 upload provider to Strapi 5
 - Defined Event, Route, and POI content type schemas with shared coordinates component
@@ -36,6 +56,7 @@
 **Phases completed:** 4 phases, 9 plans, 0 tasks
 
 **Key accomplishments:**
+
 - (none recorded)
 
 ---
