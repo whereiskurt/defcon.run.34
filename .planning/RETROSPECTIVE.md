@@ -43,6 +43,45 @@
 
 ---
 
+## Milestone: v1.3 — Meshtk Integration
+
+**Shipped:** 2026-07-01
+**Phases:** 4 (14–17) | **Plans:** 9 | **Tasks:** 18
+
+### What Was Built
+- NLB-based mqtt.defcon.run in both regions with 4 listeners (1883/8883/443/8443) and TLS termination; latency-based Route53 routing via a new `nlb-dns` module
+- Per-load-balancer Proxy Protocol v2 toggle in the `ecs-service` module (PP2 on meshtk ports only) plus conditional NLB security-group output
+- 4-container ECS task: Alpine mosquitto broker (entrypoint-generated config/ACL), meshtk MQTT proxy, nginx/meshobserv meshmap server, and ghosts — with dependency-ordered startup
+- meshtk vendored as a gitignored copy (CI clones from GitHub, local copies from symlink); meshobserv is the same Go binary run as `server inspect`
+- build.sh/deploy.sh/release-all.sh/buildpub.yml extended for a 3-image multi-container service via a `get_components()` abstraction and per-component VERSION files
+- Full DC33 meshmap ported to DC34 with branding, path fixes, and ghost-mode cleanup
+
+### What Worked
+- Porting proven DC33 infrastructure (meshmap, container topology) rather than rebuilding kept the milestone tight
+- The `get_components()` refactor generalized the build/deploy scripts cleanly for multi-container services
+- Isolating the PP2 behavior behind a per-LB toggle avoided regressions for existing NLB TCP targets
+
+### What Was Inefficient
+- Non-standard `apps/mqtt/` directory (vs `run.mqtt`) required an `APP_DIR` override and later a naming-consistency fix (`629d143f`) — the run-mqtt vs mqtt naming drifted across ECR repos, containers, and build prefixes
+- Several small mqtt fixes (PSK validation on PUBLISH, mosquitto log spam, packet inspection enablement) needed follow-up release bumps after initial deploy
+
+### Patterns Established
+- New `nlb-dns` terraform module for latency-based Route53 alias records to regional NLBs (reusable for any raw-TCP service)
+- Per-LB `proxy_protocol_v2` toggle pattern in `ecs-service`
+- Vendored-but-gitignored upstream source pattern (Dockerfile tracked, Go source gitignored; CI resolves from GitHub)
+
+### Key Lessons
+1. **Raw-TCP services can't sit behind CloudFront** — NLB-only + Route53 latency routing is the pattern for MQTT-style endpoints
+2. **Keep service/directory naming consistent from the start** — the mqtt vs run-mqtt drift caused avoidable ECR/container/build-prefix churn
+3. **Deferring non-essential scope (Phase 18 easter egg) at close is cheaper than half-building it** — captured to backlog for a future milestone
+
+### Cost Observations
+- Model mix: primarily opus for planning and execution
+- Sessions: multiple (infra-heavy, many small release iterations)
+- Notable: as with v1.0, infra wiring (naming, NLB, PP2) dominated over application logic
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -50,8 +89,10 @@
 | Milestone | Phases | Plans | Key Change |
 |-----------|--------|-------|------------|
 | v1.0 | 4 | 9 | First milestone — established deployment checklist patterns |
+| v1.3 | 4 | 9 | Multi-container ECS + NLB raw-TCP service; `get_components()` build abstraction |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Deployment infra (mock outputs, secrets, CI entries) is the most error-prone phase — needs explicit checklist
 2. basePath/region prefix handling in Next.js requires systematic review of all absolute paths
+3. Service/directory naming must be locked early — drift propagates into ECR repos, container names, and build prefixes
