@@ -1,10 +1,12 @@
 ---
 title: nRF52840 flash support (Seeed T1000-E card tracker)
 captured: 2026-07-01
+promoted: 2026-07-01 — Kurt confirmed v1.4.1 promotion, parallel with v1.5 bib
 source: v1.4 Phase 19 close-out conversation with Kurt
-status: not-started
-recommended_milestone: v1.5 (parallel to bib) OR new dedicated v1.4.1
-scope: medium-large (2-3 plans, ~1 week)
+status: scoped-in-roadmap (see ROADMAP.md Phases 24-25 under v1.4.1)
+milestone: v1.4.1 nRF52840 / T-1000E Flash Support
+parallel_with: v1.5 Bib Registration (no file overlap — flash vs bib codebases)
+scope: 2 phases, ~3 plans total
 fast_follow: no — architecturally different flash path from ESP32
 ---
 

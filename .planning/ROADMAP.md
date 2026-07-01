@@ -6,7 +6,8 @@
 - [x] **v1.1 CMS Content Types** - Phases 5-9 (shipped 2026-03-05)
 - [x] **v1.2 User Checkins** - Phases 10-13 (shipped 2026-03-06)
 - [x] **v1.3 Meshtk Integration** - Phases 14-17 (shipped 2026-07-01)
-- [ ] **v1.4 Flash Service Refresh** - Phases 18-19 (in progress)
+- [ ] **v1.4 Flash Service Refresh** - Phases 18-19 (in progress — code shipped 2026-07-01, hardware verification pending)
+- [ ] **v1.4.1 nRF52840 / T-1000E Flash Support** - Phases 24-25 (planned, parallel-safe with v1.5)
 - [ ] **v1.5 Bib Registration** - Phases 20-23 (planned)
 
 ## Phases
@@ -91,6 +92,17 @@ Plans:
 - [ ] 19-01-PLAN.md — Bump @meshtastic/core, @meshtastic/transport-web-serial, esptool-js + preserve tlora-t3s3 → flashMode 'dio' quirk (DEPS-01)
 - [ ] 19-02-PLAN.md — DCR34 "run.defcon.run firmware" identity + connect/bootloader-help/error UX alignment (BRND-01, BRND-02)
 
+### v1.4.1 nRF52840 / T-1000E Flash Support (Planned — parallel-safe with v1.5)
+
+**Milestone Goal:** flash.defcon.run supports flashing nRF52840-based Meshtastic devices — starting with the Seeed T1000-E SenseCap Card Tracker — alongside the existing ESP32 family. ESP32 flow is unchanged.
+
+**Why parallel with v1.5:** v1.4.1 touches `apps/run.flash/` + `Dockerfile.webapp` only. v1.5 touches `apps/run.bib/` + new infra units. Zero file overlap → both milestones can run concurrently on independent branches.
+
+**Not a fast follow to v1.4:** nRF52840 uses UF2/Web-USB-DFU, not `esptool-js`. Adding it needs a new device-family router in `use-flash.ts`, a new UF2 extract stage in `Dockerfile.webapp`, and a new bootloader-help UX ("double-tap RST"). See `.planning/backlog/nrf52840-t1000e-support.md` for the scope table.
+
+- [ ] **Phase 24: Device-family router + nRF52 flash path** - Unblock `nrf52840` in Dockerfile Stage 1 filter, extract `.uf2` alongside `.factory.bin`, add family discriminator + router in `use-flash.ts`, implement Web USB DFU (or File System Access UF2 drop) write path
+- [ ] **Phase 25: nRF52 UX + verification** - Bootloader-help variant for double-tap RST, chip-mismatch coverage for nRF chip families, four connect-error categories re-validated for the nRF path, T-1000E boot verification (hardware-in-loop)
+
 ### v1.5 Bib Registration (Planned)
 
 **Milestone Goal:** Participants register a race bib at bib.defcon.run -- enter the name to print on the bib (auto-shrinking to fit, ~32-char cap) and give via preset tiers ($10/$20/$50/$500), paying at launch through **cash on-site, Stripe (cards + Apple/Google Pay), or PayPal/Venmo** behind one provider-agnostic seam (crypto BTC/ETH seam-ready but deferred) -- deployed to both regions using the same two-container (nginx + Next.js) ECS Fargate + CloudFront layout as flash.defcon.run, with the run.gpx auth pattern, and shipped through the existing GitHub Actions held-release pipeline (no new workflow).
@@ -168,6 +180,32 @@ Plans:
 Plans:
 - [ ] 23-01-PLAN.md — Release pipeline wiring (build.sh/deploy.sh/release-all.sh + buildpub.yml/deploy.yml) + DC34 branding assets + both-region verification
 
+### Phase 24: Device-family router + nRF52 flash path
+**Goal**: `apps/run.flash/webapp` flashes an nRF52840 device (Seeed T1000-E) end-to-end via UF2/Web-USB-DFU alongside the existing ESP32 esptool-js path — with a single device-family router that routes by `deviceHardware.architecture`.
+**Depends on**: Phase 19 (bumped `esptool-js` 0.6.0 baseline; router lives on the same code path)
+**Requirements**: DEVC-07, FLSH-09, DPLY-07
+**Success Criteria** (what must be TRUE):
+  1. `Dockerfile.webapp` Stage 1 jq filter admits `nrf52840` alongside `esp32*` architectures; hardware-list contains the T-1000E slug + Recommended set is preserved.
+  2. `Dockerfile.webapp` Stage 1 extracts `firmware-t1000-e-{version}.uf2` alongside the ESP32 `.factory.bin` set; both artifact families ship in the same image; DPLY-06 grep gate still passes.
+  3. `use-flash.ts` has a family discriminator on `deviceHardware.architecture` — ESP32 family → existing esptool-js path (unchanged); `nrf52840` → new UF2/DFU write path.
+  4. UF2/DFU path successfully writes the `.uf2` to a T-1000E in bootloader mode and reports completion; ESP32 path has zero regression against the Phase 19 Recommended set.
+  5. `next build` + `tsc --noEmit` clean; no runtime calls to `api.meshtastic.org` or `github.com/meshtastic` under the new path.
+**Plans**: TBD (target ~2 plans — router + Dockerfile extract, then Web-USB-DFU write path).
+**UI hint**: minimal (router is code-only; UX polish is Phase 25).
+
+### Phase 25: nRF52 UX + verification
+**Goal**: Users flashing a T-1000E get the correct bootloader-help copy ("double-tap RST"), the four connect-error categories still fit, chip-mismatch surfaces nRF families, and one T-1000E is verified flashed end-to-end on hardware.
+**Depends on**: Phase 24
+**Requirements**: BRND-03, FLSH-10
+**Success Criteria** (what must be TRUE):
+  1. `bootloader-help.tsx` shows a device-family-aware variant — ESP32 keeps BOOT+RST; nRF52 shows double-tap RST + mass-storage / DFU device-name hint.
+  2. `chip-mismatch.tsx` copy covers both `esp32*` families and `nrf52840` (naming both detected and expected sides).
+  3. Four connect-error categories (`cancelled` silent, `in-use`, `no-response`, `generic`) re-validated against the Web-USB-DFU flow.
+  4. **Hardware-in-loop:** one T-1000E flashes cleanly and joins the mesh after unplug/replug.
+  5. **Hardware-in-loop:** at least one Recommended ESP32 still flashes with no copy or UX regression from the router split.
+**Plans**: TBD (~1-2 plans).
+**UI hint**: yes.
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -182,3 +220,5 @@ Plans:
 | 21. Bib App Scaffold + Registration | v1.5 | 0/2 | Planned | - |
 | 22. Bib Payments (Cash + Stripe + PayPal/Venmo) | v1.5 | 0/3 | Planned | - |
 | 23. Bib Build/Deploy + Branding | v1.5 | 0/1 | Planned | - |
+| 24. Device-family router + nRF52 flash path | v1.4.1 | 0/TBD | Planned | - |
+| 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
