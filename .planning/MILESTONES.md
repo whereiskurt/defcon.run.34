@@ -1,5 +1,14 @@
 # Milestones
 
+## v1.5 Bib Registration (Planned)
+
+**Phases:** 20-23, 4 phases (sequenced after v1.4 Flash Service Refresh's 18-19)
+**Goal:** Participants register a race bib at bib.defcon.run — name-on-bib (auto-shrink, ~32 chars) + give tiers ($10/$20/$50/$500), paying at launch via cash on-site, Stripe, or PayPal/Venmo behind one provider-agnostic seam (crypto BTC/ETH seam-ready, deferred). Login-gated (run.gpx auth pattern) and account-linked (bib written to the user's account). Mirrors the flash.defcon.run two-container layout, reuses the shared electro table, and ships through the existing held-release pipeline. Requirements: `.planning/REQUIREMENTS-v1.5-bib.md`; runbook: `.planning/AUTONOMOUS-BUILD.md`.
+
+*(v1.4 Flash Service Refresh — the active milestone — is tracked in root ROADMAP/REQUIREMENTS/STATE.)*
+
+---
+
 ## v1.3 Meshtk Integration (Shipped: 2026-07-01)
 
 **Phases completed:** 4 phases, 9 plans, 18 tasks
