@@ -123,11 +123,16 @@ export function FlashStep({
               </span>
             </div>
             <div className="border-t border-default-200/10" />
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-start justify-between text-sm">
               <span className="text-default-500">Firmware</span>
-              <span className="font-mono text-foreground">
-                {FIRMWARE_VERSION}
-              </span>
+              <div className="flex flex-col items-end text-right">
+                <span className="font-mono text-foreground">
+                  run.defcon.run firmware
+                </span>
+                <span className="font-mono text-default-500 text-xs">
+                  Meshtastic {FIRMWARE_VERSION}
+                </span>
+              </div>
             </div>
             <div className="border-t border-default-200/10" />
             <div className="flex items-center justify-between text-sm">
