@@ -33,7 +33,7 @@ Provision all AWS infrastructure for bib.defcon.run in both regions (us-east-1 +
 ### Secrets (SSM placeholders only in Phase 19)
 - Path convention: `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/{key}`
 - Keys created as placeholders this phase: `client_id`, `client_secret` (OIDC); `stripe_secret_key`, `stripe_webhook_secret` (Stripe); `paypal_client_id`, `paypal_client_secret`, `paypal_webhook_id` (PayPal/Venmo)
-- v1.4 supports **cash + Stripe + PayPal/Venmo at launch**, so both processors' secret slots are created now; crypto (deferred) adds its own keys later
+- v1.5 supports **cash + Stripe + PayPal/Venmo at launch**, so both processors' secret slots are created now; crypto (deferred) adds its own keys later
 - Real/live values are populated out-of-band; dev uses Stripe test-mode + PayPal sandbox creds. Phase 19 only ensures the parameters exist and are referenced by service.hcl `secrets`
 
 ### Auth (follow the run.gpx pattern, not flash)

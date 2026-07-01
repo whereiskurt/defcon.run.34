@@ -2,9 +2,9 @@
 
 **Defined:** 2026-07-01
 **Core Value:** Participants and organizers have a seamless digital experience for DCR34 — from device setup to event discovery to route navigation — all through the browser.
-**Active milestone:** v1.4 Bib Registration. Requirements for shipped milestones (v1.0–v1.3) are archived under `.planning/milestones/`.
+**Active milestone:** v1.5 Bib Registration. Requirements for shipped milestones (v1.0–v1.3) are archived under `.planning/milestones/`.
 
-## v1.4 Requirements
+## v1.5 Requirements
 
 Requirements for the Bib Registration milestone (bib.defcon.run). Each maps to roadmap phases 19-22. Layout mirrors flash.defcon.run (two-container Next.js + nginx ECS Fargate + CloudFront, multi-region), shipped via the existing GitHub Actions held-release pipeline.
 
@@ -27,9 +27,9 @@ Requirements for the Bib Registration milestone (bib.defcon.run). Each maps to r
 
 ### Payment
 
-> **Multiple methods at launch:** v1.4 supports **cash on-site, Stripe (cards + Apple/Google Pay), and PayPal/Venmo** from day one, all behind one `PaymentProvider` seam (`lib/payments/`) with a registry, provider-generic webhook route, shared idempotent `paid` transition, and a `fake` provider for CI. Adding a provider is a new file, not a refactor.
+> **Multiple methods at launch:** v1.5 supports **cash on-site, Stripe (cards + Apple/Google Pay), and PayPal/Venmo** from day one, all behind one `PaymentProvider` seam (`lib/payments/`) with a registry, provider-generic webhook route, shared idempotent `paid` transition, and a `fake` provider for CI. Adding a provider is a new file, not a refactor.
 >
-> **Ownership:** Claude scaffolds working Stripe and PayPal/Venmo integrations against the seam. The other developer owns only the real **Stripe account + go-live keys** (test/sandbox creds drive development). **Crypto (BTC/ETH)** is seam-ready but **deferred** — not implemented in v1.4; rail (Coinbase Commerce vs BTCPay Server) chosen later.
+> **Ownership:** Claude scaffolds working Stripe and PayPal/Venmo integrations against the seam. The other developer owns only the real **Stripe account + go-live keys** (test/sandbox creds drive development). **Crypto (BTC/ETH)** is seam-ready but **deferred** — not implemented in v1.5; rail (Coinbase Commerce vs BTCPay Server) chosen later.
 >
 > **Minimal switch-on / add-provider:** localized — (1) populate that provider's SSM secrets, (2) implement its single `lib/payments/<provider>.ts` (`createCheckout()` + `verifyWebhook()`), (3) register it + flip its enable flag. No schema or UI changes.
 >
@@ -52,13 +52,13 @@ Requirements for the Bib Registration milestone (bib.defcon.run). Each maps to r
 
 Tracked but not in the current roadmap.
 
-### Payments (seam ready in v1.4)
+### Payments (seam ready in v1.5)
 
-- **PAY-01**: Crypto (BTC/ETH) payment provider behind the v1.4 `PaymentProvider` seam — rail decision pending (Coinbase Commerce hosted/custodial vs BTCPay Server self-hosted/non-custodial). Seam, DB `paymentProvider` field, and generic webhook route already support it; only the provider file + its secrets/infra remain.
+- **PAY-01**: Crypto (BTC/ETH) payment provider behind the v1.5 `PaymentProvider` seam — rail decision pending (Coinbase Commerce hosted/custodial vs BTCPay Server self-hosted/non-custodial). Seam, DB `paymentProvider` field, and generic webhook route already support it; only the provider file + its secrets/infra remain.
 
 ## Traceability
 
-Which phases cover which v1.4 requirements.
+Which phases cover which v1.5 requirements.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
@@ -84,9 +84,9 @@ Which phases cover which v1.4 requirements.
 | BIB-17 | Phase 22 | Planned |
 
 **Coverage:**
-- v1.4 requirements: 20 total
+- v1.5 requirements: 20 total
 - Mapped to phases: 20
 - Unmapped: 0 (crypto BTC/ETH provider is a deferred seam, tracked as PAY-01)
 
 ---
-*Requirements defined: 2026-07-01 (v1.4 Bib Registration milestone)*
+*Requirements defined: 2026-07-01 (v1.5 Bib Registration milestone)*

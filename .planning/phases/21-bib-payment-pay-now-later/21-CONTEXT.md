@@ -93,7 +93,7 @@ Per-provider enable flags feed the registry's enabled set, which drives the meth
 - Crypto (BTC/ETH) provider → seam-ready; rail decision (Coinbase Commerce vs BTCPay) + implementation deferred to a later milestone (tracked as PAY-01)
 - Stripe real account/keys + production go-live → another dev's step (code is built here, test mode)
 - Organizer reconciliation dashboard for cash collection → confirm with product; likely a later phase
-- Refunds / partial payments → out of scope for v1.4
+- Refunds / partial payments → out of scope for v1.5
 
 </deferred>
 

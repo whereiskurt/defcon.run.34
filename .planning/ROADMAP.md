@@ -6,7 +6,8 @@
 - [x] **v1.1 CMS Content Types** - Phases 5-9 (shipped 2026-03-05)
 - [x] **v1.2 User Checkins** - Phases 10-13 (shipped 2026-03-06)
 - [x] **v1.3 Meshtk Integration** - Phases 14-17 (shipped 2026-07-01)
-- [ ] **v1.4 Bib Registration** - Phases 19-22 (planned)
+- [ ] **v1.4 Flash Service Refresh** - phases TBD (planned separately)
+- [ ] **v1.5 Bib Registration** - Phases 19-22 provisional (planned; see phase-numbering note)
 
 ## Phases
 
@@ -50,11 +51,13 @@ See `.planning/milestones/v1.3-ROADMAP.md` for archived v1.3 roadmap.
 
 </details>
 
-### v1.4 Bib Registration (Planned)
+### v1.5 Bib Registration (Planned)
 
 **Milestone Goal:** Participants register a race bib at bib.defcon.run -- enter the name to print on the bib (auto-shrinking to fit, ~32-char cap) and give via preset tiers ($10/$20/$50/$500), paying at launch through **cash on-site, Stripe (cards + Apple/Google Pay), or PayPal/Venmo** behind one provider-agnostic seam (crypto BTC/ETH seam-ready but deferred) -- deployed to both regions using the same two-container (nginx + Next.js) ECS Fargate + CloudFront layout as flash.defcon.run, with the run.gpx auth pattern, and shipped through the existing GitHub Actions held-release pipeline (no new workflow).
 
 **Layout source of truth:** `apps/run.flash/` + `infra/terraform/live/site/services/run.flash/service.hcl`. Bib mirrors this structure exactly, swapping flash-specific logic for bib registration + payment.
+
+> **Phase-numbering note:** Bib is milestone **v1.5**. A separate **v1.4 Flash Service Refresh** is being planned independently. Bib phases are provisionally **19-22** (next after v1.3's 14-17); if v1.4 Flash Refresh claims phase 18 and/or a range overlapping 19-22, renumber Bib's phases (and the `phases/19-22-*` dirs) to sit after Flash's range. Confirm once Flash Refresh is scoped.
 
 - [ ] **Phase 19: Infrastructure Foundation** - subdomain, ECR repos, ACM/CloudFront, SSM params (OIDC + Stripe), service.hcl, site.hcl wiring
 - [ ] **Phase 20: App Scaffold + Bib Registration** - Next.js webapp mirroring run.flash, Bib ElectroDB entity, registration form, API routes, OIDC `bib` claim gate, nginx container
@@ -63,7 +66,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for archived v1.3 roadmap.
 
 ### Phase 19: Infrastructure Foundation
 **Goal**: All AWS infrastructure required by bib.defcon.run is provisioned and reachable in both regions, mirroring the flash.defcon.run footprint
-**Depends on**: Nothing (first phase of v1.4)
+**Depends on**: Nothing (first phase of v1.5)
 **Requirements**: BIB-01, BIB-02, BIB-03, BIB-04, BIB-05
 **Success Criteria** (what must be TRUE):
   1. `bib` is present in `site.hcl` `dns.subdomains`, and ACM cert + CloudFront distribution for bib.defcon.run resolve in both regions
@@ -132,7 +135,7 @@ Plans:
 | 15. Container Images + Task Definition | v1.3 | 3/3 | Complete | 2026-03-07 |
 | 16. Build/Deploy Pipeline | v1.3 | 2/2 | Complete | 2026-03-07 |
 | 17. Meshmap Verification + Branding | v1.3 | 1/1 | Complete | 2026-03-07 |
-| 19. Bib Infrastructure Foundation | v1.4 | 0/2 | Planned | - |
-| 20. Bib App Scaffold + Registration | v1.4 | 0/2 | Planned | - |
-| 21. Bib Payments (Cash + Stripe + PayPal/Venmo) | v1.4 | 0/3 | Planned | - |
-| 22. Bib Build/Deploy + Branding | v1.4 | 0/1 | Planned | - |
+| 19. Bib Infrastructure Foundation | v1.5 | 0/2 | Planned | - |
+| 20. Bib App Scaffold + Registration | v1.5 | 0/2 | Planned | - |
+| 21. Bib Payments (Cash + Stripe + PayPal/Venmo) | v1.5 | 0/3 | Planned | - |
+| 22. Bib Build/Deploy + Branding | v1.5 | 0/1 | Planned | - |

@@ -1,6 +1,6 @@
-# v1.4 Bib Registration — Autonomous Build Runbook
+# v1.5 Bib Registration — Autonomous Build Runbook
 
-Guide for executing the v1.4 milestone **headlessly** (e.g. Claude Code on a high-powered EC2 instance with full AWS/cloud access). The goal is maximum autonomy: the agent builds, applies infra, deploys, and verifies without a human in the loop except for the small set of **externally-gated prerequisites** listed below.
+Guide for executing the v1.5 milestone **headlessly** (e.g. Claude Code on a high-powered EC2 instance with full AWS/cloud access). The goal is maximum autonomy: the agent builds, applies infra, deploys, and verifies without a human in the loop except for the small set of **externally-gated prerequisites** listed below.
 
 ## TL;DR execution order
 
@@ -49,4 +49,4 @@ Each phase lists success criteria in `ROADMAP.md`; the GSD verifier runs per pha
 Prefer **stub-and-flag** over halting: enable the `fake` provider / placeholder secret / standard bib, append the blocker to `STATE.md` → Blockers, and continue. A partially-shipped bib (register + cash) is more useful than a stalled run. Real-provider activation is a later, minimal switch-on (populate SSM + flip the enable flag).
 
 ---
-*Milestone: v1.4 Bib Registration — see ROADMAP.md, REQUIREMENTS.md, and phase CONTEXT files.*
+*Milestone: v1.5 Bib Registration — see ROADMAP.md, REQUIREMENTS.md, and phase CONTEXT files.*

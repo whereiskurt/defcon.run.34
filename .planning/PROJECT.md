@@ -15,17 +15,19 @@ Participants and organizers have a seamless digital experience for DEF CON Run 3
 
 ## Current State
 
-Active milestone: **v1.4 Bib Registration** (bib.defcon.run) — planned, Phase 19
-ready to execute (phases 19-22). A new race-bib registration service: name-on-bib
+Planned milestone: **v1.5 Bib Registration** (bib.defcon.run) — planned, Phase 19
+ready to execute (phases 19-22, provisional). A new race-bib registration service: name-on-bib
 (auto-shrink, ~32 chars) + give tiers ($10/$20/$50/$500) paid via cash on-site,
 Stripe, or PayPal/Venmo behind one provider-agnostic seam (crypto seam-ready,
 deferred). Mirrors the flash.defcon.run layout, uses the run.gpx auth pattern,
 reuses the shared electro table, and ships through the existing held-release
 pipeline. See `.planning/ROADMAP.md` and `.planning/AUTONOMOUS-BUILD.md`.
 
-(This supersedes the earlier "v1.4 Flash Service Refresh" placeholder.) v1.3
-Meshtk Integration shipped 2026-07-01; Phase 18 (Fleet Simulator + Easter Egg)
-was deferred to `.planning/backlog/fleet-simulator-easter-egg.md`.
+A separate **v1.4 Flash Service Refresh** milestone is being planned
+independently — Bib Registration is **v1.5** and coexists with it (phase numbers
+provisional, see ROADMAP). v1.3 Meshtk Integration shipped 2026-07-01; Phase 18
+(Fleet Simulator + Easter Egg) was deferred to
+`.planning/backlog/fleet-simulator-easter-egg.md`.
 
 ## Requirements
 
@@ -71,7 +73,7 @@ was deferred to `.planning/backlog/fleet-simulator-easter-egg.md`.
 
 ### Active
 
-v1.4 Bib Registration (bib.defcon.run) — see `.planning/REQUIREMENTS.md` (BIB-01…20):
+v1.5 Bib Registration (bib.defcon.run) — see `.planning/REQUIREMENTS.md` (BIB-01…20):
 - [ ] Infra: bib subdomain + ACM/CloudFront, ECR repos, service.hcl, SSM (OIDC + Stripe + PayPal), shared electro table
 - [ ] App: Next.js scaffold, run.gpx auth pattern (`bib` claim), Bib ElectroDB entity, race-bib visual (auto-shrink name, ~32 chars), registration + API
 - [ ] Payments: provider-agnostic seam + method chooser + give tiers; cash + Stripe + PayPal/Venmo at launch (crypto deferred, PAY-01)
@@ -132,7 +134,7 @@ v1.4 Bib Registration (bib.defcon.run) — see `.planning/REQUIREMENTS.md` (BIB-
 | NLB-only for mqtt.defcon.run | All 4 ports (1883/8883/443/8443) served by NLB — CloudFront can't proxy MQTT (raw TCP) | ✓ Good — shipped v1.3 |
 | Route53 latency routing for NLB | mqtt.defcon.run → nearest regional NLB via latency-based alias records | ✓ Good — new nlb-dns module, shipped v1.3 |
 | PP2 only on meshtk ports | Proxy Protocol v2 enabled on 1883/8883, disabled on nginx/websocket ports | ✓ Good — per-LB toggle in ecs-service |
-| Defer Phase 18 fleet simulator | Non-essential easter egg; prioritize v1.4 flash refresh | — Deferred to backlog |
+| Defer Phase 18 fleet simulator | Non-essential easter egg; prioritize v1.5 flash refresh | — Deferred to backlog |
 
 ---
 *Last updated: 2026-07-01 after v1.3 milestone completion*
