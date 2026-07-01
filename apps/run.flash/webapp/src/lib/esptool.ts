@@ -49,12 +49,12 @@ export async function connectToDevice(
   const transport = new Transport(port);
 
   // Create ESPLoader with the transport
-  // romBaudrate is the initial baud rate for ROM bootloader communication
-  // baudrate is the target baud rate after stub upload (can be higher)
+  // baudrate is the target baud rate after stub upload (can be higher);
+  // esptool-js 0.6.0 removed the configurable romBaudrate — the loader
+  // pins ROM-bootloader communication to 115200 internally.
   const espLoader = new ESPLoader({
     transport,
     baudrate: DEFAULT_BAUDRATE,
-    romBaudrate: DEFAULT_BAUDRATE,
     terminal,
   });
 

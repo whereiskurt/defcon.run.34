@@ -84,8 +84,12 @@ Plans:
   2. The `tlora-t3s3 → flashMode 'dio'` quirk is preserved and that board still flashes successfully.
   3. The UI presents the firmware as **"run.defcon.run firmware"** with the underlying Meshtastic version shown as a subtitle (e.g. "run.defcon.run firmware · Meshtastic {version}"), replacing generic Meshtastic version strings.
   4. Connect, bootloader-help, and error states give clear DFU/bootloader guidance, chip-mismatch messaging, and actionable serial-error copy aligned with flasher.meshtastic.org.
-**Plans**: TBD
+**Plans**: 2 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 19-01-PLAN.md — Bump @meshtastic/core, @meshtastic/transport-web-serial, esptool-js + preserve tlora-t3s3 → flashMode 'dio' quirk (DEPS-01)
+- [ ] 19-02-PLAN.md — DCR34 "run.defcon.run firmware" identity + connect/bootloader-help/error UX alignment (BRND-01, BRND-02)
 
 ### v1.5 Bib Registration (Planned)
 
@@ -173,7 +177,7 @@ Plans:
 | 16. Build/Deploy Pipeline | v1.3 | 2/2 | Complete | 2026-03-07 |
 | 17. Meshmap Verification + Branding | v1.3 | 1/1 | Complete | 2026-03-07 |
 | 18. Build-Time Firmware & Device List Refresh | v1.4 | 0/3 | Planned | - |
-| 19. Dependencies & DCR34 Branding/UX | v1.4 | 0/0 | Not started | - |
+| 19. Dependencies & DCR34 Branding/UX | v1.4 | 0/2 | Planned | - |
 | 20. Bib Infrastructure Foundation | v1.5 | 0/2 | Planned | - |
 | 21. Bib App Scaffold + Registration | v1.5 | 0/2 | Planned | - |
 | 22. Bib Payments (Cash + Stripe + PayPal/Venmo) | v1.5 | 0/3 | Planned | - |
