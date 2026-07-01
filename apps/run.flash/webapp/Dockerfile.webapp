@@ -1,30 +1,43 @@
-# Stage 1: Download Meshtastic firmware binaries
+# Stage 1: Resolve current stable, vendor factory images, regenerate ESP32 device list
 FROM node:current-alpine AS firmware
-RUN apk add --no-cache curl unzip
+RUN apk add --no-cache curl unzip jq
 WORKDIR /firmware
 
-# FIRMWARE_VERSION from firmware.ts is single source of truth.
-# Can be overridden with --build-arg for testing new versions.
+# Optional rollback / hotfix pin. When empty, the version is resolved from
+# api.meshtastic.org/github/firmware/list (releases.stable[0].id). No hardcoded
+# fallback — API unreachable + no build-arg = build fails.
 ARG FIRMWARE_VERSION=""
-COPY src/config/firmware.ts /tmp/firmware.ts
 
-# Use build arg if provided, otherwise extract from firmware.ts
 RUN FW_VER="${FIRMWARE_VERSION}"; \
     if [ -z "$FW_VER" ]; then \
-      FW_VER=$(grep 'FIRMWARE_VERSION' /tmp/firmware.ts | head -1 | sed 's/.*"\(.*\)".*/\1/'); \
+      FW_VER=$(curl -fsSL https://api.meshtastic.org/github/firmware/list \
+        | jq -r '.releases.stable[0].id' \
+        | sed 's/^v//'); \
     fi; \
-    echo "Firmware version: $FW_VER" && \
+    if [ -z "$FW_VER" ] || [ "$FW_VER" = "null" ]; then \
+      echo "ERROR: Could not resolve Meshtastic stable version from api.meshtastic.org and no --build-arg FIRMWARE_VERSION provided" && exit 1; \
+    fi; \
+    echo "Resolved Meshtastic stable: ${FW_VER}" && \
     RELEASE_TAG="v${FW_VER}" && \
     BASE_URL="https://github.com/meshtastic/firmware/releases/download/${RELEASE_TAG}" && \
     for ARCH in esp32 esp32s3 esp32c3 esp32c6; do \
       ZIP="firmware-${ARCH}-${FW_VER}.zip"; \
       echo "Downloading ${ZIP}..." && \
       curl -fL -o "/tmp/${ZIP}" "${BASE_URL}/${ZIP}" || { echo "Warning: ${ZIP} not found"; continue; }; \
-      unzip -q -o "/tmp/${ZIP}" "firmware-*.bin" -d /firmware/ 2>/dev/null || true; \
+      unzip -q -o "/tmp/${ZIP}" "firmware-*.factory.bin" -d /firmware/ 2>/dev/null || true; \
       rm -f "/tmp/${ZIP}"; \
     done && \
     find /firmware -name "*-update.bin" -delete && \
-    echo "Extracted $(find /firmware -name 'firmware-*.bin' | wc -l) firmware binaries"
+    echo "Extracted $(find /firmware -name 'firmware-*.factory.bin' | wc -l) firmware binaries" && \
+    echo "${FW_VER}" > /firmware/VERSION.txt
+
+# Regenerate ESP32-only device hardware list (DEVC-06). Overwrites the tracked
+# public/data/hardware-list.json snapshot when copied into Stage 2.
+RUN mkdir -p /hardware && \
+    curl -fsSL https://api.meshtastic.org/resource/deviceHardware \
+      | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6")]' \
+      > /hardware/hardware-list.json && \
+    jq -e 'length > 0' /hardware/hardware-list.json
 
 # Stage 2: Build Next.js app
 FROM node:current-alpine AS builder
