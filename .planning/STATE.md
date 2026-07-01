@@ -1,19 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Meshtk Integration
-current_phase: 3
-status: Awaiting next milestone
-stopped_at: Completed quick-2-PLAN.md
-last_updated: "2026-07-01T12:23:09.973Z"
+milestone: v1.4
+milestone_name: Flash Service Refresh
+status: planning
+last_updated: "2026-07-01T12:28:33.519Z"
 last_activity: 2026-07-01
-last_activity_desc: Milestone v1.3 completed and archived
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 9
-  completed_plans: 9
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -27,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: Milestone v1.3 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-07-01 — Milestone v1.3 completed and archived
+Status: Defining requirements
+Last activity: 2026-07-01 — Milestone v1.4 started
 
 ## Accumulated Context
 

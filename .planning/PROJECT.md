@@ -13,12 +13,20 @@ The official DEF CON Run 34 platform — a suite of web apps for organizing and 
 
 Participants and organizers have a seamless digital experience for DEF CON Run 34 — from device setup to event discovery to route navigation — all through the browser.
 
-## Current State
+## Current Milestone: v1.4 Flash Service Refresh
 
-Between milestones — v1.3 Meshtk Integration shipped 2026-07-01. Next milestone
-(**v1.4 Flash Service Refresh**) to be defined via `/gsd-new-milestone`. Phase 18
-(Fleet Simulator + Easter Egg) was deferred out of v1.3 to
-`.planning/backlog/fleet-simulator-easter-egg.md`.
+**Goal:** `run.flash` flashes the latest *stable* Meshtastic firmware — resolved automatically at build time and presented as the DCR34 "run.defcon.run firmware" — with a refreshed ESP32-only device list, bumped dependencies, and a DCR34 branding/UX pass.
+
+**Target features:**
+- Build-time latest-stable resolution (`api.meshtastic.org/github/firmware/list` → `stable[0]`); no hardcoded version
+- `FIRMWARE_VERSION` becomes a build-injected single source of truth, surfaced in the UI
+- Verify/fix that the **factory** image is vendored & flashed at `0x00` (erase → write → MD5 verify)
+- Regenerate `hardware-list.json` at build from `api.meshtastic.org/resource/deviceHardware` (ESP32-only, preserve Recommended set)
+- Preserve zero-runtime-dependency guarantee (resolution at build, binaries vendored into the image)
+- Bump `@meshtastic/core`, `@meshtastic/transport-web-serial`, `esptool-js` (carry the `tlora-t3s3 → dio` quirk)
+- DCR34 "run.defcon.run firmware" branding + connect/bootloader-help/error UX alignment
+
+**Key context:** Inspiration is flasher.meshtastic.org, but stripped to a single auto-tracked stable build (no version picker — supersedes the v1.0 "firmware version picker" out-of-scope note by auto-tracking one stable build). Phase 18 (Fleet Simulator + Easter Egg) was deferred out of v1.3 to `.planning/backlog/fleet-simulator-easter-egg.md`.
 
 ## Requirements
 
