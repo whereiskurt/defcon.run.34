@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DEF CON Run 34 — race bib template.
+  Reference: bib-reference-dc34.png (user-provided DC34 bib layout).
+
+  Mark = the DEF CON SMILEY (round smiley face over crossbones) — NOT a pirate skull.
+
+  Dynamic overlay tokens (replace at render time, or set text via DOM ids):
+    {{BIB_NUMBER}}   -> id="bib-number"  (big number, top of the black box)
+    {{NAME_ON_BIB}}  -> id="bib-name"    (name UNDER the number, inside the black box; empty = hidden)
+
+  Auto-shrink guidance (per Phase 21 CONTEXT):
+    The bib component measures and sets font-size on #bib-number / #bib-name so short
+    values render large and long values scale down to fit — never wrap, never truncate.
+    When no name is present, the component may re-center #bib-number in the full box.
+    Defaults below fit ~3-digit numbers and a ~32-char name.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 680" width="960" height="680"
+     font-family="'Arial Black','Arial Narrow',Helvetica,Arial,sans-serif">
+
+  <defs>
+    <!-- DEF CON smiley: white smiley face over white crossbones; features cut to badge colour. -->
+    <symbol id="smiley" viewBox="0 0 100 100">
+      <!-- crossbones (white) -->
+      <g fill="#fff">
+        <g transform="rotate(45 50 50)">
+          <rect x="14" y="45.5" width="72" height="9" rx="4.5"/>
+          <circle cx="14" cy="43" r="6"/><circle cx="14" cy="57" r="6"/>
+          <circle cx="86" cy="43" r="6"/><circle cx="86" cy="57" r="6"/>
+        </g>
+        <g transform="rotate(-45 50 50)">
+          <rect x="14" y="45.5" width="72" height="9" rx="4.5"/>
+          <circle cx="14" cy="43" r="6"/><circle cx="14" cy="57" r="6"/>
+          <circle cx="86" cy="43" r="6"/><circle cx="86" cy="57" r="6"/>
+        </g>
+      </g>
+      <!-- round smiley face (white) -->
+      <circle cx="50" cy="50" r="27" fill="#fff"/>
+      <!-- eyes + grin cut back to the badge colour -->
+      <g class="smiley-cut" fill="#000">
+        <ellipse cx="40" cy="45" rx="4.6" ry="6.2"/>
+        <ellipse cx="60" cy="45" rx="4.6" ry="6.2"/>
+      </g>
+      <path class="smiley-grin" d="M37 56 Q50 70 63 56" fill="none" stroke="#000"
+            stroke-width="5" stroke-linecap="round"/>
+    </symbol>
+
+    <symbol id="smiley-circle" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="50" fill="#000"/>
+      <use href="#smiley"/>
+    </symbol>
+
+    <symbol id="smiley-square" viewBox="0 0 100 100">
+      <rect x="0" y="0" width="100" height="100" rx="10" fill="#000"/>
+      <use href="#smiley"/>
+    </symbol>
+  </defs>
+
+  <!-- card -->
+  <rect x="4" y="4" width="952" height="672" rx="16" fill="#fff" stroke="#c8ccd4" stroke-width="3"/>
+
+  <!-- top banner: DEFC[smiley]N -->
+  <text x="352" y="92" text-anchor="end" font-size="78" font-weight="900" letter-spacing="2" fill="#000">DEFC</text>
+  <use href="#smiley-circle" x="356" y="30" width="66" height="66"/>
+  <text x="430" y="92" text-anchor="start" font-size="78" font-weight="900" letter-spacing="2" fill="#000">N</text>
+
+  <!-- pin holes (top) -->
+  <circle cx="70" cy="70" r="9" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="890" cy="70" r="9" fill="#fff" stroke="#000" stroke-width="2.5"/>
+
+  <!-- number box -->
+  <rect x="52" y="118" width="856" height="336" rx="6" fill="#000"/>
+
+  <!-- corner smiley badges -->
+  <use href="#smiley-circle" x="76" y="138" width="70" height="70"/>
+  <use href="#smiley-circle" x="814" y="364" width="70" height="70"/>
+
+  <!-- BIG NUMBER (dynamic) — top of the box -->
+  <text id="bib-number" x="480" y="262" text-anchor="middle" dominant-baseline="middle"
+        font-size="248" font-weight="900" letter-spacing="-6" fill="#fff">{{BIB_NUMBER}}</text>
+
+  <!-- NAME (dynamic) — UNDER the number, inside the box; empty text hides it -->
+  <text id="bib-name" x="480" y="416" text-anchor="middle" dominant-baseline="middle"
+        font-size="56" font-weight="800" letter-spacing="1" fill="#fff">{{NAME_ON_BIB}}</text>
+
+  <!-- pin holes (bottom) -->
+  <circle cx="70" cy="486" r="9" fill="#fff" stroke="#000" stroke-width="2.5"/>
+  <circle cx="890" cy="486" r="9" fill="#fff" stroke="#000" stroke-width="2.5"/>
+
+  <!-- perforation -->
+  <line x1="24" y1="556" x2="936" y2="556" stroke="#000" stroke-width="1.5" stroke-dasharray="7 7"/>
+  <line x1="480" y1="560" x2="480" y2="668" stroke="#000" stroke-width="1.5" stroke-dasharray="7 7"/>
+
+  <!-- tear-off stubs: smiley + small number, x2 -->
+  <use href="#smiley-square" x="44" y="576" width="72" height="72"/>
+  <rect x="360" y="590" width="96" height="48" rx="6" fill="#000"/>
+  <text class="stub-number" x="408" y="624" text-anchor="middle" font-size="34" font-weight="900" fill="#fff">{{BIB_NUMBER}}</text>
+
+  <use href="#smiley-square" x="504" y="576" width="72" height="72"/>
+  <rect x="820" y="590" width="96" height="48" rx="6" fill="#000"/>
+  <text class="stub-number" x="868" y="624" text-anchor="middle" font-size="34" font-weight="900" fill="#fff">{{BIB_NUMBER}}</text>
+</svg>
