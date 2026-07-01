@@ -5,7 +5,7 @@
 - [x] **v1.0 Meshtastic Flasher MVP** - Phases 1-4 (shipped 2026-03-02)
 - [x] **v1.1 CMS Content Types** - Phases 5-9 (shipped 2026-03-05)
 - [x] **v1.2 User Checkins** - Phases 10-13 (shipped 2026-03-06)
-- [ ] **v1.3 Meshtk Integration** - Phases 14-18 (in progress)
+- [ ] **v1.3 Meshtk Integration** - Phases 14-17 (Phase 18 deferred to backlog)
 
 ## Phases
 
@@ -43,7 +43,8 @@ See `.planning/milestones/v1.2-ROADMAP.md` for archived v1.2 roadmap.
 - [x] **Phase 15: Container Images + Task Definition** - Mosquitto, meshtk, nginx/meshobserv, ghosts Dockerfiles and 4-container ECS task (completed 2026-03-07)
 - [x] **Phase 16: Build/Deploy Pipeline** - build.sh, deploy.sh, release-all.sh adapted for mqtt multi-container service (completed 2026-03-07)
 - [x] **Phase 17: Meshmap Verification + Branding** - Validate meshmap features ported from DC33, apply DC34 branding (completed 2026-03-07)
-- [ ] **Phase 18: Fleet Simulator + Easter Egg** - Ghost fleet with GPX movement and meshmap easter egg
+
+> **Phase 18: Fleet Simulator + Easter Egg** — deferred out of v1.3 (non-essential easter egg). See `.planning/backlog/fleet-simulator-easter-egg.md`.
 
 ## Phase Details
 
@@ -109,23 +110,14 @@ Plans:
 Plans:
 - [ ] 17-01-PLAN.md — Port meshmap HTML + assets from DC33, update branding/paths/ghost mode, update Dockerfile
 
-### Phase 18: Fleet Simulator + Easter Egg
-**Goal**: Simulated ghost fleet populates meshmap with moving nodes and a hidden easter egg rewards discovery
-**Depends on**: Phase 17
-**Requirements**: FLEET-01, FLEET-02, FLEET-03, FLEET-04
-**Success Criteria** (what must be TRUE):
-  1. Fleet simulator publishes simulated node positions via MQTT that appear on meshmap following GPX-based movement paths
-  2. Simulation lifecycle ramps up nodes gradually, maintains steady-state, and ramps down with configurable timing
-  3. Konami code or theme toggle on meshmap reveals ghost nodes with custom icons and triggers an accomplishment API call to run.defcon.run
-**Plans**: TBD
-
-Plans:
-- [ ] 18-01: TBD
+> **Phase 18: Fleet Simulator + Easter Egg** was deferred out of v1.3 on 2026-07-01
+> (non-essential easter egg). Preserved in `.planning/backlog/fleet-simulator-easter-egg.md`
+> for a future milestone.
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
+Phases execute in numeric order: 14 -> 15 -> 16 -> 17
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -133,4 +125,3 @@ Phases execute in numeric order: 14 -> 15 -> 16 -> 17 -> 18
 | 15. Container Images + Task Definition | 3/3 | Complete    | 2026-03-07 | - |
 | 16. Build/Deploy Pipeline | 2/2 | Complete    | 2026-03-07 | - |
 | 17. Meshmap Verification + Branding | 1/1 | Complete    | 2026-03-07 | - |
-| 18. Fleet Simulator + Easter Egg | v1.3 | 0/? | Not started | - |
