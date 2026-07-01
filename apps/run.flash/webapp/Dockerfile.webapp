@@ -64,6 +64,8 @@ COPY . .
 
 # Copy firmware binaries into public/firmware/ for build.sh S3 extraction
 COPY --from=firmware /firmware/ ./public/firmware/
+COPY --from=firmware /firmware/VERSION.txt /tmp/FIRMWARE_VERSION
+COPY --from=firmware /hardware/hardware-list.json ./public/data/hardware-list.json
 
 ARG NEXT_PUBLIC_ASSET_PREFIX=""
 ARG WEBAPP_PREFIX="use1/assets"
@@ -78,7 +80,21 @@ ENV NEXT_PUBLIC_VERSION_NGINX=$VERSION_NGINX
 ENV NEXT_PUBLIC_VERSION_APP=$VERSION_WEBAPP
 ENV REGION_SHORT=$REGION_SHORT
 
-RUN npm run build
+# Thread the Stage-1 resolved version into the Next.js build so
+# next.config.ts's NEXT_PUBLIC_FIRMWARE_VERSION assertion passes and the value
+# is embedded in the client bundle (FLSH-07). Export + build in one RUN so the
+# env is in scope for npm run build.
+RUN FW_VER=$(cat /tmp/FIRMWARE_VERSION) && \
+    test -n "$FW_VER" && \
+    export NEXT_PUBLIC_FIRMWARE_VERSION="$FW_VER" && \
+    echo "Building with NEXT_PUBLIC_FIRMWARE_VERSION=$NEXT_PUBLIC_FIRMWARE_VERSION" && \
+    npm run build
+
+# Offline guarantee gate (DPLY-06): fail the build if any meshtastic hostname
+# leaks into the client bundle. Runtime must never talk to meshtastic.org.
+RUN if grep -rE 'api\.meshtastic\.org|github\.com/meshtastic' .next/standalone .next/static 2>/dev/null; then \
+      echo "ERROR: meshtastic hostname leaked into client bundle — offline guarantee (DPLY-06) violated" && exit 1; \
+    fi
 
 # Stage 3: Production runtime
 FROM node:current-alpine AS runner
