@@ -1,12 +1,7 @@
 import type { DeviceHardware } from "@/types/device";
 
-/**
- * DCR34-pinned Meshtastic firmware version.
- * TODO: Update when event firmware version is finalized.
- * This is a placeholder version -- the code works with any Meshtastic release
- * since the naming convention is stable.
- */
-export const FIRMWARE_VERSION = "2.6.11.60ec05e";
+// Injected at build time from Dockerfile.webapp builder ARG (production) or scripts/download-firmware.sh -> .env.local (local dev).
+export const FIRMWARE_VERSION = process.env.NEXT_PUBLIC_FIRMWARE_VERSION ?? "";
 
 /** Base path for firmware binaries.
  * In production, firmware is served from S3 via CloudFront using the asset prefix.
@@ -24,7 +19,7 @@ export function getFactoryFilename(
   device: DeviceHardware,
   version: string = FIRMWARE_VERSION
 ): string {
-  return `firmware-${device.platformioTarget}-${version}.bin`;
+  return `firmware-${device.platformioTarget}-${version}.factory.bin`;
 }
 
 /**
