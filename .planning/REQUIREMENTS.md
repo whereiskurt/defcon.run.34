@@ -56,13 +56,13 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FLSH-06 | TBD | Pending |
-| FLSH-07 | TBD | Pending |
-| FLSH-08 | TBD | Pending |
-| DEVC-06 | TBD | Pending |
-| DPLY-06 | TBD | Pending |
-| DEPS-01 | TBD | Pending |
-| BRND-01 | TBD | Pending |
-| BRND-02 | TBD | Pending |
+| FLSH-06 | Phase 18 | Pending |
+| FLSH-07 | Phase 18 | Pending |
+| FLSH-08 | Phase 18 | Pending |
+| DEVC-06 | Phase 18 | Pending |
+| DPLY-06 | Phase 18 | Pending |
+| DEPS-01 | Phase 19 | Pending |
+| BRND-01 | Phase 19 | Pending |
+| BRND-02 | Phase 19 | Pending |
 
 *(Phase column filled in by the roadmapper.)*

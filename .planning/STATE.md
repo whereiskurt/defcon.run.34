@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-07-01T12:28:33.519Z"
 last_activity: 2026-07-01
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation.
-**Current focus:** Phase 17 - Meshmap Verification + Branding -- COMPLETE
+**Current focus:** v1.4 Flash Service Refresh -- roadmap drafted (Phases 18-19), ready to plan Phase 18
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 18 - Build-Time Firmware & Device List Refresh (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-07-01 — Milestone v1.4 started
+Status: Roadmap drafted; ready for /gsd-plan-phase 18
+Last activity: 2026-07-01 — v1.4 roadmap created (Phases 18-19)
 
 ## Accumulated Context
 
@@ -36,6 +36,8 @@ Last activity: 2026-07-01 — Milestone v1.4 started
 See PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [v1.4]: Latest-stable firmware resolved at build time (not runtime) — preserves zero-runtime-dependency guarantee
+- [v1.4]: No firmware version picker — one auto-tracked stable build (supersedes v1.0 out-of-scope note)
 - [v1.3]: NLB-only for mqtt.defcon.run (no CloudFront -- MQTT is raw TCP)
 - [v1.3]: Route53 latency routing for NLB (nearest region)
 - [v1.3]: Meshtk as gitignored copy (avoid submodule overhead)
@@ -61,6 +63,7 @@ None.
 
 ### Blockers/Concerns
 
+- [v1.4 / Phase 18]: FLSH-08 open risk — current build keeps app-only `firmware-{target}-{version}.bin` written at `0x00`, not `*.factory.bin`; app-only at `0x00` may not boot. Validate factory-image correctness before relying on the version-resolution change.
 - ~~ecs-service module auto-enables Proxy Protocol v2 on NLB TCP targets~~ FIXED in 14-01
 - ~~Security group outputs exclude MQTT ports~~ FIXED in 14-01 (conditional NLB SG)
 - ~~Route53 NLB alias records not covered by existing cloudfront module~~ FIXED in 14-01 (new nlb-dns module)
@@ -84,6 +87,8 @@ Items acknowledged and deferred at v1.3 milestone close on 2026-07-01
 
 Also deferred: **Phase 18 Fleet Simulator + Easter Egg** (v1.3 scope, non-essential
 easter egg) → `.planning/backlog/fleet-simulator-easter-egg.md`.
+Note: v1.4 reuses the phase number 18 for Build-Time Firmware & Device List Refresh;
+the deferred fleet-simulator work lives only in the backlog file, not as a numbered phase.
 
 ## Session Continuity
 
@@ -93,4 +98,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Plan the first v1.4 phase with /gsd-plan-phase 18
