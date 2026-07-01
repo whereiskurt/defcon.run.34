@@ -5,45 +5,64 @@ import { Wrench, ExternalLink } from "lucide-react";
 
 /**
  * Expandable troubleshooting section for serial connection failures.
- * Shows generic ESP32 bootloader guidance plus link to Meshtastic docs.
- * Per CONTEXT.md: hidden by default, brief error visible, detailed steps expandable.
+ *
+ * Per Phase 19-02 (BRND-02):
+ * - Intro copy is scoped to "the flasher couldn't open serial" — not generic help.
+ * - Step 3 notes that current-gen ESP32-S3/C3/C6 boards auto-enter bootloader
+ *   on connect, so manual BOOT/RESET is only needed as a fallback.
+ * - Outbound link kept at the current Meshtastic flashing docs URL.
+ * - Kept hidden by default (Accordion) per CONTEXT.md.
  */
 export function BootloaderHelp() {
   return (
     <Accordion variant="bordered" className="mt-3">
       <AccordionItem
         key="troubleshooting"
-        aria-label="Troubleshooting Connection Issues"
+        aria-label="Serial connect troubleshooting"
         title={
           <span className="flex items-center gap-2 text-sm font-mono text-default-400">
             <Wrench className="w-4 h-4" />
-            Troubleshooting Connection Issues
+            Serial connect failed? Try these
           </span>
         }
       >
         <div className="terminal-block p-4 space-y-3 text-sm">
+          <p className="text-default-400">
+            The browser couldn&apos;t open a serial link to your device. Work
+            through the steps below in order &mdash; most connect failures fall
+            out at step 1 or 2.
+          </p>
           <ol className="list-decimal list-inside space-y-2 text-default-400">
             <li>
-              Make sure your device is connected via USB cable
+              Confirm the device is plugged into <span className="font-mono text-default-200">this</span>{" "}
+              computer with a data-capable USB cable (charge-only cables are a
+              common cause &mdash; they enumerate power but not serial).
             </li>
             <li>
-              Close any other apps using the serial port (Arduino IDE, PlatformIO,
-              serial monitors)
+              Close any other program holding the serial port &mdash; Arduino
+              IDE, PlatformIO, the Meshtastic CLI, or another browser tab
+              running the flasher.
             </li>
             <li>
-              Put your device in bootloader mode: Hold the{" "}
-              <span className="font-mono text-default-200">BOOT</span> button,
-              press and release{" "}
+              Most current-generation ESP32-S3 / C3 / C6 boards auto-enter
+              bootloader mode on connect, so you should not need to press BOOT
+              first. Try Connect once; only fall through to manual bootloader
+              (step 4) if the chip doesn&apos;t respond.
+            </li>
+            <li>
+              Manual bootloader mode (fallback): hold{" "}
+              <span className="font-mono text-default-200">BOOT</span>, tap{" "}
               <span className="font-mono text-default-200">RESET</span>, then
-              release{" "}
-              <span className="font-mono text-default-200">BOOT</span>
+              release <span className="font-mono text-default-200">BOOT</span>,
+              then click Connect.
             </li>
             <li>
-              If using ESP32-C3 with USB-JTAG, try a different USB port or cable
+              ESP32-C3 with USB-JTAG: swap to a different USB port or bypass
+              hubs &mdash; some hubs strip the JTAG interface.
             </li>
             <li>
-              Try a different USB cable &mdash; some cables are charge-only and
-              don&apos;t carry data
+              Still stuck? Try a different data USB cable and a different port
+              on your computer.
             </li>
           </ol>
           <div className="pt-2 border-t border-default-200/20">
@@ -54,7 +73,7 @@ export function BootloaderHelp() {
               anchorIcon={<ExternalLink className="w-3 h-3 ml-1" />}
               className="text-sm text-primary"
             >
-              View device-specific instructions
+              Meshtastic device-specific flashing docs
             </Link>
           </div>
         </div>

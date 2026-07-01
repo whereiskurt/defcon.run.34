@@ -11,8 +11,10 @@ interface ChipMismatchWarningProps {
 
 /**
  * Chip architecture mismatch warning.
- * Per CONTEXT.md: mismatch blocks flash with clear warning.
- * This component has no proceed button -- mismatch blocks flash entirely.
+ *
+ * Per CONTEXT.md and Phase 19-02 (BRND-02): mismatch blocks flash entirely
+ * (no proceed button). Copy names both the concrete failure (detected vs.
+ * expected chip family) and the single corrective action (return to picker).
  */
 export function ChipMismatchWarning({
   detectedChipName,
@@ -27,18 +29,20 @@ export function ChipMismatchWarning({
           Chip Mismatch Detected
         </h3>
         <p className="text-sm text-default-400 max-w-md">
-          The connected chip (
-          <span className="font-mono text-default-200">{detectedChipName}</span>
-          ) doesn&apos;t match the selected device (
-          <span className="font-mono text-default-200">{deviceName}</span> /{" "}
+          The connected chip is a{" "}
+          <span className="font-mono text-default-200">{detectedChipName}</span>{" "}
+          but the picker says you selected{" "}
+          <span className="font-mono text-default-200">{deviceName}</span> (
           <span className="font-mono text-default-200">
             {expectedArchitecture}
           </span>
-          ). Flashing the wrong firmware could brick your device.
+          ) &mdash; flashing this firmware to the wrong chip could brick the
+          device.
         </p>
-        <p className="text-xs text-default-500">
-          Please disconnect, verify you&apos;ve selected the correct device in
-          the picker, and try again.
+        <p className="text-sm text-default-300 max-w-md">
+          Return to the device picker and select the correct device &mdash; or
+          disconnect this board and connect the one that matches{" "}
+          <span className="font-mono text-default-200">{deviceName}</span>.
         </p>
       </CardBody>
     </Card>
