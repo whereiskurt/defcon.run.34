@@ -1,12 +1,12 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Flash Service Refresh
+milestone: v1.5
+milestone_name: Bib Registration
 status: planning
-last_updated: "2026-07-01T12:28:33.519Z"
+last_updated: "2026-07-01T18:04:07.314Z"
 last_activity: 2026-07-01
 progress:
-  total_phases: 2
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 18 - Build-Time Firmware & Device List Refresh (not started)
+Phase: Not started (defining requirements)
 Plan: —
-Status: Roadmap drafted; ready for /gsd-plan-phase 18
-Last activity: 2026-07-01 — v1.4 roadmap created (Phases 18-19)
+Status: Defining requirements
+Last activity: 2026-07-01 — Milestone v1.5 started
 
 ## Accumulated Context
 

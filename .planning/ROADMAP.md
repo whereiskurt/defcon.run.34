@@ -6,8 +6,8 @@
 - [x] **v1.1 CMS Content Types** - Phases 5-9 (shipped 2026-03-05)
 - [x] **v1.2 User Checkins** - Phases 10-13 (shipped 2026-03-06)
 - [x] **v1.3 Meshtk Integration** - Phases 14-17 (shipped 2026-07-01)
-- [ ] **v1.4 Flash Service Refresh** - Phases 18-19 (in progress)
-- [ ] **v1.5 Bib Registration** - Phases 20-23 (planned)
+- [ ] **v1.4 Flash Service Refresh** - Phases 18-19 (in progress — parallel branch ms/v1.4-flash)
+- [ ] **v1.5 Bib Registration** - Phases 20-23 (ACTIVE on this branch ms/v1.5-bib)
 
 ## Phases
 
@@ -82,7 +82,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for archived v1.3 roadmap.
 **Plans**: TBD
 **UI hint**: yes
 
-### v1.5 Bib Registration (Planned)
+### v1.5 Bib Registration (Phases 20-23) - ACTIVE
 
 **Milestone Goal:** Participants register a race bib at bib.defcon.run -- enter the name to print on the bib (auto-shrinking to fit, ~32-char cap) and give via preset tiers ($10/$20/$50/$500), paying at launch through **cash on-site, Stripe (cards + Apple/Google Pay), or PayPal/Venmo** behind one provider-agnostic seam (crypto BTC/ETH seam-ready but deferred) -- deployed to both regions using the same two-container (nginx + Next.js) ECS Fargate + CloudFront layout as flash.defcon.run, with the run.gpx auth pattern, and shipped through the existing GitHub Actions held-release pipeline (no new workflow).
 

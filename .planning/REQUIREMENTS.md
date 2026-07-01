@@ -1,68 +1,96 @@
-# Requirements: v1.4 Flash Service Refresh
+# Requirements: v1.5 Bib Registration (planned)
 
-**Milestone Goal:** `run.flash` flashes the latest *stable* Meshtastic firmware — resolved automatically at build time and presented as the DCR34 "run.defcon.run firmware" — with a refreshed ESP32-only device list, bumped dependencies, and a DCR34 branding/UX pass.
+> Dedicated requirements for the planned v1.5 Bib Registration milestone (phases 20-23). The active milestone (v1.4 Flash Service Refresh) owns root `REQUIREMENTS.md`; this file is promoted to root when Bib becomes active.
 
-**App:** `apps/run.flash/webapp` (Next.js 16 / React 19 / HeroUI). Deployed multi-region (use1/cac1) with firmware assets vendored into the Docker image.
+**Defined:** 2026-07-01
+**Core Value:** Participants and organizers have a seamless digital experience for DCR34 — from device setup to event discovery to route navigation — all through the browser.
+**Active milestone:** v1.5 Bib Registration. Requirements for shipped milestones (v1.0–v1.3) are archived under `.planning/milestones/`.
 
-**Anchor decision:** Latest-stable is resolved at **build time** (not runtime), preserving v1.0's zero-runtime-dependency guarantee. No firmware version picker — one auto-tracked stable build.
+## v1.5 Requirements
 
----
+Requirements for the Bib Registration milestone (bib.defcon.run). Each maps to roadmap phases 20-23. Layout mirrors flash.defcon.run (two-container Next.js + nginx ECS Fargate + CloudFront, multi-region), shipped via the existing GitHub Actions held-release pipeline.
 
-## Requirements
+### Infrastructure
 
-### Firmware Versioning (FLSH)
+- [ ] **BIB-01**: `bib` added to `dns.subdomains`; ACM cert + CloudFront distribution for bib.defcon.run in both regions (us-east-1 + ca-central-1)
+- [ ] **BIB-02**: ECR repositories `dc34-run-bib-nginx` and `dc34-run-bib-app` created in both regions
+- [ ] **BIB-03**: `services/run.bib/service.hcl` defines a two-container (nginx + app) ECS task, ALB load_balancer, and service discovery — both-region, modeled on run.flash
+- [ ] **BIB-04**: SSM parameters for bib — OIDC client id/secret, Stripe secret key + webhook signing secret, and PayPal client id/secret + webhook id under `/{site_label}/secrets/{region_label}/bib/...` (both processors wired at launch; crypto adds its own later)
+- [ ] **BIB-05**: `site.hcl` reads `services/run.bib/service.hcl` via `read_terragrunt_config`; bib reuses the shared `run-human-electro` DynamoDB table (no new table)
 
-- [ ] **FLSH-06**: The Docker build resolves the latest **stable** Meshtastic release tag from `api.meshtastic.org/github/firmware/list` (`releases.stable[0]`) instead of a hardcoded version, and vendors that release's binaries.
-- [ ] **FLSH-07**: `FIRMWARE_VERSION` is a build-injected single source of truth (no manual placeholder in `src/config/firmware.ts`); the resolved version is surfaced in the flasher UI.
-- [ ] **FLSH-08**: The flasher vendors and writes the correct **factory** image at offset `0x00` with full erase → write → MD5 verify. Confirm current behavior (which keeps `firmware-{target}-{version}.bin` and writes at `0x00`) flashes a bootable device; switch to `*.factory.bin` if it does not.
+### App & Registration
 
-### Device List (DEVC)
+- [ ] **BIB-06**: Next.js webapp scaffold at `apps/run.bib/webapp/` mirroring run.flash (region basePath/middleware, providers, theme, fonts, auth config)
+- [ ] **BIB-07**: `Bib` ElectroDB entity on the shared electro table — `ownerSub` (OIDC sub), name-on-bib, bib number, size, payment status/amount/provider, timestamps, plus an index to fetch a user's registration by `ownerSub`
+- [ ] **BIB-21**: Bib is **account-linked** — the chosen bib is written to the authenticated user's account (keyed by OIDC `sub`) and shown to them on every subsequent login; one bib per account (idempotent create), never anonymous. Note: `sub` ≠ Auth.js `userId`; surfacing the bib on the run.human profile (via `sub → userId` internal-API resolution) is an optional, deferred enhancement
+- [ ] **BIB-08**: Registration form — enter name on bib with validation (~32-character hard cap enforced client + server, allowed characters) and a live bib preview
+- [ ] **BIB-09**: API routes — create registration (idempotent per user) and fetch the signed-in user's registration; unauthenticated requests rejected
+- [ ] **BIB-18**: Registration UI rendered as a standard physical-looking race bib — large bib number, prominent name-on-bib, DC34 branding (2026), classic bib styling (border, registration-mark/safety-pin accents); live preview updates as the user types and is reused on the confirmation page; the name text **auto-shrinks to fit the bib width** (large for short names, scaling down as the name grows, no wrap/truncation) up to the ~32-char cap; built as one swappable component (prior-year layouts are external reference, not a blocker)
+- [ ] **BIB-10**: Login REQUIRED to get a bib — OIDC auth via auth.defcon.run using the **run.gpx Auth.js pattern** (copy gpx `config/auth.ts` + `middleware.ts` + `signin`/`access-denied`, rename cookies + claim to `bib`): edge middleware redirects unauthenticated users to `/signin`, then gates on the `bib` service claim with live claim re-validation (lockout + sessionVersion)
 
-- [ ] **DEVC-06**: `public/data/hardware-list.json` is regenerated at build time from `api.meshtastic.org/resource/deviceHardware`, filtered to ESP32-family (`esp32`, `esp32-s3`, `esp32-c3`, `esp32-c6`), with the DCR34 Recommended set preserved and sorted first.
+### Payment
 
-### Deployment (DPLY)
+> **Multiple methods at launch:** v1.5 supports **cash on-site, Stripe (cards + Apple/Google Pay), and PayPal/Venmo** from day one, all behind one `PaymentProvider` seam (`lib/payments/`) with a registry, provider-generic webhook route, shared idempotent `paid` transition, and a `fake` provider for CI. Adding a provider is a new file, not a refactor.
+>
+> **Ownership:** Claude scaffolds working Stripe and PayPal/Venmo integrations against the seam. The other developer owns only the real **Stripe account + go-live keys** (test/sandbox creds drive development). **Crypto (BTC/ETH)** is seam-ready but **deferred** — not implemented in v1.5; rail (Coinbase Commerce vs BTCPay Server) chosen later.
+>
+> **Minimal switch-on / add-provider:** localized — (1) populate that provider's SSM secrets, (2) implement its single `lib/payments/<provider>.ts` (`createCheckout()` + `verifyWebhook()`), (3) register it + flip its enable flag. No schema or UI changes.
+>
+> **Testing:** Stripe test mode (`sk_test_…`), test cards (`4242…` success, `4000…9995` decline, `4000…3155` 3DS), Stripe CLI (`stripe listen --forward-to …/api/payments/stripe/webhook` + `stripe trigger`); PayPal **sandbox** (sandbox client id/secret + sandbox buyer accounts); the `fake` provider exercises register→pay→confirm in CI with no external dependency.
 
-- [ ] **DPLY-06**: Latest-stable resolution and hardware-list regeneration happen at **build time** only; the running container has zero external runtime dependency on GitHub or `api.meshtastic.org` (offline-at-event guarantee preserved). A clean image build with no code edits produces a flasher on the current stable firmware.
+- [ ] **BIB-11**: Give-amount selection — preset tiers $10 / $20 / $50 / $500 (USD, config-driven) recorded on the registration as amount + currency
+- [ ] **BIB-20**: Payment-method chooser at checkout — cash / Stripe / PayPal-Venmo, driven by the enabled-provider registry; the chosen `paymentProvider` is recorded on the registration (crypto option hidden until implemented)
+- [ ] **BIB-12**: "Pay on site (cash)" — registration stored in `pay_on_site` state with the intended amount recorded; collected in person, no online charge
+- [ ] **BIB-13**: `PaymentProvider` seam + **Stripe provider** — registry, provider-generic webhook route (`/api/payments/[provider]/webhook`) with signature verify + idempotent `paid` transition, `fake` provider for CI, and a working Stripe implementation (Checkout create + webhook normalize) verified in test mode
+- [ ] **BIB-19**: **PayPal/Venmo provider** — working implementation behind the seam (PayPal Orders API create/capture; Venmo as a PayPal funding source), webhook verify/normalize, verified in PayPal sandbox
+- [ ] **BIB-14**: Confirmation page shows authoritative payment status (paid / pending / pay-on-site + amount + provider) sourced from the persisted registration, not the client redirect alone
 
-### Dependencies (DEPS)
+### Build & Deploy
 
-- [ ] **DEPS-01**: Bump `@meshtastic/core`, `@meshtastic/transport-web-serial`, and `esptool-js` to their latest compatible versions; carry over the `tlora-t3s3 → flashMode 'dio'` quirk; the full pick → connect → flash → configure → done flow works with no regression.
+- [ ] **BIB-15**: `build.sh`, `deploy.sh`, and `release-all.sh` support `run.bib` (nginx + app components, VERSION files)
+- [ ] **BIB-16**: `buildpub.yml` (apps input default + repo→domain map) and `deploy.yml` include run.bib — piggyback the existing held-release PR + per-region deploy flow with no new workflow
+- [ ] **BIB-17**: Both-region deployment verified at bib.defcon.run with DC34 branding (sign in → register → pay via cash / Stripe / PayPal end-to-end)
 
-### Branding & UX (BRND)
+## Deferred (v2)
 
-- [ ] **BRND-01**: The UI presents the firmware as the DCR34 **"run.defcon.run firmware"** (with the underlying Meshtastic version shown as a subtitle, e.g. "run.defcon.run firmware · Meshtastic {version}"), replacing generic Meshtastic version strings.
-- [ ] **BRND-02**: Connect, bootloader-help, and error-state UX are aligned with the current flasher.meshtastic.org patterns (clear bootloader/DFU guidance, chip-mismatch messaging, actionable serial-error copy).
+Tracked but not in the current roadmap.
 
----
+### Payments (seam ready in v1.5)
 
-## Future Requirements (deferred)
-
-- Runtime firmware refresh / "check for newer stable" while online — deferred; build-time vendoring is the chosen model for the event.
-- nRF52 / RP2040 (UF2/DFU) device support — out of ESP32-only scope.
-
----
-
-## Out of Scope
-
-- **Firmware version picker UI** — one auto-tracked stable build; version choice confuses novice users (carried from v1.0).
-- **Custom / event-hosted firmware builds** — stock Meshtastic stable only; no `event/{pathPrefix}` hosting of our own binaries.
-- **Runtime dependency on api.meshtastic.org / GitHub** — resolution is build-time only.
-- **Firefox / Safari support** — Web Serial is Chrome/Edge only.
-- **BLE flashing** — USB Web Serial only for initial provisioning.
-
----
+- **PAY-01**: Crypto (BTC/ETH) payment provider behind the v1.5 `PaymentProvider` seam — rail decision pending (Coinbase Commerce hosted/custodial vs BTCPay Server self-hosted/non-custodial). Seam, DB `paymentProvider` field, and generic webhook route already support it; only the provider file + its secrets/infra remain.
 
 ## Traceability
 
+Which phases cover which v1.5 requirements.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FLSH-06 | Phase 18 | Pending |
-| FLSH-07 | Phase 18 | Pending |
-| FLSH-08 | Phase 18 | Pending |
-| DEVC-06 | Phase 18 | Pending |
-| DPLY-06 | Phase 18 | Pending |
-| DEPS-01 | Phase 19 | Pending |
-| BRND-01 | Phase 19 | Pending |
-| BRND-02 | Phase 19 | Pending |
+| BIB-01 | Phase 20 | Planned |
+| BIB-02 | Phase 20 | Planned |
+| BIB-03 | Phase 20 | Planned |
+| BIB-04 | Phase 20 | Planned |
+| BIB-05 | Phase 20 | Planned |
+| BIB-06 | Phase 21 | Planned |
+| BIB-07 | Phase 21 | Planned |
+| BIB-08 | Phase 21 | Planned |
+| BIB-09 | Phase 21 | Planned |
+| BIB-10 | Phase 21 | Planned |
+| BIB-18 | Phase 21 | Planned |
+| BIB-21 | Phase 21 | Planned |
+| BIB-11 | Phase 22 | Planned |
+| BIB-20 | Phase 22 | Planned |
+| BIB-12 | Phase 22 | Planned |
+| BIB-13 | Phase 22 | Planned |
+| BIB-19 | Phase 22 | Planned |
+| BIB-14 | Phase 22 | Planned |
+| BIB-15 | Phase 23 | Planned |
+| BIB-16 | Phase 23 | Planned |
+| BIB-17 | Phase 23 | Planned |
 
-*(Phase column filled in by the roadmapper.)*
+**Coverage:**
+- v1.5 requirements: 21 total
+- Mapped to phases: 21
+- Unmapped: 0 (crypto BTC/ETH provider is a deferred seam, tracked as PAY-01)
+
+---
+*Requirements defined: 2026-07-01 (v1.5 Bib Registration milestone)*
