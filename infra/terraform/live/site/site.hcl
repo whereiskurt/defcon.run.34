@@ -232,7 +232,8 @@ locals {
       local.service_conf.cms.locals.task_worker,
       local.service_conf.gpx.locals.task,
       local.service_conf.flash.locals.task,
-      local.service_conf.mqtt.locals.task
+      local.service_conf.mqtt.locals.task,
+      local.service_conf.bib.locals.task
     ]
   }
 
@@ -245,7 +246,8 @@ locals {
       local.service_conf.cms.locals.service_worker,
       local.service_conf.gpx.locals.service,
       local.service_conf.flash.locals.service,
-      local.service_conf.mqtt.locals.service
+      local.service_conf.mqtt.locals.service,
+      local.service_conf.bib.locals.service
     ]
   }
 
