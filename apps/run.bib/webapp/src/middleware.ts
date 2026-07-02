@@ -33,6 +33,27 @@ const REGION_BASEPATH =
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
+  // Auth.js generates redirect_uri using its own basePath = "/api/auth"
+  // (see config/auth.ts). Because Next.js `basePath: /use1` strips the
+  // prefix BEFORE Auth.js sees the request, Auth.js can't include /use1
+  // in the redirect_uri it sends to the OIDC server. The auth server then
+  // redirects the browser back to a NAKED URL like
+  // /api/auth/callback/run.defcon.run which — without a rewrite — hits
+  // Next.js at that path and 404s (no route exists outside basePath).
+  //
+  // Rewrite naked /api/auth/* to /use1/api/auth/* so Next.js can match
+  // the route file (routing strips /use1 again, so the file at
+  // src/app/api/auth/[...nextauth]/route.ts serves both URLs).
+  if (
+    REGION_BASEPATH &&
+    pathname.startsWith("/api/auth/") &&
+    !pathname.startsWith(REGION_BASEPATH)
+  ) {
+    const rewriteUrl = req.nextUrl.clone();
+    rewriteUrl.pathname = `${REGION_BASEPATH}${pathname}`;
+    return NextResponse.rewrite(rewriteUrl);
+  }
+
   // In prod with basePath (e.g. `/use1`), incoming pathname INCLUDES the
   // prefix — strip it for the whitelist comparison so entries like
   // `"/signin"` match both dev (no basePath) and prod (`/use1/signin`).
