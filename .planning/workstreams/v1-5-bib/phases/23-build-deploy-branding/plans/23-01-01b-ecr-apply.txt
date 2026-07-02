@@ -1,0 +1,261 @@
+data.aws_caller_identity.current: Reading...
+data.aws_region.current: Reading...
+data.aws_region.current: Read complete after 0s [id=us-east-1]
+data.aws_caller_identity.current: Read complete after 0s [id=427284555693]
+aws_ecr_repository.repository["run-cms-app"]: Refreshing state... [id=dc34-run-cms-app]
+aws_ecr_repository.repository["run-flash-nginx"]: Refreshing state... [id=dc34-run-flash-nginx]
+aws_ecr_repository.repository["run-mqtt-mosquitto"]: Refreshing state... [id=dc34-run-mqtt-mosquitto]
+aws_ecr_repository.repository["run-bib-nginx"]: Refreshing state... [id=dc34-run-bib-nginx]
+aws_ecr_repository.repository["run-cms-nginx"]: Refreshing state... [id=dc34-run-cms-nginx]
+aws_ecr_repository.repository["run-bib-app"]: Refreshing state... [id=dc34-run-bib-app]
+aws_ecr_repository.repository["run-flash-app"]: Refreshing state... [id=dc34-run-flash-app]
+aws_ecr_repository.repository["run-auth-nginx"]: Refreshing state... [id=dc34-run-auth-nginx]
+aws_ecr_repository.repository["run-auth-app"]: Refreshing state... [id=dc34-run-auth-app]
+aws_ecr_repository.repository["run-human-app"]: Refreshing state... [id=dc34-run-human-app]
+aws_ecr_repository.repository["run-gpx-app"]: Refreshing state... [id=dc34-run-gpx-app]
+aws_ecr_repository.repository["run-mqtt-nginx"]: Refreshing state... [id=dc34-run-mqtt-nginx]
+aws_ecr_repository.repository["run-human-nginx"]: Refreshing state... [id=dc34-run-human-nginx]
+aws_ecr_repository.repository["run-mqtt-meshtk"]: Refreshing state... [id=dc34-run-mqtt-meshtk]
+aws_ecr_repository_policy.policy["run-auth-app"]: Refreshing state... [id=dc34-run-auth-app]
+aws_ecr_repository_policy.policy["run-gpx-app"]: Refreshing state... [id=dc34-run-gpx-app]
+aws_ecr_repository_policy.policy["run-flash-app"]: Refreshing state... [id=dc34-run-flash-app]
+aws_ecr_repository_policy.policy["run-human-nginx"]: Refreshing state... [id=dc34-run-human-nginx]
+aws_ecr_repository_policy.policy["run-mqtt-mosquitto"]: Refreshing state... [id=dc34-run-mqtt-mosquitto]
+aws_ecr_repository_policy.policy["run-mqtt-meshtk"]: Refreshing state... [id=dc34-run-mqtt-meshtk]
+aws_ecr_repository_policy.policy["run-bib-nginx"]: Refreshing state... [id=dc34-run-bib-nginx]
+aws_ecr_repository_policy.policy["run-mqtt-nginx"]: Refreshing state... [id=dc34-run-mqtt-nginx]
+aws_ecr_repository_policy.policy["run-auth-nginx"]: Refreshing state... [id=dc34-run-auth-nginx]
+aws_ecr_repository_policy.policy["run-cms-app"]: Refreshing state... [id=dc34-run-cms-app]
+aws_ecr_repository_policy.policy["run-cms-nginx"]: Refreshing state... [id=dc34-run-cms-nginx]
+aws_ecr_repository_policy.policy["run-flash-nginx"]: Refreshing state... [id=dc34-run-flash-nginx]
+aws_ecr_repository_policy.policy["run-bib-app"]: Refreshing state... [id=dc34-run-bib-app]
+aws_ecr_repository_policy.policy["run-human-app"]: Refreshing state... [id=dc34-run-human-app]
+aws_ecr_lifecycle_policy.policy["run-mqtt-nginx"]: Refreshing state... [id=dc34-run-mqtt-nginx]
+aws_ecr_lifecycle_policy.policy["run-cms-nginx"]: Refreshing state... [id=dc34-run-cms-nginx]
+aws_ecr_lifecycle_policy.policy["run-bib-app"]: Refreshing state... [id=dc34-run-bib-app]
+aws_ecr_lifecycle_policy.policy["run-cms-app"]: Refreshing state... [id=dc34-run-cms-app]
+aws_ecr_lifecycle_policy.policy["run-auth-nginx"]: Refreshing state... [id=dc34-run-auth-nginx]
+aws_ecr_lifecycle_policy.policy["run-human-nginx"]: Refreshing state... [id=dc34-run-human-nginx]
+aws_ecr_lifecycle_policy.policy["run-bib-nginx"]: Refreshing state... [id=dc34-run-bib-nginx]
+aws_ecr_lifecycle_policy.policy["run-auth-app"]: Refreshing state... [id=dc34-run-auth-app]
+aws_ecr_lifecycle_policy.policy["run-human-app"]: Refreshing state... [id=dc34-run-human-app]
+aws_ecr_lifecycle_policy.policy["run-flash-nginx"]: Refreshing state... [id=dc34-run-flash-nginx]
+aws_ecr_lifecycle_policy.policy["run-mqtt-meshtk"]: Refreshing state... [id=dc34-run-mqtt-meshtk]
+aws_ecr_lifecycle_policy.policy["run-gpx-app"]: Refreshing state... [id=dc34-run-gpx-app]
+aws_ecr_lifecycle_policy.policy["run-flash-app"]: Refreshing state... [id=dc34-run-flash-app]
+aws_ecr_lifecycle_policy.policy["run-mqtt-mosquitto"]: Refreshing state... [id=dc34-run-mqtt-mosquitto]
+No changes. Your infrastructure matches the configuration.
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+Warning: Deprecated attribute
+  on main.tf line 44, in locals:
+  44:       repository_url = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.name}.amazonaws.com/${var.site.label}-${repo.name}"
+The attribute "name" is deprecated. Refer to the provider documentation for
+details.
+(and 2 more similar warnings elsewhere)
+Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+Outputs:
+repositories = {
+  "run-auth-app" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-auth-app"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-auth-app"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-auth-app"
+    "scan_on_push" = true
+  }
+  "run-auth-nginx" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-auth-nginx"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-auth-nginx"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-auth-nginx"
+    "scan_on_push" = true
+  }
+  "run-bib-app" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-bib-app"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-bib-app"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-bib-app"
+    "scan_on_push" = true
+  }
+  "run-bib-nginx" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-bib-nginx"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-bib-nginx"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-bib-nginx"
+    "scan_on_push" = true
+  }
+  "run-cms-app" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-cms-app"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-cms-app"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-cms-app"
+    "scan_on_push" = true
+  }
+  "run-cms-nginx" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-cms-nginx"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-cms-nginx"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-cms-nginx"
+    "scan_on_push" = true
+  }
+  "run-flash-app" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-flash-app"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-flash-app"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-flash-app"
+    "scan_on_push" = true
+  }
+  "run-flash-nginx" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-flash-nginx"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-flash-nginx"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-flash-nginx"
+    "scan_on_push" = true
+  }
+  "run-gpx-app" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-gpx-app"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-gpx-app"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-gpx-app"
+    "scan_on_push" = true
+  }
+  "run-human-app" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-human-app"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-human-app"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-human-app"
+    "scan_on_push" = true
+  }
+  "run-human-nginx" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-human-nginx"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-human-nginx"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-human-nginx"
+    "scan_on_push" = true
+  }
+  "run-mqtt-meshtk" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-mqtt-meshtk"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-mqtt-meshtk"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-meshtk"
+    "scan_on_push" = true
+  }
+  "run-mqtt-mosquitto" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-mqtt-mosquitto"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-mqtt-mosquitto"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-mosquitto"
+    "scan_on_push" = true
+  }
+  "run-mqtt-nginx" = {
+    "arn" = "arn:aws:ecr:us-east-1:427284555693:repository/dc34-run-mqtt-nginx"
+    "encryption_type" = "AES256"
+    "image_tag_mutability" = "IMMUTABLE"
+    "region" = "us-east-1"
+    "region_label" = "use1"
+    "registry_id" = "427284555693"
+    "repository_name" = "dc34-run-mqtt-nginx"
+    "repository_url" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-nginx"
+    "scan_on_push" = true
+  }
+}
+repository_names = [
+  "dc34-run-auth-app",
+  "dc34-run-auth-nginx",
+  "dc34-run-bib-app",
+  "dc34-run-bib-nginx",
+  "dc34-run-cms-app",
+  "dc34-run-cms-nginx",
+  "dc34-run-flash-app",
+  "dc34-run-flash-nginx",
+  "dc34-run-gpx-app",
+  "dc34-run-human-app",
+  "dc34-run-human-nginx",
+  "dc34-run-mqtt-meshtk",
+  "dc34-run-mqtt-mosquitto",
+  "dc34-run-mqtt-nginx",
+]
+repository_urls = {
+  "run-auth-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-auth-app"
+  "run-auth-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-auth-nginx"
+  "run-bib-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-bib-app"
+  "run-bib-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-bib-nginx"
+  "run-cms-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-cms-app"
+  "run-cms-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-cms-nginx"
+  "run-flash-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-flash-app"
+  "run-flash-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-flash-nginx"
+  "run-gpx-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-gpx-app"
+  "run-human-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-human-app"
+  "run-human-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-human-nginx"
+  "run-mqtt-meshtk" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-meshtk"
+  "run-mqtt-mosquitto" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-mosquitto"
+  "run-mqtt-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-nginx"
+}
+repository_urls_with_latest = {
+  "run-auth-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-auth-app:latest"
+  "run-auth-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-auth-nginx:latest"
+  "run-bib-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-bib-app:latest"
+  "run-bib-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-bib-nginx:latest"
+  "run-cms-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-cms-app:latest"
+  "run-cms-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-cms-nginx:latest"
+  "run-flash-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-flash-app:latest"
+  "run-flash-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-flash-nginx:latest"
+  "run-gpx-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-gpx-app:latest"
+  "run-human-app" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-human-app:latest"
+  "run-human-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-human-nginx:latest"
+  "run-mqtt-meshtk" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-meshtk:latest"
+  "run-mqtt-mosquitto" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-mosquitto:latest"
+  "run-mqtt-nginx" = "427284555693.dkr.ecr.us-east-1.amazonaws.com/dc34-run-mqtt-nginx:latest"
+}
