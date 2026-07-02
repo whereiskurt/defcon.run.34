@@ -1,7 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 
 /**
- * Plan 22-04-3 tests: canPrintName gate (SC8).
+ * Plan 22-05-01 tests: canPrintName gate (rescoped from Plan 22-04-3).
+ *
+ * Phase 22-05 rescope (Kurt 2026-07-02): bib registration is FREE. The
+ * former `paidAmount >= 1000` check was DROPPED — the print gate is now
+ * `nameLocked === true` alone. Payment is orthogonal.
+ *
+ * These tests replace the earlier Plan 22-04 assertions that required BOTH
+ * `paidAmount >= 1000` AND `nameLocked` — those semantics are gone.
  *
  * Mocks ElectroDB + client the same way runner-code.test.ts +
  * budget-counter.test.ts do — the SUT touches Entity at module load, and
@@ -9,12 +16,11 @@ import { describe, it, expect, vi } from "vitest";
  * with a stub.
  *
  * Coverage:
- *   - Both conditions true → true
- *   - paidAmount below cap → false
- *   - nameLocked false → false
- *   - Both false → false
+ *   - nameLocked=true → true (regardless of paidAmount, willPayInPerson)
+ *   - nameLocked=false → false (regardless of paidAmount, willPayInPerson)
  *   - null / undefined bib → false
- *   - PRINT_PAID_MIN_CENTS pinned at 1000
+ *   - Free-print scenario: paidAmount=0, willPayInPerson=false, nameLocked=true → true
+ *   - Free-print scenario: paidAmount=0, willPayInPerson=true, nameLocked=true → true
  */
 
 // Mock ElectroDB Entity before importing the SUT.
@@ -42,53 +48,50 @@ vi.mock("@/entities/client", () => ({
   ELECTRO_TABLE: "run-human-electro-mock",
 }));
 
-import { canPrintName, PRINT_PAID_MIN_CENTS } from "@/entities/bib";
+import { canPrintName } from "@/entities/bib";
 
-describe("canPrintName()", () => {
+describe("canPrintName() — Phase 22-05 free-bib rescope", () => {
   const base = {
     ownerSub: "sub-1",
     nameOnBib: "Alice",
     runnerCode: "BIB-K7QM",
-    paidAmount: 1000,
+    paidAmount: 0,
     paidStatusHistory: [],
     nameLocked: true,
+    willPayInPerson: false,
     createdAt: "2026-07-02T00:00:00.000Z",
     updatedAt: "2026-07-02T00:00:00.000Z",
   };
 
-  it("returns true when paidAmount >= 1000 and nameLocked=true", () => {
+  it("returns true when nameLocked=true (payment orthogonal)", () => {
     expect(canPrintName(base)).toBe(true);
   });
 
-  it("returns true at EXACTLY the $10 threshold", () => {
-    expect(canPrintName({ ...base, paidAmount: 1000 })).toBe(true);
+  it("returns true when nameLocked=true and paidAmount=0 (free bib)", () => {
+    expect(canPrintName({ ...base, paidAmount: 0 })).toBe(true);
   });
 
-  it("returns true above the threshold ($20 sponsor)", () => {
-    expect(canPrintName({ ...base, paidAmount: 2000 })).toBe(true);
+  it("returns true when nameLocked=true and paidAmount>0 (sponsor path)", () => {
+    expect(canPrintName({ ...base, paidAmount: 2500 })).toBe(true);
   });
 
-  it("returns false when paidAmount is below the threshold", () => {
-    expect(canPrintName({ ...base, paidAmount: 999 })).toBe(false);
-    expect(canPrintName({ ...base, paidAmount: 0 })).toBe(false);
+  it("returns true regardless of willPayInPerson pledge (payment orthogonal)", () => {
+    expect(canPrintName({ ...base, willPayInPerson: true })).toBe(true);
+    expect(canPrintName({ ...base, willPayInPerson: false })).toBe(true);
   });
 
-  it("returns false when nameLocked is false (admin has not confirmed)", () => {
+  it("returns false when nameLocked=false (admin has not confirmed)", () => {
     expect(canPrintName({ ...base, nameLocked: false })).toBe(false);
   });
 
-  it("returns false when BOTH conditions fail", () => {
+  it("returns false when nameLocked=false even with a large payment", () => {
     expect(
-      canPrintName({ ...base, paidAmount: 500, nameLocked: false })
+      canPrintName({ ...base, nameLocked: false, paidAmount: 100_000 })
     ).toBe(false);
   });
 
   it("returns false for null / undefined input", () => {
     expect(canPrintName(null)).toBe(false);
     expect(canPrintName(undefined)).toBe(false);
-  });
-
-  it("PRINT_PAID_MIN_CENTS is pinned at 1000 (=$10)", () => {
-    expect(PRINT_PAID_MIN_CENTS).toBe(1000);
   });
 });

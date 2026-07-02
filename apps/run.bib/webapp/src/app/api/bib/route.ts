@@ -6,6 +6,7 @@ import {
   getBib,
   NameLockedError,
   updateBibName,
+  updateBibWillPayInPerson,
 } from "@/entities/bib";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 
@@ -17,10 +18,31 @@ import { generateUniqueRunnerCode } from "@/lib/runner-code";
  * ownerSub is never trusted — the signed-in identity is the only PK source.
  */
 
-// Design contract: PATCH accepts nameOnBib with a 32-char cap and trim.
-const patchBodySchema = z.object({
-  nameOnBib: z.string().max(32),
-});
+/**
+ * Design contract: PATCH accepts one or both of `nameOnBib` and
+ * `willPayInPerson`. At least one must be present so a completely empty
+ * body still 400s (rejects accidental no-op patches). Fields are applied
+ * in sequence: nameOnBib first (may throw 409 name_locked), then
+ * willPayInPerson. If nameOnBib throws, willPayInPerson is not applied.
+ *
+ * `nameOnBib` retains the 32-char cap enforced server-side.
+ * `willPayInPerson` (Phase 22-05) is a bare boolean pledge — no other
+ * validation; the semantics of "will pay in person" are opaque to the
+ * schema and interpreted downstream (admin report).
+ */
+const patchBodySchema = z
+  .object({
+    nameOnBib: z.string().max(32).optional(),
+    willPayInPerson: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.nameOnBib !== undefined || data.willPayInPerson !== undefined,
+    {
+      message:
+        "PATCH body must include at least one of nameOnBib or willPayInPerson",
+    }
+  );
 
 /**
  * GET /api/bib
@@ -140,7 +162,21 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
-    const bib = await updateBibName(session.user.id, parsed.data.nameOnBib);
+    // Apply nameOnBib first — may throw NameLockedError (mapped to 409).
+    // We only patch what the caller supplied; missing fields stay untouched.
+    let bib = null as Awaited<ReturnType<typeof updateBibName>> | null;
+    if (parsed.data.nameOnBib !== undefined) {
+      bib = await updateBibName(session.user.id, parsed.data.nameOnBib);
+    }
+    if (parsed.data.willPayInPerson !== undefined) {
+      // Phase 22-05: pledge is orthogonal to nameLocked, so we do NOT skip
+      // this write if the name was locked — a locked-name bib may still
+      // toggle the pledge (participant switches to in-person plan).
+      bib = await updateBibWillPayInPerson(
+        session.user.id,
+        parsed.data.willPayInPerson
+      );
+    }
     return NextResponse.json({ bib }, { status: 200 });
   } catch (err) {
     if (err instanceof NameLockedError) {
