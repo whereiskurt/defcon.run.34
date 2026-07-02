@@ -1,0 +1,160 @@
+random_id.rnd: Refreshing state... [id=A8IQmk5hX6Y]
+aws_route53_zone.account_zonenames["auth"]: Refreshing state... [id=Z05731511PT3WD0QGOGTE]
+aws_route53_zone.account_zonenames["flash"]: Refreshing state... [id=Z098549524ANKJ8TAU2OG]
+aws_route53_zone.account_zonenames["mqtt"]: Refreshing state... [id=Z09851361V7PEBM8A7DX9]
+aws_route53_zone.account_zonenames["gpx"]: Refreshing state... [id=Z098489617X4ZTYVMZTOA]
+aws_route53_zone.account_zonenames["run"]: Refreshing state... [id=Z09956382AARMFZ8KWQPF]
+aws_route53_zone.account_zonenames["cms"]: Refreshing state... [id=Z09792312IB6SKKEEAKFT]
+aws_route53_zone.account_zonenames["email"]: Refreshing state... [id=Z04908561SVRE75RRJ044]
+data.aws_route53_zone.mgmt: Reading...
+data.aws_route53_zone.mgmt: Read complete after 0s [id=Z04344232J44PZ842PSVC]
+aws_route53_record.forward_ns_to_zones["email"]: Refreshing state... [id=Z04344232J44PZ842PSVC_email.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["mqtt"]: Refreshing state... [id=Z04344232J44PZ842PSVC_mqtt.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["auth"]: Refreshing state... [id=Z04344232J44PZ842PSVC_auth.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["run"]: Refreshing state... [id=Z04344232J44PZ842PSVC_run.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["flash"]: Refreshing state... [id=Z04344232J44PZ842PSVC_flash.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["gpx"]: Refreshing state... [id=Z04344232J44PZ842PSVC_gpx.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["cms"]: Refreshing state... [id=Z04344232J44PZ842PSVC_cms.defcon.run_NS]
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+Terraform will perform the following actions:
+  # aws_route53_record.forward_ns_to_zones["bib"] will be created
+  + resource "aws_route53_record" "forward_ns_to_zones" {
+      + allow_overwrite = true
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "bib.defcon.run"
+      + records         = (known after apply)
+      + ttl             = 300
+      + type            = "NS"
+      + zone_id         = "Z04344232J44PZ842PSVC"
+    }
+  # aws_route53_zone.account_zonenames["bib"] will be created
+  + resource "aws_route53_zone" "account_zonenames" {
+      + arn                         = (known after apply)
+      + comment                     = "Managed by Terraform"
+      + enable_accelerated_recovery = (known after apply)
+      + force_destroy               = false
+      + id                          = (known after apply)
+      + name                        = "bib.defcon.run"
+      + name_servers                = (known after apply)
+      + primary_name_server         = (known after apply)
+      + tags_all                    = (known after apply)
+      + zone_id                     = (known after apply)
+    }
+Plan: 2 to add, 0 to change, 0 to destroy.
+Changes to Outputs:
+  ~ zone_map = {
+      + "bib.defcon.run"   = {
+          + name         = "bib.defcon.run"
+          + name_servers = (known after apply)
+          + zone_id      = (known after apply)
+        }
+        # (8 unchanged attributes hidden)
+    }
+aws_route53_zone.account_zonenames["bib"]: Creating...
+aws_route53_zone.account_zonenames["bib"]: Still creating... [00m10s elapsed]
+aws_route53_zone.account_zonenames["bib"]: Still creating... [00m20s elapsed]
+aws_route53_zone.account_zonenames["bib"]: Still creating... [00m30s elapsed]
+aws_route53_zone.account_zonenames["bib"]: Creation complete after 30s [id=Z0012982VQ0K4678V6JY]
+aws_route53_record.forward_ns_to_zones["bib"]: Creating...
+aws_route53_record.forward_ns_to_zones["bib"]: Still creating... [00m10s elapsed]
+aws_route53_record.forward_ns_to_zones["bib"]: Still creating... [00m20s elapsed]
+aws_route53_record.forward_ns_to_zones["bib"]: Still creating... [00m30s elapsed]
+aws_route53_record.forward_ns_to_zones["bib"]: Creation complete after 30s [id=Z04344232J44PZ842PSVC_bib.defcon.run_NS]
+Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
+Outputs:
+waf = {}
+zone_map = {
+  "auth.defcon.run" = {
+    "name" = "auth.defcon.run"
+    "name_servers" = tolist([
+      "ns-1006.awsdns-61.net",
+      "ns-1465.awsdns-55.org",
+      "ns-1858.awsdns-40.co.uk",
+      "ns-448.awsdns-56.com",
+    ])
+    "zone_id" = "Z05731511PT3WD0QGOGTE"
+  }
+  "bib.defcon.run" = {
+    "name" = "bib.defcon.run"
+    "name_servers" = tolist([
+      "ns-1497.awsdns-59.org",
+      "ns-1871.awsdns-41.co.uk",
+      "ns-841.awsdns-41.net",
+      "ns-86.awsdns-10.com",
+    ])
+    "zone_id" = "Z0012982VQ0K4678V6JY"
+  }
+  "cms.defcon.run" = {
+    "name" = "cms.defcon.run"
+    "name_servers" = tolist([
+      "ns-1332.awsdns-38.org",
+      "ns-1803.awsdns-33.co.uk",
+      "ns-226.awsdns-28.com",
+      "ns-798.awsdns-35.net",
+    ])
+    "zone_id" = "Z09792312IB6SKKEEAKFT"
+  }
+  "defcon.run" = {
+    "name" = "defcon.run"
+    "name_servers" = tolist([
+      "ns-1693.awsdns-19.co.uk",
+      "ns-466.awsdns-58.com",
+      "ns-1109.awsdns-10.org",
+      "ns-673.awsdns-20.net",
+    ])
+    "zone_id" = "Z04344232J44PZ842PSVC"
+  }
+  "email.defcon.run" = {
+    "name" = "email.defcon.run"
+    "name_servers" = tolist([
+      "ns-1514.awsdns-61.org",
+      "ns-1972.awsdns-54.co.uk",
+      "ns-71.awsdns-08.com",
+      "ns-940.awsdns-53.net",
+    ])
+    "zone_id" = "Z04908561SVRE75RRJ044"
+  }
+  "flash.defcon.run" = {
+    "name" = "flash.defcon.run"
+    "name_servers" = tolist([
+      "ns-124.awsdns-15.com",
+      "ns-1317.awsdns-36.org",
+      "ns-2017.awsdns-60.co.uk",
+      "ns-621.awsdns-13.net",
+    ])
+    "zone_id" = "Z098549524ANKJ8TAU2OG"
+  }
+  "gpx.defcon.run" = {
+    "name" = "gpx.defcon.run"
+    "name_servers" = tolist([
+      "ns-1498.awsdns-59.org",
+      "ns-1552.awsdns-02.co.uk",
+      "ns-367.awsdns-45.com",
+      "ns-750.awsdns-29.net",
+    ])
+    "zone_id" = "Z098489617X4ZTYVMZTOA"
+  }
+  "mqtt.defcon.run" = {
+    "name" = "mqtt.defcon.run"
+    "name_servers" = tolist([
+      "ns-1518.awsdns-61.org",
+      "ns-1819.awsdns-35.co.uk",
+      "ns-228.awsdns-28.com",
+      "ns-626.awsdns-14.net",
+    ])
+    "zone_id" = "Z09851361V7PEBM8A7DX9"
+  }
+  "run.defcon.run" = {
+    "name" = "run.defcon.run"
+    "name_servers" = tolist([
+      "ns-1107.awsdns-10.org",
+      "ns-1566.awsdns-03.co.uk",
+      "ns-418.awsdns-52.com",
+      "ns-596.awsdns-10.net",
+    ])
+    "zone_id" = "Z09956382AARMFZ8KWQPF"
+  }
+}

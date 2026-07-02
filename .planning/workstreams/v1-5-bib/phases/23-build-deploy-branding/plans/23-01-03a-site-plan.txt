@@ -1,0 +1,58 @@
+random_id.rnd: Refreshing state... [id=A8IQmk5hX6Y]
+data.aws_route53_zone.mgmt: Reading...
+aws_route53_zone.account_zonenames["cms"]: Refreshing state... [id=Z09792312IB6SKKEEAKFT]
+aws_route53_zone.account_zonenames["auth"]: Refreshing state... [id=Z05731511PT3WD0QGOGTE]
+aws_route53_zone.account_zonenames["mqtt"]: Refreshing state... [id=Z09851361V7PEBM8A7DX9]
+aws_route53_zone.account_zonenames["email"]: Refreshing state... [id=Z04908561SVRE75RRJ044]
+aws_route53_zone.account_zonenames["run"]: Refreshing state... [id=Z09956382AARMFZ8KWQPF]
+aws_route53_zone.account_zonenames["gpx"]: Refreshing state... [id=Z098489617X4ZTYVMZTOA]
+aws_route53_zone.account_zonenames["flash"]: Refreshing state... [id=Z098549524ANKJ8TAU2OG]
+data.aws_route53_zone.mgmt: Read complete after 0s [id=Z04344232J44PZ842PSVC]
+aws_route53_record.forward_ns_to_zones["gpx"]: Refreshing state... [id=Z04344232J44PZ842PSVC_gpx.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["run"]: Refreshing state... [id=Z04344232J44PZ842PSVC_run.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["mqtt"]: Refreshing state... [id=Z04344232J44PZ842PSVC_mqtt.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["auth"]: Refreshing state... [id=Z04344232J44PZ842PSVC_auth.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["email"]: Refreshing state... [id=Z04344232J44PZ842PSVC_email.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["cms"]: Refreshing state... [id=Z04344232J44PZ842PSVC_cms.defcon.run_NS]
+aws_route53_record.forward_ns_to_zones["flash"]: Refreshing state... [id=Z04344232J44PZ842PSVC_flash.defcon.run_NS]
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+Terraform will perform the following actions:
+  # aws_route53_record.forward_ns_to_zones["bib"] will be created
+  + resource "aws_route53_record" "forward_ns_to_zones" {
+      + allow_overwrite = true
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "bib.defcon.run"
+      + records         = (known after apply)
+      + ttl             = 300
+      + type            = "NS"
+      + zone_id         = "Z04344232J44PZ842PSVC"
+    }
+  # aws_route53_zone.account_zonenames["bib"] will be created
+  + resource "aws_route53_zone" "account_zonenames" {
+      + arn                         = (known after apply)
+      + comment                     = "Managed by Terraform"
+      + enable_accelerated_recovery = (known after apply)
+      + force_destroy               = false
+      + id                          = (known after apply)
+      + name                        = "bib.defcon.run"
+      + name_servers                = (known after apply)
+      + primary_name_server         = (known after apply)
+      + tags_all                    = (known after apply)
+      + zone_id                     = (known after apply)
+    }
+Plan: 2 to add, 0 to change, 0 to destroy.
+Changes to Outputs:
+  ~ zone_map = {
+      + "bib.defcon.run"   = {
+          + name         = "bib.defcon.run"
+          + name_servers = (known after apply)
+          + zone_id      = (known after apply)
+        }
+        # (8 unchanged attributes hidden)
+    }
+─────────────────────────────────────────────────────────────────────────────
+Note: You didn't use the -out option to save this plan, so Terraform can't
+guarantee to take exactly these actions if you run "terraform apply" now.
