@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@auth/dynamodb-adapter": "^2.11.1",
     "@aws-sdk/client-dynamodb": "^3.943.0",
     "@aws-sdk/lib-dynamodb": "^3.943.0",
     "electrodb": "^3.5.0",
