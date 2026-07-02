@@ -55,6 +55,32 @@ The worker must read run.auth's NextAuth `account` tokens. Options (pick one —
 3. Confirm the date-band default + where to store it (SSM param vs service env).
 4. GPX builder: reuse the `gpx` lib's `buildGPX` server-side, or assemble minimal GPX directly?
 
+## Implemented (this PR) — app layer, cross-service option 3
+- **run.auth** `GET /api/internal/strava-tokens` (secret-guarded by `INTERNAL_SYNC_SECRET`) +
+  `lib/strava-tokens.ts`: scans the NextAuth table for `provider=strava` accounts, refreshes
+  expired tokens against `https://www.strava.com/oauth/token` and **persists Strava's rotated
+  refresh token back**, returns `[{userId, athleteId, accessToken}]`.
+- **run.gpx** `POST /api/gpx/internal/strava-sync` (secret-guarded) + `lib/strava-sync.ts`:
+  fetches tokens from run.auth, paginates `/athlete/activities?after&before` (date band),
+  pulls `/activities/{id}/streams`, builds minimal GPX, dedupes by `stravaActivityId`, writes
+  S3 + a private `GpxFile` (`source:strava`, `publicShareEligible:false`). tsc-verified.
+
+## Deploy / infra — NOT in this PR (apply together, needs review)
+1. **Shared secret:** create SSM SecureString `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/internal/sync_secret`.
+2. **service.hcl env/secret wiring** (add, following the existing `environment[]`/`secrets[]` pattern):
+   - run.auth: `secrets += INTERNAL_SYNC_SECRET → …/internal/sync_secret`.
+   - run.gpx: `secrets += INTERNAL_SYNC_SECRET → same`; `environment += AUTH_INTERNAL_URL`
+     (run.auth base, e.g. `https://auth.{{SITE_DOMAIN}}/{{REGION_LABEL}}` — VERIFY basePath so
+     `${AUTH_INTERNAL_URL}/api/internal/strava-tokens` resolves), `STRAVA_SYNC_AFTER`,
+     `STRAVA_SYNC_BEFORE` (epoch bounds of the band; edit + redeploy to change, or move to SSM).
+   - ⚠️ Don't add the `secrets[]` entry before the SSM param exists — a missing `valueFrom`
+     fails the ECS task.
+3. **EventBridge scheduler (net-new pattern — no repo precedent):** an `aws_scheduler_schedule`
+   (or `aws_cloudwatch_event_rule`) on a cron (e.g. every 6h) → a tiny invoker Lambda that
+   POSTs `https://gpx.…/…/api/gpx/internal/strava-sync` with the `x-internal-secret` header.
+   New terragrunt unit under `services/run.gpx/` (or a shared module); IAM for the Lambda.
+   Design/verify with Kurt (first scheduler in this repo).
+
 ## Testing
 Needs a real Strava-linked account in the band — Kurt is linking whereiskurt@. Until infra + a
 linked account exist, this can't be end-to-end verified; app-layer GPX-building can be unit-tested.
