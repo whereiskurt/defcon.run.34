@@ -26,6 +26,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SYSTEM_PROMPT, RECORD_PAYMENT_TOOL } from "./prompt.js";
 import { parseReceiptEmail } from "./lib/parse-email.mjs";
 import { extractPaymentFromEmail } from "./lib/haiku.mjs";
+import { deriveReceiptId } from "./lib/receipt-id.mjs";
+import { reconcile } from "./lib/reconcile.mjs";
 
 // --- Cold-start client singletons ------------------------------------------
 
@@ -110,6 +112,19 @@ export async function processS3Record(rec, ctx = {}) {
     client: ctx.anthropicClient || getAnthropicClient(),
   });
 
+  const receiptId = deriveReceiptId({
+    messageId: parsed.messageId,
+    bucket,
+    key,
+  });
+
+  const reconcileResult = await reconcile({
+    receiptId,
+    receivedAtMs: parsed.receivedAtMs,
+    extracted,
+    deps: ctx.reconcileDeps,
+  });
+
   return {
     bucket,
     key,
@@ -118,6 +133,7 @@ export async function processS3Record(rec, ctx = {}) {
     from: parsed.from,
     subject: parsed.subject,
     extracted,
+    reconcile: reconcileResult,
   };
 }
 
@@ -151,6 +167,10 @@ export async function handler(event, context) {
           provider: outcome.extracted.provider,
           amountCents: outcome.extracted.amount_cents,
           confidence: outcome.extracted.confidence,
+          reconcileStatus: outcome.reconcile?.status,
+          matchStrategy: outcome.reconcile?.matchStrategy,
+          matchedOwnerSub: outcome.reconcile?.matchedOwnerSub ?? null,
+          receiptId: outcome.reconcile?.receiptId,
         })
       );
       results.push({ ok: true, outcome });

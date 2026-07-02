@@ -184,6 +184,15 @@ describe("extractPaymentFromEmail (stub Anthropic client)", () => {
 describe("processS3Record (end-to-end with injected clients)", () => {
   let readObject;
   let seen;
+  // Null-reconcile deps: don't touch DDB. Task 22-04-01 tests only exercise
+  // parse + Haiku extract; match.test.mjs exercises the reconcile path.
+  const nullReconcileDeps = {
+    createLedgerEntry: async () => ({ alreadyExists: false, item: {} }),
+    getBibByRunnerCode: async () => null,
+    listAllBibs: async () => [],
+    applyPaymentToBib: async () => ({}),
+    updateReconcileStatus: async () => ({}),
+  };
 
   beforeEach(() => {
     seen = [];
@@ -213,7 +222,7 @@ describe("processS3Record (end-to-end with injected clients)", () => {
         bucket: { name: "ses-inbox-dc34-use1" },
         object: { key: "bib-payments/venmo-abc123" },
       },
-      { readObject, anthropicClient: anthropic }
+      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps }
     );
 
     expect(seen).toEqual([
@@ -241,7 +250,7 @@ describe("processS3Record (end-to-end with injected clients)", () => {
         bucket: { name: "ses-inbox-dc34-use1" },
         object: { key: "bib-payments/cashapp-def456" },
       },
-      { readObject, anthropicClient: anthropic }
+      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps }
     );
 
     expect(out.extracted.provider).toBe("cashapp");
@@ -265,7 +274,7 @@ describe("processS3Record (end-to-end with injected clients)", () => {
         bucket: { name: "ses-inbox-dc34-use1" },
         object: { key: "bib-payments/junk-ghi789" },
       },
-      { readObject, anthropicClient: anthropic }
+      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps }
     );
 
     expect(out.extracted.provider).toBe("unknown");
