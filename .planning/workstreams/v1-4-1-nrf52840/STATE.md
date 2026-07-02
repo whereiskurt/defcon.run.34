@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 workstream: v1-4-1-nrf52840
 milestone: v1.4.1
 milestone_name: nRF52840 / T-1000E Flash Support
-status: Phase 24 context captured — ready to plan
-stopped_at: Phase 24 CONTEXT.md written (headless / autonomous)
-last_updated: "2026-07-02T05:45:00.000Z"
-last_activity: 2026-07-02 — Phase 24 gray areas resolved autonomously; router+DFU decisions locked
+status: Phase 24 verified (human_needed) — PR pending; ready to plan Phase 25
+stopped_at: Phase 24 verify complete; 5/5 code SCs green, 3 hw+docker items routed to blockers
+last_updated: "2026-07-02T06:20:00.000Z"
+last_activity: 2026-07-02 — Phase 24 verify=human_needed; auto-parser bug required manual executor+verifier spawn
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 2
+  percent: 50
 ---
 
 # v1.4.1 Workstream State
@@ -23,10 +23,22 @@ Parent `.planning/PROJECT.md` applies. This workstream is **parallel-safe with v
 
 ## Current Position
 
-Phase: 24 - Device-family router + nRF52 flash path (context captured, plans not started)
+Phase: 25 - nRF52 UX + verification (not started)
 Plan: —
-Status: Phase 24 CONTEXT.md written — ready for `/gsd:plan-phase`
-Last activity: 2026-07-02 — Phase 24 context session (headless / autonomous)
+Status: Phase 24 verify=human_needed (5/5 code SCs green); PR pending; ready to plan Phase 25
+Last activity: 2026-07-02 — Phase 24 verify complete, hardware+docker gates routed to blockers
+
+## Phase 24 Blockers (all hardware-in-loop or network-required, cannot exercise in sandbox)
+
+- [v1.4.1 / Phase 24 — NETWORK+DOCKER]: Real `docker build --no-cache` against current Meshtastic stable — needs outbound network to api.meshtastic.org + github.com and Docker daemon.
+- [v1.4.1 / Phase 24 — IMAGE-INSPECT]: Post-build verification that built image contains T-1000E hardware-list entry + `.uf2` artifact — depends on above.
+- [v1.4.1 / Phase 24 — HARDWARE-IN-LOOP]: T-1000E DFU write end-to-end (per Kurt's directive, this must be verified before Phase 25 close). Requires physical T-1000E + Chrome/Edge Web USB.
+- [v1.4.1 / Phase 24 — HARDWARE-IN-LOOP]: Web USB DFU failure-mode spot-checks (bootloader-not-attached, mid-write disconnect) on real hw.
+- [v1.4.1 / Phase 24 — HARDWARE-IN-LOOP]: Positive-control regression on at least one Recommended ESP32 (proves router split didn't break the esptool-js path).
+
+## Informational (non-blocking)
+
+- Slug nomenclature mismatch: `hardware-list.json` uses `TRACKER_T1000_E`; `devices.ts:23` TODO comment references `SEEED_TRACKER_T1000_E`. Reconcile in Phase 25 close-out (single string; no code-path impact).
 
 ## Locked Decisions (Phase 24 CONTEXT.md)
 
