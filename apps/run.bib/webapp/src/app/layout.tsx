@@ -20,7 +20,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      {/* Reset the default 8px body margin so the dark background reaches
+       * the edges of the viewport (Kurt 2026-07-02 feedback: white border
+       * around the page). Backgrounds on the landing/signin pages set the
+       * dark colour inside the layout; this just makes them extend fully. */}
+      <body style={{ margin: 0, backgroundColor: "#0a0a0a" }}>
         <Providers authBasePath={authBasePath}>{children}</Providers>
       </body>
     </html>

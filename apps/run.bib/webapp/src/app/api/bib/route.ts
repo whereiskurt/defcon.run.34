@@ -30,9 +30,22 @@ import { generateUniqueRunnerCode } from "@/lib/runner-code";
  * validation; the semantics of "will pay in person" are opaque to the
  * schema and interpreted downstream (admin report).
  */
+/**
+ * Silently strip non-printable-ASCII (emojis, combining marks, RTL controls,
+ * etc.) from the name — Kurt 2026-07-02: the bib printer can't render them,
+ * so we normalize on write rather than block the request. Also runs on the
+ * client (BibForm.onChange); the server is the source of truth in case a
+ * caller bypasses the UI.
+ */
+const stripNonAscii = (s: string) => s.replace(/[^\x20-\x7E]/g, "");
+
 const patchBodySchema = z
   .object({
-    nameOnBib: z.string().max(32).optional(),
+    nameOnBib: z
+      .string()
+      .max(32)
+      .transform((s) => stripNonAscii(s).slice(0, 32))
+      .optional(),
     willPayInPerson: z.boolean().optional(),
   })
   .refine(

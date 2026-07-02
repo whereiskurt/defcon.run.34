@@ -105,8 +105,8 @@ export async function POST(req: NextRequest) {
         donation_type: "general",
         owner_sub: ownerSub,
       },
-      success_url: `${base}/use1/?status=success`,
-      cancel_url: `${base}/use1/?status=cancel`,
+      success_url: `${base}/use1/orderform?status=success`,
+      cancel_url: `${base}/use1/orderform?status=cancel`,
     });
 
     if (!stripeSession.url) {

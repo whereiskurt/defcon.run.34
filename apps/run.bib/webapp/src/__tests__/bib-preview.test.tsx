@@ -17,7 +17,7 @@ import BibPreview from "@/components/BibPreview";
 describe("BibPreview sponsor charm accent (Phase 22-05-06)", () => {
   it("renders the sponsor-charm SVG group when hasSponsored=true", () => {
     const html = renderToStaticMarkup(
-      <BibPreview name="Alice" code="BIB-K7QM" hasSponsored={true} />
+      <BibPreview name="Alice" hasSponsored={true} />
     );
     expect(html).toContain('id="sponsor-charm"');
     expect(html).toContain('data-testid="sponsor-charm"');
@@ -27,7 +27,7 @@ describe("BibPreview sponsor charm accent (Phase 22-05-06)", () => {
 
   it("does NOT render the sponsor-charm group when hasSponsored=false", () => {
     const html = renderToStaticMarkup(
-      <BibPreview name="Alice" code="BIB-K7QM" hasSponsored={false} />
+      <BibPreview name="Alice" hasSponsored={false} />
     );
     expect(html).not.toContain('id="sponsor-charm"');
     expect(html).not.toContain('data-testid="sponsor-charm"');
@@ -36,7 +36,7 @@ describe("BibPreview sponsor charm accent (Phase 22-05-06)", () => {
   it("defaults hasSponsored=false when the prop is omitted (backward compat)", () => {
     // Ensures pre-22-05 callers keep their old render.
     const html = renderToStaticMarkup(
-      <BibPreview name="Alice" code="BIB-K7QM" />
+      <BibPreview name="Alice" />
     );
     expect(html).not.toContain('id="sponsor-charm"');
   });
@@ -45,7 +45,7 @@ describe("BibPreview sponsor charm accent (Phase 22-05-06)", () => {
     // The charm placement is fixed in the SVG viewport (top-right of the
     // card), so an empty-name preview should still show it.
     const html = renderToStaticMarkup(
-      <BibPreview name="" code="BIB-K7QM" hasSponsored={true} />
+      <BibPreview name="" hasSponsored={true} />
     );
     expect(html).toContain('id="sponsor-charm"');
   });
@@ -55,10 +55,10 @@ describe("BibPreview sponsor charm accent (Phase 22-05-06)", () => {
     // remove or replace the smiley graphic symbol (Kurt's naming-sweep
     // rule from Phase 22-05-05 explicitly protects it).
     const with_ = renderToStaticMarkup(
-      <BibPreview name="Alice" code="BIB-K7QM" hasSponsored={true} />
+      <BibPreview name="Alice" hasSponsored={true} />
     );
     const without = renderToStaticMarkup(
-      <BibPreview name="Alice" code="BIB-K7QM" hasSponsored={false} />
+      <BibPreview name="Alice" hasSponsored={false} />
     );
     expect(with_).toContain('id="smiley"');
     expect(without).toContain('id="smiley"');

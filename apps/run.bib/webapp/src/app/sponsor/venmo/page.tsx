@@ -46,7 +46,7 @@ export default async function VenmoInstructionsPage({
     // through the landing page bib bootstrap. Send them home so the
     // landing page can idempotently create a bib for them, then they
     // can re-enter the sponsor flow.
-    redirect("/");
+    redirect("/orderform");
   }
 
   const params = (await searchParams) ?? {};
