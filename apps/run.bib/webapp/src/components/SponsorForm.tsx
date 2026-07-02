@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import {
+  AMOUNT_MAX_CENTS,
+  AMOUNT_MIN_CENTS,
+  AMOUNT_STEP_CENTS,
+  clampAmountCents,
+  formatCentsUsd,
+} from "@/lib/amount";
 
 /**
  * SponsorForm
@@ -9,15 +18,17 @@ import { useCallback, useMemo, useState } from "react";
  * slider ($1..$1000 in $1 steps) and the provider picker (Stripe |
  * Venmo | CashApp). On submit:
  *   - `stripe`   → POST /api/checkout, redirect to Stripe Checkout URL.
- *   - `venmo`    → route to /pay/venmo?amount_cents=... (Plan 22-02).
- *   - `cashapp`  → route to /pay/cashapp?amount_cents=... (Plan 22-02).
+ *   - `venmo`    → route to /sponsor/venmo?amount_cents=... (Plan 22-02-1).
+ *   - `cashapp`  → route to /sponsor/cashapp?amount_cents=... (Plan 22-02-2).
  *
- * Design contract (v1.5 Phase 22 PLAN.md §22-01-02):
+ * Design contract (v1.5 Phase 22 PLAN.md §22-01-02 + Plan 22-02-3):
  * - Slider is a raw <input type="range" min={100} max={100000} step={100}>
  *   — cents-first (100 cents = $1). No HeroUI, no external UI lib.
- * - Provider radio: Stripe default. Venmo + CashApp UI-wired here so
- *   Plan 22-02 only needs to add the two instruction pages behind the
- *   already-existing route strings; no re-touch of this file needed.
+ * - Provider radio: Stripe default. Venmo + CashApp handoff via
+ *   `router.push()` (Next.js `useRouter`) so the basePath (`/use1` in
+ *   prod) is applied automatically — avoids the raw-`window.location`
+ *   basePath bug where an absolute path like `/sponsor/venmo` would
+ *   miss the regional prefix and 404.
  * - Amount display: `$XX.XX` (cents → dollars, 2dp).
  * - No optimistic UX for Stripe — button disabled while POST is in
  *   flight, then browser navigates to Stripe. If POST fails, surface a
@@ -26,54 +37,41 @@ import { useCallback, useMemo, useState } from "react";
  * - Login gate: this component only renders inside the landing page
  *   (`src/app/page.tsx`) which is behind the full-app auth middleware.
  *   No client-side auth check here — server already gated the render.
+ *
+ * Pure helpers (`clampAmountCents`, `formatCentsUsd`, amount constants)
+ * live in `src/lib/amount.ts` so both this "use client" component AND
+ * the server-rendered `/sponsor/{venmo,cashapp}` pages share the same
+ * clamp + format contract. Re-exported here for backward compat with
+ * the Plan 22-01-2 test import surface.
  */
 
-export const AMOUNT_MIN_CENTS = 100; //   $1.00
-export const AMOUNT_MAX_CENTS = 100_000; // $1000.00
-export const AMOUNT_STEP_CENTS = 100; //   $1.00 steps
+export {
+  AMOUNT_MAX_CENTS,
+  AMOUNT_MIN_CENTS,
+  AMOUNT_STEP_CENTS,
+  clampAmountCents,
+  formatCentsUsd,
+};
 
 export type SponsorProvider = "stripe" | "venmo" | "cashapp";
 
 /**
- * Clamp an amount (cents) into the design-contract range, snapping to
- * the step boundary. Extracted as a pure function so vitest can pin the
- * boundary behavior without booting jsdom.
+ * Resolve the client-side handoff URL for a non-Stripe provider. This
+ * is a RELATIVE path — `useRouter().push()` layers on the Next.js
+ * basePath (e.g., `/use1`) so the browser lands on the correct
+ * regional URL. Callers using raw `window.location.href` (not
+ * recommended) MUST prepend the region themselves.
  *
- * - NaN / non-finite → AMOUNT_MIN_CENTS (fail-safe minimum, never $0).
- * - Values below MIN clamp to MIN.
- * - Values above MAX clamp to MAX.
- * - Fractional cents round DOWN to the nearest step (e.g. 4999 → 4900).
- *   This matches the Stripe Checkout expected shape (whole cents only).
- */
-export function clampAmountCents(raw: number): number {
-  if (!Number.isFinite(raw)) return AMOUNT_MIN_CENTS;
-  const snapped = Math.floor(raw / AMOUNT_STEP_CENTS) * AMOUNT_STEP_CENTS;
-  if (snapped < AMOUNT_MIN_CENTS) return AMOUNT_MIN_CENTS;
-  if (snapped > AMOUNT_MAX_CENTS) return AMOUNT_MAX_CENTS;
-  return snapped;
-}
-
-/**
- * Format cents to a display string like `$12.34`. Pure, exported so
- * tests can pin the format.
- */
-export function formatCentsUsd(cents: number): string {
-  const clamped = clampAmountCents(cents);
-  const dollars = clamped / 100;
-  return `$${dollars.toFixed(2)}`;
-}
-
-/**
- * Resolve the client-side handoff URL for a non-Stripe provider. Plan
- * 22-02 will land the actual `/pay/venmo` + `/pay/cashapp` pages; this
- * helper is the single source of truth for those route strings.
+ * Plan 22-02-1 + 22-02-2 land the actual `/sponsor/venmo` +
+ * `/sponsor/cashapp` pages; this helper is the single source of
+ * truth for those route strings.
  */
 export function providerRouteFor(
   provider: Exclude<SponsorProvider, "stripe">,
   amountCents: number
 ): string {
   const clamped = clampAmountCents(amountCents);
-  const path = provider === "venmo" ? "/pay/venmo" : "/pay/cashapp";
+  const path = provider === "venmo" ? "/sponsor/venmo" : "/sponsor/cashapp";
   return `${path}?amount_cents=${clamped}`;
 }
 
@@ -83,6 +81,7 @@ interface SubmitState {
 }
 
 export function SponsorForm() {
+  const router = useRouter();
   const [amountCents, setAmountCents] = useState<number>(2000); // $20 default
   const [provider, setProvider] = useState<SponsorProvider>("stripe");
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
@@ -116,9 +115,12 @@ export function SponsorForm() {
       const clamped = clampAmountCents(amountCents);
 
       // Non-Stripe: route to the provider instructions page (Plan 22-02).
+      // Use Next.js `router.push` so the basePath (e.g., `/use1` in prod)
+      // is applied automatically — a raw `window.location.href` on an
+      // absolute path would drop the regional prefix and 404.
       if (provider === "venmo" || provider === "cashapp") {
         setSubmit({ kind: "idle" });
-        window.location.href = providerRouteFor(provider, clamped);
+        router.push(providerRouteFor(provider, clamped));
         return;
       }
 
@@ -151,7 +153,7 @@ export function SponsorForm() {
         });
       }
     },
-    [amountCents, provider]
+    [amountCents, provider, router]
   );
 
   const disabled = submit.kind === "submitting";

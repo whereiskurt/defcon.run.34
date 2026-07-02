@@ -89,18 +89,26 @@ describe("formatCentsUsd()", () => {
 });
 
 describe("providerRouteFor()", () => {
-  it("routes venmo to /pay/venmo with the clamped amount query", () => {
-    expect(providerRouteFor("venmo", 2500)).toBe("/pay/venmo?amount_cents=2500");
+  it("routes venmo to /sponsor/venmo with the clamped amount query", () => {
+    // Plan 22-02-3: route moved from `/pay/venmo` to `/sponsor/venmo` so
+    // the URL matches the domain concept (this is a sponsorship flow,
+    // not a checkout flow). Path is RELATIVE — Next.js `useRouter().push`
+    // layers the basePath (`/use1` in prod) automatically.
+    expect(providerRouteFor("venmo", 2500)).toBe(
+      "/sponsor/venmo?amount_cents=2500"
+    );
     // Fractional inputs get clamped/snapped in the URL too.
-    expect(providerRouteFor("venmo", 4999)).toBe("/pay/venmo?amount_cents=4900");
+    expect(providerRouteFor("venmo", 4999)).toBe(
+      "/sponsor/venmo?amount_cents=4900"
+    );
   });
 
-  it("routes cashapp to /pay/cashapp with the clamped amount query", () => {
+  it("routes cashapp to /sponsor/cashapp with the clamped amount query", () => {
     expect(providerRouteFor("cashapp", 2500)).toBe(
-      "/pay/cashapp?amount_cents=2500"
+      "/sponsor/cashapp?amount_cents=2500"
     );
     expect(providerRouteFor("cashapp", 999_999)).toBe(
-      "/pay/cashapp?amount_cents=100000"
+      "/sponsor/cashapp?amount_cents=100000"
     );
   });
 });
