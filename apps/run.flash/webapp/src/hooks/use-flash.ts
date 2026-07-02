@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef } from "react";
 import type { FlashProgress } from "@/types/serial";
-import { INITIAL_FLASH_PROGRESS } from "@/types/serial";
-import { loadFirmware, formatBytes } from "@/config/firmware";
-import type { DeviceHardware } from "@/types/device";
+import type { DeviceHardware, DeviceFamily } from "@/types/device";
+import { getDeviceFamily } from "@/types/device";
 import type { ESPLoader } from "esptool-js";
+import type { DfuDevice } from "@/lib/web-dfu";
+import { useFlashEsp32 } from "./use-flash-esp32";
+import { useFlashNrf52 } from "./use-flash-nrf52";
 
-interface UseFlashReturn {
+export interface UseFlashReturn {
   /** Current flash progress state */
   progress: FlashProgress;
   /** Whether flash is currently in progress (any active stage) */
@@ -17,15 +19,20 @@ interface UseFlashReturn {
   /** Whether flash encountered an error */
   isError: boolean;
   /**
-   * Start the flash pipeline: erase -> write -> verify.
-   * Requires a connected ESPLoader instance.
+   * Start the flash pipeline for the given device family.
    *
-   * @param espLoader - Connected ESPLoader from useSerial
-   * @param device - Selected device (determines firmware file)
-   * @param appendLog - Console log function from useSerial
+   * The `transport` type is a discriminated union: ESP32 flashes take an
+   * `ESPLoader` (from useSerial), nRF52 flashes take a `DfuDevice`
+   * (from useDfu). The router selects the correct delegate by inspecting
+   * `device.architecture` via `getDeviceFamily(device)`; unknown
+   * architectures throw at that helper (fail-fast).
+   *
+   * @param transport - Claimed transport for the target family
+   * @param device - Selected device (determines family + firmware file)
+   * @param appendLog - Console log function
    */
   flash: (
-    espLoader: ESPLoader,
+    transport: ESPLoader | DfuDevice,
     device: DeviceHardware,
     appendLog: (text: string) => void
   ) => Promise<void>;
@@ -34,182 +41,57 @@ interface UseFlashReturn {
 }
 
 /**
- * Hook for orchestrating the staged firmware flash pipeline.
+ * Family-aware flash router.
  *
- * Implements three distinct stages per CONTEXT.md locked decisions:
- * 1. ERASE: Full flash erase (espLoader.eraseFlash())
- * 2. WRITE: Write firmware binary (espLoader.writeFlash())
- * 3. VERIFY: MD5 verification (espLoader.flashMd5sum())
+ * Per CONTEXT Decision 1 (extract-and-dispatch, not inline branch), this hook
+ * calls BOTH delegate hooks unconditionally at the top level (React
+ * rules-of-hooks) and picks whichever family's state to expose based on
+ * which family was last dispatched to. Until the first `flash()` call the
+ * ESP32 delegate's initial state is exposed (both hold `INITIAL_FLASH_PROGRESS`
+ * on mount so the default state is identical).
  *
- * Each stage updates progress independently for the pipeline visualization.
- * On error at any stage, the entire flash is considered failed.
- * Verification failure = flash failure (no "continue anyway" option).
+ * The public shape is preserved from the pre-phase useFlash so no consumers
+ * need to change (SC4 zero-regression is enforced by construction —
+ * `useFlashEsp32` is a byte-identical extract).
  */
 export function useFlash(): UseFlashReturn {
-  const [progress, setProgress] =
-    useState<FlashProgress>(INITIAL_FLASH_PROGRESS);
-  const isFlashingRef = useRef(false);
+  const esp32 = useFlashEsp32();
+  const nrf52 = useFlashNrf52();
+
+  // Track which family was last dispatched to so the returned progress /
+  // isFlashing / isComplete / isError reflect the correct delegate. Defaults
+  // to "esp32" — both delegates begin at INITIAL_FLASH_PROGRESS so the
+  // pre-first-call state is family-neutral.
+  const activeFamilyRef = useRef<DeviceFamily>("esp32");
 
   const flash = useCallback(
     async (
-      espLoader: ESPLoader,
+      transport: ESPLoader | DfuDevice,
       device: DeviceHardware,
       appendLog: (text: string) => void
     ) => {
-      if (isFlashingRef.current) return;
-      isFlashingRef.current = true;
-
-      try {
-        // Load firmware binary from static files
-        appendLog(`Loading firmware for ${device.displayName}...\n`);
-        const firmware = await loadFirmware(device);
-        appendLog(
-          `Firmware loaded: ${firmware.filename} (${formatBytes(firmware.size)})\n\n`
-        );
-
-        // ---- Stage 1: ERASE ----
-        appendLog("=== Stage 1/3: Erasing flash ===\n");
-        setProgress({
-          stage: "erasing",
-          eraseComplete: false,
-          writePercent: 0,
-          writtenBytes: 0,
-          totalBytes: firmware.size,
-          verifyComplete: false,
-          error: null,
-        });
-
-        await espLoader.eraseFlash();
-
-        appendLog("Flash erase complete.\n\n");
-        setProgress((prev) => ({
-          ...prev,
-          eraseComplete: true,
-        }));
-
-        // ---- Stage 2: WRITE ----
-        appendLog("=== Stage 2/3: Writing firmware ===\n");
-        setProgress((prev) => ({
-          ...prev,
-          stage: "writing",
-        }));
-
-        // esptool-js 0.6.0 requires Uint8Array (was binary string in 0.5.x);
-        // convert here so config/firmware.ts stays untouched.
-        const firmwareBytes = new Uint8Array(firmware.size);
-        for (let i = 0; i < firmware.size; i++) {
-          firmwareBytes[i] = firmware.data.charCodeAt(i);
-        }
-
-        // tlora-t3s3 quirk: this board bricks-on-boot with the default "keep" flashMode; explicit "dio" is required — preserve across dep bumps.
-        let flashMode: "dio" | "keep" = "keep";
-        if (device.platformioTarget === "tlora-t3s3") flashMode = "dio";
-
-        await espLoader.writeFlash({
-          fileArray: [{ data: firmwareBytes, address: 0x0 }],
-          flashSize: "keep",
-          flashMode,
-          flashFreq: "keep",
-          eraseAll: false, // Already erased in stage 1
-          compress: true,
-          reportProgress: (
-            _fileIndex: number,
-            written: number,
-            total: number
-          ) => {
-            const percent = Math.round((written / total) * 100);
-            setProgress((prev) => ({
-              ...prev,
-              writePercent: percent,
-              writtenBytes: written,
-              totalBytes: total,
-            }));
-          },
-        });
-
-        appendLog(
-          `\nFirmware write complete: ${formatBytes(firmware.size)} written.\n\n`
-        );
-        setProgress((prev) => ({
-          ...prev,
-          writePercent: 100,
-          writtenBytes: firmware.size,
-        }));
-
-        // ---- Stage 3: VERIFY ----
-        appendLog("=== Stage 3/3: Verifying firmware ===\n");
-        setProgress((prev) => ({
-          ...prev,
-          stage: "verifying",
-        }));
-
-        const deviceMd5 = await espLoader.flashMd5sum(0x0, firmware.size);
-        appendLog(`Device MD5:   ${deviceMd5}\n`);
-
-        // Compute local MD5 for comparison
-        // Use SparkMD5 or simple comparison -- for now, trust esptool.js
-        // writeFlash with compress=true already verifies blocks during write.
-        // The flashMd5sum provides an additional end-to-end check.
-        // If esptool.js writeFlash succeeded without error and MD5 reads back,
-        // the flash is verified. A future enhancement could compute local MD5.
-        appendLog("Firmware verification passed.\n\n");
-
-        setProgress({
-          stage: "complete",
-          eraseComplete: true,
-          writePercent: 100,
-          writtenBytes: firmware.size,
-          totalBytes: firmware.size,
-          verifyComplete: true,
-          error: null,
-        });
-
-        appendLog("=== Flash complete! ===\n");
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Unknown flash error";
-        appendLog(`\nERROR: ${message}\n`);
-
-        setProgress((prev) => ({
-          ...prev,
-          stage: "error",
-          error: message,
-        }));
-      } finally {
-        isFlashingRef.current = false;
+      const family = getDeviceFamily(device);
+      activeFamilyRef.current = family;
+      if (family === "esp32") {
+        return esp32.flash(transport as ESPLoader, device, appendLog);
       }
+      return nrf52.flash(transport as DfuDevice, device, appendLog);
     },
-    []
+    [esp32, nrf52]
   );
 
-  // Prevent accidental page navigation during flash (HMR, refresh, close tab)
-  useEffect(() => {
-    const isActive =
-      progress.stage === "erasing" ||
-      progress.stage === "writing" ||
-      progress.stage === "verifying";
-    if (!isActive) return;
-
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [progress.stage]);
-
   const reset = useCallback(() => {
-    setProgress(INITIAL_FLASH_PROGRESS);
-    isFlashingRef.current = false;
-  }, []);
+    esp32.reset();
+    nrf52.reset();
+  }, [esp32, nrf52]);
+
+  const active = activeFamilyRef.current === "esp32" ? esp32 : nrf52;
 
   return {
-    progress,
-    isFlashing:
-      progress.stage === "erasing" ||
-      progress.stage === "writing" ||
-      progress.stage === "verifying",
-    isComplete: progress.stage === "complete",
-    isError: progress.stage === "error",
+    progress: active.progress,
+    isFlashing: active.isFlashing,
+    isComplete: active.isComplete,
+    isError: active.isError,
     flash,
     reset,
   };

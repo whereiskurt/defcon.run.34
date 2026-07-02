@@ -15,7 +15,7 @@ nRF52840 uses UF2 / Web-USB-DFU, not `esptool-js`. Needs a new device-family rou
 
 ## Phases
 
-- [ ] **Phase 24: Device-family router + nRF52 flash path** (2 plans expected)
+- [ ] **Phase 24: Device-family router + nRF52 flash path** (2 plans)
 - [ ] **Phase 25: nRF52 UX + verification** (1-2 plans expected)
 
 ---
@@ -35,7 +35,11 @@ nRF52840 uses UF2 / Web-USB-DFU, not `esptool-js`. Needs a new device-family rou
 4. UF2/DFU path successfully writes the `.uf2` to a T-1000E in bootloader mode and reports completion; ESP32 path has zero regression against the Phase 19 Recommended set.
 5. `next build` + `tsc --noEmit` clean; no runtime calls to `api.meshtastic.org` or `github.com/meshtastic` under the new path.
 
-**Expected plans:** router + Dockerfile extract; Web-USB-DFU write path
+**Plans:** 2 plans
+
+Plans:
+- [ ] 024-01-PLAN.md — Device-family discriminator + useFlash router extraction + Dockerfile Stage 1 nrf52840 (jq filter + .uf2 unzip + hardware-list)
+- [ ] 024-02-PLAN.md — Web USB DFU write path: web-dfu.ts + use-dfu.ts + useFlashNrf52 (2-stage write→verify) + loadUf2/getUf2Filename
 
 ---
 
@@ -60,7 +64,7 @@ nRF52840 uses UF2 / Web-USB-DFU, not `esptool-js`. Needs a new device-family rou
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 24. Device-family router + nRF52 flash path | 0/TBD | Ready to plan | - |
+| 24. Device-family router + nRF52 flash path | 0/2 | Planned | - |
 | 25. nRF52 UX + verification | 0/TBD | Planned | - |
 
 ## Hardware-in-loop policy (per Kurt)
