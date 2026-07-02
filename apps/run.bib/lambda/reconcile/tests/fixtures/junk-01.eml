@@ -1,0 +1,28 @@
+Return-Path: <newsletter@example-marketing.com>
+Delivered-To: bibpayment@run.defcon.run
+Received: from mail.example-marketing.com (mail.example-marketing.com [203.0.113.7])
+	by inbound-smtp.us-east-1.amazonaws.com with SMTP id ghi789
+	for <bibpayment@run.defcon.run>; Wed, 02 Jul 2026 17:30:00 +0000 (UTC)
+Message-ID: <newsletter.20260702.44b23@example-marketing.com>
+Date: Wed, 02 Jul 2026 17:30:00 +0000
+From: Example Marketing <newsletter@example-marketing.com>
+To: bibpayment@run.defcon.run
+Subject: Weekly Deals - Save Big This Summer!
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+Hello valued customer!
+
+Check out our summer deals - up to 60% off all items!
+
+Featured products this week:
+- Running shoes: Was $120, now $79
+- Compression shorts: Was $45, now $22
+
+Shop now at example-marketing.com/summer-deals
+
+To unsubscribe, click here.
+
+--
+Example Marketing, 100 Marketing Lane, Anywhere, USA

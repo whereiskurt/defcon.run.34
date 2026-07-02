@@ -1,0 +1,30 @@
+Return-Path: <bounce@venmo.com>
+Delivered-To: bibpayment@run.defcon.run
+Received: from mailgw.venmo.com (mailgw.venmo.com [198.51.100.44])
+	by inbound-smtp.us-east-1.amazonaws.com with SMTP id abc123
+	for <bibpayment@run.defcon.run>; Wed, 02 Jul 2026 15:12:03 +0000 (UTC)
+Message-ID: <20260702151203.venmo.payment.5f7a3c9d@venmo.com>
+Date: Wed, 02 Jul 2026 15:12:03 +0000
+From: Venmo <venmo@venmo.com>
+To: bibpayment@run.defcon.run
+Subject: Alice Johnson paid you $25.00
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+Alice Johnson paid you $25.00
+
+Note: Sponsoring my friend for BIB-K7QM at DEF CON Run 34!
+
+Amount: $25.00
+Date: Wednesday, July 2, 2026
+Payment ID: 4192837465019283746
+
+@alicej sent you $25.00 via Venmo.
+
+To see this payment in your account, sign in at venmo.com.
+
+If you did not authorize this transaction, please contact Venmo support.
+
+--
+Venmo, 71 Willow Road, Menlo Park, CA 94025
