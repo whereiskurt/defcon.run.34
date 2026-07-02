@@ -147,6 +147,26 @@ export const GpxFile = new Entity(
         required: false,
         default: false,
       },
+      // Provenance of the route. "upload"/"draw" = user-authored (publicly shareable);
+      // "strava" = raw Strava import (NOT publicly shareable until converted);
+      // "converted" = an explicit "Convert to public" copy of a Strava import.
+      source: {
+        type: "string",
+        required: false,
+      },
+      // Compliance gate (Strava API terms): raw Strava imports are false and cannot
+      // enter the public groups until the user runs "Convert to public", which mints a
+      // converted copy with this true. Defaults true so upload/draw stay shareable.
+      publicShareEligible: {
+        type: "boolean",
+        required: false,
+        default: true,
+      },
+      // Strava activity id, for idempotent ingestion dedupe (source:strava only).
+      stravaActivityId: {
+        type: "string",
+        required: false,
+      },
     },
     indexes: {
       primary: {

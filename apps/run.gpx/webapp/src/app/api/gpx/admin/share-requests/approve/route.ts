@@ -69,6 +69,16 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    // Compliance: raw Strava imports must be converted before public exposure.
+    if (source.data.publicShareEligible === false) {
+      return NextResponse.json(
+        {
+          error:
+            "This route isn't eligible for public sharing (unconverted Strava import).",
+        },
+        { status: 400 }
+      );
+    }
 
     // Copy the S3 object into the GLOBAL keyspace under a fresh id.
     const newFileId = uuidv4();
