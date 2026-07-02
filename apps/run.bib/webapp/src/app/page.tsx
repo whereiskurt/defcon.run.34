@@ -2,8 +2,24 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/config/auth";
 import BibForm from "@/components/BibForm";
+import SponsorForm from "@/components/SponsorForm";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
+
+/**
+ * Home is a server-component route that receives `searchParams` from
+ * Next.js at render time. We surface the `?status=success|cancel` toast
+ * that Stripe attaches when redirecting the browser back after a
+ * Checkout Session completes (Plan 22-01-3 hard-codes those URLs on the
+ * Stripe Session at create time).
+ *
+ * `searchParams` is a Promise in Next.js 16 App Router — awaiting it
+ * keeps the render deterministic and avoids the React 19 sync-render
+ * warning for accessing a Promise's `.then` inside JSX.
+ */
+type HomeProps = {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+};
 
 /**
  * Landing page for run.bib.
@@ -25,7 +41,7 @@ import { generateUniqueRunnerCode } from "@/lib/runner-code";
  * if two concurrent tabs POST at the same time only one code wins and both
  * end up reading the same bib.
  */
-export default async function Home() {
+export default async function Home({ searchParams }: HomeProps) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -47,6 +63,14 @@ export default async function Home() {
     const runnerCode = await generateUniqueRunnerCode();
     bib = await createBib(ownerSub, runnerCode);
   }
+
+  // Read the ?status=success|cancel querystring that Stripe attaches on
+  // redirect-back after a Checkout Session. `searchParams` may be
+  // undefined in dev when the page renders without any query.
+  const params = (await searchParams) ?? {};
+  const statusRaw = params.status;
+  const status =
+    statusRaw === "success" || statusRaw === "cancel" ? statusRaw : null;
 
   return (
     <main
@@ -85,15 +109,51 @@ export default async function Home() {
 
         <RunnerCodeBadge code={bib.runnerCode} />
 
+        {status && <StripeStatusBanner status={status} />}
+
         <BibForm
           initialName={bib.nameOnBib || ""}
           initialCode={bib.runnerCode}
           nameLocked={bib.nameLocked === true}
         />
 
+        <SponsorForm />
+
         <FooterNote />
       </div>
     </main>
+  );
+}
+
+/**
+ * Simple server-rendered banner that acknowledges the Stripe redirect
+ * outcome. Not a toast (no client JS needed) — the banner sits above the
+ * BibForm until the next navigation clears the query string.
+ *
+ * Design deliberately minimal: no dismiss button, no auto-hide. Kurt's
+ * design contract is to keep the JS surface minimal — a static banner
+ * matches every other server-component render pattern in this app.
+ */
+function StripeStatusBanner({ status }: { status: "success" | "cancel" }) {
+  const isSuccess = status === "success";
+  const message = isSuccess
+    ? "Payment received — thanks for sponsoring! Reconciliation may take a moment."
+    : "Checkout cancelled. No charge was made — you can try again below.";
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      style={{
+        padding: "12px 16px",
+        borderRadius: 6,
+        backgroundColor: isSuccess ? "#1a3a24" : "#3a2a1a",
+        border: `1px solid ${isSuccess ? "#3a7f5c" : "#7f5a3a"}`,
+        color: isSuccess ? "#7fdc9e" : "#f4c680",
+        fontSize: 14,
+      }}
+    >
+      {message}
+    </div>
   );
 }
 
