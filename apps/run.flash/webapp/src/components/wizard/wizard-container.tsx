@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useWizard } from "@/hooks/use-wizard";
 import { useSerial } from "@/hooks/use-serial";
+import { useDfu } from "@/hooks/use-dfu";
 import { useFlash } from "@/hooks/use-flash";
 import { useConfigure } from "@/hooks/use-configure";
 import { validateChipMatch } from "@/lib/esptool";
@@ -27,6 +28,11 @@ export function WizardContainer() {
   } = useWizard();
 
   const serial = useSerial();
+  // Both transport hooks are spawned unconditionally so we obey React
+  // rules-of-hooks (mirrors the `useFlash` router which also calls both
+  // delegate hooks every render). The wizard picks which transport to
+  // consume by device family (Task 25-01-02 wires the ConnectStep prop).
+  const dfu = useDfu();
   const flashState = useFlash();
   const configureState = useConfigure();
 
@@ -36,13 +42,18 @@ export function WizardContainer() {
       ? !validateChipMatch(serial.chipInfo.chipName, selectedDevice.architecture)
       : false;
 
-  // Reset entire wizard for "Flash Another Device" flow
+  // Reset entire wizard for "Flash Another Device" flow.
+  // Both transports are reset regardless of which family the previous flash
+  // used, so a subsequent nRF52 flow doesn't inherit a stale ESP32 handle
+  // (and vice versa). Both disconnect calls are fire-and-forget — the useDfu
+  // / useSerial hooks each swallow already-disconnected errors.
   const resetWizard = useCallback(() => {
     flashState.reset();
     configureState.reset();
     serial.disconnect();
+    dfu.disconnect();
     goToStepForRetry("pick-device");
-  }, [flashState, configureState, serial, goToStepForRetry]);
+  }, [flashState, configureState, serial, dfu, goToStepForRetry]);
 
   return (
     <div className="flex flex-col gap-4">
