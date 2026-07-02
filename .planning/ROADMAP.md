@@ -9,6 +9,7 @@
 - [ ] **v1.4 Flash Service Refresh** - Phases 18-19 (in progress — code shipped 2026-07-01, hardware verification pending)
 - [ ] **v1.4.1 nRF52840 / T-1000E Flash Support** - Phases 24-25 (planned, parallel-safe with v1.5)
 - [ ] **v1.5 Bib Registration** - Phases 20-23 (planned)
+- [ ] **v1.6 Header & Meshtastic UX Refresh** - Phases 26-27 (planned 2026-07-02)
 
 ## Phases
 
@@ -116,6 +117,17 @@ Plans:
 - [ ] **Phase 22: Payments (Cash + Stripe + PayPal/Venmo, crypto-ready)** - provider-agnostic seam, method chooser, give tiers, cash path, working Stripe + PayPal/Venmo providers, crypto seam deferred
 - [ ] **Phase 23: Build/Deploy + Branding** - run.bib added to build.sh/deploy.sh/release-all.sh + buildpub.yml/deploy.yml, DC34 branding, both-region verification
 
+### v1.6 Header & Meshtastic UX Refresh (Planned)
+
+**Milestone Goal:** Fix the run.defcon.run header — remove Leaderboard entirely, replace the dead `/meshtastic` link with a real "this or that" landing page (Flash vs. MQTT network), keep Maps → gpx.defcon.run, surface a CMS-group-gated CMS link — and separately fix the cms.defcon.run incognito SSO glitch (native login flash → access-denied on reload).
+
+**Split rationale:** two apps, two deploys. Phase 26 = `apps/run.human` frontend only. Phase 27 = `apps/run.cms` admin/SSO only. Zero file overlap → independent PRs, parallel-safe. Both are net-new/bugfix scoped, no infra changes.
+
+> **Phase-numbering:** Header/Meshtastic UX is milestone **v1.6**, phases **26-27**, after v1.4.1's phases 24-25.
+
+- [ ] **Phase 26: Header/Nav UX Refresh** - remove Leaderboard (header.tsx + dropdown-menu.tsx), new public `/meshtastic` "this or that" tile page (flash.defcon.run vs mqtt.defcon.run), keep Maps → gpx.defcon.run, CMS link in user dropdown gated on `cms` service. See `phases/26-header-nav-ux-refresh/26-CONTEXT.md`.
+- [ ] **Phase 27: CMS Incognito SSO Fix** - fix native-login flash (admin/app.tsx module-load redirect guard misses SPA route change) + reload access-denied (OIDC session/refresh cookie sameSite/secure drop vs. services-claim delivery — repro to confirm). See `phases/27-cms-incognito-sso-fix/27-CONTEXT.md`.
+
 ### Phase 20: Infrastructure Foundation
 **Goal**: All AWS infrastructure required by bib.defcon.run is provisioned and reachable in both regions, mirroring the flash.defcon.run footprint
 **Depends on**: Nothing (first phase of v1.5)
@@ -206,6 +218,28 @@ Plans:
 **Plans**: TBD (~1-2 plans).
 **UI hint**: yes.
 
+### Phase 26: Header/Nav UX Refresh
+**Goal**: The run.defcon.run header has no dead links — Leaderboard is gone, Maps → gpx.defcon.run, Meshtastic → a real in-app "this or that" landing page offering flash.defcon.run and mqtt.defcon.run, and CMS-group members see a CMS link.
+**Depends on**: none (independent of v1.4/v1.4.1/v1.5).
+**Success Criteria** (what must be TRUE):
+  1. Leaderboard removed from both `header.tsx` navItems and `dropdown-menu.tsx`; unused `FaTrophy` import dropped.
+  2. New public route `src/app/(public)/meshtastic/page.tsx` renders two tiles — Flash & Join → `https://flash.defcon.run`, Network → `https://mqtt.defcon.run` — in the existing glass-card/teal (#00d4aa)/MuseoModerno design language, responsive (side-by-side desktop, stacked mobile).
+  3. Header + hamburger Meshtastic links resolve to the new route (no 404); Maps still → gpx.defcon.run.
+  4. A "CMS" link → `https://cms.defcon.run` appears in the user dropdown ONLY when `session.user.services.includes('cms')`.
+**Plans**: TBD (~1-2 plans).
+**UI hint**: yes.
+
+### Phase 27: CMS Incognito SSO Fix
+**Goal**: A fresh/incognito visit to cms.defcon.run redirects straight to SSO with no native-login flash, and after a valid `cms`-service login a reload stays authenticated instead of showing "Access Denied".
+**Depends on**: none (separate app from Phase 26).
+**Success Criteria** (what must be TRUE):
+  1. Cold incognito load of `/{region}/admin` auto-redirects to SSO — the redirect fires on SPA navigation to the login route, not only at module load (`apps/run.cms/app/src/admin/app.tsx`).
+  2. Repro instrumented to disambiguate the reload "Access Denied" cause: OIDC session/refresh cookie (`sameSite`/`secure`) drop vs. genuinely-missing `cms` service claim.
+  3. Root cause from (2) fixed; valid `cms` user reloads the admin panel with no access-denied.
+  4. Verified on both region prefixes (`/use1/admin`, `/cac1/admin`).
+**Plans**: TBD (~1-2 plans).
+**UI hint**: minimal (mostly auth/cookie plumbing; Part A is a redirect-timing fix).
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -222,3 +256,5 @@ Plans:
 | 23. Bib Build/Deploy + Branding | v1.5 | 0/1 | Planned | - |
 | 24. Device-family router + nRF52 flash path | v1.4.1 | 0/TBD | Planned | - |
 | 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
+| 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
+| 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
