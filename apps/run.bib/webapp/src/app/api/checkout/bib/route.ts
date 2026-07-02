@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/config/auth";
 import { getBib } from "@/entities/bib";
 import { getStripeClient } from "@/lib/stripe";
+import { STRIPE_PRODUCT_BIB } from "@/config/stripe-products";
 
 /**
  * POST /api/checkout/bib — create a Stripe Checkout Session for a bib
@@ -115,10 +116,7 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "usd",
             unit_amount: parsed.data.amount_cents,
-            product_data: {
-              name: "defcon.run 34 — bib sponsorship",
-              description: `Sponsorship for runner ${bib.runnerCode}`,
-            },
+            product: STRIPE_PRODUCT_BIB,
           },
         },
       ],

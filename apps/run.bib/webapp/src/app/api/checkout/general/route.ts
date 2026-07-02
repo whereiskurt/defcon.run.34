@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/config/auth";
 import { getStripeClient } from "@/lib/stripe";
+import { STRIPE_PRODUCT_GENERAL } from "@/config/stripe-products";
 
 /**
  * POST /api/checkout/general — create a Stripe Checkout Session for a
@@ -95,10 +96,7 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "usd",
             unit_amount: parsed.data.amount_cents,
-            product_data: {
-              name: "defcon.run 34 — general donation",
-              description: "Thank you for supporting defcon.run 34.",
-            },
+            product: STRIPE_PRODUCT_GENERAL,
           },
         },
       ],
