@@ -1,0 +1,4 @@
+# Node dep artifacts — Terragrunt runs `npm ci --omit=dev` at package time
+# so the deploy zip picks them up; source control does not track them.
+node_modules/
+.vitest-cache/
