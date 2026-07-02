@@ -1,0 +1,18 @@
+Plan 23-01-04 SSM Audit — /dc34/secrets/use1/bib/*
+========================================================================
+Param                                    Type           Result    
+------------------------------------------------------------------------
+stripe/secret_key                        SecureString   PASS — sk_test_...
+stripe/publishable_key                   String         PASS — pk_test_...
+stripe/webhook_signing_secret            SecureString   PASS — whsec_C9DDXh41lrexKi6w8p...
+anthropic/api_key                        SecureString   PASS — sk-ant-...redacted
+admin/allowlist                          String         PASS — whereiskurt@gmail.com
+venmo/handle                             String         PASS — @defconrun
+cashapp/handle                           String         PASS — $defconrun
+------------------------------------------------------------------------
+RESULT: ALL PASS
+
+Admin allowlist inspection:
+  Value:            'whereiskurt@gmail.com'
+  Kurt (@gmail):    PRESENT
+  Jesse:            MISSING (plan expected but only Kurt loaded)
