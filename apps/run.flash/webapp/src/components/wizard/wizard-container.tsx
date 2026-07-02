@@ -12,7 +12,7 @@ import { getDeviceFamily } from "@/types/device";
 import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { DeviceGrid } from "@/components/device-picker/device-grid";
 import { ConnectStep, type TransportState } from "@/components/connect/connect-step";
-import { FlashStep } from "@/components/flash/flash-step";
+import { FlashStep, type FlashTransport } from "@/components/flash/flash-step";
 import { ConfigureStep } from "@/components/configure/configure-step";
 import { DoneStep } from "@/components/done/done-step";
 
@@ -51,6 +51,14 @@ export function WizardContainer() {
     family === "nrf52"
       ? { family: "nrf52", dfu }
       : { family: "esp32", serial };
+
+  // Parallel discriminated transport-ref for FlashStep — same family switch,
+  // but exposing the underlying ESPLoader / DfuDevice ref that the router
+  // (useFlash) needs to hand off to the family-specific flash pipeline.
+  const flashTransport: FlashTransport =
+    family === "nrf52"
+      ? { family: "nrf52", dfuDeviceRef: dfu.dfuDeviceRef }
+      : { family: "esp32", espLoaderRef: serial.espLoaderRef };
 
   // Compute chip mismatch: detected chip must match selected device architecture.
   // Only meaningful for ESP32 — nRF52 has no esptool-style chip identifier.
@@ -110,21 +118,46 @@ export function WizardContainer() {
             />
           )}
 
-          {currentStep === "flash" && selectedDevice && serial.chipInfo && (
-            <FlashStep
-              device={selectedDevice}
-              chipInfo={serial.chipInfo}
-              flashState={flashState}
-              espLoaderRef={serial.espLoaderRef}
-              consoleLogs={serial.consoleLogs}
-              appendLog={serial.appendLog}
-              onContinue={advance}
-              onRetry={() => {
-                flashState.reset();
-                serial.disconnect();
-                goToStepForRetry("connect");
-              }}
-            />
+          {currentStep === "flash" && selectedDevice && (
+            // Gate the render on family-specific readiness:
+            // - ESP32 needs `serial.chipInfo` (the pre-flash panel shows the
+            //   chip line and identity comes from esptool)
+            // - nRF52 needs `dfu.isConnected` (VID/PID come from the claimed
+            //   DFU device; no esptool-style chip identifier exists)
+            family === "nrf52" ? (
+              dfu.isConnected && (
+                <FlashStep
+                  device={selectedDevice}
+                  flashState={flashState}
+                  transport={flashTransport}
+                  consoleLogs={dfu.consoleLogs}
+                  appendLog={dfu.appendLog}
+                  onContinue={advance}
+                  onRetry={() => {
+                    flashState.reset();
+                    dfu.disconnect();
+                    goToStepForRetry("connect");
+                  }}
+                />
+              )
+            ) : (
+              serial.chipInfo && (
+                <FlashStep
+                  device={selectedDevice}
+                  chipInfo={serial.chipInfo}
+                  flashState={flashState}
+                  transport={flashTransport}
+                  consoleLogs={serial.consoleLogs}
+                  appendLog={serial.appendLog}
+                  onContinue={advance}
+                  onRetry={() => {
+                    flashState.reset();
+                    serial.disconnect();
+                    goToStepForRetry("connect");
+                  }}
+                />
+              )
+            )
           )}
 
           {currentStep === "configure" && (

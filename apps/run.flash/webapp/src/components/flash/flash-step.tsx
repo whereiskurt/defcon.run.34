@@ -17,27 +17,56 @@ import { FIRMWARE_VERSION, getFactoryFilename } from "@/config/firmware";
 import { FlashPipeline } from "@/components/flash/flash-pipeline";
 import { FlashConsole } from "@/components/flash/flash-console";
 import type { ESPLoader } from "esptool-js";
+import type { DfuDevice } from "@/lib/web-dfu";
+
+/**
+ * Discriminated transport union — parallels ConnectStep's TransportState.
+ * ESP32 flashes take an ESPLoader ref; nRF52 flashes take a DfuDevice ref.
+ * `handleFlash` picks the correct ref by family; the router downstream
+ * (useFlash) already accepts the union type.
+ *
+ * Per CONTEXT Decision 1 (Phase 24): discriminated union, NOT two
+ * mutually-exclusive optional props — the compiler fails fast on family
+ * mismatch (an ESP32 call site can't accidentally pass a DFU ref).
+ */
+export type FlashTransport =
+  | { family: "esp32"; espLoaderRef: React.RefObject<ESPLoader | null> }
+  | { family: "nrf52"; dfuDeviceRef: React.RefObject<DfuDevice | null> };
 
 interface FlashStepProps {
   device: DeviceHardware;
-  chipInfo: ChipInfo;
+  /** ESP32 chip info from esptool. Absent on the nRF52 path — DFU class
+   *  doesn't expose an esptool-style chip identifier, so the pre-flash
+   *  panel falls through to a VID/PID line instead. */
+  chipInfo?: ChipInfo;
   flashState: {
     progress: FlashProgress;
     isFlashing: boolean;
     isComplete: boolean;
     isError: boolean;
+    /** Router shape from useFlash — accepts either transport. */
     flash: (
-      espLoader: ESPLoader,
+      transport: ESPLoader | DfuDevice,
       device: DeviceHardware,
       appendLog: (text: string) => void
     ) => Promise<void>;
     reset: () => void;
   };
-  espLoaderRef: React.RefObject<ESPLoader | null>;
+  transport: FlashTransport;
   consoleLogs: ConsoleEntry[];
   appendLog: (text: string) => void;
   onContinue: () => void;
   onRetry: () => void;
+}
+
+/**
+ * Format a USB vendor/product ID pair as a canonical `VID:PID` hex string.
+ * Mirrors the formatter in connect-step.tsx (Nrf52ConnectView).
+ */
+function formatVidPid(vendorId: number, productId: number): string {
+  const vid = vendorId.toString(16).padStart(4, "0");
+  const pid = productId.toString(16).padStart(4, "0");
+  return `${vid}:${pid}`;
 }
 
 /**
@@ -47,15 +76,22 @@ interface FlashStepProps {
  * Per CONTEXT.md locked decisions:
  * - Manual flash start (no auto-start, no countdown)
  * - Clear erase warning before flash button
- * - Pre-flash info panel with device, chip, firmware details
+ * - Pre-flash info panel with device, chip/VID:PID, firmware details
  * - Recovery guidance with retry back to Connect step
  * - Flash success: all green checkmarks + "Continue to Configure"
+ *
+ * Per Phase 25 (Plan 25-02-03):
+ * - `transport` is a discriminated union — `handleFlash` picks the right
+ *   ref by family and passes it to `flashState.flash` (which is already
+ *   the router shape from useFlash).
+ * - Pre-flash panel: ESP32 shows the "Chip: …" line from esptool;
+ *   nRF52 shows "USB: VID:PID" from the DfuDevice.
  */
 export function FlashStep({
   device,
   chipInfo,
   flashState,
-  espLoaderRef,
+  transport,
   consoleLogs,
   appendLog,
   onContinue,
@@ -68,14 +104,38 @@ export function FlashStep({
     progress.stage === "verifying";
 
   const handleFlash = () => {
-    if (!espLoaderRef.current) return;
-    flashState.flash(espLoaderRef.current, device, appendLog);
+    if (transport.family === "esp32") {
+      const loader = transport.espLoaderRef.current;
+      if (!loader) return;
+      flashState.flash(loader, device, appendLog);
+    } else {
+      const dfuDevice = transport.dfuDeviceRef.current;
+      if (!dfuDevice) return;
+      flashState.flash(dfuDevice, device, appendLog);
+    }
   };
 
   const handleRetry = () => {
     flashState.reset();
     onRetry();
   };
+
+  const transportReady =
+    transport.family === "esp32"
+      ? !!transport.espLoaderRef.current
+      : !!transport.dfuDeviceRef.current;
+
+  // Family-aware pre-flash identity line (ESP32: chip name; nRF52: VID:PID).
+  const identityLabel = transport.family === "esp32" ? "Chip" : "USB";
+  const identityValue =
+    transport.family === "esp32"
+      ? chipInfo?.chipName ?? "—"
+      : transport.dfuDeviceRef.current
+        ? formatVidPid(
+            transport.dfuDeviceRef.current.vendorId,
+            transport.dfuDeviceRef.current.productId
+          )
+        : "—";
 
   return (
     <div className="space-y-4">
@@ -100,7 +160,7 @@ export function FlashStep({
               size="lg"
               startContent={<Zap className="w-5 h-5" />}
               onPress={handleFlash}
-              isDisabled={!espLoaderRef.current}
+              isDisabled={!transportReady}
               className="font-mono whitespace-nowrap"
             >
               Flash Firmware
@@ -117,9 +177,9 @@ export function FlashStep({
             </div>
             <div className="border-t border-default-200/10" />
             <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">Chip</span>
+              <span className="text-default-500">{identityLabel}</span>
               <span className="font-mono text-foreground">
-                {chipInfo.chipName}
+                {identityValue}
               </span>
             </div>
             <div className="border-t border-default-200/10" />
@@ -247,12 +307,23 @@ export function FlashStep({
               <ol className="list-decimal list-inside space-y-2 text-sm text-default-400 text-left max-w-sm">
                 <li>Don&apos;t panic &mdash; your device can be re-flashed</li>
                 <li>Reconnect the USB cable if it was disconnected</li>
-                <li>
-                  Put your device in bootloader mode (hold{" "}
-                  <span className="font-mono text-default-200">BOOT</span>,
-                  press{" "}
-                  <span className="font-mono text-default-200">RESET</span>)
-                </li>
+                {transport.family === "esp32" ? (
+                  <li>
+                    Put your device in bootloader mode (hold{" "}
+                    <span className="font-mono text-default-200">BOOT</span>,
+                    press{" "}
+                    <span className="font-mono text-default-200">RESET</span>)
+                  </li>
+                ) : (
+                  <li>
+                    Put your device in bootloader mode (
+                    <span className="font-mono text-default-200">
+                      double-tap RESET
+                    </span>
+                    ) &mdash; confirm the Adafruit UF2 mass-storage volume
+                    appears before retrying
+                  </li>
+                )}
                 <li>Click Retry to start over with a fresh connection</li>
               </ol>
             </div>
