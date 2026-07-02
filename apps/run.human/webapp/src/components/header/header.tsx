@@ -14,7 +14,6 @@ import { usePathname } from 'next/navigation';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
-import { FaTrophy } from 'react-icons/fa';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -49,7 +48,6 @@ const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'
 
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
-  { href: `${basePath}/leaderboard`, label: 'Leaderboard', icon: FaTrophy, external: false },
   { href: `${basePath}/meshtastic`, label: 'Meshtastic', icon: FaRadio, external: false },
 ] as const;
 

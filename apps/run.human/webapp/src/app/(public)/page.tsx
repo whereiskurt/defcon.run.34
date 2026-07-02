@@ -99,16 +99,6 @@ function WelcomeContent({ userName }: { userName: string }) {
         >
           Routes
         </Button>
-        <Button
-          variant="flat"
-          color="default"
-          className="w-full"
-          href="/leaderboard"
-          as="a"
-          endContent={<ChevronRight className="w-4 h-4" />}
-        >
-          Leaderboard
-        </Button>
       </div>
     </div>
   );
