@@ -126,7 +126,10 @@ export const authConfig: NextAuthConfig = {
   providers: [
     {
       id: "run.defcon.run",
-      name: "DEF CON",
+      // OIDC provider display name shown on the Auth.js sign-in dialog +
+      // any Next-auth-generated forms. Phase 22-05 rescope (Kurt
+      // 2026-07-02): rename "DEF CON" → "defcon.run" in visible copy.
+      name: "defcon.run",
       type: "oidc",
       issuer: oidcIssuer,
       clientId: process.env.OIDC_CLIENT_ID!,

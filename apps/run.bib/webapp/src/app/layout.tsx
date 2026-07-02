@@ -8,8 +8,9 @@ const REGION_SHORT = process.env.REGION_SHORT || "use1";
 const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
 
 export const metadata: Metadata = {
-  title: "Get Your Bib · DC34",
-  description: "DEF CON 34 bib registration for run.defcon.run participants",
+  title: "Get Your Bib · defcon.run 34",
+  description:
+    "defcon.run 34 bib registration for run.defcon.run participants",
 };
 
 export default function RootLayout({

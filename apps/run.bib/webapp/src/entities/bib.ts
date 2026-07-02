@@ -24,7 +24,7 @@ import { electroClient, ELECTRO_TABLE } from "./client";
  * - paidStatusHistory: append-only list of payment events. Phase 21 seeds
  *   empty; Phase 22 populates via {provider, amount, timestamp, reconciled_via}.
  * - willPayInPerson: (Phase 22-05, Kurt 2026-07-02) participant flag stating
- *   they intend to pay at DEF CON in person rather than online. Persistent,
+ *   they intend to pay at defcon.run 34 in person rather than online. Persistent,
  *   PATCH-able. Does NOT affect the print gate — bib registration is free.
  *   Feeds the admin "pledged-unpaid" report (Task 22-05-07).
  * - nameLocked: admin-set boolean; PATCH must 409 when true.
@@ -74,7 +74,7 @@ export const Bib = new Entity(
         type: "boolean",
         default: false,
       },
-      // Phase 22-05: participant intends to pay at DEF CON in person.
+      // Phase 22-05: participant intends to pay at defcon.run 34 in person.
       // Orthogonal to `paidAmount` — a pledge to pay in-person is neither a
       // payment nor a print gate. Feeds the admin pledged-unpaid report
       // (Task 22-05-07). PATCH-able via /api/bib; default false so existing
