@@ -8,7 +8,7 @@ on:
       apps:
         description: 'Apps to build (comma-separated)'
         type: string
-        default: 'run.auth,run.human,run.cms,run.gpx,run.flash,run.mqtt'
+        default: 'run.auth,run.human,run.cms,run.gpx,run.flash,run.bib,run.mqtt'
       regions:
         description: 'Target regions'
         type: choice
@@ -851,6 +851,7 @@ jobs:
             ["run-cms"]="cms.defcon.run"
             ["run-gpx"]="gpx.defcon.run"
             ["run-flash"]="flash.defcon.run"
+            ["run-bib"]="bib.defcon.run"
           )
 
           for APP in "${!DOMAINS[@]}"; do
