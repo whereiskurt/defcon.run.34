@@ -106,11 +106,11 @@ locals {
           },
           {
             name  = "AUTH_URL"
-            value = "https://bib.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+            value = "https://bib.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/auth"
           },
           {
             name  = "NEXTAUTH_URL"
-            value = "https://bib.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+            value = "https://bib.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/auth"
           },
           {
             name  = "AUTH_COOKIE_DOMAIN"
