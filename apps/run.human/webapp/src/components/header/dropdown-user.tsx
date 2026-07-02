@@ -20,7 +20,8 @@ import { useSession } from 'next-auth/react';
 import { fullLogout } from '@/hooks/useLogout';
 
 import { useRouter } from 'next/navigation';
-import { FaUserAlt, FaTrophy, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaUserAlt, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaPenToSquare } from 'react-icons/fa6';
 import CheckInModal from '@/components/CheckInModal';
 import { LogoutIcon } from './icon/logout';
 import { QRIcon } from './icon/qr';
@@ -118,6 +119,10 @@ const UserDropDown = (params: any) => {
 
   if (!session || !session.user) return <></>;
 
+  // Show the CMS link only to members of the `cms` service group — the same
+  // group cms.defcon.run itself requires for admin access.
+  const hasCms = !!session.user.services?.includes('cms');
+
   return (
     <>
       {LogoutModal(isLogoutOpen, closeLogout)}
@@ -185,16 +190,18 @@ const UserDropDown = (params: any) => {
               Profile
             </DropdownItem>
 
-            <DropdownItem
-              startContent={<FaTrophy />}
-              key="leaderboard"
-              className="gap-2 opacity-100 py-2 text-base"
-              textValue="Leaderboard"
-              href="/leaderboard"
-              closeOnSelect={true}
-            >
-              Leaderboard
-            </DropdownItem>
+            {hasCms ? (
+              <DropdownItem
+                startContent={<FaPenToSquare />}
+                key="cms"
+                className="gap-2 opacity-100 py-2 text-base"
+                textValue="CMS"
+                onPress={() => window.open('https://cms.defcon.run', '_blank')}
+                closeOnSelect={true}
+              >
+                CMS
+              </DropdownItem>
+            ) : null}
           </DropdownSection>
 
           <DropdownSection aria-label="Check-in" showDivider>

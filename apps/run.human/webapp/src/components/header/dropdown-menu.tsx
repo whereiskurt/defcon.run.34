@@ -13,7 +13,7 @@ import { useState } from 'react';
 import { FaQuestion, FaRadio } from 'react-icons/fa6';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
-import { FaUserAlt, FaTrophy } from 'react-icons/fa';
+import { FaUserAlt } from 'react-icons/fa';
 
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
@@ -70,15 +70,6 @@ const MenuDropDown = (params: any) => {
             onClick={() => handleNavigation(`${basePath}/whoami`)}
           >
             <span className="text-base">Who Am I</span>
-          </DropdownItem>
-
-          <DropdownItem
-            textValue="leaderboard"
-            startContent={<FaTrophy className={iconClasses} />}
-            key="leaderboard"
-            onClick={() => handleNavigation(`${basePath}/leaderboard`)}
-          >
-            <span className="text-base">Leaderboard</span>
           </DropdownItem>
 
           <DropdownItem
