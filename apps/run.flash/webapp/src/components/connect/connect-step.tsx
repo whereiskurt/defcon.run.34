@@ -67,13 +67,35 @@ const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success
 };
 
 /**
- * Serial-connect error categories (Phase 19-02 / BRND-02).
+ * Connect-step error categories (Phase 19-02 / BRND-02).
  *
- * useSerial already routes DOMException.NotAllowedError (user cancelled the
- * browser port picker) back to "disconnected" without touching error state,
- * so the 'cancelled' branch below is defensive belt-and-braces for
- * hook-shape drift (e.g. a future hook that surfaces "No port selected"
+ * The classifier is family-agnostic — it maps both esptool-side (Web Serial)
+ * and DFU-side (Web USB) error strings into the same four buckets so the
+ * ConnectStep UI can render one shared error panel + Try Again flow.
+ *
+ * useSerial and useDfu both route DOMException.NotAllowedError (user
+ * cancelled the browser picker) back to "disconnected" without touching
+ * error state, so the 'cancelled' branch below is defensive belt-and-braces
+ * for hook-shape drift (e.g. a future hook that surfaces "No port selected"
  * as an error string).
+ *
+ * DFU string coverage (Task 25-01-03 / FLSH-10):
+ * - `SecurityError` / `Web USB access denied` → in-use  (HTTPS or another
+ *   app has the device)
+ * - `Could not claim the DFU interface` → in-use  (another process holds it)
+ * - `transferOut failed` / `transferIn failed` → no-response  (control
+ *   transfer stalled — device unplugged or wedged bootloader)
+ * - `USB device disconnected` / `USB connection lost` → no-response
+ * - `Not opened` / `Not claimed` / raw `DFU error: …` fall through to
+ *   generic (deliberate — those strings offer no actionable hint the
+ *   generic copy can't match).
+ *
+ * @example classifyConnectError("SecurityError: access denied")
+ *   → "in-use" — HTTPS gate or another app holds the port.
+ * @example classifyConnectError("transferOut failed: device was disconnected")
+ *   → "no-response" — DFU control transfer aborted mid-write.
+ * @example classifyConnectError("Could not claim the DFU interface. Close any other apps talking to the device")
+ *   → "in-use" — another tool (nrfutil, uf2conv, second tab) holds the USB interface.
  */
 type ConnectErrorCategory = "cancelled" | "in-use" | "no-response" | "generic";
 
@@ -96,7 +118,11 @@ function classifyConnectError(err: string | null): ConnectErrorCategory {
     lower.includes("invalidstateerror") ||
     lower.includes("access denied") ||
     lower.includes("permission denied") ||
-    lower.includes("busy")
+    lower.includes("busy") ||
+    // DFU-side matches (Task 25-01-03)
+    lower.includes("securityerror") ||
+    lower.includes("could not claim") ||
+    lower.includes("unable to claim")
   ) {
     return "in-use";
   }
@@ -110,7 +136,14 @@ function classifyConnectError(err: string | null): ConnectErrorCategory {
     lower.includes("didn't respond") ||
     lower.includes("failed to open") ||
     lower.includes("failed to connect") ||
-    lower.includes("no serial port")
+    lower.includes("no serial port") ||
+    // DFU-side matches (Task 25-01-03)
+    lower.includes("transferout failed") ||
+    lower.includes("transferin failed") ||
+    lower.includes("device disconnected") ||
+    lower.includes("device was disconnected") ||
+    lower.includes("usb connection lost") ||
+    lower.includes("usb device disconnected")
   ) {
     return "no-response";
   }
