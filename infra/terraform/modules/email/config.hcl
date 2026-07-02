@@ -17,6 +17,10 @@ locals {
     try(local.email_vars.locals.fwd_rules, [])
   )
 
+  # S3-only receive rules come from region-level email.hcl only (they attach
+  # to a specific region's bucket, so a site-level list wouldn't make sense).
+  receive_rules = try(local.email_vars.locals.receive_rules, [])
+
   merged_inputs = merge(
     local.site_vars.locals,
     local.region_vars.locals,
@@ -24,6 +28,7 @@ locals {
     {
       smtp_iam_users               = local.merged_smtp_iam_users
       fwd_rules                    = local.merged_fwd_rules
+      receive_rules                = local.receive_rules
       forwarder_lambda_source_path = try(local.email_vars.locals.forwarder_lambda_source_path, "")
     }
   )

@@ -82,3 +82,18 @@ variable "forwarder_lambda_source_path" {
   description = "Path to directory containing the email forwarder Lambda code (index.py). Required if fwd_rules is not empty."
   default     = ""
 }
+
+# S3-only receive rules. Unlike fwd_rules (which chain S3 + Lambda forwarding),
+# these drop matching inbound mail into the received_emails bucket under a
+# caller-supplied prefix and stop. Downstream consumers (e.g. Phase 22's Haiku
+# Lambda for bib payment reconciliation) attach their own S3 event triggers
+# scoped to the prefix — the prefix is a load-bearing cross-module contract.
+variable "receive_rules" {
+  type = list(object({
+    name              = string
+    match             = string
+    object_key_prefix = string
+  }))
+  description = "List of s3-only SES receive rules (write raw email to received_emails bucket at the given prefix)."
+  default     = []
+}
