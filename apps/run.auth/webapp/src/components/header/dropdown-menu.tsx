@@ -88,7 +88,7 @@ const MenuDropDown = () => {
             textValue="meshtastic"
             startContent={<FaRadio className={iconClasses} />}
             key="meshtastic"
-            onClick={() => { setIsOpen(false); window.open('https://run.defcon.run/meshtastic', '_blank'); }}
+            onClick={() => { setIsOpen(false); window.open(`https://run.defcon.run/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}/meshtastic`, '_blank'); }}
           >
             <span className="text-base">Meshtastic</span>
           </DropdownItem>

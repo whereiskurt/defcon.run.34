@@ -91,7 +91,7 @@ const UserDropDown = () => {
               key="profile"
               className="gap-2 opacity-100 py-2 text-base"
               textValue="Profile"
-              href={`${basePath}/profile`}
+              href="/profile"
               closeOnSelect={true}
             >
               Profile
@@ -102,7 +102,7 @@ const UserDropDown = () => {
               key="strava"
               className="gap-2 opacity-100 py-2 text-base"
               textValue="Strava"
-              href={`${basePath}/strava`}
+              href="/strava"
               closeOnSelect={true}
             >
               Strava Linking

@@ -14,7 +14,6 @@ import { useSession } from 'next-auth/react';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
-import { FaTrophy } from 'react-icons/fa';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -41,16 +40,14 @@ const MenuDropDown = dynamic(() => import('./dropdown-menu'), {
 
 import { ThemeSwitch } from '../theme-switch';
 
-const basePath = process.env.NODE_ENV === 'production'
-  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
-  : '';
-
 const APP_VERSION_TOOLTIP = `DC34 Auth ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
+
+// run.defcon.run is mounted at /{region}; link to the region-correct page.
+const MESH_URL = `https://run.defcon.run/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}/meshtastic`;
 
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
-  { href: 'https://run.defcon.run/leaderboard', label: 'Leaderboard', icon: FaTrophy, external: true },
-  { href: 'https://run.defcon.run/meshtastic', label: 'Meshtastic', icon: FaRadio, external: true },
+  { href: MESH_URL, label: 'Meshtastic', icon: FaRadio, external: true },
 ] as const;
 
 export function Header() {
@@ -76,7 +73,7 @@ export function Header() {
       <NavbarContent className="sm:hidden" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href={`${basePath}/`}>
+            <Link color="foreground" href="/">
               <span className="font-museo text-lg font-bold tracking-tight">
                 defcon<span className="teal-dot">.</span>run
               </span>
@@ -89,7 +86,7 @@ export function Header() {
       <NavbarContent className="sm:flex hidden gap-6" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href={`${basePath}/`}>
+            <Link color="foreground" href="/">
               <span className="font-museo text-lg font-bold tracking-tight">
                 defcon<span className="teal-dot">.</span>run
               </span>
