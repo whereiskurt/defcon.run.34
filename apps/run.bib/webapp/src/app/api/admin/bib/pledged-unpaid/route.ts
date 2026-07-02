@@ -24,7 +24,7 @@ import { requireAdmin } from "@/lib/admin-gate";
  *
  * Uses ElectroDB scan with an inline where-filter. Scans are O(n) over
  * the whole electro-table but the bib row-count is bounded (single
- * thousands MAX at DEF CON 34 attendance forecast), so this is fine at
+ * thousands MAX at defcon.run 34 attendance forecast), so this is fine at
  * v1.5. A future v1.6 could add a byWillPayInPerson GSI if scan latency
  * becomes a problem.
  *
