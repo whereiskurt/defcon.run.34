@@ -152,21 +152,28 @@ function classifyConnectError(err: string | null): ConnectErrorCategory {
 
 function categoryMessage(
   category: ConnectErrorCategory,
-  raw: string | null
+  raw: string | null,
+  family: "esp32" | "nrf52" = "esp32"
 ): string | null {
   switch (category) {
     case "cancelled":
       // Silent — Connect step reverts to "ready" UI.
       return null;
     case "in-use":
-      return "The serial port is in use by another program (Arduino IDE, PlatformIO, or another browser tab running the flasher). Close it and try again.";
+      return family === "nrf52"
+        ? "The DFU interface is in use by another program (nrfutil, uf2conv, or another browser tab running the flasher). Close it and try again."
+        : "The serial port is in use by another program (Arduino IDE, PlatformIO, or another browser tab running the flasher). Close it and try again.";
     case "no-response":
-      return "Couldn't reach the device. Try a different data USB cable (some are charge-only), or put the device in bootloader mode using the steps below.";
+      return family === "nrf52"
+        ? "Couldn't reach the device. Try a different data USB cable (some are charge-only), or put the device in bootloader mode (double-tap RESET) using the steps below."
+        : "Couldn't reach the device. Try a different data USB cable (some are charge-only), or put the device in bootloader mode using the steps below.";
     case "generic":
     default:
       return (
         raw ??
-        "Serial connection failed. Try the troubleshooting steps below."
+        (family === "nrf52"
+          ? "DFU connection failed. Try the troubleshooting steps below."
+          : "Serial connection failed. Try the troubleshooting steps below.")
       );
   }
 }
@@ -424,7 +431,7 @@ function Nrf52ConnectView({
   const isCancelled = errorCategory === "cancelled";
   const displayError =
     errorCategory && !isCancelled
-      ? categoryMessage(errorCategory, dfu.error)
+      ? categoryMessage(errorCategory, dfu.error, "nrf52")
       : null;
   const showErrorPanel = dfu.connectionState === "error" && !isCancelled;
 
