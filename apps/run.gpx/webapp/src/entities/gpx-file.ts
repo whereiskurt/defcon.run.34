@@ -139,6 +139,14 @@ export const GpxFile = new Entity(
         required: true,
         default: "active", // Default to active for backwards compatibility
       },
+      // Community sharing: owner flags a private route as "wants to be shared";
+      // an admin curates flagged routes into a GLOBAL folder ("Rabbit Routes").
+      // Schema-on-write boolean; queried by an admin-only filtered scan (no GSI).
+      shareRequested: {
+        type: "boolean",
+        required: false,
+        default: false,
+      },
     },
     indexes: {
       primary: {

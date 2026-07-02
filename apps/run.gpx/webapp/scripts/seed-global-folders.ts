@@ -13,7 +13,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { GpxFolder } from "../src/entities/gpx-folder";
 
-const GLOBAL_FOLDERS = ["DEF CON 34 Maps"];
+const GLOBAL_FOLDERS = ["DEF CON 34 Maps", "Rabbit Routes"];
 
 async function ensureGlobalFolder(folderName: string): Promise<void> {
   const existing = await GpxFolder.query.byUser({ userId: "GLOBAL" }).go();
