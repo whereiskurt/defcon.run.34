@@ -199,6 +199,87 @@ export async function createBib(
 }
 
 /**
+ * Options for {@link applyPayment}. Cents-first amounts throughout; the
+ * caller is responsible for pinning currency to USD (only USD supported
+ * at launch — see Phase 22 AI-SPEC.md §"System prompt").
+ */
+export interface ApplyPaymentInput {
+  /** Payment source: "stripe" | "venmo" | "cashapp" (extensible). */
+  provider: string;
+  /** Amount to add to `paidAmount`, in whole cents. */
+  amount_cents: number;
+  /**
+   * How this payment was reconciled — for Stripe webhook, use
+   * `stripe_webhook_${session.id}` so the same session ID replaying
+   * is detected as a dup and skipped. For the Haiku Lambda (Plan
+   * 22-04) use `haiku_reconcile_${receiptId}`.
+   */
+  reconciled_via: string;
+  /**
+   * ISO8601 timestamp for the paidStatusHistory row. Defaults to
+   * `new Date().toISOString()` — passed in for deterministic testing.
+   */
+  timestamp?: string;
+}
+
+/**
+ * Idempotently apply a payment to a bib.
+ *
+ * Design contract (v1.5 Phase 22 PLAN.md §22-01-04):
+ * - Atomically:
+ *     1. add `amount_cents` to `paidAmount`
+ *     2. append `{provider, amount, timestamp, reconciled_via}` to
+ *        `paidStatusHistory`
+ * - Idempotent by `reconciled_via`: if the current bib's history
+ *   already contains a row with the same reconciled_via string, this
+ *   is a no-op that returns the current bib unchanged. Stripe webhook
+ *   retries fire the SAME session id via `stripe_webhook_${session.id}`,
+ *   so the second delivery finds the marker and skips.
+ * - Race window: two concurrent webhook deliveries could both read
+ *   "no marker present" and both append. Stripe's retry policy is
+ *   sequential-after-failure, not parallel, so this is theoretical
+ *   but not practically observed. Post-launch a Set attribute for
+ *   O(1) markers could tighten the race (v1.6 concern).
+ * - Throws if the bib doesn't exist. Caller decides how to surface
+ *   — webhook returns 404 so Stripe stops retrying.
+ */
+export async function applyPayment(
+  ownerSub: string,
+  input: ApplyPaymentInput
+): Promise<BibItem> {
+  const bib = await getBib(ownerSub);
+  if (!bib) {
+    throw new Error(`No bib found for ownerSub=${ownerSub}`);
+  }
+
+  // Idempotency check: if we've already applied this reconciliation
+  // marker, short-circuit and return the current bib unchanged. This
+  // covers Stripe webhook retries (same session.id) and Haiku
+  // re-invocations (same receiptId) without double-crediting.
+  const already = (bib.paidStatusHistory ?? []).some(
+    (row) => row?.reconciled_via === input.reconciled_via
+  );
+  if (already) {
+    return bib;
+  }
+
+  const timestamp = input.timestamp ?? new Date().toISOString();
+  const amount = Math.max(0, Math.trunc(input.amount_cents));
+  const historyRow = {
+    provider: input.provider,
+    amount,
+    timestamp,
+    reconciled_via: input.reconciled_via,
+  };
+
+  const result = await Bib.patch({ ownerSub })
+    .add({ paidAmount: amount })
+    .append({ paidStatusHistory: [historyRow] })
+    .go({ response: "all_new" });
+  return result.data as BibItem;
+}
+
+/**
  * Update the nameOnBib for the given owner.
  * Throws NameLockedError when the bib's nameLocked flag is true — API layer
  * translates this to a 409.
