@@ -18,6 +18,17 @@ locals {
     },
   ]
 
+  # S3-only receive rule for bib payment notification emails.
+  # object_key_prefix is a load-bearing contract with Phase 22's Haiku Lambda,
+  # which attaches an S3 event trigger scoped to this prefix.
+  receive_rules = [
+    {
+      name              = "bib-payment-inbound"
+      match             = "bibpayment@run.${local.dns_zonename}"
+      object_key_prefix = "bib-payments/"
+    },
+  ]
+
   # Path to email forwarder Lambda source code
   forwarder_lambda_source_path = "${get_repo_root()}/infra/terraform/live/site/region/us-east-1/email/lambdas/email-forwarder"
 }
