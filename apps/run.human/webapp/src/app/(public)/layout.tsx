@@ -85,12 +85,8 @@ export default async function PublicLayout({
   const fullUrl = headersList.get("x-url") || headersList.get("referer") || "";
   const isAutoLoginFlow = fullUrl.includes("autoLogin=true");
   const isAutoSigninRoute = fullUrl.includes("/api/auth/auto-signin");
-  // Public content pages that everyone (logged-in or out) should see directly,
-  // without the silent-SSO bounce to /whoami. /meshtastic is a public chooser
-  // for flash.defcon.run / mqtt.defcon.run.
-  const isPublicContentRoute = fullUrl.includes("/meshtastic");
 
-  if (!isAutoLoginFlow && !isAutoSigninRoute && !isPublicContentRoute) {
+  if (!isAutoLoginFlow && !isAutoSigninRoute) {
     const hasAuth = await hasAuthSession();
     if (hasAuth) {
       console.log("[Silent SSO] Valid auth session found, redirecting to OIDC flow");

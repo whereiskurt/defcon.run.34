@@ -15,10 +15,6 @@ import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaUserAlt } from 'react-icons/fa';
 
-const basePath = process.env.NODE_ENV === 'production'
-  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
-  : '';
-
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
 const MenuDropDown = (params: any) => {
@@ -67,7 +63,7 @@ const MenuDropDown = (params: any) => {
             startContent={<FaUserAlt className={iconClasses} />}
             key="whoami"
             showDivider
-            onClick={() => handleNavigation(`${basePath}/whoami`)}
+            onClick={() => handleNavigation('/whoami')}
           >
             <span className="text-base">Who Am I</span>
           </DropdownItem>
@@ -86,7 +82,7 @@ const MenuDropDown = (params: any) => {
             startContent={<FaRadio className={iconClasses} />}
             key="meshtastic"
             showDivider
-            onClick={() => handleNavigation(`${basePath}/meshtastic`)}
+            onClick={() => handleNavigation('/meshtastic')}
           >
             <span className="text-base">Meshtastic</span>
           </DropdownItem>
@@ -95,7 +91,7 @@ const MenuDropDown = (params: any) => {
             textValue="faq"
             startContent={<FaQuestion className={iconClasses} />}
             key="faq"
-            onClick={() => handleNavigation(`${basePath}/faq`)}
+            onClick={() => handleNavigation('/faq')}
           >
             <span className="text-base">FAQ</span>
           </DropdownItem>
