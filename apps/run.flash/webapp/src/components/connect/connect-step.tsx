@@ -376,7 +376,7 @@ function Esp32ConnectView({
       </div>
 
       {/* Bootloader help — surfaced on any non-cancelled error. */}
-      {showErrorPanel && <BootloaderHelp />}
+      {showErrorPanel && <BootloaderHelp family="esp32" />}
     </div>
   );
 }
@@ -575,7 +575,7 @@ function Nrf52ConnectView({
       </div>
 
       {/* Bootloader help — surfaced on any non-cancelled error. */}
-      {showErrorPanel && <BootloaderHelp />}
+      {showErrorPanel && <BootloaderHelp family="nrf52" />}
     </div>
   );
 }
