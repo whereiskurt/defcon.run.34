@@ -8,7 +8,8 @@ import { electroClient, ELECTRO_TABLE } from "./client";
  * subject (`ownerSub`). One bib per account is enforced structurally via a
  * fixed SK literal ("BIB") so `create` collides on retry (idempotent).
  *
- * Fields (v1.5 Phase 21 design contract — Kurt 2026-07-02):
+ * Fields (v1.5 Phase 21 design contract, updated by Phase 22-05 rescope
+ * 2026-07-02):
  * - ownerSub: OIDC subject (from session.user.id). Primary partition key.
  * - nameOnBib: Editable text that renders on the bib preview (max 32 chars).
  *   Server enforces cap; UI enforces cap. Blocked from edits once nameLocked
@@ -18,8 +19,14 @@ import { electroClient, ELECTRO_TABLE } from "./client";
  *   payment reconciliation lookups.
  * - paidAmount: cents integer, accumulative. Initialized to 0 at create; Phase
  *   22 SES-reconciled webhook Lambda increments as payments arrive.
+ *   NOTE (Phase 22-05): payment is orthogonal to bib registration — a bib may
+ *   be printed with paidAmount=0 (see `canPrintName()`).
  * - paidStatusHistory: append-only list of payment events. Phase 21 seeds
  *   empty; Phase 22 populates via {provider, amount, timestamp, reconciled_via}.
+ * - willPayInPerson: (Phase 22-05, Kurt 2026-07-02) participant flag stating
+ *   they intend to pay at defcon.run 34 in person rather than online. Persistent,
+ *   PATCH-able. Does NOT affect the print gate — bib registration is free.
+ *   Feeds the admin "pledged-unpaid" report (Task 22-05-07).
  * - nameLocked: admin-set boolean; PATCH must 409 when true.
  * - createdAt / updatedAt: ISO8601 timestamps.
  *
@@ -64,6 +71,15 @@ export const Bib = new Entity(
         default: () => [],
       },
       nameLocked: {
+        type: "boolean",
+        default: false,
+      },
+      // Phase 22-05: participant intends to pay at defcon.run 34 in person.
+      // Orthogonal to `paidAmount` — a pledge to pay in-person is neither a
+      // payment nor a print gate. Feeds the admin pledged-unpaid report
+      // (Task 22-05-07). PATCH-able via /api/bib; default false so existing
+      // rows read as "no in-person pledge" without a backfill.
+      willPayInPerson: {
         type: "boolean",
         default: false,
       },
@@ -306,25 +322,54 @@ export async function updateBibName(
 }
 
 /**
- * Physical-bib print gate (SC8, v1.5 Phase 22).
+ * Update the `willPayInPerson` pledge flag for the given owner (Phase 22-05).
  *
- * A bib may be sent to the printer iff BOTH conditions hold:
- *   1. `paidAmount >= 1000` (cents) — the participant paid at least the
- *      $10 minimum-sponsorship threshold.
- *   2. `nameLocked === true` — an admin (Kurt/Jesse) has confirmed the
- *      name-on-bib is final and safe to render (prevents last-second
- *      profanity / typos in the physical print run).
+ * Design contract:
+ * - Pure flip of a persistent boolean. Idempotent (setting `true` when it's
+ *   already `true` is a no-op set from DDB's perspective).
+ * - Does NOT interact with `nameLocked` — the pledge is orthogonal to the
+ *   name-print gate. A locked-name bib may still toggle the pledge (e.g.,
+ *   participant changes plans after registration lock).
+ * - Throws when the bib doesn't exist so PATCH can surface a 404. The API
+ *   layer matches "No bib found" as the marker (mirrors updateBibName).
+ */
+export async function updateBibWillPayInPerson(
+  ownerSub: string,
+  willPayInPerson: boolean
+): Promise<BibItem> {
+  const existing = await getBib(ownerSub);
+  if (!existing) {
+    throw new Error(`No bib found for ownerSub=${ownerSub}`);
+  }
+
+  const result = await Bib.patch({ ownerSub })
+    .set({ willPayInPerson })
+    .go({ response: "all_new" });
+  return result.data as BibItem;
+}
+
+/**
+ * Physical-bib print gate (SC8, v1.5 Phase 22, rescoped Phase 22-05).
  *
- * The 1000-cent threshold is a hard-coded constant here (not a config
- * knob) — changing it requires re-planning Phase 22 and updating this
- * comment. Phase 23 surfaces the flag in the print-preview UI.
+ * A bib may be sent to the printer iff:
+ *   - `nameLocked === true` — an admin (Kurt/Jesse) has confirmed the
+ *     name-on-bib is final and safe to render (prevents last-second
+ *     profanity / typos in the physical print run).
+ *
+ * Phase 22-05 rescope (Kurt 2026-07-02): bib registration is FREE.
+ * The former `paidAmount >= 1000` gate is INTENTIONALLY REMOVED — payment
+ * is orthogonal to the print gate. Sponsors get a charm accent on the bib
+ * preview (Phase 22-05-06), but everyone who registers by deadline gets
+ * their name printed.
+ *
+ * The old `PRINT_PAID_MIN_CENTS` constant is intentionally removed.
+ * Nothing else in the codebase referenced it after Plan 22-04; grep-guard
+ * against reintroduction if the print pipeline ever needs a payment gate.
  *
  * Accepts either a BibItem or `null` for convenience at the API layer
  * (`canPrintName(await getBib(sub))` compiles).
  */
-export const PRINT_PAID_MIN_CENTS = 1000;
-
 export function canPrintName(bib: BibItem | null | undefined): boolean {
   if (!bib) return false;
-  return bib.paidAmount >= PRINT_PAID_MIN_CENTS && bib.nameLocked === true;
+  return bib.nameLocked === true;
 }

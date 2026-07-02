@@ -121,3 +121,111 @@
 - Real Venmo/CashApp receipt E2E (SC5-8 hardware-adjacent)
 - run.auth redeploy for bib OIDC client
 
+---
+
+## Plan 22-05 — Rescope bundle (Kurt 2026-07-02 design shift)
+
+**Branch:** `worktree-agent-a35e35be9a6605bc3` (isolated worktree for this session)
+**Base:** `origin/main @ 36735c21` (Plans 22-01, 22-02, 22-03, 22-04 all merged)
+**Executed:** 2026-07-02
+**Result:** 7/7 tasks complete; local gates pass; SSM allowlist + run.auth redeploy + live Stripe/receipt E2E stay HITL
+
+### Commits
+
+| Task | Hash | Subject |
+|------|------|---------|
+| 22-05-01 | `0265fe4a` | willPayInPerson field + free bib print gate |
+| 22-05-02 | `f6cf4faa` | GeneralDonation entity + repository helpers |
+| 22-05-03 | `e18f5038` | two-product Stripe checkout + webhook donation_type branch |
+| 22-05-04 | `78220760` | landing page 3-section restructure + willPayInPerson checkbox |
+| 22-05-05 | `1c472aa9` | naming sweep DEF CON → defcon.run (visible copy only) |
+| 22-05-06 | `af5229f6` | sponsor charm accent on BibPreview |
+| 22-05-07 | `14107dd6` | admin gate + pledged-unpaid report route |
+
+### Gates (final)
+
+- `apps/run.bib/webapp/`: `tsc --noEmit` exit 0; `vitest run` **98/98** (10 files); `next build` clean at **10 routes** (up from 7 pre-22-05: renamed `/api/checkout` → `/api/checkout/bib`, added `/api/checkout/general` and `/api/admin/bib/pledged-unpaid`).
+- Grep guard: `grep -rn "DEF CON" apps/run.bib/webapp/src/` returns exactly 2 hits — the smiley graphic comment in BibPreview.tsx (protected) + the Phase 22-05-05 rename docblock in config/auth.ts (intentional).
+- Route count final: `/`, `/access-denied`, `/api/admin/bib/pledged-unpaid`, `/api/auth/[...nextauth]`, `/api/bib`, `/api/checkout/bib`, `/api/checkout/general`, `/api/health`, `/api/stripe/webhook`, `/signin` + `/_not-found`.
+
+### Rescope items delivered
+
+| Kurt's 2026-07-02 item | Task | Notes |
+|-------------------------|------|-------|
+| 1. `willPayInPerson` field + PATCH | 22-05-01 | Bib entity + Zod schema + updateBibWillPayInPerson helper |
+| 2. Print gate → `nameLocked` alone | 22-05-01 | `canPrintName()` simplified; `PRINT_PAID_MIN_CENTS` removed |
+| 3. `GeneralDonation` entity | 22-05-02 | Nullable ownerSub + idempotent recordDonation via `stripe:` prefixed donationId |
+| 4. Two-product Stripe + donation_type branch | 22-05-03 | `/api/checkout/{bib,general}` split + webhook branch on `metadata.donation_type` |
+| 5. 3-section landing page | 22-05-04 | Get bib (free) / Sponsor bib / Just donate + WillPayInPersonCheckbox component |
+| 6. Naming sweep DEF CON → defcon.run | 22-05-05 | grep-driven; graphic smiley + code identifiers preserved |
+| 7. Sponsor charm on BibPreview | 22-05-06 | `hasSponsored` prop; wired from `bib.paidAmount > 0` |
+| 8. Admin report route | 22-05-07 | Option A (SSM allowlist at `/dc34/secrets/use1/bib/admin/allowlist`); `requireAdmin` fail-closed |
+
+### Design decisions locked at execution
+
+1. **Admin gate = Option A (SSM allowlist)** — no run.auth PR needed; simpler bootstrap. Fail-closed on empty/misconfigured allowlist so a bad SSM state rejects everyone rather than opens the endpoint.
+2. **General donation session-required** — MVP requires auth session for auditability. Anonymous flow deferred to v1.6 (PLAN-22-05.md design gap #1).
+3. **General donation Stripe-only for MVP** — Venmo/CashApp `general` donations would hit the Haiku matcher's `unmatched` path (no runnerCode + no sender-in-bibs). Deferred to v1.6 (PLAN-22-05.md design gap #2).
+4. **Sponsor charm = amber circle + white star** — geometric default per PLAN-22-05.md design gap #4. Kurt can swap to a bespoke glyph in Phase 23 deploy inspection.
+5. **BibForm accepts `hasSponsored` as an optional prop** — backward compat for any pre-22-05 caller. Defaults to `false`.
+
+### Deviations (all in commit bodies)
+
+1. **[Rule 2 - Security]** Admin allowlist FAILS CLOSED on any SSM error or empty payload. An empty allowlist denies everyone instead of admitting anyone / defaulting to Kurt's sub. Prevents a misconfig from silently opening the admin surface.
+2. **[Rule 2 - Correctness]** GeneralDonation `recordDonation()` catches `ConditionalCheckFailedException` on `.create()` and returns the existing row rather than throwing. Mirrors Bib.applyPayment's idempotency semantics for Stripe webhook retries.
+3. **[Rule 2 - Correctness]** GeneralDonation payload construction omits `ownerSub` / `stripeSessionId` keys entirely when the caller passes null/undefined — ElectroDB rejects literal `undefined` writes. Tests explicitly cover the null-ownerSub payload elision.
+4. **[Rule 3 - Blocking issue]** Stale `.next/types/validator.ts` reference to the pre-rename `/api/checkout/route.js` was breaking `tsc --noEmit` between Task 3 file-move and next build. Cleared `.next/` cache. Regenerated cleanly on next build.
+5. **[Rule 3 - Minor]** `SponsorForm` submit button label defaults to "Sponsor" for variant='bib' and "Donate" for variant='general' — plan text only specified the ctaLabel prop; the default made the two sections render distinct CTAs without page.tsx having to pass both.
+6. **[Rule 2 - Naming]** Product name in `/api/checkout/bib` was pre-emptively updated from "DEF CON 34 Run" to "defcon.run 34" in Task 22-05-03 rather than waiting for Task 22-05-05. Metadata is visible in Stripe's dashboard + on the customer's receipt.
+7. **[Rule 3 - Test fidelity]** Reconcile Lambda test fixtures (`venmo-01.eml`, `cashapp-01.eml`, `extract.test.mjs`) were NOT swept. These emulate REAL user-typed comments in Venmo/CashApp receipts — real DEF CON attendees today would type "DEF CON" or "DEF CON Run 34" in their memo lines, not "defcon.run". Changing the fixtures would misrepresent test fidelity for the Haiku matcher.
+
+### Files created / modified
+
+**New (webapp):**
+- `apps/run.bib/webapp/src/entities/general-donation.ts` (Task 2)
+- `apps/run.bib/webapp/src/app/api/checkout/general/route.ts` (Task 3)
+- `apps/run.bib/webapp/src/components/WillPayInPersonCheckbox.tsx` (Task 4)
+- `apps/run.bib/webapp/src/lib/admin-gate.ts` (Task 7)
+- `apps/run.bib/webapp/src/app/api/admin/bib/pledged-unpaid/route.ts` (Task 7)
+
+**New tests:**
+- `apps/run.bib/webapp/src/__tests__/will-pay-in-person.test.ts` (Task 1, 4 assertions)
+- `apps/run.bib/webapp/src/__tests__/general-donation.test.ts` (Task 2, 12 assertions)
+- `apps/run.bib/webapp/src/__tests__/bib-preview.test.tsx` (Task 6, 5 assertions)
+- `apps/run.bib/webapp/src/__tests__/admin-gate.test.ts` (Task 7, 18 assertions)
+
+**Renamed:**
+- `apps/run.bib/webapp/src/app/api/checkout/route.ts` → `apps/run.bib/webapp/src/app/api/checkout/bib/route.ts` (Task 3, via `git mv`)
+
+**Modified:**
+- `apps/run.bib/webapp/src/entities/bib.ts` (Tasks 1, 5): +willPayInPerson +updateBibWillPayInPerson; canPrintName rewritten; PRINT_PAID_MIN_CENTS removed.
+- `apps/run.bib/webapp/src/app/api/bib/route.ts` (Task 1): PATCH schema accepts optional nameOnBib + willPayInPerson with at-least-one refine.
+- `apps/run.bib/webapp/src/app/api/stripe/webhook/route.ts` (Task 3): donation_type branch handlers.
+- `apps/run.bib/webapp/src/components/SponsorForm.tsx` (Tasks 3, 4): variant prop + checkoutEndpointFor helper.
+- `apps/run.bib/webapp/src/components/BibForm.tsx` (Task 6): threads hasSponsored to BibPreview.
+- `apps/run.bib/webapp/src/components/BibPreview.tsx` (Task 6): hasSponsored prop + sponsor charm SVG group.
+- `apps/run.bib/webapp/src/app/page.tsx` (Tasks 4, 5, 6): 3-section restructure + Section wrapper + charm wiring + copy naming sweep.
+- `apps/run.bib/webapp/src/app/layout.tsx` (Task 5): HTML title/meta naming sweep.
+- `apps/run.bib/webapp/src/app/signin/page.tsx`, `apps/run.bib/webapp/src/app/access-denied/page.tsx` (Task 5): visible copy naming sweep.
+- `apps/run.bib/webapp/src/config/auth.ts` (Task 5): OIDC provider display name naming sweep.
+- Updated existing tests: `can-print-name.test.ts` (Task 1), `stripe-webhook.test.ts` (Task 3, +7 new donation_type assertions), `sponsor-form.test.ts` (Task 4, +3 new endpoint-router assertions).
+
+### Outstanding HITL items (Plan 22-05)
+
+1. **SSM param creation** — Kurt to create `/dc34/secrets/use1/bib/admin/allowlist` as a SecureString containing the comma-separated OIDC `sub` values for Kurt + Jesse (plus anyone else who needs admin access before Phase 23 deploy).
+2. **Live end-to-end verification of the two-product Stripe path** — Stripe test mode via `stripe listen` + `stripe trigger checkout.session.completed` for both donation_type=bib and donation_type=general fixtures. HITL because the sandbox can't run the Stripe CLI against real webhook endpoints.
+3. **Deploy inspection of sponsor charm visual** — Kurt to decide if the geometric amber+star default is acceptable or if a bespoke defcon.run wordmark badge is preferred (PLAN-22-05.md design gap #4).
+4. **run.auth redeploy** — still blockered from Phase 21; the bib OIDC client + new `defcon.run` provider name won't render on the real sign-in page until run.auth is redeployed.
+5. **v1.6 backlog carry-over** — anonymous /api/checkout/general flow (design gap #1); Venmo/CashApp general-donation matcher fallback (design gap #2); byWillPayInPerson GSI if pledged-unpaid scan latency becomes a problem.
+
+### Phase 22 progress (after Plan 22-05)
+
+**5/5 plans complete** in the run.bib workstream:
+- Plan 22-01 (Stripe path) — merged as PR #244 (SC1, SC2, SC6 sync path)
+- Plan 22-02 (Venmo/CashApp pages) — parallel branch (SC3, SC4)
+- Plan 22-03 (Lambda infra) — merged as PR #240 (SC5 infra)
+- Plan 22-04 (Lambda handler) — merged as PR #247 (SC5 code, SC6 async, SC7, SC8)
+- Plan 22-05 (rescope bundle) — this branch (free bib + 2-product checkout + naming sweep + admin gate)
+
+**Phase 22 code-side: COMPLETE.** All local gates green across the webapp + lambda. All hardware/HITL blockers documented above route to STATE.md for Kurt.
+

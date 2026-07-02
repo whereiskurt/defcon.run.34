@@ -16,8 +16,8 @@ export default function AccessDenied() {
     >
       <h1 style={{ color: "#ef4444", marginBottom: "1rem" }}>Access Denied</h1>
       <p style={{ color: "#a1a1aa", marginBottom: "1.5rem", maxWidth: "400px" }}>
-        You don&apos;t have access to the DC34 bib registration app. This
-        service requires the{" "}
+        You don&apos;t have access to the defcon.run 34 bib registration app.
+        This service requires the{" "}
         <code
           style={{
             background: "#1f1f1f",
@@ -27,7 +27,7 @@ export default function AccessDenied() {
         >
           bib
         </code>{" "}
-        service claim on your DEF CON account.
+        service claim on your defcon.run account.
       </p>
       <p style={{ color: "#a1a1aa", marginBottom: "2rem" }}>
         Contact an administrator to request access.

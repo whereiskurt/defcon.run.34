@@ -31,6 +31,18 @@ export interface BibPreviewProps {
   /** Runner code assigned by /api/bib (BIB-XXXX). Falls back to "1337" if
    * blank or if the user hasn't yet entered a name. */
   code: string;
+  /**
+   * Phase 22-05-06 sponsor charm accent. When `true`, renders a small
+   * amber charm (~40px diameter, top-right of the card) as a visual
+   * "thank you" for participants who have contributed any amount to a
+   * bib sponsorship OR general donation. Optional — defaults to `false`
+   * so the pre-22-05 BibPreview render remains bit-identical.
+   *
+   * Wired from `bib.paidAmount > 0` at the page.tsx level (server-side
+   * data). Does NOT interact with the print gate — payment is orthogonal
+   * to registration (see canPrintName in entities/bib.ts).
+   */
+  hasSponsored?: boolean;
 }
 
 /** Design-contract placeholder rendered when the user has not typed a name. */
@@ -83,7 +95,11 @@ function nameY(_size: number): number {
   return 438;
 }
 
-export function BibPreview({ name, code }: BibPreviewProps) {
+export function BibPreview({
+  name,
+  code,
+  hasSponsored = false,
+}: BibPreviewProps) {
   const trimmedName = name.trim();
   const hasName = trimmedName.length > 0;
 
@@ -180,6 +196,37 @@ export function BibPreview({ name, code }: BibPreviewProps) {
         stroke="#c8ccd4"
         strokeWidth="3"
       />
+
+      {/*
+        Sponsor charm accent (Phase 22-05-06).
+        Small amber circle with a white star, rendered in the top-right
+        corner of the card when the participant has any contribution
+        (bib.paidAmount > 0). Kept inside the card border so it doesn't
+        overlap the pin holes; z-order after the card rect so it renders
+        on top.
+      */}
+      {hasSponsored && (
+        <g
+          id="sponsor-charm"
+          role="presentation"
+          aria-label="Sponsor charm"
+          data-testid="sponsor-charm"
+        >
+          <circle
+            cx="912"
+            cy="46"
+            r="22"
+            fill="#d97706"
+            stroke="#a05308"
+            strokeWidth="2"
+          />
+          {/* 5-point star, scaled to sit inside the 22-radius circle */}
+          <path
+            d="M912 32 L916 42 L927 42 L918 49 L921 60 L912 53 L903 60 L906 49 L897 42 L908 42 Z"
+            fill="#fff"
+          />
+        </g>
+      )}
 
       {/* top banner: official DC34 logo (includes DEFCON) */}
       <image

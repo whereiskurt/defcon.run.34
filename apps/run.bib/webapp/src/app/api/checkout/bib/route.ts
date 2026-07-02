@@ -5,37 +5,36 @@ import { getBib } from "@/entities/bib";
 import { getStripeClient } from "@/lib/stripe";
 
 /**
- * POST /api/checkout — create a Stripe Checkout Session for the signed-in
- * user and return the session URL so the client can redirect the browser.
+ * POST /api/checkout/bib — create a Stripe Checkout Session for a bib
+ * sponsorship (Phase 22-05 rescope of the original /api/checkout).
  *
- * Design contract (v1.5 Phase 22 PLAN.md §22-01-03 + CONTEXT.md
- * "Locked design decisions"):
+ * Design contract (v1.5 Phase 22 PLAN.md §22-01-03 + Phase 22-05 §22-05-03):
  * - Stripe Checkout redirect flow (NOT Elements). Dynamic price at API
  *   call time — no Stripe dashboard Products config.
  * - Auth guard: session required. Client-supplied `owner_sub` is never
  *   trusted; `session.user.id` is the only PK source.
  * - Zod bounds match SponsorForm.clampAmountCents (100..100000 cents).
- *   Provider is `z.literal("stripe")` — Venmo / CashApp handoff is
- *   client-side (Plan 22-02); the server MUST reject non-Stripe here.
- * - Metadata: `{owner_sub, runner_code, source: "bib"}` (snake_case
- *   because Stripe metadata keys are opaque strings — snake_case matches
- *   the webhook read-back in Plan 22-01-04).
+ * - Metadata (Phase 22-05):
+ *     - `donation_type: "bib"` — the webhook keys on this to route the
+ *       payment to Bib.applyPayment (vs. GeneralDonation.recordDonation).
+ *     - `owner_sub`, `runner_code`, `source: "bib"` — retained for
+ *       backward compatibility with the Plan 22-01 webhook read-back.
  * - success_url / cancel_url: `${BIB_PUBLIC_URL}/use1/?status=success|cancel`
  *   with the regional prefix HARD-CODED because Stripe Checkout URLs are
- *   baked at Session-create time — the client will hit them on a fresh
- *   navigation that misses the Next.js basePath rewriting layer.
- * - Runtime: Node.js (default for Next.js API routes) — the Stripe SDK
- *   needs Node.js `crypto`, though this route doesn't verify signatures.
- *   The webhook route explicitly pins `runtime = "nodejs"` for that
- *   reason; this route is safe as the framework default.
- * - Return shape: `{ session_url: string }` on 200; error JSON on all
- *   non-2xx paths. Client only cares about `session_url` — the id is
- *   available in the Stripe dashboard for support.
+ *   baked at Session-create time.
+ * - Runtime: Node.js (default for Next.js API routes).
+ * - Return shape: `{ session_url: string }` on 200; error JSON on non-2xx.
+ *
+ * Renamed from `/api/checkout` in Phase 22-05 to make room for
+ * `/api/checkout/general` (standalone donations that are NOT attached to
+ * a bib).
  */
 
 const bodySchema = z.object({
   amount_cents: z.number().int().min(100).max(100_000),
-  provider: z.literal("stripe"),
+  // Retained for backward compatibility with pre-22-05 SponsorForm calls.
+  // Only `"stripe"` is accepted; Venmo / CashApp handoff is client-side.
+  provider: z.literal("stripe").optional(),
 });
 
 /**
@@ -82,9 +81,9 @@ export async function POST(req: NextRequest) {
 
   // Runner code is required for reconciliation metadata on the Stripe
   // side (post-payment success reads this back to attach the payment to
-  // the right bib). If the user hits POST /api/checkout without a bib,
-  // that's a workflow bug — the landing page always POSTs to /api/bib
-  // first. 409 keeps it distinct from `unauthorized` (401).
+  // the right bib). If the user hits POST /api/checkout/bib without a
+  // bib, that's a workflow bug — the landing page always POSTs to
+  // /api/bib first. 409 keeps it distinct from `unauthorized` (401).
   const bib = await getBib(ownerSub);
   if (!bib) {
     return NextResponse.json(
@@ -97,7 +96,7 @@ export async function POST(req: NextRequest) {
   try {
     stripe = await getStripeClient();
   } catch (err) {
-    console.error("[run.bib] /api/checkout: getStripeClient failed:", err);
+    console.error("[run.bib] /api/checkout/bib: getStripeClient failed:", err);
     return NextResponse.json(
       { error: "stripe_unavailable" },
       { status: 500 }
@@ -117,15 +116,18 @@ export async function POST(req: NextRequest) {
             currency: "usd",
             unit_amount: parsed.data.amount_cents,
             product_data: {
-              name: "DEF CON 34 Run — bib sponsorship",
+              name: "defcon.run 34 — bib sponsorship",
               description: `Sponsorship for runner ${bib.runnerCode}`,
             },
           },
         },
       ],
       metadata: {
+        // Phase 22-05 branch discriminator — webhook keys on this.
+        donation_type: "bib",
         owner_sub: ownerSub,
         runner_code: bib.runnerCode,
+        // Retained for backward compat with pre-22-05 admin tooling.
         source: "bib",
       },
       // Regional /use1/ prefix baked in — Stripe redirects the browser
@@ -139,7 +141,7 @@ export async function POST(req: NextRequest) {
       // types allow `url: null` when the session is embedded (Elements).
       // Surface as 500 rather than hand the client a null URL.
       console.error(
-        "[run.bib] /api/checkout: Stripe returned session without url",
+        "[run.bib] /api/checkout/bib: Stripe returned session without url",
         stripeSession.id
       );
       return NextResponse.json(
@@ -153,7 +155,10 @@ export async function POST(req: NextRequest) {
       { status: 200 }
     );
   } catch (err) {
-    console.error("[run.bib] /api/checkout: Stripe session create failed:", err);
+    console.error(
+      "[run.bib] /api/checkout/bib: Stripe session create failed:",
+      err
+    );
     return NextResponse.json(
       { error: "stripe_create_failed" },
       { status: 500 }

@@ -32,7 +32,7 @@ export default function SignInPage() {
       backgroundColor: "#1a1a1a",
       color: "#fff"
     }}>
-      <p>Redirecting to DEF CON login...</p>
+      <p>Redirecting to defcon.run login...</p>
     </div>
   );
 }

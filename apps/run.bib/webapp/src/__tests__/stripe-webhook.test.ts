@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
- * /api/stripe/webhook signature-verify unit tests (Plan 22-01-4).
+ * /api/stripe/webhook signature-verify unit tests (Plan 22-01-4 +
+ * Phase 22-05 §22-05-03 donation_type branch).
  *
  * We mock the Stripe SDK's `webhooks.constructEvent` + our SSM/entity
  * helpers so the route module can be exercised end-to-end without a
@@ -10,8 +11,12 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  *   - missing Stripe-Signature header → 400
  *   - constructEvent throws → 400 (signature_invalid)
  *   - placeholder mode (no whsec) → 503
- *   - checkout.session.completed with metadata.owner_sub → applyPayment
- *     called with the right shape; 200
+ *   - checkout.session.completed with donation_type=bib →
+ *     applyPayment called with the right shape; 200
+ *   - checkout.session.completed with donation_type=general →
+ *     recordDonation called with the right shape; 200
+ *   - checkout.session.completed with unknown / missing donation_type →
+ *     200, no entity mutation
  *   - non-checkout.session.completed event types → 200 + not applied
  *   - bib-not-found → 200 (drop, no Stripe retry churn)
  *
@@ -24,6 +29,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockConstructEvent = vi.fn();
 const mockApplyPayment = vi.fn();
+const mockRecordDonation = vi.fn();
 const mockGetWebhookSecret = vi.fn();
 const mockGetStripeClient = vi.fn();
 
@@ -37,6 +43,11 @@ vi.mock("@/lib/stripe", () => ({
 
 vi.mock("@/entities/bib", () => ({
   applyPayment: (...args: unknown[]) => mockApplyPayment(...args),
+}));
+
+vi.mock("@/entities/general-donation", () => ({
+  recordDonation: (...args: unknown[]) => mockRecordDonation(...args),
+  stripeSessionDonationId: (sessionId: string) => `stripe:${sessionId}`,
 }));
 
 // Import SUT after mocks.
@@ -74,6 +85,7 @@ describe("/api/stripe/webhook POST", () => {
   beforeEach(() => {
     mockConstructEvent.mockReset();
     mockApplyPayment.mockReset();
+    mockRecordDonation.mockReset();
     mockGetWebhookSecret.mockReset();
     mockGetStripeClient.mockReset();
     mockGetStripeClient.mockResolvedValue(stripeStub());
@@ -112,9 +124,10 @@ describe("/api/stripe/webhook POST", () => {
     const json = await res.json();
     expect(json.error).toBe("signature_invalid");
     expect(mockApplyPayment).not.toHaveBeenCalled();
+    expect(mockRecordDonation).not.toHaveBeenCalled();
   });
 
-  it("returns 200 + skips applyPayment for unhandled event types", async () => {
+  it("returns 200 + skips both entity paths for unhandled event types", async () => {
     mockConstructEvent.mockReturnValue({
       type: "invoice.payment_succeeded",
       data: { object: {} },
@@ -125,108 +138,286 @@ describe("/api/stripe/webhook POST", () => {
     const json = await res.json();
     expect(json.received).toBe(true);
     expect(mockApplyPayment).not.toHaveBeenCalled();
+    expect(mockRecordDonation).not.toHaveBeenCalled();
   });
 
-  it("calls applyPayment with owner_sub + amount_total on checkout.session.completed (200)", async () => {
-    mockConstructEvent.mockReturnValue({
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          id: "cs_test_ABC123",
-          amount_total: 5000,
-          metadata: {
-            owner_sub: "user-alice",
-            runner_code: "BIB-WXYZ",
-            source: "bib",
+  describe("donation_type=bib branch", () => {
+    it("calls applyPayment with owner_sub + amount_total on checkout.session.completed (200)", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_ABC123",
+            amount_total: 5000,
+            metadata: {
+              donation_type: "bib",
+              owner_sub: "user-alice",
+              runner_code: "BIB-WXYZ",
+              source: "bib",
+            },
           },
         },
-      },
-    });
-    mockApplyPayment.mockResolvedValue({
-      ownerSub: "user-alice",
-      paidAmount: 5000,
+      });
+      mockApplyPayment.mockResolvedValue({
+        ownerSub: "user-alice",
+        paidAmount: 5000,
+      });
+
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+      expect(mockApplyPayment).toHaveBeenCalledTimes(1);
+      expect(mockApplyPayment).toHaveBeenCalledWith("user-alice", {
+        provider: "stripe",
+        amount_cents: 5000,
+        reconciled_via: "stripe_webhook_cs_test_ABC123",
+      });
+      expect(mockRecordDonation).not.toHaveBeenCalled();
     });
 
-    const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
-    const res = await POST(req as unknown as import("next/server").NextRequest);
-    expect(res.status).toBe(200);
-    expect(mockApplyPayment).toHaveBeenCalledTimes(1);
-    expect(mockApplyPayment).toHaveBeenCalledWith("user-alice", {
-      provider: "stripe",
-      amount_cents: 5000,
-      reconciled_via: "stripe_webhook_cs_test_ABC123",
+    it("returns 200 (drop) when session has no metadata.owner_sub", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_missing_meta",
+            amount_total: 5000,
+            metadata: { donation_type: "bib" },
+          },
+        },
+      });
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+      expect(mockApplyPayment).not.toHaveBeenCalled();
+    });
+
+    it("returns 200 (drop) when bib does not exist for owner_sub", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_no_bib",
+            amount_total: 5000,
+            metadata: {
+              donation_type: "bib",
+              owner_sub: "user-orphan",
+            },
+          },
+        },
+      });
+      mockApplyPayment.mockRejectedValue(
+        new Error("No bib found for ownerSub=user-orphan")
+      );
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+    });
+
+    it("returns 500 when applyPayment throws a non-not-found error (Stripe retries)", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_ddb_failure",
+            amount_total: 5000,
+            metadata: {
+              donation_type: "bib",
+              owner_sub: "user-bob",
+            },
+          },
+        },
+      });
+      mockApplyPayment.mockRejectedValue(new Error("DDB throttled"));
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("apply_failed");
+    });
+
+    it("returns 200 (drop) when amount_total is 0 (free / test session)", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_free",
+            amount_total: 0,
+            metadata: {
+              donation_type: "bib",
+              owner_sub: "user-carol",
+            },
+          },
+        },
+      });
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+      expect(mockApplyPayment).not.toHaveBeenCalled();
     });
   });
 
-  it("returns 200 (drop) when session has no metadata.owner_sub", async () => {
-    mockConstructEvent.mockReturnValue({
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          id: "cs_test_missing_meta",
-          amount_total: 5000,
-          metadata: {},
+  describe("donation_type=general branch (Phase 22-05)", () => {
+    it("calls recordDonation with the Stripe session id + owner_sub (200)", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_GEN1",
+            amount_total: 7500,
+            metadata: {
+              donation_type: "general",
+              owner_sub: "user-dave",
+            },
+          },
         },
-      },
+      });
+      mockRecordDonation.mockResolvedValue({
+        donationId: "stripe:cs_test_GEN1",
+        amountCents: 7500,
+      });
+
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+      expect(mockRecordDonation).toHaveBeenCalledTimes(1);
+      expect(mockRecordDonation).toHaveBeenCalledWith({
+        donationId: "stripe:cs_test_GEN1",
+        ownerSub: "user-dave",
+        amountCents: 7500,
+        provider: "stripe",
+        stripeSessionId: "cs_test_GEN1",
+        reconciledVia: "stripe_webhook_cs_test_GEN1",
+      });
+      expect(mockApplyPayment).not.toHaveBeenCalled();
     });
-    const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
-    const res = await POST(req as unknown as import("next/server").NextRequest);
-    expect(res.status).toBe(200);
-    expect(mockApplyPayment).not.toHaveBeenCalled();
+
+    it("records with ownerSub=null when metadata.owner_sub is missing (v1.6 anon-support path)", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_GEN2",
+            amount_total: 500,
+            metadata: {
+              donation_type: "general",
+              // no owner_sub — entity layer accepts null.
+            },
+          },
+        },
+      });
+      mockRecordDonation.mockResolvedValue({});
+
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+      const call = mockRecordDonation.mock.calls[0][0];
+      expect(call.ownerSub).toBeNull();
+    });
+
+    it("returns 200 (drop) when amount_total is 0", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_GEN3",
+            amount_total: 0,
+            metadata: {
+              donation_type: "general",
+              owner_sub: "user-eve",
+            },
+          },
+        },
+      });
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+      expect(mockRecordDonation).not.toHaveBeenCalled();
+    });
+
+    it("returns 500 when recordDonation throws (Stripe retries)", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_GEN4",
+            amount_total: 1000,
+            metadata: {
+              donation_type: "general",
+              owner_sub: "user-fred",
+            },
+          },
+        },
+      });
+      mockRecordDonation.mockRejectedValue(new Error("DDB throttled"));
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(500);
+      const json = await res.json();
+      expect(json.error).toBe("donation_record_failed");
+    });
   });
 
-  it("returns 200 (drop) when bib does not exist for owner_sub", async () => {
-    mockConstructEvent.mockReturnValue({
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          id: "cs_test_no_bib",
-          amount_total: 5000,
-          metadata: { owner_sub: "user-orphan" },
+  describe("unknown / missing donation_type (Phase 22-05)", () => {
+    it("returns 200 without touching either entity when donation_type is missing", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_UNKNOWN1",
+            amount_total: 1000,
+            metadata: { owner_sub: "user-grace" },
+          },
         },
-      },
+      });
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+      expect(mockApplyPayment).not.toHaveBeenCalled();
+      expect(mockRecordDonation).not.toHaveBeenCalled();
     });
-    mockApplyPayment.mockRejectedValue(
-      new Error("No bib found for ownerSub=user-orphan")
-    );
-    const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
-    const res = await POST(req as unknown as import("next/server").NextRequest);
-    expect(res.status).toBe(200);
-  });
 
-  it("returns 500 when applyPayment throws a non-not-found error (Stripe retries)", async () => {
-    mockConstructEvent.mockReturnValue({
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          id: "cs_test_ddb_failure",
-          amount_total: 5000,
-          metadata: { owner_sub: "user-bob" },
+    it("returns 200 without touching either entity when donation_type is an unknown value", async () => {
+      mockConstructEvent.mockReturnValue({
+        type: "checkout.session.completed",
+        data: {
+          object: {
+            id: "cs_test_UNKNOWN2",
+            amount_total: 1000,
+            metadata: {
+              donation_type: "somefuturetype",
+              owner_sub: "user-heidi",
+            },
+          },
         },
-      },
+      });
+      const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
+      const res = await POST(
+        req as unknown as import("next/server").NextRequest
+      );
+      expect(res.status).toBe(200);
+      expect(mockApplyPayment).not.toHaveBeenCalled();
+      expect(mockRecordDonation).not.toHaveBeenCalled();
     });
-    mockApplyPayment.mockRejectedValue(new Error("DDB throttled"));
-    const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
-    const res = await POST(req as unknown as import("next/server").NextRequest);
-    expect(res.status).toBe(500);
-    const json = await res.json();
-    expect(json.error).toBe("apply_failed");
-  });
-
-  it("returns 200 (drop) when amount_total is 0 (free / test session)", async () => {
-    mockConstructEvent.mockReturnValue({
-      type: "checkout.session.completed",
-      data: {
-        object: {
-          id: "cs_test_free",
-          amount_total: 0,
-          metadata: { owner_sub: "user-carol" },
-        },
-      },
-    });
-    const req = makeRequest({ signature: "t=1,v1=ok", body: "{}" });
-    const res = await POST(req as unknown as import("next/server").NextRequest);
-    expect(res.status).toBe(200);
-    expect(mockApplyPayment).not.toHaveBeenCalled();
   });
 });

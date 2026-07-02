@@ -168,9 +168,9 @@ Mirror `apps/run.flash/` two-container (nginx + Next.js) ECS Fargate + CloudFron
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 20. Infrastructure Foundation | 0/2 | Planned | - |
-| 21. App Scaffold + Bib Registration | 0/TBD | Planned | - |
-| 22. Payments (Stripe + Venmo/CashApp) | 0/TBD | Planned | - |
+| 20. Infrastructure Foundation | 2/2 | Complete (#228 merged) | 2026-07-02 |
+| 21. App Scaffold + Bib Registration | 3/3 | Complete (#233 + #236 + #237 merged) | 2026-07-02 |
+| 22. Payments (Stripe + Venmo/CashApp) | 5/5 | Code-side complete (22-01 #244, 22-03 #240, 22-04 #247, 22-05 rescope on this branch); HITL for live Stripe + real Venmo/CashApp receipts + SSM allowlist bootstrap | 2026-07-02 |
 | 23. Build/Deploy + Branding | 0/TBD | Planned | - |
 
 ## Hardware / Human verification policy
