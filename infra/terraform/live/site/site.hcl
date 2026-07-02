@@ -726,22 +726,32 @@ locals {
 
         inline_policies = [
           {
+            # SOPS decrypt covers the SOPS multi-region CMK plus any per-purpose
+            # SSM CMKs the readonly PR-plan role must decrypt at plan time to
+            # read SecureString parameters. Extend via TF_VAR_SSM_KMS_KEY_ARNS
+            # (comma-separated ARN list) — env.sops.sh discovers the aliases
+            # and populates it. Any dc34-scoped SSM CMK NOT in this list will
+            # cause the readonly role to 400 with AccessDeniedException on
+            # kms:Decrypt during Terragrunt Plan on release PRs.
             name = "kms-sops-decrypt"
             policy = jsonencode({
               Version = "2012-10-17"
               Statement = [
                 {
-                  Sid    = "SOPSDecrypt"
+                  Sid    = "SOPSAndSSMDecrypt"
                   Effect = "Allow"
                   Action = [
                     "kms:Decrypt",
                     "kms:DescribeKey"
                   ]
-                  Resource = [
-                    "arn:aws:kms:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
-                    "arn:aws:kms:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
-                    "arn:aws:kms:ap-southeast-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}"
-                  ]
+                  Resource = concat(
+                    [
+                      "arn:aws:kms:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
+                      "arn:aws:kms:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
+                      "arn:aws:kms:ap-southeast-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}"
+                    ],
+                    compact(split(",", get_env("TF_VAR_SSM_KMS_KEY_ARNS", "")))
+                  )
                 }
               ]
             })
@@ -1045,22 +1055,27 @@ locals {
             })
           },
           {
+            # See the same-named policy on the readonly role above for the
+            # TF_VAR_SSM_KMS_KEY_ARNS extension pattern.
             name = "kms-sops-decrypt"
             policy = jsonencode({
               Version = "2012-10-17"
               Statement = [
                 {
-                  Sid    = "SOPSDecrypt"
+                  Sid    = "SOPSAndSSMDecrypt"
                   Effect = "Allow"
                   Action = [
                     "kms:Decrypt",
                     "kms:DescribeKey"
                   ]
-                  Resource = [
-                    "arn:aws:kms:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
-                    "arn:aws:kms:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
-                    "arn:aws:kms:ap-southeast-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}"
-                  ]
+                  Resource = concat(
+                    [
+                      "arn:aws:kms:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
+                      "arn:aws:kms:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
+                      "arn:aws:kms:ap-southeast-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}"
+                    ],
+                    compact(split(",", get_env("TF_VAR_SSM_KMS_KEY_ARNS", "")))
+                  )
                 }
               ]
             })
@@ -1427,22 +1442,27 @@ locals {
             })
           },
           {
+            # See the same-named policy on the readonly role above for the
+            # TF_VAR_SSM_KMS_KEY_ARNS extension pattern.
             name = "kms-sops-decrypt"
             policy = jsonencode({
               Version = "2012-10-17"
               Statement = [
                 {
-                  Sid    = "SOPSDecrypt"
+                  Sid    = "SOPSAndSSMDecrypt"
                   Effect = "Allow"
                   Action = [
                     "kms:Decrypt",
                     "kms:DescribeKey"
                   ]
-                  Resource = [
-                    "arn:aws:kms:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
-                    "arn:aws:kms:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
-                    "arn:aws:kms:ap-southeast-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}"
-                  ]
+                  Resource = concat(
+                    [
+                      "arn:aws:kms:us-east-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
+                      "arn:aws:kms:ca-central-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}",
+                      "arn:aws:kms:ap-southeast-1:${get_env("TF_VAR_APPLICATION_ACCOUNT_ID", "000000000000")}:key/${get_env("TF_VAR_SOPS_KMS_KEY_ID", "mrk-00000000000000000000000000000000")}"
+                    ],
+                    compact(split(",", get_env("TF_VAR_SSM_KMS_KEY_ARNS", "")))
+                  )
                 }
               ]
             })

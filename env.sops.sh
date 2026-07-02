@@ -241,3 +241,117 @@ if ${needs_encrypt} && [[ -f "${TEMPLATE_FILE}" ]]; then
     echo "  Done."
   fi
 fi
+
+## Step 7: Persist KMS key material for future shells and CI
+##
+## env.sh declares two vars that terraform interpolates into the IAM policies
+## on the readonly / e2e / deploy roles (see site.hcl kms-sops-decrypt):
+##
+##   TF_VAR_SOPS_KMS_KEY_ID   — the SOPS multi-region CMK ID (single value)
+##   TF_VAR_SSM_KMS_KEY_ARNS  — comma-separated ARNs for the per-purpose SSM
+##                              CMKs (dc34-ssm, dc34-dynamodb-ssm,
+##                              dc34-s3-uploads-ssm, dc34-email-ssm — per region)
+##
+## Without persistence, every fresh clone + every CI run resolves them to
+## empty/placeholder values and (a) drifts live IAM policies back to the
+## placeholder on `terragrunt apply`, (b) prevents the readonly PR-plan role
+## from decrypting SOPS- or SSM-protected params.
+##
+## Resolve and write both to env.local.sh (gitignored) so `source env.sh` in
+## a fresh shell picks them up. Print the operator-facing CI setup commands
+## since workflows don't source env.local.sh.
+LOCAL_ENV="${SCRIPT_DIR}/env.local.sh"
+
+# --- SOPS key ID ---
+RESOLVED_SOPS_KEY_ID=""
+if ! ${DRY_RUN}; then
+  RESOLVED_SOPS_KEY_ID=$(aws kms describe-key \
+    --profile "${AWS_PROFILE}" \
+    --region "${PRIMARY_REGION}" \
+    --key-id "${ALIAS_NAME}" \
+    --query "KeyMetadata.KeyId" \
+    --output text 2>/dev/null) || true
+fi
+
+# --- SSM CMK ARNs (discover across all app regions) ---
+# Match aliases like: alias/dc34-ssm-use1, alias/dc34-dynamodb-ssm-use1, etc.
+# These are created by the terraform modules under infra/terraform/modules/
+# {secrets,dynamodb,s3-uploads,email}/v1.0.0/kms.tf — one per region per module.
+# If a module hasn't been applied yet in a region, it just won't have an alias
+# there and this loop skips it silently.
+RESOLVED_SSM_ARNS=""
+if ! ${DRY_RUN}; then
+  for region in "${PRIMARY_REGION}" "${REPLICA_REGIONS[@]}"; do
+    region_aliases=$(aws kms list-aliases \
+      --profile "${AWS_PROFILE}" \
+      --region "${region}" \
+      --query "Aliases[?starts_with(AliasName, 'alias/${PROFILE_PREFIX:-dc34}-') && contains(AliasName, 'ssm-')].TargetKeyId" \
+      --output text 2>/dev/null) || true
+    for key_id in ${region_aliases}; do
+      [[ -z "${key_id}" || "${key_id}" == "None" ]] && continue
+      arn="arn:aws:kms:${region}:${ACCOUNT_ID}:key/${key_id}"
+      if [[ -n "${RESOLVED_SSM_ARNS}" ]]; then
+        RESOLVED_SSM_ARNS="${RESOLVED_SSM_ARNS},"
+      fi
+      RESOLVED_SSM_ARNS="${RESOLVED_SSM_ARNS}${arn}"
+    done
+  done
+fi
+
+# --- Upsert helper ---
+# $1 = env var name, $2 = value; upserts `export NAME="VALUE"` in $LOCAL_ENV.
+upsert_env_var() {
+  local name="$1"
+  local value="$2"
+  touch "${LOCAL_ENV}"
+  if grep -q "^export ${name}=" "${LOCAL_ENV}" 2>/dev/null; then
+    local tmp="${LOCAL_ENV}.tmp"
+    # Portable sed: read → rewrite → atomic replace
+    sed "s|^export ${name}=.*|export ${name}=\"${value}\"|" "${LOCAL_ENV}" > "${tmp}"
+    mv "${tmp}" "${LOCAL_ENV}"
+  else
+    printf '\n# Written by env.sops.sh\nexport %s="%s"\n' "${name}" "${value}" >> "${LOCAL_ENV}"
+  fi
+}
+
+echo ""
+if ${DRY_RUN}; then
+  echo "[DRY RUN] Would resolve TF_VAR_SOPS_KMS_KEY_ID via ${ALIAS_NAME} and persist to ${LOCAL_ENV}"
+  echo "[DRY RUN] Would resolve TF_VAR_SSM_KMS_KEY_ARNS from dc34-* SSM aliases in all app regions and persist to ${LOCAL_ENV}"
+  echo "[DRY RUN] Would print GitHub Actions repository-variable setup instructions"
+else
+  if [[ -n "${RESOLVED_SOPS_KEY_ID}" && "${RESOLVED_SOPS_KEY_ID}" != "None" ]]; then
+    echo "Persisting TF_VAR_SOPS_KMS_KEY_ID=${RESOLVED_SOPS_KEY_ID} to ${LOCAL_ENV}..."
+    upsert_env_var "TF_VAR_SOPS_KMS_KEY_ID" "${RESOLVED_SOPS_KEY_ID}"
+  else
+    echo "WARNING: could not resolve key ID for ${ALIAS_NAME} in ${PRIMARY_REGION}."
+    echo "         TF_VAR_SOPS_KMS_KEY_ID was NOT persisted."
+  fi
+
+  if [[ -n "${RESOLVED_SSM_ARNS}" ]]; then
+    echo "Persisting TF_VAR_SSM_KMS_KEY_ARNS to ${LOCAL_ENV}..."
+    echo "  Discovered $(tr ',' '\n' <<<"${RESOLVED_SSM_ARNS}" | wc -l | tr -d ' ') SSM CMK(s)"
+    upsert_env_var "TF_VAR_SSM_KMS_KEY_ARNS" "${RESOLVED_SSM_ARNS}"
+  else
+    echo "No dc34-* SSM CMK aliases found — skipping TF_VAR_SSM_KMS_KEY_ARNS."
+    echo "  (They're created by the terraform modules under infra/terraform/modules/"
+    echo "   {secrets,dynamodb,s3-uploads,email}/v1.0.0/kms.tf — apply those first,"
+    echo "   then rerun this script to discover them.)"
+  fi
+
+  echo ""
+  echo "=== CI setup required ==="
+  echo "GitHub Actions workflows do NOT source env.local.sh."
+  echo "Set both as repository variables so terragrunt plan/apply in CI resolves"
+  echo "the correct values instead of the empty/placeholder defaults:"
+  echo ""
+  [[ -n "${RESOLVED_SOPS_KEY_ID}" && "${RESOLVED_SOPS_KEY_ID}" != "None" ]] && \
+    echo "  gh variable set TF_VAR_SOPS_KMS_KEY_ID --body \"${RESOLVED_SOPS_KEY_ID}\""
+  [[ -n "${RESOLVED_SSM_ARNS}" ]] && \
+    echo "  gh variable set TF_VAR_SSM_KMS_KEY_ARNS --body \"${RESOLVED_SSM_ARNS}\""
+  echo ""
+  echo "Then reference in each workflow's job env:"
+  echo "  env:"
+  echo "    TF_VAR_SOPS_KMS_KEY_ID: \${{ vars.TF_VAR_SOPS_KMS_KEY_ID }}"
+  echo "    TF_VAR_SSM_KMS_KEY_ARNS: \${{ vars.TF_VAR_SSM_KMS_KEY_ARNS }}"
+fi
