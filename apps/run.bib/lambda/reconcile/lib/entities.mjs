@@ -106,7 +106,6 @@ export const Bib = new Entity(
       byRunnerCode: {
         index: "runnerCode-index",
         pk: { field: "runnerCode", composite: ["runnerCode"] },
-        sk: { field: "runnerCodeSk", composite: [] },
       },
     },
   },
