@@ -12,6 +12,7 @@ import { auth } from "@/config/auth";
  *   /signin, /access-denied           — needed to run the login flow itself
  *   /api/auth/*                       — Auth.js internal handlers
  *   /api/health                       — load balancer / ALB health checks
+ *   /api/stripe/webhook               — Stripe callbacks (no session cookie; HMAC-verified via whsec_*)
  *
  * Everything else redirects unauthenticated requests to /signin with a
  * callbackUrl pointing back at the requested URL.
@@ -25,7 +26,8 @@ export default auth((req) => {
     pathname === "/access-denied" ||
     pathname.startsWith("/api/auth/") ||
     pathname === "/api/auth" ||
-    pathname === "/api/health";
+    pathname === "/api/health" ||
+    pathname === "/api/stripe/webhook";
 
   if (isWhitelisted) {
     return NextResponse.next();
