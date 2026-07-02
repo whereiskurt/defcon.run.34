@@ -14,6 +14,20 @@
 
 set -e
 
+# Fail loudly if the target ECR tag already exists. Repos are IMMUTABLE, so a
+# push to an existing tag is a silent no-op — which previously let a build
+# "succeed" while shipping a STALE image (the new code never reached ECR).
+# This happens when a prior Release PR's VERSION bump was never merged to main,
+# so the version counter didn't advance. Fail here with a clear remediation.
+assert_ecr_tag_free() {
+  local repo="$1" tag="$2" region="$3"
+  if aws ecr describe-images --repository-name "$repo" \
+       --image-ids imageTag="$tag" --region "$region" >/dev/null 2>&1; then
+    echo "::error::ECR tag ${repo}:${tag} already exists (immutable repo). This build would ship a STALE image — the previous Release PR's VERSION bump was not merged to main. Merge the pending Release PR (or bump VERSION), then rebuild." >&2
+    exit 1
+  fi
+}
+
 COMPONENT="${1}"
 APP="${2}"
 
@@ -189,6 +203,7 @@ if [[ "$COMPONENT" == "nginx" ]]; then
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
+  assert_ecr_tag_free "${REPO_NAME}" "${IMAGE_TAG}" "${AWS_REGION}"
   docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
   echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
@@ -276,6 +291,7 @@ elif [[ "$COMPONENT" == "webapp" ]]; then
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
+  assert_ecr_tag_free "${REPO_NAME}" "${IMAGE_TAG}" "${AWS_REGION}"
   docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
   echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
@@ -303,6 +319,7 @@ elif [[ "$COMPONENT" == "app" ]]; then
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
+  assert_ecr_tag_free "${REPO_NAME}" "${IMAGE_TAG}" "${AWS_REGION}"
   docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
   echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
@@ -325,6 +342,7 @@ elif [[ "$COMPONENT" == "mosquitto" ]]; then
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
+  assert_ecr_tag_free "${REPO_NAME}" "${IMAGE_TAG}" "${AWS_REGION}"
   docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
   echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
@@ -348,6 +366,7 @@ elif [[ "$COMPONENT" == "meshtk" ]]; then
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
+  assert_ecr_tag_free "${REPO_NAME}" "${IMAGE_TAG}" "${AWS_REGION}"
   docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
 
   echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
