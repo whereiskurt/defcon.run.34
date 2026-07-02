@@ -163,6 +163,7 @@ jobs:
             ["run-cms"]="cms.defcon.run"
             ["run-gpx"]="gpx.defcon.run"
             ["run-flash"]="flash.defcon.run"
+            ["run-bib"]="bib.defcon.run"
           )
 
           for APP in "${!DOMAINS[@]}"; do

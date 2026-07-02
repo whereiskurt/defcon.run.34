@@ -13,12 +13,12 @@ APP="${1}"
 
 if [[ -z "$APP" ]]; then
   echo "Usage: ./deploy.sh <app>"
-  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash | run.mqtt"
+  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash | run.bib | run.mqtt"
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.mqtt" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', or 'run.mqtt'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.bib" && "$APP" != "run.mqtt" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', 'run.bib', or 'run.mqtt'"
   exit 1
 fi
 
@@ -42,6 +42,10 @@ case "$APP" in
     ;;
   "run.flash")
     TF_SERVICE="run.flash"
+    APP_COMPONENT="webapp"
+    ;;
+  "run.bib")
+    TF_SERVICE="run.bib"
     APP_COMPONENT="webapp"
     ;;
   "run.mqtt")
