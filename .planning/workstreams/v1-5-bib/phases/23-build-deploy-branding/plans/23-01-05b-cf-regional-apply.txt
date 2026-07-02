@@ -1,0 +1,480 @@
+random_id.rnd: Refreshing state... [id=YXiJFGqeyII]
+data.aws_region.current: Reading...
+aws_ssm_parameter.region["run"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/run/region]
+aws_ssm_parameter.region["cms"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/cms/region]
+aws_ssm_parameter.region["gpx"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/gpx/region]
+aws_ssm_parameter.region["flash"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/flash/region]
+aws_ssm_parameter.region["auth"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/auth/region]
+aws_s3_bucket.cf_assets["gpx"]: Refreshing state... [id=cf-assets-gpx-use1-dc34-617889146a9ec882]
+aws_s3_bucket.cf_assets["run"]: Refreshing state... [id=cf-assets-run-use1-dc34-617889146a9ec882]
+data.aws_region.current: Read complete after 0s [id=us-east-1]
+aws_s3_bucket.cf_assets["auth"]: Refreshing state... [id=cf-assets-auth-use1-dc34-617889146a9ec882]
+aws_s3_bucket.cf_assets["cms"]: Refreshing state... [id=cf-assets-cms-use1-dc34-617889146a9ec882]
+aws_s3_bucket.cf_assets["flash"]: Refreshing state... [id=cf-assets-flash-use1-dc34-617889146a9ec882]
+data.aws_caller_identity.current: Reading...
+data.aws_caller_identity.current: Read complete after 0s [id=427284555693]
+aws_ssm_parameter.bucket_regional_domain_name["flash"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/flash/bucket_regional_domain_name]
+aws_ssm_parameter.bucket_regional_domain_name["run"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/run/bucket_regional_domain_name]
+aws_ssm_parameter.bucket_regional_domain_name["auth"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/auth/bucket_regional_domain_name]
+aws_ssm_parameter.bucket_regional_domain_name["cms"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/cms/bucket_regional_domain_name]
+aws_ssm_parameter.bucket_regional_domain_name["gpx"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/gpx/bucket_regional_domain_name]
+aws_s3_bucket_versioning.cf_assets_versioning["run"]: Refreshing state... [id=cf-assets-run-use1-dc34-617889146a9ec882]
+aws_s3_bucket_versioning.cf_assets_versioning["auth"]: Refreshing state... [id=cf-assets-auth-use1-dc34-617889146a9ec882]
+aws_s3_bucket_versioning.cf_assets_versioning["cms"]: Refreshing state... [id=cf-assets-cms-use1-dc34-617889146a9ec882]
+aws_s3_bucket_versioning.cf_assets_versioning["gpx"]: Refreshing state... [id=cf-assets-gpx-use1-dc34-617889146a9ec882]
+aws_s3_bucket_versioning.cf_assets_versioning["flash"]: Refreshing state... [id=cf-assets-flash-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.bucket_name["cms"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/cms/bucket_name]
+aws_ssm_parameter.bucket_name["flash"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/flash/bucket_name]
+aws_ssm_parameter.bucket_name["gpx"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/gpx/bucket_name]
+aws_ssm_parameter.bucket_name["run"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/run/bucket_name]
+aws_ssm_parameter.bucket_name["auth"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/auth/bucket_name]
+aws_s3_bucket_public_access_block.cf_assets_public_access_block["gpx"]: Refreshing state... [id=cf-assets-gpx-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.bucket_arn["gpx"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/gpx/bucket_arn]
+aws_s3_bucket_cors_configuration.cf_assets_cors["run"]: Refreshing state... [id=cf-assets-run-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.bucket_arn["run"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/run/bucket_arn]
+aws_ssm_parameter.bucket_arn["auth"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/auth/bucket_arn]
+aws_ssm_parameter.bucket_arn["cms"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/cms/bucket_arn]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["auth"]: Refreshing state... [id=cf-assets-auth-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.bucket_arn["flash"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/flash/bucket_arn]
+aws_s3_bucket_public_access_block.cf_assets_public_access_block["cms"]: Refreshing state... [id=cf-assets-cms-use1-dc34-617889146a9ec882]
+aws_s3_bucket_public_access_block.cf_assets_public_access_block["flash"]: Refreshing state... [id=cf-assets-flash-use1-dc34-617889146a9ec882]
+aws_s3_bucket_public_access_block.cf_assets_public_access_block["run"]: Refreshing state... [id=cf-assets-run-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.bucket_domain_name["cms"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/cms/bucket_domain_name]
+aws_ssm_parameter.bucket_domain_name["flash"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/flash/bucket_domain_name]
+aws_s3_bucket_public_access_block.cf_assets_public_access_block["auth"]: Refreshing state... [id=cf-assets-auth-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.bucket_domain_name["gpx"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/gpx/bucket_domain_name]
+aws_ssm_parameter.bucket_domain_name["run"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/run/bucket_domain_name]
+aws_ssm_parameter.bucket_domain_name["auth"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/auth/bucket_domain_name]
+aws_s3_bucket_cors_configuration.cf_assets_cors["auth"]: Refreshing state... [id=cf-assets-auth-use1-dc34-617889146a9ec882]
+aws_s3_bucket_cors_configuration.cf_assets_cors["cms"]: Refreshing state... [id=cf-assets-cms-use1-dc34-617889146a9ec882]
+aws_s3_bucket_cors_configuration.cf_assets_cors["flash"]: Refreshing state... [id=cf-assets-flash-use1-dc34-617889146a9ec882]
+aws_s3_bucket_cors_configuration.cf_assets_cors["gpx"]: Refreshing state... [id=cf-assets-gpx-use1-dc34-617889146a9ec882]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["cms"]: Refreshing state... [id=cf-assets-cms-use1-dc34-617889146a9ec882]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["flash"]: Refreshing state... [id=cf-assets-flash-use1-dc34-617889146a9ec882]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["gpx"]: Refreshing state... [id=cf-assets-gpx-use1-dc34-617889146a9ec882]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["run"]: Refreshing state... [id=cf-assets-run-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.s3_url["flash"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/flash/s3_url]
+aws_s3_bucket_server_side_encryption_configuration.cf_assets_encryption["cms"]: Refreshing state... [id=cf-assets-cms-use1-dc34-617889146a9ec882]
+aws_s3_bucket_server_side_encryption_configuration.cf_assets_encryption["flash"]: Refreshing state... [id=cf-assets-flash-use1-dc34-617889146a9ec882]
+aws_s3_bucket_server_side_encryption_configuration.cf_assets_encryption["gpx"]: Refreshing state... [id=cf-assets-gpx-use1-dc34-617889146a9ec882]
+aws_s3_bucket_server_side_encryption_configuration.cf_assets_encryption["run"]: Refreshing state... [id=cf-assets-run-use1-dc34-617889146a9ec882]
+aws_s3_bucket_server_side_encryption_configuration.cf_assets_encryption["auth"]: Refreshing state... [id=cf-assets-auth-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.s3_url["gpx"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/gpx/s3_url]
+aws_ssm_parameter.s3_url["run"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/run/s3_url]
+aws_ssm_parameter.s3_url["auth"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/auth/s3_url]
+aws_ssm_parameter.s3_url["cms"]: Refreshing state... [id=/dc34/cloudfront-assets/use1/cms/s3_url]
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+Terraform will perform the following actions:
+  # aws_s3_bucket.cf_assets["bib"] will be created
+  + resource "aws_s3_bucket" "cf_assets" {
+      + acceleration_status         = (known after apply)
+      + acl                         = (known after apply)
+      + arn                         = (known after apply)
+      + bucket                      = "cf-assets-bib-use1-dc34-617889146a9ec882"
+      + bucket_domain_name          = (known after apply)
+      + bucket_namespace            = (known after apply)
+      + bucket_prefix               = (known after apply)
+      + bucket_region               = (known after apply)
+      + bucket_regional_domain_name = (known after apply)
+      + force_destroy               = true
+      + hosted_zone_id              = (known after apply)
+      + id                          = (known after apply)
+      + object_lock_enabled         = (known after apply)
+      + policy                      = (known after apply)
+      + region                      = "us-east-1"
+      + request_payer               = (known after apply)
+      + tags                        = {
+          + "Domain"      = "bib.defcon.run"
+          + "Environment" = "dc34"
+          + "Name"        = "bib-use1-cf-assets"
+          + "Purpose"     = "CloudFront Assets"
+          + "Region"      = "us-east-1"
+        }
+      + tags_all                    = {
+          + "Domain"      = "bib.defcon.run"
+          + "Environment" = "dc34"
+          + "Name"        = "bib-use1-cf-assets"
+          + "Purpose"     = "CloudFront Assets"
+          + "Region"      = "us-east-1"
+        }
+      + website_domain              = (known after apply)
+      + website_endpoint            = (known after apply)
+      + cors_rule (known after apply)
+      + grant (known after apply)
+      + lifecycle_rule (known after apply)
+      + logging (known after apply)
+      + object_lock_configuration (known after apply)
+      + replication_configuration (known after apply)
+      + server_side_encryption_configuration (known after apply)
+      + versioning (known after apply)
+      + website (known after apply)
+    }
+  # aws_s3_bucket_cors_configuration.cf_assets_cors["bib"] will be created
+  + resource "aws_s3_bucket_cors_configuration" "cf_assets_cors" {
+      + bucket = (known after apply)
+      + id     = (known after apply)
+      + region = "us-east-1"
+      + cors_rule {
+          + allowed_headers = [
+              + "*",
+            ]
+          + allowed_methods = [
+              + "GET",
+              + "HEAD",
+            ]
+          + allowed_origins = [
+              + "*",
+            ]
+          + expose_headers  = [
+              + "ETag",
+            ]
+            id              = null
+          + max_age_seconds = 3000
+        }
+    }
+  # aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["bib"] will be created
+  + resource "aws_s3_bucket_lifecycle_configuration" "cf_assets_lifecycle" {
+      + bucket                                 = (known after apply)
+      + expected_bucket_owner                  = (known after apply)
+      + id                                     = (known after apply)
+      + region                                 = "us-east-1"
+      + transition_default_minimum_object_size = "all_storage_classes_128K"
+      + rule {
+          + id     = "delete-old-versions"
+          + status = "Enabled"
+            # (1 unchanged attribute hidden)
+          + noncurrent_version_expiration {
+              + noncurrent_days = 90
+            }
+        }
+      + rule {
+          + id     = "abort-incomplete-multipart-uploads"
+          + status = "Enabled"
+            # (1 unchanged attribute hidden)
+          + abort_incomplete_multipart_upload {
+              + days_after_initiation = 7
+            }
+        }
+    }
+  # aws_s3_bucket_public_access_block.cf_assets_public_access_block["bib"] will be created
+  + resource "aws_s3_bucket_public_access_block" "cf_assets_public_access_block" {
+      + block_public_acls       = true
+      + block_public_policy     = true
+      + bucket                  = (known after apply)
+      + id                      = (known after apply)
+      + ignore_public_acls      = true
+      + region                  = "us-east-1"
+      + restrict_public_buckets = true
+    }
+  # aws_s3_bucket_server_side_encryption_configuration.cf_assets_encryption["bib"] will be created
+  + resource "aws_s3_bucket_server_side_encryption_configuration" "cf_assets_encryption" {
+      + bucket = (known after apply)
+      + id     = (known after apply)
+      + region = "us-east-1"
+      + rule {
+          + blocked_encryption_types = (known after apply)
+          + bucket_key_enabled       = (known after apply)
+          + apply_server_side_encryption_by_default {
+              + kms_master_key_id = (known after apply)
+              + sse_algorithm     = "AES256"
+            }
+        }
+    }
+  # aws_s3_bucket_versioning.cf_assets_versioning["bib"] will be created
+  + resource "aws_s3_bucket_versioning" "cf_assets_versioning" {
+      + bucket = (known after apply)
+      + id     = (known after apply)
+      + region = "us-east-1"
+      + versioning_configuration {
+          + mfa_delete = (known after apply)
+          + status     = "Suspended"
+        }
+    }
+  # aws_ssm_parameter.bucket_arn["bib"] will be created
+  + resource "aws_ssm_parameter" "bucket_arn" {
+      + arn            = (known after apply)
+      + data_type      = (known after apply)
+      + description    = "S3 bucket ARN for CloudFront assets for bib in use1"
+      + has_value_wo   = (known after apply)
+      + id             = (known after apply)
+      + insecure_value = (known after apply)
+      + key_id         = (known after apply)
+      + name           = "/dc34/cloudfront-assets/use1/bib/bucket_arn"
+      + region         = "us-east-1"
+      + tags           = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tags_all       = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tier           = (known after apply)
+      + type           = "String"
+      + value          = (sensitive value)
+      + value_wo       = (write-only attribute)
+      + version        = (known after apply)
+    }
+  # aws_ssm_parameter.bucket_domain_name["bib"] will be created
+  + resource "aws_ssm_parameter" "bucket_domain_name" {
+      + arn            = (known after apply)
+      + data_type      = (known after apply)
+      + description    = "S3 bucket domain name for CloudFront assets for bib in use1"
+      + has_value_wo   = (known after apply)
+      + id             = (known after apply)
+      + insecure_value = (known after apply)
+      + key_id         = (known after apply)
+      + name           = "/dc34/cloudfront-assets/use1/bib/bucket_domain_name"
+      + region         = "us-east-1"
+      + tags           = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tags_all       = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tier           = (known after apply)
+      + type           = "String"
+      + value          = (sensitive value)
+      + value_wo       = (write-only attribute)
+      + version        = (known after apply)
+    }
+  # aws_ssm_parameter.bucket_name["bib"] will be created
+  + resource "aws_ssm_parameter" "bucket_name" {
+      + arn            = (known after apply)
+      + data_type      = (known after apply)
+      + description    = "S3 bucket name for CloudFront assets for bib in use1"
+      + has_value_wo   = (known after apply)
+      + id             = (known after apply)
+      + insecure_value = (known after apply)
+      + key_id         = (known after apply)
+      + name           = "/dc34/cloudfront-assets/use1/bib/bucket_name"
+      + region         = "us-east-1"
+      + tags           = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tags_all       = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tier           = (known after apply)
+      + type           = "String"
+      + value          = (sensitive value)
+      + value_wo       = (write-only attribute)
+      + version        = (known after apply)
+    }
+  # aws_ssm_parameter.bucket_regional_domain_name["bib"] will be created
+  + resource "aws_ssm_parameter" "bucket_regional_domain_name" {
+      + arn            = (known after apply)
+      + data_type      = (known after apply)
+      + description    = "S3 bucket regional domain name for CloudFront assets for bib in use1"
+      + has_value_wo   = (known after apply)
+      + id             = (known after apply)
+      + insecure_value = (known after apply)
+      + key_id         = (known after apply)
+      + name           = "/dc34/cloudfront-assets/use1/bib/bucket_regional_domain_name"
+      + region         = "us-east-1"
+      + tags           = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tags_all       = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tier           = (known after apply)
+      + type           = "String"
+      + value          = (sensitive value)
+      + value_wo       = (write-only attribute)
+      + version        = (known after apply)
+    }
+  # aws_ssm_parameter.region["bib"] will be created
+  + resource "aws_ssm_parameter" "region" {
+      + arn            = (known after apply)
+      + data_type      = (known after apply)
+      + description    = "AWS region for CloudFront assets bucket for bib"
+      + has_value_wo   = (known after apply)
+      + id             = (known after apply)
+      + insecure_value = (known after apply)
+      + key_id         = (known after apply)
+      + name           = "/dc34/cloudfront-assets/use1/bib/region"
+      + region         = "us-east-1"
+      + tags           = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tags_all       = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tier           = (known after apply)
+      + type           = "String"
+      + value          = (sensitive value)
+      + value_wo       = (write-only attribute)
+      + version        = (known after apply)
+    }
+  # aws_ssm_parameter.s3_url["bib"] will be created
+  + resource "aws_ssm_parameter" "s3_url" {
+      + arn            = (known after apply)
+      + data_type      = (known after apply)
+      + description    = "S3 URL for CloudFront assets bucket for bib in use1"
+      + has_value_wo   = (known after apply)
+      + id             = (known after apply)
+      + insecure_value = (known after apply)
+      + key_id         = (known after apply)
+      + name           = "/dc34/cloudfront-assets/use1/bib/s3_url"
+      + region         = "us-east-1"
+      + tags           = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tags_all       = {
+          + "Domain" = "bib"
+          + "Region" = "use1"
+          + "Site"   = "dc34"
+        }
+      + tier           = (known after apply)
+      + type           = "String"
+      + value          = (sensitive value)
+      + value_wo       = (write-only attribute)
+      + version        = (known after apply)
+    }
+Plan: 12 to add, 0 to change, 0 to destroy.
+Changes to Outputs:
+  ~ bucket_arns                  = {
+      + bib   = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+  ~ bucket_ids                   = {
+      + bib   = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+  ~ bucket_regional_domain_names = {
+      + bib   = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+  ~ buckets                      = {
+      + bib   = {
+          + arn                  = (known after apply)
+          + domain_name          = (known after apply)
+          + id                   = (known after apply)
+          + region_label         = "use1"
+          + regional_domain_name = (known after apply)
+        }
+        # (5 unchanged attributes hidden)
+    }
+aws_ssm_parameter.region["bib"]: Creating...
+aws_s3_bucket.cf_assets["bib"]: Creating...
+aws_ssm_parameter.region["bib"]: Creation complete after 1s [id=/dc34/cloudfront-assets/use1/bib/region]
+aws_s3_bucket.cf_assets["bib"]: Creation complete after 1s [id=cf-assets-bib-use1-dc34-617889146a9ec882]
+aws_s3_bucket_versioning.cf_assets_versioning["bib"]: Creating...
+aws_ssm_parameter.s3_url["bib"]: Creating...
+aws_ssm_parameter.bucket_arn["bib"]: Creating...
+aws_s3_bucket_server_side_encryption_configuration.cf_assets_encryption["bib"]: Creating...
+aws_s3_bucket_cors_configuration.cf_assets_cors["bib"]: Creating...
+aws_s3_bucket_public_access_block.cf_assets_public_access_block["bib"]: Creating...
+aws_ssm_parameter.bucket_domain_name["bib"]: Creating...
+aws_ssm_parameter.bucket_name["bib"]: Creating...
+aws_ssm_parameter.bucket_regional_domain_name["bib"]: Creating...
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["bib"]: Creating...
+aws_ssm_parameter.s3_url["bib"]: Creation complete after 0s [id=/dc34/cloudfront-assets/use1/bib/s3_url]
+aws_ssm_parameter.bucket_domain_name["bib"]: Creation complete after 0s [id=/dc34/cloudfront-assets/use1/bib/bucket_domain_name]
+aws_ssm_parameter.bucket_regional_domain_name["bib"]: Creation complete after 0s [id=/dc34/cloudfront-assets/use1/bib/bucket_regional_domain_name]
+aws_s3_bucket_public_access_block.cf_assets_public_access_block["bib"]: Creation complete after 0s [id=cf-assets-bib-use1-dc34-617889146a9ec882]
+aws_s3_bucket_server_side_encryption_configuration.cf_assets_encryption["bib"]: Creation complete after 0s [id=cf-assets-bib-use1-dc34-617889146a9ec882]
+aws_s3_bucket_cors_configuration.cf_assets_cors["bib"]: Creation complete after 1s [id=cf-assets-bib-use1-dc34-617889146a9ec882]
+aws_s3_bucket_versioning.cf_assets_versioning["bib"]: Creation complete after 1s [id=cf-assets-bib-use1-dc34-617889146a9ec882]
+aws_ssm_parameter.bucket_arn["bib"]: Creation complete after 2s [id=/dc34/cloudfront-assets/use1/bib/bucket_arn]
+aws_ssm_parameter.bucket_name["bib"]: Creation complete after 2s [id=/dc34/cloudfront-assets/use1/bib/bucket_name]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["bib"]: Still creating... [00m10s elapsed]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["bib"]: Still creating... [00m20s elapsed]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["bib"]: Still creating... [00m30s elapsed]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["bib"]: Still creating... [00m40s elapsed]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["bib"]: Still creating... [00m50s elapsed]
+aws_s3_bucket_lifecycle_configuration.cf_assets_lifecycle["bib"]: Creation complete after 56s [id=cf-assets-bib-use1-dc34-617889146a9ec882]
+Apply complete! Resources: 12 added, 0 changed, 0 destroyed.
+Outputs:
+bucket_arns = {
+  "auth" = "arn:aws:s3:::cf-assets-auth-use1-dc34-617889146a9ec882"
+  "bib" = "arn:aws:s3:::cf-assets-bib-use1-dc34-617889146a9ec882"
+  "cms" = "arn:aws:s3:::cf-assets-cms-use1-dc34-617889146a9ec882"
+  "flash" = "arn:aws:s3:::cf-assets-flash-use1-dc34-617889146a9ec882"
+  "gpx" = "arn:aws:s3:::cf-assets-gpx-use1-dc34-617889146a9ec882"
+  "run" = "arn:aws:s3:::cf-assets-run-use1-dc34-617889146a9ec882"
+}
+bucket_ids = {
+  "auth" = "cf-assets-auth-use1-dc34-617889146a9ec882"
+  "bib" = "cf-assets-bib-use1-dc34-617889146a9ec882"
+  "cms" = "cf-assets-cms-use1-dc34-617889146a9ec882"
+  "flash" = "cf-assets-flash-use1-dc34-617889146a9ec882"
+  "gpx" = "cf-assets-gpx-use1-dc34-617889146a9ec882"
+  "run" = "cf-assets-run-use1-dc34-617889146a9ec882"
+}
+bucket_regional_domain_names = {
+  "auth" = "cf-assets-auth-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  "bib" = "cf-assets-bib-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  "cms" = "cf-assets-cms-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  "flash" = "cf-assets-flash-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  "gpx" = "cf-assets-gpx-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  "run" = "cf-assets-run-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+}
+buckets = {
+  "auth" = {
+    "arn" = "arn:aws:s3:::cf-assets-auth-use1-dc34-617889146a9ec882"
+    "domain_name" = "cf-assets-auth-use1-dc34-617889146a9ec882.s3.amazonaws.com"
+    "id" = "cf-assets-auth-use1-dc34-617889146a9ec882"
+    "region_label" = "use1"
+    "regional_domain_name" = "cf-assets-auth-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  }
+  "bib" = {
+    "arn" = "arn:aws:s3:::cf-assets-bib-use1-dc34-617889146a9ec882"
+    "domain_name" = "cf-assets-bib-use1-dc34-617889146a9ec882.s3.amazonaws.com"
+    "id" = "cf-assets-bib-use1-dc34-617889146a9ec882"
+    "region_label" = "use1"
+    "regional_domain_name" = "cf-assets-bib-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  }
+  "cms" = {
+    "arn" = "arn:aws:s3:::cf-assets-cms-use1-dc34-617889146a9ec882"
+    "domain_name" = "cf-assets-cms-use1-dc34-617889146a9ec882.s3.amazonaws.com"
+    "id" = "cf-assets-cms-use1-dc34-617889146a9ec882"
+    "region_label" = "use1"
+    "regional_domain_name" = "cf-assets-cms-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  }
+  "flash" = {
+    "arn" = "arn:aws:s3:::cf-assets-flash-use1-dc34-617889146a9ec882"
+    "domain_name" = "cf-assets-flash-use1-dc34-617889146a9ec882.s3.amazonaws.com"
+    "id" = "cf-assets-flash-use1-dc34-617889146a9ec882"
+    "region_label" = "use1"
+    "regional_domain_name" = "cf-assets-flash-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  }
+  "gpx" = {
+    "arn" = "arn:aws:s3:::cf-assets-gpx-use1-dc34-617889146a9ec882"
+    "domain_name" = "cf-assets-gpx-use1-dc34-617889146a9ec882.s3.amazonaws.com"
+    "id" = "cf-assets-gpx-use1-dc34-617889146a9ec882"
+    "region_label" = "use1"
+    "regional_domain_name" = "cf-assets-gpx-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  }
+  "run" = {
+    "arn" = "arn:aws:s3:::cf-assets-run-use1-dc34-617889146a9ec882"
+    "domain_name" = "cf-assets-run-use1-dc34-617889146a9ec882.s3.amazonaws.com"
+    "id" = "cf-assets-run-use1-dc34-617889146a9ec882"
+    "region_label" = "use1"
+    "regional_domain_name" = "cf-assets-run-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+  }
+}
+region_label = "use1"
