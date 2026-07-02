@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>defcon.run bib - Redirecting...</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+        .container {
+            text-align: center;
+        }
+        .loading {
+            font-size: 1.2rem;
+        }
+        .region-info {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+    </style>
+    <script>
+        (function() {
+            var COOKIE_NAME = 'preferred-region';
+            var DEFAULT_REGION = 'use1';
+            var VALID_REGIONS = ['use1', 'cac1', 'apse1'];
+
+            function getCookie(name) {
+                var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+                return match ? match[2] : null;
+            }
+
+            function redirect(region) {
+                window.location.replace('/' + region + '/');
+            }
+
+            var preferred = getCookie(COOKIE_NAME);
+
+            if (preferred && VALID_REGIONS.indexOf(preferred) !== -1) {
+                redirect(preferred);
+            } else {
+                redirect(DEFAULT_REGION);
+            }
+        })();
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="loading">Redirecting to your region...</div>
+        <div class="region-info">If you are not redirected, <a href="/use1/" style="color: #00ff00;">click here</a>.</div>
+    </div>
+</body>
+</html>
