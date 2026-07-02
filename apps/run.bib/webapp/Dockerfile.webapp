@@ -1,0 +1,65 @@
+# Dockerfile for run.bib Next.js webapp
+# Stage 1: Build
+# Stage 2: Production runtime
+#
+# Build context: apps/run.bib/webapp/
+
+# =============================================================================
+# Stage 1: Build Next.js webapp
+# =============================================================================
+FROM node:20-alpine AS builder
+
+RUN apk update && apk add --no-cache \
+    curl \
+    build-base \
+    g++ \
+    python3
+
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Copy webapp source
+COPY . .
+
+# Build arguments for Next.js
+ARG NEXT_PUBLIC_ASSET_PREFIX=""
+ARG WEBAPP_PREFIX="use1/assets"
+ARG WEBAPP_ORIGIN="bib.defcon.run"
+ARG VERSION_WEBAPP="unknown"
+ARG REGION_SHORT="use1"
+
+ENV NEXT_PUBLIC_ASSET_PREFIX=$NEXT_PUBLIC_ASSET_PREFIX
+ENV WEBAPP_PREFIX=$WEBAPP_PREFIX
+ENV WEBAPP_ORIGIN=$WEBAPP_ORIGIN
+ENV NEXT_PUBLIC_VERSION_APP=$VERSION_WEBAPP
+ENV REGION_SHORT=$REGION_SHORT
+
+# Build Next.js
+RUN npm run build
+
+# =============================================================================
+# Stage 2: Production runtime
+# =============================================================================
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy built artifacts
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+
+# Note: Health check handled by ECS task definition (uses regional path)
+
+# Run as non-root user
+USER node
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]
