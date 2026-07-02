@@ -1,0 +1,715 @@
+16:30:33.899 WARN   Config ../../region/ca-central-1/cloudfront/terragrunt.hcl is a dependency of ./terragrunt.hcl that has no outputs, but mock outputs provided and returning those in dependency output.
+16:30:35.490 WARN   Config ../../region/ca-central-1/s3-uploads/terragrunt.hcl is a dependency of ./terragrunt.hcl that has no outputs, but mock outputs provided and returning those in dependency output.
+16:30:39.692 WARN   Config ../../region/ca-central-1/network/terragrunt.hcl is a dependency of ./terragrunt.hcl that has no outputs, but mock outputs provided and returning those in dependency output.
+16:30:39.777 WARN   Config ../../region/ap-southeast-1/cloudfront/terragrunt.hcl is a dependency of ./terragrunt.hcl that has no outputs, but mock outputs provided and returning those in dependency output.
+16:30:40.782 WARN   Config ../../region/ap-southeast-1/s3-uploads/terragrunt.hcl is a dependency of ./terragrunt.hcl that has no outputs, but mock outputs provided and returning those in dependency output.
+16:30:45.146 WARN   Config ../../region/ap-southeast-1/network/terragrunt.hcl is a dependency of ./terragrunt.hcl that has no outputs, but mock outputs provided and returning those in dependency output.
+random_id.rnd: Refreshing state... [id=KKPSv50zCUA]
+data.aws_caller_identity.current: Reading...
+data.aws_caller_identity.current: Read complete after 0s [id=427284555693]
+aws_cloudfront_origin_access_control.cf_oac["flash-use1"]: Refreshing state... [id=E2NREEL6CM7ZZC]
+aws_cloudfront_function.root_redirect: Refreshing state... [id=dc34-root-redirect]
+aws_cloudfront_origin_access_control.cf_oac["run-apse1"]: Refreshing state... [id=EVQD7EO7X2JX1]
+aws_cloudfront_origin_access_control.cf_oac["run-use1"]: Refreshing state... [id=E3SG7IJSGSY7TW]
+aws_cloudfront_origin_access_control.cms_media_oac["apse1"]: Refreshing state... [id=E9L79WRIHL7YX]
+aws_cloudfront_origin_access_control.cms_media_oac["cac1"]: Refreshing state... [id=E2WSP9S1U48HQL]
+aws_cloudfront_origin_access_control.cf_oac["cms-use1"]: Refreshing state... [id=E385O838CDVQX7]
+aws_cloudfront_origin_access_control.cms_media_oac["use1"]: Refreshing state... [id=E1FR03OFIAYH3R]
+aws_cloudfront_origin_access_control.cf_oac["gpx-use1"]: Refreshing state... [id=E3U9Q7PSS2OP8P]
+aws_cloudfront_origin_access_control.cf_oac["flash-apse1"]: Refreshing state... [id=E2HW96RZF5VL7A]
+aws_cloudfront_origin_access_control.cf_oac["flash-cac1"]: Refreshing state... [id=E28X09TX9QWS2B]
+aws_cloudfront_origin_access_control.cf_oac["run-cac1"]: Refreshing state... [id=E3UV68ATC4TT54]
+aws_cloudfront_origin_access_control.cf_oac["auth-apse1"]: Refreshing state... [id=E2M0GW5VFQEQCU]
+aws_cloudfront_origin_access_control.cf_oac["auth-use1"]: Refreshing state... [id=EQP1M4GEFC1KU]
+aws_cloudfront_origin_access_control.cf_oac["gpx-cac1"]: Refreshing state... [id=EYZ5WB5P3KU4L]
+aws_cloudfront_origin_access_control.cf_oac["gpx-apse1"]: Refreshing state... [id=E2WTEAOLZG1WRV]
+aws_cloudfront_origin_access_control.cf_oac["cms-cac1"]: Refreshing state... [id=ELPR2ZLFZ1JU]
+aws_cloudfront_origin_access_control.cf_oac["cms-apse1"]: Refreshing state... [id=E3234LKY022DND]
+aws_cloudfront_origin_access_control.cf_oac["auth-cac1"]: Refreshing state... [id=E1Q7Q6WEKNZW4E]
+aws_s3_bucket.cloudfront_logs["auth"]: Refreshing state... [id=logs-cf-auth-dc34-28a3d2bf9d330940]
+aws_s3_bucket.cloudfront_logs["gpx"]: Refreshing state... [id=logs-cf-gpx-dc34-28a3d2bf9d330940]
+aws_s3_bucket.cloudfront_logs["flash"]: Refreshing state... [id=logs-cf-flash-dc34-28a3d2bf9d330940]
+aws_s3_bucket.cloudfront_logs["cms"]: Refreshing state... [id=logs-cf-cms-dc34-28a3d2bf9d330940]
+aws_s3_bucket.cloudfront_logs["run"]: Refreshing state... [id=logs-cf-run-dc34-28a3d2bf9d330940]
+aws_s3_bucket_ownership_controls.cloudfront_logs_ownership["cms"]: Refreshing state... [id=logs-cf-cms-dc34-28a3d2bf9d330940]
+aws_s3_bucket_ownership_controls.cloudfront_logs_ownership["gpx"]: Refreshing state... [id=logs-cf-gpx-dc34-28a3d2bf9d330940]
+aws_s3_bucket_ownership_controls.cloudfront_logs_ownership["auth"]: Refreshing state... [id=logs-cf-auth-dc34-28a3d2bf9d330940]
+aws_s3_bucket_ownership_controls.cloudfront_logs_ownership["flash"]: Refreshing state... [id=logs-cf-flash-dc34-28a3d2bf9d330940]
+aws_s3_bucket_ownership_controls.cloudfront_logs_ownership["run"]: Refreshing state... [id=logs-cf-run-dc34-28a3d2bf9d330940]
+aws_s3_bucket_acl.cloudfront_logs_acl["cms"]: Refreshing state... [id=logs-cf-cms-dc34-28a3d2bf9d330940,private]
+aws_s3_bucket_acl.cloudfront_logs_acl["auth"]: Refreshing state... [id=logs-cf-auth-dc34-28a3d2bf9d330940,private]
+aws_s3_bucket_acl.cloudfront_logs_acl["flash"]: Refreshing state... [id=logs-cf-flash-dc34-28a3d2bf9d330940,private]
+aws_s3_bucket_acl.cloudfront_logs_acl["gpx"]: Refreshing state... [id=logs-cf-gpx-dc34-28a3d2bf9d330940,private]
+aws_s3_bucket_acl.cloudfront_logs_acl["run"]: Refreshing state... [id=logs-cf-run-dc34-28a3d2bf9d330940,private]
+aws_cloudfront_distribution.main["auth"]: Refreshing state... [id=E1NBDYPSCQIWRP]
+aws_cloudfront_distribution.main["gpx"]: Refreshing state... [id=E1D1R5LJNFGRLE]
+aws_cloudfront_distribution.main["flash"]: Refreshing state... [id=EMBB6CM8BDR5K]
+aws_cloudfront_distribution.main["run"]: Refreshing state... [id=EXGGRJUKZ2PIZ]
+aws_cloudfront_distribution.main["cms"]: Refreshing state... [id=E37PWKALBOK6N5]
+aws_route53_record.cloudfront_alias["cms.defcon.run"]: Refreshing state... [id=Z09792312IB6SKKEEAKFT_cms.defcon.run_A]
+aws_route53_record.cloudfront_alias["flash.defcon.run"]: Refreshing state... [id=Z098549524ANKJ8TAU2OG_flash.defcon.run_A]
+aws_route53_record.cloudfront_alias["run.defcon.run"]: Refreshing state... [id=Z09956382AARMFZ8KWQPF_run.defcon.run_A]
+aws_route53_record.cloudfront_alias["gpx.defcon.run"]: Refreshing state... [id=Z098489617X4ZTYVMZTOA_gpx.defcon.run_A]
+aws_route53_record.cloudfront_alias["auth.defcon.run"]: Refreshing state... [id=Z05731511PT3WD0QGOGTE_auth.defcon.run_A]
+aws_s3_bucket_policy.cf_oac_access_use1["gpx"]: Refreshing state... [id=cf-assets-gpx-use1-dc34-617889146a9ec882]
+aws_s3_bucket_policy.cf_oac_access_use1["run"]: Refreshing state... [id=cf-assets-run-use1-dc34-617889146a9ec882]
+aws_s3_bucket_policy.cf_oac_access_use1["cms"]: Refreshing state... [id=cf-assets-cms-use1-dc34-617889146a9ec882]
+aws_s3_bucket_policy.cf_oac_access_use1["flash"]: Refreshing state... [id=cf-assets-flash-use1-dc34-617889146a9ec882]
+aws_s3_bucket_policy.cf_oac_access_use1["auth"]: Refreshing state... [id=cf-assets-auth-use1-dc34-617889146a9ec882]
+aws_s3_bucket_policy.cms_media_oac_access_use1["cms"]: Refreshing state... [id=uploads-dc34-cms-media-use1-80a6b349]
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+Terraform will perform the following actions:
+  # aws_cloudfront_distribution.main["bib"] will be created
+  + resource "aws_cloudfront_distribution" "main" {
+      + aliases                         = [
+          + "bib.defcon.run",
+        ]
+      + arn                             = (known after apply)
+      + caller_reference                = (known after apply)
+      + comment                         = "Multi-region distribution for bib.defcon.run"
+      + continuous_deployment_policy_id = (known after apply)
+      + default_root_object             = "index.html"
+      + domain_name                     = (known after apply)
+      + enabled                         = true
+      + etag                            = (known after apply)
+      + hosted_zone_id                  = (known after apply)
+      + http_version                    = "http2"
+      + id                              = (known after apply)
+      + in_progress_validation_batches  = (known after apply)
+      + is_ipv6_enabled                 = true
+      + last_modified_time              = (known after apply)
+      + logging_v1_enabled              = (known after apply)
+      + price_class                     = "PriceClass_100"
+      + retain_on_delete                = false
+      + staging                         = false
+      + status                          = (known after apply)
+      + tags                            = {
+          + "Domain"      = "bib.defcon.run"
+          + "Environment" = "dc34"
+          + "ManagedBy"   = "Terragrunt"
+          + "Name"        = "bib.defcon.run"
+          + "Purpose"     = "CloudFront Distribution"
+        }
+      + tags_all                        = {
+          + "Domain"      = "bib.defcon.run"
+          + "Environment" = "dc34"
+          + "ManagedBy"   = "Terragrunt"
+          + "Name"        = "bib.defcon.run"
+          + "Purpose"     = "CloudFront Distribution"
+        }
+      + trusted_key_groups              = (known after apply)
+      + trusted_signers                 = (known after apply)
+      + wait_for_deployment             = true
+        # (1 unchanged attribute hidden)
+      + default_cache_behavior {
+          + allowed_methods          = [
+              + "DELETE",
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+              + "PATCH",
+              + "POST",
+              + "PUT",
+            ]
+          + cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+          + cached_methods           = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress                 = true
+          + default_ttl              = (known after apply)
+          + max_ttl                  = (known after apply)
+          + min_ttl                  = 0
+          + origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          + target_origin_id         = "alb-use1"
+          + trusted_key_groups       = (known after apply)
+          + trusted_signers          = (known after apply)
+          + viewer_protocol_policy   = "redirect-to-https"
+          + function_association {
+              + event_type   = "viewer-request"
+              + function_arn = "arn:aws:cloudfront::427284555693:function/dc34-root-redirect"
+            }
+          + grpc_config (known after apply)
+        }
+      + logging_config {
+          + bucket          = (known after apply)
+          + include_cookies = false
+          + prefix          = "cloudfront/"
+        }
+      + ordered_cache_behavior {
+          + allowed_methods        = [
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+            ]
+          + cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+          + cached_methods         = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress               = true
+          + default_ttl            = (known after apply)
+          + max_ttl                = (known after apply)
+          + min_ttl                = 0
+          + path_pattern           = "/index.html"
+          + target_origin_id       = "s3-use1"
+          + viewer_protocol_policy = "redirect-to-https"
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods        = [
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+            ]
+          + cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+          + cached_methods         = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress               = true
+          + default_ttl            = (known after apply)
+          + max_ttl                = (known after apply)
+          + min_ttl                = 0
+          + path_pattern           = "/favicon.ico"
+          + target_origin_id       = "s3-use1"
+          + viewer_protocol_policy = "redirect-to-https"
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods        = [
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+            ]
+          + cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+          + cached_methods         = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress               = true
+          + default_ttl            = (known after apply)
+          + max_ttl                = (known after apply)
+          + min_ttl                = 0
+          + path_pattern           = "/use1/index.html"
+          + target_origin_id       = "s3-use1"
+          + viewer_protocol_policy = "redirect-to-https"
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods          = [
+              + "DELETE",
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+              + "PATCH",
+              + "POST",
+              + "PUT",
+            ]
+          + cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+          + cached_methods           = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress                 = true
+          + default_ttl              = (known after apply)
+          + max_ttl                  = (known after apply)
+          + min_ttl                  = 0
+          + origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          + path_pattern             = "/apse1"
+          + target_origin_id         = "alb-apse1"
+          + viewer_protocol_policy   = "redirect-to-https"
+          + function_association {
+              + event_type   = "viewer-request"
+              + function_arn = "arn:aws:cloudfront::427284555693:function/dc34-root-redirect"
+            }
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods          = [
+              + "DELETE",
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+              + "PATCH",
+              + "POST",
+              + "PUT",
+            ]
+          + cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+          + cached_methods           = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress                 = true
+          + default_ttl              = (known after apply)
+          + max_ttl                  = (known after apply)
+          + min_ttl                  = 0
+          + origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          + path_pattern             = "/cac1"
+          + target_origin_id         = "alb-cac1"
+          + viewer_protocol_policy   = "redirect-to-https"
+          + function_association {
+              + event_type   = "viewer-request"
+              + function_arn = "arn:aws:cloudfront::427284555693:function/dc34-root-redirect"
+            }
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods          = [
+              + "DELETE",
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+              + "PATCH",
+              + "POST",
+              + "PUT",
+            ]
+          + cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+          + cached_methods           = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress                 = true
+          + default_ttl              = (known after apply)
+          + max_ttl                  = (known after apply)
+          + min_ttl                  = 0
+          + origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          + path_pattern             = "/use1"
+          + target_origin_id         = "alb-use1"
+          + viewer_protocol_policy   = "redirect-to-https"
+          + function_association {
+              + event_type   = "viewer-request"
+              + function_arn = "arn:aws:cloudfront::427284555693:function/dc34-root-redirect"
+            }
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods        = [
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+            ]
+          + cache_policy_id        = "658327ea-f89d-4fab-a63d-7e88639e58f6"
+          + cached_methods         = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress               = true
+          + default_ttl            = (known after apply)
+          + max_ttl                = (known after apply)
+          + min_ttl                = 0
+          + path_pattern           = "/use1/assets/*"
+          + target_origin_id       = "s3-use1"
+          + viewer_protocol_policy = "redirect-to-https"
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods          = [
+              + "DELETE",
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+              + "PATCH",
+              + "POST",
+              + "PUT",
+            ]
+          + cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+          + cached_methods           = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress                 = true
+          + default_ttl              = (known after apply)
+          + max_ttl                  = (known after apply)
+          + min_ttl                  = 0
+          + origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          + path_pattern             = "/apse1/*"
+          + target_origin_id         = "alb-apse1"
+          + viewer_protocol_policy   = "redirect-to-https"
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods          = [
+              + "DELETE",
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+              + "PATCH",
+              + "POST",
+              + "PUT",
+            ]
+          + cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+          + cached_methods           = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress                 = true
+          + default_ttl              = (known after apply)
+          + max_ttl                  = (known after apply)
+          + min_ttl                  = 0
+          + origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          + path_pattern             = "/cac1/*"
+          + target_origin_id         = "alb-cac1"
+          + viewer_protocol_policy   = "redirect-to-https"
+          + grpc_config (known after apply)
+        }
+      + ordered_cache_behavior {
+          + allowed_methods          = [
+              + "DELETE",
+              + "GET",
+              + "HEAD",
+              + "OPTIONS",
+              + "PATCH",
+              + "POST",
+              + "PUT",
+            ]
+          + cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+          + cached_methods           = [
+              + "GET",
+              + "HEAD",
+            ]
+          + compress                 = true
+          + default_ttl              = (known after apply)
+          + max_ttl                  = (known after apply)
+          + min_ttl                  = 0
+          + origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+          + path_pattern             = "/use1/*"
+          + target_origin_id         = "alb-use1"
+          + viewer_protocol_policy   = "redirect-to-https"
+          + grpc_config (known after apply)
+        }
+      + origin {
+          + connection_attempts         = 3
+          + connection_timeout          = 10
+          + domain_name                 = "mock-alb-apse1.ap-southeast-1.elb.amazonaws.com"
+          + origin_id                   = "alb-apse1"
+          + response_completion_timeout = (known after apply)
+            # (2 unchanged attributes hidden)
+          + custom_header {
+              + name  = "X-Origin-Region"
+              + value = "apse1"
+            }
+          + custom_origin_config {
+              + http_port                = 80
+              + https_port               = 443
+              + origin_keepalive_timeout = 5
+              + origin_protocol_policy   = "https-only"
+              + origin_read_timeout      = 30
+              + origin_ssl_protocols     = [
+                  + "TLSv1.2",
+                ]
+                # (1 unchanged attribute hidden)
+            }
+        }
+      + origin {
+          + connection_attempts         = 3
+          + connection_timeout          = 10
+          + domain_name                 = "mock-alb-cac1.ca-central-1.elb.amazonaws.com"
+          + origin_id                   = "alb-cac1"
+          + response_completion_timeout = (known after apply)
+            # (2 unchanged attributes hidden)
+          + custom_header {
+              + name  = "X-Origin-Region"
+              + value = "cac1"
+            }
+          + custom_origin_config {
+              + http_port                = 80
+              + https_port               = 443
+              + origin_keepalive_timeout = 5
+              + origin_protocol_policy   = "https-only"
+              + origin_read_timeout      = 30
+              + origin_ssl_protocols     = [
+                  + "TLSv1.2",
+                ]
+                # (1 unchanged attribute hidden)
+            }
+        }
+      + origin {
+          + connection_attempts         = 3
+          + connection_timeout          = 10
+          + domain_name                 = "alb-use1-defcon-run-375003670.us-east-1.elb.amazonaws.com"
+          + origin_id                   = "alb-use1"
+          + response_completion_timeout = (known after apply)
+            # (2 unchanged attributes hidden)
+          + custom_header {
+              + name  = "X-Origin-Region"
+              + value = "use1"
+            }
+          + custom_origin_config {
+              + http_port                = 80
+              + https_port               = 443
+              + origin_keepalive_timeout = 5
+              + origin_protocol_policy   = "https-only"
+              + origin_read_timeout      = 30
+              + origin_ssl_protocols     = [
+                  + "TLSv1.2",
+                ]
+                # (1 unchanged attribute hidden)
+            }
+        }
+      + origin {
+          + connection_attempts         = 3
+          + connection_timeout          = 10
+          + domain_name                 = "cf-assets-bib-use1-dc34-617889146a9ec882.s3.us-east-1.amazonaws.com"
+          + origin_access_control_id    = (known after apply)
+          + origin_id                   = "s3-use1"
+          + response_completion_timeout = (known after apply)
+            # (1 unchanged attribute hidden)
+        }
+      + restrictions {
+          + geo_restriction {
+              + locations        = (known after apply)
+              + restriction_type = "none"
+            }
+        }
+      + viewer_certificate {
+          + acm_certificate_arn      = "arn:aws:acm:us-east-1:427284555693:certificate/9f5e226c-a82f-48ac-93af-7fb156bcbdd3"
+          + minimum_protocol_version = "TLSv1.2_2021"
+          + ssl_support_method       = "sni-only"
+        }
+    }
+  # aws_cloudfront_origin_access_control.cf_oac["bib-use1"] will be created
+  + resource "aws_cloudfront_origin_access_control" "cf_oac" {
+      + arn                               = (known after apply)
+      + description                       = "OAC for bib use1 S3 bucket"
+      + etag                              = (known after apply)
+      + id                                = (known after apply)
+      + name                              = "oac-bib-use1-defcon.run"
+      + origin_access_control_origin_type = "s3"
+      + signing_behavior                  = "always"
+      + signing_protocol                  = "sigv4"
+    }
+  # aws_route53_record.cloudfront_alias["bib.defcon.run"] will be created
+  + resource "aws_route53_record" "cloudfront_alias" {
+      + allow_overwrite = (known after apply)
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "bib.defcon.run"
+      + type            = "A"
+      + zone_id         = "Z0012982VQ0K4678V6JY"
+      + alias {
+          + evaluate_target_health = false
+          + name                   = (known after apply)
+          + zone_id                = (known after apply)
+        }
+    }
+  # aws_s3_bucket.cloudfront_logs["bib"] will be created
+  + resource "aws_s3_bucket" "cloudfront_logs" {
+      + acceleration_status         = (known after apply)
+      + acl                         = (known after apply)
+      + arn                         = (known after apply)
+      + bucket                      = "logs-cf-bib-dc34-28a3d2bf9d330940"
+      + bucket_domain_name          = (known after apply)
+      + bucket_namespace            = (known after apply)
+      + bucket_prefix               = (known after apply)
+      + bucket_region               = (known after apply)
+      + bucket_regional_domain_name = (known after apply)
+      + force_destroy               = true
+      + hosted_zone_id              = (known after apply)
+      + id                          = (known after apply)
+      + object_lock_enabled         = (known after apply)
+      + policy                      = (known after apply)
+      + region                      = "us-east-1"
+      + request_payer               = (known after apply)
+      + tags                        = {
+          + "Domain"      = "bib.defcon.run"
+          + "Environment" = "dc34"
+          + "ManagedBy"   = "Terragrunt"
+          + "Name"        = "cloudfront-logs-bib"
+          + "Purpose"     = "CloudFront Logs"
+        }
+      + tags_all                    = {
+          + "Domain"      = "bib.defcon.run"
+          + "Environment" = "dc34"
+          + "ManagedBy"   = "Terragrunt"
+          + "Name"        = "cloudfront-logs-bib"
+          + "Purpose"     = "CloudFront Logs"
+        }
+      + website_domain              = (known after apply)
+      + website_endpoint            = (known after apply)
+      + cors_rule (known after apply)
+      + grant (known after apply)
+      + lifecycle_rule (known after apply)
+      + logging (known after apply)
+      + object_lock_configuration (known after apply)
+      + replication_configuration (known after apply)
+      + server_side_encryption_configuration (known after apply)
+      + versioning (known after apply)
+      + website (known after apply)
+    }
+  # aws_s3_bucket_acl.cloudfront_logs_acl["bib"] will be created
+  + resource "aws_s3_bucket_acl" "cloudfront_logs_acl" {
+      + acl    = "private"
+      + bucket = (known after apply)
+      + id     = (known after apply)
+      + region = "us-east-1"
+      + access_control_policy (known after apply)
+    }
+  # aws_s3_bucket_ownership_controls.cloudfront_logs_ownership["bib"] will be created
+  + resource "aws_s3_bucket_ownership_controls" "cloudfront_logs_ownership" {
+      + bucket = (known after apply)
+      + id     = (known after apply)
+      + region = "us-east-1"
+      + rule {
+          + object_ownership = "BucketOwnerPreferred"
+        }
+    }
+  # aws_s3_bucket_policy.cf_oac_access_use1["bib"] will be created
+  + resource "aws_s3_bucket_policy" "cf_oac_access_use1" {
+      + bucket = "cf-assets-bib-use1-dc34-617889146a9ec882"
+      + id     = (known after apply)
+      + policy = (known after apply)
+      + region = "us-east-1"
+    }
+Plan: 7 to add, 0 to change, 0 to destroy.
+Changes to Outputs:
+  ~ distribution_arns         = {
+      + bib   = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+  ~ distribution_domain_names = {
+      + bib   = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+  ~ distribution_ids          = {
+      + bib   = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+  ~ distribution_urls         = {
+      + bib   = "bib.defcon.run"
+        # (5 unchanged attributes hidden)
+    }
+  ~ distributions             = {
+      + bib   = {
+          + arn            = (known after apply)
+          + domain_name    = (known after apply)
+          + hosted_zone_id = (known after apply)
+          + id             = (known after apply)
+          + url            = "bib.defcon.run"
+        }
+        # (5 unchanged attributes hidden)
+    }
+  ~ logs_bucket_ids           = {
+      + bib   = (known after apply)
+        # (5 unchanged attributes hidden)
+    }
+aws_cloudfront_origin_access_control.cf_oac["bib-use1"]: Creating...
+aws_s3_bucket.cloudfront_logs["bib"]: Creating...
+aws_cloudfront_origin_access_control.cf_oac["bib-use1"]: Creation complete after 0s [id=E3NZI5EFDH1X7]
+aws_s3_bucket.cloudfront_logs["bib"]: Creation complete after 0s [id=logs-cf-bib-dc34-28a3d2bf9d330940]
+aws_s3_bucket_ownership_controls.cloudfront_logs_ownership["bib"]: Creating...
+aws_s3_bucket_ownership_controls.cloudfront_logs_ownership["bib"]: Creation complete after 1s [id=logs-cf-bib-dc34-28a3d2bf9d330940]
+aws_s3_bucket_acl.cloudfront_logs_acl["bib"]: Creating...
+aws_s3_bucket_acl.cloudfront_logs_acl["bib"]: Creation complete after 0s [id=logs-cf-bib-dc34-28a3d2bf9d330940,private]
+aws_cloudfront_distribution.main["bib"]: Creating...
+aws_cloudfront_distribution.main["bib"]: Still creating... [00m10s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [00m20s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [00m30s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [00m40s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [00m50s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [01m00s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [01m10s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [01m20s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [01m30s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [01m40s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [01m50s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [02m00s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [02m10s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [02m20s elapsed]
+aws_cloudfront_distribution.main["bib"]: Still creating... [02m30s elapsed]
+aws_cloudfront_distribution.main["bib"]: Creation complete after 2m40s [id=EIBLHA23ORW75]
+aws_route53_record.cloudfront_alias["bib.defcon.run"]: Creating...
+aws_s3_bucket_policy.cf_oac_access_use1["bib"]: Creating...
+aws_s3_bucket_policy.cf_oac_access_use1["bib"]: Creation complete after 0s [id=cf-assets-bib-use1-dc34-617889146a9ec882]
+aws_route53_record.cloudfront_alias["bib.defcon.run"]: Still creating... [00m10s elapsed]
+aws_route53_record.cloudfront_alias["bib.defcon.run"]: Still creating... [00m20s elapsed]
+aws_route53_record.cloudfront_alias["bib.defcon.run"]: Still creating... [00m30s elapsed]
+aws_route53_record.cloudfront_alias["bib.defcon.run"]: Creation complete after 30s [id=Z0012982VQ0K4678V6JY_bib.defcon.run_A]
+Apply complete! Resources: 7 added, 0 changed, 0 destroyed.
+Outputs:
+distribution_arns = {
+  "auth" = "arn:aws:cloudfront::427284555693:distribution/E1NBDYPSCQIWRP"
+  "bib" = "arn:aws:cloudfront::427284555693:distribution/EIBLHA23ORW75"
+  "cms" = "arn:aws:cloudfront::427284555693:distribution/E37PWKALBOK6N5"
+  "flash" = "arn:aws:cloudfront::427284555693:distribution/EMBB6CM8BDR5K"
+  "gpx" = "arn:aws:cloudfront::427284555693:distribution/E1D1R5LJNFGRLE"
+  "run" = "arn:aws:cloudfront::427284555693:distribution/EXGGRJUKZ2PIZ"
+}
+distribution_domain_names = {
+  "auth" = "d35pguow09ed1.cloudfront.net"
+  "bib" = "d3ouekm3jm4a0y.cloudfront.net"
+  "cms" = "d1moia1krxzuwd.cloudfront.net"
+  "flash" = "d3vinatpxmfilw.cloudfront.net"
+  "gpx" = "d33fkeui03bh8t.cloudfront.net"
+  "run" = "d1oetdohqu241q.cloudfront.net"
+}
+distribution_ids = {
+  "auth" = "E1NBDYPSCQIWRP"
+  "bib" = "EIBLHA23ORW75"
+  "cms" = "E37PWKALBOK6N5"
+  "flash" = "EMBB6CM8BDR5K"
+  "gpx" = "E1D1R5LJNFGRLE"
+  "run" = "EXGGRJUKZ2PIZ"
+}
+distribution_urls = {
+  "auth" = "auth.defcon.run"
+  "bib" = "bib.defcon.run"
+  "cms" = "cms.defcon.run"
+  "flash" = "flash.defcon.run"
+  "gpx" = "gpx.defcon.run"
+  "run" = "run.defcon.run"
+}
+distributions = {
+  "auth" = {
+    "arn" = "arn:aws:cloudfront::427284555693:distribution/E1NBDYPSCQIWRP"
+    "domain_name" = "d35pguow09ed1.cloudfront.net"
+    "hosted_zone_id" = "Z2FDTNDATAQYW2"
+    "id" = "E1NBDYPSCQIWRP"
+    "url" = "auth.defcon.run"
+  }
+  "bib" = {
+    "arn" = "arn:aws:cloudfront::427284555693:distribution/EIBLHA23ORW75"
+    "domain_name" = "d3ouekm3jm4a0y.cloudfront.net"
+    "hosted_zone_id" = "Z2FDTNDATAQYW2"
+    "id" = "EIBLHA23ORW75"
+    "url" = "bib.defcon.run"
+  }
+  "cms" = {
+    "arn" = "arn:aws:cloudfront::427284555693:distribution/E37PWKALBOK6N5"
+    "domain_name" = "d1moia1krxzuwd.cloudfront.net"
+    "hosted_zone_id" = "Z2FDTNDATAQYW2"
+    "id" = "E37PWKALBOK6N5"
+    "url" = "cms.defcon.run"
+  }
+  "flash" = {
+    "arn" = "arn:aws:cloudfront::427284555693:distribution/EMBB6CM8BDR5K"
+    "domain_name" = "d3vinatpxmfilw.cloudfront.net"
+    "hosted_zone_id" = "Z2FDTNDATAQYW2"
+    "id" = "EMBB6CM8BDR5K"
+    "url" = "flash.defcon.run"
+  }
+  "gpx" = {
+    "arn" = "arn:aws:cloudfront::427284555693:distribution/E1D1R5LJNFGRLE"
+    "domain_name" = "d33fkeui03bh8t.cloudfront.net"
+    "hosted_zone_id" = "Z2FDTNDATAQYW2"
+    "id" = "E1D1R5LJNFGRLE"
+    "url" = "gpx.defcon.run"
+  }
+  "run" = {
+    "arn" = "arn:aws:cloudfront::427284555693:distribution/EXGGRJUKZ2PIZ"
+    "domain_name" = "d1oetdohqu241q.cloudfront.net"
+    "hosted_zone_id" = "Z2FDTNDATAQYW2"
+    "id" = "EXGGRJUKZ2PIZ"
+    "url" = "run.defcon.run"
+  }
+}
+logs_bucket_ids = tomap({
+  "auth" = "logs-cf-auth-dc34-28a3d2bf9d330940"
+  "bib" = "logs-cf-bib-dc34-28a3d2bf9d330940"
+  "cms" = "logs-cf-cms-dc34-28a3d2bf9d330940"
+  "flash" = "logs-cf-flash-dc34-28a3d2bf9d330940"
+  "gpx" = "logs-cf-gpx-dc34-28a3d2bf9d330940"
+  "run" = "logs-cf-run-dc34-28a3d2bf9d330940"
+})

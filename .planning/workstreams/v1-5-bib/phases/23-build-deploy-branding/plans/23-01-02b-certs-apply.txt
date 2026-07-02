@@ -1,0 +1,234 @@
+aws_acm_certificate.subdomain_certs["flash"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/f9c125fc-b72c-4c2e-985f-bfa8352ac4f3]
+aws_acm_certificate.subdomain_certs["cms"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/ccc9c053-d877-476f-a129-9877afd4ecda]
+aws_acm_certificate.subdomain_certs["mqtt"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/cbbf5bd4-6bf7-44ff-8590-59eec2fed637]
+aws_acm_certificate.subdomain_certs["run"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/e2da7fb8-6f1d-4dc4-a366-44499e12b6c9]
+aws_acm_certificate.subdomain_certs["email"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/fae29ed1-8522-42a1-b846-f19bfe24de66]
+aws_acm_certificate.subdomain_certs["auth"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/d892d33d-b389-42ff-b4fe-564d71cd267b]
+aws_acm_certificate.subdomain_certs["gpx"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/80a708c9-74f4-4206-bf8d-62c65325e61f]
+aws_acm_certificate.primary_zone_cert[0]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/e9c27382-d74d-4e3b-a1d4-04b2a378133e]
+aws_route53_record.validation["run"]: Refreshing state... [id=Z09956382AARMFZ8KWQPF__6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run._CNAME]
+aws_route53_record.validation["flash"]: Refreshing state... [id=Z098549524ANKJ8TAU2OG__e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run._CNAME]
+aws_route53_record.validation["auth"]: Refreshing state... [id=Z05731511PT3WD0QGOGTE__303d9719aa3f9655183111b2c6be1901.auth.defcon.run._CNAME]
+aws_route53_record.validation["cms"]: Refreshing state... [id=Z09792312IB6SKKEEAKFT__76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run._CNAME]
+aws_route53_record.validation["mqtt"]: Refreshing state... [id=Z09851361V7PEBM8A7DX9__16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run._CNAME]
+aws_route53_record.validation["email"]: Refreshing state... [id=Z04908561SVRE75RRJ044__daaf169e017532f607fe022366a988e5.email.defcon.run._CNAME]
+aws_route53_record.validation["gpx"]: Refreshing state... [id=Z098489617X4ZTYVMZTOA__ca3fce025cdfc8922187cae113193d79.gpx.defcon.run._CNAME]
+aws_route53_record.primary_zone_validation["use1.defcon.run"]: Refreshing state... [id=Z04344232J44PZ842PSVC__6c832e14bf856d01bc8d990e8ee0701a.use1.defcon.run._CNAME]
+aws_route53_record.primary_zone_validation["*.use1.defcon.run"]: Refreshing state... [id=Z04344232J44PZ842PSVC__6c832e14bf856d01bc8d990e8ee0701a.use1.defcon.run._CNAME]
+aws_route53_record.primary_zone_validation["*.defcon.run"]: Refreshing state... [id=Z04344232J44PZ842PSVC__52639c60effd5980aa99ac1c1df52cc9.defcon.run._CNAME]
+aws_route53_record.primary_zone_validation["defcon.run"]: Refreshing state... [id=Z04344232J44PZ842PSVC__52639c60effd5980aa99ac1c1df52cc9.defcon.run._CNAME]
+aws_acm_certificate_validation.subdomain_cert_validation["flash"]: Refreshing state... [id=2026-06-19 15:32:57.337 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["cms"]: Refreshing state... [id=2026-06-19 15:33:00.835 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["email"]: Refreshing state... [id=2026-06-19 15:32:55.96 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["auth"]: Refreshing state... [id=2026-06-19 15:33:01.254 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["mqtt"]: Refreshing state... [id=2026-06-19 15:33:01.522 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["run"]: Refreshing state... [id=2026-06-19 15:32:56.181 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["gpx"]: Refreshing state... [id=2026-06-19 15:33:02.479 +0000 UTC]
+aws_acm_certificate_validation.primary_zone_cert_validation[0]: Refreshing state... [id=2026-06-19 15:33:00.95 +0000 UTC]
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+-/+ destroy and then create replacement
+Terraform will perform the following actions:
+  # aws_acm_certificate.subdomain_certs["bib"] will be created
+  + resource "aws_acm_certificate" "subdomain_certs" {
+      + arn                       = (known after apply)
+      + domain_name               = "bib.defcon.run"
+      + domain_validation_options = [
+          + {
+              + domain_name           = "*.bib.defcon.run"
+              + resource_record_name  = (known after apply)
+              + resource_record_type  = (known after apply)
+              + resource_record_value = (known after apply)
+            },
+          + {
+              + domain_name           = "bib.defcon.run"
+              + resource_record_name  = (known after apply)
+              + resource_record_type  = (known after apply)
+              + resource_record_value = (known after apply)
+            },
+        ]
+      + id                        = (known after apply)
+      + key_algorithm             = (known after apply)
+      + not_after                 = (known after apply)
+      + not_before                = (known after apply)
+      + pending_renewal           = (known after apply)
+      + private_key_wo            = (write-only attribute)
+      + region                    = "us-east-1"
+      + renewal_eligibility       = (known after apply)
+      + renewal_summary           = (known after apply)
+      + status                    = (known after apply)
+      + subject_alternative_names = [
+          + "*.bib.defcon.run",
+          + "bib.defcon.run",
+        ]
+      + tags_all                  = (known after apply)
+      + type                      = (known after apply)
+      + validation_emails         = (known after apply)
+      + validation_method         = "DNS"
+      + options (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["auth"] must be replaced
+-/+ resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      ~ id                      = "2026-06-19 15:33:01.254 +0000 UTC" -> (known after apply)
+      ~ validation_record_fqdns = [
+          - "_16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run",
+          - "_303d9719aa3f9655183111b2c6be1901.auth.defcon.run",
+          - "_6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run",
+          - "_76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run",
+          - "_ca3fce025cdfc8922187cae113193d79.gpx.defcon.run",
+          - "_daaf169e017532f607fe022366a988e5.email.defcon.run",
+          - "_e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run",
+        ] -> (known after apply) # forces replacement
+        # (2 unchanged attributes hidden)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["bib"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = (known after apply)
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["cms"] must be replaced
+-/+ resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      ~ id                      = "2026-06-19 15:33:00.835 +0000 UTC" -> (known after apply)
+      ~ validation_record_fqdns = [
+          - "_16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run",
+          - "_303d9719aa3f9655183111b2c6be1901.auth.defcon.run",
+          - "_6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run",
+          - "_76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run",
+          - "_ca3fce025cdfc8922187cae113193d79.gpx.defcon.run",
+          - "_daaf169e017532f607fe022366a988e5.email.defcon.run",
+          - "_e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run",
+        ] -> (known after apply) # forces replacement
+        # (2 unchanged attributes hidden)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["email"] must be replaced
+-/+ resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      ~ id                      = "2026-06-19 15:32:55.96 +0000 UTC" -> (known after apply)
+      ~ validation_record_fqdns = [
+          - "_16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run",
+          - "_303d9719aa3f9655183111b2c6be1901.auth.defcon.run",
+          - "_6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run",
+          - "_76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run",
+          - "_ca3fce025cdfc8922187cae113193d79.gpx.defcon.run",
+          - "_daaf169e017532f607fe022366a988e5.email.defcon.run",
+          - "_e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run",
+        ] -> (known after apply) # forces replacement
+        # (2 unchanged attributes hidden)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["flash"] must be replaced
+-/+ resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      ~ id                      = "2026-06-19 15:32:57.337 +0000 UTC" -> (known after apply)
+      ~ validation_record_fqdns = [
+          - "_16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run",
+          - "_303d9719aa3f9655183111b2c6be1901.auth.defcon.run",
+          - "_6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run",
+          - "_76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run",
+          - "_ca3fce025cdfc8922187cae113193d79.gpx.defcon.run",
+          - "_daaf169e017532f607fe022366a988e5.email.defcon.run",
+          - "_e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run",
+        ] -> (known after apply) # forces replacement
+        # (2 unchanged attributes hidden)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["gpx"] must be replaced
+-/+ resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      ~ id                      = "2026-06-19 15:33:02.479 +0000 UTC" -> (known after apply)
+      ~ validation_record_fqdns = [
+          - "_16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run",
+          - "_303d9719aa3f9655183111b2c6be1901.auth.defcon.run",
+          - "_6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run",
+          - "_76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run",
+          - "_ca3fce025cdfc8922187cae113193d79.gpx.defcon.run",
+          - "_daaf169e017532f607fe022366a988e5.email.defcon.run",
+          - "_e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run",
+        ] -> (known after apply) # forces replacement
+        # (2 unchanged attributes hidden)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["mqtt"] must be replaced
+-/+ resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      ~ id                      = "2026-06-19 15:33:01.522 +0000 UTC" -> (known after apply)
+      ~ validation_record_fqdns = [
+          - "_16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run",
+          - "_303d9719aa3f9655183111b2c6be1901.auth.defcon.run",
+          - "_6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run",
+          - "_76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run",
+          - "_ca3fce025cdfc8922187cae113193d79.gpx.defcon.run",
+          - "_daaf169e017532f607fe022366a988e5.email.defcon.run",
+          - "_e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run",
+        ] -> (known after apply) # forces replacement
+        # (2 unchanged attributes hidden)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["run"] must be replaced
+-/+ resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      ~ id                      = "2026-06-19 15:32:56.181 +0000 UTC" -> (known after apply)
+      ~ validation_record_fqdns = [
+          - "_16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run",
+          - "_303d9719aa3f9655183111b2c6be1901.auth.defcon.run",
+          - "_6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run",
+          - "_76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run",
+          - "_ca3fce025cdfc8922187cae113193d79.gpx.defcon.run",
+          - "_daaf169e017532f607fe022366a988e5.email.defcon.run",
+          - "_e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run",
+        ] -> (known after apply) # forces replacement
+        # (2 unchanged attributes hidden)
+    }
+  # aws_route53_record.validation["bib"] will be created
+  + resource "aws_route53_record" "validation" {
+      + allow_overwrite = true
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = (known after apply)
+      + records         = (known after apply)
+      + ttl             = 60
+      + type            = (known after apply)
+      + zone_id         = "Z04344232J44PZ842PSVC"
+    }
+Plan: 10 to add, 0 to change, 7 to destroy.
+Changes to Outputs:
+  ~ cert_map = {
+      + "bib.defcon.run"   = {
+          + arn                       = (known after apply)
+          + domain_name               = "bib.defcon.run"
+          + subject_alternative_names = [
+              + "*.bib.defcon.run",
+              + "bib.defcon.run",
+            ]
+          + validation_method         = "DNS"
+        }
+        # (8 unchanged attributes hidden)
+    }
+aws_acm_certificate_validation.subdomain_cert_validation["run"]: Destroying... [id=2026-06-19 15:32:56.181 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["mqtt"]: Destroying... [id=2026-06-19 15:33:01.522 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["cms"]: Destroying... [id=2026-06-19 15:33:00.835 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["gpx"]: Destroying... [id=2026-06-19 15:33:02.479 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["flash"]: Destroying... [id=2026-06-19 15:32:57.337 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["auth"]: Destroying... [id=2026-06-19 15:33:01.254 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["email"]: Destroying... [id=2026-06-19 15:32:55.96 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["email"]: Destruction complete after 0s
+aws_acm_certificate_validation.subdomain_cert_validation["gpx"]: Destruction complete after 0s
+aws_acm_certificate_validation.subdomain_cert_validation["run"]: Destruction complete after 0s
+aws_acm_certificate_validation.subdomain_cert_validation["mqtt"]: Destruction complete after 0s
+aws_acm_certificate_validation.subdomain_cert_validation["auth"]: Destruction complete after 0s
+aws_acm_certificate_validation.subdomain_cert_validation["cms"]: Destruction complete after 0s
+aws_acm_certificate_validation.subdomain_cert_validation["flash"]: Destruction complete after 0s
+aws_acm_certificate.subdomain_certs["bib"]: Creating...
+aws_acm_certificate.subdomain_certs["bib"]: Creation complete after 5s [id=arn:aws:acm:us-east-1:427284555693:certificate/9f5e226c-a82f-48ac-93af-7fb156bcbdd3]
+aws_route53_record.validation["bib"]: Creating...
+16:14:04.084 STDERR terraform: Error: reading Route 53 Hosted Zone (Z04344232J44PZ842PSVC): operation error Route 53: GetHostedZone, https response error StatusCode: 403, RequestID: fc11b691-66e6-4aeb-9484-946894e08001, api error AccessDenied: User: arn:aws:sts::427284555693:assumed-role/AWSReservedSSO_AdministratorAccess_d4cfa509f734b210/whereiskurt@gmail.com is not authorized to access this resource
+16:14:04.085 STDERR terraform:   with aws_route53_record.validation["bib"],
+16:14:04.085 STDERR terraform:   on acm.tf line 64, in resource "aws_route53_record" "validation":
+16:14:04.085 STDERR terraform:   64: resource "aws_route53_record" "validation" {
+16:14:04.125 ERROR  error occurred:
+
+* Failed to execute "terraform apply -auto-approve -no-color" in ./.terragrunt-cache/8Ywl2Pq23B-pCDAxNhb_CHH7OWY/vz-mwI4tSjA23ADuIsgcoScrfz0
+  
+  Error: reading Route 53 Hosted Zone (Z04344232J44PZ842PSVC): operation error Route 53: GetHostedZone, https response error StatusCode: 403, RequestID: fc11b691-66e6-4aeb-9484-946894e08001, api error AccessDenied: User: arn:aws:sts::427284555693:assumed-role/AWSReservedSSO_AdministratorAccess_d4cfa509f734b210/whereiskurt@gmail.com is not authorized to access this resource
+  
+    with aws_route53_record.validation["bib"],
+    on acm.tf line 64, in resource "aws_route53_record" "validation":
+    64: resource "aws_route53_record" "validation" {
+  
+  
+  exit status 1
+

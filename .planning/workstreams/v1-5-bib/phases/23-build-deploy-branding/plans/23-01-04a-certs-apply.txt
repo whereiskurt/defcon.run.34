@@ -1,0 +1,203 @@
+aws_acm_certificate.subdomain_certs["gpx"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/80a708c9-74f4-4206-bf8d-62c65325e61f]
+aws_acm_certificate.subdomain_certs["bib"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/9f5e226c-a82f-48ac-93af-7fb156bcbdd3]
+aws_acm_certificate.subdomain_certs["mqtt"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/cbbf5bd4-6bf7-44ff-8590-59eec2fed637]
+aws_acm_certificate.subdomain_certs["cms"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/ccc9c053-d877-476f-a129-9877afd4ecda]
+aws_acm_certificate.subdomain_certs["email"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/fae29ed1-8522-42a1-b846-f19bfe24de66]
+aws_acm_certificate.primary_zone_cert[0]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/e9c27382-d74d-4e3b-a1d4-04b2a378133e]
+aws_acm_certificate.subdomain_certs["run"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/e2da7fb8-6f1d-4dc4-a366-44499e12b6c9]
+aws_acm_certificate.subdomain_certs["auth"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/d892d33d-b389-42ff-b4fe-564d71cd267b]
+aws_acm_certificate.subdomain_certs["flash"]: Refreshing state... [id=arn:aws:acm:us-east-1:427284555693:certificate/f9c125fc-b72c-4c2e-985f-bfa8352ac4f3]
+aws_route53_record.validation["auth"]: Refreshing state... [id=Z05731511PT3WD0QGOGTE__303d9719aa3f9655183111b2c6be1901.auth.defcon.run._CNAME]
+aws_route53_record.validation["flash"]: Refreshing state... [id=Z098549524ANKJ8TAU2OG__e4c5f1343e1650a48fd1941f6e8bdf35.flash.defcon.run._CNAME]
+aws_route53_record.validation["mqtt"]: Refreshing state... [id=Z09851361V7PEBM8A7DX9__16e022956ecbe9cedd7e2b63b8427840.mqtt.defcon.run._CNAME]
+aws_route53_record.validation["email"]: Refreshing state... [id=Z04908561SVRE75RRJ044__daaf169e017532f607fe022366a988e5.email.defcon.run._CNAME]
+aws_route53_record.validation["cms"]: Refreshing state... [id=Z09792312IB6SKKEEAKFT__76bf4e15c7a393d7509b3bfa8674d701.cms.defcon.run._CNAME]
+aws_route53_record.validation["gpx"]: Refreshing state... [id=Z098489617X4ZTYVMZTOA__ca3fce025cdfc8922187cae113193d79.gpx.defcon.run._CNAME]
+aws_route53_record.primary_zone_validation["defcon.run"]: Refreshing state... [id=Z04344232J44PZ842PSVC__52639c60effd5980aa99ac1c1df52cc9.defcon.run._CNAME]
+aws_route53_record.primary_zone_validation["*.use1.defcon.run"]: Refreshing state... [id=Z04344232J44PZ842PSVC__6c832e14bf856d01bc8d990e8ee0701a.use1.defcon.run._CNAME]
+aws_route53_record.primary_zone_validation["use1.defcon.run"]: Refreshing state... [id=Z04344232J44PZ842PSVC__6c832e14bf856d01bc8d990e8ee0701a.use1.defcon.run._CNAME]
+aws_route53_record.primary_zone_validation["*.defcon.run"]: Refreshing state... [id=Z04344232J44PZ842PSVC__52639c60effd5980aa99ac1c1df52cc9.defcon.run._CNAME]
+aws_route53_record.validation["run"]: Refreshing state... [id=Z09956382AARMFZ8KWQPF__6f40c97169bdb9cbe0307e2ba421964f.run.defcon.run._CNAME]
+aws_acm_certificate_validation.primary_zone_cert_validation[0]: Refreshing state... [id=2026-06-19 15:33:00.95 +0000 UTC]
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+Terraform will perform the following actions:
+  # aws_acm_certificate_validation.subdomain_cert_validation["auth"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = "arn:aws:acm:us-east-1:427284555693:certificate/d892d33d-b389-42ff-b4fe-564d71cd267b"
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["bib"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = "arn:aws:acm:us-east-1:427284555693:certificate/9f5e226c-a82f-48ac-93af-7fb156bcbdd3"
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["cms"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = "arn:aws:acm:us-east-1:427284555693:certificate/ccc9c053-d877-476f-a129-9877afd4ecda"
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["email"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = "arn:aws:acm:us-east-1:427284555693:certificate/fae29ed1-8522-42a1-b846-f19bfe24de66"
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["flash"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = "arn:aws:acm:us-east-1:427284555693:certificate/f9c125fc-b72c-4c2e-985f-bfa8352ac4f3"
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["gpx"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = "arn:aws:acm:us-east-1:427284555693:certificate/80a708c9-74f4-4206-bf8d-62c65325e61f"
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["mqtt"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = "arn:aws:acm:us-east-1:427284555693:certificate/cbbf5bd4-6bf7-44ff-8590-59eec2fed637"
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_acm_certificate_validation.subdomain_cert_validation["run"] will be created
+  + resource "aws_acm_certificate_validation" "subdomain_cert_validation" {
+      + certificate_arn         = "arn:aws:acm:us-east-1:427284555693:certificate/e2da7fb8-6f1d-4dc4-a366-44499e12b6c9"
+      + id                      = (known after apply)
+      + region                  = "us-east-1"
+      + validation_record_fqdns = (known after apply)
+    }
+  # aws_route53_record.validation["bib"] will be created
+  + resource "aws_route53_record" "validation" {
+      + allow_overwrite = true
+      + fqdn            = (known after apply)
+      + id              = (known after apply)
+      + name            = "_5f11a36387fb52abb4ca0f62863e18e7.bib.defcon.run"
+      + records         = [
+          + "_c41b6af0599183fdbcb591b7d7e47ffd.jkddzztszm.acm-validations.aws.",
+        ]
+      + ttl             = 60
+      + type            = "CNAME"
+      + zone_id         = "Z0012982VQ0K4678V6JY"
+    }
+Plan: 9 to add, 0 to change, 0 to destroy.
+aws_route53_record.validation["bib"]: Creating...
+aws_route53_record.validation["bib"]: Still creating... [00m10s elapsed]
+aws_route53_record.validation["bib"]: Still creating... [00m20s elapsed]
+aws_route53_record.validation["bib"]: Still creating... [00m30s elapsed]
+aws_route53_record.validation["bib"]: Creation complete after 30s [id=Z0012982VQ0K4678V6JY__5f11a36387fb52abb4ca0f62863e18e7.bib.defcon.run._CNAME]
+aws_acm_certificate_validation.subdomain_cert_validation["mqtt"]: Creating...
+aws_acm_certificate_validation.subdomain_cert_validation["bib"]: Creating...
+aws_acm_certificate_validation.subdomain_cert_validation["run"]: Creating...
+aws_acm_certificate_validation.subdomain_cert_validation["auth"]: Creating...
+aws_acm_certificate_validation.subdomain_cert_validation["gpx"]: Creating...
+aws_acm_certificate_validation.subdomain_cert_validation["flash"]: Creating...
+aws_acm_certificate_validation.subdomain_cert_validation["cms"]: Creating...
+aws_acm_certificate_validation.subdomain_cert_validation["email"]: Creating...
+aws_acm_certificate_validation.subdomain_cert_validation["auth"]: Creation complete after 1s [id=2026-06-19 15:33:01.254 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["flash"]: Creation complete after 1s [id=2026-06-19 15:32:57.337 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["gpx"]: Creation complete after 1s [id=2026-06-19 15:33:02.479 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["cms"]: Creation complete after 1s [id=2026-06-19 15:33:00.835 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["email"]: Creation complete after 1s [id=2026-06-19 15:32:55.96 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["run"]: Creation complete after 1s [id=2026-06-19 15:32:56.181 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["mqtt"]: Creation complete after 1s [id=2026-06-19 15:33:01.522 +0000 UTC]
+aws_acm_certificate_validation.subdomain_cert_validation["bib"]: Creation complete after 4s [id=0001-01-01 00:00:00 +0000 UTC]
+Apply complete! Resources: 9 added, 0 changed, 0 destroyed.
+Outputs:
+cert_map = {
+  "auth.defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/d892d33d-b389-42ff-b4fe-564d71cd267b"
+    "domain_name" = "auth.defcon.run"
+    "subject_alternative_names" = toset([
+      "*.auth.defcon.run",
+      "auth.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+  "bib.defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/9f5e226c-a82f-48ac-93af-7fb156bcbdd3"
+    "domain_name" = "bib.defcon.run"
+    "subject_alternative_names" = toset([
+      "*.bib.defcon.run",
+      "bib.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+  "cms.defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/ccc9c053-d877-476f-a129-9877afd4ecda"
+    "domain_name" = "cms.defcon.run"
+    "subject_alternative_names" = toset([
+      "*.cms.defcon.run",
+      "cms.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+  "defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/e9c27382-d74d-4e3b-a1d4-04b2a378133e"
+    "domain_name" = "defcon.run"
+    "subject_alternative_names" = toset([
+      "*.defcon.run",
+      "*.use1.defcon.run",
+      "defcon.run",
+      "use1.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+  "email.defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/fae29ed1-8522-42a1-b846-f19bfe24de66"
+    "domain_name" = "email.defcon.run"
+    "subject_alternative_names" = toset([
+      "*.email.defcon.run",
+      "email.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+  "flash.defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/f9c125fc-b72c-4c2e-985f-bfa8352ac4f3"
+    "domain_name" = "flash.defcon.run"
+    "subject_alternative_names" = toset([
+      "*.flash.defcon.run",
+      "flash.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+  "gpx.defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/80a708c9-74f4-4206-bf8d-62c65325e61f"
+    "domain_name" = "gpx.defcon.run"
+    "subject_alternative_names" = toset([
+      "*.gpx.defcon.run",
+      "gpx.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+  "mqtt.defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/cbbf5bd4-6bf7-44ff-8590-59eec2fed637"
+    "domain_name" = "mqtt.defcon.run"
+    "subject_alternative_names" = toset([
+      "*.mqtt.defcon.run",
+      "mqtt.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+  "run.defcon.run" = {
+    "arn" = "arn:aws:acm:us-east-1:427284555693:certificate/e2da7fb8-6f1d-4dc4-a366-44499e12b6c9"
+    "domain_name" = "run.defcon.run"
+    "subject_alternative_names" = toset([
+      "*.run.defcon.run",
+      "run.defcon.run",
+    ])
+    "validation_method" = "DNS"
+  }
+}

@@ -1,0 +1,207 @@
+random_id.rnd: Refreshing state... [id=IjACXQ]
+data.aws_region.current: Reading...
+aws_ssm_parameter.region["run-human-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-authjs/region]
+aws_ssm_parameter.region["run-auth-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-electro/region]
+aws_ssm_parameter.region["run-auth-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-authjs/region]
+aws_iam_user.dynamodb_user["run-quota-electro"]: Refreshing state... [id=dynamodb-run-quota-electro-dc34-use1-80a6b349]
+data.aws_caller_identity.current: Reading...
+aws_ssm_parameter.region["run-human-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-electro/region]
+aws_ssm_parameter.region["run-quota-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-quota-electro/region]
+aws_ssm_parameter.region["run-gpx-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-gpx-electro/region]
+aws_iam_user.dynamodb_user["run-human-electro"]: Refreshing state... [id=dynamodb-run-human-electro-dc34-use1-80a6b349]
+data.aws_region.current: Read complete after 0s [id=us-east-1]
+aws_iam_user.dynamodb_user["run-auth-authjs"]: Refreshing state... [id=dynamodb-run-auth-authjs-dc34-use1-80a6b349]
+data.aws_caller_identity.current: Read complete after 0s [id=427284555693]
+aws_iam_user.dynamodb_user["run-auth-electro"]: Refreshing state... [id=dynamodb-run-auth-electro-dc34-use1-80a6b349]
+aws_iam_user.dynamodb_user["run-gpx-electro"]: Refreshing state... [id=dynamodb-run-gpx-electro-dc34-use1-80a6b349]
+aws_iam_user.dynamodb_user["run-human-authjs"]: Refreshing state... [id=dynamodb-run-human-authjs-dc34-use1-80a6b349]
+aws_dynamodb_table.this["run-auth-authjs"]: Refreshing state... [id=run-auth-authjs]
+aws_dynamodb_table.this["run-human-authjs"]: Refreshing state... [id=run-human-authjs]
+aws_dynamodb_table.this["run-human-electro"]: Refreshing state... [id=run-human-electro]
+aws_dynamodb_table.this["run-quota-electro"]: Refreshing state... [id=run-quota-electro]
+aws_ssm_parameter.table_name["run-gpx-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-gpx-electro/table_name]
+aws_ssm_parameter.table_name["run-human-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-authjs/table_name]
+aws_dynamodb_table.this["run-gpx-electro"]: Refreshing state... [id=run-gpx-electro]
+aws_ssm_parameter.table_name["run-human-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-electro/table_name]
+aws_dynamodb_table.this["run-auth-electro"]: Refreshing state... [id=run-auth-electro]
+aws_ssm_parameter.table_name["run-quota-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-quota-electro/table_name]
+aws_ssm_parameter.table_name["run-auth-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-authjs/table_name]
+aws_ssm_parameter.table_name["run-auth-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-electro/table_name]
+aws_iam_access_key.dynamodb_user["run-auth-electro"]: Refreshing state... [id=AKIAWG7BE46WVTBIHGWN]
+data.aws_iam_policy_document.ssm_key_policy: Reading...
+aws_iam_access_key.dynamodb_user["run-gpx-electro"]: Refreshing state... [id=AKIAWG7BE46WUASOQSKN]
+aws_iam_access_key.dynamodb_user["run-human-authjs"]: Refreshing state... [id=AKIAWG7BE46WUY5EBD75]
+aws_iam_access_key.dynamodb_user["run-human-electro"]: Refreshing state... [id=AKIAWG7BE46WQYMWSHS3]
+data.aws_iam_policy_document.ssm_key_policy: Read complete after 0s [id=997167718]
+aws_iam_access_key.dynamodb_user["run-quota-electro"]: Refreshing state... [id=AKIAWG7BE46WT2RIAWEI]
+aws_iam_access_key.dynamodb_user["run-auth-authjs"]: Refreshing state... [id=AKIAWG7BE46W72T2CE63]
+aws_kms_key.ssm: Refreshing state... [id=6c954784-ca97-46e9-9315-0f3f1f8420bf]
+aws_ssm_parameter.table_arn["run-human-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-electro/table_arn]
+aws_ssm_parameter.table_arn["run-gpx-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-gpx-electro/table_arn]
+aws_ssm_parameter.table_arn["run-quota-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-quota-electro/table_arn]
+aws_ssm_parameter.table_arn["run-human-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-authjs/table_arn]
+aws_ssm_parameter.table_arn["run-auth-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-electro/table_arn]
+aws_ssm_parameter.table_arn["run-auth-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-authjs/table_arn]
+aws_iam_policy.dynamodb_access["run-auth-electro"]: Refreshing state... [id=arn:aws:iam::427284555693:policy/dynamodb-access-run-auth-electro-dc34-use1-80a6b349]
+aws_iam_policy.dynamodb_access["run-gpx-electro"]: Refreshing state... [id=arn:aws:iam::427284555693:policy/dynamodb-access-run-gpx-electro-dc34-use1-80a6b349]
+aws_iam_policy.dynamodb_access["run-auth-authjs"]: Refreshing state... [id=arn:aws:iam::427284555693:policy/dynamodb-access-run-auth-authjs-dc34-use1-80a6b349]
+aws_iam_policy.dynamodb_access["run-quota-electro"]: Refreshing state... [id=arn:aws:iam::427284555693:policy/dynamodb-access-run-quota-electro-dc34-use1-80a6b349]
+aws_iam_policy.dynamodb_access["run-human-authjs"]: Refreshing state... [id=arn:aws:iam::427284555693:policy/dynamodb-access-run-human-authjs-dc34-use1-80a6b349]
+aws_iam_policy.dynamodb_access["run-human-electro"]: Refreshing state... [id=arn:aws:iam::427284555693:policy/dynamodb-access-run-human-electro-dc34-use1-80a6b349]
+aws_ssm_parameter.stream_arn["run-auth-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-electro/stream_arn]
+aws_ssm_parameter.stream_arn["run-gpx-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-gpx-electro/stream_arn]
+aws_ssm_parameter.stream_arn["run-human-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-authjs/stream_arn]
+aws_ssm_parameter.stream_arn["run-human-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-electro/stream_arn]
+aws_ssm_parameter.stream_arn["run-auth-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-authjs/stream_arn]
+aws_ssm_parameter.stream_arn["run-quota-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-quota-electro/stream_arn]
+aws_ssm_parameter.access_key_id["run-auth-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-electro/access_key_id]
+aws_ssm_parameter.access_key_id["run-auth-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-authjs/access_key_id]
+aws_ssm_parameter.access_key_id["run-quota-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-quota-electro/access_key_id]
+aws_ssm_parameter.access_key_id["run-gpx-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-gpx-electro/access_key_id]
+aws_ssm_parameter.access_key_id["run-human-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-electro/access_key_id]
+aws_ssm_parameter.access_key_id["run-human-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-authjs/access_key_id]
+aws_kms_alias.ssm: Refreshing state... [id=alias/dc34-dynamodb-ssm-use1]
+aws_ssm_parameter.secret_access_key["run-human-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-electro/secret_access_key]
+aws_ssm_parameter.secret_access_key["run-gpx-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-gpx-electro/secret_access_key]
+aws_ssm_parameter.secret_access_key["run-human-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-human-authjs/secret_access_key]
+aws_ssm_parameter.secret_access_key["run-quota-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-quota-electro/secret_access_key]
+aws_ssm_parameter.secret_access_key["run-auth-authjs"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-authjs/secret_access_key]
+aws_ssm_parameter.secret_access_key["run-auth-electro"]: Refreshing state... [id=/dc34/dynamodb/use1/run-auth-electro/secret_access_key]
+aws_iam_user_policy_attachment.dynamodb_user["run-auth-electro"]: Refreshing state... [id=dynamodb-run-auth-electro-dc34-use1-80a6b349-20260619153153928800000006]
+aws_iam_user_policy_attachment.dynamodb_user["run-quota-electro"]: Refreshing state... [id=dynamodb-run-quota-electro-dc34-use1-80a6b349-20260619153152335200000003]
+aws_iam_user_policy_attachment.dynamodb_user["run-auth-authjs"]: Refreshing state... [id=dynamodb-run-auth-authjs-dc34-use1-80a6b349-20260619153152238000000001]
+aws_iam_user_policy_attachment.dynamodb_user["run-human-electro"]: Refreshing state... [id=dynamodb-run-human-electro-dc34-use1-80a6b349-20260619153152271600000002]
+aws_iam_user_policy_attachment.dynamodb_user["run-gpx-electro"]: Refreshing state... [id=dynamodb-run-gpx-electro-dc34-use1-80a6b349-20260619153153679100000005]
+aws_iam_user_policy_attachment.dynamodb_user["run-human-authjs"]: Refreshing state... [id=dynamodb-run-human-authjs-dc34-use1-80a6b349-20260619153152347000000004]
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  ~ update in-place
+Terraform will perform the following actions:
+  # aws_dynamodb_table.this["run-human-electro"] will be updated in-place
+  ~ resource "aws_dynamodb_table" "this" {
+        id                          = "run-human-electro"
+        name                        = "run-human-electro"
+        tags                        = {
+            "Environment" = "production"
+            "Name"        = "run-human-electro"
+            "Region"      = "use1"
+            "Site"        = "dc34"
+            "TableType"   = "run-human-electro"
+        }
+        # (14 unchanged attributes hidden)
+      + attribute {
+          + name = "runnerCode"
+          + type = "S"
+        }
+      - global_secondary_index {
+          - hash_key           = "gsi1pk" -> null
+          - name               = "gsi1pk-gsi1sk-index" -> null
+          - non_key_attributes = [] -> null
+          - projection_type    = "ALL" -> null
+          - range_key          = "gsi1sk" -> null
+          - read_capacity      = 0 -> null
+          - write_capacity     = 0 -> null
+          - key_schema {
+              - attribute_name = "gsi1pk" -> null
+              - key_type       = "HASH" -> null
+            }
+          - key_schema {
+              - attribute_name = "gsi1sk" -> null
+              - key_type       = "RANGE" -> null
+            }
+        }
+      - global_secondary_index {
+          - hash_key           = "gsi2pk" -> null
+          - name               = "gsi2pk-gsi2sk-index" -> null
+          - non_key_attributes = [] -> null
+          - projection_type    = "ALL" -> null
+          - range_key          = "gsi2sk" -> null
+          - read_capacity      = 0 -> null
+          - write_capacity     = 0 -> null
+          - key_schema {
+              - attribute_name = "gsi2pk" -> null
+              - key_type       = "HASH" -> null
+            }
+          - key_schema {
+              - attribute_name = "gsi2sk" -> null
+              - key_type       = "RANGE" -> null
+            }
+        }
+      - global_secondary_index {
+          - hash_key           = "gsi3pk" -> null
+          - name               = "gsi3pk-gsi3sk-index" -> null
+          - non_key_attributes = [] -> null
+          - projection_type    = "ALL" -> null
+          - range_key          = "gsi3sk" -> null
+          - read_capacity      = 0 -> null
+          - write_capacity     = 0 -> null
+          - key_schema {
+              - attribute_name = "gsi3pk" -> null
+              - key_type       = "HASH" -> null
+            }
+          - key_schema {
+              - attribute_name = "gsi3sk" -> null
+              - key_type       = "RANGE" -> null
+            }
+        }
+      + global_secondary_index {
+          + hash_key           = "gsi1pk"
+          + name               = "gsi1pk-gsi1sk-index"
+          + non_key_attributes = []
+          + projection_type    = "ALL"
+          + range_key          = "gsi1sk"
+          + read_capacity      = (known after apply)
+          + write_capacity     = (known after apply)
+          + key_schema (known after apply)
+          + warm_throughput (known after apply)
+        }
+      + global_secondary_index {
+          + hash_key           = "gsi2pk"
+          + name               = "gsi2pk-gsi2sk-index"
+          + non_key_attributes = []
+          + projection_type    = "ALL"
+          + range_key          = "gsi2sk"
+          + read_capacity      = (known after apply)
+          + write_capacity     = (known after apply)
+          + key_schema (known after apply)
+          + warm_throughput (known after apply)
+        }
+      + global_secondary_index {
+          + hash_key           = "gsi3pk"
+          + name               = "gsi3pk-gsi3sk-index"
+          + non_key_attributes = []
+          + projection_type    = "ALL"
+          + range_key          = "gsi3sk"
+          + read_capacity      = (known after apply)
+          + write_capacity     = (known after apply)
+          + key_schema (known after apply)
+          + warm_throughput (known after apply)
+        }
+      + global_secondary_index {
+          + hash_key           = "runnerCode"
+          + name               = "runnerCode-index"
+          + non_key_attributes = []
+          + projection_type    = "ALL"
+          + read_capacity      = (known after apply)
+          + write_capacity     = (known after apply)
+            # (1 unchanged attribute hidden)
+          + key_schema (known after apply)
+          + warm_throughput (known after apply)
+        }
+        # (10 unchanged blocks hidden)
+    }
+Plan: 0 to add, 1 to change, 0 to destroy.
+Warning: Argument is deprecated
+  with aws_dynamodb_table.this["run-auth-authjs"],
+  on main.tf line 148, in resource "aws_dynamodb_table" "this":
+ 148: resource "aws_dynamodb_table" "this" {
+range_key is deprecated. Use key_schema instead.
+(and one more similar warning elsewhere)
+Warning: Deprecated attribute
+  on main.tf line 226, in locals:
+ 226:         "arn:aws:dynamodb:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:table/${config.table_name}"
+The attribute "id" is deprecated. Refer to the provider documentation for
+details.
+─────────────────────────────────────────────────────────────────────────────
+Note: You didn't use the -out option to save this plan, so Terraform can't
+guarantee to take exactly these actions if you run "terraform apply" now.
