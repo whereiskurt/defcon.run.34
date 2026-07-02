@@ -20,7 +20,7 @@ locals {
 
   dns = {
     zonename         = "defcon.run"
-    subdomains       = ["email", "run", "auth", "cms", "gpx", "flash", "mqtt"]
+    subdomains       = ["email", "run", "auth", "cms", "gpx", "flash", "mqtt", "bib"]
     ttl              = 300
   }
 
@@ -60,6 +60,7 @@ locals {
     gpx       = read_terragrunt_config("./services/run.gpx/service.hcl")
     flash     = read_terragrunt_config("./services/run.flash/service.hcl")
     mqtt      = read_terragrunt_config("./services/run.mqtt/service.hcl")
+    bib       = read_terragrunt_config("./services/run.bib/service.hcl")
   }
 
   email = {
@@ -123,7 +124,7 @@ locals {
     # Domains that will be served by CloudFront
     # These will be combined with dns.zonename to create full domains
     # e.g., "run" becomes "run.<dns.zonename>"
-    domains = ["auth", "run", "cms", "gpx", "flash"]
+    domains = ["auth", "run", "cms", "gpx", "flash", "bib"]
 
     ## Map fronted domain "auth.<dns.zonename>" to the ruleset called "auth"
     waf_rulesets = {
@@ -216,6 +217,7 @@ locals {
       local.service_conf.gpx.locals.ecr_repositories,
       local.service_conf.flash.locals.ecr_repositories,
       local.service_conf.mqtt.locals.ecr_repositories,
+      local.service_conf.bib.locals.ecr_repositories,
       local.waffaw.enabled ? [{ name = "waffaw", regions = ["us-east-1", "ca-central-1", "ap-southeast-1"], image_tag_mutability = "IMMUTABLE" }] : []
     )
   }
