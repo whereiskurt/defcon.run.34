@@ -1,0 +1,45 @@
+data.aws_region.current: Reading...
+data.aws_caller_identity.current: Reading...
+data.aws_region.current: Read complete after 0s [id=us-east-1]
+data.aws_caller_identity.current: Read complete after 0s [id=427284555693]
+aws_iam_role.execution_role["run-bib"]: Refreshing state... [id=run-bib-use1-dc34-execution-role]
+aws_iam_role.execution_role["run-cms-worker"]: Refreshing state... [id=run-cms-worker-use1-dc34-execution-role]
+aws_iam_role.execution_role["run-mqtt"]: Refreshing state... [id=run-mqtt-use1-dc34-execution-role]
+aws_iam_role.execution_role["run-cms-master"]: Refreshing state... [id=run-cms-master-use1-dc34-execution-role]
+aws_iam_role.execution_role["run-auth"]: Refreshing state... [id=run-auth-use1-dc34-execution-role]
+aws_iam_role.execution_role["run-gpx"]: Refreshing state... [id=run-gpx-use1-dc34-execution-role]
+aws_iam_role.execution_role["run-flash"]: Refreshing state... [id=run-flash-use1-dc34-execution-role]
+aws_iam_role.execution_role["run-human"]: Refreshing state... [id=run-human-use1-dc34-execution-role]
+aws_iam_role_policy.ssm_access["run-cms-master"]: Refreshing state... [id=run-cms-master-use1-dc34-execution-role:run-cms-master-use1-dc34-ssm-access]
+aws_iam_role_policy.ssm_access["run-human"]: Refreshing state... [id=run-human-use1-dc34-execution-role:run-human-use1-dc34-ssm-access]
+aws_iam_role_policy.ssm_access["run-gpx"]: Refreshing state... [id=run-gpx-use1-dc34-execution-role:run-gpx-use1-dc34-ssm-access]
+aws_iam_role_policy.ssm_access["run-auth"]: Refreshing state... [id=run-auth-use1-dc34-execution-role:run-auth-use1-dc34-ssm-access]
+aws_iam_role_policy.ssm_access["run-bib"]: Refreshing state... [id=run-bib-use1-dc34-execution-role:run-bib-use1-dc34-ssm-access]
+aws_iam_role_policy.ssm_access["run-flash"]: Refreshing state... [id=run-flash-use1-dc34-execution-role:run-flash-use1-dc34-ssm-access]
+aws_iam_role_policy_attachment.execution_role_policy["run-bib"]: Refreshing state... [id=run-bib-use1-dc34-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+aws_iam_role_policy.ssm_access["run-mqtt"]: Refreshing state... [id=run-mqtt-use1-dc34-execution-role:run-mqtt-use1-dc34-ssm-access]
+aws_iam_role_policy.ssm_access["run-cms-worker"]: Refreshing state... [id=run-cms-worker-use1-dc34-execution-role:run-cms-worker-use1-dc34-ssm-access]
+aws_iam_role_policy_attachment.execution_role_policy["run-cms-worker"]: Refreshing state... [id=run-cms-worker-use1-dc34-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+aws_iam_role_policy_attachment.execution_role_policy["run-gpx"]: Refreshing state... [id=run-gpx-use1-dc34-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+aws_iam_role_policy_attachment.execution_role_policy["run-mqtt"]: Refreshing state... [id=run-mqtt-use1-dc34-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+aws_iam_role_policy_attachment.execution_role_policy["run-auth"]: Refreshing state... [id=run-auth-use1-dc34-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+aws_iam_role_policy_attachment.execution_role_policy["run-flash"]: Refreshing state... [id=run-flash-use1-dc34-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+aws_iam_role_policy_attachment.execution_role_policy["run-cms-master"]: Refreshing state... [id=run-cms-master-use1-dc34-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+aws_iam_role_policy_attachment.execution_role_policy["run-human"]: Refreshing state... [id=run-human-use1-dc34-execution-role/arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy]
+aws_ecs_task_definition.task["run-cms-master"]: Refreshing state... [id=run-cms-master-use1-dc34]
+aws_ecs_task_definition.task["run-auth"]: Refreshing state... [id=run-auth-use1-dc34]
+aws_ecs_task_definition.task["run-gpx"]: Refreshing state... [id=run-gpx-use1-dc34]
+aws_ecs_task_definition.task["run-cms-worker"]: Refreshing state... [id=run-cms-worker-use1-dc34]
+aws_ecs_task_definition.task["run-bib"]: Refreshing state... [id=run-bib-use1-dc34]
+aws_ecs_task_definition.task["run-flash"]: Refreshing state... [id=run-flash-use1-dc34]
+aws_ecs_task_definition.task["run-human"]: Refreshing state... [id=run-human-use1-dc34]
+aws_ecs_task_definition.task["run-mqtt"]: Refreshing state... [id=run-mqtt-use1-dc34]
+No changes. Your infrastructure matches the configuration.
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+Warning: Deprecated attribute
+  on main.tf line 6, in locals:
+   6:   ecr_registry = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${data.aws_region.current.id}.amazonaws.com"
+The attribute "id" is deprecated. Refer to the provider documentation for
+details.
+(and 4 more similar warnings elsewhere)
