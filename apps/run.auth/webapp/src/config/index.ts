@@ -74,6 +74,10 @@ export const config = {
         clientId: process.env.OIDC_FLASH_CLIENT_ID!,
         clientSecret: process.env.OIDC_FLASH_SECRET!,
       },
+      bib: {
+        clientId: process.env.OIDC_BIB_CLIENT_ID!,
+        clientSecret: process.env.OIDC_BIB_SECRET!,
+      },
     },
 
     ttl: {
