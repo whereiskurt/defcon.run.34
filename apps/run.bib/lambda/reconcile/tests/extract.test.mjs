@@ -185,12 +185,21 @@ describe("processS3Record (end-to-end with injected clients)", () => {
   let readObject;
   let seen;
   // Null-reconcile deps: don't touch DDB. Task 22-04-01 tests only exercise
-  // parse + Haiku extract; match.test.mjs exercises the reconcile path.
+  // parse + Haiku extract; match.test.mjs exercises the reconcile path;
+  // budget.test.mjs exercises the budget + notification epilogue.
   const nullReconcileDeps = {
     createLedgerEntry: async () => ({ alreadyExists: false, item: {} }),
     getBibByRunnerCode: async () => null,
     listAllBibs: async () => [],
     applyPaymentToBib: async () => ({}),
+    updateReconcileStatus: async () => ({}),
+  };
+  // Task 22-04-03 wired budget + notifier into processS3Record. The
+  // extract-level tests inject no-op stubs so they don't hit DDB/SES.
+  const nullBudgetCtx = {
+    checkBudget: async () => ({ allowed: true, spentCents: 0, capCents: 2000 }),
+    incrementBudget: async () => ({ costUsdCents: 100, invocationCount: 1 }),
+    sendReconcileNotification: async () => ({ MessageId: "test-msg" }),
     updateReconcileStatus: async () => ({}),
   };
 
@@ -222,7 +231,7 @@ describe("processS3Record (end-to-end with injected clients)", () => {
         bucket: { name: "ses-inbox-dc34-use1" },
         object: { key: "bib-payments/venmo-abc123" },
       },
-      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps }
+      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps, ...nullBudgetCtx }
     );
 
     expect(seen).toEqual([
@@ -250,7 +259,7 @@ describe("processS3Record (end-to-end with injected clients)", () => {
         bucket: { name: "ses-inbox-dc34-use1" },
         object: { key: "bib-payments/cashapp-def456" },
       },
-      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps }
+      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps, ...nullBudgetCtx }
     );
 
     expect(out.extracted.provider).toBe("cashapp");
@@ -274,7 +283,7 @@ describe("processS3Record (end-to-end with injected clients)", () => {
         bucket: { name: "ses-inbox-dc34-use1" },
         object: { key: "bib-payments/junk-ghi789" },
       },
-      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps }
+      { readObject, anthropicClient: anthropic, reconcileDeps: nullReconcileDeps, ...nullBudgetCtx }
     );
 
     expect(out.extracted.provider).toBe("unknown");

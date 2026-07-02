@@ -304,3 +304,27 @@ export async function updateBibName(
     .go({ response: "all_new" });
   return result.data as BibItem;
 }
+
+/**
+ * Physical-bib print gate (SC8, v1.5 Phase 22).
+ *
+ * A bib may be sent to the printer iff BOTH conditions hold:
+ *   1. `paidAmount >= 1000` (cents) — the participant paid at least the
+ *      $10 minimum-sponsorship threshold.
+ *   2. `nameLocked === true` — an admin (Kurt/Jesse) has confirmed the
+ *      name-on-bib is final and safe to render (prevents last-second
+ *      profanity / typos in the physical print run).
+ *
+ * The 1000-cent threshold is a hard-coded constant here (not a config
+ * knob) — changing it requires re-planning Phase 22 and updating this
+ * comment. Phase 23 surfaces the flag in the print-preview UI.
+ *
+ * Accepts either a BibItem or `null` for convenience at the API layer
+ * (`canPrintName(await getBib(sub))` compiles).
+ */
+export const PRINT_PAID_MIN_CENTS = 1000;
+
+export function canPrintName(bib: BibItem | null | undefined): boolean {
+  if (!bib) return false;
+  return bib.paidAmount >= PRINT_PAID_MIN_CENTS && bib.nameLocked === true;
+}
