@@ -1,11 +1,22 @@
 <script lang="ts">
-    import { publicOverlayGroups } from '../public-overlays';
+    import { publicOverlayGroups, publicAggregate } from '../public-overlays';
     import type { PublicOverlaysLayer } from '../public-overlays';
 
     // The layer instance is created in LayerControl's map.onLoad; may be undefined
     // for the first frame before the map loads.
     let { layer }: { layer: PublicOverlaysLayer | undefined } = $props();
 </script>
+
+{#if $publicAggregate.available}
+    <label class="flex flex-row items-center gap-2 text-sm font-semibold">
+        <input
+            type="checkbox"
+            checked={$publicAggregate.visible}
+            onchange={(e) => layer?.setAggregateVisible(e.currentTarget.checked)}
+        />
+        All Runners
+    </label>
+{/if}
 
 {#if $publicOverlayGroups.length > 0}
     <div class="flex flex-col gap-1 text-sm">
