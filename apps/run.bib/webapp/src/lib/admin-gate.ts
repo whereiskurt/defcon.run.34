@@ -5,29 +5,31 @@ import { getSecureParam } from "./ssm";
  *
  * Guards the admin-only API surface (currently
  * /api/admin/bib/pledged-unpaid). The allowlist lives at SSM param
- * `/dc34/secrets/use1/bib/admin/allowlist` as a String (comma-separated
- * OIDC `sub` values). Read at request time via getSecureParam's 5-min
- * cache, so rotating an admin off is at most 5 min out of date.
+ * `/dc34/secrets/use1/bib/admin/allowlist` as a String — a comma-separated
+ * list of **email addresses** (case-insensitive). Compared against the
+ * OIDC `email` claim on the Auth.js session.
  *
- * Rationale for Option A over B (services.includes("admin") claim from
- * run.auth):
- *   - No run.auth PR + redeploy needed.
- *   - Admin list is bounded (single digits — Kurt + Jesse for MVP).
- *   - Environment separation is natural (SSM path is region-scoped).
+ * Cache model (Kurt 2026-07-02 correction):
+ *   Read ONCE at first call and cached indefinitely at the module scope.
+ *   Container restart on redeploy is the refresh point. A per-request SSM
+ *   lookup would tax every admin request with a network hop; a bounded
+ *   allowlist that only changes on personnel changes doesn't need it.
  *
  * If the allowlist SSM param is missing OR empty, requireAdmin() denies
- * ALL callers (fail-closed). That's stricter than a soft-deny default —
- * we'd rather 403 in a misconfigured state than accidentally allow.
+ * ALL callers (fail-closed).
  */
 
 const ADMIN_ALLOWLIST_SSM_PATH = "/dc34/secrets/use1/bib/admin/allowlist";
 const ADMIN_ALLOWLIST_ENV_KEY = "BIB_ADMIN_ALLOWLIST";
 
+let _allowlistPromise: Promise<Set<string>> | null = null;
+
 /**
- * Parse a comma-separated allowlist string into a Set for O(1) lookup.
+ * Parse a comma-separated allowlist string into a lowercased email Set.
  *
  * Design contract:
  *   - Whitespace around entries is trimmed.
+ *   - Emails are lowercased (case-insensitive comparison).
  *   - Empty entries (e.g., "a,,b") are dropped.
  *   - Duplicate entries collapse (Set semantics).
  *   - An empty input returns an empty Set (fail-closed at the callsite).
@@ -39,77 +41,86 @@ export function parseAdminAllowlist(raw: string | null | undefined): Set<string>
   return new Set(
     raw
       .split(",")
-      .map((entry) => entry.trim())
+      .map((entry) => entry.trim().toLowerCase())
       .filter((entry) => entry.length > 0)
   );
 }
 
 /**
- * Fetch the current admin allowlist, parsed into a Set.
+ * Fetch the current admin allowlist, parsed into a Set. Cached at module
+ * scope after the first successful call — subsequent calls return the
+ * same Set without re-hitting SSM.
  *
- * Env fallback (`BIB_ADMIN_ALLOWLIST`) is honored FIRST for dev/CI
- * convenience — matches the getSecureParam contract used by Stripe +
- * Anthropic keys. On any SSM error (missing param, IAM, network), the
- * caller receives an empty Set (fail-closed).
- *
- * Exported for tests + admin tooling that needs to introspect the
- * current list. In hot paths use {@link isAdmin} which combines the
- * fetch + membership check.
+ * Env fallback (`BIB_ADMIN_ALLOWLIST`) is honored FIRST for dev/CI.
+ * On any SSM error the caller receives an empty Set (fail-closed) and
+ * the failed result is NOT cached — the next call retries so a transient
+ * SSM/IAM outage recovers without a container restart.
  */
 export async function getAdminAllowlist(): Promise<Set<string>> {
-  try {
+  if (_allowlistPromise !== null) {
+    return _allowlistPromise;
+  }
+  const attempt = (async (): Promise<Set<string>> => {
     const raw = await getSecureParam({
       envKey: ADMIN_ALLOWLIST_ENV_KEY,
       ssmPath: ADMIN_ALLOWLIST_SSM_PATH,
     });
     return parseAdminAllowlist(raw);
-  } catch {
-    // Fail-closed: on any SSM/env failure, deny all admin access rather
-    // than silently opening the endpoint. The caller's 403 log includes
-    // the ownerSub so a misconfig is quickly visible.
-    return new Set();
-  }
+  })();
+  // Only cache successful results; a rejection lets the next call retry.
+  _allowlistPromise = attempt.catch(() => {
+    _allowlistPromise = null;
+    return new Set<string>();
+  });
+  return _allowlistPromise;
 }
 
 /**
- * Test if `ownerSub` is on the admin allowlist. Returns `false` on any
- * SSM failure or empty allowlist (fail-closed).
+ * Reset the cached allowlist. Test-only escape hatch — production has no
+ * runtime need to invalidate (a container restart on redeploy is the
+ * intended refresh mechanism).
  */
-export async function isAdmin(ownerSub: string | null | undefined): Promise<boolean> {
-  if (!ownerSub) return false;
+export function _resetAdminAllowlistCacheForTests(): void {
+  _allowlistPromise = null;
+}
+
+/**
+ * Test if `email` is on the admin allowlist. Case-insensitive.
+ * Returns `false` on missing input or empty allowlist (fail-closed).
+ */
+export async function isAdmin(email: string | null | undefined): Promise<boolean> {
+  if (!email) return false;
   const allowlist = await getAdminAllowlist();
-  return allowlist.has(ownerSub);
+  return allowlist.has(email.trim().toLowerCase());
 }
 
 /**
  * Shape returned by {@link requireAdmin} to keep the caller's control
- * flow simple ("if !ok return 403"). We prefer a discriminated union
- * over throwing so the API route can render a proper JSON 403 without
- * try/catch noise.
+ * flow simple. We prefer a discriminated union over throwing so the API
+ * route can render a proper JSON 403 without try/catch noise.
  */
 export type RequireAdminResult =
-  | { ok: true; ownerSub: string }
+  | { ok: true; email: string }
   | { ok: false; reason: "no_session" | "not_allowlisted" };
 
 /**
  * Route helper: given an Auth.js `session` (or null/undefined), decide
- * whether to admit the caller. Callers translate {ok:false} into an
- * appropriate 401 / 403 JSON response.
+ * whether to admit the caller by email. Callers translate {ok:false}
+ * into an appropriate 401 / 403 JSON response.
  *
  * Deliberately does NOT read the session itself — that's the route's
- * job (via `await auth()`). Keeping the SSM read local to this helper
- * makes it easy to reuse from any admin route in the future.
+ * job (via `await auth()`).
  */
 export async function requireAdmin(
-  session: { user?: { id?: string } } | null | undefined
+  session: { user?: { email?: string | null } } | null | undefined
 ): Promise<RequireAdminResult> {
-  const ownerSub = session?.user?.id;
-  if (!ownerSub) {
+  const email = session?.user?.email ?? undefined;
+  if (!email) {
     return { ok: false, reason: "no_session" };
   }
-  const admitted = await isAdmin(ownerSub);
+  const admitted = await isAdmin(email);
   if (!admitted) {
     return { ok: false, reason: "not_allowlisted" };
   }
-  return { ok: true, ownerSub };
+  return { ok: true, email: email.trim().toLowerCase() };
 }

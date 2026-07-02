@@ -12,12 +12,14 @@ import { requireAdmin } from "@/lib/admin-gate";
  * CashApp. Kurt / Jesse use the list to prepare cash / card intake at
  * the event.
  *
- * Auth model (Option A per PLAN-22-05.md §22-05-07):
+ * Auth model (Option A per PLAN-22-05.md §22-05-07; Kurt 2026-07-02
+ * email + container-cache correction):
  *   - Session required (401 if missing).
- *   - ownerSub must be in the SSM allowlist at
+ *   - `session.user.email` must be in the SSM allowlist at
  *     /dc34/secrets/use1/bib/admin/allowlist (403 if missing).
- *   - Allowlist read at request time (5-min cache); rotating an admin
- *     off is at most 5 min out of date.
+ *   - Allowlist read ONCE at first call and cached at module scope for
+ *     the container's lifetime; rotating an admin off requires a
+ *     container restart (i.e., a redeploy).
  *
  * Response shape:
  *   { count: number, bibs: Array<{ ownerSub, nameOnBib, runnerCode, createdAt }> }
