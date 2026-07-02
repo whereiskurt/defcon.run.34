@@ -1,13 +1,15 @@
 "use client";
 
 import { Button, Chip, Spinner } from "@heroui/react";
-import { Usb, ArrowRight } from "lucide-react";
+import { CheckCircle2, Usb, ArrowRight } from "lucide-react";
 import type { DeviceHardware } from "@/types/device";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import { ConnectionStatus } from "@/components/connect/connection-status";
 import { ChipMismatchWarning } from "@/components/connect/chip-mismatch";
 import { BootloaderHelp } from "@/components/connect/bootloader-help";
 import type { SerialConnectionState, ChipInfo, ConsoleEntry } from "@/types/serial";
+import type { DfuConnectionState } from "@/hooks/use-dfu";
+import type { DfuDevice } from "@/lib/web-dfu";
 
 /** Subset of UseSerialReturn that ConnectStep consumes */
 interface SerialState {
@@ -21,10 +23,38 @@ interface SerialState {
   clearError: () => void;
 }
 
+/** Subset of UseDfuReturn that ConnectStep consumes */
+interface DfuState {
+  connectionState: DfuConnectionState;
+  dfuDevice: DfuDevice | null;
+  error: string | null;
+  consoleLogs: ConsoleEntry[];
+  isConnecting: boolean;
+  isConnected: boolean;
+  connect: () => Promise<void>;
+  clearError: () => void;
+}
+
+/**
+ * Discriminated transport union: `family` narrows which transport handle is
+ * present. Both families share the same 4-state connection machine
+ * ("disconnected" | "connecting" | "connected" | "error") so state reads are
+ * uniform; family-specific surface (chip name for ESP32, USB VID/PID for
+ * nRF52) is handled in the family-conditional views below.
+ *
+ * Per CONTEXT Decision 1: discriminated union, NOT two mutually-exclusive
+ * optional props — the compiler fails fast on family mismatch.
+ */
+export type TransportState =
+  | { family: "esp32"; serial: SerialState }
+  | { family: "nrf52"; dfu: DfuState };
+
 interface ConnectStepProps {
   device: DeviceHardware | null;
-  serial: SerialState;
-  chipMismatch: boolean;
+  transport: TransportState;
+  /** ESP32 chip-vs-architecture mismatch. Not applicable to nRF52 (DFU exposes
+   *  no esptool-style chip identifier), so this prop is optional. */
+  chipMismatch?: boolean;
   skipFlash?: boolean;
   onContinue: () => void;
 }
@@ -108,13 +138,57 @@ function categoryMessage(
   }
 }
 
+/**
+ * Top-level dispatcher. Narrows the discriminated `transport` union and
+ * hands off to a per-family view. The ESP32 view is byte-identical to the
+ * pre-refactor ConnectStep body (regression guard for SC5); the nRF52 view
+ * is the parallel DFU render path.
+ */
 export function ConnectStep({
+  device,
+  transport,
+  chipMismatch,
+  skipFlash,
+  onContinue,
+}: ConnectStepProps) {
+  if (transport.family === "esp32") {
+    return (
+      <Esp32ConnectView
+        device={device}
+        serial={transport.serial}
+        chipMismatch={chipMismatch ?? false}
+        skipFlash={skipFlash}
+        onContinue={onContinue}
+      />
+    );
+  }
+  return (
+    <Nrf52ConnectView
+      device={device}
+      dfu={transport.dfu}
+      skipFlash={skipFlash}
+      onContinue={onContinue}
+    />
+  );
+}
+
+// ---- ESP32 view (byte-identical to pre-refactor ConnectStep) --------------
+
+interface Esp32ConnectViewProps {
+  device: DeviceHardware | null;
+  serial: SerialState;
+  chipMismatch: boolean;
+  skipFlash?: boolean;
+  onContinue: () => void;
+}
+
+function Esp32ConnectView({
   device,
   serial,
   chipMismatch,
   skipFlash,
   onContinue,
-}: ConnectStepProps) {
+}: Esp32ConnectViewProps) {
   const imagePath = device ? getDeviceImagePath(device) : null;
   const archLabel = device ? getArchLabel(device) : null;
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
@@ -244,6 +318,205 @@ export function ConnectStep({
         )}
 
         {isConnected && !chipMismatch && (
+          <Button
+            color="primary"
+            size="lg"
+            endContent={<ArrowRight className="w-5 h-5" />}
+            onPress={onContinue}
+            className="font-mono whitespace-nowrap cta-pulse"
+          >
+            {skipFlash ? 'Continue to Configure' : 'Continue to Flash'}
+          </Button>
+        )}
+
+        {showErrorPanel && (
+          <Button
+            color="primary"
+            variant="bordered"
+            size="lg"
+            onPress={handleRetry}
+            className="font-mono whitespace-nowrap"
+          >
+            Try Again
+          </Button>
+        )}
+      </div>
+
+      {/* Bootloader help — surfaced on any non-cancelled error. */}
+      {showErrorPanel && <BootloaderHelp />}
+    </div>
+  );
+}
+
+// ---- nRF52 view (parallel DFU render path) --------------------------------
+
+interface Nrf52ConnectViewProps {
+  device: DeviceHardware | null;
+  dfu: DfuState;
+  skipFlash?: boolean;
+  onContinue: () => void;
+}
+
+/**
+ * Format a USB vendor/product ID pair as a canonical `VID:PID` hex string
+ * (e.g. `239a:0029` for a Seeed T-1000E in Adafruit DFU mode).
+ */
+function formatVidPid(vendorId: number, productId: number): string {
+  const vid = vendorId.toString(16).padStart(4, "0");
+  const pid = productId.toString(16).padStart(4, "0");
+  return `${vid}:${pid}`;
+}
+
+function Nrf52ConnectView({
+  device,
+  dfu,
+  skipFlash,
+  onContinue,
+}: Nrf52ConnectViewProps) {
+  const imagePath = device ? getDeviceImagePath(device) : null;
+  const archLabel = device ? getArchLabel(device) : null;
+  const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
+
+  const handleRetry = async () => {
+    dfu.clearError();
+    await dfu.connect();
+  };
+
+  const isConnected = dfu.connectionState === "connected";
+
+  // Classify DFU errors using the shared category machine. Task 25-01-03
+  // extends the classifier to cover DFU-specific strings.
+  const errorCategory: ConnectErrorCategory | null =
+    dfu.connectionState === "error" ? classifyConnectError(dfu.error) : null;
+  const isCancelled = errorCategory === "cancelled";
+  const displayError =
+    errorCategory && !isCancelled
+      ? categoryMessage(errorCategory, dfu.error)
+      : null;
+  const showErrorPanel = dfu.connectionState === "error" && !isCancelled;
+
+  const vidPid =
+    dfu.dfuDevice != null
+      ? formatVidPid(dfu.dfuDevice.vendorId, dfu.dfuDevice.productId)
+      : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Panel: left status | center spacer | right device image */}
+      <div className={`glass-card rounded-xl p-6 transition-all duration-500 ${isConnected ? "border-teal-500/30 shadow-[0_0_16px_rgba(20,184,166,0.1)]" : ""}`}>
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
+          {/* Left: connection state */}
+          <div className="min-w-0">
+            {(dfu.connectionState === "disconnected" || isCancelled) && (
+              <div className="space-y-1">
+                <p className="text-sm font-mono text-default-400">
+                  Ready to connect (DFU)
+                </p>
+                <p className="text-xs text-default-600">
+                  Double-tap RESET on the device, then click Connect
+                </p>
+              </div>
+            )}
+
+            {dfu.connectionState === "connecting" && (
+              <div className="flex items-center gap-3">
+                <Spinner size="sm" color="primary" />
+                <p className="text-sm font-mono text-default-400">
+                  Claiming DFU interface...
+                </p>
+              </div>
+            )}
+
+            {isConnected && vidPid && (
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="flex-shrink-0 relative">
+                  <CheckCircle2 className="w-8 h-8 text-teal-400" />
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-teal-400 animate-pulse" />
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <h3 className="font-mono text-lg text-teal-400">
+                    Connected (DFU)
+                  </h3>
+                  <div className="space-y-0.5 text-sm">
+                    <p>
+                      <span className="text-default-400">USB:</span>{" "}
+                      <span className="font-mono text-default-300">
+                        {vidPid}
+                      </span>
+                    </p>
+                    <p className="truncate">
+                      <span className="text-default-400">Interface:</span>{" "}
+                      <span className="font-mono text-default-300">
+                        DFU 1.1 (class 0xFE / subclass 0x01)
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showErrorPanel && (
+              <p className="text-sm text-danger font-mono line-clamp-3">
+                {displayError}
+              </p>
+            )}
+          </div>
+
+          {/* Center: spacer */}
+          <div className="flex-shrink-0" />
+
+          {/* Right: device image + name (hidden when no device, e.g. URL jump) */}
+          {device && imagePath ? (
+            <div className={`flex flex-col items-center gap-2 justify-self-end transition-opacity duration-500 ${isConnected ? "opacity-100" : "opacity-40"}`}>
+              <div className="w-[140px] h-[100px] flex items-center justify-center rounded-lg bg-default-100/5">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={imagePath}
+                  alt={device.displayName}
+                  className="max-h-full max-w-full object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]"
+                />
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <span className="font-mono text-sm text-default-500">
+                  {device.displayName}
+                </span>
+                <Chip size="sm" variant="flat" color={archColor}>
+                  {archLabel}
+                </Chip>
+              </div>
+            </div>
+          ) : (
+            <div />
+          )}
+        </div>
+      </div>
+
+      {/* Action buttons — below the panel */}
+      <div className="flex justify-center">
+        {(dfu.connectionState === "disconnected" || isCancelled) && (
+          <Button
+            color="primary"
+            size="lg"
+            startContent={<Usb className="w-5 h-5" />}
+            onPress={() => (isCancelled ? handleRetry() : dfu.connect())}
+            className="font-mono whitespace-nowrap"
+          >
+            Connect Device
+          </Button>
+        )}
+
+        {dfu.connectionState === "connecting" && (
+          <Button
+            color="primary"
+            size="lg"
+            isDisabled
+            className="font-mono whitespace-nowrap"
+          >
+            Connecting...
+          </Button>
+        )}
+
+        {isConnected && (
           <Button
             color="primary"
             size="lg"
