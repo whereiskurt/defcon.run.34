@@ -17,16 +17,28 @@ import { auth } from "@/config/auth";
  * Everything else redirects unauthenticated requests to /signin with a
  * callbackUrl pointing back at the requested URL.
  */
+// basePath is set at build time from REGION_SHORT (see next.config.ts).
+// `req.nextUrl.basePath` is empty in middleware because middleware runs
+// before Next.js applies the basePath rewrite; read from env directly.
+// NEXT_PUBLIC_REGION_SHORT is baked into the client bundle at build time,
+// which the middleware bundle picks up too — REGION_SHORT alone is not
+// available in the Edge middleware runtime without an explicit env pass.
+const REGION_BASEPATH =
+  process.env.NEXT_PUBLIC_REGION_SHORT
+    ? `/${process.env.NEXT_PUBLIC_REGION_SHORT}`
+    : process.env.REGION_SHORT
+      ? `/${process.env.REGION_SHORT}`
+      : "";
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
-  const basePath = req.nextUrl.basePath || "";
 
-  // In prod with basePath (e.g. `/use1`), `pathname` includes the prefix —
-  // strip it for the whitelist comparison so entries like `"/signin"` match
-  // both dev (no basePath) and prod (`/use1/signin`).
+  // In prod with basePath (e.g. `/use1`), incoming pathname INCLUDES the
+  // prefix — strip it for the whitelist comparison so entries like
+  // `"/signin"` match both dev (no basePath) and prod (`/use1/signin`).
   const relPath =
-    basePath && pathname.startsWith(basePath)
-      ? pathname.slice(basePath.length) || "/"
+    REGION_BASEPATH && pathname.startsWith(REGION_BASEPATH)
+      ? pathname.slice(REGION_BASEPATH.length) || "/"
       : pathname;
 
   // Whitelist paths that must remain reachable without a session.
@@ -45,7 +57,7 @@ export default auth((req) => {
   if (!req.auth?.user) {
     // Not authenticated — redirect to signin, preserving basePath (e.g. /use1).
     const signinUrl = req.nextUrl.clone();
-    signinUrl.pathname = `${basePath}/signin`;
+    signinUrl.pathname = `${REGION_BASEPATH}/signin`;
     signinUrl.searchParams.set("callbackUrl", req.url);
     return NextResponse.redirect(signinUrl);
   }
