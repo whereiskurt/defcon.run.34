@@ -15,6 +15,7 @@ import { ChevronRight } from "lucide-react";
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
 const whoamiUrl = isDev ? "/whoami" : `/${region}/whoami`;
+const routesUrl = isDev ? "/routes" : `/${region}/routes`;
 
 function LoginContent() {
   const [mounted, setMounted] = useState(false);
@@ -83,7 +84,7 @@ function WelcomeContent({ userName }: { userName: string }) {
           color="primary"
           className="font-semibold w-full"
           size="lg"
-          href="/whoami"
+          href={whoamiUrl}
           as="a"
           endContent={<ChevronRight className="w-4 h-4" />}
         >
@@ -93,7 +94,7 @@ function WelcomeContent({ userName }: { userName: string }) {
           variant="flat"
           color="default"
           className="w-full"
-          href="/routes"
+          href={routesUrl}
           as="a"
           endContent={<ChevronRight className="w-4 h-4" />}
         >

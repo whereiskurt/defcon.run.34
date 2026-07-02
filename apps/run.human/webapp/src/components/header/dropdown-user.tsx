@@ -26,7 +26,7 @@ import CheckInModal from '@/components/CheckInModal';
 import { LogoutIcon } from './icon/logout';
 import { QRIcon } from './icon/qr';
 import { useEffect, useState } from 'react';
-import { apiUrl } from '@/lib/api';
+import { apiUrl, getApiBasePath } from '@/lib/api';
 
 import DCJackIcon from '@public/header/dcjack.svg';
 
@@ -184,7 +184,7 @@ const UserDropDown = (params: any) => {
               key="profile"
               className="gap-2 opacity-100 py-2 text-base"
               textValue="Profile"
-              href="/whoami"
+              href={`${getApiBasePath()}/whoami`}
               closeOnSelect={true}
             >
               Profile
