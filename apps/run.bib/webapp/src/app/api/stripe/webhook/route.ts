@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { applyPayment } from "@/entities/bib";
+import {
+  recordDonation,
+  stripeSessionDonationId,
+} from "@/entities/general-donation";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe";
 
 /**
- * POST /api/stripe/webhook — verify signature + apply payment.
+ * POST /api/stripe/webhook — verify signature + branch on donation_type.
  *
- * Design contract (v1.5 Phase 22 PLAN.md §22-01-04):
+ * Design contract (v1.5 Phase 22 PLAN.md §22-01-04, extended by Phase
+ * 22-05 §22-05-03):
  * - NO auth session — Stripe signs the request via `whsec_*`. The
  *   `Stripe-Signature` header + raw body are verified against the
  *   webhook signing secret (`getStripeWebhookSecret()` — SSM-backed).
@@ -14,13 +19,14 @@ import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe";
  *   HMAC-SHA256 signature verification. Edge runtime lacks it.
  * - Raw body is read via `req.text()` BEFORE any JSON parsing.
  *   Stripe's `constructEvent` re-hashes the raw bytes.
- * - Handled event: `checkout.session.completed`. Extract
- *   `session.metadata.owner_sub` + `session.amount_total` (cents) and
- *   call `applyPayment(ownerSub, {...})` with
- *   `reconciled_via = "stripe_webhook_${session.id}"`.
- * - Idempotency: `applyPayment` short-circuits on repeat
- *   `reconciled_via` markers — Stripe retries fire the SAME session id,
- *   so the second delivery is a no-op that still returns 200.
+ * - Handled event: `checkout.session.completed`. Phase 22-05 branches
+ *   on `session.metadata.donation_type`:
+ *     - "bib"     → `applyPayment(ownerSub, {...})` (Plan 22-01 path).
+ *     - "general" → `recordDonation({...})` (Plan 22-05-02 entity).
+ *     - unknown / missing → log warn, 200 (don't retry — the session
+ *       came from outside our flow or metadata is corrupted).
+ *   Both paths are idempotent by their respective markers
+ *   (reconciled_via for bib; donationId for general).
  * - Response codes:
  *     - 400 for bad signature (Stripe stops retrying — request is
  *       malformed or the whsec is wrong; retrying won't help).
@@ -59,6 +65,103 @@ function isPlaceholderModeError(err: unknown): boolean {
   // only signal we have short of a typed error class.
   return err.message.includes("SSM parameter") &&
     err.message.includes("returned no Value");
+}
+
+/**
+ * Handle a `checkout.session.completed` event whose metadata.donation_type
+ * is `"bib"`. Mirrors the Plan 22-01 semantics: extract owner_sub +
+ * amount_total, call applyPayment, and translate errors into HTTP shapes.
+ */
+async function handleBibDonation(
+  session: Stripe.Checkout.Session
+): Promise<NextResponse> {
+  const ownerSub = session.metadata?.owner_sub;
+  const amountTotal = session.amount_total;
+
+  if (!ownerSub) {
+    console.warn(
+      `[run.bib] /api/stripe/webhook: bib session ${session.id} has no metadata.owner_sub — skipping`
+    );
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
+  if (typeof amountTotal !== "number" || amountTotal <= 0) {
+    console.warn(
+      `[run.bib] /api/stripe/webhook: bib session ${session.id} amount_total=${amountTotal} — skipping`
+    );
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
+  try {
+    await applyPayment(ownerSub, {
+      provider: "stripe",
+      amount_cents: amountTotal,
+      reconciled_via: `stripe_webhook_${session.id}`,
+    });
+    return NextResponse.json({ received: true }, { status: 200 });
+  } catch (err) {
+    // Bib not found — respond 200 so Stripe stops retrying (the bib
+    // doesn't exist and never will for this session), and log for
+    // manual reconciliation.
+    if (err instanceof Error && err.message.startsWith("No bib found")) {
+      console.warn(
+        `[run.bib] /api/stripe/webhook: no bib for owner_sub=${ownerSub} (session ${session.id})`
+      );
+      return NextResponse.json({ received: true }, { status: 200 });
+    }
+    console.error(
+      "[run.bib] /api/stripe/webhook: applyPayment failed:",
+      err
+    );
+    // 500 so Stripe retries on transient DDB failures.
+    return NextResponse.json(
+      { error: "apply_failed" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Handle a `checkout.session.completed` event whose metadata.donation_type
+ * is `"general"` (Phase 22-05). Writes an idempotent GeneralDonation
+ * ledger row keyed by the Stripe session id.
+ */
+async function handleGeneralDonation(
+  session: Stripe.Checkout.Session
+): Promise<NextResponse> {
+  const amountTotal = session.amount_total;
+  // owner_sub is nullable at the entity layer (v1.6 anon support); MVP
+  // routes populate it from the session. If it's missing, we still
+  // record the donation but write ownerSub as null.
+  const ownerSub = session.metadata?.owner_sub ?? null;
+
+  if (typeof amountTotal !== "number" || amountTotal <= 0) {
+    console.warn(
+      `[run.bib] /api/stripe/webhook: general session ${session.id} amount_total=${amountTotal} — skipping`
+    );
+    return NextResponse.json({ received: true }, { status: 200 });
+  }
+
+  try {
+    await recordDonation({
+      donationId: stripeSessionDonationId(session.id),
+      ownerSub,
+      amountCents: amountTotal,
+      provider: "stripe",
+      stripeSessionId: session.id,
+      reconciledVia: `stripe_webhook_${session.id}`,
+    });
+    return NextResponse.json({ received: true }, { status: 200 });
+  } catch (err) {
+    console.error(
+      "[run.bib] /api/stripe/webhook: recordDonation failed:",
+      err
+    );
+    return NextResponse.json(
+      { error: "donation_record_failed" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -147,52 +250,22 @@ export async function POST(req: NextRequest) {
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
-  const ownerSub = session.metadata?.owner_sub;
-  const amountTotal = session.amount_total;
+  const donationType = session.metadata?.donation_type;
 
-  if (!ownerSub) {
-    // Metadata missing — likely a Stripe Session created outside our
-    // flow (e.g. a manual dashboard test). 200 so Stripe doesn't
-    // retry; log for admin follow-up.
-    console.warn(
-      `[run.bib] /api/stripe/webhook: session ${session.id} has no metadata.owner_sub — skipping`
-    );
-    return NextResponse.json({ received: true }, { status: 200 });
+  // Phase 22-05: branch on donation_type. Sessions created by
+  // /api/checkout/bib set donation_type='bib'; /api/checkout/general
+  // sets 'general'. Missing / unknown values are logged and 200'd so
+  // Stripe stops retrying (sessions from outside our flow, e.g. a
+  // manual dashboard test, are dropped without error).
+  if (donationType === "bib") {
+    return handleBibDonation(session);
+  }
+  if (donationType === "general") {
+    return handleGeneralDonation(session);
   }
 
-  if (typeof amountTotal !== "number" || amountTotal <= 0) {
-    // Free session / weird zero-amount. Same non-retry log-and-drop.
-    console.warn(
-      `[run.bib] /api/stripe/webhook: session ${session.id} amount_total=${amountTotal} — skipping`
-    );
-    return NextResponse.json({ received: true }, { status: 200 });
-  }
-
-  try {
-    await applyPayment(ownerSub, {
-      provider: "stripe",
-      amount_cents: amountTotal,
-      reconciled_via: `stripe_webhook_${session.id}`,
-    });
-    return NextResponse.json({ received: true }, { status: 200 });
-  } catch (err) {
-    // Bib not found — respond 200 so Stripe stops retrying (the bib
-    // doesn't exist and never will for this session), and log for
-    // manual reconciliation.
-    if (err instanceof Error && err.message.startsWith("No bib found")) {
-      console.warn(
-        `[run.bib] /api/stripe/webhook: no bib for owner_sub=${ownerSub} (session ${session.id})`
-      );
-      return NextResponse.json({ received: true }, { status: 200 });
-    }
-    console.error(
-      "[run.bib] /api/stripe/webhook: applyPayment failed:",
-      err
-    );
-    // 500 so Stripe retries on transient DDB failures.
-    return NextResponse.json(
-      { error: "apply_failed" },
-      { status: 500 }
-    );
-  }
+  console.warn(
+    `[run.bib] /api/stripe/webhook: session ${session.id} has metadata.donation_type=${donationType ?? "<missing>"} — skipping`
+  );
+  return NextResponse.json({ received: true }, { status: 200 });
 }

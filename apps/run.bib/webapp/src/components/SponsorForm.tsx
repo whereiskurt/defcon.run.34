@@ -124,10 +124,13 @@ export function SponsorForm() {
         return;
       }
 
-      // Stripe: POST /api/checkout, then redirect to Stripe Checkout URL.
+      // Stripe: POST /api/checkout/bib, then redirect to Stripe Checkout URL.
+      // Phase 22-05: renamed from /api/checkout when the two-product split
+      // landed. Task 22-05-04 further refactors this component into a
+      // variant-driven two-endpoint router.
       setSubmit({ kind: "submitting" });
       try {
-        const res = await fetch("/api/checkout", {
+        const res = await fetch("/api/checkout/bib", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount_cents: clamped, provider: "stripe" }),
