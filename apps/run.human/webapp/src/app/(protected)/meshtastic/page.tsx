@@ -1,4 +1,6 @@
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { auth } from '@/config/auth';
 
 export const metadata: Metadata = {
   title: 'Meshtastic',
@@ -25,7 +27,13 @@ const tiles = [
   },
 ];
 
-export default function MeshtasticPage() {
+export default async function MeshtasticPage() {
+  // Require login — send unauthenticated visitors to the home/sign-in page.
+  const session = await auth();
+  if (!session?.user) {
+    redirect('/');
+  }
+
   return (
     <div className="flex flex-col items-center gap-8 py-12 animate-slide-up">
       <div className="text-center space-y-3">

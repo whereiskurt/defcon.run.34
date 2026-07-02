@@ -48,7 +48,7 @@ const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'
 
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
-  { href: `${basePath}/meshtastic`, label: 'Meshtastic', icon: FaRadio, external: false },
+  { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio, external: false },
 ] as const;
 
 export function Header(params: any) {
@@ -75,7 +75,7 @@ export function Header(params: any) {
       <NavbarContent className="sm:hidden" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href={`${basePath}/`}>
+            <Link color="foreground" href="/">
               <span className="font-museo text-lg font-bold tracking-tight">
                 defcon<span className="teal-dot">.</span>run
               </span>
@@ -88,7 +88,7 @@ export function Header(params: any) {
       <NavbarContent className="sm:flex hidden gap-6" justify="center">
         <NavbarItem>
           <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
-            <Link color="foreground" href={`${basePath}/`}>
+            <Link color="foreground" href="/">
               <span className="font-museo text-lg font-bold tracking-tight">
                 defcon<span className="teal-dot">.</span>run
               </span>
@@ -97,7 +97,7 @@ export function Header(params: any) {
         </NavbarItem>
 
         {navItems.map(({ href, label, icon: Icon, external }) => {
-          const isActive = !external && pathname?.startsWith(href);
+          const isActive = !external && !!pathname && pathname.replace(basePath, '').startsWith(href);
           return (
             <NavbarItem key={href}>
               <Link
