@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 workstream: v1-4-1-nrf52840
 milestone: v1.4.1
 milestone_name: nRF52840 / T-1000E Flash Support
-status: Phase 24 verified (human_needed) — PR pending; ready to plan Phase 25
-stopped_at: Phase 24 verify complete; 5/5 code SCs green, 3 hw+docker items routed to blockers
-last_updated: "2026-07-02T06:20:00.000Z"
-last_activity: 2026-07-02 — Phase 24 verify=human_needed; auto-parser bug required manual executor+verifier spawn
+status: Phase 24 merged (#229); docker+image-inspect blockers verified; ready to plan Phase 25
+stopped_at: Phase 24 merged; 5/5 code SCs green + 2/5 blockers unblocked via sandbox docker; 3 hardware items remain
+last_updated: "2026-07-02T12:10:00.000Z"
+last_activity: 2026-07-02 — PR #229 merged; docker Stage 1 build verified against Meshtastic 2.7.26 (T-1000-E + 30 nrf52840 entries + 77 factory.bin + 10+ .uf2)
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
   completed_plans: 2
   percent: 50
@@ -23,18 +23,23 @@ Parent `.planning/PROJECT.md` applies. This workstream is **parallel-safe with v
 
 ## Current Position
 
-Phase: 25 - nRF52 UX + verification (not started)
+Phase: 25 - nRF52 UX + verification (ready to plan)
 Plan: —
-Status: Phase 24 verify=human_needed (5/5 code SCs green); PR pending; ready to plan Phase 25
-Last activity: 2026-07-02 — Phase 24 verify complete, hardware+docker gates routed to blockers
+Status: Phase 24 merged (PR #229); docker+image-inspect blockers verified via real sandbox docker build; 3 hardware SCs remain
+Last activity: 2026-07-02 — sandbox docker Stage 1 build confirmed T-1000-E + 30 nrf52840 entries + 77 factory.bin + 10+ .uf2 artifacts
 
-## Phase 24 Blockers (all hardware-in-loop or network-required, cannot exercise in sandbox)
+## Phase 24 Blockers
 
-- [v1.4.1 / Phase 24 — NETWORK+DOCKER]: Real `docker build --no-cache` against current Meshtastic stable — needs outbound network to api.meshtastic.org + github.com and Docker daemon.
-- [v1.4.1 / Phase 24 — IMAGE-INSPECT]: Post-build verification that built image contains T-1000E hardware-list entry + `.uf2` artifact — depends on above.
-- [v1.4.1 / Phase 24 — HARDWARE-IN-LOOP]: T-1000E DFU write end-to-end (per Kurt's directive, this must be verified before Phase 25 close). Requires physical T-1000E + Chrome/Edge Web USB.
-- [v1.4.1 / Phase 24 — HARDWARE-IN-LOOP]: Web USB DFU failure-mode spot-checks (bootloader-not-attached, mid-write disconnect) on real hw.
-- [v1.4.1 / Phase 24 — HARDWARE-IN-LOOP]: Positive-control regression on at least one Recommended ESP32 (proves router split didn't break the esptool-js path).
+### Verified via sandbox docker (2026-07-02, unblocked)
+
+- ~~[NETWORK+DOCKER]: Real `docker build` against current Meshtastic stable~~ — ✅ `docker build --target firmware -t dc34-run-flash-fw-only:test webapp/` clean; resolved Meshtastic stable `2.7.26.54e0d8d` from api.meshtastic.org, downloaded all 5 firmware zips including `firmware-nrf52840-2.7.26.54e0d8d.zip`.
+- ~~[IMAGE-INSPECT]: Post-build verification of image contents~~ — ✅ `/hardware/hardware-list.json` contains `{hwModelSlug: TRACKER_T1000_E, architecture: nrf52840, displayName: "Seeed Card Tracker T1000-E"}`; 30 nrf52840 entries; 77 `.factory.bin` + 10+ `.uf2` artifacts extracted (canaryone, heltec-mesh-node-t114 etc.). Confirms the Dockerfile.webapp Phase 24 changes (jq filter, download loop, unzip step) work end-to-end.
+
+### Remaining hardware-in-loop (need Kurt's hw + browser)
+
+- [v1.4.1 / Phase 25 — HARDWARE-IN-LOOP]: T-1000E DFU write end-to-end. Requires physical T-1000E + Chrome/Edge Web USB.
+- [v1.4.1 / Phase 25 — HARDWARE-IN-LOOP]: Web USB DFU failure-mode spot-checks (bootloader-not-attached, mid-write disconnect) on real hw.
+- [v1.4.1 / Phase 25 — HARDWARE-IN-LOOP]: Positive-control regression on at least one Recommended ESP32 (proves router split didn't break the esptool-js path).
 
 ## Informational (non-blocking)
 
