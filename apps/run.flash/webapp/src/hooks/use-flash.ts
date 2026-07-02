@@ -5,6 +5,7 @@ import type { FlashProgress } from "@/types/serial";
 import type { DeviceHardware, DeviceFamily } from "@/types/device";
 import { getDeviceFamily } from "@/types/device";
 import type { ESPLoader } from "esptool-js";
+import type { DfuDevice } from "@/lib/web-dfu";
 import { useFlashEsp32 } from "./use-flash-esp32";
 import { useFlashNrf52 } from "./use-flash-nrf52";
 
@@ -20,18 +21,18 @@ export interface UseFlashReturn {
   /**
    * Start the flash pipeline for the given device family.
    *
-   * The `transport` type is a permissive union: ESP32 flashes take an
-   * `ESPLoader` (from useSerial), nRF52 flashes take a `DfuDevice` from a
-   * future `useDfu` hook (Plan 24-02 narrows `unknown`). The router selects
-   * the correct delegate by inspecting `device.architecture` via
-   * `getDeviceFamily(device)`; unknown architectures throw (fail-fast).
+   * The `transport` type is a discriminated union: ESP32 flashes take an
+   * `ESPLoader` (from useSerial), nRF52 flashes take a `DfuDevice`
+   * (from useDfu). The router selects the correct delegate by inspecting
+   * `device.architecture` via `getDeviceFamily(device)`; unknown
+   * architectures throw at that helper (fail-fast).
    *
    * @param transport - Claimed transport for the target family
    * @param device - Selected device (determines family + firmware file)
    * @param appendLog - Console log function
    */
   flash: (
-    transport: ESPLoader | unknown,
+    transport: ESPLoader | DfuDevice,
     device: DeviceHardware,
     appendLog: (text: string) => void
   ) => Promise<void>;
@@ -65,7 +66,7 @@ export function useFlash(): UseFlashReturn {
 
   const flash = useCallback(
     async (
-      transport: ESPLoader | unknown,
+      transport: ESPLoader | DfuDevice,
       device: DeviceHardware,
       appendLog: (text: string) => void
     ) => {
@@ -74,7 +75,7 @@ export function useFlash(): UseFlashReturn {
       if (family === "esp32") {
         return esp32.flash(transport as ESPLoader, device, appendLog);
       }
-      return nrf52.flash(transport, device, appendLog);
+      return nrf52.flash(transport as DfuDevice, device, appendLog);
     },
     [esp32, nrf52]
   );

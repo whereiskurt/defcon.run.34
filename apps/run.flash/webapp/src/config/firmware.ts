@@ -70,6 +70,49 @@ export async function loadFirmware(
 }
 
 /**
+ * Meshtastic UF2 filename convention: firmware-{platformioTarget}-{version}.uf2.
+ * Parallel to getFactoryFilename (esp32 .factory.bin).
+ */
+export function getUf2Filename(
+  device: DeviceHardware,
+  version: string = FIRMWARE_VERSION
+): string {
+  return `firmware-${device.platformioTarget}-${version}.uf2`;
+}
+
+/**
+ * Load a UF2 firmware artifact as raw bytes.
+ *
+ * Unlike loadFirmware (which returns a binary string because esptool-js
+ * consumes String data), loadUf2 returns a Uint8Array — the Web USB DFU
+ * write path in web-dfu.ts consumes bytes directly with no
+ * binary-string dance.
+ *
+ * @throws Error if the file is not present under /firmware/ (Dockerfile
+ *   Stage 1 didn't extract it, or the device's target isn't in the
+ *   nrf52840 firmware zip).
+ */
+export async function loadUf2(
+  device: DeviceHardware,
+  version: string = FIRMWARE_VERSION
+): Promise<{ data: Uint8Array; size: number; filename: string }> {
+  const filename = getUf2Filename(device, version);
+  const url = `${FIRMWARE_BASE_PATH}/${filename}`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `UF2 firmware not found for ${device.displayName}. ` +
+        `Expected file: ${filename} (HTTP ${response.status}).`
+    );
+  }
+
+  const buffer = await response.arrayBuffer();
+  const data = new Uint8Array(buffer);
+  return { data, size: data.length, filename };
+}
+
+/**
  * Format bytes as human-readable string.
  * e.g., 393216 -> "384KB", 1048576 -> "1.0MB"
  */
