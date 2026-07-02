@@ -134,6 +134,14 @@ export default (plugin) => {
     }
 
     if (!ctx.query.state || ctx.query.state !== ctx.session.oidcState) {
+      // Diagnostic for the incognito repro: distinguishes a dropped session
+      // cookie (oidcState absent on the callback → state mismatch) from the
+      // services-claim denial below, which renders "Access Denied" instead.
+      strapiInstance.log.warn(
+        `[SSO] OIDC state mismatch — queryState=${ctx.query.state ? 'present' : 'absent'} ` +
+        `sessionState=${ctx.session?.oidcState ? 'present' : 'absent'} ` +
+        `(absent sessionState => session/koa cookie was not sent on the cross-site callback)`
+      );
       return ctx.send(renderBrandedError(
         'Authentication Failed',
         'The login session has expired or was invalid. Please try signing in again.',
