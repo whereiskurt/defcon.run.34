@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * SponsorForm amount + provider routing unit tests (Plan 22-01-2).
+ * SponsorForm amount + provider routing unit tests (Plan 22-01-2, extended
+ * by Phase 22-05 §22-05-04 for the variant-driven endpoint routing).
  *
  * The SponsorForm component itself is a React client-component and its
  * DOM behavior is out of scope for the node-environment vitest config
@@ -11,18 +12,20 @@ import { describe, it, expect } from "vitest";
  *   - clampAmountCents(): boundary + snap + NaN behaviour
  *   - formatCentsUsd():   display shape ($X.XX)
  *   - providerRouteFor(): venmo / cashapp handoff URLs
+ *   - checkoutEndpointFor(): (NEW 22-05) bib vs. general endpoint routing
  *
  * These functions are the load-bearing invariants Plan 22-01-3's
- * /api/checkout route depends on (min=100, max=100000, whole cents),
- * so any regression here would silently produce a 400 from Zod at the
- * API boundary or a bad Stripe Checkout price. Test the pure shape,
- * not the render.
+ * /api/checkout/bib route + Plan 22-05-03's /api/checkout/general route
+ * depend on (min=100, max=100000, whole cents), so any regression here
+ * would silently produce a 400 from Zod at the API boundary or a bad
+ * Stripe Checkout price. Test the pure shape, not the render.
  */
 
 import {
   AMOUNT_MIN_CENTS,
   AMOUNT_MAX_CENTS,
   AMOUNT_STEP_CENTS,
+  checkoutEndpointFor,
   clampAmountCents,
   formatCentsUsd,
   providerRouteFor,
@@ -110,5 +113,23 @@ describe("providerRouteFor()", () => {
     expect(providerRouteFor("cashapp", 999_999)).toBe(
       "/sponsor/cashapp?amount_cents=100000"
     );
+  });
+});
+
+describe("checkoutEndpointFor() — Phase 22-05 two-product router", () => {
+  it("routes variant='bib' to /api/checkout/bib", () => {
+    expect(checkoutEndpointFor("bib")).toBe("/api/checkout/bib");
+  });
+
+  it("routes variant='general' to /api/checkout/general", () => {
+    expect(checkoutEndpointFor("general")).toBe("/api/checkout/general");
+  });
+
+  it("routes are single source of truth (must match /api/checkout/{bib,general} route files)", () => {
+    // Sanity: these strings match the route.ts file paths in
+    // apps/run.bib/webapp/src/app/api/checkout/{bib,general}/route.ts.
+    // If either route file moves, update both here + the SUT.
+    const routes = [checkoutEndpointFor("bib"), checkoutEndpointFor("general")];
+    expect(routes).toEqual(["/api/checkout/bib", "/api/checkout/general"]);
   });
 });

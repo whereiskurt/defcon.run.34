@@ -3,68 +3,79 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import {
-  AMOUNT_MAX_CENTS,
-  AMOUNT_MIN_CENTS,
-  AMOUNT_STEP_CENTS,
-  clampAmountCents,
-  formatCentsUsd,
-} from "@/lib/amount";
-
 /**
  * SponsorForm
  *
- * Client-side sponsor CTA below <BibForm />. Owns the custom-amount
- * slider ($1..$1000 in $1 steps) and the provider picker (Stripe |
- * Venmo | CashApp). On submit:
- *   - `stripe`   → POST /api/checkout, redirect to Stripe Checkout URL.
- *   - `venmo`    → route to /sponsor/venmo?amount_cents=... (Plan 22-02-1).
- *   - `cashapp`  → route to /sponsor/cashapp?amount_cents=... (Plan 22-02-2).
+ * Client-side custom-amount + provider CTA rendered inside a landing-page
+ * section. Owns the slider ($1..$1000 in $1 steps) and the provider
+ * picker (Stripe | Venmo | CashApp). Phase 22-05 §22-05-04 introduces a
+ * `variant` prop so the same component can back both the "Sponsor this
+ * bib" section (POSTs /api/checkout/bib) and the "Just donate" section
+ * (POSTs /api/checkout/general).
  *
- * Design contract (v1.5 Phase 22 PLAN.md §22-01-02 + Plan 22-02-3):
- * - Slider is a raw <input type="range" min={100} max={100000} step={100}>
- *   — cents-first (100 cents = $1). No HeroUI, no external UI lib.
- * - Provider radio: Stripe default. Venmo + CashApp handoff via
- *   `router.push()` (Next.js `useRouter`) so the basePath (`/use1` in
- *   prod) is applied automatically — avoids the raw-`window.location`
- *   basePath bug where an absolute path like `/sponsor/venmo` would
- *   miss the regional prefix and 404.
+ * On submit:
+ *   - `stripe`   → POST /api/checkout/${variant}, redirect to Stripe URL.
+ *   - `venmo`    → route to /sponsor/venmo?amount_cents=... (Plan 22-02).
+ *                  Only offered when variant='bib' — general Venmo /
+ *                  CashApp donations are v1.6.
+ *   - `cashapp`  → route to /sponsor/cashapp?amount_cents=... (same v1.5 gate).
+ *
+ * Design contract (v1.5 Phase 22 PLAN.md §22-01-02, extended by 22-05-04):
+ * - Slider is a raw <input type="range" min={100} max={100000} step={100}>.
+ * - Provider radio: Stripe default.
+ *   - variant='bib' offers Stripe + Venmo + CashApp (unchanged from 22-01).
+ *   - variant='general' offers Stripe only for MVP.
  * - Amount display: `$XX.XX` (cents → dollars, 2dp).
- * - No optimistic UX for Stripe — button disabled while POST is in
- *   flight, then browser navigates to Stripe. If POST fails, surface a
- *   compact error inline; the slider + provider stay editable so the
- *   user can retry.
- * - Login gate: this component only renders inside the landing page
- *   (`src/app/page.tsx`) which is behind the full-app auth middleware.
- *   No client-side auth check here — server already gated the render.
- *
- * Pure helpers (`clampAmountCents`, `formatCentsUsd`, amount constants)
- * live in `src/lib/amount.ts` so both this "use client" component AND
- * the server-rendered `/sponsor/{venmo,cashapp}` pages share the same
- * clamp + format contract. Re-exported here for backward compat with
- * the Plan 22-01-2 test import surface.
+ * - Login gate: this component renders inside the landing page which is
+ *   behind full-app auth middleware. No client-side auth check.
  */
 
-export {
-  AMOUNT_MAX_CENTS,
-  AMOUNT_MIN_CENTS,
-  AMOUNT_STEP_CENTS,
-  clampAmountCents,
-  formatCentsUsd,
-};
+export const AMOUNT_MIN_CENTS = 100; //   $1.00
+export const AMOUNT_MAX_CENTS = 100_000; // $1000.00
+export const AMOUNT_STEP_CENTS = 100; //   $1.00 steps
 
 export type SponsorProvider = "stripe" | "venmo" | "cashapp";
 
 /**
- * Resolve the client-side handoff URL for a non-Stripe provider. This
- * is a RELATIVE path — `useRouter().push()` layers on the Next.js
- * basePath (e.g., `/use1`) so the browser lands on the correct
- * regional URL. Callers using raw `window.location.href` (not
- * recommended) MUST prepend the region themselves.
+ * Two-product variant discriminator (Phase 22-05).
  *
- * Plan 22-02-1 + 22-02-2 land the actual `/sponsor/venmo` +
- * `/sponsor/cashapp` pages; this helper is the single source of
- * truth for those route strings.
+ * - "bib": posts to /api/checkout/bib. Full Venmo + CashApp handoff enabled.
+ * - "general": posts to /api/checkout/general. Stripe-only for MVP.
+ */
+export type SponsorVariant = "bib" | "general";
+
+/**
+ * Clamp an amount (cents) into the design-contract range, snapping to
+ * the step boundary. Extracted as a pure function so vitest can pin the
+ * boundary behavior without booting jsdom.
+ *
+ * - NaN / non-finite → AMOUNT_MIN_CENTS (fail-safe minimum, never $0).
+ * - Values below MIN clamp to MIN.
+ * - Values above MAX clamp to MAX.
+ * - Fractional cents round DOWN to the nearest step (e.g. 4999 → 4900).
+ *   This matches the Stripe Checkout expected shape (whole cents only).
+ */
+export function clampAmountCents(raw: number): number {
+  if (!Number.isFinite(raw)) return AMOUNT_MIN_CENTS;
+  const snapped = Math.floor(raw / AMOUNT_STEP_CENTS) * AMOUNT_STEP_CENTS;
+  if (snapped < AMOUNT_MIN_CENTS) return AMOUNT_MIN_CENTS;
+  if (snapped > AMOUNT_MAX_CENTS) return AMOUNT_MAX_CENTS;
+  return snapped;
+}
+
+/**
+ * Format cents to a display string like `$12.34`. Pure, exported so
+ * tests can pin the format.
+ */
+export function formatCentsUsd(cents: number): string {
+  const clamped = clampAmountCents(cents);
+  const dollars = clamped / 100;
+  return `$${dollars.toFixed(2)}`;
+}
+
+/**
+ * Resolve the client-side handoff URL for a non-Stripe provider.
+ * Applies only to variant='bib' — the general donation flow is Stripe-only.
  */
 export function providerRouteFor(
   provider: Exclude<SponsorProvider, "stripe">,
@@ -75,14 +86,46 @@ export function providerRouteFor(
   return `${path}?amount_cents=${clamped}`;
 }
 
+/**
+ * Resolve the Stripe checkout endpoint for a given SponsorVariant.
+ * Single source of truth for the /api/checkout/{bib,general} route strings.
+ */
+export function checkoutEndpointFor(variant: SponsorVariant): string {
+  return variant === "bib" ? "/api/checkout/bib" : "/api/checkout/general";
+}
+
 interface SubmitState {
   kind: "idle" | "submitting" | "error";
   detail?: string;
 }
 
-export function SponsorForm() {
+export interface SponsorFormProps {
+  /**
+   * Two-product discriminator (Phase 22-05). Defaults to 'bib' so
+   * pre-22-05 callers keep working without a diff.
+   */
+  variant?: SponsorVariant;
+  /**
+   * Submit button label. Defaults to "Sponsor" for variant='bib' and
+   * "Donate" for variant='general'.
+   */
+  ctaLabel?: string;
+  /**
+   * Default slider value (cents). Defaults to 2000 ($20).
+   */
+  defaultAmountCents?: number;
+}
+
+export function SponsorForm({
+  variant = "bib",
+  ctaLabel,
+  defaultAmountCents = 2000,
+}: SponsorFormProps = {}) {
   const router = useRouter();
-  const [amountCents, setAmountCents] = useState<number>(2000); // $20 default
+
+  const [amountCents, setAmountCents] = useState<number>(
+    clampAmountCents(defaultAmountCents)
+  );
   const [provider, setProvider] = useState<SponsorProvider>("stripe");
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
 
@@ -90,6 +133,12 @@ export function SponsorForm() {
     () => formatCentsUsd(amountCents),
     [amountCents]
   );
+
+  // Venmo / CashApp only offered for variant='bib'. The v1.5 Haiku
+  // matcher assumes runnerCode-in-comment lookups; general donations via
+  // Venmo/CashApp with no runnerCode + no sender-in-bibs match would hit
+  // 'unmatched'. Working as intended per PLAN-22-05.md design gap #2.
+  const offerNonStripe = variant === "bib";
 
   const onSliderChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,22 +164,25 @@ export function SponsorForm() {
       const clamped = clampAmountCents(amountCents);
 
       // Non-Stripe: route to the provider instructions page (Plan 22-02).
-      // Use Next.js `router.push` so the basePath (e.g., `/use1` in prod)
-      // is applied automatically — a raw `window.location.href` on an
-      // absolute path would drop the regional prefix and 404.
       if (provider === "venmo" || provider === "cashapp") {
+        if (!offerNonStripe) {
+          // Defensive — the radio is hidden for variant='general' but
+          // guard here in case a caller wires the state externally.
+          setSubmit({
+            kind: "error",
+            detail: "unavailable for general donations",
+          });
+          return;
+        }
         setSubmit({ kind: "idle" });
         router.push(providerRouteFor(provider, clamped));
         return;
       }
 
-      // Stripe: POST /api/checkout/bib, then redirect to Stripe Checkout URL.
-      // Phase 22-05: renamed from /api/checkout when the two-product split
-      // landed. Task 22-05-04 further refactors this component into a
-      // variant-driven two-endpoint router.
+      // Stripe: POST /api/checkout/${variant}, then redirect.
       setSubmit({ kind: "submitting" });
       try {
-        const res = await fetch("/api/checkout/bib", {
+        const res = await fetch(checkoutEndpointFor(variant), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ amount_cents: clamped, provider: "stripe" }),
@@ -156,15 +208,18 @@ export function SponsorForm() {
         });
       }
     },
-    [amountCents, provider, router]
+    [amountCents, provider, offerNonStripe, variant]
   );
 
   const disabled = submit.kind === "submitting";
+  const resolvedCtaLabel = ctaLabel ?? (variant === "bib" ? "Sponsor" : "Donate");
 
   return (
     <form
       onSubmit={onSubmit}
-      aria-label="Sponsor amount and provider"
+      aria-label={
+        variant === "bib" ? "Sponsor a bib" : "Make a general donation"
+      }
       style={{
         display: "flex",
         flexDirection: "column",
@@ -175,7 +230,7 @@ export function SponsorForm() {
         borderRadius: 10,
         width: "100%",
         maxWidth: 720,
-        margin: "24px auto 0",
+        margin: 0,
       }}
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -188,7 +243,7 @@ export function SponsorForm() {
             textTransform: "uppercase",
           }}
         >
-          Sponsor amount
+          {variant === "bib" ? "Sponsor amount" : "Donation amount"}
         </span>
         <div
           style={{
@@ -207,7 +262,7 @@ export function SponsorForm() {
       </div>
 
       <label
-        htmlFor="sponsor-amount-slider"
+        htmlFor={`sponsor-amount-slider-${variant}`}
         style={{
           fontSize: 13,
           color: "#a4a4b8",
@@ -216,7 +271,7 @@ export function SponsorForm() {
         Drag to choose an amount ($1 to $1000)
       </label>
       <input
-        id="sponsor-amount-slider"
+        id={`sponsor-amount-slider-${variant}`}
         type="range"
         min={AMOUNT_MIN_CENTS}
         max={AMOUNT_MAX_CENTS}
@@ -231,50 +286,55 @@ export function SponsorForm() {
         style={{ width: "100%" }}
       />
 
-      <fieldset
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-          border: "none",
-          padding: 0,
-          margin: 0,
-        }}
-      >
-        <legend
+      {offerNonStripe && (
+        <fieldset
           style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#8f8fa8",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+            border: "none",
             padding: 0,
+            margin: 0,
           }}
         >
-          Payment method
-        </legend>
-        <ProviderRadio
-          value="stripe"
-          label="Stripe (card)"
-          selected={provider}
-          onChange={onProviderChange}
-          disabled={disabled}
-        />
-        <ProviderRadio
-          value="venmo"
-          label="Venmo"
-          selected={provider}
-          onChange={onProviderChange}
-          disabled={disabled}
-        />
-        <ProviderRadio
-          value="cashapp"
-          label="Cash App"
-          selected={provider}
-          onChange={onProviderChange}
-          disabled={disabled}
-        />
-      </fieldset>
+          <legend
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#8f8fa8",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              padding: 0,
+            }}
+          >
+            Payment method
+          </legend>
+          <ProviderRadio
+            value="stripe"
+            label="Stripe (card)"
+            selected={provider}
+            onChange={onProviderChange}
+            disabled={disabled}
+            variant={variant}
+          />
+          <ProviderRadio
+            value="venmo"
+            label="Venmo"
+            selected={provider}
+            onChange={onProviderChange}
+            disabled={disabled}
+            variant={variant}
+          />
+          <ProviderRadio
+            value="cashapp"
+            label="Cash App"
+            selected={provider}
+            onChange={onProviderChange}
+            disabled={disabled}
+            variant={variant}
+          />
+        </fieldset>
+      )}
 
       <button
         type="submit"
@@ -291,7 +351,9 @@ export function SponsorForm() {
           letterSpacing: "0.02em",
         }}
       >
-        {disabled ? "Redirecting…" : `Sponsor ${displayAmount}`}
+        {disabled
+          ? "Redirecting…"
+          : `${resolvedCtaLabel} ${displayAmount}`}
       </button>
 
       {submit.kind === "error" && (
@@ -315,14 +377,16 @@ function ProviderRadio({
   selected,
   onChange,
   disabled,
+  variant,
 }: {
   value: SponsorProvider;
   label: string;
   selected: SponsorProvider;
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   disabled: boolean;
+  variant: SponsorVariant;
 }) {
-  const id = `sponsor-provider-${value}`;
+  const id = `sponsor-provider-${variant}-${value}`;
   const isSelected = selected === value;
   return (
     <label
@@ -342,7 +406,7 @@ function ProviderRadio({
       <input
         id={id}
         type="radio"
-        name="sponsor-provider"
+        name={`sponsor-provider-${variant}`}
         value={value}
         checked={isSelected}
         onChange={onChange}

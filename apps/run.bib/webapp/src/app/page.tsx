@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/config/auth";
 import BibForm from "@/components/BibForm";
 import SponsorForm from "@/components/SponsorForm";
+import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 
@@ -22,20 +23,22 @@ type HomeProps = {
 };
 
 /**
- * Landing page for run.bib.
+ * Landing page for run.bib (Phase 22-05 rescope — 2026-07-02).
  *
- * Server component. Middleware already redirected unauthenticated requests
- * to /signin, but we call auth() here as a belt-and-suspenders check so
- * TypeScript sees a non-null session before we key on session.user.id.
+ * Three-section restructure per Kurt's rescope:
+ *   1. "Get your bib" (free registration) — nameOnBib input +
+ *      willPayInPerson checkbox. No payment step.
+ *   2. "Sponsor this bib" — SponsorForm variant='bib'; posts to
+ *      /api/checkout/bib. Sponsor amount attaches to the caller's
+ *      bib.paidAmount.
+ *   3. "Just donate" — SponsorForm variant='general'; posts to
+ *      /api/checkout/general. Standalone GeneralDonation row.
  *
- * Bib bootstrap flow (matches PLAN.md 21-03-03):
+ * Bib bootstrap flow (unchanged from Plan 21-03-03):
  *   1. auth() — verify session, else redirect.
- *   2. getBib(ownerSub) — server-side entity read (skips a self-fetch on
- *      /api/bib because we're inside the same Next.js runtime and can talk
- *      to ElectroDB directly).
- *   3. If no bib yet: generateUniqueRunnerCode() + createBib(ownerSub, code)
- *      — server-side idempotent create.
- *   4. Render the shell + BIB-XXXX badge + <BibForm>.
+ *   2. getBib(ownerSub) — server-side entity read.
+ *   3. If no bib yet: generateUniqueRunnerCode() + createBib.
+ *   4. Render.
  *
  * `createBib` is idempotent under ConditionalCheckFailedException, so even
  * if two concurrent tabs POST at the same time only one code wins and both
@@ -72,6 +75,13 @@ export default async function Home({ searchParams }: HomeProps) {
   const status =
     statusRaw === "success" || statusRaw === "cancel" ? statusRaw : null;
 
+  // `hasSponsored` will be threaded to BibForm → BibPreview in Task 22-05-06
+  // (sponsor charm accent). Computed here so both tasks agree on the source
+  // of truth (server-side bib.paidAmount from the same server-component read).
+  //
+  // Marked as intentional unused for Task 4; Task 6 wires it in.
+  void ((bib.paidAmount ?? 0) > 0);
+
   return (
     <main
       style={{
@@ -88,7 +98,7 @@ export default async function Home({ searchParams }: HomeProps) {
           margin: "0 auto",
           display: "flex",
           flexDirection: "column",
-          gap: 24,
+          gap: 40,
         }}
       >
         <header style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -103,7 +113,7 @@ export default async function Home({ searchParams }: HomeProps) {
             Get Your Bib
           </h1>
           <p style={{ margin: 0, color: "#a4a4b8", fontSize: 15 }}>
-            DEF CON 34 — run.defcon.run
+            defcon.run 34 — run.defcon.run
           </p>
         </header>
 
@@ -111,17 +121,89 @@ export default async function Home({ searchParams }: HomeProps) {
 
         {status && <StripeStatusBanner status={status} />}
 
-        <BibForm
-          initialName={bib.nameOnBib || ""}
-          initialCode={bib.runnerCode}
-          nameLocked={bib.nameLocked === true}
-        />
+        {/* Section 1: Get your bib (free) */}
+        <Section
+          title="Get your bib"
+          intro="Registration is free. Pick the name that renders on your bib."
+        >
+          <BibForm
+            initialName={bib.nameOnBib || ""}
+            initialCode={bib.runnerCode}
+            nameLocked={bib.nameLocked === true}
+          />
+          <div style={{ marginTop: 16 }}>
+            <WillPayInPersonCheckbox
+              initialValue={bib.willPayInPerson === true}
+            />
+          </div>
+        </Section>
 
-        <SponsorForm />
+        {/* Section 2: Sponsor this bib */}
+        <Section
+          title="Sponsor this bib"
+          intro="Contributions attach to your bib and help fund defcon.run 34."
+        >
+          <SponsorForm variant="bib" ctaLabel="Sponsor" />
+        </Section>
+
+        {/* Section 3: Just donate */}
+        <Section
+          title="Just donate"
+          intro="Not running? Contribute anyway — support goes directly to defcon.run 34."
+        >
+          <SponsorForm variant="general" ctaLabel="Donate" />
+        </Section>
 
         <FooterNote />
       </div>
     </main>
+  );
+}
+
+/**
+ * Section wrapper — visual container for each of the three landing-page
+ * blocks. Server component (no client JS) so it stays fast to render.
+ */
+function Section({
+  title,
+  intro,
+  children,
+}: {
+  title: string;
+  intro: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+      aria-label={title}
+    >
+      <h2
+        style={{
+          fontSize: 20,
+          fontWeight: 700,
+          margin: 0,
+          letterSpacing: "0.01em",
+        }}
+      >
+        {title}
+      </h2>
+      <p
+        style={{
+          margin: 0,
+          color: "#a4a4b8",
+          fontSize: 14,
+          lineHeight: 1.5,
+        }}
+      >
+        {intro}
+      </p>
+      <div style={{ marginTop: 8 }}>{children}</div>
+    </section>
   );
 }
 
@@ -137,7 +219,7 @@ export default async function Home({ searchParams }: HomeProps) {
 function StripeStatusBanner({ status }: { status: "success" | "cancel" }) {
   const isSuccess = status === "success";
   const message = isSuccess
-    ? "Payment received — thanks for sponsoring! Reconciliation may take a moment."
+    ? "Payment received — thanks for supporting defcon.run 34! Reconciliation may take a moment."
     : "Checkout cancelled. No charge was made — you can try again below.";
   return (
     <div
