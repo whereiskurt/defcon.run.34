@@ -5,7 +5,7 @@ import { DC34_LOGO_DATA_URI } from "./dc34-logo";
  *
  * Pure presentational component. Renders the DC34 race-bib SVG with two
  * dynamic text slots driven by props:
- *   - #bib-number  ("1337" placeholder while `name` is empty, else `code`)
+ *   - #bib-number  ("1337" placeholder while `name` is empty, else the name)
  *   - #bib-name    (the user's `nameOnBib`, hidden when empty)
  *
  * The SVG structure mirrors the Kurt-provided asset at
@@ -26,11 +26,10 @@ import { DC34_LOGO_DATA_URI } from "./dc34-logo";
  * the full 1..32-char range.
  */
 export interface BibPreviewProps {
-  /** Name to render on the bib. Empty string hides the name row. */
+  /** Name to render on the bib. Empty string shows the "1337" placeholder
+   * in the primary display slot AND on the tear-off stubs. Kurt 2026-07-02:
+   * name REPLACES the placeholder — no separate name row underneath. */
   name: string;
-  /** Runner code assigned by /api/bib (BIB-XXXX). Falls back to "1337" if
-   * blank or if the user hasn't yet entered a name. */
-  code: string;
   /**
    * Phase 22-05-06 sponsor charm accent. When `true`, renders a small
    * amber charm (~40px diameter, top-right of the card) as a visual
@@ -45,21 +44,19 @@ export interface BibPreviewProps {
   hasSponsored?: boolean;
 }
 
-/** Design-contract placeholder rendered when the user has not typed a name. */
-const NUMBER_PLACEHOLDER = "1337";
+/** Design-contract placeholder rendered when the user has not typed a name.
+ * Replaced by the user's name-on-bib in the primary display area (Kurt
+ * 2026-07-02 feedback: name REPLACES 1337, not stacked underneath). */
+const PRIMARY_PLACEHOLDER = "1337";
 
-/** Working horizontal budget in SVG-user-units for the big number.
+/** Working horizontal budget in SVG-user-units for the primary display text.
  * The black box is 856 wide with two 70px smiley badges nibbling the sides,
  * so budget ~740px so the text sits between the badges without overlapping. */
-const NUMBER_WIDTH_BUDGET = 740;
-/** Working horizontal budget for the name row. Slightly wider because the
- * name sits below the badges (they hug the top-left / mid-right corners). */
-const NAME_WIDTH_BUDGET = 780;
-/** Base font sizes match the SVG template exactly. */
+const PRIMARY_WIDTH_BUDGET = 740;
+/** Base font sizes for the primary display slot. `1337` (4 chars) renders at
+ * ~248px; longer names shrink via fitFontSize down to `NUMBER_MIN_SIZE`. */
 const NUMBER_BASE_SIZE = 248;
-const NUMBER_MIN_SIZE = 60;
-const NAME_BASE_SIZE = 56;
-const NAME_MIN_SIZE = 20;
+const NUMBER_MIN_SIZE = 44;
 /** Approximate glyph-width factor for the SVG's Arial-Black stack.
  * Slightly conservative so the shrunk text always stays inside the budget. */
 const GLYPH_WIDTH_FACTOR = 0.62;
@@ -83,49 +80,43 @@ function fitFontSize(
   return Math.floor(est);
 }
 
-/**
- * Given a font-size and estimated glyph width, compute the SVG-y offset for
- * the name so it sits visually centered under the number even when the name
- * shrinks. The SVG uses dominant-baseline="middle" — this only re-centers
- * relative to the box, not the string metrics.
- *
- * Y range for the name row: 340..470 (centre 405).
- */
-function nameY(_size: number): number {
-  return 438;
-}
+/** Tear-off text budget. Stubs are 96×48 with padding for the smiley badges,
+ * so ~86px of usable width. Same base + min tune as the primary but scaled. */
+const STUB_WIDTH_BUDGET = 86;
+const STUB_BASE_SIZE = 34;
+const STUB_MIN_SIZE = 12;
 
 export function BibPreview({
   name,
-  code,
   hasSponsored = false,
 }: BibPreviewProps) {
   const trimmedName = name.trim();
   const hasName = trimmedName.length > 0;
 
-  const bigNumber = hasName ? code || NUMBER_PLACEHOLDER : NUMBER_PLACEHOLDER;
-  const numberSize = fitFontSize(
-    bigNumber,
+  // Kurt 2026-07-02 feedback: name REPLACES 1337 in the primary display; no
+  // separate name row underneath. The runnerCode is NEVER shown on the bib
+  // (transactions-only). Tear-off stubs show the name (or 1337 placeholder).
+  const primaryText = hasName ? trimmedName : PRIMARY_PLACEHOLDER;
+  const primarySize = fitFontSize(
+    primaryText,
     NUMBER_BASE_SIZE,
     NUMBER_MIN_SIZE,
-    NUMBER_WIDTH_BUDGET
+    PRIMARY_WIDTH_BUDGET
   );
 
-  // When no name is present, re-center the number vertically in the black box
-  // (per the SVG template's comment: "the component may re-center #bib-number
-  // in the full box"). Otherwise keep the layout at y=284 so the name fits
-  // under it at y=438.
-  const numberY = hasName ? 284 : 308;
-  const nameSize = fitFontSize(
-    trimmedName,
-    NAME_BASE_SIZE,
-    NAME_MIN_SIZE,
-    NAME_WIDTH_BUDGET
-  );
+  // Center the primary text vertically in the black box regardless of name
+  // state (no separate name row anymore).
+  const primaryY = 308;
 
-  // Stub numbers on the tear-offs: always the runnerCode's XXXX portion
-  // (or "1337" as a placeholder before a bib exists).
-  const stubNumber = code || NUMBER_PLACEHOLDER;
+  // Tear-off stub text: same slot for both stubs. Empty name falls back to
+  // the "1337" placeholder to keep the visual balanced pre-name-entry.
+  const stubText = hasName ? trimmedName : PRIMARY_PLACEHOLDER;
+  const stubSize = fitFontSize(
+    stubText,
+    STUB_BASE_SIZE,
+    STUB_MIN_SIZE,
+    STUB_WIDTH_BUDGET
+  );
 
   return (
     <svg
@@ -137,8 +128,8 @@ export function BibPreview({
       role="img"
       aria-label={
         hasName
-          ? `Race bib preview for ${trimmedName}, runner code ${code || NUMBER_PLACEHOLDER}`
-          : `Race bib preview, runner code ${code || NUMBER_PLACEHOLDER}`
+          ? `Race bib preview for ${trimmedName}`
+          : `Race bib preview, placeholder ${PRIMARY_PLACEHOLDER}`
       }
     >
       <defs>
@@ -264,37 +255,23 @@ export function BibPreview({
       <use href="#smiley-circle" x="76" y="160" width="70" height="70" />
       <use href="#smiley-circle" x="814" y="386" width="70" height="70" />
 
-      {/* BIG NUMBER (dynamic) — top of the box */}
+      {/* PRIMARY SLOT (dynamic) — "1337" placeholder or the user's name
+       * once entered. Replaces the previous two-row (number + name-below)
+       * layout per Kurt 2026-07-02 feedback. The runnerCode is NEVER
+       * shown on the bib — it exists only for payment reconciliation. */}
       <text
         id="bib-number"
         x="480"
-        y={numberY}
+        y={primaryY}
         textAnchor="middle"
         dominantBaseline="middle"
-        fontSize={numberSize}
+        fontSize={primarySize}
         fontWeight="900"
-        letterSpacing="-6"
+        letterSpacing={hasName ? "-1" : "-6"}
         fill="#fff"
       >
-        {bigNumber}
+        {primaryText}
       </text>
-
-      {/* NAME (dynamic) — UNDER the number, inside the box; empty text hides it */}
-      {hasName && (
-        <text
-          id="bib-name"
-          x="480"
-          y={nameY(nameSize)}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={nameSize}
-          fontWeight="800"
-          letterSpacing="1"
-          fill="#fff"
-        >
-          {trimmedName}
-        </text>
-      )}
 
       {/* pin holes (bottom) */}
       <circle
@@ -341,11 +318,11 @@ export function BibPreview({
         x="408"
         y="646"
         textAnchor="middle"
-        fontSize="34"
+        fontSize={stubSize}
         fontWeight="900"
         fill="#fff"
       >
-        {stubNumber}
+        {stubText}
       </text>
 
       <use href="#smiley-square" x="504" y="598" width="72" height="72" />
@@ -354,11 +331,11 @@ export function BibPreview({
         x="868"
         y="646"
         textAnchor="middle"
-        fontSize="34"
+        fontSize={stubSize}
         fontWeight="900"
         fill="#fff"
       >
-        {stubNumber}
+        {stubText}
       </text>
     </svg>
   );

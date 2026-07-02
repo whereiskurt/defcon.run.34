@@ -36,7 +36,6 @@ import BibPreview from "./BibPreview";
  */
 export interface BibFormProps {
   initialName: string;
-  initialCode: string;
   nameLocked: boolean;
   /**
    * Phase 22-05-06 sponsor charm accent. Passed through to BibPreview so
@@ -79,7 +78,6 @@ const NAME_MAX = 32;
 
 export function BibForm({
   initialName,
-  initialCode,
   nameLocked: initialLocked,
   hasSponsored = false,
 }: BibFormProps) {
@@ -193,10 +191,15 @@ export function BibForm({
   }, []);
 
   const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Kurt 2026-07-02: strip non-ASCII (emojis, combining marks, etc.)
+    // silently so paste flows and IME output can't smuggle glyphs the bib
+    // printer can't render. Server enforces the same rule in PATCH.
     // Client-side cap mirrors the server contract. The maxLength attribute
     // stops most keystrokes; slice() defends against paste + IME cases the
     // browser may not clip.
-    const next = event.target.value.slice(0, NAME_MAX);
+    const next = event.target.value
+      .replace(/[^\x20-\x7E]/g, "")
+      .slice(0, NAME_MAX);
     setName(next);
   };
 
@@ -212,7 +215,7 @@ export function BibForm({
         margin: "0 auto",
       }}
     >
-      <BibPreview name={name} code={initialCode} hasSponsored={hasSponsored} />
+      <BibPreview name={name} hasSponsored={hasSponsored} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <label

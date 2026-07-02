@@ -17,7 +17,7 @@ export default function SignInPage() {
 
     // Build callback URL with region prefix
     // In production: /use1/, in dev: /
-    const callbackUrl = region ? `/${region}/` : "/";
+    const callbackUrl = region ? `/${region}/orderform` : "/orderform";
 
     // Auto-redirect to OIDC provider
     signIn("run.defcon.run", { callbackUrl });

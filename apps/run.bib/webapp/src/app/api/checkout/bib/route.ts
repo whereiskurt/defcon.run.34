@@ -20,7 +20,7 @@ import { STRIPE_PRODUCT_BIB } from "@/config/stripe-products";
  *       payment to Bib.applyPayment (vs. GeneralDonation.recordDonation).
  *     - `owner_sub`, `runner_code`, `source: "bib"` — retained for
  *       backward compatibility with the Plan 22-01 webhook read-back.
- * - success_url / cancel_url: `${BIB_PUBLIC_URL}/use1/?status=success|cancel`
+ * - success_url / cancel_url: `${BIB_PUBLIC_URL}/use1/orderform?status=success|cancel`
  *   with the regional prefix HARD-CODED because Stripe Checkout URLs are
  *   baked at Session-create time.
  * - Runtime: Node.js (default for Next.js API routes).
@@ -130,8 +130,8 @@ export async function POST(req: NextRequest) {
       },
       // Regional /use1/ prefix baked in — Stripe redirects the browser
       // straight to the URL; Next.js basePath rewriting doesn't fire.
-      success_url: `${base}/use1/?status=success`,
-      cancel_url: `${base}/use1/?status=cancel`,
+      success_url: `${base}/use1/orderform?status=success`,
+      cancel_url: `${base}/use1/orderform?status=cancel`,
     });
 
     if (!stripeSession.url) {
