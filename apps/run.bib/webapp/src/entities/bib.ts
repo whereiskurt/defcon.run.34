@@ -89,13 +89,23 @@ export const Bib = new Entity(
           template: "BIB",
         },
       },
-      // GSI for Phase 22 reconciliation Lambda: look up bib by runnerCode
+      // GSI for Phase 22 reconciliation Lambda: look up bib by runnerCode.
       // Uses the runnerCode-index GSI added to run-human-electro in Phase 20
       // (infra/terraform/live/site/services/run.human/service.hcl:286-292).
+      //
+      // The GSI is HASH-only on DynamoDB (no range_key on the terraform
+      // resource). We still declare a synthetic `runnerCodeSk` field for
+      // ElectroDB — reusing the primary "sk" field triggers ElectroDB
+      // error 1017 (IncompatibleKeyCompositeAttributeTemplate) because the
+      // primary's sk uses the fixed template "BIB" and the byRunnerCode sk
+      // has no template. The synthetic field is written to the item but is
+      // NOT projected onto the GSI (DynamoDB only indexes attributes that
+      // match the declared key schema), so it costs a few bytes per row and
+      // otherwise no-ops.
       byRunnerCode: {
         index: "runnerCode-index",
         pk: { field: "runnerCode", composite: ["runnerCode"] },
-        sk: { field: "sk", composite: [] },
+        sk: { field: "runnerCodeSk", composite: [] },
       },
     },
   },

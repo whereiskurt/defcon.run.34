@@ -19,7 +19,8 @@
     "next-auth": "^5.0.0-beta.30",
     "react": "19.2.1",
     "react-dom": "19.2.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
