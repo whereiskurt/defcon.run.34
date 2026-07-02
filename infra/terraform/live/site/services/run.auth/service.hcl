@@ -243,6 +243,14 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/flash/client_secret"
           },
           {
+            name      = "OIDC_BIB_CLIENT_ID"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/client_id"
+          },
+          {
+            name      = "OIDC_BIB_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/client_secret"
+          },
+          {
             name      = "AUTH_INTERNAL_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
           },
