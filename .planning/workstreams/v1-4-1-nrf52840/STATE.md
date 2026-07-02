@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 workstream: v1-4-1-nrf52840
 milestone: v1.4.1
 milestone_name: nRF52840 / T-1000E Flash Support
-status: Phase 24 merged (#229); docker+image-inspect blockers verified; ready to plan Phase 25
-stopped_at: Phase 24 merged; 5/5 code SCs green + 2/5 blockers unblocked via sandbox docker; 3 hardware items remain
-last_updated: "2026-07-02T12:10:00.000Z"
-last_activity: 2026-07-02 — PR #229 merged; docker Stage 1 build verified against Meshtastic 2.7.26 (T-1000-E + 30 nrf52840 entries + 77 factory.bin + 10+ .uf2)
+status: Phase 25 code-side complete (#232 + #234 merged); hardware verification remains with Kurt
+stopped_at: All 8 code-side SCs verified (SC1-3); 3 hardware-in-loop items (SC4, SC5, DFU failure modes) awaiting Kurt's T-1000E + ESP32 + Web USB browser
+last_updated: "2026-07-02T12:52:00.000Z"
+last_activity: 2026-07-02 — PR #234 merged; Phase 25 code-side done; ruleset bypass working end-to-end for autonomous merge
 progress:
   total_phases: 2
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 50
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 # v1.4.1 Workstream State
@@ -23,10 +23,19 @@ Parent `.planning/PROJECT.md` applies. This workstream is **parallel-safe with v
 
 ## Current Position
 
-Phase: 25 - nRF52 UX + verification (ready to plan)
-Plan: —
-Status: Phase 24 merged (PR #229); docker+image-inspect blockers verified via real sandbox docker build; 3 hardware SCs remain
-Last activity: 2026-07-02 — sandbox docker Stage 1 build confirmed T-1000-E + 30 nrf52840 entries + 77 factory.bin + 10+ .uf2 artifacts
+Phase: 25 - nRF52 UX + verification (code-side complete)
+Plan: — (all 4 plans across Phase 24 + 25 merged)
+Status: v1.4.1 code side is DONE. Milestone completion gated on Kurt's hardware verification of the 3 hardware-in-loop items below.
+Last activity: 2026-07-02 — PR #234 merged (Plan 25-02 BootloaderHelp + ChipMismatch + FlashStep + slug reconcile); Phase 25 SUMMARY.md landed; 8/8 code-side SCs verified across Phase 24 + 25.
+
+## Merged PRs
+
+| Phase / Plan | PR | Merged |
+|---|---|---|
+| Phase 24 (device-family router + nRF52 flash path) | #229 | 2026-07-02 12:03 UTC |
+| Phase 25 planning (2 plans / 8 tasks) | #231 | 2026-07-02 12:22 UTC |
+| Plan 25-01 (family-aware transport plumbing) | #232 | 2026-07-02 12:37 UTC (autonomous, ruleset bypass) |
+| Plan 25-02 (UX variants + FlashStep + slug reconcile) | #234 | 2026-07-02 12:51 UTC (autonomous, ruleset bypass) |
 
 ## Phase 24 Blockers
 
