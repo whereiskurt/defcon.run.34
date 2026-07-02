@@ -91,14 +91,44 @@ const redirectToOIDCLogout = (): void => {
   window.location.href = endSessionUrl.toString();
 };
 
-// Auto-redirect to SSO on login page (only runs in browser)
-if (typeof window !== 'undefined' && shouldRedirectToSSO()) {
+// Redirect to SSO if we're on a native login/register route, hiding the page
+// first to prevent the native form from flashing. Idempotent — only fires once.
+let ssoRedirectTriggered = false;
+const maybeRedirectToSSO = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  if (ssoRedirectTriggered) return true;
+  if (!shouldRedirectToSSO()) return false;
+  ssoRedirectTriggered = true;
   // Hide the page immediately to prevent native login form flash
   if (window.document?.documentElement) {
     window.document.documentElement.style.display = 'none';
   }
   // Redirect immediately — no delay
   redirectToSSO();
+  return true;
+};
+
+// Fire on hard load / full reload (URL already on the login route).
+maybeRedirectToSSO();
+
+// Also fire on SPA client-side navigation to the login route. On a cold
+// (incognito) visit, Strapi's admin SPA routes from /{region}/admin to
+// /admin/auth/login WITHOUT a full page reload, so the module-load check above
+// never sees the login path and the native form is shown. React Router drives
+// those transitions through the History API, so patch pushState/replaceState
+// (and listen for popstate) to re-check after every client-side navigation.
+if (typeof window !== 'undefined' && !ssoRedirectTriggered) {
+  const patchHistory = (method: 'pushState' | 'replaceState'): void => {
+    const original = window.history[method];
+    window.history[method] = function (...args: any[]) {
+      const result = original.apply(this, args);
+      maybeRedirectToSSO();
+      return result;
+    };
+  };
+  patchHistory('pushState');
+  patchHistory('replaceState');
+  window.addEventListener('popstate', () => maybeRedirectToSSO());
 }
 
 export default {
