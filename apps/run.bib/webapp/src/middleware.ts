@@ -19,15 +19,24 @@ import { auth } from "@/config/auth";
  */
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+  const basePath = req.nextUrl.basePath || "";
+
+  // In prod with basePath (e.g. `/use1`), `pathname` includes the prefix —
+  // strip it for the whitelist comparison so entries like `"/signin"` match
+  // both dev (no basePath) and prod (`/use1/signin`).
+  const relPath =
+    basePath && pathname.startsWith(basePath)
+      ? pathname.slice(basePath.length) || "/"
+      : pathname;
 
   // Whitelist paths that must remain reachable without a session.
   const isWhitelisted =
-    pathname === "/signin" ||
-    pathname === "/access-denied" ||
-    pathname.startsWith("/api/auth/") ||
-    pathname === "/api/auth" ||
-    pathname === "/api/health" ||
-    pathname === "/api/stripe/webhook";
+    relPath === "/signin" ||
+    relPath === "/access-denied" ||
+    relPath.startsWith("/api/auth/") ||
+    relPath === "/api/auth" ||
+    relPath === "/api/health" ||
+    relPath === "/api/stripe/webhook";
 
   if (isWhitelisted) {
     return NextResponse.next();
@@ -36,7 +45,7 @@ export default auth((req) => {
   if (!req.auth?.user) {
     // Not authenticated — redirect to signin, preserving basePath (e.g. /use1).
     const signinUrl = req.nextUrl.clone();
-    signinUrl.pathname = "/signin";
+    signinUrl.pathname = `${basePath}/signin`;
     signinUrl.searchParams.set("callbackUrl", req.url);
     return NextResponse.redirect(signinUrl);
   }
