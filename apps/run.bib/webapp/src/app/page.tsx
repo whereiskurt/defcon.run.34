@@ -75,12 +75,10 @@ export default async function Home({ searchParams }: HomeProps) {
   const status =
     statusRaw === "success" || statusRaw === "cancel" ? statusRaw : null;
 
-  // `hasSponsored` will be threaded to BibForm → BibPreview in Task 22-05-06
-  // (sponsor charm accent). Computed here so both tasks agree on the source
-  // of truth (server-side bib.paidAmount from the same server-component read).
-  //
-  // Marked as intentional unused for Task 4; Task 6 wires it in.
-  void ((bib.paidAmount ?? 0) > 0);
+  // Phase 22-05-06 sponsor charm accent — threaded through BibForm to
+  // BibPreview. Source of truth is server-side bib.paidAmount from the
+  // same server-component read above so client + server agree.
+  const hasSponsored = (bib.paidAmount ?? 0) > 0;
 
   return (
     <main
@@ -130,6 +128,7 @@ export default async function Home({ searchParams }: HomeProps) {
             initialName={bib.nameOnBib || ""}
             initialCode={bib.runnerCode}
             nameLocked={bib.nameLocked === true}
+            hasSponsored={hasSponsored}
           />
           <div style={{ marginTop: 16 }}>
             <WillPayInPersonCheckbox

@@ -38,6 +38,12 @@ export interface BibFormProps {
   initialName: string;
   initialCode: string;
   nameLocked: boolean;
+  /**
+   * Phase 22-05-06 sponsor charm accent. Passed through to BibPreview so
+   * the amber charm renders when the participant has any contribution
+   * (bib.paidAmount > 0). Optional — defaults to `false`.
+   */
+  hasSponsored?: boolean;
 }
 
 /** Debounce window between last keystroke and PATCH fire (ms). */
@@ -75,6 +81,7 @@ export function BibForm({
   initialName,
   initialCode,
   nameLocked: initialLocked,
+  hasSponsored = false,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
   const [nameLocked, setNameLocked] = useState<boolean>(initialLocked);
@@ -205,7 +212,7 @@ export function BibForm({
         margin: "0 auto",
       }}
     >
-      <BibPreview name={name} code={initialCode} />
+      <BibPreview name={name} code={initialCode} hasSponsored={hasSponsored} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <label
