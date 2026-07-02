@@ -72,6 +72,11 @@ jobs:
       TF_VAR_MANAGEMENT_ACCOUNT_ID: ${{ vars.TF_VAR_MANAGEMENT_ACCOUNT_ID }}
       TF_VAR_APPLICATION_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
       TF_VAR_GITHUB_ORG: ${{ github.repository_owner }}
+      # SOPS + SSM CMK IDs consumed by the kms-sops-decrypt inline policies
+      # on the readonly / e2e / deploy roles in site.hcl. See env.sops.sh for
+      # how to resolve these locally and print the `gh variable set` commands.
+      TF_VAR_SOPS_KMS_KEY_ID: ${{ vars.TF_VAR_SOPS_KMS_KEY_ID }}
+      TF_VAR_SSM_KMS_KEY_ARNS: ${{ vars.TF_VAR_SSM_KMS_KEY_ARNS }}
 
     steps:
       - name: Checkout
