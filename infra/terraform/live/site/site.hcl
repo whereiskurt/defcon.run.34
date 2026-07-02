@@ -224,7 +224,7 @@ locals {
 
   ecs_tasks = {
     enabled        = true
-    enable_logging = false
+    enable_logging = true
     tasks = [
       local.service_conf.auth.locals.task,
       local.service_conf.run_human.locals.task,
