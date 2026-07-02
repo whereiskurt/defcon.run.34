@@ -6,12 +6,15 @@ import { getBibByRunnerCode } from "@/entities/bib";
  *
  * Design contract (Kurt v1.5):
  *   - Format: "BIB-XXXX" where XXXX are 4 characters from an unambiguous
- *     alphabet (no 0/O/I/L/1 confusion, per Kurt "no ambiguous chars").
+ *     alphabet (no 0/O/I/1 confusion, per Kurt "no ambiguous chars").
  *   - Immutable per-user (Bib entity marks it readOnly).
  *   - Payers put this in the Venmo/CashApp comment to reconcile payment ->
  *     Bib via runnerCode-index GSI.
  *
- * Alphabet: [A-HJ-NP-Z2-9], which excludes 0/O/I/L/1 (visual ambiguity).
+ * Alphabet: [A-HJ-NP-Z2-9], which excludes 0/O/I/1 (visual ambiguity).
+ * L is kept — the Arial-Black stack the bib SVG uses renders L distinctly
+ * from 1 and I, and dropping L would break the alphabet's power-of-two
+ * (32-char) shape that keeps rejection sampling uniform.
  * That leaves 32 characters -> 32^4 = 1,048,576 combinations. Comfortable
  * headroom for a single-event ~1000-bib target with negligible collision odds
  * (birthday-paradox ~50% at ~1023 codes for a 32^4 space) but collision is
