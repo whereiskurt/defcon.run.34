@@ -276,6 +276,21 @@ locals {
         stream_enabled   = true
         stream_view_type = "NEW_AND_OLD_IMAGES"
 
+        # Extra attributes / GSIs appended on top of the electro base schema.
+        # runnerCode-index is used by Phase 22's reconciliation Lambda to look
+        # up Bib records by the comment code payers include in Venmo/CashApp
+        # payments. Projection is ALL (per CONTEXT.md decision #5).
+        attributes = [
+          { name = "runnerCode", type = "S" }
+        ]
+        global_secondary_indexes = [
+          {
+            name            = "runnerCode-index"
+            hash_key        = "runnerCode"
+            projection_type = "ALL"
+          }
+        ]
+
         # TTL configuration (optional)
         ttl_enabled        = false
         ttl_attribute_name = ""

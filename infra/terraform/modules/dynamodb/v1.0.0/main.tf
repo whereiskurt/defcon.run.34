@@ -75,10 +75,21 @@ locals {
       is_primary_region   = var.region.full == table.replica_regions[0].full
       enable_global_table = var.region.full == table.replica_regions[0].full && length(table.replica_regions) > 1
 
-      # Select schema based on table_type
-      selected_schema = table.table_type != null ? local.table_schemas[table.table_type] : {
-        attributes               = table.attributes
-        global_secondary_indexes = table.global_secondary_indexes
+      # Select schema based on table_type, then append any per-table extras.
+      # Extras let a table_type entry declare additional attributes / GSIs
+      # (e.g. run-human-electro's runnerCode-index) without duplicating the
+      # base schema. Custom (table_type = null) entries still work because
+      # the base is `[]` and `table.attributes`/`table.global_secondary_indexes`
+      # default to `[]`.
+      selected_schema = {
+        attributes = concat(
+          table.table_type != null ? local.table_schemas[table.table_type].attributes : [],
+          table.attributes
+        )
+        global_secondary_indexes = concat(
+          table.table_type != null ? local.table_schemas[table.table_type].global_secondary_indexes : [],
+          table.global_secondary_indexes
+        )
       }
 
       # Default attributes (pk, sk)
