@@ -20,22 +20,23 @@ RUN FW_VER="${FIRMWARE_VERSION}"; \
     echo "Resolved Meshtastic stable: ${FW_VER}" && \
     RELEASE_TAG="v${FW_VER}" && \
     BASE_URL="https://github.com/meshtastic/firmware/releases/download/${RELEASE_TAG}" && \
-    for ARCH in esp32 esp32s3 esp32c3 esp32c6; do \
+    for ARCH in esp32 esp32s3 esp32c3 esp32c6 nrf52840; do \
       ZIP="firmware-${ARCH}-${FW_VER}.zip"; \
       echo "Downloading ${ZIP}..." && \
       curl -fL -o "/tmp/${ZIP}" "${BASE_URL}/${ZIP}" || { echo "Warning: ${ZIP} not found"; continue; }; \
       unzip -q -o "/tmp/${ZIP}" "firmware-*.factory.bin" -d /firmware/ 2>/dev/null || true; \
+      unzip -q -o "/tmp/${ZIP}" "firmware-*.uf2" -d /firmware/ 2>/dev/null || true; \
       rm -f "/tmp/${ZIP}"; \
     done && \
     find /firmware -name "*-update.bin" -delete && \
-    echo "Extracted $(find /firmware -name 'firmware-*.factory.bin' | wc -l) firmware binaries" && \
+    echo "Extracted $(find /firmware -name 'firmware-*.factory.bin' -o -name 'firmware-*.uf2' | wc -l) firmware binaries" && \
     echo "${FW_VER}" > /firmware/VERSION.txt
 
 # Regenerate ESP32-only device hardware list (DEVC-06). Overwrites the tracked
 # public/data/hardware-list.json snapshot when copied into Stage 2.
 RUN mkdir -p /hardware && \
     curl -fsSL https://api.meshtastic.org/resource/deviceHardware \
-      | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6")]' \
+      | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6" or .architecture == "nrf52840")]' \
       > /hardware/hardware-list.json && \
     jq -e 'length > 0' /hardware/hardware-list.json
 

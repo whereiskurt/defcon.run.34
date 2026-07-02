@@ -20,6 +20,7 @@ export const MANUFACTURERS = [
  * These get a "Recommended" badge and sort to the top.
  * TODO: Update this list once event hardware is finalized
  */
+// TODO(v1.4.1 close-out): promote T-1000E (hwModelSlug TRACKER_T1000_E) after Phase 25 SC4 hardware verify.
 export const RECOMMENDED_SLUGS = new Set([
   "HELTEC_V3",
   "TBEAM",

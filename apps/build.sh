@@ -20,7 +20,7 @@ APP="${2}"
 if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   echo "Usage: ./build.sh <component> <app>"
   echo "  component: nginx | webapp | app | mosquitto | meshtk"
-  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash | run.mqtt"
+  echo "  app: run.auth | run.human | run.cms | run.gpx | run.flash | run.bib | run.mqtt"
   exit 1
 fi
 
@@ -29,8 +29,8 @@ if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "ap
   exit 1
 fi
 
-if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.mqtt" ]]; then
-  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', or 'run.mqtt'"
+if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.bib" && "$APP" != "run.mqtt" ]]; then
+  echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', 'run.bib', or 'run.mqtt'"
   exit 1
 fi
 
@@ -85,6 +85,11 @@ case "$APP" in
     REPO_PREFIX="dc34-run-flash"
     WEBAPP_ORIGIN="flash.defcon.run"
     SSM_PATH_SEGMENT="flash"
+    ;;
+  "run.bib")
+    REPO_PREFIX="dc34-run-bib"
+    WEBAPP_ORIGIN="bib.defcon.run"
+    SSM_PATH_SEGMENT="bib"
     ;;
   "run.mqtt")
     REPO_PREFIX="dc34-run-mqtt"

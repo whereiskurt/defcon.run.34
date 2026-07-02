@@ -28,7 +28,7 @@
 set -e
 
 # Default configuration
-APPS="run.auth,run.human,run.cms,run.gpx,run.flash,run.mqtt"
+APPS="run.auth,run.human,run.cms,run.gpx,run.flash,run.bib,run.mqtt"
 REGIONS="use1,cac1,apse1"
 SKIP_BUMP=false
 SKIP_BUILD=false
@@ -129,6 +129,7 @@ get_cf_domain() {
     run.cms) echo "cms.defcon.run" ;;
     run.gpx) echo "gpx.defcon.run" ;;
     run.flash) echo "flash.defcon.run" ;;
+    run.bib) echo "bib.defcon.run" ;;
     run.mqtt) echo "" ;;  # mqtt uses NLB, no CloudFront
     *) echo "" ;;
   esac
@@ -141,6 +142,7 @@ get_tf_service() {
     run.cms) echo "run.cms" ;;
     run.gpx) echo "run.gpx" ;;
     run.flash) echo "run.flash" ;;
+    run.bib) echo "run.bib" ;;
     run.mqtt) echo "run.mqtt" ;;
     *) echo "" ;;
   esac
@@ -180,8 +182,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Validate apps
 for APP in "${APP_LIST[@]}"; do
-  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.mqtt" ]]; then
-    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', or 'run.mqtt'"
+  if [[ "$APP" != "run.auth" && "$APP" != "run.human" && "$APP" != "run.cms" && "$APP" != "run.gpx" && "$APP" != "run.flash" && "$APP" != "run.bib" && "$APP" != "run.mqtt" ]]; then
+    echo "ERROR: Invalid app '$APP'. Must be 'run.auth', 'run.human', 'run.cms', 'run.gpx', 'run.flash', 'run.bib', or 'run.mqtt'"
     exit 1
   fi
 done
