@@ -56,7 +56,13 @@ export class MapboxGLMap {
                 ],
             },
             projection: 'globe',
-            zoom: 0,
+            // Default view over the Las Vegas Convention Center (LVCC) so a fresh
+            // load — no GPX loaded and no URL hash — opens on the DEF CON 34 area
+            // instead of a zoomed-out globe. The URL hash (below) and the
+            // fitBounds-on-file-load path still override this when present, so this
+            // only applies to the true "nothing loaded" case. (Kurt 2026-07-03)
+            center: [-115.1516, 36.1316] as [number, number],
+            zoom: 14,
             hash: hash,
             language,
             attributionControl: false,
