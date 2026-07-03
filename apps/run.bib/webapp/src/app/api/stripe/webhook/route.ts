@@ -6,6 +6,7 @@ import {
   stripeSessionDonationId,
 } from "@/entities/general-donation";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe";
+import { consumeQuota } from "@/lib/quota-client";
 
 /**
  * POST /api/stripe/webhook — verify signature + branch on donation_type.
@@ -98,6 +99,12 @@ async function handleBibDonation(
       amount_cents: amountTotal,
       reconciled_via: `stripe_webhook_${session.id}`,
     });
+    // Count the completed purchase against the bib_purchase quota. Best-effort:
+    // a quota-service hiccup must never fail the webhook (which would make
+    // Stripe retry applyPayment and double-charge the ledger).
+    await consumeQuota(ownerSub, "bib_purchase", 1, "upload").catch((e) =>
+      console.warn(`[run.bib] bib_purchase quota consume failed: ${e}`)
+    );
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
     // Bib not found — respond 200 so Stripe stops retrying (the bib
@@ -151,6 +158,12 @@ async function handleGeneralDonation(
       stripeSessionId: session.id,
       reconciledVia: `stripe_webhook_${session.id}`,
     });
+    // Count the completed donation against the donation quota (owner rows only).
+    if (ownerSub) {
+      await consumeQuota(ownerSub, "donation", 1, "upload").catch((e) =>
+        console.warn(`[run.bib] donation quota consume failed: ${e}`)
+      );
+    }
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
     console.error(

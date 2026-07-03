@@ -5,6 +5,10 @@ import BibForm from "@/components/BibForm";
 import SponsorForm from "@/components/SponsorForm";
 import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
+import { listDonationsForOwner } from "@/entities/general-donation";
+import { listPendingForOwner } from "@/entities/pending-contribution";
+import { checkQuota } from "@/lib/quota-client";
+import TransactionHistory, { type Txn } from "@/components/TransactionHistory";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 
 /**
@@ -80,6 +84,68 @@ export default async function Home({ searchParams }: HomeProps) {
   // same server-component read above so client + server agree.
   const hasSponsored = (bib.paidAmount ?? 0) > 0;
 
+  // Once the participant has paid for their bib OR opted to pay in person,
+  // hide the "Sponsor this bib" (buy) flow — they're covered. The "Just
+  // donate" flow always stays available.
+  const hideBuyBib = hasSponsored || bib.willPayInPerson === true;
+
+  // Remaining bib-name changes from the central quota service (run.auth).
+  // Fall back to the default limit if the service is briefly unavailable —
+  // a quota blip must not 500 the bib page; the server enforces on write.
+  const services = (session.user as { services?: string[] }).services ?? [];
+  const tier = services.includes("admin") ? "admin" : "upload";
+  let renamesRemaining = 10;
+  try {
+    const q = await checkQuota(ownerSub, "bibname_change", 1, tier);
+    if (q.remaining >= 0) renamesRemaining = q.remaining;
+  } catch {
+    // quota service unavailable — show the default
+  }
+
+  // Contribution history: reconciled bib payments + donations. Total spend
+  // drives the "amount contributed" shown even when the buy flow is hidden.
+  const donations = await listDonationsForOwner(ownerSub).catch(() => []);
+  const pending = await listPendingForOwner(ownerSub).catch(() => []);
+  const donationTotal = donations.reduce(
+    (s, d) => s + (d.amountCents ?? 0),
+    0
+  );
+  // Total counts RECONCILED spend only — pending Venmo/CashApp intents are not
+  // money in the bank yet, so they're shown separately, not summed.
+  const totalCents = (bib.paidAmount ?? 0) + donationTotal;
+  const reconciled: Txn[] = [
+    ...((bib.paidStatusHistory ?? []) as Array<{
+      provider?: string;
+      amount?: number;
+      timestamp?: string;
+    }>).map((p) => ({
+      kind: "bib" as const,
+      provider: p.provider ?? "stripe",
+      amountCents: p.amount ?? 0,
+      timestamp: p.timestamp ?? "",
+      status: "reconciled" as const,
+    })),
+    ...donations.map((d) => ({
+      kind: "donation" as const,
+      provider: d.provider ?? "stripe",
+      amountCents: d.amountCents ?? 0,
+      timestamp: d.createdAt ?? "",
+      status: "reconciled" as const,
+    })),
+  ].sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+  // Pending intents float to the top — they're the actionable "did my payment
+  // land?" rows the runner is most likely checking for.
+  const pendingTxns: Txn[] = pending
+    .map((p) => ({
+      kind: p.kind,
+      provider: p.provider,
+      amountCents: p.amountCents ?? 0,
+      timestamp: p.createdAt ?? "",
+      status: "pending" as const,
+    }))
+    .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+  const txns: Txn[] = [...pendingTxns, ...reconciled];
+
   return (
     <main
       style={{
@@ -126,6 +192,7 @@ export default async function Home({ searchParams }: HomeProps) {
             initialName={bib.nameOnBib || ""}
             nameLocked={bib.nameLocked === true}
             hasSponsored={hasSponsored}
+            initialRenamesRemaining={renamesRemaining}
           />
           <div style={{ marginTop: 16 }}>
             <WillPayInPersonCheckbox
@@ -134,36 +201,65 @@ export default async function Home({ searchParams }: HomeProps) {
           </div>
         </Section>
 
-        {/* Sections 2 + 3: Sponsor + Donate — side-by-side tiles on
-          * desktop, stacked on mobile. Layout inspired by
-          * run.defcon.run/meshtastic (Kurt 2026-07-02 feedback). */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-            gap: 20,
-          }}
-        >
-          <Tile
-            kicker="This"
-            title="Sponsor this bib"
-            body="Contributions attach to your bib and help fund defcon.run 34."
-            art={<SponsorArt />}
+        <TransactionHistory totalCents={totalCents} txns={txns} />
+
+        {/* Sections 2 + 3: Sponsor + Donate. Side-by-side tiles on desktop,
+          * stacked on mobile (minWidth:0 lets the grid items shrink below
+          * their content's min-content so auto-fit can place two columns).
+          * When the bib is already covered (paid or pay-in-person) the buy
+          * flow is hidden and only "Just donate" shows, full width. */}
+        {hideBuyBib ? (
+          <div>
+            <p
+              style={{
+                margin: "0 0 12px",
+                color: "#7fdc9e",
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              {hasSponsored
+                ? "You're all set — your bib is covered. Thanks for the support!"
+                : "You're paying in person — your bib is reserved."}
+            </p>
+            <Tile
+              kicker="Support"
+              title="Just donate"
+              body="Contribute anyway — support goes directly to defcon.run 34."
+              art={<DonateArt />}
+            >
+              <SponsorForm variant="general" ctaLabel="Donate" />
+            </Tile>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 20,
+            }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <RunnerCodeBadge code={bib.runnerCode} />
-              <SponsorForm variant="bib" ctaLabel="Sponsor" />
-            </div>
-          </Tile>
-          <Tile
-            kicker="or That"
-            title="Just donate"
-            body="Not running? Contribute anyway — support goes directly to defcon.run 34."
-            art={<DonateArt />}
-          >
-            <SponsorForm variant="general" ctaLabel="Donate" />
-          </Tile>
-        </div>
+            <Tile
+              kicker="This"
+              title="Sponsor this bib"
+              body="Contributions attach to your bib and help fund defcon.run 34."
+              art={<SponsorArt />}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <RunnerCodeBadge code={bib.runnerCode} />
+                <SponsorForm variant="bib" ctaLabel="Sponsor" />
+              </div>
+            </Tile>
+            <Tile
+              kicker="or That"
+              title="Just donate"
+              body="Not running? Contribute anyway — support goes directly to defcon.run 34."
+              art={<DonateArt />}
+            >
+              <SponsorForm variant="general" ctaLabel="Donate" />
+            </Tile>
+          </div>
+        )}
 
         <FooterNote />
       </div>
@@ -247,6 +343,7 @@ function Tile({
         borderRadius: 14,
         backgroundColor: "#12121a",
         border: "1px solid #24242e",
+        minWidth: 0,
       }}
     >
       <div

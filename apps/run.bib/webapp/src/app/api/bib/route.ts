@@ -4,10 +4,12 @@ import { auth } from "@/config/auth";
 import {
   createBib,
   getBib,
+  isBibNameChange,
   NameLockedError,
   updateBibName,
   updateBibWillPayInPerson,
 } from "@/entities/bib";
+import { consumeQuota, type QuotaTier } from "@/lib/quota-client";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 
 /**
@@ -174,11 +176,32 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
+  const services = (session.user as { services?: string[] }).services ?? [];
+  const tier: QuotaTier = services.includes("admin") ? "admin" : "upload";
+
   try {
     // Apply nameOnBib first — may throw NameLockedError (mapped to 409).
     // We only patch what the caller supplied; missing fields stay untouched.
     let bib = null as Awaited<ReturnType<typeof updateBibName>> | null;
+    let renamesRemaining: number | undefined;
     if (parsed.data.nameOnBib !== undefined) {
+      // Only a real change (differs from stored) consumes a rename from the
+      // central bibname_change quota (run.auth). No-op saves are free.
+      if (await isBibNameChange(session.user.id, parsed.data.nameOnBib)) {
+        const q = await consumeQuota(
+          session.user.id,
+          "bibname_change",
+          1,
+          tier
+        );
+        if (!q.success) {
+          return NextResponse.json(
+            { error: "rename_quota_exceeded", renamesRemaining: q.remaining },
+            { status: 429 }
+          );
+        }
+        renamesRemaining = q.remaining;
+      }
       bib = await updateBibName(session.user.id, parsed.data.nameOnBib);
     }
     if (parsed.data.willPayInPerson !== undefined) {
@@ -190,7 +213,7 @@ export async function PATCH(req: NextRequest) {
         parsed.data.willPayInPerson
       );
     }
-    return NextResponse.json({ bib }, { status: 200 });
+    return NextResponse.json({ bib, renamesRemaining }, { status: 200 });
   } catch (err) {
     if (err instanceof NameLockedError) {
       return NextResponse.json({ error: "name_locked" }, { status: 409 });

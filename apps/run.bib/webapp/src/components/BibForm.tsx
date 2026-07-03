@@ -1,211 +1,119 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import BibPreview from "./BibPreview";
 
 /**
  * BibForm
  *
- * Client-side registration form. Owns the controlled input for `nameOnBib`,
- * drives the live-updating <BibPreview />, and debounces PATCH /api/bib
- * updates so the server isn't hit on every keystroke.
+ * Client-side registration form. Owns the controlled input for `nameOnBib`
+ * and drives the live <BibPreview />. Saving is EXPLICIT (Save/Cancel), and
+ * each committed change consumes one of the runner's rename quota
+ * (Kurt 2026-07-03 — abuse guard; the server enforces the same limit and is
+ * the source of truth). Cancel reverts to the last saved value.
  *
- * Behaviour contract (v1.5 Phase 21 design contract):
- *   - Hard-cap the name at 32 chars, mirroring the server-side cap in
- *     src/app/api/bib/route.ts (Zod: z.string().max(32)).
- *   - When `nameLocked=true` (from GET /api/bib), disable the input and
- *     surface a "Name locked for print" hint. This mirrors the server-side
- *     409 that PATCH would raise if a locked bib is PATCHed anyway.
- *   - Debounce PATCH by 400ms after the last keystroke.
- *   - While a PATCH is in flight, the input stays enabled (typing continues
- *     to accumulate into the pending value); a `Saving…` badge shows the
- *     transient state.
- *   - On 409 name_locked (raced admin lock during editing), lock the input
- *     locally and show the same "Name locked" hint.
- *   - On any other network / server error, show a "Save failed" hint but
- *     keep the input editable so the user can retry.
- *
- * The parent (`app/page.tsx`) passes:
- *   - `initialName` — whatever the server-side GET returned for nameOnBib.
- *   - `initialCode` — the assigned runnerCode (BIB-XXXX).
- *   - `nameLocked`  — the server's nameLocked flag at initial render.
- *
- * The form intentionally does NOT re-fetch the bib after each save; if
- * server-side trimming changes the value, the next full page load will
- * reconcile. Keeps the client optimistic and fast.
+ * The parent (`app/orderform/page.tsx`) passes:
+ *   - `initialName` — server-side nameOnBib.
+ *   - `nameLocked`  — server's nameLocked flag.
+ *   - `initialRenamesRemaining` — quota - nameRenameCount, from the server.
  */
 export interface BibFormProps {
   initialName: string;
   nameLocked: boolean;
-  /**
-   * Phase 22-05-06 sponsor charm accent. Passed through to BibPreview so
-   * the green (DC34 mint palette #6CCDB8) charm renders when the participant has any contribution
-   * (bib.paidAmount > 0). Optional — defaults to `false`.
-   */
+  /** Sponsor charm accent, passed to BibPreview (paidAmount > 0). */
   hasSponsored?: boolean;
+  /** Remaining committed name changes (server: quota - nameRenameCount). */
+  initialRenamesRemaining: number;
 }
 
-/** Debounce window between last keystroke and PATCH fire (ms). */
-const PATCH_DEBOUNCE_MS = 400;
+const API_BIB_PATH = "/api/bib";
+const NAME_MAX = 32;
 
-/**
- * Save-state discriminator:
- *   - idle: no pending or in-flight save
- *   - dirty: local input differs from last saved value; debounce timer armed
- *   - saving: PATCH in flight
- *   - saved: last PATCH succeeded (transient banner)
- *   - locked: server returned 409 name_locked (input disabled from here on)
- *   - error: transient network / 5xx save failure (input still editable)
- */
 type SaveState =
   | { kind: "idle" }
-  | { kind: "dirty" }
   | { kind: "saving" }
   | { kind: "saved" }
   | { kind: "locked" }
+  | { kind: "quota" }
   | { kind: "error"; detail: string };
-
-/**
- * Compute the api path for /api/bib. In production the app is mounted at
- * /{region}/... via next.config.ts basePath, so relative URLs from the
- * browser resolve correctly. Kept as a helper for clarity + future hook
- * points (e.g., regional failover).
- */
-const API_BIB_PATH = "/api/bib";
-
-/** Absolute-cap on nameOnBib. Server enforces the same value. */
-const NAME_MAX = 32;
 
 export function BibForm({
   initialName,
   nameLocked: initialLocked,
   hasSponsored = false,
+  initialRenamesRemaining,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
+  const [savedName, setSavedName] = useState<string>(initialName);
   const [nameLocked, setNameLocked] = useState<boolean>(initialLocked);
+  const [renamesRemaining, setRenamesRemaining] = useState<number>(
+    initialRenamesRemaining
+  );
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
 
-  // The last name we've successfully persisted (so we can detect true
-  // dirtiness vs. no-op).
-  const lastSavedRef = useRef<string>(initialName);
-  // Debounce timer id.
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // AbortController for the in-flight PATCH so we don't clobber a fresh
-  // keystroke's save with a stale response.
-  const abortRef = useRef<AbortController | null>(null);
+  const dirty = name !== savedName;
+  const quotaSpent = renamesRemaining <= 0;
+  const saving = saveState.kind === "saving";
+  const canSave = dirty && !nameLocked && !quotaSpent && !saving;
 
-  const runPatch = useCallback(async (nextName: string) => {
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-    const controller = new AbortController();
-    abortRef.current = controller;
+  const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Strip non-ASCII (emoji/combining marks) the bib printer can't render;
+    // cap at NAME_MAX. Server enforces the same rules.
+    const next = event.target.value
+      .replace(/[^\x20-\x7E]/g, "")
+      .slice(0, NAME_MAX);
+    setName(next);
+    if (saveState.kind !== "saving") setSaveState({ kind: "idle" });
+  };
 
+  const onCancel = () => {
+    setName(savedName);
+    setSaveState({ kind: "idle" });
+  };
+
+  const onSave = useCallback(async () => {
+    if (name === savedName || nameLocked || renamesRemaining <= 0) return;
     setSaveState({ kind: "saving" });
     try {
       const res = await fetch(API_BIB_PATH, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nameOnBib: nextName }),
-        signal: controller.signal,
+        body: JSON.stringify({ nameOnBib: name }),
       });
-
       if (res.status === 409) {
-        // Admin locked the bib mid-edit.
         setNameLocked(true);
         setSaveState({ kind: "locked" });
         return;
       }
-
-      if (!res.ok) {
-        // 400 / 404 / 5xx — surface a generic failure. The API layer's
-        // structured JSON body is useful for diagnostics but the user only
-        // needs "save failed, retry".
-        setSaveState({
-          kind: "error",
-          detail: `HTTP ${res.status}`,
-        });
+      if (res.status === 429) {
+        setRenamesRemaining(0);
+        setSaveState({ kind: "quota" });
         return;
       }
-
-      lastSavedRef.current = nextName;
+      if (!res.ok) {
+        setSaveState({ kind: "error", detail: `HTTP ${res.status}` });
+        return;
+      }
+      const body = (await res.json()) as { renamesRemaining?: number };
+      setSavedName(name);
+      if (typeof body.renamesRemaining === "number") {
+        setRenamesRemaining(body.renamesRemaining);
+      }
       setSaveState({ kind: "saved" });
     } catch (err) {
-      // Aborted requests are the normal debounce flow — don't surface them.
-      if (
-        err instanceof DOMException &&
-        (err.name === "AbortError" || err.message.includes("aborted"))
-      ) {
-        return;
-      }
       setSaveState({
         kind: "error",
         detail: err instanceof Error ? err.message : "network",
       });
-    } finally {
-      if (abortRef.current === controller) {
-        abortRef.current = null;
-      }
     }
-  }, []);
-
-  // Debounce: on every `name` change that differs from the last saved
-  // value, arm the timer. Clears any previous timer.
-  useEffect(() => {
-    if (nameLocked) return;
-
-    if (name === lastSavedRef.current) {
-      // Reverted to server value — cancel any pending save.
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-      setSaveState({ kind: "idle" });
-      return;
-    }
-
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    setSaveState({ kind: "dirty" });
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-      runPatch(name);
-    }, PATCH_DEBOUNCE_MS);
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [name, nameLocked, runPatch]);
-
-  // Clear any pending timer + abort in-flight request on unmount so we
-  // don't leak.
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      if (abortRef.current) abortRef.current.abort();
-    };
-  }, []);
-
-  const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    // Kurt 2026-07-02: strip non-ASCII (emojis, combining marks, etc.)
-    // silently so paste flows and IME output can't smuggle glyphs the bib
-    // printer can't render. Server enforces the same rule in PATCH.
-    // Client-side cap mirrors the server contract. The maxLength attribute
-    // stops most keystrokes; slice() defends against paste + IME cases the
-    // browser may not clip.
-    const next = event.target.value
-      .replace(/[^\x20-\x7E]/g, "")
-      .slice(0, NAME_MAX);
-    setName(next);
-  };
+  }, [name, savedName, nameLocked, renamesRemaining]);
 
   return (
     <form
-      onSubmit={(e) => e.preventDefault()}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave();
+      }}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -253,84 +161,111 @@ export function BibForm({
             cursor: nameLocked ? "not-allowed" : "text",
           }}
         />
-        <SaveStateHint state={saveState} nameLocked={nameLocked} name={name} />
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+          }}
+        >
+          {/* Tiny save/cancel — each save spends one rename. */}
+          <button
+            type="submit"
+            disabled={!canSave}
+            style={{
+              padding: "6px 14px",
+              fontSize: 13,
+              fontWeight: 700,
+              color: canSave ? "#0a0a0a" : "#8f8fa8",
+              backgroundColor: canSave ? "#6CCDB8" : "#2a2a34",
+              border: "none",
+              borderRadius: 6,
+              cursor: canSave ? "pointer" : "not-allowed",
+            }}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={!dirty || saving}
+            style={{
+              padding: "6px 14px",
+              fontSize: 13,
+              fontWeight: 600,
+              color: !dirty || saving ? "#6a6a7a" : "#e4e4ef",
+              backgroundColor: "transparent",
+              border: "1px solid #2a2a34",
+              borderRadius: 6,
+              cursor: !dirty || saving ? "not-allowed" : "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <SaveStateHint
+            state={saveState}
+            nameLocked={nameLocked}
+            renamesRemaining={renamesRemaining}
+          />
+        </div>
       </div>
     </form>
   );
 }
 
-/**
- * Small helper component that renders the human-readable status underneath
- * the input. Split out to keep the form body readable.
- */
+/** Human-readable status + remaining-rename count under the buttons. */
 function SaveStateHint({
   state,
   nameLocked,
-  name,
+  renamesRemaining,
 }: {
   state: SaveState;
   nameLocked: boolean;
-  name: string;
+  renamesRemaining: number;
 }) {
-  const baseStyle: React.CSSProperties = {
-    fontSize: 13,
-    color: "#a4a4b8",
-    minHeight: 18,
-  };
+  const base: React.CSSProperties = { fontSize: 13, color: "#a4a4b8" };
+  const left = `${renamesRemaining} name change${renamesRemaining === 1 ? "" : "s"} left`;
 
   if (nameLocked || state.kind === "locked") {
     return (
-      <span
-        id="bib-name-hint"
-        role="status"
-        style={{ ...baseStyle, color: "#6CCDB8" }}
-      >
-        Name locked for print — contact organizers if this needs to change.
+      <span id="bib-name-hint" role="status" style={{ ...base, color: "#6CCDB8" }}>
+        Name locked for print — contact organizers to change it.
       </span>
     );
   }
-
-  const remaining = NAME_MAX - name.length;
-  const remainingText = `${remaining} character${remaining === 1 ? "" : "s"} remaining`;
-
+  if (state.kind === "quota" || renamesRemaining <= 0) {
+    return (
+      <span id="bib-name-hint" role="status" style={{ ...base, color: "#ff8a8a" }}>
+        No name changes left.
+      </span>
+    );
+  }
   switch (state.kind) {
     case "saving":
       return (
-        <span id="bib-name-hint" role="status" style={baseStyle}>
+        <span id="bib-name-hint" role="status" style={base}>
           Saving…
         </span>
       );
     case "saved":
       return (
-        <span
-          id="bib-name-hint"
-          role="status"
-          style={{ ...baseStyle, color: "#7fdc9e" }}
-        >
-          Saved. {remainingText}.
+        <span id="bib-name-hint" role="status" style={{ ...base, color: "#7fdc9e" }}>
+          Saved · {left}
         </span>
       );
     case "error":
       return (
-        <span
-          id="bib-name-hint"
-          role="status"
-          style={{ ...baseStyle, color: "#ff8a8a" }}
-        >
-          Save failed ({state.detail}) — will retry as you keep typing.
-        </span>
-      );
-    case "dirty":
-      return (
-        <span id="bib-name-hint" role="status" style={baseStyle}>
-          Unsaved changes… {remainingText}.
+        <span id="bib-name-hint" role="status" style={{ ...base, color: "#ff8a8a" }}>
+          Save failed ({state.detail}) — try again.
         </span>
       );
     case "idle":
     default:
       return (
-        <span id="bib-name-hint" role="status" style={baseStyle}>
-          {remainingText}
+        <span id="bib-name-hint" role="status" style={base}>
+          {left}
         </span>
       );
   }

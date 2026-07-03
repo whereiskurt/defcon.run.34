@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/config/auth";
 import { getBib } from "@/entities/bib";
+import { recordPending } from "@/entities/pending-contribution";
 import { getVenmoHandle } from "@/lib/handles";
 import { parseAmountCentsFromQuery } from "@/lib/amount";
 import SponsorInstructions from "@/components/SponsorInstructions";
@@ -52,6 +53,19 @@ export default async function VenmoInstructionsPage({
   const params = (await searchParams) ?? {};
   const amountCents = parseAmountCentsFromQuery(params.amount_cents);
   const handle = await getVenmoHandle();
+
+  // Record the intent so it shows as "in progress" in the runner's
+  // transaction history until an organizer reconciles the receipt. Best-effort:
+  // a DDB hiccup must never block the payment instructions from rendering.
+  await recordPending({
+    ownerSub,
+    kind: "bib",
+    provider: "venmo",
+    amountCents,
+    runnerCode: bib.runnerCode,
+  }).catch((e) =>
+    console.warn(`[run.bib] /sponsor/venmo: recordPending failed: ${e}`)
+  );
 
   // Venmo deep-link contract:
   //   venmo://paycharge?txn=pay&recipients=<handle-no-@>&amount=<dollars>&note=<runnerCode>

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/config/auth";
 import { getStripeClient } from "@/lib/stripe";
 import { STRIPE_PRODUCT_GENERAL } from "@/config/stripe-products";
+import { checkQuota, type QuotaTier } from "@/lib/quota-client";
 
 /**
  * POST /api/checkout/general — create a Stripe Checkout Session for a
@@ -32,7 +33,7 @@ import { STRIPE_PRODUCT_GENERAL } from "@/config/stripe-products";
  */
 
 const bodySchema = z.object({
-  amount_cents: z.number().int().min(100).max(100_000),
+  amount_cents: z.number().int().min(1_000).max(100_000), // $10 donation minimum
 });
 
 /**
@@ -40,7 +41,9 @@ const bodySchema = z.object({
  * factoring into a shared module until a third checkout route lands.
  */
 function bibPublicUrl(): string {
-  const base = process.env.BIB_PUBLIC_URL || "https://bib.defcon.run";
+  // BIB_PUBLIC_URL already includes the region prefix (e.g. https://bib.defcon.run/use1),
+  // so success/cancel URLs append just /orderform — do NOT re-add /use1 (caused /use1/use1).
+  const base = process.env.BIB_PUBLIC_URL || "https://bib.defcon.run/use1";
   return base.replace(/\/+$/, "");
 }
 
@@ -71,6 +74,27 @@ export async function POST(req: NextRequest) {
   }
 
   const ownerSub = session.user.id;
+
+  // Block starting a donation once the donation quota is spent.
+  {
+    const services = (session.user as { services?: string[] }).services ?? [];
+    const tier: QuotaTier = services.includes("admin") ? "admin" : "upload";
+    let atLimit = false;
+    let remaining = -1;
+    try {
+      const q = await checkQuota(ownerSub, "donation", 1, tier);
+      atLimit = !q.allowed;
+      remaining = q.remaining;
+    } catch {
+      // quota service unavailable — fail open; completion still consumes it
+    }
+    if (atLimit) {
+      return NextResponse.json(
+        { error: "donation_limit_reached", remaining },
+        { status: 429 }
+      );
+    }
+  }
 
   let stripe;
   try {
@@ -105,8 +129,8 @@ export async function POST(req: NextRequest) {
         donation_type: "general",
         owner_sub: ownerSub,
       },
-      success_url: `${base}/use1/orderform?status=success`,
-      cancel_url: `${base}/use1/orderform?status=cancel`,
+      success_url: `${base}/orderform?status=success`,
+      cancel_url: `${base}/orderform?status=cancel`,
     });
 
     if (!stripeSession.url) {

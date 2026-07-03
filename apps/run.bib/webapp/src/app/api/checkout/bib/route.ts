@@ -4,6 +4,7 @@ import { auth } from "@/config/auth";
 import { getBib } from "@/entities/bib";
 import { getStripeClient } from "@/lib/stripe";
 import { STRIPE_PRODUCT_BIB } from "@/config/stripe-products";
+import { checkQuota, type QuotaTier } from "@/lib/quota-client";
 
 /**
  * POST /api/checkout/bib — create a Stripe Checkout Session for a bib
@@ -32,7 +33,7 @@ import { STRIPE_PRODUCT_BIB } from "@/config/stripe-products";
  */
 
 const bodySchema = z.object({
-  amount_cents: z.number().int().min(100).max(100_000),
+  amount_cents: z.number().int().min(2_000).max(100_000), // $20 bib minimum
   // Retained for backward compatibility with pre-22-05 SponsorForm calls.
   // Only `"stripe"` is accepted; Venmo / CashApp handoff is client-side.
   provider: z.literal("stripe").optional(),
@@ -49,8 +50,9 @@ const bodySchema = z.object({
  * `BIB_PUBLIC_URL` overrides for staging / preview environments.
  */
 function bibPublicUrl(): string {
-  const base = process.env.BIB_PUBLIC_URL || "https://bib.defcon.run";
-  // Trim any trailing slash so we can safely concatenate `/use1/?status=...`.
+  // BIB_PUBLIC_URL already includes the region prefix (e.g. https://bib.defcon.run/use1).
+  // success/cancel URLs append just /orderform — re-adding /use1 caused /use1/use1/orderform.
+  const base = process.env.BIB_PUBLIC_URL || "https://bib.defcon.run/use1";
   return base.replace(/\/+$/, "");
 }
 
@@ -79,6 +81,28 @@ export async function POST(req: NextRequest) {
   }
 
   const ownerSub = session.user.id;
+
+  // Block starting a purchase once the bib_purchase quota is spent (remaining
+  // -1 = not yet initialized → allowed). Completion consumes it in the webhook.
+  {
+    const services = (session.user as { services?: string[] }).services ?? [];
+    const tier: QuotaTier = services.includes("admin") ? "admin" : "upload";
+    let atLimit = false;
+    let remaining = -1;
+    try {
+      const q = await checkQuota(ownerSub, "bib_purchase", 1, tier);
+      atLimit = !q.allowed;
+      remaining = q.remaining;
+    } catch {
+      // quota service unavailable — fail open; completion still consumes it
+    }
+    if (atLimit) {
+      return NextResponse.json(
+        { error: "purchase_limit_reached", remaining },
+        { status: 429 }
+      );
+    }
+  }
 
   // Runner code is required for reconciliation metadata on the Stripe
   // side (post-payment success reads this back to attach the payment to
@@ -130,8 +154,8 @@ export async function POST(req: NextRequest) {
       },
       // Regional /use1/ prefix baked in — Stripe redirects the browser
       // straight to the URL; Next.js basePath rewriting doesn't fire.
-      success_url: `${base}/use1/orderform?status=success`,
-      cancel_url: `${base}/use1/orderform?status=cancel`,
+      success_url: `${base}/orderform?status=success`,
+      cancel_url: `${base}/orderform?status=cancel`,
     });
 
     if (!stripeSession.url) {
