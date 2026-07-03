@@ -5,17 +5,16 @@ import {
   NavbarContent,
   NavbarItem,
   Link,
-  Button,
   Tooltip,
 } from "@heroui/react";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import { GrMapLocation } from "react-icons/gr";
 import { FaRadio } from "react-icons/fa6";
 import { PiPersonSimpleRun } from "react-icons/pi";
 import { FiShield } from "react-icons/fi";
 
 import { ThemeSwitch } from "./theme-switch";
+import { UserDropdown } from "./user-dropdown";
 
 /**
  * Site header (v1.6) — ported look from run.human's HeroUI Navbar so the bib
@@ -103,24 +102,14 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
         )}
       </NavbarContent>
 
-      {/* Right: theme + sign-out */}
-      <NavbarContent justify="end" className="gap-2">
+      {/* Right: theme + avatar dropdown (matches run.defcon.run) */}
+      <NavbarContent justify="end" className="gap-3">
         <NavbarItem>
           <ThemeSwitch />
         </NavbarItem>
         {userName ? (
-          <NavbarItem className="flex items-center gap-2">
-            <span className="hidden sm:inline text-xs text-default-500 max-w-[140px] truncate">
-              {userName}
-            </span>
-            <Button
-              size="sm"
-              variant="flat"
-              className="text-xs"
-              onPress={() => signOut({ callbackUrl: "/orderform" })}
-            >
-              Sign out
-            </Button>
+          <NavbarItem>
+            <UserDropdown />
           </NavbarItem>
         ) : null}
       </NavbarContent>
