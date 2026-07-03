@@ -131,6 +131,12 @@ export class PublicOverlaysLayer {
         });
     }
 
+    /** Resolve once the style (incl. the async basemap import) can accept sources/layers. */
+    private whenStyleReady(): Promise<void> {
+        if (this.map.isStyleLoaded()) return Promise.resolve();
+        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+    }
+
     /** Fetch the manifest and render every route (hidden until toggled on by the group default). */
     async add() {
         if (this.loaded) return;
@@ -163,6 +169,12 @@ export class PublicOverlaysLayer {
             return; // manifest unavailable → no overlays, studio unaffected
         }
 
+        // add() is called on the map 'load' event, but the basemap is a STYLE IMPORT that
+        // loads slightly later — adding sources/layers before it is ready throws, which used
+        // to silently drop whichever routes happened to resolve first. Gate on style-ready so
+        // every route is added against a ready map, not a race.
+        await this.whenStyleReady();
+
         // Fetch + parse each route's GPX, add a read-only glow+core line layer (initially hidden).
         await Promise.all(
             groups.flatMap((group) =>
@@ -173,8 +185,9 @@ export class PublicOverlaysLayer {
                         const geojson = parseGPX(await gpxRes.text()).toGeoJSON();
                         this.addRouteLayer(m, group.folderName);
                         this.setRouteData(m.fileId, geojson);
-                    } catch {
-                        // skip a route that fails to load; others still render
+                    } catch (err) {
+                        // skip a route that fails to fetch/parse; others still render
+                        console.warn(`[public-overlays] failed to load ${m.fileId}:`, err);
                     }
                 })
             )
@@ -271,8 +284,10 @@ export class PublicOverlaysLayer {
                     { id: core, type: 'mouseleave', fn: onLeave }
                 );
             }
-        } catch {
-            // map not ready to accept sources/layers yet
+        } catch (err) {
+            // Should not happen now that add() gates on whenStyleReady(); warn instead of
+            // silently dropping the route so any regression is visible in the console.
+            console.warn(`[public-overlays] failed to add layer for ${m.fileId}:`, err);
         }
     }
 
