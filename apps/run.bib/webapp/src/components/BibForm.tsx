@@ -27,7 +27,8 @@ export interface BibFormProps {
 }
 
 const API_BIB_PATH = "/api/bib";
-const NAME_MAX = 32;
+// Kurt 2026-07-03: 24-char cap (was 32) — matches the physical bib render budget.
+const NAME_MAX = 24;
 
 type SaveState =
   | { kind: "idle" }
@@ -123,8 +124,7 @@ export function BibForm({
         margin: "0 auto",
       }}
     >
-      <BibPreview name={name} hasSponsored={hasSponsored} />
-
+      {/* A3 (Kurt 2026-07-03): name field FIRST, then the live preview below. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <label
           htmlFor="bib-name-input"
@@ -211,6 +211,9 @@ export function BibForm({
           />
         </div>
       </div>
+
+      {/* Live preview sits BELOW the name field (A3, name-first). */}
+      <BibPreview name={name} hasSponsored={hasSponsored} />
     </form>
   );
 }
@@ -250,9 +253,11 @@ function SaveStateHint({
         </span>
       );
     case "saved":
+      // A5 (Kurt 2026-07-03): keep the remaining count under wraps — only
+      // surface it when it's getting low (≤3 left).
       return (
         <span id="bib-name-hint" role="status" style={{ ...base, color: "#7fdc9e" }}>
-          Saved · {left}
+          {renamesRemaining <= 3 ? `Saved · ${left}` : "Saved."}
         </span>
       );
     case "error":
@@ -263,10 +268,13 @@ function SaveStateHint({
       );
     case "idle":
     default:
-      return (
-        <span id="bib-name-hint" role="status" style={base}>
+      // A5: hide the quota entirely until only a few changes remain.
+      return renamesRemaining <= 3 ? (
+        <span id="bib-name-hint" role="status" style={{ ...base, color: "#f4c680" }}>
           {left}
         </span>
+      ) : (
+        <span id="bib-name-hint" role="status" style={base} />
       );
   }
 }

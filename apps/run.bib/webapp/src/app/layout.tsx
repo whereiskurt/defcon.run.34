@@ -1,31 +1,76 @@
-import type { Metadata } from "next";
+import "@/styles/globals.css";
+import type { Metadata, Viewport } from "next";
+import clsx from "clsx";
+
 import { Providers } from "./providers";
+import { auth } from "@/config/auth";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
+import { MapBackground } from "@/components/map-background";
+import {
+  fontSans,
+  fontMono,
+  fontMuseo,
+  fontAtkinson,
+} from "@/config/fonts";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
-// SessionProvider basePath - full path for client-side browser requests
-// (includes region prefix because browser needs the complete URL)
+// SessionProvider basePath — full path for client-side browser requests
+// (includes region prefix because the browser needs the complete URL).
 const authBasePath = isDev ? "/api/auth" : `/${REGION_SHORT}/api/auth`;
 
 export const metadata: Metadata = {
-  title: "Get Your Bib · defcon.run 34",
+  title: "defcon.run 34 · Bib",
   description:
     "defcon.run 34 bib registration for run.defcon.run participants",
+  icons: { icon: "/favicon.ico" },
 };
 
-export default function RootLayout({
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0f" },
+  ],
+};
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+  const user = session?.user as
+    | { name?: string | null; email?: string | null; services?: string[] }
+    | undefined;
+  const userName = user?.name || user?.email || null;
+  const isAdmin = Array.isArray(user?.services) && user.services.includes("admin");
+  const versionApp = process.env.NEXT_PUBLIC_VERSION_APP || "dev";
+
   return (
-    <html lang="en">
-      {/* Reset the default 8px body margin so the dark background reaches
-       * the edges of the viewport (Kurt 2026-07-02 feedback: white border
-       * around the page). Backgrounds on the landing/signin pages set the
-       * dark colour inside the layout; this just makes them extend fully. */}
-      <body style={{ margin: 0, backgroundColor: "#0a0a0a" }}>
-        <Providers authBasePath={authBasePath}>{children}</Providers>
+    <html suppressHydrationWarning lang="en">
+      <body
+        className={clsx(
+          "min-h-screen bg-background font-sans antialiased text-foreground",
+          fontSans.variable,
+          fontMono.variable,
+          fontMuseo.variable,
+          fontAtkinson.variable
+        )}
+      >
+        <Providers
+          themeProps={{ attribute: "class", defaultTheme: "dark" }}
+          authBasePath={authBasePath}
+        >
+          <MapBackground />
+          <div className="relative flex flex-col min-h-screen noise-overlay">
+            <div className="flex-shrink-0 relative z-10">
+              <Header userName={userName} isAdmin={isAdmin} />
+            </div>
+            <main className="relative z-10 flex-grow">{children}</main>
+            <Footer versionTooltip={`DC34 ${versionApp}`} />
+          </div>
+        </Providers>
       </body>
     </html>
   );

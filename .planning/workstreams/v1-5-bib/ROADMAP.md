@@ -92,12 +92,14 @@ Mirror `apps/run.flash/` two-container (nginx + Next.js) ECS Fargate + CloudFron
 
 ## Phases
 
-- [ ] **Phase 20: Infrastructure Foundation** (2 plans)
-  - [ ] 20-01-PLAN.md — Routable + secret surface: site.hcl DNS/CF/service_conf edits, service.hcl ECR skeleton, 5 SSM params via new bib-secrets/ unit with placeholder + ignore_changes
-  - [ ] 20-02-PLAN.md — Service + data surface: service.hcl task/service (us-east-1 only), site.hcl ecs_tasks/services wiring, runnerCode-index GSI on run-human-electro (additive), SES rule for bibpayment@run.defcon.run → s3://ses-inbox-dc34-use1/bib-payments/
-- [ ] **Phase 21: App Scaffold + Bib Registration** (2-3 plans expected)
-- [ ] **Phase 22: Payments (Stripe + Venmo/CashApp reconciliation via Haiku)** (3-4 plans expected)
-- [ ] **Phase 23: Build/Deploy + Branding** (1 plan expected)
+**ALL PHASES SHIPPED & DEPLOYED — bib.defcon.run live at v0.0.18 (2026-07-03).**
+
+- [x] **Phase 20: Infrastructure Foundation** (2 plans) — #228
+  - [x] 20-01-PLAN.md — Routable + secret surface: site.hcl DNS/CF/service_conf edits, service.hcl ECR skeleton, 5 SSM params via new bib-secrets/ unit with placeholder + ignore_changes
+  - [x] 20-02-PLAN.md — Service + data surface: service.hcl task/service (us-east-1 only), site.hcl ecs_tasks/services wiring, runnerCode-index GSI on run-human-electro (additive), SES rule for bibpayment@run.defcon.run → s3://ses-inbox-dc34-use1/bib-payments/
+- [x] **Phase 21: App Scaffold + Bib Registration** (3 plans) — #233, #236, #237
+- [x] **Phase 22: Payments (Stripe + Venmo/CashApp reconciliation via Haiku)** (5 plans + rescope 22-05) — #240, #244, #247, #249, #251, #252, #255
+- [x] **Phase 23: Build/Deploy + Branding** — infra applied + ~25 hotfix/feedback releases to v0.0.18 (#267–#315). Open follow-ups: Jesse admin allowlist, live-payment HITL verification.
 
 ---
 

@@ -12,14 +12,11 @@ import { requireAdmin } from "@/lib/admin-gate";
  * CashApp. Kurt / Jesse use the list to prepare cash / card intake at
  * the event.
  *
- * Auth model (Option A per PLAN-22-05.md §22-05-07; Kurt 2026-07-02
- * email + container-cache correction):
+ * Auth model (v1.6, Kurt 2026-07-03 — group claim):
  *   - Session required (401 if missing).
- *   - `session.user.email` must be in the SSM allowlist at
- *     /dc34/secrets/use1/bib/admin/allowlist (403 if missing).
- *   - Allowlist read ONCE at first call and cached at module scope for
- *     the container's lifetime; rotating an admin off requires a
- *     container restart (i.e., a redeploy).
+ *   - `session.user.services` must include `"admin"` (403 otherwise) — the
+ *     run.auth groups model, same check run.human uses. Grants/revokes on
+ *     the AuthProfile propagate to the session within ~5 min (no redeploy).
  *
  * Response shape:
  *   { count: number, bibs: Array<{ ownerSub, nameOnBib, runnerCode, createdAt }> }
@@ -51,7 +48,7 @@ type PledgedBibRow = {
 
 export async function GET() {
   const session = await auth();
-  const gate = await requireAdmin(session);
+  const gate = requireAdmin(session);
   if (!gate.ok) {
     if (gate.reason === "no_session") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });

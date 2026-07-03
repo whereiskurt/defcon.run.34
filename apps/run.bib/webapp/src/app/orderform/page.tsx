@@ -146,60 +146,59 @@ export default async function Home({ searchParams }: HomeProps) {
     .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
   const txns: Txn[] = [...pendingTxns, ...reconciled];
 
+  // A4 (Kurt 2026-07-03): once any money has moved for this bib, drop the
+  // "I'll pay in person" pledge — it's only meaningful pre-payment.
+  const hasTransacted = hasSponsored || donationTotal > 0;
+
   return (
-    <main
+    // Transparent container — the root layout now paints the dark background,
+    // the Vegas parallax, and the glass-nav header around this content.
+    <div
       style={{
-        minHeight: "100vh",
-        backgroundColor: "#0a0a0a",
-        color: "#e4e4ef",
-        fontFamily: "system-ui, -apple-system, sans-serif",
-        padding: "48px 20px 96px",
+        maxWidth: 760,
+        margin: "0 auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: 32,
+        padding: "32px 20px 64px",
       }}
     >
-      <div
-        style={{
-          maxWidth: 760,
-          margin: "0 auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 40,
-        }}
-      >
-        <header style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <h1
-            style={{
-              fontSize: 32,
-              margin: 0,
-              fontWeight: 800,
-              letterSpacing: "0.01em",
-            }}
-          >
-            Get Your Bib
-          </h1>
-          <p style={{ margin: 0, color: "#a4a4b8", fontSize: 15 }}>
-            defcon.run 34 — run.defcon.run
-          </p>
-        </header>
-
-        {status && <StripeStatusBanner status={status} />}
-
-        {/* Section 1: Get your bib (free) */}
-        <Section
-          title="Get your bib"
-          intro="Registration is free. Pick the name that renders on your bib."
+      {/* A2: single custom page title — the site header already carries the
+        * defcon.run wordmark, so no duplicate "Get your bib" headings. */}
+      <header style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <h1
+          style={{
+            fontSize: 30,
+            margin: 0,
+            fontWeight: 800,
+            letterSpacing: "0.01em",
+          }}
         >
-          <BibForm
-            initialName={bib.nameOnBib || ""}
-            nameLocked={bib.nameLocked === true}
-            hasSponsored={hasSponsored}
-            initialRenamesRemaining={renamesRemaining}
-          />
+          run.defcon.run 34 · Bib
+        </h1>
+        <p style={{ margin: 0, color: "#a4a4b8", fontSize: 15 }}>
+          Registration is free — pick the name that prints on your bib.
+        </p>
+      </header>
+
+      {status && <StripeStatusBanner status={status} />}
+
+      {/* Get your bib — name first (A3), live preview below (inside BibForm). */}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        <BibForm
+          initialName={bib.nameOnBib || ""}
+          nameLocked={bib.nameLocked === true}
+          hasSponsored={hasSponsored}
+          initialRenamesRemaining={renamesRemaining}
+        />
+        {!hasTransacted && (
           <div style={{ marginTop: 16 }}>
             <WillPayInPersonCheckbox
               initialValue={bib.willPayInPerson === true}
             />
           </div>
-        </Section>
+        )}
+      </div>
 
         <TransactionHistory totalCents={totalCents} txns={txns} />
 
@@ -263,54 +262,6 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <FooterNote />
       </div>
-    </main>
-  );
-}
-
-/**
- * Section wrapper — visual container for the top "Get your bib" block.
- * Server component (no client JS) so it stays fast to render.
- */
-function Section({
-  title,
-  intro,
-  children,
-}: {
-  title: string;
-  intro: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 12,
-      }}
-      aria-label={title}
-    >
-      <h2
-        style={{
-          fontSize: 20,
-          fontWeight: 700,
-          margin: 0,
-          letterSpacing: "0.01em",
-        }}
-      >
-        {title}
-      </h2>
-      <p
-        style={{
-          margin: 0,
-          color: "#a4a4b8",
-          fontSize: 14,
-          lineHeight: 1.5,
-        }}
-      >
-        {intro}
-      </p>
-      <div style={{ marginTop: 8 }}>{children}</div>
-    </section>
   );
 }
 
