@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { useWizard } from "@/hooks/use-wizard";
+import { useWizard, STEPS, type WizardStep } from "@/hooks/use-wizard";
 import { useSerial } from "@/hooks/use-serial";
 import { useDfu } from "@/hooks/use-dfu";
 import { useFlash } from "@/hooks/use-flash";
@@ -13,8 +13,14 @@ import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { DeviceGrid } from "@/components/device-picker/device-grid";
 import { ConnectStep, type TransportState } from "@/components/connect/connect-step";
 import { FlashStep, type FlashTransport } from "@/components/flash/flash-step";
+import { Nrf52FlashStep } from "@/components/flash/nrf52-flash-step";
 import { ConfigureStep } from "@/components/configure/configure-step";
 import { DoneStep } from "@/components/done/done-step";
+
+/** No-op transport disconnect for the nRF52 configure path — the device was
+ *  flashed via UF2 drag-drop, so there is no esptool serial transport to
+ *  release before the Meshtastic serial handshake. */
+const noopDisconnect = async () => {};
 
 export function WizardContainer() {
   const {
@@ -42,6 +48,11 @@ export function WizardContainer() {
   // throws fail-fast on unknown architectures so an unsupported device never
   // reaches the connect step silently.
   const family = selectedDevice ? getDeviceFamily(selectedDevice) : null;
+
+  // nRF52 has no Web-Serial "Connect" step (flashed via UF2 drag-drop, connects
+  // over serial only during Configure), so hide it from the stepper.
+  const visibleSteps: WizardStep[] =
+    family === "nrf52" ? STEPS.filter((s) => s !== "connect") : STEPS;
 
   // Build the discriminated transport for ConnectStep. nRF52 devices route
   // through the DFU handle; ESP32 devices keep the serial handle. Default
@@ -88,6 +99,7 @@ export function WizardContainer() {
           currentStep={currentStep}
           completedSteps={completedSteps}
           onStepClick={goToStep}
+          steps={visibleSteps}
         />
       </div>
 
@@ -108,7 +120,9 @@ export function WizardContainer() {
             />
           )}
 
-          {currentStep === "connect" && (
+          {/* Connect is ESP32-only. nRF52 skips it (see visibleSteps / the
+              pre-completed "connect" step in useWizard.selectDevice). */}
+          {currentStep === "connect" && family !== "nrf52" && (
             <ConnectStep
               device={selectedDevice}
               transport={transport}
@@ -119,27 +133,11 @@ export function WizardContainer() {
           )}
 
           {currentStep === "flash" && selectedDevice && (
-            // Gate the render on family-specific readiness:
-            // - ESP32 needs `serial.chipInfo` (the pre-flash panel shows the
-            //   chip line and identity comes from esptool)
-            // - nRF52 needs `dfu.isConnected` (VID/PID come from the claimed
-            //   DFU device; no esptool-style chip identifier exists)
+            // - nRF52: guided UF2 drag-drop (no live transport — the Adafruit
+            //   bootloader exposes a mass-storage volume, not DFU/serial).
+            // - ESP32: esptool pipeline, gated on `serial.chipInfo`.
             family === "nrf52" ? (
-              dfu.isConnected && (
-                <FlashStep
-                  device={selectedDevice}
-                  flashState={flashState}
-                  transport={flashTransport}
-                  consoleLogs={dfu.consoleLogs}
-                  appendLog={dfu.appendLog}
-                  onContinue={advance}
-                  onRetry={() => {
-                    flashState.reset();
-                    dfu.disconnect();
-                    goToStepForRetry("connect");
-                  }}
-                />
-              )
+              <Nrf52FlashStep device={selectedDevice} onContinue={advance} />
             ) : (
               serial.chipInfo && (
                 <FlashStep
@@ -163,15 +161,24 @@ export function WizardContainer() {
           {currentStep === "configure" && (
             <ConfigureStep
               device={selectedDevice}
+              family={family ?? "esp32"}
               configureState={configureState}
-              disconnectTransport={serial.disconnect}
+              disconnectTransport={
+                family === "nrf52" ? noopDisconnect : serial.disconnect
+              }
+              autoStart={family !== "nrf52"}
               onContinue={advance}
-
               onRetry={() => {
                 configureState.reset();
                 flashState.reset();
-                serial.disconnect();
-                goToStepForRetry("connect");
+                // nRF52 retries from the guided-flash step (no Connect step);
+                // ESP32 retries from Connect with a fresh serial session.
+                if (family === "nrf52") {
+                  goToStepForRetry("flash");
+                } else {
+                  serial.disconnect();
+                  goToStepForRetry("connect");
+                }
               }}
             />
           )}

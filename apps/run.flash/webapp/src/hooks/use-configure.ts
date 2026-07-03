@@ -5,11 +5,13 @@ import type { ConfigProgress, DeviceConfigPayload, ConfigStage } from "@/types/c
 import { INITIAL_CONFIG_PROGRESS } from "@/types/config";
 import {
   connectMeshtasticDevice,
+  connectMeshtasticDeviceNrf52,
   pushDeviceConfig,
   requestSecurityKeys,
   disconnectMeshtasticDevice,
 } from "@/lib/meshtastic";
 import type { MeshDevice } from "@meshtastic/core";
+import type { DeviceFamily } from "@/types/device";
 
 const basePath = process.env.NODE_ENV === 'production'
   ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
@@ -43,8 +45,15 @@ interface UseConfigureReturn {
    * 4. Push MQTT -> Channels -> Identity -> Radio -> Commit
    *
    * @param disconnectTransport - Function to disconnect the esptool transport (from useSerial)
+   * @param family - Device family; selects the reconnect strategy. "esp32"
+   *   reuses the connect-step serial grant + resets out of ROM bootloader;
+   *   "nrf52" prompts for the freshly-enumerated CDC port (UF2 flash grants no
+   *   serial permission). Defaults to "esp32" for the pre-existing call shape.
    */
-  configure: (disconnectTransport: () => Promise<void>) => Promise<void>;
+  configure: (
+    disconnectTransport: () => Promise<void>,
+    family?: DeviceFamily
+  ) => Promise<void>;
   /** Retry radio registration (only available after a failed registration) */
   retryRegistration: () => Promise<void>;
   /** Reset config state to idle (for retry) */
@@ -72,12 +81,18 @@ export function useConfigure(): UseConfigureReturn {
   const deviceRef = useRef<MeshDevice | null>(null);
 
   const configure = useCallback(
-    async (disconnectTransport: () => Promise<void>) => {
+    async (
+      disconnectTransport: () => Promise<void>,
+      family: DeviceFamily = "esp32"
+    ) => {
       if (isConfiguringRef.current) return;
       isConfiguringRef.current = true;
 
       try {
-        // Stage 1: Disconnect esptool transport to release serial port
+        // Stage 1: Disconnect esptool transport to release serial port.
+        // For nRF52 this is a no-op (no esptool transport was ever opened —
+        // the device was flashed via UF2 drag-drop), but we still await the
+        // passed function so the caller controls any cleanup.
         setProgress({
           stage: "connecting",
           completedStages: [],
@@ -87,10 +102,15 @@ export function useConfigure(): UseConfigureReturn {
 
         await disconnectTransport();
 
-        // Stage 2: Reconnect via @meshtastic/core
-        // connectMeshtasticDevice() handles: close stale port, reboot delay,
-        // reopen for Meshtastic protocol, configure handshake with retry.
-        const { device, registrationInfo } = await connectMeshtasticDevice();
+        // Stage 2: Reconnect via @meshtastic/core.
+        // ESP32: reuse the connect-step serial grant, reset out of ROM
+        //   bootloader, drain boot text, then handshake.
+        // nRF52: prompt for the freshly-enumerated CDC port (the UF2 flash
+        //   granted no serial permission), then handshake — no reset/drain.
+        const { device, registrationInfo } =
+          family === "nrf52"
+            ? await connectMeshtasticDeviceNrf52()
+            : await connectMeshtasticDevice();
         deviceRef.current = device;
 
         setProgress((prev) => ({

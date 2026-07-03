@@ -9,16 +9,19 @@ interface WizardStepperProps {
   currentStep: WizardStep;
   completedSteps: Set<WizardStep>;
   onStepClick: (step: WizardStep) => void;
+  /** Steps to render. Defaults to the full list; nRF52 omits "connect". */
+  steps?: WizardStep[];
 }
 
 export function WizardStepper({
   currentStep,
   completedSteps,
   onStepClick,
+  steps = STEPS,
 }: WizardStepperProps) {
   return (
     <div className="flex items-center w-full py-4 px-2">
-      {STEPS.map((step, index) => {
+      {steps.map((step, index) => {
         const isCurrent = step === currentStep;
         const isCompleted = completedSteps.has(step);
         const isClickable = isCompleted;
@@ -69,7 +72,7 @@ export function WizardStepper({
             </button>
 
             {/* Connecting line */}
-            {index < STEPS.length - 1 && (
+            {index < steps.length - 1 && (
               <div
                 className={clsx(
                   "flex-1 h-px mx-2 min-w-4",

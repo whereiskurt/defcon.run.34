@@ -167,6 +167,61 @@ export async function connectMeshtasticDevice(): Promise<{
 }
 
 /**
+ * Connect to an nRF52 (e.g. Seeed T-1000E) device over Web Serial for the
+ * configure/register step.
+ *
+ * Unlike the ESP32 path, an nRF52 device is flashed via UF2 drag-and-drop
+ * (mass-storage), which grants NO serial-port permission — so we cannot reuse
+ * navigator.serial.getPorts(). After the UF2 write the device reboots straight
+ * into the Meshtastic application firmware and enumerates as a fresh USB CDC
+ * serial port, so we prompt for it with navigator.serial.requestPort() (this
+ * runs from the Configure step's auto-start, inside the click that advanced
+ * the wizard, so it is within a user gesture).
+ *
+ * There is NO esptool DTR/RTS "reset out of ROM bootloader" sequence and NO
+ * ESP32-S3 USB-JTAG boot-text drain here: the device is already running
+ * application firmware over a clean CDC link (both of those are esptool
+ * artifacts that would be wrong for nRF52). Everything downstream —
+ * waitForDeviceConnected, configureWithRetry, and the whole config-push /
+ * auto-register pipeline in use-configure.ts — is transport-agnostic and
+ * shared with the ESP32 path.
+ *
+ * @returns Connected and configured MeshDevice instance with registration info
+ * @throws Error if the user cancels the port picker or the handshake times out
+ */
+export async function connectMeshtasticDeviceNrf52(): Promise<{
+  device: MeshDevice;
+  registrationInfo: DeviceRegistrationInfo;
+}> {
+  // Prompt for the newly-enumerated Meshtastic CDC serial port. The UF2
+  // drop is a mass-storage action, so no prior grant exists to reuse.
+  const port = await navigator.serial.requestPort();
+
+  const transport = await TransportWebSerial.createFromPort(
+    port,
+    MESHTASTIC_BAUDRATE
+  );
+
+  // Assert DTR so CDC-ACM firmware starts streaming. Some CDC stacks reject
+  // setSignals — it is non-fatal, the link works regardless.
+  try {
+    await port.setSignals({ dataTerminalReady: true });
+  } catch (err) {
+    console.warn("[meshtastic] nRF52 setSignals(DTR) not supported:", err);
+  }
+
+  const device = new MeshDevice(transport);
+
+  // Same ordering as the ESP32 path: wait for the transport to reach
+  // DeviceConnected before configure() so the wantConfigId packet isn't
+  // dropped, then run the configure handshake (populates myNodeInfo).
+  await waitForDeviceConnected(device);
+  const registrationInfo = await configureWithRetry(device);
+
+  return { device, registrationInfo };
+}
+
+/**
  * Push complete device configuration.
  *
  * Each admin call is awaited directly -- the @meshtastic/core library handles

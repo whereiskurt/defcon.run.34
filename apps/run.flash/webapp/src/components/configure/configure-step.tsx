@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Button, Chip, Spinner } from "@heroui/react";
 import {
   ArrowRight,
   RotateCcw,
   CheckCircle2,
   XCircle,
+  Usb,
 } from "lucide-react";
 import type { ConfigProgress, DeviceConfigPayload } from "@/types/config";
-import type { DeviceHardware } from "@/types/device";
+import type { DeviceHardware, DeviceFamily } from "@/types/device";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import { ConfigPipeline } from "@/components/configure/config-pipeline";
 
@@ -26,20 +27,32 @@ interface UseConfigureReturn {
   isComplete: boolean;
   isError: boolean;
   configPayload: DeviceConfigPayload | null;
-  configure: (disconnectTransport: () => Promise<void>) => Promise<void>;
+  configure: (
+    disconnectTransport: () => Promise<void>,
+    family?: DeviceFamily
+  ) => Promise<void>;
   reset: () => void;
 }
 
 interface ConfigureStepProps {
   /** Selected device for image display */
   device: DeviceHardware | null;
+  /** Device family — selects the reconnect strategy in useConfigure. */
+  family: DeviceFamily;
   /** From useConfigure hook */
   configureState: UseConfigureReturn;
-  /** From serial.disconnect -- releases esptool transport */
+  /** From serial.disconnect (esp32) or a no-op (nrf52) */
   disconnectTransport: () => Promise<void>;
+  /**
+   * Whether to auto-start configuration on mount. ESP32 reuses the serial
+   * grant from the Connect step (no user gesture needed), so it auto-starts.
+   * nRF52 must call navigator.serial.requestPort(), which requires a user
+   * gesture — so it renders a Connect button instead of auto-starting.
+   */
+  autoStart: boolean;
   /** advance() from useWizard */
   onContinue: () => void;
-  /** Reset + goToStepForRetry("connect") */
+  /** Reset + goToStepForRetry(...) */
   onRetry: () => void;
 }
 
@@ -55,8 +68,10 @@ interface ConfigureStepProps {
  */
 export function ConfigureStep({
   device,
+  family,
   configureState,
   disconnectTransport,
+  autoStart,
   onContinue,
   onRetry,
 }: ConfigureStepProps) {
@@ -65,13 +80,23 @@ export function ConfigureStep({
 
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
 
-  // Auto-start configuration when component mounts and progress is idle
+  const startConfigure = useCallback(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    configureState.configure(disconnectTransport, family);
+  }, [configureState, disconnectTransport, family]);
+
+  // ESP32 auto-starts on mount (serial grant already exists, no gesture
+  // needed). nRF52 waits for the Connect button click below (requestPort
+  // needs a user gesture).
   useEffect(() => {
-    if (progress.stage === "idle" && !startedRef.current) {
-      startedRef.current = true;
-      configureState.configure(disconnectTransport);
+    if (autoStart && progress.stage === "idle" && !startedRef.current) {
+      startConfigure();
     }
-  }, [progress.stage, configureState, disconnectTransport]);
+  }, [autoStart, progress.stage, startConfigure]);
+
+  // nRF52 idle: prompt the user to connect (a gesture-driven requestPort()).
+  const showConnectPrompt = !autoStart && progress.stage === "idle";
 
   const isConnecting = progress.stage === "connecting";
   const isConfiguring =
@@ -83,6 +108,32 @@ export function ConfigureStep({
 
   return (
     <div className="space-y-4">
+      {/* nRF52 idle: explicit connect (requestPort needs a user gesture) */}
+      {showConnectPrompt && (
+        <div className="glass-card rounded-xl p-6">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <h3 className="font-mono text-lg text-foreground">
+              Connect to your device
+            </h3>
+            <p className="text-sm text-default-400 max-w-md">
+              Your device should now be running Meshtastic after the firmware
+              copy. Click below and pick it from the browser&apos;s serial-port
+              prompt to configure it for the DEF CON 34 mesh and register it to
+              your account.
+            </p>
+            <Button
+              color="primary"
+              size="lg"
+              startContent={<Usb className="w-5 h-5" />}
+              onPress={startConfigure}
+              className="font-mono whitespace-nowrap cta-pulse"
+            >
+              Connect &amp; Configure
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Connecting state: device is rebooting after flash */}
       {isConnecting && (
         <div className="glass-card rounded-xl p-5">
@@ -90,11 +141,14 @@ export function ConfigureStep({
             <Spinner size="lg" classNames={{ circle1: "border-b-teal-400", circle2: "border-b-teal-400" }} />
             <div>
               <h3 className="font-mono text-lg text-foreground">
-                Reconnecting to device...
+                {family === "nrf52"
+                  ? "Select your device's serial port"
+                  : "Reconnecting to device..."}
               </h3>
               <p className="text-sm text-default-400 mt-1">
-                Your device is rebooting after firmware flash. This may take a
-                few seconds.
+                {family === "nrf52"
+                  ? "A browser prompt will ask which serial port to use — pick your device (it appears as a USB serial port now that it's running Meshtastic)."
+                  : "Your device is rebooting after firmware flash. This may take a few seconds."}
               </p>
             </div>
           </div>
