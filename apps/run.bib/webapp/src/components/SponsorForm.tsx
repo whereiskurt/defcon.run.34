@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CashAppMark, StripeMark, VenmoMark } from "./payment-icons";
 
 /**
  * SponsorForm
@@ -30,9 +31,16 @@ import { useRouter } from "next/navigation";
  *   behind full-app auth middleware. No client-side auth check.
  */
 
-export const AMOUNT_MIN_CENTS = 100; //   $1.00
+export const AMOUNT_MIN_CENTS = 100; //   $1.00 (absolute floor for clampAmountCents)
 export const AMOUNT_MAX_CENTS = 100_000; // $1000.00
 export const AMOUNT_STEP_CENTS = 100; //   $1.00 steps
+
+// Per-variant minimums + slider range (Kurt 2026-07-03). The slider covers the
+// common range in $10 steps; the exact-amount input handles anything up to $1000.
+export const BIB_MIN_CENTS = 2_000; //     $20 bib minimum
+export const GENERAL_MIN_CENTS = 1_000; //  $10 donation minimum
+export const SLIDER_MAX_CENTS = 20_000; //  $200 slider ceiling
+export const SLIDER_STEP_CENTS = 1_000; //  $10 slider steps
 
 /**
  * Preset dollar amounts offered as one-click chips (Kurt 2026-07-02
@@ -129,12 +137,20 @@ export interface SponsorFormProps {
 export function SponsorForm({
   variant = "bib",
   ctaLabel,
-  defaultAmountCents = 2000,
+  defaultAmountCents,
 }: SponsorFormProps = {}) {
   const router = useRouter();
 
-  const [amountCents, setAmountCents] = useState<number>(
-    clampAmountCents(defaultAmountCents)
+  const minCents = variant === "bib" ? BIB_MIN_CENTS : GENERAL_MIN_CENTS;
+  // Clamp into [variant minimum, $1000], snapping to whole cents.
+  const clampRange = useCallback(
+    (raw: number) =>
+      Math.min(AMOUNT_MAX_CENTS, Math.max(minCents, clampAmountCents(raw))),
+    [minCents]
+  );
+
+  const [amountCents, setAmountCents] = useState<number>(() =>
+    clampRange(defaultAmountCents ?? minCents)
   );
   const [provider, setProvider] = useState<SponsorProvider>("stripe");
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
@@ -156,18 +172,18 @@ export function SponsorForm({
       const raw = event.target.value.replace(/[^0-9.]/g, "");
       const dollars = Number.parseFloat(raw);
       if (!Number.isFinite(dollars)) {
-        setAmountCents(AMOUNT_MIN_CENTS);
+        setAmountCents(minCents);
         return;
       }
-      setAmountCents(clampAmountCents(Math.round(dollars * 100)));
+      setAmountCents(clampRange(Math.round(dollars * 100)));
     },
-    []
+    [minCents, clampRange]
   );
 
   const onSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      const clamped = clampAmountCents(amountCents);
+      const clamped = clampRange(amountCents);
 
       // Non-Stripe: route to the provider instructions page (Plan 22-02).
       if (provider === "venmo" || provider === "cashapp") {
@@ -214,7 +230,7 @@ export function SponsorForm({
         });
       }
     },
-    [amountCents, provider, offerNonStripe, variant]
+    [amountCents, provider, offerNonStripe, variant, clampRange]
   );
 
   const disabled = submit.kind === "submitting";
@@ -271,11 +287,11 @@ export function SponsorForm({
         * (Kurt 2026-07-03). The custom input below allows an exact amount. */}
       <input
         type="range"
-        min={AMOUNT_MIN_CENTS}
-        max={AMOUNT_MAX_CENTS}
-        step={AMOUNT_STEP_CENTS}
-        value={amountCents}
-        onChange={(e) => setAmountCents(clampAmountCents(Number(e.target.value)))}
+        min={minCents}
+        max={SLIDER_MAX_CENTS}
+        step={SLIDER_STEP_CENTS}
+        value={Math.min(amountCents, SLIDER_MAX_CENTS)}
+        onChange={(e) => setAmountCents(clampRange(Number(e.target.value)))}
         disabled={disabled}
         aria-label={variant === "bib" ? "Sponsor amount" : "Donation amount"}
         style={{
@@ -295,8 +311,8 @@ export function SponsorForm({
             "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
         }}
       >
-        <span>$1</span>
-        <span>$1000</span>
+        <span>${minCents / 100}</span>
+        <span>$200+</span>
       </div>
 
       <label
@@ -306,7 +322,7 @@ export function SponsorForm({
           color: "#a4a4b8",
         }}
       >
-        Or type an exact amount ($1&ndash;$1000)
+        Or type an exact amount (min ${minCents / 100}, up to $1000)
       </label>
       <div
         style={{
@@ -364,7 +380,7 @@ export function SponsorForm({
             <ProviderPill
               value="stripe"
               label="Card"
-              icon={<ProviderIcon color="#635BFF" glyph="S" />}
+              icon={<StripeMark />}
               selected={provider}
               onSelect={setProvider}
               disabled={disabled}
@@ -372,7 +388,7 @@ export function SponsorForm({
             <ProviderPill
               value="cashapp"
               label="Cash App"
-              icon={<ProviderIcon color="#00D632" glyph="$" />}
+              icon={<CashAppMark />}
               selected={provider}
               onSelect={setProvider}
               disabled={disabled}
@@ -380,7 +396,7 @@ export function SponsorForm({
             <ProviderPill
               value="venmo"
               label="Venmo"
-              icon={<ProviderIcon color="#3D95CE" glyph="V" />}
+              icon={<VenmoMark />}
               selected={provider}
               onSelect={setProvider}
               disabled={disabled}
@@ -427,31 +443,6 @@ export function SponsorForm({
         </div>
       )}
     </form>
-  );
-}
-
-/** Small brand-colored icon badge (little Stripe / Cash App / Venmo mark). */
-function ProviderIcon({ color, glyph }: { color: string; glyph: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 18,
-        height: 18,
-        borderRadius: 5,
-        backgroundColor: color,
-        color: "#fff",
-        fontSize: 11,
-        fontWeight: 800,
-        fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace",
-        flexShrink: 0,
-      }}
-    >
-      {glyph}
-    </span>
   );
 }
 
