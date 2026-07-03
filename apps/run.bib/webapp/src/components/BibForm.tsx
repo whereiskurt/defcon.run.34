@@ -45,8 +45,10 @@ export interface BibFormProps {
   hasSponsored?: boolean;
 }
 
-/** Debounce window between last keystroke and PATCH fire (ms). */
-const PATCH_DEBOUNCE_MS = 400;
+/** Debounce window between last keystroke and PATCH fire (ms). Longer than a
+ *  keystroke pause so a burst of typing collapses into a single write — the
+ *  name doesn't need instant persistence and this keeps DB updates minimal. */
+const PATCH_DEBOUNCE_MS = 1200;
 
 /**
  * Save-state discriminator:

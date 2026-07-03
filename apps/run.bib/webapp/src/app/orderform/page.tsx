@@ -80,6 +80,11 @@ export default async function Home({ searchParams }: HomeProps) {
   // same server-component read above so client + server agree.
   const hasSponsored = (bib.paidAmount ?? 0) > 0;
 
+  // Once the participant has paid for their bib OR opted to pay in person,
+  // hide the "Sponsor this bib" (buy) flow — they're covered. The "Just
+  // donate" flow always stays available.
+  const hideBuyBib = hasSponsored || bib.willPayInPerson === true;
+
   return (
     <main
       style={{
@@ -134,36 +139,63 @@ export default async function Home({ searchParams }: HomeProps) {
           </div>
         </Section>
 
-        {/* Sections 2 + 3: Sponsor + Donate — side-by-side tiles on
-          * desktop, stacked on mobile. Layout inspired by
-          * run.defcon.run/meshtastic (Kurt 2026-07-02 feedback). */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-            gap: 20,
-          }}
-        >
-          <Tile
-            kicker="This"
-            title="Sponsor this bib"
-            body="Contributions attach to your bib and help fund defcon.run 34."
-            art={<SponsorArt />}
+        {/* Sections 2 + 3: Sponsor + Donate. Side-by-side tiles on desktop,
+          * stacked on mobile (minWidth:0 lets the grid items shrink below
+          * their content's min-content so auto-fit can place two columns).
+          * When the bib is already covered (paid or pay-in-person) the buy
+          * flow is hidden and only "Just donate" shows, full width. */}
+        {hideBuyBib ? (
+          <div>
+            <p
+              style={{
+                margin: "0 0 12px",
+                color: "#7fdc9e",
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              {hasSponsored
+                ? "You're all set — your bib is covered. Thanks for the support!"
+                : "You're paying in person — your bib is reserved."}
+            </p>
+            <Tile
+              kicker="Support"
+              title="Just donate"
+              body="Contribute anyway — support goes directly to defcon.run 34."
+              art={<DonateArt />}
+            >
+              <SponsorForm variant="general" ctaLabel="Donate" />
+            </Tile>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+              gap: 20,
+            }}
           >
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <RunnerCodeBadge code={bib.runnerCode} />
-              <SponsorForm variant="bib" ctaLabel="Sponsor" />
-            </div>
-          </Tile>
-          <Tile
-            kicker="or That"
-            title="Just donate"
-            body="Not running? Contribute anyway — support goes directly to defcon.run 34."
-            art={<DonateArt />}
-          >
-            <SponsorForm variant="general" ctaLabel="Donate" />
-          </Tile>
-        </div>
+            <Tile
+              kicker="This"
+              title="Sponsor this bib"
+              body="Contributions attach to your bib and help fund defcon.run 34."
+              art={<SponsorArt />}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <RunnerCodeBadge code={bib.runnerCode} />
+                <SponsorForm variant="bib" ctaLabel="Sponsor" />
+              </div>
+            </Tile>
+            <Tile
+              kicker="or That"
+              title="Just donate"
+              body="Not running? Contribute anyway — support goes directly to defcon.run 34."
+              art={<DonateArt />}
+            >
+              <SponsorForm variant="general" ctaLabel="Donate" />
+            </Tile>
+          </div>
+        )}
 
         <FooterNote />
       </div>
@@ -247,6 +279,7 @@ function Tile({
         borderRadius: 14,
         backgroundColor: "#12121a",
         border: "1px solid #24242e",
+        minWidth: 0,
       }}
     >
       <div
