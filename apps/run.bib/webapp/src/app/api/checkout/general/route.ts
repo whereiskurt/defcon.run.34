@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/config/auth";
 import { getStripeClient } from "@/lib/stripe";
 import { STRIPE_PRODUCT_GENERAL } from "@/config/stripe-products";
+import { checkQuota, type QuotaTier } from "@/lib/quota-client";
 
 /**
  * POST /api/checkout/general — create a Stripe Checkout Session for a
@@ -73,6 +74,27 @@ export async function POST(req: NextRequest) {
   }
 
   const ownerSub = session.user.id;
+
+  // Block starting a donation once the donation quota is spent.
+  {
+    const services = (session.user as { services?: string[] }).services ?? [];
+    const tier: QuotaTier = services.includes("admin") ? "admin" : "upload";
+    let atLimit = false;
+    let remaining = -1;
+    try {
+      const q = await checkQuota(ownerSub, "donation", 1, tier);
+      atLimit = !q.allowed;
+      remaining = q.remaining;
+    } catch {
+      // quota service unavailable — fail open; completion still consumes it
+    }
+    if (atLimit) {
+      return NextResponse.json(
+        { error: "donation_limit_reached", remaining },
+        { status: 429 }
+      );
+    }
+  }
 
   let stripe;
   try {

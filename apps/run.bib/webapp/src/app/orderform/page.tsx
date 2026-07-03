@@ -5,7 +5,9 @@ import BibForm from "@/components/BibForm";
 import SponsorForm from "@/components/SponsorForm";
 import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
+import { listDonationsForOwner } from "@/entities/general-donation";
 import { checkQuota } from "@/lib/quota-client";
+import TransactionHistory, { type Txn } from "@/components/TransactionHistory";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 
 /**
@@ -99,6 +101,33 @@ export default async function Home({ searchParams }: HomeProps) {
     // quota service unavailable — show the default
   }
 
+  // Contribution history: reconciled bib payments + donations. Total spend
+  // drives the "amount contributed" shown even when the buy flow is hidden.
+  const donations = await listDonationsForOwner(ownerSub).catch(() => []);
+  const donationTotal = donations.reduce(
+    (s, d) => s + (d.amountCents ?? 0),
+    0
+  );
+  const totalCents = (bib.paidAmount ?? 0) + donationTotal;
+  const txns: Txn[] = [
+    ...((bib.paidStatusHistory ?? []) as Array<{
+      provider?: string;
+      amount?: number;
+      timestamp?: string;
+    }>).map((p) => ({
+      kind: "bib" as const,
+      provider: p.provider ?? "stripe",
+      amountCents: p.amount ?? 0,
+      timestamp: p.timestamp ?? "",
+    })),
+    ...donations.map((d) => ({
+      kind: "donation" as const,
+      provider: d.provider ?? "stripe",
+      amountCents: d.amountCents ?? 0,
+      timestamp: d.createdAt ?? "",
+    })),
+  ].sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+
   return (
     <main
       style={{
@@ -153,6 +182,8 @@ export default async function Home({ searchParams }: HomeProps) {
             />
           </div>
         </Section>
+
+        <TransactionHistory totalCents={totalCents} txns={txns} />
 
         {/* Sections 2 + 3: Sponsor + Donate. Side-by-side tiles on desktop,
           * stacked on mobile (minWidth:0 lets the grid items shrink below

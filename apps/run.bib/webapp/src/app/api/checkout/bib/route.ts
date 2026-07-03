@@ -4,6 +4,7 @@ import { auth } from "@/config/auth";
 import { getBib } from "@/entities/bib";
 import { getStripeClient } from "@/lib/stripe";
 import { STRIPE_PRODUCT_BIB } from "@/config/stripe-products";
+import { checkQuota, type QuotaTier } from "@/lib/quota-client";
 
 /**
  * POST /api/checkout/bib — create a Stripe Checkout Session for a bib
@@ -80,6 +81,28 @@ export async function POST(req: NextRequest) {
   }
 
   const ownerSub = session.user.id;
+
+  // Block starting a purchase once the bib_purchase quota is spent (remaining
+  // -1 = not yet initialized → allowed). Completion consumes it in the webhook.
+  {
+    const services = (session.user as { services?: string[] }).services ?? [];
+    const tier: QuotaTier = services.includes("admin") ? "admin" : "upload";
+    let atLimit = false;
+    let remaining = -1;
+    try {
+      const q = await checkQuota(ownerSub, "bib_purchase", 1, tier);
+      atLimit = !q.allowed;
+      remaining = q.remaining;
+    } catch {
+      // quota service unavailable — fail open; completion still consumes it
+    }
+    if (atLimit) {
+      return NextResponse.json(
+        { error: "purchase_limit_reached", remaining },
+        { status: 429 }
+      );
+    }
+  }
 
   // Runner code is required for reconciliation metadata on the Stripe
   // side (post-payment success reads this back to attach the payment to
