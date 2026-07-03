@@ -136,21 +136,33 @@ export default async function Home({ searchParams }: HomeProps) {
           </div>
         </Section>
 
-        {/* Section 2: Sponsor this bib */}
-        <Section
-          title="Sponsor this bib"
-          intro="Contributions attach to your bib and help fund defcon.run 34."
+        {/* Sections 2 + 3: Sponsor + Donate — side-by-side tiles on
+          * desktop, stacked on mobile. Layout inspired by
+          * run.defcon.run/meshtastic (Kurt 2026-07-02 feedback). */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+            gap: 20,
+          }}
         >
-          <SponsorForm variant="bib" ctaLabel="Sponsor" />
-        </Section>
-
-        {/* Section 3: Just donate */}
-        <Section
-          title="Just donate"
-          intro="Not running? Contribute anyway — support goes directly to defcon.run 34."
-        >
-          <SponsorForm variant="general" ctaLabel="Donate" />
-        </Section>
+          <Tile
+            kicker="This"
+            title="Sponsor this bib"
+            body="Contributions attach to your bib and help fund defcon.run 34."
+            art={<SponsorArt />}
+          >
+            <SponsorForm variant="bib" ctaLabel="Sponsor" />
+          </Tile>
+          <Tile
+            kicker="or That"
+            title="Just donate"
+            body="Not running? Contribute anyway — support goes directly to defcon.run 34."
+            art={<DonateArt />}
+          >
+            <SponsorForm variant="general" ctaLabel="Donate" />
+          </Tile>
+        </div>
 
         <FooterNote />
       </div>
@@ -159,8 +171,8 @@ export default async function Home({ searchParams }: HomeProps) {
 }
 
 /**
- * Section wrapper — visual container for each of the three landing-page
- * blocks. Server component (no client JS) so it stays fast to render.
+ * Section wrapper — visual container for the top "Get your bib" block.
+ * Server component (no client JS) so it stays fast to render.
  */
 function Section({
   title,
@@ -202,6 +214,222 @@ function Section({
       </p>
       <div style={{ marginTop: 8 }}>{children}</div>
     </section>
+  );
+}
+
+/**
+ * Tile wrapper — mirrors the run.defcon.run/meshtastic side-by-side tile
+ * pattern (Kurt 2026-07-02 feedback). Header block is centered with a
+ * kicker + art + title + body; the CTA (form) sits below.
+ */
+function Tile({
+  kicker,
+  title,
+  body,
+  art,
+  children,
+}: {
+  kicker: string;
+  title: string;
+  body: string;
+  art: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      aria-label={title}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        padding: 20,
+        borderRadius: 14,
+        backgroundColor: "#12121a",
+        border: "1px solid #24242e",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 10,
+          paddingBottom: 8,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            fontSize: 11,
+            letterSpacing: "0.2em",
+            textTransform: "uppercase",
+            color: "#7a9dff",
+          }}
+        >
+          {kicker}
+        </span>
+        <div style={{ color: "#7a9dff" }}>{art}</div>
+        <h2
+          style={{
+            fontSize: 20,
+            fontWeight: 800,
+            margin: 0,
+            letterSpacing: "0.01em",
+            textAlign: "center",
+          }}
+        >
+          {title}
+        </h2>
+        <p
+          style={{
+            margin: 0,
+            color: "#a4a4b8",
+            fontSize: 14,
+            lineHeight: 1.5,
+            textAlign: "center",
+          }}
+        >
+          {body}
+        </p>
+      </div>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+/**
+ * Sponsor tile art — stylized bib silhouette with a pin-hole accent and a
+ * radial "boost" arc. Original geometric SVG (~50 lines); swap-ready if
+ * Kurt drops a bespoke illustration.
+ */
+function SponsorArt() {
+  return (
+    <svg
+      width="88"
+      height="88"
+      viewBox="0 0 88 88"
+      fill="none"
+      aria-hidden="true"
+    >
+      {/* bib outline */}
+      <rect
+        x="20"
+        y="18"
+        width="48"
+        height="56"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      {/* pin holes */}
+      <circle cx="28" cy="26" r="2.5" fill="currentColor" />
+      <circle cx="60" cy="26" r="2.5" fill="currentColor" />
+      {/* number pad */}
+      <rect
+        x="26"
+        y="34"
+        width="36"
+        height="22"
+        rx="2"
+        fill="currentColor"
+        fillOpacity="0.2"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      {/* perforation */}
+      <line
+        x1="26"
+        y1="62"
+        x2="62"
+        y2="62"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeDasharray="3 3"
+      />
+      {/* stub number */}
+      <rect
+        x="32"
+        y="66"
+        width="24"
+        height="6"
+        rx="1"
+        fill="currentColor"
+        fillOpacity="0.4"
+      />
+      {/* boost arc — pointing up + right */}
+      <path
+        d="M76 14 Q66 6 56 14"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d="M56 14 L60 10 M56 14 L60 18"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Donate tile art — pixel-coin motif. Original geometric SVG; swap-ready.
+ */
+function DonateArt() {
+  return (
+    <svg
+      width="88"
+      height="88"
+      viewBox="0 0 88 88"
+      fill="none"
+      aria-hidden="true"
+    >
+      {/* coin shadow */}
+      <circle
+        cx="52"
+        cy="52"
+        r="20"
+        fill="currentColor"
+        fillOpacity="0.15"
+      />
+      {/* coin body */}
+      <circle
+        cx="44"
+        cy="44"
+        r="24"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        fill="none"
+      />
+      {/* inner ring */}
+      <circle
+        cx="44"
+        cy="44"
+        r="18"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="none"
+        strokeDasharray="4 3"
+      />
+      {/* dollar mark */}
+      <text
+        x="44"
+        y="52"
+        textAnchor="middle"
+        fontSize="24"
+        fontWeight="900"
+        fill="currentColor"
+        fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+      >
+        $
+      </text>
+      {/* upward sparkles */}
+      <circle cx="20" cy="20" r="2" fill="currentColor" fillOpacity="0.7" />
+      <circle cx="72" cy="16" r="1.5" fill="currentColor" fillOpacity="0.5" />
+      <circle cx="16" cy="72" r="1.5" fill="currentColor" fillOpacity="0.5" />
+    </svg>
   );
 }
 
