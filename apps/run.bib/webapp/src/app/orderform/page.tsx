@@ -4,12 +4,8 @@ import { auth } from "@/config/auth";
 import BibForm from "@/components/BibForm";
 import SponsorForm from "@/components/SponsorForm";
 import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
-import {
-  BIBNAME_RENAME_QUOTA,
-  createBib,
-  getBib,
-  type BibItem,
-} from "@/entities/bib";
+import { createBib, getBib, type BibItem } from "@/entities/bib";
+import { checkQuota } from "@/lib/quota-client";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 
 /**
@@ -90,6 +86,19 @@ export default async function Home({ searchParams }: HomeProps) {
   // donate" flow always stays available.
   const hideBuyBib = hasSponsored || bib.willPayInPerson === true;
 
+  // Remaining bib-name changes from the central quota service (run.auth).
+  // Fall back to the default limit if the service is briefly unavailable —
+  // a quota blip must not 500 the bib page; the server enforces on write.
+  const services = (session.user as { services?: string[] }).services ?? [];
+  const tier = services.includes("admin") ? "admin" : "upload";
+  let renamesRemaining = 10;
+  try {
+    const q = await checkQuota(ownerSub, "bibname_change", 1, tier);
+    if (q.remaining >= 0) renamesRemaining = q.remaining;
+  } catch {
+    // quota service unavailable — show the default
+  }
+
   return (
     <main
       style={{
@@ -136,10 +145,7 @@ export default async function Home({ searchParams }: HomeProps) {
             initialName={bib.nameOnBib || ""}
             nameLocked={bib.nameLocked === true}
             hasSponsored={hasSponsored}
-            initialRenamesRemaining={Math.max(
-              0,
-              BIBNAME_RENAME_QUOTA - (bib.nameRenameCount ?? 0)
-            )}
+            initialRenamesRemaining={renamesRemaining}
           />
           <div style={{ marginTop: 16 }}>
             <WillPayInPersonCheckbox

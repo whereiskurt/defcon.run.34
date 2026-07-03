@@ -169,6 +169,50 @@ export const QUOTA_DEFINITIONS = {
     enabled: true,
   },
 
+  // Bib name (name-on-bib) changes per event — abuse guard (Kurt 2026-07-03).
+  // zero=10 too: bib renames aren't gated on upload access, so a "zero" tier
+  // user (no gpx upload grant) still gets the standard 10.
+  bibname_change: {
+    id: "bibname_change",
+    name: "Bib Name Changes",
+    description: "Bib name-on-bib changes per event",
+    tierLimits: {
+      zero: 10,
+      upload: 10,
+      admin: 50,
+    },
+    resetPolicy: "event" as const,
+    enabled: true,
+  },
+
+  // Bib purchases per event (Kurt 2026-07-03: max 2).
+  bib_purchase: {
+    id: "bib_purchase",
+    name: "Bib Purchases",
+    description: "Completed bib purchases per event",
+    tierLimits: {
+      zero: 2,
+      upload: 2,
+      admin: 10,
+    },
+    resetPolicy: "event" as const,
+    enabled: true,
+  },
+
+  // Donations per event (Kurt 2026-07-03: max 5).
+  donation: {
+    id: "donation",
+    name: "Donations",
+    description: "Completed donations per event",
+    tierLimits: {
+      zero: 5,
+      upload: 5,
+      admin: 50,
+    },
+    resetPolicy: "event" as const,
+    enabled: true,
+  },
+
   // QR sheet generation limit
   qr_sheet: {
     id: "qr_sheet",

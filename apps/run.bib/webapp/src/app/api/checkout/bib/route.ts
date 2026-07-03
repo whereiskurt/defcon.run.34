@@ -32,7 +32,7 @@ import { STRIPE_PRODUCT_BIB } from "@/config/stripe-products";
  */
 
 const bodySchema = z.object({
-  amount_cents: z.number().int().min(100).max(100_000),
+  amount_cents: z.number().int().min(2_000).max(100_000), // $20 bib minimum
   // Retained for backward compatibility with pre-22-05 SponsorForm calls.
   // Only `"stripe"` is accepted; Venmo / CashApp handoff is client-side.
   provider: z.literal("stripe").optional(),

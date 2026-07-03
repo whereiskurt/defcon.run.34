@@ -32,7 +32,7 @@ import { STRIPE_PRODUCT_GENERAL } from "@/config/stripe-products";
  */
 
 const bodySchema = z.object({
-  amount_cents: z.number().int().min(100).max(100_000),
+  amount_cents: z.number().int().min(1_000).max(100_000), // $10 donation minimum
 });
 
 /**
