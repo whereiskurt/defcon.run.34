@@ -14,7 +14,16 @@ import { parseGPX } from 'gpx';
  * plain MapLibre GeoJSON line layers a viewer can show/hide but not edit.
  */
 
-const MANIFEST_URL = '/api/gpx/public/maps';
+// The studio is served under the region basePath (e.g. /use1/studio/app), but the API
+// lives at /use1/api/... — so a root-absolute '/api/...' drops the region and 404s.
+// Derive the region prefix as everything before '/studio' in the current path.
+function regionPrefix(): string {
+    if (typeof location === 'undefined') return '';
+    const i = location.pathname.indexOf('/studio');
+    return i > 0 ? location.pathname.slice(0, i) : '';
+}
+
+const MANIFEST_URL = `${regionPrefix()}/api/gpx/public/maps`;
 const SOURCE_PREFIX = 'public-map-';
 const LINE_COLOR = '#e6007a'; // DEF CON magenta; per-group theming is a follow-up
 const LINE_WIDTH = 4;
@@ -45,7 +54,7 @@ export const publicAggregate = writable<{ available: boolean; visible: boolean }
     visible: false,
 });
 
-const AGGREGATE_URL = '/api/gpx/public/aggregate';
+const AGGREGATE_URL = `${regionPrefix()}/api/gpx/public/aggregate`;
 const AGGREGATE_LAYER = 'public-all-runners';
 
 function layerIdFor(fileId: string): string {
