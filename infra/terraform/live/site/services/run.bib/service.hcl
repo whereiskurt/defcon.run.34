@@ -6,11 +6,12 @@ locals {
     app   = try(trimspace(file("${get_terragrunt_dir()}/VERSION.app")), "0.0.0")
   }
 
-  # ECR repositories for this service (bib is us-east-1 only)
+  # ECR repositories for this service (multiregion pattern, matches auth/flash/human;
+  # inert until cac1/apse1 infra exists — release-all probes ECR + skips missing regions)
   ecr_repositories = [
     {
       name                 = "run-bib-nginx"
-      regions              = ["us-east-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -19,7 +20,7 @@ locals {
     },
     {
       name                 = "run-bib-app"
-      regions              = ["us-east-1"]
+      regions              = ["us-east-1", "ca-central-1", "ap-southeast-1"]
       image_tag_mutability = "IMMUTABLE"
       lifecycle_policy = {
         max_image_count = 10
@@ -28,10 +29,10 @@ locals {
     },
   ]
 
-  # ECS Task definition for the run-bib service (us-east-1 only)
+  # ECS Task definition for the run-bib service (multiregion pattern)
   task = {
     name         = "run-bib"
-    regions      = ["us-east-1"]
+    regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
     task_cpu     = 256
     task_memory  = 512
@@ -207,10 +208,10 @@ locals {
     ]
   }
 
-  # ECS Service definition for the run-bib service (us-east-1 only)
+  # ECS Service definition for the run-bib service (multiregion pattern)
   service = {
     name          = "run-bib"
-    regions       = ["us-east-1"]
+    regions       = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name  = "app"
     task_family   = "run-bib"
     desired_count = 1
