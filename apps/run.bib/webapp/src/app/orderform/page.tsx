@@ -115,8 +115,6 @@ export default async function Home({ searchParams }: HomeProps) {
           </p>
         </header>
 
-        <RunnerCodeBadge code={bib.runnerCode} />
-
         {status && <StripeStatusBanner status={status} />}
 
         {/* Section 1: Get your bib (free) */}
@@ -152,7 +150,10 @@ export default async function Home({ searchParams }: HomeProps) {
             body="Contributions attach to your bib and help fund defcon.run 34."
             art={<SponsorArt />}
           >
-            <SponsorForm variant="bib" ctaLabel="Sponsor" />
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <RunnerCodeBadge code={bib.runnerCode} />
+              <SponsorForm variant="bib" ctaLabel="Sponsor" />
+            </div>
           </Tile>
           <Tile
             kicker="or That"
@@ -503,7 +504,7 @@ function RunnerCodeBadge({ code }: { code: string }) {
             "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
           fontSize: 18,
           fontWeight: 700,
-          color: "#f4b942",
+          color: "#6CCDB8",
           letterSpacing: "0.05em",
         }}
       >
