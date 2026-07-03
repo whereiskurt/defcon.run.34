@@ -34,7 +34,7 @@ cd webapp
 npm run dev
 ```
 
-Local development runs at `http://localhost:3002`
+Local development runs at `http://localhost:3003`
 
 The `build-frontend.sh` script:
 1. Applies patches to gpx-studio source

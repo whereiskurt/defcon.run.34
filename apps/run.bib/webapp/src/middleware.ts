@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
+import { isDevAuthBypass } from "@/lib/dev-auth";
 
 /**
  * Full-app auth gate for run.bib.
@@ -30,7 +31,18 @@ const REGION_BASEPATH =
       ? `/${process.env.REGION_SHORT}`
       : "";
 
-export default auth((req) => {
+// Dev-only: when DEV_AUTH_BYPASS=1 (and NODE_ENV!=="production"), skip the
+// entire auth gate so every route renders unauthenticated for local UI
+// iteration. Evaluated once at module load; `auth()` is never invoked in
+// this branch, so NextAuth doesn't need a secret / OIDC creds to run.
+const DEV_BYPASS = isDevAuthBypass();
+if (DEV_BYPASS) {
+  console.warn(
+    "[run.bib] ⚠ DEV_AUTH_BYPASS active — ALL routes are UNAUTHENTICATED (local dev only)"
+  );
+}
+
+const gatedMiddleware = auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Auth.js generates redirect_uri using its own basePath = "/api/auth"
@@ -85,6 +97,13 @@ export default auth((req) => {
 
   return NextResponse.next();
 });
+
+// Bypass short-circuits to a pass-through; otherwise the real auth gate runs.
+export default DEV_BYPASS
+  ? function middleware() {
+      return NextResponse.next();
+    }
+  : gatedMiddleware;
 
 // Middleware matcher: run on all routes except Next.js internals + static assets.
 // This gates every page/API route the whitelist doesn't cover.

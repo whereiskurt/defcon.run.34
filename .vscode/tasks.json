@@ -116,6 +116,51 @@
       }
     },
     {
+      "label": "App: run.bib UI-only bypass (:3006)",
+      "detail": "Fast UI loop — DEV_AUTH_BYPASS=1, no run.auth/DynamoDB needed. Renders orderform against a mock session + bib.",
+      "type": "shell",
+      "command": "npm run dev:ui",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/run.bib/webapp"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "App: run.bib full-stack (:3006)",
+      "detail": "Real auth + DynamoDB. Requires run.auth on :3002 + Local: DynamoDB + .env.local secrets.",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/run.bib/webapp"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "App: run.gpx-studio Vite (:5173)",
+      "detail": "Fast UI loop for the gpx-studio SvelteKit editor — bypasses the Next.js auth wrapper. Set MAPBOX_PUBLIC_TOKEN for live map tiles.",
+      "type": "shell",
+      "command": "PUBLIC_MAPBOX_TOKEN=${env:MAPBOX_PUBLIC_TOKEN} npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/run.gpx/gpx-studio/website"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
       "label": "E2E Tests",
       "type": "shell",
       "command": "$(aws configure export-credentials --profile ${env:SITE_LABEL}-terraform --format env) && ./e2e.sh",

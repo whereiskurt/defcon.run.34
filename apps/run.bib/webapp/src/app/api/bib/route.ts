@@ -9,6 +9,7 @@ import {
   updateBibWillPayInPerson,
 } from "@/entities/bib";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
+import { devMockBib, isDevAuthBypass } from "@/lib/dev-auth";
 
 /**
  * /api/bib — read / idempotent create / edit the signed-in user's bib.
@@ -66,6 +67,14 @@ const patchBodySchema = z
  * contract.
  */
 export async function GET() {
+  // Dev-only bypass: return the mock bib without a session or DB read.
+  if (isDevAuthBypass()) {
+    return NextResponse.json(
+      { hasCreated: true, bib: devMockBib() },
+      { status: 200 }
+    );
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -90,6 +99,14 @@ export async function GET() {
  * payloads that might imply the client can supply ownerSub or runnerCode).
  */
 export async function POST(req: NextRequest) {
+  // Dev-only bypass: idempotent-create is a no-op; return the mock bib.
+  if (isDevAuthBypass()) {
+    return NextResponse.json(
+      { hasCreated: true, bib: devMockBib(), created: false },
+      { status: 200 }
+    );
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -151,8 +168,11 @@ export async function POST(req: NextRequest) {
  * - 409 with `{error: "name_locked"}` when nameLocked=true (admin locked).
  */
 export async function PATCH(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  // In bypass mode we skip the session/401 guard but still run body
+  // validation below, then return a mock bib instead of touching DynamoDB.
+  const bypass = isDevAuthBypass();
+  const session = bypass ? null : await auth();
+  if (!bypass && !session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -174,19 +194,46 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
+  // Dev-only bypass: skip the DB write, echo back a mock bib reflecting the
+  // patched fields so BibForm's "saved" state + preview stay consistent.
+  // Validation above still runs so the form's 400 path is exercised for real.
+  if (isDevAuthBypass()) {
+    return NextResponse.json(
+      {
+        bib: devMockBib({
+          ...(parsed.data.nameOnBib !== undefined
+            ? { nameOnBib: parsed.data.nameOnBib }
+            : {}),
+          ...(parsed.data.willPayInPerson !== undefined
+            ? { willPayInPerson: parsed.data.willPayInPerson }
+            : {}),
+        }),
+      },
+      { status: 200 }
+    );
+  }
+
+  // Non-bypass path: the top guard already guaranteed a session, but
+  // re-checking here narrows session.user.id to a non-optional string for
+  // the writes below (belt-and-suspenders; unreachable in practice).
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  const ownerSub = session.user.id;
+
   try {
     // Apply nameOnBib first — may throw NameLockedError (mapped to 409).
     // We only patch what the caller supplied; missing fields stay untouched.
     let bib = null as Awaited<ReturnType<typeof updateBibName>> | null;
     if (parsed.data.nameOnBib !== undefined) {
-      bib = await updateBibName(session.user.id, parsed.data.nameOnBib);
+      bib = await updateBibName(ownerSub, parsed.data.nameOnBib);
     }
     if (parsed.data.willPayInPerson !== undefined) {
       // Phase 22-05: pledge is orthogonal to nameLocked, so we do NOT skip
       // this write if the name was locked — a locked-name bib may still
       // toggle the pledge (participant switches to in-person plan).
       bib = await updateBibWillPayInPerson(
-        session.user.id,
+        ownerSub,
         parsed.data.willPayInPerson
       );
     }

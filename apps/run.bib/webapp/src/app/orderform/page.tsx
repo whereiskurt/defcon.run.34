@@ -6,6 +6,7 @@ import SponsorForm from "@/components/SponsorForm";
 import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
+import { DEV_MOCK_SESSION, devMockBib, isDevAuthBypass } from "@/lib/dev-auth";
 
 /**
  * Home is a server-component route that receives `searchParams` from
@@ -45,7 +46,10 @@ type HomeProps = {
  * end up reading the same bib.
  */
 export default async function Home({ searchParams }: HomeProps) {
-  const session = await auth();
+  // Dev-only: render against a synthetic session + bib so the page paints
+  // without run.auth (OIDC) or DynamoDB. See lib/dev-auth.ts.
+  const bypass = isDevAuthBypass();
+  const session = bypass ? DEV_MOCK_SESSION : await auth();
 
   if (!session?.user?.id) {
     // Middleware should have already routed here, but keep the redirect
@@ -56,12 +60,13 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const ownerSub = session.user.id;
 
-  // Fetch — server-side, no HTTP hop needed since we're in-process.
-  let bib: BibItem | null = await getBib(ownerSub);
+  // Fetch — server-side, no HTTP hop needed since we're in-process. In
+  // bypass mode use the mock bib and skip the DB read entirely.
+  let bib: BibItem | null = bypass ? devMockBib() : await getBib(ownerSub);
 
   // Bootstrap: idempotent create on first visit. createBib swallows
   // ConditionalCheckFailedException and returns the existing bib, so this
-  // is safe against tab-racing.
+  // is safe against tab-racing. (Skipped in bypass — mock bib is non-null.)
   if (!bib) {
     const runnerCode = await generateUniqueRunnerCode();
     bib = await createBib(ownerSub, runnerCode);

@@ -3,7 +3,8 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3004",
+    "dev": "next dev -p 3006",
+    "dev:ui": "DEV_AUTH_BYPASS=1 next dev -p 3006",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

@@ -9,7 +9,7 @@ const siteDomain = process.env.SITE_DOMAIN || "defcon.run";
 
 // Local development ports (can be overridden via env vars)
 const LOCAL_AUTH_PORT = process.env.LOCAL_AUTH_PORT || "3002";
-const LOCAL_BIB_PORT = process.env.LOCAL_BIB_PORT || "3004";
+const LOCAL_BIB_PORT = process.env.LOCAL_BIB_PORT || "3006";
 
 // Auth server URLs - must include region prefix in production
 const authServerUrl = process.env.AUTH_PUBLIC_URL || (isDev

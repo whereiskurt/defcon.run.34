@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/config/auth";
 import { getBib } from "@/entities/bib";
+import { DEV_MOCK_SESSION, devMockBib, isDevAuthBypass } from "@/lib/dev-auth";
 import { getCashAppHandle } from "@/lib/handles";
 import { parseAmountCentsFromQuery } from "@/lib/amount";
 import SponsorInstructions from "@/components/SponsorInstructions";
@@ -35,13 +36,14 @@ type CashAppPageProps = {
 export default async function CashAppInstructionsPage({
   searchParams,
 }: CashAppPageProps) {
-  const session = await auth();
+  const bypass = isDevAuthBypass();
+  const session = bypass ? DEV_MOCK_SESSION : await auth();
   if (!session?.user?.id) {
     redirect("/signin");
   }
 
   const ownerSub = session.user.id;
-  const bib = await getBib(ownerSub);
+  const bib = bypass ? devMockBib() : await getBib(ownerSub);
   if (!bib) {
     // Bootstrap edge case: user reached /sponsor/cashapp without going
     // through the landing page bib bootstrap. Send them home so the

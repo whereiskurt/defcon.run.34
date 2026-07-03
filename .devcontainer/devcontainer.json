@@ -40,8 +40,12 @@
       }
     }
   },
-  "forwardPorts": [3001, 3002, 3003, 1337],
+  "forwardPorts": [3001, 3002, 3003, 3006, 1337],
   "portsAttributes": {
+    "3006": {
+      "label": "run.bib",
+      "onAutoForward": "notify"
+    },
     "3003": {
       "label": "run.gpx",
       "onAutoForward": "notify"
