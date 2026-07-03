@@ -124,3 +124,33 @@
         @apply bg-background text-foreground;
     }
 }
+
+/* DEF CON 34 public-route details popup (rendered outside Svelte scope on document.body).
+ * The chained `.mapboxgl-popup` raises specificity to (0,3,0) so the dark backing wins over
+ * the studio's own `div :global(.mapboxgl-popup-content){bg-transparent}` in Map.svelte (0,2,1);
+ * without it the light popup text renders straight over the map with no dark backdrop. */
+.dc34-route-popup.mapboxgl-popup .mapboxgl-popup-content {
+    background: #14141c;
+    color: #e4e4ef;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+    padding: 0;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+.dc34-route-popup.mapboxgl-popup .mapboxgl-popup-close-button {
+    color: #e4e4ef;
+    font-size: 16px;
+    padding: 2px 6px;
+}
+.dc34-route-popup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+    border-bottom-color: #14141c;
+}
+.dc34-route-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+    border-top-color: #14141c;
+}
+.dc34-route-popup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+    border-right-color: #14141c;
+}
+.dc34-route-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+    border-left-color: #14141c;
+}

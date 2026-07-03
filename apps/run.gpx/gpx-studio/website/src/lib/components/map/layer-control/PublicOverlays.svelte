@@ -42,6 +42,10 @@
                                 onchange={(e) =>
                                     layer?.setRouteVisible(m.fileId, e.currentTarget.checked)}
                             />
+                            <span
+                                class="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                                style="background-color: {m.color}"
+                            ></span>
                             {m.fileName}
                         </label>
                     {/each}
