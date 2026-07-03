@@ -1,210 +1,79 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 /**
- * Plan 22-05-07 tests: admin-gate helper (Kurt 2026-07-02 email + container-cache correction).
+ * v1.6 admin-gate tests (Kurt 2026-07-03: group-claim model).
  *
- * Covers parseAdminAllowlist (pure) + getAdminAllowlist + isAdmin +
- * requireAdmin. Mocks getSecureParam so no SSM call is attempted.
+ * Admin access = the `"admin"` entry in `session.user.services` (the
+ * run.auth groups model), mirroring run.human. Supersedes the Phase 22-05
+ * SSM email allowlist.
  *
- * Key invariants:
- *   - Empty / missing allowlist → deny all (fail-closed).
- *   - Whitespace / empty entries dropped in the parse.
- *   - Case-insensitive email comparison.
- *   - Container-scope cache: SSM read ONCE per successful call, not per request.
- *   - Session-less caller → no_session; requireAdmin checks session.user.email (OIDC email claim).
+ * Invariants:
+ *   - isAdmin true ONLY when services includes "admin".
+ *   - Missing session / user / services → not admin (fail-closed).
+ *   - requireAdmin: null/absent user → no_session; authed non-admin → not_admin;
+ *     admin → ok with the email echoed back.
  */
 
-const mockGetSecureParam = vi.fn();
-
-vi.mock("@/lib/ssm", () => ({
-  getSecureParam: (opts: unknown) => mockGetSecureParam(opts),
-}));
-
-import {
-  _resetAdminAllowlistCacheForTests,
-  getAdminAllowlist,
-  isAdmin,
-  parseAdminAllowlist,
-  requireAdmin,
-} from "@/lib/admin-gate";
-
-describe("parseAdminAllowlist()", () => {
-  it("parses a simple comma-separated email string into a Set", () => {
-    const set = parseAdminAllowlist("alice@x.com,bob@x.com,carol@x.com");
-    expect(set.has("alice@x.com")).toBe(true);
-    expect(set.has("bob@x.com")).toBe(true);
-    expect(set.has("carol@x.com")).toBe(true);
-    expect(set.size).toBe(3);
-  });
-
-  it("trims whitespace around entries", () => {
-    const set = parseAdminAllowlist("  alice@x.com , bob@x.com ,  carol@x.com  ");
-    expect(set.has("alice@x.com")).toBe(true);
-    expect(set.has("bob@x.com")).toBe(true);
-    expect(set.has("carol@x.com")).toBe(true);
-  });
-
-  it("lowercases email entries", () => {
-    const set = parseAdminAllowlist("Alice@X.COM,BOB@x.com");
-    expect(set.has("alice@x.com")).toBe(true);
-    expect(set.has("bob@x.com")).toBe(true);
-    expect(set.has("Alice@X.COM")).toBe(false);
-  });
-
-  it("drops empty entries (double comma, trailing comma)", () => {
-    const set = parseAdminAllowlist("alice@x.com,,bob@x.com,");
-    expect(set.size).toBe(2);
-    expect(set.has("alice@x.com")).toBe(true);
-    expect(set.has("bob@x.com")).toBe(true);
-    expect(set.has("")).toBe(false);
-  });
-
-  it("collapses duplicate entries", () => {
-    const set = parseAdminAllowlist("alice@x.com,alice@x.com,bob@x.com");
-    expect(set.size).toBe(2);
-  });
-
-  it("returns an empty Set for null / undefined / empty string", () => {
-    expect(parseAdminAllowlist(null).size).toBe(0);
-    expect(parseAdminAllowlist(undefined).size).toBe(0);
-    expect(parseAdminAllowlist("").size).toBe(0);
-    expect(parseAdminAllowlist("   ").size).toBe(0);
-  });
-});
-
-describe("getAdminAllowlist()", () => {
-  beforeEach(() => {
-    mockGetSecureParam.mockReset();
-    _resetAdminAllowlistCacheForTests();
-  });
-
-  it("returns the parsed allowlist on happy path", async () => {
-    mockGetSecureParam.mockResolvedValue("alice@x.com,bob@x.com");
-    const set = await getAdminAllowlist();
-    expect(set.has("alice@x.com")).toBe(true);
-    expect(set.has("bob@x.com")).toBe(true);
-  });
-
-  it("returns an empty Set on SSM failure (fail-closed)", async () => {
-    mockGetSecureParam.mockRejectedValue(new Error("boom"));
-    const set = await getAdminAllowlist();
-    expect(set.size).toBe(0);
-  });
-
-  it("reads from the expected env key + SSM path", async () => {
-    mockGetSecureParam.mockResolvedValue("");
-    await getAdminAllowlist();
-    expect(mockGetSecureParam).toHaveBeenCalledWith({
-      envKey: "BIB_ADMIN_ALLOWLIST",
-      ssmPath: "/dc34/secrets/use1/bib/admin/allowlist",
-    });
-  });
-
-  it("caches successful reads — subsequent calls do not re-hit SSM", async () => {
-    mockGetSecureParam.mockResolvedValue("alice@x.com");
-    await getAdminAllowlist();
-    await getAdminAllowlist();
-    await getAdminAllowlist();
-    expect(mockGetSecureParam).toHaveBeenCalledTimes(1);
-  });
-
-  it("does NOT cache failed reads — next call retries", async () => {
-    mockGetSecureParam.mockRejectedValueOnce(new Error("boom"));
-    const first = await getAdminAllowlist();
-    expect(first.size).toBe(0);
-    mockGetSecureParam.mockResolvedValueOnce("alice@x.com");
-    const second = await getAdminAllowlist();
-    expect(second.has("alice@x.com")).toBe(true);
-    expect(mockGetSecureParam).toHaveBeenCalledTimes(2);
-  });
-});
+import { isAdmin, requireAdmin } from "@/lib/admin-gate";
 
 describe("isAdmin()", () => {
-  beforeEach(() => {
-    mockGetSecureParam.mockReset();
-    _resetAdminAllowlistCacheForTests();
+  it("returns true when services includes 'admin'", () => {
+    expect(isAdmin({ user: { services: ["auth", "run", "admin"] } })).toBe(true);
   });
 
-  it("returns true when email is on the allowlist", async () => {
-    mockGetSecureParam.mockResolvedValue("alice@x.com,bob@x.com");
-    expect(await isAdmin("alice@x.com")).toBe(true);
+  it("returns false when services lacks 'admin'", () => {
+    expect(isAdmin({ user: { services: ["auth", "run", "flash"] } })).toBe(false);
   });
 
-  it("returns true regardless of case", async () => {
-    mockGetSecureParam.mockResolvedValue("alice@x.com,bob@x.com");
-    expect(await isAdmin("Alice@X.COM")).toBe(true);
+  it("returns false for empty / missing / null services", () => {
+    expect(isAdmin({ user: { services: [] } })).toBe(false);
+    expect(isAdmin({ user: {} })).toBe(false);
+    expect(isAdmin({ user: { services: null } })).toBe(false);
   });
 
-  it("returns false when email is not on the allowlist", async () => {
-    mockGetSecureParam.mockResolvedValue("alice@x.com,bob@x.com");
-    expect(await isAdmin("charlie@x.com")).toBe(false);
+  it("returns false for null / undefined session", () => {
+    expect(isAdmin(null)).toBe(false);
+    expect(isAdmin(undefined)).toBe(false);
   });
 
-  it("returns false when email is null / undefined / empty", async () => {
-    mockGetSecureParam.mockResolvedValue("alice@x.com,bob@x.com");
-    expect(await isAdmin(null)).toBe(false);
-    expect(await isAdmin(undefined)).toBe(false);
-    expect(await isAdmin("")).toBe(false);
-  });
-
-  it("returns false when allowlist SSM fetch fails", async () => {
-    mockGetSecureParam.mockRejectedValue(new Error("SSM down"));
-    expect(await isAdmin("alice@x.com")).toBe(false);
-  });
-
-  it("returns false when allowlist is empty (fail-closed)", async () => {
-    mockGetSecureParam.mockResolvedValue("");
-    expect(await isAdmin("alice@x.com")).toBe(false);
+  it("does not match on a substring or wrong case", () => {
+    expect(isAdmin({ user: { services: ["administrator"] } })).toBe(false);
+    expect(isAdmin({ user: { services: ["Admin"] } })).toBe(false);
   });
 });
 
 describe("requireAdmin()", () => {
-  beforeEach(() => {
-    mockGetSecureParam.mockReset();
-    _resetAdminAllowlistCacheForTests();
-  });
-
-  it("returns ok=true for a session on the allowlist", async () => {
-    mockGetSecureParam.mockResolvedValue("alice@x.com,bob@x.com");
-    const result = await requireAdmin({ user: { email: "alice@x.com" } });
+  it("returns ok=true and echoes email for an admin session", () => {
+    const result = requireAdmin({
+      user: { email: "alice@x.com", services: ["run", "admin"] },
+    });
     expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.email).toBe("alice@x.com");
-    }
+    if (result.ok) expect(result.email).toBe("alice@x.com");
   });
 
-  it("returns ok=false with no_session when session is null", async () => {
-    const result = await requireAdmin(null);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toBe("no_session");
-    }
-    expect(mockGetSecureParam).not.toHaveBeenCalled();
+  it("returns ok=true with null email when the session omits email", () => {
+    const result = requireAdmin({ user: { services: ["admin"] } });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.email).toBeNull();
   });
 
-  it("returns ok=false with no_session when session.user.email is missing", async () => {
-    const result = await requireAdmin({ user: {} });
+  it("returns no_session for null session", () => {
+    const result = requireAdmin(null);
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toBe("no_session");
-    }
+    if (!result.ok) expect(result.reason).toBe("no_session");
   });
 
-  it("returns ok=false with not_allowlisted when session email is not on list", async () => {
-    mockGetSecureParam.mockResolvedValue("alice@x.com,bob@x.com");
-    const result = await requireAdmin({ user: { email: "charlie@x.com" } });
+  it("returns no_session when session.user is missing", () => {
+    const result = requireAdmin({});
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toBe("not_allowlisted");
-    }
+    if (!result.ok) expect(result.reason).toBe("no_session");
   });
 
-  it("returns ok=false with not_allowlisted when SSM is misconfigured (empty)", async () => {
-    mockGetSecureParam.mockResolvedValue("");
-    const result = await requireAdmin({ user: { email: "alice@x.com" } });
+  it("returns not_admin for an authenticated non-admin", () => {
+    const result = requireAdmin({
+      user: { email: "bob@x.com", services: ["run", "flash"] },
+    });
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toBe("not_allowlisted");
-    }
+    if (!result.ok) expect(result.reason).toBe("not_admin");
   });
 });
