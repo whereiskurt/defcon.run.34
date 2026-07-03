@@ -116,6 +116,21 @@
       }
     },
     {
+      "label": "App: run.gpx-studio Vite (:5173)",
+      "detail": "Fast UI loop for the gpx-studio SvelteKit editor — bypasses the Next.js auth wrapper. Set MAPBOX_PUBLIC_TOKEN for live map tiles.",
+      "type": "shell",
+      "command": "PUBLIC_MAPBOX_TOKEN=${env:MAPBOX_PUBLIC_TOKEN} npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/run.gpx/gpx-studio/website"
+      },
+      "isBackground": true,
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
       "label": "E2E Tests",
       "type": "shell",
       "command": "$(aws configure export-credentials --profile ${env:SITE_LABEL}-terraform --format env) && ./e2e.sh",
