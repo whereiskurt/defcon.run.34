@@ -3,7 +3,7 @@
     import LayerTree from './LayerTree.svelte';
     import PublicOverlays from './PublicOverlays.svelte';
     import { OverpassLayer } from './overpass-layer';
-    import { PublicOverlaysLayer, publicOverlayGroups } from '../public-overlays';
+    import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
     import { Separator } from '$lib/components/ui/separator';
     import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
     import { Layers } from '@lucide/svelte';
@@ -258,7 +258,7 @@
                             />
                         {/if}
                     </div>
-                    {#if $publicOverlayGroups.length > 0}
+                    {#if $publicOverlayGroups.length > 0 || $publicAggregate.available}
                         <Separator class="w-full" />
                         <div class="p-2 ml-1">
                             <PublicOverlays layer={publicOverlaysLayer} />

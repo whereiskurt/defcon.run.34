@@ -39,6 +39,15 @@ export type PublicOverlayGroup = {
 // UI-facing state: the layer control renders master + per-route toggles from this.
 export const publicOverlayGroups = writable<PublicOverlayGroup[]>([]);
 
+// "All Runners" aggregate (Phase 32): a single non-attributable blended layer.
+export const publicAggregate = writable<{ available: boolean; visible: boolean }>({
+    available: false,
+    visible: false,
+});
+
+const AGGREGATE_URL = '/api/gpx/public/aggregate';
+const AGGREGATE_LAYER = 'public-all-runners';
+
 function layerIdFor(fileId: string): string {
     return `${SOURCE_PREFIX}${fileId}`;
 }
@@ -94,6 +103,43 @@ export class PublicOverlaysLayer {
 
         this.loaded = true;
         publicOverlayGroups.set(groups);
+
+        await this.addAggregate();
+    }
+
+    /** Load the "All Runners" aggregate as one hidden, non-attributable line layer. */
+    private async addAggregate() {
+        try {
+            const res = await fetch(AGGREGATE_URL, { credentials: 'omit' });
+            if (!res.ok) return;
+            const geojson = (await res.json()) as GeoJSON.FeatureCollection;
+            if (!geojson.features || geojson.features.length === 0) return;
+
+            if (!this.map.getSource(AGGREGATE_LAYER)) {
+                this.map.addSource(AGGREGATE_LAYER, { type: 'geojson', data: geojson });
+            }
+            if (!this.map.getLayer(AGGREGATE_LAYER)) {
+                this.map.addLayer({
+                    id: AGGREGATE_LAYER,
+                    type: 'line',
+                    source: AGGREGATE_LAYER,
+                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                    // Low opacity so overlapping tracks read as density (a soft heatmap).
+                    paint: { 'line-color': '#00e5ff', 'line-width': 2, 'line-opacity': 0.15 },
+                });
+            }
+            publicAggregate.set({ available: true, visible: false });
+        } catch {
+            // aggregate unavailable → no layer, studio unaffected
+        }
+    }
+
+    /** Toggle the aggregate "All Runners" layer. */
+    setAggregateVisible(visible: boolean) {
+        if (this.map.getLayer(AGGREGATE_LAYER)) {
+            this.map.setLayoutProperty(AGGREGATE_LAYER, 'visibility', visible ? 'visible' : 'none');
+        }
+        publicAggregate.update((s) => ({ ...s, visible }));
     }
 
     private addRouteLayer(fileId: string, geojson: GeoJSON.FeatureCollection) {
@@ -163,11 +209,14 @@ export class PublicOverlaysLayer {
                     if (this.map.getSource(id)) this.map.removeSource(id);
                 }
             }
+            if (this.map.getLayer(AGGREGATE_LAYER)) this.map.removeLayer(AGGREGATE_LAYER);
+            if (this.map.getSource(AGGREGATE_LAYER)) this.map.removeSource(AGGREGATE_LAYER);
         } catch {
             // map not ready
         }
         this.loaded = false;
         publicOverlayGroups.set([]);
+        publicAggregate.set({ available: false, visible: false });
     }
 }
 

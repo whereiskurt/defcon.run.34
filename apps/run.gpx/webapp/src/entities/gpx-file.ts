@@ -167,6 +167,13 @@ export const GpxFile = new Entity(
         type: "string",
         required: false,
       },
+      // Opt-in to the public non-attributable "All Runners" aggregate overlay (Phase 32).
+      // Owner-controlled; unlike individual sharing this blends the route with no name/id.
+      includeInAggregate: {
+        type: "boolean",
+        required: false,
+        default: false,
+      },
     },
     indexes: {
       primary: {
