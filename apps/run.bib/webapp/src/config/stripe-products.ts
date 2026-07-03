@@ -1,5 +1,7 @@
 /**
- * Stripe Product IDs — created via API 2026-07-02 in Kurt's test-mode account.
+ * Stripe Product IDs — Kurt's test-mode sandbox (rotated 2026-07-03).
+ *   STRIPE_PRODUCT_GENERAL → "Global Participant" (general donation flow)
+ *   STRIPE_PRODUCT_BIB     → "Bib Pickup (Custom)" (bib flow)
  *
  * Referenced by `price_data.product` in Checkout Session create calls so the
  * Stripe dashboard groups per-session Prices under a single Product. Metadata
@@ -9,7 +11,7 @@
  * without a code change.
  */
 export const STRIPE_PRODUCT_BIB =
-  process.env.STRIPE_PRODUCT_BIB ?? "prod_UoOw1e2QiETfr0";
+  process.env.STRIPE_PRODUCT_BIB ?? "prod_UokaCinrlgtGNt";
 
 export const STRIPE_PRODUCT_GENERAL =
-  process.env.STRIPE_PRODUCT_GENERAL ?? "prod_UoOwrhvDGjgzol";
+  process.env.STRIPE_PRODUCT_GENERAL ?? "prod_Uol30buDvGTFiW";
