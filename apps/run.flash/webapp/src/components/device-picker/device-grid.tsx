@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { Button, Chip } from "@heroui/react";
 import type { DeviceHardware } from "@/types/device";
-import { isEsp32Device } from "@/types/device";
+import { isEsp32Device, isNrf52Device } from "@/types/device";
 import {
   sortDevices,
   deduplicateDevices,
@@ -24,25 +24,29 @@ export function DeviceGrid({ onSelect, selectedDevice, onContinue }: DeviceGridP
   const [search, setSearch] = useState("");
   const [manufacturer, setManufacturer] = useState<string | null>(null);
 
-  // Filter to ESP32 devices and deduplicate
-  const esp32Devices = useMemo(() => {
+  // Filter to flashable devices (ESP32 via Web Serial + nRF52 via UF2 drag-drop,
+  // e.g. the Seeed T-1000E) and deduplicate. The wizard branches on device
+  // family downstream (getDeviceFamily), so both families are selectable here.
+  const flashableDevices = useMemo(() => {
     const allDevices = deviceData as DeviceHardware[];
-    return deduplicateDevices(allDevices.filter(isEsp32Device));
+    return deduplicateDevices(
+      allDevices.filter((d) => isEsp32Device(d) || isNrf52Device(d))
+    );
   }, []);
 
-  // Extract actual manufacturers present in ESP32 devices
+  // Extract actual manufacturers present in flashable devices
   const availableManufacturers = useMemo(() => {
     const mfrs = new Set<string>();
-    for (const device of esp32Devices) {
+    for (const device of flashableDevices) {
       if (device.tags?.[0]) mfrs.add(device.tags[0]);
     }
     // Return only MANUFACTURERS that actually have devices
     return MANUFACTURERS.filter((m) => mfrs.has(m));
-  }, [esp32Devices]);
+  }, [flashableDevices]);
 
   // Filter and sort
   const filtered = useMemo(() => {
-    let result = esp32Devices;
+    let result = flashableDevices;
 
     if (manufacturer) {
       result = result.filter((d) => d.tags?.includes(manufacturer));
@@ -58,7 +62,7 @@ export function DeviceGrid({ onSelect, selectedDevice, onContinue }: DeviceGridP
     }
 
     return sortDevices(result);
-  }, [esp32Devices, search, manufacturer]);
+  }, [flashableDevices, search, manufacturer]);
 
   return (
     <div className="space-y-4">
