@@ -68,9 +68,14 @@ on:
         type: boolean
         default: true
       deploy:
-        description: 'Deploy to ECS + invalidate cache after build'
+        # Default OFF: buildpub's inline deploy reads main's VERSION, but the
+        # build's bump lives in the (as-yet unmerged) Release PR — so it would
+        # deploy the PREVIOUS image. Ship via deploy.yml (merge Release PR →
+        # deploy from the merged ref) instead. Set true only for a same-version
+        # redeploy where main already matches the built image.
+        description: 'Deploy to ECS + invalidate cache after build (usually false; deploy via deploy.yml)'
         type: boolean
-        default: true
+        default: false
 
 env:
   AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
