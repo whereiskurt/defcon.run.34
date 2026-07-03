@@ -80,7 +80,7 @@ export default async function AdminPage() {
 
         <ReportSection
           title="Print-name list"
-          note="Every named bib, print-eligible first (paid ≥ $10 or name-locked). This is the printer handoff."
+          note="Every named bib, print-eligible first (paid ≥ $20 on a bib). This is the printer handoff."
           csvHref={`${base}/api/admin/bib/report/print-names`}
         >
           <Table
