@@ -70,7 +70,7 @@ describe("buildReports()", () => {
     const byCode = Object.fromEntries(r.printNames.map((x) => [x.runnerCode, x]));
     expect(byCode["bib-paid"].printEligible).toBe(true); // $20 ≥ gate
     expect(byCode["bib-cheap"].printEligible).toBe(false); // $5 < gate
-    expect(byCode["bib-locked"].printEligible).toBe(true); // locked
+    expect(byCode["bib-locked"].printEligible).toBe(false); // locked but $0 paid
   });
 
   it("print-names sorts eligible first", () => {
@@ -102,12 +102,12 @@ describe("buildReports()", () => {
     expect(r.totals.bibCollectedCents).toBe(2500); // 2000 + 500
     expect(r.totals.donationCents).toBe(20000);
     expect(r.totals.grandTotalCents).toBe(22500);
-    expect(r.totals.printEligible).toBe(2); // alice + carol
+    expect(r.totals.printEligible).toBe(1); // only alice ($20 bib spend)
     expect(r.totals.pendingCount).toBe(2); // 1 pending + 1 unmatched reconcile
   });
 
-  it("PRINT_GATE_CENTS is $10", () => {
-    expect(PRINT_GATE_CENTS).toBe(1000);
+  it("PRINT_GATE_CENTS is $20", () => {
+    expect(PRINT_GATE_CENTS).toBe(2000);
   });
 });
 

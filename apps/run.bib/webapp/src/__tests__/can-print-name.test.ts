@@ -50,44 +50,41 @@ vi.mock("@/entities/client", () => ({
 
 import { canPrintName } from "@/entities/bib";
 
-describe("canPrintName() — Phase 22-05 free-bib rescope", () => {
+describe("canPrintName() — Kurt 2026-07-03 $20-bib-spend gate", () => {
+  // Prints iff paidAmount >= $20 (2000c) AND a non-empty name is set.
   const base = {
     ownerSub: "sub-1",
     nameOnBib: "Alice",
     runnerCode: "BIB-K7QM",
-    paidAmount: 0,
+    paidAmount: 2000,
     paidStatusHistory: [],
-    nameLocked: true,
+    nameLocked: false,
     willPayInPerson: false,
     createdAt: "2026-07-02T00:00:00.000Z",
     updatedAt: "2026-07-02T00:00:00.000Z",
   };
 
-  it("returns true when nameLocked=true (payment orthogonal)", () => {
+  it("true when paid >= $20 with a name", () => {
     expect(canPrintName(base)).toBe(true);
+    expect(canPrintName({ ...base, paidAmount: 5000 })).toBe(true);
   });
 
-  it("returns true when nameLocked=true and paidAmount=0 (free bib)", () => {
-    expect(canPrintName({ ...base, paidAmount: 0 })).toBe(true);
+  it("true at exactly $20 (the bib minimum)", () => {
+    expect(canPrintName({ ...base, paidAmount: 2000 })).toBe(true);
   });
 
-  it("returns true when nameLocked=true and paidAmount>0 (sponsor path)", () => {
-    expect(canPrintName({ ...base, paidAmount: 2500 })).toBe(true);
+  it("false below $20 even with a name", () => {
+    expect(canPrintName({ ...base, paidAmount: 1999 })).toBe(false);
+    expect(canPrintName({ ...base, paidAmount: 0 })).toBe(false);
   });
 
-  it("returns true regardless of willPayInPerson pledge (payment orthogonal)", () => {
-    expect(canPrintName({ ...base, willPayInPerson: true })).toBe(true);
-    expect(canPrintName({ ...base, willPayInPerson: false })).toBe(true);
+  it("false when no name even if paid over $20", () => {
+    expect(canPrintName({ ...base, nameOnBib: "" })).toBe(false);
+    expect(canPrintName({ ...base, nameOnBib: "   " })).toBe(false);
   });
 
-  it("returns false when nameLocked=false (admin has not confirmed)", () => {
-    expect(canPrintName({ ...base, nameLocked: false })).toBe(false);
-  });
-
-  it("returns false when nameLocked=false even with a large payment", () => {
-    expect(
-      canPrintName({ ...base, nameLocked: false, paidAmount: 100_000 })
-    ).toBe(false);
+  it("nameLocked alone does not print — the $20 payment gate applies", () => {
+    expect(canPrintName({ ...base, paidAmount: 0, nameLocked: true })).toBe(false);
   });
 
   it("returns false for null / undefined input", () => {

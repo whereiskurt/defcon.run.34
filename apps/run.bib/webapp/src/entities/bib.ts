@@ -33,6 +33,16 @@ import { clearPendingForOwner } from "./pending-contribution";
  *
  * NB: no size / no shirt-size fields — Kurt design contract 2026-07-02.
  */
+/** Physical-bib name render budget (Kurt 2026-07-03: 24 chars). */
+export const NAME_MAX_CHARS = 24;
+
+/**
+ * Print gate: minimum spend ON A BIB PRODUCT (Bib.paidAmount, not general
+ * donations) to print a runner's name on the physical bib. Kurt 2026-07-03:
+ * $20 — the bib product minimum. Paired with a non-empty name in canPrintName().
+ */
+export const PRINT_PAID_MIN_CENTS = 2000;
+
 export const Bib = new Entity(
   {
     model: {
@@ -320,8 +330,9 @@ export async function updateBibName(
     throw new NameLockedError(ownerSub);
   }
 
-  // Server-side cap at 32 chars, matching the design-contract render budget.
-  const trimmed = nameOnBib.trim().slice(0, 32);
+  // Server-side cap at 24 chars (Kurt 2026-07-03), matching the physical bib
+  // render budget. Source of truth — the client caps too but never trust it.
+  const trimmed = nameOnBib.trim().slice(0, NAME_MAX_CHARS);
 
   const result = await Bib.patch({ ownerSub })
     .set({ nameOnBib: trimmed })
@@ -336,7 +347,7 @@ export async function isBibNameChange(
 ): Promise<boolean> {
   const existing = await getBib(ownerSub);
   if (!existing) return false;
-  return nameOnBib.trim().slice(0, 32) !== (existing.nameOnBib ?? "");
+  return nameOnBib.trim().slice(0, NAME_MAX_CHARS) !== (existing.nameOnBib ?? "");
 }
 
 /**
@@ -367,27 +378,23 @@ export async function updateBibWillPayInPerson(
 }
 
 /**
- * Physical-bib print gate (SC8, v1.5 Phase 22, rescoped Phase 22-05).
+ * Physical-bib print gate (Kurt 2026-07-03 — re-introduces a payment gate).
  *
- * A bib may be sent to the printer iff:
- *   - `nameLocked === true` — an admin (Kurt/Jesse) has confirmed the
- *     name-on-bib is final and safe to render (prevents last-second
- *     profanity / typos in the physical print run).
+ * A runner's name prints on the physical bib iff BOTH:
+ *   - they've paid at least $20 on a bib product (`paidAmount >= PRINT_PAID_MIN_CENTS`), AND
+ *   - a non-empty name is entered (`nameOnBib`).
  *
- * Phase 22-05 rescope (Kurt 2026-07-02): bib registration is FREE.
- * The former `paidAmount >= 1000` gate is INTENTIONALLY REMOVED — payment
- * is orthogonal to the print gate. Sponsors get a charm accent on the bib
- * preview (Phase 22-05-06), but everyone who registers by deadline gets
- * their name printed.
- *
- * The old `PRINT_PAID_MIN_CENTS` constant is intentionally removed.
- * Nothing else in the codebase referenced it after Plan 22-04; grep-guard
- * against reintroduction if the print pipeline ever needs a payment gate.
+ * History: v1.5 Phase 22-05 briefly made the bib free and gated printing on
+ * `nameLocked` alone; Kurt 2026-07-03 reverted to a spend-based gate. The
+ * `nameLocked` flag is now a separate admin edit-freeze (see updateBibName),
+ * not the print gate.
  *
  * Accepts either a BibItem or `null` for convenience at the API layer
  * (`canPrintName(await getBib(sub))` compiles).
  */
 export function canPrintName(bib: BibItem | null | undefined): boolean {
   if (!bib) return false;
-  return bib.nameLocked === true;
+  const paid = bib.paidAmount ?? 0;
+  const hasName = (bib.nameOnBib ?? "").trim().length > 0;
+  return paid >= PRINT_PAID_MIN_CENTS && hasName;
 }

@@ -18,12 +18,12 @@ import { BibReconcile } from "@/entities/bib-reconcile";
 import { PendingContribution } from "@/entities/pending-contribution";
 
 /**
- * The physical-bib print gate. Kurt's contract: $10+ paid unlocks the name
- * on the printed bib. NB: the entity helper `canPrintName()` currently gates
- * only on `nameLocked`; this report treats a bib as print-eligible when it
- * meets the $10 gate OR has been locked, so the printer list is complete.
+ * The physical-bib print gate (Kurt 2026-07-03): a name prints iff the runner
+ * has paid ≥ $20 on a bib product AND entered a name. Mirrors the entity
+ * helper `canPrintName()` / `PRINT_PAID_MIN_CENTS`. The print-name report is
+ * already filtered to named bibs, so `printEligible` here is the $20 spend.
  */
-export const PRINT_GATE_CENTS = 1000;
+export const PRINT_GATE_CENTS = 2000;
 
 export type ReportType =
   | "print-names"
@@ -140,7 +140,8 @@ export function buildReports(input: ReportInput): ReportBundle {
         runnerCode: b.runnerCode,
         paidAmountCents: paid,
         nameLocked: locked,
-        printEligible: paid >= PRINT_GATE_CENTS || locked,
+        // Named bibs only reach here; eligibility is the $20 bib-spend gate.
+        printEligible: paid >= PRINT_GATE_CENTS,
       };
     })
     // Eligible first, then by amount desc, then name.
