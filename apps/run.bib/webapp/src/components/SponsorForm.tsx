@@ -243,124 +243,90 @@ export function SponsorForm({
         variant === "bib" ? "Sponsor a bib" : "Make a general donation"
       }
       style={{
+        // A6 (Kurt 2026-07-03): no nested card — this form renders INSIDE a
+        // Tile which already provides the card, so keep it transparent and
+        // full-width to stop the inner box bleeding past the parent border.
         display: "flex",
         flexDirection: "column",
-        gap: 20,
-        padding: "24px",
-        backgroundColor: "#12121a",
-        border: "1px solid #2a2a34",
-        borderRadius: 10,
+        gap: 18,
         width: "100%",
-        maxWidth: 720,
-        margin: 0,
+        boxSizing: "border-box",
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#8f8fa8",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
-          {variant === "bib" ? "Sponsor amount" : "Donation amount"}
-        </span>
-        <div
-          style={{
-            fontSize: 40,
-            fontWeight: 800,
-            color: "#6CCDB8",
-            fontFamily:
-              "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-            letterSpacing: "0.02em",
-            lineHeight: 1.1,
-          }}
-          aria-live="polite"
-        >
-          {displayAmount}
-        </div>
-      </div>
-
-      {/* Slider across the full range — cleaner than a wall of preset chips
-        * (Kurt 2026-07-03). The custom input below allows an exact amount. */}
-      <input
-        type="range"
-        min={minCents}
-        max={SLIDER_MAX_CENTS}
-        step={SLIDER_STEP_CENTS}
-        value={Math.min(amountCents, SLIDER_MAX_CENTS)}
-        onChange={(e) => setAmountCents(clampRange(Number(e.target.value)))}
-        disabled={disabled}
-        aria-label={variant === "bib" ? "Sponsor amount" : "Donation amount"}
-        style={{
-          width: "100%",
-          accentColor: "#6CCDB8",
-          cursor: disabled ? "not-allowed" : "pointer",
-        }}
-      />
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: 12,
-          color: "#8f8fa8",
-          marginTop: -12,
-          fontFamily:
-            "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-        }}
-      >
-        <span>${minCents / 100}</span>
-        <span>$200+</span>
-      </div>
-
-      <label
-        htmlFor={`sponsor-amount-custom-${variant}`}
+      <span
         style={{
           fontSize: 13,
-          color: "#a4a4b8",
+          fontWeight: 600,
+          color: "#8f8fa8",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
         }}
       >
-        Or type an exact amount (min ${minCents / 100}, up to $1000)
-      </label>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "10px 12px",
-          backgroundColor: "#1a1a24",
-          border: "1px solid #2a2a34",
-          borderRadius: 6,
-          maxWidth: 180,
-        }}
-      >
-        <span style={{ color: "#8f8fa8", fontWeight: 700 }}>$</span>
+        {variant === "bib" ? "Sponsor amount" : "Donation amount"}
+      </span>
+
+      {/* A7 (Kurt 2026-07-03): slider + an editable amount box at its right
+        * end. Dragging the slider updates the box; typing any value (up to
+        * $1000) into the box repositions the slider. */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <input
-          id={`sponsor-amount-custom-${variant}`}
-          type="text"
-          inputMode="decimal"
-          autoComplete="off"
-          value={(amountCents / 100).toString()}
-          onChange={onCustomChange}
+          type="range"
+          min={minCents}
+          max={SLIDER_MAX_CENTS}
+          step={SLIDER_STEP_CENTS}
+          value={Math.min(amountCents, SLIDER_MAX_CENTS)}
+          onChange={(e) => setAmountCents(clampRange(Number(e.target.value)))}
           disabled={disabled}
-          aria-label="Custom amount in US dollars"
+          aria-label={variant === "bib" ? "Sponsor amount" : "Donation amount"}
           style={{
             flex: 1,
             minWidth: 0,
-            padding: 0,
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#e4e4ef",
-            backgroundColor: "transparent",
-            border: "none",
-            outline: "none",
-            fontFamily:
-              "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+            accentColor: "#6CCDB8",
+            cursor: disabled ? "not-allowed" : "pointer",
           }}
         />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "8px 12px",
+            backgroundColor: "#1a1a24",
+            border: "1px solid #2a2a34",
+            borderRadius: 8,
+            flex: "0 0 auto",
+            width: 118,
+          }}
+        >
+          <span style={{ color: "#8f8fa8", fontWeight: 700 }}>$</span>
+          <input
+            id={`sponsor-amount-custom-${variant}`}
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            value={(amountCents / 100).toString()}
+            onChange={onCustomChange}
+            disabled={disabled}
+            aria-label="Amount in US dollars"
+            style={{
+              width: "100%",
+              minWidth: 0,
+              padding: 0,
+              fontSize: 20,
+              fontWeight: 800,
+              color: "#6CCDB8",
+              backgroundColor: "transparent",
+              border: "none",
+              outline: "none",
+              fontFamily:
+                "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+            }}
+          />
+        </div>
       </div>
+      <span style={{ fontSize: 12, color: "#8f8fa8" }}>
+        Slide or type any amount from ${minCents / 100} up to $1000.
+      </span>
 
       {offerNonStripe && (
         <div>
