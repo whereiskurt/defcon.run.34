@@ -39,7 +39,7 @@ export interface BibFormProps {
   nameLocked: boolean;
   /**
    * Phase 22-05-06 sponsor charm accent. Passed through to BibPreview so
-   * the amber charm renders when the participant has any contribution
+   * the green (DC34 mint palette #6CCDB8) charm renders when the participant has any contribution
    * (bib.paidAmount > 0). Optional — defaults to `false`.
    */
   hasSponsored?: boolean;
@@ -283,7 +283,7 @@ function SaveStateHint({
       <span
         id="bib-name-hint"
         role="status"
-        style={{ ...baseStyle, color: "#f4b942" }}
+        style={{ ...baseStyle, color: "#6CCDB8" }}
       >
         Name locked for print — contact organizers if this needs to change.
       </span>

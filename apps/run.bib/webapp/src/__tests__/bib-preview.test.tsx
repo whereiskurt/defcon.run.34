@@ -8,7 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
  * render it to a static string via react-dom/server and pin the expected
  * SVG shape without booting jsdom. We deliberately test the SVG's DOM
  * shape (does the charm group appear? does it disappear?) rather than
- * rendering-pixel diffs — the visual choice (star + amber circle) is
+ * rendering-pixel diffs — the visual choice (star + mint circle) is
  * Kurt's Phase 23 deploy-inspection call.
  */
 
@@ -22,7 +22,7 @@ describe("BibPreview sponsor charm accent (Phase 22-05-06)", () => {
     expect(html).toContain('id="sponsor-charm"');
     expect(html).toContain('data-testid="sponsor-charm"');
     // Amber fill on the outer circle — the charm's visual signature.
-    expect(html).toContain("#d97706");
+    expect(html).toContain("#3a8f79");
   });
 
   it("does NOT render the sponsor-charm group when hasSponsored=false", () => {

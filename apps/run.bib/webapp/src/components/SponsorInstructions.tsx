@@ -39,7 +39,7 @@ export interface SponsorInstructionsProps {
   deepLink?: string;
   /**
    * Optional accent color for the amount + handle typography. Defaults
-   * to the DEF CON amber (#f4b942) shared with SponsorForm.
+   * to the DEF CON green (DC34 mint palette #6CCDB8) (#6CCDB8) shared with SponsorForm.
    */
   accentColor?: string;
   /**
@@ -56,7 +56,7 @@ export function SponsorInstructions({
   runnerCode,
   amountCents,
   deepLink,
-  accentColor = "#f4b942",
+  accentColor = "#6CCDB8",
   footer,
 }: SponsorInstructionsProps) {
   const amountDisplay = formatCentsUsd(amountCents);

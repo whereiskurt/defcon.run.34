@@ -32,7 +32,7 @@ export interface BibPreviewProps {
   name: string;
   /**
    * Phase 22-05-06 sponsor charm accent. When `true`, renders a small
-   * amber charm (~40px diameter, top-right of the card) as a visual
+   * green (DC34 mint palette #6CCDB8) charm (~40px diameter, top-right of the card) as a visual
    * "thank you" for participants who have contributed any amount to a
    * bib sponsorship OR general donation. Optional — defaults to `false`
    * so the pre-22-05 BibPreview render remains bit-identical.
@@ -190,7 +190,7 @@ export function BibPreview({
 
       {/*
         Sponsor charm accent (Phase 22-05-06).
-        Small amber circle with a white star, rendered in the top-right
+        Small green (DC34 mint palette #6CCDB8) circle with a white star, rendered in the top-right
         corner of the card when the participant has any contribution
         (bib.paidAmount > 0). Kept inside the card border so it doesn't
         overlap the pin holes; z-order after the card rect so it renders
@@ -207,7 +207,7 @@ export function BibPreview({
             cx="912"
             cy="46"
             r="22"
-            fill="#d97706"
+            fill="#3a8f79"
             stroke="#a05308"
             strokeWidth="2"
           />

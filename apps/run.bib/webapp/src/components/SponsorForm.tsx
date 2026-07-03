@@ -34,6 +34,16 @@ export const AMOUNT_MIN_CENTS = 100; //   $1.00
 export const AMOUNT_MAX_CENTS = 100_000; // $1000.00
 export const AMOUNT_STEP_CENTS = 100; //   $1.00 steps
 
+/**
+ * Preset dollar amounts offered as one-click chips (Kurt 2026-07-02
+ * feedback: replace the raw slider with quick-pick chips + a free-form
+ * input, weighted toward lower values). Users who want an amount
+ * outside these presets use the "custom" input.
+ */
+export const AMOUNT_PRESETS_DOLLARS = [
+  5, 10, 15, 20, 25, 40, 50, 75, 100, 200, 250,
+] as const;
+
 export type SponsorProvider = "stripe" | "venmo" | "cashapp";
 
 /**
@@ -140,10 +150,21 @@ export function SponsorForm({
   // 'unmatched'. Working as intended per PLAN-22-05.md design gap #2.
   const offerNonStripe = variant === "bib";
 
-  const onSliderChange = useCallback(
+  const onPresetClick = useCallback((dollars: number) => {
+    setAmountCents(clampAmountCents(dollars * 100));
+  }, []);
+
+  const onCustomChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const parsed = Number.parseInt(event.target.value, 10);
-      setAmountCents(clampAmountCents(parsed));
+      // Free-form dollar input — strip anything but digits + one dot,
+      // parse as float, convert to cents, then clamp.
+      const raw = event.target.value.replace(/[^0-9.]/g, "");
+      const dollars = Number.parseFloat(raw);
+      if (!Number.isFinite(dollars)) {
+        setAmountCents(AMOUNT_MIN_CENTS);
+        return;
+      }
+      setAmountCents(clampAmountCents(Math.round(dollars * 100)));
     },
     []
   );
@@ -249,7 +270,7 @@ export function SponsorForm({
           style={{
             fontSize: 40,
             fontWeight: 800,
-            color: "#f4b942",
+            color: "#6CCDB8",
             fontFamily:
               "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
             letterSpacing: "0.02em",
@@ -261,30 +282,90 @@ export function SponsorForm({
         </div>
       </div>
 
+      <div
+        role="group"
+        aria-label="Pick an amount"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 8,
+        }}
+      >
+        {AMOUNT_PRESETS_DOLLARS.map((dollars) => {
+          const isSelected = amountCents === dollars * 100;
+          return (
+            <button
+              key={dollars}
+              type="button"
+              onClick={() => onPresetClick(dollars)}
+              disabled={disabled}
+              aria-pressed={isSelected}
+              style={{
+                minWidth: 56,
+                padding: "8px 12px",
+                fontSize: 14,
+                fontWeight: 700,
+                color: isSelected ? "#0a0a0a" : "#e4e4ef",
+                backgroundColor: isSelected ? "#6CCDB8" : "transparent",
+                border: `1px solid ${isSelected ? "#6CCDB8" : "#2a2a34"}`,
+                borderRadius: 999,
+                cursor: disabled ? "not-allowed" : "pointer",
+                fontFamily:
+                  "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+              }}
+            >
+              ${dollars}
+            </button>
+          );
+        })}
+      </div>
+
       <label
-        htmlFor={`sponsor-amount-slider-${variant}`}
+        htmlFor={`sponsor-amount-custom-${variant}`}
         style={{
           fontSize: 13,
           color: "#a4a4b8",
         }}
       >
-        Drag to choose an amount ($1 to $1000)
+        Or type a custom amount ($1&ndash;$1000)
       </label>
-      <input
-        id={`sponsor-amount-slider-${variant}`}
-        type="range"
-        min={AMOUNT_MIN_CENTS}
-        max={AMOUNT_MAX_CENTS}
-        step={AMOUNT_STEP_CENTS}
-        value={amountCents}
-        onChange={onSliderChange}
-        disabled={disabled}
-        aria-valuemin={AMOUNT_MIN_CENTS}
-        aria-valuemax={AMOUNT_MAX_CENTS}
-        aria-valuenow={amountCents}
-        aria-valuetext={displayAmount}
-        style={{ width: "100%" }}
-      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "10px 12px",
+          backgroundColor: "#1a1a24",
+          border: "1px solid #2a2a34",
+          borderRadius: 6,
+          maxWidth: 180,
+        }}
+      >
+        <span style={{ color: "#8f8fa8", fontWeight: 700 }}>$</span>
+        <input
+          id={`sponsor-amount-custom-${variant}`}
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          value={(amountCents / 100).toString()}
+          onChange={onCustomChange}
+          disabled={disabled}
+          aria-label="Custom amount in US dollars"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: 0,
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#e4e4ef",
+            backgroundColor: "transparent",
+            border: "none",
+            outline: "none",
+            fontFamily:
+              "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+          }}
+        />
+      </div>
 
       {offerNonStripe && (
         <fieldset
@@ -344,7 +425,7 @@ export function SponsorForm({
           fontSize: 16,
           fontWeight: 700,
           color: "#0a0a0a",
-          backgroundColor: disabled ? "#8f8fa8" : "#f4b942",
+          backgroundColor: disabled ? "#8f8fa8" : "#6CCDB8",
           border: "none",
           borderRadius: 6,
           cursor: disabled ? "wait" : "pointer",
@@ -398,7 +479,7 @@ function ProviderRadio({
         padding: "10px 12px",
         borderRadius: 6,
         backgroundColor: isSelected ? "#1a1a24" : "transparent",
-        border: `1px solid ${isSelected ? "#f4b942" : "#2a2a34"}`,
+        border: `1px solid ${isSelected ? "#6CCDB8" : "#2a2a34"}`,
         cursor: disabled ? "not-allowed" : "pointer",
         color: disabled ? "#8f8fa8" : "#e4e4ef",
       }}
