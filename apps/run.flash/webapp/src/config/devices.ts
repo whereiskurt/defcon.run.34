@@ -20,13 +20,15 @@ export const MANUFACTURERS = [
  * These get a "Recommended" badge and sort to the top.
  * TODO: Update this list once event hardware is finalized
  */
-// TODO(v1.4.1 close-out): promote T-1000E (hwModelSlug TRACKER_T1000_E) after Phase 25 SC4 hardware verify.
 export const RECOMMENDED_SLUGS = new Set([
   "HELTEC_V3",
   "TBEAM",
   "TLORA_V2_1_1P6",
   "RAK4631",
   "STATION_G2",
+  // nRF52840 Seeed Card Tracker — flashed via the guided UF2 drag-drop flow
+  // (Nrf52FlashStep), then configured/registered over Web Serial.
+  "TRACKER_T1000_E",
 ]);
 
 export function isRecommended(device: DeviceHardware): boolean {
@@ -52,6 +54,7 @@ export function getArchLabel(device: DeviceHardware): string {
     "esp32-s3": "ESP32-S3",
     "esp32-c3": "ESP32-C3",
     "esp32-c6": "ESP32-C6",
+    nrf52840: "nRF52840",
   };
   return labels[device.architecture] || device.architecture.toUpperCase();
 }

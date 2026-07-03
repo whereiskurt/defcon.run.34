@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { DeviceHardware } from "@/types/device";
+import type { DeviceHardware, DeviceFamily } from "@/types/device";
+import { getDeviceFamily } from "@/types/device";
 
 export type WizardStep =
   | "pick-device"
@@ -136,7 +137,26 @@ export function useWizard() {
   }, []);
 
   const selectDevice = useCallback((device: DeviceHardware) => {
-    setState((prev) => ({ ...prev, selectedDevice: device }));
+    setState((prev) => {
+      // nRF52 devices have no Web-Serial "Connect" step — they're flashed via
+      // UF2 drag-drop and only connect (over serial) during Configure. Mark
+      // "connect" complete so advance() skips pick-device → flash directly.
+      // ESP32 keeps the Connect step (clear the flag in case of re-selection).
+      let family: DeviceFamily = "esp32";
+      try {
+        family = getDeviceFamily(device);
+      } catch {
+        // Unknown architecture — keep the default esp32 flow (grid only
+        // surfaces supported families, so this is defensive only).
+      }
+      const completedSteps = new Set(prev.completedSteps);
+      if (family === "nrf52") {
+        completedSteps.add("connect");
+      } else {
+        completedSteps.delete("connect");
+      }
+      return { ...prev, selectedDevice: device, completedSteps };
+    });
   }, []);
 
   const clearDevice = useCallback(() => {
