@@ -5,22 +5,30 @@
  * imports each as an active GLOBAL GpxFile in a "DC33 Archive" folder, so they render as
  * individually-toggleable routes in the public overlay (Phase 28). Idempotent by fileName.
  *
- * Ops script — run with the app's AWS creds + a GitHub token that can read the DC33 repo:
- *   GITHUB_TOKEN=... DYNAMODB_TABLE=dc34-gpx DYNAMODB_REGION=us-east-1 \
+ * Ops script — run with the run-gpx app's AWS creds (from SSM) + a GitHub token that can
+ * read the DC33 repo. NOTE: the real table is `run-gpx-electro` (the entity's "dc34-gpx"
+ * default is dev-only), the bucket is `uploads-dc34-run-gpx-use1-<suffix>`, and the scoped
+ * run-gpx IAM user is PutItem-only on the table — hence deterministic ids + `put` upserts,
+ * no reads. Verified against prod 2026-07-03 (15 → "DEF CON 34 Maps", 3 → "Rabbit Routes").
+ *   GITHUB_TOKEN=... DYNAMODB_TABLE=run-gpx-electro DYNAMODB_REGION=us-east-1 \
  *   DYNAMODB_ACCESS_KEY=... DYNAMODB_SECRET_KEY=... \
  *   S3_UPLOADS_BUCKET=... S3_UPLOADS_ACCESS_KEY=... S3_UPLOADS_SECRET_KEY=... \
  *   npx tsx scripts/import-dc33.ts
  */
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { v4 as uuidv4 } from "uuid";
 import { GpxFolder } from "../src/entities/gpx-folder";
 import { GpxFile } from "../src/entities/gpx-file";
 import { s3Client, BUCKET, getUserPrefix } from "../src/lib/s3-client";
 
 const REPO = "whereiskurt/defcon.run.33";
 const DIR = "apps/strapi/s3backup";
-const FOLDER_NAME = "DC33 Archive";
 const GH = "https://api.github.com";
+
+// DC34 seeds from DC33 to start: all last-year routes → "DEF CON 34 Maps".
+// "Rabbit Routes" gets a few community samples (Vegas-area runs) to seed the group.
+const OFFICIAL_FOLDER = "DEF CON 34 Maps";
+const RABBIT_FOLDER = "Rabbit Routes";
+const RABBIT_SAMPLE_COUNT = 3;
 
 function ghHeaders() {
   const token = process.env.GITHUB_TOKEN;
@@ -66,45 +74,39 @@ function boundsOf(gpx: string) {
   };
 }
 
-async function ensureFolder(): Promise<string> {
-  const existing = await GpxFolder.query.byUser({ userId: "GLOBAL" }).go();
-  const match = existing.data.find(
-    (f) => f.folderName.toLowerCase() === FOLDER_NAME.toLowerCase()
-  );
-  if (match) return match.folderId;
-  const folderId = uuidv4();
-  await GpxFolder.create({
+function slug(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+// PUT-ONLY (the run-gpx IAM user allows PutItem but not GetItem/gsi2 Query).
+// Deterministic folderId + upsert → idempotent with no reads.
+async function ensureFolder(folderName: string): Promise<string> {
+  const folderId = `seed-${slug(folderName)}`;
+  await GpxFolder.put({
     userId: "GLOBAL",
     folderId,
-    folderName: FOLDER_NAME,
+    folderName,
     parentFolderId: "ROOT",
     depth: 0,
     isGlobal: true,
     createdBy: "dc33-import",
   }).go();
-  console.log(`＋ created GLOBAL folder "${FOLDER_NAME}" (${folderId})`);
+  console.log(`＋ folder "${folderName}" (${folderId})`);
   return folderId;
 }
 
-async function main() {
-  const folderId = await ensureFolder();
-
-  // Dedupe by display name within the folder.
-  const existing = await GpxFile.query.byFolder({ userId: "GLOBAL", folderId }).go({ pages: "all" });
-  const have = new Set(existing.data.map((f) => f.fileName.toLowerCase()));
-
-  const files = await listGpx();
-  console.log(`Found ${files.length} DC33 GPX files.`);
+async function importInto(
+  folderName: string,
+  files: { name: string; path: string }[]
+): Promise<void> {
+  const folderId = await ensureFolder(folderName);
+  const fslug = slug(folderName);
   let imported = 0;
-
   for (const f of files) {
     const name = `${displayName(f.name)}.gpx`;
-    if (have.has(name.toLowerCase())) {
-      console.log(`= skip "${name}" (already imported)`);
-      continue;
-    }
+    // Deterministic fileId per (folder, source) → `put` is an idempotent upsert.
+    const fileId = `${fslug}-${f.name.replace(/\.gpx$/i, "")}`;
     const gpx = await fetchGpx(f.path);
-    const fileId = uuidv4();
     const key = `${getUserPrefix("GLOBAL")}${fileId}.gpx`;
     await s3Client.send(
       new PutObjectCommand({
@@ -114,7 +116,7 @@ async function main() {
         ContentType: "application/gpx+xml",
       })
     );
-    await GpxFile.create({
+    await GpxFile.put({
       userId: "GLOBAL",
       fileId,
       fileName: name,
@@ -129,10 +131,19 @@ async function main() {
       uploadedBy: "dc33-import",
       status: "active",
     }).go();
-    console.log(`＋ imported "${name}"`);
+    console.log(`＋ [${folderName}] imported "${name}"`);
     imported++;
   }
-  console.log(`Done. Imported ${imported}/${files.length} into "${FOLDER_NAME}".`);
+  console.log(`Done "${folderName}": imported ${imported}/${files.length}.`);
+}
+
+async function main() {
+  const files = await listGpx();
+  console.log(`Found ${files.length} DC33 GPX files.`);
+  // DC34 = same routes as DC33 to start.
+  await importInto(OFFICIAL_FOLDER, files);
+  // Seed a few community samples into Rabbit Routes (Vegas-area runs).
+  await importInto(RABBIT_FOLDER, files.slice(0, RABBIT_SAMPLE_COUNT));
 }
 
 main().catch((err) => {
