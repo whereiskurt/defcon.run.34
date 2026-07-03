@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/config/auth";
 import {
+  BIBNAME_RENAME_QUOTA,
   createBib,
   getBib,
   NameLockedError,
+  RenameQuotaError,
   updateBibName,
   updateBibWillPayInPerson,
 } from "@/entities/bib";
@@ -190,8 +192,17 @@ export async function PATCH(req: NextRequest) {
         parsed.data.willPayInPerson
       );
     }
-    return NextResponse.json({ bib }, { status: 200 });
+    const renamesRemaining = bib
+      ? Math.max(0, BIBNAME_RENAME_QUOTA - (bib.nameRenameCount ?? 0))
+      : undefined;
+    return NextResponse.json({ bib, renamesRemaining }, { status: 200 });
   } catch (err) {
+    if (err instanceof RenameQuotaError) {
+      return NextResponse.json(
+        { error: "rename_quota_exceeded", renamesRemaining: 0 },
+        { status: 429 }
+      );
+    }
     if (err instanceof NameLockedError) {
       return NextResponse.json({ error: "name_locked" }, { status: 409 });
     }

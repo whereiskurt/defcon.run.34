@@ -83,6 +83,12 @@ export const Bib = new Entity(
         type: "boolean",
         default: false,
       },
+      // Abuse guard (Kurt 2026-07-03): each committed name change consumes one
+      // of BIBNAME_RENAME_QUOTA renames. Defaults 0; existing rows read as 0.
+      nameRenameCount: {
+        type: "number",
+        default: 0,
+      },
       createdAt: {
         type: "string",
         default: () => new Date().toISOString(),
@@ -134,6 +140,20 @@ export class NameLockedError extends Error {
   constructor(ownerSub: string) {
     super(`Bib name is locked for ownerSub=${ownerSub}`);
     this.name = "NameLockedError";
+  }
+}
+
+/** Max committed bib-name changes per runner (abuse guard, Kurt 2026-07-03). */
+export const BIBNAME_RENAME_QUOTA = 10;
+
+/**
+ * Thrown by updateBibName when the runner has used all BIBNAME_RENAME_QUOTA
+ * renames. The API layer maps this to a 429 with {error: "rename_quota_exceeded"}.
+ */
+export class RenameQuotaError extends Error {
+  constructor(ownerSub: string) {
+    super(`Bib rename quota exhausted for ownerSub=${ownerSub}`);
+    this.name = "RenameQuotaError";
   }
 }
 
@@ -311,10 +331,41 @@ export async function updateBibName(
   // Server-side cap at 32 chars, matching the design-contract render budget.
   const trimmed = nameOnBib.trim().slice(0, 32);
 
-  const result = await Bib.patch({ ownerSub })
-    .set({ nameOnBib: trimmed })
-    .go({ response: "all_new" });
-  return result.data as BibItem;
+  // No-op saves (same name) don't consume a rename.
+  if (trimmed === (existing.nameOnBib ?? "")) {
+    return existing;
+  }
+
+  // Abuse guard: block once the quota is spent (read check for a clean error).
+  if ((existing.nameRenameCount ?? 0) >= BIBNAME_RENAME_QUOTA) {
+    throw new RenameQuotaError(ownerSub);
+  }
+
+  try {
+    // Atomic backstop against a racing double-save: only apply when the
+    // count is still under quota, incrementing it in the same write.
+    const result = await Bib.patch({ ownerSub })
+      .set({ nameOnBib: trimmed })
+      .add({ nameRenameCount: 1 })
+      .where(
+        (attr, op) =>
+          `${op.notExists(attr.nameRenameCount)} OR ${op.lt(
+            attr.nameRenameCount,
+            BIBNAME_RENAME_QUOTA
+          )}`
+      )
+      .go({ response: "all_new" });
+    return result.data as BibItem;
+  } catch (err) {
+    const cause = (err as { cause?: { name?: string } })?.cause;
+    if (
+      cause?.name === "ConditionalCheckFailedException" ||
+      (err instanceof Error && err.message.includes("conditional request failed"))
+    ) {
+      throw new RenameQuotaError(ownerSub);
+    }
+    throw err;
+  }
 }
 
 /**

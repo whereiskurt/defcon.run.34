@@ -4,7 +4,12 @@ import { auth } from "@/config/auth";
 import BibForm from "@/components/BibForm";
 import SponsorForm from "@/components/SponsorForm";
 import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
-import { createBib, getBib, type BibItem } from "@/entities/bib";
+import {
+  BIBNAME_RENAME_QUOTA,
+  createBib,
+  getBib,
+  type BibItem,
+} from "@/entities/bib";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 
 /**
@@ -131,6 +136,10 @@ export default async function Home({ searchParams }: HomeProps) {
             initialName={bib.nameOnBib || ""}
             nameLocked={bib.nameLocked === true}
             hasSponsored={hasSponsored}
+            initialRenamesRemaining={Math.max(
+              0,
+              BIBNAME_RENAME_QUOTA - (bib.nameRenameCount ?? 0)
+            )}
           />
           <div style={{ marginTop: 16 }}>
             <WillPayInPersonCheckbox

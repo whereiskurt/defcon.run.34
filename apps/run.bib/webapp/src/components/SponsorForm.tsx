@@ -144,15 +144,10 @@ export function SponsorForm({
     [amountCents]
   );
 
-  // Venmo / CashApp only offered for variant='bib'. The v1.5 Haiku
-  // matcher assumes runnerCode-in-comment lookups; general donations via
-  // Venmo/CashApp with no runnerCode + no sender-in-bibs match would hit
-  // 'unmatched'. Working as intended per PLAN-22-05.md design gap #2.
-  const offerNonStripe = variant === "bib";
-
-  const onPresetClick = useCallback((dollars: number) => {
-    setAmountCents(clampAmountCents(dollars * 100));
-  }, []);
+  // Both bib + general offer Stripe / Venmo / CashApp (Kurt 2026-07-03).
+  // Venmo/CashApp don't reconcile instantly — they surface for the runner
+  // only after an admin approves the match.
+  const offerNonStripe = true;
 
   const onCustomChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,16 +160,6 @@ export function SponsorForm({
         return;
       }
       setAmountCents(clampAmountCents(Math.round(dollars * 100)));
-    },
-    []
-  );
-
-  const onProviderChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const next = event.target.value as SponsorProvider;
-      if (next === "stripe" || next === "venmo" || next === "cashapp") {
-        setProvider(next);
-      }
     },
     []
   );
@@ -282,42 +267,36 @@ export function SponsorForm({
         </div>
       </div>
 
+      {/* Slider across the full range — cleaner than a wall of preset chips
+        * (Kurt 2026-07-03). The custom input below allows an exact amount. */}
+      <input
+        type="range"
+        min={AMOUNT_MIN_CENTS}
+        max={AMOUNT_MAX_CENTS}
+        step={AMOUNT_STEP_CENTS}
+        value={amountCents}
+        onChange={(e) => setAmountCents(clampAmountCents(Number(e.target.value)))}
+        disabled={disabled}
+        aria-label={variant === "bib" ? "Sponsor amount" : "Donation amount"}
+        style={{
+          width: "100%",
+          accentColor: "#6CCDB8",
+          cursor: disabled ? "not-allowed" : "pointer",
+        }}
+      />
       <div
-        role="group"
-        aria-label="Pick an amount"
         style={{
           display: "flex",
-          flexWrap: "wrap",
-          gap: 8,
+          justifyContent: "space-between",
+          fontSize: 12,
+          color: "#8f8fa8",
+          marginTop: -12,
+          fontFamily:
+            "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
         }}
       >
-        {AMOUNT_PRESETS_DOLLARS.map((dollars) => {
-          const isSelected = amountCents === dollars * 100;
-          return (
-            <button
-              key={dollars}
-              type="button"
-              onClick={() => onPresetClick(dollars)}
-              disabled={disabled}
-              aria-pressed={isSelected}
-              style={{
-                minWidth: 56,
-                padding: "8px 12px",
-                fontSize: 14,
-                fontWeight: 700,
-                color: isSelected ? "#0a0a0a" : "#e4e4ef",
-                backgroundColor: isSelected ? "#6CCDB8" : "transparent",
-                border: `1px solid ${isSelected ? "#6CCDB8" : "#2a2a34"}`,
-                borderRadius: 999,
-                cursor: disabled ? "not-allowed" : "pointer",
-                fontFamily:
-                  "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-              }}
-            >
-              ${dollars}
-            </button>
-          );
-        })}
+        <span>$1</span>
+        <span>$1000</span>
       </div>
 
       <label
@@ -327,7 +306,7 @@ export function SponsorForm({
           color: "#a4a4b8",
         }}
       >
-        Or type a custom amount ($1&ndash;$1000)
+        Or type an exact amount ($1&ndash;$1000)
       </label>
       <div
         style={{
@@ -368,53 +347,52 @@ export function SponsorForm({
       </div>
 
       {offerNonStripe && (
-        <fieldset
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-            border: "none",
-            padding: 0,
-            margin: 0,
-          }}
-        >
-          <legend
+        <div>
+          <span
             style={{
               fontSize: 13,
               fontWeight: 600,
               color: "#8f8fa8",
               letterSpacing: "0.08em",
               textTransform: "uppercase",
-              padding: 0,
             }}
           >
             Payment method
-          </legend>
-          <ProviderRadio
-            value="stripe"
-            label="Stripe (card)"
-            selected={provider}
-            onChange={onProviderChange}
-            disabled={disabled}
-            variant={variant}
-          />
-          <ProviderRadio
-            value="venmo"
-            label="Venmo"
-            selected={provider}
-            onChange={onProviderChange}
-            disabled={disabled}
-            variant={variant}
-          />
-          <ProviderRadio
-            value="cashapp"
-            label="Cash App"
-            selected={provider}
-            onChange={onProviderChange}
-            disabled={disabled}
-            variant={variant}
-          />
-        </fieldset>
+          </span>
+          {/* One-line row of provider pills with little brand icons. */}
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <ProviderPill
+              value="stripe"
+              label="Card"
+              icon={<ProviderIcon color="#635BFF" glyph="S" />}
+              selected={provider}
+              onSelect={setProvider}
+              disabled={disabled}
+            />
+            <ProviderPill
+              value="cashapp"
+              label="Cash App"
+              icon={<ProviderIcon color="#00D632" glyph="$" />}
+              selected={provider}
+              onSelect={setProvider}
+              disabled={disabled}
+            />
+            <ProviderPill
+              value="venmo"
+              label="Venmo"
+              icon={<ProviderIcon color="#3D95CE" glyph="V" />}
+              selected={provider}
+              onSelect={setProvider}
+              disabled={disabled}
+            />
+          </div>
+          {(provider === "venmo" || provider === "cashapp") && (
+            <p style={{ fontSize: 12, color: "#a4a4b8", margin: "8px 0 0" }}>
+              Venmo &amp; Cash App are confirmed by an organizer — your
+              contribution appears once approved.
+            </p>
+          )}
+        </div>
       )}
 
       <button
@@ -452,50 +430,82 @@ export function SponsorForm({
   );
 }
 
-function ProviderRadio({
+/** Small brand-colored icon badge (little Stripe / Cash App / Venmo mark). */
+function ProviderIcon({ color, glyph }: { color: string; glyph: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 18,
+        height: 18,
+        borderRadius: 5,
+        backgroundColor: color,
+        color: "#fff",
+        fontSize: 11,
+        fontWeight: 800,
+        fontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace",
+        flexShrink: 0,
+      }}
+    >
+      {glyph}
+    </span>
+  );
+}
+
+/** One-line selectable payment-method pill (icon + label). */
+function ProviderPill({
   value,
   label,
+  icon,
   selected,
-  onChange,
+  onSelect,
   disabled,
-  variant,
 }: {
   value: SponsorProvider;
   label: string;
+  icon: React.ReactNode;
   selected: SponsorProvider;
-  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onSelect: (p: SponsorProvider) => void;
   disabled: boolean;
-  variant: SponsorVariant;
 }) {
-  const id = `sponsor-provider-${variant}-${value}`;
   const isSelected = selected === value;
   return (
-    <label
-      htmlFor={id}
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      disabled={disabled}
+      aria-pressed={isSelected}
       style={{
+        flex: "1 1 0",
+        minWidth: 0,
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        padding: "10px 12px",
-        borderRadius: 6,
+        justifyContent: "center",
+        gap: 6,
+        padding: "8px 10px",
+        borderRadius: 8,
         backgroundColor: isSelected ? "#1a1a24" : "transparent",
         border: `1px solid ${isSelected ? "#6CCDB8" : "#2a2a34"}`,
-        cursor: disabled ? "not-allowed" : "pointer",
         color: disabled ? "#8f8fa8" : "#e4e4ef",
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontSize: 14,
+        fontWeight: 600,
       }}
     >
-      <input
-        id={id}
-        type="radio"
-        name={`sponsor-provider-${variant}`}
-        value={value}
-        checked={isSelected}
-        onChange={onChange}
-        disabled={disabled}
-        style={{ margin: 0 }}
-      />
-      <span style={{ fontSize: 15 }}>{label}</span>
-    </label>
+      {icon}
+      <span
+        style={{
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+    </button>
   );
 }
 
