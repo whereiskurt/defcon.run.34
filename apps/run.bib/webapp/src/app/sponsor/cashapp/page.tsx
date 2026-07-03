@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/config/auth";
 import { getBib } from "@/entities/bib";
+import { recordPending } from "@/entities/pending-contribution";
 import { getCashAppHandle } from "@/lib/handles";
 import { parseAmountCentsFromQuery } from "@/lib/amount";
 import SponsorInstructions from "@/components/SponsorInstructions";
@@ -53,6 +54,19 @@ export default async function CashAppInstructionsPage({
   const params = (await searchParams) ?? {};
   const amountCents = parseAmountCentsFromQuery(params.amount_cents);
   const handle = await getCashAppHandle();
+
+  // Record the intent so it shows as "in progress" in the runner's
+  // transaction history until an organizer reconciles the receipt. Best-effort:
+  // a DDB hiccup must never block the payment instructions from rendering.
+  await recordPending({
+    ownerSub,
+    kind: "bib",
+    provider: "cashapp",
+    amountCents,
+    runnerCode: bib.runnerCode,
+  }).catch((e) =>
+    console.warn(`[run.bib] /sponsor/cashapp: recordPending failed: ${e}`)
+  );
 
   // Cash App share-link contract:
   //   https://cash.app/$<handle-no-$>/<amount-dollars>

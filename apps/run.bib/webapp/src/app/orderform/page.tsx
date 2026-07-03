@@ -6,6 +6,7 @@ import SponsorForm from "@/components/SponsorForm";
 import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
+import { listPendingForOwner } from "@/entities/pending-contribution";
 import { checkQuota } from "@/lib/quota-client";
 import TransactionHistory, { type Txn } from "@/components/TransactionHistory";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
@@ -104,12 +105,15 @@ export default async function Home({ searchParams }: HomeProps) {
   // Contribution history: reconciled bib payments + donations. Total spend
   // drives the "amount contributed" shown even when the buy flow is hidden.
   const donations = await listDonationsForOwner(ownerSub).catch(() => []);
+  const pending = await listPendingForOwner(ownerSub).catch(() => []);
   const donationTotal = donations.reduce(
     (s, d) => s + (d.amountCents ?? 0),
     0
   );
+  // Total counts RECONCILED spend only — pending Venmo/CashApp intents are not
+  // money in the bank yet, so they're shown separately, not summed.
   const totalCents = (bib.paidAmount ?? 0) + donationTotal;
-  const txns: Txn[] = [
+  const reconciled: Txn[] = [
     ...((bib.paidStatusHistory ?? []) as Array<{
       provider?: string;
       amount?: number;
@@ -119,14 +123,28 @@ export default async function Home({ searchParams }: HomeProps) {
       provider: p.provider ?? "stripe",
       amountCents: p.amount ?? 0,
       timestamp: p.timestamp ?? "",
+      status: "reconciled" as const,
     })),
     ...donations.map((d) => ({
       kind: "donation" as const,
       provider: d.provider ?? "stripe",
       amountCents: d.amountCents ?? 0,
       timestamp: d.createdAt ?? "",
+      status: "reconciled" as const,
     })),
   ].sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+  // Pending intents float to the top — they're the actionable "did my payment
+  // land?" rows the runner is most likely checking for.
+  const pendingTxns: Txn[] = pending
+    .map((p) => ({
+      kind: p.kind,
+      provider: p.provider,
+      amountCents: p.amountCents ?? 0,
+      timestamp: p.createdAt ?? "",
+      status: "pending" as const,
+    }))
+    .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
+  const txns: Txn[] = [...pendingTxns, ...reconciled];
 
   return (
     <main

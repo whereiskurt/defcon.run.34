@@ -83,12 +83,22 @@ for r in sorted(rec, key=lambda x: x.get("status", "")):
         (r.get("extractedSenderName") or "—")[:20],
         (r.get("receiptId") or "")[:18], w=(12, 10, 12, 22, 20))
 
-# 4. Totals
+# 4. Pending intents (user tapped Venmo/CashApp; awaiting organizer reconcile)
+pend = by.get("PendingContribution", [])
+print(f"\n=== PENDING INTENTS ({len(pend)}) ===")
+row("kind", "provider", "amount", "runnerCode", "created", w=(10, 10, 12, 14, 22))
+for p in sorted(pend, key=lambda x: x.get("createdAt", ""), reverse=True):
+    row(p.get("kind", ""), p.get("provider", ""), usd(p.get("amountCents")),
+        p.get("runnerCode", "") or "—",
+        (p.get("createdAt") or "")[:19], w=(10, 10, 12, 14, 22))
+
+# 5. Totals
 print("\n=== TOTALS ===")
 print(f"  Bibs:            {len(bibs)}  (in-person pledges: "
       f"{sum(1 for b in bibs if b.get('willPayInPerson'))})")
 print(f"  Bib $ collected: {usd(bib_total)}")
 print(f"  Donations:       {len(dons)}  =  {usd(don_total)}")
 print(f"  Grand total $:   {usd(bib_total + don_total)}")
-print(f"  Pending recon.:  {len(pending)}")
+print(f"  Pending recon.:  {len(pending)}  (ledger)   "
+      f"{len(pend)}  (user intents)")
 PY

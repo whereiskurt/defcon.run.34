@@ -1,5 +1,6 @@
 import { Entity, type EntityItem } from "electrodb";
 import { electroClient, ELECTRO_TABLE } from "./client";
+import { clearPendingForOwner } from "./pending-contribution";
 
 /**
  * Bib Entity
@@ -289,6 +290,16 @@ export async function applyPayment(
     .add({ paidAmount: amount })
     .append({ paidStatusHistory: [historyRow] })
     .go({ response: "all_new" });
+
+  // A Venmo/CashApp reconciliation fulfills the runner's pending intent — drop
+  // the "in progress" hint so the ledger row doesn't double-count in the UI.
+  // Stripe never has a pending row, so skip it. Best-effort: a cleanup miss is
+  // cosmetic and must never fail the payment application.
+  if (input.provider === "venmo" || input.provider === "cashapp") {
+    await clearPendingForOwner(ownerSub, "bib", input.provider).catch((e) =>
+      console.warn(`[run.bib] applyPayment: clearPending failed: ${e}`)
+    );
+  }
   return result.data as BibItem;
 }
 

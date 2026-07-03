@@ -9,6 +9,8 @@ export type Txn = {
   provider: string;
   amountCents: number;
   timestamp: string;
+  // "pending" = a Venmo/CashApp intent not yet reconciled by an organizer.
+  status: "reconciled" | "pending";
 };
 
 function usd(cents: number): string {
@@ -81,42 +83,69 @@ export default function TransactionHistory({
             gap: 6,
           }}
         >
-          {txns.map((t, i) => (
-            <li
-              key={i}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 10px",
-                borderRadius: 8,
-                backgroundColor: "#0f0f16",
-                border: "1px solid #24242e",
-                fontSize: 14,
-              }}
-            >
-              <span style={{ color: "#e4e4ef" }}>
-                {t.kind === "bib" ? "Bib sponsorship" : "Donation"}
-                <span style={{ color: "#8f8fa8" }}> · {t.provider}</span>
-              </span>
-              <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <span style={{ color: "#8f8fa8", fontSize: 13 }}>
-                  {fmtDate(t.timestamp)}
-                </span>
+          {txns.map((t, i) => {
+            const isPending = t.status === "pending";
+            return (
+              <li
+                key={i}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  backgroundColor: isPending ? "#1a160c" : "#0f0f16",
+                  border: `1px solid ${isPending ? "#4a3d15" : "#24242e"}`,
+                  fontSize: 14,
+                }}
+              >
                 <span
                   style={{
-                    color: "#6CCDB8",
-                    fontWeight: 700,
-                    fontFamily:
-                      "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+                    color: "#e4e4ef",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
                   }}
                 >
-                  {usd(t.amountCents)}
+                  {t.kind === "bib" ? "Bib sponsorship" : "Donation"}
+                  <span style={{ color: "#8f8fa8" }}>· {t.provider}</span>
+                  {isPending && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                        color: "#E8B93A",
+                        backgroundColor: "#3a2f0d",
+                        border: "1px solid #5c4a15",
+                        borderRadius: 999,
+                        padding: "1px 8px",
+                      }}
+                    >
+                      In progress
+                    </span>
+                  )}
                 </span>
-              </span>
-            </li>
-          ))}
+                <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <span style={{ color: "#8f8fa8", fontSize: 13 }}>
+                    {fmtDate(t.timestamp)}
+                  </span>
+                  <span
+                    style={{
+                      color: isPending ? "#E8B93A" : "#6CCDB8",
+                      fontWeight: 700,
+                      fontFamily:
+                        "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+                    }}
+                  >
+                    {usd(t.amountCents)}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       )}
 
