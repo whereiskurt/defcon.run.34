@@ -10,46 +10,40 @@ async function ensureApiTokenPublished(strapi) {
   const tokenName = 'run-human-internal';
   const tokenDescription = 'Internal read-only access for run.human';
   const tokenSvc = strapi.service('admin::api-token');
-  let plaintext: string | undefined;
 
-  // Recover-and-republish, never re-mint on a healthy token.
+  // Mint the shared token exactly once, then never touch it again.
   //
-  // Strapi v5 keeps an *encrypted* copy of each token (`encryptedKey`) alongside
-  // the sha512 hash, so the plaintext is recoverable by decryption — getByName()
-  // returns it as `.accessKey`. This retires the old assumption that we had to
-  // delete + re-create to obtain the plaintext.
-  //
-  // Why this matters: re-minting on every master boot rotates the stored hash,
-  // and everything downstream lags that hash:
-  //   - CMS worker replicas restore the DB from Litestream only every ~5 min, so
-  //     a freshly-published token 401s against every worker until the next sync.
+  // Strapi CE stores only a salted sha512 *hash* of an API token — the plaintext
+  // is NOT recoverable from the database (there is no encryptedKey copy). The
+  // previous bootstrap worked around that by deleting and re-creating the token
+  // on every boot to obtain a fresh plaintext for SSM. That rotated the stored
+  // hash on every master restart, which nothing downstream can keep up with:
+  //   - CMS worker replicas restore the DB via Litestream only every ~5 min, so
+  //     a freshly-minted token 401s against every worker until the next sync.
   //   - Consumers (run.gpx, run.human) read the plaintext once at their own
   //     container start; a master boot after they start invalidates their token
   //     against BOTH tiers until they redeploy.
-  // Keeping the hash stable lets every replica and consumer converge and stay
-  // converged. The DB is the source of truth; SSM just mirrors it each boot.
-  try {
-    const existing = await tokenSvc.getByName(tokenName);
-    if (existing?.accessKey) {
-      plaintext = existing.accessKey;
-      strapi.log.info(`[Bootstrap] Recovered existing API token "${tokenName}" — republishing (no re-mint)`);
-    }
-  } catch (err) {
-    strapi.log.warn(`[Bootstrap] Could not recover API token "${tokenName}" plaintext — will re-create:`, err);
+  //
+  // The master's DB persists across boots (Litestream restore-on-start), so once
+  // the token row exists we leave it — and its already-published SSM value —
+  // untouched. Every worker replica and consumer then converges and stays
+  // converged. (Plaintext is only knowable at creation; if SSM is ever cleared
+  // out-of-band, delete the token row to force a fresh mint + republish.)
+  const existing = await strapi.query('admin::api-token').findOne({
+    where: { name: tokenName },
+  });
+  if (existing) {
+    strapi.log.info(`[Bootstrap] API token "${tokenName}" already exists — leaving it (and its SSM value) untouched`);
+    return;
   }
 
-  if (!plaintext) {
-    // Absent, or a legacy token with no recoverable plaintext. Remove any row
-    // with this (unique) name so create() can mint a fresh, recoverable token.
-    await strapi.query('admin::api-token').delete({ where: { name: tokenName } });
-    const created = await tokenSvc.create({
-      name: tokenName,
-      description: tokenDescription,
-      type: 'read-only',
-    });
-    plaintext = created.accessKey;
-    strapi.log.info(`[Bootstrap] Minted API token "${tokenName}"`);
-  }
+  const created = await tokenSvc.create({
+    name: tokenName,
+    description: tokenDescription,
+    type: 'read-only',
+  });
+  const plaintext: string = created.accessKey;
+  strapi.log.info(`[Bootstrap] Minted API token "${tokenName}"`);
 
   // Publish to SSM in all worker regions so workers can read the token
   // SSM_REPLICATE_TO is a comma-separated list of "region:label" pairs (e.g. "ca-central-1:cac1,ap-southeast-1:apse1")
