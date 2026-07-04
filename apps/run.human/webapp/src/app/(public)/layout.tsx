@@ -107,7 +107,7 @@ export default async function PublicLayout({
       </head>
       <body
         className={clsx(
-          "min-h-screen bg-background font-sans antialiased",
+          "bg-background font-sans antialiased",
           fontSans.variable,
           fontMono.variable,
           fontMuseo.variable,
@@ -117,7 +117,7 @@ export default async function PublicLayout({
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
             <MapBackground />
-            <div className="relative flex flex-col min-h-screen noise-overlay">
+            <div className="relative flex flex-col min-h-dvh noise-overlay">
               <div className="flex-shrink-0 relative z-10">
                 <Header session={session} />
               </div>
