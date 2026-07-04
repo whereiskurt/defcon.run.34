@@ -88,6 +88,9 @@
     display:flex; align-items:center; gap:18px; transition:.25s;
   }
   .card:hover { border-color:var(--card-hover); box-shadow:0 0 24px #00d4aa10; }
+  a.card { text-decoration:none; color:inherit; cursor:pointer; }
+  a.card.linked:hover { border-color:var(--brand); box-shadow:0 0 24px #00d4aa22; }
+  a.card.linked .host::after { content:' ↗'; color:var(--brand); }
   .dot { width:14px; height:14px; border-radius:50%; flex:none; position:relative; }
   .dot::after { content:''; position:absolute; inset:-6px; border-radius:50%; opacity:.5; animation:ring 2.4s ease-out infinite; }
   .s-live .dot { background:var(--live); box-shadow:0 0 14px var(--live); }
@@ -176,7 +179,7 @@
 
     <div class="grid" id="grid"></div>
 
-    <footer>built for hackers who want to know if it's them or us</footer>
+    <footer>you will be punished for reporting a service already marked down</footer>
   </div>
 
 <script>
@@ -194,8 +197,10 @@
     grid.innerHTML = '';
     if (window.__birthday) addBirthday();
     (DATA.services || []).forEach(s => {
-      const el = document.createElement('div');
-      el.className = 'card s-' + s.state;
+      const linked = !!s.link;
+      const el = document.createElement(linked ? 'a' : 'div');
+      el.className = 'card s-' + s.state + (linked ? ' linked' : '');
+      if (linked) { el.href = s.link; el.target = '_blank'; el.rel = 'noopener'; }
       el.innerHTML =
         '<div class="dot"></div>' +
         '<div><div class="name">' + esc(s.name) + ' <span class="ver">' + esc(s.version || '') + '</span></div>' +
