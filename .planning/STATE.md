@@ -2,10 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Flash Service Refresh
-status: Shipped 2026-07-02 — deployed + hardware verified (only tlora-t3s3 remains open)
+current_phase: 33
+current_phase_name: oidc-silent-sso
+status: verifying
 stopped_at: v1.4 hardware verification complete; ready to close milestone
-last_updated: "2026-07-02T04:05:00.000Z"
-last_activity: 2026-07-02 — Kurt verified FLSH-08, DPLY-06, BRND-01, BRND-02 on hardware; tlora-t3s3 deferred
+last_updated: "2026-07-04T05:34:47.810Z"
+last_activity: 2026-07-04
+last_activity_desc: "33-05 complete: parity + pure-logic unit tests green in run.bib vitest"
 progress:
   total_phases: 2
   completed_phases: 2
@@ -21,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation.
-**Current focus:** v1.4 shipped 2026-07-02 (task-def 71 / dc34-run-flash-app:v0.0.5). Hardware verified by Kurt on 2026-07-02 — only tlora-t3s3 flashMode 'dio' boot remains as a follow-up. Milestone ready to close.
+**Current focus:** Phase 33 — oidc-silent-sso
 
 ## Current Position
 
-Phase: v1.4 CLOSED (Phase 18 + Phase 19 shipped + verified)
-Plan: —
-Status: Shipped 2026-07-02 — deployed + hardware verified (tlora-t3s3 deferred to whenever hw is available)
-Last activity: 2026-07-02 — Kurt verified FLSH-08, DPLY-06, BRND-01, BRND-02 on a Recommended ESP32 against v0.0.5
+Phase: 33 (oidc-silent-sso) — EXECUTING
+Plan: 6 of 6
+Status: Phase complete — ready for verification
+Last activity: 2026-07-04 — 33-05 complete: parity + pure-logic unit tests green in run.bib vitest
 
 ## Accumulated Context
 
@@ -57,6 +60,17 @@ Recent decisions affecting current work:
 - [Phase 16]: --skip-nginx never skips mqtt's nginx (primary serving container)
 - [Phase 17]: Ghost mode QR redirect removed; accomplishment API call kept as silent fire-and-forget
 - [Phase 17]: DC33 logo images reused with dc34 filenames (visual swap deferred)
+- [Phase ?]: Recorded grant mapping via session.grantIdFor(clientId, grantId) setter — oidc-provider@9.6.0 has no ensureGrantId
+- [Phase ?]: loadExistingGrant built as an injectable factory (makeLoadExistingGrant) so mint/reuse/undefined branches are unit-testable without a live Provider
+- [Phase ?]: Silent-SSO resolveSilentStatus keys success on ABSENCE of the next-auth error param (next-auth consumes code at its own callback), confirmed against installed @auth/core source
+- [Phase ?]: RP silent-SSO unit authored literal-free in run.gpx (no gpx/whoami) so plan 03 copies byte-for-byte into flash/bib; login_required stays logged-out, fallback only on timeout (LOCKED contract)
+- [Phase ?]: [Phase 33-03]: Silent-SSO 5-file unit placed byte-identically (cp) into flash + bib; three-way SHA-256 parity confirmed so plan-05 parity test has a stable baseline
+- [Phase ?]: [Phase 33-03]: SilentSSO mounted at each app SessionProvider seam (flash layout.tsx, bib providers.tsx); pages.error mirrors pages.signIn region derivation — glue is outside the parity unit
+- [Phase ?]: 33-04: IdP integration tests reuse run.auth/e2e @playwright/test + cookie-jar helpers (no new package/project); live-service cases gate on availability and skip rather than fabricate a green.
+- [Phase ?]: 33-04: warm prompt=none cases establish the provider _session via a warm-up interactive authorize (sess_auth alone is insufficient for silent code).
+- [Phase ?]: 33-05: Parity guarded by a node:fs test that reads the 5 unit files from gpx/flash/bib and asserts byte-equality vs canonical gpx (drift-detection proven by a temporary one-char mutation); pure-logic tests assert resolveSilentStatus success on error-ABSENCE (not a code param) and decideParentAction's foreign-origin→ignore anti-spoof gate — all in run.bib's existing node-env vitest, no new package.
+- [Phase ?]: SSO-08 e2e invariant: forbid the auth /login RENDER (count==0) + /signin OSCILLATION; allow one transient /signin entry since every RP route auth-gates to /signin
+- [Phase ?]: Silent-SSO e2e live cases gate on BOTH app + run.auth IdP reachability in a fixture-free beforeEach so the browser never launches on skip
 
 ### Pending Todos
 
@@ -99,10 +113,20 @@ the deferred fleet-simulator work lives only in the backlog file, not as a numbe
 
 ## Session Continuity
 
-Last session: 2026-07-01T18:50:35.741Z
+Last session: 2026-07-04T05:34:16.448Z
 Stopped at: Phase 18 context gathered
 Resume file: .planning/phases/18-build-time-firmware-device-list-refresh/18-CONTEXT.md
 
 ## Operator Next Steps
 
 - Plan the first v1.4 phase with /gsd-plan-phase 18
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 33 P01 | 30m | 3 tasks | 7 files |
+| Phase 33 P02 | 25min | 3 tasks | 7 files |
+| Phase 33 P03 | 12min | 2 tasks | 14 files |
+| Phase 33 P04 | ~25m | 2 tasks | 1 files |
+| Phase 33 P06 | 8min | 2 tasks | 15 files |

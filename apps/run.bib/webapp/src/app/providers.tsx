@@ -7,6 +7,7 @@ import { HeroUIProvider } from "@heroui/react";
 import type { ThemeProviderProps } from "next-themes";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { SessionProvider } from "next-auth/react";
+import SilentSSO from "@/components/SilentSSO";
 
 export interface ProvidersProps {
   children: React.ReactNode;
@@ -32,7 +33,11 @@ export function Providers({ children, themeProps, authBasePath }: ProvidersProps
         navigate={router.push}
         useHref={(href) => (href.startsWith("/") ? `${basePath}${href}` : href)}
       >
-        <SessionProvider basePath={authBasePath}>{children}</SessionProvider>
+        <SessionProvider basePath={authBasePath}>
+          {/* App-wide hidden-iframe silent-SSO probe (self-gates on unauthenticated). */}
+          <SilentSSO />
+          {children}
+        </SessionProvider>
       </HeroUIProvider>
     </NextThemesProvider>
   );

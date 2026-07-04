@@ -87,8 +87,10 @@ export default async function handler(
 
     if (prompt.name === "login") {
       // User just logged in, complete the login prompt
-      // Note: remember: false ensures the OIDC session is tied to the browser session
-      // and will be properly cleared on logout
+      // Note: persisting the login (remember flag below) keeps the provider _session alive
+      // across browser restarts for the full 15-day Session TTL (config.oidc.ttl.session).
+      // rpInitiatedLogout still clears both the provider _session and sess_auth, so logout
+      // remains complete.
       //
       // IMPORTANT: We also create a Grant here because oidc-provider requires one
       // for the token exchange. Without a grant, the /token endpoint returns invalid_grant.
@@ -97,7 +99,7 @@ export default async function handler(
       result = {
         login: {
           accountId,
-          remember: false,
+          remember: true,
         },
         consent: {
           grantId,
@@ -120,7 +122,7 @@ export default async function handler(
       result = {
         login: {
           accountId,
-          remember: false,
+          remember: true,
         },
         consent: {
           grantId,

@@ -2,6 +2,7 @@ import Provider, { Configuration, errors, ClientMetadata } from "oidc-provider";
 import { OIDCAdapter } from "../entities/oidc-adapter";
 import { getAuthProfile } from "@/entities/auth-profile";
 import { config } from "@/config";
+import { makeLoadExistingGrant } from "./load-existing-grant";
 
 // Local development ports (can be overridden via env vars)
 const LOCAL_RUN_PORT = process.env.LOCAL_RUN_PORT || "3001";
@@ -308,11 +309,36 @@ const configuration: Configuration = {
    */
   interactions: {
     url(ctx, interaction) {
-      // Redirect to the existing Auth.js login page with OIDC interaction ID
-      // After login, /login will redirect to /api/oidc/interaction/{uid}
-      return `${config.urls.loginPage}?oidc=${interaction.uid}`;
+      // Complete the interaction on the SERVER interaction-completion route (Pages API),
+      // not the Auth.js login page. An already-authenticated user completes the interaction
+      // with no HTML render. That route itself falls back to /{region}/login?oidc={uid} when
+      // no sess_auth session is present. This path is derived from config.region and lives one
+      // level OUTSIDE the provider routePrefix that owns /auth,/token (mirrors [uid].ts loginPath).
+      const interactionBase = config.isDev
+        ? "/api/oidc/interaction"
+        : `/${config.region}/api/oidc/interaction`;
+      return `${interactionBase}/${interaction.uid}`;
     },
   },
+
+  /**
+   * Auto-consent the registered first-party client allowlist so that a warm
+   * `prompt=none` request succeeds without a consent interaction. Unknown clients
+   * fall through to `undefined` (default flow). The allowlist is the single source
+   * `config.oidc.clients` (not a second list); the grant-minting body mirrors the
+   * canonical one in interaction/[uid].ts.
+   */
+  loadExistingGrant: makeLoadExistingGrant({
+    firstPartyClientIds: Object.values(config.oidc.clients).map((c) => c.clientId),
+    createGrant: async ({ accountId, clientId, scope }) => {
+      const grant = new oidc.Grant({ accountId, clientId });
+      if (scope) {
+        grant.addOIDCScope(scope);
+      }
+      const grantId = await grant.save();
+      return grantId;
+    },
+  }),
 
   /**
    * Find account by subject identifier
