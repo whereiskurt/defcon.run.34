@@ -154,3 +154,26 @@
 .dc34-route-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
     border-left-color: #14141c;
 }
+
+/* DEF CON 34 hover tooltip (shortDescription) — same dark backing so the white
+ * text stays legible over the map instead of rendering on a transparent box. */
+.dc34-route-tip.mapboxgl-popup .mapboxgl-popup-content {
+    background: #14141c;
+    color: #e4e4ef;
+    border: 1px solid #2a2a3a;
+    border-radius: 6px;
+    padding: 6px 9px;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
+}
+.dc34-route-tip.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+    border-bottom-color: #14141c;
+}
+.dc34-route-tip.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+    border-top-color: #14141c;
+}
+.dc34-route-tip.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+    border-right-color: #14141c;
+}
+.dc34-route-tip.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+    border-left-color: #14141c;
+}

@@ -39,7 +39,7 @@ export default function RootLayout({
     <html suppressHydrationWarning lang="en">
       <body
         className={clsx(
-          "min-h-screen bg-background font-sans antialiased",
+          "bg-background font-sans antialiased",
           fontSans.variable,
           fontMono.variable,
           fontMuseo.variable,
@@ -50,7 +50,7 @@ export default function RootLayout({
           <SessionProvider basePath={authBasePath}>
             {/* App-wide hidden-iframe silent-SSO probe (self-gates on unauthenticated). */}
             <SilentSSO />
-            <div className="relative flex flex-col min-h-screen noise-overlay">
+            <div className="relative flex flex-col min-h-dvh noise-overlay">
               <Header />
               <main className="container mx-auto max-w-6xl px-6 pt-4 flex-grow relative z-10">
                 {children}

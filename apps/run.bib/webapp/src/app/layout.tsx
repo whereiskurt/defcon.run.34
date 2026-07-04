@@ -51,7 +51,7 @@ export default async function RootLayout({
     <html suppressHydrationWarning lang="en">
       <body
         className={clsx(
-          "min-h-screen bg-background font-sans antialiased text-foreground",
+          "bg-background font-sans antialiased text-foreground",
           fontSans.variable,
           fontMono.variable,
           fontMuseo.variable,
@@ -63,7 +63,7 @@ export default async function RootLayout({
           authBasePath={authBasePath}
         >
           <MapBackground />
-          <div className="relative flex flex-col min-h-screen noise-overlay">
+          <div className="relative flex flex-col min-h-dvh noise-overlay">
             <div className="flex-shrink-0 relative z-10">
               <Header userName={userName} isAdmin={isAdmin} />
             </div>
