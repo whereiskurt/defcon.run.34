@@ -169,28 +169,8 @@ export function BibPreview({
         overlap the pin holes; z-order after the card rect so it renders
         on top.
       */}
-      {hasSponsored && (
-        <g
-          id="sponsor-charm"
-          role="presentation"
-          aria-label="Sponsor charm"
-          data-testid="sponsor-charm"
-        >
-          <circle
-            cx="912"
-            cy="46"
-            r="22"
-            fill="#3a8f79"
-            stroke="#a05308"
-            strokeWidth="2"
-          />
-          {/* 5-point star, scaled to sit inside the 22-radius circle */}
-          <path
-            d="M912 32 L916 42 L927 42 L918 49 L921 60 L912 53 L903 60 L906 49 L897 42 L908 42 Z"
-            fill="#fff"
-          />
-        </g>
-      )}
+      {/* Sponsor "PAID! THANK YOU!" stamp is rendered LAST (below) so it sits
+          on top of the number box instead of being painted over. */}
 
       {/* top banner: official DC34 logo (includes DEFCON) */}
       <image
@@ -315,6 +295,53 @@ export function BibPreview({
         * when a stub is torn off for payment reconciliation. */}
       {runnerCode && <QrBadge value={runnerCode} x={200} y={596} size={76} />}
       {runnerCode && <QrBadge value={runnerCode} x={660} y={596} size={76} />}
+
+      {/* Sponsor "PAID! THANK YOU!" rubber stamp — on top of the number box's
+          top-right (Kurt 2026-07-03, replaces the green star charm). */}
+      {hasSponsored && (
+        <g
+          id="sponsor-charm"
+          role="img"
+          aria-label="Paid — thank you"
+          data-testid="sponsor-charm"
+          transform="rotate(-11 806 208)"
+        >
+          <rect
+            x="712"
+            y="176"
+            width="188"
+            height="64"
+            rx="10"
+            fill="#3a8f79"
+            stroke="#eafff8"
+            strokeWidth="3"
+          />
+          <text
+            x="806"
+            y="203"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="30"
+            fontWeight="900"
+            fill="#fff"
+            letterSpacing="1"
+          >
+            PAID!
+          </text>
+          <text
+            x="806"
+            y="226"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="13"
+            fontWeight="700"
+            fill="#eafff8"
+            letterSpacing="2"
+          >
+            THANK YOU!
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
