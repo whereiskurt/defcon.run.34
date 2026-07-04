@@ -21,9 +21,9 @@ The page renders only these `state` values — anything else shows with no color
 
 1. **Show current status.** Read `apps/run.status/site/status.json` and present the services as a table: `id`, `name`, `host`, `version`, current `state`. (Today's services: `auth`, `human`, `gpx`, `flash`, `bib`, `cms`.)
 
-2. **Pick services** — use `AskUserQuestion` with `multiSelect: true`, one option per service (label = `name (id)`, description = host + current state). This is the check-box step.
+2. **Pick services** — use `AskUserQuestion` with `multiSelect: true`, one option per service (label = `id (current-state)`, description = host). This is the check-box step. **`AskUserQuestion` allows at most 4 options per question and up to 4 questions per call**, so when there are more than 4 services, split them into groups of ≤4 across multiple `multiSelect` questions **in a single call** (supports up to 16 services) and union the selections. You may include the state question (step 3) as an additional question in that same call to gather everything in one prompt.
 
-3. **Pick the new state** — use `AskUserQuestion` (single select) with three options: **Online (`live`)**, **Active dev (`dev`)**, **Offline (`down`)**. One state applies to all checked services (batch).
+3. **Pick the new state** — one of three options: **Online (`live`)**, **Active dev (`dev`)**, **Offline (`down`)**. One state applies to all checked services (batch). (Can be asked in the same `AskUserQuestion` call as step 2.)
 
 4. **Apply** — run the bundled setter (validates state + service ids, edits only the `state` fields, never touches `updated`):
    ```bash
@@ -32,7 +32,7 @@ The page renders only these `state` values — anything else shows with no color
    .claude/skills/dc34-statuspage/scripts/set-status.sh human=down gpx=down
    ```
 
-5. **Preview** — show `git diff apps/run.status/site/status.json` so the user sees exactly what changed before publishing.
+5. **Preview & no-op guard** — show `git diff apps/run.status/site/status.json` so the user sees exactly what changed. **If there is no diff** (every chosen state already matched the current state), report "no changes — nothing to publish" and STOP. Do not publish a no-op.
 
 6. **Confirm, then publish live:**
    ```bash
