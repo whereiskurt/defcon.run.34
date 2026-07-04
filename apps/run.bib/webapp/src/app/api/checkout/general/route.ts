@@ -17,7 +17,7 @@ import { checkQuota, type QuotaTier } from "@/lib/quota-client";
  *   in PLAN-22-05.md — truly-anonymous flow deferred to v1.6). If the
  *   session is missing, 401. Once a v1.6 anon path is added, this
  *   handler will need a separate branch.
- * - Zod bounds match /api/checkout/bib: 100..100000 cents ($1..$1000).
+ * - Zod bounds match /api/checkout/bib: 100..200000 cents ($1..$2000).
  * - Metadata (Phase 22-05):
  *     - `donation_type: "general"` — the webhook keys on this to route
  *       the payment to GeneralDonation.recordDonation (vs. the bib
@@ -33,7 +33,7 @@ import { checkQuota, type QuotaTier } from "@/lib/quota-client";
  */
 
 const bodySchema = z.object({
-  amount_cents: z.number().int().min(1_000).max(100_000), // $10 donation minimum
+  amount_cents: z.number().int().min(1_000).max(200_000), // $10 donation min, $2000 max
 });
 
 /**

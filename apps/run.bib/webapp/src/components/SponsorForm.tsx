@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CashAppMark, StripeMark, VenmoMark } from "./payment-icons";
 import { RunnerCodeBadge } from "./RunnerCodeBadge";
+import { flushPendingBibName } from "@/lib/pending-bib-save";
 
 /**
  * SponsorForm
@@ -33,7 +34,7 @@ import { RunnerCodeBadge } from "./RunnerCodeBadge";
  */
 
 export const AMOUNT_MIN_CENTS = 100; //   $1.00 (absolute floor for clampAmountCents)
-export const AMOUNT_MAX_CENTS = 100_000; // $1000.00
+export const AMOUNT_MAX_CENTS = 200_000; // $2000.00 (Kurt 2026-07-04: raised from $1000)
 export const AMOUNT_STEP_CENTS = 100; //   $1.00 steps
 
 // Per-variant minimums + slider range (Kurt 2026-07-03). The slider covers the
@@ -159,6 +160,12 @@ export function SponsorForm({
   const [amountCents, setAmountCents] = useState<number>(() =>
     clampRange(defaultAmountCents ?? minCents)
   );
+  // The custom box is a free-text field (Kurt 2026-07-04) so typing "55"
+  // isn't hijacked by the min-clamp on the first keystroke. It tracks the
+  // raw string; the $10 minimum is only enforced on blur / submit.
+  const [customText, setCustomText] = useState<string>(() =>
+    (clampRange(defaultAmountCents ?? minCents) / 100).toString()
+  );
   const [provider, setProvider] = useState<SponsorProvider>("stripe");
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
 
@@ -174,22 +181,46 @@ export function SponsorForm({
 
   const onCustomChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      // Free-form dollar input — strip anything but digits + one dot,
-      // parse as float, convert to cents, then clamp.
+      // Free-form dollar input — strip anything but digits + one dot, keep
+      // the raw string so the field never fights the user mid-keystroke.
       const raw = event.target.value.replace(/[^0-9.]/g, "");
+      setCustomText(raw);
       const dollars = Number.parseFloat(raw);
-      if (!Number.isFinite(dollars)) {
-        setAmountCents(minCents);
-        return;
-      }
-      setAmountCents(clampRange(Math.round(dollars * 100)));
+      if (!Number.isFinite(dollars)) return; // "" / "." — wait for more input
+      // Reflect the typed value on the slider + CTA immediately, capping only
+      // the MAX. The variant minimum ($10 / $20) is applied on blur / submit.
+      const capped = Math.min(
+        AMOUNT_MAX_CENTS,
+        Math.max(0, Math.round(dollars * 100))
+      );
+      setAmountCents(capped);
     },
-    [minCents, clampRange]
+    []
+  );
+
+  const onCustomBlur = useCallback(() => {
+    // Now enforce the variant minimum (e.g. anything under $10 becomes $10)
+    // and re-sync the text box to the clamped value.
+    const clamped = clampRange(amountCents);
+    setAmountCents(clamped);
+    setCustomText((clamped / 100).toString());
+  }, [amountCents, clampRange]);
+
+  const onSliderChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const next = clampRange(Number(event.target.value));
+      setAmountCents(next);
+      setCustomText((next / 100).toString());
+    },
+    [clampRange]
   );
 
   const onSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
+      // Commit any unsaved bib name before we leave the page for checkout,
+      // so the bib prints what the runner typed (Kurt 2026-07-04).
+      await flushPendingBibName();
       const clamped = clampRange(amountCents);
 
       // Non-Stripe: route to the provider instructions page (Plan 22-02).
@@ -282,7 +313,7 @@ export function SponsorForm({
           max={SLIDER_MAX_CENTS}
           step={SLIDER_STEP_CENTS}
           value={Math.min(amountCents, SLIDER_MAX_CENTS)}
-          onChange={(e) => setAmountCents(clampRange(Number(e.target.value)))}
+          onChange={onSliderChange}
           disabled={disabled}
           aria-label={variant === "bib" ? "Sponsor amount" : "Donation amount"}
           style={{
@@ -311,8 +342,9 @@ export function SponsorForm({
             type="text"
             inputMode="decimal"
             autoComplete="off"
-            value={(amountCents / 100).toString()}
+            value={customText}
             onChange={onCustomChange}
+            onBlur={onCustomBlur}
             disabled={disabled}
             aria-label="Amount in US dollars"
             style={{
@@ -332,7 +364,8 @@ export function SponsorForm({
         </div>
       </div>
       <span style={{ fontSize: 12, color: "#8f8fa8" }}>
-        Slide or type any amount from ${minCents / 100} up to $1000.
+        Slide or type any amount from ${minCents / 100} up to $
+        {AMOUNT_MAX_CENTS / 100}.
       </span>
 
       {offerNonStripe && (

@@ -310,10 +310,10 @@ export function reportToCsv(bundle: ReportBundle, type: ReportType): string {
     case "payments":
       return toCsv(
         [
+          { key: "nameOnBib", header: "name" },
+          { key: "runnerCode", header: "runnerCode" },
           { key: "timestamp", header: "timestamp" },
           { key: "kind", header: "kind" },
-          { key: "runnerCode", header: "runnerCode" },
-          { key: "nameOnBib", header: "name" },
           { key: "provider", header: "provider" },
           { key: "amount", header: "amountUsd" },
         ],
@@ -325,10 +325,10 @@ export function reportToCsv(bundle: ReportBundle, type: ReportType): string {
     case "outstanding":
       return toCsv(
         [
+          { key: "nameOnBib", header: "name" },
+          { key: "runnerCode", header: "runnerCode" },
           { key: "source", header: "source" },
           { key: "status", header: "status" },
-          { key: "runnerCode", header: "runnerCode" },
-          { key: "nameOnBib", header: "name" },
           { key: "provider", header: "provider" },
           { key: "amount", header: "amountUsd" },
           { key: "detail", header: "detail" },
