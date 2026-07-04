@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/config/auth";
-import BibForm from "@/components/BibForm";
+import GetYourBib from "@/components/GetYourBib";
 import SponsorForm from "@/components/SponsorForm";
-import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
 import { listPendingForOwner } from "@/entities/pending-contribution";
@@ -183,22 +182,20 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {status && <StripeStatusBanner status={status} />}
 
-      {/* Get your bib — name first (A3), live preview below (inside BibForm). */}
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        <BibForm
-          initialName={bib.nameOnBib || ""}
-          nameLocked={bib.nameLocked === true}
-          hasSponsored={hasSponsored}
-          initialRenamesRemaining={renamesRemaining}
-        />
-        {!hasTransacted && (
-          <div style={{ marginTop: 16 }}>
-            <WillPayInPersonCheckbox
-              initialValue={bib.willPayInPerson === true}
-            />
-          </div>
-        )}
-      </div>
+      {/* Get your bib — name first (A3), live preview below. GetYourBib is a
+        * client wrapper so checking "contribute in person" rains cash over
+        * the bib preview (Kurt 2026-07-03). */}
+      <GetYourBib
+        showCheckbox={!hasTransacted}
+        willPayInitial={bib.willPayInPerson === true}
+        bibForm={{
+          initialName: bib.nameOnBib || "",
+          nameLocked: bib.nameLocked === true,
+          hasSponsored,
+          initialRenamesRemaining: renamesRemaining,
+          runnerCode: bib.runnerCode,
+        }}
+      />
 
         <TransactionHistory totalCents={totalCents} txns={txns} />
 
@@ -227,10 +224,11 @@ export default async function Home({ searchParams }: HomeProps) {
               body="Contribute anyway — support goes directly to defcon.run 34."
               art={<DonateArt />}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <RunnerCodeBadge code={bib.runnerCode} />
-                <SponsorForm variant="general" ctaLabel="Donate" />
-              </div>
+              <SponsorForm
+                variant="general"
+                ctaLabel="Donate"
+                runnerCode={bib.runnerCode}
+              />
             </Tile>
           </div>
         ) : (
@@ -247,10 +245,11 @@ export default async function Home({ searchParams }: HomeProps) {
               body="Contributions attach to your bib and help fund defcon.run 34."
               art={<SponsorArt />}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <RunnerCodeBadge code={bib.runnerCode} />
-                <SponsorForm variant="bib" ctaLabel="Sponsor" />
-              </div>
+              <SponsorForm
+                variant="bib"
+                ctaLabel="Sponsor"
+                runnerCode={bib.runnerCode}
+              />
             </Tile>
             <Tile
               kicker="or That"
@@ -258,10 +257,11 @@ export default async function Home({ searchParams }: HomeProps) {
               body="Not running? Contribute anyway — support goes directly to defcon.run 34."
               art={<DonateArt />}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <RunnerCodeBadge code={bib.runnerCode} />
-                <SponsorForm variant="general" ctaLabel="Donate" />
-              </div>
+              <SponsorForm
+                variant="general"
+                ctaLabel="Donate"
+                runnerCode={bib.runnerCode}
+              />
             </Tile>
           </div>
         )}
@@ -514,54 +514,6 @@ function StripeStatusBanner({ status }: { status: "success" | "cancel" }) {
       }}
     >
       {message}
-    </div>
-  );
-}
-
-/**
- * Small badge that surfaces the runnerCode above the form. The code is
- * immutable per user and used by the Phase 22 payment reconciliation
- * Lambda to match Venmo / CashApp receipts back to a bib.
- */
-function RunnerCodeBadge({ code }: { code: string }) {
-  return (
-    <div
-      role="group"
-      aria-label="Your runner code"
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 12,
-        alignSelf: "flex-start",
-        padding: "10px 18px",
-        borderRadius: 999,
-        backgroundColor: "#1a1a24",
-        border: "1px solid #2a2a34",
-      }}
-    >
-      <span
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
-          color: "#8f8fa8",
-        }}
-      >
-        Runner code
-      </span>
-      <span
-        style={{
-          fontFamily:
-            "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-          fontSize: 18,
-          fontWeight: 700,
-          color: "#6CCDB8",
-          letterSpacing: "0.05em",
-        }}
-      >
-        {code}
-      </span>
     </div>
   );
 }

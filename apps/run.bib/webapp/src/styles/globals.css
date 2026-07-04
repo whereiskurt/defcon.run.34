@@ -96,3 +96,48 @@ html.light .glass-nav {
   border-color: #00d4aa;
   box-shadow: 0 0 0 2px #00d4aa20;
 }
+
+/* Cash rain — USD bills fall over the bib preview and pile up when the runner
+   pledges to contribute in person (Kurt 2026-07-03). Overlay is click-through. */
+.cash-rain {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.cash-bill {
+  position: absolute;
+  border-radius: 2px;
+  background-image: var(--bill);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+  will-change: transform, opacity;
+  user-select: none;
+  animation: cash-bill-fall var(--dur, 1.2s) cubic-bezier(0.25, 0.6, 0.35, 1)
+    var(--delay, 0s) both;
+}
+
+@keyframes cash-bill-fall {
+  0% {
+    transform: translateY(-460px) rotate(var(--r0, 0deg));
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) rotate(var(--r1, 0deg));
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cash-bill {
+    animation-duration: 0.01ms;
+    animation-delay: 0ms;
+  }
+}

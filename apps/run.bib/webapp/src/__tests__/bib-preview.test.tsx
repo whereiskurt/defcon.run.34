@@ -50,17 +50,17 @@ describe("BibPreview sponsor charm accent (Phase 22-05-06)", () => {
     expect(html).toContain('id="sponsor-charm"');
   });
 
-  it("keeps the DC34 smiley graphic intact regardless of hasSponsored", () => {
+  it("keeps the DC34 smiley badge intact regardless of hasSponsored", () => {
     // Regression guard: the sponsor charm accent must not accidentally
-    // remove or replace the smiley graphic symbol (Kurt's naming-sweep
-    // rule from Phase 22-05-05 explicitly protects it).
+    // remove the smiley badge. Kurt 2026-07-03: the smiley is now the
+    // processed sticker image referenced by the smiley-circle/square symbols.
     const with_ = renderToStaticMarkup(
       <BibPreview name="Alice" hasSponsored={true} />
     );
     const without = renderToStaticMarkup(
       <BibPreview name="Alice" hasSponsored={false} />
     );
-    expect(with_).toContain('id="smiley"');
-    expect(without).toContain('id="smiley"');
+    expect(with_).toContain('id="smiley-circle"');
+    expect(without).toContain('id="smiley-circle"');
   });
 });

@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CashAppMark, StripeMark, VenmoMark } from "./payment-icons";
+import { RunnerCodeBadge } from "./RunnerCodeBadge";
 
 /**
  * SponsorForm
@@ -132,12 +133,18 @@ export interface SponsorFormProps {
    * Default slider value (cents). Defaults to 2000 ($20).
    */
   defaultAmountCents?: number;
+  /**
+   * Runner code (BIB-XXXX) — when set, shows a copy-able runner-code badge
+   * right above the CTA so runners include it in the Venmo / Cash App comment.
+   */
+  runnerCode?: string;
 }
 
 export function SponsorForm({
   variant = "bib",
   ctaLabel,
   defaultAmountCents,
+  runnerCode,
 }: SponsorFormProps = {}) {
   const router = useRouter();
 
@@ -376,6 +383,8 @@ export function SponsorForm({
           )}
         </div>
       )}
+
+      {runnerCode && <RunnerCodeBadge code={runnerCode} />}
 
       <button
         type="submit"

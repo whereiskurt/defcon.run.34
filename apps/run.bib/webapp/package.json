@@ -17,6 +17,7 @@
     "@aws-sdk/lib-dynamodb": "^3.943.0",
     "@heroui/react": "^2.8.10",
     "@heroui/theme": "^2.4.26",
+    "altcha-lib": "^2.2.0",
     "clsx": "^2.1.1",
     "electrodb": "^3.5.0",
     "framer-motion": "^12.42.2",
@@ -25,6 +26,7 @@
     "next": "^16.1.1",
     "next-auth": "^5.0.0-beta.30",
     "next-themes": "^0.4.6",
+    "qrcode": "^1.5.4",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "react-icons": "^5.7.0",
@@ -35,6 +37,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10",

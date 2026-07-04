@@ -1,4 +1,6 @@
+import QRCode from "qrcode";
 import { DC34_LOGO_DATA_URI } from "./dc34-logo";
+import { DC34_SMILEY_DATA_URI } from "./dc34-smiley";
 
 /**
  * BibPreview
@@ -42,6 +44,9 @@ export interface BibPreviewProps {
    * to registration (see canPrintName in entities/bib.ts).
    */
   hasSponsored?: boolean;
+  /** Runner code (e.g. BIB-XXXX) — rendered as a QR on each tear-off stub so
+   * the code is scannable when a stub is torn off (Kurt 2026-07-03). */
+  runnerCode?: string;
 }
 
 /** Design-contract placeholder rendered when the user has not typed a name.
@@ -89,6 +94,7 @@ const STUB_MIN_SIZE = 12;
 export function BibPreview({
   name,
   hasSponsored = false,
+  runnerCode,
 }: BibPreviewProps) {
   const trimmedName = name.trim();
   const hasName = trimmedName.length > 0;
@@ -133,46 +139,13 @@ export function BibPreview({
       }
     >
       <defs>
-        {/* DEF CON smiley: white smiley face over white crossbones;
-            features cut to badge colour. Preserved verbatim from the
-            template asset. */}
-        <symbol id="smiley" viewBox="0 0 100 100">
-          <g fill="#fff">
-            <g transform="rotate(45 50 50)">
-              <rect x="14" y="45.5" width="72" height="9" rx="4.5" />
-              <circle cx="14" cy="43" r="6" />
-              <circle cx="14" cy="57" r="6" />
-              <circle cx="86" cy="43" r="6" />
-              <circle cx="86" cy="57" r="6" />
-            </g>
-            <g transform="rotate(-45 50 50)">
-              <rect x="14" y="45.5" width="72" height="9" rx="4.5" />
-              <circle cx="14" cy="43" r="6" />
-              <circle cx="14" cy="57" r="6" />
-              <circle cx="86" cy="43" r="6" />
-              <circle cx="86" cy="57" r="6" />
-            </g>
-          </g>
-          <circle cx="50" cy="50" r="27" fill="#fff" />
-          <g fill="#000">
-            <ellipse cx="40" cy="45" rx="4.6" ry="6.2" />
-            <ellipse cx="60" cy="45" rx="4.6" ry="6.2" />
-          </g>
-          <path
-            d="M37 56 Q50 70 63 56"
-            fill="none"
-            stroke="#000"
-            strokeWidth="5"
-            strokeLinecap="round"
-          />
-        </symbol>
+        {/* DEF CON smiley badge — the processed sticker image (Kurt 2026-07-03).
+            Same round badge for the corner marks and the tear-off stubs. */}
         <symbol id="smiley-circle" viewBox="0 0 100 100">
-          <circle cx="50" cy="50" r="50" fill="#000" />
-          <use href="#smiley" />
+          <image href={DC34_SMILEY_DATA_URI} x="0" y="0" width="100" height="100" />
         </symbol>
         <symbol id="smiley-square" viewBox="0 0 100 100">
-          <rect x="0" y="0" width="100" height="100" rx="10" fill="#000" />
-          <use href="#smiley" />
+          <image href={DC34_SMILEY_DATA_URI} x="0" y="0" width="100" height="100" />
         </symbol>
       </defs>
 
@@ -196,28 +169,8 @@ export function BibPreview({
         overlap the pin holes; z-order after the card rect so it renders
         on top.
       */}
-      {hasSponsored && (
-        <g
-          id="sponsor-charm"
-          role="presentation"
-          aria-label="Sponsor charm"
-          data-testid="sponsor-charm"
-        >
-          <circle
-            cx="912"
-            cy="46"
-            r="22"
-            fill="#3a8f79"
-            stroke="#a05308"
-            strokeWidth="2"
-          />
-          {/* 5-point star, scaled to sit inside the 22-radius circle */}
-          <path
-            d="M912 32 L916 42 L927 42 L918 49 L921 60 L912 53 L903 60 L906 49 L897 42 L908 42 Z"
-            fill="#fff"
-          />
-        </g>
-      )}
+      {/* Sponsor "PAID! THANK YOU!" stamp is rendered LAST (below) so it sits
+          on top of the number box instead of being painted over. */}
 
       {/* top banner: official DC34 logo (includes DEFCON) */}
       <image
@@ -337,7 +290,109 @@ export function BibPreview({
       >
         {stubText}
       </text>
+
+      {/* Runner-code QR on each tear-off stub (Kurt 2026-07-03) — scannable
+        * when a stub is torn off for payment reconciliation. */}
+      {runnerCode && <QrBadge value={runnerCode} x={200} y={596} size={76} />}
+      {runnerCode && <QrBadge value={runnerCode} x={660} y={596} size={76} />}
+
+      {/* Sponsor "PAID! THANK YOU!" rubber stamp — on top of the number box's
+          top-right (Kurt 2026-07-03, replaces the green star charm). */}
+      {hasSponsored && (
+        <g
+          id="sponsor-charm"
+          role="img"
+          aria-label="Paid — thank you"
+          data-testid="sponsor-charm"
+          transform="rotate(-11 806 208)"
+        >
+          <rect
+            x="712"
+            y="176"
+            width="188"
+            height="64"
+            rx="10"
+            fill="#3a8f79"
+            stroke="#eafff8"
+            strokeWidth="3"
+          />
+          <text
+            x="806"
+            y="203"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="30"
+            fontWeight="900"
+            fill="#fff"
+            letterSpacing="1"
+          >
+            PAID!
+          </text>
+          <text
+            x="806"
+            y="226"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="13"
+            fontWeight="700"
+            fill="#eafff8"
+            letterSpacing="2"
+          >
+            THANK YOU!
+          </text>
+        </g>
+      )}
     </svg>
+  );
+}
+
+/**
+ * Render a runner-code QR as crisp SVG rects (vector — stays sharp in print).
+ * White quiet-zone background + black modules. Returns null if encoding fails.
+ */
+function QrBadge({
+  value,
+  x,
+  y,
+  size,
+}: {
+  value: string;
+  x: number;
+  y: number;
+  size: number;
+}) {
+  let modules: { size: number; data: Uint8Array };
+  try {
+    const qr = QRCode.create(value, { errorCorrectionLevel: "M" });
+    modules = qr.modules as unknown as { size: number; data: Uint8Array };
+  } catch {
+    return null;
+  }
+  const n = modules.size;
+  const quiet = 2;
+  const cell = size / (n + quiet * 2);
+  const cells: React.ReactNode[] = [];
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (modules.data[r * n + c]) {
+        cells.push(
+          <rect
+            key={`${r}-${c}`}
+            x={x + (c + quiet) * cell}
+            y={y + (r + quiet) * cell}
+            width={cell}
+            height={cell}
+            fill="#000"
+          />
+        );
+      }
+    }
+  }
+  return (
+    <g role="img" aria-label={`Runner code QR: ${value}`}>
+      <rect x={x} y={y} width={size} height={size} rx={4} fill="#fff" />
+      {cells}
+    </g>
   );
 }
 
