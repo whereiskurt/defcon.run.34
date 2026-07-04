@@ -63,10 +63,33 @@ export function regionFromPath(pathname: string): string {
   return REGION_RE.test(first) ? first : "";
 }
 
-/** Region-prefixed `/silent-callback` path (bare when no region prefix present). */
-export function silentCallbackPath(pathname: string): string {
-  const region = regionFromPath(pathname);
-  return region ? `/${region}/silent-callback` : "/silent-callback";
+/** Fallback region when neither the path nor the cookie carries a valid one. */
+const DEFAULT_REGION = "use1";
+/** Cookie the apex region-selector sets; read defensively for region resolution. */
+const PREFERRED_REGION_COOKIE = "preferred-region";
+
+/**
+ * Resolve a region prefix that is ALWAYS non-empty, so silent-SSO never emits a
+ * region-less URL. Region-mounted deployments serve the app under `/<region>`, so
+ * a region-less `/api/auth/...` or `/signin` misroutes (region stripped) and can
+ * loop. Resolution order: the region already in the path, else the
+ * `preferred-region` cookie (the same cookie the apex region-selector writes),
+ * else the default region. `cookie` is passed in (e.g. `document.cookie`) to keep
+ * this module free of browser globals and unit-testable.
+ */
+export function resolveRegion(pathname: string, cookie = ""): string {
+  const fromPath = regionFromPath(pathname);
+  if (fromPath) return fromPath;
+  const match = cookie.match(
+    new RegExp(`(?:^|;\\s*)${PREFERRED_REGION_COOKIE}=([^;]+)`),
+  );
+  const fromCookie = match ? decodeURIComponent(match[1]) : "";
+  return REGION_RE.test(fromCookie) ? fromCookie : DEFAULT_REGION;
+}
+
+/** Region-prefixed `/silent-callback` path (always region-prefixed via resolveRegion). */
+export function silentCallbackPath(pathname: string, cookie = ""): string {
+  return `/${resolveRegion(pathname, cookie)}/silent-callback`;
 }
 
 /**

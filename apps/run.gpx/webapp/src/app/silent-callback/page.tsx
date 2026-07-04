@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import {
   SILENT_SSO_MESSAGE_TYPE,
-  regionFromPath,
+  resolveRegion,
   resolveSilentStatus,
 } from "@/lib/silent-sso";
 
@@ -31,9 +31,10 @@ export default function SilentCallbackPage() {
     }
 
     // Top-level load (e.g. pages.error reached outside the iframe): behave normally
-    // by continuing to the region-prefixed sign-in page.
-    const region = regionFromPath(window.location.pathname);
-    window.location.replace(region ? `/${region}/signin` : "/signin");
+    // by continuing to the sign-in page. resolveRegion is never empty, so this is
+    // always region-prefixed — never a region-less /signin (which misroutes).
+    const region = resolveRegion(window.location.pathname, document.cookie);
+    window.location.replace(`/${region}/signin`);
   }, []);
 
   return (

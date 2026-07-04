@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   SILENT_SSO_TIMEOUT_MS,
   decideParentAction,
-  regionFromPath,
+  resolveRegion,
 } from "@/lib/silent-sso";
 
 /**
@@ -39,13 +39,12 @@ export default function SilentSSO() {
     startedRef.current = true;
 
     const origin = window.location.origin;
-    const region = regionFromPath(window.location.pathname);
-    const initiator = region
-      ? `/${region}/api/auth/silent-signin`
-      : "/api/auth/silent-signin";
-    const fallbackBase = region
-      ? `/${region}/api/auth/auto-signin`
-      : "/api/auth/auto-signin";
+    // resolveRegion is never empty (path region -> preferred-region cookie ->
+    // default), so these auth URLs are always region-prefixed — never region-less
+    // (a region-less /api/auth/* misroutes on region-mounted deployments).
+    const region = resolveRegion(window.location.pathname, document.cookie);
+    const initiator = `/${region}/api/auth/silent-signin`;
+    const fallbackBase = `/${region}/api/auth/auto-signin`;
     // Where the user is now — the fallback returns them here (never a fixed path).
     const currentPath = window.location.pathname + window.location.search;
 
