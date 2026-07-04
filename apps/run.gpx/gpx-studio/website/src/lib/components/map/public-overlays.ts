@@ -51,6 +51,7 @@ export type PublicMap = {
     mapOpacity?: number; // line opacity (0–1)
     coverImageUrl?: string; // full-size cover image (click-through)
     coverImageDisplayUrl?: string; // sized-down variant shown in the popup
+    stravaUrl?: string; // link to the route on Strava
     downloadUrl: string;
     bounds?: { minLat: number; maxLat: number; minLon: number; maxLon: number };
     totalDistance?: number;
@@ -139,6 +140,11 @@ function popupHtml(m: PublicMap, folderName: string): string {
         ? `<a href="${escapeHtml(m.downloadUrl)}" download="${escapeHtml(prettyRouteName(m.fileName))}.gpx"
               style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:${m.color};text-decoration:none">⬇ Download GPX</a>`
         : '';
+    // Strava link — opens the route on Strava in a new tab (CMS stravaUrl).
+    const strava = m.stravaUrl
+        ? `<a href="${escapeHtml(m.stravaUrl)}" target="_blank" rel="noopener noreferrer"
+              style="display:inline-block;margin-top:8px;margin-left:14px;font-size:12px;font-weight:600;color:#fc5200;text-decoration:none">↗ Strava</a>`
+        : '';
 
     return `
         <div style="min-width:200px;max-width:280px;padding:10px 12px;border-left:4px solid ${m.color};
@@ -148,7 +154,7 @@ function popupHtml(m: PublicMap, folderName: string): string {
             ${meta}
             ${cover}
             ${desc}
-            ${download}
+            <div>${download}${strava}</div>
             <div style="margin-top:8px;font-size:9px;font-family:ui-monospace,monospace;opacity:.35;user-select:all">id: ${escapeHtml(m.fileId)}</div>
         </div>`;
 }

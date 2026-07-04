@@ -38,6 +38,7 @@ type PublicMap = {
   mapOpacity?: number;
   coverImageUrl?: string;
   coverImageDisplayUrl?: string;
+  stravaUrl?: string;
   downloadUrl: string;
   bounds?: GpxFileItem["bounds"];
   totalDistance?: number;
@@ -93,6 +94,7 @@ export async function GET() {
               mapOpacity: cms?.mapOpacity,
               coverImageUrl: cms?.coverImageUrl,
               coverImageDisplayUrl: cms?.coverImageDisplayUrl,
+              stravaUrl: cms?.stravaUrl,
               downloadUrl,
               bounds: file.bounds,
               totalDistance: file.totalDistance,

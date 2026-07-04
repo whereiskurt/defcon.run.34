@@ -28,6 +28,7 @@ export interface RouteMeta {
   mapOpacity?: number; // line opacity (0–1)
   coverImageUrl?: string; // full-size cover image (click-through target)
   coverImageDisplayUrl?: string; // sized-down variant for the popup
+  stravaUrl?: string; // link to the route on Strava
 }
 
 // ---- Strapi "blocks" → safe HTML -------------------------------------------
@@ -131,7 +132,7 @@ export async function fetchRouteMeta(): Promise<Map<string, RouteMeta>> {
     url.searchParams.set("filters[gpxFileId][$notNull]", "true");
     const fields = [
       "gpxFileId", "name", "shortDescription", "description",
-      "distance", "elevationGain", "mapColor", "mapWeight", "mapOpacity",
+      "distance", "elevationGain", "mapColor", "mapWeight", "mapOpacity", "stravaUrl",
     ];
     fields.forEach((f, i) => url.searchParams.set(`fields[${i}]`, f));
     // coverImage is a media relation — populate its url + formats (sized variants).
@@ -173,6 +174,7 @@ export async function fetchRouteMeta(): Promise<Map<string, RouteMeta>> {
         coverImageUrl: ci?.url || undefined,
         coverImageDisplayUrl:
           fmts.small?.url || fmts.medium?.url || fmts.thumbnail?.url || ci?.url || undefined,
+        stravaUrl: (r.stravaUrl as string) || undefined,
       });
     }
   } catch (err) {
