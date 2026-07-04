@@ -1,0 +1,68 @@
+{
+  "updated": "2026-07-04 01:45:37 UTC",
+  "poll_seconds": 300,
+  "regions": [
+    {
+      "id": "use1",
+      "deployed": true
+    },
+    {
+      "id": "cac1",
+      "deployed": false
+    },
+    {
+      "id": "apse1",
+      "deployed": false
+    }
+  ],
+  "services": [
+    {
+      "id": "auth",
+      "name": "run.auth",
+      "host": "auth.defcon.run",
+      "version": "v0.0.12",
+      "state": "live",
+      "note": "Authentication & sign-in — operational"
+    },
+    {
+      "id": "cms",
+      "name": "run.cms",
+      "host": "cms.defcon.run",
+      "version": "v0.0.8",
+      "state": "live",
+      "note": "Content & routes — operational"
+    },
+    {
+      "id": "human",
+      "name": "run.human",
+      "host": "run.defcon.run",
+      "version": "v0.0.11",
+      "state": "live",
+      "note": "Main run site — operational"
+    },
+    {
+      "id": "gpx",
+      "name": "run.gpx",
+      "host": "gpx.defcon.run",
+      "version": "v0.0.9",
+      "state": "dev",
+      "note": "v1.8 overlay decoration in progress — expect hiccups"
+    },
+    {
+      "id": "flash",
+      "name": "run.flash",
+      "host": "flash.defcon.run",
+      "version": "v0.0.10",
+      "state": "dev",
+      "note": "Radio flashing flow under active development"
+    },
+    {
+      "id": "bib",
+      "name": "run.bib",
+      "host": "bib.defcon.run",
+      "version": "v0.0.20",
+      "state": "down",
+      "note": "ALTCHA rollout — interrupted, investigating"
+    }
+  ]
+}
