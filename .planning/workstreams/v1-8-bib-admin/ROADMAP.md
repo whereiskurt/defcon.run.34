@@ -19,6 +19,22 @@ and print the runner's real social QR on the bib.
   (Kurt's choice, 2026-07-04) delivering slices A (admin), B (orderform UX), and
   C (social QR) below. Reqs: BIB-ADM-01…09.
 
+### Phase 34: Bib admin, orderform UX & social QR
+
+**Goal:** Make the run.bib admin dashboard truthful and actionable (filter phantom
+registrations; inline reconcile of pending Venmo/Cash App intents; inline reject/reset
+of a runner's bib), make the orderform's save/pledge UX unmistakable (responsive
+checkbox placement, loud unsaved state, hardened implicit save, ALTCHA blur overlay),
+and print the runner's real social QR on the bib tear-offs with a runner-code fallback.
+
+**Depends on:** None (branches off origin/main)
+
+**Requirements:** BIB-ADM-01, BIB-ADM-02, BIB-ADM-03, BIB-ADM-04, BIB-ADM-05, BIB-ADM-06, BIB-ADM-07, BIB-ADM-08, BIB-ADM-09
+
+**Success Criteria:** SC34.1–SC34.9 (see "Success Criteria (Phase 34)" below)
+
+**UI hint:** yes (orderform + bib preview are frontend; `/admin` stays plain dark-theme)
+
 ## Success Criteria (Phase 34)
 
 **Slice A — Admin reporting (`apps/run.bib/webapp/src/app/admin` + `src/lib/admin-reports.ts` + new `src/app/api/admin/bib/{reconcile,reject}/route.ts`)**
