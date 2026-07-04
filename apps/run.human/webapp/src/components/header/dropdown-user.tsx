@@ -22,6 +22,7 @@ import { fullLogout } from '@/hooks/useLogout';
 import { useRouter } from 'next/navigation';
 import { FaUserAlt, FaMapMarkerAlt } from 'react-icons/fa';
 import { FaPenToSquare } from 'react-icons/fa6';
+import { PiPersonSimpleRun } from 'react-icons/pi';
 import CheckInModal from '@/components/CheckInModal';
 import { LogoutIcon } from './icon/logout';
 import { QRIcon } from './icon/qr';
@@ -188,6 +189,17 @@ const UserDropDown = (params: any) => {
               closeOnSelect={true}
             >
               Profile
+            </DropdownItem>
+
+            <DropdownItem
+              startContent={<PiPersonSimpleRun />}
+              key="bib"
+              className="gap-2 opacity-100 py-2 text-base"
+              textValue="My Bib"
+              onPress={() => window.open('https://bib.defcon.run', '_blank')}
+              closeOnSelect={true}
+            >
+              My Bib
             </DropdownItem>
 
             {hasCms ? (
