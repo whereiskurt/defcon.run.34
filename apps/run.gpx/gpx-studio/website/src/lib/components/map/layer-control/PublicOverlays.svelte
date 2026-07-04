@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { publicOverlayGroups, publicAggregate } from '../public-overlays';
+    import { publicOverlayGroups, publicAggregate, prettyRouteName } from '../public-overlays';
     import type { PublicOverlaysLayer } from '../public-overlays';
 
     // The layer instance is created in LayerControl's map.onLoad; may be undefined
@@ -46,7 +46,7 @@
                                 class="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                                 style="background-color: {m.color}"
                             ></span>
-                            {m.fileName}
+                            {prettyRouteName(m.fileName)}
                         </label>
                     {/each}
                 </div>
