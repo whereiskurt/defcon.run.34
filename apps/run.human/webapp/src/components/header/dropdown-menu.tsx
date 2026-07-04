@@ -14,6 +14,7 @@ import { FaQuestion, FaRadio } from 'react-icons/fa6';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaUserAlt } from 'react-icons/fa';
+import { PiPersonSimpleRun } from 'react-icons/pi';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
@@ -85,6 +86,16 @@ const MenuDropDown = (params: any) => {
             onClick={() => handleNavigation('/meshtastic')}
           >
             <span className="text-base">Meshtastic</span>
+          </DropdownItem>
+
+          <DropdownItem
+            textValue="bib"
+            startContent={<PiPersonSimpleRun className={iconClasses} />}
+            key="bib"
+            showDivider
+            onClick={() => { setIsOpen(false); window.open('https://bib.defcon.run', '_blank'); }}
+          >
+            <span className="text-base">Bib</span>
           </DropdownItem>
 
           <DropdownItem
