@@ -25,6 +25,8 @@ export interface BibFormProps {
   hasSponsored?: boolean;
   /** Remaining committed name changes (server: quota - nameRenameCount). */
   initialRenamesRemaining: number;
+  /** Runner code — passed through to BibPreview for the tear-off QR. */
+  runnerCode?: string;
 }
 
 const API_BIB_PATH = "/api/bib";
@@ -45,6 +47,7 @@ export function BibForm({
   nameLocked: initialLocked,
   hasSponsored = false,
   initialRenamesRemaining,
+  runnerCode,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
   const [savedName, setSavedName] = useState<string>(initialName);
@@ -229,7 +232,7 @@ export function BibForm({
       </div>
 
       {/* Live preview sits BELOW the name field (A3, name-first). */}
-      <BibPreview name={name} hasSponsored={hasSponsored} />
+      <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} />
     </form>
   );
 }
