@@ -72,13 +72,17 @@ export async function GET(
       );
     }
 
-    // Return safe subset needed by flash
+    // Return safe subset needed by flash + bib.
+    // `hash` is the SHA256 QR-lookup value already surfaced in public /r?h= URLs;
+    // it is NOT a secret. Never expose the random QR seed or the RSA key-pair
+    // hashes here — those are regeneration secrets that must stay run.human-internal.
     return NextResponse.json({
       userId: user.userId,
       displayName: user.displayName,
       mqttUsername: user.mqttUsername,
       mqttPassword: user.mqttPassword,
       mqttUsertype: user.mqttUsertype,
+      hash: user.hash,
     });
   } catch (error) {
     console.error("[run.human] /api/internal/user error:", error);
