@@ -10,7 +10,7 @@ import {
 import { useState } from 'react';
 
 import { FaQuestion, FaRadio, FaFire } from 'react-icons/fa6';
-import { FaUserAlt, FaTrophy } from 'react-icons/fa';
+import { FaUserAlt } from 'react-icons/fa';
 import { FaMoneyCheckDollar } from 'react-icons/fa6';
 import { GrMapLocation } from 'react-icons/gr';
 import { Zap } from 'lucide-react';
@@ -20,6 +20,12 @@ import { MenuIcon } from './icon/menu';
 // (run.defcon.run is mounted under /{region}; a region-less path misroutes).
 const RUN_BASE = `https://run.defcon.run/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`;
 const GPX_BASE = 'https://gpx.defcon.run';
+
+// This app is mounted under /{region} in production (see next.config.ts
+// basePath) — raw window.location navigations must include it themselves.
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
@@ -63,7 +69,7 @@ const MenuDropDown = () => {
             startContent={<Zap className={iconClasses} />}
             key="flash"
             showDivider
-            onClick={() => { setIsOpen(false); window.location.href = '/'; }}
+            onClick={() => { setIsOpen(false); window.location.href = `${basePath}/`; }}
           >
             <span className="text-base">Flash Device</span>
           </DropdownItem>
@@ -75,15 +81,6 @@ const MenuDropDown = () => {
             onClick={() => { setIsOpen(false); window.open(`${RUN_BASE}/whoami`, '_blank'); }}
           >
             <span className="text-base">Who Am I</span>
-          </DropdownItem>
-
-          <DropdownItem
-            textValue="leaderboard"
-            startContent={<FaTrophy className={iconClasses} />}
-            key="leaderboard"
-            onClick={() => { setIsOpen(false); window.open(`${RUN_BASE}/leaderboard`, '_blank'); }}
-          >
-            <span className="text-base">Leaderboard</span>
           </DropdownItem>
 
           <DropdownItem

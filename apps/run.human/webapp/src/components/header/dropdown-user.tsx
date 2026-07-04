@@ -19,7 +19,7 @@ import {
 import { useSession } from 'next-auth/react';
 import { fullLogout } from '@/hooks/useLogout';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { FaUserAlt, FaMapMarkerAlt } from 'react-icons/fa';
 import { FaPenToSquare } from 'react-icons/fa6';
 import { PiPersonSimpleRun } from 'react-icons/pi';
@@ -52,6 +52,15 @@ const UserDropDown = (params: any) => {
   } = useDisclosure();
   const [userDetail, setUserDetail] = useState<any>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Cross-app deep links (e.g. flash.defcon.run's user menu): ?open=checkin|qr
+  // auto-opens the matching modal. Only mounted when a session exists.
+  useEffect(() => {
+    const open = searchParams?.get('open');
+    if (open === 'checkin') openCheckIn();
+    if (open === 'qr') openQR();
+  }, [searchParams]);
 
   // Fetch user details once when component mounts
   const fetchUserDetails = async () => {
