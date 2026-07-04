@@ -99,38 +99,74 @@ login part).
 
 ### run.gpx (RP)
 
-**4. Silent-SSO pre-check on public routes.**
-On an unauthenticated request, gpx first attempts a hidden `prompt=none`
-authorize before any interactive flow:
+**4. Hidden-iframe silent-SSO check on public routes (primary mechanism).**
+On an unauthenticated request, gpx renders its page and performs the SSO check in
+a **hidden iframe** so the top-level page never unloads:
 
-- **Success** → establish `sess_gpx` with no top-level navigation.
-- **`login_required` / `interaction_required` / `consent_required`** → fall back
-  to the redirect-based auto-signin route (modeled on run.human's existing
-  `src/app/api/auth/auto-signin/route.ts`), which is now itself invisible thanks
-  to change #1.
+- A hidden `<iframe>` (0×0, `aria-hidden`) points at a gpx initiator route that
+  triggers a `prompt=none` authorize:
+  `signIn("run.defcon.run", { redirectTo: "/{region}/silent-callback" }, { prompt: "none" })`
+  — the third `signIn` argument passes `prompt=none` through to the authorization
+  request.
+- The whole authorize → RP callback → landing sequence runs **inside the iframe**.
+  On success the callback sets `sess_gpx` (cookie `domain: .defcon.run`, so the
+  parent frame immediately has it) and the iframe lands on a small same-origin
+  **`/silent-callback` bridge page**.
+- The bridge page calls `window.parent.postMessage({ type: "silent-sso", status }, origin)`
+  with `status: "success" | "login_required"`. The parent listener (scoped to the
+  gpx origin) reacts: on `success`, refresh to the authenticated view; on
+  `login_required`, remain in the logged-out view (no auto-redirect).
 
-The exact hidden-check transport (hidden iframe + `postMessage`, vs. a
-fetch-based check) is an implementation detail to be settled in the plan; the
-contract is: *attempt silent, downgrade to invisible redirect, never show a login
-page unless truly logged out.*
+**Why the iframe works here (same-site):** `auth.defcon.run` and
+`gpx.defcon.run` share the registrable domain `defcon.run`, so an iframe from gpx
+to auth is a **same-site** context. `SameSite=Lax` cookies — `sess_auth` and the
+provider `_session` — are therefore sent inside the iframe, which is exactly what
+makes the silent check possible without third-party-cookie relaxation.
+
+**Fallback:** a redirect-based auto-signin route (modeled on run.human's existing
+`src/app/api/auth/auto-signin/route.ts`, invisible thanks to change #1) is
+retained for the timeout / unexpected-render case (see Error Handling). It is the
+safety net, not the primary path.
+
+Contract: *attempt silent in the iframe; on `login_required` stay logged-out; on
+timeout downgrade to the invisible redirect; never render a login page unless the
+user is truly logged out.*
 
 ## Data Flow — warm user visits `gpx.defcon.run` cold
 
+Top-level page loads immediately; the hidden iframe drives the check.
+
 1. **Provider `_session` exists** (user logged in earlier via run):
-   gpx `prompt=none` → account known → custom `loadExistingGrant` auto-consents
-   gpx → **code returned silently, no page unload** → `sess_gpx` set.
-2. **No provider session yet, but `sess_auth` present:**
-   `prompt=none` → `login_required` → gpx redirect auto-signin → interaction
-   route reads `sess_auth`, completes **invisibly** (change #1),
-   `remember:true` establishes the SSO session → `sess_gpx` set. No login page.
+   iframe `prompt=none` → account known → custom `loadExistingGrant` auto-consents
+   gpx → code returned silently → iframe callback sets `sess_gpx` → bridge posts
+   `success` → parent refreshes to authenticated view. **No top-level navigation.**
+2. **No provider session yet, but `sess_auth` present** (edge case — user has a
+   NextAuth session at the IdP but the SSO `_session` was never created, e.g.
+   first RP after a provider-session expiry):
+   iframe `prompt=none` → `login_required` (prompt=none cannot create a session) →
+   bridge posts `login_required`. Parent then triggers the **redirect fallback**
+   (auto-signin), whose interaction route reads `sess_auth`, completes
+   **invisibly** (change #1), and `remember:true` re-establishes the SSO session →
+   `sess_gpx` set. This one edge case incurs a single invisible top-level redirect;
+   subsequent visits are fully silent.
 3. **No `sess_auth` at all:**
-   interaction route → real `/login`. Correct: user is genuinely logged out.
+   iframe `prompt=none` → `login_required` → parent stays in logged-out view; if
+   the user then acts to sign in, the redirect flow reaches the real `/login`.
+   Correct: user is genuinely logged out.
 
 ## Error Handling
 
+- **Iframe timeout:** the parent arms a timeout (target ~4–5s) when injecting the
+  iframe. If no `postMessage` arrives (hung network, an unexpected framed render,
+  or a `frame-ancestors`/`X-Frame-Options` block on some intermediate response),
+  the parent tears down the iframe and downgrades to the redirect fallback — the
+  user is never left waiting on a silent frame.
 - Every `prompt=none` negative response (`login_required`,
-  `interaction_required`, `consent_required`, `access_denied`) is caught and
-  downgraded to the interactive/redirect fallback — never surfaced as an error.
+  `interaction_required`, `consent_required`, `access_denied`) that reaches the RP
+  callback is normalized by the bridge page to a `login_required`-class
+  `postMessage`; the parent never surfaces an OIDC error to the user. NextAuth's
+  default error redirect for the callback is routed to the same bridge page so it
+  stays inside the iframe.
 - `loadExistingGrant` auto-consents **only** the hardcoded first-party allowlist;
   any unknown `client_id` receives no auto-grant.
 - Existing `interactionDetails` / expired-interaction / `isSessionNotFound`
@@ -151,6 +187,18 @@ page unless truly logged out.*
 - **PKCE and per-client id_token semantics are unchanged** — this only removes
   interaction *rendering* and adds silent grant resolution, not any token-shape
   change.
+- **Framing / `postMessage` hygiene.** The silent flow only frames the IdP's
+  redirect responses (no HTML render on the happy path), and the RP callback +
+  bridge page are same-origin to gpx, so existing `frame-ancestors` /
+  `X-Frame-Options` policy is not expected to change. If any intermediate response
+  *does* render framed HTML, the timeout fallback covers it. The bridge page's
+  `postMessage` MUST target the explicit gpx origin (not `*`), and the parent
+  listener MUST verify `event.origin` before acting.
+- **Iframe reachability depends on same-site subdomains.** Because all apps sit
+  under `defcon.run`, `SameSite=Lax` cookies flow into the iframe. If a service is
+  ever moved to a different registrable domain, the silent iframe stops receiving
+  `sess_auth` and would need a different transport — noted so the coupling is
+  explicit.
 
 ## Testing Strategy
 
@@ -165,18 +213,25 @@ TDD each change. Layers:
   (iii) `interactions.url` now resolves to the interaction route;
   (iv) authenticated interaction completes without rendering `/login`;
   (v) unauthenticated interaction still reaches `/login`.
-- **RP (gpx)** — silent pre-check establishes `sess_gpx` on success; each
-  negative `prompt=none` outcome downgrades to the invisible redirect fallback.
-- **e2e (Playwright)** — warm-session visit to `gpx.defcon.run` renders no login
-  page and performs no visible navigation.
+- **RP (gpx)** — bridge page maps callback success → `success` and each negative
+  `prompt=none` outcome → `login_required` `postMessage`; parent listener acts
+  only on messages from the gpx origin; timeout arms the redirect fallback.
+- **e2e (Playwright)** — warm-session visit to `gpx.defcon.run`: top-level URL
+  never changes, no login page renders, `sess_gpx` is set via the iframe, and the
+  authenticated view appears. Logged-out visit: iframe posts `login_required`,
+  parent stays logged-out, no redirect loop.
 
 ## Files Touched
 
 - `apps/run.auth/webapp/src/config/oidc.ts` — `interactions.url`, custom
   `loadExistingGrant`.
 - `apps/run.auth/webapp/src/pages/api/oidc/interaction/[uid].ts` — `remember: true`.
-- `apps/run.gpx/webapp/src/...` — silent-SSO pre-check + redirect fallback route
-  (exact paths determined in the plan).
+- `apps/run.gpx/webapp/src/...` — hidden-iframe silent-SSO: an initiator route
+  that calls `signIn(..., { prompt: "none" })`, a same-origin `/silent-callback`
+  bridge page (`postMessage`), a client component/hook that injects the hidden
+  iframe + parent listener + timeout on public routes, and a redirect-based
+  auto-signin fallback route (mirroring run.human). Exact paths determined in the
+  plan.
 - Tests colocated per each app's existing test conventions.
 
 ## Follow-ups (out of scope)
