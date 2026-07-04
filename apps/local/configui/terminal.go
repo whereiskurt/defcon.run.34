@@ -380,16 +380,6 @@ func (a *App) startTerminal(module, command, region string, bootstrap bool) (*Te
 		return nil, fmt.Errorf("module directory not found: %s", workDir)
 	}
 
-	// Prune completed sessions older than 5 minutes
-	a.mu.Lock()
-	now := time.Now()
-	for id, s := range a.termSessions {
-		if s.Status != "running" && !s.doneAt.IsZero() && now.Sub(s.doneAt) > 5*time.Minute {
-			delete(a.termSessions, id)
-		}
-	}
-	a.mu.Unlock()
-
 	// Snapshot config under lock
 	a.mu.RLock()
 	cfg := a.config
@@ -420,6 +410,69 @@ func (a *App) startTerminal(module, command, region string, bootstrap bool) (*Te
 	cmd.Dir = workDir
 	cmd.Env = buildTerminalEnv(profile, cfg, envLocal)
 	session.cmd = cmd
+
+	return a.runSession(session, bootstrap)
+}
+
+// startStatusPublish publishes the status site by running
+// apps/run.status/release.sh --status-only from the repo root (real S3 upload
+// + CloudFront invalidation). It reuses the same TermSession streaming plumbing
+// as the terragrunt targets so output streams to the terminal modal. This is a
+// user-triggered deploy action — never invoked automatically.
+func (a *App) startStatusPublish() (*TermSession, error) {
+	scriptPath := filepath.Join(a.repoRoot, "apps", "run.status", "release.sh")
+	if _, err := os.Stat(scriptPath); err != nil {
+		return nil, fmt.Errorf("release.sh not found: %s", scriptPath)
+	}
+
+	a.mu.RLock()
+	cfg := a.config
+	a.mu.RUnlock()
+
+	session := &TermSession{
+		ID:        fmt.Sprintf("term-%d", time.Now().UnixMilli()),
+		Module:    "status_publish",
+		Command:   "publish",
+		CmdLine:   "apps/run.status/release.sh --status-only",
+		WorkDir:   a.repoRoot,
+		Status:    "running",
+		Stats:     &ResourceStats{ByModule: make(map[string]*TerraformSummary), ByType: make(map[string]*TerraformSummary), ByModuleType: make(map[string]*TerraformSummary)},
+		startAt:   time.Now(),
+		clients:   make(map[chan string]struct{}),
+		siteLabel: cfg.Site.Label,
+	}
+
+	cmd := exec.Command(scriptPath, "--status-only")
+	cmd.Dir = a.repoRoot
+	// Inherit the operator's shell env (AWS SSO/profile, etc.) so publishing
+	// behaves like running release.sh by hand. Align SITE_LABEL with the
+	// configured site so SSM parameter discovery matches, mirroring the
+	// terragrunt terminal env.
+	env := os.Environ()
+	if cfg.Site.Label != "" {
+		env = append(env, "SITE_LABEL="+cfg.Site.Label)
+	}
+	cmd.Env = env
+	session.cmd = cmd
+
+	return a.runSession(session, false)
+}
+
+// runSession starts session.cmd, registers the session, and streams both stdout
+// and stderr to SSE subscribers, tracking terraform-style resource stats where
+// present. Shared by the terragrunt targets and the status-publish target.
+func (a *App) runSession(session *TermSession, bootstrap bool) (*TermSession, error) {
+	// Prune completed sessions older than 5 minutes
+	a.mu.Lock()
+	now := time.Now()
+	for id, s := range a.termSessions {
+		if s.Status != "running" && !s.doneAt.IsZero() && now.Sub(s.doneAt) > 5*time.Minute {
+			delete(a.termSessions, id)
+		}
+	}
+	a.mu.Unlock()
+
+	cmd := session.cmd
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -578,7 +631,13 @@ func (a *App) handleTerminalStart(w http.ResponseWriter, r *http.Request) {
 	region := r.FormValue("region")
 	bootstrap := r.FormValue("bootstrap") == "1"
 
-	session, err := a.startTerminal(module, command, region, bootstrap)
+	var session *TermSession
+	var err error
+	if module == "status_publish" {
+		session, err = a.startStatusPublish()
+	} else {
+		session, err = a.startTerminal(module, command, region, bootstrap)
+	}
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(409)
