@@ -108,7 +108,7 @@ export default function TransactionHistory({
                     gap: 8,
                   }}
                 >
-                  {t.kind === "bib" ? "Bib sponsorship" : "Donation"}
+                  {t.kind === "bib" ? "Bib" : "Donation"}
                   <span style={{ color: "#8f8fa8" }}>· {t.provider}</span>
                   {isPending && (
                     <span

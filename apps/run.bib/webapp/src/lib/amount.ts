@@ -11,8 +11,8 @@
  *
  * Design contract (v1.5 Phase 22 PLAN.md §22-01-02):
  * - Cents-first amounts. 100 cents = $1.
- * - Min $1, max $1000, $1 step. Matches the /api/checkout Zod bounds
- *   (100..100000) — any drift here surfaces as client-side clamped
+ * - Min $1, max $2000, $1 step. Matches the /api/checkout Zod bounds
+ *   (100..200000) — any drift here surfaces as client-side clamped
  *   values that the API layer rejects with 400.
  * - clampAmountCents fail-safes NaN / Infinity to MIN (never $0).
  * - formatCentsUsd renders as $DD.CC (2 decimal places), always
@@ -20,7 +20,7 @@
  */
 
 export const AMOUNT_MIN_CENTS = 100; //   $1.00
-export const AMOUNT_MAX_CENTS = 100_000; // $1000.00
+export const AMOUNT_MAX_CENTS = 200_000; // $2000.00 (Kurt 2026-07-04: raised from $1000)
 export const AMOUNT_STEP_CENTS = 100; //   $1.00 steps
 
 /**

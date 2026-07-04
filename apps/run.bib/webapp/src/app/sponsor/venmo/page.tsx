@@ -15,7 +15,7 @@ import SponsorInstructions from "@/components/SponsorInstructions";
  *   2. getBib(session.user.id) — resolves the user's runnerCode.
  *   3. getVenmoHandle() — SSM `/dc34/secrets/use1/bib/venmo/handle`,
  *      env fallback `BIB_VENMO_HANDLE`, default `@defconrun`.
- *   4. searchParams.amount_cents — clamped to $1..$1000 via
+ *   4. searchParams.amount_cents — clamped to $1..$2000 via
  *      parseAmountCentsFromQuery (same contract as SponsorForm).
  *
  * Design contract (v1.5 Phase 22 PLAN.md §22-02-01 + prompt spec):

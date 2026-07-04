@@ -173,14 +173,34 @@ export default async function Home({ searchParams }: HomeProps) {
             letterSpacing: "0.01em",
           }}
         >
-          run.defcon.run 34 · Bib
+          Bibs &amp; Donation
         </h1>
         <p style={{ margin: 0, color: "#a4a4b8", fontSize: 15 }}>
-          Registration is free — pick the name that prints on your bib.
+          defcon.run remains a FREE daily event — if you&apos;d like to
+          financially support, we would appreciate it.
         </p>
       </header>
 
       {status && <StripeStatusBanner status={status} />}
+
+      {/* Once the bib is sponsored, lead with a big green THANK YOU above the
+        * name (Kurt 2026-07-04) — replaces the old inline "you're all set" line. */}
+      {hasSponsored && (
+        <p
+          role="status"
+          style={{
+            margin: 0,
+            textAlign: "center",
+            color: "#7fdc9e",
+            fontSize: 44,
+            fontWeight: 900,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}
+        >
+          Thank You
+        </p>
+      )}
 
       {/* Get your bib — name first (A3), live preview below. GetYourBib is a
         * client wrapper so checking "contribute in person" rains cash over
@@ -206,18 +226,20 @@ export default async function Home({ searchParams }: HomeProps) {
           * flow is hidden and only "Just donate" shows, full width. */}
         {hideBuyBib ? (
           <div>
-            <p
-              style={{
-                margin: "0 0 12px",
-                color: "#7fdc9e",
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
-              {hasSponsored
-                ? "You're all set — your bib is covered. Thanks for the support!"
-                : "You're paying in person — your bib is reserved."}
-            </p>
+            {/* hasSponsored gets the big THANK YOU up top; the pay-in-person
+              * pledge still shows its reserved note here. */}
+            {!hasSponsored && (
+              <p
+                style={{
+                  margin: "0 0 12px",
+                  color: "#7fdc9e",
+                  fontSize: 14,
+                  fontWeight: 600,
+                }}
+              >
+                You&apos;re paying in person — your bib is reserved.
+              </p>
+            )}
             <Tile
               kicker="Support"
               title="Just donate"

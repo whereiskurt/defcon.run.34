@@ -106,12 +106,12 @@ export default async function AdminPage() {
           csvHref={`${base}/api/admin/bib/report/payments`}
         >
           <Table
-            columns={["When", "Kind", "Runner code", "Name", "Provider", "Amount"]}
+            columns={["Name", "Runner code", "When", "Kind", "Provider", "Amount"]}
             rows={bundle.payments.rows.map((r) => [
+              r.nameOnBib,
+              r.runnerCode,
               (r.timestamp || "").slice(0, 19),
               r.kind,
-              r.runnerCode,
-              r.nameOnBib,
               r.provider,
               formatUsd(r.amountCents),
             ])}
@@ -125,12 +125,12 @@ export default async function AdminPage() {
           csvHref={`${base}/api/admin/bib/report/outstanding`}
         >
           <Table
-            columns={["Source", "Status", "Runner code", "Name", "Provider", "Amount", "Detail"]}
+            columns={["Name", "Runner code", "Source", "Status", "Provider", "Amount", "Detail"]}
             rows={bundle.outstanding.map((r) => [
+              r.nameOnBib,
+              r.runnerCode,
               r.source,
               r.status,
-              r.runnerCode,
-              r.nameOnBib,
               r.provider,
               r.amountCents ? formatUsd(r.amountCents) : "—",
               r.detail,

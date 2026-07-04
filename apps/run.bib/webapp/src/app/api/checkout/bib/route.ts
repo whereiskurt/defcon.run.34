@@ -15,7 +15,7 @@ import { checkQuota, type QuotaTier } from "@/lib/quota-client";
  *   call time — no Stripe dashboard Products config.
  * - Auth guard: session required. Client-supplied `owner_sub` is never
  *   trusted; `session.user.id` is the only PK source.
- * - Zod bounds match SponsorForm.clampAmountCents (100..100000 cents).
+ * - Zod bounds match SponsorForm.clampAmountCents (100..200000 cents).
  * - Metadata (Phase 22-05):
  *     - `donation_type: "bib"` — the webhook keys on this to route the
  *       payment to Bib.applyPayment (vs. GeneralDonation.recordDonation).
@@ -33,7 +33,7 @@ import { checkQuota, type QuotaTier } from "@/lib/quota-client";
  */
 
 const bodySchema = z.object({
-  amount_cents: z.number().int().min(2_000).max(100_000), // $20 bib minimum
+  amount_cents: z.number().int().min(2_000).max(200_000), // $20 bib min, $2000 max
   // Retained for backward compatibility with pre-22-05 SponsorForm calls.
   // Only `"stripe"` is accepted; Venmo / CashApp handoff is client-side.
   provider: z.literal("stripe").optional(),

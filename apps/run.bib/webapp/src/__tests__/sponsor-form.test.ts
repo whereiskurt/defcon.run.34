@@ -16,7 +16,7 @@ import { describe, it, expect } from "vitest";
  *
  * These functions are the load-bearing invariants Plan 22-01-3's
  * /api/checkout/bib route + Plan 22-05-03's /api/checkout/general route
- * depend on (min=100, max=100000, whole cents), so any regression here
+ * depend on (min=100, max=200000, whole cents), so any regression here
  * would silently produce a 400 from Zod at the API boundary or a bad
  * Stripe Checkout price. Test the pure shape, not the render.
  */
@@ -32,13 +32,13 @@ import {
 } from "@/components/SponsorForm";
 
 describe("SponsorForm constants", () => {
-  it("pins the $1..$1000 in $1-step design contract", () => {
+  it("pins the $1..$2000 in $1-step design contract", () => {
     // These constants are the SINGLE source of truth for both the
     // <input type=range> attributes AND the /api/checkout Zod bounds
-    // (min(100).max(100000)). Any drift between them will show up as
+    // (min(100).max(200000)). Any drift between them will show up as
     // client-side clamped values that Zod rejects at the API layer.
     expect(AMOUNT_MIN_CENTS).toBe(100);
-    expect(AMOUNT_MAX_CENTS).toBe(100_000);
+    expect(AMOUNT_MAX_CENTS).toBe(200_000);
     expect(AMOUNT_STEP_CENTS).toBe(100);
   });
 });
@@ -51,8 +51,13 @@ describe("clampAmountCents()", () => {
   });
 
   it("clamps an above-max value down to AMOUNT_MAX_CENTS", () => {
-    expect(clampAmountCents(150_000)).toBe(AMOUNT_MAX_CENTS);
+    expect(clampAmountCents(250_000)).toBe(AMOUNT_MAX_CENTS);
     expect(clampAmountCents(1_000_000)).toBe(AMOUNT_MAX_CENTS);
+  });
+
+  it("passes a value between the old and new ceiling through unchanged", () => {
+    // $1500 was clamped to $1000 pre-2026-07-04; now it's a valid amount.
+    expect(clampAmountCents(150_000)).toBe(150_000);
   });
 
   it("snaps a fractional-step value down to the nearest step boundary", () => {
@@ -84,10 +89,10 @@ describe("formatCentsUsd()", () => {
     expect(formatCentsUsd(100_000)).toBe("$1000.00");
   });
 
-  it("passes an above-max value through the clamp (never renders >$1000)", () => {
+  it("passes an above-max value through the clamp (never renders >$2000)", () => {
     // Guardrails against a Stripe Checkout Session with a runaway amount
     // from a broken slider event.
-    expect(formatCentsUsd(999_999)).toBe("$1000.00");
+    expect(formatCentsUsd(999_999)).toBe("$2000.00");
   });
 });
 
@@ -111,7 +116,7 @@ describe("providerRouteFor()", () => {
       "/sponsor/cashapp?amount_cents=2500"
     );
     expect(providerRouteFor("cashapp", 999_999)).toBe(
-      "/sponsor/cashapp?amount_cents=100000"
+      "/sponsor/cashapp?amount_cents=200000"
     );
   });
 });

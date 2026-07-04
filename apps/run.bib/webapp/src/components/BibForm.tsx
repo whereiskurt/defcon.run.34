@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BibPreview from "./BibPreview";
 import { CashRain } from "./CashRain";
 import { solveAltcha } from "@/lib/altcha-client";
+import { registerBibFlusher } from "@/lib/pending-bib-save";
 
 /**
  * BibForm
@@ -128,6 +129,17 @@ export function BibForm({
     }
   }, [name, savedName, nameLocked, renamesRemaining]);
 
+  // Expose the latest save closure to the Sponsor/Donate CTA so clicking
+  // Purchase/Donate with an unsaved name commits it first (Kurt 2026-07-04).
+  // onSave self-guards (no-op when the name isn't dirty), so this is safe to
+  // fire unconditionally from the checkout path.
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  useEffect(() => {
+    registerBibFlusher(() => onSaveRef.current());
+    return () => registerBibFlusher(null);
+  }, []);
+
   return (
     <form
       onSubmit={(e) => {
@@ -156,31 +168,8 @@ export function BibForm({
         >
           Name on bib
         </label>
-        <input
-          id="bib-name-input"
-          type="text"
-          value={name}
-          onChange={onChange}
-          maxLength={NAME_MAX}
-          disabled={nameLocked}
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="Enter the name to print on your bib"
-          aria-describedby="bib-name-hint"
-          style={{
-            padding: "12px 14px",
-            fontSize: 16,
-            fontFamily:
-              "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-            color: nameLocked ? "#8f8fa8" : "#0a0a0a",
-            backgroundColor: nameLocked ? "#2a2a34" : "#fff",
-            border: "2px solid " + (nameLocked ? "#3a3a44" : "#c8ccd4"),
-            borderRadius: 6,
-            outline: "none",
-            cursor: nameLocked ? "not-allowed" : "text",
-          }}
-        />
-
+        {/* Name field with Save/Cancel inline to its right (Kurt 2026-07-04).
+          * Wraps under the input on narrow screens. */}
         <div
           style={{
             display: "flex",
@@ -189,12 +178,39 @@ export function BibForm({
             flexWrap: "wrap",
           }}
         >
+          <input
+            id="bib-name-input"
+            type="text"
+            value={name}
+            onChange={onChange}
+            maxLength={NAME_MAX}
+            disabled={nameLocked}
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="Enter the name to print on your bib"
+            aria-describedby="bib-name-hint"
+            style={{
+              flex: "1 1 220px",
+              minWidth: 0,
+              padding: "12px 14px",
+              fontSize: 16,
+              fontFamily:
+                "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+              color: nameLocked ? "#8f8fa8" : "#0a0a0a",
+              backgroundColor: nameLocked ? "#2a2a34" : "#fff",
+              border: "2px solid " + (nameLocked ? "#3a3a44" : "#c8ccd4"),
+              borderRadius: 6,
+              outline: "none",
+              cursor: nameLocked ? "not-allowed" : "text",
+            }}
+          />
+
           {/* Tiny save/cancel — each save spends one rename. */}
           <button
             type="submit"
             disabled={!canSave}
             style={{
-              padding: "6px 14px",
+              padding: "10px 16px",
               fontSize: 13,
               fontWeight: 700,
               color: canSave ? "#0a0a0a" : "#8f8fa8",
@@ -215,7 +231,7 @@ export function BibForm({
             onClick={onCancel}
             disabled={!dirty || busy}
             style={{
-              padding: "6px 14px",
+              padding: "10px 16px",
               fontSize: 13,
               fontWeight: 600,
               color: !dirty || saving ? "#6a6a7a" : "#e4e4ef",
@@ -227,12 +243,13 @@ export function BibForm({
           >
             Cancel
           </button>
-          <SaveStateHint
-            state={saveState}
-            nameLocked={nameLocked}
-            renamesRemaining={renamesRemaining}
-          />
         </div>
+
+        <SaveStateHint
+          state={saveState}
+          nameLocked={nameLocked}
+          renamesRemaining={renamesRemaining}
+        />
       </div>
 
       {/* Live preview sits BELOW the name field (A3, name-first). */}
