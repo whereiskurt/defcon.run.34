@@ -100,6 +100,22 @@ echo "Starting CMS in $MODE mode..."
 # Link appropriate Litestream config
 if [ "$MODE" = "master" ]; then
     ln -sf /etc/litestream/litestream.master.yml /etc/litestream/litestream.yml
+    # Master storage is ephemeral (no ECS volume). Restore the DB from S3 on boot
+    # BEFORE Strapi opens it, so admin-entered content AND the shared API token
+    # survive across deploys instead of the DB being re-seeded (and the token
+    # re-minted) on every task start. Only restore when there is no local DB yet,
+    # so we never clobber the master's own live writes. First-ever deploy has no
+    # replica: restore fails, we start fresh, and replicate seeds S3.
+    DB_PATH="${DATABASE_FILENAME:-/data/strapi.db}"
+    mkdir -p "$(dirname "$DB_PATH")"
+    if [ ! -f "$DB_PATH" ]; then
+        echo "Master DB absent — attempting restore from S3 before Strapi starts..."
+        if /usr/local/bin/litestream restore -config /etc/litestream/litestream.yml "$DB_PATH"; then
+            echo "Master DB restored from S3"
+        else
+            echo "No S3 replica yet or restore failed — starting with a fresh DB"
+        fi
+    fi
     exec /usr/bin/supervisord -c /etc/supervisor/supervisord.master.conf
 else
     ln -sf /etc/litestream/litestream.worker.yml /etc/litestream/litestream.yml
