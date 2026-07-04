@@ -2,10 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Flash Service Refresh
-status: Shipped 2026-07-02 — deployed + hardware verified (only tlora-t3s3 remains open)
+current_phase: 33
+current_phase_name: oidc-silent-sso
+status: executing
 stopped_at: v1.4 hardware verification complete; ready to close milestone
-last_updated: "2026-07-02T04:05:00.000Z"
-last_activity: 2026-07-02 — Kurt verified FLSH-08, DPLY-06, BRND-01, BRND-02 on hardware; tlora-t3s3 deferred
+last_updated: "2026-07-04T04:51:16.030Z"
+last_activity: 2026-07-04
+last_activity_desc: Phase 33 execution started
 progress:
   total_phases: 2
   completed_phases: 2
@@ -21,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation.
-**Current focus:** v1.4 shipped 2026-07-02 (task-def 71 / dc34-run-flash-app:v0.0.5). Hardware verified by Kurt on 2026-07-02 — only tlora-t3s3 flashMode 'dio' boot remains as a follow-up. Milestone ready to close.
+**Current focus:** Phase 33 — oidc-silent-sso
 
 ## Current Position
 
-Phase: v1.4 CLOSED (Phase 18 + Phase 19 shipped + verified)
-Plan: —
-Status: Shipped 2026-07-02 — deployed + hardware verified (tlora-t3s3 deferred to whenever hw is available)
-Last activity: 2026-07-02 — Kurt verified FLSH-08, DPLY-06, BRND-01, BRND-02 on a Recommended ESP32 against v0.0.5
+Phase: 33 (oidc-silent-sso) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-07-04 — Phase 33 execution started
 
 ## Accumulated Context
 
@@ -57,6 +60,8 @@ Recent decisions affecting current work:
 - [Phase 16]: --skip-nginx never skips mqtt's nginx (primary serving container)
 - [Phase 17]: Ghost mode QR redirect removed; accomplishment API call kept as silent fire-and-forget
 - [Phase 17]: DC33 logo images reused with dc34 filenames (visual swap deferred)
+- [Phase ?]: Recorded grant mapping via session.grantIdFor(clientId, grantId) setter — oidc-provider@9.6.0 has no ensureGrantId
+- [Phase ?]: loadExistingGrant built as an injectable factory (makeLoadExistingGrant) so mint/reuse/undefined branches are unit-testable without a live Provider
 
 ### Pending Todos
 
@@ -99,10 +104,16 @@ the deferred fleet-simulator work lives only in the backlog file, not as a numbe
 
 ## Session Continuity
 
-Last session: 2026-07-01T18:50:35.741Z
+Last session: 2026-07-04T04:50:52.494Z
 Stopped at: Phase 18 context gathered
 Resume file: .planning/phases/18-build-time-firmware-device-list-refresh/18-CONTEXT.md
 
 ## Operator Next Steps
 
 - Plan the first v1.4 phase with /gsd-plan-phase 18
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Notes |
+|-------|------|----------|-------|
+| Phase 33 P01 | 30m | 3 tasks | 7 files |

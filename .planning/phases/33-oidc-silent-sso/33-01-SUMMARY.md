@@ -103,3 +103,7 @@ No new security-relevant surface beyond the plan's `<threat_model>`.
 ## Known Stubs
 
 None. `loadExistingGrant` is fully wired into the provider config and covered by unit tests.
+
+## Self-Check: PASSED
+
+All created files verified present on disk; all four commits (`591005ea`, `bfda4320`, `4f6e9c16`, `b75fe35b`) verified in git log.
