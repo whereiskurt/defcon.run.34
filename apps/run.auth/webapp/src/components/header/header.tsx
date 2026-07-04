@@ -11,14 +11,16 @@ import {
 } from '@heroui/react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
+import { PiPersonSimpleRun } from 'react-icons/pi';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
   loading: () => (
-    <Avatar size="lg" className="opacity-50 animate-pulse" src="" />
+    <Avatar size="sm" className="opacity-50 animate-pulse" src="" />
   ),
 });
 const LoginDropDown = dynamic(() => import('./dropdown-login'), {
@@ -40,7 +42,11 @@ const MenuDropDown = dynamic(() => import('./dropdown-menu'), {
 
 import { ThemeSwitch } from '../theme-switch';
 
-const APP_VERSION_TOOLTIP = `DC34 Auth ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
+const basePath = process.env.NODE_ENV === 'production'
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  : '';
+
+const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
 // run.defcon.run is mounted at /{region}; link to the region-correct page.
 const MESH_URL = `https://run.defcon.run/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}/meshtastic`;
@@ -48,11 +54,13 @@ const MESH_URL = `https://run.defcon.run/${process.env.NEXT_PUBLIC_REGION_SHORT 
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
   { href: MESH_URL, label: 'Meshtastic', icon: FaRadio, external: true },
+  { href: 'https://bib.defcon.run', label: 'Bib', icon: PiPersonSimpleRun, external: true },
 ] as const;
 
 export function Header() {
   const { data: session, status } = useSession();
   const hasSession = status === 'authenticated' && !!session?.user;
+  const pathname = usePathname();
 
   return (
     <Navbar
@@ -94,19 +102,26 @@ export function Header() {
           </Tooltip>
         </NavbarItem>
 
-        {navItems.map(({ href, label, icon: Icon, external }) => (
-          <NavbarItem key={href}>
-            <Link
-              color="foreground"
-              href={href}
-              {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
-              className="text-sm flex items-center gap-1.5 transition-colors relative py-1 text-default-500 hover:text-foreground"
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-            </Link>
-          </NavbarItem>
-        ))}
+        {navItems.map(({ href, label, icon: Icon, external }) => {
+          const isActive = !external && !!pathname && pathname.replace(basePath, '').startsWith(href);
+          return (
+            <NavbarItem key={href}>
+              <Link
+                color="foreground"
+                href={href}
+                {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                className={`text-sm flex items-center gap-1.5 transition-colors relative py-1 ${
+                  isActive
+                    ? 'text-primary font-medium nav-active'
+                    : 'text-default-500 hover:text-foreground'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </Link>
+            </NavbarItem>
+          );
+        })}
       </NavbarContent>
 
       {/* Right: theme + auth */}
