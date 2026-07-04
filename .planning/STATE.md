@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 33 (oidc-silent-sso) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
-Last activity: 2026-07-04 — Phase 33 execution started
+Last activity: 2026-07-04 — 33-05 complete: parity + pure-logic unit tests green in run.bib vitest
 
 ## Accumulated Context
 
@@ -68,6 +68,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 33-03]: SilentSSO mounted at each app SessionProvider seam (flash layout.tsx, bib providers.tsx); pages.error mirrors pages.signIn region derivation — glue is outside the parity unit
 - [Phase ?]: 33-04: IdP integration tests reuse run.auth/e2e @playwright/test + cookie-jar helpers (no new package/project); live-service cases gate on availability and skip rather than fabricate a green.
 - [Phase ?]: 33-04: warm prompt=none cases establish the provider _session via a warm-up interactive authorize (sess_auth alone is insufficient for silent code).
+- [Phase ?]: 33-05: Parity guarded by a node:fs test that reads the 5 unit files from gpx/flash/bib and asserts byte-equality vs canonical gpx (drift-detection proven by a temporary one-char mutation); pure-logic tests assert resolveSilentStatus success on error-ABSENCE (not a code param) and decideParentAction's foreign-origin→ignore anti-spoof gate — all in run.bib's existing node-env vitest, no new package.
 
 ### Pending Todos
 
