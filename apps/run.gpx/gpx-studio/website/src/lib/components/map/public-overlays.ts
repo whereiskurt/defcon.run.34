@@ -34,8 +34,9 @@ function regionPrefix(): string {
 const MANIFEST_URL = `${regionPrefix()}/api/gpx/public/maps`;
 const SOURCE_PREFIX = 'public-map-';
 const CORE_WIDTH = 4;
-const GLOW_WIDTH = 14;
 const GLOW_BLUR = 6;
+// Lines read too thin on the map — scale the CMS/base weight up so routes pop.
+const WIDTH_SCALE = 2.5;
 
 export type PublicMap = {
     fileId: string;
@@ -306,6 +307,9 @@ export class PublicOverlaysLayer {
     private addRouteLayer(m: PublicMap, folderName: string) {
         const core = coreLayerId(m.fileId);
         const glow = glowLayerId(m.fileId);
+        // Scaled-up widths: the crisp core plus a wider blurred glow halo.
+        const coreW = (m.mapWeight ?? CORE_WIDTH) * WIDTH_SCALE;
+        const glowW = coreW * 2;
         try {
             if (!this.map.getSource(core)) {
                 this.map.addSource(core, {
@@ -322,7 +326,7 @@ export class PublicOverlaysLayer {
                     layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
                     paint: {
                         'line-color': m.color,
-                        'line-width': GLOW_WIDTH,
+                        'line-width': glowW,
                         'line-blur': GLOW_BLUR,
                         'line-opacity': 0.35,
                     },
@@ -337,8 +341,8 @@ export class PublicOverlaysLayer {
                     layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
                     paint: {
                         'line-color': m.color,
-                        // Curated CMS line width/opacity when present, else the decorated defaults.
-                        'line-width': m.mapWeight ?? CORE_WIDTH,
+                        // Curated CMS weight (scaled up) / opacity when present, else the defaults.
+                        'line-width': coreW,
                         'line-opacity': m.mapOpacity ?? 0.95,
                     },
                 });
