@@ -85,6 +85,7 @@ type EnvConfig struct {
 		GPX   int `json:"gpx"`
 		CMS   int `json:"cms"`
 		Flash int `json:"flash"`
+		Bib   int `json:"bib"`
 	} `json:"local_ports"`
 }
 
@@ -230,6 +231,7 @@ type ServiceConfigs struct {
 	CMS   CMSServiceConfig   `json:"cms"`
 	GPX   GPXServiceConfig   `json:"gpx"`
 	Flash FlashServiceConfig `json:"flash"`
+	Bib   BibServiceConfig   `json:"bib"`
 	MQTT  MQTTServiceConfig  `json:"mqtt"`
 }
 
@@ -340,6 +342,13 @@ type FlashServiceConfig struct {
 	Service ServiceRunConfig `json:"service"`
 }
 
+type BibServiceConfig struct {
+	Task    TaskConfig       `json:"task"`
+	Nginx   ContainerConfig  `json:"nginx"`
+	App     ContainerConfig  `json:"app"`
+	Service ServiceRunConfig `json:"service"`
+}
+
 type MQTTServiceConfig struct {
 	Task      TaskConfig       `json:"task"`
 	Mosquitto ContainerConfig  `json:"mosquitto"`
@@ -355,6 +364,7 @@ type VersionConfig struct {
 	CMS   ComponentVersions     `json:"cms"`
 	GPX   ComponentVersions     `json:"gpx"`
 	Flash ComponentVersions     `json:"flash"`
+	Bib   ComponentVersions     `json:"bib"`
 	MQTT  MQTTComponentVersions `json:"mqtt"`
 }
 
@@ -427,7 +437,7 @@ func DefaultConfig() *SiteConfig {
 		},
 		DNS: DNSConfig{
 			ZoneName:   "defcon.run",
-			Subdomains: []string{"email", "run", "auth", "cms", "gpx", "flash"},
+			Subdomains: []string{"email", "run", "auth", "cms", "gpx", "flash", "bib"},
 			TTL:        300,
 		},
 		URLs: URLsConfig{
@@ -437,6 +447,7 @@ func DefaultConfig() *SiteConfig {
 				"gpx":   "gpx",
 				"cms":   "cms",
 				"flash": "flash",
+				"bib":   "bib",
 			},
 			LocalPorts: map[string]int{
 				"auth":  3002,
@@ -444,6 +455,7 @@ func DefaultConfig() *SiteConfig {
 				"gpx":   3003,
 				"cms":   1337,
 				"flash": 3004,
+				"bib":   3005,
 			},
 		},
 		Env: EnvConfig{
@@ -457,12 +469,14 @@ func DefaultConfig() *SiteConfig {
 				GPX   int `json:"gpx"`
 				CMS   int `json:"cms"`
 				Flash int `json:"flash"`
+				Bib   int `json:"bib"`
 			}{
 				Run:   3001,
 				Auth:  3002,
 				GPX:   3003,
 				CMS:   1337,
 				Flash: 3004,
+				Bib:   3005,
 			},
 		},
 		Email: EmailConfig{
@@ -487,7 +501,7 @@ func DefaultConfig() *SiteConfig {
 		},
 		CloudFront: CloudFrontConfig{
 			Enabled:     true,
-			Domains:     []string{"auth", "run", "cms", "gpx", "flash"},
+			Domains:     []string{"auth", "run", "cms", "gpx", "flash", "bib"},
 			WAFRulesets: map[string]string{"auth": "auth"},
 			Regions:     allRegions,
 			Logging: struct {
@@ -701,6 +715,21 @@ func DefaultConfig() *SiteConfig {
 					Autoscaling: AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
 				},
 			},
+			Bib: BibServiceConfig{
+				Task: TaskConfig{TaskCPU: 512, TaskMemory: 1024, Regions: allRegionStrings},
+				Nginx: ContainerConfig{
+					CPU: 256, Memory: 512, MemoryReservation: 256,
+					HealthCheck: HealthCheckConfig{Interval: 60, Timeout: 5, Retries: 3, StartPeriod: 120},
+				},
+				App: ContainerConfig{
+					CPU: 256, Memory: 512, MemoryReservation: 256,
+					HealthCheck: HealthCheckConfig{Interval: 30, Timeout: 5, Retries: 3, StartPeriod: 120},
+				},
+				Service: ServiceRunConfig{
+					DesiredCount: 1, HealthCheckPath: "/hello", Matcher: "200-499",
+					Autoscaling: AutoscalingConfig{Enabled: false, MinCapacity: 1, MaxCapacity: 2, CPUScaleOut: 75, CPUScaleIn: 25, Cooldown: 120},
+				},
+			},
 			MQTT: MQTTServiceConfig{
 				Task: TaskConfig{TaskCPU: 1024, TaskMemory: 2048, Regions: []string{"us-east-1", "ca-central-1"}},
 				Mosquitto: ContainerConfig{
@@ -743,6 +772,7 @@ func DefaultConfig() *SiteConfig {
 			CMS:   ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
 			GPX:   ComponentVersions{App: "v0.0.27"},
 			Flash: ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
+			Bib:   ComponentVersions{App: "v0.0.27", Nginx: "v0.0.27"},
 			MQTT:  MQTTComponentVersions{Mosquitto: "v0.1.0", Meshtk: "v0.1.0", Nginx: "v0.1.0"},
 		},
 	}
@@ -786,6 +816,7 @@ func DefaultFormValues() map[string]string {
 		"env.local_ports.gpx":   fmt.Sprintf("%d", d.Env.LocalPorts.GPX),
 		"env.local_ports.cms":   fmt.Sprintf("%d", d.Env.LocalPorts.CMS),
 		"env.local_ports.flash": fmt.Sprintf("%d", d.Env.LocalPorts.Flash),
+		"env.local_ports.bib":   fmt.Sprintf("%d", d.Env.LocalPorts.Bib),
 		"email.primary_region":  d.Email.PrimaryRegion,
 		"email.smtp_prefix":     d.Email.SMTPPrefix,
 		"secrets.primary_region": d.Secrets.PrimaryRegion,
