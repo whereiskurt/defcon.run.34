@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-04 21:38:47 UTC",
+  "updated": "2026-07-04 22:05:53 UTC",
   "poll_seconds": 300,
   "regions": [
     {
@@ -22,7 +22,7 @@
       "host": "auth.defcon.run",
       "link": "https://auth.defcon.run",
       "version": "v0.0.12",
-      "state": "live",
+      "state": "dev",
       "note": "Authentication & sign-in"
     },
     {
@@ -31,7 +31,7 @@
       "host": "run.defcon.run",
       "link": "https://run.defcon.run",
       "version": "v0.0.11",
-      "state": "live",
+      "state": "dev",
       "note": "Main run site"
     },
     {
@@ -49,7 +49,7 @@
       "host": "flash.defcon.run",
       "link": "https://flash.defcon.run",
       "version": "v0.0.10",
-      "state": "live",
+      "state": "dev",
       "note": "Radio flashing flow"
     },
     {
@@ -66,7 +66,7 @@
       "name": "run.cms",
       "host": "cms.defcon.run",
       "version": "v0.0.8",
-      "state": "live",
+      "state": "dev",
       "note": "Content & routes (admin only)"
     }
   ]
