@@ -159,6 +159,10 @@ None - reconcile/reject use the existing `AUTH_INTERNAL_SECRET` quota hop alread
 - Slice A (admin) shipped; Slice B (orderform UX) and Slice C (social QR) remain for 34-02 / 34-03.
 - Route write paths (reconcile/reject) and the AdminActions UI carry no unit coverage in this plan — flagged `human_judgment: true` for a manual admin walkthrough in verify-work.
 
+## Self-Check: PASSED
+
+All created files present on disk; all four commits (`27f5ac7f`, `59ecdd37`, `d4d0a60c`, `0105e692`) verified in git history.
+
 ---
 *Phase: 34-bib-admin-orderform*
 *Completed: 2026-07-04*
