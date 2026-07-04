@@ -82,15 +82,28 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load the status site (apps/run.status/site/status.json) for its editor
+	// panel. On error, fall back to an empty struct so the template never
+	// dereferences a nil pointer.
+	status, err := LoadStatus(a.statusPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("Warning: could not load status.json: %v", err)
+		}
+		status = &StatusSite{}
+	}
+
 	data := struct {
 		Config         *SiteConfig
 		EnvLocal       *EnvLocalConfig
+		Status         *StatusSite
 		DefaultsJSON   template.JS
 		AllRegionsJSON template.JS
 		GitHash        string
 	}{
 		Config:   a.config,
 		EnvLocal: a.envLocal,
+		Status:   status,
 		GitHash:  a.gitHash,
 	}
 	if dj, err := json.Marshal(DefaultFormValues()); err == nil {
