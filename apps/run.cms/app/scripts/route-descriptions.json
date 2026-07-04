@@ -1,0 +1,65 @@
+{
+  "_note": "Route blurbs refined from the DEF CON 32 site write-ups (short & sweet). Keyed by gpxFileId. `short` → shortDescription (hover tooltip); `desc` → description (paragraphs split on blank lines, converted to Strapi blocks by push-descriptions.mjs). Pushed only into EMPTY fields, so CMS edits win. LVCC DDS is intentionally omitted (hand-written); Frankie + LVCC Indoor have no dc32 source.",
+  "def-con-34-maps-east_e3977557f2": {
+    "short": "Fast, flat classic east along Flamingo — past the Atomic Museum and back over the Strip.",
+    "desc": "A fast, flat classic heading east on Flamingo. Roll past the Stage Door and the Westin with a wave to the Atomic Museum, then loop back through the Grand Bazaar and over the Strip footbridges to the start. Perfect for a quick morning shakeout.",
+    "strava": "https://www.strava.com/routes/3251664110172801094"
+  },
+  "def-con-34-maps-original_c9b00d47f8": {
+    "short": "The route that started it all — the OG loop from the Rio.",
+    "desc": "The one that started it all, back at the Rio all those years ago — we'd run it every day of the con. A traffic-heavy Strip classic past Paris, the Miracle Mile shops and the Bellagio fountains. Mind the Flamingo/freeway crossing, and touch the door handle to finish.",
+    "strava": "https://www.strava.com/routes/3251665754060245062"
+  },
+  "def-con-34-maps-bigstar_391f53c473": {
+    "short": "All four classics — North, East, South, West — stitched into one 20K epic.",
+    "desc": "The big one: all four classic runs in a single 20K tour of the Strip — North past the Wynn to the Peppermill sign, East to the Atomic Museum, the brutal stair-climbing South, and West over the freeway past the Palms. Eight stairways up, eight down. Bring water.",
+    "strava": "https://www.strava.com/routes/3251663799185981980"
+  },
+  "def-con-34-maps-tribute_3e2d470f8a": {
+    "short": "The 'Hackers Run World' tribute — down the Strip to Koval, finishing at the Tuscany.",
+    "desc": "Missed Hackers Run World on Wednesday? Here's your shot. From the Bellagio side, head south to Mandalay Bay, then loop up Koval Lane past Ellis Island (great beer) and finish at the Tuscany.",
+    "strava": "https://www.strava.com/routes/3251666849344408092"
+  },
+  "def-con-34-maps-lvcc_rebar_78c1c28c5d": {
+    "short": "Short hop from the LVCC to ReBar — gear swaps and warez.",
+    "desc": "A quick one from the LVCC over to ReBar on South Main — past the Fontainebleau and the Vegas Showgirl sign. ReBar's the spot for gear swapping and warez trading, with Good Pie pizza across the street.",
+    "strava": "https://www.strava.com/routes/3251665376875220852"
+  },
+  "def-con-34-maps-history_7cd9eb0707": {
+    "short": "A 40K scavenger hunt touching every former DEF CON venue.",
+    "desc": "The doozy. Touch the front door of every former DEF CON location — Sands, Sahara, Tropicana, Monte Carlo, Aladdin, the Plaza, Alexis Park, the old Riviera, Rio, Paris, Horseshoe, Caesars, Flamingo, the Forum and the LVCC — snap a pic at each and post it to Signal. Routing on foot between them is up to you. Long, and hard."
+  },
+  "def-con-34-maps-littlestar_91a5a74732": {
+    "short": "Short and sweet — quick laps past the Bellagio fountains.",
+    "desc": "Need something short and sweet for laps? Start at the Cromwell, cut through the Grand Bazaar past the Paris balloon, run the Bellagio fountains, and loop past Caesars and the Julius statue back to the start.",
+    "strava": "https://www.strava.com/routes/3251664661143666548"
+  },
+  "def-con-34-maps-north_5276453c29": {
+    "short": "Quick north-and-back past the Wynn to the Peppermill sign.",
+    "desc": "One of the quicker classics — north along the Strip past the Linq and Bellagio, over the Sands skybridge, all the way past the Wynn to the Peppermill sign, then back. Tacos El Pastor and El Gordo en route, and melon at the end.",
+    "strava": "https://www.strava.com/routes/3251665575580446580"
+  },
+  "def-con-34-maps-othercons_8cc68e91ac": {
+    "short": "A tour of the 'other' cons — Black Hat, BSides, the Diana Initiative.",
+    "desc": "Pay your respects to the other cons: south to Mandalay Bay (Black Hat, the corporate cousin), up Koval to the Tuscany (BSides), then the Westin (the Diana Initiative), and back to the Strip. Ellis Island has great beer for a mid-run stop.",
+    "strava": "https://www.strava.com/routes/3251666018594783092"
+  },
+  "def-con-34-maps-south_0b4e77ffac": {
+    "short": "The brutal one — a little over a 5K with eight stairways up and down.",
+    "desc": "The classic South run, usually saved for Thursday because it's brutal — a bit longer than a 5K with lots of stairs. South past Paris and the MGM to Mandalay Bay, then back up the west side over skybridge after skybridge. Eight stairways up, eight down.",
+    "strava": "https://www.strava.com/routes/3251666637172955206"
+  },
+  "def-con-34-maps-west_4ba676aaaa": {
+    "short": "Go west, young hacker — over the freeway past the Rio and the Palms.",
+    "desc": "Listen to Horace Greeley and go west. From Flamingo, cross the freeway footbridge (mind the traffic) and run past the Rio, Gold Coast and the Palms out to Arville before looping back. A straightforward out-and-back.",
+    "strava": "https://www.strava.com/routes/3251667067233169478"
+  },
+  "def-con-34-maps-sign_54a21512c4": {
+    "short": "Down to the 'Welcome to Fabulous Las Vegas' sign and back.",
+    "desc": "The pilgrimage to the iconic Welcome to Fabulous Las Vegas sign. South past Paris, the MGM and the Harley store to the sign — grab your photos — then back up the west side past Mandalay Bay, NY-NY and the Bellagio fountains.",
+    "strava": "https://www.strava.com/routes/3251666391604580892"
+  },
+  "def-con-34-maps-lvcc_dds_a0a1004cf5": {
+    "strava": "https://www.strava.com/routes/3251664985600090182"
+  }
+}
