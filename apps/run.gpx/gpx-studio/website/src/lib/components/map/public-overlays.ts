@@ -41,6 +41,7 @@ export type PublicMap = {
     fileId: string;
     fileName: string;
     downloadUrl: string;
+    bounds?: { minLat: number; maxLat: number; minLon: number; maxLon: number };
     totalDistance?: number;
     totalElevation?: number;
     trackCount?: number;
@@ -87,6 +88,13 @@ function escapeHtml(s: string): string {
     );
 }
 
+/** Display name for a public route — the stored GPX filename with the ".gpx"
+ * extension stripped (Kurt 2026-07-04). Exported so the layer control shows
+ * the same label. Custom titles beyond this need CMS enrichment. */
+export function prettyRouteName(fileName: string): string {
+    return fileName.replace(/\.gpx$/i, '').trim() || fileName;
+}
+
 /** Build the details-popup HTML from a route. Manifest metadata now; CMS enrichment slots in here. */
 function popupHtml(m: PublicMap, folderName: string): string {
     const rows: string[] = [];
@@ -99,17 +107,19 @@ function popupHtml(m: PublicMap, folderName: string): string {
     const meta = rows.length
         ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:12px;opacity:.85">${rows.join('')}</div>`
         : '';
-    const by = m.uploadedBy
-        ? `<div style="margin-top:6px;font-size:11px;opacity:.6">via ${escapeHtml(m.uploadedBy)}</div>`
+    // Download link — reuses the presigned S3 GET url the manifest already provides.
+    const download = m.downloadUrl
+        ? `<a href="${escapeHtml(m.downloadUrl)}" download="${escapeHtml(prettyRouteName(m.fileName))}.gpx"
+              style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:${m.color};text-decoration:none">⬇ Download GPX</a>`
         : '';
 
     return `
         <div style="min-width:180px;max-width:260px;padding:10px 12px;border-left:4px solid ${m.color};
                     font-family:system-ui,sans-serif;color:#e4e4ef">
             <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">${escapeHtml(folderName)}</div>
-            <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(m.fileName)}</div>
+            <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(prettyRouteName(m.fileName))}</div>
             ${meta}
-            ${by}
+            ${download}
         </div>`;
 }
 
@@ -119,6 +129,8 @@ export class PublicOverlaysLayer {
     private popup: mapboxgl.Popup;
     // Track per-layer listeners so we can detach them on remove().
     private listeners: { id: string; type: 'click' | 'mouseenter' | 'mouseleave'; fn: any }[] = [];
+    // fileId -> [[minLon,minLat],[maxLon,maxLat]] for fit-on-toggle (Kurt 2026-07-04).
+    private routeBounds = new Map<string, [[number, number], [number, number]]>();
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
@@ -165,6 +177,17 @@ export class PublicOverlaysLayer {
                     visible: false,
                 })),
             }));
+            // Cache per-route bounds so toggling a layer on can fit it in view.
+            for (const g of groups) {
+                for (const m of g.maps) {
+                    if (m.bounds) {
+                        this.routeBounds.set(m.fileId, [
+                            [m.bounds.minLon, m.bounds.minLat],
+                            [m.bounds.maxLon, m.bounds.maxLat],
+                        ]);
+                    }
+                }
+            }
         } catch {
             return; // manifest unavailable → no overlays, studio unaffected
         }
@@ -303,9 +326,29 @@ export class PublicOverlaysLayer {
         }
     }
 
+    /** Recenter/zoom so the given routes are in view when toggled on
+     * (Kurt 2026-07-04). Unions the cached per-route bounds. */
+    private fitToRoutes(fileIds: string[]) {
+        let box: [[number, number], [number, number]] | null = null;
+        for (const id of fileIds) {
+            const b = this.routeBounds.get(id);
+            if (!b) continue;
+            if (!box) {
+                box = [[b[0][0], b[0][1]], [b[1][0], b[1][1]]];
+            } else {
+                box[0][0] = Math.min(box[0][0], b[0][0]);
+                box[0][1] = Math.min(box[0][1], b[0][1]);
+                box[1][0] = Math.max(box[1][0], b[1][0]);
+                box[1][1] = Math.max(box[1][1], b[1][1]);
+            }
+        }
+        if (box) this.map.fitBounds(box, { padding: 80, maxZoom: 15, duration: 700 });
+    }
+
     /** Toggle a single route (glow + core together). */
     setRouteVisible(fileId: string, visible: boolean) {
         this.setLayerPairVisible(fileId, visible);
+        if (visible) this.fitToRoutes([fileId]);
         publicOverlayGroups.update((groups) =>
             groups.map((g) => {
                 const maps = g.maps.map((m) => (m.fileId === fileId ? { ...m, visible } : m));
@@ -316,13 +359,18 @@ export class PublicOverlaysLayer {
 
     /** Master toggle: show/hide every route in a group. */
     setGroupVisible(folderId: string, visible: boolean) {
+        const fitIds: string[] = [];
         publicOverlayGroups.update((groups) =>
             groups.map((g) => {
                 if (g.folderId !== folderId) return g;
-                for (const m of g.maps) this.setLayerPairVisible(m.fileId, visible);
+                for (const m of g.maps) {
+                    this.setLayerPairVisible(m.fileId, visible);
+                    fitIds.push(m.fileId);
+                }
                 return { ...g, visible, maps: g.maps.map((m) => ({ ...m, visible })) };
             })
         );
+        if (visible) this.fitToRoutes(fitIds);
     }
 
     remove() {
