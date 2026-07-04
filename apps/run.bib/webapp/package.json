@@ -17,6 +17,7 @@
     "@aws-sdk/lib-dynamodb": "^3.943.0",
     "@heroui/react": "^2.8.10",
     "@heroui/theme": "^2.4.26",
+    "altcha-lib": "^2.2.0",
     "clsx": "^2.1.1",
     "electrodb": "^3.5.0",
     "framer-motion": "^12.42.2",

@@ -11,6 +11,7 @@ import {
 } from "@/entities/bib";
 import { consumeQuota, type QuotaTier } from "@/lib/quota-client";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
+import { verifyBibSolution } from "@/lib/altcha";
 
 /**
  * /api/bib — read / idempotent create / edit the signed-in user's bib.
@@ -45,10 +46,13 @@ const patchBodySchema = z
   .object({
     nameOnBib: z
       .string()
-      .max(32)
-      .transform((s) => stripNonAscii(s).slice(0, 32))
+      .max(24)
+      .transform((s) => stripNonAscii(s).slice(0, 24))
       .optional(),
     willPayInPerson: z.boolean().optional(),
+    // ALTCHA proof-of-work payload (base64). Required — verified server-side
+    // before any mutation (Kurt 2026-07-03 friction control).
+    altcha: z.string().min(1),
   })
   .refine(
     (data) =>
@@ -174,6 +178,12 @@ export async function PATCH(req: NextRequest) {
       { error: "invalid_body", detail: parsed.error.issues },
       { status: 400 }
     );
+  }
+
+  // ALTCHA proof-of-work gate — reject before any mutation if the solution is
+  // missing / invalid / expired (Kurt 2026-07-03 friction control).
+  if (!(await verifyBibSolution(parsed.data.altcha))) {
+    return NextResponse.json({ error: "altcha_failed" }, { status: 400 });
   }
 
   const services = (session.user as { services?: string[] }).services ?? [];

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { solveAltcha } from "@/lib/altcha-client";
 
 /**
  * WillPayInPersonCheckbox (Phase 22-05, Kurt 2026-07-02 rescope).
@@ -62,11 +63,19 @@ export function WillPayInPersonCheckbox({
     abortRef.current = controller;
 
     setSaveState({ kind: "saving" });
+    // ~1-2s ALTCHA proof-of-work before the pledge save (Kurt 2026-07-03).
+    let altcha: string;
+    try {
+      altcha = await solveAltcha("toggle");
+    } catch {
+      setSaveState({ kind: "error", detail: "verification failed" });
+      return;
+    }
     try {
       const res = await fetch(API_BIB_PATH, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ willPayInPerson: nextValue }),
+        body: JSON.stringify({ willPayInPerson: nextValue, altcha }),
         signal: controller.signal,
       });
 
@@ -161,7 +170,7 @@ export function WillPayInPersonCheckbox({
       />
       <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ fontSize: 15, fontWeight: 600 }}>
-          I&apos;ll contribute in person at defcon.run 34
+          I&apos;ll contribute $20 in person for a custom bib
         </span>
         <span
           id="will-pay-in-person-hint"
@@ -187,7 +196,7 @@ function saveHintText(state: SaveState): string {
       return "Unsaved changes…";
     case "idle":
     default:
-      return "Optional. Lets organizers know to expect your contribution at the event.";
+      return "Pay $20 cash/card at defcon.run 34 and we'll print your name on a custom bib.";
   }
 }
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import BibPreview from "./BibPreview";
+import { solveAltcha } from "@/lib/altcha-client";
 
 /**
  * BibForm
@@ -32,6 +33,7 @@ const NAME_MAX = 24;
 
 type SaveState =
   | { kind: "idle" }
+  | { kind: "verifying" }
   | { kind: "saving" }
   | { kind: "saved" }
   | { kind: "locked" }
@@ -55,7 +57,8 @@ export function BibForm({
   const dirty = name !== savedName;
   const quotaSpent = renamesRemaining <= 0;
   const saving = saveState.kind === "saving";
-  const canSave = dirty && !nameLocked && !quotaSpent && !saving;
+  const busy = saving || saveState.kind === "verifying";
+  const canSave = dirty && !nameLocked && !quotaSpent && !busy;
 
   const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     // Strip non-ASCII (emoji/combining marks) the bib printer can't render;
@@ -74,12 +77,21 @@ export function BibForm({
 
   const onSave = useCallback(async () => {
     if (name === savedName || nameLocked || renamesRemaining <= 0) return;
+    // ~5s ALTCHA proof-of-work before the save lands (Kurt 2026-07-03).
+    setSaveState({ kind: "verifying" });
+    let altcha: string;
+    try {
+      altcha = await solveAltcha("save");
+    } catch {
+      setSaveState({ kind: "error", detail: "verification failed — try again" });
+      return;
+    }
     setSaveState({ kind: "saving" });
     try {
       const res = await fetch(API_BIB_PATH, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nameOnBib: name }),
+        body: JSON.stringify({ nameOnBib: name, altcha }),
       });
       if (res.status === 409) {
         setNameLocked(true);
@@ -185,12 +197,16 @@ export function BibForm({
               cursor: canSave ? "pointer" : "not-allowed",
             }}
           >
-            {saving ? "Saving…" : "Save"}
+            {busy
+              ? saveState.kind === "verifying"
+                ? "Verifying…"
+                : "Saving…"
+              : "Save"}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            disabled={!dirty || saving}
+            disabled={!dirty || busy}
             style={{
               padding: "6px 14px",
               fontSize: 13,
@@ -246,6 +262,12 @@ function SaveStateHint({
     );
   }
   switch (state.kind) {
+    case "verifying":
+      return (
+        <span id="bib-name-hint" role="status" style={base}>
+          Checking you&apos;re human… (~5s)
+        </span>
+      );
     case "saving":
       return (
         <span id="bib-name-hint" role="status" style={base}>
