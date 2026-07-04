@@ -4,7 +4,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3ClientForPresign } from "@/lib/s3-client";
 import { GpxFolder } from "@/entities/gpx-folder";
 import { GpxFile, GpxFileItem } from "@/entities/gpx-file";
-import { fetchRouteTitles } from "@/lib/strapi";
+import { fetchRouteMeta } from "@/lib/strapi";
 
 /**
  * GET /api/gpx/public/maps - Public, UNAUTHENTICATED list of the DC34 official
@@ -28,6 +28,17 @@ type PublicMap = {
   fileId: string;
   fileName: string;
   title?: string;
+  // CMS enrichment (all optional; matched by gpxFileId against fileId OR filename)
+  shortDescription?: string;
+  descriptionHtml?: string;
+  distanceKm?: number;
+  elevationM?: number;
+  mapColor?: string;
+  mapWeight?: number;
+  mapOpacity?: number;
+  coverImageUrl?: string;
+  coverImageDisplayUrl?: string;
+  stravaUrl?: string;
   downloadUrl: string;
   bounds?: GpxFileItem["bounds"];
   totalDistance?: number;
@@ -40,9 +51,9 @@ type PublicMap = {
 
 export async function GET() {
   try {
-    // CMS-curated titles keyed by gpxFileId (matched against fileId OR filename
-    // below). Best-effort — an empty map just means routes show their filename.
-    const titles = await fetchRouteTitles();
+    // CMS-curated metadata keyed by gpxFileId (matched against fileId OR filename
+    // below). Best-effort — an empty map just means routes show filename + GPX meta.
+    const cmsMeta = await fetchRouteMeta();
 
     // All GLOBAL folders (curated public collections). Every folder under the
     // "GLOBAL" partition is global by construction, but filter defensively.
@@ -69,10 +80,21 @@ export async function GET() {
               expiresIn: PRESIGN_TTL_SECONDS,
             });
 
+            const cms = cmsMeta.get(file.fileId) ?? cmsMeta.get(file.fileName);
             return {
               fileId: file.fileId,
               fileName: file.fileName,
-              title: titles.get(file.fileId) ?? titles.get(file.fileName),
+              title: cms?.title,
+              shortDescription: cms?.shortDescription,
+              descriptionHtml: cms?.descriptionHtml,
+              distanceKm: cms?.distanceKm,
+              elevationM: cms?.elevationM,
+              mapColor: cms?.mapColor,
+              mapWeight: cms?.mapWeight,
+              mapOpacity: cms?.mapOpacity,
+              coverImageUrl: cms?.coverImageUrl,
+              coverImageDisplayUrl: cms?.coverImageDisplayUrl,
+              stravaUrl: cms?.stravaUrl,
               downloadUrl,
               bounds: file.bounds,
               totalDistance: file.totalDistance,

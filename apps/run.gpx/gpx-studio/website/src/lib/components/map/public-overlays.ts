@@ -41,6 +41,17 @@ export type PublicMap = {
     fileId: string;
     fileName: string;
     title?: string; // CMS-curated title (keyed by gpxFileId); falls back to filename
+    // CMS enrichment (all optional)
+    shortDescription?: string; // hover tooltip
+    descriptionHtml?: string; // rich-text blurb, pre-rendered to safe HTML
+    distanceKm?: number; // curated distance (km)
+    elevationM?: number; // curated elevation gain (m)
+    mapColor?: string; // raw CMS line color (also folded into `color`)
+    mapWeight?: number; // line width (1–10)
+    mapOpacity?: number; // line opacity (0–1)
+    coverImageUrl?: string; // full-size cover image (click-through)
+    coverImageDisplayUrl?: string; // sized-down variant shown in the popup
+    stravaUrl?: string; // link to the route on Strava
     downloadUrl: string;
     bounds?: { minLat: number; maxLat: number; minLon: number; maxLon: number };
     totalDistance?: number;
@@ -96,31 +107,54 @@ export function prettyRouteName(fileName: string): string {
     return fileName.replace(/\.gpx$/i, '').trim() || fileName;
 }
 
-/** Build the details-popup HTML from a route. Manifest metadata now; CMS enrichment slots in here. */
+/** Build the details-popup HTML from a route — CMS metadata when present, GPX-derived otherwise. */
 function popupHtml(m: PublicMap, folderName: string): string {
     const rows: string[] = [];
-    const dist = formatDistance(m.totalDistance);
-    if (dist) rows.push(`<span>📏 ${dist}</span>`);
-    if (m.totalElevation && m.totalElevation > 0)
-        rows.push(`<span>⛰ ${Math.round(m.totalElevation)} m gain</span>`);
+    // Prefer curated CMS distance/elevation (km/m); fall back to GPX-derived.
+    const distStr = m.distanceKm != null ? `${m.distanceKm} km` : formatDistance(m.totalDistance);
+    if (distStr) rows.push(`<span>📏 ${distStr}</span>`);
+    const elev = m.elevationM != null
+        ? m.elevationM
+        : m.totalElevation && m.totalElevation > 0 ? m.totalElevation : undefined;
+    if (elev != null) rows.push(`<span>⛰ ${Math.round(elev)} m gain</span>`);
     if (m.trackCount && m.trackCount > 1) rows.push(`<span>🧭 ${m.trackCount} tracks</span>`);
 
     const meta = rows.length
         ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;font-size:12px;opacity:.85">${rows.join('')}</div>`
         : '';
+
+    // Cover image — click opens the full-size original in a new tab.
+    const cover = m.coverImageDisplayUrl
+        ? `<a href="${escapeHtml(m.coverImageUrl || m.coverImageDisplayUrl)}" target="_blank" rel="noopener noreferrer">
+              <img src="${escapeHtml(m.coverImageDisplayUrl)}" alt="${escapeHtml(m.title || prettyRouteName(m.fileName))}"
+                   loading="lazy" style="width:100%;border-radius:6px;margin-top:8px;display:block" /></a>`
+        : '';
+
+    // Rich-text description (already rendered to safe HTML by the manifest).
+    const desc = m.descriptionHtml
+        ? `<div class="dc34-route-desc" style="margin-top:8px;font-size:12px;line-height:1.45;opacity:.9">${m.descriptionHtml}</div>`
+        : '';
+
     // Download link — reuses the presigned S3 GET url the manifest already provides.
     const download = m.downloadUrl
         ? `<a href="${escapeHtml(m.downloadUrl)}" download="${escapeHtml(prettyRouteName(m.fileName))}.gpx"
               style="display:inline-block;margin-top:8px;font-size:12px;font-weight:600;color:${m.color};text-decoration:none">⬇ Download GPX</a>`
         : '';
+    // Strava link — opens the route on Strava in a new tab (CMS stravaUrl).
+    const strava = m.stravaUrl
+        ? `<a href="${escapeHtml(m.stravaUrl)}" target="_blank" rel="noopener noreferrer"
+              style="display:inline-block;margin-top:8px;margin-left:14px;font-size:12px;font-weight:600;color:#fc5200;text-decoration:none">↗ Strava</a>`
+        : '';
 
     return `
-        <div style="min-width:180px;max-width:260px;padding:10px 12px;border-left:4px solid ${m.color};
+        <div style="min-width:200px;max-width:280px;padding:10px 12px;border-left:4px solid ${m.color};
                     font-family:system-ui,sans-serif;color:#e4e4ef">
             <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">${escapeHtml(folderName)}</div>
             <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(m.title || prettyRouteName(m.fileName))}</div>
             ${meta}
-            ${download}
+            ${cover}
+            ${desc}
+            <div>${download}${strava}</div>
             <div style="margin-top:8px;font-size:9px;font-family:ui-monospace,monospace;opacity:.35;user-select:all">id: ${escapeHtml(m.fileId)}</div>
         </div>`;
 }
@@ -129,8 +163,9 @@ export class PublicOverlaysLayer {
     map: mapboxgl.Map;
     loaded = false;
     private popup: mapboxgl.Popup;
+    private hoverPopup: mapboxgl.Popup;
     // Track per-layer listeners so we can detach them on remove().
-    private listeners: { id: string; type: 'click' | 'mouseenter' | 'mouseleave'; fn: any }[] = [];
+    private listeners: { id: string; type: 'click' | 'mouseenter' | 'mouseleave' | 'mousemove'; fn: any }[] = [];
     // fileId -> [[minLon,minLat],[maxLon,maxLat]] for fit-on-toggle (Kurt 2026-07-04).
     private routeBounds = new Map<string, [[number, number], [number, number]]>();
 
@@ -142,6 +177,14 @@ export class PublicOverlaysLayer {
             maxWidth: '280px',
             offset: 12,
             className: 'dc34-route-popup',
+        });
+        // Lightweight hover tooltip showing the CMS shortDescription (when set).
+        this.hoverPopup = new mapboxgl.Popup({
+            closeButton: false,
+            closeOnClick: false,
+            maxWidth: '240px',
+            offset: 12,
+            className: 'dc34-route-tip',
         });
     }
 
@@ -162,7 +205,7 @@ export class PublicOverlaysLayer {
                 groups: {
                     folderId: string;
                     folderName: string;
-                    maps: (Omit<PublicMap, 'visible' | 'color'> & { mapColor?: string })[];
+                    maps: Omit<PublicMap, 'visible' | 'color'>[];
                 }[];
             };
             // Assign a varied palette color across the whole set so adjacent routes differ.
@@ -292,20 +335,44 @@ export class PublicOverlaysLayer {
                     type: 'line',
                     source: core,
                     layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
-                    paint: { 'line-color': m.color, 'line-width': CORE_WIDTH, 'line-opacity': 0.95 },
+                    paint: {
+                        'line-color': m.color,
+                        // Curated CMS line width/opacity when present, else the decorated defaults.
+                        'line-width': m.mapWeight ?? CORE_WIDTH,
+                        'line-opacity': m.mapOpacity ?? 0.95,
+                    },
                 });
 
                 const onClick = (e: mapboxgl.MapMouseEvent) => {
+                    this.hoverPopup.remove();
                     this.popup.setLngLat(e.lngLat).setHTML(popupHtml(m, folderName)).addTo(this.map);
                 };
-                const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
-                const onLeave = () => (this.map.getCanvas().style.cursor = '');
+                const onEnter = (e: mapboxgl.MapMouseEvent) => {
+                    this.map.getCanvas().style.cursor = 'pointer';
+                    if (m.shortDescription) {
+                        this.hoverPopup
+                            .setLngLat(e.lngLat)
+                            .setHTML(
+                                `<div style="font-family:system-ui,sans-serif;font-size:12px;color:#e4e4ef;max-width:220px">${escapeHtml(m.shortDescription)}</div>`
+                            )
+                            .addTo(this.map);
+                    }
+                };
+                const onMove = (e: mapboxgl.MapMouseEvent) => {
+                    if (m.shortDescription && this.hoverPopup.isOpen()) this.hoverPopup.setLngLat(e.lngLat);
+                };
+                const onLeave = () => {
+                    this.map.getCanvas().style.cursor = '';
+                    this.hoverPopup.remove();
+                };
                 this.map.on('click', core, onClick);
                 this.map.on('mouseenter', core, onEnter);
+                this.map.on('mousemove', core, onMove);
                 this.map.on('mouseleave', core, onLeave);
                 this.listeners.push(
                     { id: core, type: 'click', fn: onClick },
                     { id: core, type: 'mouseenter', fn: onEnter },
+                    { id: core, type: 'mousemove', fn: onMove },
                     { id: core, type: 'mouseleave', fn: onLeave }
                 );
             }
@@ -380,6 +447,7 @@ export class PublicOverlaysLayer {
             for (const l of this.listeners) this.map.off(l.type, l.id, l.fn);
             this.listeners = [];
             this.popup.remove();
+            this.hoverPopup.remove();
             for (const group of getGroupsSnapshot()) {
                 for (const m of group.maps) {
                     for (const id of [coreLayerId(m.fileId), glowLayerId(m.fileId)]) {

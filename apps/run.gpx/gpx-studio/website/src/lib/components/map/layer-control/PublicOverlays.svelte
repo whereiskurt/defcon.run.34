@@ -35,7 +35,7 @@
                 <!-- Per-route toggles -->
                 <div class="flex flex-col gap-0.5 pl-5">
                     {#each group.maps as m (m.fileId)}
-                        <label class="flex flex-row items-center gap-2">
+                        <label class="flex flex-row items-center gap-2" title={m.shortDescription ?? ''}>
                             <input
                                 type="checkbox"
                                 checked={m.visible}
