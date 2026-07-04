@@ -59,7 +59,7 @@ func (a *App) reload() {
 		log.Printf("Warning: could not import site.hcl: %v", err)
 	}
 
-	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx"} {
+	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx", "run.bib"} {
 		svcPath := filepath.Join(a.servicesDir, svc, "service.hcl")
 		if err := importServiceHCL(svcPath, svc, a.config); err != nil {
 			log.Printf("Warning: could not import %s: %v", svc, err)

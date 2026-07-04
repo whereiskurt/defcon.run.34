@@ -202,6 +202,7 @@ var ModuleMap = map[string]ModuleDef{
 	"svc_human": {Path: "services/run.human", Global: true, Category: "services"},
 	"svc_cms":   {Path: "services/run.cms", Global: true, Category: "services"},
 	"svc_gpx":   {Path: "services/run.gpx", Global: true, Category: "services"},
+	"svc_bib":   {Path: "services/run.bib", Global: true, Category: "services"},
 	// Apps (regional)
 	"waffaw": {Path: "region/%s/waffaw", Category: "apps"},
 }

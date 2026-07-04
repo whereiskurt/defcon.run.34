@@ -29,6 +29,10 @@ func readVersions(repoRoot string) VersionConfig {
 			App:   readVersionFile(filepath.Join(svcDir, "run.flash", "VERSION.app")),
 			Nginx: readVersionFile(filepath.Join(svcDir, "run.flash", "VERSION.nginx")),
 		},
+		Bib: ComponentVersions{
+			App:   readVersionFile(filepath.Join(svcDir, "run.bib", "VERSION.app")),
+			Nginx: readVersionFile(filepath.Join(svcDir, "run.bib", "VERSION.nginx")),
+		},
 		MQTT: MQTTComponentVersions{
 			Mosquitto: readVersionFile(filepath.Join(svcDir, "run.mqtt", "VERSION.mosquitto")),
 			Meshtk:    readVersionFile(filepath.Join(svcDir, "run.mqtt", "VERSION.meshtk")),
@@ -66,6 +70,8 @@ func writeVersions(repoRoot string, versions VersionConfig) error {
 		{filepath.Join(svcDir, "run.gpx", "VERSION.app"), versions.GPX.App},
 		{filepath.Join(svcDir, "run.flash", "VERSION.app"), versions.Flash.App},
 		{filepath.Join(svcDir, "run.flash", "VERSION.nginx"), versions.Flash.Nginx},
+		{filepath.Join(svcDir, "run.bib", "VERSION.app"), versions.Bib.App},
+		{filepath.Join(svcDir, "run.bib", "VERSION.nginx"), versions.Bib.Nginx},
 		{filepath.Join(svcDir, "run.mqtt", "VERSION.mosquitto"), versions.MQTT.Mosquitto},
 		{filepath.Join(svcDir, "run.mqtt", "VERSION.meshtk"), versions.MQTT.Meshtk},
 		{filepath.Join(svcDir, "run.mqtt", "VERSION.nginx"), versions.MQTT.Nginx},
@@ -79,6 +85,8 @@ func writeVersions(repoRoot string, versions VersionConfig) error {
 		{filepath.Join(appsDir, "run.gpx", "webapp", "VERSION"), versions.GPX.App},
 		{filepath.Join(appsDir, "run.flash", "webapp", "VERSION"), versions.Flash.App},
 		{filepath.Join(appsDir, "run.flash", "nginx", "VERSION"), versions.Flash.Nginx},
+		{filepath.Join(appsDir, "run.bib", "webapp", "VERSION"), versions.Bib.App},
+		{filepath.Join(appsDir, "run.bib", "nginx", "VERSION"), versions.Bib.Nginx},
 	}
 
 	for _, vf := range files {
@@ -117,6 +125,10 @@ func versionSyncStatus(repoRoot string, versions VersionConfig) map[string]map[s
 		"flash": {
 			"app":   {filepath.Join(appsDir, "run.flash", "webapp", "VERSION"), versions.Flash.App},
 			"nginx": {filepath.Join(appsDir, "run.flash", "nginx", "VERSION"), versions.Flash.Nginx},
+		},
+		"bib": {
+			"app":   {filepath.Join(appsDir, "run.bib", "webapp", "VERSION"), versions.Bib.App},
+			"nginx": {filepath.Join(appsDir, "run.bib", "nginx", "VERSION"), versions.Bib.Nginx},
 		},
 		"mqtt": {
 			"mosquitto": {filepath.Join(svcDir, "run.mqtt", "VERSION.mosquitto"), versions.MQTT.Mosquitto},

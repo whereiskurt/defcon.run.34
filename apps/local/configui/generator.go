@@ -166,7 +166,7 @@ func renderServiceHCL(svcName string, cfg *SiteConfig) (string, error) {
 }
 
 func generateServiceHCLs(servicesDir string, cfg *SiteConfig) error {
-	for _, svcName := range []string{"run.auth", "run.human", "run.cms", "run.gpx", "run.flash", "run.mqtt"} {
+	for _, svcName := range []string{"run.auth", "run.human", "run.cms", "run.gpx", "run.flash", "run.bib", "run.mqtt"} {
 		out, err := renderServiceHCL(svcName, cfg)
 		if err != nil {
 			return err
