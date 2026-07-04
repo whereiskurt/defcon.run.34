@@ -112,6 +112,12 @@ locals {
           {
             name  = "CMS_PUBLIC_URL"
             value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+          },
+          {
+            # Internal CMS worker URL via service discovery (container-to-container)
+            # — used server-side to fetch curated Route titles for public overlays.
+            name  = "CMS_INTERNAL_URL"
+            value = "http://run-cms-worker.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:1337"
           }
         ]
 
@@ -166,6 +172,12 @@ locals {
           {
             name      = "AUTH_INTERNAL_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
+          },
+          # Read-only Strapi token (shared run-human-internal) — lets the public
+          # maps manifest fetch curated Route titles from the CMS worker.
+          {
+            name      = "STRAPI_API_TOKEN"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/run_human_api_token"
           }
         ]
 

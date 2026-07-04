@@ -16,6 +16,9 @@
       "required": true,
       "maxLength": 255
     },
+    "gpxFileId": {
+      "type": "string"
+    },
     "slug": {
       "type": "uid",
       "targetField": "name",
