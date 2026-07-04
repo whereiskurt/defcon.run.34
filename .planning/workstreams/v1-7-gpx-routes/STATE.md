@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: GPX Routes — Private Collection, Public Overlay & Strava Sync
-status: Kickoff — workstream created, autonomous execution authorized by Kurt 2026-07-02; starting Phase 28
-last_updated: "2026-07-02T17:00:00.000Z"
-last_activity: 2026-07-02 — Kurt approved full-autonomy build; workstream scaffolded, phases 28–32 defined (28–31 core, 32 in scope)
+status: SHIPPED — core phases landed on main (public overlays, Rabbit Routes, Strava sync, aggregate layer); v1.8 decoration built on top of it
+last_updated: "2026-07-04T00:00:00.000Z"
+last_activity: 2026-07-04 — state refreshed; v1.7 shipped and was extended by v1.8 (glow styling, CMS enrichment via PRs #325–#358, check-ins overlay on gsd/gpx-checkins-overlay). DC33 route seeding still blocked on source GPX assets (see FUTURE-ENRICHMENT.md)
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 5
   total_plans: 0
   completed_plans: 0
-  percent: 0
+  percent: 100
 ---
 
 # v1.7 Workstream State
@@ -26,10 +26,11 @@ Full design contract: `.planning/workstreams/v1-7-gpx-routes/DESIGN.md`.
 
 ## Current Position
 
-Phase: 28 (Public overlay rendering) — starting
+Phase: complete — all v1.7 phases shipped to main
 Plan: —
-Status: Autonomous build authorized 2026-07-02. Executing PR-per-phase, merge-on-green,
-then buildpub.yml on main (per yolo workflow). Ping Kurt in Slack thread when blocked.
+Status: Shipped. Follow-on work moved to the v1-8-gpx-decoration workstream
+(see its HANDOFF.md). Outstanding v1.7 leftover: DC33 archive seeding, blocked
+on the source DC33 GPX assets (FUTURE-ENRICHMENT.md).
 
 ## Accumulated Context
 
