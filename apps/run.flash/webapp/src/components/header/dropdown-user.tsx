@@ -17,10 +17,14 @@ import {
   useDisclosure,
 } from '@heroui/react';
 import { useSession, signOut } from 'next-auth/react';
-import { FaUserAlt, FaTrophy } from 'react-icons/fa';
-import { LogOut } from 'lucide-react';
+import { FaUserAlt, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaPenToSquare } from 'react-icons/fa6';
+import { PiPersonSimpleRun } from 'react-icons/pi';
+import { LogOut, QrCode } from 'lucide-react';
 
-const RUN_BASE = 'https://run.defcon.run';
+// Region-prefixed so cross-app deep links into run.defcon.run route correctly
+// (run.defcon.run is mounted under /{region}; a region-less path misroutes).
+const RUN_BASE = `https://run.defcon.run/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`;
 
 const iconClasses =
   'text-xl text-default-500 pointer-events-none flex-shrink-0';
@@ -34,6 +38,12 @@ const UserDropDown = () => {
   } = useDisclosure();
 
   if (!session?.user) return null;
+
+  // Show the CMS link only to members of the `cms` service group — the same
+  // group cms.defcon.run itself requires for admin access (mirrors run.human).
+  const hasCms = !!(
+    session.user as { services?: string[] }
+  ).services?.includes('cms');
 
   return (
     <>
@@ -137,15 +147,54 @@ const UserDropDown = () => {
               Profile
             </DropdownItem>
             <DropdownItem
-              startContent={<FaTrophy />}
-              key="leaderboard"
+              startContent={<PiPersonSimpleRun />}
+              key="bib"
               className="gap-2 opacity-100 py-2 text-base"
-              textValue="Leaderboard"
-              href={`${RUN_BASE}/leaderboard`}
+              textValue="My Bib"
+              href="https://bib.defcon.run"
               target="_blank"
               closeOnSelect
             >
-              Leaderboard
+              My Bib
+            </DropdownItem>
+            {hasCms ? (
+              <DropdownItem
+                startContent={<FaPenToSquare />}
+                key="cms"
+                className="gap-2 opacity-100 py-2 text-base"
+                textValue="CMS"
+                href="https://cms.defcon.run"
+                target="_blank"
+                closeOnSelect
+              >
+                CMS
+              </DropdownItem>
+            ) : null}
+          </DropdownSection>
+          <DropdownSection aria-label="Check-in" showDivider>
+            <DropdownItem
+              startContent={<FaMapMarkerAlt />}
+              key="checkin"
+              className="gap-2 opacity-100 py-2 text-base"
+              textValue="GPS Check-in"
+              href={`${RUN_BASE}/?open=checkin`}
+              target="_blank"
+              closeOnSelect
+            >
+              GPS Check-in
+            </DropdownItem>
+          </DropdownSection>
+          <DropdownSection aria-label="QR Code" showDivider>
+            <DropdownItem
+              startContent={<QrCode className="w-4 h-4" />}
+              key="showqr"
+              className="gap-2 opacity-100 py-2 text-base"
+              textValue="Show My QR"
+              href={`${RUN_BASE}/?open=qr`}
+              target="_blank"
+              closeOnSelect
+            >
+              Show My QR
             </DropdownItem>
           </DropdownSection>
           <DropdownSection aria-label="Logout">

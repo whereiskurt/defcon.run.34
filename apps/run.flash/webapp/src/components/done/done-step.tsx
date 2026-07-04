@@ -224,7 +224,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
             </div>
             <div>
               <a
-                href="https://run.defcon.run"
+                href={`https://run.defcon.run/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}/whoami`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm text-primary hover:underline inline-flex items-center gap-1"
