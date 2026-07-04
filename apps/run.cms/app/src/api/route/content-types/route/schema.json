@@ -31,6 +31,10 @@
       "type": "text",
       "maxLength": 500
     },
+    "stravaUrl": {
+      "type": "string",
+      "maxLength": 255
+    },
     "routeType": {
       "type": "enumeration",
       "enum": ["point-to-point", "loop", "out-and-back"],
