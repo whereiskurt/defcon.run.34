@@ -20,8 +20,11 @@ async function seedPublicRoutes(strapi) {
     });
     if (existing) continue;
 
+    // slug (uid) and routeType (enum) are required to publish. Derive a slug
+    // from the name; default routeType to point-to-point (editable in the CMS).
+    const slug = r.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const doc = await strapi.documents('api::route.route').create({
-      data: { name: r.name, gpxFileId: r.gpxFileId },
+      data: { name: r.name, gpxFileId: r.gpxFileId, slug, routeType: 'point-to-point' },
     });
     await strapi.documents('api::route.route').publish({ documentId: doc.documentId });
     created++;

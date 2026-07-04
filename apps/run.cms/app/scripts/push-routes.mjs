@@ -80,6 +80,10 @@ async function main() {
   if (!token) throw new Error('admin login did not return a token');
   console.log('Authenticated as admin.\n');
 
+  // slug (uid) and routeType (enum) are required to publish a Route.
+  const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const ROUTE_TYPE = 'point-to-point'; // required enum; editable in the CMS
+
   let created = 0, updated = 0, unchanged = 0, skipped = 0;
   for (const r of routes) {
     if (!r.gpxFileId || !r.name) { skipped++; continue; }
@@ -91,18 +95,26 @@ async function main() {
     const existing = found.results?.[0];
 
     if (!existing) {
-      const doc = entity(await api(CT, { method: 'POST', token, body: { name: r.name, gpxFileId: r.gpxFileId } }));
+      const doc = entity(await api(CT, {
+        method: 'POST', token,
+        body: { name: r.name, gpxFileId: r.gpxFileId, slug: slugify(r.name), routeType: ROUTE_TYPE },
+      }));
       await api(`${CT}/${doc.documentId}/actions/publish`, { method: 'POST', token });
       console.log(`  + created   ${r.gpxFileId}  →  "${r.name}"`);
       created++;
-    } else if (existing.name !== r.name) {
-      await api(`${CT}/${existing.documentId}`, { method: 'PUT', token, body: { name: r.name } });
-      await api(`${CT}/${existing.documentId}/actions/publish`, { method: 'POST', token });
-      console.log(`  ~ updated   ${r.gpxFileId}  →  "${r.name}"  (was "${existing.name}")`);
-      updated++;
     } else {
+      // Update name to match the source of truth; fill required fields only when
+      // missing (don't clobber slug/routeType edited in the CMS). Then publish.
+      const patch = {};
+      if (existing.name !== r.name) patch.name = r.name;
+      if (!existing.slug) patch.slug = slugify(r.name);
+      if (!existing.routeType) patch.routeType = ROUTE_TYPE;
+      if (Object.keys(patch).length) {
+        await api(`${CT}/${existing.documentId}`, { method: 'PUT', token, body: patch });
+      }
       await api(`${CT}/${existing.documentId}/actions/publish`, { method: 'POST', token });
-      unchanged++;
+      if (patch.name) { console.log(`  ~ updated   ${r.gpxFileId}  →  "${r.name}"`); updated++; }
+      else { unchanged++; }
     }
   }
 
