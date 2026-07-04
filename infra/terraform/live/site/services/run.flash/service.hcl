@@ -99,14 +99,18 @@ locals {
             value = "{{REGION_LABEL}}"
           },
           {
-            # AUTH_URL is preferred by Auth.js v5 - must include region prefix for correct callback URL construction
+            # AUTH_URL is preferred by Auth.js v5 - must include region prefix AND
+            # the /api/auth base path (auth.ts sets basePath="/api/auth"). Matches
+            # the working RPs (run.gpx, run.bib). Without /api/auth, Auth.js computes
+            # its base as flash.defcon.run/api/auth (region stripped), causing
+            # region-less /signin, a Configuration error, and an auto-signin loop.
             name  = "AUTH_URL"
-            value = "https://flash.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+            value = "https://flash.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/auth"
           },
           {
             # NEXTAUTH_URL for backwards compatibility
             name  = "NEXTAUTH_URL"
-            value = "https://flash.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
+            value = "https://flash.{{SITE_DOMAIN}}/{{REGION_LABEL}}/api/auth"
           },
           {
             name  = "AWS_REGION"
