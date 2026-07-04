@@ -3,7 +3,10 @@
 - **Date:** 2026-07-03
 - **Branch:** `feat/oidc-silent-sso`
 - **Status:** Design — approved, pending spec review
-- **Scope:** `apps/run.auth` (IdP) + `apps/run.gpx` (RP). Prototype.
+- **Scope:** `apps/run.auth` (IdP) + a silent-SSO client wired into the three
+  full-user NextAuth RPs: `run.gpx`, `run.flash`, `run.bib`. Prototype.
+- **Explicitly deferred:** `run.cms` (Strapi, admin-only users — not worth the
+  separate non-NextAuth adaptation for this prototype).
 
 ## Problem
 
@@ -38,8 +41,10 @@ preserving full OIDC semantics (authorization code, PKCE, per-client id_token,
 consent). No new secrets shared to RPs.
 
 Non-goals (explicit): changing the RP↔IdP back-channel trust model (Approach B,
-shared `AUTH_JWT_SECRET`), TTL harmonization across apps, and extracting a shared
-auth package. Those are tracked as follow-ups, not part of this prototype.
+shared `AUTH_JWT_SECRET`), TTL harmonization across apps, the `run.cms` (Strapi)
+adaptation, and introducing monorepo/workspace build infrastructure for a
+truly-single-source package. Those are tracked as follow-ups, not part of this
+prototype.
 
 ## Mechanism / Mental Model
 
@@ -97,24 +102,25 @@ Change the `login` result's `remember: false` → `remember: true` so the provid
 session. Applies to all three result branches (`login`, unknown-prompt, and the
 login part).
 
-### run.gpx (RP)
+### NextAuth RPs — gpx, flash, bib
 
 **4. Hidden-iframe silent-SSO check on public routes (primary mechanism).**
-On an unauthenticated request, gpx renders its page and performs the SSO check in
-a **hidden iframe** so the top-level page never unloads:
+Authored once as a small self-contained client unit and mounted in each of the
+three NextAuth apps. On an unauthenticated request, the app renders its page and
+performs the SSO check in a **hidden iframe** so the top-level page never unloads:
 
-- A hidden `<iframe>` (0×0, `aria-hidden`) points at a gpx initiator route that
-  triggers a `prompt=none` authorize:
+- A hidden `<iframe>` (0×0, `aria-hidden`) points at the app's initiator route
+  that triggers a `prompt=none` authorize:
   `signIn("run.defcon.run", { redirectTo: "/{region}/silent-callback" }, { prompt: "none" })`
   — the third `signIn` argument passes `prompt=none` through to the authorization
   request.
 - The whole authorize → RP callback → landing sequence runs **inside the iframe**.
-  On success the callback sets `sess_gpx` (cookie `domain: .defcon.run`, so the
-  parent frame immediately has it) and the iframe lands on a small same-origin
-  **`/silent-callback` bridge page**.
+  On success the callback sets the app's session cookie (e.g. `sess_gpx`; cookie
+  `domain: .defcon.run`, so the parent frame immediately has it) and the iframe
+  lands on a small same-origin **`/silent-callback` bridge page**.
 - The bridge page calls `window.parent.postMessage({ type: "silent-sso", status }, origin)`
   with `status: "success" | "login_required"`. The parent listener (scoped to the
-  gpx origin) reacts: on `success`, refresh to the authenticated view; on
+  app's own origin) reacts: on `success`, refresh to the authenticated view; on
   `login_required`, remain in the logged-out view (no auto-redirect).
 
 **Why the iframe works here (same-site):** `auth.defcon.run` and
@@ -132,9 +138,29 @@ Contract: *attempt silent in the iframe; on `login_required` stay logged-out; on
 timeout downgrade to the invisible redirect; never render a login page unless the
 user is truly logged out.*
 
-## Data Flow — warm user visits `gpx.defcon.run` cold
+**5. Shared module delivery (prototype constraint).**
+The repo has **no cross-webapp code-sharing infrastructure**: no npm/yarn
+workspaces, each webapp is self-contained with a per-app `@/* → ./src/*` alias,
+and each builds in its own independent Docker context that cannot reach outside
+its directory (the meshtk pattern clones a *separate service repo* into the build
+context — it is not a TS-source share between webapps). Introducing workspaces or
+a build-time copy pipeline is a meaningful infra side-quest, out of proportion to
+this prototype.
 
-Top-level page loads immediately; the hidden iframe drives the check.
+Therefore, for the prototype, the silent-SSO client is **authored once as a
+canonical, self-contained unit and placed identically** in each of the three
+apps' `src/` (works with the existing `@/*` alias, zero build changes). Drift is
+guarded by a **parity test** that asserts the three copies are byte-identical (or
+imported from a single checked-in source of truth). Promoting this to a true
+single-source package (workspace or build-time copy, meshtk-style) is a named
+follow-up — the module is authored to be trivially extractable when that happens
+(no app-specific logic inside it; all app specifics — region, client id, callback
+paths — passed in as parameters/config).
+
+## Data Flow — warm user visits a cold RP (`gpx`/`flash`/`bib`)
+
+Identical for all three apps (`gpx.defcon.run` used as the example). Top-level
+page loads immediately; the hidden iframe drives the check.
 
 1. **Provider `_session` exists** (user logged in earlier via run):
    iframe `prompt=none` → account known → custom `loadExistingGrant` auto-consents
@@ -213,30 +239,41 @@ TDD each change. Layers:
   (iii) `interactions.url` now resolves to the interaction route;
   (iv) authenticated interaction completes without rendering `/login`;
   (v) unauthenticated interaction still reaches `/login`.
-- **RP (gpx)** — bridge page maps callback success → `success` and each negative
-  `prompt=none` outcome → `login_required` `postMessage`; parent listener acts
-  only on messages from the gpx origin; timeout arms the redirect fallback.
-- **e2e (Playwright)** — warm-session visit to `gpx.defcon.run`: top-level URL
-  never changes, no login page renders, `sess_gpx` is set via the iframe, and the
-  authenticated view appears. Logged-out visit: iframe posts `login_required`,
-  parent stays logged-out, no redirect loop.
+- **RP client unit** — bridge page maps callback success → `success` and each
+  negative `prompt=none` outcome → `login_required` `postMessage`; parent listener
+  acts only on messages from the app's own origin; timeout arms the redirect
+  fallback. Plus a **parity test** that the gpx/flash/bib copies are in sync.
+- **e2e (Playwright)** — warm-session visit to the RP: top-level URL never
+  changes, no login page renders, the app's session cookie is set via the iframe,
+  and the authenticated view appears. Logged-out visit: iframe posts
+  `login_required`, parent stays logged-out, no redirect loop. Full e2e on gpx;
+  smoke-level on flash and bib (same unit, parameterized).
 
 ## Files Touched
 
 - `apps/run.auth/webapp/src/config/oidc.ts` — `interactions.url`, custom
   `loadExistingGrant`.
 - `apps/run.auth/webapp/src/pages/api/oidc/interaction/[uid].ts` — `remember: true`.
-- `apps/run.gpx/webapp/src/...` — hidden-iframe silent-SSO: an initiator route
-  that calls `signIn(..., { prompt: "none" })`, a same-origin `/silent-callback`
-  bridge page (`postMessage`), a client component/hook that injects the hidden
-  iframe + parent listener + timeout on public routes, and a redirect-based
-  auto-signin fallback route (mirroring run.human). Exact paths determined in the
-  plan.
+- **Silent-SSO client unit** (authored once) — an initiator route that calls
+  `signIn(..., { prompt: "none" })`, a same-origin `/silent-callback` bridge page
+  (`postMessage`), a client component/hook that injects the hidden iframe + parent
+  listener + timeout on public routes, and a redirect-based auto-signin fallback
+  route (mirroring run.human). All app specifics (region, client id, callback
+  path) parameterized. Placed identically in:
+  - `apps/run.gpx/webapp/src/...`
+  - `apps/run.flash/webapp/src/...`
+  - `apps/run.bib/webapp/src/...`
+- Parity test asserting the three copies stay in sync (single source of truth).
 - Tests colocated per each app's existing test conventions.
+- Exact paths within each `src/` determined in the plan.
 
 ## Follow-ups (out of scope)
 
+- **`run.cms` (Strapi)** silent SSO — admin-only users; needs a users-permissions
+  OIDC-provider adaptation of the iframe pattern (concept ports, code does not).
+  The IdP-side changes already make its redirect-through-auth invisible.
+- Promote the copied silent-SSO unit to a **true single-source package**
+  (workspace or meshtk-style build-time copy) once the prototype proves out.
 - Evaluate Approach B (shared-cookie + private-DNS back-channel) if zero-redirect
   matters more than OIDC purity.
 - Harmonize RP session TTLs (`sess_gpx`/`sess_run` = 1 day vs IdP 15 days).
-- Extract a shared auth package so RP config cannot drift.
