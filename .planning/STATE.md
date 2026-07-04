@@ -4,11 +4,11 @@ milestone: v1.4
 milestone_name: Flash Service Refresh
 current_phase: 33
 current_phase_name: oidc-silent-sso
-status: executing
+status: verifying
 stopped_at: v1.4 hardware verification complete; ready to close milestone
-last_updated: "2026-07-04T05:15:08.912Z"
+last_updated: "2026-07-04T05:34:47.810Z"
 last_activity: 2026-07-04
-last_activity_desc: Phase 33 execution started
+last_activity_desc: "33-05 complete: parity + pure-logic unit tests green in run.bib vitest"
 progress:
   total_phases: 2
   completed_phases: 2
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 Phase: 33 (oidc-silent-sso) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-04 — 33-05 complete: parity + pure-logic unit tests green in run.bib vitest
 
 ## Accumulated Context
@@ -69,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 33-04: IdP integration tests reuse run.auth/e2e @playwright/test + cookie-jar helpers (no new package/project); live-service cases gate on availability and skip rather than fabricate a green.
 - [Phase ?]: 33-04: warm prompt=none cases establish the provider _session via a warm-up interactive authorize (sess_auth alone is insufficient for silent code).
 - [Phase ?]: 33-05: Parity guarded by a node:fs test that reads the 5 unit files from gpx/flash/bib and asserts byte-equality vs canonical gpx (drift-detection proven by a temporary one-char mutation); pure-logic tests assert resolveSilentStatus success on error-ABSENCE (not a code param) and decideParentAction's foreign-origin→ignore anti-spoof gate — all in run.bib's existing node-env vitest, no new package.
+- [Phase ?]: SSO-08 e2e invariant: forbid the auth /login RENDER (count==0) + /signin OSCILLATION; allow one transient /signin entry since every RP route auth-gates to /signin
+- [Phase ?]: Silent-SSO e2e live cases gate on BOTH app + run.auth IdP reachability in a fixture-free beforeEach so the browser never launches on skip
 
 ### Pending Todos
 
@@ -111,7 +113,7 @@ the deferred fleet-simulator work lives only in the backlog file, not as a numbe
 
 ## Session Continuity
 
-Last session: 2026-07-04T05:14:50.878Z
+Last session: 2026-07-04T05:34:16.448Z
 Stopped at: Phase 18 context gathered
 Resume file: .planning/phases/18-build-time-firmware-device-list-refresh/18-CONTEXT.md
 
@@ -127,3 +129,4 @@ Resume file: .planning/phases/18-build-time-firmware-device-list-refresh/18-CONT
 | Phase 33 P02 | 25min | 3 tasks | 7 files |
 | Phase 33 P03 | 12min | 2 tasks | 14 files |
 | Phase 33 P04 | ~25m | 2 tasks | 1 files |
+| Phase 33 P06 | 8min | 2 tasks | 15 files |
