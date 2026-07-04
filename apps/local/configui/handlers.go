@@ -82,15 +82,28 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Load the status site (apps/run.status/site/status.json) for its editor
+	// panel. On error, fall back to an empty struct so the template never
+	// dereferences a nil pointer.
+	status, err := LoadStatus(a.statusPath)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("Warning: could not load status.json: %v", err)
+		}
+		status = &StatusSite{}
+	}
+
 	data := struct {
 		Config         *SiteConfig
 		EnvLocal       *EnvLocalConfig
+		Status         *StatusSite
 		DefaultsJSON   template.JS
 		AllRegionsJSON template.JS
 		GitHash        string
 	}{
 		Config:   a.config,
 		EnvLocal: a.envLocal,
+		Status:   status,
 		GitHash:  a.gitHash,
 	}
 	if dj, err := json.Marshal(DefaultFormValues()); err == nil {
@@ -221,6 +234,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		{"run.cms", "cms"},
 		{"run.gpx", "gpx"},
 		{"run.flash", "flash"},
+		{"run.bib", "bib"},
 		{"run.mqtt", "mqtt"},
 	} {
 		if out, err := renderServiceHCL(svc.name, cfg); err == nil {
@@ -274,7 +288,7 @@ func (a *App) handlePreview(w http.ResponseWriter, r *http.Request) {
 		originals["envlocal"] = out
 	}
 	for _, svc := range []struct{ name, label string }{
-		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"}, {"run.flash", "flash"}, {"run.mqtt", "mqtt"},
+		{"run.auth", "auth"}, {"run.human", "human"}, {"run.cms", "cms"}, {"run.gpx", "gpx"}, {"run.flash", "flash"}, {"run.bib", "bib"}, {"run.mqtt", "mqtt"},
 	} {
 		if out, err := renderServiceHCL(svc.name, savedCfg); err == nil {
 			originals["svc-"+svc.label] = out
@@ -889,6 +903,8 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 	gpxApp := r.FormValue("versions.gpx.app")
 	flashApp := r.FormValue("versions.flash.app")
 	flashNginx := r.FormValue("versions.flash.nginx")
+	bibApp := r.FormValue("versions.bib.app")
+	bibNginx := r.FormValue("versions.bib.nginx")
 	mqttMosquitto := r.FormValue("versions.mqtt.mosquitto")
 	mqttMeshtk := r.FormValue("versions.mqtt.meshtk")
 	mqttNginx := r.FormValue("versions.mqtt.nginx")
@@ -918,6 +934,8 @@ func (a *App) handleECRTags(w http.ResponseWriter, r *http.Request) {
 		{"gpx-app", siteLabel + "-run-gpx-app", gpxApp},
 		{"flash-app", siteLabel + "-run-flash-app", flashApp},
 		{"flash-nginx", siteLabel + "-run-flash-nginx", flashNginx},
+		{"bib-app", siteLabel + "-run-bib-app", bibApp},
+		{"bib-nginx", siteLabel + "-run-bib-nginx", bibNginx},
 		{"mqtt-mosquitto", siteLabel + "-run-mqtt-mosquitto", mqttMosquitto},
 		{"mqtt-meshtk", siteLabel + "-run-mqtt-meshtk", mqttMeshtk},
 		{"mqtt-nginx", siteLabel + "-run-mqtt-nginx", mqttNginx},
@@ -977,6 +995,7 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 		"gpx":   formStr(r, "urls.subdomains.gpx", "gpx"),
 		"cms":   formStr(r, "urls.subdomains.cms", "cms"),
 		"flash": formStr(r, "urls.subdomains.flash", "flash"),
+		"bib":   formStr(r, "urls.subdomains.bib", "bib"),
 	}
 	cfg.URLs.LocalPorts = map[string]int{
 		"auth":  formInt(r, "urls.local_ports.auth", 3002),
@@ -984,6 +1003,7 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 		"gpx":   formInt(r, "urls.local_ports.gpx", 3003),
 		"cms":   formInt(r, "urls.local_ports.cms", 1337),
 		"flash": formInt(r, "urls.local_ports.flash", 3004),
+		"bib":   formInt(r, "urls.local_ports.bib", 3005),
 	}
 
 	// Env
@@ -996,6 +1016,7 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Env.LocalPorts.GPX = formInt(r, "env.local_ports.gpx", cfg.Env.LocalPorts.GPX)
 	cfg.Env.LocalPorts.CMS = formInt(r, "env.local_ports.cms", cfg.Env.LocalPorts.CMS)
 	cfg.Env.LocalPorts.Flash = formInt(r, "env.local_ports.flash", cfg.Env.LocalPorts.Flash)
+	cfg.Env.LocalPorts.Bib = formInt(r, "env.local_ports.bib", cfg.Env.LocalPorts.Bib)
 
 	// Email
 	cfg.Email.Enabled = formBool(r, "email.enabled")
@@ -1139,6 +1160,8 @@ func (a *App) parseForm(r *http.Request) *SiteConfig {
 	cfg.Versions.GPX.App = formStr(r, "versions.gpx.app", cfg.Versions.GPX.App)
 	cfg.Versions.Flash.App = formStr(r, "versions.flash.app", cfg.Versions.Flash.App)
 	cfg.Versions.Flash.Nginx = formStr(r, "versions.flash.nginx", cfg.Versions.Flash.Nginx)
+	cfg.Versions.Bib.App = formStr(r, "versions.bib.app", cfg.Versions.Bib.App)
+	cfg.Versions.Bib.Nginx = formStr(r, "versions.bib.nginx", cfg.Versions.Bib.Nginx)
 	cfg.Versions.MQTT.Mosquitto = formStr(r, "versions.mqtt.mosquitto", cfg.Versions.MQTT.Mosquitto)
 	cfg.Versions.MQTT.Meshtk = formStr(r, "versions.mqtt.meshtk", cfg.Versions.MQTT.Meshtk)
 	cfg.Versions.MQTT.Nginx = formStr(r, "versions.mqtt.nginx", cfg.Versions.MQTT.Nginx)
@@ -1245,6 +1268,20 @@ func parseServiceForm(r *http.Request, cfg *SiteConfig) {
 	cfg.Services.Flash.Service.Autoscaling.Enabled = formBool(r, "svc.flash.autoscaling.enabled")
 	cfg.Services.Flash.Service.Autoscaling.MinCapacity = formInt(r, "svc.flash.autoscaling.min", 1)
 	cfg.Services.Flash.Service.Autoscaling.MaxCapacity = formInt(r, "svc.flash.autoscaling.max", 2)
+
+	// Bib
+	cfg.Services.Bib.Task.TaskCPU = formInt(r, "svc.bib.task_cpu", 512)
+	cfg.Services.Bib.Task.TaskMemory = formInt(r, "svc.bib.task_memory", 1024)
+	cfg.Services.Bib.Nginx.CPU = formInt(r, "svc.bib.nginx.cpu", 256)
+	cfg.Services.Bib.Nginx.Memory = formInt(r, "svc.bib.nginx.memory", 512)
+	cfg.Services.Bib.Nginx.MemoryReservation = formInt(r, "svc.bib.nginx.mem_reservation", 256)
+	cfg.Services.Bib.App.CPU = formInt(r, "svc.bib.app.cpu", 256)
+	cfg.Services.Bib.App.Memory = formInt(r, "svc.bib.app.memory", 512)
+	cfg.Services.Bib.App.MemoryReservation = formInt(r, "svc.bib.app.mem_reservation", 256)
+	cfg.Services.Bib.Service.DesiredCount = formInt(r, "svc.bib.desired_count", 1)
+	cfg.Services.Bib.Service.Autoscaling.Enabled = formBool(r, "svc.bib.autoscaling.enabled")
+	cfg.Services.Bib.Service.Autoscaling.MinCapacity = formInt(r, "svc.bib.autoscaling.min", 1)
+	cfg.Services.Bib.Service.Autoscaling.MaxCapacity = formInt(r, "svc.bib.autoscaling.max", 2)
 
 	// MQTT
 	cfg.Services.MQTT.Task.TaskCPU = formInt(r, "svc.mqtt.task_cpu", 1024)

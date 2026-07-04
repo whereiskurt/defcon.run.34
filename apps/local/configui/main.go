@@ -31,6 +31,7 @@ type App struct {
 	sopsFilePath         string
 	discoveryCachePath   string
 	awsStatusCachePath   string
+	statusPath           string
 	rrdb                 *RRDB
 	url                  string
 	mu                   sync.RWMutex
@@ -59,7 +60,7 @@ func (a *App) reload() {
 		log.Printf("Warning: could not import site.hcl: %v", err)
 	}
 
-	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx"} {
+	for _, svc := range []string{"run.auth", "run.human", "run.cms", "run.gpx", "run.bib"} {
 		svcPath := filepath.Join(a.servicesDir, svc, "service.hcl")
 		if err := importServiceHCL(svcPath, svc, a.config); err != nil {
 			log.Printf("Warning: could not import %s: %v", svc, err)
@@ -154,6 +155,7 @@ func main() {
 		sopsFilePath:       filepath.Join(repoRoot, "infra", "terraform", "live", "site", ".secrets.sops.json"),
 		discoveryCachePath: filepath.Join(repoRoot, "apps", "local", "configui", ".discovery-cache.json"),
 		awsStatusCachePath: filepath.Join(repoRoot, "apps", "local", "configui", ".aws-status-cache.json"),
+		statusPath:         filepath.Join(repoRoot, "apps", "run.status", "site", "status.json"),
 		rrdb:               newRRDB(filepath.Join(repoRoot, "apps", "local", "configui", ".rrdb.json")),
 		termSessions:       make(map[string]*TermSession),
 	}
@@ -177,6 +179,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", app.handleIndex)
 	mux.HandleFunc("POST /save", app.handleSave)
+	mux.HandleFunc("POST /api/status/save", app.handleStatusSave)
 	mux.HandleFunc("POST /preview", app.handlePreview)
 	mux.HandleFunc("GET /export", app.handleExport)
 	mux.HandleFunc("POST /import", app.handleImport)

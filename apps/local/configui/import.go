@@ -755,6 +755,8 @@ func importServiceHCL(path string, svcName string, cfg *SiteConfig) error {
 		importGPXService(localsContent, cfg)
 	case "run.flash":
 		importFlashService(localsContent, cfg)
+	case "run.bib":
+		importBibService(localsContent, cfg)
 	}
 	return nil
 }
@@ -875,6 +877,17 @@ func importFlashService(content string, cfg *SiteConfig) {
 	}
 	if svcBlock, ok := isolateBlock(content, "service"); ok {
 		cfg.Services.Flash.Service = parseServiceRunConfig(svcBlock)
+	}
+}
+
+func importBibService(content string, cfg *SiteConfig) {
+	if taskBlock, ok := isolateBlock(content, "task"); ok {
+		cfg.Services.Bib.Task = parseTaskConfig(taskBlock)
+		cfg.Services.Bib.Nginx = parseContainerConfig(taskBlock, "run-bib-nginx")
+		cfg.Services.Bib.App = parseContainerConfig(taskBlock, "run-bib-app")
+	}
+	if svcBlock, ok := isolateBlock(content, "service"); ok {
+		cfg.Services.Bib.Service = parseServiceRunConfig(svcBlock)
 	}
 }
 
