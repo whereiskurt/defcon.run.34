@@ -308,9 +308,15 @@ const configuration: Configuration = {
    */
   interactions: {
     url(ctx, interaction) {
-      // Redirect to the existing Auth.js login page with OIDC interaction ID
-      // After login, /login will redirect to /api/oidc/interaction/{uid}
-      return `${config.urls.loginPage}?oidc=${interaction.uid}`;
+      // Complete the interaction on the SERVER interaction-completion route (Pages API),
+      // not the Auth.js login page. An already-authenticated user completes the interaction
+      // with no HTML render. That route itself falls back to /{region}/login?oidc={uid} when
+      // no sess_auth session is present. This path is derived from config.region and lives one
+      // level OUTSIDE the provider routePrefix that owns /auth,/token (mirrors [uid].ts loginPath).
+      const interactionBase = config.isDev
+        ? "/api/oidc/interaction"
+        : `/${config.region}/api/oidc/interaction`;
+      return `${interactionBase}/${interaction.uid}`;
     },
   },
 
