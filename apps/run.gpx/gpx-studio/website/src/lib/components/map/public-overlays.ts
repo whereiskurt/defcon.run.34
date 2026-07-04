@@ -1,7 +1,9 @@
 import { writable } from 'svelte/store';
 import { parseGPX } from 'gpx';
 import mapboxgl from 'mapbox-gl';
-import { routeColor } from '$lib/dc34-palette';
+import { DC34, routeColor } from '$lib/dc34-palette';
+import { getSvgForSymbol } from './gpx-layer/gpx-layer';
+import { getSymbolKey } from '$lib/assets/symbols';
 
 /**
  * Public overlays — DEF CON 34 official map layers (v1.7 Phase 28, decorated v1.8).
@@ -83,11 +85,46 @@ export const publicAggregate = writable<{ available: boolean; visible: boolean }
 const AGGREGATE_URL = `${regionPrefix()}/api/gpx/public/aggregate`;
 const AGGREGATE_LAYER = 'public-all-runners';
 
+// "User Check-ins" (v1.8 Phase 3): public (isPrivate === false) check-ins rendered
+// as big branded pins, clustered at scale. Fed by the same-origin proxy below.
+export const publicCheckIns = writable<{ available: boolean; visible: boolean; count: number }>({
+    available: false,
+    visible: false,
+    count: 0,
+});
+
+const CHECKINS_URL = `${regionPrefix()}/api/gpx/public/checkins`;
+const CHECKINS_SOURCE = 'public-checkins';
+const CHECKINS_PIN_LAYER = 'public-checkins-pin';
+const CHECKINS_CLUSTER_LAYER = 'public-checkins-cluster';
+const CHECKINS_COUNT_LAYER = 'public-checkins-count';
+const CHECKINS_PIN_IMAGE = 'dc34-checkin-pin';
+
+type PublicCheckIn = {
+    lat: number;
+    lon: number;
+    displayName: string;
+    timestamp: number;
+    checkInType?: string;
+};
+
+// Structural view of the parsed GPX waypoints (avoids importing the class).
+type GpxWaypoint = {
+    getLatitude(): number;
+    getLongitude(): number;
+    name?: string;
+    desc?: string;
+    sym?: string;
+};
+
 function coreLayerId(fileId: string): string {
     return `${SOURCE_PREFIX}${fileId}`;
 }
 function glowLayerId(fileId: string): string {
     return `${SOURCE_PREFIX}${fileId}-glow`;
+}
+function poiLayerId(fileId: string): string {
+    return `${SOURCE_PREFIX}${fileId}-poi`;
 }
 
 function formatDistance(meters?: number): string | undefined {
@@ -157,6 +194,38 @@ function popupHtml(m: PublicMap, folderName: string): string {
             ${desc}
             <div>${download}${strava}</div>
             <div style="margin-top:8px;font-size:9px;font-family:ui-monospace,monospace;opacity:.35;user-select:all">id: ${escapeHtml(m.fileId)}</div>
+        </div>`;
+}
+
+/** Big branded check-in pin — magenta map-pin with a teal outline (lucide MapPin path). */
+function checkinPinSvg(): string {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
+              fill="${DC34.magenta}" stroke="${DC34.teal}" stroke-width="1.2"/>
+        <circle cx="12" cy="10" r="3.2" fill="white"/>
+    </svg>`;
+}
+
+function checkinPopupHtml(displayName: string, timestamp: number, checkInType?: string): string {
+    const when = new Date(timestamp).toLocaleString();
+    const type = checkInType ? ` · ${escapeHtml(checkInType)}` : '';
+    return `
+        <div style="padding:8px 10px;border-left:4px solid ${DC34.teal};font-family:system-ui,sans-serif;color:#e4e4ef">
+            <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Check-in</div>
+            <div style="font-size:14px;font-weight:600;margin-top:2px">🐇 ${escapeHtml(displayName)}</div>
+            <div style="font-size:12px;opacity:.8;margin-top:4px">${escapeHtml(when)}${type}</div>
+        </div>`;
+}
+
+function poiPopupHtml(name: string, desc: string, color: string): string {
+    const detail = desc
+        ? `<div style="font-size:12px;opacity:.8;margin-top:4px">${escapeHtml(desc)}</div>`
+        : '';
+    return `
+        <div style="padding:8px 10px;border-left:4px solid ${color};font-family:system-ui,sans-serif;color:#e4e4ef">
+            <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Point of interest</div>
+            <div style="font-size:14px;font-weight:600;margin-top:2px">${escapeHtml(name)}</div>
+            ${detail}
         </div>`;
 }
 
@@ -251,9 +320,11 @@ export class PublicOverlaysLayer {
                     try {
                         const gpxRes = await fetch(m.downloadUrl);
                         if (!gpxRes.ok) return;
-                        const geojson = parseGPX(await gpxRes.text()).toGeoJSON();
+                        const file = parseGPX(await gpxRes.text());
                         this.addRouteLayer(m, group.folderName);
-                        this.setRouteData(m.fileId, geojson);
+                        this.setRouteData(m.fileId, file.toGeoJSON());
+                        // toGeoJSON() only emits tracks — waypoints (POIs) ride separately.
+                        this.addRoutePois(m, (file.wpt as GpxWaypoint[]) ?? []);
                     } catch (err) {
                         // skip a route that fails to fetch/parse; others still render
                         console.warn(`[public-overlays] failed to load ${m.fileId}:`, err);
@@ -266,6 +337,7 @@ export class PublicOverlaysLayer {
         publicOverlayGroups.set(groups);
 
         await this.addAggregate();
+        await this.addCheckIns();
     }
 
     /** Load the "All Runners" aggregate as one hidden, non-attributable line layer. */
@@ -301,6 +373,176 @@ export class PublicOverlaysLayer {
             this.map.setLayoutProperty(AGGREGATE_LAYER, 'visibility', visible ? 'visible' : 'none');
         }
         publicAggregate.update((s) => ({ ...s, visible }));
+    }
+
+    /** Register a data-URI SVG as a map image (decodes async; no-op if already loaded). */
+    private loadSvgImage(id: string, svg: string) {
+        if (this.map.hasImage(id)) return;
+        const icon = new Image(100, 100);
+        icon.onload = () => {
+            if (!this.map.hasImage(id)) this.map.addImage(id, icon);
+        };
+        icon.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    }
+
+    /** Load public user check-ins as hidden, clustered layers of big branded pins. */
+    private async addCheckIns() {
+        try {
+            const res = await fetch(CHECKINS_URL, { credentials: 'omit' });
+            if (!res.ok) return;
+            const body = (await res.json()) as { checkIns: PublicCheckIn[] };
+            if (!body.checkIns || body.checkIns.length === 0) return;
+
+            this.loadSvgImage(CHECKINS_PIN_IMAGE, checkinPinSvg());
+
+            const geojson: GeoJSON.FeatureCollection = {
+                type: 'FeatureCollection',
+                features: body.checkIns.map((c) => ({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
+                    properties: {
+                        displayName: c.displayName,
+                        timestamp: c.timestamp,
+                        checkInType: c.checkInType ?? '',
+                    },
+                })),
+            };
+
+            if (!this.map.getSource(CHECKINS_SOURCE)) {
+                this.map.addSource(CHECKINS_SOURCE, {
+                    type: 'geojson',
+                    data: geojson,
+                    cluster: true,
+                    clusterMaxZoom: 14,
+                    clusterRadius: 40,
+                });
+            }
+            // Cluster bubbles — teal, sized by member count, magenta ring.
+            if (!this.map.getLayer(CHECKINS_CLUSTER_LAYER)) {
+                this.map.addLayer({
+                    id: CHECKINS_CLUSTER_LAYER,
+                    type: 'circle',
+                    source: CHECKINS_SOURCE,
+                    filter: ['has', 'point_count'],
+                    layout: { visibility: 'none' },
+                    paint: {
+                        'circle-color': DC34.teal,
+                        'circle-opacity': 0.85,
+                        'circle-radius': ['step', ['get', 'point_count'], 14, 10, 18, 50, 24],
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': DC34.magenta,
+                    },
+                });
+
+                const onClusterClick = (e: mapboxgl.MapMouseEvent) => {
+                    const features = this.map.queryRenderedFeatures(e.point, {
+                        layers: [CHECKINS_CLUSTER_LAYER],
+                    });
+                    const clusterId = features[0]?.properties?.cluster_id;
+                    const source = this.map.getSource(CHECKINS_SOURCE) as
+                        | mapboxgl.GeoJSONSource
+                        | undefined;
+                    if (clusterId === undefined || !source) return;
+                    source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+                        if (err || zoom == null) return;
+                        this.map.easeTo({
+                            center: (features[0].geometry as GeoJSON.Point).coordinates as [
+                                number,
+                                number,
+                            ],
+                            zoom,
+                        });
+                    });
+                };
+                const onClusterEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
+                const onClusterLeave = () => (this.map.getCanvas().style.cursor = '');
+                this.map.on('click', CHECKINS_CLUSTER_LAYER, onClusterClick);
+                this.map.on('mouseenter', CHECKINS_CLUSTER_LAYER, onClusterEnter);
+                this.map.on('mouseleave', CHECKINS_CLUSTER_LAYER, onClusterLeave);
+                this.listeners.push(
+                    { id: CHECKINS_CLUSTER_LAYER, type: 'click', fn: onClusterClick },
+                    { id: CHECKINS_CLUSTER_LAYER, type: 'mouseenter', fn: onClusterEnter },
+                    { id: CHECKINS_CLUSTER_LAYER, type: 'mouseleave', fn: onClusterLeave }
+                );
+            }
+            if (!this.map.getLayer(CHECKINS_COUNT_LAYER)) {
+                this.map.addLayer({
+                    id: CHECKINS_COUNT_LAYER,
+                    type: 'symbol',
+                    source: CHECKINS_SOURCE,
+                    filter: ['has', 'point_count'],
+                    layout: {
+                        visibility: 'none',
+                        'text-field': ['get', 'point_count_abbreviated'],
+                        'text-font': ['Open Sans Bold'],
+                        'text-size': 12,
+                    },
+                    paint: { 'text-color': '#101015' },
+                });
+            }
+            // Individual check-ins — the big branded pin with a details popup.
+            if (!this.map.getLayer(CHECKINS_PIN_LAYER)) {
+                this.map.addLayer({
+                    id: CHECKINS_PIN_LAYER,
+                    type: 'symbol',
+                    source: CHECKINS_SOURCE,
+                    filter: ['!', ['has', 'point_count']],
+                    layout: {
+                        visibility: 'none',
+                        'icon-image': CHECKINS_PIN_IMAGE,
+                        'icon-size': 0.5,
+                        'icon-anchor': 'bottom',
+                        'icon-allow-overlap': true,
+                    },
+                });
+
+                const onPinClick = (e: mapboxgl.MapMouseEvent) => {
+                    const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
+                    if (!f) return;
+                    const p = f.properties as {
+                        displayName?: string;
+                        timestamp?: number | string;
+                        checkInType?: string;
+                    };
+                    this.hoverPopup.remove();
+                    this.popup
+                        .setLngLat(
+                            (f.geometry as GeoJSON.Point).coordinates as [number, number]
+                        )
+                        .setHTML(
+                            checkinPopupHtml(
+                                p.displayName || 'a rabbit',
+                                Number(p.timestamp) || 0,
+                                p.checkInType || undefined
+                            )
+                        )
+                        .addTo(this.map);
+                };
+                const onPinEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
+                const onPinLeave = () => (this.map.getCanvas().style.cursor = '');
+                this.map.on('click', CHECKINS_PIN_LAYER, onPinClick);
+                this.map.on('mouseenter', CHECKINS_PIN_LAYER, onPinEnter);
+                this.map.on('mouseleave', CHECKINS_PIN_LAYER, onPinLeave);
+                this.listeners.push(
+                    { id: CHECKINS_PIN_LAYER, type: 'click', fn: onPinClick },
+                    { id: CHECKINS_PIN_LAYER, type: 'mouseenter', fn: onPinEnter },
+                    { id: CHECKINS_PIN_LAYER, type: 'mouseleave', fn: onPinLeave }
+                );
+            }
+
+            publicCheckIns.set({ available: true, visible: false, count: body.checkIns.length });
+        } catch {
+            // check-ins unavailable → no layer, studio unaffected
+        }
+    }
+
+    /** Toggle the "User Check-ins" layers (pins + clusters together). */
+    setCheckInsVisible(visible: boolean) {
+        const vis = visible ? 'visible' : 'none';
+        for (const id of [CHECKINS_CLUSTER_LAYER, CHECKINS_COUNT_LAYER, CHECKINS_PIN_LAYER]) {
+            if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', vis);
+        }
+        publicCheckIns.update((s) => ({ ...s, visible }));
     }
 
     /** Add the glow + core line layers for a route, plus its click/hover handlers. */
@@ -387,6 +629,75 @@ export class PublicOverlaysLayer {
         }
     }
 
+    /** Drop a route's GPX waypoints (POIs) as small branded icons with a details popup.
+     * Hidden by default; shows/hides together with the route via setLayerPairVisible. */
+    private addRoutePois(m: PublicMap, waypoints: GpxWaypoint[]) {
+        if (!waypoints.length) return;
+        const poi = poiLayerId(m.fileId);
+        try {
+            const features: GeoJSON.Feature[] = waypoints.map((w) => {
+                const symbol = getSymbolKey(w.sym);
+                const iconId = `dc34-poi-${symbol ?? 'default'}-${m.color}`;
+                this.loadSvgImage(iconId, getSvgForSymbol(symbol, m.color));
+                return {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [w.getLongitude(), w.getLatitude()],
+                    },
+                    properties: { name: w.name ?? '', desc: w.desc ?? '', icon: iconId },
+                };
+            });
+
+            if (!this.map.getSource(poi)) {
+                this.map.addSource(poi, {
+                    type: 'geojson',
+                    data: { type: 'FeatureCollection', features },
+                });
+            }
+            if (!this.map.getLayer(poi)) {
+                this.map.addLayer({
+                    id: poi,
+                    type: 'symbol',
+                    source: poi,
+                    layout: {
+                        visibility: 'none',
+                        'icon-image': ['get', 'icon'],
+                        'icon-size': 0.3,
+                        'icon-anchor': 'bottom',
+                        'icon-padding': 0,
+                        'icon-allow-overlap': true,
+                    },
+                });
+
+                const onClick = (e: mapboxgl.MapMouseEvent) => {
+                    const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
+                    if (!f) return;
+                    const p = f.properties as { name?: string; desc?: string };
+                    this.hoverPopup.remove();
+                    this.popup
+                        .setLngLat(
+                            (f.geometry as GeoJSON.Point).coordinates as [number, number]
+                        )
+                        .setHTML(poiPopupHtml(p.name || 'Waypoint', p.desc || '', m.color))
+                        .addTo(this.map);
+                };
+                const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
+                const onLeave = () => (this.map.getCanvas().style.cursor = '');
+                this.map.on('click', poi, onClick);
+                this.map.on('mouseenter', poi, onEnter);
+                this.map.on('mouseleave', poi, onLeave);
+                this.listeners.push(
+                    { id: poi, type: 'click', fn: onClick },
+                    { id: poi, type: 'mouseenter', fn: onEnter },
+                    { id: poi, type: 'mouseleave', fn: onLeave }
+                );
+            }
+        } catch (err) {
+            console.warn(`[public-overlays] failed to add POIs for ${m.fileId}:`, err);
+        }
+    }
+
     private setRouteData(fileId: string, geojson: GeoJSON.FeatureCollection) {
         const source = this.map.getSource(coreLayerId(fileId)) as mapboxgl.GeoJSONSource | undefined;
         if (source) source.setData(geojson);
@@ -394,7 +705,7 @@ export class PublicOverlaysLayer {
 
     private setLayerPairVisible(fileId: string, visible: boolean) {
         const vis = visible ? 'visible' : 'none';
-        for (const id of [glowLayerId(fileId), coreLayerId(fileId)]) {
+        for (const id of [glowLayerId(fileId), coreLayerId(fileId), poiLayerId(fileId)]) {
             if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', vis);
         }
     }
@@ -454,21 +765,31 @@ export class PublicOverlaysLayer {
             this.hoverPopup.remove();
             for (const group of getGroupsSnapshot()) {
                 for (const m of group.maps) {
-                    for (const id of [coreLayerId(m.fileId), glowLayerId(m.fileId)]) {
+                    for (const id of [
+                        coreLayerId(m.fileId),
+                        glowLayerId(m.fileId),
+                        poiLayerId(m.fileId),
+                    ]) {
                         if (this.map.getLayer(id)) this.map.removeLayer(id);
                     }
-                    const src = coreLayerId(m.fileId);
-                    if (this.map.getSource(src)) this.map.removeSource(src);
+                    for (const src of [coreLayerId(m.fileId), poiLayerId(m.fileId)]) {
+                        if (this.map.getSource(src)) this.map.removeSource(src);
+                    }
                 }
             }
             if (this.map.getLayer(AGGREGATE_LAYER)) this.map.removeLayer(AGGREGATE_LAYER);
             if (this.map.getSource(AGGREGATE_LAYER)) this.map.removeSource(AGGREGATE_LAYER);
+            for (const id of [CHECKINS_CLUSTER_LAYER, CHECKINS_COUNT_LAYER, CHECKINS_PIN_LAYER]) {
+                if (this.map.getLayer(id)) this.map.removeLayer(id);
+            }
+            if (this.map.getSource(CHECKINS_SOURCE)) this.map.removeSource(CHECKINS_SOURCE);
         } catch {
             // map not ready
         }
         this.loaded = false;
         publicOverlayGroups.set([]);
         publicAggregate.set({ available: false, visible: false });
+        publicCheckIns.set({ available: false, visible: false, count: 0 });
     }
 }
 
