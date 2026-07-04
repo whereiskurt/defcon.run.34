@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 /**
  * WillPayInPersonCheckbox (Phase 22-05, Kurt 2026-07-02 rescope).
@@ -45,6 +46,7 @@ export interface WillPayInPersonCheckboxProps {
 export function WillPayInPersonCheckbox({
   initialValue,
 }: WillPayInPersonCheckboxProps) {
+  const router = useRouter();
   const [checked, setChecked] = useState<boolean>(initialValue);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
 
@@ -75,6 +77,9 @@ export function WillPayInPersonCheckbox({
 
       lastSavedRef.current = nextValue;
       setSaveState({ kind: "saved" });
+      // React live: re-render the server component so the sponsor/buy flow
+      // shows or hides to match the new pledge (writes stay debounced above).
+      router.refresh();
     } catch (err) {
       if (
         err instanceof DOMException &&
@@ -91,7 +96,7 @@ export function WillPayInPersonCheckbox({
         abortRef.current = null;
       }
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (checked === lastSavedRef.current) {
@@ -156,7 +161,7 @@ export function WillPayInPersonCheckbox({
       />
       <span style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         <span style={{ fontSize: 15, fontWeight: 600 }}>
-          I&apos;ll pay in person at defcon.run 34
+          I&apos;ll contribute in person at defcon.run 34
         </span>
         <span
           id="will-pay-in-person-hint"
@@ -182,7 +187,7 @@ function saveHintText(state: SaveState): string {
       return "Unsaved changes…";
     case "idle":
     default:
-      return "Optional. Lets organizers know to expect cash / card at the event.";
+      return "Optional. Lets organizers know to expect your contribution at the event.";
   }
 }
 

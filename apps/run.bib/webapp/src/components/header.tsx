@@ -15,6 +15,7 @@ import { FiShield } from "react-icons/fi";
 
 import { ThemeSwitch } from "./theme-switch";
 import { UserDropdown } from "./user-dropdown";
+import { MenuDropdown } from "./menu-dropdown";
 
 /**
  * Site header (v1.6) — ported look from run.human's HeroUI Navbar so the bib
@@ -56,8 +57,15 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
 
   return (
     <Navbar maxWidth="lg" classNames={{ base: "glass-nav", wrapper: "max-w-[900px]" }}>
-      {/* Mobile: wordmark */}
+      {/* Mobile: hamburger nav */}
       <NavbarContent className="sm:hidden" justify="start">
+        <NavbarItem>
+          <MenuDropdown isAdmin={isAdmin} />
+        </NavbarItem>
+      </NavbarContent>
+
+      {/* Mobile: wordmark */}
+      <NavbarContent className="sm:hidden" justify="center">
         <NavbarItem>{Wordmark}</NavbarItem>
       </NavbarContent>
 

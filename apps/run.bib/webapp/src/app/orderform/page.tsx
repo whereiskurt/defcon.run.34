@@ -227,7 +227,10 @@ export default async function Home({ searchParams }: HomeProps) {
               body="Contribute anyway — support goes directly to defcon.run 34."
               art={<DonateArt />}
             >
-              <SponsorForm variant="general" ctaLabel="Donate" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <RunnerCodeBadge code={bib.runnerCode} />
+                <SponsorForm variant="general" ctaLabel="Donate" />
+              </div>
             </Tile>
           </div>
         ) : (
@@ -255,12 +258,13 @@ export default async function Home({ searchParams }: HomeProps) {
               body="Not running? Contribute anyway — support goes directly to defcon.run 34."
               art={<DonateArt />}
             >
-              <SponsorForm variant="general" ctaLabel="Donate" />
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <RunnerCodeBadge code={bib.runnerCode} />
+                <SponsorForm variant="general" ctaLabel="Donate" />
+              </div>
             </Tile>
           </div>
         )}
-
-        <FooterNote />
       </div>
   );
 }
@@ -559,26 +563,5 @@ function RunnerCodeBadge({ code }: { code: string }) {
         {code}
       </span>
     </div>
-  );
-}
-
-/**
- * Static footer note explaining the shape of the flow: name edits save on
- * their own; payment reconciliation is a Phase 22 concern.
- */
-function FooterNote() {
-  return (
-    <p
-      style={{
-        margin: "16px 0 0",
-        fontSize: 13,
-        color: "#8f8fa8",
-        lineHeight: 1.6,
-      }}
-    >
-      Your name saves automatically as you type. Include your runner code in
-      the Venmo or Cash App comment when you pay so we can match your
-      payment to this bib.
-    </p>
   );
 }

@@ -52,14 +52,14 @@ const PRIMARY_PLACEHOLDER = "1337";
 /** Working horizontal budget in SVG-user-units for the primary display text.
  * The black box is 856 wide with two 70px smiley badges nibbling the sides,
  * so budget ~740px so the text sits between the badges without overlapping. */
-const PRIMARY_WIDTH_BUDGET = 740;
+const PRIMARY_WIDTH_BUDGET = 660;
 /** Base font sizes for the primary display slot. `1337` (4 chars) renders at
  * ~248px; longer names shrink via fitFontSize down to `NUMBER_MIN_SIZE`. */
 const NUMBER_BASE_SIZE = 248;
 const NUMBER_MIN_SIZE = 44;
 /** Approximate glyph-width factor for the SVG's Arial-Black stack.
  * Slightly conservative so the shrunk text always stays inside the budget. */
-const GLYPH_WIDTH_FACTOR = 0.62;
+const GLYPH_WIDTH_FACTOR = 0.7;
 
 /**
  * Given a target text, base font-size, min font-size, and horizontal budget,
