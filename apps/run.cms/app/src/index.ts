@@ -1,4 +1,35 @@
 import { SSMClient, PutParameterCommand } from '@aws-sdk/client-ssm';
+import publicRoutes from './seed/public-routes.json';
+
+/**
+ * Seed the curated public-overlay routes (create-if-absent, published).
+ *
+ * Reads src/seed/public-routes.json — the git source of truth also used by
+ * scripts/push-routes.mjs — and creates a published Route for any gpxFileId
+ * that doesn't already have one. This is a BASELINE: once a Route exists it's
+ * left alone, so names edited in the CMS admin UI (or via push-routes.mjs) are
+ * never overwritten. Master-only; workers receive it via Litestream.
+ */
+async function seedPublicRoutes(strapi) {
+  let created = 0;
+  for (const r of publicRoutes as Array<{ gpxFileId: string; name: string }>) {
+    if (!r.gpxFileId || !r.name) continue;
+
+    const existing = await strapi.documents('api::route.route').findFirst({
+      filters: { gpxFileId: r.gpxFileId },
+    });
+    if (existing) continue;
+
+    const doc = await strapi.documents('api::route.route').create({
+      data: { name: r.name, gpxFileId: r.gpxFileId },
+    });
+    await strapi.documents('api::route.route').publish({ documentId: doc.documentId });
+    created++;
+  }
+  if (created > 0) {
+    strapi.log.info(`[Bootstrap] Seeded ${created} public overlay route(s)`);
+  }
+}
 
 async function ensureApiTokenPublished(strapi) {
   const ssmPrefix = process.env.SSM_PREFIX;
@@ -188,6 +219,13 @@ export default {
         await ensureApiTokenPublished(strapi);
       } catch (err) {
         strapi.log.error('[Bootstrap] Failed to publish API token to SSM:', err);
+      }
+
+      // Master only: seed curated public-overlay Route names (create-if-absent)
+      try {
+        await seedPublicRoutes(strapi);
+      } catch (err) {
+        strapi.log.error('[Bootstrap] Failed to seed public overlay routes:', err);
       }
     }
   },

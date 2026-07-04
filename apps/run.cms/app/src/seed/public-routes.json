@@ -1,0 +1,17 @@
+[
+  { "gpxFileId": "def-con-34-maps-bigstar_391f53c473",   "name": "Big Star" },
+  { "gpxFileId": "def-con-34-maps-east_e3977557f2",      "name": "East" },
+  { "gpxFileId": "def-con-34-maps-frankie_46f4770c5a",    "name": "Frankie" },
+  { "gpxFileId": "def-con-34-maps-history_7cd9eb0707",    "name": "History" },
+  { "gpxFileId": "def-con-34-maps-littlestar_91a5a74732", "name": "Little Star" },
+  { "gpxFileId": "def-con-34-maps-lvcc_dds_a0a1004cf5",   "name": "LVCC DDS" },
+  { "gpxFileId": "def-con-34-maps-lvcc_rebar_78c1c28c5d", "name": "LVCC Rebar" },
+  { "gpxFileId": "def-con-34-maps-lvccindoor_4ba926ccb8", "name": "LVCC Indoor" },
+  { "gpxFileId": "def-con-34-maps-north_5276453c29",      "name": "North" },
+  { "gpxFileId": "def-con-34-maps-original_c9b00d47f8",   "name": "Original" },
+  { "gpxFileId": "def-con-34-maps-othercons_8cc68e91ac",  "name": "Other Cons" },
+  { "gpxFileId": "def-con-34-maps-sign_54a21512c4",       "name": "Sign" },
+  { "gpxFileId": "def-con-34-maps-south_0b4e77ffac",      "name": "South" },
+  { "gpxFileId": "def-con-34-maps-tribute_3e2d470f8a",    "name": "Tribute" },
+  { "gpxFileId": "def-con-34-maps-west_4ba676aaaa",       "name": "West" }
+]
