@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/config/auth";
-import BibForm from "@/components/BibForm";
+import GetYourBib from "@/components/GetYourBib";
 import SponsorForm from "@/components/SponsorForm";
-import WillPayInPersonCheckbox from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
 import { listPendingForOwner } from "@/entities/pending-contribution";
@@ -183,23 +182,20 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {status && <StripeStatusBanner status={status} />}
 
-      {/* Get your bib — name first (A3), live preview below (inside BibForm). */}
-      <div style={{ display: "flex", flexDirection: "column" }}>
-        <BibForm
-          initialName={bib.nameOnBib || ""}
-          nameLocked={bib.nameLocked === true}
-          hasSponsored={hasSponsored}
-          initialRenamesRemaining={renamesRemaining}
-          runnerCode={bib.runnerCode}
-        />
-        {!hasTransacted && (
-          <div style={{ marginTop: 16 }}>
-            <WillPayInPersonCheckbox
-              initialValue={bib.willPayInPerson === true}
-            />
-          </div>
-        )}
-      </div>
+      {/* Get your bib — name first (A3), live preview below. GetYourBib is a
+        * client wrapper so checking "contribute in person" rains cash over
+        * the bib preview (Kurt 2026-07-03). */}
+      <GetYourBib
+        showCheckbox={!hasTransacted}
+        willPayInitial={bib.willPayInPerson === true}
+        bibForm={{
+          initialName: bib.nameOnBib || "",
+          nameLocked: bib.nameLocked === true,
+          hasSponsored,
+          initialRenamesRemaining: renamesRemaining,
+          runnerCode: bib.runnerCode,
+        }}
+      />
 
         <TransactionHistory totalCents={totalCents} txns={txns} />
 

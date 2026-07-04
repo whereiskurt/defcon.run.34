@@ -42,10 +42,13 @@ type SaveState =
 
 export interface WillPayInPersonCheckboxProps {
   initialValue: boolean;
+  /** Bubbles the checked state up so the page can rain cash over the bib. */
+  onCheckedChange?: (checked: boolean) => void;
 }
 
 export function WillPayInPersonCheckbox({
   initialValue,
+  onCheckedChange,
 }: WillPayInPersonCheckboxProps) {
   const router = useRouter();
   const [checked, setChecked] = useState<boolean>(initialValue);
@@ -143,6 +146,7 @@ export function WillPayInPersonCheckbox({
 
   const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setChecked(event.target.checked);
+    onCheckedChange?.(event.target.checked);
   };
 
   return (

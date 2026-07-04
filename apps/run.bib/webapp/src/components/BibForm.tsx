@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import BibPreview from "./BibPreview";
+import { CashRain } from "./CashRain";
 import { solveAltcha } from "@/lib/altcha-client";
 
 /**
@@ -27,6 +28,8 @@ export interface BibFormProps {
   initialRenamesRemaining: number;
   /** Runner code — passed through to BibPreview for the tear-off QR. */
   runnerCode?: string;
+  /** When true, rain USD bills over the bib preview (pay-in-person pledge). */
+  raining?: boolean;
 }
 
 const API_BIB_PATH = "/api/bib";
@@ -48,6 +51,7 @@ export function BibForm({
   hasSponsored = false,
   initialRenamesRemaining,
   runnerCode,
+  raining = false,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
   const [savedName, setSavedName] = useState<string>(initialName);
@@ -232,7 +236,10 @@ export function BibForm({
       </div>
 
       {/* Live preview sits BELOW the name field (A3, name-first). */}
-      <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} />
+      <div style={{ position: "relative" }}>
+        <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} />
+        <CashRain active={raining} />
+      </div>
     </form>
   );
 }
