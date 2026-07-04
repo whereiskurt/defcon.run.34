@@ -121,6 +121,10 @@ export const authConfig: NextAuthConfig = {
   // Must include region prefix in production since Auth.js doesn't know about Next.js basePath
   pages: {
     signIn: isDev ? "/signin" : `/${region}/signin`,
+    // Route NextAuth's default callback-error redirect to the silent-callback
+    // bridge so a prompt=none negative is captured in-frame; the bridge falls
+    // through to normal sign-in when loaded top-level.
+    error: isDev ? "/silent-callback" : `/${region}/silent-callback`,
   },
 
   providers: [
