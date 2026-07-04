@@ -56,6 +56,11 @@ export type OutstandingRow = {
   amountCents: number;
   status: string;
   detail: string;
+  // Action keys — carried on pending-intent rows so the admin ReconcileAction
+  // can POST /api/admin/bib/reconcile without re-deriving them (Phase 34, D-02).
+  pendingId?: string;
+  ownerSub?: string;
+  kind?: "bib" | "donation";
 };
 
 export type RegistrationRow = {
@@ -64,6 +69,9 @@ export type RegistrationRow = {
   paidAmountCents: number;
   willPayInPerson: boolean;
   createdAt: string;
+  // Bib PK — carried so the admin RejectAction can POST /api/admin/bib/reject.
+  // Safe to expose on the admin-only roster (Phase 34, D-04).
+  ownerSub?: string;
 };
 
 export type ReportTotals = {
@@ -105,11 +113,15 @@ type ReconcileLike = {
   createdAt?: string;
 };
 type PendingLike = {
-  kind?: string;
+  // Narrowed to the PendingKind union (matches OutstandingRow.kind). loadReports()
+  // feeds real PendingContributionItem rows whose kind is already this union.
+  kind?: "bib" | "donation";
   provider?: string;
   amountCents?: number;
   runnerCode?: string;
   createdAt?: string;
+  pendingId?: string;
+  ownerSub?: string;
 };
 
 export type ReportInput = {
@@ -123,11 +135,32 @@ const byTimestampDesc = (a: { timestamp: string }, b: { timestamp: string }) =>
   a.timestamp < b.timestamp ? 1 : a.timestamp > b.timestamp ? -1 : 0;
 
 /**
+ * Registration predicate (Phase 34, D-01 / Kurt 2026-07-04): a bib counts as a
+ * real registration only when it carries a name, a payment, OR an in-person
+ * pledge. Bibs are auto-created on first visit, so an untouched visit leaves a
+ * phantom empty row — these are filtered from admin totals + roster (SC34.1)
+ * while the underlying auto-create-on-visit behaviour is unchanged.
+ */
+export function isRegistered(b: BibItem): boolean {
+  return (
+    (b.nameOnBib?.trim().length ?? 0) > 0 ||
+    (b.paidAmount ?? 0) > 0 ||
+    b.willPayInPerson === true
+  );
+}
+
+/**
  * Pure report shaping. Given already-fetched rows, compute all four reports
  * plus totals. Deterministic + AWS-free for unit testing.
  */
 export function buildReports(input: ReportInput): ReportBundle {
   const { bibs, donations, reconciles, pendings } = input;
+
+  // Registered bibs only — phantom empty visit-created rows are excluded from
+  // totals.bibs and the registrations roster (SC34.1). The full `bibs` list is
+  // still used for print-names, payments, in-person pledges, and $ collected —
+  // those intentionally read every bib.
+  const registered = bibs.filter(isRegistered);
 
   // 1. Print-name list — every named bib, flagged print-eligible.
   const printNames: PrintNameRow[] = bibs
@@ -204,6 +237,10 @@ export function buildReports(input: ReportInput): ReportBundle {
     amountCents: p.amountCents ?? 0,
     status: "awaiting-reconcile",
     detail: `${p.kind ?? "intent"} tapped ${(p.createdAt ?? "").slice(0, 19)}`,
+    // Action keys for the admin ReconcileAction (Phase 34, D-02).
+    pendingId: p.pendingId,
+    ownerSub: p.ownerSub,
+    kind: p.kind,
   }));
   const reconcileRows: OutstandingRow[] = reconciles
     .filter((r) => r.status && r.status !== "matched")
@@ -218,14 +255,16 @@ export function buildReports(input: ReportInput): ReportBundle {
     }));
   const outstanding = [...inPerson, ...pendingRows, ...reconcileRows];
 
-  // 4. All registrations — master roster.
-  const registrations: RegistrationRow[] = bibs
+  // 4. All registrations — master roster (registered bibs only; SC34.1).
+  const registrations: RegistrationRow[] = registered
     .map((b) => ({
       nameOnBib: b.nameOnBib ?? "",
       runnerCode: b.runnerCode,
       paidAmountCents: b.paidAmount ?? 0,
       willPayInPerson: b.willPayInPerson === true,
       createdAt: b.createdAt ?? "",
+      // Bib PK for the admin RejectAction (Phase 34, D-04).
+      ownerSub: b.ownerSub,
     }))
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 
@@ -233,7 +272,8 @@ export function buildReports(input: ReportInput): ReportBundle {
   const bibCollectedCents = bibs.reduce((s, b) => s + (b.paidAmount ?? 0), 0);
   const donationCents = donations.reduce((s, d) => s + (d.amountCents ?? 0), 0);
   const totals: ReportTotals = {
-    bibs: bibs.length,
+    // Count only registered bibs — phantom empty rows are excluded (SC34.1).
+    bibs: registered.length,
     inPersonPledges: bibs.filter((b) => b.willPayInPerson === true).length,
     bibCollectedCents,
     donationCount: donations.length,
