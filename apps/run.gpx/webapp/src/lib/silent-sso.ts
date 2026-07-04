@@ -4,7 +4,7 @@
  * Framework-agnostic and app-agnostic: this module imports nothing from the app
  * config or from next-auth, and contains no app-specific literals. It is the
  * canonical copy that is placed byte-identically into every full-user NextAuth RP
- * (gpx / flash / bib) and guarded by a parity test.
+ * and guarded by a parity test.
  */
 
 /** postMessage discriminator used by the /silent-callback bridge -> parent listener. */
