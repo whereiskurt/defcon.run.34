@@ -4,6 +4,7 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3ClientForPresign } from "@/lib/s3-client";
 import { GpxFolder } from "@/entities/gpx-folder";
 import { GpxFile, GpxFileItem } from "@/entities/gpx-file";
+import { fetchRouteTitles } from "@/lib/strapi";
 
 /**
  * GET /api/gpx/public/maps - Public, UNAUTHENTICATED list of the DC34 official
@@ -26,6 +27,7 @@ const CACHE_SECONDS = 300;
 type PublicMap = {
   fileId: string;
   fileName: string;
+  title?: string;
   downloadUrl: string;
   bounds?: GpxFileItem["bounds"];
   totalDistance?: number;
@@ -38,6 +40,10 @@ type PublicMap = {
 
 export async function GET() {
   try {
+    // CMS-curated titles keyed by gpxFileId (matched against fileId OR filename
+    // below). Best-effort — an empty map just means routes show their filename.
+    const titles = await fetchRouteTitles();
+
     // All GLOBAL folders (curated public collections). Every folder under the
     // "GLOBAL" partition is global by construction, but filter defensively.
     const folderResult = await GpxFolder.query.byUser({ userId: "GLOBAL" }).go();
@@ -66,6 +72,7 @@ export async function GET() {
             return {
               fileId: file.fileId,
               fileName: file.fileName,
+              title: titles.get(file.fileId) ?? titles.get(file.fileName),
               downloadUrl,
               bounds: file.bounds,
               totalDistance: file.totalDistance,

@@ -40,6 +40,7 @@ const GLOW_BLUR = 6;
 export type PublicMap = {
     fileId: string;
     fileName: string;
+    title?: string; // CMS-curated title (keyed by gpxFileId); falls back to filename
     downloadUrl: string;
     bounds?: { minLat: number; maxLat: number; minLon: number; maxLon: number };
     totalDistance?: number;
@@ -117,9 +118,10 @@ function popupHtml(m: PublicMap, folderName: string): string {
         <div style="min-width:180px;max-width:260px;padding:10px 12px;border-left:4px solid ${m.color};
                     font-family:system-ui,sans-serif;color:#e4e4ef">
             <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">${escapeHtml(folderName)}</div>
-            <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(prettyRouteName(m.fileName))}</div>
+            <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(m.title || prettyRouteName(m.fileName))}</div>
             ${meta}
             ${download}
+            <div style="margin-top:8px;font-size:9px;font-family:ui-monospace,monospace;opacity:.35;user-select:all">id: ${escapeHtml(m.fileId)}</div>
         </div>`;
 }
 
