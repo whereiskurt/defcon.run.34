@@ -114,10 +114,14 @@ locals {
             value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },
           {
-            # Internal CMS worker URL via service discovery (container-to-container)
-            # — used server-side to fetch curated Route titles for public overlays.
+            # Internal CMS URL via service discovery (container-to-container) —
+            # used server-side to fetch curated Route titles for public overlays.
+            # Points at the MASTER: the read-only API token is minted by the
+            # master and the worker replica rejects it (401, API-token hash /
+            # Litestream sync mismatch). us-east-1 only today, which matches
+            # this us1 manifest. (Kurt 2026-07-04)
             name  = "CMS_INTERNAL_URL"
-            value = "http://run-cms-worker.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:1337"
+            value = "http://run-cms-master.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:1337"
           }
         ]
 

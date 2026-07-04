@@ -42,7 +42,10 @@ export async function fetchRouteTitles(): Promise<Map<string, string>> {
       cache: "no-store",
       signal: controller.signal,
     });
-    if (!res.ok) return titles;
+    if (!res.ok) {
+      console.warn(`[run.gpx strapi] route titles fetch: HTTP ${res.status}`);
+      return titles;
+    }
 
     const json = (await res.json()) as {
       data?: Array<{ gpxFileId?: string | null; name?: string | null }>;
@@ -50,8 +53,9 @@ export async function fetchRouteTitles(): Promise<Map<string, string>> {
     for (const r of json.data ?? []) {
       if (r.gpxFileId && r.name) titles.set(r.gpxFileId, r.name);
     }
-  } catch {
+  } catch (err) {
     // CMS unconfigured / unreachable / slow → fall back to filenames.
+    console.warn("[run.gpx strapi] route titles fetch failed:", err);
   } finally {
     clearTimeout(timer);
   }
