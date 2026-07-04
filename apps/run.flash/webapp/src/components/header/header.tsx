@@ -14,7 +14,7 @@ import { useSession } from 'next-auth/react';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
-import { FaTrophy } from 'react-icons/fa';
+import { PiPersonSimpleRun } from 'react-icons/pi';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -47,10 +47,15 @@ const basePath = process.env.NODE_ENV === 'production'
 
 const APP_VERSION_TOOLTIP = `DC34 Flash ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
+// Region for cross-app deep links into run.defcon.run — always region-prefixed
+// (run.defcon.run is region-mounted even when this app runs locally).
+const runRegion = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
+
+// Aligned with run/bib desktop nav: Maps · Meshtastic · Bib.
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
-  { href: 'https://run.defcon.run/leaderboard', label: 'Leaderboard', icon: FaTrophy, external: true },
-  { href: 'https://run.defcon.run/meshtastic', label: 'Meshtastic', icon: FaRadio, external: true },
+  { href: `https://run.defcon.run/${runRegion}/meshtastic`, label: 'Meshtastic', icon: FaRadio, external: true },
+  { href: 'https://bib.defcon.run', label: 'Bib', icon: PiPersonSimpleRun, external: true },
 ] as const;
 
 export function Header() {

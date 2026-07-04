@@ -20,6 +20,9 @@ import { FiShield, FiMenu } from "react-icons/fi";
  */
 const iconClasses = "text-lg text-default-400 pointer-events-none flex-shrink-0";
 
+// Region-prefixed cross-app deep link into run.defcon.run (region-less misroutes).
+const runRegion = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
+
 export function MenuDropdown({ isAdmin = false }: { isAdmin?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
@@ -80,7 +83,7 @@ export function MenuDropdown({ isAdmin = false }: { isAdmin?: boolean }) {
           key="meshtastic"
           textValue="Meshtastic"
           startContent={<FaRadio className={iconClasses} />}
-          onPress={() => ext("https://run.defcon.run/meshtastic")}
+          onPress={() => ext(`https://run.defcon.run/${runRegion}/meshtastic`)}
         >
           <span className="text-base">Meshtastic</span>
         </DropdownItem>

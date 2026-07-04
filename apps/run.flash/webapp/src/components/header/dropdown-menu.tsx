@@ -16,7 +16,9 @@ import { GrMapLocation } from 'react-icons/gr';
 import { Zap } from 'lucide-react';
 import { MenuIcon } from './icon/menu';
 
-const RUN_BASE = 'https://run.defcon.run';
+// Region-prefixed so cross-app deep links into run.defcon.run route correctly
+// (run.defcon.run is mounted under /{region}; a region-less path misroutes).
+const RUN_BASE = `https://run.defcon.run/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`;
 const GPX_BASE = 'https://gpx.defcon.run';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
