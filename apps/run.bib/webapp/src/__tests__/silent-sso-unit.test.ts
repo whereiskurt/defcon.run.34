@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   resolveSilentStatus,
   decideParentAction,
+  resolveRegion,
+  silentCallbackPath,
   SILENT_SSO_MESSAGE_TYPE,
   SILENT_SSO_TIMEOUT_MS,
 } from "@/lib/silent-sso";
@@ -131,5 +133,46 @@ describe("SILENT_SSO_TIMEOUT_MS", () => {
     expect(typeof SILENT_SSO_TIMEOUT_MS).toBe("number");
     expect(SILENT_SSO_TIMEOUT_MS).toBeGreaterThanOrEqual(4000);
     expect(SILENT_SSO_TIMEOUT_MS).toBeLessThanOrEqual(5000);
+  });
+});
+
+describe("resolveRegion() — never empty (path -> cookie -> default)", () => {
+  it("uses the region already in the path", () => {
+    expect(resolveRegion("/use1/studio", "")).toBe("use1");
+    expect(resolveRegion("/cac1/", "")).toBe("cac1");
+  });
+
+  it("path region wins over the cookie", () => {
+    expect(resolveRegion("/use1/x", "preferred-region=cac1")).toBe("use1");
+  });
+
+  it("falls back to the preferred-region cookie when the path has no region", () => {
+    expect(resolveRegion("/", "preferred-region=cac1")).toBe("cac1");
+    expect(resolveRegion("/signin", "foo=bar; preferred-region=cac1")).toBe("cac1");
+  });
+
+  it("falls back to the default region (use1) when neither path nor cookie is valid", () => {
+    expect(resolveRegion("/", "")).toBe("use1");
+    expect(resolveRegion("/signin", "preferred-region=bogus")).toBe("use1");
+    expect(resolveRegion("/api/auth/auto-signin", "")).toBe("use1");
+  });
+
+  it("NEVER returns an empty string (the region-less-URL regression guard)", () => {
+    for (const [p, c] of [
+      ["/", ""],
+      ["/signin", ""],
+      ["/silent-callback", "preferred-region="],
+      ["/api/auth/auto-signin", "preferred-region=nope"],
+    ] as const) {
+      expect(resolveRegion(p, c)).not.toBe("");
+    }
+  });
+});
+
+describe("silentCallbackPath() — always region-prefixed", () => {
+  it("prefixes with the resolved region, never bare /silent-callback", () => {
+    expect(silentCallbackPath("/use1/x", "")).toBe("/use1/silent-callback");
+    expect(silentCallbackPath("/", "preferred-region=cac1")).toBe("/cac1/silent-callback");
+    expect(silentCallbackPath("/", "")).toBe("/use1/silent-callback");
   });
 });
