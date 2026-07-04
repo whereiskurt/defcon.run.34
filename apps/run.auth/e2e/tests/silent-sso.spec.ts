@@ -174,6 +174,23 @@ function chainTouchesLogin(hops: Hop[]): boolean {
   });
 }
 
+/** True if any hop's Location targets the server interaction-completion route. */
+function chainTargetsInteractionRoute(hops: Hop[]): boolean {
+  return hops.some((h) => {
+    if (!h.location) return false;
+    try {
+      return new URL(h.location, h.url).pathname.includes('/api/oidc/interaction/');
+    } catch {
+      return false;
+    }
+  });
+}
+
+/** The hop whose URL *is* the interaction route (i.e. the route we fetched). */
+function interactionRouteHop(hops: Hop[]): Hop | undefined {
+  return hops.find((h) => h.url.includes('/api/oidc/interaction/'));
+}
+
 /** Probe the IdP once; used to skip the suite when no server is reachable. */
 async function idpReachable(request: APIRequestContext): Promise<boolean> {
   try {
@@ -277,5 +294,87 @@ test.describe('Silent SSO — IdP integration (prompt=none + interaction route)'
     ).toMatch(/login_required|interaction_required|consent_required|account_selection_required/);
     // Never a silent code for an unauthenticated caller.
     expect(targetUrl.searchParams.get('code')).toBeNull();
+  });
+
+  test('Case C: an interactive authorize with no session redirects into the interaction route (interactions.url target)', async ({
+    request,
+  }) => {
+    console.log('\n[TEST] Case C — interactions.url resolves to the interaction route');
+
+    // Fresh context (no cookies). A normal (non-none) authorize needs interaction,
+    // so the provider redirects to interactions.url — which plan-01 repointed from
+    // `${loginPage}?oidc=` to the server route `/{region}/api/oidc/interaction/{uid}`.
+    const hops = await walkRedirects(request, buildAuthorizeUrl());
+    console.log(hops.map((h) => `  ${h.status} ${h.url} -> ${h.location ?? ''}`).join('\n'));
+
+    expect(
+      chainTargetsInteractionRoute(hops),
+      'interactions.url must target /api/oidc/interaction/, not ?oidc= on /login',
+    ).toBe(true);
+  });
+
+  test('Case D: an authenticated interaction completes without ever rendering /login', async ({
+    page,
+  }) => {
+    test.skip(
+      !hasCookieJarForUser(USER_ROLE),
+      `No cookie jar for ${USER_ROLE} — run setup/acquire-credentials.spec.ts first`,
+    );
+
+    console.log(`\n[TEST] Case D — authenticated interaction for ${getEmailForRole(USER_ROLE)}`);
+
+    // Warm session: sess_auth present -> the interaction route completes the
+    // interaction server-side (interactionResult) and continues the OIDC flow to
+    // the client redirect_uri with a code, never bouncing to the /login page.
+    const loaded = await loadCookiesForUser(page.context(), USER_ROLE);
+    expect(loaded).toBe(true);
+
+    const hops = await walkRedirects(page.request, buildAuthorizeUrl());
+    console.log(hops.map((h) => `  ${h.status} ${h.url} -> ${h.location ?? ''}`).join('\n'));
+
+    // It routed through the interaction route (proving completion happens there)...
+    expect(chainTargetsInteractionRoute(hops)).toBe(true);
+    // ...and the /login page was never rendered for the authenticated user.
+    expect(
+      chainTouchesLogin(hops),
+      'authenticated interaction must not render /login',
+    ).toBe(false);
+    // The flow continued to a code at the client redirect_uri (interaction completed).
+    const target = finalLocation(hops);
+    expect(target, 'authenticated flow should terminate in a redirect').toBeTruthy();
+    const targetUrl = new URL(target!, BASE_URL);
+    expect(targetUrl.origin).toBe(new URL(REDIRECT_URI).origin);
+    expect(
+      targetUrl.searchParams.get('code'),
+      'authenticated interaction should complete with an authorization code',
+    ).toBeTruthy();
+  });
+
+  test('Case E: an unauthenticated interaction still redirects to /{region}/login?oidc={uid}', async ({
+    request,
+  }) => {
+    console.log('\n[TEST] Case E — unauthenticated interaction falls back to /login');
+
+    // Fresh context (no session). The authorize -> interaction route chain must
+    // preserve the login fallback: with no sess_auth the interaction route
+    // redirects to the region-prefixed /login carrying the interaction uid.
+    const hops = await walkRedirects(request, buildAuthorizeUrl());
+    console.log(hops.map((h) => `  ${h.status} ${h.url} -> ${h.location ?? ''}`).join('\n'));
+
+    const interHop = interactionRouteHop(hops);
+    expect(interHop, 'chain should traverse the interaction route').toBeTruthy();
+    expect(interHop!.location, 'interaction route should redirect somewhere').toBeTruthy();
+
+    const loginTarget = new URL(interHop!.location!, interHop!.url);
+    // Region-prefixed in prod (/{region}/login), bare in dev (/login).
+    expect(loginTarget.pathname.endsWith('/login')).toBe(true);
+    if (REGION_PREFIX) {
+      expect(loginTarget.pathname).toBe(`${REGION_PREFIX}/login`);
+    }
+    // The interaction uid is preserved via the ?oidc= param and matches the route uid.
+    const oidcParam = loginTarget.searchParams.get('oidc');
+    expect(oidcParam, 'login fallback must preserve the interaction uid via ?oidc=').toBeTruthy();
+    const uidFromPath = new URL(interHop!.url).pathname.split('/').filter(Boolean).pop();
+    expect(oidcParam).toBe(uidFromPath);
   });
 });
