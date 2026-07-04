@@ -1,0 +1,73 @@
+{
+  "updated": "2026-07-04 02:09:18 UTC",
+  "poll_seconds": 300,
+  "regions": [
+    {
+      "id": "use1",
+      "deployed": true
+    },
+    {
+      "id": "cac1",
+      "deployed": false
+    },
+    {
+      "id": "apse1",
+      "deployed": false
+    }
+  ],
+  "services": [
+    {
+      "id": "auth",
+      "name": "run.auth",
+      "host": "auth.defcon.run",
+      "link": "https://auth.defcon.run",
+      "version": "v0.0.12",
+      "state": "live",
+      "note": "Authentication & sign-in"
+    },
+    {
+      "id": "human",
+      "name": "run.human",
+      "host": "run.defcon.run",
+      "link": "https://run.defcon.run",
+      "version": "v0.0.11",
+      "state": "dev",
+      "note": "Main run site"
+    },
+    {
+      "id": "gpx",
+      "name": "run.gpx",
+      "host": "gpx.defcon.run",
+      "link": "https://gpx.defcon.run",
+      "version": "v0.0.9",
+      "state": "dev",
+      "note": "GPX editor & route overlays"
+    },
+    {
+      "id": "flash",
+      "name": "run.flash",
+      "host": "flash.defcon.run",
+      "link": "https://flash.defcon.run",
+      "version": "v0.0.10",
+      "state": "live",
+      "note": "Radio flashing flow"
+    },
+    {
+      "id": "bib",
+      "name": "run.bib",
+      "host": "bib.defcon.run",
+      "link": "https://bib.defcon.run",
+      "version": "v0.0.20",
+      "state": "dev",
+      "note": "Bib registration"
+    },
+    {
+      "id": "cms",
+      "name": "run.cms",
+      "host": "cms.defcon.run",
+      "version": "v0.0.8",
+      "state": "dev",
+      "note": "Content & routes (admin only)"
+    }
+  ]
+}

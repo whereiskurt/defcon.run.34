@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>status.defcon.run</title>
+<meta name="description" content="DEF CON 34 // run.defcon.run — service status" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700&family=Inter:wght@400;500;600&family=Fira+Code:wght@400;500&family=Atkinson+Hyperlegible&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --live:#22c55e; --dev:#f59e0b; --down:#ef4444; --party:#a855f7;
+    --font-sans:'Inter',system-ui,sans-serif;
+    --font-mono:'Fira Code',ui-monospace,monospace;
+    --font-museo:'MuseoModerno','Inter',sans-serif;
+  }
+  html.dark {
+    --bg:#0a0a0f; --surface:#111118; --raised:#1a1a24; --border:#2a2a3a;
+    --fg:#e4e4ef; --muted:#8888a0; --brand:#00d4aa; --faint:#555570;
+    --card-bg:rgba(17,17,24,.8); --card-hover:#3a3a4a;
+  }
+  html.light {
+    --bg:#fafafa; --surface:#ffffff; --raised:#f5f5f5; --border:#e0e0e0;
+    --fg:#18181b; --muted:#6b7280; --brand:#00a888; --faint:#9ca3af;
+    --card-bg:rgba(255,255,255,.85); --card-hover:#cccccc;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; padding:0; }
+  body {
+    background:var(--bg); color:var(--fg); font-family:var(--font-sans);
+    min-height:100vh; -webkit-font-smoothing:antialiased; overflow-x:hidden;
+    transition:background .3s, color .3s;
+  }
+  body::before {
+    content:''; position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.03;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    background-size:256px 256px;
+  }
+  html.light body::before { opacity:.02; }
+  .wrap { position:relative; z-index:1; max-width:860px; margin:0 auto; padding:48px 24px 80px; }
+
+  .theme-toggle {
+    position:fixed; top:18px; right:18px; z-index:60;
+    background:var(--card-bg); border:1px solid var(--border); color:var(--fg);
+    font-family:var(--font-mono); font-size:.8rem; border-radius:999px;
+    padding:8px 14px; cursor:pointer; backdrop-filter:blur(12px); transition:.2s;
+  }
+  .theme-toggle:hover { border-color:var(--brand); box-shadow:0 0 16px #00d4aa20; }
+
+  .kicker { font-family:var(--font-mono); font-size:.7rem; letter-spacing:.28em; text-transform:uppercase; color:var(--brand); }
+  h1 { font-family:var(--font-museo); font-weight:700; font-size:2.6rem; margin:.2em 0 .1em; letter-spacing:-.01em; }
+  h1 .slash { color:var(--brand); }
+  .sub { font-family:var(--font-mono); font-size:.8rem; color:var(--muted); display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+  .sub .live-dot { width:7px; height:7px; border-radius:50%; background:var(--live); box-shadow:0 0 8px var(--live); display:inline-block; animation:blink 2s infinite; }
+  @keyframes blink { 50%{opacity:.35;} }
+  .regions { display:inline-flex; gap:6px; align-items:center; }
+  .rchip { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:999px; border:1px solid var(--border); font-size:.72rem; }
+  .rchip .rd { width:6px; height:6px; border-radius:50%; }
+  .rchip.on { color:var(--fg); border-color:var(--live); }
+  .rchip.on .rd { background:var(--live); box-shadow:0 0 8px var(--live); }
+  .rchip.off { color:var(--faint); opacity:.55; }
+  .rchip.off .rd { background:var(--faint); }
+
+  .marquee { margin:22px 0 2px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent); mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent); }
+  .marquee .track { display:inline-block; padding:9px 0; font-family:var(--font-mono); font-size:.76rem; letter-spacing:.06em; color:var(--brand); animation:scroll 34s linear infinite; }
+  .marquee .track span { margin:0 30px; }
+  .marquee .track span::before { content:'▚ '; color:var(--faint); }
+  .marquee:hover .track { animation-play-state:paused; }
+  @keyframes scroll { from{transform:translateX(0);} to{transform:translateX(-50%);} }
+
+  .banner {
+    margin:28px 0 32px; padding:18px 22px; border-radius:14px;
+    background:rgba(34,197,94,.06); border:1px solid rgba(34,197,94,.35);
+    display:flex; align-items:center; gap:16px; transition:.3s;
+  }
+  .banner.degraded { background:rgba(245,158,11,.06); border-color:rgba(245,158,11,.4); }
+  .banner .bigdot { width:16px; height:16px; border-radius:50%; background:var(--live); box-shadow:0 0 20px var(--live); animation:pulse 3s ease-in-out infinite; flex:none; }
+  .banner.degraded .bigdot { background:var(--dev); box-shadow:0 0 20px var(--dev); }
+  .banner .btxt { font-family:var(--font-museo); font-weight:700; font-size:1.1rem; }
+  .banner .bsub { font-family:var(--font-mono); font-size:.72rem; color:var(--muted); }
+  @keyframes pulse { 0%,100%{transform:scale(1);opacity:1;} 50%{transform:scale(1.15);opacity:.75;} }
+
+  .grid { display:grid; gap:14px; }
+  .card {
+    background:var(--card-bg); backdrop-filter:blur(12px);
+    border:1px solid var(--border); border-radius:14px; padding:18px 20px;
+    display:flex; align-items:center; gap:18px; transition:.25s;
+  }
+  .card:hover { border-color:var(--card-hover); box-shadow:0 0 24px #00d4aa10; }
+  a.card { text-decoration:none; color:inherit; cursor:pointer; }
+  a.card.linked:hover { border-color:var(--brand); box-shadow:0 0 24px #00d4aa22; }
+  a.card.linked .host::after { content:' ↗'; color:var(--brand); }
+  .dot { width:14px; height:14px; border-radius:50%; flex:none; position:relative; }
+  .dot::after { content:''; position:absolute; inset:-6px; border-radius:50%; opacity:.5; animation:ring 2.4s ease-out infinite; }
+  .s-live .dot { background:var(--live); box-shadow:0 0 14px var(--live); }
+  .s-live .dot::after { box-shadow:0 0 0 2px var(--live); }
+  .s-dev .dot { background:var(--dev); box-shadow:0 0 14px var(--dev); }
+  .s-dev .dot::after { box-shadow:0 0 0 2px var(--dev); }
+  .s-down .dot { background:var(--down); box-shadow:0 0 14px var(--down); }
+  .s-down .dot::after { box-shadow:0 0 0 2px var(--down); }
+  @keyframes ring { 0%{transform:scale(.6);opacity:.6;} 100%{transform:scale(1.5);opacity:0;} }
+  .card .name { font-family:var(--font-museo); font-weight:700; font-size:1.05rem; }
+  .card .ver { font-family:var(--font-mono); font-weight:400; font-size:.7rem; color:var(--faint); margin-left:7px; }
+  .card .note { font-family:var(--font-sans); font-size:.82rem; color:var(--muted); margin-top:2px; }
+  .card .meta { margin-left:auto; text-align:right; }
+  .badge { font-family:var(--font-mono); font-size:.66rem; letter-spacing:.15em; text-transform:uppercase; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+  .s-live .badge { color:var(--live); background:rgba(34,197,94,.12); }
+  .s-dev .badge { color:var(--dev); background:rgba(245,158,11,.12); }
+  .s-down .badge { color:var(--down); background:rgba(239,68,68,.12); }
+  .card .host { display:block; font-family:var(--font-mono); font-size:.68rem; color:var(--faint); margin-top:6px; }
+
+  .card.birthday { border-color:var(--party); box-shadow:0 0 30px rgba(168,85,247,.25); animation:slidein .5s ease-out; }
+  @keyframes slidein { from{opacity:0;transform:translateY(-16px) scale(.97);} to{opacity:1;transform:none;} }
+  .card.birthday .avatar { width:52px; height:52px; border-radius:12px; flex:none; object-fit:cover; border:2px solid var(--party); }
+  .card.birthday .name { color:var(--party); }
+  .card.birthday .badge { color:var(--party); background:rgba(168,85,247,.14); }
+  .rsvp {
+    display:inline-block; margin-top:6px; font-family:var(--font-mono); font-size:.72rem;
+    color:var(--party); text-decoration:none; border:1px solid var(--party);
+    border-radius:999px; padding:4px 12px; transition:.2s;
+  }
+  .rsvp:hover { background:rgba(168,85,247,.14); box-shadow:0 0 14px rgba(168,85,247,.4); }
+
+  footer { margin-top:40px; font-family:var(--font-mono); font-size:.7rem; color:var(--faint); text-align:center; line-height:1.9; }
+
+  #matrix { position:fixed; inset:0; z-index:50; display:none; background:#000; }
+  body.matrix #matrix { display:block; }
+  .mtag { position:fixed; z-index:51; top:16px; left:50%; transform:translateX(-50%); display:none;
+    font-family:var(--font-mono); font-size:.7rem; letter-spacing:.3em; color:var(--live); text-shadow:0 0 8px var(--live); }
+  body.matrix .mtag { display:block; }
+</style>
+</head>
+<body data-region="use1" data-egg="c2VlIHlvdSwgbmV0cnVubmVy">
+<!--
+   (\(\
+   ( -.-)      dc34 // status.defcon.run
+   o_(")(")    the rabbit sees you reading the source. good.
+  ┌──────────────────────────────────────────────────────────┐
+  │  three doors are hidden in this room, netrunner:           │
+  │    1. the old rite:  up up down down left right left right B A
+  │    2. speak a legend's handle and he rises  (he has a birthday)
+  │    3. for the pocket-ghosts: five fast taps                 │
+  │  a gift, decoded:  aGFjayB0aGUgcGxhbmV0                     │
+  │  and one for the road (rot13):  gur zrfu erzrzoref         │
+  └──────────────────────────────────────────────────────────┘
+  if it's yellow, it's us — not you.  stay frosty.
+-->
+  <canvas id="matrix"></canvas>
+  <div class="mtag">// MATRIX MODE — TAP OR PRESS ESC TO EXIT //</div>
+
+  <div id="ghost" hidden aria-hidden="true"
+       data-flag="dc34{th3_m3sh_r3m3mb3rs}"
+       data-hint="konami · a whispered name · five taps"
+       data-next="/use1/status.json">
+    you found the ghost in the machine. now find the other three. — kph
+  </div>
+
+  <button class="theme-toggle" id="themeToggle">🌙 dark</button>
+
+  <div class="wrap">
+    <div class="kicker">DEFCON.RUN // SYSTEM STATUS</div>
+    <h1>status<span class="slash">.</span>defcon<span class="slash">.</span>run</h1>
+    <div class="sub">
+      <span class="regions" id="regions">regions</span>
+      <span id="updated">loading…</span>
+      <span id="refresh"></span>
+    </div>
+
+    <div class="marquee"><div class="track" id="marquee"></div></div>
+
+    <div class="banner" id="banner">
+      <div class="bigdot"></div>
+      <div>
+        <div class="btxt" id="banner-txt">loading status…</div>
+        <div class="bsub" id="banner-sub"></div>
+      </div>
+    </div>
+
+    <div class="grid" id="grid"></div>
+
+    <footer>you will be punished for reporting a service already marked down</footer>
+  </div>
+
+<script>
+  // ---- config ----
+  const ELKENTARO_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"; // → replace with Google Form later
+  const LABELS = { live:"● stable", dev:"◐ active dev", down:"○ offline" };
+  const STATE_WORD = { live:"stable", dev:"active dev", down:"offline" };
+
+  // ---- fallbacks (used only if the JSON files can't be fetched) ----
+  let DATA = { updated:"—", poll_seconds:300, regions:[{id:"use1",deployed:true}], services:[] };
+  let MARQUEE = ["HACK THE PLANET", "DEF CON 34 // run.defcon.run"];
+
+  function render() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    if (window.__birthday) addBirthday();
+    (DATA.services || []).forEach(s => {
+      const linked = !!s.link;
+      const el = document.createElement(linked ? 'a' : 'div');
+      el.className = 'card s-' + s.state + (linked ? ' linked' : '');
+      if (linked) { el.href = s.link; el.target = '_blank'; el.rel = 'noopener'; }
+      el.innerHTML =
+        '<div class="dot"></div>' +
+        '<div><div class="name">' + esc(s.name) + ' <span class="ver">' + esc(s.version || '') + '</span></div>' +
+        '<div class="note">' + esc(s.note || '') + '</div></div>' +
+        '<div class="meta"><span class="badge">' + (LABELS[s.state] || s.state) + '</span>' +
+        '<span class="host">' + esc(s.host || '') + '</span></div>';
+      grid.appendChild(el);
+    });
+    document.getElementById('updated').textContent = 'updated ' + (DATA.updated || '—');
+    renderRegions();
+    renderBanner();
+  }
+
+  function renderBanner() {
+    const svc = DATA.services || [];
+    const counts = { live:0, dev:0, down:0 };
+    svc.forEach(s => { if (counts[s.state] != null) counts[s.state]++; });
+    const banner = document.getElementById('banner');
+    const degraded = counts.dev > 0 || counts.down > 0;
+    banner.classList.toggle('degraded', degraded);
+    document.getElementById('banner-txt').textContent =
+      counts.down > 0 ? 'Some systems offline' :
+      counts.dev > 0  ? 'Some systems in active development' :
+                        'All systems stable';
+    document.getElementById('banner-sub').textContent =
+      svc.length + ' services monitored · ' + counts.live + ' stable · ' + counts.dev + ' active dev · ' + counts.down + ' offline';
+  }
+
+  function renderRegions() {
+    document.getElementById('regions').innerHTML = (DATA.regions || []).map(r =>
+      '<span class="rchip ' + (r.deployed ? 'on' : 'off') + '" title="' + (r.deployed ? 'deployed' : 'not deployed') + '">' +
+      '<span class="rd"></span>' + esc(r.id) + '</span>'
+    ).join('');
+  }
+
+  function renderMarquee() {
+    const items = (MARQUEE || []).map(t => '<span>' + esc(t) + '</span>').join('');
+    document.getElementById('marquee').innerHTML = items + items;
+  }
+
+  function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  // ---- elkentaro birthday egg (pinned to top) ----
+  function addBirthday() {
+    const grid = document.getElementById('grid');
+    if (document.getElementById('bday')) return;
+    const el = document.createElement('div');
+    el.id = 'bday'; el.className = 'card birthday';
+    const ph = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='104' height='104'%3E%3Crect width='104' height='104' fill='%231a1a24'/%3E%3Ctext x='52' y='58' font-size='44' text-anchor='middle' dominant-baseline='middle'%3E%F0%9F%8E%82%3C/text%3E%3C/svg%3E";
+    const img = (window.__elkImg) || ph;
+    el.innerHTML =
+      '<img class="avatar" src="' + img + '" alt="elkentaro"/>' +
+      '<div><div class="name">🎂 run.elkentaro</div>' +
+      '<div class="note">Happy birthday, elkentaro! (photo from last year)</div>' +
+      '<a class="rsvp" href="' + ELKENTARO_URL + '" target="_blank" rel="noopener">🎉 tap here →</a></div>' +
+      '<div class="meta"><span class="badge">● legend</span><span class="host">🎉 forever uptime</span></div>';
+    grid.prepend(el);
+  }
+
+  // ---- keyboard: konami + typed words ----
+  const konami = [38,38,40,40,37,39,37,39,66,65];
+  let kbuf = [], tbuf = "";
+  window.addEventListener('keydown', (e) => {
+    kbuf.push(e.keyCode); kbuf = kbuf.slice(-konami.length);
+    if (konami.every((k,i)=>kbuf[i]===k)) toggleMatrix();
+    if (e.key && e.key.length === 1) {
+      tbuf = (tbuf + e.key.toLowerCase()).slice(-20);
+      if (tbuf.includes('elkentaro')) { window.__birthday = true; addBirthday(); tbuf=''; }
+      if (tbuf.includes('matrix')) toggleMatrix();
+    }
+    if (e.key === 'Escape' && document.body.classList.contains('matrix')) toggleMatrix();
+  });
+
+  // ---- mobile: 5 rapid taps → matrix ----
+  let taps = [];
+  document.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.rsvp, a')) return;
+    const now = Date.now();
+    taps = taps.filter(t => now - t < 1500);
+    taps.push(now);
+    if (taps.length >= 5) { taps = []; toggleMatrix(); }
+  });
+
+  // ---- theme toggle (persisted) ----
+  const root = document.documentElement, tbtn = document.getElementById('themeToggle');
+  function applyTheme(mode) {
+    root.classList.remove('dark','light'); root.classList.add(mode);
+    tbtn.textContent = mode === 'dark' ? '🌙 dark' : '☀️ light';
+    try { localStorage.setItem('dcr-theme', mode); } catch(_) {}
+  }
+  let savedTheme = 'dark';
+  try { savedTheme = localStorage.getItem('dcr-theme') || 'dark'; } catch(_) {}
+  applyTheme(savedTheme);
+  tbtn.addEventListener('click', () => applyTheme(root.classList.contains('dark') ? 'light' : 'dark'));
+
+  // ---- matrix rain (auto-exit after 10s) ----
+  let mAnim = null, mTimeout = null;
+  const MATRIX_MS = 10000;
+  function toggleMatrix() {
+    const on = document.body.classList.toggle('matrix');
+    clearTimeout(mTimeout);
+    if (on) {
+      startMatrix();
+      mTimeout = setTimeout(() => { if (document.body.classList.contains('matrix')) toggleMatrix(); }, MATRIX_MS);
+    } else {
+      stopMatrix();
+      window.__birthday = true;   // exiting matrix reveals elkentaro
+      addBirthday();
+    }
+  }
+  function startMatrix() {
+    const c = document.getElementById('matrix'), x = c.getContext('2d');
+    c.width = innerWidth; c.height = innerHeight;
+    const glyphs = 'アカサタナ0123456789DEFCONRUN$#@'.split('');
+    const drops = Array(Math.floor(c.width/16)).fill(1);
+    function frame() {
+      x.fillStyle = 'rgba(0,0,0,0.06)'; x.fillRect(0,0,c.width,c.height);
+      x.fillStyle = '#00d4aa'; x.font = '15px "Fira Code", monospace';
+      for (let i=0;i<drops.length;i++){
+        x.fillText(glyphs[Math.floor(Math.random()*glyphs.length)], i*16, drops[i]*16);
+        if (drops[i]*16 > c.height && Math.random() > 0.975) drops[i]=0;
+        drops[i]++;
+      }
+      mAnim = requestAnimationFrame(frame);
+    }
+    frame();
+  }
+  function stopMatrix(){ if(mAnim) cancelAnimationFrame(mAnim); }
+
+  // ---- countdown + periodic re-fetch of status.json ----
+  let remaining = DATA.poll_seconds || 300;
+  function tickRefresh() {
+    remaining -= 1;
+    if (remaining <= 0) { fetchStatus(); remaining = DATA.poll_seconds || 300; }
+    const m = String(Math.floor(remaining/60)).padStart(2,'0');
+    const s = String(remaining % 60).padStart(2,'0');
+    document.getElementById('refresh').textContent = 'next refresh in ' + m + ':' + s;
+  }
+
+  async function fetchStatus() {
+    try {
+      const r = await fetch('./status.json', { cache:'no-store' });
+      if (r.ok) { DATA = await r.json(); render(); }
+    } catch(_) {}
+  }
+  async function fetchMarquee() {
+    try {
+      const r = await fetch('./marquee.json', { cache:'no-store' });
+      if (r.ok) { const m = await r.json(); if (Array.isArray(m.items)) MARQUEE = m.items; renderMarquee(); }
+    } catch(_) {}
+  }
+
+  // ---- boot ----
+  (async function boot(){
+    await Promise.all([fetchStatus(), fetchMarquee()]);
+    render(); renderMarquee();
+    remaining = DATA.poll_seconds || 300;
+    tickRefresh();
+    setInterval(tickRefresh, 1000);
+
+    console.log("%c dc34 // status.defcon.run ", "background:#00d4aa;color:#0a0a0f;font-weight:700;padding:4px 10px;border-radius:5px;font-family:monospace");
+    console.log("%cwell, well, well… a curious one.", "color:#00d4aa;font-family:monospace");
+    console.log("%cthree doors:  the old rite (up up down down left right left right B A)  ·  a whispered handle  ·  five fast taps", "color:#8888a0;font-family:monospace");
+    console.log("%cclue >", "color:#f59e0b;font-family:monospace", atob("aGFjayB0aGUgcGxhbmV0"));
+    console.log("%crot13 >", "color:#f59e0b;font-family:monospace", "gur zrfu erzrzoref");
+  })();
+</script>
+</body>
+</html>
