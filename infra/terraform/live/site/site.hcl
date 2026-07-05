@@ -432,6 +432,12 @@ locals {
     }
 
     # --- Consumed by 40-06 (surfaced here now so both plans read one source) ---
+    # These feed the admin-reports module inputs (mapped in the terragrunt unit):
+    #   alert_email                      -> sns_alarm_email
+    #   thresholds.signups_per_hour      -> threshold_signups_per_hour
+    #   thresholds.gpx_uploads_per_hour  -> threshold_gpx_uploads_per_hour
+    #   thresholds.alb_5xx_per_5min      -> threshold_alb_5xx_per_5min
+    # (the ALB anomaly alarm has no threshold — the band self-trains.)
     # SNS tripwire email; override via TF_VAR_ADMIN_EMAIL.
     alert_email = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
 
