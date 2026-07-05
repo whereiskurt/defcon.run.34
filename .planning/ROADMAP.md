@@ -348,3 +348,21 @@ Plans:
 **Cross-cutting constraints:**
 
 - logEvent never throws and extracts the first x-forwarded-for hop as ip
+
+### Phase 41: Abuse Detection
+
+**Goal:** Operator wakes up to already-triaged email alerts identifying an overnight pentester/abuser by IP + User-Agent — one for an IP active >2h continuously, one for a POST/request-rate outlier — driven by Athena over the existing ALB access logs, alerting through the Phase 40 SNS topic, with an automation-ready JSON finding seam for later AWS WAF IP-set / Impart.security enforcement. Ships gated off (enabled=false).
+**Spec:** docs/superpowers/specs/2026-07-05-abuse-detection-design.md (approved 2026-07-05)
+**Requirements**: AD-01 (Glue table + partition projection over ALB logs), AD-02 (Athena workgroup + scan cap), AD-03 (sustained-activity >2h detection query), AD-04 (POST/request-rate outlier query), AD-05 (abuse-detector Lambda + EventBridge cron), AD-06 (per-offender SNS alert via Phase 40 topic + dedup/escalation state), AD-07 (daily S3 report + JSONL finding schema), AD-08 (site.hcl-parameterized thresholds + enabled gate)
+**Depends on:** Phase 40 (reuses the dcr-admin-reports-tripwire SNS topic; realizes the deferred Athena-over-access-logs work)
+
+Deliverables (from spec):
+- Terraform module `abuse-detection/v1.0.0`: Glue table `alb_access_logs` (partition projection, ALB-log SerDe), Athena workgroup `dcr-abuse-analysis` (bytes-scanned cap), `abuse-detector` Lambda + EventBridge cron, dedup/escalation store, daily S3 report bucket/prefix
+- Two parameterized Athena detection queries (sustained-activity sessionization; 5-min rate outlier)
+- Alert path reusing the Phase 40 SNS topic; automation-ready JSON finding schema (WAF/Impart seam — not built)
+- `site.hcl` `abuse_detection` block (thresholds + enabled gate), tight pre-con defaults
+- Out of scope: enabling AWS WAF + IP-set auto-block, Impart.security integration, CloudFront-log correlation
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 41 to break down)
