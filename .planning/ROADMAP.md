@@ -316,7 +316,7 @@ Plans:
 
 **Goal:** Operator can see who is doing what (signups, logins, gpx uploads/shares, checkins), how many distinct users/IPs are active, and get tripwire alerts on anomalous activity — all CloudWatch-native, leveraging existing ALB/CloudFront/ECS logs. Pre-con posture: baseline ~zero, any activity is signal.
 **Spec:** docs/superpowers/specs/2026-07-05-admin-activity-reports-design.md (approved 2026-07-05)
-**Requirements**: TBD (derive from spec at plan time)
+**Requirements**: AR-01 (logEvent helper), AR-02 (event call sites), AR-03 (admin-reports TF module), AR-04 (metric filters), AR-05 (dashboard), AR-06 (saved queries), AR-07 (tripwire alarms), AR-08 (log retention + Mapbox/Strava quota)
 **Depends on:** none (existing logging infra already enabled)
 **Plans:** 0 plans
 
