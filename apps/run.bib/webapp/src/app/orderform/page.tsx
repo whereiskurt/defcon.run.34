@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/config/auth";
 import GetYourBib from "@/components/GetYourBib";
 import SponsorForm from "@/components/SponsorForm";
+import { WillPayInPersonCheckbox } from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
 import { listPendingForOwner } from "@/entities/pending-contribution";
@@ -149,6 +150,11 @@ export default async function Home({ searchParams }: HomeProps) {
   // "I'll pay in person" pledge — it's only meaningful pre-payment.
   const hasTransacted = hasSponsored || donationTotal > 0;
 
+  // Pay-in-person state, threaded to the checkbox (now living in the tile grid
+  // per Plan 34-03) and used to seed the bib preview's cash-rain on load.
+  const willPayInitial = bib.willPayInPerson === true;
+  const showCheckbox = !hasTransacted;
+
   return (
     // Transparent container — the root layout now paints the dark background,
     // the Vegas parallax, and the glass-nav header around this content.
@@ -203,80 +209,77 @@ export default async function Home({ searchParams }: HomeProps) {
       )}
 
       {/* Get your bib — name first (A3), live preview below. GetYourBib is a
-        * client wrapper so checking "contribute in person" rains cash over
-        * the bib preview (Kurt 2026-07-03). */}
+        * thin client wrapper; checking "contribute in person" (now in the tile
+        * grid below) rains cash over the bib preview via the rain-store
+        * singleton (Plan 34-03). */}
       <GetYourBib
-        showCheckbox={!hasTransacted}
-        willPayInitial={bib.willPayInPerson === true}
         bibForm={{
           initialName: bib.nameOnBib || "",
           nameLocked: bib.nameLocked === true,
           hasSponsored,
           initialRenamesRemaining: renamesRemaining,
           runnerCode: bib.runnerCode,
+          initialRaining: willPayInitial,
         }}
       />
 
         <TransactionHistory totalCents={totalCents} txns={txns} />
 
-        {/* Sections 2 + 3: Sponsor + Donate. Side-by-side tiles on desktop,
-          * stacked on mobile (minWidth:0 lets the grid items shrink below
-          * their content's min-content so auto-fit can place two columns).
-          * When the bib is already covered (paid or pay-in-person) the buy
-          * flow is hidden and only "Just donate" shows, full width. */}
-        {hideBuyBib ? (
-          <div>
-            {/* hasSponsored gets the big THANK YOU up top; the pay-in-person
-              * pledge still shows its reserved note here. */}
-            {!hasSponsored && (
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  color: "#7fdc9e",
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                You&apos;re paying in person — your bib is reserved.
-              </p>
-            )}
-            <Tile
-              kicker="Support"
-              title="Just donate"
-              body="Contribute anyway — support goes directly to defcon.run 34."
-              art={<DonateArt />}
-            >
-              <SponsorForm
-                variant="general"
-                ctaLabel="Donate"
-                runnerCode={bib.runnerCode}
-              />
-            </Tile>
-          </div>
-        ) : (
-          <div
+        {/* Reserved note when paying in person (pre-payment). hasSponsored
+          * gets the big THANK YOU up top instead. */}
+        {hideBuyBib && !hasSponsored && (
+          <p
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 20,
+              margin: "0 0 12px",
+              color: "#7fdc9e",
+              fontSize: 14,
+              fontWeight: 600,
             }}
           >
+            You&apos;re paying in person — your bib is reserved.
+          </p>
+        )}
+
+        {/* Sections 2 + 3 + the pay-in-person checkbox. Responsive tile grid
+          * (SC34.4, Plan 34-03): single column on mobile, 2-col ≥640px. DOM
+          * order is Sponsor → checkbox → Donate; explicit `order` utilities put
+          * the checkbox BETWEEN the tiles on mobile and FULL-WIDTH BELOW both on
+          * desktop. Only this wrapper uses Tailwind — the tiles keep their inline
+          * styles. Checking the checkbox still hides the Sponsor tile (hideBuyBib,
+          * decision 5) and rains cash over the preview via the rain-store. */}
+        <div className="grid gap-5 sm:grid-cols-2">
+          {!hideBuyBib && (
+            <div className="order-1 sm:order-1" style={{ minWidth: 0 }}>
+              <Tile
+                kicker="This"
+                title="Sponsor this bib"
+                body="Contributions attach to your bib and help fund defcon.run 34."
+                art={<SponsorArt />}
+              >
+                <SponsorForm
+                  variant="bib"
+                  ctaLabel="Sponsor"
+                  runnerCode={bib.runnerCode}
+                />
+              </Tile>
+            </div>
+          )}
+
+          {showCheckbox && (
+            <div className="order-2 sm:order-3 sm:col-span-2">
+              <WillPayInPersonCheckbox initialValue={willPayInitial} />
+            </div>
+          )}
+
+          <div className="order-3 sm:order-2" style={{ minWidth: 0 }}>
             <Tile
-              kicker="This"
-              title="Sponsor this bib"
-              body="Contributions attach to your bib and help fund defcon.run 34."
-              art={<SponsorArt />}
-            >
-              <SponsorForm
-                variant="bib"
-                ctaLabel="Sponsor"
-                runnerCode={bib.runnerCode}
-              />
-            </Tile>
-            <Tile
-              kicker="or That"
+              kicker={hideBuyBib ? "Support" : "or That"}
               title="Just donate"
-              body="Not running? Contribute anyway — support goes directly to defcon.run 34."
+              body={
+                hideBuyBib
+                  ? "Contribute anyway — support goes directly to defcon.run 34."
+                  : "Not running? Contribute anyway — support goes directly to defcon.run 34."
+              }
               art={<DonateArt />}
             >
               <SponsorForm
@@ -286,7 +289,7 @@ export default async function Home({ searchParams }: HomeProps) {
               />
             </Tile>
           </div>
-        )}
+        </div>
       </div>
   );
 }

@@ -5,6 +5,7 @@ import BibPreview from "./BibPreview";
 import { CashRain } from "./CashRain";
 import { solveAltcha } from "@/lib/altcha-client";
 import { registerBibFlusher } from "@/lib/pending-bib-save";
+import { getRaining, subscribe as subscribeRain } from "@/lib/rain-store";
 
 /**
  * BibForm
@@ -29,8 +30,13 @@ export interface BibFormProps {
   initialRenamesRemaining: number;
   /** Runner code — passed through to BibPreview for the tear-off QR. */
   runnerCode?: string;
-  /** When true, rain USD bills over the bib preview (pay-in-person pledge). */
-  raining?: boolean;
+  /**
+   * Seed value for the cash-rain overlay on first render (the server-side
+   * pay-in-person pledge). After mount, live rain state comes from the shared
+   * `rain-store` singleton the checkbox pushes to (Plan 34-03) — the checkbox
+   * is no longer a React sibling, so it can't pass `raining` down directly.
+   */
+  initialRaining?: boolean;
 }
 
 const API_BIB_PATH = "/api/bib";
@@ -52,7 +58,7 @@ export function BibForm({
   hasSponsored = false,
   initialRenamesRemaining,
   runnerCode,
-  raining = false,
+  initialRaining = false,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
   const [savedName, setSavedName] = useState<string>(initialName);
@@ -61,6 +67,16 @@ export function BibForm({
     initialRenamesRemaining
   );
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
+
+  // Cash-rain now crosses the (former) sibling boundary via the rain-store
+  // singleton (Plan 34-03). Seed from the server-side pledge, then track the
+  // checkbox's pushes. Re-seed from the store on mount too, in case the
+  // checkbox toggled before this effect registered its subscription.
+  const [raining, setRainingState] = useState<boolean>(initialRaining);
+  useEffect(() => {
+    setRainingState((prev) => prev || getRaining());
+    return subscribeRain(setRainingState);
+  }, []);
 
   const dirty = name !== savedName;
   const quotaSpent = renamesRemaining <= 0;

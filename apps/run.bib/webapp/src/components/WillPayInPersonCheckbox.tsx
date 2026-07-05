@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { solveAltcha } from "@/lib/altcha-client";
+import { setRaining } from "@/lib/rain-store";
 
 /**
  * WillPayInPersonCheckbox (Phase 22-05, Kurt 2026-07-02 rescope).
@@ -42,13 +43,10 @@ type SaveState =
 
 export interface WillPayInPersonCheckboxProps {
   initialValue: boolean;
-  /** Bubbles the checked state up so the page can rain cash over the bib. */
-  onCheckedChange?: (checked: boolean) => void;
 }
 
 export function WillPayInPersonCheckbox({
   initialValue,
-  onCheckedChange,
 }: WillPayInPersonCheckboxProps) {
   const router = useRouter();
   const [checked, setChecked] = useState<boolean>(initialValue);
@@ -146,7 +144,9 @@ export function WillPayInPersonCheckbox({
 
   const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setChecked(event.target.checked);
-    onCheckedChange?.(event.target.checked);
+    // Cross the (former) sibling boundary via the rain-store singleton so the
+    // bib preview rains cash while the pledge is checked (Plan 34-03).
+    setRaining(event.target.checked);
   };
 
   return (
