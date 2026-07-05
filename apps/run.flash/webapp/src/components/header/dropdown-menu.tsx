@@ -29,7 +29,7 @@ const basePath = process.env.NODE_ENV === 'production'
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
-const MenuDropDown = () => {
+const MenuDropDown = ({ onDonate }: { onDonate?: () => void } = {}) => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -114,10 +114,19 @@ const MenuDropDown = () => {
             textValue="contributors"
             startContent={<FaMoneyCheckDollar className={iconClasses} />}
             key="contributors"
-            showDivider
             onClick={() => { setIsOpen(false); window.open(`${RUN_BASE}/contributors`, '_blank'); }}
           >
             <span className="text-base">Contributors</span>
+          </DropdownItem>
+
+          <DropdownItem
+            textValue="donate"
+            startContent={<FaMoneyCheckDollar className={iconClasses} />}
+            key="donate"
+            showDivider
+            onClick={() => { setIsOpen(false); onDonate?.(); }}
+          >
+            <span className="text-base">Donate $</span>
           </DropdownItem>
 
           <DropdownItem

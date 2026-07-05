@@ -15,12 +15,14 @@ import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaUserAlt } from 'react-icons/fa';
 import { PiPersonSimpleRun } from 'react-icons/pi';
+import { FiDollarSign } from 'react-icons/fi';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
 const MenuDropDown = (params: any) => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const onDonate: (() => void) | undefined = params?.onDonate;
 
   const handleNavigation = (href: string) => {
     setIsOpen(false);
@@ -92,10 +94,19 @@ const MenuDropDown = (params: any) => {
             textValue="bib"
             startContent={<PiPersonSimpleRun className={iconClasses} />}
             key="bib"
-            showDivider
             onClick={() => { setIsOpen(false); window.open('https://bib.defcon.run', '_blank'); }}
           >
             <span className="text-base">Bib</span>
+          </DropdownItem>
+
+          <DropdownItem
+            textValue="donate"
+            startContent={<FiDollarSign className={iconClasses} />}
+            key="donate"
+            showDivider
+            onClick={() => { setIsOpen(false); onDonate?.(); }}
+          >
+            <span className="text-base">Donate $</span>
           </DropdownItem>
 
           <DropdownItem

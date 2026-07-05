@@ -37,6 +37,58 @@ const bodySchema = z.object({
 });
 
 /**
+ * Cross-origin donate (item #2, Kurt 2026-07-05). The quick-donate modal is
+ * embedded in run.human / run.flash / gpx and POSTs here cross-subdomain, so
+ * this route opts a fixed allowlist of first-party origins into CORS. The
+ * session cookie is `.defcon.run`-scoped and run→bib is same-site, so the
+ * existing login rides along once `Access-Control-Allow-Credentials` is set
+ * (which forbids the `*` wildcard — we must echo the specific origin). Local
+ * dev ports are allowed too so the modal can be exercised against a running
+ * bib without a deploy; they can never match a real browser origin in prod.
+ */
+const ALLOWED_ORIGINS = new Set([
+  "https://run.defcon.run",
+  "https://flash.defcon.run",
+  "https://bib.defcon.run",
+  "https://gpx.defcon.run",
+  "http://localhost:3001",
+  "http://localhost:3002",
+  "http://localhost:3003",
+]);
+
+function corsHeaders(origin: string | null): Record<string, string> {
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
+      Vary: "Origin",
+    };
+  }
+  return {};
+}
+
+/**
+ * CORS preflight. A cross-origin POST with `Content-Type: application/json`
+ * is non-simple, so the browser sends OPTIONS first. Reflect the allowlisted
+ * origin or 403.
+ */
+export async function OPTIONS(req: NextRequest) {
+  const cors = corsHeaders(req.headers.get("origin"));
+  if (!cors["Access-Control-Allow-Origin"]) {
+    return new NextResponse(null, { status: 403 });
+  }
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      ...cors,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Max-Age": "86400",
+    },
+  });
+}
+
+/**
  * Duplicate of /api/checkout/bib's helper. Two-line function; not worth
  * factoring into a shared module until a third checkout route lands.
  */
@@ -48,11 +100,18 @@ function bibPublicUrl(): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Echo the allowlisted origin on every response so a cross-origin donate
+  // modal (run.human / run.flash / gpx) can read both success and error bodies.
+  const cors = corsHeaders(req.headers.get("origin"));
+
   const session = await auth();
   // MVP: session required. See PLAN-22-05.md §"Design gaps flagged" #1
   // for the anon-donation deferral rationale.
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "unauthorized" },
+      { status: 401, headers: cors }
+    );
   }
 
   let body: unknown;
@@ -61,7 +120,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { error: "invalid_body", detail: "expected application/json" },
-      { status: 400 }
+      { status: 400, headers: cors }
     );
   }
 
@@ -69,7 +128,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json(
       { error: "invalid_body", detail: parsed.error.issues },
-      { status: 400 }
+      { status: 400, headers: cors }
     );
   }
 
@@ -91,7 +150,7 @@ export async function POST(req: NextRequest) {
     if (atLimit) {
       return NextResponse.json(
         { error: "donation_limit_reached", remaining },
-        { status: 429 }
+        { status: 429, headers: cors }
       );
     }
   }
@@ -106,7 +165,7 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json(
       { error: "stripe_unavailable" },
-      { status: 500 }
+      { status: 500, headers: cors }
     );
   }
 
@@ -140,13 +199,13 @@ export async function POST(req: NextRequest) {
       );
       return NextResponse.json(
         { error: "stripe_no_url" },
-        { status: 500 }
+        { status: 500, headers: cors }
       );
     }
 
     return NextResponse.json(
       { session_url: stripeSession.url },
-      { status: 200 }
+      { status: 200, headers: cors }
     );
   } catch (err) {
     console.error(
@@ -155,7 +214,7 @@ export async function POST(req: NextRequest) {
     );
     return NextResponse.json(
       { error: "stripe_create_failed" },
-      { status: 500 }
+      { status: 500, headers: cors }
     );
   }
 }
