@@ -28,8 +28,12 @@ export async function regenerateAndUpload(strapi) {
   const bucket = process.env.S3_MEDIA_BUCKET;
   const accessKeyId = process.env.S3_MEDIA_ACCESS_KEY;
   const secretAccessKey = process.env.S3_MEDIA_SECRET_KEY;
-  if (!bucket || !accessKeyId) {
-    strapi.log.info('[copy-export] S3 env absent — skipping copy.json export');
+  // Require the FULL credential set. A partial env (e.g. access key set, secret
+  // missing) would otherwise build an S3Client with secretAccessKey:undefined,
+  // fail at request signing, and get swallowed by the catch below — silently
+  // leaving copy.json stale on every save. Fail the guard instead.
+  if (!bucket || !accessKeyId || !secretAccessKey) {
+    strapi.log.info('[copy-export] S3 env absent/incomplete — skipping copy.json export');
     return;
   }
 
