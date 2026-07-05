@@ -24,17 +24,20 @@ Secondary benefits: de-duplicate the shared header/menu *words* (not the React c
 
 ## Core Mental Model
 
-Three layers, cleanly separated by *purpose*:
+The UI reads copy through a **toolkit that calls the Strapi `ui-string` API and caches the result** in the Next.js Data Cache. The S3 copy export is the fallback default; a committed snapshot is an optional last-resort floor.
 
-| Artifact | Written by | Trigger | Role |
-|---|---|---|---|
-| **Strapi `ui-string` rows** | Admin edits (custom page) | Human | Authoring source of truth |
-| **CDN `copy.json` bundle** | Strapi lifecycle hook | On any `ui-string` create/update/delete | **Live runtime source** — near-instant, no deploy |
-| **Committed `copy-snapshot.json`** | Export script (`npm run copy:snapshot`) | Manual / CI | **Offline floor** baked into each app binary — UI never shows a raw key, never breaks if the CMS/CDN is down |
+| Artifact | Written by | Role |
+|---|---|---|
+| **Strapi `ui-string` rows** | Admin edits (custom page) | Authoring **source of truth**; served via the REST API |
+| **Next.js Data Cache (per app)** | Toolkit `fetch(..., { next: { tags: ['copy'], revalidate: N } })` | **Live read path** — Strapi is hit at most once per revalidate window per instance |
+| **S3 copy export (`copy.json`)** | Regenerated on `ui-string` change + manual/CI | **Fallback default** when Strapi is unreachable or a key is missing |
+| **Committed `copy-snapshot.json`** *(optional)* | Export script | Last-resort build-time floor for no-network / both-down |
 
-**Runtime lookup order:** `CDN copy.json` → committed `copy-snapshot.json` → (dev-only) the key itself.
+**Runtime lookup order:** Strapi API (cached) → S3 export → *(optional)* committed snapshot → (dev-only) the key itself.
 
-Editing a word rewrites one static JSON on the CDN with **no git commit and no deploy** — this is what delivers "edit without a deploy." The committed snapshot is a git-tracked build-time floor and is *never* auto-regenerated on CMS change (that would reintroduce a deploy per edit).
+**"Trigger on change":** a Strapi lifecycle hook fires on any `ui-string` create/update/delete and (a) calls each app's `revalidateTag('copy')` revalidation endpoint for fast, precise cache invalidation, and (b) regenerates the S3 export so the fallback stays fresh. Time-based `revalidate: N` is the reliable baseline (every instance/region converges within N even if a webhook misses it); `revalidateTag` is the best-effort speed-up. Editing a word never requires a git commit or deploy.
+
+> **Multi-instance caveat:** Next's Data Cache is per-instance unless a shared cache handler (e.g. Redis) is configured. `revalidateTag` only invalidates the instance the webhook reaches; `revalidate: N` guarantees eventual convergence across all Fargate tasks/regions. A shared cache handler for instant global invalidation is a future option, not v1.
 
 ## Data Model
 
@@ -58,15 +61,15 @@ Editing a word rewrites one static JSON on the CDN with **no git commit and no d
 
 `common.*` is the **shared-chrome namespace**. Header nav, profile menu, and footer copy live under `common.header.*` / `common.profileMenu.*` / `common.footer.*`. Every app reads the *same* `common.*` keys → the copy-pasted words unify **without** touching the per-app React components. Code still owns which items render and in what order; it merely resolves each label through `t()`.
 
-## Runtime Client
+## Copy Toolkit
 
-A small client (`loadCopy` + `t`) consumed by each app. Packaging (shared `packages/copy/` vs per-app `lib/copy.ts`) is an implementation decision for the plan; lean is per-app file to avoid introducing monorepo workspaces, accepting ~100 lines duplicated — matching the existing per-app `lib/strapi.ts` precedent.
+A small toolkit (`loadCopy` + `t`) consumed by each app. Packaging (shared `packages/copy/` vs per-app `lib/copy.ts`) is an implementation decision for the plan; lean is per-app file to avoid introducing monorepo workspaces, accepting ~100 lines duplicated — matching the existing per-app `lib/strapi.ts` precedent.
 
 **Contract:**
 
-- `loadCopy(locale = 'default')` — server-side. Fetches the **CDN `copy.json`** bundle (`cache: 'no-store'`, ~2.5s `AbortController` timeout). On any failure, returns `{}` and the app falls through to the committed snapshot. Never throws.
-- The consuming Next.js route/page sets `Cache-Control: public, s-maxage=<n>, stale-while-revalidate=…` so the CDN JSON is edge-cached per region (the proven `run.gpx` pattern). Because the bundle is static, `<n>` can be short or an invalidation can force freshness.
-- `t(key, vars?)` → `cdn[key] ?? snapshot[key] ?? key`, with `{var}` interpolation over `vars`. Markdown in the resolved value is rendered client-side (a tiny renderer for bold/links/line-breaks; reuse/adapt the gpx sanitizing helper).
+- `loadCopy(locale = 'default')` — server-side. Fetches the Strapi `ui-string` API (Bearer token) **through the Next.js Data Cache**: `fetch(url, { next: { tags: ['copy'], revalidate: N } })`, with a ~2.5s `AbortController` timeout. On any failure it falls back to the **S3 copy export**, then the optional committed snapshot; it returns a resolved map and never throws.
+- Invalidation is by **cache tag** (`revalidateTag('copy')` from the change webhook) plus the time-based `revalidate: N` baseline — not by `Cache-Control` headers on the response. This deliberately replaces the gpx `no-store` + edge `s-maxage` approach for copy: the point is to actually leverage Strapi calls + a real server cache.
+- `t(key, vars?)` → `cms[key] ?? s3[key] ?? snapshot[key] ?? key`, with `{var}` interpolation over `vars`. Markdown in the resolved value is rendered client-side (a tiny renderer for bold/links/line-breaks; reuse/adapt the gpx sanitizing helper).
 
 **Resilience guarantee (the gpx philosophy):** the overlays/copy must never break because the CMS is down. The committed snapshot is always present in the binary as the floor.
 
@@ -84,18 +87,20 @@ Pattern:
 
 This makes the catalog cover the donate/sponsor modal copy — the primary motivating surface — not just static headings.
 
-## Live Bundle (CDN `copy.json`)
+## S3 Copy Export (fallback default)
 
-- A **Strapi lifecycle hook** on `ui-string` (`afterCreate` / `afterUpdate` / `afterDelete`) regenerates the full catalog as `copy.json` and uploads it to the CMS S3 bucket via the existing `@strapi/provider-upload-aws-s3` path, served through CloudFront at `cms.<siteDomain>/…` (same infra as media).
+The S3 export is the toolkit's fallback when the Strapi call fails or a key is missing — **not** the primary read path.
+
+- A **Strapi lifecycle hook** on `ui-string` (`afterCreate` / `afterUpdate` / `afterDelete`) regenerates the full catalog as `copy.json` and uploads it to the CMS S3 bucket via the existing `@strapi/provider-upload-aws-s3` path, served through CloudFront at `cms.<siteDomain>/…` (same infra as media). The same hook also pings each app's revalidation endpoint (see "trigger on change" above).
 - Runs on the **master** node only (where admin edits occur); workers need no change. CloudFront serves the object globally.
 - Bundle shape: keyed by `key`, values resolved per locale — e.g. `{ "<locale>": { "<key>": "<value>" } }`, or segmented by `namespace` if size warrants. Only `default` is populated in v1.
-- Optional: issue a CloudFront invalidation for `copy.json` on write for instant propagation; otherwise rely on a short TTL.
+- Fetched by the toolkit only on the fallback path (short timeout).
 
-## Committed Snapshot (`copy-snapshot.json`)
+## Committed Snapshot (`copy-snapshot.json`) — optional
 
 - An export script (`npm run copy:snapshot`) fetches all `default` rows from the CMS and writes a committed JSON floor into each app (or one shared committed file).
 - Triggered **manually or in CI** — never on CMS data change. Regenerate when you want to move the offline floor forward.
-- Guarantees builds do not depend on CMS availability, and the UI never renders a raw key even with the CDN unreachable.
+- Guarantees builds do not depend on CMS availability, and the UI never renders a raw key even with **both** Strapi and the S3 export unreachable. Drop it if the S3 export fallback is considered sufficient.
 
 ## Custom Admin Page (v1 core)
 
@@ -109,19 +114,22 @@ Strapi's default content-manager already lists `ui-string` (key/locale/value) as
 
 ## Permissions & Deployment
 
-- Extend the existing read-only API token (minted at bootstrap for `route`) to include `ui-string` find/findOne — mirrors `ensureApiTokenPublished()` in `apps/run.cms/app/src/index.ts`.
-- The lifecycle hook + bundle upload run on the master node; SQLite + Litestream topology is unchanged.
-- CORS/CSP already restrict origins; the CDN bundle is public-readable static JSON (copy is not secret).
+- Extend the existing read-only API token (minted at bootstrap for `route`) to include `ui-string` find/findOne — mirrors `ensureApiTokenPublished()` in `apps/run.cms/app/src/index.ts`. This is the token the copy toolkit uses for its Strapi calls.
+- Each app exposes a small shared-secret-protected `POST /api/revalidate-copy` route that calls `revalidateTag('copy')`. The Strapi change hook fans out to these endpoints across apps/regions.
+- The lifecycle hook + S3 export upload run on the master node; SQLite + Litestream topology is unchanged.
+- CORS/CSP already restrict origins; the S3 export is public-readable static JSON (copy is not secret).
 
 ## Rollout (one milestone, phased so the plane can land)
 
-1. **Data + client + bundle + proof surface.** `ui-string` type, `(key, locale)` enforcement, API-token permission, lifecycle-hook → CDN `copy.json`, snapshot export script, runtime client (`loadCopy` + `CopyProvider`/`useCopy` + `t`), and wire the **bib donate/sponsor** surface end-to-end as proof — `bib.sponsor.*` / `bib.donate.*` across `SponsorForm`, `SponsorInstructions`, `GetYourBib`, payment/Venmo/CashApp instructions, and the sponsor/QR/logout modals. This is the primary motivating surface *and* the hardest case (client-side, interpolated, modal-heavy), so proving it validates the whole approach.
+1. **Data + toolkit + fallback + proof surface.** `ui-string` type, `(key, locale)` enforcement, API-token permission, the copy toolkit (`loadCopy` Strapi-API fetch through the Next Data Cache + `CopyProvider`/`useCopy` + `t`), the change lifecycle hook (`revalidateTag('copy')` webhook fan-out + S3 export regen), the S3 export + optional committed snapshot fallback, and wire the **bib donate/sponsor** surface end-to-end as proof — `bib.sponsor.*` / `bib.donate.*` across `SponsorForm`, `SponsorInstructions`, `GetYourBib`, payment/Venmo/CashApp instructions, and the sponsor/QR/logout modals. This is the primary motivating surface *and* the hardest case (client-side, interpolated, modal-heavy), so proving it validates the whole approach.
 2. **Custom three-column admin plugin.**
 3. **Incremental copy migration.** Remaining `bib` copy, then the shared chrome (`common.header.*` / `common.profileMenu.*` — the copy-paste de-dup win), then `flash`, `human`, `auth`, `gpx`.
 
 ## Open Implementation Details (resolve in planning)
 
 - Client packaging: shared package vs per-app file (lean: per-app).
-- Bundle shape: single object vs namespace-segmented (size-dependent).
-- CloudFront invalidation-on-write vs short TTL.
+- `revalidate: N` window length, and the change-webhook fan-out target list + shared-secret management across apps/regions.
+- Whether to add a shared Next cache handler (Redis) for instant global tag invalidation, or accept time-based convergence in v1 (lean: accept it).
+- S3 export shape: single object vs namespace-segmented (size-dependent).
+- Whether to keep the committed snapshot or rely on the S3 export as the sole fallback.
 - Markdown renderer: adapt the existing gpx `blocksToHtml`/sanitizer or a minimal inline renderer.
