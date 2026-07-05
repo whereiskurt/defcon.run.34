@@ -30,14 +30,12 @@ The UI reads copy through a **toolkit that calls the Strapi `ui-string` API and 
 |---|---|---|
 | **Strapi `ui-string` rows** | Admin edits (custom page) | Authoring **source of truth**; served via the REST API |
 | **Next.js Data Cache (per app)** | Toolkit `fetch(..., { next: { tags: ['copy'], revalidate: N } })` | **Live read path** — Strapi is hit at most once per revalidate window per instance |
-| **S3 copy export (`copy.json`)** | Regenerated on `ui-string` change + manual/CI | **Fallback default** when Strapi is unreachable or a key is missing |
+| **S3 copy export (`copy.json`)** | Regenerated on `ui-string` change (lifecycle hook) + manual/CI | **Fallback default** when Strapi is unreachable or a key is missing |
 | **Committed `copy-snapshot.json`** *(optional)* | Export script | Last-resort build-time floor for no-network / both-down |
 
 **Runtime lookup order:** Strapi API (cached) → S3 export → *(optional)* committed snapshot → (dev-only) the key itself.
 
-**"Trigger on change":** a Strapi lifecycle hook fires on any `ui-string` create/update/delete and (a) calls each app's `revalidateTag('copy')` revalidation endpoint for fast, precise cache invalidation, and (b) regenerates the S3 export so the fallback stays fresh. Time-based `revalidate: N` is the reliable baseline (every instance/region converges within N even if a webhook misses it); `revalidateTag` is the best-effort speed-up. Editing a word never requires a git commit or deploy.
-
-> **Multi-instance caveat:** Next's Data Cache is per-instance unless a shared cache handler (e.g. Redis) is configured. `revalidateTag` only invalidates the instance the webhook reaches; `revalidate: N` guarantees eventual convergence across all Fargate tasks/regions. A shared cache handler for instant global invalidation is a future option, not v1.
+**Propagation is eventual, by design (~15 min, no extra machinery).** An edit rides the topology that already exists: master → regional worker via Litestream (~5 min cadence), then worker → app via the Data Cache `revalidate: N` window (a few minutes). No webhook, no `revalidateTag` fan-out, no shared cache handler — time-based revalidation alone converges every Fargate task in every region. Per-instance caches are fine precisely because we accept eventual consistency. Editing a word never requires a git commit or deploy. The `tags: ['copy']` label is attached only so a manual/admin revalidation *could* be wired later; it is not part of v1's propagation path.
 
 ## Data Model
 
@@ -68,7 +66,7 @@ A small toolkit (`loadCopy` + `t`) consumed by each app. Packaging (shared `pack
 **Contract:**
 
 - `loadCopy(locale = 'default')` — server-side. Fetches the Strapi `ui-string` API (Bearer token) **through the Next.js Data Cache**: `fetch(url, { next: { tags: ['copy'], revalidate: N } })`, with a ~2.5s `AbortController` timeout. On any failure it falls back to the **S3 copy export**, then the optional committed snapshot; it returns a resolved map and never throws.
-- Invalidation is by **cache tag** (`revalidateTag('copy')` from the change webhook) plus the time-based `revalidate: N` baseline — not by `Cache-Control` headers on the response. This deliberately replaces the gpx `no-store` + edge `s-maxage` approach for copy: the point is to actually leverage Strapi calls + a real server cache.
+- Refresh is by the time-based `revalidate: N` window (Next.js Data Cache) — not by `Cache-Control` headers on the response. This deliberately replaces the gpx `no-store` + edge `s-maxage` approach for copy: the point is to actually leverage Strapi calls + a real server cache. (`tags: ['copy']` is attached for a possible future manual revalidation, but v1 relies solely on time-based revalidation.)
 - `t(key, vars?)` → `cms[key] ?? s3[key] ?? snapshot[key] ?? key`, with `{var}` interpolation over `vars`. Markdown in the resolved value is rendered client-side (a tiny renderer for bold/links/line-breaks; reuse/adapt the gpx sanitizing helper).
 
 **Resilience guarantee (the gpx philosophy):** the overlays/copy must never break because the CMS is down. The committed snapshot is always present in the binary as the floor.
@@ -91,7 +89,7 @@ This makes the catalog cover the donate/sponsor modal copy — the primary motiv
 
 The S3 export is the toolkit's fallback when the Strapi call fails or a key is missing — **not** the primary read path.
 
-- A **Strapi lifecycle hook** on `ui-string` (`afterCreate` / `afterUpdate` / `afterDelete`) regenerates the full catalog as `copy.json` and uploads it to the CMS S3 bucket via the existing `@strapi/provider-upload-aws-s3` path, served through CloudFront at `cms.<siteDomain>/…` (same infra as media). The same hook also pings each app's revalidation endpoint (see "trigger on change" above).
+- A **Strapi lifecycle hook** on `ui-string` (`afterCreate` / `afterUpdate` / `afterDelete`) regenerates the full catalog as `copy.json` and uploads it to the CMS S3 bucket via the existing `@strapi/provider-upload-aws-s3` path, served through CloudFront at `cms.<siteDomain>/…` (same infra as media). This keeps the fallback fresh; it does **not** drive live propagation (that is the `revalidate: N` window).
 - Runs on the **master** node only (where admin edits occur); workers need no change. CloudFront serves the object globally.
 - Bundle shape: keyed by `key`, values resolved per locale — e.g. `{ "<locale>": { "<key>": "<value>" } }`, or segmented by `namespace` if size warrants. Only `default` is populated in v1.
 - Fetched by the toolkit only on the fallback path (short timeout).
@@ -115,21 +113,20 @@ Strapi's default content-manager already lists `ui-string` (key/locale/value) as
 ## Permissions & Deployment
 
 - Extend the existing read-only API token (minted at bootstrap for `route`) to include `ui-string` find/findOne — mirrors `ensureApiTokenPublished()` in `apps/run.cms/app/src/index.ts`. This is the token the copy toolkit uses for its Strapi calls.
-- Each app exposes a small shared-secret-protected `POST /api/revalidate-copy` route that calls `revalidateTag('copy')`. The Strapi change hook fans out to these endpoints across apps/regions.
+- The copy toolkit reads from the regional CMS worker (read replica), so edits propagate master → worker on the existing Litestream cadence — no new sync path.
 - The lifecycle hook + S3 export upload run on the master node; SQLite + Litestream topology is unchanged.
 - CORS/CSP already restrict origins; the S3 export is public-readable static JSON (copy is not secret).
 
 ## Rollout (one milestone, phased so the plane can land)
 
-1. **Data + toolkit + fallback + proof surface.** `ui-string` type, `(key, locale)` enforcement, API-token permission, the copy toolkit (`loadCopy` Strapi-API fetch through the Next Data Cache + `CopyProvider`/`useCopy` + `t`), the change lifecycle hook (`revalidateTag('copy')` webhook fan-out + S3 export regen), the S3 export + optional committed snapshot fallback, and wire the **bib donate/sponsor** surface end-to-end as proof — `bib.sponsor.*` / `bib.donate.*` across `SponsorForm`, `SponsorInstructions`, `GetYourBib`, payment/Venmo/CashApp instructions, and the sponsor/QR/logout modals. This is the primary motivating surface *and* the hardest case (client-side, interpolated, modal-heavy), so proving it validates the whole approach.
+1. **Data + toolkit + fallback + proof surface.** `ui-string` type, `(key, locale)` enforcement, API-token permission, the copy toolkit (`loadCopy` Strapi-API fetch through the Next Data Cache with `revalidate: N` + `CopyProvider`/`useCopy` + `t`), the S3-export lifecycle hook + optional committed snapshot fallback, and wire the **bib donate/sponsor** surface end-to-end as proof — `bib.sponsor.*` / `bib.donate.*` across `SponsorForm`, `SponsorInstructions`, `GetYourBib`, payment/Venmo/CashApp instructions, and the sponsor/QR/logout modals. This is the primary motivating surface *and* the hardest case (client-side, interpolated, modal-heavy), so proving it validates the whole approach.
 2. **Custom three-column admin plugin.**
 3. **Incremental copy migration.** Remaining `bib` copy, then the shared chrome (`common.header.*` / `common.profileMenu.*` — the copy-paste de-dup win), then `flash`, `human`, `auth`, `gpx`.
 
 ## Open Implementation Details (resolve in planning)
 
 - Client packaging: shared package vs per-app file (lean: per-app).
-- `revalidate: N` window length, and the change-webhook fan-out target list + shared-secret management across apps/regions.
-- Whether to add a shared Next cache handler (Redis) for instant global tag invalidation, or accept time-based convergence in v1 (lean: accept it).
+- `revalidate: N` window length (lean: ~300s, so worst-case propagation ≈ Litestream lag + N ≈ up to ~15 min — acceptable per the eventual-consistency decision).
 - S3 export shape: single object vs namespace-segmented (size-dependent).
 - Whether to keep the committed snapshot or rely on the S3 export as the sole fallback.
 - Markdown renderer: adapt the existing gpx `blocksToHtml`/sanitizer or a minimal inline renderer.
