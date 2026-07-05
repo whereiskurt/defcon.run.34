@@ -97,6 +97,35 @@ html.light .glass-nav {
   box-shadow: 0 0 0 2px #00d4aa20;
 }
 
+/* Orderform surface tokens (Kurt 2026-07-05). The bib panels/tiles/hints were
+   hardcoded dark, so they clashed with the light theme. These tokens default to
+   the original dark values (dark mode stays byte-identical) and flip under
+   html.light so the same components read correctly in both themes. */
+:root {
+  --bib-surface: #12121a;
+  --bib-surface-2: #0f0f16;
+  --bib-raise: #1a1a24;
+  --bib-border: #24242e;
+  --bib-border-2: #2a2a34;
+  --bib-ink: #e4e4ef;
+  --bib-muted: #a4a4b8;
+  --bib-faint: #8f8fa8;
+  --bib-pending-bg: #1a160c;
+  --bib-pending-border: #4a3d15;
+}
+html.light {
+  --bib-surface: #ffffff;
+  --bib-surface-2: #f4f5f8;
+  --bib-raise: #eef1f6;
+  --bib-border: #e3e5ec;
+  --bib-border-2: #d6d9e1;
+  --bib-ink: #17171f;
+  --bib-muted: #55555f;
+  --bib-faint: #6b6b7c;
+  --bib-pending-bg: #fbf3df;
+  --bib-pending-border: #ecdca6;
+}
+
 /* Cash rain — USD bills fall over the bib preview and pile up when the runner
    pledges to contribute in person (Kurt 2026-07-03). Overlay is click-through. */
 .cash-rain {

@@ -40,8 +40,8 @@ export default function TransactionHistory({
       style={{
         padding: 20,
         borderRadius: 14,
-        backgroundColor: "#12121a",
-        border: "1px solid #24242e",
+        backgroundColor: "var(--bib-surface)",
+        border: "1px solid var(--bib-border)",
         display: "flex",
         flexDirection: "column",
         gap: 12,
@@ -52,7 +52,7 @@ export default function TransactionHistory({
           style={{
             fontSize: 12,
             fontWeight: 600,
-            color: "#8f8fa8",
+            color: "var(--bib-faint)",
             letterSpacing: "0.08em",
             textTransform: "uppercase",
           }}
@@ -95,21 +95,25 @@ export default function TransactionHistory({
                   gap: 8,
                   padding: "8px 10px",
                   borderRadius: 8,
-                  backgroundColor: isPending ? "#1a160c" : "#0f0f16",
-                  border: `1px solid ${isPending ? "#4a3d15" : "#24242e"}`,
+                  backgroundColor: isPending
+                    ? "var(--bib-pending-bg)"
+                    : "var(--bib-surface-2)",
+                  border: `1px solid ${
+                    isPending ? "var(--bib-pending-border)" : "var(--bib-border)"
+                  }`,
                   fontSize: 14,
                 }}
               >
                 <span
                   style={{
-                    color: "#e4e4ef",
+                    color: "var(--bib-ink)",
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
                   }}
                 >
                   {t.kind === "bib" ? "Bib" : "Donation"}
-                  <span style={{ color: "#8f8fa8" }}>· {t.provider}</span>
+                  <span style={{ color: "var(--bib-faint)" }}>· {t.provider}</span>
                   {isPending && (
                     <span
                       style={{
@@ -129,7 +133,7 @@ export default function TransactionHistory({
                   )}
                 </span>
                 <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <span style={{ color: "#8f8fa8", fontSize: 13 }}>
+                  <span style={{ color: "var(--bib-faint)", fontSize: 13 }}>
                     {fmtDate(t.timestamp)}
                   </span>
                   <span
@@ -149,7 +153,7 @@ export default function TransactionHistory({
         </ul>
       )}
 
-      <p style={{ margin: 0, fontSize: 12, color: "#8f8fa8" }}>
+      <p style={{ margin: 0, fontSize: 12, color: "var(--bib-faint)" }}>
         Venmo &amp; Cash App contributions appear here once an organizer
         confirms them.
       </p>
