@@ -653,7 +653,7 @@ export interface ApiUiStringUiString extends Struct.CollectionTypeSchema {
       ['common', 'human', 'auth', 'gpx', 'bib', 'flash']
     > &
       Schema.Attribute.Required;
-    notes: Schema.Attribute.Text;
+    notes: Schema.Attribute.Text & Schema.Attribute.Private;
     publishedAt: Schema.Attribute.DateTime;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

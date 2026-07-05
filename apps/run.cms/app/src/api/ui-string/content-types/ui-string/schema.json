@@ -29,7 +29,8 @@
       "required": true
     },
     "notes": {
-      "type": "text"
+      "type": "text",
+      "private": true
     }
   }
 }
