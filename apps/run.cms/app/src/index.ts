@@ -131,6 +131,8 @@ async function revokePublicPermissions(strapi) {
     'api::route.route.findOne',
     'api::point-of-interest.point-of-interest.find',
     'api::point-of-interest.point-of-interest.findOne',
+    'api::ui-string.ui-string.find',
+    'api::ui-string.ui-string.findOne',
   ];
 
   let revoked = 0;

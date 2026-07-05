@@ -1,0 +1,6 @@
+{
+  "default": {
+    "bib.selftest.serverGreeting": "Bib copy toolkit online",
+    "bib.selftest.clientGreeting": "Hello {name}"
+  }
+}
