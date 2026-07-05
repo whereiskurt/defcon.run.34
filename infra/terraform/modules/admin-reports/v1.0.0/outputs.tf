@@ -25,5 +25,15 @@ output "log_group_names" {
   value       = var.log_group_names
 }
 
-# NOTE: `query_definition_names` output lives in queries.tf (defined alongside
-# the resource it references).
+output "query_definition_names" {
+  description = "The saved admin/* Logs Insights query definition names."
+  value = [
+    aws_cloudwatch_query_definition.user_activity.name,
+    aws_cloudwatch_query_definition.ip_activity.name,
+    aws_cloudwatch_query_definition.top_ips_1h.name,
+    aws_cloudwatch_query_definition.top_uploaders.name,
+    aws_cloudwatch_query_definition.signups_over_time.name,
+    aws_cloudwatch_query_definition.distinct_users_by_day.name,
+    aws_cloudwatch_query_definition.error_spikes.name,
+  ]
+}
