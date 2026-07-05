@@ -5,6 +5,7 @@ import { GpxFile } from "@/entities/gpx-file";
 import { CopyObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, BUCKET, getUserPrefix } from "@/lib/s3-client";
 import { v4 as uuidv4 } from "uuid";
+import { logEvent } from "@/lib/log-event";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -135,6 +136,14 @@ export async function POST(request: Request, { params }: RouteParams) {
       version: 1,
       versionCount: 1,
     }).go();
+
+    // Activity signal (AR-02): a shared route was accepted and copied to the recipient.
+    logEvent("gpx.share.accept", {
+      headers: request.headers,
+      userId: session.user.id,
+      email: session.user.email ?? undefined,
+      meta: { token, fileId: newFileId },
+    });
 
     return NextResponse.json({
       fileId: newFileId,

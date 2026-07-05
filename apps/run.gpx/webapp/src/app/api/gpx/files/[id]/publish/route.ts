@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { GpxFile } from "@/entities/gpx-file";
 import { GpxFolder } from "@/entities/gpx-folder";
 import { s3Client, BUCKET, getUserPrefix } from "@/lib/s3-client";
+import { logEvent } from "@/lib/log-event";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -115,6 +116,14 @@ export async function POST(request: Request, { params }: RouteParams) {
       uploadedBy: session.user.id,
       status: "active",
     }).go();
+
+    // Activity signal (AR-02): a route was published to a public GLOBAL folder.
+    logEvent("gpx.file.publish", {
+      headers: request.headers,
+      userId: session.user.id,
+      email: session.user.email ?? undefined,
+      meta: { fileId: id },
+    });
 
     return NextResponse.json({ file: published.data });
   } catch (error) {
