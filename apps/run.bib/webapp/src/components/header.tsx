@@ -13,6 +13,8 @@ import { FaRadio } from "react-icons/fa6";
 import { PiPersonSimpleRun } from "react-icons/pi";
 import { FiShield } from "react-icons/fi";
 
+import { runHumanUrl } from "@/lib/run-human-url";
+
 import { ThemeSwitch } from "./theme-switch";
 import { UserDropdown } from "./user-dropdown";
 import { MenuDropdown } from "./menu-dropdown";
@@ -30,13 +32,9 @@ const basePath =
 
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || "dev"}`;
 
-// Region for cross-app deep links into run.defcon.run — always region-prefixed
-// (run.defcon.run is region-mounted even when this app runs locally).
-const runRegion = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
-
 const navItems = [
   { href: "https://gpx.defcon.run", label: "Maps", icon: GrMapLocation, external: true },
-  { href: `https://run.defcon.run/${runRegion}/meshtastic`, label: "Meshtastic", icon: FaRadio, external: true },
+  { href: runHumanUrl("/meshtastic"), label: "Meshtastic", icon: FaRadio, external: true },
   { href: "/orderform", label: "Bib", icon: PiPersonSimpleRun, external: false },
 ] as const;
 

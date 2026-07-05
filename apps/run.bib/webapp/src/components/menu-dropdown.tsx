@@ -13,15 +13,14 @@ import { FaRadio } from "react-icons/fa6";
 import { PiPersonSimpleRun } from "react-icons/pi";
 import { FiShield, FiMenu } from "react-icons/fi";
 
+import { runHumanUrl } from "@/lib/run-human-url";
+
 /**
  * Mobile hamburger nav for the bib header — mirrors run.human's MenuDropDown
  * so the small-screen menu matches. Items: My bib, Maps, Meshtastic, and Admin
  * (admin group only). Desktop uses the inline Navbar links instead.
  */
 const iconClasses = "text-lg text-default-400 pointer-events-none flex-shrink-0";
-
-// Region-prefixed cross-app deep link into run.defcon.run (region-less misroutes).
-const runRegion = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
 
 export function MenuDropdown({ isAdmin = false }: { isAdmin?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -83,7 +82,7 @@ export function MenuDropdown({ isAdmin = false }: { isAdmin?: boolean }) {
           key="meshtastic"
           textValue="Meshtastic"
           startContent={<FaRadio className={iconClasses} />}
-          onPress={() => ext(`https://run.defcon.run/${runRegion}/meshtastic`)}
+          onPress={() => ext(runHumanUrl("/meshtastic"))}
         >
           <span className="text-base">Meshtastic</span>
         </DropdownItem>
