@@ -141,3 +141,27 @@ html.light .glass-nav {
     animation-delay: 0ms;
   }
 }
+
+/* Save button glow when the bib name is dirty/unsaved (Plan 34-03, SC34.5).
+   The static mint ring is always applied via .bib-save-dirty so the unsaved
+   state stays loud; the pulse is a nice-to-have gated out for reduced-motion. */
+.bib-save-dirty {
+  box-shadow: 0 0 0 3px #6ccdb855, 0 0 16px #6ccdb8aa;
+  animation: bib-save-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes bib-save-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px #6ccdb855, 0 0 16px #6ccdb8aa;
+  }
+  50% {
+    box-shadow: 0 0 0 4px #6ccdb877, 0 0 26px #6ccdb8cc;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bib-save-dirty {
+    animation: none;
+  }
+}

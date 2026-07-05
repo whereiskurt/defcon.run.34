@@ -221,19 +221,24 @@ export function BibForm({
             }}
           />
 
-          {/* Tiny save/cancel — each save spends one rename. */}
+          {/* Tiny save/cancel — each save spends one rename. When the name is
+            * dirty the Save button glows (mint ring) + enlarges so the unsaved
+            * state is unmistakable (Plan 34-03, SC34.5). The pulse animation is
+            * gated for prefers-reduced-motion in globals.css. */}
           <button
             type="submit"
             disabled={!canSave}
+            className={dirty ? "bib-save-dirty" : undefined}
             style={{
-              padding: "10px 16px",
-              fontSize: 13,
+              padding: dirty ? "12px 22px" : "10px 16px",
+              fontSize: dirty ? 15 : 13,
               fontWeight: 700,
               color: canSave ? "#0a0a0a" : "#8f8fa8",
               backgroundColor: canSave ? "#6CCDB8" : "#2a2a34",
               border: "none",
               borderRadius: 6,
               cursor: canSave ? "pointer" : "not-allowed",
+              transition: "padding 120ms ease, font-size 120ms ease",
             }}
           >
             {busy
@@ -270,7 +275,7 @@ export function BibForm({
 
       {/* Live preview sits BELOW the name field (A3, name-first). */}
       <div style={{ position: "relative" }}>
-        <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} />
+        <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} dirty={dirty} />
         <CashRain active={raining} />
       </div>
     </form>

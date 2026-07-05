@@ -47,6 +47,13 @@ export interface BibPreviewProps {
   /** Runner code (e.g. BIB-XXXX) — rendered as a QR on each tear-off stub so
    * the code is scannable when a stub is torn off (Kurt 2026-07-03). */
   runnerCode?: string;
+  /**
+   * Unsaved-name state (Plan 34-03, SC34.5). When `true`, renders a red-orange
+   * "UNSAVED" rubber stamp in the SAME slot as the green PAID stamp. UNSAVED
+   * OUTRANKS PAID: while dirty, the PAID stamp is suppressed so the runner
+   * can't mistake an unsaved name for a committed, paid bib.
+   */
+  dirty?: boolean;
 }
 
 /** Design-contract placeholder rendered when the user has not typed a name.
@@ -95,6 +102,7 @@ export function BibPreview({
   name,
   hasSponsored = false,
   runnerCode,
+  dirty = false,
 }: BibPreviewProps) {
   const trimmedName = name.trim();
   const hasName = trimmedName.length > 0;
@@ -296,14 +304,17 @@ export function BibPreview({
       {runnerCode && <QrBadge value={runnerCode} x={200} y={596} size={76} />}
       {runnerCode && <QrBadge value={runnerCode} x={660} y={596} size={76} />}
 
-      {/* Sponsor "PAID! THANK YOU!" rubber stamp — on top of the number box's
-          top-right (Kurt 2026-07-03, replaces the green star charm). */}
-      {hasSponsored && (
+      {/* Rubber stamp on the number box's top-right. Priority (Plan 34-03,
+          SC34.5): a DIRTY (unsaved) name shows the red-orange UNSAVED stamp and
+          SUPPRESSES the PAID stamp — an unsaved name must never read as a
+          committed, paid bib. Only when the name is clean does the green
+          "PAID! THANK YOU!" charm (Kurt 2026-07-03) show for sponsors. */}
+      {dirty ? (
         <g
-          id="sponsor-charm"
+          id="unsaved-charm"
           role="img"
-          aria-label="Paid — thank you"
-          data-testid="sponsor-charm"
+          aria-label="Unsaved name"
+          data-testid="unsaved-charm"
           transform="rotate(-11 806 208)"
         >
           <rect
@@ -312,35 +323,68 @@ export function BibPreview({
             width="188"
             height="64"
             rx="10"
-            fill="#3a8f79"
-            stroke="#eafff8"
+            fill="#C2410C"
+            stroke="#ffe9df"
             strokeWidth="3"
           />
           <text
             x="806"
-            y="203"
+            y="212"
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize="30"
             fontWeight="900"
             fill="#fff"
-            letterSpacing="1"
-          >
-            PAID!
-          </text>
-          <text
-            x="806"
-            y="226"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize="13"
-            fontWeight="700"
-            fill="#eafff8"
             letterSpacing="2"
           >
-            THANK YOU!
+            UNSAVED
           </text>
         </g>
+      ) : (
+        hasSponsored && (
+          <g
+            id="sponsor-charm"
+            role="img"
+            aria-label="Paid — thank you"
+            data-testid="sponsor-charm"
+            transform="rotate(-11 806 208)"
+          >
+            <rect
+              x="712"
+              y="176"
+              width="188"
+              height="64"
+              rx="10"
+              fill="#3a8f79"
+              stroke="#eafff8"
+              strokeWidth="3"
+            />
+            <text
+              x="806"
+              y="203"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="30"
+              fontWeight="900"
+              fill="#fff"
+              letterSpacing="1"
+            >
+              PAID!
+            </text>
+            <text
+              x="806"
+              y="226"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="13"
+              fontWeight="700"
+              fill="#eafff8"
+              letterSpacing="2"
+            >
+              THANK YOU!
+            </text>
+          </g>
+        )
       )}
     </svg>
   );

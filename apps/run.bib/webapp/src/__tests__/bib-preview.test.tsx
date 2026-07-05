@@ -50,6 +50,39 @@ describe("BibPreview sponsor charm accent (Phase 22-05-06)", () => {
     expect(html).toContain('id="sponsor-charm"');
   });
 
+  it("renders the UNSAVED stamp and suppresses PAID while dirty (Plan 34-03, SC34.5)", () => {
+    // A dirty (unsaved) name must show the red-orange UNSAVED stamp and MUST
+    // outrank/suppress the green PAID stamp even when hasSponsored is true —
+    // an unsaved name can never read as a committed, paid bib.
+    const html = renderToStaticMarkup(
+      <BibPreview name="Alice" hasSponsored={true} dirty={true} />
+    );
+    expect(html).toContain('id="unsaved-charm"');
+    expect(html).toContain('data-testid="unsaved-charm"');
+    // Red-orange UNSAVED fill — its visual signature, distinct from PAID mint.
+    expect(html).toContain("#C2410C");
+    // PAID group is suppressed while dirty.
+    expect(html).not.toContain('id="sponsor-charm"');
+    expect(html).not.toContain('data-testid="sponsor-charm"');
+  });
+
+  it("shows PAID (not UNSAVED) once the name is clean", () => {
+    // dirty=false → the sponsor PAID charm is restored, no UNSAVED stamp.
+    const html = renderToStaticMarkup(
+      <BibPreview name="Alice" hasSponsored={true} dirty={false} />
+    );
+    expect(html).toContain('id="sponsor-charm"');
+    expect(html).not.toContain('id="unsaved-charm"');
+  });
+
+  it("defaults dirty=false when the prop is omitted (backward compat)", () => {
+    const html = renderToStaticMarkup(
+      <BibPreview name="Alice" hasSponsored={true} />
+    );
+    expect(html).not.toContain('id="unsaved-charm"');
+    expect(html).toContain('id="sponsor-charm"');
+  });
+
   it("keeps the DC34 smiley badge intact regardless of hasSponsored", () => {
     // Regression guard: the sponsor charm accent must not accidentally
     // remove the smiley badge. Kurt 2026-07-03: the smiley is now the
