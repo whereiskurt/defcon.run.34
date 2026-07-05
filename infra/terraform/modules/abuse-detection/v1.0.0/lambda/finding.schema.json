@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://defcon.run/schemas/abuse-detection/finding.schema.json",
+  "title": "abuse-detection finding",
+  "description": "The WAF/Impart seam. Each abuse-detector finding is appended to abuse/YYYY-MM-DD/findings.jsonl in EXACTLY this shape (allow-list, additionalProperties false). A later enforcement phase reads findings.jsonl to add client_ip to a WAF IP-set and/or hand IP+UA to Impart.security. This file is documentation of the seam a downstream phase consumes — it is NOT read at runtime by the handler (buildFinding in lib/finding.mjs is the sole writer and enforces the same field set in code).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ts",
+    "rule",
+    "client_ip",
+    "user_agents",
+    "count",
+    "window",
+    "peak_5min",
+    "top_paths",
+    "status_mix"
+  ],
+  "properties": {
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Detection time (handler invocation), ISO8601 / RFC3339."
+    },
+    "rule": {
+      "type": "string",
+      "enum": ["sustained_activity", "rate_outlier"],
+      "description": "Which detection fired (Q1 sustained_activity / Q2 rate_outlier)."
+    },
+    "client_ip": {
+      "type": "string",
+      "description": "Offending source IP (the primary block key; attackers rotate UA more than IP)."
+    },
+    "user_agents": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 5,
+      "description": "Distinct User-Agent(s) seen for this IP (capped, length-bounded — nothing unbounded leaks into email/JSONL, T-41-07)."
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Request count over the window (Q1) or peak requests-per-5min (Q2)."
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {
+          "type": ["string", "null"],
+          "description": "Window/first-seen boundary, ISO8601 or null."
+        },
+        "end": {
+          "type": ["string", "null"],
+          "description": "Window/last-seen boundary, ISO8601 or null."
+        }
+      }
+    },
+    "peak_5min": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Peak requests in any single 5-minute bucket (Q2; 0 for Q1)."
+    },
+    "top_paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 10,
+      "description": "Most-frequent request paths for this IP (capped, length-bounded)."
+    },
+    "status_mix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["2xx", "4xx", "5xx"],
+      "properties": {
+        "2xx": { "type": "integer", "minimum": 0 },
+        "4xx": { "type": "integer", "minimum": 0 },
+        "5xx": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Response-status distribution (a 4xx-heavy mix suggests scanning/fuzzing)."
+    }
+  }
+}
