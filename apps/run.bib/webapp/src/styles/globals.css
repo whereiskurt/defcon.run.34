@@ -157,16 +157,15 @@ html.light .glass-nav {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  /* Motion-sensitive viewers: no downpour, no burst. */
-  .cash-rain {
-    animation: none;
-  }
-  .cash-bill {
-    animation: none;
-    display: none;
-  }
-}
+/* NB (Kurt 2026-07-05 — THE prod "no rain" bug): the cash rain is deliberately
+   NOT gated by prefers-reduced-motion. It's an explicit user-INITIATED effect
+   (you tick "I'll give $20 in person" to summon it), not ambient/auto-playing
+   motion — which is the only thing reduced-motion is meant to suppress. Gating
+   it here was silently `display:none`-ing every bill for anyone with "Reduce
+   Motion" on (Kurt's machine), so the rain never showed in prod while it always
+   did under Playwright/CI (which default to no-preference). The burst + fall
+   stay on for everyone. (To honor the OS setting for other users instead, add a
+   reduced-motion block that swaps the fall for a static scatter — not display:none.) */
 
 /* ============================================================================
    BurningBib — the "🔥 Fuck your bib" opt-out (Kurt 2026-07-05).
