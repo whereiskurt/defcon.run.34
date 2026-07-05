@@ -5,8 +5,8 @@ milestone_name: CMS-Driven UI Copy Catalog
 current_phase: 36
 current_phase_name: Runtime Copy Toolkit
 status: verifying
-stopped_at: v1.9 roadmap created (ROADMAP.md phases 35-39, REQUIREMENTS.md traceability filled)
-last_updated: "2026-07-05T15:10:17.592Z"
+stopped_at: Phase 36 context gathered
+last_updated: "2026-07-05T18:06:48.561Z"
 last_activity: 2026-07-05
 last_activity_desc: Phase 35 complete, transitioned to Phase 36
 progress:
@@ -74,9 +74,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-05T08:47:26.308Z
-Stopped at: v1.9 roadmap created (ROADMAP.md phases 35-39, REQUIREMENTS.md traceability filled)
-Resume file: .planning/ROADMAP.md
+Last session: 2026-07-05T18:06:48.553Z
+Stopped at: Phase 36 context gathered
+Resume file: .planning/phases/36-runtime-copy-toolkit/36-CONTEXT.md
 
 ## Operator Next Steps
 
