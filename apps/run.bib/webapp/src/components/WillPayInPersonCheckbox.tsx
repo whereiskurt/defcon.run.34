@@ -191,7 +191,9 @@ export function WillPayInPersonCheckbox({
 function saveHintText(state: SaveState): string {
   switch (state.kind) {
     case "saving":
-      return "Saving…";
+      // PoW "Saving…" hint removed — the once-mounted AltchaOverlay blur spinner
+      // covers the in-flight proof-of-work now (Plan 34-04, SC34.7).
+      return "";
     case "saved":
       return "Saved.";
     case "error":

@@ -310,12 +310,10 @@ function SaveStateHint({
     );
   }
   switch (state.kind) {
-    case "verifying":
-      return (
-        <span id="bib-name-hint" role="status" style={base}>
-          Checking you&apos;re human… (~5s)
-        </span>
-      );
+    // "verifying" (ALTCHA PoW) no longer renders an inline hint — the once-mounted
+    // AltchaOverlay blur spinner is the single global affordance now (Plan 34-04,
+    // SC34.7). The "saving" PATCH feedback below stays: the overlay only covers the
+    // PoW, not the subsequent network write.
     case "saving":
       return (
         <span id="bib-name-hint" role="status" style={base}>
