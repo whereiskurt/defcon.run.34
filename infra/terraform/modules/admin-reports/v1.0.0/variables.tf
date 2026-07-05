@@ -34,6 +34,44 @@ variable "log_retention_days" {
   default     = 90
 }
 
+# --- Dashboard identifier inputs (40-06) --------------------------------------
+# The dashboard (like modules/site/.../waf/dashboard.tf) cannot self-discover the
+# ALB / CloudFront identifiers it plots — it takes them as INPUTS. The terragrunt
+# unit populates these from `dependency` blocks on the network + ecs-service +
+# cloudfront units so no widget/alarm dimension is ever an empty string.
+
+variable "alb_arn_suffix" {
+  description = <<-EOT
+    The ALB's arn_suffix — the value of the CloudWatch AWS/ApplicationELB
+    `LoadBalancer` dimension, shaped `app/<name>/<hash>` (i.e. the ALB arn with the
+    `arn:...:loadbalancer/` prefix stripped). Fed by the network unit's alb_arn.
+    An empty value leaves the ALB widgets/alarms in permanent INSUFFICIENT_DATA.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "target_group_arn_suffixes" {
+  description = <<-EOT
+    Map of target-group key -> arn_suffix (the CloudWatch `TargetGroup` dimension
+    value, shaped `targetgroup/<name>/<hash>`). Fed by the ecs-service unit's
+    target_groups output. Keys become dashboard widget labels.
+  EOT
+  type        = map(string)
+  default     = {}
+}
+
+variable "cloudfront_distribution_ids" {
+  description = <<-EOT
+    Map of domain key -> CloudFront distribution id (the AWS/CloudFront
+    `DistributionId` dimension) for the six domains auth/run/cms/gpx/flash/bib.
+    CloudFront metrics live in us-east-1 (Region=Global). Fed by the cloudfront
+    unit's distribution_ids output.
+  EOT
+  type        = map(string)
+  default     = {}
+}
+
 variable "tags" {
   description = "Common resource tags."
   type        = map(string)

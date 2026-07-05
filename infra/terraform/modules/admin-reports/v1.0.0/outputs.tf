@@ -25,6 +25,11 @@ output "log_group_names" {
   value       = var.log_group_names
 }
 
+output "dashboard_name" {
+  description = "Name of the admin-reports CloudWatch dashboard."
+  value       = aws_cloudwatch_dashboard.admin_reports.dashboard_name
+}
+
 output "query_definition_names" {
   description = "The saved admin/* Logs Insights query definition names."
   value = [
