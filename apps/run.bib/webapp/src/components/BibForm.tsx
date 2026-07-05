@@ -104,15 +104,18 @@ export function BibForm({
     return subscribeBurn(setBurningState);
   }, []);
 
-  // Server-driven fallback (Kurt 2026-07-05): ContributionChoice PATCHes then
-  // router.refresh()es, so the server re-derives these from the persisted bib.
-  // Honor those prop changes here so rain/burn work even if the module-level
-  // store didn't cross a production code-split boundary (belt + suspenders).
+  // Server-truth reinforcement (Kurt 2026-07-05): ContributionChoice PATCHes then
+  // router.refresh()es. The re-read (getBib) is EVENTUALLY CONSISTENT on DynamoDB,
+  // so right after a toggle it can still return the OLD willPayInPerson/burned —
+  // making initialRaining/initialBurning momentarily FALSE. This sync must be
+  // ONE-DIRECTIONAL: only ever turn rain/burn ON from the server, NEVER off, or a
+  // stale read would kill the optimistic rain the moment the save succeeds (the
+  // prod-only "no rain" bug). Turning OFF is the store's job (uncheck → setRaining).
   useEffect(() => {
-    setRainingState(initialRaining);
+    if (initialRaining) setRainingState(true);
   }, [initialRaining]);
   useEffect(() => {
-    setBurningState(initialBurning);
+    if (initialBurning) setBurningState(true);
   }, [initialBurning]);
 
   const dirty = name !== savedName;
