@@ -36,11 +36,15 @@ seed-local-checkins.mts`): clustered pins with counts, cluster styling, pin popu
 
 ## Remaining / follow-ups
 
-- Kurt review + merge of `gsd/gpx-checkins-overlay`, then buildpub → deploy
-  (run.human AND run.gpx images + terragrunt apply for the new env var).
-- Visual verification: pins render, clustering behaves, POI icons legible.
-- Optional: cluster check-ins by user, live-refresh the layer, POI photo popups
-  (CMS `pois` array — see FUTURE-ENRICHMENT in v1-7-gpx-routes).
+- Deploy Phase 3 (PR #368 merged 2026-07-04): buildpub → deploy run.human AND
+  run.gpx images + terragrunt apply for `RUN_HUMAN_INTERNAL_URL`.
+- **Phase 4 — SPEC APPROVED, ready to plan/build:** custom check-in pins
+  (curated icons + any color w/ DC34 swatches, services-gated secret pins,
+  profile default + per-check-in override) + time chips + runner highlight.
+  Full spec: [PHASE-4-PINS-FILTERS.md](PHASE-4-PINS-FILTERS.md). Branch off
+  main, new PR.
+- Later: unlock codes for secret pins, time-lapse mode, leaderboard, live
+  refresh, POI photo popups (CMS `pois` — see FUTURE-ENRICHMENT in v1.7).
 
 ### Reference (verify before trusting — see memory `project_gpx_public_overlay.md`)
 - Real DynamoDB table for run.gpx = `run-gpx-electro` (NOT the entity default `dc34-gpx`).
