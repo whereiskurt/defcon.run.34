@@ -318,7 +318,7 @@ Plans:
 **Spec:** docs/superpowers/specs/2026-07-05-admin-activity-reports-design.md (approved 2026-07-05)
 **Requirements**: AR-01 (logEvent helper), AR-02 (event call sites), AR-03 (admin-reports TF module), AR-04 (metric filters), AR-05 (dashboard), AR-06 (saved queries), AR-07 (tripwire alarms), AR-08 (log retention + Mapbox/Strava quota)
 **Depends on:** none (existing logging infra already enabled)
-**Plans:** 0 plans
+**Plans:** 7 plans
 
 Deliverables (from spec):
 - `logEvent()` structured-event helper in run.auth / run.gpx / run.human (~8 call sites)
@@ -329,4 +329,10 @@ Deliverables (from spec):
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 40 to break down)
+- [ ] 40-01-PLAN.md — run.auth logEvent + auth.signup/auth.login (wave 1)
+- [ ] 40-02-PLAN.md — run.gpx logEvent + 5 gpx events + strava rate-limit line (wave 1)
+- [ ] 40-03-PLAN.md — run.human logEvent + human.checkin/human.upload (wave 1)
+- [ ] 40-04-PLAN.md — admin-reports module: metric filters + 90d retention + admin/* queries + wiring (wave 1)
+- [ ] 40-05-PLAN.md — Mapbox hardening + reading-the-reports runbook (wave 2)
+- [ ] 40-06-PLAN.md — admin-reports dashboard + SNS tripwire alarms (wave 2)
+- [ ] 40-07-PLAN.md — deploy + prod end-to-end verification checkpoint (wave 3)
