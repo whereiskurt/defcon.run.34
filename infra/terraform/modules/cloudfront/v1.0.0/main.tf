@@ -123,6 +123,39 @@ resource "aws_cloudfront_origin_access_control" "cms_media_oac" {
   provider = aws.global-application
 }
 
+# CORS response-headers policy for CMS media (Risk 1).
+# The gpx-studio at https://gpx.<zonename> must be able to cross-origin fetch() a
+# route .gpx from the CMS media distribution (cms.<zonename>, /{region}/cms/*).
+# Without Access-Control-Allow-Origin the browser blocks the studio from reading
+# the response. Scope the allow-list to the gpx studio origin only — NOT a "*"
+# wildcard — so CMS media is not opened to arbitrary web origins (T-02-07). The
+# fetch is credential-less and the .gpx is parsed as text (never canvas-drawn),
+# so only Access-Control-Allow-Origin is required (T-02-08 accept).
+resource "aws_cloudfront_response_headers_policy" "cms_media_cors" {
+  name    = "cms-media-cors-${var.dns.zonename}"
+  comment = "CORS for CMS media so the gpx studio origin can fetch .gpx cross-origin"
+
+  cors_config {
+    access_control_allow_credentials = false
+
+    access_control_allow_headers {
+      items = ["*"]
+    }
+
+    access_control_allow_methods {
+      items = ["GET", "HEAD", "OPTIONS"]
+    }
+
+    access_control_allow_origins {
+      items = ["https://gpx.${var.dns.zonename}"]
+    }
+
+    origin_override = true
+  }
+
+  provider = aws.global-application
+}
+
 # CloudFront Function to handle root and region path redirects
 # Redirects "/" to "/use1/" and "/use1" to "/use1/", etc.
 resource "aws_cloudfront_function" "root_redirect" {
@@ -337,7 +370,8 @@ resource "aws_cloudfront_distribution" "main" {
       cached_methods         = ["GET", "HEAD"]
       compress               = true
 
-      cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+      cache_policy_id            = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
+      response_headers_policy_id = aws_cloudfront_response_headers_policy.cms_media_cors.id
     }
   }
 
