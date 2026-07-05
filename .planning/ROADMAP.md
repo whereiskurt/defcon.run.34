@@ -296,7 +296,7 @@ Plans:
 | 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
-| 35. CMS Copy Catalog Foundation | v1.9 | 0/TBD | Planned | - |
+| 35. CMS Copy Catalog Foundation | v1.9 | 0/3 | Planned | - |
 | 36. Runtime Copy Toolkit | v1.9 | 0/TBD | Planned | - |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 0/TBD | Planned | - |
 | 38. Custom Copy Admin Plugin | v1.9 | 0/TBD | Planned | - |
@@ -346,7 +346,13 @@ Plans:
   3. A request bearing the read-only API token can `find`/`findOne` `ui-string` rows, while write attempts with that token are denied.
   4. Creating, updating, or deleting any `ui-string` regenerates `copy.json` in the CMS S3 bucket (served via CloudFront), reflecting the current catalog.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+- [ ] 35-01-PLAN.md — `ui-string` collection content type (schema + core controller/router/service, `draftAndPublish:false`) — COPY-01, COPY-04 [Wave 1]
+- [ ] 35-02-PLAN.md — `(key,locale)` uniqueness (lifecycle 4xx + idempotent DB unique-index migration) + master-only S3 `copy.json` export hook — COPY-02, FALL-01 [Wave 2]
+- [ ] 35-03-PLAN.md — Public-role deny + read-only API-token find/findOne verification — COPY-03 [Wave 2]
 
 ### Phase 36: Runtime Copy Toolkit
 
