@@ -67,7 +67,16 @@ A small toolkit (`loadCopy` + `t`) consumed by each app. Packaging (shared `pack
 
 - `loadCopy(locale = 'default')` — server-side. Fetches the Strapi `ui-string` API (Bearer token) **through the Next.js Data Cache**: `fetch(url, { next: { tags: ['copy'], revalidate: N } })`, with a ~2.5s `AbortController` timeout. On any failure it falls back to the **S3 copy export**, then the optional committed snapshot; it returns a resolved map and never throws.
 - Refresh is by the time-based `revalidate: N` window (Next.js Data Cache) — not by `Cache-Control` headers on the response. This deliberately replaces the gpx `no-store` + edge `s-maxage` approach for copy: the point is to actually leverage Strapi calls + a real server cache. (`tags: ['copy']` is attached for a possible future manual revalidation, but v1 relies solely on time-based revalidation.)
-- `t(key, vars?)` → `cms[key] ?? s3[key] ?? snapshot[key] ?? key`, with `{var}` interpolation over `vars`. Markdown in the resolved value is rendered client-side (a tiny renderer for bold/links/line-breaks; reuse/adapt the gpx sanitizing helper).
+- `loadCopy` returns a single **already-merged** map (per key: Strapi value, else S3, else snapshot; Strapi wins). `t(key, vars?)` is therefore just `map[key] ?? key` with `{var}` interpolation — the layer-merge happens once at resolve time, never per lookup. Markdown in the resolved value is rendered client-side (a tiny renderer for bold/links/line-breaks; reuse/adapt the gpx sanitizing helper).
+
+### Performance & cached fallback (hard requirement)
+
+The toolkit must never make a network call per UI element, and the fallback must be **as fast as the happy path** — a destroyed or undeployed CMS must not cause a slow failed call on every load.
+
+- **One bulk resolve per revalidate window.** The whole catalog is fetched once; every `t(key)` / `useCopy()` read is a pure in-memory O(1) map lookup (server *and* client, via `<CopyProvider>`). No per-key, per-element, or per-render fetching.
+- **Cache the resolved map, not just the Strapi fetch.** The entire resolver is wrapped in the Next.js Data Cache (`unstable_cache`, keyed by locale, `revalidate: N`, `tags: ['copy']`). The resolver **never throws** — it tries Strapi (short timeout) → S3 export → committed snapshot and always returns a map. Because the *returned map* is what gets cached, the **fallback is cached too**: with the CMS destroyed/undeployed, at most one request per window pays the failed-Strapi timeout; every other load is served the cached S3-derived map instantly.
+- **Stale-while-revalidate.** After the window expires, the stale map is served immediately while the refresh runs in the background — the user-facing render never blocks on a Strapi or S3 round-trip.
+- **Cold start with no CMS.** The committed snapshot is a local JSON import (zero network), so the very first request — before any cache is warm and with Strapi absent — is still instant.
 
 **Resilience guarantee (the gpx philosophy):** the overlays/copy must never break because the CMS is down. The committed snapshot is always present in the binary as the floor.
 
