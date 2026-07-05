@@ -6,7 +6,7 @@ current_phase: 40
 current_phase_name: Admin Activity Reports
 status: executing
 stopped_at: Completed 40-01-PLAN.md
-last_updated: "2026-07-05T08:04:46.201Z"
+last_updated: "2026-07-05T08:20:56.382Z"
 last_activity: 2026-07-05
 last_activity_desc: Phase 40 execution started
 progress:
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 ## Current Position
 
 Phase: 40 (Admin Activity Reports) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-07-05 — Phase 40 execution started
 
@@ -81,6 +81,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 40-02: strava.ratelimit meta.usage/meta.limit = first (15-min) hop of X-RateLimit headers as numbers — LOCKED for 40-04 $.meta.usage
 - [Phase ?]: 40-03: run.human logEvent is a byte-for-byte copy of run.auth's helper (no shared package) so both producers emit the identical DefconRun/Activity line shape
 - [Phase ?]: 40-03: human.checkin / human.upload emit at the API-route request boundary, not inside the ElectroDB entity (entities hold no request headers)
+- [Phase 40]: 40-04 admin-reports module: /ecs/* retention adopts existing groups via import + prevent_destroy (no destroy/recreate); StravaRateLimitUsage metric binds to meta.usage
 
 ### Pending Todos
 
@@ -123,7 +124,7 @@ the deferred fleet-simulator work lives only in the backlog file, not as a numbe
 
 ## Session Continuity
 
-Last session: 2026-07-05T08:04:28.410Z
+Last session: 2026-07-05T08:19:51.909Z
 Stopped at: Completed 40-01-PLAN.md
 Resume file: .planning/phases/18-build-time-firmware-device-list-refresh/18-CONTEXT.md
 
@@ -143,3 +144,4 @@ Resume file: .planning/phases/18-build-time-firmware-device-list-refresh/18-CONT
 | Phase 40 P40-01 | 20min | 2 tasks | 4 files |
 | Phase 40 P40-02 | 4min | 3 tasks | 10 files |
 | Phase 40 P40-03 | 20min | 2 tasks | 4 files |
+| Phase 40 P04 | 18m | 3 tasks | 8 files |
