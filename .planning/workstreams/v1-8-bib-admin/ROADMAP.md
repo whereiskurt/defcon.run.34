@@ -15,7 +15,7 @@ and print the runner's real social QR on the bib.
 
 ## Phases
 
-- [ ] **Phase 34: Bib admin, orderform UX & social QR** — single combined phase
+- [x] **Phase 34: Bib admin, orderform UX & social QR** — single combined phase (completed 2026-07-05)
   (Kurt's choice, 2026-07-04) delivering slices A (admin), B (orderform UX), and
   C (social QR) below. Reqs: BIB-ADM-01…10. **Plans:** 5 plans.
 
@@ -33,7 +33,7 @@ and print the runner's real social QR on the bib tear-offs with a runner-code fa
 
 **Success Criteria:** SC34.1–SC34.9 (see "Success Criteria (Phase 34)" below)
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -48,7 +48,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 34-05-PLAN.md — Header/menu alignment with run.human (flash-style menu, ?open deep-links) (wave 3)
+- [x] 34-05-PLAN.md — Header/menu alignment with run.human (flash-style menu, ?open deep-links) (wave 3)
 
 **UI hint:** yes (orderform + bib preview are frontend; `/admin` stays plain dark-theme)
 
