@@ -104,6 +104,17 @@ export function BibForm({
     return subscribeBurn(setBurningState);
   }, []);
 
+  // Server-driven fallback (Kurt 2026-07-05): ContributionChoice PATCHes then
+  // router.refresh()es, so the server re-derives these from the persisted bib.
+  // Honor those prop changes here so rain/burn work even if the module-level
+  // store didn't cross a production code-split boundary (belt + suspenders).
+  useEffect(() => {
+    setRainingState(initialRaining);
+  }, [initialRaining]);
+  useEffect(() => {
+    setBurningState(initialBurning);
+  }, [initialBurning]);
+
   const dirty = name !== savedName;
   const quotaSpent = renamesRemaining <= 0;
   const saving = saveState.kind === "saving";

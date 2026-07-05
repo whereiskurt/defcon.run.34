@@ -228,14 +228,25 @@ export async function PATCH(req: NextRequest) {
       // is free. On exhaustion, 429 so the client reverts the checkbox and shows
       // a friendly "that's plenty of cash" note.
       if (parsed.data.willPayInPerson === true) {
-        const q = await consumeQuota(session.user.id, "bib_toggle", 1, tier);
-        if (!q.success) {
-          return NextResponse.json(
-            { error: "toggle_quota_exceeded", togglesRemaining: q.remaining },
-            { status: 429 }
+        // FAIL OPEN (Kurt 2026-07-05): the cash-rain is cosmetic — a quota-service
+        // hiccup (or an unknown-quota error before bib_toggle propagates to
+        // run.auth) must NOT 500 the toggle and kill the rain. Only a real 429
+        // (cap reached) blocks; any other error is logged and we proceed.
+        try {
+          const q = await consumeQuota(session.user.id, "bib_toggle", 1, tier);
+          if (!q.success) {
+            return NextResponse.json(
+              { error: "toggle_quota_exceeded", togglesRemaining: q.remaining },
+              { status: 429 }
+            );
+          }
+          togglesRemaining = q.remaining;
+        } catch (err) {
+          console.error(
+            "[run.bib] bib_toggle consume errored — allowing toggle:",
+            err
           );
         }
-        togglesRemaining = q.remaining;
       }
       // Phase 22-05: pledge is orthogonal to nameLocked, so we do NOT skip
       // this write if the name was locked — a locked-name bib may still

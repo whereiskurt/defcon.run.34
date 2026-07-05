@@ -86,10 +86,13 @@ export default async function Home({ searchParams }: HomeProps) {
   // same server-component read above so client + server agree.
   const hasSponsored = (bib.paidAmount ?? 0) > 0;
 
-  // Once the participant has paid for their bib OR opted to pay in person,
-  // hide the "Sponsor this bib" (buy) flow — they're covered. The "Just
-  // donate" flow always stays available.
-  const hideBuyBib = hasSponsored || bib.willPayInPerson === true;
+  // Disable the "Sponsor this bib" tile + swap Donate above it when the runner
+  // has paid, pledged in person, OR torched their bib (Kurt 2026-07-05 — burn
+  // does the same disable+swap as pay-in-person). The "Just donate" flow always
+  // stays available.
+  const isBurned = bib.burned === true;
+  const hideBuyBib =
+    hasSponsored || bib.willPayInPerson === true || isBurned;
 
   // Remaining bib-name changes from the central quota service (run.auth).
   // Fall back to the default limit if the service is briefly unavailable —
@@ -323,8 +326,8 @@ export default async function Home({ searchParams }: HomeProps) {
             </div>
             {/* Same "make it rain" charm as the bib preview: once the runner
               * pledges to pay in person and this tile disables, cash rains over
-              * it (pointer-events:none, clipped to the tile's rounded corners). */}
-            {hideBuyBib && <CashRain active />}
+              * it. NOT when burned — a torched bib is fire, not cash. */}
+            {hideBuyBib && !isBurned && <CashRain active />}
           </div>
 
           {/* Just donate — order-2 by default; rises to order-1 (top on mobile,
