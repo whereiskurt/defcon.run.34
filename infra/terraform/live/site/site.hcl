@@ -471,7 +471,7 @@ locals {
     # workgroup, results bucket, Lambda, IAM, or cron get created) and the
     # EventBridge rule ships DISABLED. Restore to false for the committed state
     # after verification unless the operator elects to leave it live.
-    enabled = false
+    enabled = true
 
     # --- Detection thresholds (AD-03..AD-07). Tight pre-con defaults: legit
     #     traffic ~= 0, so a single hit is signal. Bump for con-week. ---
