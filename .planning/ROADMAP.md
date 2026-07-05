@@ -318,7 +318,7 @@ Plans:
 **Spec:** docs/superpowers/specs/2026-07-05-admin-activity-reports-design.md (approved 2026-07-05)
 **Requirements**: AR-01 (logEvent helper), AR-02 (event call sites), AR-03 (admin-reports TF module), AR-04 (metric filters), AR-05 (dashboard), AR-06 (saved queries), AR-07 (tripwire alarms), AR-08 (log retention + Mapbox/Strava quota)
 **Depends on:** none (existing logging infra already enabled)
-**Plans:** 1/7 plans executed
+**Plans:** 2/7 plans executed
 
 Deliverables (from spec):
 
@@ -332,7 +332,7 @@ Plans:
 **Wave 1**
 
 - [x] 40-01-PLAN.md — run.auth logEvent + auth.signup/auth.login (wave 1)
-- [ ] 40-02-PLAN.md — run.gpx logEvent + 5 gpx events + strava rate-limit line (wave 1)
+- [x] 40-02-PLAN.md — run.gpx logEvent + 5 gpx events + strava rate-limit line (wave 1)
 - [ ] 40-03-PLAN.md — run.human logEvent + human.checkin/human.upload (wave 1)
 - [ ] 40-04-PLAN.md — admin-reports module: metric filters + 90d retention + admin/* queries + wiring (wave 1)
 
