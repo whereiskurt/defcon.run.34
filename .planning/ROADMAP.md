@@ -311,3 +311,22 @@ Plans:
 - [x] 33-04-PLAN.md — IdP integration tests (prompt=none flows + interaction render split) (SSO-06)
 - [x] 33-05-PLAN.md — Parity test + pure-logic unit tests in run.bib vitest (SSO-05/07)
 - [x] 33-06-PLAN.md — e2e Playwright: full on gpx, smoke on flash + bib (SSO-08)
+
+### Phase 34: Admin Activity Reports
+
+**Goal:** Operator can see who is doing what (signups, logins, gpx uploads/shares, checkins), how many distinct users/IPs are active, and get tripwire alerts on anomalous activity — all CloudWatch-native, leveraging existing ALB/CloudFront/ECS logs. Pre-con posture: baseline ~zero, any activity is signal.
+**Spec:** docs/superpowers/specs/2026-07-05-admin-activity-reports-design.md (approved 2026-07-05)
+**Requirements**: TBD (derive from spec at plan time)
+**Depends on:** none (existing logging infra already enabled)
+**Plans:** 0 plans
+
+Deliverables (from spec):
+- `logEvent()` structured-event helper in run.auth / run.gpx / run.human (~8 call sites)
+- Terraform module `admin-reports/v1.0.0`: metric filters (`DefconRun/Activity`), `admin-reports` dashboard (ALB/CloudFront/event metrics + distinct-active-users + top-IPs widgets), saved `admin/*` Logs Insights queries, SNS tripwire alarms (thresholds in site.hcl), 90d retention on `/ecs/*` log groups
+- Mapbox account hardening checklist (URL-restrict token, per-app tokens, spending cap — no usage API exists)
+- Strava rate-limit-header metric from strava-sync
+- Phase 2 (separate, later): Athena over CloudFront/ALB S3 access logs
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 34 to break down)
