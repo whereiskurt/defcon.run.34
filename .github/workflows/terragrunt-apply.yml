@@ -77,6 +77,9 @@ jobs:
       # how to resolve these locally and print the `gh variable set` commands.
       TF_VAR_SOPS_KMS_KEY_ID: ${{ vars.TF_VAR_SOPS_KMS_KEY_ID }}
       TF_VAR_SSM_KMS_KEY_ARNS: ${{ vars.TF_VAR_SSM_KMS_KEY_ARNS }}
+      # admin_reports.alert_email = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
+      # (site.hcl). Without this mapping the SNS tripwire subscribes the placeholder.
+      TF_VAR_ADMIN_EMAIL: ${{ vars.TF_VAR_ADMIN_EMAIL }}
 
     steps:
       - name: Checkout
