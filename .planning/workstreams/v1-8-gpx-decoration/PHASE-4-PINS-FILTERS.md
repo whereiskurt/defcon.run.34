@@ -1,7 +1,7 @@
 ---
 phase: v1.8 Phase 4 — Check-in personalization & map filters
-status: SPEC APPROVED (Kurt 2026-07-04) — build AFTER PR #368 merges, branch off main
-depends_on: PR #368 (gsd/gpx-checkins-overlay — User Check-ins overlay)
+status: BUILT (2026-07-04, branch gsd/gpx-pins-filters) — PR open, awaiting Kurt review
+depends_on: PR #368 (merged 2026-07-04)
 ---
 
 # v1.8 Phase 4 — Check-in personalization & map filters
@@ -93,6 +93,16 @@ sides). Picker only shows gated entries when `session.user.services` includes
 
 - Unlock codes for secret pins (design accommodates via `unlockedPins`).
 - Time-lapse/animation mode, leaderboard widget, live auto-refresh.
+
+## Build result (2026-07-04)
+
+Implemented as specced on `gsd/gpx-pins-filters`. Verified: 26/26 vitest
+(16 new), tsc clean both webapps, studio build clean, svelte-check errors all
+pre-existing. VISUALLY VERIFIED on the local stack: varied pins render
+(bunny/star/skull/flag/paw/bolt/crown + gold star staying gold), time chips
+filter with honest re-clustering (Hour→0, Whole con→9), runner highlight
+via popup name click + clear chip. Picker UI (profile card + modal) covered
+by tests/typecheck only — needs an authenticated session to eyeball.
 
 ## Build notes
 
