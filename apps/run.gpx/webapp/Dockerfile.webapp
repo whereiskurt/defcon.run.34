@@ -33,30 +33,12 @@ RUN npm install --ignore-scripts
 
 COPY gpx-studio/website ./
 
-# Create auth store patch (uses SvelteKit base path for correct routing through Next.js)
-# Note: cloud-sync.ts is used from the repo - it uses /api/gpx which works with the proxy
-RUN mkdir -p src/lib/stores && \
-    echo 'import { writable, derived } from "svelte/store"; \
-import { browser } from "$app/environment"; \
-import { base } from "$app/paths"; \
-function getAuthBase() { return base.replace("/studio", ""); } \
-function createAuthStore() { \
-  const { subscribe, set } = writable({ user: null, isLoading: true, isAuthenticated: false }); \
-  async function checkSession() { \
-    if (!browser) return; \
-    try { \
-      const session = await (await fetch(`${getAuthBase()}/api/auth/session`)).json(); \
-      if (session?.user?.services?.includes("gpxstudio")) set({ user: session.user, isLoading: false, isAuthenticated: true }); \
-      else set({ user: null, isLoading: false, isAuthenticated: false }); \
-    } catch { set({ user: null, isLoading: false, isAuthenticated: false }); } \
-  } \
-  return { subscribe, checkSession, logout: () => window.location.href = `${getAuthBase()}/api/auth/signout` }; \
-} \
-export const auth = createAuthStore(); \
-export const currentUser = derived(auth, a => a.user); \
-export const isAuthenticated = derived(auth, a => a.isAuthenticated); \
-export const isAuthLoading = derived(auth, a => a.isLoading); \
-export const hasGpxStudioAccess = derived(auth, a => a.user?.services?.includes("gpxstudio") ?? false);' > src/lib/stores/auth.ts
+# Auth store + cloud-sync.ts come from the committed repo source (COPY'd above).
+# The committed src/lib/stores/auth.ts is the single source of truth: it exports the
+# full surface the studio imports (auth, currentUser, isAuthenticated, hasGpxStudioAccess,
+# ...) and does SvelteKit base-path routing (base.replace('/studio','') + '/api/auth').
+# Do NOT reintroduce an inline heredoc copy here — a divergent copy silently omitted
+# `currentUser` and broke every run.gpx build from ~v0.0.18 until it was caught.
 
 # Note: API base path fixes are now in the source files:
 # - Map.svelte uses base.replace('/studio', '') for mapbox-token endpoint
