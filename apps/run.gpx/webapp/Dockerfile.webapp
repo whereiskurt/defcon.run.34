@@ -53,6 +53,7 @@ function createAuthStore() { \
   return { subscribe, checkSession, logout: () => window.location.href = `${getAuthBase()}/api/auth/signout` }; \
 } \
 export const auth = createAuthStore(); \
+export const currentUser = derived(auth, a => a.user); \
 export const isAuthenticated = derived(auth, a => a.isAuthenticated); \
 export const isAuthLoading = derived(auth, a => a.isLoading); \
 export const hasGpxStudioAccess = derived(auth, a => a.user?.services?.includes("gpxstudio") ?? false);' > src/lib/stores/auth.ts
