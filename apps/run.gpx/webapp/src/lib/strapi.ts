@@ -31,6 +31,42 @@ export interface RouteMeta {
   stravaUrl?: string; // link to the route on Strava
 }
 
+/**
+ * A single CMS point-of-interest attached to a route.
+ *
+ * PHASE-3 SEAM: declared here as the extension point for the POI work, but NOT
+ * populated in Phase 2 — `CmsRouteData.pois` is always `[]` for now. The
+ * `poiType`/`markerImageUrl`/`photoUrl`/`sortOrder` fields are intentionally
+ * present so Phase 3 can fill them without touching this contract.
+ */
+export interface PoiMeta {
+  name: string;
+  description?: string;
+  lat: number;
+  lon: number;
+  poiType?: string;
+  markerImageUrl?: string; // CMS media (cms.defcon.run)
+  photoUrl?: string; // CMS media
+  sortOrder?: number;
+}
+
+/**
+ * One CMS-native route as returned to the manifest. Carries the route's GPX
+ * asset (when present) and its placement metadata (`mapFolder`/`sortOrder`)
+ * alongside the existing `RouteMeta` enrichment. `pois` is the Phase-3 seam and
+ * is always empty in Phase 2.
+ */
+export interface CmsRouteData {
+  documentId: string;
+  gpxFileId?: string;
+  gpxUrl?: string;
+  gpxName?: string;
+  mapFolder: string;
+  sortOrder?: number;
+  meta: RouteMeta;
+  pois: PoiMeta[];
+}
+
 // ---- Strapi "blocks" → safe HTML -------------------------------------------
 // Route.description is a Strapi v5 blocks field (structured JSON). We render it
 // server-side to a small whitelist of tags. Content is authored by trusted CMS
@@ -113,31 +149,56 @@ export function blocksToHtml(blocks: unknown): string | undefined {
 const num = (v: unknown): number | undefined =>
   typeof v === "number" && Number.isFinite(v) ? v : undefined;
 
+/** Default group a standalone CMS route joins when it names no `mapFolder`. */
+const DEFAULT_MAP_FOLDER = "DEF CON 34 Maps";
+
 /**
- * Map of a Route's `gpxFileId` value → its curated metadata.
+ * Fetch CMS `Route` rows for the public manifest, in two parts:
  *
- * The `gpxFileId` an editor sets in the CMS may be EITHER a run.gpx `fileId`
- * OR a GPX filename — the manifest matches an overlay route against both, so
- * this works whether the editor started with filenames (quick) or migrated to
- * fileIds (durable). Nothing here assumes which.
+ * - `byGpxKey` — the existing enrichment join: a `Map<gpxFileId, RouteMeta>`.
+ *   The `gpxFileId` an editor sets in the CMS may be EITHER a run.gpx `fileId`
+ *   OR a GPX filename — the manifest matches an overlay route against both, so
+ *   this works whether the editor started with filenames (quick) or migrated to
+ *   fileIds (durable). Only rows that HAVE a `gpxFileId` land here, and the
+ *   value is byte-for-byte the same `RouteMeta` the old single-map return built.
+ * - `cmsRoutes` — every published route (with a `gpxFileId` OR a `gpxFiles`
+ *   asset), carrying its GPX asset URL/name, `mapFolder`/`sortOrder` placement,
+ *   the same `RouteMeta` under `meta`, and an (always-empty in Phase 2) `pois`
+ *   seam. This drives standalone-route emission in the manifest.
+ *
+ * Best-effort: on any failure (unconfigured, unreachable, slow, non-200) it
+ * returns `{ byGpxKey: empty map, cmsRoutes: [] }` and the manifest degrades to
+ * DynamoDB-only — the overlays must never break because the CMS is down.
  */
-export async function fetchRouteMeta(): Promise<Map<string, RouteMeta>> {
-  const out = new Map<string, RouteMeta>();
-  if (!BASE_URL || !API_TOKEN) return out;
+export async function fetchRouteMeta(): Promise<{
+  byGpxKey: Map<string, RouteMeta>;
+  cmsRoutes: CmsRouteData[];
+}> {
+  const byGpxKey = new Map<string, RouteMeta>();
+  const cmsRoutes: CmsRouteData[] = [];
+  if (!BASE_URL || !API_TOKEN) return { byGpxKey, cmsRoutes };
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 2500);
   try {
     const url = new URL(`${BASE_URL}/api/routes`);
-    url.searchParams.set("filters[gpxFileId][$notNull]", "true");
+    // Widen the filter: include CMS-native routes that have a GPX asset but no
+    // gpxFileId. $or of two branches — gpxFileId notNull OR gpxFiles notNull.
+    url.searchParams.set("filters[$or][0][gpxFileId][$notNull]", "true");
+    url.searchParams.set("filters[$or][1][gpxFiles][$notNull]", "true");
     const fields = [
       "gpxFileId", "name", "shortDescription", "description",
       "distance", "elevationGain", "mapColor", "mapWeight", "mapOpacity", "stravaUrl",
+      "mapFolder", "sortOrder",
     ];
     fields.forEach((f, i) => url.searchParams.set(`fields[${i}]`, f));
     // coverImage is a media relation — populate its url + formats (sized variants).
     url.searchParams.set("populate[coverImage][fields][0]", "url");
     url.searchParams.set("populate[coverImage][fields][1]", "formats");
+    // gpxFiles is the route's GPX asset (first entry) — we need its url + name.
+    url.searchParams.set("populate[gpxFiles][fields][0]", "url");
+    url.searchParams.set("populate[gpxFiles][fields][1]", "name");
+    // NOTE: pointsOfInterest is intentionally NOT populated — POIs are Phase 3.
     url.searchParams.set("pagination[pageSize]", "200");
     url.searchParams.set("status", "published");
 
@@ -148,21 +209,20 @@ export async function fetchRouteMeta(): Promise<Map<string, RouteMeta>> {
     });
     if (!res.ok) {
       console.warn(`[run.gpx strapi] route meta fetch: HTTP ${res.status}`);
-      return out;
+      return { byGpxKey, cmsRoutes };
     }
 
     const json = (await res.json()) as {
       data?: Array<Record<string, unknown>>;
     };
     for (const r of json.data ?? []) {
-      const gpxFileId = r.gpxFileId as string | undefined;
-      if (!gpxFileId) continue;
+      const gpxFileId = (r.gpxFileId as string) || undefined;
       const ci = r.coverImage as
         | { url?: string; formats?: Record<string, { url?: string }> }
         | null
         | undefined;
       const fmts = ci?.formats ?? {};
-      out.set(gpxFileId, {
+      const meta: RouteMeta = {
         title: (r.name as string) || undefined,
         shortDescription: (r.shortDescription as string) || undefined,
         descriptionHtml: blocksToHtml(r.description),
@@ -175,13 +235,36 @@ export async function fetchRouteMeta(): Promise<Map<string, RouteMeta>> {
         coverImageDisplayUrl:
           fmts.small?.url || fmts.medium?.url || fmts.thumbnail?.url || ci?.url || undefined,
         stravaUrl: (r.stravaUrl as string) || undefined,
+      };
+
+      // First gpxFiles asset is the route's GPX (url + name), if any.
+      const gpxFiles = r.gpxFiles as
+        | Array<{ url?: string; name?: string }>
+        | null
+        | undefined;
+      const gpx = Array.isArray(gpxFiles) ? gpxFiles[0] : undefined;
+
+      cmsRoutes.push({
+        documentId: r.documentId as string,
+        gpxFileId,
+        gpxUrl: gpx?.url || undefined,
+        gpxName: gpx?.name || undefined,
+        mapFolder: ((r.mapFolder as string) || "").trim() || DEFAULT_MAP_FOLDER,
+        sortOrder: num(r.sortOrder),
+        meta,
+        pois: [], // Phase-3 seam — POIs are not populated in Phase 2.
       });
+
+      // Preserve the enrichment join: only rows with a gpxFileId enrich a
+      // DynamoDB route (value identical to the old single-map return).
+      if (gpxFileId) byGpxKey.set(gpxFileId, meta);
     }
   } catch (err) {
     // CMS unconfigured / unreachable / slow → fall back to filenames + GPX meta.
     console.warn("[run.gpx strapi] route meta fetch failed:", err);
+    return { byGpxKey: new Map(), cmsRoutes: [] };
   } finally {
     clearTimeout(timer);
   }
-  return out;
+  return { byGpxKey, cmsRoutes };
 }
