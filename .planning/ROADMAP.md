@@ -295,7 +295,7 @@ Plans:
 | 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
-| 41. Abuse Detection | v1.x | 2/5 | In Progress|  |
+| 41. Abuse Detection | v1.x | 4/5 | In Progress|  |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -365,7 +365,7 @@ Deliverables (from spec):
 - `site.hcl` `abuse_detection` block (thresholds + enabled gate), tight pre-con defaults
 - Out of scope: enabling AWS WAF + IP-set auto-block, Impart.security integration, CloudFront-log correlation
 
-**Plans**: 2/5 plans executed
+**Plans**: 4/5 plans executed
 
 Plans:
 
@@ -376,8 +376,8 @@ Plans:
 
 **Wave 2** *(parallel — depends on Wave 1)*
 
-- [ ] 41-03-PLAN.md — abuse-detector Lambda infra + least-privilege IAM + EventBridge cron (dark) + reused-SNS ARN + S3 report/dedup prefixes (AD-05, AD-06, AD-07)
-- [ ] 41-04-PLAN.md — Lambda handler + logic: run queries, finding schema (WAF/Impart seam), dedup/escalation, SNS alert, findings.jsonl + digest, fail-safe, node:test units (AD-05, AD-06, AD-07)
+- [x] 41-03-PLAN.md — abuse-detector Lambda infra + least-privilege IAM + EventBridge cron (dark) + reused-SNS ARN + S3 report/dedup prefixes (AD-05, AD-06, AD-07)
+- [x] 41-04-PLAN.md — Lambda handler + logic: run queries, finding schema (WAF/Impart seam), dedup/escalation, SNS alert, findings.jsonl + digest, fail-safe, node:test units (AD-05, AD-06, AD-07)
 
 **Wave 3** *(depends on Wave 2)*
 
