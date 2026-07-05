@@ -2,6 +2,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import { GpxFile } from "@/entities/gpx-file";
 import { s3Client, BUCKET, getUserPrefix } from "@/lib/s3-client";
+import { logEvent } from "@/lib/log-event";
 
 /**
  * Strava date-banded ingestion worker (v1.7 Phase 31b).
@@ -38,10 +39,37 @@ function bandBounds(): { after?: number; before?: number } {
   };
 }
 
+/**
+ * Strava returns rate-limit headers as a "15min,daily" comma pair (e.g. "123,7890").
+ * We track the 15-min window — the first hop — as the numeric quota signal.
+ */
+function firstHop(headerValue: string | null): number | undefined {
+  if (!headerValue) return undefined;
+  const n = parseInt(headerValue.split(",")[0].trim(), 10);
+  return Number.isNaN(n) ? undefined : n;
+}
+
+/**
+ * Emit the Strava quota telemetry line (AR-08c). The `strava.ratelimit` evt with
+ * numeric meta.usage / meta.limit is a LOCKED contract 40-04 binds to `$.meta.usage`
+ * for the StravaRateLimitUsage CloudWatch widget — do NOT rename these fields.
+ * Fire-and-forget: logEvent never throws, so sync control flow is unaffected.
+ */
+function emitStravaRateLimit(res: Response): void {
+  logEvent("strava.ratelimit", {
+    meta: {
+      usage: firstHop(res.headers.get("X-RateLimit-Usage")),
+      limit: firstHop(res.headers.get("X-RateLimit-Limit")),
+    },
+  });
+}
+
 async function stravaGet<T>(path: string, token: string): Promise<T | null> {
   const res = await fetch(`https://www.strava.com/api/v3${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  // Emit rate-limit telemetry for every response (2xx, 429, and other non-ok).
+  emitStravaRateLimit(res);
   if (res.status === 429) {
     console.warn("[strava-sync] rate limited; will retry next cycle");
     return null;
