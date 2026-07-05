@@ -4,7 +4,7 @@ import { auth } from "@/config/auth";
 import GetYourBib from "@/components/GetYourBib";
 import SponsorForm from "@/components/SponsorForm";
 import { CashRain } from "@/components/CashRain";
-import { WillPayInPersonCheckbox } from "@/components/WillPayInPersonCheckbox";
+import { ContributionChoice } from "@/components/ContributionChoice";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
 import { listPendingForOwner } from "@/entities/pending-contribution";
@@ -160,17 +160,28 @@ export default async function Home({ searchParams }: HomeProps) {
   // "I'll pay in person" pledge — it's only meaningful pre-payment.
   const hasTransacted = hasSponsored || donationTotal > 0;
 
-  // Pay-in-person state, threaded to the checkbox (now living in the tile grid
-  // per Plan 34-03) and used to seed the bib preview's cash-rain on load.
+  // Pay-in-person state, threaded to the choice control (in the tile grid) and
+  // used to seed the bib preview's cash-rain on load.
   const willPayInitial = bib.willPayInPerson === true;
   const showCheckbox = !hasTransacted;
-  // WR-02: seed the cash-rain from the SAME gate that shows the checkbox.
+  // WR-02: seed the cash-rain from the SAME gate that shows the control.
   // willPayInPerson is never cleared in the DB when money moves (A4 "drop the
-  // pledge" is realized by hiding the checkbox, not mutating the flag), so a
+  // pledge" is realized by hiding the control, not mutating the flag), so a
   // runner who pledged in-person AND later paid online would otherwise load
-  // with rain stuck on and no checkbox to turn it off. Only seed rain while the
+  // with rain stuck on and no control to turn it off. Only seed rain while the
   // pledge is still actionable.
   const initialRaining = showCheckbox && willPayInitial;
+
+  // 🔥 Burn opt-out (Kurt 2026-07-05). Persisted on bib.burned. Suppress the
+  // burning view once money has moved so a sponsored bib shows normally even if
+  // it was torched earlier (the flag lingers in the DB but is irrelevant then).
+  const initialBurning = bib.burned === true && !hasTransacted;
+  // Seed the 3-way control: burn wins, then pledge, else nothing.
+  const initialChoice: "nothing" | "inperson" | "burn" = initialBurning
+    ? "burn"
+    : willPayInitial
+      ? "inperson"
+      : "nothing";
 
   return (
     // Transparent container — the root layout now paints the dark background,
@@ -237,6 +248,7 @@ export default async function Home({ searchParams }: HomeProps) {
           initialRenamesRemaining: renamesRemaining,
           runnerCode: bib.runnerCode,
           initialRaining,
+          initialBurning,
           socialQrUrl,
         }}
       />
@@ -266,9 +278,7 @@ export default async function Home({ searchParams }: HomeProps) {
           * and dimmed in place. On mobile the effect is: checkbox → Donate →
           * disabled Sponsor at the bottom. Still rains cash over the preview via
           * the rain-store, and the swap is driven by hideBuyBib (pledge or paid). */}
-        {showCheckbox && (
-          <WillPayInPersonCheckbox initialValue={willPayInitial} />
-        )}
+        {showCheckbox && <ContributionChoice initialChoice={initialChoice} />}
 
         {/* Responsive tile grid (SC34.4): single column on mobile, 2-col ≥640px.
           * `order` utilities apply at every breakpoint so the swap holds on both
