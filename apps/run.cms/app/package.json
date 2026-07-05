@@ -15,6 +15,7 @@
     "env:ssm": "./scripts/env-from-ssm.sh"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
     "@aws-sdk/client-ses": "^3.0.0",
     "@aws-sdk/client-ssm": "^3.0.0",
     "@strapi/plugin-cloud": "^5.6.0",
