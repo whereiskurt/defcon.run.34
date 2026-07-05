@@ -63,6 +63,17 @@ export type PublicMap = {
     trackCount?: number;
     uploadedBy?: string;
     tags?: string[];
+    // CMS-authored points of interest (plan 03-01 nests these onto the manifest). Each
+    // renders as an icon in this route's per-route POI layer and toggles with the route.
+    pois?: {
+        name: string;
+        description?: string;
+        lat: number;
+        lon: number;
+        poiType?: string; // one of the 12 point-of-interest enum values
+        markerImageUrl?: string; // CMS media used as the map icon (cross-origin)
+        photoUrl?: string; // CMS media shown in the click popup
+    }[];
     color: string; // resolved DC34 palette color (or CMS mapColor)
     visible: boolean;
 };
@@ -263,15 +274,71 @@ function checkinPopupHtml(displayName: string, timestamp: number, checkInType?: 
         </div>`;
 }
 
-function poiPopupHtml(name: string, desc: string, color: string): string {
+/**
+ * poiType → default map icon (a `symbols` catalog key or `undefined` for a plain route-color
+ * pin) + a DC34 palette color. Covers ALL 12 point-of-interest enum values (design §4 / the
+ * CMS `point-of-interest` schema). An unknown/absent poiType falls back to a plain route-color
+ * pin (see `poiDefaultIcon`). This is the D7 default used when a POI has no `markerImage`.
+ */
+const POI_TYPE_ICONS: Record<string, { symbol?: string; color: string }> = {
+    'water-station': { symbol: 'water_source', color: DC34.cyan },
+    'rest-stop': { symbol: 'shelter', color: DC34.teal },
+    'start-finish': { symbol: 'information', color: DC34.magenta },
+    'aid-station': { symbol: 'pharmacy', color: DC34.green },
+    'photo-opportunity': { symbol: 'binoculars', color: DC34.amber },
+    'scenic-viewpoint': { symbol: 'scenic_area', color: DC34.violet },
+    'lockpick-village': { symbol: 'building', color: DC34.orange },
+    'badge-station': { symbol: 'information', color: DC34.teal },
+    'swag-drop': { symbol: 'shopping_center', color: DC34.pink },
+    'rf-check-in': { symbol: 'telephone', color: DC34.aqua },
+    vendor: { symbol: 'restaurant', color: DC34.orange },
+    'social-gathering-spot': { symbol: 'campground', color: DC34.magenta },
+};
+
+/**
+ * Build the poiType default icon — the SAME route-color pin shape the GPX waypoints already
+ * use (`getSvgForSymbol` with an `undefined` layerColor drops the corner badge), so a poiType
+ * default and a waypoint pin look consistent (D7). An unknown/absent poiType maps to a plain
+ * route-color pin (`symbol: undefined`, `color = routeColor`). The `iconId` is keyed off the
+ * poiType + resolved color so the (symbol, color) image registers under map.addImage once.
+ */
+function poiDefaultIcon(
+    poiType: string | undefined,
+    routeColor: string
+): { iconId: string; svg: string } {
+    const entry = (poiType && POI_TYPE_ICONS[poiType]) || { symbol: undefined, color: routeColor };
+    const iconId = `dc34-poi-${poiType ?? 'default'}-${entry.color}`;
+    return { iconId, svg: getSvgForSymbol(entry.symbol, undefined, entry.color) };
+}
+
+/**
+ * Stable, collision-resistant image id for a CMS `markerImage` url (djb2 hash) so each distinct
+ * marker image registers under `map.addImage` exactly once (D7 "image id keyed so each pair
+ * registers once"), regardless of how many POIs/routes reference it.
+ */
+function markerImageId(url: string): string {
+    let h = 5381;
+    for (let i = 0; i < url.length; i++) h = ((h << 5) + h + url.charCodeAt(i)) | 0;
+    return `dc34-poi-img-${(h >>> 0).toString(36)}`;
+}
+
+/** Point-of-interest popup — colored left tab in the route color, name + (optional) escaped
+ * description, and (for Strapi POIs) an optional escaped `<img>` photo below the text. The
+ * photo uses a plain `<img>` (not a canvas) so it is unaffected by cross-origin taint (Risk 3).
+ * `name`/`desc`/`photoUrl` are ALL escaped — POI text is plain CMS text, never raw HTML. */
+function poiPopupHtml(name: string, desc: string, color: string, photoUrl?: string): string {
     const detail = desc
         ? `<div style="font-size:12px;opacity:.8;margin-top:4px">${escapeHtml(desc)}</div>`
+        : '';
+    const photo = photoUrl
+        ? `<img src="${escapeHtml(photoUrl)}" loading="lazy" style="width:100%;border-radius:6px;margin-top:8px;display:block" alt="${escapeHtml(name)}">`
         : '';
     return `
         <div style="padding:8px 10px;border-left:4px solid ${color};font-family:system-ui,sans-serif;color:#e4e4ef">
             <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Point of interest</div>
             <div style="font-size:14px;font-weight:600;margin-top:2px">${escapeHtml(name)}</div>
             ${detail}
+            ${photo}
         </div>`;
 }
 
@@ -438,6 +505,29 @@ export class PublicOverlaysLayer {
             if (!this.map.hasImage(id)) this.map.addImage(id, icon);
         };
         icon.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    }
+
+    /** Register a cross-origin raster image (a CMS `markerImage`) as a map image (Risk 3).
+     * Sets `crossOrigin='anonymous'` BEFORE `src` so the CORS-enabled CMS media (added on the
+     * `/{region}/cms/*` behavior in Phase 2 02-03) loads without tainting the map canvas. On
+     * load failure — or a browser that still refuses the cross-origin image, or a taint thrown
+     * by `addImage` — it calls `onFail()` so the POI is NEVER left icon-less (the fallback
+     * registers the poiType SVG default under the same id). No-op if the id is already loaded. */
+    private loadUrlImage(id: string, url: string, onFail: () => void) {
+        if (this.map.hasImage(id)) return;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                if (!this.map.hasImage(id)) this.map.addImage(id, img);
+            } catch {
+                // Cross-origin taint slipped through (e.g. missing CORS header) — addImage
+                // reads pixels and throws. Fall back to the poiType SVG default (not silent).
+                onFail();
+            }
+        };
+        img.onerror = () => onFail();
+        img.src = url;
     }
 
     // Raw fetched check-ins — filters re-derive the source data from this list
