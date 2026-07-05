@@ -21,8 +21,18 @@ export default {
   async beforeCreate(event) {
     const { data } = event.params;
     const key = data?.key;
-    const locale = data?.locale ?? DEFAULT_LOCALE;
     if (!key) return;
+
+    // Strapi reserves the `locale` attribute name: it coerces the field to Private
+    // and DROPS the schema default ("default"), so a create that omits locale (the
+    // default content-manager's only path — Private hides the field) would persist
+    // locale=null. That silently defeats uniqueness: the guard below would compare
+    // against 'default' and never match a stored null, and the DB unique index on
+    // (key, locale) does not fire for NULLs (SQLite treats NULLs as distinct).
+    // Write the coalesced default back into the row so locale is NEVER null on any
+    // authoring path, restoring both this guard and the DB index backstop.
+    const locale = data.locale ?? DEFAULT_LOCALE;
+    data.locale = locale;
 
     const existing = await strapi.db.query(UID).findOne({
       where: { key, locale },
@@ -47,6 +57,12 @@ export default {
     const key = data?.key ?? current?.key;
     const locale = data?.locale ?? current?.locale ?? DEFAULT_LOCALE;
     if (!key) return;
+
+    // If this update touches locale (or the row's stored locale is a legacy null),
+    // persist the resolved non-null locale so uniqueness stays enforceable.
+    if (data && ('locale' in data || (current && current.locale == null))) {
+      data.locale = locale;
+    }
 
     // Reject only a collision on a DIFFERENT row; a row never collides with itself.
     const conflict = await strapi.db.query(UID).findOne({
