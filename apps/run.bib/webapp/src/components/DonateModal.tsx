@@ -33,9 +33,10 @@ import { createPortal } from "react-dom";
  *   - regionPrefix="use1" → provider pages under /use1; "" in dev/no-basePath.
  */
 
-const MIN_CENTS = 1_000; //   $10 donation minimum (matches /api/checkout/general)
-const MAX_CENTS = 200_000; // $2000 ceiling (matches /api/checkout/general)
-const PRESETS_DOLLARS = [5, 10, 15, 20, 25, 40, 50, 75, 100, 200, 250] as const;
+const MIN_CENTS = 1_000; //      $10 donation minimum (matches /api/checkout/general)
+const MAX_CENTS = 200_000; //    $2000 ceiling (matches /api/checkout/general)
+const SLIDER_MAX_CENTS = 20_000; // $200 slider ceiling (matches the SponsorForm panels)
+const SLIDER_STEP_CENTS = 1_000; //  $10 slider steps
 
 type Provider = "stripe" | "cashapp" | "venmo";
 
@@ -112,11 +113,14 @@ export function DonateModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const pickPreset = useCallback((dollars: number) => {
-    const cents = clampCents(dollars * 100);
-    setAmountCents(cents);
-    setCustomText((cents / 100).toString());
-  }, []);
+  const onSliderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const next = clampCents(Number(e.target.value));
+      setAmountCents(next);
+      setCustomText((next / 100).toString());
+    },
+    []
+  );
 
   const onCustomChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -273,77 +277,82 @@ export function DonateModal({
             >
               Donation amount
             </span>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 8,
-                marginTop: 10,
-              }}
-            >
-              {PRESETS_DOLLARS.map((d) => {
-                const selected = amountCents === clampCents(d * 100);
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => pickPreset(d)}
-                    disabled={disabled}
-                    aria-pressed={selected}
-                    style={{
-                      padding: "7px 12px",
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      backgroundColor: selected ? "#1a1a24" : "transparent",
-                      border: `1px solid ${selected ? "#6CCDB8" : "#2a2a34"}`,
-                      color: selected ? "#6CCDB8" : "#e4e4ef",
-                      cursor: disabled ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    ${d}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Slider + editable amount box — matches the Sponsor/Donate tile
+              * panels (SponsorForm) so the modal reads as the same control. */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
-                marginTop: 12,
-                padding: "8px 12px",
-                backgroundColor: "#1a1a24",
-                border: "1px solid #2a2a34",
-                borderRadius: 8,
-                width: 140,
+                gap: 12,
+                marginTop: 10,
               }}
             >
-              <span style={{ color: "#8f8fa8", fontWeight: 700 }}>$</span>
               <input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                value={customText}
-                onChange={onCustomChange}
-                onBlur={onCustomBlur}
+                type="range"
+                min={MIN_CENTS}
+                max={SLIDER_MAX_CENTS}
+                step={SLIDER_STEP_CENTS}
+                value={Math.min(amountCents, SLIDER_MAX_CENTS)}
+                onChange={onSliderChange}
                 disabled={disabled}
-                aria-label="Amount in US dollars"
+                aria-label="Donation amount"
                 style={{
-                  width: "100%",
+                  flex: 1,
                   minWidth: 0,
-                  padding: 0,
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: "#6CCDB8",
-                  backgroundColor: "transparent",
-                  border: "none",
-                  outline: "none",
-                  fontFamily:
-                    "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+                  accentColor: "#6CCDB8",
+                  cursor: disabled ? "not-allowed" : "pointer",
                 }}
               />
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "8px 12px",
+                  backgroundColor: "#1a1a24",
+                  border: "1px solid #2a2a34",
+                  borderRadius: 8,
+                  flex: "0 0 auto",
+                  width: 118,
+                }}
+              >
+                <span style={{ color: "#8f8fa8", fontWeight: 700 }}>$</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={customText}
+                  onChange={onCustomChange}
+                  onBlur={onCustomBlur}
+                  disabled={disabled}
+                  aria-label="Amount in US dollars"
+                  style={{
+                    width: "100%",
+                    minWidth: 0,
+                    padding: 0,
+                    fontSize: 20,
+                    fontWeight: 800,
+                    color: "#6CCDB8",
+                    backgroundColor: "transparent",
+                    border: "none",
+                    outline: "none",
+                    fontFamily:
+                      "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+                  }}
+                />
+              </div>
             </div>
+            <span
+              style={{
+                fontSize: 12,
+                color: "#8f8fa8",
+                marginTop: 8,
+                display: "block",
+              }}
+            >
+              Slide or type any amount from ${MIN_CENTS / 100} up to $
+              {MAX_CENTS / 100}.
+            </span>
           </div>
 
           <div>
