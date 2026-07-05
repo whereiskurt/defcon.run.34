@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-04 22:05:53 UTC",
+  "updated": "2026-07-05 01:00:53 UTC",
   "poll_seconds": 300,
   "regions": [
     {
@@ -31,7 +31,7 @@
       "host": "run.defcon.run",
       "link": "https://run.defcon.run",
       "version": "v0.0.11",
-      "state": "dev",
+      "state": "live",
       "note": "Main run site"
     },
     {
@@ -58,7 +58,7 @@
       "host": "bib.defcon.run",
       "link": "https://bib.defcon.run",
       "version": "v0.0.20",
-      "state": "dev",
+      "state": "live",
       "note": "Bib registration"
     },
     {
