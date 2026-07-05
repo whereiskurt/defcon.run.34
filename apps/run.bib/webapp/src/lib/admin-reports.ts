@@ -305,6 +305,118 @@ export function buildReports(input: ReportInput): ReportBundle {
   };
 }
 
+/* ============================================================================
+   Dashboard view-model (Kurt 2026-07-05 "Live Ops" redesign).
+
+   Derives the fancy top-of-page widgets — hero sparklines, the cumulative
+   revenue chart, the 24h trend deltas, and the live event ticker — from the
+   SAME real, reconciled money in the report bundle. Cumulative revenue only
+   ever increases, so the "always up" trend is honest, not simulated. When
+   there's no money yet, the series is empty and the UI shows a calm empty
+   state rather than faking numbers.
+   ============================================================================ */
+
+export type DashPoint = {
+  /** ISO timestamp of this payment (the x value). */
+  t: string;
+  /** Running cumulative totals AT this point, in cents. */
+  bibCents: number;
+  donCents: number;
+  totalCents: number;
+};
+
+export type DashEvent = {
+  kind: "bib" | "donation";
+  /** Display name — bib name, or "a donor" for anonymous donations. */
+  who: string;
+  amountCents: number;
+  provider: string;
+  ts: string;
+};
+
+export type DashboardView = {
+  /** Cumulative money over time, oldest→newest. Empty when nothing reconciled. */
+  series: DashPoint[];
+  /** Reconciled in the last 24h (cents) — the green ▲ delta on each hero. */
+  bib24hCents: number;
+  don24hCents: number;
+  total24hCents: number;
+  /** Most-recent money events first (capped) — feeds the live ticker. */
+  recent: DashEvent[];
+  /** Most recent bib / donation payment timestamps, or null. */
+  lastBibTs: string | null;
+  lastDonTs: string | null;
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TICKER_MAX = 14;
+
+/**
+ * Pure dashboard shaping from an already-built {@link ReportBundle}. `nowMs`
+ * is injected (not read from the clock) so the 24h window is deterministic and
+ * unit-testable. Reads only `bundle.payments.rows` — real reconciled money.
+ */
+export function buildDashboard(
+  bundle: ReportBundle,
+  nowMs: number
+): DashboardView {
+  // Oldest→newest so the cumulative walk is monotonic.
+  const asc = [...bundle.payments.rows]
+    .filter((r) => r.timestamp)
+    .sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
+
+  const series: DashPoint[] = [];
+  let bibC = 0;
+  let donC = 0;
+  for (const r of asc) {
+    if (r.kind === "bib") bibC += r.amountCents;
+    else donC += r.amountCents;
+    series.push({ t: r.timestamp, bibCents: bibC, donCents: donC, totalCents: bibC + donC });
+  }
+
+  const cutoff = nowMs - DAY_MS;
+  const within = (ts: string) => {
+    const ms = Date.parse(ts);
+    return Number.isFinite(ms) && ms >= cutoff;
+  };
+  let bib24 = 0;
+  let don24 = 0;
+  for (const r of asc) {
+    if (!within(r.timestamp)) continue;
+    if (r.kind === "bib") bib24 += r.amountCents;
+    else don24 += r.amountCents;
+  }
+
+  const recent: DashEvent[] = [...asc]
+    .reverse()
+    .slice(0, TICKER_MAX)
+    .map((r) => ({
+      kind: r.kind,
+      who:
+        r.kind === "donation"
+          ? "a donor"
+          : (r.nameOnBib || "").trim() || r.runnerCode || "a runner",
+      amountCents: r.amountCents,
+      provider: r.provider,
+      ts: r.timestamp,
+    }));
+
+  const lastOf = (kind: "bib" | "donation"): string | null => {
+    for (let i = asc.length - 1; i >= 0; i--) if (asc[i].kind === kind) return asc[i].timestamp;
+    return null;
+  };
+
+  return {
+    series,
+    bib24hCents: bib24,
+    don24hCents: don24,
+    total24hCents: bib24 + don24,
+    recent,
+    lastBibTs: lastOf("bib"),
+    lastDonTs: lastOf("donation"),
+  };
+}
+
 /** Scan the electro table for all report entities and build the bundle. */
 export async function loadReports(): Promise<ReportBundle> {
   const [bibs, donations, reconciles, pendings] = await Promise.all([

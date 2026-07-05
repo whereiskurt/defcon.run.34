@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   buildReports,
+  buildDashboard,
   isRegistered,
   reportToCsv,
   formatUsd,
@@ -206,6 +207,76 @@ describe("in-person pledge → $20 + print-eligible (Kurt 2026-07-05)", () => {
       0
     );
     expect(paid.totals.bibCollectedCents).toBe(2000);
+  });
+});
+
+describe("buildDashboard() — live-ops view-model (Kurt 2026-07-05)", () => {
+  const NOW = Date.parse("2026-07-05T12:00:00Z");
+  const input: ReportInput = {
+    bibs: [
+      bib({
+        runnerCode: "bib-eve",
+        nameOnBib: "EVE",
+        paidAmount: 2000,
+        paidStatusHistory: [
+          { provider: "cash", amount: 2000, timestamp: "2026-07-05T11:00:00Z" }, // <24h
+        ],
+      }),
+      bib({
+        runnerCode: "bib-alice",
+        nameOnBib: "ALICE",
+        paidAmount: 4000,
+        paidStatusHistory: [
+          { provider: "stripe", amount: 4000, timestamp: "2026-07-03T10:00:00Z" }, // >24h
+        ],
+      }),
+    ],
+    donations: [
+      { amountCents: 5000, provider: "stripe", ownerSub: "s", createdAt: "2026-07-05T09:00:00Z" }, // <24h
+      { amountCents: 20000, provider: "stripe", ownerSub: "s", createdAt: "2026-07-01T09:00:00Z" }, // >24h
+    ],
+    reconciles: [],
+    pendings: [],
+  };
+  const d = buildDashboard(buildReports(input), NOW);
+
+  it("cumulative series is monotonic and ends at the grand total", () => {
+    expect(d.series).toHaveLength(4);
+    const last = d.series[d.series.length - 1];
+    expect(last.bibCents).toBe(6000);
+    expect(last.donCents).toBe(25000);
+    expect(last.totalCents).toBe(31000);
+    // never decreases
+    for (let i = 1; i < d.series.length; i++) {
+      expect(d.series[i].totalCents).toBeGreaterThanOrEqual(d.series[i - 1].totalCents);
+    }
+  });
+
+  it("24h deltas count only the last-day money", () => {
+    expect(d.bib24hCents).toBe(2000); // EVE only (ALICE is 2 days old)
+    expect(d.don24hCents).toBe(5000); // $50 only ($200 is 4 days old)
+    expect(d.total24hCents).toBe(7000);
+  });
+
+  it("recent feed is newest-first with mapped labels", () => {
+    expect(d.recent[0]).toMatchObject({ kind: "bib", who: "EVE", amountCents: 2000 });
+    expect(d.recent[1]).toMatchObject({ kind: "donation", who: "a donor", amountCents: 5000 });
+  });
+
+  it("carries the last bib + donation timestamps", () => {
+    expect(d.lastBibTs).toBe("2026-07-05T11:00:00Z");
+    expect(d.lastDonTs).toBe("2026-07-05T09:00:00Z");
+  });
+
+  it("empty money → empty series, empty feed, null timestamps, zero deltas", () => {
+    const e = buildDashboard(
+      buildReports({ bibs: [], donations: [], reconciles: [], pendings: [] }),
+      NOW
+    );
+    expect(e.series).toHaveLength(0);
+    expect(e.recent).toHaveLength(0);
+    expect(e.lastBibTs).toBeNull();
+    expect(e.total24hCents).toBe(0);
   });
 });
 
