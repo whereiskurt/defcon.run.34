@@ -11,6 +11,7 @@
 - [ ] **v1.5 Bib Registration** - Phases 20-23 (planned)
 - [ ] **v1.6 Header & Meshtastic UX Refresh** - Phases 26-27 (planned 2026-07-02)
 - [ ] **v1.7 GPX Routes — Private Collection, Public Overlay & Strava Sync** - Phases 28-32 (autonomous build authorized 2026-07-02; workstream `v1-7-gpx-routes`, parallel-safe)
+- [ ] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (planned 2026-07-05; edit UI copy live from Strapi, no deploy — proof surface bib donate/sponsor)
 
 ## Phases
 
@@ -295,6 +296,11 @@ Plans:
 | 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
+| 35. CMS Copy Catalog Foundation | v1.9 | 0/TBD | Planned | - |
+| 36. Runtime Copy Toolkit | v1.9 | 0/TBD | Planned | - |
+| 37. Bib Donate/Sponsor Proof Surface | v1.9 | 0/TBD | Planned | - |
+| 38. Custom Copy Admin Plugin | v1.9 | 0/TBD | Planned | - |
+| 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -311,3 +317,91 @@ Plans:
 - [x] 33-04-PLAN.md — IdP integration tests (prompt=none flows + interaction render split) (SSO-06)
 - [x] 33-05-PLAN.md — Parity test + pure-logic unit tests in run.bib vitest (SSO-05/07)
 - [x] 33-06-PLAN.md — e2e Playwright: full on gpx, smoke on flash + bib (SSO-08)
+
+---
+
+### v1.9 CMS-Driven UI Copy Catalog (Phases 35-39) - PLANNED
+
+**Milestone Goal:** Make static UI copy across all five apps editable from Strapi without a deploy — a single `ui-string` catalog served through a cached, fallback-safe copy toolkit, edited via a custom three-column admin page, proven first on the bib donate/sponsor surface and then unified across the shared chrome. No Redis, no revalidation webhook — propagation rides the existing master/worker + Litestream topology (eventual, ~15 min). Full design: `docs/superpowers/specs/2026-07-05-cms-copy-catalog-design.md`.
+
+> **Phase-numbering:** CMS Copy Catalog is milestone **v1.9**, phases **35-39**, continuing from v1.8's Phase 34.
+> **Deferred (v2):** MIGR-04 (flash/human/auth/gpx migration) and I18N-01 (locale population + switcher) are out of this milestone.
+> **The plane can land after Phase 37** — the proof surface validates the whole approach; admin (38) and the broader migration (39) can follow.
+
+- [ ] **Phase 35: CMS Copy Catalog Foundation** - `ui-string` content type, `(key,locale)` uniqueness, read-only API-token permission, and the S3 export lifecycle hook
+- [ ] **Phase 36: Runtime Copy Toolkit** - `loadCopy` + Next.js Data Cache, merged-map `t()`, `CopyProvider`/`useCopy`, cached S3 fallback + committed snapshot floor
+- [ ] **Phase 37: Bib Donate/Sponsor Proof Surface** - wire the bib donate/sponsor copy (forms, instructions, payment/Venmo/CashApp, sponsor/QR/logout modals) end-to-end through the catalog
+- [ ] **Phase 38: Custom Copy Admin Plugin** - three-column `label·locale·value` Strapi admin page with namespace filter + bulk upsert
+- [ ] **Phase 39: Copy Migration — Remaining Bib + Shared Chrome** - remaining `run.bib` copy + shared `common.*` header/profile-menu keys unified across apps
+
+### Phase 35: CMS Copy Catalog Foundation
+
+**Goal**: Organizers can create and edit UI strings in Strapi as `(key, locale, value)` rows with a namespace, the read-only API token exposes them for app consumers, and every change regenerates a fresh S3 fallback export.
+**Depends on**: Nothing (first phase of v1.9)
+**Requirements**: COPY-01, COPY-02, COPY-03, COPY-04, FALL-01
+**Success Criteria** (what must be TRUE):
+
+  1. An editor can create and edit a `ui-string` row carrying `key`, `locale` (defaulting to `default`), `value`, a `namespace` (common/human/auth/gpx/bib/flash), and optional `notes`.
+  2. Saving a second row with the same `(key, locale)` is rejected — uniqueness is enforced in the controller/lifecycle hook and backed by a DB unique index; the `locale` column accepts future BCP-47 codes but only `default` is populated in v1.
+  3. A request bearing the read-only API token can `find`/`findOne` `ui-string` rows, while write attempts with that token are denied.
+  4. Creating, updating, or deleting any `ui-string` regenerates `copy.json` in the CMS S3 bucket (served via CloudFront), reflecting the current catalog.
+
+**Plans**: TBD
+
+### Phase 36: Runtime Copy Toolkit
+
+**Goal**: Any app resolves copy by key through a cached, fallback-safe toolkit that works in both server render and client modals/toasts, never makes a per-element network call, and converges across regions within the propagation window with no deploy.
+**Depends on**: Phase 35 (reads the `ui-string` API + S3 export produced by the foundation)
+**Requirements**: TOOL-01, TOOL-02, TOOL-03, TOOL-04, TOOL-05, FALL-02, FALL-03, FALL-04
+**Success Criteria** (what must be TRUE):
+
+  1. `loadCopy(locale)` fetches the catalog once through the Next.js Data Cache (`revalidate:N`) and returns a single merged map; each `t(key, vars)` read is an in-memory O(1) lookup with `{placeholder}` interpolation — never a per-element fetch.
+  2. `t()` is available in client components through `CopyProvider` / `useCopy` — a modal, toast, or form handler resolves an interpolated key at runtime, not only during server render.
+  3. With Strapi unreachable or a key missing, the toolkit serves the S3 export (with the committed snapshot as an offline floor) AND the resolved fallback map is itself cached — at most one slow/failed call per window, not per load.
+  4. The UI never renders a raw dotted key to an end user, and lightweight markdown inside a value renders safely client-side.
+  5. A copy edit made in the CMS appears in every region within ~15 min with no deploy (eventual consistency via `revalidate:N` + Litestream).
+
+**Plans**: TBD
+
+### Phase 37: Bib Donate/Sponsor Proof Surface
+
+**Goal**: The bib donate/sponsor surface reads all of its copy from the catalog end-to-end — the primary motivating surface and the hardest case (client-side, interpolated, modal-heavy) — proving the toolkit before broader migration.
+**Depends on**: Phase 36 (consumes the toolkit); Phase 35 (catalog rows)
+**Requirements**: MIGR-01
+**Success Criteria** (what must be TRUE):
+
+  1. `SponsorForm`, `SponsorInstructions`, `GetYourBib`, and the payment/Venmo/CashApp instruction copy render from `bib.sponsor.*` / `bib.donate.*` catalog keys instead of inline JSX literals.
+  2. The sponsor / QR / logout modals and their interpolated strings (e.g. "You sponsored {amount}") resolve through `useCopy()` inside client handlers.
+  3. Editing a bib donate/sponsor string in the CMS changes the rendered wording within the propagation window with no deploy.
+  4. With the CMS unavailable, the bib donate/sponsor copy still renders via the fallback chain — never a raw dotted key.
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 38: Custom Copy Admin Plugin
+
+**Goal**: Organizers manage the whole catalog from a fast, spreadsheet-style three-column Strapi admin page instead of the default content manager.
+**Depends on**: Phase 35 (`ui-string` type + uniqueness backstop it upserts against)
+**Requirements**: ADMN-01, ADMN-02, ADMN-03
+**Success Criteria** (what must be TRUE):
+
+  1. A custom Strapi admin page lists copy as a three-column `label · locale · value` table with inline edit and add-row.
+  2. The editor can filter the grid by `namespace`.
+  3. A single bulk save upserts all edited and new rows, enforcing `(key, locale)` uniqueness (duplicates rejected/merged, not silently duplicated).
+
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 39: Copy Migration — Remaining Bib + Shared Chrome
+
+**Goal**: The rest of bib's copy and the shared header/profile-menu chrome read from catalog keys, unifying the copy-pasted words across every app without touching the per-app React components. Cross-cutting and wave-friendly — plan-phase may split it into parallel waves per surface.
+**Depends on**: Phase 37 (proof surface pattern established); Phase 38 (admin page available to author/edit the migrated keys)
+**Requirements**: MIGR-02, MIGR-03
+**Success Criteria** (what must be TRUE):
+
+  1. Remaining `run.bib` copy (beyond donate/sponsor) resolves from catalog keys, with no inline string literals left on the migrated surfaces.
+  2. Shared chrome copy is keyed under `common.header.*` and `common.profileMenu.*`, and each app renders those labels through `t()` from the same keys.
+  3. Editing a `common.*` key changes the wording in every app that reads it — the copy-paste de-dup win — with no shared React component change and no deploy.
+
+**Plans**: TBD
+**UI hint**: yes

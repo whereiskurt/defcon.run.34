@@ -76,31 +76,31 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COPY-01 | Phase TBD | Pending |
-| COPY-02 | Phase TBD | Pending |
-| COPY-03 | Phase TBD | Pending |
-| COPY-04 | Phase TBD | Pending |
-| TOOL-01 | Phase TBD | Pending |
-| TOOL-02 | Phase TBD | Pending |
-| TOOL-03 | Phase TBD | Pending |
-| TOOL-04 | Phase TBD | Pending |
-| TOOL-05 | Phase TBD | Pending |
-| FALL-01 | Phase TBD | Pending |
-| FALL-02 | Phase TBD | Pending |
-| FALL-03 | Phase TBD | Pending |
-| FALL-04 | Phase TBD | Pending |
-| ADMN-01 | Phase TBD | Pending |
-| ADMN-02 | Phase TBD | Pending |
-| ADMN-03 | Phase TBD | Pending |
-| MIGR-01 | Phase TBD | Pending |
-| MIGR-02 | Phase TBD | Pending |
-| MIGR-03 | Phase TBD | Pending |
+| COPY-01 | Phase 35 | Pending |
+| COPY-02 | Phase 35 | Pending |
+| COPY-03 | Phase 35 | Pending |
+| COPY-04 | Phase 35 | Pending |
+| TOOL-01 | Phase 36 | Pending |
+| TOOL-02 | Phase 36 | Pending |
+| TOOL-03 | Phase 36 | Pending |
+| TOOL-04 | Phase 36 | Pending |
+| TOOL-05 | Phase 36 | Pending |
+| FALL-01 | Phase 35 | Pending |
+| FALL-02 | Phase 36 | Pending |
+| FALL-03 | Phase 36 | Pending |
+| FALL-04 | Phase 36 | Pending |
+| ADMN-01 | Phase 38 | Pending |
+| ADMN-02 | Phase 38 | Pending |
+| ADMN-03 | Phase 38 | Pending |
+| MIGR-01 | Phase 37 | Pending |
+| MIGR-02 | Phase 39 | Pending |
+| MIGR-03 | Phase 39 | Pending |
 
 **Coverage:**
 - v1 requirements: 19 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 19 ⚠️
+- Mapped to phases: 19 ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-07-05*
-*Last updated: 2026-07-05 after initial definition*
+*Last updated: 2026-07-05 after roadmap creation (phases 35-39 mapped)*
