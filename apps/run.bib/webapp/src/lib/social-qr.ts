@@ -24,9 +24,13 @@ const LOCAL_HUMAN_PORT = process.env.LOCAL_HUMAN_PORT || "3001";
 
 // run.human internal base URL (via service discovery), mirroring the quota-client
 // pattern for run.auth. In production run.human has basePath=/{region}, so include
-// it in the URL. HUMAN_INTERNAL_URL overrides the whole base when set.
+// it in the URL. RUN_HUMAN_INTERNAL_URL overrides the whole base when set — this
+// is the env the ECS task definition actually provides (service.hcl) and the same
+// name run.gpx reads; the previous `HUMAN_INTERNAL_URL` (no RUN_ prefix) never
+// matched, so bib silently used the fallback host and every bib QR fell back to
+// the runner code instead of the runner's real social QR (Kurt 2026-07-05, #3).
 const HUMAN_BASE_URL =
-  process.env.HUMAN_INTERNAL_URL ||
+  process.env.RUN_HUMAN_INTERNAL_URL ||
   (isDev
     ? `http://localhost:${LOCAL_HUMAN_PORT}`
     : `http://run-human.app-${region}-${siteDomain.replace(

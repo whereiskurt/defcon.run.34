@@ -88,4 +88,30 @@ describe("getSocialQrHash", () => {
     );
     await expect(getSocialQrHash("owner-sub-4")).resolves.toBeNull();
   });
+
+  // Regression guard (Kurt 2026-07-05, #3): the internal base MUST come from
+  // RUN_HUMAN_INTERNAL_URL — the env the ECS task definition actually sets and
+  // the same name run.gpx reads. A prior `HUMAN_INTERNAL_URL` (no RUN_ prefix)
+  // never matched, so bib used a wrong fallback host, the hash never resolved,
+  // and every bib QR silently fell back to the runner code. The module reads the
+  // base at load time, so reset + re-import after stubbing the env.
+  it("uses RUN_HUMAN_INTERNAL_URL as the internal base URL", async () => {
+    vi.resetModules();
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("RUN_HUMAN_INTERNAL_URL", "http://human.internal.test/use1");
+    vi.stubEnv("HUMAN_INTERNAL_URL", "http://wrong.example/use1");
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hash: "beef" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { getSocialQrHash: fresh } = await import("@/lib/social-qr");
+    await fresh("sub-x");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://human.internal.test/use1/api/internal/user/sub-x",
+      expect.anything()
+    );
+  });
 });
