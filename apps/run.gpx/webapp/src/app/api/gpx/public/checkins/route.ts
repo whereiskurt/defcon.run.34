@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 /**
  * GET /api/gpx/public/checkins - Public, UNAUTHENTICATED proxy for run.human's
@@ -24,9 +24,16 @@ const RUN_HUMAN_URL =
 
 const CACHE_SECONDS = 120;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const res = await fetch(`${RUN_HUMAN_URL}/api/checkins/public`, {
+    // Optional time window (v1.8 Phase 4) — forwarded verbatim when numeric;
+    // each distinct value is its own CDN cache entry.
+    const sinceParam = req.nextUrl.searchParams.get("since");
+    const since =
+      sinceParam && Number.isFinite(Number(sinceParam))
+        ? `?since=${Number(sinceParam)}`
+        : "";
+    const res = await fetch(`${RUN_HUMAN_URL}/api/checkins/public${since}`, {
       cache: "no-store",
     });
     if (!res.ok) {
