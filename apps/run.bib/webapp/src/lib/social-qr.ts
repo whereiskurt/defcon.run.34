@@ -79,5 +79,8 @@ export async function getSocialQrHash(
 export function buildSocialQrUrl(hash: string): string {
   const domain = process.env.SITE_DOMAIN || "defcon.run";
   const regionShort = process.env.REGION_SHORT || "use1";
-  return `https://run.${domain}/${regionShort}/r?h=${hash}`;
+  // IN-04: encode the hash query param (a hex SHA256 encodes to itself today,
+  // but this is defense-in-depth against any future non-URL-safe hash format),
+  // matching how getSocialQrHash already encodeURIComponent's ownerSub.
+  return `https://run.${domain}/${regionShort}/r?h=${encodeURIComponent(hash)}`;
 }
