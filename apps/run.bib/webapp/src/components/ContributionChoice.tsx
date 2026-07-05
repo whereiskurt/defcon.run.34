@@ -102,8 +102,9 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
           return;
         }
         if (!res.ok) {
-          setChoice(lastSavedRef.current);
-          applyStores(lastSavedRef.current);
+          // Cosmetic-first (Kurt 2026-07-05): a failed save must NOT kill the
+          // rain/burn — keep the optimistic choice + visuals, just note it.
+          // Only a real 429 cap (handled above) reverts.
           setSaveState({ kind: "error", detail: `HTTP ${res.status}` });
           return;
         }
@@ -120,8 +121,7 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
         ) {
           return;
         }
-        setChoice(lastSavedRef.current);
-        applyStores(lastSavedRef.current);
+        // Keep the optimistic visuals on network error too (don't revert).
         setSaveState({
           kind: "error",
           detail: err instanceof Error ? err.message : "network",
