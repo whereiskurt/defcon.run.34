@@ -158,14 +158,19 @@ export default async function Home({ searchParams }: HomeProps) {
   const socialQrHash = await getSocialQrHash(ownerSub);
   const socialQrUrl = socialQrHash ? buildSocialQrUrl(socialQrHash) : undefined;
 
-  // A4 (Kurt 2026-07-03): once any money has moved for this bib, drop the
-  // "I'll pay in person" pledge — it's only meaningful pre-payment.
+  // hasTransacted = any money at all (bib payment OR donation). Kept ONLY for
+  // the DRAFT stamp (a donation counts as "committed" — clears DRAFT). It does
+  // NOT gate the bib actions: donations are purely additive (Kurt 2026-07-05).
   const hasTransacted = hasSponsored || donationTotal > 0;
 
   // Pay-in-person state, threaded to the choice control (in the tile grid) and
   // used to seed the bib preview's cash-rain on load.
   const willPayInitial = bib.willPayInPerson === true;
-  const showCheckbox = !hasTransacted;
+  // Show the pledge/burn checkboxes UNLESS they've actually PAID FOR THE BIB
+  // (sponsored). A donation must NOT hide them (Kurt 2026-07-05) — a donor can
+  // still pledge $20 in person or torch their bib. Once they've paid online, the
+  // in-person pledge / burn are moot, so the whole control hides.
+  const showCheckbox = !hasSponsored;
   // WR-02: seed the cash-rain from the SAME gate that shows the control.
   // willPayInPerson is never cleared in the DB when money moves (A4 "drop the
   // pledge" is realized by hiding the control, not mutating the flag), so a
@@ -175,9 +180,10 @@ export default async function Home({ searchParams }: HomeProps) {
   const initialRaining = showCheckbox && willPayInitial;
 
   // 🔥 Burn opt-out (Kurt 2026-07-05). Persisted on bib.burned. Suppress the
-  // burning view once money has moved so a sponsored bib shows normally even if
-  // it was torched earlier (the flag lingers in the DB but is irrelevant then).
-  const initialBurning = bib.burned === true && !hasTransacted;
+  // burning view only once they've PAID FOR THE BIB (sponsored) — a paid bib
+  // shows normally even if torched earlier. A donation does NOT un-burn (a donor
+  // who doesn't want a bib still doesn't want one).
+  const initialBurning = bib.burned === true && !hasSponsored;
   // Seed the 3-way control: burn wins, then pledge, else nothing.
   const initialChoice: "nothing" | "inperson" | "burn" = initialBurning
     ? "burn"
