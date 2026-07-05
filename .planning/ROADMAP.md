@@ -295,6 +295,7 @@ Plans:
 | 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
+| 41. Abuse Detection | v1.x | 0/5 | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -363,6 +364,20 @@ Deliverables (from spec):
 - `site.hcl` `abuse_detection` block (thresholds + enabled gate), tight pre-con defaults
 - Out of scope: enabling AWS WAF + IP-set auto-block, Impart.security integration, CloudFront-log correlation
 
+**Plans**: 5 plans
+
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 41 to break down)
+**Wave 1** *(parallel — no file overlap)*
+
+- [ ] 41-01-PLAN.md — Athena substrate: Glue table `alb_access_logs` (partition projection over the real ALB-log bucket) + workgroup `dcr-abuse-analysis` (bytes-scanned cap) + full module var/output contract (AD-01, AD-02)
+- [ ] 41-02-PLAN.md — Two parameterized detection query templates: Q1 sustained-activity sessionization + Q2 5-min rate outlier, keyed on client_ip, surfacing UA (AD-03, AD-04)
+
+**Wave 2** *(parallel — depends on Wave 1)*
+
+- [ ] 41-03-PLAN.md — abuse-detector Lambda infra + least-privilege IAM + EventBridge cron (dark) + reused-SNS ARN + S3 report/dedup prefixes (AD-05, AD-06, AD-07)
+- [ ] 41-04-PLAN.md — Lambda handler + logic: run queries, finding schema (WAF/Impart seam), dedup/escalation, SNS alert, findings.jsonl + digest, fail-safe, node:test units (AD-05, AD-06, AD-07)
+
+**Wave 3** *(depends on Wave 2)*
+
+- [ ] 41-05-PLAN.md — site.hcl `abuse_detection` block (enabled=false + thresholds) + us-east-1 terragrunt unit (exclude-if-disabled, network-derived ALB bucket) + deploy/verify checkpoint (AD-08)
