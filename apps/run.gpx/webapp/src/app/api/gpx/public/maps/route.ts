@@ -74,6 +74,15 @@ export async function GET() {
     // empty means routes show filename + GPX meta and no standalone CMS routes.
     const { byGpxKey, cmsRoutes } = await fetchRouteMeta();
 
+    // POIs for enriched DynamoDB routes: keyed the same way as byGpxKey (a CMS
+    // gpxFileId that is EITHER a fileId OR a filename), so a Dynamo route matched
+    // by fileId/fileName also receives its CMS route's POIs. Only rows WITH a
+    // gpxFileId land here; rows without one are standalone-only (handled below).
+    const poisByGpxKey = new Map<string, PoiMeta[]>();
+    for (const r of cmsRoutes) {
+      if (r.gpxFileId) poisByGpxKey.set(r.gpxFileId, r.pois);
+    }
+
     // All GLOBAL folders (curated public collections). Every folder under the
     // "GLOBAL" partition is global by construction, but filter defensively.
     const folderResult = await GpxFolder.query.byUser({ userId: "GLOBAL" }).go();
@@ -100,6 +109,11 @@ export async function GET() {
             });
 
             const cms = byGpxKey.get(file.fileId) ?? byGpxKey.get(file.fileName);
+            // Attach the CMS route's POIs to this enriched route (fileId OR
+            // filename match, mirroring the enrichment join). Omit the field
+            // entirely when there is no match or the array is empty.
+            const pois =
+              poisByGpxKey.get(file.fileId) ?? poisByGpxKey.get(file.fileName);
             return {
               fileId: file.fileId,
               fileName: file.fileName,
@@ -122,6 +136,7 @@ export async function GET() {
               waypointCount: file.waypointCount,
               uploadedBy: file.uploadedBy,
               tags: file.tags ? Array.from(file.tags) : undefined,
+              pois: pois && pois.length > 0 ? pois : undefined,
             };
           })
         );
@@ -170,7 +185,9 @@ export async function GET() {
         stravaUrl: r.meta.stravaUrl,
         // PUBLIC CMS media URL — NOT an S3-uploads object, so no presign.
         downloadUrl: r.gpxUrl,
-        // bounds derived client-side (plan 02-03); Phase-3 pois seam left unset.
+        // bounds derived client-side (plan 02-03).
+        // Attach the route's own POIs (same PoiMeta[] on the row); omit when empty.
+        pois: r.pois.length > 0 ? r.pois : undefined,
       };
 
       // Fold into the group named by mapFolder — reuse the GLOBAL folder's
