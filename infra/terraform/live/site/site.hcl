@@ -465,12 +465,13 @@ locals {
   # state derives from `enabled`, so a merged-but-dark unit provisions nothing
   # and pages no one until deliberately turned on.
   abuse_detection = {
-    # GATED OFF at merge. Flip to true ONLY during the deploy checkpoint (41-05
-    # Task 3), AFTER a manual Athena query confirms the ALB-log schema parses.
-    # While false the terragrunt unit excludes-if-disabled (no Glue table,
-    # workgroup, results bucket, Lambda, IAM, or cron get created) and the
-    # EventBridge rule ships DISABLED. Restore to false for the committed state
-    # after verification unless the operator elects to leave it live.
+    # LIVE. Deployed + verified via the 41-05 checkpoint (scoped terragrunt plan
+    # clean: 16 to add, real ALB-log bucket resolved; apply: 16 added, 0 errors;
+    # SNS email subscription confirmed by the operator). The operator elected to
+    # leave it running (~cents/day — 10 GiB/query cap on a quiet pre-con site).
+    # To ship dark: `terragrunt destroy` the us-east-1 unit (while enabled=true so
+    # it is not excluded), THEN set this to false. exclude-if-disabled does NOT
+    # destroy — flipping to false alone orphans the running resources.
     enabled = true
 
     # --- Detection thresholds (AD-03..AD-07). Tight pre-con defaults: legit
