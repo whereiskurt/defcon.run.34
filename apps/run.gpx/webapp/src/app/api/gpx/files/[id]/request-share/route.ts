@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { GpxFile } from "@/entities/gpx-file";
+import { logEvent } from "@/lib/log-event";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -53,6 +54,14 @@ export async function POST(request: Request, { params }: RouteParams) {
     })
       .set({ shareRequested: requested })
       .go({ response: "all_new" });
+
+    // Activity signal (AR-02): a runner flagged a route for community sharing.
+    logEvent("gpx.share.request", {
+      headers: request.headers,
+      userId: session.user.id,
+      email: session.user.email ?? undefined,
+      meta: { fileId: id, requested },
+    });
 
     return NextResponse.json({ file: result.data });
   } catch (error) {

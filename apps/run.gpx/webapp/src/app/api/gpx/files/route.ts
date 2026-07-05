@@ -11,6 +11,7 @@ import {
   restoreQuota,
   type QuotaTier,
 } from "@/lib/quota-client";
+import { logEvent } from "@/lib/log-event";
 
 /**
  * GET /api/gpx/files - List user's GPX files
@@ -218,6 +219,14 @@ export async function POST(request: Request) {
       await restoreQuota(session.user.id, "gpx_upload", 1);
       throw dbError;
     }
+
+    // Activity signal (AR-02): a new route was created. Fire-and-forget.
+    logEvent("gpx.file.create", {
+      headers: request.headers,
+      userId: session.user.id,
+      email: session.user.email ?? undefined,
+      meta: { fileId },
+    });
 
     return NextResponse.json({
       uploadUrl,

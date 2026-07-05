@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { resolveMapboxToken, validateMapboxToken } from "@/lib/mapbox-token";
+import { logEvent } from "@/lib/log-event";
 
 // Auth service URL for internal API calls
 const LOCAL_AUTH_PORT = process.env.LOCAL_AUTH_PORT || "3002";
@@ -10,7 +11,7 @@ const authServiceUrl = process.env.AUTH_SERVICE_URL || `http://localhost:${LOCAL
  * GET /api/user/mapbox-token - Get the resolved Mapbox token for current user
  * Returns the user's personal token if set, otherwise the default system token
  */
-export async function GET() {
+export async function GET(request: Request) {
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -26,6 +27,16 @@ export async function GET() {
     const userToken = (session.user as { mapboxPublicToken?: string })
       .mapboxPublicToken;
     const token = resolveMapboxToken(userToken);
+
+    // Leading indicator (AR-08b): the client requests the Mapbox token immediately
+    // before rendering a map, so this is our real-time proxy for a map view. Our
+    // logs are live whereas the Mapbox usage dashboard lags ~24h. Fire-and-forget.
+    logEvent("gpx.map.view", {
+      headers: request.headers,
+      userId: session.user.id,
+      email: session.user.email ?? undefined,
+      meta: { isPersonal: !!userToken },
+    });
 
     return NextResponse.json({
       token,
