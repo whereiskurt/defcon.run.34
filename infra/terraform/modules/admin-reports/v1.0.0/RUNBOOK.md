@@ -109,3 +109,81 @@ deliver the security benefit regardless. Recorded here so a follow-up can pick i
 re-deriving where the token lives.
 
 ---
+
+## 2. Reading the reports
+
+Everything below runs in the **CloudWatch console in `us-east-1`** (the only live region;
+CloudFront metrics and the app `/ecs/*` log groups both live there).
+
+### 2.1 Open the dashboard
+
+- CloudWatch → **Dashboards** → **`admin-reports`**.
+- The dashboard combines free infra metrics (ALB `RequestCount` / 4XX / 5XX / latency per
+  target group; CloudFront `Requests` and error rates per domain) with our custom
+  `DefconRun/Activity` event metrics (`Signups`, `Logins`, `GpxUploads`, `GpxShares`,
+  `MapViews`, `Checkins`, `Uploads`, `StravaRateLimitUsage`) and two Logs Insights widgets.
+
+### 2.2 The two numbers to watch
+
+- **Distinct active users, last hour** (the headline widget): a `count_distinct(userId)` over
+  the three app log groups — the "how many humans are actually doing something right now"
+  number. This is the single most-asked metric; it's the first thing to glance at.
+- **Top IPs by event count**: the busiest client IPs in the recent window. Pre-con, an IP with
+  a lot of events and no matching signups is the classic recon/abuse tell — pivot straight into
+  `admin/ip-activity` (2.3) to see exactly what it did.
+
+### 2.3 Run a saved `admin/*` query (the "dig in" workflow)
+
+CloudWatch → **Logs** → **Logs Insights** → **Queries** (right panel) → open the **`admin/`**
+folder. The module ships seven saved queries:
+
+| Query | Answers |
+|---|---|
+| `admin/user-activity` | Everything one user did (by `userId` **or** `email`) |
+| `admin/ip-activity` | Everything one IP did |
+| `admin/top-ips-1h` | Busiest IPs in the last hour |
+| `admin/top-uploaders` | Who is uploading the most (gpx creates + human uploads) |
+| `admin/signups-over-time` | Signups bucketed per hour |
+| `admin/distinct-users-by-day` | Distinct active users per day (the trend behind 2.2) |
+| `admin/error-spikes` | Non-event `error` log volume per service (logging/health breakage) |
+
+**Edit-the-placeholder workflow** (for `admin/user-activity` and `admin/ip-activity`): the two
+"dig in" queries ship with a literal placeholder you swap before running.
+
+1. Open the query — it loads into the editor with `PUT-USER-ID-HERE` / `PUT-EMAIL-HERE`
+   (user-activity) or `PUT-IP-HERE` (ip-activity) in the `filter` line.
+2. Replace the placeholder with the real value (the userId/email from the dashboard, or the IP
+   from the top-IPs widget). Leave the surrounding query untouched.
+3. Set the time range (top-right) and **Run query**. Results come back newest-first, up to 200
+   rows.
+
+The other five queries take no placeholder — open and run.
+
+### 2.4 Bump thresholds from pre-con to con-week
+
+**Pre-con posture (this is deliberate):** the user baseline is ~zero, so *any* activity is
+presumptively recon/abuse. The alarm thresholds are intentionally low — **`Signups >= 1` per
+hour firing is expected signal, not noise.** Do not "fix" the noise pre-con; that noise is the
+point. When real attendees arrive for con-week, raise the volume knob.
+
+All thresholds live in **one place**: the `admin_reports` block in
+`infra/terraform/live/site/site.hcl`. To bump them:
+
+1. Edit the `admin_reports.thresholds` map in `site.hcl` — a one-line change per threshold:
+   - `signups_per_hour` (pre-con `1`)
+   - `gpx_uploads_per_hour` (pre-con `5`)
+   - `alb_5xx_per_5min` (pre-con `10`)
+   Raise each to its con-week value. (The SNS `alert_email`, `log_retention_days`, and the
+   `/ecs/*` `log_group_names` map also live in this same block.)
+2. Apply the change to **only** the admin-reports unit:
+   ```
+   cd infra/terraform/live/site/region/us-east-1/admin-reports
+   terragrunt apply
+   ```
+   This is a self-contained unit — applying it does not touch other stacks. The alarms
+   re-evaluate against the new thresholds immediately.
+
+That's the whole con-week transition: edit three numbers in `site.hcl`, `terragrunt apply` the
+`us-east-1/admin-reports` unit, done.
+
+---
