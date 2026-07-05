@@ -55,9 +55,11 @@ const patchBodySchema = z
     // pledge off), false un-burns. Handled by updateBibBurned, independent of the
     // name/pledge branches.
     burned: z.boolean().optional(),
-    // ALTCHA proof-of-work payload (base64). Required — verified server-side
-    // before any mutation (Kurt 2026-07-03 friction control).
-    altcha: z.string().min(1),
+    // ALTCHA proof-of-work payload (base64). Now OPTIONAL — only NAME CHANGES
+    // require it (verified below). The pay-in-person / burn toggles skip the PoW
+    // (Kurt 2026-07-05): they're low-risk cosmetic pledges capped by bib_toggle,
+    // and the overlay's blur was breaking the cash rain in prod.
+    altcha: z.string().optional(),
   })
   .refine(
     (data) =>
@@ -187,10 +189,14 @@ export async function PATCH(req: NextRequest) {
     );
   }
 
-  // ALTCHA proof-of-work gate — reject before any mutation if the solution is
-  // missing / invalid / expired (Kurt 2026-07-03 friction control).
-  if (!(await verifyBibSolution(parsed.data.altcha))) {
-    return NextResponse.json({ error: "altcha_failed" }, { status: 400 });
+  // ALTCHA proof-of-work gate — ONLY for NAME CHANGES (Kurt 2026-07-05). The
+  // pay-in-person / burn toggles are exempt (low-risk cosmetic pledges capped by
+  // the bib_toggle quota); requiring PoW there dragged in the blur overlay that
+  // was breaking the prod cash rain. A name change still requires a valid solve.
+  if (parsed.data.nameOnBib !== undefined) {
+    if (!parsed.data.altcha || !(await verifyBibSolution(parsed.data.altcha))) {
+      return NextResponse.json({ error: "altcha_failed" }, { status: 400 });
+    }
   }
 
   const services = (session.user as { services?: string[] }).services ?? [];

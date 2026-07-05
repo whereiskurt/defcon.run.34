@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { solveAltcha } from "@/lib/altcha-client";
 import { setRaining } from "@/lib/rain-store";
 import { setBurning } from "@/lib/burn-store";
 
@@ -74,20 +73,16 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
       abortRef.current = controller;
 
       setSaveState({ kind: "saving" });
-      // ~1-2s ALTCHA proof-of-work before the write (once-mounted AltchaOverlay
-      // shows the blur spinner). Same friction control as the old checkbox.
-      let altcha: string;
-      try {
-        altcha = await solveAltcha("toggle");
-      } catch {
-        setSaveState({ kind: "error", detail: "verification failed" });
-        return;
-      }
+      // NO ALTCHA on the toggle (Kurt 2026-07-05). It's a low-risk cosmetic
+      // pledge (capped by the bib_toggle quota), and the AltchaOverlay's
+      // backdrop-filter blur was breaking the CashRain's will-change:transform
+      // layers in prod — leaving no bills after the overlay cleared. Skipping the
+      // proof-of-work removes the overlay from the rain flow entirely.
       try {
         const res = await fetch(API_BIB_PATH, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...payloadFor(next), altcha }),
+          body: JSON.stringify(payloadFor(next)),
           signal: controller.signal,
         });
 

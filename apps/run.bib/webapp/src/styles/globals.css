@@ -211,8 +211,37 @@ html.light .glass-nav {
   }
 }
 
+/* Green halo on the NAME BOX when the name is saved (clean, non-empty). Static —
+   a calm "you're good" signal that vanishes the moment they start typing. */
+.bib-name-saved {
+  border-color: #6ccdb8 !important;
+  box-shadow: 0 0 0 3px #6ccdb855, 0 0 16px #6ccdb888;
+}
+
+/* Save button — running low on renames: amber ring + pulse ("save it, not many
+   left"). */
+.bib-save-low {
+  box-shadow: 0 0 0 3px #f4a24066, 0 0 16px #f4a240aa;
+  animation: bib-save-low-pulse 1.6s ease-in-out infinite;
+}
+@keyframes bib-save-low-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px #f4a24066, 0 0 16px #f4a240aa;
+  }
+  50% {
+    box-shadow: 0 0 0 4px #f4a24088, 0 0 26px #f4a240cc;
+  }
+}
+
+/* Save button — no renames left: red ring (button is also disabled). */
+.bib-save-zero {
+  box-shadow: 0 0 0 3px #ff6b6b66, 0 0 16px #ff6b6b99;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .bib-save-dirty {
+  .bib-save-dirty,
+  .bib-save-low {
     animation: none;
   }
 }
