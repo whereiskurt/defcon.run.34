@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
 current_phase: 36
-current_phase_name: Runtime Copy Toolkit
+current_phase_name: runtime-copy-toolkit
 status: executing
 stopped_at: Phase 36 context gathered
-last_updated: "2026-07-05T20:12:03.754Z"
+last_updated: "2026-07-05T20:39:49.251Z"
 last_activity: 2026-07-05
-last_activity_desc: Phase 35 complete, transitioned to Phase 36
+last_activity_desc: Phase 36 execution started
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
   percent: 20
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. This milestone lets organizers change static UI wording live from the CMS — no code change, no deploy.
-**Current focus:** Phase 35 — cms-copy-catalog-foundation
+**Current focus:** Phase 36 — runtime-copy-toolkit
 
 ## Current Position
 
-Phase: 36 — Runtime Copy Toolkit
-Plan: Not started
+Phase: 36 (runtime-copy-toolkit) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-07-05 — Phase 35 complete, transitioned to Phase 36
+Last activity: 2026-07-05 — Phase 36 execution started
 
 ## Roadmap Summary (v1.9)
 
@@ -63,6 +63,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 35-02: (key,locale) uniqueness via lifecycle 4xx guard + idempotent DB unique-index backstop (Litestream-safe hasTable guard)
 - [Phase ?]: 35-02: FALL-01 copy.json S3 export is master-only + S3-env-guarded, full-catalog regeneration on every create/update/delete; excludes notes
 - [Phase 35]: 35-03: read-only API token auto-covers ui-string find/findOne (no grant widening); verified 200/200/403/403/403/403/403 matrix
+- [Phase ?]: [Phase 36-01]: No literal import 'server-only' — Next 16 vendors it internally; server-only enforced by convention (call-time env, never NEXT_PUBLIC_*, only resolved map to client)
+- [Phase ?]: [Phase 36-01]: loadCopy wraps resolveCopy in unstable_cache (revalidate:300, tags:['copy']) so the resolved map incl. fallback is cached — fallback as cheap as happy path
+- [Phase ?]: [Phase 36-01]: runtime resolver does one bulk Strapi fetch (pageSize=1000); pagination lives only in the manual copy:snapshot script, never in build (D-04)
 
 ### Pending Todos
 
@@ -74,7 +77,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-05T18:06:48.553Z
+Last session: 2026-07-05T20:39:06.682Z
 Stopped at: Phase 36 context gathered
 Resume file: .planning/phases/36-runtime-copy-toolkit/36-CONTEXT.md
 
@@ -94,3 +97,4 @@ Resume file: .planning/phases/36-runtime-copy-toolkit/36-CONTEXT.md
 | Phase 35 P01 | 5m | 3 tasks | 5 files |
 | Phase 35 P02 | 8m | 3 tasks | 5 files |
 | Phase 35 P03 | 6m | 2 tasks | 1 files |
+| Phase 36 P01 | 50min | 2 tasks | 7 files |

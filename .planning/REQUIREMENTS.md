@@ -18,18 +18,18 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### TOOL — Runtime copy toolkit
 
-- [ ] **TOOL-01**: `loadCopy(locale)` fetches the catalog from the Strapi API, cached server-side in the Next.js Data Cache (`revalidate:N`)
-- [ ] **TOOL-02**: `t(key, vars)` resolves from a single in-memory merged map with `{placeholder}` interpolation — never a per-element network call
+- [x] **TOOL-01**: `loadCopy(locale)` fetches the catalog from the Strapi API, cached server-side in the Next.js Data Cache (`revalidate:N`)
+- [x] **TOOL-02**: `t(key, vars)` resolves from a single in-memory merged map with `{placeholder}` interpolation — never a per-element network call
 - [ ] **TOOL-03**: `CopyProvider` / `useCopy` make `t()` available in client components (modals, toasts, handlers), not just server render
-- [ ] **TOOL-04**: A copy edit propagates to all regions within ~15 min with no deploy (eventual consistency via `revalidate:N` + Litestream)
+- [x] **TOOL-04**: A copy edit propagates to all regions within ~15 min with no deploy (eventual consistency via `revalidate:N` + Litestream)
 - [ ] **TOOL-05**: Lightweight markdown in a value renders safely client-side
 
 ### FALL — Cached fallback & resilience
 
 - [x] **FALL-01**: A Strapi lifecycle hook regenerates an S3 `copy.json` export on any `ui-string` create/update/delete
-- [ ] **FALL-02**: When Strapi is unreachable or a key is missing, the toolkit falls back to the S3 export as the default, and the resolved fallback map is itself cached (no slow/failed call per load)
-- [ ] **FALL-03**: An optional committed snapshot provides an offline build-time floor for the CMS-and-S3-both-down case
-- [ ] **FALL-04**: The UI never renders a raw dotted key to an end user (guaranteed by the fallback chain)
+- [x] **FALL-02**: When Strapi is unreachable or a key is missing, the toolkit falls back to the S3 export as the default, and the resolved fallback map is itself cached (no slow/failed call per load)
+- [x] **FALL-03**: An optional committed snapshot provides an offline build-time floor for the CMS-and-S3-both-down case
+- [x] **FALL-04**: The UI never renders a raw dotted key to an end user (guaranteed by the fallback chain)
 
 ### ADMN — Custom admin editing
 
@@ -80,15 +80,15 @@ Which phases cover which requirements. Populated during roadmap creation.
 | COPY-02 | Phase 35 | Complete |
 | COPY-03 | Phase 35 | Complete |
 | COPY-04 | Phase 35 | Complete |
-| TOOL-01 | Phase 36 | Pending |
-| TOOL-02 | Phase 36 | Pending |
+| TOOL-01 | Phase 36 | Complete |
+| TOOL-02 | Phase 36 | Complete |
 | TOOL-03 | Phase 36 | Pending |
-| TOOL-04 | Phase 36 | Pending |
+| TOOL-04 | Phase 36 | Complete |
 | TOOL-05 | Phase 36 | Pending |
 | FALL-01 | Phase 35 | Complete |
-| FALL-02 | Phase 36 | Pending |
-| FALL-03 | Phase 36 | Pending |
-| FALL-04 | Phase 36 | Pending |
+| FALL-02 | Phase 36 | Complete |
+| FALL-03 | Phase 36 | Complete |
+| FALL-04 | Phase 36 | Complete |
 | ADMN-01 | Phase 38 | Pending |
 | ADMN-02 | Phase 38 | Pending |
 | ADMN-03 | Phase 38 | Pending |

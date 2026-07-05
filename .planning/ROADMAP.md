@@ -297,7 +297,7 @@ Plans:
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
 | 35. CMS Copy Catalog Foundation | v1.9 | 3/3 | Complete    | 2026-07-05 |
-| 36. Runtime Copy Toolkit | v1.9 | 0/TBD | Planned | - |
+| 36. Runtime Copy Toolkit | v1.9 | 1/3 | In Progress|  |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 0/TBD | Planned | - |
 | 38. Custom Copy Admin Plugin | v1.9 | 0/TBD | Planned | - |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
@@ -371,12 +371,12 @@ Plans:
   4. The UI never renders a raw dotted key to an end user, and lightweight markdown inside a value renders safely client-side.
   5. A copy edit made in the CMS appears in every region within ~15 min with no deploy (eventual consistency via `revalidate:N` + Litestream).
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 36-01-PLAN.md — loadCopy resolver + cached Strapi→S3→snapshot fallback + committed snapshot floor + env wiring (wave 1)
+- [x] 36-01-PLAN.md — loadCopy resolver + cached Strapi→S3→snapshot fallback + committed snapshot floor + env wiring (wave 1)
 - [ ] 36-02-PLAN.md — escape-first, whitelist inline markdown renderer (XSS-safe, no new deps) (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
