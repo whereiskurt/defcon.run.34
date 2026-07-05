@@ -32,18 +32,19 @@ created: 2026-07-05
 6. **Optional:** `/gsd-ui-phase 2`/`3` for a formal UI-SPEC (skipped — visual direction was locked in design D7/D8).
 
 ## Branching (resolved)
-Workstream-scoped override `branching_strategy: none` is committed (`.planning/workstreams/v1-9-gpx-strapi/config.json`), so all phases stay on branch **`gsd/gpx-strapi-routes-pois`** (which holds every plan + all execution). Global `.planning/config.json` still uses `phase`. The original `gsd/gpx-strapi-routes-pois` is stranded at `5db2a6cf`. Execute Phase 3 on the current branch; do NOT fork off origin/main.
+All planning + execution is consolidated on branch **`gsd/gpx-strapi-routes-pois`** (27 commits;
+the auto-created `gsd/phase-01-cms-session-bump` was fast-forwarded into it and deleted). A
+workstream-scoped override `branching_strategy: none` (`.planning/workstreams/v1-9-gpx-strapi/config.json`)
+keeps future phases on this one branch; global `.planning/config.json` still uses `phase`.
 
-## Open notes for execution
-- **Phase 1 deploy:** the 2h session only activates after a **run.cms release/deploy** (restart the Strapi task). Out of scope for the phase; schedule separately.
-- **UI safety gate was skipped (`--skip-ui`) for Phases 2 & 3** — reuse existing patterns; visual direction locked in design contract D7/D8. Run `/gsd-ui-phase 2` / `3` if a formal UI-SPEC is wanted.
-- **Phase 2 open items (from plans):** actually perform/record the local-Strapi `.gpx` upload check (02-01); the CMS-media CORS change (02-03) is code-only until deployed.
-- **Cross-phase seam:** Phase 2 refactors `fetchRouteMeta` → `{ byGpxKey, cmsRoutes }`, stubs `PoiMeta`/`pois: []`, adds `PublicMap.pois?`, adds cms CloudFront CORS. Phase 3 fills those seams. Execute 2 before 3.
-
-## Open notes for execution
-- **UI safety gate was skipped (`--skip-ui`) for Phases 2 & 3** — both touch the public map frontend but reuse existing patterns (`getSvgForSymbol`, existing popup builder, existing per-route POI layer); visual direction is locked in design contract D7/D8. No UI-SPEC.md generated. Regenerate with `/gsd-ui-phase 2` / `3` if a formal design contract is wanted.
-- **Phase 2 advisory warnings (non-blocking):** (1) `02-02` tasks labeled `tdd="true"` but verify is grep+typecheck only — add a unit test for collision/folder-synthesis/ordering or drop the label; (2) `02-01` `.gpx`-upload verify is structural — executor must actually perform/record the observational Strapi upload; (3) `02-03` CORS verify is `terraform fmt` only (deploy out of scope).
-- **Cross-phase seam:** Phase 2 refactors `fetchRouteMeta` → `{ byGpxKey, cmsRoutes }`, stubs `PoiMeta`/`pois: []`, adds `PublicMap.pois?`, and adds cms CloudFront CORS. Phase 3 fills those seams. Execute 2 before 3.
+## Open notes
+- **UI safety gate was skipped (`--skip-ui`) for Phases 2 & 3** — both touch the public map but
+  reuse existing patterns (`getSvgForSymbol`, existing popup builder, existing per-route POI layer);
+  visual direction is locked in design contract D7/D8. No UI-SPEC.md. Run `/gsd-ui-phase 2` / `3`
+  for a formal design contract if wanted. (Phase 2's earlier plan-checker advisory warnings — tdd
+  label, upload-verify strength, terraform validate — were all addressed in commit `8c67b66e`.)
+- **Cross-phase seam (shipped):** Phase 2 refactored `fetchRouteMeta` → `{ byGpxKey, cmsRoutes }`,
+  added `PublicMap.pois?` + cms CloudFront CORS; Phase 3 filled the POI seams.
 
 ## Notes
 
