@@ -1,0 +1,59 @@
+import { errors } from '@strapi/utils';
+
+const UID = 'api::ui-string.ui-string';
+const DEFAULT_LOCALE = 'default';
+
+/**
+ * ui-string lifecycle hooks.
+ *
+ * beforeCreate/beforeUpdate enforce a clean (key, locale) uniqueness guard so a
+ * duplicate surfaces as a 400 ValidationError rather than a raw SQLite constraint
+ * 500. A DB unique index (see database/migrations/*-ui-strings-key-locale-unique.js)
+ * is the backstop if this guard is ever bypassed.
+ */
+export default {
+  async beforeCreate(event) {
+    const { data } = event.params;
+    const key = data?.key;
+    const locale = data?.locale ?? DEFAULT_LOCALE;
+    if (!key) return;
+
+    const existing = await strapi.db.query(UID).findOne({
+      where: { key, locale },
+    });
+    if (existing) {
+      throw new errors.ValidationError(
+        `A ui-string with key "${key}" and locale "${locale}" already exists`
+      );
+    }
+  },
+
+  async beforeUpdate(event) {
+    const { data, where } = event.params;
+    const id = where?.id;
+
+    // Load the current row so a partial update (data omitting key or locale)
+    // is checked against the row's effective post-update (key, locale).
+    const current = id
+      ? await strapi.db.query(UID).findOne({ where: { id } })
+      : null;
+
+    const key = data?.key ?? current?.key;
+    const locale = data?.locale ?? current?.locale ?? DEFAULT_LOCALE;
+    if (!key) return;
+
+    // Reject only a collision on a DIFFERENT row; a row never collides with itself.
+    const conflict = await strapi.db.query(UID).findOne({
+      where: {
+        key,
+        locale,
+        ...(id ? { id: { $ne: id } } : {}),
+      },
+    });
+    if (conflict) {
+      throw new errors.ValidationError(
+        `A ui-string with key "${key}" and locale "${locale}" already exists`
+      );
+    }
+  },
+};
