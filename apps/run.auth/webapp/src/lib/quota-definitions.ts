@@ -170,15 +170,32 @@ export const QUOTA_DEFINITIONS = {
   },
 
   // Bib name (name-on-bib) changes per event — abuse guard (Kurt 2026-07-03).
-  // zero=10 too: bib renames aren't gated on upload access, so a "zero" tier
-  // user (no gpx upload grant) still gets the standard 10.
+  // zero=30 too: bib renames aren't gated on upload access, so a "zero" tier
+  // user (no gpx upload grant) still gets the standard 30 (Kurt 2026-07-05: 10→30).
   bibname_change: {
     id: "bibname_change",
     name: "Bib Name Changes",
     description: "Bib name-on-bib changes per event",
     tierLimits: {
-      zero: 10,
-      upload: 10,
+      zero: 30,
+      upload: 30,
+      admin: 50,
+    },
+    resetPolicy: "event" as const,
+    enabled: true,
+  },
+
+  // Bib "pay in person" cash-rain toggles per event (Kurt 2026-07-05). The
+  // pledge toggle drives the fun cash-rain animation; capped at 30 turn-ons so
+  // it stays playful without becoming an unbounded write. Only turning the
+  // pledge ON consumes one (see /api/bib PATCH).
+  bib_toggle: {
+    id: "bib_toggle",
+    name: "Bib Cash Toggles",
+    description: "Pay-in-person cash-rain toggles per event",
+    tierLimits: {
+      zero: 30,
+      upload: 30,
       admin: 50,
     },
     resetPolicy: "event" as const,

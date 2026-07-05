@@ -37,6 +37,7 @@ export type QuotaId =
   | "gpx_share"
   | "gpx_save"
   | "bibname_change"
+  | "bib_toggle"
   | "bib_purchase"
   | "donation";
 

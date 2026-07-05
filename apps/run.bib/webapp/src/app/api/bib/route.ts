@@ -214,7 +214,22 @@ export async function PATCH(req: NextRequest) {
       }
       bib = await updateBibName(session.user.id, parsed.data.nameOnBib);
     }
+    let togglesRemaining: number | undefined;
     if (parsed.data.willPayInPerson !== undefined) {
+      // Turning the pledge ON drives the fun cash-rain — consume one from the
+      // central bib_toggle quota (Kurt 2026-07-05, capped at 30). Turning it OFF
+      // is free. On exhaustion, 429 so the client reverts the checkbox and shows
+      // a friendly "that's plenty of cash" note.
+      if (parsed.data.willPayInPerson === true) {
+        const q = await consumeQuota(session.user.id, "bib_toggle", 1, tier);
+        if (!q.success) {
+          return NextResponse.json(
+            { error: "toggle_quota_exceeded", togglesRemaining: q.remaining },
+            { status: 429 }
+          );
+        }
+        togglesRemaining = q.remaining;
+      }
       // Phase 22-05: pledge is orthogonal to nameLocked, so we do NOT skip
       // this write if the name was locked — a locked-name bib may still
       // toggle the pledge (participant switches to in-person plan).
@@ -223,7 +238,10 @@ export async function PATCH(req: NextRequest) {
         parsed.data.willPayInPerson
       );
     }
-    return NextResponse.json({ bib, renamesRemaining }, { status: 200 });
+    return NextResponse.json(
+      { bib, renamesRemaining, togglesRemaining },
+      { status: 200 }
+    );
   } catch (err) {
     if (err instanceof NameLockedError) {
       return NextResponse.json({ error: "name_locked" }, { status: 409 });

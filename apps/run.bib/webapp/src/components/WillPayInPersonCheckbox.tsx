@@ -51,6 +51,10 @@ export function WillPayInPersonCheckbox({
   const router = useRouter();
   const [checked, setChecked] = useState<boolean>(initialValue);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
+  // Set when the bib_toggle quota (30 cash-rains/event) is spent — shown as a
+  // friendly note and kept separate from saveState so the checked-effect's
+  // "idle" reset doesn't wipe it (Kurt 2026-07-05).
+  const [limitReached, setLimitReached] = useState(false);
 
   const lastSavedRef = useRef<boolean>(initialValue);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,6 +83,15 @@ export function WillPayInPersonCheckbox({
         body: JSON.stringify({ willPayInPerson: nextValue, altcha }),
         signal: controller.signal,
       });
+
+      if (res.status === 429) {
+        // bib_toggle quota spent — revert the optimistic check + rain and show
+        // the friendly cap note rather than a generic error.
+        setChecked(lastSavedRef.current);
+        setRaining(lastSavedRef.current);
+        setLimitReached(true);
+        return;
+      }
 
       if (!res.ok) {
         setSaveState({ kind: "error", detail: `HTTP ${res.status}` });
@@ -143,6 +156,8 @@ export function WillPayInPersonCheckbox({
   }, []);
 
   const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    // New interaction — clear any prior "cap reached" note.
+    setLimitReached(false);
     setChecked(event.target.checked);
     // Cross the (former) sibling boundary via the rain-store singleton so the
     // bib preview rains cash while the pledge is checked (Plan 34-03).
@@ -179,9 +194,15 @@ export function WillPayInPersonCheckbox({
         <span
           id="will-pay-in-person-hint"
           role="status"
-          style={{ fontSize: 13, color: "#a4a4b8", minHeight: 18 }}
+          style={{
+            fontSize: 13,
+            color: limitReached ? "#f4c680" : "#a4a4b8",
+            minHeight: 18,
+          }}
         >
-          {saveHintText(saveState)}
+          {limitReached
+            ? "That's plenty of cash for now — 30 rains max per event! 💸"
+            : saveHintText(saveState)}
         </span>
       </span>
     </label>
