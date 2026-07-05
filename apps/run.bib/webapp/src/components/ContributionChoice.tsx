@@ -181,7 +181,7 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
           disabled={busy}
           onChange={(on) => onSelect(on ? "inperson" : "nothing")}
           accent="#6CCDB8"
-          label="I'll contribute $20 in person for a custom bib"
+          label="I'll give $20USD in person."
         />
         <CheckRow
           id="opt-burn"
