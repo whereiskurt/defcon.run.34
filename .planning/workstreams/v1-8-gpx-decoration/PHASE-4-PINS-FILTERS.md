@@ -101,8 +101,13 @@ Implemented as specced on `gsd/gpx-pins-filters`. Verified: 26/26 vitest
 pre-existing. VISUALLY VERIFIED on the local stack: varied pins render
 (bunny/star/skull/flag/paw/bolt/crown + gold star staying gold), time chips
 filter with honest re-clustering (Hour→0, Whole con→9), runner highlight
-via popup name click + clear chip. Picker UI (profile card + modal) covered
-by tests/typecheck only — needs an authenticated session to eyeball.
+via popup name click + clear chip. Picker UI ALSO visually verified via the
+local session mint (`run.human/webapp/scripts/mint-local-session.mts` — dev
+bypass, signs a sess_run JWT with the local AUTH_JWT_SECRET): profile card
+shows all 9 icons incl. gold star under an admin session, save round-trips,
+modal pre-fills the saved pin and a per-check-in gold-star override submitted
+201 through the real quota path (run.auth :3002 local) and rendered on the
+public map.
 
 ## Build notes
 
