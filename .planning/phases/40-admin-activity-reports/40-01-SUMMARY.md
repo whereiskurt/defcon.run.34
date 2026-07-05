@@ -135,7 +135,9 @@ None - no external service configuration required. (The CloudWatch metric filter
 - Same copy-per-app `logEvent` pattern is ready to be replicated in run.gpx (40-02) and run.human (40-03).
 - Live proof that a real signup then login emit two distinct evt lines is deferred to 40-07 (requires a deploy).
 
-## Self-Check: PENDING
+## Self-Check: PASSED
+
+All created/modified files present on disk; all task + summary commits (c9341517, 92836237, 1dcb1e0a, f080a201) present in git history.
 
 ---
 *Phase: 40-admin-activity-reports*

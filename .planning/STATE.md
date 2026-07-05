@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Flash Service Refresh
-current_phase: 33
-current_phase_name: oidc-silent-sso
+current_phase: 40
+current_phase_name: Admin Activity Reports
 status: executing
-stopped_at: v1.4 hardware verification complete; ready to close milestone
-last_updated: "2026-07-05T07:26:45.159Z"
-last_activity: 2026-07-04
-last_activity_desc: "33-05 complete: parity + pure-logic unit tests green in run.bib vitest"
+stopped_at: Completed 40-01-PLAN.md
+last_updated: "2026-07-05T07:49:41.891Z"
+last_activity: 2026-07-05
+last_activity_desc: Phase 40 execution started
 progress:
   total_phases: 2
   completed_phases: 2
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-06)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation.
-**Current focus:** Phase 33 — oidc-silent-sso
+**Current focus:** Phase 40 — Admin Activity Reports
 
 ## Current Position
 
-Phase: 33 (oidc-silent-sso) — EXECUTING
-Plan: 6 of 6
+Phase: 40 (Admin Activity Reports) — EXECUTING
+Plan: 2 of 7
 Status: Ready to execute
-Last activity: 2026-07-04 — 33-05 complete: parity + pure-logic unit tests green in run.bib vitest
+Last activity: 2026-07-05 — Phase 40 execution started
 
 ## Accumulated Context
 
@@ -75,6 +75,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 33-05: Parity guarded by a node:fs test that reads the 5 unit files from gpx/flash/bib and asserts byte-equality vs canonical gpx (drift-detection proven by a temporary one-char mutation); pure-logic tests assert resolveSilentStatus success on error-ABSENCE (not a code param) and decideParentAction's foreign-origin→ignore anti-spoof gate — all in run.bib's existing node-env vitest, no new package.
 - [Phase ?]: SSO-08 e2e invariant: forbid the auth /login RENDER (count==0) + /signin OSCILLATION; allow one transient /signin entry since every RP route auth-gates to /signin
 - [Phase ?]: Silent-SSO e2e live cases gate on BOTH app + run.auth IdP reachability in a fixture-free beforeEach so the browser never launches on skip
+- [Phase 40]: 40-01: new-vs-returning sign-in split via a pre-upsert getAuthProfile existence check in the jwt callback, keeping upsertAuthProfile untouched
+- [Phase 40]: 40-01: logEvent is a copy-per-app single-line JSON stdout producer for DefconRun/Activity; locked field shape { evt, userId, email, ip, ua, meta }
 
 ### Pending Todos
 
@@ -117,8 +119,8 @@ the deferred fleet-simulator work lives only in the backlog file, not as a numbe
 
 ## Session Continuity
 
-Last session: 2026-07-04T05:34:16.448Z
-Stopped at: Phase 18 context gathered
+Last session: 2026-07-05T07:49:41.886Z
+Stopped at: Completed 40-01-PLAN.md
 Resume file: .planning/phases/18-build-time-firmware-device-list-refresh/18-CONTEXT.md
 
 ## Operator Next Steps
@@ -134,3 +136,4 @@ Resume file: .planning/phases/18-build-time-firmware-device-list-refresh/18-CONT
 | Phase 33 P03 | 12min | 2 tasks | 14 files |
 | Phase 33 P04 | ~25m | 2 tasks | 1 files |
 | Phase 33 P06 | 8min | 2 tasks | 15 files |
+| Phase 40 P40-01 | 20min | 2 tasks | 4 files |
