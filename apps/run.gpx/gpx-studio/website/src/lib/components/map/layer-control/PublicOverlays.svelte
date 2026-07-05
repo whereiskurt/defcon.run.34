@@ -1,5 +1,10 @@
 <script lang="ts">
-    import { publicOverlayGroups, publicAggregate, prettyRouteName } from '../public-overlays';
+    import {
+        publicOverlayGroups,
+        publicAggregate,
+        publicCheckIns,
+        prettyRouteName,
+    } from '../public-overlays';
     import type { PublicOverlaysLayer } from '../public-overlays';
 
     // The layer instance is created in LayerControl's map.onLoad; may be undefined
@@ -15,6 +20,17 @@
             onchange={(e) => layer?.setAggregateVisible(e.currentTarget.checked)}
         />
         All Runners
+    </label>
+{/if}
+
+{#if $publicCheckIns.available}
+    <label class="flex flex-row items-center gap-2 text-sm font-semibold">
+        <input
+            type="checkbox"
+            checked={$publicCheckIns.visible}
+            onchange={(e) => layer?.setCheckInsVisible(e.currentTarget.checked)}
+        />
+        User Check-ins ({$publicCheckIns.count})
     </label>
 {/if}
 

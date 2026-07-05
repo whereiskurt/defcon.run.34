@@ -106,6 +106,13 @@ locals {
             value = "https://run.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },
           {
+            # Internal run.human URL via service discovery (container-to-container) —
+            # used server-side to proxy the public check-ins feed for the
+            # "User Check-ins" map overlay.
+            name  = "RUN_HUMAN_INTERNAL_URL"
+            value = "http://run-human.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
+          },
+          {
             name  = "GPX_PUBLIC_URL"
             value = "https://gpx.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },

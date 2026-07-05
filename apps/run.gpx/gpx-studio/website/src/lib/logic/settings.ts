@@ -129,7 +129,9 @@ export const settings = {
     distanceUnits: new Setting<'metric' | 'imperial' | 'nautical'>('distanceUnits', 'metric'),
     velocityUnits: new Setting<'speed' | 'pace'>('velocityUnits', 'speed'),
     temperatureUnits: new Setting<'celsius' | 'fahrenheit'>('temperatureUnits', 'celsius'),
-    elevationProfile: new Setting<boolean>('elevationProfile', true),
+    // Collapsed by default (Kurt 2026-07-04) — open it via View > elevation profile;
+    // the choice persists per-user in the settings DB.
+    elevationProfile: new Setting<boolean>('elevationProfile', false),
     additionalDatasets: new Setting<string[]>('additionalDatasets', []),
     elevationFill: new Setting<'slope' | 'surface' | undefined>('elevationFill', undefined),
     treeFileView: new Setting<boolean>('fileView', false),
