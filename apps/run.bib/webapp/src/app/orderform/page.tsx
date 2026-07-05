@@ -254,6 +254,7 @@ export default async function Home({ searchParams }: HomeProps) {
           runnerCode: bib.runnerCode,
           initialRaining,
           initialBurning,
+          hasTransacted,
           socialQrUrl,
         }}
       />
@@ -303,7 +304,7 @@ export default async function Home({ searchParams }: HomeProps) {
               <Tile
                 kicker="This"
                 title="Sponsor this bib"
-                body="Contributions attach to your bib and help fund defcon.run 34."
+                body="Contributing to the event helps cover the cost of bibs and other swag. We appreciate your support."
                 art={<SponsorArt />}
               >
                 <SponsorForm
@@ -329,11 +330,7 @@ export default async function Home({ searchParams }: HomeProps) {
             <Tile
               kicker={hideBuyBib ? "Support" : "or That"}
               title="Just donate"
-              body={
-                hideBuyBib
-                  ? "Contribute anyway — support goes directly to defcon.run 34."
-                  : "Not running? Contribute anyway — support goes directly to defcon.run 34."
-              }
+              body="This long-running event would value any financial support you'd like to give. Every year we try to provide an accessible and memorable event for all."
               art={<DonateArt />}
             >
               <SponsorForm

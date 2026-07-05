@@ -7,7 +7,11 @@ import {
   formatUsd,
   type ReportBundle,
 } from "@/lib/admin-reports";
-import { ReconcileAction, RejectAction } from "@/components/AdminActions";
+import {
+  ReconcileAction,
+  RejectAction,
+  MarkPaidAction,
+} from "@/components/AdminActions";
 
 /**
  * /admin — v1.6 gated admin reporting dashboard (Kurt 2026-07-03).
@@ -126,15 +130,8 @@ export default async function AdminPage() {
           csvHref={`${base}/api/admin/bib/report/outstanding`}
         >
           <Table
-            columns={["Name", "Runner code", "Source", "Status", "Provider", "Amount", "Detail", "Action"]}
+            columns={["Action", "Name", "Runner code", "Source", "Status", "Provider", "Amount", "Detail"]}
             rows={bundle.outstanding.map((r) => [
-              r.nameOnBib,
-              r.runnerCode,
-              r.source,
-              r.status,
-              r.provider,
-              r.amountCents ? formatUsd(r.amountCents) : "—",
-              r.detail,
               r.source === "pending-intent" && r.pendingId && r.ownerSub && r.kind ? (
                 <ReconcileAction
                   apiBase={base}
@@ -144,9 +141,23 @@ export default async function AdminPage() {
                   provider={r.provider as "venmo" | "cashapp"}
                   amountCents={r.amountCents}
                 />
+              ) : r.source === "in-person" && r.ownerSub ? (
+                // Runner paid their pledged $20 cash at the event → book it.
+                <MarkPaidAction
+                  apiBase={base}
+                  ownerSub={r.ownerSub}
+                  amountCents={r.amountCents}
+                />
               ) : (
                 ""
               ),
+              r.nameOnBib,
+              r.runnerCode,
+              r.source,
+              r.status,
+              r.provider,
+              r.amountCents ? formatUsd(r.amountCents) : "—",
+              r.detail,
             ])}
             empty="Nothing outstanding."
           />
@@ -158,18 +169,18 @@ export default async function AdminPage() {
           csvHref={`${base}/api/admin/bib/report/registrations`}
         >
           <Table
-            columns={["Name", "Runner code", "Paid", "In person", "Created", "Action"]}
+            columns={["Action", "Name", "Runner code", "Paid", "In person", "Created"]}
             rows={bundle.registrations.map((r) => [
-              r.nameOnBib || "—",
-              r.runnerCode,
-              formatUsd(r.paidAmountCents),
-              r.willPayInPerson ? "✓" : "",
-              (r.createdAt || "").slice(0, 19),
               r.ownerSub ? (
                 <RejectAction apiBase={base} ownerSub={r.ownerSub} />
               ) : (
                 ""
               ),
+              r.nameOnBib || "—",
+              r.runnerCode,
+              formatUsd(r.paidAmountCents),
+              r.willPayInPerson ? "✓" : "",
+              (r.createdAt || "").slice(0, 19),
             ])}
             empty="No registrations yet."
           />

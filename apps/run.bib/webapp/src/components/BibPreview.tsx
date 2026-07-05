@@ -63,6 +63,15 @@ export interface BibPreviewProps {
    * can't mistake an unsaved name for a committed, paid bib.
    */
   dirty?: boolean;
+  /**
+   * Uncommitted "free bib" state (Kurt 2026-07-05). When `true`, renders a
+   * white-on-black "DRAFT" rubber stamp in the same top-right slot as PAID /
+   * UNSAVED — signalling the bib isn't finalized for a custom print until the
+   * runner commits (pledges $20 in person, donates, OR sponsors). Cleared the
+   * moment any of those happen. Stamp priority: UNSAVED (dirty) > PAID
+   * (sponsored) > DRAFT (uncommitted) > none (committed via pledge/donation).
+   */
+  draft?: boolean;
 }
 
 /** Design-contract placeholder rendered when the user has not typed a name.
@@ -113,6 +122,7 @@ export function BibPreview({
   runnerCode,
   socialQrUrl,
   dirty = false,
+  draft = false,
 }: BibPreviewProps) {
   const trimmedName = name.trim();
   const hasName = trimmedName.length > 0;
@@ -358,6 +368,39 @@ export function BibPreview({
             letterSpacing="2"
           >
             UNSAVED
+          </text>
+        </g>
+      ) : draft ? (
+        // Uncommitted free bib (Kurt 2026-07-05): white-on-black DRAFT stamp.
+        // Cleared once the runner pledges in person / donates / sponsors.
+        <g
+          id="draft-charm"
+          role="img"
+          aria-label="Draft — not yet finalized"
+          data-testid="draft-charm"
+          transform="rotate(-11 806 208)"
+        >
+          <rect
+            x="712"
+            y="176"
+            width="188"
+            height="64"
+            rx="10"
+            fill="#0a0a0a"
+            stroke="#ffffff"
+            strokeWidth="3"
+          />
+          <text
+            x="806"
+            y="212"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="30"
+            fontWeight="900"
+            fill="#fff"
+            letterSpacing="4"
+          >
+            DRAFT
           </text>
         </g>
       ) : (
