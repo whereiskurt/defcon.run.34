@@ -296,7 +296,7 @@ Plans:
 | 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
-| 35. CMS Copy Catalog Foundation | v1.9 | 2/3 | In Progress|  |
+| 35. CMS Copy Catalog Foundation | v1.9 | 3/3 | Complete   | 2026-07-05 |
 | 36. Runtime Copy Toolkit | v1.9 | 0/TBD | Planned | - |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 0/TBD | Planned | - |
 | 38. Custom Copy Admin Plugin | v1.9 | 0/TBD | Planned | - |
@@ -328,7 +328,7 @@ Plans:
 > **Deferred (v2):** MIGR-04 (flash/human/auth/gpx migration) and I18N-01 (locale population + switcher) are out of this milestone.
 > **The plane can land after Phase 37** — the proof surface validates the whole approach; admin (38) and the broader migration (39) can follow.
 
-- [ ] **Phase 35: CMS Copy Catalog Foundation** - `ui-string` content type, `(key,locale)` uniqueness, read-only API-token permission, and the S3 export lifecycle hook
+- [x] **Phase 35: CMS Copy Catalog Foundation** - `ui-string` content type, `(key,locale)` uniqueness, read-only API-token permission, and the S3 export lifecycle hook (completed 2026-07-05)
 - [ ] **Phase 36: Runtime Copy Toolkit** - `loadCopy` + Next.js Data Cache, merged-map `t()`, `CopyProvider`/`useCopy`, cached S3 fallback + committed snapshot floor
 - [ ] **Phase 37: Bib Donate/Sponsor Proof Surface** - wire the bib donate/sponsor copy (forms, instructions, payment/Venmo/CashApp, sponsor/QR/logout modals) end-to-end through the catalog
 - [ ] **Phase 38: Custom Copy Admin Plugin** - three-column `label·locale·value` Strapi admin page with namespace filter + bulk upsert
@@ -346,7 +346,7 @@ Plans:
   3. A request bearing the read-only API token can `find`/`findOne` `ui-string` rows, while write attempts with that token are denied.
   4. Creating, updating, or deleting any `ui-string` regenerates `copy.json` in the CMS S3 bucket (served via CloudFront), reflecting the current catalog.
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -356,7 +356,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 35-02-PLAN.md — `(key,locale)` uniqueness (lifecycle 4xx + idempotent DB unique-index migration) + master-only S3 `copy.json` export hook — COPY-02, FALL-01 [Wave 2]
-- [ ] 35-03-PLAN.md — Public-role deny + read-only API-token find/findOne verification — COPY-03 [Wave 2]
+- [x] 35-03-PLAN.md — Public-role deny + read-only API-token find/findOne verification — COPY-03 [Wave 2]
 
 ### Phase 36: Runtime Copy Toolkit
 

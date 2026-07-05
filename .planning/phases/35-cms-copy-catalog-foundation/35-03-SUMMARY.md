@@ -84,4 +84,8 @@ The runtime matrix was produced by a temporary CommonJS harness (removed after t
 
 None.
 
-## Self-Check: PENDING
+## Self-Check: PASSED
+
+- `apps/run.cms/app/src/index.ts` — FOUND
+- Commit 2bc0b097 (Task 1) — FOUND
+- Commit 693fb678 (SUMMARY) — FOUND
