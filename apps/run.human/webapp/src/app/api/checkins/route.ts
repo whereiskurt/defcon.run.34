@@ -15,6 +15,7 @@ import {
 } from "@/lib/quota-middleware";
 import { checkQuota } from "@/lib/quota-client";
 import { resolveCheckInPin } from "@/lib/pin-icons";
+import { logEvent } from "@/lib/log-event";
 
 /**
  * Resolve a check-in by checkinId for the given user.
@@ -104,6 +105,15 @@ export async function POST(req: NextRequest) {
       isPrivate: resolvedIsPrivate,
       pinIcon: pin.pinIcon,
       pinColor: pin.pinColor,
+    });
+
+    // Activity event (Phase 40, AR-02): fire-and-forget at the request boundary
+    // where request headers + session are available — logEvent never throws.
+    logEvent("human.checkin", {
+      headers: req.headers,
+      userId: session.user.id,
+      email: session.user.email ?? undefined,
+      meta: { checkinId: checkInItem.checkInId },
     });
 
     // Get remaining quota for response

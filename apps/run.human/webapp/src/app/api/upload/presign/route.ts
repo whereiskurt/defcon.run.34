@@ -22,6 +22,7 @@ import {
   type QuotaErrorResponse,
 } from "@/lib/quota-middleware";
 import { restoreQuota } from "@/lib/quota-client";
+import { logEvent } from "@/lib/log-event";
 
 // URL expiration time in seconds (1 hour)
 const PRESIGN_EXPIRES_IN = 3600;
@@ -162,6 +163,15 @@ export async function GET(request: NextRequest): Promise<NextResponse<PresignRes
 
     // Create the upload record in DynamoDB with status="pending"
     await createUpload(userId, uploadId, type, S3_UPLOADS_BUCKET, key, filename || undefined);
+
+    // Activity event (Phase 40, AR-02): fire-and-forget at the request boundary
+    // where request headers + session are available — logEvent never throws.
+    logEvent("human.upload", {
+      headers: request.headers,
+      userId,
+      email: session.user.email ?? undefined,
+      meta: { uploadId, uploadType: type },
+    });
 
     // Return the presigned URL and metadata with quota info
     const response: PresignResponse = {
