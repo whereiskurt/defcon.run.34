@@ -18,6 +18,11 @@ import * as React from "react";
  */
 
 import { CopyProvider, useCopy } from "@/components/CopyProvider";
+import { t } from "@/lib/copy-core";
+import snapshot from "@/lib/copy-snapshot.json";
+
+/** The committed floor for the default locale — the layout's map is always >= this. */
+const FLOOR = (snapshot as Record<string, Record<string, string>>).default;
 
 function Greeting({ name }: { name: string }) {
   const { t } = useCopy();
@@ -63,5 +68,12 @@ describe("CopyProvider / useCopy (Phase 36-03)", () => {
       </CopyProvider>
     );
     expect(html).toContain("bib.selftest.doesNotExist");
+  });
+
+  it("resolves the server self-proof key to its committed string (SC-1 half, server O(1) lookup)", () => {
+    // layout.tsx renders this key server-side via t(copy, ...). The resolved map
+    // loadCopy returns is always a superset of the committed floor, so proving it
+    // against the floor pins the exact server-side lookup the layout depends on.
+    expect(t(FLOOR, "bib.selftest.serverGreeting")).toBe("Bib copy toolkit online");
   });
 });

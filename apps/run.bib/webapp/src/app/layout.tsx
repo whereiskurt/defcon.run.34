@@ -7,6 +7,8 @@ import { auth } from "@/config/auth";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { MapBackground } from "@/components/map-background";
+import { CopyProvider } from "@/components/CopyProvider";
+import { loadCopy, t } from "@/lib/copy";
 import {
   fontSans,
   fontMono,
@@ -47,6 +49,13 @@ export default async function RootLayout({
   const isAdmin = Array.isArray(user?.services) && user.services.includes("admin");
   const versionApp = process.env.NEXT_PUBLIC_VERSION_APP || "dev";
 
+  // Phase 36 copy toolkit: resolve the merged copy map ONCE server-side (cached,
+  // O(1) lookups thereafter — SC-1) and hand ONLY the resolved map to the client
+  // CopyProvider. The CMS token / URL are read inside loadCopy and never cross the
+  // boundary. Permanent wiring — Phase 37 (bib donate/sponsor copy) consumes it.
+  const copy = await loadCopy("default");
+  const copySelfTest = t(copy, "bib.selftest.serverGreeting");
+
   return (
     <html suppressHydrationWarning lang="en">
       <body
@@ -62,14 +71,23 @@ export default async function RootLayout({
           themeProps={{ attribute: "class", defaultTheme: "dark" }}
           authBasePath={authBasePath}
         >
-          <MapBackground />
-          <div className="relative flex flex-col min-h-dvh noise-overlay">
-            <div className="flex-shrink-0 relative z-10">
-              <Header userName={userName} isAdmin={isAdmin} />
+          <CopyProvider value={copy}>
+            <MapBackground />
+            {/* Phase 36 self-proof: one server-resolved copy key rendered O(1)
+              * from the loadCopy map (SC-1). Visually hidden — Phase 37 wires the
+              * real donate/sponsor copy; this marker just proves the toolkit is
+              * live end-to-end (server render + client CopyProvider mounted). */}
+            <span hidden data-copy-selftest>
+              {copySelfTest}
+            </span>
+            <div className="relative flex flex-col min-h-dvh noise-overlay">
+              <div className="flex-shrink-0 relative z-10">
+                <Header userName={userName} isAdmin={isAdmin} />
+              </div>
+              <main className="relative z-10 flex-grow">{children}</main>
+              <Footer versionTooltip={`DC34 ${versionApp}`} />
             </div>
-            <main className="relative z-10 flex-grow">{children}</main>
-            <Footer versionTooltip={`DC34 ${versionApp}`} />
-          </div>
+          </CopyProvider>
         </Providers>
       </body>
     </html>
