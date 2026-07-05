@@ -295,7 +295,7 @@ Plans:
 | 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
-| 41. Abuse Detection | v1.x | 4/5 | In Progress|  |
+| 41. Abuse Detection | v1.x | 5/5 | Complete   | 2026-07-05 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -365,7 +365,7 @@ Deliverables (from spec):
 - `site.hcl` `abuse_detection` block (thresholds + enabled gate), tight pre-con defaults
 - Out of scope: enabling AWS WAF + IP-set auto-block, Impart.security integration, CloudFront-log correlation
 
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 
@@ -381,4 +381,4 @@ Plans:
 
 **Wave 3** *(depends on Wave 2)*
 
-- [ ] 41-05-PLAN.md — site.hcl `abuse_detection` block (enabled=false + thresholds) + us-east-1 terragrunt unit (exclude-if-disabled, network-derived ALB bucket) + deploy/verify checkpoint (AD-08)
+- [x] 41-05-PLAN.md — site.hcl `abuse_detection` block (enabled=false + thresholds) + us-east-1 terragrunt unit (exclude-if-disabled, network-derived ALB bucket) + deploy/verify checkpoint (AD-08)
