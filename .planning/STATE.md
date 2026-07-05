@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 40 (Admin Activity Reports) — EXECUTING
-Plan: 7 of 7
-Status: Ready to execute
-Last activity: 2026-07-05 — Phase 40 execution started
+Phase: 40 (Admin Activity Reports) — EXECUTING (6/7 plans complete)
+Plan: 40-07 remaining (autonomous:false — blocked on human prod deploy + verify)
+Status: Waves 1–2 complete; paused at Wave 3 checkpoint
+Last activity: 2026-07-05 — Waves 1–2 executed autonomously (40-01…40-06); stopped before 40-07 (real us-east-1 deploy + fire-live-events + confirm tripwire email)
 
 ## Accumulated Context
 
