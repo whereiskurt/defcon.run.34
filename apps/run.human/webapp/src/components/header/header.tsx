@@ -11,10 +11,12 @@ import {
 } from '@heroui/react';
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
 import { PiPersonSimpleRun } from 'react-icons/pi';
+import { DonateModal } from '../DonateModal';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -47,6 +49,12 @@ const basePath = process.env.NODE_ENV === 'production'
 
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || 'dev'}`;
 
+// Quick-donate modal targets the bib app cross-origin. The checkout POST hits
+// naked /api/* (bib's nginx rewrites it to the region path); the Venmo/Cash App
+// provider PAGES are region-prefixed.
+const BIB_ORIGIN = 'https://bib.defcon.run';
+const BIB_REGION_PREFIX = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
+
 const navItems = [
   { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
   { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio, external: false },
@@ -57,8 +65,10 @@ export function Header(params: any) {
   const session = params.session;
   const hasSession = session !== null;
   const pathname = usePathname();
+  const [donateOpen, setDonateOpen] = useState(false);
 
   return (
+    <>
     <Navbar
       maxWidth="lg"
       classNames={{
@@ -69,7 +79,7 @@ export function Header(params: any) {
       {/* Mobile: hamburger */}
       <NavbarContent className="sm:hidden" justify="start">
         <NavbarItem>
-          <MenuDropDown session={session} />
+          <MenuDropDown session={session} onDonate={() => setDonateOpen(true)} />
         </NavbarItem>
       </NavbarContent>
 
@@ -102,19 +112,35 @@ export function Header(params: any) {
           const isActive = !external && !!pathname && pathname.replace(basePath, '').startsWith(href);
           return (
             <NavbarItem key={href}>
-              <Link
-                color="foreground"
-                href={href}
-                {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
-                className={`text-sm flex items-center gap-1.5 transition-colors relative py-1 ${
-                  isActive
-                    ? 'text-primary font-medium nav-active'
-                    : 'text-default-500 hover:text-foreground'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </Link>
+              <span className="text-sm flex items-center gap-1.5 py-1">
+                <Link
+                  color="foreground"
+                  href={href}
+                  {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+                  className={`flex items-center gap-1.5 transition-colors relative ${
+                    isActive
+                      ? 'text-primary font-medium nav-active'
+                      : 'text-default-500 hover:text-foreground'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </Link>
+                {/* "Bib" gains a "Donate $" sibling that opens the quick-give
+                  * modal in place (cross-origin to the bib app). */}
+                {label === 'Bib' && (
+                  <>
+                    <span className="text-default-400">/</span>
+                    <button
+                      type="button"
+                      onClick={() => setDonateOpen(true)}
+                      className="transition-colors text-default-500 hover:text-foreground"
+                    >
+                      Donate $
+                    </button>
+                  </>
+                )}
+              </span>
             </NavbarItem>
           );
         })}
@@ -134,5 +160,13 @@ export function Header(params: any) {
         </NavbarItem>
       </NavbarContent>
     </Navbar>
+
+    <DonateModal
+      open={donateOpen}
+      onClose={() => setDonateOpen(false)}
+      bibOrigin={BIB_ORIGIN}
+      regionPrefix={BIB_REGION_PREFIX}
+    />
+    </>
   );
 }

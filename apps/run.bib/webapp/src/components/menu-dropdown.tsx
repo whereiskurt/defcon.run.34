@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { GrMapLocation } from "react-icons/gr";
 import { FaRadio } from "react-icons/fa6";
 import { PiPersonSimpleRun } from "react-icons/pi";
-import { FiShield, FiMenu } from "react-icons/fi";
+import { FiShield, FiMenu, FiDollarSign } from "react-icons/fi";
 
 import { runHumanUrl } from "@/lib/run-human-url";
 
@@ -22,7 +22,13 @@ import { runHumanUrl } from "@/lib/run-human-url";
  */
 const iconClasses = "text-lg text-default-400 pointer-events-none flex-shrink-0";
 
-export function MenuDropdown({ isAdmin = false }: { isAdmin?: boolean }) {
+export function MenuDropdown({
+  isAdmin = false,
+  onDonate,
+}: {
+  isAdmin?: boolean;
+  onDonate?: () => void;
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
@@ -72,6 +78,17 @@ export function MenuDropdown({ isAdmin = false }: { isAdmin?: boolean }) {
           onPress={() => go("/orderform")}
         >
           <span className="text-base">My bib</span>
+        </DropdownItem>
+        <DropdownItem
+          key="donate"
+          textValue="Donate"
+          startContent={<FiDollarSign className={iconClasses} />}
+          onPress={() => {
+            setIsOpen(false);
+            onDonate?.();
+          }}
+        >
+          <span className="text-base">Donate $</span>
         </DropdownItem>
         <DropdownItem
           key="maps"

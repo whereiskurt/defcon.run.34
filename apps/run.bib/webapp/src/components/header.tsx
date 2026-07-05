@@ -7,6 +7,7 @@ import {
   Link,
   Tooltip,
 } from "@heroui/react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { GrMapLocation } from "react-icons/gr";
 import { FaRadio } from "react-icons/fa6";
@@ -18,6 +19,7 @@ import { runHumanUrl } from "@/lib/run-human-url";
 import { ThemeSwitch } from "./theme-switch";
 import { UserDropdown } from "./user-dropdown";
 import { MenuDropdown } from "./menu-dropdown";
+import { DonateModal } from "./DonateModal";
 
 /**
  * Site header (v1.6) — ported look from run.human's HeroUI Navbar so the bib
@@ -28,6 +30,13 @@ import { MenuDropdown } from "./menu-dropdown";
 const basePath =
   process.env.NODE_ENV === "production"
     ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || "use1"}`
+    : "";
+
+// Region prefix (no leading slash) for the same-origin donate provider pages;
+// empty in dev where there is no basePath. bibOrigin stays "" (same app).
+const DONATE_REGION_PREFIX =
+  process.env.NODE_ENV === "production"
+    ? process.env.NEXT_PUBLIC_REGION_SHORT || "use1"
     : "";
 
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || "dev"}`;
@@ -46,6 +55,7 @@ export interface HeaderProps {
 export function Header({ userName, isAdmin = false }: HeaderProps) {
   const pathname = usePathname();
   const normalized = (pathname || "").replace(basePath, "");
+  const [donateOpen, setDonateOpen] = useState(false);
 
   const Wordmark = (
     <Tooltip content={APP_VERSION_TOOLTIP} placement="bottom">
@@ -58,11 +68,12 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
   );
 
   return (
+    <>
     <Navbar maxWidth="lg" classNames={{ base: "glass-nav", wrapper: "max-w-[900px]" }}>
       {/* Mobile: hamburger nav */}
       <NavbarContent className="sm:hidden" justify="start">
         <NavbarItem>
-          <MenuDropdown isAdmin={isAdmin} />
+          <MenuDropdown isAdmin={isAdmin} onDonate={() => setDonateOpen(true)} />
         </NavbarItem>
       </NavbarContent>
 
@@ -78,19 +89,35 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
           const isActive = !external && normalized.startsWith(href);
           return (
             <NavbarItem key={href}>
-              <Link
-                color="foreground"
-                href={href}
-                {...(external ? { isExternal: true, target: "_blank", rel: "noreferrer" } : {})}
-                className={`text-sm flex items-center gap-1.5 transition-colors relative py-1 ${
-                  isActive
-                    ? "text-primary font-medium nav-active"
-                    : "text-default-500 hover:text-foreground"
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                {label}
-              </Link>
+              <span className="text-sm flex items-center gap-1.5 py-1">
+                <Link
+                  color="foreground"
+                  href={href}
+                  {...(external ? { isExternal: true, target: "_blank", rel: "noreferrer" } : {})}
+                  className={`flex items-center gap-1.5 transition-colors relative ${
+                    isActive
+                      ? "text-primary font-medium nav-active"
+                      : "text-default-500 hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </Link>
+                {/* "Bib" gains a sibling "Donate $" that opens the quick-give
+                  * modal in place (same-origin here in run.bib). */}
+                {label === "Bib" && (
+                  <>
+                    <span className="text-default-400">/</span>
+                    <button
+                      type="button"
+                      onClick={() => setDonateOpen(true)}
+                      className="transition-colors text-default-500 hover:text-foreground"
+                    >
+                      Donate $
+                    </button>
+                  </>
+                )}
+              </span>
             </NavbarItem>
           );
         })}
@@ -124,6 +151,13 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
         ) : null}
       </NavbarContent>
     </Navbar>
+
+    <DonateModal
+      open={donateOpen}
+      onClose={() => setDonateOpen(false)}
+      regionPrefix={DONATE_REGION_PREFIX}
+    />
+    </>
   );
 }
 
