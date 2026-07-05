@@ -244,3 +244,226 @@ html.light .glass-nav {
     animation: none;
   }
 }
+
+/* ============================================================================
+   Admin "Live Ops" dashboard (Kurt 2026-07-05). Dark-only (the /admin page is
+   an internal tool with a fixed dark ground). Mint = bibs, gold = donations,
+   green = up-trend. Numbers use tabular-nums so columns line up.
+   ============================================================================ */
+.adash {
+  --mint: #6ccdb8;
+  --gold: #f5c451;
+  --up: #7fdc9e;
+  --line: #24242e;
+  --line-soft: #1b1b24;
+  --panel: #12121a;
+  --panel-2: #0f0f16;
+  --muted: #8f8fa8;
+  --faint: #5f5f72;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* live pip + "updated" chip */
+.adash-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 7px 12px;
+  border-radius: 999px;
+}
+.adash-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--up);
+  animation: adash-pulse 2.4s ease-out infinite;
+}
+@keyframes adash-pulse {
+  0% { box-shadow: 0 0 0 0 #7fdc9eb3; }
+  70% { box-shadow: 0 0 0 7px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* hero stat cards */
+.adash-heroes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 820px) {
+  .adash-heroes { grid-template-columns: 1fr; }
+}
+.adash-hero {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  padding: 20px 20px 16px;
+  overflow: hidden;
+}
+.adash-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--tint, var(--mint));
+}
+.adash-hero.bib { --tint: var(--mint); }
+.adash-hero.don { --tint: var(--gold); }
+.adash-hero.tot { --tint: #e7e7f2; }
+.adash-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+.adash-eyebrow svg { width: 15px; height: 15px; color: var(--tint); }
+.adash-val {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 40px;
+  letter-spacing: -0.02em;
+  margin: 10px 0 2px;
+  line-height: 1;
+  color: #f3f3fb;
+}
+.adash-hero.tot .adash-val { font-size: 34px; }
+.adash-val .cent { color: var(--faint); font-size: 0.6em; }
+.adash-spark { margin-top: 12px; width: 100%; height: 34px; display: block; }
+.adash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.adash-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--up);
+  background: #7fdc9e24;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+.adash-trend.flat { color: var(--muted); background: #8f8fa81f; }
+.adash-trend svg { width: 11px; height: 11px; }
+.adash-lastev { font-size: 12px; color: var(--muted); }
+.adash-lastev b { color: #e7e7f2; font-weight: 600; }
+
+/* chip strip */
+.adash-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.adash-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 14px 8px 12px;
+}
+.adash-chip .k {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+.adash-chip .v {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 15px;
+  color: #e7e7f2;
+}
+.adash-chip.attn { border-color: #e8b93a73; }
+.adash-chip.attn .v { color: var(--gold); }
+
+/* revenue chart panel + ticker */
+.adash-legend { display: flex; gap: 16px; }
+.adash-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.adash-legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+.adash-chart { width: 100%; height: 210px; display: block; }
+.adash-empty { padding: 40px 20px; text-align: center; color: var(--faint); font-size: 13px; }
+
+.adash-ticker {
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.adash-ticker .lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  flex: none;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--up);
+  border-right: 1px solid var(--line);
+  background: #7fdc9e17;
+}
+.adash-ticker .lbl .adash-pip { width: 7px; height: 7px; }
+.adash-track-wrap { overflow: hidden; position: relative; flex: 1; }
+.adash-track {
+  display: inline-flex;
+  gap: 30px;
+  padding: 10px 30px;
+  white-space: nowrap;
+  will-change: transform;
+  animation: adash-scroll 46s linear infinite;
+}
+.adash-track:hover { animation-play-state: paused; }
+@keyframes adash-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.adash-ev { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #e7e7f2; }
+.adash-ev .amt { font-family: var(--mono); font-weight: 700; }
+.adash-ev .amt.bibc { color: var(--mint); }
+.adash-ev .amt.donc { color: var(--gold); }
+.adash-ev .ago { color: var(--faint); font-family: var(--mono); font-size: 11.5px; }
+
+/* status pills reused in the report tables */
+.adash-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.adash-pill.ok { color: var(--up); background: #7fdc9e26; }
+.adash-pill.warn { color: var(--gold); background: #f5c45122; }
+.adash-pill.mut { color: var(--muted); background: #8f8fa826; }
+.adash-pill.gold { color: var(--gold); background: #f5c45118; }
+
+@media (prefers-reduced-motion: reduce) {
+  .adash-track { animation: none; }
+  .adash-pip { animation: none; }
+}
