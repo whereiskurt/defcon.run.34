@@ -1,10 +1,12 @@
 #!/bin/bash
-# Point-in-time snapshot of the LIVE CMS master database.
+# Point-in-time snapshot of the LIVE CMS master database + media assets.
 #
 # The master continuously replicates to s3://<bucket>/strapi (Litestream), and
 # workers restore from it. This captures a named, directly-restorable .db copy
-# on top of that stream — kept in BOTH a dated S3 key and a local file. Pairs
-# with cms-restore.sh.
+# on top of that stream — kept in BOTH a dated S3 key and a local file. The
+# media bucket is synced to a matching dated prefix so the DB's file records
+# and the objects they reference restore as a consistent pair. Pairs with
+# cms-restore.sh.
 #
 # Usage: ./scripts/cms-backup.sh
 # Requires: litestream 0.5.x (brew tap benbjohnson/litestream && brew install litestream)
@@ -61,3 +63,13 @@ aws s3 cp "$LOCAL_DB" "s3://${BUCKET_NAME}/${S3_KEY}" --quiet
 echo "Backup complete ($(du -h "$LOCAL_DB" | cut -f1)):"
 echo "  local: ${LOCAL_DB}"
 echo "  s3:    s3://${BUCKET_NAME}/${S3_KEY}"
+
+MEDIA_BUCKET="${S3_MEDIA_BUCKET:-$(aws ssm get-parameter --name /dc34/uploads/use1/cms-media/bucket_name --query Parameter.Value --output text 2>/dev/null || echo "")}"
+if [[ -n "$MEDIA_BUCKET" ]]; then
+  MEDIA_PREFIX="cms-backups/media-${TS}"
+  aws s3 sync "s3://${MEDIA_BUCKET}/" "s3://${BUCKET_NAME}/${MEDIA_PREFIX}/" --quiet
+  MEDIA_COUNT="$(aws s3 ls "s3://${BUCKET_NAME}/${MEDIA_PREFIX}/" --recursive | wc -l | tr -d ' ')"
+  echo "  media: s3://${BUCKET_NAME}/${MEDIA_PREFIX}/ (${MEDIA_COUNT} objects)"
+else
+  echo "WARN: could not determine media bucket (set S3_MEDIA_BUCKET) — media not snapshotted."
+fi
