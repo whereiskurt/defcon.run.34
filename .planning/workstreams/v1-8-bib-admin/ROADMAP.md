@@ -33,7 +33,7 @@ and print the runner's real social QR on the bib tear-offs with a runner-code fa
 
 **Success Criteria:** SC34.1–SC34.9 (see "Success Criteria (Phase 34)" below)
 
-**Plans:** 3/4 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 **Wave 1**
@@ -44,7 +44,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 34-04-PLAN.md — Slice B/C: ALTCHA blur overlay + threaded/enlarged social QR render (wave 2)
+- [x] 34-04-PLAN.md — Slice B/C: ALTCHA blur overlay + threaded/enlarged social QR render (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
