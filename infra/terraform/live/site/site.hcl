@@ -500,10 +500,12 @@ locals {
     # runaway scan can't rack up cost.
     athena_bytes_scanned_cutoff = 10737418240
 
-    # REUSE the Phase 40 SNS topic — the module composes the ARN from account +
-    # region + this name and creates NO second topic. This topic must already
-    # exist (admin_reports enabled/applied) before an end-to-end alert can fire.
-    sns_topic_name = "dcr-admin-reports-tripwire"
+    # Dedicated abuse-detection tripwire — the module CREATES this topic (sns.tf)
+    # and subscribes alert_email. Standalone (NOT the Phase 40 admin-reports
+    # topic) so the email path carries no dependency on the un-validated 40-07
+    # /ecs/* retention import. Confirm the subscription email once after apply.
+    sns_topic_name = "dcr-abuse-detection-tripwire"
+    alert_email    = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
   }
 
   # Extracted to avoid self-reference within github_oidc block

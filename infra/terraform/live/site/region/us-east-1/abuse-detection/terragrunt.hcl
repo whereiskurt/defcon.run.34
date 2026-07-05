@@ -71,8 +71,10 @@ inputs = {
   digest_hour_utc             = local.site_vars.locals.abuse_detection.digest_hour_utc
   athena_bytes_scanned_cutoff = local.site_vars.locals.abuse_detection.athena_bytes_scanned_cutoff
 
-  # Reuse the Phase 40 SNS topic (module composes the ARN; creates no 2nd topic).
+  # Dedicated abuse-detection SNS topic (module creates it in sns.tf) + the
+  # confirmed-by-email endpoint. Standalone from the Phase 40 admin-reports topic.
   sns_topic_name = local.site_vars.locals.abuse_detection.sns_topic_name
+  alert_email    = local.site_vars.locals.abuse_detection.alert_email
 
   # Enabling the unit also enables the cron: the EventBridge rule state derives
   # from the SAME site.hcl gate, so "dark" is dark everywhere.

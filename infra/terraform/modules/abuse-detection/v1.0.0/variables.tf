@@ -108,16 +108,25 @@ variable "digest_hour_utc" {
   default     = 13
 }
 
-# --- Alerting reuse (AD-06) ---------------------------------------------------
+# --- Alerting (AD-06) ---------------------------------------------------------
 
 variable "sns_topic_name" {
   description = <<-EOT
-    The Phase 40 SNS topic to REUSE for operator alerts. The module composes the
-    topic ARN internally from account id + region + this name; it MUST NOT create
-    a second topic.
+    Name of the dedicated SNS tripwire topic this module CREATES (sns.tf) for
+    operator alerts. Standalone (not the Phase 40 admin-reports topic) so the
+    email path carries no dependency on the un-validated 40-07 deploy.
   EOT
   type        = string
-  default     = "dcr-admin-reports-tripwire"
+  default     = "dcr-abuse-detection-tripwire"
+}
+
+variable "alert_email" {
+  description = <<-EOT
+    Email address subscribed to the abuse-detection SNS topic. AWS sends a
+    one-time confirmation link; alerts deliver only after it is confirmed.
+    Findings still land in S3 regardless of confirmation state.
+  EOT
+  type        = string
 }
 
 # --- Gate + Lambda knobs (AD-08) ----------------------------------------------

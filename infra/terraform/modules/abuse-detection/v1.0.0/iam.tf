@@ -131,13 +131,13 @@ resource "aws_iam_role_policy" "detector" {
         ]
       },
 
-      # SNS — publish ONLY to the reused Phase 40 topic (composed from
-      # var.sns_topic_name); never a wildcard. Mirrors local.sns_topic_arn.
+      # SNS — publish ONLY to this module's own abuse-detection topic (created in
+      # sns.tf); never a wildcard. Mirrors local.sns_topic_arn.
       {
-        Sid      = "PublishToReusedTopic"
+        Sid      = "PublishToAbuseTopic"
         Effect   = "Allow"
         Action   = "sns:Publish"
-        Resource = "arn:aws:sns:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:${var.sns_topic_name}"
+        Resource = aws_sns_topic.abuse.arn
       },
     ]
   })

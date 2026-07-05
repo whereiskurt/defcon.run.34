@@ -23,9 +23,9 @@
 locals {
   function_name = "abuse-detector-${var.region.label}"
 
-  # Reused Phase 40 SNS topic ARN, composed from account + region + the fixed
-  # name — the module MUST NOT create a second topic (see admin-reports alarms.tf).
-  sns_topic_arn = "arn:aws:sns:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:${var.sns_topic_name}"
+  # Dedicated abuse-detection tripwire topic (created in sns.tf). Decoupled from
+  # the Phase 40 admin-reports topic so the email path needs no 40-07 deploy.
+  sns_topic_arn = aws_sns_topic.abuse.arn
 }
 
 # Package the handler directory (Plan 04 code + Plan 02 queries/) into a zip.
