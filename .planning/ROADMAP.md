@@ -349,8 +349,12 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
 
 - [ ] 35-01-PLAN.md — `ui-string` collection content type (schema + core controller/router/service, `draftAndPublish:false`) — COPY-01, COPY-04 [Wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 35-02-PLAN.md — `(key,locale)` uniqueness (lifecycle 4xx + idempotent DB unique-index migration) + master-only S3 `copy.json` export hook — COPY-02, FALL-01 [Wave 2]
 - [ ] 35-03-PLAN.md — Public-role deny + read-only API-token find/findOne verification — COPY-03 [Wave 2]
 
