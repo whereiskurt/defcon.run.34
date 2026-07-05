@@ -20,11 +20,11 @@ created: 2026-07-05
 
 ## Session Continuity
 
-**Stopped At:** All phases executed & verified (code-complete). Branch `gsd/phase-01-cms-session-bump`, NOT pushed.
+**Stopped At:** All phases executed & verified (code-complete). Branch `gsd/gpx-strapi-routes-pois` (consolidated; the redundant phase-01 branch was deleted).
 **Resume File:** `docs/superpowers/specs/2026-07-05-strapi-authored-routes-and-pois-design.md` (design contract)
 
 ## ⛳ Remaining to ship (not code — deploy + UAT)
-1. **Push** branch `gsd/phase-01-cms-session-bump` and open a PR (not yet pushed).
+1. **Push** branch `gsd/gpx-strapi-routes-pois` and open a PR (not yet pushed).
 2. **Deploy run.cms** — activates the 2h admin session (Phase 1) AND the CMS-media CloudFront CORS (Phase 2, `main.tf`) needed for cross-origin `.gpx` + marker-image fetch. `terragrunt plan/apply` on the cms region(s).
 3. **Deploy run.gpx** — ships the manifest (`strapi.ts`/`route.ts`) + rebuilt studio bundle (`public-overlays.ts`) so CMS routes + POIs render publicly.
 4. **`.gpx` upload check (Phase 2 / 02-01):** one-time manual — `npm run develop` at :1337, upload a `.gpx` into `Route.gpxFiles`; whitelist `config/plugins.ts` (gpx/xml mimes) only if rejected.
@@ -32,7 +32,7 @@ created: 2026-07-05
 6. **Optional:** `/gsd-ui-phase 2`/`3` for a formal UI-SPEC (skipped — visual direction was locked in design D7/D8).
 
 ## Branching (resolved)
-Workstream-scoped override `branching_strategy: none` is committed (`.planning/workstreams/v1-9-gpx-strapi/config.json`), so all phases stay on branch **`gsd/phase-01-cms-session-bump`** (which holds every plan + all execution). Global `.planning/config.json` still uses `phase`. The original `gsd/gpx-strapi-routes-pois` is stranded at `5db2a6cf`. Execute Phase 3 on the current branch; do NOT fork off origin/main.
+Workstream-scoped override `branching_strategy: none` is committed (`.planning/workstreams/v1-9-gpx-strapi/config.json`), so all phases stay on branch **`gsd/gpx-strapi-routes-pois`** (which holds every plan + all execution). Global `.planning/config.json` still uses `phase`. The original `gsd/gpx-strapi-routes-pois` is stranded at `5db2a6cf`. Execute Phase 3 on the current branch; do NOT fork off origin/main.
 
 ## Open notes for execution
 - **Phase 1 deploy:** the 2h session only activates after a **run.cms release/deploy** (restart the Strapi task). Out of scope for the phase; schedule separately.
