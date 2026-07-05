@@ -6,14 +6,14 @@ current_phase: 35
 current_phase_name: cms-copy-catalog-foundation
 status: executing
 stopped_at: v1.9 roadmap created (ROADMAP.md phases 35-39, REQUIREMENTS.md traceability filled)
-last_updated: "2026-07-05T08:31:48.015Z"
+last_updated: "2026-07-05T08:39:32.750Z"
 last_activity: 2026-07-05
 last_activity_desc: Phase 35 execution started
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 35 (cms-copy-catalog-foundation) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-05 — Phase 35 execution started
 
@@ -60,6 +60,8 @@ Recent decisions affecting current work:
 - [v1.4]: Latest-stable firmware resolved at build time (not runtime) — preserves zero-runtime-dependency guarantee
 - [v1.3]: NLB-only for mqtt.defcon.run (no CloudFront -- MQTT is raw TCP)
 - [Phase ?]: Kept Strapi attribute name 'locale' despite Strapi reserving it (marked Private, dropped required/default); Plans 02/38 depend on the exact name so drive locale via the Plan 38 custom admin, not the default content-manager
+- [Phase ?]: 35-02: (key,locale) uniqueness via lifecycle 4xx guard + idempotent DB unique-index backstop (Litestream-safe hasTable guard)
+- [Phase ?]: 35-02: FALL-01 copy.json S3 export is master-only + S3-env-guarded, full-catalog regeneration on every create/update/delete; excludes notes
 
 ### Pending Todos
 
@@ -71,7 +73,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-05T08:30:34.135Z
+Last session: 2026-07-05T08:39:13.849Z
 Stopped at: v1.9 roadmap created (ROADMAP.md phases 35-39, REQUIREMENTS.md traceability filled)
 Resume file: .planning/ROADMAP.md
 
@@ -89,3 +91,4 @@ Resume file: .planning/ROADMAP.md
 | Phase 33 P04 | ~25m | 2 tasks | 1 files |
 | Phase 33 P06 | 8min | 2 tasks | 15 files |
 | Phase 35 P01 | 5m | 3 tasks | 5 files |
+| Phase 35 P02 | 8m | 3 tasks | 5 files |

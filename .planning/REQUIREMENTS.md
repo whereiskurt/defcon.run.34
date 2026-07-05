@@ -12,7 +12,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 ### COPY — Catalog data model
 
 - [x] **COPY-01**: Editor can create/edit a UI string as a `(key, locale, value)` row with a `namespace` and optional `notes`
-- [ ] **COPY-02**: `(key, locale)` is enforced unique — no duplicate rows for the same string in the same locale
+- [x] **COPY-02**: `(key, locale)` is enforced unique — no duplicate rows for the same string in the same locale
 - [ ] **COPY-03**: The read-only API token exposes `ui-string` find/findOne so app consumers can read the catalog
 - [x] **COPY-04**: The `locale` column is multi-lingual-ready; only `default` is populated in v1
 
@@ -26,7 +26,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### FALL — Cached fallback & resilience
 
-- [ ] **FALL-01**: A Strapi lifecycle hook regenerates an S3 `copy.json` export on any `ui-string` create/update/delete
+- [x] **FALL-01**: A Strapi lifecycle hook regenerates an S3 `copy.json` export on any `ui-string` create/update/delete
 - [ ] **FALL-02**: When Strapi is unreachable or a key is missing, the toolkit falls back to the S3 export as the default, and the resolved fallback map is itself cached (no slow/failed call per load)
 - [ ] **FALL-03**: An optional committed snapshot provides an offline build-time floor for the CMS-and-S3-both-down case
 - [ ] **FALL-04**: The UI never renders a raw dotted key to an end user (guaranteed by the fallback chain)
@@ -77,7 +77,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | COPY-01 | Phase 35 | Complete |
-| COPY-02 | Phase 35 | Pending |
+| COPY-02 | Phase 35 | Complete |
 | COPY-03 | Phase 35 | Pending |
 | COPY-04 | Phase 35 | Complete |
 | TOOL-01 | Phase 36 | Pending |
@@ -85,7 +85,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | TOOL-03 | Phase 36 | Pending |
 | TOOL-04 | Phase 36 | Pending |
 | TOOL-05 | Phase 36 | Pending |
-| FALL-01 | Phase 35 | Pending |
+| FALL-01 | Phase 35 | Complete |
 | FALL-02 | Phase 36 | Pending |
 | FALL-03 | Phase 36 | Pending |
 | FALL-04 | Phase 36 | Pending |
