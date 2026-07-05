@@ -371,7 +371,12 @@ Plans:
   4. The UI never renders a raw dotted key to an end user, and lightweight markdown inside a value renders safely client-side.
   5. A copy edit made in the CMS appears in every region within ~15 min with no deploy (eventual consistency via `revalidate:N` + Litestream).
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 36-01-PLAN.md — loadCopy resolver + cached Strapi→S3→snapshot fallback + committed snapshot floor + env wiring (wave 1)
+- [ ] 36-02-PLAN.md — escape-first, whitelist inline markdown renderer (XSS-safe, no new deps) (wave 1)
+- [ ] 36-03-PLAN.md — CopyProvider/useCopy client context + run.bib layout self-proof (wave 2)
 
 ### Phase 37: Bib Donate/Sponsor Proof Surface
 
