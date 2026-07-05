@@ -100,6 +100,10 @@ Verify marker-image cross-origin loading.
 
 **Success Criteria:** See "Phase 3" under Success Criteria below.
 
+**Plans:** 2 plans
+- [ ] 03-01-PLAN.md — POI data path: strapi.ts populates pointsOfInterest + fills pois; manifest nests pois on standalone AND enriched routes (GPXCMS-06)
+- [ ] 03-02-PLAN.md — Studio POI rendering: poiType→icon/color map, markerImage (cross-origin) with fallback, rich photo popup, toggles with the route via the per-route POI layer (GPXCMS-06..09)
+
 **UI hint:** yes (POI icons + popups on the public map)
 
 ## Requirements
