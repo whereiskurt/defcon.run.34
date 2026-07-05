@@ -33,14 +33,14 @@ and print the runner's real social QR on the bib tear-offs with a runner-code fa
 
 **Success Criteria:** SC34.1–SC34.9 (see "Success Criteria (Phase 34)" below)
 
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 34-01-PLAN.md — Slice A: filter phantom bibs + reconcile/reject routes + admin inline actions (wave 1)
-- [ ] 34-02-PLAN.md — Slice C backend: run.human endpoint returns hash + run.bib social-qr lib (wave 1)
-- [ ] 34-03-PLAN.md — Slice B core: responsive checkbox + rain bridge, loud unsaved state, implicit-save hardening (wave 1)
+- [x] 34-01-PLAN.md — Slice A: filter phantom bibs + reconcile/reject routes + admin inline actions (wave 1)
+- [x] 34-02-PLAN.md — Slice C backend: run.human endpoint returns hash + run.bib social-qr lib (wave 1)
+- [x] 34-03-PLAN.md — Slice B core: responsive checkbox + rain bridge, loud unsaved state, implicit-save hardening (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
