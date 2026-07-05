@@ -20,6 +20,10 @@ import { useRouter } from "next/navigation";
  */
 
 const FAIL_TEXT = "Couldn't apply — try again.";
+// WR-01: the reconcile marker embeds the ORIGINAL amount, so re-approving an
+// edited amount is an idempotent no-op server-side. Surface that explicitly so
+// an admin correcting an amount knows the correction did NOT land.
+const DEDUPED_TEXT = "Already reconciled — amount unchanged.";
 
 export interface ReconcileActionProps {
   apiBase: string;
@@ -44,6 +48,7 @@ export function ReconcileAction({
   const [value, setValue] = useState<string>(String(amountCents ?? 0));
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [deduped, setDeduped] = useState(false);
 
   const onApprove = async () => {
     const cents = Math.trunc(Number(value));
@@ -53,6 +58,7 @@ export function ReconcileAction({
     }
     setBusy(true);
     setFailed(false);
+    setDeduped(false);
     try {
       const res = await fetch(`${apiBase}/api/admin/bib/reconcile`, {
         method: "POST",
@@ -66,6 +72,15 @@ export function ReconcileAction({
         }),
       });
       if (res.ok) {
+        // WR-01: a deduped response means the marker already existed and the
+        // amount was NOT changed — do NOT silently refresh as if it applied.
+        const data = (await res.json().catch(() => null)) as
+          | { deduped?: boolean }
+          | null;
+        if (data?.deduped) {
+          setDeduped(true);
+          return;
+        }
         router.refresh();
         return;
       }
@@ -121,6 +136,14 @@ export function ReconcileAction({
       {failed && (
         <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
           {FAIL_TEXT}
+        </span>
+      )}
+      {deduped && (
+        <span
+          role="status"
+          style={{ fontSize: 13, color: "#f4c680", whiteSpace: "nowrap" }}
+        >
+          {DEDUPED_TEXT}
         </span>
       )}
     </span>
