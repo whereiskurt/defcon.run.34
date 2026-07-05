@@ -295,7 +295,7 @@ Plans:
 | 25. nRF52 UX + verification | v1.4.1 | 0/TBD | Planned | - |
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
-| 41. Abuse Detection | v1.x | 0/5 | Planned | - |
+| 41. Abuse Detection | v1.x | 2/5 | In Progress|  |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -358,20 +358,21 @@ Plans:
 **Depends on:** Phase 40 (reuses the dcr-admin-reports-tripwire SNS topic; realizes the deferred Athena-over-access-logs work)
 
 Deliverables (from spec):
+
 - Terraform module `abuse-detection/v1.0.0`: Glue table `alb_access_logs` (partition projection, ALB-log SerDe), Athena workgroup `dcr-abuse-analysis` (bytes-scanned cap), `abuse-detector` Lambda + EventBridge cron, dedup/escalation store, daily S3 report bucket/prefix
 - Two parameterized Athena detection queries (sustained-activity sessionization; 5-min rate outlier)
 - Alert path reusing the Phase 40 SNS topic; automation-ready JSON finding schema (WAF/Impart seam — not built)
 - `site.hcl` `abuse_detection` block (thresholds + enabled gate), tight pre-con defaults
 - Out of scope: enabling AWS WAF + IP-set auto-block, Impart.security integration, CloudFront-log correlation
 
-**Plans**: 5 plans
+**Plans**: 2/5 plans executed
 
 Plans:
 
 **Wave 1** *(parallel — no file overlap)*
 
-- [ ] 41-01-PLAN.md — Athena substrate: Glue table `alb_access_logs` (partition projection over the real ALB-log bucket) + workgroup `dcr-abuse-analysis` (bytes-scanned cap) + full module var/output contract (AD-01, AD-02)
-- [ ] 41-02-PLAN.md — Two parameterized detection query templates: Q1 sustained-activity sessionization + Q2 5-min rate outlier, keyed on client_ip, surfacing UA (AD-03, AD-04)
+- [x] 41-01-PLAN.md — Athena substrate: Glue table `alb_access_logs` (partition projection over the real ALB-log bucket) + workgroup `dcr-abuse-analysis` (bytes-scanned cap) + full module var/output contract (AD-01, AD-02)
+- [x] 41-02-PLAN.md — Two parameterized detection query templates: Q1 sustained-activity sessionization + Q2 5-min rate outlier, keyed on client_ip, surfacing UA (AD-03, AD-04)
 
 **Wave 2** *(parallel — depends on Wave 1)*
 
