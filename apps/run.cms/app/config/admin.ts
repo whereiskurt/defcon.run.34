@@ -9,8 +9,8 @@ export default ({ env }) => {
   // Short access tokens force periodic re-auth via OIDC, which re-validates
   // the 'services' claim. This ensures removed CMS access takes effect within minutes.
   const accessTokenLifespan = env.int('ADMIN_ACCESS_TOKEN_LIFESPAN', 300); // 5 minutes
-  const maxRefreshTokenLifespan = env.int('ADMIN_MAX_REFRESH_LIFESPAN', 600); // 10 minutes
-  const idleRefreshTokenLifespan = env.int('ADMIN_IDLE_REFRESH_LIFESPAN', 600); // 10 minutes
+  const maxRefreshTokenLifespan = env.int('ADMIN_MAX_REFRESH_LIFESPAN', 7200); // 2 hours
+  const idleRefreshTokenLifespan = env.int('ADMIN_IDLE_REFRESH_LIFESPAN', 7200); // 2 hours
 
   return {
     // admin.url sets the path where Strapi serves the admin panel
