@@ -568,6 +568,7 @@ export interface ApiRouteRoute extends Struct.CollectionTypeSchema {
     endCoordinates: Schema.Attribute.Component<'shared.coordinates', false>;
     estimatedDuration: Schema.Attribute.Integer;
     events: Schema.Attribute.Relation<'manyToMany', 'api::event.event'>;
+    gpxFileId: Schema.Attribute.String;
     gpxFiles: Schema.Attribute.Media<'files', true>;
     locale: Schema.Attribute.String & Schema.Attribute.Private;
     localizations: Schema.Attribute.Relation<'oneToMany', 'api::route.route'> &
@@ -616,9 +617,48 @@ export interface ApiRouteRoute extends Struct.CollectionTypeSchema {
     slug: Schema.Attribute.UID<'name'> & Schema.Attribute.Required;
     sortOrder: Schema.Attribute.Integer & Schema.Attribute.DefaultTo<0>;
     startCoordinates: Schema.Attribute.Component<'shared.coordinates', false>;
+    stravaUrl: Schema.Attribute.String &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 255;
+      }>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
       Schema.Attribute.Private;
+  };
+}
+
+export interface ApiUiStringUiString extends Struct.CollectionTypeSchema {
+  collectionName: 'ui_strings';
+  info: {
+    description: 'CMS-driven UI copy strings (key/locale/value)';
+    displayName: 'UI String';
+    pluralName: 'ui-strings';
+    singularName: 'ui-string';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    key: Schema.Attribute.String & Schema.Attribute.Required;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::ui-string.ui-string'
+    > &
+      Schema.Attribute.Private;
+    namespace: Schema.Attribute.Enumeration<
+      ['common', 'human', 'auth', 'gpx', 'bib', 'flash']
+    > &
+      Schema.Attribute.Required;
+    notes: Schema.Attribute.Text;
+    publishedAt: Schema.Attribute.DateTime;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    value: Schema.Attribute.Text;
   };
 }
 
@@ -1216,6 +1256,7 @@ declare module '@strapi/strapi' {
       'api::event.event': ApiEventEvent;
       'api::point-of-interest.point-of-interest': ApiPointOfInterestPointOfInterest;
       'api::route.route': ApiRouteRoute;
+      'api::ui-string.ui-string': ApiUiStringUiString;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;
