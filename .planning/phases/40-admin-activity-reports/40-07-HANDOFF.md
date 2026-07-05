@@ -18,6 +18,8 @@ Also: this sandbox has **no AWS credentials** — any `terragrunt plan/apply` th
 
 Two paths — pick one:
 
+> **PRE-STEP (added for the release gate):** `admin_reports.enabled` in `site.hcl` was set to **`false`** so the module stays out of the release's terraform apply path. Before applying the module below, flip it back to **`true`** — but only AFTER verifying the `log_group_names` match `aws logs describe-log-groups --log-group-name-prefix /ecs/` and a `terragrunt plan` shows the `/ecs/*` import ADOPTS (zero destroy/recreate). The app-side `logEvent` instrumentation ships and runs regardless of this flag (it just logs to CloudWatch; the metric filters that consume it are dormant until the module is enabled+applied).
+
 **A) Local (repo scripts):**
 1. Deploy the 3 instrumented apps to us-east-1: `./apps/release-all.sh` (or per-app `apps/build.sh` + `apps/deploy.sh`). us-east-1 only — `skip_regions` excludes cac1/apse1.
 2. Apply the module: `cd infra/terraform/live/site/region/us-east-1/admin-reports && terragrunt apply`.
