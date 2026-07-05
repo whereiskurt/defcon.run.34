@@ -72,6 +72,34 @@ variable "cloudfront_distribution_ids" {
   default     = {}
 }
 
+# --- Tripwire alarm inputs (40-06, AR-07) -------------------------------------
+# Every threshold + the SNS email is a variable so pre-con -> con-week is a
+# one-line bump in site.hcl. The pre-con defaults are deliberately noisy
+# (Signups >= 1/hr: any signup is news when the user baseline is ~zero).
+
+variable "sns_alarm_email" {
+  description = "Email endpoint subscribed to the tripwire SNS topic. Sourced from site.hcl (admin_reports.alert_email / TF_VAR_ADMIN_EMAIL)."
+  type        = string
+}
+
+variable "threshold_signups_per_hour" {
+  description = "Signups (DefconRun/Activity) per hour that fires the signup tripwire alarm. Pre-con default 1."
+  type        = number
+  default     = 1
+}
+
+variable "threshold_gpx_uploads_per_hour" {
+  description = "GpxUploads (DefconRun/Activity) per hour that fires the gpx-upload tripwire alarm. Pre-con default 5."
+  type        = number
+  default     = 5
+}
+
+variable "threshold_alb_5xx_per_5min" {
+  description = "ALB HTTPCode_Target_5XX_Count over 5 minutes that fires the 5XX tripwire alarm. Pre-con default 10."
+  type        = number
+  default     = 10
+}
+
 variable "tags" {
   description = "Common resource tags."
   type        = map(string)

@@ -30,6 +30,11 @@ output "dashboard_name" {
   value       = aws_cloudwatch_dashboard.admin_reports.dashboard_name
 }
 
+output "sns_tripwire_topic_arn" {
+  description = "ARN of the tripwire SNS topic the four alarms notify."
+  value       = aws_sns_topic.tripwire.arn
+}
+
 output "query_definition_names" {
   description = "The saved admin/* Logs Insights query definition names."
   value = [
