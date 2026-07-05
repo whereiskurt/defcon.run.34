@@ -1,20 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Flash Service Refresh
-current_phase: 33
-current_phase_name: oidc-silent-sso
-status: verifying
-stopped_at: v1.4 hardware verification complete; ready to close milestone
-last_updated: "2026-07-04T05:34:47.810Z"
-last_activity: 2026-07-04
-last_activity_desc: "33-05 complete: parity + pure-logic unit tests green in run.bib vitest"
+milestone: v1.9
+milestone_name: CMS-Driven UI Copy Catalog
+status: planning
+last_updated: "2026-07-05T06:44:24.906Z"
+last_activity: 2026-07-05
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-03-06)
 
 ## Current Position
 
-Phase: 33 (oidc-silent-sso) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-07-04 — 33-05 complete: parity + pure-logic unit tests green in run.bib vitest
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-05 — Milestone v1.9 started
 
 ## Accumulated Context
 
