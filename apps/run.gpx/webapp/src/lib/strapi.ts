@@ -34,10 +34,10 @@ export interface RouteMeta {
 /**
  * A single CMS point-of-interest attached to a route.
  *
- * PHASE-3 SEAM: declared here as the extension point for the POI work, but NOT
- * populated in Phase 2 — `CmsRouteData.pois` is always `[]` for now. The
- * `poiType`/`markerImageUrl`/`photoUrl`/`sortOrder` fields are intentionally
- * present so Phase 3 can fill them without touching this contract.
+ * Populated in Phase 3: `fetchRouteMeta()` fills `CmsRouteData.pois` from the
+ * route's related `pointsOfInterest`. `lat`/`lon` come from the coordinates
+ * component; `markerImageUrl`/`photoUrl` are public CMS media URLs; `description`
+ * is a plain-text field passed through as-is (escaped at render time).
  */
 export interface PoiMeta {
   name: string;
@@ -53,8 +53,8 @@ export interface PoiMeta {
 /**
  * One CMS-native route as returned to the manifest. Carries the route's GPX
  * asset (when present) and its placement metadata (`mapFolder`/`sortOrder`)
- * alongside the existing `RouteMeta` enrichment. `pois` is the Phase-3 seam and
- * is always empty in Phase 2.
+ * alongside the existing `RouteMeta` enrichment. `pois` carries the route's
+ * related points-of-interest (populated in Phase 3; empty when the route has none).
  */
 export interface CmsRouteData {
   documentId: string;
@@ -163,8 +163,9 @@ const DEFAULT_MAP_FOLDER = "DEF CON 34 Maps";
  *   value is byte-for-byte the same `RouteMeta` the old single-map return built.
  * - `cmsRoutes` — every published route (with a `gpxFileId` OR a `gpxFiles`
  *   asset), carrying its GPX asset URL/name, `mapFolder`/`sortOrder` placement,
- *   the same `RouteMeta` under `meta`, and an (always-empty in Phase 2) `pois`
- *   seam. This drives standalone-route emission in the manifest.
+ *   the same `RouteMeta` under `meta`, and its related `pointsOfInterest` as a
+ *   sorted `PoiMeta[]` under `pois`. This drives standalone-route emission (and
+ *   POI attachment) in the manifest.
  *
  * Best-effort: on any failure (unconfigured, unreachable, slow, non-200) it
  * returns `{ byGpxKey: empty map, cmsRoutes: [] }` and the manifest degrades to
@@ -198,7 +199,18 @@ export async function fetchRouteMeta(): Promise<{
     // gpxFiles is the route's GPX asset (first entry) — we need its url + name.
     url.searchParams.set("populate[gpxFiles][fields][0]", "url");
     url.searchParams.set("populate[gpxFiles][fields][1]", "name");
-    // NOTE: pointsOfInterest is intentionally NOT populated — POIs are Phase 3.
+    // pointsOfInterest: nested populate of the related POIs — scalar fields plus
+    // the coordinates component (lat/lon) and the marker/photo media (url +
+    // sized formats). Only PUBLISHED relations are returned (status filter below).
+    url.searchParams.set("populate[pointsOfInterest][fields][0]", "name");
+    url.searchParams.set("populate[pointsOfInterest][fields][1]", "description");
+    url.searchParams.set("populate[pointsOfInterest][fields][2]", "poiType");
+    url.searchParams.set("populate[pointsOfInterest][fields][3]", "sortOrder");
+    url.searchParams.set("populate[pointsOfInterest][populate][coordinates][fields][0]", "latitude");
+    url.searchParams.set("populate[pointsOfInterest][populate][coordinates][fields][1]", "longitude");
+    url.searchParams.set("populate[pointsOfInterest][populate][markerImage][fields][0]", "url");
+    url.searchParams.set("populate[pointsOfInterest][populate][photo][fields][0]", "url");
+    url.searchParams.set("populate[pointsOfInterest][populate][photo][fields][1]", "formats");
     url.searchParams.set("pagination[pageSize]", "200");
     url.searchParams.set("status", "published");
 
@@ -244,6 +256,44 @@ export async function fetchRouteMeta(): Promise<{
         | undefined;
       const gpx = Array.isArray(gpxFiles) ? gpxFiles[0] : undefined;
 
+      // Related published POIs → sorted PoiMeta[] (Phase-3 seam fill). lat/lon
+      // come from the coordinates component; a POI with no finite location is
+      // skipped (it cannot render). photoUrl prefers a sized format then the
+      // original — mirrors the coverImageDisplayUrl logic above. description is a
+      // plain `text` field, passed through as-is (NOT blocksToHtml — escaped at
+      // render time by the studio).
+      const rawPois = r.pointsOfInterest as
+        | Array<{
+            name?: string;
+            description?: string;
+            poiType?: string;
+            sortOrder?: unknown;
+            coordinates?: { latitude?: unknown; longitude?: unknown } | null;
+            markerImage?: { url?: string } | null;
+            photo?: { url?: string; formats?: Record<string, { url?: string }> } | null;
+          }>
+        | null
+        | undefined;
+      const pois: PoiMeta[] = [];
+      for (const p of Array.isArray(rawPois) ? rawPois : []) {
+        const lat = num(p.coordinates?.latitude);
+        const lon = num(p.coordinates?.longitude);
+        if (lat === undefined || lon === undefined) continue; // no location → cannot render.
+        const pf = p.photo?.formats ?? {};
+        pois.push({
+          name: (p.name as string) || "",
+          description: (p.description as string) || undefined,
+          lat,
+          lon,
+          poiType: (p.poiType as string) || undefined,
+          markerImageUrl: p.markerImage?.url || undefined,
+          photoUrl:
+            pf.small?.url || pf.medium?.url || pf.thumbnail?.url || p.photo?.url || undefined,
+          sortOrder: num(p.sortOrder),
+        });
+      }
+      pois.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
       cmsRoutes.push({
         documentId: r.documentId as string,
         gpxFileId,
@@ -252,7 +302,7 @@ export async function fetchRouteMeta(): Promise<{
         mapFolder: ((r.mapFolder as string) || "").trim() || DEFAULT_MAP_FOLDER,
         sortOrder: num(r.sortOrder),
         meta,
-        pois: [], // Phase-3 seam — POIs are not populated in Phase 2.
+        pois,
       });
 
       // Preserve the enrichment join: only rows with a gpxFileId enrich a
