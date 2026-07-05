@@ -150,6 +150,65 @@ describe("buildReports()", () => {
   });
 });
 
+describe("in-person pledge → $20 + print-eligible (Kurt 2026-07-05)", () => {
+  // A NAMED runner who pledged to pay in person, no money moved yet.
+  const input: ReportInput = {
+    bibs: [
+      bib({
+        ownerSub: "sub-pledge",
+        runnerCode: "bib-pledge",
+        nameOnBib: "EVE",
+        paidAmount: 0,
+        willPayInPerson: true,
+      }),
+    ],
+    donations: [],
+    reconciles: [],
+    pendings: [],
+  };
+  const r = buildReports(input);
+
+  it("shows the named pledger on the print list at $20, print-eligible", () => {
+    const row = r.printNames.find((x) => x.runnerCode === "bib-pledge");
+    expect(row).toBeDefined();
+    expect(row!.paidAmountCents).toBe(PRINT_GATE_CENTS);
+    expect(row!.printEligible).toBe(true);
+    expect(r.totals.printEligible).toBe(1);
+  });
+
+  it("outstanding in-person row shows $20 (not $0) and carries ownerSub for PAID", () => {
+    const row = r.outstanding.find((x) => x.source === "in-person");
+    expect(row).toBeDefined();
+    expect(row!.amountCents).toBe(PRINT_GATE_CENTS);
+    expect(row!.ownerSub).toBe("sub-pledge");
+  });
+
+  it("does NOT inflate collected revenue — the pledge is unreconciled", () => {
+    // The $20 is a display/eligibility signal only; no real money booked yet.
+    expect(r.totals.bibCollectedCents).toBe(0);
+    expect(r.totals.grandTotalCents).toBe(0);
+  });
+
+  it("once the $20 is actually paid, it drops off the in-person outstanding list", () => {
+    const paid = buildReports({
+      ...input,
+      bibs: [
+        bib({
+          ownerSub: "sub-pledge",
+          runnerCode: "bib-pledge",
+          nameOnBib: "EVE",
+          paidAmount: 2000, // PAID action booked it
+          willPayInPerson: true,
+        }),
+      ],
+    });
+    expect(paid.outstanding.filter((x) => x.source === "in-person")).toHaveLength(
+      0
+    );
+    expect(paid.totals.bibCollectedCents).toBe(2000);
+  });
+});
+
 describe("isRegistered()", () => {
   it("is true when the bib has a non-empty (trimmed) name", () => {
     expect(isRegistered(bib({ nameOnBib: "ALICE" }))).toBe(true);

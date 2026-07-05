@@ -52,6 +52,13 @@ export interface BibFormProps {
    * Live changes arrive via the burn-store singleton (ContributionChoice pushes).
    */
   initialBurning?: boolean;
+  /**
+   * Whether any money has already moved for this bib — sponsored OR donated
+   * (server-side `hasSponsored || donationTotal > 0`). Combined with the LIVE
+   * pay-in-person pledge (rain-store) to decide the DRAFT stamp: a bib is a
+   * DRAFT until it's committed by a pledge, a donation, or a sponsorship.
+   */
+  hasTransacted?: boolean;
 }
 
 const API_BIB_PATH = "/api/bib";
@@ -76,6 +83,7 @@ export function BibForm({
   socialQrUrl,
   initialRaining = false,
   initialBurning = false,
+  hasTransacted = false,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
   const [savedName, setSavedName] = useState<string>(initialName);
@@ -326,7 +334,14 @@ export function BibForm({
 
       {/* Live preview sits BELOW the name field (A3, name-first). */}
       <div style={{ position: "relative" }}>
-        <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} socialQrUrl={socialQrUrl} dirty={dirty} />
+        <BibPreview
+          name={name}
+          hasSponsored={hasSponsored}
+          runnerCode={runnerCode}
+          socialQrUrl={socialQrUrl}
+          dirty={dirty}
+          draft={!hasTransacted && !raining}
+        />
         <CashRain active={raining} />
       </div>
     </form>

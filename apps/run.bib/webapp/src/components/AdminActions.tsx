@@ -150,6 +150,98 @@ export function ReconcileAction({
   );
 }
 
+export interface MarkPaidActionProps {
+  apiBase: string;
+  ownerSub: string;
+  /** Amount to book, cents. Defaults to the $20 bib price (the pledge amount). */
+  amountCents?: number;
+}
+
+/**
+ * MarkPaidAction (Kurt 2026-07-05) — the "PAID" pill on Outstanding + in-person
+ * pledge rows. When a runner hands over cash at the event, the organizer taps
+ * PAID: this books `amountCents` (default $20) against the bib via
+ * /api/admin/bib/mark-paid, dropping the row off Outstanding and adding it to
+ * revenue. Idempotent server-side (a re-tap is a no-op → "already booked").
+ */
+export function MarkPaidAction({
+  apiBase,
+  ownerSub,
+  amountCents = 2000,
+}: MarkPaidActionProps) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [deduped, setDeduped] = useState(false);
+
+  const onMarkPaid = async () => {
+    setBusy(true);
+    setFailed(false);
+    setDeduped(false);
+    try {
+      const res = await fetch(`${apiBase}/api/admin/bib/mark-paid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerSub, amountCents }),
+      });
+      if (res.ok) {
+        const data = (await res.json().catch(() => null)) as
+          | { deduped?: boolean }
+          | null;
+        if (data?.deduped) {
+          setDeduped(true);
+          return;
+        }
+        router.refresh();
+        return;
+      }
+      setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <button
+        type="button"
+        onClick={onMarkPaid}
+        disabled={busy}
+        aria-label="Mark paid in person"
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#0a0a0a",
+          backgroundColor: "#6CCDB8",
+          padding: "6px 14px",
+          borderRadius: 6,
+          border: "none",
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.6 : 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        PAID
+      </button>
+      {failed && (
+        <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
+          {FAIL_TEXT}
+        </span>
+      )}
+      {deduped && (
+        <span
+          role="status"
+          style={{ fontSize: 13, color: "#f4c680", whiteSpace: "nowrap" }}
+        >
+          Already booked.
+        </span>
+      )}
+    </span>
+  );
+}
+
 export interface RejectActionProps {
   apiBase: string;
   ownerSub: string;

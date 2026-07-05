@@ -168,13 +168,20 @@ export function buildReports(input: ReportInput): ReportBundle {
     .map((b) => {
       const paid = b.paidAmount ?? 0;
       const locked = b.nameLocked === true;
+      // In-person pledgers (Kurt 2026-07-05): treated as print-eligible and shown
+      // at the $20 bib price even before the cash lands — they promised to pay in
+      // person, so the printer should include them. This is a print-list display +
+      // eligibility rule only; it does NOT touch bibCollectedCents / grand totals,
+      // which stay based on real reconciled money.
+      const pledgedInPerson = b.willPayInPerson === true && paid === 0;
+      const effectivePaidCents = pledgedInPerson ? PRINT_GATE_CENTS : paid;
       return {
         nameOnBib: b.nameOnBib ?? "",
         runnerCode: b.runnerCode,
-        paidAmountCents: paid,
+        paidAmountCents: effectivePaidCents,
         nameLocked: locked,
-        // Named bibs only reach here; eligibility is the $20 bib-spend gate.
-        printEligible: paid >= PRINT_GATE_CENTS,
+        // Eligible at the $20 bib-spend gate OR an in-person pledge.
+        printEligible: effectivePaidCents >= PRINT_GATE_CENTS,
       };
     })
     // Eligible first, then by amount desc, then name.
@@ -225,9 +232,15 @@ export function buildReports(input: ReportInput): ReportBundle {
       runnerCode: b.runnerCode,
       nameOnBib: b.nameOnBib ?? "",
       provider: "in-person",
-      amountCents: 0,
+      // Show the pledged $20 (Kurt 2026-07-05) rather than a dash — it's the
+      // amount they've committed to pay at the event, not $0. Still "pledged"
+      // (unreconciled), so it doesn't count as collected money in the totals.
+      amountCents: PRINT_GATE_CENTS,
       status: "pledged",
       detail: "Registered + pledged to pay in person; nothing reconciled yet.",
+      // Carried so the admin "PAID" action can book the $20 against this bib
+      // (Kurt 2026-07-05) — clicking it reconciles the pledge into real revenue.
+      ownerSub: b.ownerSub,
     }));
   const pendingRows: OutstandingRow[] = pendings.map((p) => ({
     source: "pending-intent" as const,

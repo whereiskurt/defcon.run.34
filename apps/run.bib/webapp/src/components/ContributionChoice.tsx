@@ -168,6 +168,22 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
         border: "1px solid #24242e",
       }}
     >
+      {/* Hint sits ABOVE the checkboxes (Kurt 2026-07-05) so the explanation for
+        * the current pick reads first, then the controls. */}
+      <span
+        role="status"
+        style={{
+          fontSize: 13,
+          minHeight: 18,
+          color: limitReached ? "#f4c680" : "#a4a4b8",
+          paddingLeft: 2,
+        }}
+      >
+        {limitReached
+          ? "That's plenty of cash for now — 30 rains max per event! 💸"
+          : hintFor(choice, saveState)}
+      </span>
+
       {/* Two checkboxes side by side (wrap to stacked on narrow screens),
         * mutually exclusive: checking one clears the other (burn ↔ inperson);
         * "nothing" is both unchecked. */}
@@ -186,23 +202,9 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
           disabled={busy}
           onChange={(on) => onSelect(on ? "burn" : "nothing")}
           accent="#ff6a00"
-          label="🔥 Fuck your bib"
+          label="🔥 Fuck that bib. I don't want one."
         />
       </div>
-
-      <span
-        role="status"
-        style={{
-          fontSize: 13,
-          minHeight: 18,
-          color: limitReached ? "#f4c680" : "#a4a4b8",
-          paddingLeft: 2,
-        }}
-      >
-        {limitReached
-          ? "That's plenty of cash for now — 30 rains max per event! 💸"
-          : hintFor(choice, saveState)}
-      </span>
     </div>
   );
 }
@@ -217,7 +219,7 @@ function hintFor(choice: Choice, state: SaveState): string {
       return "You torched it. No name, no bib — pick another option to bring it back.";
     case "nothing":
     default:
-      return "defcon.run is free — grab your bib and go, or chip in above.";
+      return "Free bib without customization.";
   }
 }
 
