@@ -229,6 +229,13 @@ export interface SponsorFormProps {
    * right above the CTA so runners include it in the Venmo / Cash App comment.
    */
   runnerCode?: string;
+  /**
+   * Force the whole form into a disabled, non-interactive state (all inputs,
+   * pills, and the CTA). Used by the orderform to grey out the "Sponsor this
+   * bib" tile once the runner has pledged to pay in person — the tile stays
+   * on the page (swapped below "Just donate") instead of being removed.
+   */
+  disabled?: boolean;
 }
 
 export function SponsorForm({
@@ -236,6 +243,7 @@ export function SponsorForm({
   ctaLabel,
   defaultAmountCents,
   runnerCode,
+  disabled: forceDisabled = false,
 }: SponsorFormProps = {}) {
   const router = useRouter();
 
@@ -328,7 +336,7 @@ export function SponsorForm({
     [amountCents, provider, offerNonStripe, variant, router]
   );
 
-  const disabled = submit.kind === "submitting";
+  const disabled = forceDisabled || submit.kind === "submitting";
   const resolvedCtaLabel = ctaLabel ?? (variant === "bib" ? "Sponsor" : "Donate");
 
   return (

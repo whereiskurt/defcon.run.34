@@ -257,38 +257,55 @@ export default async function Home({ searchParams }: HomeProps) {
           </p>
         )}
 
-        {/* Sections 2 + 3 + the pay-in-person checkbox. Responsive tile grid
-          * (SC34.4, Plan 34-03): single column on mobile, 2-col ≥640px. DOM
-          * order is Sponsor → checkbox → Donate; explicit `order` utilities put
-          * the checkbox BETWEEN the tiles on mobile and FULL-WIDTH BELOW both on
-          * desktop. Only this wrapper uses Tailwind — the tiles keep their inline
-          * styles. Checking the checkbox still hides the Sponsor tile (hideBuyBib,
-          * decision 5) and rains cash over the preview via the rain-store. */}
+        {/* Pay-in-person pledge — full-width, ABOVE both tiles (Kurt 2026-07-05).
+          * Checking it no longer removes the Sponsor tile; instead the two tiles
+          * swap (Donate rises to the top / left) and the Sponsor tile is disabled
+          * and dimmed in place. On mobile the effect is: checkbox → Donate →
+          * disabled Sponsor at the bottom. Still rains cash over the preview via
+          * the rain-store, and the swap is driven by hideBuyBib (pledge or paid). */}
+        {showCheckbox && (
+          <WillPayInPersonCheckbox initialValue={willPayInitial} />
+        )}
+
+        {/* Responsive tile grid (SC34.4): single column on mobile, 2-col ≥640px.
+          * `order` utilities apply at every breakpoint so the swap holds on both
+          * mobile (top↔bottom) and desktop (left↔right). Only this wrapper uses
+          * Tailwind — the tiles keep their inline styles. */}
         <div className="grid gap-5 sm:grid-cols-2">
-          {!hideBuyBib && (
-            <div className="order-1 sm:order-1" style={{ minWidth: 0 }}>
-              <Tile
-                kicker="This"
-                title="Sponsor this bib"
-                body="Contributions attach to your bib and help fund defcon.run 34."
-                art={<SponsorArt />}
-              >
-                <SponsorForm
-                  variant="bib"
-                  ctaLabel="Sponsor"
-                  runnerCode={bib.runnerCode}
-                />
-              </Tile>
-            </div>
-          )}
+          {/* Sponsor this bib — order-1 by default; drops below Donate and greys
+            * out (disabled + dimmed + inert) once the runner pledges to pay in
+            * person or has already paid (hideBuyBib). */}
+          <div
+            className={hideBuyBib ? "order-2" : "order-1"}
+            aria-disabled={hideBuyBib || undefined}
+            style={{
+              minWidth: 0,
+              ...(hideBuyBib
+                ? { opacity: 0.5, pointerEvents: "none" as const }
+                : {}),
+            }}
+          >
+            <Tile
+              kicker="This"
+              title="Sponsor this bib"
+              body="Contributions attach to your bib and help fund defcon.run 34."
+              art={<SponsorArt />}
+            >
+              <SponsorForm
+                variant="bib"
+                ctaLabel="Sponsor"
+                runnerCode={bib.runnerCode}
+                disabled={hideBuyBib}
+              />
+            </Tile>
+          </div>
 
-          {showCheckbox && (
-            <div className="order-2 sm:order-3 sm:col-span-2">
-              <WillPayInPersonCheckbox initialValue={willPayInitial} />
-            </div>
-          )}
-
-          <div className="order-3 sm:order-2" style={{ minWidth: 0 }}>
+          {/* Just donate — order-2 by default; rises to order-1 (top on mobile,
+            * left column on desktop) when the Sponsor tile is disabled. */}
+          <div
+            className={hideBuyBib ? "order-1" : "order-2"}
+            style={{ minWidth: 0 }}
+          >
             <Tile
               kicker={hideBuyBib ? "Support" : "or That"}
               title="Just donate"
