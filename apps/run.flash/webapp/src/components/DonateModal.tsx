@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /**
  * DonateModal — a self-contained "Just donate" quick-give overlay (Kurt
@@ -80,7 +81,11 @@ export function DonateModal({
   const [customText, setCustomText] = useState<string>("20");
   const [provider, setProvider] = useState<Provider>("stripe");
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
+  const [mounted, setMounted] = useState(false);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+
+  // Portal target (document.body) is only available client-side; gate on mount.
+  useEffect(() => setMounted(true), []);
 
   const checkoutUrl = `${bibOrigin}/api/checkout/general`;
   const providerBase = regionPrefix ? `${bibOrigin}/${regionPrefix}` : bibOrigin;
@@ -169,9 +174,11 @@ export function DonateModal({
     [amountCents, provider, providerBase, checkoutUrl]
   );
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  // Portal to <body> so the fixed overlay escapes the header's stacking context
+  // (the glass-nav's backdrop-filter would otherwise trap it behind the page).
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -421,7 +428,8 @@ export function DonateModal({
           )}
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

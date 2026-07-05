@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/config/auth";
 import GetYourBib from "@/components/GetYourBib";
 import SponsorForm from "@/components/SponsorForm";
+import { CashRain } from "@/components/CashRain";
 import { WillPayInPersonCheckbox } from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
@@ -95,7 +96,7 @@ export default async function Home({ searchParams }: HomeProps) {
   // a quota blip must not 500 the bib page; the server enforces on write.
   const services = (session.user as { services?: string[] }).services ?? [];
   const tier = services.includes("admin") ? "admin" : "upload";
-  let renamesRemaining = 10;
+  let renamesRemaining = 30;
   try {
     const q = await checkQuota(ownerSub, "bibname_change", 1, tier);
     if (q.remaining >= 0) renamesRemaining = q.remaining;
@@ -180,8 +181,8 @@ export default async function Home({ searchParams }: HomeProps) {
         margin: "0 auto",
         display: "flex",
         flexDirection: "column",
-        gap: 32,
-        padding: "32px 20px 64px",
+        gap: 18,
+        padding: "20px 16px 44px",
       }}
     >
       {/* A2: single custom page title — the site header already carries the
@@ -242,18 +243,20 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <TransactionHistory totalCents={totalCents} txns={txns} />
 
-        {/* Reserved note when paying in person (pre-payment). hasSponsored
-          * gets the big THANK YOU up top instead. */}
+        {/* Playful pay-in-person note (pre-payment). hasSponsored gets the big
+          * THANK YOU up top instead. */}
         {hideBuyBib && !hasSponsored && (
           <p
             style={{
-              margin: "0 0 12px",
+              margin: 0,
+              textAlign: "center",
               color: "#7fdc9e",
-              fontSize: 14,
-              fontWeight: 600,
+              fontSize: 24,
+              fontWeight: 800,
+              letterSpacing: "0.01em",
             }}
           >
-            You&apos;re paying in person — your bib is reserved.
+            Don&apos;t forget your wallet, then! 💵
           </p>
         )}
 
@@ -271,7 +274,7 @@ export default async function Home({ searchParams }: HomeProps) {
           * `order` utilities apply at every breakpoint so the swap holds on both
           * mobile (top↔bottom) and desktop (left↔right). Only this wrapper uses
           * Tailwind — the tiles keep their inline styles. */}
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {/* Sponsor this bib — order-1 by default; drops below Donate and greys
             * out (disabled + dimmed + inert) once the runner pledges to pay in
             * person or has already paid (hideBuyBib). */}
@@ -280,24 +283,38 @@ export default async function Home({ searchParams }: HomeProps) {
             aria-disabled={hideBuyBib || undefined}
             style={{
               minWidth: 0,
-              ...(hideBuyBib
-                ? { opacity: 0.5, pointerEvents: "none" as const }
-                : {}),
+              position: "relative",
+              borderRadius: 14,
+              overflow: "hidden",
             }}
           >
-            <Tile
-              kicker="This"
-              title="Sponsor this bib"
-              body="Contributions attach to your bib and help fund defcon.run 34."
-              art={<SponsorArt />}
+            {/* Dim + inert wrapper only around the tile content, so the cash
+              * rain overlay below stays at full opacity and interactive-none. */}
+            <div
+              style={
+                hideBuyBib
+                  ? { opacity: 0.5, pointerEvents: "none" }
+                  : undefined
+              }
             >
-              <SponsorForm
-                variant="bib"
-                ctaLabel="Sponsor"
-                runnerCode={bib.runnerCode}
-                disabled={hideBuyBib}
-              />
-            </Tile>
+              <Tile
+                kicker="This"
+                title="Sponsor this bib"
+                body="Contributions attach to your bib and help fund defcon.run 34."
+                art={<SponsorArt />}
+              >
+                <SponsorForm
+                  variant="bib"
+                  ctaLabel="Sponsor"
+                  runnerCode={bib.runnerCode}
+                  disabled={hideBuyBib}
+                />
+              </Tile>
+            </div>
+            {/* Same "make it rain" charm as the bib preview: once the runner
+              * pledges to pay in person and this tile disables, cash rains over
+              * it (pointer-events:none, clipped to the tile's rounded corners). */}
+            {hideBuyBib && <CashRain active />}
           </div>
 
           {/* Just donate — order-2 by default; rises to order-1 (top on mobile,
@@ -352,8 +369,8 @@ function Tile({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 12,
-        padding: 20,
+        gap: 10,
+        padding: 16,
         borderRadius: 14,
         backgroundColor: "#12121a",
         border: "1px solid #24242e",
@@ -365,8 +382,8 @@ function Tile({
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 10,
-          paddingBottom: 8,
+          gap: 6,
+          paddingBottom: 2,
         }}
       >
         <span

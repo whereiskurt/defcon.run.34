@@ -105,6 +105,24 @@ html.light .glass-nav {
   overflow: hidden;
   pointer-events: none;
   z-index: 5;
+  transform-origin: center;
+  /* One-shot "explosion": the whole layer of already-full cash bursts outward
+     from center on mount, then holds while the bills keep raining (Kurt 2026-07-05). */
+  animation: cash-burst 0.55s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+@keyframes cash-burst {
+  0% {
+    transform: scale(0.35);
+    opacity: 0.35;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .cash-bill {
@@ -117,28 +135,36 @@ html.light .glass-nav {
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
   will-change: transform, opacity;
   user-select: none;
-  animation: cash-bill-fall var(--dur, 1.2s) cubic-bezier(0.25, 0.6, 0.35, 1)
-    var(--delay, 0s) both;
+  /* Continuous downpour: each bill loops a top→bottom fall so it keeps raining
+     (Kurt 2026-07-05). The component caps the whole thing to ~60s. */
+  animation: cash-bill-rain var(--dur, 1.8s) linear var(--delay, 0s) infinite;
 }
 
-@keyframes cash-bill-fall {
+@keyframes cash-bill-rain {
   0% {
-    transform: translateY(-460px) rotate(var(--r0, 0deg));
+    transform: translateY(-160px) rotate(var(--r0, 0deg));
     opacity: 0;
   }
-  12% {
+  8% {
+    opacity: 1;
+  }
+  88% {
     opacity: 1;
   }
   100% {
-    transform: translateY(0) rotate(var(--r1, 0deg));
-    opacity: 1;
+    transform: translateY(var(--fall, 900px)) rotate(var(--r1, 0deg));
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  /* Motion-sensitive viewers: no downpour, no burst. */
+  .cash-rain {
+    animation: none;
+  }
   .cash-bill {
-    animation-duration: 0.01ms;
-    animation-delay: 0ms;
+    animation: none;
+    display: none;
   }
 }
 

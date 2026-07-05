@@ -351,7 +351,7 @@ export function SponsorForm({
         // full-width to stop the inner box bleeding past the parent border.
         display: "flex",
         flexDirection: "column",
-        gap: 18,
+        gap: 14,
         width: "100%",
         boxSizing: "border-box",
       }}
@@ -495,11 +495,19 @@ export function SponsorForm({
           backgroundColor: disabled ? "#8f8fa8" : "#6CCDB8",
           border: "none",
           borderRadius: 6,
-          cursor: disabled ? "wait" : "pointer",
+          cursor:
+            submit.kind === "submitting"
+              ? "wait"
+              : disabled
+                ? "not-allowed"
+                : "pointer",
           letterSpacing: "0.02em",
         }}
       >
-        {disabled
+        {/* "Redirecting…" is only true mid-checkout. When the form is merely
+          * force-disabled (runner pledged to pay in person) keep the normal
+          * label so the button doesn't read as an in-flight redirect. */}
+        {submit.kind === "submitting"
           ? "Redirecting…"
           : `${resolvedCtaLabel} ${displayAmount}`}
       </button>
