@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-05 03:28:50 UTC",
+  "updated": "2026-07-05 15:55:56 UTC",
   "poll_seconds": 300,
   "regions": [
     {
@@ -21,7 +21,7 @@
       "name": "run.auth",
       "host": "auth.defcon.run",
       "link": "https://auth.defcon.run",
-      "version": "v0.0.12",
+      "version": "v0.0.19",
       "state": "live",
       "note": "Authentication & sign-in"
     },
@@ -30,7 +30,7 @@
       "name": "run.human",
       "host": "run.defcon.run",
       "link": "https://run.defcon.run",
-      "version": "v0.0.11",
+      "version": "v0.0.23",
       "state": "live",
       "note": "Main run site"
     },
@@ -39,7 +39,7 @@
       "name": "run.gpx",
       "host": "gpx.defcon.run",
       "link": "https://gpx.defcon.run",
-      "version": "v0.0.9",
+      "version": "v0.0.21",
       "state": "live",
       "note": "GPX editor & route overlays"
     },
@@ -48,7 +48,7 @@
       "name": "run.flash",
       "host": "flash.defcon.run",
       "link": "https://flash.defcon.run",
-      "version": "v0.0.10",
+      "version": "v0.0.20",
       "state": "live",
       "note": "Radio flashing flow"
     },
@@ -57,7 +57,7 @@
       "name": "run.bib",
       "host": "bib.defcon.run",
       "link": "https://bib.defcon.run",
-      "version": "v0.0.20",
+      "version": "v0.0.38",
       "state": "live",
       "note": "Bib registration"
     },
@@ -65,7 +65,7 @@
       "id": "cms",
       "name": "run.cms",
       "host": "cms.defcon.run",
-      "version": "v0.0.8",
+      "version": "v0.0.19",
       "state": "live",
       "note": "Content & routes (admin only)"
     }
