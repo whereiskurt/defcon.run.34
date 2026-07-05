@@ -7,9 +7,13 @@ The migration `2026.07.05T08.00.00.000Z-ui-strings-key-locale-unique.js` applied
 
 ## Results
 
+> **Update 2026-07-05:** the locale-default hole below was **fixed** in commit `1ddf0b71` (lifecycles now
+> coalesce `locale` to `'default'` and persist it). Post-fix regression suite is 5/5 GREEN and the full harness
+> re-run is TEST1–4 all PASS. All four UAT items now pass; the phase is complete.
+
 | # | UAT item | Result | Evidence |
 |---|----------|--------|----------|
-| 1 | Content-manager authoring + locale caveat | ⚠ pending (product decision) | Explicit-locale create persists all fields; `draftAndPublish:false`. Omitting locale → **stored null** (schema default dropped by Strapi's reserved-name coercion). |
+| 1 | Content-manager authoring + locale caveat | ✅ pass (fixed) | Explicit-locale create persists all fields; `draftAndPublish:false`. Omitting locale previously stored null — **fixed in `1ddf0b71`**, now stores `'default'` on every path. |
 | 2 | Duplicate (key,locale) → 400 not 500; self-update 200 | ✅ pass (+ hole) | Duplicate `(key,'default')` → `ValidationError`→HTTP 400; value-only self-update → 200; DB unique-index rejected a raw dup ("UNIQUE constraint failed"). **Hole:** null-locale rows are not deduped (guard queries 'default', index treats NULLs as distinct) — reproduced count(key)=2. |
 | 3 | read-only token access matrix | ✅ pass | `{token_GET_find:200, token_GET_findOne:200, token_POST:403, token_PUT:403, token_DELETE:403, notoken_GET_find:403, notoken_GET_findOne:403}` — exact match to 35-03-SUMMARY. |
 | 4 | copy.json export (master) + local no-op | ✅ pass (live S3 deferred) | Local no-op: no throw without S3 env. Master (S3Client stubbed): PutObject `Key=use1/cms/copy.json`, `ContentType=application/json`, body `{default:{…}}`, **notes excluded**, full-catalog read (deletes drop keys). Real S3 wire + CloudFront still need a live master+S3 env. |

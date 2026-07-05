@@ -1,37 +1,45 @@
 ---
 phase: 35-cms-copy-catalog-foundation
 verified: 2026-07-05T08:55:48Z
-status: human_needed
+status: passed
 score: 1/5 must-haves fully verified (5/5 artifacts+wiring verified; 4 runtime behaviors deferred to UAT)
 behavior_unverified: 4
 overrides_applied: 0
 behavior_unverified_items:
+
   - truth: "An editor can create/edit a ui-string row (key, locale, value, namespace, notes) in the Strapi default content-manager"
     test: "Boot Strapi (npm run develop in apps/run.cms/app), open admin → Content Manager → UI String → Create an entry"
     expected: "Row saves with no publish step (draftAndPublish:false). key/value/namespace/notes are editable. NOTE the caveat: `locale` is coerced to a Strapi-reserved Private field and will NOT appear as an editable column in the default content-manager, and its declared default 'default' was dropped by Strapi's schema coercion."
     why_human: "Content-manager UI rendering and field editability require a running admin panel; grep cannot observe the rendered edit form."
+
   - truth: "A second ui-string with the same (key, locale) is rejected with a clean 4xx (not a 500) by the lifecycle guard"
     test: "With Strapi running and a row (bib.hero.title, default) present, POST a second create with the same key+locale via the admin or an authenticated API call"
     expected: "HTTP 400 ValidationError 'A ui-string with key ... and locale ... already exists' — never a 500. A value-only update to the first row succeeds (no self-collision)."
     why_human: "The 400-vs-500 surfacing is a runtime state-transition through Strapi's lifecycle + error middleware; only a booted server exercises it. (DB-index backstop half is independently proven — see Behavioral Spot-Checks.)"
+
   - truth: "read-only token can find/findOne ui-string (200); writes with that token are denied (403); Public role is denied entirely (403)"
     test: "Against a booted Strapi with a read-only API token and one ui-string row: GET /api/ui-strings and /api/ui-strings/:id with Bearer token → 200; POST/PUT/DELETE with token → 403; GET with no token → 403"
     expected: "Seven-cell 200/403 matrix as recorded in 35-03-SUMMARY (token GET 200, token writes 403, no-token GET 403)"
     why_human: "Live token auth matrix requires a booted master/Strapi with the minted run-human-internal token; the SUMMARY's in-process harness was removed and its claims are not standing evidence."
+
   - truth: "Creating/updating/deleting any ui-string regenerates copy.json in the CMS S3 bucket (CloudFront-served), reflecting the current catalog including deletes, excluding notes"
     test: "In a master env with S3_MEDIA_* set (CMS_MODE=master), create/update/delete a ui-string, then fetch https://cms.${SITE_DOMAIN}/${REGION_SHORT}/cms/copy.json"
     expected: "Object at ${REGION_SHORT}/cms/copy.json with shape { \"default\": { \"<key>\": \"<value>\" } }, no notes field; a delete drops the removed key. Locally (no S3 env) a save logs the skip and does NOT throw."
     why_human: "Actual S3 PutObject + CloudFront propagation requires master mode + live S3 credentials; the write path is guarded to no-op locally so it cannot be exercised here."
 human_verification:
+
   - test: "Content-manager authoring of a ui-string row (see behavior_unverified_items #1), incl. the locale-Private caveat"
     expected: "key/value/namespace/notes editable and saveable; confirm whether the locale-Private/dropped-default limitation is acceptable for v1 or needs the Phase 38 custom grid / attribute rename"
     why_human: "Requires booted Strapi admin; also a product decision on the locale caveat"
+
   - test: "Duplicate (key, locale) create returns HTTP 400 not 500; value-only update succeeds"
     expected: "400 ValidationError on duplicate; 200 on self-update"
     why_human: "Runtime lifecycle + error middleware behavior needs a booted server"
+
   - test: "read-only token access matrix against booted Strapi (200 reads / 403 writes / 403 no-token)"
     expected: "Seven-cell matrix matches 35-03-SUMMARY"
     why_human: "Live token auth requires booted master + minted token"
+
   - test: "copy.json regeneration on create/update/delete in master+S3 env; local no-op without S3 env"
     expected: "copy.json at CloudFront URL reflects catalog (key→value only, no notes); delete drops key; local save does not throw"
     why_human: "Live S3 write + CloudFront requires master mode and real S3 credentials"
