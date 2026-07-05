@@ -416,13 +416,11 @@ locals {
   # both read this single block, so thresholds + the alert email live here.
   # us-east-1 only (matching the single-live-region reality).
   admin_reports = {
-    # GATED OFF for the release that ships the app-side logEvent instrumentation.
-    # The terragrunt unit excludes itself when this is false, so no metric filters,
-    # dashboard, alarms, or the (unvalidated) /ecs/* retention import get applied.
-    # Flip to true only during 40-07, AFTER verifying the log_group_names below match
-    # `aws logs describe-log-groups --log-group-name-prefix /ecs/` and a `terragrunt plan`
-    # shows the import ADOPTS (zero destroy/recreate). See 40-07-HANDOFF.md.
-    enabled = false
+    # ENABLED 2026-07-05 (40-07): verified via scoped `terragrunt plan` that the
+    # /ecs/* retention import ADOPTS the running log groups (zero destroy/recreate)
+    # before this flip. Metric filters, dashboard, saved queries, SNS + tripwire
+    # alarms, and 90-day /ecs/* retention now apply. See 40-07-HANDOFF.md.
+    enabled = true
 
     # 90-day retention adopted onto the existing /ecs/* app log groups (AR-08a).
     log_retention_days = 90
