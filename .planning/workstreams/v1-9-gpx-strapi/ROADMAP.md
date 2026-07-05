@@ -22,12 +22,12 @@ admin session from ~10 min to ~2 h.
   `maxRefreshTokenLifespan` + `idleRefreshTokenLifespan`) from 600s to 7200s (2h); keep the
   5-min access token; verify no Terragrunt/ECS env pins the old lifespans. Independent,
   smallest, shippable alone. Reqs: GPXCMS-01. **(DONE 2026-07-05 — code-complete; needs run.cms deploy to activate)**
-- [ ] **Phase 2: Standalone Strapi routes** — add free-text `Route.mapFolder` (default
+- [x] **Phase 2: Standalone Strapi routes** — add free-text `Route.mapFolder` (default
   "DEF CON 34 Maps"); widen `strapi.ts` (`gpxFileId notNull OR gpxFiles notNull`, populate
   `gpxFiles`/`mapFolder`); manifest emits standalone routes (`fileId: "cms-{documentId}"`,
   CMS media `downloadUrl`) folded into the `mapFolder` group; DynamoDB wins `gpxFileId`
   collisions; client-side bounds fallback for fit-on-toggle. Verify CMS `.gpx` CORS + Strapi
-  `.gpx` upload whitelist. Reqs: GPXCMS-02..05.
+  `.gpx` upload whitelist. Reqs: GPXCMS-02..05. **(DONE 2026-07-05 — code-complete; studio builds clean; open: functional UAT, .gpx-upload check, CORS deploy)**
 - [ ] **Phase 3: Strapi POIs on the map** — `strapi.ts` populates `pointsOfInterest`; manifest
   nests `pois` per route; studio renders POI icons (`markerImage` when present, else a
   `poiType`-based default) with a popup (`name` + `description` + `photo`, colored left tab in

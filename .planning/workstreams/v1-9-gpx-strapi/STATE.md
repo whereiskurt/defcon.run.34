@@ -7,31 +7,24 @@ created: 2026-07-05
 
 ## Current Position
 
-**Status:** Phase 1 EXECUTED & verified (code-complete) — Phases 2 & 3 planned, ready to execute
-**Current Phase:** Phase 1 done; next is Phase 2 — Standalone Strapi routes
+**Status:** Phases 1 & 2 EXECUTED & verified (code-complete) — Phase 3 planned, ready to execute
+**Current Phase:** Phase 2 done; next is Phase 3 — Strapi POIs on the map
 **Last Activity:** 2026-07-05
-**Last Activity Description:** Executed Phase 1 (`01-01`): bumped CMS admin refresh lifespan defaults 600→7200s in `apps/run.cms/app/config/admin.ts`; access token stays 300s; confirmed no infra env override. VERIFICATION status: passed. Phases 2 (3 plans) & 3 (2 plans) planned + plan-checker PASSED (Phase 2 advisory warnings addressed).
+**Last Activity Description:** Executed Phase 2 (`02-01/02/03`): added `Route.mapFolder`; widened `strapi.ts` to two-part `{ byGpxKey, cmsRoutes }` return; manifest emits standalone `cms-{documentId}` routes into `mapFolder` groups (DynamoDB wins collisions); client-side bounds fallback; CMS-media CloudFront CORS. Studio builds clean (31s), tsc clean. VERIFICATION status: passed (code); functional UAT + .gpx-upload + CORS-deploy remain open. Phase 3 (2 plans) planned + plan-checker PASSED.
 
 ## Progress
 
-**Phases Complete:** 1 / 3 (Phase 1 executed; 2 & 3 planned)
-**Plans:** Phase 1 ✅ `01-01` (done) · Phase 2 `02-01/02/03` (planned) · Phase 3 `03-01/02` (planned)
-**Execution order:** 1 ✅ → 2 → 3 (Phase 3 consumes Phase 2's `strapi.ts`/manifest/`public-overlays.ts` seams)
+**Phases Complete:** 2 / 3 (Phases 1 & 2 executed; 3 planned)
+**Plans:** Phase 1 ✅ `01-01` · Phase 2 ✅ `02-01/02/03` · Phase 3 `03-01/02` (planned)
+**Execution order:** 1 ✅ → 2 ✅ → 3 (Phase 3 fills Phase 2's `strapi.ts`/manifest/`public-overlays.ts` seams)
 
 ## Session Continuity
 
-**Stopped At:** Phase 1 executed & verified. Next: `/gsd-execute-phase 2 --ws v1-9-gpx-strapi` (see branching note below first).
+**Stopped At:** Phases 1 & 2 executed & verified. Next: Phase 3 (execute on the CURRENT branch — see branching note).
 **Resume File:** `docs/superpowers/specs/2026-07-05-strapi-authored-routes-and-pois-design.md` (design contract)
 
-## ⚠ Branching note for executing Phases 2 & 3
-All planning + Phase 1 execution landed on branch **`gsd/phase-01-cms-session-bump`** (the first
-Phase 1 planner subagent auto-created it from the `phase_branch_template` config and switched to it;
-the original `gsd/gpx-strapi-routes-pois` is stranded at the first plan commit `5db2a6cf`). Because
-`branching_strategy: "phase"`, running `/gsd-execute-phase 2` will try to fork `gsd/phase-02-…` off
-`origin/main` — which does NOT contain the workstream ROADMAP or the Phase 2/3 plan files. Before
-executing Phase 2, either (a) set `branching_strategy: "none"` for this workstream so execution stays
-on the current branch, or (b) create the phase-02 branch off the current branch (which has the plans),
-not origin/main. Do NOT let it fork off main.
+## Branching (resolved)
+Workstream-scoped override `branching_strategy: none` is committed (`.planning/workstreams/v1-9-gpx-strapi/config.json`), so all phases stay on branch **`gsd/phase-01-cms-session-bump`** (which holds every plan + all execution). Global `.planning/config.json` still uses `phase`. The original `gsd/gpx-strapi-routes-pois` is stranded at `5db2a6cf`. Execute Phase 3 on the current branch; do NOT fork off origin/main.
 
 ## Open notes for execution
 - **Phase 1 deploy:** the 2h session only activates after a **run.cms release/deploy** (restart the Strapi task). Out of scope for the phase; schedule separately.
