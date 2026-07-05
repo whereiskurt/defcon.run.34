@@ -28,11 +28,11 @@ admin session from ~10 min to ~2 h.
   CMS media `downloadUrl`) folded into the `mapFolder` group; DynamoDB wins `gpxFileId`
   collisions; client-side bounds fallback for fit-on-toggle. Verify CMS `.gpx` CORS + Strapi
   `.gpx` upload whitelist. Reqs: GPXCMS-02..05. **(DONE 2026-07-05 — code-complete; studio builds clean; open: functional UAT, .gpx-upload check, CORS deploy)**
-- [ ] **Phase 3: Strapi POIs on the map** — `strapi.ts` populates `pointsOfInterest`; manifest
+- [x] **Phase 3: Strapi POIs on the map** — `strapi.ts` populates `pointsOfInterest`; manifest
   nests `pois` per route; studio renders POI icons (`markerImage` when present, else a
   `poiType`-based default) with a popup (`name` + `description` + `photo`, colored left tab in
   the route color) in the existing per-route POI layer so POIs toggle with their route. Verify
-  marker-image cross-origin. Reqs: GPXCMS-06..09.
+  marker-image cross-origin. Reqs: GPXCMS-06..09. **(DONE 2026-07-05 — code-complete; studio builds clean; open: functional UAT, marker-image CORS depends on Phase 2 CORS deploy)**
 
 **Order:** 1 → 2 → 3. Phase 1 is fully independent. Phase 3 depends on Phase 2's `strapi.ts`
 / manifest / `public-overlays.ts` changes, so run 2 before 3 (or coordinate those shared files
