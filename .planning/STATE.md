@@ -2,14 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
-status: planning
-last_updated: "2026-07-05T00:00:00.000Z"
+current_phase: 35
+current_phase_name: cms-copy-catalog-foundation
+status: executing
+stopped_at: v1.9 roadmap created (ROADMAP.md phases 35-39, REQUIREMENTS.md traceability filled)
+last_updated: "2026-07-05T08:31:48.015Z"
 last_activity: 2026-07-05
+last_activity_desc: Phase 35 execution started
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -20,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. This milestone lets organizers change static UI wording live from the CMS — no code change, no deploy.
-**Current focus:** v1.9 CMS-Driven UI Copy Catalog — Phase 35 (CMS Copy Catalog Foundation)
+**Current focus:** Phase 35 — cms-copy-catalog-foundation
 
 ## Current Position
 
-Phase: Not started (roadmap created, phases 35-39)
-Plan: —
-Status: Roadmap complete — ready to plan Phase 35
-Last activity: 2026-07-05 — v1.9 roadmap created (5 phases, 19/19 requirements mapped)
+Phase: 35 (cms-copy-catalog-foundation) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-07-05 — Phase 35 execution started
 
 ## Roadmap Summary (v1.9)
 
@@ -55,6 +59,7 @@ Recent decisions affecting current work:
 - [v1.9]: bib donate/sponsor is the proof surface — hardest case (client-side, interpolated, modal-heavy) validates the whole approach; the plane can land after Phase 37
 - [v1.4]: Latest-stable firmware resolved at build time (not runtime) — preserves zero-runtime-dependency guarantee
 - [v1.3]: NLB-only for mqtt.defcon.run (no CloudFront -- MQTT is raw TCP)
+- [Phase ?]: Kept Strapi attribute name 'locale' despite Strapi reserving it (marked Private, dropped required/default); Plans 02/38 depend on the exact name so drive locale via the Plan 38 custom admin, not the default content-manager
 
 ### Pending Todos
 
@@ -66,7 +71,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-05
+Last session: 2026-07-05T08:30:34.135Z
 Stopped at: v1.9 roadmap created (ROADMAP.md phases 35-39, REQUIREMENTS.md traceability filled)
 Resume file: .planning/ROADMAP.md
 
@@ -83,3 +88,4 @@ Resume file: .planning/ROADMAP.md
 | Phase 33 P03 | 12min | 2 tasks | 14 files |
 | Phase 33 P04 | ~25m | 2 tasks | 1 files |
 | Phase 33 P06 | 8min | 2 tasks | 15 files |
+| Phase 35 P01 | 5m | 3 tasks | 5 files |

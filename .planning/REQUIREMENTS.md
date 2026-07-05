@@ -11,10 +11,10 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### COPY — Catalog data model
 
-- [ ] **COPY-01**: Editor can create/edit a UI string as a `(key, locale, value)` row with a `namespace` and optional `notes`
+- [x] **COPY-01**: Editor can create/edit a UI string as a `(key, locale, value)` row with a `namespace` and optional `notes`
 - [ ] **COPY-02**: `(key, locale)` is enforced unique — no duplicate rows for the same string in the same locale
 - [ ] **COPY-03**: The read-only API token exposes `ui-string` find/findOne so app consumers can read the catalog
-- [ ] **COPY-04**: The `locale` column is multi-lingual-ready; only `default` is populated in v1
+- [x] **COPY-04**: The `locale` column is multi-lingual-ready; only `default` is populated in v1
 
 ### TOOL — Runtime copy toolkit
 
@@ -76,10 +76,10 @@ Which phases cover which requirements. Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| COPY-01 | Phase 35 | Pending |
+| COPY-01 | Phase 35 | Complete |
 | COPY-02 | Phase 35 | Pending |
 | COPY-03 | Phase 35 | Pending |
-| COPY-04 | Phase 35 | Pending |
+| COPY-04 | Phase 35 | Complete |
 | TOOL-01 | Phase 36 | Pending |
 | TOOL-02 | Phase 36 | Pending |
 | TOOL-03 | Phase 36 | Pending |
@@ -97,6 +97,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | MIGR-03 | Phase 39 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 19 total
 - Mapped to phases: 19 ✓
 - Unmapped: 0 ✓
