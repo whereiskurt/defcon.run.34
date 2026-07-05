@@ -410,6 +410,52 @@ locals {
     ]
   }
 
+  # Admin activity reports (Phase 40): lightweight CloudWatch-native activity /
+  # fraud visibility. The 40-04 data plane (metric filters + /ecs/* retention +
+  # saved Logs Insights queries) AND the 40-06 dashboard + SNS tripwire alarms
+  # both read this single block, so thresholds + the alert email live here.
+  # us-east-1 only (matching the single-live-region reality).
+  admin_reports = {
+    # GATED OFF for the release that ships the app-side logEvent instrumentation.
+    # The terragrunt unit excludes itself when this is false, so no metric filters,
+    # dashboard, alarms, or the (unvalidated) /ecs/* retention import get applied.
+    # Flip to true only during 40-07, AFTER verifying the log_group_names below match
+    # `aws logs describe-log-groups --log-group-name-prefix /ecs/` and a `terragrunt plan`
+    # shows the import ADOPTS (zero destroy/recreate). See 40-07-HANDOFF.md.
+    enabled = false
+
+    # 90-day retention adopted onto the existing /ecs/* app log groups (AR-08a).
+    log_retention_days = 90
+
+    # Exact ECS awslogs group names the app event stream lands in. Naming follows
+    # ecs-task: `/ecs/{container.name}-{family}` (app container + task family).
+    # Verify before apply (40-07):
+    #   aws logs describe-log-groups --log-group-name-prefix /ecs/
+    log_group_names = {
+      auth  = "/ecs/run-auth-app-run-auth"
+      gpx   = "/ecs/run-gpx-app-run-gpx"
+      human = "/ecs/run-human-app-run-human"
+    }
+
+    # --- Consumed by 40-06 (surfaced here now so both plans read one source) ---
+    # These feed the admin-reports module inputs (mapped in the terragrunt unit):
+    #   alert_email                      -> sns_alarm_email
+    #   thresholds.signups_per_hour      -> threshold_signups_per_hour
+    #   thresholds.gpx_uploads_per_hour  -> threshold_gpx_uploads_per_hour
+    #   thresholds.alb_5xx_per_5min      -> threshold_alb_5xx_per_5min
+    # (the ALB anomaly alarm has no threshold — the band self-trains.)
+    # SNS tripwire email; override via TF_VAR_ADMIN_EMAIL.
+    alert_email = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
+
+    # Pre-con posture: any activity is presumptively recon/abuse, so thresholds
+    # are deliberately low. Bump these one line for con-week.
+    thresholds = {
+      signups_per_hour     = 1
+      gpx_uploads_per_hour = 5
+      alb_5xx_per_5min     = 10
+    }
+  }
+
   # Extracted to avoid self-reference within github_oidc block
   github_oidc_delegate_role_name = "${local.site.label}-github-delegate" # "dc34-github-delegate"
 

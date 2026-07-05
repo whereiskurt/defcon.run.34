@@ -7,7 +7,9 @@ import type { Provider } from "next-auth/providers";
 import { createTransport } from "nodemailer";
 
 import NextAuth, { type DefaultSession } from "next-auth";
+import { headers } from "next/headers";
 import { upsertAuthProfile, getAuthProfile } from "@/entities/auth-profile";
+import { logEvent } from "@/lib/log-event";
 import { config } from "@/config";
 
 declare module "next-auth" {
@@ -218,6 +220,45 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     async jwt({ token, account, profile, trigger, session, user }) {
+      // Activity logging (Phase 40, AR-02): emit one event per fresh sign-in.
+      // `account` is present only on sign-in (absent on token refresh). The
+      // existence check runs BEFORE the profile upserts below fire, so it
+      // reflects the pre-sign-in state — a missing profile means a brand-new
+      // user (create branch) versus a returning user (update branch). Wrapped
+      // in try/catch so activity logging can never break the sign-in path.
+      if (account) {
+        try {
+          const signInUserId =
+            (typeof user?.id === "string" && user.id) ||
+            (typeof token.sub === "string" && token.sub) ||
+            (typeof token.userId === "string" && token.userId) ||
+            undefined;
+          const signInEmail =
+            (typeof token.email === "string" && token.email) ||
+            (typeof profile?.email === "string" && profile.email) ||
+            undefined;
+          const requestHeaders = await headers();
+          const existingProfile = signInUserId
+            ? await getAuthProfile(signInUserId)
+            : undefined;
+          if (existingProfile) {
+            logEvent("auth.login", {
+              headers: requestHeaders,
+              userId: signInUserId,
+              email: signInEmail,
+            });
+          } else {
+            logEvent("auth.signup", {
+              headers: requestHeaders,
+              userId: signInUserId,
+              email: signInEmail,
+            });
+          }
+        } catch (err) {
+          console.error("Failed to emit auth activity event:", err);
+        }
+      }
+
       if (trigger === "update") {
         // token.theme = session.user.theme;
         // token.stravaId = session.user.hasStrava;

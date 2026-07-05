@@ -23,6 +23,7 @@ export default defineConfig({
     include: [
       "src/__tests__/**/*.test.{ts,tsx}",
       "src/**/__tests__/**/*.test.{ts,tsx}",
+      "src/**/*.test.{ts,tsx}",
     ],
   },
   resolve: {
