@@ -8,6 +8,7 @@ import {
   NameLockedError,
   updateBibName,
   updateBibWillPayInPerson,
+  updateBibBurned,
 } from "@/entities/bib";
 import { consumeQuota, type QuotaTier } from "@/lib/quota-client";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
@@ -50,16 +51,22 @@ const patchBodySchema = z
       .transform((s) => stripNonAscii(s).slice(0, 24))
       .optional(),
     willPayInPerson: z.boolean().optional(),
+    // "🔥 Fuck your bib" opt-out (Kurt 2026-07-05). true burns (free name reset +
+    // pledge off), false un-burns. Handled by updateBibBurned, independent of the
+    // name/pledge branches.
+    burned: z.boolean().optional(),
     // ALTCHA proof-of-work payload (base64). Required — verified server-side
     // before any mutation (Kurt 2026-07-03 friction control).
     altcha: z.string().min(1),
   })
   .refine(
     (data) =>
-      data.nameOnBib !== undefined || data.willPayInPerson !== undefined,
+      data.nameOnBib !== undefined ||
+      data.willPayInPerson !== undefined ||
+      data.burned !== undefined,
     {
       message:
-        "PATCH body must include at least one of nameOnBib or willPayInPerson",
+        "PATCH body must include at least one of nameOnBib, willPayInPerson, or burned",
     }
   );
 
@@ -237,6 +244,12 @@ export async function PATCH(req: NextRequest) {
         session.user.id,
         parsed.data.willPayInPerson
       );
+    }
+    if (parsed.data.burned !== undefined) {
+      // Burn / un-burn. updateBibBurned does the FREE name-clear + pledge drop
+      // when burning (no bibname_change quota) — independent of the branches
+      // above, so a { burned: true } patch torches the bib on its own.
+      bib = await updateBibBurned(session.user.id, parsed.data.burned);
     }
     return NextResponse.json(
       { bib, renamesRemaining, togglesRemaining },

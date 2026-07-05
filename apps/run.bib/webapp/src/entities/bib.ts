@@ -94,6 +94,15 @@ export const Bib = new Entity(
         type: "boolean",
         default: false,
       },
+      // Kurt 2026-07-05: the "🔥 Fuck your bib" opt-out. A persisted joke state:
+      // when true the runner has torched their bib (name cleared, pledge dropped)
+      // and the UI shows a burning pile instead of the preview. Default false so
+      // existing rows read as "not burned" without a backfill. Cleared when they
+      // pick another contribution option or once they donate/sponsor.
+      burned: {
+        type: "boolean",
+        default: false,
+      },
       createdAt: {
         type: "string",
         default: () => new Date().toISOString(),
@@ -385,6 +394,50 @@ export async function updateBibWillPayInPerson(
 
   const result = await Bib.patch({ ownerSub })
     .set({ willPayInPerson })
+    .go({ response: "all_new" });
+  return result.data as BibItem;
+}
+
+/**
+ * Toggle the "🔥 Fuck your bib" opt-out (Kurt 2026-07-05).
+ *
+ * Burning is a joke opt-out that doubles as a FREE form reset:
+ *   - `burned=true`  → set the flag, drop the in-person pledge, and clear the
+ *     name (UNLESS it's print-locked — then the animation still plays but the
+ *     committed name is preserved). Clearing the name here does NOT spend a
+ *     bibname_change quota — it's routed through this setter, not updateBibName.
+ *   - `burned=false` → just un-set the flag (un-burn); name/pledge untouched.
+ *
+ * Throws when the bib doesn't exist so PATCH can surface a 404 (mirrors
+ * updateBibWillPayInPerson).
+ */
+export async function updateBibBurned(
+  ownerSub: string,
+  burned: boolean
+): Promise<BibItem> {
+  const existing = await getBib(ownerSub);
+  if (!existing) {
+    throw new Error(`No bib found for ownerSub=${ownerSub}`);
+  }
+
+  if (!burned) {
+    const result = await Bib.patch({ ownerSub })
+      .set({ burned: false })
+      .go({ response: "all_new" });
+    return result.data as BibItem;
+  }
+
+  // Burn: flag on, pledge off, and clear the name unless it's locked.
+  const payload: {
+    burned: boolean;
+    willPayInPerson: boolean;
+    nameOnBib?: string;
+  } = { burned: true, willPayInPerson: false };
+  if (!existing.nameLocked) {
+    payload.nameOnBib = "";
+  }
+  const result = await Bib.patch({ ownerSub })
+    .set(payload)
     .go({ response: "all_new" });
   return result.data as BibItem;
 }

@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import BibPreview from "./BibPreview";
 import { CashRain } from "./CashRain";
+import { BurningBib } from "./BurningBib";
 import { solveAltcha } from "@/lib/altcha-client";
 import { registerBibFlusher } from "@/lib/pending-bib-save";
 import { getRaining, subscribe as subscribeRain } from "@/lib/rain-store";
+import { getBurning, subscribe as subscribeBurn } from "@/lib/burn-store";
 
 /**
  * BibForm
@@ -44,6 +46,12 @@ export interface BibFormProps {
    * is no longer a React sibling, so it can't pass `raining` down directly.
    */
   initialRaining?: boolean;
+  /**
+   * Server-side `bib.burned` seed (Kurt 2026-07-05). When burned, the whole
+   * form (name field + Save/Cancel + preview) is replaced by <BurningBib/>.
+   * Live changes arrive via the burn-store singleton (ContributionChoice pushes).
+   */
+  initialBurning?: boolean;
 }
 
 const API_BIB_PATH = "/api/bib";
@@ -67,6 +75,7 @@ export function BibForm({
   runnerCode,
   socialQrUrl,
   initialRaining = false,
+  initialBurning = false,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
   const [savedName, setSavedName] = useState<string>(initialName);
@@ -84,6 +93,15 @@ export function BibForm({
   useEffect(() => {
     setRainingState((prev) => prev || getRaining());
     return subscribeRain(setRainingState);
+  }, []);
+
+  // Burn state crosses the sibling boundary the same way (burn-store singleton).
+  // Seed from the server flag; re-seed from the store on mount in case the choice
+  // control toggled before this subscription registered.
+  const [burning, setBurningState] = useState<boolean>(initialBurning);
+  useEffect(() => {
+    setBurningState((prev) => prev || getBurning());
+    return subscribeBurn(setBurningState);
   }, []);
 
   const dirty = name !== savedName;
@@ -163,6 +181,16 @@ export function BibForm({
     registerBibFlusher(() => onSaveRef.current());
     return () => registerBibFlusher(null);
   }, []);
+
+  // 🔥 Burned: the whole name form + preview is replaced by the burning pile.
+  // (All hooks above run unconditionally — this only swaps the rendered tree.)
+  if (burning) {
+    return (
+      <div style={{ width: "100%", maxWidth: 720, margin: "0 auto" }}>
+        <BurningBib />
+      </div>
+    );
+  }
 
   return (
     <form
