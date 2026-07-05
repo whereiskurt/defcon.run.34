@@ -456,6 +456,56 @@ locals {
     }
   }
 
+  # Abuse / pentester detection (Phase 41, AD-08): Athena-over-ALB-logs +
+  # scheduled Lambda that flags outlier IPs (sustained sessions, POST/request
+  # rate spikes) and pages the operator via the REUSED Phase 40 SNS tripwire.
+  # Every detection threshold + the enabled gate live here as one-line knobs so
+  # con-week tuning is a single-file edit. us-east-1 only (single-live-region).
+  # SHIPS DARK: the terragrunt unit excludes itself AND the EventBridge rule
+  # state derives from `enabled`, so a merged-but-dark unit provisions nothing
+  # and pages no one until deliberately turned on. Each key maps to a module var
+  # (mapped in the terragrunt unit inputs):
+  #   enabled                     -> schedule_enabled (+ terragrunt exclude gate)
+  #   cron_minutes                -> cron_minutes
+  #   lookback_hours              -> lookback_hours
+  #   session_hours               -> session_hours
+  #   session_gap_min             -> session_gap_min
+  #   posts_per_5min              -> posts_per_5min
+  #   requests_per_5min           -> requests_per_5min
+  #   escalation_multiplier       -> escalation_multiplier
+  #   digest_hour_utc             -> digest_hour_utc
+  #   athena_bytes_scanned_cutoff -> athena_bytes_scanned_cutoff
+  #   sns_topic_name              -> sns_topic_name (reused Phase 40 topic)
+  abuse_detection = {
+    # GATED OFF at merge. Flip to true ONLY during the deploy checkpoint (41-05
+    # Task 3), AFTER a manual Athena query confirms the ALB-log schema parses.
+    # While false the terragrunt unit excludes-if-disabled (no Glue table,
+    # workgroup, results bucket, Lambda, IAM, or cron get created) and the
+    # EventBridge rule ships DISABLED. Restore to false for the committed state
+    # after verification unless the operator elects to leave it live.
+    enabled = false
+
+    # --- Detection thresholds (AD-03..AD-07). Tight pre-con defaults: legit
+    #     traffic ~= 0, so a single hit is signal. Bump for con-week. ---
+    cron_minutes          = 30  # EventBridge cadence (min) for the detector Lambda
+    lookback_hours        = 3   # recent-partition window each run scans (cost control)
+    session_hours         = 2   # sustained-activity flag: max session span >= this
+    session_gap_min       = 15  # sessionization gap: new session when idle > this (min)
+    posts_per_5min        = 30  # rate-outlier flag: peak 5-min POST bucket exceeds this
+    requests_per_5min     = 100 # rate-outlier flag: peak 5-min request bucket exceeds this
+    escalation_multiplier = 3   # re-alert a flagged offender at this multiple of threshold
+    digest_hour_utc       = 13  # UTC hour the daily human digest email is sent
+
+    # Athena workgroup guardrail: per-query bytes-scanned cap (10 GiB) so a
+    # runaway scan can't rack up cost.
+    athena_bytes_scanned_cutoff = 10737418240
+
+    # REUSE the Phase 40 SNS topic — the module composes the ARN from account +
+    # region + this name and creates NO second topic. This topic must already
+    # exist (admin_reports enabled/applied) before an end-to-end alert can fire.
+    sns_topic_name = "dcr-admin-reports-tripwire"
+  }
+
   # Extracted to avoid self-reference within github_oidc block
   github_oidc_delegate_role_name = "${local.site.label}-github-delegate" # "dc34-github-delegate"
 
