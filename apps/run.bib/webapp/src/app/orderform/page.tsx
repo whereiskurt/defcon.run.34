@@ -163,6 +163,13 @@ export default async function Home({ searchParams }: HomeProps) {
   // per Plan 34-03) and used to seed the bib preview's cash-rain on load.
   const willPayInitial = bib.willPayInPerson === true;
   const showCheckbox = !hasTransacted;
+  // WR-02: seed the cash-rain from the SAME gate that shows the checkbox.
+  // willPayInPerson is never cleared in the DB when money moves (A4 "drop the
+  // pledge" is realized by hiding the checkbox, not mutating the flag), so a
+  // runner who pledged in-person AND later paid online would otherwise load
+  // with rain stuck on and no checkbox to turn it off. Only seed rain while the
+  // pledge is still actionable.
+  const initialRaining = showCheckbox && willPayInitial;
 
   return (
     // Transparent container — the root layout now paints the dark background,
@@ -228,7 +235,7 @@ export default async function Home({ searchParams }: HomeProps) {
           hasSponsored,
           initialRenamesRemaining: renamesRemaining,
           runnerCode: bib.runnerCode,
-          initialRaining: willPayInitial,
+          initialRaining,
           socialQrUrl,
         }}
       />
