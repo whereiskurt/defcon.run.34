@@ -55,16 +55,35 @@ export function ContributionTiles({
   }, []);
 
   const isBurned = burning;
-  const hideBuyBib = hasSponsored || raining || isBurned;
 
+  // The Donate tile — always available, over and over (never disabled). Reused
+  // full-width when the bib is already paid.
+  const donateTile = (kicker: string) => (
+    <Tile
+      kicker={kicker}
+      title="Just donate"
+      body="This long-running event would value any financial support you'd like to give. Every year we try to provide an accessible and memorable event for all."
+      art={<DonateArt />}
+    >
+      <SponsorForm variant="general" ctaLabel="Donate" runnerCode={runnerCode} />
+    </Tile>
+  );
+
+  // Already PAID for a bib → the Sponsor tile is gone (you can't buy the same bib
+  // twice); only Donate remains, full-width (Kurt 2026-07-05). A donation does
+  // NOT trigger this — hasSponsored is real bib payment only.
+  if (hasSponsored) {
+    return <div style={{ minWidth: 0 }}>{donateTile("Support")}</div>;
+  }
+
+  // Not paid: show both tiles. Pledging in person / torching the bib dims + moves
+  // the Sponsor tile (and rains over it, unless burned) — live, via the stores.
+  const dimSponsor = raining || isBurned;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {/* Sponsor this bib — order-1 by default; drops below Donate and greys out
-        * (disabled + dimmed + inert) once the runner pledges to pay in person or
-        * has already paid (hideBuyBib). */}
       <div
-        className={hideBuyBib ? "order-2" : "order-1"}
-        aria-disabled={hideBuyBib || undefined}
+        className={dimSponsor ? "order-2" : "order-1"}
+        aria-disabled={dimSponsor || undefined}
         style={{
           minWidth: 0,
           position: "relative",
@@ -73,7 +92,7 @@ export function ContributionTiles({
         }}
       >
         <div
-          style={hideBuyBib ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+          style={dimSponsor ? { opacity: 0.5, pointerEvents: "none" } : undefined}
         >
           <Tile
             kicker="This"
@@ -85,24 +104,16 @@ export function ContributionTiles({
               variant="bib"
               ctaLabel="Sponsor"
               runnerCode={runnerCode}
-              disabled={hideBuyBib}
+              disabled={dimSponsor}
             />
           </Tile>
         </div>
-        {/* Cash rains over the disabled tile — but not when torched (fire, not cash). */}
-        {hideBuyBib && !isBurned && <CashRain active />}
+        {/* Cash rains over the dimmed tile — but not when torched (fire, not cash). */}
+        {dimSponsor && !isBurned && <CashRain active />}
       </div>
 
-      {/* Just donate — order-2 by default; rises to order-1 when Sponsor disables. */}
-      <div className={hideBuyBib ? "order-1" : "order-2"} style={{ minWidth: 0 }}>
-        <Tile
-          kicker={hideBuyBib ? "Support" : "or That"}
-          title="Just donate"
-          body="This long-running event would value any financial support you'd like to give. Every year we try to provide an accessible and memorable event for all."
-          art={<DonateArt />}
-        >
-          <SponsorForm variant="general" ctaLabel="Donate" runnerCode={runnerCode} />
-        </Tile>
+      <div className={dimSponsor ? "order-1" : "order-2"} style={{ minWidth: 0 }}>
+        {donateTile(dimSponsor ? "Support" : "or That")}
       </div>
     </div>
   );
