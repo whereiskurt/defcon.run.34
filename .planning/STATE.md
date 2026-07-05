@@ -4,17 +4,17 @@ milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
 current_phase: 36
 current_phase_name: runtime-copy-toolkit
-status: executing
+status: verifying
 stopped_at: Phase 36 context gathered
-last_updated: "2026-07-05T20:46:23.276Z"
+last_updated: "2026-07-05T20:53:53.264Z"
 last_activity: 2026-07-05
 last_activity_desc: Phase 36 execution started
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 20
+  completed_plans: 6
+  percent: 40
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 Phase: 36 (runtime-copy-toolkit) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-07-05 — Phase 36 execution started
 
 ## Roadmap Summary (v1.9)
@@ -68,6 +68,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 36-01]: runtime resolver does one bulk Strapi fetch (pageSize=1000); pagination lives only in the manual copy:snapshot script, never in build (D-04)
 - [Phase ?]: 36-02: renderCopy returns React nodes and relies on React text-node escaping (no manual escape) so escape-first holds without double-escaping
 - [Phase ?]: 36-02: copy links require explicit http/https/mailto scheme; javascript:/data:/relative URLs drop href and render label as plain text
+- [Phase ?]: CopyProvider passes only the resolved copy map client-side; never the server-only lib/copy resolver, token, or CMS URL (grep-gated)
 
 ### Pending Todos
 
@@ -79,7 +80,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-05T20:45:57.150Z
+Last session: 2026-07-05T20:53:24.640Z
 Stopped at: Phase 36 context gathered
 Resume file: .planning/phases/36-runtime-copy-toolkit/36-CONTEXT.md
 
@@ -101,3 +102,4 @@ Resume file: .planning/phases/36-runtime-copy-toolkit/36-CONTEXT.md
 | Phase 35 P03 | 6m | 2 tasks | 1 files |
 | Phase 36 P01 | 50min | 2 tasks | 7 files |
 | Phase 36 P02 | 6 | 1 tasks | 2 files |
+| Phase 36 P03 | 15min | 2 tasks | 3 files |

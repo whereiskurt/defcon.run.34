@@ -20,7 +20,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 - [x] **TOOL-01**: `loadCopy(locale)` fetches the catalog from the Strapi API, cached server-side in the Next.js Data Cache (`revalidate:N`)
 - [x] **TOOL-02**: `t(key, vars)` resolves from a single in-memory merged map with `{placeholder}` interpolation — never a per-element network call
-- [ ] **TOOL-03**: `CopyProvider` / `useCopy` make `t()` available in client components (modals, toasts, handlers), not just server render
+- [x] **TOOL-03**: `CopyProvider` / `useCopy` make `t()` available in client components (modals, toasts, handlers), not just server render
 - [x] **TOOL-04**: A copy edit propagates to all regions within ~15 min with no deploy (eventual consistency via `revalidate:N` + Litestream)
 - [x] **TOOL-05**: Lightweight markdown in a value renders safely client-side
 
@@ -82,7 +82,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | COPY-04 | Phase 35 | Complete |
 | TOOL-01 | Phase 36 | Complete |
 | TOOL-02 | Phase 36 | Complete |
-| TOOL-03 | Phase 36 | Pending |
+| TOOL-03 | Phase 36 | Complete |
 | TOOL-04 | Phase 36 | Complete |
 | TOOL-05 | Phase 36 | Complete |
 | FALL-01 | Phase 35 | Complete |

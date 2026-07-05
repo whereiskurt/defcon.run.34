@@ -297,7 +297,7 @@ Plans:
 | 26. Header/Nav UX Refresh | v1.6 | 0/TBD | Planned | - |
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
 | 35. CMS Copy Catalog Foundation | v1.9 | 3/3 | Complete    | 2026-07-05 |
-| 36. Runtime Copy Toolkit | v1.9 | 2/3 | In Progress|  |
+| 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 0/TBD | Planned | - |
 | 38. Custom Copy Admin Plugin | v1.9 | 0/TBD | Planned | - |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
@@ -329,7 +329,7 @@ Plans:
 > **The plane can land after Phase 37** — the proof surface validates the whole approach; admin (38) and the broader migration (39) can follow.
 
 - [x] **Phase 35: CMS Copy Catalog Foundation** - `ui-string` content type, `(key,locale)` uniqueness, read-only API-token permission, and the S3 export lifecycle hook (completed 2026-07-05)
-- [ ] **Phase 36: Runtime Copy Toolkit** - `loadCopy` + Next.js Data Cache, merged-map `t()`, `CopyProvider`/`useCopy`, cached S3 fallback + committed snapshot floor
+- [x] **Phase 36: Runtime Copy Toolkit** - `loadCopy` + Next.js Data Cache, merged-map `t()`, `CopyProvider`/`useCopy`, cached S3 fallback + committed snapshot floor (completed 2026-07-05)
 - [ ] **Phase 37: Bib Donate/Sponsor Proof Surface** - wire the bib donate/sponsor copy (forms, instructions, payment/Venmo/CashApp, sponsor/QR/logout modals) end-to-end through the catalog
 - [ ] **Phase 38: Custom Copy Admin Plugin** - three-column `label·locale·value` Strapi admin page with namespace filter + bulk upsert
 - [ ] **Phase 39: Copy Migration — Remaining Bib + Shared Chrome** - remaining `run.bib` copy + shared `common.*` header/profile-menu keys unified across apps
@@ -371,7 +371,7 @@ Plans:
   4. The UI never renders a raw dotted key to an end user, and lightweight markdown inside a value renders safely client-side.
   5. A copy edit made in the CMS appears in every region within ~15 min with no deploy (eventual consistency via `revalidate:N` + Litestream).
 
-**Plans**: 2/3 plans executed
+**Plans**: 3/3 plans complete
 
 Plans:
 **Wave 1**
@@ -381,7 +381,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 36-03-PLAN.md — CopyProvider/useCopy client context + run.bib layout self-proof (wave 2)
+- [x] 36-03-PLAN.md — CopyProvider/useCopy client context + run.bib layout self-proof (wave 2)
 
 ### Phase 37: Bib Donate/Sponsor Proof Surface
 
