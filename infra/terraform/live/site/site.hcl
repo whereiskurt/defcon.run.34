@@ -416,25 +416,24 @@ locals {
   # both read this single block, so thresholds + the alert email live here.
   # us-east-1 only (matching the single-live-region reality).
   admin_reports = {
-    # GATED OFF for the release that ships the app-side logEvent instrumentation.
-    # The terragrunt unit excludes itself when this is false, so no metric filters,
-    # dashboard, alarms, or the (unvalidated) /ecs/* retention import get applied.
-    # Flip to true only during 40-07, AFTER verifying the log_group_names below match
-    # `aws logs describe-log-groups --log-group-name-prefix /ecs/` and a `terragrunt plan`
-    # shows the import ADOPTS (zero destroy/recreate). See 40-07-HANDOFF.md.
-    enabled = false
+    # ENABLED 2026-07-05 (40-07): verified via scoped `terragrunt plan` that the
+    # /ecs/* retention import ADOPTS the running log groups (zero destroy/recreate)
+    # before this flip. Metric filters, dashboard, saved queries, SNS + tripwire
+    # alarms, and 90-day /ecs/* retention now apply. See 40-07-HANDOFF.md.
+    enabled = true
 
     # 90-day retention adopted onto the existing /ecs/* app log groups (AR-08a).
     log_retention_days = 90
 
-    # Exact ECS awslogs group names the app event stream lands in. Naming follows
-    # ecs-task: `/ecs/{container.name}-{family}` (app container + task family).
-    # Verify before apply (40-07):
-    #   aws logs describe-log-groups --log-group-name-prefix /ecs/
+    # Exact ECS awslogs group names the app event stream lands in.
+    # ecs-task builds the group as `/ecs/{container.name}-{family}` where
+    # family = `{task.name}-{region.label}-{site.label}` (ecs-task main.tf:74),
+    # i.e. `-use1-dc34` in us-east-1. Verified against the failed 40-07 import
+    # (the un-suffixed names did NOT exist) + the deployed task-def naming.
     log_group_names = {
-      auth  = "/ecs/run-auth-app-run-auth"
-      gpx   = "/ecs/run-gpx-app-run-gpx"
-      human = "/ecs/run-human-app-run-human"
+      auth  = "/ecs/run-auth-app-run-auth-use1-dc34"
+      gpx   = "/ecs/run-gpx-app-run-gpx-use1-dc34"
+      human = "/ecs/run-human-app-run-human-use1-dc34"
     }
 
     # --- Consumed by 40-06 (surfaced here now so both plans read one source) ---
