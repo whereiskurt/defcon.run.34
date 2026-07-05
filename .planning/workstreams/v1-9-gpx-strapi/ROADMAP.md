@@ -18,10 +18,10 @@ admin session from ~10 min to ~2 h.
 
 ## Phases
 
-- [ ] **Phase 1: CMS session bump** — raise the Strapi admin session (`config/admin.ts`
+- [x] **Phase 1: CMS session bump** — raise the Strapi admin session (`config/admin.ts`
   `maxRefreshTokenLifespan` + `idleRefreshTokenLifespan`) from 600s to 7200s (2h); keep the
   5-min access token; verify no Terragrunt/ECS env pins the old lifespans. Independent,
-  smallest, shippable alone. Reqs: GPXCMS-01.
+  smallest, shippable alone. Reqs: GPXCMS-01. **(DONE 2026-07-05 — code-complete; needs run.cms deploy to activate)**
 - [ ] **Phase 2: Standalone Strapi routes** — add free-text `Route.mapFolder` (default
   "DEF CON 34 Maps"); widen `strapi.ts` (`gpxFileId notNull OR gpxFiles notNull`, populate
   `gpxFiles`/`mapFolder`); manifest emits standalone routes (`fileId: "cms-{documentId}"`,
@@ -55,8 +55,8 @@ Tradeoff accepted per design decision D9: CMS access-revocation latency grows to
 **Success Criteria:** See "Phase 1" under Success Criteria below — editor stays logged in ~2h;
 `config/admin.ts` defaults are 7200s for max + idle refresh; deployed env confirmed not to override.
 
-**Plans:** 1 plan
-- [ ] 01-01-PLAN.md — Bump admin refresh lifespan defaults to 7200s (2h) + verify no infra env override
+**Plans:** 1/1 plan complete
+- [x] 01-01-PLAN.md — Bump admin refresh lifespan defaults to 7200s (2h) + verify no infra env override (commits `9f353913`, `554fa7b7`)
 
 **UI hint:** no (config-only backend change, no frontend surface)
 
