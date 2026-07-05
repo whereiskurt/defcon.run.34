@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-05 03:27:58 UTC",
+  "updated": "2026-07-05 03:28:50 UTC",
   "poll_seconds": 300,
   "regions": [
     {
@@ -22,7 +22,7 @@
       "host": "auth.defcon.run",
       "link": "https://auth.defcon.run",
       "version": "v0.0.12",
-      "state": "dev",
+      "state": "live",
       "note": "Authentication & sign-in"
     },
     {
@@ -49,7 +49,7 @@
       "host": "flash.defcon.run",
       "link": "https://flash.defcon.run",
       "version": "v0.0.10",
-      "state": "dev",
+      "state": "live",
       "note": "Radio flashing flow"
     },
     {
