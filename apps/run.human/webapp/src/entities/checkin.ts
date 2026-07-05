@@ -42,6 +42,10 @@ export interface CheckInData {
   checkInType?: "Basic" | "OTP" | "With Flag" | "Manual";
   otpCode?: string;
   flagText?: string;
+  // Pin personalization (v1.8 Phase 4) — denormalized at creation so a
+  // check-in keeps its look even if the runner changes their profile pin.
+  pinIcon?: string;
+  pinColor?: string;
 }
 
 /**
@@ -110,6 +114,14 @@ export const CheckIn = new Entity(
         type: "string",
       },
       flagText: {
+        type: "string",
+      },
+      // Pin personalization (v1.8 Phase 4) — catalog id + #rrggbb, immutable
+      // per check-in; absent on older rows (renders as the default pin).
+      pinIcon: {
+        type: "string",
+      },
+      pinColor: {
         type: "string",
       },
       // Geospatial fields for future geo queries
@@ -194,7 +206,7 @@ export type CheckInItem = EntityItem<typeof CheckIn>;
  * Note: Quota enforcement is NOT done here -- it's handled by quota-middleware in API routes (Phase 11).
  */
 export async function createCheckIn(userId: string, data: CheckInData) {
-  const { samples, source, userAgent, isPrivate, checkInType, otpCode, flagText } = data;
+  const { samples, source, userAgent, isPrivate, checkInType, otpCode, flagText, pinIcon, pinColor } = data;
 
   if (!samples || !Array.isArray(samples) || samples.length === 0) {
     throw new Error("Invalid samples data");
@@ -234,6 +246,8 @@ export async function createCheckIn(userId: string, data: CheckInData) {
     checkInType: checkInType || "Basic",
     otpCode,
     flagText,
+    pinIcon,
+    pinColor,
     pointsCount: samples.length,
     duration,
   }).go();
@@ -271,13 +285,16 @@ export async function getCheckInsByUser(
 
 /**
  * Get recent check-ins globally (all users), ordered most-recent-first with cursor pagination.
+ * Pass `since` (epoch ms) to bound the window to timestamp >= since — the
+ * byGlobalRecent sort key is the timestamp, so this is a key condition, not a filter.
  */
 export async function getRecentCheckIns(
   limit: number = 20,
-  cursor?: string
+  cursor?: string,
+  since?: number
 ) {
-  const result = await CheckIn.query
-    .byGlobalRecent({})
+  const query = CheckIn.query.byGlobalRecent({});
+  const result = await (since != null ? query.gte({ timestamp: since }) : query)
     .go({
       limit,
       cursor,

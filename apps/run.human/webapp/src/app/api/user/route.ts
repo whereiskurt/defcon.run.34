@@ -1,5 +1,6 @@
 import { auth } from "@auth";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
+import { pinIconById, canUsePinIcon, isValidPinColor } from "@/lib/pin-icons";
 import { getUserQuotas, getQuotaDefinitions, type QuotaId } from "@/lib/quota-client";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -88,7 +89,8 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * PATCH /api/user - Update user's check-in privacy preference
+ * PATCH /api/user - Update user preferences (check-in privacy, pin icon/color).
+ * Merges into the existing preferences map rather than replacing it.
  */
 export async function PATCH(req: NextRequest) {
   try {
@@ -101,26 +103,57 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { checkinPreference } = body;
+    const { checkinPreference, pinIcon, pinColor } = body;
 
-    if (
-      checkinPreference !== "public" &&
-      checkinPreference !== "private"
-    ) {
+    const updates: Record<string, string> = {};
+
+    if (checkinPreference !== undefined) {
+      if (checkinPreference !== "public" && checkinPreference !== "private") {
+        return NextResponse.json(
+          { error: 'checkinPreference must be "public" or "private"' },
+          { status: 400 }
+        );
+      }
+      updates.checkinPreference = checkinPreference;
+    }
+
+    if (pinIcon !== undefined) {
+      const icon = pinIconById(typeof pinIcon === "string" ? pinIcon : undefined);
+      const services = session.user.services || ["run"];
+      if (!icon || !canUsePinIcon(icon, services)) {
+        return NextResponse.json(
+          { error: "pinIcon is not a valid or permitted icon" },
+          { status: 400 }
+        );
+      }
+      updates.pinIcon = icon.id;
+    }
+
+    if (pinColor !== undefined) {
+      if (!isValidPinColor(pinColor)) {
+        return NextResponse.json(
+          { error: "pinColor must be a #rrggbb hex color" },
+          { status: 400 }
+        );
+      }
+      updates.pinColor = pinColor;
+    }
+
+    if (Object.keys(updates).length === 0) {
       return NextResponse.json(
-        {
-          error:
-            'checkinPreference is required and must be "public" or "private"',
-        },
+        { error: "No valid preference fields provided" },
         { status: 400 }
       );
     }
 
+    // ElectroDB set() replaces map attributes wholesale — merge with the
+    // current preferences so an update to one field doesn't drop the others.
+    const user = await getRunUser(session.user.id);
     await updateRunUserProfile(session.user.id, {
-      preferences: { checkinPreference },
+      preferences: { ...user?.preferences, ...updates },
     });
 
-    return NextResponse.json({ success: true, checkinPreference });
+    return NextResponse.json({ success: true, ...updates });
   } catch (error) {
     console.error("Error updating user preference:", error);
     return NextResponse.json(

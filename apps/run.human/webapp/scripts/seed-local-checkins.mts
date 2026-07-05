@@ -65,6 +65,8 @@ const CheckIn = new Entity(
       bestAccuracy: { type: "number", required: true },
       isPrivate: { type: "boolean", default: true },
       checkInType: { type: ["Basic", "OTP", "With Flag", "Manual"] as const, default: "Basic" },
+      pinIcon: { type: "string" },
+      pinColor: { type: "string" },
       pointsCount: { type: "number" },
       duration: { type: "number" },
     },
@@ -95,16 +97,19 @@ const USERS = [
 ];
 
 // LVCC cluster + a few Strip points so clustering has something to chew on.
-const SPOTS: Array<[number, number, "Basic" | "OTP" | "With Flag" | "Manual", number]> = [
-  [36.1359, -115.1585, "Basic", 1],
-  [36.1356, -115.1587, "OTP", 2],
-  [36.1354, -115.1583, "Basic", 3],
-  [36.1352, -115.1589, "With Flag", 4],
-  [36.1361, -115.1581, "Basic", 5],
-  [36.1349, -115.1592, "Manual", 6],
-  [36.1174, -115.1722, "Basic", 7], // the Strip
-  [36.1147, -115.1728, "Basic", 8],
-  [36.1029, -115.1732, "OTP", 9],
+// Pin variety (v1.8 Phase 4): [icon, color] per spot; nulls use the default pin.
+const SPOTS: Array<
+  [number, number, "Basic" | "OTP" | "With Flag" | "Manual", number, string | null, string | null]
+> = [
+  [36.1359, -115.1585, "Basic", 1, "bunny", "#e6007a"],
+  [36.1356, -115.1587, "OTP", 2, "star", "#00e5ff"],
+  [36.1354, -115.1583, "Basic", 3, "skull", "#9933ff"],
+  [36.1352, -115.1589, "With Flag", 4, "flag", "#22c55e"],
+  [36.1361, -115.1581, "Basic", 5, "goldstar", null], // the secret admin pin
+  [36.1349, -115.1592, "Manual", 6, null, null], // legacy row — default pin
+  [36.1174, -115.1722, "Basic", 7, "paw", "#f59e0b"], // the Strip
+  [36.1147, -115.1728, "Basic", 8, "bolt", "#ff9900"],
+  [36.1029, -115.1732, "OTP", 9, "crown", "#ff6ebe"],
 ];
 
 async function put(
@@ -113,7 +118,9 @@ async function put(
   lon: number,
   checkInType: "Basic" | "OTP" | "With Flag" | "Manual",
   hoursAgo: number,
-  isPrivate: boolean
+  isPrivate: boolean,
+  pinIcon?: string,
+  pinColor?: string
 ) {
   const ts = Date.now() - hoursAgo * 3600_000;
   await CheckIn.put({
@@ -126,6 +133,8 @@ async function put(
     bestAccuracy: 5,
     isPrivate,
     checkInType,
+    pinIcon,
+    pinColor,
     pointsCount: 1,
     duration: 0,
   }).go();
@@ -138,10 +147,10 @@ async function main() {
   }
 
   let i = 0;
-  for (const [lat, lon, type, hoursAgo] of SPOTS) {
+  for (const [lat, lon, type, hoursAgo, pinIcon, pinColor] of SPOTS) {
     const u = USERS[i++ % USERS.length];
-    await put(u.userId, lat, lon, type, hoursAgo, false);
-    console.log(`＋ public check-in ${u.displayName} @ ${lat},${lon} (${type})`);
+    await put(u.userId, lat, lon, type, hoursAgo, false, pinIcon ?? undefined, pinColor ?? undefined);
+    console.log(`＋ public check-in ${u.displayName} @ ${lat},${lon} (${type}, pin=${pinIcon ?? 'default'})`);
   }
 
   // Private check-ins — must NOT appear on the public map.
