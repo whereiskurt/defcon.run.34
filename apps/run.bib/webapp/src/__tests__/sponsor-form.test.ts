@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 /**
  * SponsorForm amount + provider routing unit tests (Plan 22-01-2, extended
@@ -28,7 +28,9 @@ import {
   checkoutEndpointFor,
   clampAmountCents,
   formatCentsUsd,
+  performSponsorCheckout,
   providerRouteFor,
+  type SponsorCheckoutDeps,
 } from "@/components/SponsorForm";
 
 describe("SponsorForm constants", () => {
@@ -136,5 +138,96 @@ describe("checkoutEndpointFor() — Phase 22-05 two-product router", () => {
     // If either route file moves, update both here + the SUT.
     const routes = [checkoutEndpointFor("bib"), checkoutEndpointFor("general")];
     expect(routes).toEqual(["/api/checkout/bib", "/api/checkout/general"]);
+  });
+});
+
+describe("performSponsorCheckout() — implicit save before checkout (Plan 34-03, SC34.6)", () => {
+  // Records the interleaving of side-effects so we can assert the pending bib
+  // name is flushed (awaited) BEFORE any checkout network/redirect call.
+  function makeDeps(order: string[], overrides?: Partial<SponsorCheckoutDeps>) {
+    const okResponse = {
+      ok: true,
+      json: async () => ({ session_url: "https://stripe.test/session" }),
+    } as unknown as Response;
+    const deps: SponsorCheckoutDeps = {
+      flush: vi.fn(async () => {
+        // Yield a microtask so a non-awaited flush would let the fetch race
+        // ahead — the ["flush","fetch"] assertion below would then fail.
+        await Promise.resolve();
+        order.push("flush");
+      }),
+      fetchImpl: vi.fn(async () => {
+        order.push("fetch");
+        return okResponse;
+      }),
+      navigate: vi.fn(() => order.push("navigate")),
+      redirect: vi.fn(() => order.push("redirect")),
+      onSubmitting: vi.fn(),
+      onIdle: vi.fn(),
+      onError: vi.fn(),
+      ...overrides,
+    };
+    return deps;
+  }
+
+  it("awaits flush before the Stripe fetch for variant='bib'", async () => {
+    const order: string[] = [];
+    const deps = makeDeps(order);
+    await performSponsorCheckout(
+      { variant: "bib", provider: "stripe", amountCents: 5000, offerNonStripe: true },
+      deps
+    );
+    expect(order).toEqual(["flush", "fetch", "redirect"]);
+    expect(deps.flush).toHaveBeenCalledTimes(1);
+    expect(deps.fetchImpl).toHaveBeenCalledWith(
+      "/api/checkout/bib",
+      expect.objectContaining({ method: "POST" })
+    );
+    expect(deps.redirect).toHaveBeenCalledWith("https://stripe.test/session");
+  });
+
+  it("awaits flush before the Stripe fetch for variant='general'", async () => {
+    const order: string[] = [];
+    const deps = makeDeps(order);
+    await performSponsorCheckout(
+      { variant: "general", provider: "stripe", amountCents: 5000, offerNonStripe: true },
+      deps
+    );
+    expect(order).toEqual(["flush", "fetch", "redirect"]);
+    expect(deps.fetchImpl).toHaveBeenCalledWith(
+      "/api/checkout/general",
+      expect.objectContaining({ method: "POST" })
+    );
+  });
+
+  it("awaits flush before the provider handoff for a Venmo bib checkout", async () => {
+    // The provider (Venmo/Cash App) path is variant-agnostic too — flush must
+    // still precede the router navigation.
+    const order: string[] = [];
+    const deps = makeDeps(order);
+    await performSponsorCheckout(
+      { variant: "bib", provider: "venmo", amountCents: 2500, offerNonStripe: true },
+      deps
+    );
+    expect(order).toEqual(["flush", "navigate"]);
+    expect(deps.navigate).toHaveBeenCalledWith("/sponsor/venmo?amount_cents=2500");
+    expect(deps.fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("still flushes before surfacing an error (fetch failure does not skip the save)", async () => {
+    const order: string[] = [];
+    const deps = makeDeps(order, {
+      fetchImpl: vi.fn(async () => {
+        order.push("fetch");
+        return { ok: false, status: 500 } as unknown as Response;
+      }),
+    });
+    await performSponsorCheckout(
+      { variant: "bib", provider: "stripe", amountCents: 5000, offerNonStripe: true },
+      deps
+    );
+    expect(order).toEqual(["flush", "fetch"]);
+    expect(deps.onError).toHaveBeenCalledWith("HTTP 500");
+    expect(deps.redirect).not.toHaveBeenCalled();
   });
 });
