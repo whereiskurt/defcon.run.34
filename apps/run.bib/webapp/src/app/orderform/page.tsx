@@ -10,6 +10,7 @@ import { listPendingForOwner } from "@/entities/pending-contribution";
 import { checkQuota } from "@/lib/quota-client";
 import TransactionHistory, { type Txn } from "@/components/TransactionHistory";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
+import { getSocialQrHash, buildSocialQrUrl } from "@/lib/social-qr";
 
 /**
  * Home is a server-component route that receives `searchParams` from
@@ -146,6 +147,14 @@ export default async function Home({ searchParams }: HomeProps) {
     .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
   const txns: Txn[] = [...pendingTxns, ...reconciled];
 
+  // Social-QR (Plan 34-04, Slice C — C-T3): best-effort resolve the runner's
+  // real per-user social-QR hash from run.human and build the `/r?h=` URL to
+  // encode on the bib tear-off stubs. getSocialQrHash is null-safe (a miss /
+  // timeout never 500s the orderform — T-34-07), and BibPreview falls back to
+  // the runner-code QR when socialQrUrl is absent (never a blank stub — SC34.8).
+  const socialQrHash = await getSocialQrHash(ownerSub);
+  const socialQrUrl = socialQrHash ? buildSocialQrUrl(socialQrHash) : undefined;
+
   // A4 (Kurt 2026-07-03): once any money has moved for this bib, drop the
   // "I'll pay in person" pledge — it's only meaningful pre-payment.
   const hasTransacted = hasSponsored || donationTotal > 0;
@@ -220,6 +229,7 @@ export default async function Home({ searchParams }: HomeProps) {
           initialRenamesRemaining: renamesRemaining,
           runnerCode: bib.runnerCode,
           initialRaining: willPayInitial,
+          socialQrUrl,
         }}
       />
 

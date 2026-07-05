@@ -31,6 +31,13 @@ export interface BibFormProps {
   /** Runner code — passed through to BibPreview for the tear-off QR. */
   runnerCode?: string;
   /**
+   * Runner's real per-user social-QR URL (`/r?h=<hash>`), resolved server-side
+   * (Plan 34-04, Slice C). Pure pass-through to BibPreview, which encodes it on
+   * the tear-off stubs when present and falls back to the runner-code QR when
+   * absent (never a blank stub — SC34.8).
+   */
+  socialQrUrl?: string;
+  /**
    * Seed value for the cash-rain overlay on first render (the server-side
    * pay-in-person pledge). After mount, live rain state comes from the shared
    * `rain-store` singleton the checkbox pushes to (Plan 34-03) — the checkbox
@@ -58,6 +65,7 @@ export function BibForm({
   hasSponsored = false,
   initialRenamesRemaining,
   runnerCode,
+  socialQrUrl,
   initialRaining = false,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
@@ -275,7 +283,7 @@ export function BibForm({
 
       {/* Live preview sits BELOW the name field (A3, name-first). */}
       <div style={{ position: "relative" }}>
-        <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} dirty={dirty} />
+        <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} socialQrUrl={socialQrUrl} dirty={dirty} />
         <CashRain active={raining} />
       </div>
     </form>
