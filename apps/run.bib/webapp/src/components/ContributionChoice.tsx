@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { solveAltcha } from "@/lib/altcha-client";
 import { setRaining } from "@/lib/rain-store";
 import { setBurning } from "@/lib/burn-store";
@@ -55,7 +54,6 @@ export interface ContributionChoiceProps {
 }
 
 export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
-  const router = useRouter();
   const [choice, setChoice] = useState<Choice>(initialChoice);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [limitReached, setLimitReached] = useState(false);
@@ -111,9 +109,13 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
 
         lastSavedRef.current = next;
         setSaveState({ kind: "saved" });
-        // Re-render the server component so the persisted bib (name reset, pledge,
-        // burned) is reflected in the preview / sponsor tile.
-        router.refresh();
+        // NO router.refresh() (Kurt 2026-07-05). The rain / burn / dumpster are
+        // driven entirely by the client store (instant + reliable, proven in a
+        // prod build). router.refresh() re-ran the EVENTUALLY-CONSISTENT server
+        // getBib() and was the one thing left that could disrupt the cash rain in
+        // prod (it only fires on a successful save — i.e. only in real prod, never
+        // locally). The persisted bib (sponsor-tile disable/swap) simply reflects
+        // on the next page load; the fun visuals never depend on a server round-trip.
       } catch (err) {
         if (
           err instanceof DOMException &&
@@ -130,7 +132,7 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
         if (abortRef.current === controller) abortRef.current = null;
       }
     },
-    [router, applyStores]
+    [applyStores]
   );
 
   const onSelect = useCallback(

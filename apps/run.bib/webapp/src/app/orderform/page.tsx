@@ -5,6 +5,7 @@ import GetYourBib from "@/components/GetYourBib";
 import SponsorForm from "@/components/SponsorForm";
 import { CashRain } from "@/components/CashRain";
 import { ContributionChoice } from "@/components/ContributionChoice";
+import { PledgeTagline } from "@/components/PledgeTagline";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
 import { listPendingForOwner } from "@/entities/pending-contribution";
@@ -258,22 +259,10 @@ export default async function Home({ searchParams }: HomeProps) {
 
         <TransactionHistory totalCents={totalCents} txns={txns} />
 
-        {/* Playful pay-in-person note (pre-payment). hasSponsored gets the big
-          * THANK YOU up top instead. */}
-        {hideBuyBib && !hasSponsored && (
-          <p
-            style={{
-              margin: 0,
-              textAlign: "center",
-              color: "#7fdc9e",
-              fontSize: 24,
-              fontWeight: 800,
-              letterSpacing: "0.01em",
-            }}
-          >
-            Don&apos;t forget your wallet, then! 💵
-          </p>
-        )}
+        {/* Pay-in-person tagline — client-driven (rain-store) so it flips
+          * instantly: in person → "OK! You promised 🙏"; burn/nothing → nothing.
+          * hasSponsored gets the big THANK YOU up top instead. */}
+        {!hasSponsored && <PledgeTagline initialRaining={initialRaining} />}
 
         {/* Pay-in-person pledge — full-width, ABOVE both tiles (Kurt 2026-07-05).
           * Checking it no longer removes the Sponsor tile; instead the two tiles
