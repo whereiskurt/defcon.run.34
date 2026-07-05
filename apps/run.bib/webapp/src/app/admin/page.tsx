@@ -64,8 +64,8 @@ export default async function AdminPage() {
     <main
       style={{
         minHeight: "100vh",
-        backgroundColor: "#0a0a0a",
-        color: "#e4e4ef",
+        backgroundColor: "var(--adash-page-bg)",
+        color: "var(--bib-ink)",
         fontFamily: "system-ui, -apple-system, sans-serif",
         padding: "40px 20px 96px",
       }}
@@ -93,7 +93,7 @@ export default async function AdminPage() {
             <h1 style={{ fontSize: 28, margin: 0, fontWeight: 800 }}>
               defcon<span style={{ color: "#6CCDB8" }}>.</span>run 34 · Bib Admin
             </h1>
-            <p style={{ margin: 0, color: "#8f8fa8", fontSize: 14 }}>
+            <p style={{ margin: 0, color: "var(--bib-muted)", fontSize: 14 }}>
               Live reports over the bib data · signed in as {gate.email ?? "admin"}.
             </p>
           </div>
@@ -244,9 +244,9 @@ function ago(ts: string | null, now: number): string {
 }
 
 const dashPanelStyle: React.CSSProperties = {
-  border: "1px solid #24242e",
+  border: "1px solid var(--bib-border)",
   borderRadius: 16,
-  backgroundColor: "#12121a",
+  backgroundColor: "var(--bib-surface)",
   overflow: "hidden",
 };
 
@@ -317,7 +317,7 @@ function DashboardHeader({
           delta={dash.total24hCents}
           series={dash.series}
           field="totalCents"
-          color="#e7e7f2"
+          color="var(--bib-ink)"
           sub={
             <>
               <b>{totals.bibs}</b> registrations
@@ -509,7 +509,7 @@ function RevenuePanel({ dash, now }: { dash: DashboardView; now: number }) {
           <h2 style={{ fontSize: 16, margin: 0, fontWeight: 700 }}>
             Cumulative revenue
           </h2>
-          <div style={{ fontSize: 12.5, color: "#8f8fa8" }}>
+          <div style={{ fontSize: 12.5, color: "var(--bib-muted)" }}>
             Reconciled money over time — it only goes up.
           </div>
         </div>
@@ -592,7 +592,7 @@ function RevenueChart({ series }: { series: DashPoint[] }) {
             y1={gy.toFixed(1)}
             x2={W - padR}
             y2={gy.toFixed(1)}
-            stroke="#1b1b24"
+            stroke="var(--line-soft)"
             strokeWidth={1}
           />
         );
@@ -672,8 +672,8 @@ function ReportSection({
         gap: 12,
         padding: 20,
         borderRadius: 14,
-        backgroundColor: "#12121a",
-        border: "1px solid #24242e",
+        backgroundColor: "var(--bib-surface)",
+        border: "1px solid var(--bib-border)",
       }}
     >
       <div
@@ -701,7 +701,7 @@ function ReportSection({
           Download CSV
         </a>
       </div>
-      <p style={{ margin: 0, color: "#a4a4b8", fontSize: 13, lineHeight: 1.5 }}>
+      <p style={{ margin: 0, color: "var(--bib-muted)", fontSize: 13, lineHeight: 1.5 }}>
         {note}
       </p>
       {children}
@@ -721,7 +721,7 @@ function Table({
 }) {
   if (rows.length === 0) {
     return (
-      <p style={{ margin: "4px 0", color: "#6a6a7a", fontSize: 14 }}>{empty}</p>
+      <p style={{ margin: "4px 0", color: "var(--bib-faint)", fontSize: 14 }}>{empty}</p>
     );
   }
   return (
@@ -742,8 +742,8 @@ function Table({
                 style={{
                   textAlign: "left",
                   padding: "8px 10px",
-                  borderBottom: "1px solid #2a2a34",
-                  color: "#8f8fa8",
+                  borderBottom: "1px solid var(--bib-border)",
+                  color: "var(--bib-faint)",
                   fontWeight: 600,
                   whiteSpace: "nowrap",
                 }}
@@ -761,8 +761,8 @@ function Table({
                   key={j}
                   style={{
                     padding: "7px 10px",
-                    borderBottom: "1px solid #1c1c26",
-                    color: "#d4d4e4",
+                    borderBottom: "1px solid var(--bib-border)",
+                    color: "var(--bib-ink)",
                     whiteSpace: "nowrap",
                   }}
                 >
@@ -785,15 +785,15 @@ function Forbidden() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        backgroundColor: "#0a0a0a",
-        color: "#e4e4ef",
+        backgroundColor: "var(--adash-page-bg)",
+        color: "var(--bib-ink)",
         fontFamily: "system-ui, sans-serif",
         padding: 24,
       }}
     >
       <div style={{ textAlign: "center", maxWidth: 420 }}>
         <h1 style={{ fontSize: 24, margin: "0 0 8px" }}>Admin access required</h1>
-        <p style={{ color: "#a4a4b8", fontSize: 15, lineHeight: 1.6 }}>
+        <p style={{ color: "var(--bib-muted)", fontSize: 15, lineHeight: 1.6 }}>
           Your account is not in the <code>admin</code> group. Ask an organizer
           to grant access, then sign out and back in.
         </p>

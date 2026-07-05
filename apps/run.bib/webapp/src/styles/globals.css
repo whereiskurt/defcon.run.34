@@ -112,8 +112,10 @@ html.light .glass-nav {
   --bib-faint: #8f8fa8;
   --bib-pending-bg: #1a160c;
   --bib-pending-border: #4a3d15;
+  --adash-page-bg: #0a0a0a;
 }
 html.light {
+  --adash-page-bg: #f5f6f9;
   --bib-surface: #ffffff;
   --bib-surface-2: #f4f5f8;
   --bib-raise: #eef1f6;
@@ -289,7 +291,23 @@ html.light {
   --panel-2: #0f0f16;
   --muted: #8f8fa8;
   --faint: #5f5f72;
+  --ink: #e7e7f2;
+  --ink-strong: #f3f3fb;
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+/* Light-mode overrides for the admin dashboard (Kurt 2026-07-05) — only the
+   neutrals + gold flip; mint/green accents read on both grounds. */
+html.light .adash {
+  --gold: #b8862a;
+  --up: #1f9a58;
+  --line: #e3e5ec;
+  --line-soft: #eceef3;
+  --panel: #ffffff;
+  --panel-2: #f4f5f8;
+  --muted: #55555f;
+  --faint: #8a8a97;
+  --ink: #17171f;
+  --ink-strong: #0d0d14;
 }
 
 /* live pip + "updated" chip */
@@ -344,7 +362,7 @@ html.light {
 }
 .adash-hero.bib { --tint: var(--mint); }
 .adash-hero.don { --tint: var(--gold); }
-.adash-hero.tot { --tint: #e7e7f2; }
+.adash-hero.tot { --tint: var(--ink); }
 .adash-eyebrow {
   display: flex;
   align-items: center;
@@ -364,7 +382,7 @@ html.light {
   letter-spacing: -0.02em;
   margin: 10px 0 2px;
   line-height: 1;
-  color: #f3f3fb;
+  color: var(--ink-strong);
 }
 .adash-hero.tot .adash-val { font-size: 34px; }
 .adash-val .cent { color: var(--faint); font-size: 0.6em; }
@@ -391,7 +409,7 @@ html.light {
 .adash-trend.flat { color: var(--muted); background: #8f8fa81f; }
 .adash-trend svg { width: 11px; height: 11px; }
 .adash-lastev { font-size: 12px; color: var(--muted); }
-.adash-lastev b { color: #e7e7f2; font-weight: 600; }
+.adash-lastev b { color: var(--ink); font-weight: 600; }
 
 /* chip strip */
 .adash-chips { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -416,7 +434,7 @@ html.light {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   font-size: 15px;
-  color: #e7e7f2;
+  color: var(--ink);
 }
 .adash-chip.attn { border-color: #e8b93a73; }
 .adash-chip.attn .v { color: var(--gold); }
@@ -470,7 +488,7 @@ html.light {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
-.adash-ev { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: #e7e7f2; }
+.adash-ev { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); }
 .adash-ev .amt { font-family: var(--mono); font-weight: 700; }
 .adash-ev .amt.bibc { color: var(--mint); }
 .adash-ev .amt.donc { color: var(--gold); }
