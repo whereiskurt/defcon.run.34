@@ -456,12 +456,14 @@ locals {
 
   # S3 storage buckets for CMS
   cms_storage = [
-    # Litestream replication bucket (single region - master writes here)
-    # SSM parameters replicated to other regions so workers can access master bucket
+    # Litestream replication bucket (master writes in us-east-1; ca-central-1
+    # holds a cross-region replica of the DB stream + cms-backups/ snapshots
+    # for disaster recovery). Replication is inert while cac1 is in
+    # skip_regions and activates automatically when the region is unskipped.
     {
       name         = "cms-litestream"
       service_name = "cms"
-      regions      = ["us-east-1"]
+      regions      = ["us-east-1", "ca-central-1"]
 
       lifecycle = {
         uploads_expire_days   = 0
@@ -470,19 +472,27 @@ locals {
       }
 
       replication = {
-        enabled = false
+        enabled = true
         replica_regions = [
-          
+          {
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          }
         ]
       }
 
       # Litestream needs full bucket access (not prefix-restricted like user uploads)
       full_bucket_access = true
 
-      # Replicate SSM parameters to these regions so workers can access master bucket credentials
-      # This creates /<site_label>/uploads/cac1/cms-litestream/* params pointing to the use1 bucket
+      # Not needed: deploying the bucket in cac1 creates local
+      # /<site_label>/uploads/cac1/cms-litestream/* params pointing at the
+      # cac1 replica, which cac1 workers restore from.
       ssm_replicate_to = [
-        
+
       ]
     },
     # Media storage bucket (both regions with replication)
@@ -502,10 +512,25 @@ locals {
         enable_versioning     = true
       }
 
+      # Master writes media in us-east-1 only; replicate to the other regions
+      # so their buckets (already serving via CloudFront paths) hold the same
+      # objects and survive loss of the primary region. Targets in
+      # skip_regions are filtered out until those regions are unskipped.
       replication = {
         enabled = true
         replica_regions = [
-          
+          {
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
+          }
         ]
       }
 
