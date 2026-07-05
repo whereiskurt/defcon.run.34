@@ -237,7 +237,7 @@ export function buildReports(input: ReportInput): ReportBundle {
       // (unreconciled), so it doesn't count as collected money in the totals.
       amountCents: PRINT_GATE_CENTS,
       status: "pledged",
-      detail: "Registered + pledged to pay in person; nothing reconciled yet.",
+      detail: "Pledge to pay in person.",
       // Carried so the admin "PAID" action can book the $20 against this bib
       // (Kurt 2026-07-05) — clicking it reconciles the pledge into real revenue.
       ownerSub: b.ownerSub,
