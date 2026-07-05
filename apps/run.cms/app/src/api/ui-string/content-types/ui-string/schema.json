@@ -1,0 +1,35 @@
+{
+  "kind": "collectionType",
+  "collectionName": "ui_strings",
+  "info": {
+    "singularName": "ui-string",
+    "pluralName": "ui-strings",
+    "displayName": "UI String",
+    "description": "CMS-driven UI copy strings (key/locale/value)"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "attributes": {
+    "key": {
+      "type": "string",
+      "required": true
+    },
+    "locale": {
+      "type": "string",
+      "required": true,
+      "default": "default"
+    },
+    "value": {
+      "type": "text"
+    },
+    "namespace": {
+      "type": "enumeration",
+      "enum": ["common", "human", "auth", "gpx", "bib", "flash"],
+      "required": true
+    },
+    "notes": {
+      "type": "text"
+    }
+  }
+}
