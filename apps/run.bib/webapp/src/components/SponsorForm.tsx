@@ -360,7 +360,7 @@ export function SponsorForm({
         style={{
           fontSize: 13,
           fontWeight: 600,
-          color: "#8f8fa8",
+          color: "var(--bib-faint)",
           letterSpacing: "0.08em",
           textTransform: "uppercase",
         }}
@@ -394,14 +394,14 @@ export function SponsorForm({
             alignItems: "center",
             gap: 4,
             padding: "8px 12px",
-            backgroundColor: "#1a1a24",
+            backgroundColor: "var(--bib-raise)",
             border: "1px solid #2a2a34",
             borderRadius: 8,
             flex: "0 0 auto",
             width: 118,
           }}
         >
-          <span style={{ color: "#8f8fa8", fontWeight: 700 }}>$</span>
+          <span style={{ color: "var(--bib-faint)", fontWeight: 700 }}>$</span>
           <input
             id={`sponsor-amount-custom-${variant}`}
             type="text"
@@ -428,7 +428,7 @@ export function SponsorForm({
           />
         </div>
       </div>
-      <span style={{ fontSize: 12, color: "#8f8fa8" }}>
+      <span style={{ fontSize: 12, color: "var(--bib-faint)" }}>
         Slide or type any amount from ${minCents / 100} up to $
         {AMOUNT_MAX_CENTS / 100}.
       </span>
@@ -439,7 +439,7 @@ export function SponsorForm({
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "#8f8fa8",
+              color: "var(--bib-faint)",
               letterSpacing: "0.08em",
               textTransform: "uppercase",
             }}
@@ -474,7 +474,7 @@ export function SponsorForm({
             />
           </div>
           {(provider === "venmo" || provider === "cashapp") && (
-            <p style={{ fontSize: 12, color: "#a4a4b8", margin: "8px 0 0" }}>
+            <p style={{ fontSize: 12, color: "var(--bib-muted)", margin: "8px 0 0" }}>
               Venmo &amp; Cash App are confirmed by an organizer — your
               contribution appears once approved.
             </p>
@@ -492,7 +492,7 @@ export function SponsorForm({
           fontSize: 16,
           fontWeight: 700,
           color: "#0a0a0a",
-          backgroundColor: disabled ? "#8f8fa8" : "#6CCDB8",
+          backgroundColor: disabled ? "var(--bib-faint)" : "#6CCDB8",
           border: "none",
           borderRadius: 6,
           cursor:
@@ -559,9 +559,9 @@ function ProviderPill({
         gap: 6,
         padding: "8px 10px",
         borderRadius: 8,
-        backgroundColor: isSelected ? "#1a1a24" : "transparent",
-        border: `1px solid ${isSelected ? "#6CCDB8" : "#2a2a34"}`,
-        color: disabled ? "#8f8fa8" : "#e4e4ef",
+        backgroundColor: isSelected ? "var(--bib-raise)" : "transparent",
+        border: `1px solid ${isSelected ? "#6CCDB8" : "var(--bib-border-2)"}`,
+        color: disabled ? "var(--bib-faint)" : "var(--bib-ink)",
         cursor: disabled ? "not-allowed" : "pointer",
         fontSize: 14,
         fontWeight: 600,

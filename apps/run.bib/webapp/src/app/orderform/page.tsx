@@ -214,7 +214,7 @@ export default async function Home({ searchParams }: HomeProps) {
         >
           Bibs &amp; Donation
         </h1>
-        <p style={{ margin: 0, color: "#a4a4b8", fontSize: 15 }}>
+        <p style={{ margin: 0, color: "var(--bib-muted)", fontSize: 15 }}>
           defcon.run remains a FREE daily event — if you&apos;d like to
           financially support, we would appreciate it.
         </p>
@@ -372,8 +372,8 @@ function Tile({
         gap: 10,
         padding: 16,
         borderRadius: 14,
-        backgroundColor: "#12121a",
-        border: "1px solid #24242e",
+        backgroundColor: "var(--bib-surface)",
+        border: "1px solid var(--bib-border)",
         minWidth: 0,
       }}
     >
@@ -405,6 +405,7 @@ function Tile({
             margin: 0,
             letterSpacing: "0.01em",
             textAlign: "center",
+            color: "var(--bib-ink)",
           }}
         >
           {title}
@@ -412,7 +413,7 @@ function Tile({
         <p
           style={{
             margin: 0,
-            color: "#a4a4b8",
+            color: "var(--bib-muted)",
             fontSize: 14,
             lineHeight: 1.5,
             textAlign: "center",

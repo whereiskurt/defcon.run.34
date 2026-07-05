@@ -164,8 +164,8 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
         gap: 8,
         padding: 12,
         borderRadius: 8,
-        backgroundColor: "#12121a",
-        border: "1px solid #24242e",
+        backgroundColor: "var(--bib-surface)",
+        border: "1px solid var(--bib-border)",
       }}
     >
       {/* Hint sits ABOVE the checkboxes (Kurt 2026-07-05) so the explanation for
@@ -175,7 +175,7 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
         style={{
           fontSize: 13,
           minHeight: 18,
-          color: limitReached ? "#f4c680" : "#a4a4b8",
+          color: limitReached ? "#d9902a" : "var(--bib-muted)",
           paddingLeft: 2,
         }}
       >
@@ -251,9 +251,9 @@ function CheckRow({
         padding: "10px 12px",
         borderRadius: 6,
         cursor: disabled ? "wait" : "pointer",
-        backgroundColor: checked ? "#1a1a24" : "transparent",
-        border: `1px solid ${checked ? accent : "#2a2a34"}`,
-        color: "#e4e4ef",
+        backgroundColor: checked ? "var(--bib-raise)" : "transparent",
+        border: `1px solid ${checked ? accent : "var(--bib-border-2)"}`,
+        color: "var(--bib-ink)",
         fontSize: 15,
         fontWeight: 600,
       }}
