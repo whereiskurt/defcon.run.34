@@ -8,6 +8,7 @@
     import Toolbar from '$lib/components/toolbar/Toolbar.svelte';
     import StreetViewControl from '$lib/components/map/street-view-control/StreetViewControl.svelte';
     import LayerControl from '$lib/components/map/layer-control/LayerControl.svelte';
+    import ProfileMenu from '$lib/components/ProfileMenu.svelte';
     import CoordinatesPopup from '$lib/components/map/CoordinatesPopup.svelte';
     import Resizer from '$lib/components/Resizer.svelte';
     import { Toaster } from '$lib/components/ui/sonner';
@@ -127,6 +128,7 @@
             <Map class="h-full {$treeFileView ? '' : 'horizontal'}" />
             <StreetViewControl />
             <LayerControl />
+            <ProfileMenu />
             <GPXLayers />
             <CoordinatesPopup />
             <Toaster richColors />
