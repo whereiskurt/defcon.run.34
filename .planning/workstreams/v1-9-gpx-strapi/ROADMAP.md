@@ -78,6 +78,11 @@ add a client-side bounds fallback so fit-on-toggle works without precomputed bou
 
 **Success Criteria:** See "Phase 2" under Success Criteria below.
 
+**Plans:** 3 plans
+- [ ] 02-01-PLAN.md — CMS authoring surface: add Route.mapFolder (default "DEF CON 34 Maps") + verify/whitelist .gpx upload (GPXCMS-02, Risk 2)
+- [ ] 02-02-PLAN.md — Standalone route data contract: widen strapi.ts (filter/populate/return) + manifest emission, mapFolder grouping, DynamoDB-wins collisions (GPXCMS-03, GPXCMS-04)
+- [ ] 02-03-PLAN.md — Studio rendering + delivery: client-side bounds fallback + CMS-media CORS for the studio origin (GPXCMS-05, Risk 1)
+
 **UI hint:** yes (public map rendering — new route layer source path)
 
 ### Phase 3: Strapi POIs on the map
