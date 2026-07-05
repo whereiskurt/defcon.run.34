@@ -38,6 +38,65 @@ admin session from ~10 min to ~2 h.
 / manifest / `public-overlays.ts` changes, so run 2 before 3 (or coordinate those shared files
 if parallelized as waves).
 
+### Phase 1: CMS session bump
+
+**Goal:** Raise the Strapi admin session lifespan from 600s to 7200s (2h) so CMS editors
+(Jesse & co.) stay logged in for a realistic authoring session instead of being bounced to
+OIDC every ~10 minutes. Change the `config/admin.ts` defaults for `maxRefreshTokenLifespan`
+and `idleRefreshTokenLifespan` (both `env.int`-overridable) from `600` to `7200`; keep the
+5-minute access token (`ADMIN_ACCESS_TOKEN_LIFESPAN` = 300) unchanged. Confirm no Terragrunt/
+ECS task-definition env pins the old `600` values (if pinned, the code default has no effect).
+Tradeoff accepted per design decision D9: CMS access-revocation latency grows to ~2h.
+
+**Depends on:** None (branches off `gsd/gpx-strapi-routes-pois`; fully independent, shippable alone)
+
+**Requirements:** GPXCMS-01
+
+**Success Criteria:** See "Phase 1" under Success Criteria below — editor stays logged in ~2h;
+`config/admin.ts` defaults are 7200s for max + idle refresh; deployed env confirmed not to override.
+
+**Plans:** 1 plan
+- [ ] 01-01-PLAN.md — Bump admin refresh lifespan defaults to 7200s (2h) + verify no infra env override
+
+**UI hint:** no (config-only backend change, no frontend surface)
+
+### Phase 2: Standalone Strapi routes
+
+**Goal:** Let a published Strapi `Route` with an attached GPX (and no matching GLOBAL DynamoDB
+route) render as a first-class route on the public map, sourced from the CMS media GPX. Add a
+free-text `Route.mapFolder` field (default "DEF CON 34 Maps"); widen `strapi.ts` to filter
+`gpxFileId notNull OR gpxFiles notNull` and populate `gpxFiles`/`mapFolder`; emit standalone
+routes into the manifest (`fileId: "cms-{documentId}"`, CMS media `downloadUrl`) folded into the
+`mapFolder` group (synthesized if absent); DynamoDB wins `gpxFileId` collisions (no double-render);
+add a client-side bounds fallback so fit-on-toggle works without precomputed bounds. Verify CMS
+`.gpx` CORS + Strapi `.gpx` upload whitelist.
+
+**Depends on:** None for build (Phase 1 is independent); Phase 3 depends on this phase's
+`strapi.ts` / manifest / `public-overlays.ts` changes.
+
+**Requirements:** GPXCMS-02, GPXCMS-03, GPXCMS-04, GPXCMS-05
+
+**Success Criteria:** See "Phase 2" under Success Criteria below.
+
+**UI hint:** yes (public map rendering — new route layer source path)
+
+### Phase 3: Strapi POIs on the map
+
+**Goal:** Render a route's related `point-of-interest` records as icons with popups on the public
+map, toggling together with their route. Populate `pointsOfInterest` in `strapi.ts`; nest `pois`
+per route in the manifest; render POI icons in studio (`markerImage` when present, else a
+`poiType`-based default icon/color) with a click popup (`name` + `description` + `photo`, colored
+left tab in the route color) in the existing per-route POI layer so POIs show/hide with the route.
+Verify marker-image cross-origin loading.
+
+**Depends on:** Phase 2 (shared `strapi.ts` / manifest / `public-overlays.ts` changes)
+
+**Requirements:** GPXCMS-06, GPXCMS-07, GPXCMS-08, GPXCMS-09
+
+**Success Criteria:** See "Phase 3" under Success Criteria below.
+
+**UI hint:** yes (POI icons + popups on the public map)
+
 ## Requirements
 
 ### CMS Session (Phase 1)
