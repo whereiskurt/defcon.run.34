@@ -812,24 +812,66 @@ export class PublicOverlaysLayer {
     /** Drop a route's GPX waypoints (POIs) as small branded icons with a details popup.
      * Hidden by default; shows/hides together with the route via setLayerPairVisible. */
     private addRoutePois(m: PublicMap, waypoints: GpxWaypoint[]) {
-        if (!waypoints.length) return;
+        // Render when EITHER GPX waypoints OR CMS-authored POIs exist — both feed the same
+        // per-route POI layer so they toggle with the route (D5 / GPXCMS-09).
+        if (!waypoints.length && !(m.pois?.length)) return;
         const poi = poiLayerId(m.fileId);
         try {
-            const features: GeoJSON.Feature[] = waypoints.map((w) => {
+            const features: GeoJSON.Feature[] = [];
+
+            // GPX waypoints — the existing route-color pin, tagged poiKind:'waypoint'.
+            for (const w of waypoints) {
                 const symbol = getSymbolKey(w.sym);
                 const iconId = `dc34-poi-${symbol ?? 'default'}-${m.color}`;
                 // Color the pin body with the route color (not the stock Mapbox blue);
                 // drop the corner badge (undefined layerColor) for a clean route-colored pin.
                 this.loadSvgImage(iconId, getSvgForSymbol(symbol, undefined, m.color));
-                return {
+                features.push({
                     type: 'Feature',
                     geometry: {
                         type: 'Point',
                         coordinates: [w.getLongitude(), w.getLatitude()],
                     },
-                    properties: { name: w.name ?? '', desc: w.desc ?? '', icon: iconId },
-                };
-            });
+                    properties: {
+                        poiKind: 'waypoint',
+                        name: w.name ?? '',
+                        desc: w.desc ?? '',
+                        icon: iconId,
+                    },
+                });
+            }
+
+            // CMS-authored POIs — markerImage when present (cross-origin, with a poiType SVG
+            // fallback under the SAME id so Risk 3 never leaves the icon blank), else the
+            // poiType default. Tagged poiKind:'strapi' so the click handler shows the photo popup.
+            for (const p of m.pois ?? []) {
+                let iconId: string;
+                if (p.markerImageUrl) {
+                    const markerId = markerImageId(p.markerImageUrl);
+                    const def = poiDefaultIcon(p.poiType, m.color);
+                    iconId = markerId;
+                    // Load the marker image under markerId; on failure/taint register the
+                    // poiType default under the SAME id, so the feature's icon always resolves.
+                    this.loadUrlImage(markerId, p.markerImageUrl, () =>
+                        this.loadSvgImage(markerId, def.svg)
+                    );
+                } else {
+                    const def = poiDefaultIcon(p.poiType, m.color);
+                    iconId = def.iconId;
+                    this.loadSvgImage(def.iconId, def.svg);
+                }
+                features.push({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
+                    properties: {
+                        poiKind: 'strapi',
+                        name: p.name ?? '',
+                        desc: p.description ?? '',
+                        photoUrl: p.photoUrl ?? '',
+                        icon: iconId,
+                    },
+                });
+            }
 
             if (!this.map.getSource(poi)) {
                 this.map.addSource(poi, {
@@ -855,13 +897,29 @@ export class PublicOverlaysLayer {
                 const onClick = (e: mapboxgl.MapMouseEvent) => {
                     const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
                     if (!f) return;
-                    const p = f.properties as { name?: string; desc?: string };
+                    const p = f.properties as {
+                        poiKind?: string;
+                        name?: string;
+                        desc?: string;
+                        photoUrl?: string;
+                    };
                     this.hoverPopup.remove();
+                    // Route the popup by feature kind: Strapi POIs get the photo-extended
+                    // popup, GPX waypoints keep the existing name/description popup.
+                    const html =
+                        p.poiKind === 'strapi'
+                            ? poiPopupHtml(
+                                  p.name || 'Point of interest',
+                                  p.desc || '',
+                                  m.color,
+                                  p.photoUrl || undefined
+                              )
+                            : poiPopupHtml(p.name || 'Waypoint', p.desc || '', m.color);
                     this.popup
                         .setLngLat(
                             (f.geometry as GeoJSON.Point).coordinates as [number, number]
                         )
-                        .setHTML(poiPopupHtml(p.name || 'Waypoint', p.desc || '', m.color))
+                        .setHTML(html)
                         .addTo(this.map);
                 };
                 const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
