@@ -37,7 +37,10 @@ const bodySchema = z.object({
   ownerSub: z.string().min(1),
   kind: z.enum(["bib", "donation"]),
   provider: z.enum(["venmo", "cashapp"]),
-  amountCents: z.number().int().positive(),
+  // IN-03: cap at $10k (1_000_000 cents) so a fat-fingered extra digit is
+  // rejected 400 rather than booked straight into the money ledger. Admin-gated,
+  // so this is a guardrail against typos, not a security boundary.
+  amountCents: z.number().int().positive().max(10_000_00),
 });
 
 export async function POST(req: Request) {
