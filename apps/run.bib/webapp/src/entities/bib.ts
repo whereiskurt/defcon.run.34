@@ -244,6 +244,15 @@ export interface ApplyPaymentInput {
    * `new Date().toISOString()` — passed in for deterministic testing.
    */
   timestamp?: string;
+  /**
+   * When true, skip the internal best-effort clear of the runner's pending
+   * (owner, "bib", provider) bucket. The admin manual-reconcile route sets
+   * this because it knows the EXACT pending intent id and clears only that
+   * one row (WR-01) — bucket-wide clearing would wipe a second same-provider
+   * intent for a different amount that hasn't been reconciled yet. The Haiku
+   * SES reconcile path leaves this unset and keeps the bucket clear.
+   */
+  skipPendingClear?: boolean;
 }
 
 /**
@@ -305,7 +314,10 @@ export async function applyPayment(
   // the "in progress" hint so the ledger row doesn't double-count in the UI.
   // Stripe never has a pending row, so skip it. Best-effort: a cleanup miss is
   // cosmetic and must never fail the payment application.
-  if (input.provider === "venmo" || input.provider === "cashapp") {
+  if (
+    !input.skipPendingClear &&
+    (input.provider === "venmo" || input.provider === "cashapp")
+  ) {
     await clearPendingForOwner(ownerSub, "bib", input.provider).catch((e) =>
       console.warn(`[run.bib] applyPayment: clearPending failed: ${e}`)
     );

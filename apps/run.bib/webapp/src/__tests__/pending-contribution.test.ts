@@ -41,6 +41,7 @@ import {
   pendingContributionId,
   recordPending,
   clearPendingForOwner,
+  clearPendingById,
 } from "@/entities/pending-contribution";
 
 describe("pendingContributionId()", () => {
@@ -122,5 +123,23 @@ describe("clearPendingForOwner()", () => {
     mockScan.mockResolvedValue({ data: [] });
     await clearPendingForOwner("u1", "bib", "venmo");
     expect(mockDelete).not.toHaveBeenCalled();
+  });
+});
+
+describe("clearPendingById()", () => {
+  beforeEach(() => {
+    mockDelete.mockReset();
+    mockDelete.mockResolvedValue({ data: {} });
+    mockScan.mockReset();
+  });
+
+  it("deletes exactly the one pendingId (never scans the bucket)", async () => {
+    // WR-01: the admin reconcile path targets a single intent so a second
+    // same-provider intent for a different amount survives on the dashboard.
+    await clearPendingById("pending:u1:bib:venmo:2000");
+    expect(mockScan).not.toHaveBeenCalled();
+    expect(mockDelete.mock.calls.map((c) => c[0].pendingId)).toEqual([
+      "pending:u1:bib:venmo:2000",
+    ]);
   });
 });

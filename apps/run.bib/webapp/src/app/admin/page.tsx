@@ -7,6 +7,7 @@ import {
   formatUsd,
   type ReportBundle,
 } from "@/lib/admin-reports";
+import { ReconcileAction, RejectAction } from "@/components/AdminActions";
 
 /**
  * /admin — v1.6 gated admin reporting dashboard (Kurt 2026-07-03).
@@ -125,7 +126,7 @@ export default async function AdminPage() {
           csvHref={`${base}/api/admin/bib/report/outstanding`}
         >
           <Table
-            columns={["Name", "Runner code", "Source", "Status", "Provider", "Amount", "Detail"]}
+            columns={["Name", "Runner code", "Source", "Status", "Provider", "Amount", "Detail", "Action"]}
             rows={bundle.outstanding.map((r) => [
               r.nameOnBib,
               r.runnerCode,
@@ -134,6 +135,18 @@ export default async function AdminPage() {
               r.provider,
               r.amountCents ? formatUsd(r.amountCents) : "—",
               r.detail,
+              r.source === "pending-intent" && r.pendingId && r.ownerSub && r.kind ? (
+                <ReconcileAction
+                  apiBase={base}
+                  pendingId={r.pendingId}
+                  ownerSub={r.ownerSub}
+                  kind={r.kind}
+                  provider={r.provider as "venmo" | "cashapp"}
+                  amountCents={r.amountCents}
+                />
+              ) : (
+                ""
+              ),
             ])}
             empty="Nothing outstanding."
           />
@@ -145,13 +158,18 @@ export default async function AdminPage() {
           csvHref={`${base}/api/admin/bib/report/registrations`}
         >
           <Table
-            columns={["Name", "Runner code", "Paid", "In person", "Created"]}
+            columns={["Name", "Runner code", "Paid", "In person", "Created", "Action"]}
             rows={bundle.registrations.map((r) => [
               r.nameOnBib || "—",
               r.runnerCode,
               formatUsd(r.paidAmountCents),
               r.willPayInPerson ? "✓" : "",
               (r.createdAt || "").slice(0, 19),
+              r.ownerSub ? (
+                <RejectAction apiBase={base} ownerSub={r.ownerSub} />
+              ) : (
+                ""
+              ),
             ])}
             empty="No registrations yet."
           />
@@ -270,7 +288,8 @@ function Table({
   empty,
 }: {
   columns: string[];
-  rows: string[][];
+  // Cells may be plain strings or JSX (the inline admin actions).
+  rows: React.ReactNode[][];
   empty: string;
 }) {
   if (rows.length === 0) {

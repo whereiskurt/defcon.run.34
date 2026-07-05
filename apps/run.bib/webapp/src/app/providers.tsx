@@ -8,6 +8,7 @@ import type { ThemeProviderProps } from "next-themes";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { SessionProvider } from "next-auth/react";
 import SilentSSO from "@/components/SilentSSO";
+import AltchaOverlay from "@/components/AltchaOverlay";
 
 export interface ProvidersProps {
   children: React.ReactNode;
@@ -33,6 +34,10 @@ export function Providers({ children, themeProps, authBasePath }: ProvidersProps
         navigate={router.push}
         useHref={(href) => (href.startsWith("/") ? `${basePath}${href}` : href)}
       >
+        {/* Once-mounted ALTCHA proof-of-work blur overlay (Plan 34-04). Sits
+          * inside HeroUIProvider so its Spinner picks up the HeroUI theme; it
+          * self-gates on the in-flight counter (hidden when no PoW is solving). */}
+        <AltchaOverlay />
         <SessionProvider basePath={authBasePath}>
           {/* App-wide hidden-iframe silent-SSO probe (self-gates on unauthenticated). */}
           <SilentSSO />

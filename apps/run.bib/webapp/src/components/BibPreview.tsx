@@ -45,8 +45,24 @@ export interface BibPreviewProps {
    */
   hasSponsored?: boolean;
   /** Runner code (e.g. BIB-XXXX) — rendered as a QR on each tear-off stub so
-   * the code is scannable when a stub is torn off (Kurt 2026-07-03). */
+   * the code is scannable when a stub is torn off (Kurt 2026-07-03). Also the
+   * fallback QR value when no social-QR URL is available. */
   runnerCode?: string;
+  /**
+   * Runner's real per-user social-QR URL (`/r?h=<hash>`) resolved server-side
+   * (Plan 34-04, Slice C — C-T4). When present it is encoded (enlarged) on both
+   * tear-off stubs so a scanned stub opens the runner's public profile QR — the
+   * same `/r?h=` target run.human prints. When ABSENT the stub falls back to the
+   * runnerCode QR: a missing hash never blanks a stub (SC34.8).
+   */
+  socialQrUrl?: string;
+  /**
+   * Unsaved-name state (Plan 34-03, SC34.5). When `true`, renders a red-orange
+   * "UNSAVED" rubber stamp in the SAME slot as the green PAID stamp. UNSAVED
+   * OUTRANKS PAID: while dirty, the PAID stamp is suppressed so the runner
+   * can't mistake an unsaved name for a committed, paid bib.
+   */
+  dirty?: boolean;
 }
 
 /** Design-contract placeholder rendered when the user has not typed a name.
@@ -95,9 +111,16 @@ export function BibPreview({
   name,
   hasSponsored = false,
   runnerCode,
+  socialQrUrl,
+  dirty = false,
 }: BibPreviewProps) {
   const trimmedName = name.trim();
   const hasName = trimmedName.length > 0;
+
+  // Tear-off stub QR value: encode the runner's real social-QR URL when we have
+  // it, else fall back to the runner code. A missing hash must NEVER blank a stub
+  // (SC34.8) — the fallback keeps every stub scannable.
+  const stubQrValue = socialQrUrl || runnerCode;
 
   // Kurt 2026-07-02 feedback: name REPLACES 1337 in the primary display; no
   // separate name row underneath. The runnerCode is NEVER shown on the bib
@@ -291,19 +314,27 @@ export function BibPreview({
         {stubText}
       </text>
 
-      {/* Runner-code QR on each tear-off stub (Kurt 2026-07-03) — scannable
-        * when a stub is torn off for payment reconciliation. */}
-      {runnerCode && <QrBadge value={runnerCode} x={200} y={596} size={76} />}
-      {runnerCode && <QrBadge value={runnerCode} x={660} y={596} size={76} />}
+      {/* Tear-off stub QR on each stub — encodes the runner's social-QR URL
+        * (`/r?h=<hash>`) when available, else falls back to the runner code so a
+        * stub is always scannable (SC34.8). Enlarged 76 → 112 SVG user-units and
+        * repositioned to sit fully inside each stub between the corner smiley
+        * (left ends x=116 / right ends x=576) and the number box (left starts
+        * x=360 / right starts x=820), clear of the card's bottom border (y=696).
+        * (Plan 34-04, Slice C — C-T4.) */}
+      {stubQrValue && <QrBadge value={stubQrValue} x={182} y={582} size={112} />}
+      {stubQrValue && <QrBadge value={stubQrValue} x={642} y={582} size={112} />}
 
-      {/* Sponsor "PAID! THANK YOU!" rubber stamp — on top of the number box's
-          top-right (Kurt 2026-07-03, replaces the green star charm). */}
-      {hasSponsored && (
+      {/* Rubber stamp on the number box's top-right. Priority (Plan 34-03,
+          SC34.5): a DIRTY (unsaved) name shows the red-orange UNSAVED stamp and
+          SUPPRESSES the PAID stamp — an unsaved name must never read as a
+          committed, paid bib. Only when the name is clean does the green
+          "PAID! THANK YOU!" charm (Kurt 2026-07-03) show for sponsors. */}
+      {dirty ? (
         <g
-          id="sponsor-charm"
+          id="unsaved-charm"
           role="img"
-          aria-label="Paid — thank you"
-          data-testid="sponsor-charm"
+          aria-label="Unsaved name"
+          data-testid="unsaved-charm"
           transform="rotate(-11 806 208)"
         >
           <rect
@@ -312,35 +343,68 @@ export function BibPreview({
             width="188"
             height="64"
             rx="10"
-            fill="#3a8f79"
-            stroke="#eafff8"
+            fill="#C2410C"
+            stroke="#ffe9df"
             strokeWidth="3"
           />
           <text
             x="806"
-            y="203"
+            y="212"
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize="30"
             fontWeight="900"
             fill="#fff"
-            letterSpacing="1"
-          >
-            PAID!
-          </text>
-          <text
-            x="806"
-            y="226"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize="13"
-            fontWeight="700"
-            fill="#eafff8"
             letterSpacing="2"
           >
-            THANK YOU!
+            UNSAVED
           </text>
         </g>
+      ) : (
+        hasSponsored && (
+          <g
+            id="sponsor-charm"
+            role="img"
+            aria-label="Paid — thank you"
+            data-testid="sponsor-charm"
+            transform="rotate(-11 806 208)"
+          >
+            <rect
+              x="712"
+              y="176"
+              width="188"
+              height="64"
+              rx="10"
+              fill="#3a8f79"
+              stroke="#eafff8"
+              strokeWidth="3"
+            />
+            <text
+              x="806"
+              y="203"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="30"
+              fontWeight="900"
+              fill="#fff"
+              letterSpacing="1"
+            >
+              PAID!
+            </text>
+            <text
+              x="806"
+              y="226"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="13"
+              fontWeight="700"
+              fill="#eafff8"
+              letterSpacing="2"
+            >
+              THANK YOU!
+            </text>
+          </g>
+        )
       )}
     </svg>
   );

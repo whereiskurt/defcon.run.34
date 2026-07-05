@@ -114,9 +114,99 @@ export function checkoutEndpointFor(variant: SponsorVariant): string {
   return variant === "bib" ? "/api/checkout/bib" : "/api/checkout/general";
 }
 
+/**
+ * Clamp an amount (cents) into a variant's valid range: the per-variant
+ * minimum ($20 bib / $10 general) floor and the global $2000 ceiling, snapped
+ * to whole cents. Extracted (and shared with the component's `clampRange`) so
+ * the checkout flow can be exercised in node without booting the DOM.
+ */
+export function clampForVariant(raw: number, variant: SponsorVariant): number {
+  const minCents = variant === "bib" ? BIB_MIN_CENTS : GENERAL_MIN_CENTS;
+  return Math.min(AMOUNT_MAX_CENTS, Math.max(minCents, clampAmountCents(raw)));
+}
+
 interface SubmitState {
   kind: "idle" | "submitting" | "error";
   detail?: string;
+}
+
+/**
+ * Side-effect surface the checkout flow drives, injected so vitest can pin the
+ * ordering (flush → checkout) without a DOM. In the component these map to the
+ * pending-bib-save flusher, `fetch`, `router.push`, and `window.location`.
+ */
+export interface SponsorCheckoutDeps {
+  /** Commit any unsaved bib name — MUST be awaited before checkout. */
+  flush: () => Promise<void>;
+  fetchImpl: (input: string, init: RequestInit) => Promise<Response>;
+  /** Client-side provider handoff (Venmo / Cash App) — router.push. */
+  navigate: (url: string) => void;
+  /** Full-page redirect to the Stripe Checkout Session URL. */
+  redirect: (url: string) => void;
+  onSubmitting: () => void;
+  onIdle: () => void;
+  onError: (detail: string) => void;
+}
+
+/**
+ * Implicit save-on-checkout (Plan 34-03, SC34.6). Guarantees the pending bib
+ * name is flushed (awaited) BEFORE any checkout side-effect runs, for BOTH the
+ * `bib` and `general` variants — so the bib prints the name the runner typed
+ * even if they never clicked Save. Endpoints + provider routing are unchanged
+ * (checkoutEndpointFor / providerRouteFor remain the single source of truth).
+ */
+export async function performSponsorCheckout(
+  args: {
+    variant: SponsorVariant;
+    provider: SponsorProvider;
+    amountCents: number;
+    offerNonStripe: boolean;
+  },
+  deps: SponsorCheckoutDeps
+): Promise<void> {
+  // Commit any unsaved bib name FIRST — awaited so the PATCH lands before we
+  // leave the page. Variant-agnostic: fires for bib AND general checkout.
+  await deps.flush();
+
+  const clamped = clampForVariant(args.amountCents, args.variant);
+
+  // Non-Stripe: route to the provider instructions page (Plan 22-02).
+  if (args.provider === "venmo" || args.provider === "cashapp") {
+    if (!args.offerNonStripe) {
+      // Defensive — the radio is hidden for variant='general' but guard here
+      // in case a caller wires the state externally.
+      deps.onError("unavailable for general donations");
+      return;
+    }
+    deps.onIdle();
+    deps.navigate(providerRouteFor(args.provider, clamped));
+    return;
+  }
+
+  // Stripe: POST /api/checkout/${variant}, then redirect.
+  deps.onSubmitting();
+  try {
+    const res = await deps.fetchImpl(checkoutEndpointFor(args.variant), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount_cents: clamped, provider: "stripe" }),
+    });
+
+    if (!res.ok) {
+      deps.onError(`HTTP ${res.status}`);
+      return;
+    }
+
+    const body = (await res.json()) as { session_url?: string };
+    if (!body.session_url) {
+      deps.onError("missing session_url");
+      return;
+    }
+
+    deps.redirect(body.session_url);
+  } catch (err) {
+    deps.onError(err instanceof Error ? err.message : "network");
+  }
 }
 
 export interface SponsorFormProps {
@@ -150,11 +240,11 @@ export function SponsorForm({
   const router = useRouter();
 
   const minCents = variant === "bib" ? BIB_MIN_CENTS : GENERAL_MIN_CENTS;
-  // Clamp into [variant minimum, $1000], snapping to whole cents.
+  // Clamp into [variant minimum, $2000], snapping to whole cents. Delegates to
+  // the shared clampForVariant so the slider/input and the checkout flow agree.
   const clampRange = useCallback(
-    (raw: number) =>
-      Math.min(AMOUNT_MAX_CENTS, Math.max(minCents, clampAmountCents(raw))),
-    [minCents]
+    (raw: number) => clampForVariant(raw, variant),
+    [variant]
   );
 
   const [amountCents, setAmountCents] = useState<number>(() =>
@@ -218,57 +308,24 @@ export function SponsorForm({
   const onSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      // Commit any unsaved bib name before we leave the page for checkout,
-      // so the bib prints what the runner typed (Kurt 2026-07-04).
-      await flushPendingBibName();
-      const clamped = clampRange(amountCents);
-
-      // Non-Stripe: route to the provider instructions page (Plan 22-02).
-      if (provider === "venmo" || provider === "cashapp") {
-        if (!offerNonStripe) {
-          // Defensive — the radio is hidden for variant='general' but
-          // guard here in case a caller wires the state externally.
-          setSubmit({
-            kind: "error",
-            detail: "unavailable for general donations",
-          });
-          return;
+      // performSponsorCheckout commits any unsaved bib name (awaited) BEFORE
+      // any checkout side-effect, for both variants (Kurt 2026-07-04, SC34.6).
+      await performSponsorCheckout(
+        { variant, provider, amountCents, offerNonStripe },
+        {
+          flush: flushPendingBibName,
+          fetchImpl: (input, init) => fetch(input, init),
+          navigate: (url) => router.push(url),
+          redirect: (url) => {
+            window.location.href = url;
+          },
+          onSubmitting: () => setSubmit({ kind: "submitting" }),
+          onIdle: () => setSubmit({ kind: "idle" }),
+          onError: (detail) => setSubmit({ kind: "error", detail }),
         }
-        setSubmit({ kind: "idle" });
-        router.push(providerRouteFor(provider, clamped));
-        return;
-      }
-
-      // Stripe: POST /api/checkout/${variant}, then redirect.
-      setSubmit({ kind: "submitting" });
-      try {
-        const res = await fetch(checkoutEndpointFor(variant), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount_cents: clamped, provider: "stripe" }),
-        });
-
-        if (!res.ok) {
-          const detail = `HTTP ${res.status}`;
-          setSubmit({ kind: "error", detail });
-          return;
-        }
-
-        const body = (await res.json()) as { session_url?: string };
-        if (!body.session_url) {
-          setSubmit({ kind: "error", detail: "missing session_url" });
-          return;
-        }
-
-        window.location.href = body.session_url;
-      } catch (err) {
-        setSubmit({
-          kind: "error",
-          detail: err instanceof Error ? err.message : "network",
-        });
-      }
+      );
     },
-    [amountCents, provider, offerNonStripe, variant, clampRange]
+    [amountCents, provider, offerNonStripe, variant, router]
   );
 
   const disabled = submit.kind === "submitting";

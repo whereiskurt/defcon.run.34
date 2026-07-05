@@ -177,3 +177,17 @@ export async function clearPendingForOwner(
     targets.map((r) => PendingContribution.delete({ pendingId: r.pendingId }).go())
   );
 }
+
+/**
+ * Clear a SINGLE pending intent by its deterministic pendingId (WR-01).
+ *
+ * The admin manual-reconcile route uses this instead of
+ * {@link clearPendingForOwner} so reconciling one intent drops ONLY that row,
+ * not the whole (owner, kind, provider) bucket — a second same-provider intent
+ * for a different amount must survive on the dashboard until it too is
+ * reconciled. Best-effort by contract: the reconcile route swallows errors so a
+ * cleanup miss never fails the payment application.
+ */
+export async function clearPendingById(pendingId: string): Promise<void> {
+  await PendingContribution.delete({ pendingId }).go();
+}

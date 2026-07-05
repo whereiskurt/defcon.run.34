@@ -5,6 +5,7 @@ import BibPreview from "./BibPreview";
 import { CashRain } from "./CashRain";
 import { solveAltcha } from "@/lib/altcha-client";
 import { registerBibFlusher } from "@/lib/pending-bib-save";
+import { getRaining, subscribe as subscribeRain } from "@/lib/rain-store";
 
 /**
  * BibForm
@@ -29,8 +30,20 @@ export interface BibFormProps {
   initialRenamesRemaining: number;
   /** Runner code — passed through to BibPreview for the tear-off QR. */
   runnerCode?: string;
-  /** When true, rain USD bills over the bib preview (pay-in-person pledge). */
-  raining?: boolean;
+  /**
+   * Runner's real per-user social-QR URL (`/r?h=<hash>`), resolved server-side
+   * (Plan 34-04, Slice C). Pure pass-through to BibPreview, which encodes it on
+   * the tear-off stubs when present and falls back to the runner-code QR when
+   * absent (never a blank stub — SC34.8).
+   */
+  socialQrUrl?: string;
+  /**
+   * Seed value for the cash-rain overlay on first render (the server-side
+   * pay-in-person pledge). After mount, live rain state comes from the shared
+   * `rain-store` singleton the checkbox pushes to (Plan 34-03) — the checkbox
+   * is no longer a React sibling, so it can't pass `raining` down directly.
+   */
+  initialRaining?: boolean;
 }
 
 const API_BIB_PATH = "/api/bib";
@@ -52,7 +65,8 @@ export function BibForm({
   hasSponsored = false,
   initialRenamesRemaining,
   runnerCode,
-  raining = false,
+  socialQrUrl,
+  initialRaining = false,
 }: BibFormProps) {
   const [name, setName] = useState<string>(initialName);
   const [savedName, setSavedName] = useState<string>(initialName);
@@ -61,6 +75,16 @@ export function BibForm({
     initialRenamesRemaining
   );
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
+
+  // Cash-rain now crosses the (former) sibling boundary via the rain-store
+  // singleton (Plan 34-03). Seed from the server-side pledge, then track the
+  // checkbox's pushes. Re-seed from the store on mount too, in case the
+  // checkbox toggled before this effect registered its subscription.
+  const [raining, setRainingState] = useState<boolean>(initialRaining);
+  useEffect(() => {
+    setRainingState((prev) => prev || getRaining());
+    return subscribeRain(setRainingState);
+  }, []);
 
   const dirty = name !== savedName;
   const quotaSpent = renamesRemaining <= 0;
@@ -205,19 +229,24 @@ export function BibForm({
             }}
           />
 
-          {/* Tiny save/cancel — each save spends one rename. */}
+          {/* Tiny save/cancel — each save spends one rename. When the name is
+            * dirty the Save button glows (mint ring) + enlarges so the unsaved
+            * state is unmistakable (Plan 34-03, SC34.5). The pulse animation is
+            * gated for prefers-reduced-motion in globals.css. */}
           <button
             type="submit"
             disabled={!canSave}
+            className={dirty ? "bib-save-dirty" : undefined}
             style={{
-              padding: "10px 16px",
-              fontSize: 13,
+              padding: dirty ? "12px 22px" : "10px 16px",
+              fontSize: dirty ? 15 : 13,
               fontWeight: 700,
               color: canSave ? "#0a0a0a" : "#8f8fa8",
               backgroundColor: canSave ? "#6CCDB8" : "#2a2a34",
               border: "none",
               borderRadius: 6,
               cursor: canSave ? "pointer" : "not-allowed",
+              transition: "padding 120ms ease, font-size 120ms ease",
             }}
           >
             {busy
@@ -254,7 +283,7 @@ export function BibForm({
 
       {/* Live preview sits BELOW the name field (A3, name-first). */}
       <div style={{ position: "relative" }}>
-        <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} />
+        <BibPreview name={name} hasSponsored={hasSponsored} runnerCode={runnerCode} socialQrUrl={socialQrUrl} dirty={dirty} />
         <CashRain active={raining} />
       </div>
     </form>
@@ -289,12 +318,10 @@ function SaveStateHint({
     );
   }
   switch (state.kind) {
-    case "verifying":
-      return (
-        <span id="bib-name-hint" role="status" style={base}>
-          Checking you&apos;re human… (~5s)
-        </span>
-      );
+    // "verifying" (ALTCHA PoW) no longer renders an inline hint — the once-mounted
+    // AltchaOverlay blur spinner is the single global affordance now (Plan 34-04,
+    // SC34.7). The "saving" PATCH feedback below stays: the overlay only covers the
+    // PoW, not the subsequent network write.
     case "saving":
       return (
         <span id="bib-name-hint" role="status" style={base}>

@@ -3,12 +3,14 @@ import { redirect } from "next/navigation";
 import { auth } from "@/config/auth";
 import GetYourBib from "@/components/GetYourBib";
 import SponsorForm from "@/components/SponsorForm";
+import { WillPayInPersonCheckbox } from "@/components/WillPayInPersonCheckbox";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
 import { listPendingForOwner } from "@/entities/pending-contribution";
 import { checkQuota } from "@/lib/quota-client";
 import TransactionHistory, { type Txn } from "@/components/TransactionHistory";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
+import { getSocialQrHash, buildSocialQrUrl } from "@/lib/social-qr";
 
 /**
  * Home is a server-component route that receives `searchParams` from
@@ -145,9 +147,29 @@ export default async function Home({ searchParams }: HomeProps) {
     .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
   const txns: Txn[] = [...pendingTxns, ...reconciled];
 
+  // Social-QR (Plan 34-04, Slice C — C-T3): best-effort resolve the runner's
+  // real per-user social-QR hash from run.human and build the `/r?h=` URL to
+  // encode on the bib tear-off stubs. getSocialQrHash is null-safe (a miss /
+  // timeout never 500s the orderform — T-34-07), and BibPreview falls back to
+  // the runner-code QR when socialQrUrl is absent (never a blank stub — SC34.8).
+  const socialQrHash = await getSocialQrHash(ownerSub);
+  const socialQrUrl = socialQrHash ? buildSocialQrUrl(socialQrHash) : undefined;
+
   // A4 (Kurt 2026-07-03): once any money has moved for this bib, drop the
   // "I'll pay in person" pledge — it's only meaningful pre-payment.
   const hasTransacted = hasSponsored || donationTotal > 0;
+
+  // Pay-in-person state, threaded to the checkbox (now living in the tile grid
+  // per Plan 34-03) and used to seed the bib preview's cash-rain on load.
+  const willPayInitial = bib.willPayInPerson === true;
+  const showCheckbox = !hasTransacted;
+  // WR-02: seed the cash-rain from the SAME gate that shows the checkbox.
+  // willPayInPerson is never cleared in the DB when money moves (A4 "drop the
+  // pledge" is realized by hiding the checkbox, not mutating the flag), so a
+  // runner who pledged in-person AND later paid online would otherwise load
+  // with rain stuck on and no checkbox to turn it off. Only seed rain while the
+  // pledge is still actionable.
+  const initialRaining = showCheckbox && willPayInitial;
 
   return (
     // Transparent container — the root layout now paints the dark background,
@@ -203,80 +225,78 @@ export default async function Home({ searchParams }: HomeProps) {
       )}
 
       {/* Get your bib — name first (A3), live preview below. GetYourBib is a
-        * client wrapper so checking "contribute in person" rains cash over
-        * the bib preview (Kurt 2026-07-03). */}
+        * thin client wrapper; checking "contribute in person" (now in the tile
+        * grid below) rains cash over the bib preview via the rain-store
+        * singleton (Plan 34-03). */}
       <GetYourBib
-        showCheckbox={!hasTransacted}
-        willPayInitial={bib.willPayInPerson === true}
         bibForm={{
           initialName: bib.nameOnBib || "",
           nameLocked: bib.nameLocked === true,
           hasSponsored,
           initialRenamesRemaining: renamesRemaining,
           runnerCode: bib.runnerCode,
+          initialRaining,
+          socialQrUrl,
         }}
       />
 
         <TransactionHistory totalCents={totalCents} txns={txns} />
 
-        {/* Sections 2 + 3: Sponsor + Donate. Side-by-side tiles on desktop,
-          * stacked on mobile (minWidth:0 lets the grid items shrink below
-          * their content's min-content so auto-fit can place two columns).
-          * When the bib is already covered (paid or pay-in-person) the buy
-          * flow is hidden and only "Just donate" shows, full width. */}
-        {hideBuyBib ? (
-          <div>
-            {/* hasSponsored gets the big THANK YOU up top; the pay-in-person
-              * pledge still shows its reserved note here. */}
-            {!hasSponsored && (
-              <p
-                style={{
-                  margin: "0 0 12px",
-                  color: "#7fdc9e",
-                  fontSize: 14,
-                  fontWeight: 600,
-                }}
-              >
-                You&apos;re paying in person — your bib is reserved.
-              </p>
-            )}
-            <Tile
-              kicker="Support"
-              title="Just donate"
-              body="Contribute anyway — support goes directly to defcon.run 34."
-              art={<DonateArt />}
-            >
-              <SponsorForm
-                variant="general"
-                ctaLabel="Donate"
-                runnerCode={bib.runnerCode}
-              />
-            </Tile>
-          </div>
-        ) : (
-          <div
+        {/* Reserved note when paying in person (pre-payment). hasSponsored
+          * gets the big THANK YOU up top instead. */}
+        {hideBuyBib && !hasSponsored && (
+          <p
             style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-              gap: 20,
+              margin: "0 0 12px",
+              color: "#7fdc9e",
+              fontSize: 14,
+              fontWeight: 600,
             }}
           >
+            You&apos;re paying in person — your bib is reserved.
+          </p>
+        )}
+
+        {/* Sections 2 + 3 + the pay-in-person checkbox. Responsive tile grid
+          * (SC34.4, Plan 34-03): single column on mobile, 2-col ≥640px. DOM
+          * order is Sponsor → checkbox → Donate; explicit `order` utilities put
+          * the checkbox BETWEEN the tiles on mobile and FULL-WIDTH BELOW both on
+          * desktop. Only this wrapper uses Tailwind — the tiles keep their inline
+          * styles. Checking the checkbox still hides the Sponsor tile (hideBuyBib,
+          * decision 5) and rains cash over the preview via the rain-store. */}
+        <div className="grid gap-5 sm:grid-cols-2">
+          {!hideBuyBib && (
+            <div className="order-1 sm:order-1" style={{ minWidth: 0 }}>
+              <Tile
+                kicker="This"
+                title="Sponsor this bib"
+                body="Contributions attach to your bib and help fund defcon.run 34."
+                art={<SponsorArt />}
+              >
+                <SponsorForm
+                  variant="bib"
+                  ctaLabel="Sponsor"
+                  runnerCode={bib.runnerCode}
+                />
+              </Tile>
+            </div>
+          )}
+
+          {showCheckbox && (
+            <div className="order-2 sm:order-3 sm:col-span-2">
+              <WillPayInPersonCheckbox initialValue={willPayInitial} />
+            </div>
+          )}
+
+          <div className="order-3 sm:order-2" style={{ minWidth: 0 }}>
             <Tile
-              kicker="This"
-              title="Sponsor this bib"
-              body="Contributions attach to your bib and help fund defcon.run 34."
-              art={<SponsorArt />}
-            >
-              <SponsorForm
-                variant="bib"
-                ctaLabel="Sponsor"
-                runnerCode={bib.runnerCode}
-              />
-            </Tile>
-            <Tile
-              kicker="or That"
+              kicker={hideBuyBib ? "Support" : "or That"}
               title="Just donate"
-              body="Not running? Contribute anyway — support goes directly to defcon.run 34."
+              body={
+                hideBuyBib
+                  ? "Contribute anyway — support goes directly to defcon.run 34."
+                  : "Not running? Contribute anyway — support goes directly to defcon.run 34."
+              }
               art={<DonateArt />}
             >
               <SponsorForm
@@ -286,7 +306,7 @@ export default async function Home({ searchParams }: HomeProps) {
               />
             </Tile>
           </div>
-        )}
+        </div>
       </div>
   );
 }

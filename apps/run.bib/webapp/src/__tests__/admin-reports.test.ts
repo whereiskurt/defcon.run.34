@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   buildReports,
+  isRegistered,
   reportToCsv,
   formatUsd,
   toCsv,
@@ -49,6 +50,15 @@ const baseInput = (): ReportInput => ({
       nameOnBib: "", // excluded from print list
       willPayInPerson: true, // in-person pledge, unpaid
     }),
+    bib({
+      // Phantom visit-created bib: no name, $0 paid, no pledge → NOT registered.
+      // Must be filtered from totals.bibs and the registrations roster (SC34.1).
+      ownerSub: "sub-empty",
+      runnerCode: "bib-empty",
+      nameOnBib: "",
+      paidAmount: 0,
+      willPayInPerson: false,
+    }),
   ],
   donations: [
     { amountCents: 20000, provider: "stripe", ownerSub: "s", createdAt: "2026-07-03T09:00:00Z" },
@@ -58,7 +68,15 @@ const baseInput = (): ReportInput => ({
     { status: "matched", provider: "cashapp", extractedAmount: 1000 }, // excluded (matched)
   ],
   pendings: [
-    { kind: "venmo", provider: "venmo", amountCents: 2500, runnerCode: "bib-paid", createdAt: "2026-07-03T08:00:00Z" },
+    {
+      pendingId: "pending:sub-paid:bib:venmo:2500",
+      ownerSub: "sub-paid",
+      kind: "bib",
+      provider: "venmo",
+      amountCents: 2500,
+      runnerCode: "bib-paid",
+      createdAt: "2026-07-03T08:00:00Z",
+    },
   ],
 });
 
@@ -92,11 +110,32 @@ describe("buildReports()", () => {
     expect(r.outstanding.filter((x) => x.source === "reconcile")).toHaveLength(1);
   });
 
-  it("registrations lists every bib", () => {
+  it("registrations lists only registered bibs (empty phantom excluded)", () => {
+    // 5 bibs in, but bib-empty (no name / $0 / no pledge) is filtered out.
     expect(r.registrations).toHaveLength(4);
+    expect(r.registrations.map((x) => x.runnerCode)).not.toContain("bib-empty");
+    // named / paid / pledged bibs are all kept.
+    const codes = r.registrations.map((x) => x.runnerCode);
+    expect(codes).toContain("bib-paid"); // paid + named
+    expect(codes).toContain("bib-cheap"); // named
+    expect(codes).toContain("bib-locked"); // named
+    expect(codes).toContain("bib-noname"); // pledged-only, no name
   });
 
-  it("totals sum correctly", () => {
+  it("registration rows carry ownerSub for the reject action", () => {
+    const empty = r.registrations.find((x) => x.runnerCode === "bib-noname");
+    expect(empty?.ownerSub).toBeDefined();
+  });
+
+  it("pending-intent outstanding rows carry pendingId, ownerSub and kind", () => {
+    const pending = r.outstanding.find((x) => x.source === "pending-intent");
+    expect(pending?.pendingId).toBe("pending:sub-paid:bib:venmo:2500");
+    expect(pending?.ownerSub).toBe("sub-paid");
+    expect(pending?.kind).toBe("bib");
+  });
+
+  it("totals sum correctly (bibs counts only registered)", () => {
+    // 5 bibs in, but totals.bibs counts only the 4 registered ones.
     expect(r.totals.bibs).toBe(4);
     expect(r.totals.inPersonPledges).toBe(1);
     expect(r.totals.bibCollectedCents).toBe(2500); // 2000 + 500
@@ -108,6 +147,27 @@ describe("buildReports()", () => {
 
   it("PRINT_GATE_CENTS is $20", () => {
     expect(PRINT_GATE_CENTS).toBe(2000);
+  });
+});
+
+describe("isRegistered()", () => {
+  it("is true when the bib has a non-empty (trimmed) name", () => {
+    expect(isRegistered(bib({ nameOnBib: "ALICE" }))).toBe(true);
+    expect(isRegistered(bib({ nameOnBib: "   " }))).toBe(false); // whitespace-only
+  });
+
+  it("is true when the bib has any payment", () => {
+    expect(isRegistered(bib({ nameOnBib: "", paidAmount: 500 }))).toBe(true);
+  });
+
+  it("is true when the runner pledged to pay in person", () => {
+    expect(isRegistered(bib({ nameOnBib: "", willPayInPerson: true }))).toBe(true);
+  });
+
+  it("is false for an empty visit-created bib", () => {
+    expect(
+      isRegistered(bib({ nameOnBib: "", paidAmount: 0, willPayInPerson: false }))
+    ).toBe(false);
   });
 });
 

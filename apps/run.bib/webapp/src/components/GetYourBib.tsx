@@ -1,37 +1,19 @@
 "use client";
 
-import { useState } from "react";
 import BibForm, { type BibFormProps } from "./BibForm";
-import { WillPayInPersonCheckbox } from "./WillPayInPersonCheckbox";
 
 /**
- * Client wrapper for the "Get your bib" section (Kurt 2026-07-03) so the
- * pay-in-person checkbox can rain cash over the bib preview. Holds the shared
- * `raining` state and threads it into BibForm; the checkbox bubbles its
- * checked state up via onCheckedChange.
+ * Thin client wrapper for the "Get your bib" section (name field + live
+ * preview). Since Plan 34-03 the pay-in-person checkbox no longer lives here
+ * — it moved into the Sponsor/Donate tile grid — and cash-rain crosses the
+ * boundary via the `rain-store` singleton instead of a lifted `raining`
+ * state. This wrapper stays a client component only so `BibForm` (which owns
+ * hooks + the rain subscription) mounts under a client boundary.
  */
-export function GetYourBib({
-  bibForm,
-  showCheckbox,
-  willPayInitial,
-}: {
-  bibForm: Omit<BibFormProps, "raining">;
-  showCheckbox: boolean;
-  willPayInitial: boolean;
-}) {
-  const [raining, setRaining] = useState(willPayInitial);
-
+export function GetYourBib({ bibForm }: { bibForm: BibFormProps }) {
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <BibForm {...bibForm} raining={raining} />
-      {showCheckbox && (
-        <div style={{ marginTop: 16 }}>
-          <WillPayInPersonCheckbox
-            initialValue={willPayInitial}
-            onCheckedChange={setRaining}
-          />
-        </div>
-      )}
+      <BibForm {...bibForm} />
     </div>
   );
 }
