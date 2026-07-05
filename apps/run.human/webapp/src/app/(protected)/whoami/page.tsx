@@ -9,6 +9,7 @@ import { LogOut, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
+import CheckInPinCard from '@/components/profile/CheckInPinCard';
 import { apiUrl } from '@/lib/api';
 
 const homeUrl = '/';
@@ -291,6 +292,9 @@ export default function WhoAmIPage() {
           </CardBody>
         </Card>
       </div>
+
+      {/* Check-in Pin */}
+      <CheckInPinCard />
 
       {/* Check-in History */}
       <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference} />

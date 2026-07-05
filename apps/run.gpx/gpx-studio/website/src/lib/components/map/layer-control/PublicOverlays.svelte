@@ -3,9 +3,16 @@
         publicOverlayGroups,
         publicAggregate,
         publicCheckIns,
+        checkinFilters,
         prettyRouteName,
     } from '../public-overlays';
-    import type { PublicOverlaysLayer } from '../public-overlays';
+    import type { PublicOverlaysLayer, CheckinWindow } from '../public-overlays';
+
+    const CHECKIN_WINDOWS: { key: CheckinWindow; label: string }[] = [
+        { key: 'hour', label: 'Hour' },
+        { key: 'today', label: 'Today' },
+        { key: 'all', label: 'Whole con' },
+    ];
 
     // The layer instance is created in LayerControl's map.onLoad; may be undefined
     // for the first frame before the map loads.
@@ -24,14 +31,46 @@
 {/if}
 
 {#if $publicCheckIns.available}
-    <label class="flex flex-row items-center gap-2 text-sm font-semibold">
-        <input
-            type="checkbox"
-            checked={$publicCheckIns.visible}
-            onchange={(e) => layer?.setCheckInsVisible(e.currentTarget.checked)}
-        />
-        User Check-ins ({$publicCheckIns.count})
-    </label>
+    <div class="flex flex-col gap-1">
+        <label class="flex flex-row items-center gap-2 text-sm font-semibold">
+            <input
+                type="checkbox"
+                checked={$publicCheckIns.visible}
+                onchange={(e) => layer?.setCheckInsVisible(e.currentTarget.checked)}
+            />
+            User Check-ins ({$publicCheckIns.count})
+        </label>
+        {#if $publicCheckIns.visible}
+            <div class="flex flex-col gap-1 pl-5">
+                <!-- Time window chips -->
+                <div class="flex flex-row gap-1">
+                    {#each CHECKIN_WINDOWS as w (w.key)}
+                        <button
+                            type="button"
+                            class="rounded-full px-2 py-0.5 text-xs border transition-colors {$checkinFilters.window ===
+                            w.key
+                                ? 'border-primary bg-primary/15 font-semibold'
+                                : 'border-border hover:bg-accent'}"
+                            onclick={() => layer?.setCheckInFilters({ window: w.key })}
+                        >
+                            {w.label}
+                        </button>
+                    {/each}
+                </div>
+                <!-- Runner highlight clear chip -->
+                {#if $checkinFilters.runner}
+                    <button
+                        type="button"
+                        class="self-start rounded-full px-2 py-0.5 text-xs border border-primary bg-primary/15"
+                        title="Show all runners"
+                        onclick={() => layer?.setCheckInFilters({ runner: null })}
+                    >
+                        only 🐇 {$checkinFilters.runner} ✕
+                    </button>
+                {/if}
+            </div>
+        {/if}
+    </div>
 {/if}
 
 {#if $publicOverlayGroups.length > 0}

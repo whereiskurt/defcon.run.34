@@ -11,6 +11,13 @@ vi.mock("@/entities/run-user", () => ({
 }));
 
 import { GET } from "../route";
+import type { NextRequest } from "next/server";
+
+function request(query: string = ""): NextRequest {
+  return {
+    nextUrl: new URL(`http://localhost/api/checkins/public${query}`),
+  } as unknown as NextRequest;
+}
 
 function checkIn(overrides: Record<string, unknown> = {}) {
   return {
@@ -43,7 +50,7 @@ describe("GET /api/checkins/public", () => {
     });
     mockGetRunUser.mockResolvedValue({ displayName: "rabbit_pub" });
 
-    const res = await GET();
+    const res = await GET(request());
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -64,7 +71,7 @@ describe("GET /api/checkins/public", () => {
     });
     mockGetRunUser.mockResolvedValue({ displayName: "rabbit_u1" });
 
-    const body = await (await GET()).json();
+    const body = await (await GET(request())).json();
 
     expect(Object.keys(body.checkIns[0]).sort()).toEqual([
       "checkInType",
@@ -82,7 +89,7 @@ describe("GET /api/checkins/public", () => {
     });
     mockGetRunUser.mockRejectedValue(new Error("dynamo down"));
 
-    const body = await (await GET()).json();
+    const body = await (await GET(request())).json();
 
     expect(body.checkIns[0].displayName).toBe("a rabbit");
   });
@@ -93,7 +100,7 @@ describe("GET /api/checkins/public", () => {
       cursor: "more",
     });
 
-    const body = await (await GET()).json();
+    const body = await (await GET(request())).json();
 
     expect(body.checkIns).toHaveLength(0);
     // MAX_SCANNED (1000) / PAGE_SIZE (100) = 10 pages max.
@@ -103,8 +110,46 @@ describe("GET /api/checkins/public", () => {
   it("returns 500 when the query fails", async () => {
     mockGetRecentCheckIns.mockRejectedValue(new Error("boom"));
 
-    const res = await GET();
+    const res = await GET(request());
 
     expect(res.status).toBe(500);
+  });
+
+  it("projects pinIcon/pinColor when the check-in has them", async () => {
+    mockGetRecentCheckIns.mockResolvedValueOnce({
+      data: [
+        checkIn({ isPrivate: false, pinIcon: "goldstar", pinColor: "#ffd700" }),
+      ],
+      cursor: null,
+    });
+    mockGetRunUser.mockResolvedValue({ displayName: "KPH" });
+
+    const body = await (await GET(request())).json();
+
+    expect(body.checkIns[0].pinIcon).toBe("goldstar");
+    expect(body.checkIns[0].pinColor).toBe("#ffd700");
+  });
+
+  it("forwards a valid since= to the entity query and raises the caps", async () => {
+    const since = Date.now() - 7 * 24 * 3600_000;
+    mockGetRecentCheckIns.mockResolvedValue({
+      data: Array.from({ length: 100 }, (_, i) => checkIn({ userId: `u${i}` })),
+      cursor: "more",
+    });
+
+    await (await GET(request(`?since=${since}`))).json();
+
+    expect(mockGetRecentCheckIns).toHaveBeenCalledWith(100, undefined, since);
+    // MAX_SCANNED_WINDOWED (5000) / PAGE_SIZE (100) = 50 pages max.
+    expect(mockGetRecentCheckIns).toHaveBeenCalledTimes(50);
+  });
+
+  it("ignores a since= older than the max window", async () => {
+    const ancient = Date.now() - 365 * 24 * 3600_000;
+    mockGetRecentCheckIns.mockResolvedValueOnce({ data: [], cursor: null });
+
+    await (await GET(request(`?since=${ancient}`))).json();
+
+    expect(mockGetRecentCheckIns).toHaveBeenCalledWith(100, undefined, undefined);
   });
 });

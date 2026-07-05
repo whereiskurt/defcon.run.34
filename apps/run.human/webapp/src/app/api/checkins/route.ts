@@ -14,6 +14,7 @@ import {
   getUserTier,
 } from "@/lib/quota-middleware";
 import { checkQuota } from "@/lib/quota-client";
+import { resolveCheckInPin } from "@/lib/pin-icons";
 
 /**
  * Resolve a check-in by checkinId for the given user.
@@ -82,12 +83,18 @@ export async function POST(req: NextRequest) {
     const tier = getUserTier(services);
     await requireAndConsumeQuota(session.user.id, "checkin", 1, tier);
 
-    // Resolve privacy default from user preference if not explicitly provided
-    let resolvedIsPrivate = isPrivate;
-    if (resolvedIsPrivate === undefined) {
-      const user = await getRunUser(session.user.id);
-      resolvedIsPrivate = user?.preferences?.checkinPreference === "private";
-    }
+    // Profile prefs drive the privacy default and the pin fallback.
+    const user = await getRunUser(session.user.id);
+    const resolvedIsPrivate =
+      isPrivate ?? user?.preferences?.checkinPreference === "private";
+
+    // Pin: request wins over profile; invalid or not-permitted (secret icon
+    // without the gating service) silently falls back; all-default stays unset.
+    const pin = resolveCheckInPin(
+      { pinIcon: body.pinIcon, pinColor: body.pinColor },
+      user?.preferences,
+      services
+    );
 
     // Create the check-in
     const checkInItem = await createCheckIn(session.user.id, {
@@ -95,6 +102,8 @@ export async function POST(req: NextRequest) {
       samples,
       userAgent: req.headers.get("user-agent") || undefined,
       isPrivate: resolvedIsPrivate,
+      pinIcon: pin.pinIcon,
+      pinColor: pin.pinColor,
     });
 
     // Get remaining quota for response

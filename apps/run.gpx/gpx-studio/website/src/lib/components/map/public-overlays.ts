@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import { parseGPX } from 'gpx';
 import mapboxgl from 'mapbox-gl';
 import { DC34, routeColor } from '$lib/dc34-palette';
+import { pinIconById, pinSvg, DEFAULT_PIN_ICON, DEFAULT_PIN_COLOR } from '$lib/dc34-pins';
 import { getSvgForSymbol } from './gpx-layer/gpx-layer';
 import { getSymbolKey } from '$lib/assets/symbols';
 
@@ -93,12 +94,16 @@ export const publicCheckIns = writable<{ available: boolean; visible: boolean; c
     count: 0,
 });
 
-const CHECKINS_URL = `${regionPrefix()}/api/gpx/public/checkins`;
+// Fetch a two-week window (covers the whole con) — `since` rounded down to the
+// hour so the URL stays stable and CDN-cacheable for an hour at a time.
+function checkinsUrl(): string {
+    const since = Math.floor((Date.now() - 14 * 24 * 3600_000) / 3600_000) * 3600_000;
+    return `${regionPrefix()}/api/gpx/public/checkins?since=${since}`;
+}
 const CHECKINS_SOURCE = 'public-checkins';
 const CHECKINS_PIN_LAYER = 'public-checkins-pin';
 const CHECKINS_CLUSTER_LAYER = 'public-checkins-cluster';
 const CHECKINS_COUNT_LAYER = 'public-checkins-count';
-const CHECKINS_PIN_IMAGE = 'dc34-checkin-pin';
 
 type PublicCheckIn = {
     lat: number;
@@ -106,7 +111,16 @@ type PublicCheckIn = {
     displayName: string;
     timestamp: number;
     checkInType?: string;
+    pinIcon?: string; // dc34-pins catalog id; absent → default pin
+    pinColor?: string; // #rrggbb; absent → default color
 };
+
+// Check-in view filters (v1.8 Phase 4): time window chips + runner highlight.
+export type CheckinWindow = 'hour' | 'today' | 'all';
+export const checkinFilters = writable<{ window: CheckinWindow; runner: string | null }>({
+    window: 'all',
+    runner: null,
+});
 
 // Structural view of the parsed GPX waypoints (avoids importing the class).
 type GpxWaypoint = {
@@ -197,13 +211,12 @@ function popupHtml(m: PublicMap, folderName: string): string {
         </div>`;
 }
 
-/** Big branded check-in pin — magenta map-pin with a teal outline (lucide MapPin path). */
-function checkinPinSvg(): string {
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
-              fill="${DC34.magenta}" stroke="${DC34.teal}" stroke-width="1.2"/>
-        <circle cx="12" cy="10" r="3.2" fill="white"/>
-    </svg>`;
+/** Resolve a check-in's pin (catalog icon + color) with defaults, and the map
+ * image id that (icon, color) pair renders under. */
+function resolvePin(c: PublicCheckIn): { iconId: string; svg: string } {
+    const icon = pinIconById(c.pinIcon) ?? pinIconById(DEFAULT_PIN_ICON)!;
+    const color = icon.fixedColor ?? c.pinColor ?? DEFAULT_PIN_COLOR;
+    return { iconId: `dc34-pin-${icon.id}-${color}`, svg: pinSvg(icon, color) };
 }
 
 function checkinPopupHtml(displayName: string, timestamp: number, checkInType?: string): string {
@@ -212,7 +225,9 @@ function checkinPopupHtml(displayName: string, timestamp: number, checkInType?: 
     return `
         <div style="padding:8px 10px;border-left:4px solid ${DC34.teal};font-family:system-ui,sans-serif;color:#e4e4ef">
             <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Check-in</div>
-            <div style="font-size:14px;font-weight:600;margin-top:2px">🐇 ${escapeHtml(displayName)}</div>
+            <button class="dc34-runner-filter" title="Show only this runner's check-ins"
+                    style="font-size:14px;font-weight:600;margin-top:2px;background:none;border:none;padding:0;
+                           color:${DC34.teal};cursor:pointer;font-family:inherit">🐇 ${escapeHtml(displayName)}</button>
             <div style="font-size:12px;opacity:.8;margin-top:4px">${escapeHtml(when)}${type}</div>
         </div>`;
 }
@@ -385,33 +400,62 @@ export class PublicOverlaysLayer {
         icon.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
     }
 
-    /** Load public user check-ins as hidden, clustered layers of big branded pins. */
-    private async addCheckIns() {
-        try {
-            const res = await fetch(CHECKINS_URL, { credentials: 'omit' });
-            if (!res.ok) return;
-            const body = (await res.json()) as { checkIns: PublicCheckIn[] };
-            if (!body.checkIns || body.checkIns.length === 0) return;
+    // Raw fetched check-ins — filters re-derive the source data from this list
+    // (setData re-clusters; a layer filter would leave cluster counts stale).
+    private checkins: PublicCheckIn[] = [];
 
-            this.loadSvgImage(CHECKINS_PIN_IMAGE, checkinPinSvg());
-
-            const geojson: GeoJSON.FeatureCollection = {
-                type: 'FeatureCollection',
-                features: body.checkIns.map((c) => ({
+    /** Feature collection for the check-ins passing the current filters,
+     * registering each (icon, color) pin image on first use. */
+    private checkinFeatures(): GeoJSON.FeatureCollection {
+        const f = getCheckinFiltersSnapshot();
+        const sinceByWindow: Record<CheckinWindow, number> = {
+            hour: Date.now() - 3600_000,
+            today: new Date().setHours(0, 0, 0, 0),
+            all: 0,
+        };
+        const since = sinceByWindow[f.window];
+        const visible = this.checkins.filter(
+            (c) => c.timestamp >= since && (!f.runner || c.displayName === f.runner)
+        );
+        return {
+            type: 'FeatureCollection',
+            features: visible.map((c) => {
+                const pin = resolvePin(c);
+                this.loadSvgImage(pin.iconId, pin.svg);
+                return {
                     type: 'Feature',
                     geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
                     properties: {
                         displayName: c.displayName,
                         timestamp: c.timestamp,
                         checkInType: c.checkInType ?? '',
+                        iconId: pin.iconId,
                     },
-                })),
-            };
+                };
+            }),
+        };
+    }
+
+    /** Update the check-in filters (time window / runner) and re-cluster. */
+    setCheckInFilters(partial: Partial<{ window: CheckinWindow; runner: string | null }>) {
+        checkinFilters.update((f) => ({ ...f, ...partial }));
+        const source = this.map.getSource(CHECKINS_SOURCE) as mapboxgl.GeoJSONSource | undefined;
+        if (source) source.setData(this.checkinFeatures());
+    }
+
+    /** Load public user check-ins as hidden, clustered layers of big branded pins. */
+    private async addCheckIns() {
+        try {
+            const res = await fetch(checkinsUrl(), { credentials: 'omit' });
+            if (!res.ok) return;
+            const body = (await res.json()) as { checkIns: PublicCheckIn[] };
+            if (!body.checkIns || body.checkIns.length === 0) return;
+            this.checkins = body.checkIns;
 
             if (!this.map.getSource(CHECKINS_SOURCE)) {
                 this.map.addSource(CHECKINS_SOURCE, {
                     type: 'geojson',
-                    data: geojson,
+                    data: this.checkinFeatures(),
                     cluster: true,
                     clusterMaxZoom: 14,
                     clusterRadius: 40,
@@ -480,7 +524,7 @@ export class PublicOverlaysLayer {
                     paint: { 'text-color': '#101015' },
                 });
             }
-            // Individual check-ins — the big branded pin with a details popup.
+            // Individual check-ins — the runner's chosen pin with a details popup.
             if (!this.map.getLayer(CHECKINS_PIN_LAYER)) {
                 this.map.addLayer({
                     id: CHECKINS_PIN_LAYER,
@@ -489,7 +533,7 @@ export class PublicOverlaysLayer {
                     filter: ['!', ['has', 'point_count']],
                     layout: {
                         visibility: 'none',
-                        'icon-image': CHECKINS_PIN_IMAGE,
+                        'icon-image': ['get', 'iconId'],
                         'icon-size': 0.5,
                         'icon-anchor': 'bottom',
                         'icon-allow-overlap': true,
@@ -504,19 +548,25 @@ export class PublicOverlaysLayer {
                         timestamp?: number | string;
                         checkInType?: string;
                     };
+                    const name = p.displayName || 'a rabbit';
                     this.hoverPopup.remove();
                     this.popup
                         .setLngLat(
                             (f.geometry as GeoJSON.Point).coordinates as [number, number]
                         )
                         .setHTML(
-                            checkinPopupHtml(
-                                p.displayName || 'a rabbit',
-                                Number(p.timestamp) || 0,
-                                p.checkInType || undefined
-                            )
+                            checkinPopupHtml(name, Number(p.timestamp) || 0, p.checkInType || undefined)
                         )
                         .addTo(this.map);
+                    // Runner highlight: the popup name is a button that filters
+                    // the layer to just this runner's check-ins.
+                    this.popup
+                        .getElement()
+                        ?.querySelector('.dc34-runner-filter')
+                        ?.addEventListener('click', () => {
+                            this.setCheckInFilters({ runner: name });
+                            this.popup.remove();
+                        });
                 };
                 const onPinEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
                 const onPinLeave = () => (this.map.getCanvas().style.cursor = '');
@@ -787,9 +837,11 @@ export class PublicOverlaysLayer {
             // map not ready
         }
         this.loaded = false;
+        this.checkins = [];
         publicOverlayGroups.set([]);
         publicAggregate.set({ available: false, visible: false });
         publicCheckIns.set({ available: false, visible: false, count: 0 });
+        checkinFilters.set({ window: 'all', runner: null });
     }
 }
 
@@ -797,4 +849,13 @@ let _snapshot: PublicOverlayGroup[] = [];
 publicOverlayGroups.subscribe((g) => (_snapshot = g));
 function getGroupsSnapshot(): PublicOverlayGroup[] {
     return _snapshot;
+}
+
+let _filtersSnapshot: { window: CheckinWindow; runner: string | null } = {
+    window: 'all',
+    runner: null,
+};
+checkinFilters.subscribe((f) => (_filtersSnapshot = f));
+function getCheckinFiltersSnapshot() {
+    return _filtersSnapshot;
 }

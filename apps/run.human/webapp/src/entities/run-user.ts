@@ -108,6 +108,8 @@ export const RunUser = new Entity(
           units: { type: "string" }, // "metric" | "imperial"
           privacyLevel: { type: "string" }, // "public" | "friends" | "private"
           checkinPreference: { type: "string" }, // "public" | "private"
+          pinIcon: { type: "string" }, // pin-icons.ts catalog id (default "bunny")
+          pinColor: { type: "string" }, // #rrggbb pin body color
         },
       },
 

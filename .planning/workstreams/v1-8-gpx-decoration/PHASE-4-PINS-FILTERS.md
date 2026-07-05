@@ -1,7 +1,7 @@
 ---
 phase: v1.8 Phase 4 — Check-in personalization & map filters
-status: SPEC APPROVED (Kurt 2026-07-04) — build AFTER PR #368 merges, branch off main
-depends_on: PR #368 (gsd/gpx-checkins-overlay — User Check-ins overlay)
+status: COMPLETE — merged to main via PR #370 (2026-07-04, admin-merge authorized by Kurt)
+depends_on: PR #368 (merged 2026-07-04)
 ---
 
 # v1.8 Phase 4 — Check-in personalization & map filters
@@ -93,6 +93,21 @@ sides). Picker only shows gated entries when `session.user.services` includes
 
 - Unlock codes for secret pins (design accommodates via `unlockedPins`).
 - Time-lapse/animation mode, leaderboard widget, live auto-refresh.
+
+## Build result (2026-07-04)
+
+Implemented as specced on `gsd/gpx-pins-filters`. Verified: 26/26 vitest
+(16 new), tsc clean both webapps, studio build clean, svelte-check errors all
+pre-existing. VISUALLY VERIFIED on the local stack: varied pins render
+(bunny/star/skull/flag/paw/bolt/crown + gold star staying gold), time chips
+filter with honest re-clustering (Hour→0, Whole con→9), runner highlight
+via popup name click + clear chip. Picker UI ALSO visually verified via the
+local session mint (`run.human/webapp/scripts/mint-local-session.mts` — dev
+bypass, signs a sess_run JWT with the local AUTH_JWT_SECRET): profile card
+shows all 9 icons incl. gold star under an admin session, save round-trips,
+modal pre-fills the saved pin and a per-check-in gold-star override submitted
+201 through the real quota path (run.auth :3002 local) and rendered on the
+public map.
 
 ## Build notes
 
