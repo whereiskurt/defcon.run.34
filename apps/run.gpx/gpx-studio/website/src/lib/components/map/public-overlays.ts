@@ -63,6 +63,17 @@ export type PublicMap = {
     trackCount?: number;
     uploadedBy?: string;
     tags?: string[];
+    // CMS-authored points of interest (plan 03-01 nests these onto the manifest). Each
+    // renders as an icon in this route's per-route POI layer and toggles with the route.
+    pois?: {
+        name: string;
+        description?: string;
+        lat: number;
+        lon: number;
+        poiType?: string; // one of the 12 point-of-interest enum values
+        markerImageUrl?: string; // CMS media used as the map icon (cross-origin)
+        photoUrl?: string; // CMS media shown in the click popup
+    }[];
     color: string; // resolved DC34 palette color (or CMS mapColor)
     visible: boolean;
 };
@@ -139,6 +150,37 @@ function glowLayerId(fileId: string): string {
 }
 function poiLayerId(fileId: string): string {
     return `${SOURCE_PREFIX}${fileId}-poi`;
+}
+
+/** Derive a `[[minLon,minLat],[maxLon,maxLat]]` bounding box from a parsed GPX
+ * FeatureCollection (the tracks `toGeoJSON()` emits — LineString / MultiLineString).
+ * Returns null when there are no usable coordinates so a degenerate/NaN box is
+ * never cached. Used as the client-side fallback for standalone CMS routes whose
+ * manifest entry carries no precomputed `bounds` (design §4). */
+function boundsFromGeoJSON(
+    fc: GeoJSON.FeatureCollection
+): [[number, number], [number, number]] | null {
+    let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+    const visit = (lon: number, lat: number) => {
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+        if (lon < minLon) minLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lon > maxLon) maxLon = lon;
+        if (lat > maxLat) maxLat = lat;
+    };
+    for (const f of fc.features ?? []) {
+        const g = f.geometry;
+        if (!g) continue;
+        if (g.type === 'LineString') {
+            for (const c of g.coordinates) visit(c[0], c[1]);
+        } else if (g.type === 'MultiLineString') {
+            for (const line of g.coordinates) for (const c of line) visit(c[0], c[1]);
+        } else if (g.type === 'Point') {
+            visit(g.coordinates[0], g.coordinates[1]);
+        }
+    }
+    if (minLon === Infinity) return null; // no coordinates seen
+    return [[minLon, minLat], [maxLon, maxLat]];
 }
 
 function formatDistance(meters?: number): string | undefined {
@@ -232,15 +274,71 @@ function checkinPopupHtml(displayName: string, timestamp: number, checkInType?: 
         </div>`;
 }
 
-function poiPopupHtml(name: string, desc: string, color: string): string {
+/**
+ * poiType → default map icon (a `symbols` catalog key or `undefined` for a plain route-color
+ * pin) + a DC34 palette color. Covers ALL 12 point-of-interest enum values (design §4 / the
+ * CMS `point-of-interest` schema). An unknown/absent poiType falls back to a plain route-color
+ * pin (see `poiDefaultIcon`). This is the D7 default used when a POI has no `markerImage`.
+ */
+const POI_TYPE_ICONS: Record<string, { symbol?: string; color: string }> = {
+    'water-station': { symbol: 'water_source', color: DC34.cyan },
+    'rest-stop': { symbol: 'shelter', color: DC34.teal },
+    'start-finish': { symbol: 'information', color: DC34.magenta },
+    'aid-station': { symbol: 'pharmacy', color: DC34.green },
+    'photo-opportunity': { symbol: 'binoculars', color: DC34.amber },
+    'scenic-viewpoint': { symbol: 'scenic_area', color: DC34.violet },
+    'lockpick-village': { symbol: 'building', color: DC34.orange },
+    'badge-station': { symbol: 'information', color: DC34.teal },
+    'swag-drop': { symbol: 'shopping_center', color: DC34.pink },
+    'rf-check-in': { symbol: 'telephone', color: DC34.aqua },
+    vendor: { symbol: 'restaurant', color: DC34.orange },
+    'social-gathering-spot': { symbol: 'campground', color: DC34.magenta },
+};
+
+/**
+ * Build the poiType default icon — the SAME route-color pin shape the GPX waypoints already
+ * use (`getSvgForSymbol` with an `undefined` layerColor drops the corner badge), so a poiType
+ * default and a waypoint pin look consistent (D7). An unknown/absent poiType maps to a plain
+ * route-color pin (`symbol: undefined`, `color = routeColor`). The `iconId` is keyed off the
+ * poiType + resolved color so the (symbol, color) image registers under map.addImage once.
+ */
+function poiDefaultIcon(
+    poiType: string | undefined,
+    routeColor: string
+): { iconId: string; svg: string } {
+    const entry = (poiType && POI_TYPE_ICONS[poiType]) || { symbol: undefined, color: routeColor };
+    const iconId = `dc34-poi-${poiType ?? 'default'}-${entry.color}`;
+    return { iconId, svg: getSvgForSymbol(entry.symbol, undefined, entry.color) };
+}
+
+/**
+ * Stable, collision-resistant image id for a CMS `markerImage` url (djb2 hash) so each distinct
+ * marker image registers under `map.addImage` exactly once (D7 "image id keyed so each pair
+ * registers once"), regardless of how many POIs/routes reference it.
+ */
+function markerImageId(url: string): string {
+    let h = 5381;
+    for (let i = 0; i < url.length; i++) h = ((h << 5) + h + url.charCodeAt(i)) | 0;
+    return `dc34-poi-img-${(h >>> 0).toString(36)}`;
+}
+
+/** Point-of-interest popup — colored left tab in the route color, name + (optional) escaped
+ * description, and (for Strapi POIs) an optional escaped `<img>` photo below the text. The
+ * photo uses a plain `<img>` (not a canvas) so it is unaffected by cross-origin taint (Risk 3).
+ * `name`/`desc`/`photoUrl` are ALL escaped — POI text is plain CMS text, never raw HTML. */
+function poiPopupHtml(name: string, desc: string, color: string, photoUrl?: string): string {
     const detail = desc
         ? `<div style="font-size:12px;opacity:.8;margin-top:4px">${escapeHtml(desc)}</div>`
+        : '';
+    const photo = photoUrl
+        ? `<img src="${escapeHtml(photoUrl)}" loading="lazy" style="width:100%;border-radius:6px;margin-top:8px;display:block" alt="${escapeHtml(name)}">`
         : '';
     return `
         <div style="padding:8px 10px;border-left:4px solid ${color};font-family:system-ui,sans-serif;color:#e4e4ef">
             <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Point of interest</div>
             <div style="font-size:14px;font-weight:600;margin-top:2px">${escapeHtml(name)}</div>
             ${detail}
+            ${photo}
         </div>`;
 }
 
@@ -336,8 +434,17 @@ export class PublicOverlaysLayer {
                         const gpxRes = await fetch(m.downloadUrl);
                         if (!gpxRes.ok) return;
                         const file = parseGPX(await gpxRes.text());
+                        const geojson = file.toGeoJSON();
                         this.addRouteLayer(m, group.folderName);
-                        this.setRouteData(m.fileId, file.toGeoJSON());
+                        this.setRouteData(m.fileId, geojson);
+                        // Standalone CMS routes arrive with no precomputed manifest bounds, so
+                        // derive them client-side from the parsed GeoJSON — only when we don't
+                        // already have a bounds entry (the m.bounds pre-cache above wins), and
+                        // only when a real box comes back (never store a degenerate/NaN box).
+                        if (!this.routeBounds.has(m.fileId)) {
+                            const box = boundsFromGeoJSON(geojson);
+                            if (box) this.routeBounds.set(m.fileId, box);
+                        }
                         // toGeoJSON() only emits tracks — waypoints (POIs) ride separately.
                         this.addRoutePois(m, (file.wpt as GpxWaypoint[]) ?? []);
                     } catch (err) {
@@ -398,6 +505,29 @@ export class PublicOverlaysLayer {
             if (!this.map.hasImage(id)) this.map.addImage(id, icon);
         };
         icon.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    }
+
+    /** Register a cross-origin raster image (a CMS `markerImage`) as a map image (Risk 3).
+     * Sets `crossOrigin='anonymous'` BEFORE `src` so the CORS-enabled CMS media (added on the
+     * `/{region}/cms/*` behavior in Phase 2 02-03) loads without tainting the map canvas. On
+     * load failure — or a browser that still refuses the cross-origin image, or a taint thrown
+     * by `addImage` — it calls `onFail()` so the POI is NEVER left icon-less (the fallback
+     * registers the poiType SVG default under the same id). No-op if the id is already loaded. */
+    private loadUrlImage(id: string, url: string, onFail: () => void) {
+        if (this.map.hasImage(id)) return;
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+            try {
+                if (!this.map.hasImage(id)) this.map.addImage(id, img);
+            } catch {
+                // Cross-origin taint slipped through (e.g. missing CORS header) — addImage
+                // reads pixels and throws. Fall back to the poiType SVG default (not silent).
+                onFail();
+            }
+        };
+        img.onerror = () => onFail();
+        img.src = url;
     }
 
     // Raw fetched check-ins — filters re-derive the source data from this list
@@ -682,24 +812,66 @@ export class PublicOverlaysLayer {
     /** Drop a route's GPX waypoints (POIs) as small branded icons with a details popup.
      * Hidden by default; shows/hides together with the route via setLayerPairVisible. */
     private addRoutePois(m: PublicMap, waypoints: GpxWaypoint[]) {
-        if (!waypoints.length) return;
+        // Render when EITHER GPX waypoints OR CMS-authored POIs exist — both feed the same
+        // per-route POI layer so they toggle with the route (D5 / GPXCMS-09).
+        if (!waypoints.length && !(m.pois?.length)) return;
         const poi = poiLayerId(m.fileId);
         try {
-            const features: GeoJSON.Feature[] = waypoints.map((w) => {
+            const features: GeoJSON.Feature[] = [];
+
+            // GPX waypoints — the existing route-color pin, tagged poiKind:'waypoint'.
+            for (const w of waypoints) {
                 const symbol = getSymbolKey(w.sym);
                 const iconId = `dc34-poi-${symbol ?? 'default'}-${m.color}`;
                 // Color the pin body with the route color (not the stock Mapbox blue);
                 // drop the corner badge (undefined layerColor) for a clean route-colored pin.
                 this.loadSvgImage(iconId, getSvgForSymbol(symbol, undefined, m.color));
-                return {
+                features.push({
                     type: 'Feature',
                     geometry: {
                         type: 'Point',
                         coordinates: [w.getLongitude(), w.getLatitude()],
                     },
-                    properties: { name: w.name ?? '', desc: w.desc ?? '', icon: iconId },
-                };
-            });
+                    properties: {
+                        poiKind: 'waypoint',
+                        name: w.name ?? '',
+                        desc: w.desc ?? '',
+                        icon: iconId,
+                    },
+                });
+            }
+
+            // CMS-authored POIs — markerImage when present (cross-origin, with a poiType SVG
+            // fallback under the SAME id so Risk 3 never leaves the icon blank), else the
+            // poiType default. Tagged poiKind:'strapi' so the click handler shows the photo popup.
+            for (const p of m.pois ?? []) {
+                let iconId: string;
+                if (p.markerImageUrl) {
+                    const markerId = markerImageId(p.markerImageUrl);
+                    const def = poiDefaultIcon(p.poiType, m.color);
+                    iconId = markerId;
+                    // Load the marker image under markerId; on failure/taint register the
+                    // poiType default under the SAME id, so the feature's icon always resolves.
+                    this.loadUrlImage(markerId, p.markerImageUrl, () =>
+                        this.loadSvgImage(markerId, def.svg)
+                    );
+                } else {
+                    const def = poiDefaultIcon(p.poiType, m.color);
+                    iconId = def.iconId;
+                    this.loadSvgImage(def.iconId, def.svg);
+                }
+                features.push({
+                    type: 'Feature',
+                    geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
+                    properties: {
+                        poiKind: 'strapi',
+                        name: p.name ?? '',
+                        desc: p.description ?? '',
+                        photoUrl: p.photoUrl ?? '',
+                        icon: iconId,
+                    },
+                });
+            }
 
             if (!this.map.getSource(poi)) {
                 this.map.addSource(poi, {
@@ -725,13 +897,29 @@ export class PublicOverlaysLayer {
                 const onClick = (e: mapboxgl.MapMouseEvent) => {
                     const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
                     if (!f) return;
-                    const p = f.properties as { name?: string; desc?: string };
+                    const p = f.properties as {
+                        poiKind?: string;
+                        name?: string;
+                        desc?: string;
+                        photoUrl?: string;
+                    };
                     this.hoverPopup.remove();
+                    // Route the popup by feature kind: Strapi POIs get the photo-extended
+                    // popup, GPX waypoints keep the existing name/description popup.
+                    const html =
+                        p.poiKind === 'strapi'
+                            ? poiPopupHtml(
+                                  p.name || 'Point of interest',
+                                  p.desc || '',
+                                  m.color,
+                                  p.photoUrl || undefined
+                              )
+                            : poiPopupHtml(p.name || 'Waypoint', p.desc || '', m.color);
                     this.popup
                         .setLngLat(
                             (f.geometry as GeoJSON.Point).coordinates as [number, number]
                         )
-                        .setHTML(poiPopupHtml(p.name || 'Waypoint', p.desc || '', m.color))
+                        .setHTML(html)
                         .addTo(this.map);
                 };
                 const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
