@@ -29,7 +29,10 @@ check-ins, WITH display names — explicitly OK'd):
 
 Verified: `./build-frontend.sh` exit 0; `svelte-check` errors all pre-existing
 (none in touched files); `tsc --noEmit` clean in both webapps; 15/15 vitest pass.
-NOT visually verified on a live map yet (see memory `reference_gpx_overlay_local_verify`).
+VISUALLY VERIFIED locally 2026-07-04 (full recipe + new `run.human/webapp/scripts/
+seed-local-checkins.mts`): clustered pins with counts, cluster styling, pin popup
+(🐇 name · time · type), private check-ins excluded (9/11), glow route, POI icons
++ popups, fit-on-toggle. Also: elevation pane now collapsed by default (Kurt ask).
 
 ## Remaining / follow-ups
 
