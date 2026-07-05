@@ -321,6 +321,7 @@ Plans:
 **Plans:** 7 plans
 
 Deliverables (from spec):
+
 - `logEvent()` structured-event helper in run.auth / run.gpx / run.human (~8 call sites)
 - Terraform module `admin-reports/v1.0.0`: metric filters (`DefconRun/Activity`), `admin-reports` dashboard (ALB/CloudFront/event metrics + distinct-active-users + top-IPs widgets), saved `admin/*` Logs Insights queries, SNS tripwire alarms (thresholds in site.hcl), 90d retention on `/ecs/*` log groups
 - Mapbox account hardening checklist (URL-restrict token, per-app tokens, spending cap — no usage API exists)
@@ -328,11 +329,22 @@ Deliverables (from spec):
 - Phase 2 (separate, later): Athena over CloudFront/ALB S3 access logs
 
 Plans:
+**Wave 1**
 
 - [ ] 40-01-PLAN.md — run.auth logEvent + auth.signup/auth.login (wave 1)
 - [ ] 40-02-PLAN.md — run.gpx logEvent + 5 gpx events + strava rate-limit line (wave 1)
 - [ ] 40-03-PLAN.md — run.human logEvent + human.checkin/human.upload (wave 1)
 - [ ] 40-04-PLAN.md — admin-reports module: metric filters + 90d retention + admin/* queries + wiring (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 40-05-PLAN.md — Mapbox hardening + reading-the-reports runbook (wave 2)
 - [ ] 40-06-PLAN.md — admin-reports dashboard + SNS tripwire alarms (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 40-07-PLAN.md — deploy + prod end-to-end verification checkpoint (wave 3)
+
+**Cross-cutting constraints:**
+
+- logEvent never throws and extracts the first x-forwarded-for hop as ip
