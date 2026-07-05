@@ -374,8 +374,13 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 36-01-PLAN.md — loadCopy resolver + cached Strapi→S3→snapshot fallback + committed snapshot floor + env wiring (wave 1)
 - [ ] 36-02-PLAN.md — escape-first, whitelist inline markdown renderer (XSS-safe, no new deps) (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 36-03-PLAN.md — CopyProvider/useCopy client context + run.bib layout self-proof (wave 2)
 
 ### Phase 37: Bib Donate/Sponsor Proof Surface
