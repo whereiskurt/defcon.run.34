@@ -312,7 +312,7 @@ Plans:
 - [x] 33-05-PLAN.md — Parity test + pure-logic unit tests in run.bib vitest (SSO-05/07)
 - [x] 33-06-PLAN.md — e2e Playwright: full on gpx, smoke on flash + bib (SSO-08)
 
-### Phase 34: Admin Activity Reports
+### Phase 40: Admin Activity Reports
 
 **Goal:** Operator can see who is doing what (signups, logins, gpx uploads/shares, checkins), how many distinct users/IPs are active, and get tripwire alerts on anomalous activity — all CloudWatch-native, leveraging existing ALB/CloudFront/ECS logs. Pre-con posture: baseline ~zero, any activity is signal.
 **Spec:** docs/superpowers/specs/2026-07-05-admin-activity-reports-design.md (approved 2026-07-05)
@@ -329,4 +329,4 @@ Deliverables (from spec):
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 34 to break down)
+- [ ] TBD (run /gsd-plan-phase 40 to break down)

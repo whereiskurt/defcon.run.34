@@ -37,7 +37,7 @@ Last activity: 2026-07-04 — 33-05 complete: parity + pure-logic unit tests gre
 
 ### Roadmap Evolution
 
-- Phase 34 added (2026-07-05): Admin Activity Reports — CloudWatch-native fraud/abuse/activity reporting; spec at docs/superpowers/specs/2026-07-05-admin-activity-reports-design.md
+- Phase 40 added (2026-07-05): Admin Activity Reports (numbered 40 to skip 34–39 already claimed in parallel worktrees: 34 bib-admin, 35–39 cms-copy/bib-donate) — CloudWatch-native fraud/abuse/activity reporting; spec at docs/superpowers/specs/2026-07-05-admin-activity-reports-design.md
 
 ### Decisions
 
