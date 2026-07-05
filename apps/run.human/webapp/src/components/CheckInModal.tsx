@@ -14,6 +14,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from 'next-themes';
 import { apiUrl } from '@/lib/api';
+import PinPicker, { type PinOption } from '@/components/profile/PinPicker';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
 
@@ -78,6 +79,11 @@ export default function CheckInModal({
   const [isPrivate, setIsPrivate] = useState(checkinPreference === 'private');
   const [quotaRemaining, setQuotaRemaining] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Pin personalization: profile default pre-selected, swappable per check-in.
+  const [pinIcons, setPinIcons] = useState<PinOption[]>([]);
+  const [pinIcon, setPinIcon] = useState('');
+  const [pinColor, setPinColor] = useState('');
+  const [showPinPicker, setShowPinPicker] = useState(false);
 
   const isOpenRef = useRef(false);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -152,6 +158,17 @@ export default function CheckInModal({
     if (isOpen) {
       isOpenRef.current = true;
       resetState();
+      setShowPinPicker(false);
+      // Refresh the allowed pins + profile default each open (cheap, auth'd).
+      fetch(apiUrl('/api/checkins/pin-options'))
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data || !isOpenRef.current) return;
+          setPinIcons(data.icons);
+          setPinIcon(data.pinIcon);
+          setPinColor(data.pinColor);
+        })
+        .catch(() => {});
       const t = setTimeout(() => collectGps(), 100);
       timeoutsRef.current.push(t);
     } else {
@@ -179,6 +196,8 @@ export default function CheckInModal({
           samples: samplesRef.current,
           source: 'Web GPS',
           isPrivate,
+          pinIcon: pinIcon || undefined,
+          pinColor: pinColor || undefined,
         }),
       });
 
@@ -284,25 +303,54 @@ export default function CheckInModal({
               })()}
 
               {phase === 'ready' && (
-                <div className="flex items-center gap-3">
-                  <p className="text-primary text-sm whitespace-nowrap">
-                    +/-{Math.round(bestAccuracy ?? 0)}m
-                  </p>
-                  <Select
-                    aria-label="Visibility"
-                    selectedKeys={[isPrivate ? 'private' : 'public']}
-                    onSelectionChange={(keys) => {
-                      const val = Array.from(keys)[0] as string;
-                      setIsPrivate(val === 'private');
-                    }}
-                    size="sm"
-                    variant="flat"
-                    className="flex-1"
-                    classNames={{ trigger: 'min-h-9' }}
-                  >
-                    <SelectItem key="public">Public</SelectItem>
-                    <SelectItem key="private">Private</SelectItem>
-                  </Select>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <p className="text-primary text-sm whitespace-nowrap">
+                      +/-{Math.round(bestAccuracy ?? 0)}m
+                    </p>
+                    <Select
+                      aria-label="Visibility"
+                      selectedKeys={[isPrivate ? 'private' : 'public']}
+                      onSelectionChange={(keys) => {
+                        const val = Array.from(keys)[0] as string;
+                        setIsPrivate(val === 'private');
+                      }}
+                      size="sm"
+                      variant="flat"
+                      className="flex-1"
+                      classNames={{ trigger: 'min-h-9' }}
+                    >
+                      <SelectItem key="public">Public</SelectItem>
+                      <SelectItem key="private">Private</SelectItem>
+                    </Select>
+                  </div>
+                  {/* Pin personalization — only meaningful for public check-ins */}
+                  {!isPrivate && pinIcons.length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowPinPicker((v) => !v)}
+                        className="text-xs text-default-400 self-start hover:text-default-600"
+                      >
+                        {showPinPicker ? '▾ Map pin' : '▸ Map pin'}{' '}
+                        <span className="text-default-500">
+                          ({pinIcons.find((i) => i.id === pinIcon)?.label ?? 'default'})
+                        </span>
+                      </button>
+                      {showPinPicker && (
+                        <PinPicker
+                          compact
+                          icons={pinIcons}
+                          icon={pinIcon}
+                          color={pinColor}
+                          onChange={(pin) => {
+                            setPinIcon(pin.icon);
+                            setPinColor(pin.color);
+                          }}
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
