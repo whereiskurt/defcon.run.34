@@ -22,8 +22,8 @@ export type AltchaLevel = "save" | "toggle";
 
 // maxNumber bounds the PoW search space → controls average solve time.
 const MAX_NUMBER: Record<AltchaLevel, number> = {
-  save: 1_000_000, // ~5s target
-  toggle: 200_000, // ~1-2s target
+  save: 500_000, // ~2.5s target (Kurt 2026-07-05: halved from 1_000_000)
+  toggle: 200_000, // ~1-2s target (unused now — toggle no longer solves ALTCHA)
 };
 
 const CHALLENGE_TTL_MS = 5 * 60 * 1000; // solutions must be used within 5 min
