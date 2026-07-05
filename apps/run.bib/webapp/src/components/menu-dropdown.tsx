@@ -32,7 +32,10 @@ export function MenuDropdown({ isAdmin = false }: { isAdmin?: boolean }) {
   };
   const ext = (href: string) => {
     setIsOpen(false);
-    window.open(href, "_blank");
+    // IN-01: window.open does NOT default to noopener (unlike anchor
+    // target="_blank"), so the opened tab gets a live window.opener. Pass
+    // noopener,noreferrer to sever it (reverse tab-nabbing hardening).
+    window.open(href, "_blank", "noopener,noreferrer");
   };
 
   return (
