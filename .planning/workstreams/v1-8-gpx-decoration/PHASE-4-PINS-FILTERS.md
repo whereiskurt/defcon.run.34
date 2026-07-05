@@ -1,6 +1,6 @@
 ---
 phase: v1.8 Phase 4 — Check-in personalization & map filters
-status: BUILT (2026-07-04, branch gsd/gpx-pins-filters) — PR open, awaiting Kurt review
+status: COMPLETE — merged to main via PR #370 (2026-07-04, admin-merge authorized by Kurt)
 depends_on: PR #368 (merged 2026-07-04)
 ---
 
