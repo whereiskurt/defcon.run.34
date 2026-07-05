@@ -55,7 +55,11 @@ function decrementColor(color: string) {
     }
 }
 
-export function getSvgForSymbol(symbol?: string | undefined, layerColor?: string | undefined) {
+export function getSvgForSymbol(
+    symbol?: string | undefined,
+    layerColor?: string | undefined,
+    pinColor: string = '#3fb1ce'
+) {
     let symbolSvg = symbol ? symbols[symbol]?.iconSvg : undefined;
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
     ${
@@ -70,7 +74,7 @@ export function getSvgForSymbol(symbol?: string | undefined, layerColor?: string
     ${MapPin.replace('width="24"', '')
         .replace('height="24"', '')
         .replace('stroke="currentColor"', '')
-        .replace('path', `path fill="#3fb1ce" stroke="SteelBlue" stroke-width="1"`)
+        .replace('path', `path fill="${pinColor}" stroke="SteelBlue" stroke-width="1"`)
         .replace(
             'circle',
             `circle fill="${symbolSvg ? 'none' : 'white'}" stroke="${symbolSvg ? 'none' : 'white'}" stroke-width="2"`

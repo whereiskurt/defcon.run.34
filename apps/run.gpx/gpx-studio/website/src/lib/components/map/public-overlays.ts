@@ -688,7 +688,9 @@ export class PublicOverlaysLayer {
             const features: GeoJSON.Feature[] = waypoints.map((w) => {
                 const symbol = getSymbolKey(w.sym);
                 const iconId = `dc34-poi-${symbol ?? 'default'}-${m.color}`;
-                this.loadSvgImage(iconId, getSvgForSymbol(symbol, m.color));
+                // Color the pin body with the route color (not the stock Mapbox blue);
+                // drop the corner badge (undefined layerColor) for a clean route-colored pin.
+                this.loadSvgImage(iconId, getSvgForSymbol(symbol, undefined, m.color));
                 return {
                     type: 'Feature',
                     geometry: {
