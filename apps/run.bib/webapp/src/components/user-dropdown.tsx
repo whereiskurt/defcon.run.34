@@ -5,21 +5,36 @@ import {
   Dropdown,
   DropdownItem,
   DropdownMenu,
+  DropdownSection,
   DropdownTrigger,
   User,
 } from "@heroui/react";
 import { useSession, signOut } from "next-auth/react";
+import { FaUserAlt, FaMapMarkerAlt } from "react-icons/fa";
+import { FaPenToSquare } from "react-icons/fa6";
 import { PiPersonSimpleRun } from "react-icons/pi";
-import { FiShield, FiLogOut } from "react-icons/fi";
+import { FiShield } from "react-icons/fi";
+import { LogOut, QrCode } from "lucide-react";
+
+import { runHumanUrl } from "@/lib/run-human-url";
 
 /**
- * User avatar + dropdown for the bib header — matches run.human's header
- * pattern (teal-bordered avatar → blur dropdown with a User header + menu),
- * trimmed to bib-relevant items: My bib, Admin (admin group only), Sign out.
+ * User avatar + dropdown for the bib header — mirrors flash/run.human's user
+ * menu (Profile, My Bib, CMS, GPS Check-in, Show My QR, Sign out) PLUS bib's
+ * own Admin item, so runners moving between bib.defcon.run and run.defcon.run
+ * see the same menu (BIB-ADM-10).
  *
- * Reads the live session client-side (SessionProvider is mounted in the root
- * layout). Avatar uses `session.user.image` (the OIDC picture claim) and
- * falls back to initials from the name when no image is present.
+ * Cross-app links into run.defcon.run go through the shared runHumanUrl helper
+ * so they're region-prefixed (run.defcon.run is mounted under /{region}). GPS
+ * Check-in / Show My QR deep-link to run.human's ?open=checkin | ?open=qr, which
+ * auto-open its Check-in / QR modals. My Bib (/orderform) and Admin (/admin)
+ * stay in-app — this app IS bib, so it keeps its own identity.
+ *
+ * The CMS and Admin items are gated on session.user.services (client-side UX
+ * gating only; cms.defcon.run and the bib /admin route enforce authorization
+ * server-side). Reads the live session client-side (SessionProvider is mounted
+ * in the root layout). Avatar uses session.user.image (the OIDC picture claim)
+ * and falls back to initials from the name when no image is present.
  */
 export function UserDropdown() {
   const { data: session } = useSession();
@@ -29,7 +44,9 @@ export function UserDropdown() {
   if (!user) return null;
 
   const name = user.name || user.email || "Runner";
-  const isAdmin = Array.isArray(user.services) && user.services.includes("admin");
+  const services = user.services;
+  const hasCms = Array.isArray(services) && services.includes("cms");
+  const isAdmin = Array.isArray(services) && services.includes("admin");
 
   return (
     <Dropdown
@@ -71,36 +88,86 @@ export function UserDropdown() {
           />
         }
       >
-        <DropdownItem
-          key="bib"
-          startContent={<PiPersonSimpleRun className="text-lg" />}
-          href="/orderform"
-          textValue="My bib"
-          className="py-2"
-        >
-          My bib
-        </DropdownItem>
-        {isAdmin ? (
+        <DropdownSection aria-label="Profile" showDivider>
           <DropdownItem
-            key="admin"
-            startContent={<FiShield className="text-lg" />}
-            href="/admin"
-            textValue="Admin"
+            key="profile"
+            startContent={<FaUserAlt className="text-lg" />}
+            href={runHumanUrl("/whoami")}
+            target="_blank"
+            textValue="Profile"
             className="py-2"
           >
-            Admin reports
+            Profile
           </DropdownItem>
-        ) : null}
-        <DropdownItem
-          key="signout"
-          color="danger"
-          startContent={<FiLogOut className="text-lg" />}
-          textValue="Sign out"
-          className="py-2 text-danger"
-          onPress={() => signOut({ callbackUrl: "/orderform" })}
-        >
-          Sign out
-        </DropdownItem>
+          <DropdownItem
+            key="bib"
+            startContent={<PiPersonSimpleRun className="text-lg" />}
+            href="/orderform"
+            textValue="My Bib"
+            className="py-2"
+          >
+            My Bib
+          </DropdownItem>
+          {hasCms ? (
+            <DropdownItem
+              key="cms"
+              startContent={<FaPenToSquare className="text-lg" />}
+              href="https://cms.defcon.run"
+              target="_blank"
+              textValue="CMS"
+              className="py-2"
+            >
+              CMS
+            </DropdownItem>
+          ) : null}
+          {isAdmin ? (
+            <DropdownItem
+              key="admin"
+              startContent={<FiShield className="text-lg" />}
+              href="/admin"
+              textValue="Admin"
+              className="py-2"
+            >
+              Admin reports
+            </DropdownItem>
+          ) : null}
+        </DropdownSection>
+
+        <DropdownSection aria-label="Check-in & QR" showDivider>
+          <DropdownItem
+            key="checkin"
+            startContent={<FaMapMarkerAlt className="text-lg" />}
+            href={runHumanUrl("/?open=checkin")}
+            target="_blank"
+            textValue="GPS Check-in"
+            className="py-2"
+          >
+            GPS Check-in
+          </DropdownItem>
+          <DropdownItem
+            key="showqr"
+            startContent={<QrCode className="w-4 h-4" />}
+            href={runHumanUrl("/?open=qr")}
+            target="_blank"
+            textValue="Show My QR"
+            className="py-2"
+          >
+            Show My QR
+          </DropdownItem>
+        </DropdownSection>
+
+        <DropdownSection aria-label="Sign out">
+          <DropdownItem
+            key="signout"
+            color="danger"
+            startContent={<LogOut className="w-4 h-4" />}
+            textValue="Sign out"
+            className="py-2 text-danger"
+            onPress={() => signOut({ callbackUrl: "/orderform" })}
+          >
+            Sign out
+          </DropdownItem>
+        </DropdownSection>
       </DropdownMenu>
     </Dropdown>
   );
