@@ -17,15 +17,21 @@ findings:
   warning: 2
   info: 3
   total: 5
-status: issues_found
+status: resolved
+resolution:
+  warnings_fixed: 2
+  note: "WR-01 fixed (require full S3 credential set before export); WR-02 fixed (notes marked private, excluded from read-only API). Both verified via dist-boot harness 2026-07-05. 3 info findings reviewed as acceptable for v1."
 ---
 
 # Phase 35: Code Review Report
 
+> **Resolved 2026-07-05:** both warnings fixed and verified — WR-01 (S3 partial-credential guard) and
+> WR-02 (`notes` leaked via the read-only API → now `private:true`). The 3 info findings are accepted for v1.
+
 **Reviewed:** 2026-07-05T08:51:02Z
 **Depth:** standard
 **Files Reviewed:** 8
-**Status:** issues_found
+**Status:** resolved (2 warnings fixed)
 
 ## Summary
 
