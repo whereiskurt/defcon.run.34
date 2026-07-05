@@ -120,9 +120,21 @@ export function BibForm({
 
   const dirty = name !== savedName;
   const quotaSpent = renamesRemaining <= 0;
+  // "Running low" on renames — signalled by an amber glow on Save (Kurt 2026-07-05).
+  const quotaLow = renamesRemaining > 0 && renamesRemaining <= 5;
   const saving = saveState.kind === "saving";
   const busy = saving || saveState.kind === "verifying";
   const canSave = dirty && !nameLocked && !quotaSpent && !busy;
+  // Green halo on the NAME BOX when it's saved (a real name, no unsaved edits).
+  const nameSaved = !dirty && !nameLocked && savedName.trim().length > 0;
+  // Which glow the Save button wears: zero→red(disabled), low→amber, dirty→green.
+  const saveGlow = quotaSpent
+    ? "bib-save-zero"
+    : dirty && quotaLow
+      ? "bib-save-low"
+      : dirty
+        ? "bib-save-dirty"
+        : undefined;
 
   const onChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     // Strip non-ASCII (emoji/combining marks) the bib printer can't render;
@@ -221,19 +233,10 @@ export function BibForm({
         margin: "0 auto",
       }}
     >
-      {/* A3 (Kurt 2026-07-03): name field FIRST, then the live preview below. */}
+      {/* A3 (Kurt 2026-07-03): name field FIRST, then the live preview below.
+        * No "Name on bib" label — the field defaults to "1337" (same as the bib
+        * preview) so the connection is self-evident (Kurt 2026-07-05). */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <label
-          htmlFor="bib-name-input"
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: "#e4e4ef",
-            letterSpacing: "0.02em",
-          }}
-        >
-          Name on bib
-        </label>
         {/* Name field with Save/Cancel inline to its right (Kurt 2026-07-04).
           * Wraps under the input on narrow screens. */}
         <div
@@ -253,8 +256,10 @@ export function BibForm({
             disabled={nameLocked}
             autoComplete="off"
             spellCheck={false}
-            placeholder="Enter the name to print on your bib"
+            placeholder="1337"
+            aria-label="Name on bib"
             aria-describedby="bib-name-hint"
+            className={nameSaved ? "bib-name-saved" : undefined}
             style={{
               flex: "1 1 220px",
               minWidth: 0,
@@ -278,7 +283,7 @@ export function BibForm({
           <button
             type="submit"
             disabled={!canSave}
-            className={dirty ? "bib-save-dirty" : undefined}
+            className={saveGlow}
             style={{
               padding: dirty ? "12px 22px" : "10px 16px",
               fontSize: dirty ? 15 : 13,
@@ -316,11 +321,7 @@ export function BibForm({
           </button>
         </div>
 
-        <SaveStateHint
-          state={saveState}
-          nameLocked={nameLocked}
-          renamesRemaining={renamesRemaining}
-        />
+        <SaveStateHint state={saveState} nameLocked={nameLocked} />
       </div>
 
       {/* Live preview sits BELOW the name field (A3, name-first). */}
@@ -332,18 +333,21 @@ export function BibForm({
   );
 }
 
-/** Human-readable status + remaining-rename count under the buttons. */
+/**
+ * Minimal status line under the name field (Kurt 2026-07-05). The save/quota
+ * state is now shown by GLOWS instead of text — green halo on the box when
+ * saved, green Save button when dirty, amber when renames are low, red +
+ * disabled at zero. So this only surfaces the two things a glow can't say: the
+ * print-lock, and a hard save error. Everything else renders nothing.
+ */
 function SaveStateHint({
   state,
   nameLocked,
-  renamesRemaining,
 }: {
   state: SaveState;
   nameLocked: boolean;
-  renamesRemaining: number;
 }) {
-  const base: React.CSSProperties = { fontSize: 13, color: "#a4a4b8" };
-  const left = `${renamesRemaining} name change${renamesRemaining === 1 ? "" : "s"} left`;
+  const base: React.CSSProperties = { fontSize: 13, minHeight: 18 };
 
   if (nameLocked || state.kind === "locked") {
     return (
@@ -352,49 +356,15 @@ function SaveStateHint({
       </span>
     );
   }
-  if (state.kind === "quota" || renamesRemaining <= 0) {
+  if (state.kind === "error") {
     return (
       <span id="bib-name-hint" role="status" style={{ ...base, color: "#ff8a8a" }}>
-        No name changes left.
+        Save failed ({state.detail}) — try again.
       </span>
     );
   }
-  switch (state.kind) {
-    // "verifying" (ALTCHA PoW) no longer renders an inline hint — the once-mounted
-    // AltchaOverlay blur spinner is the single global affordance now (Plan 34-04,
-    // SC34.7). The "saving" PATCH feedback below stays: the overlay only covers the
-    // PoW, not the subsequent network write.
-    case "saving":
-      return (
-        <span id="bib-name-hint" role="status" style={base}>
-          Saving…
-        </span>
-      );
-    case "saved":
-      // A5 (Kurt 2026-07-03): keep the remaining count under wraps — only
-      // surface it when it's getting low (≤3 left).
-      return (
-        <span id="bib-name-hint" role="status" style={{ ...base, color: "#7fdc9e" }}>
-          {renamesRemaining <= 3 ? `Saved · ${left}` : "Saved."}
-        </span>
-      );
-    case "error":
-      return (
-        <span id="bib-name-hint" role="status" style={{ ...base, color: "#ff8a8a" }}>
-          Save failed ({state.detail}) — try again.
-        </span>
-      );
-    case "idle":
-    default:
-      // A5: hide the quota entirely until only a few changes remain.
-      return renamesRemaining <= 3 ? (
-        <span id="bib-name-hint" role="status" style={{ ...base, color: "#f4c680" }}>
-          {left}
-        </span>
-      ) : (
-        <span id="bib-name-hint" role="status" style={base} />
-      );
-  }
+  // idle / saving / saved / quota → conveyed by the field + Save-button glows.
+  return <span id="bib-name-hint" role="status" style={base} />;
 }
 
 export default BibForm;
