@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-05 01:00:53 UTC",
+  "updated": "2026-07-05 03:27:58 UTC",
   "poll_seconds": 300,
   "regions": [
     {
@@ -40,7 +40,7 @@
       "host": "gpx.defcon.run",
       "link": "https://gpx.defcon.run",
       "version": "v0.0.9",
-      "state": "dev",
+      "state": "live",
       "note": "GPX editor & route overlays"
     },
     {
@@ -66,7 +66,7 @@
       "name": "run.cms",
       "host": "cms.defcon.run",
       "version": "v0.0.8",
-      "state": "dev",
+      "state": "live",
       "note": "Content & routes (admin only)"
     }
   ]
