@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import BibPreview from "./BibPreview";
 import { CashRain } from "./CashRain";
-import { BurningBib } from "./BurningBib";
 import { solveAltcha } from "@/lib/altcha-client";
 import { registerBibFlusher } from "@/lib/pending-bib-save";
 import { getRaining, subscribe as subscribeRain } from "@/lib/rain-store";
@@ -57,6 +57,12 @@ export interface BibFormProps {
 const API_BIB_PATH = "/api/bib";
 // Kurt 2026-07-03: 24-char cap (was 32) — matches the physical bib render budget.
 const NAME_MAX = 24;
+
+// Lazy-load the burning pile (it inlines a ~220KB dumpster GIF) so it only ships
+// to the browser when a runner actually burns their bib (Kurt 2026-07-05).
+const BurningBib = dynamic(() =>
+  import("./BurningBib").then((m) => m.BurningBib)
+);
 
 type SaveState =
   | { kind: "idle" }
