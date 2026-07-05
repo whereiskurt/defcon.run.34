@@ -649,7 +649,7 @@ export class PublicOverlaysLayer {
                         this.hoverPopup
                             .setLngLat(e.lngLat)
                             .setHTML(
-                                `<div style="font-family:system-ui,sans-serif;font-size:12px;color:#e4e4ef;max-width:220px">${escapeHtml(m.shortDescription)}</div>`
+                                `<div style="font-family:system-ui,sans-serif;font-size:12px;color:#e4e4ef;max-width:220px;border-left:4px solid ${m.color};padding-left:8px">${escapeHtml(m.shortDescription)}</div>`
                             )
                             .addTo(this.map);
                     }
