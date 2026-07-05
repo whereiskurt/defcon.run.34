@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "copy:snapshot": "node scripts/copy-snapshot.mjs"
   },
   "dependencies": {
     "@auth/dynamodb-adapter": "^2.11.1",
