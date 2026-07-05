@@ -94,6 +94,7 @@ export function UserDropdown() {
             startContent={<FaUserAlt className="text-lg" />}
             href={runHumanUrl("/whoami")}
             target="_blank"
+            rel="noopener noreferrer"
             textValue="Profile"
             className="py-2"
           >
@@ -114,6 +115,7 @@ export function UserDropdown() {
               startContent={<FaPenToSquare className="text-lg" />}
               href="https://cms.defcon.run"
               target="_blank"
+              rel="noopener noreferrer"
               textValue="CMS"
               className="py-2"
             >
@@ -139,6 +141,7 @@ export function UserDropdown() {
             startContent={<FaMapMarkerAlt className="text-lg" />}
             href={runHumanUrl("/?open=checkin")}
             target="_blank"
+            rel="noopener noreferrer"
             textValue="GPS Check-in"
             className="py-2"
           >
@@ -149,6 +152,7 @@ export function UserDropdown() {
             startContent={<QrCode className="w-4 h-4" />}
             href={runHumanUrl("/?open=qr")}
             target="_blank"
+            rel="noopener noreferrer"
             textValue="Show My QR"
             className="py-2"
           >
