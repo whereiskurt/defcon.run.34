@@ -141,6 +141,37 @@ function poiLayerId(fileId: string): string {
     return `${SOURCE_PREFIX}${fileId}-poi`;
 }
 
+/** Derive a `[[minLon,minLat],[maxLon,maxLat]]` bounding box from a parsed GPX
+ * FeatureCollection (the tracks `toGeoJSON()` emits — LineString / MultiLineString).
+ * Returns null when there are no usable coordinates so a degenerate/NaN box is
+ * never cached. Used as the client-side fallback for standalone CMS routes whose
+ * manifest entry carries no precomputed `bounds` (design §4). */
+function boundsFromGeoJSON(
+    fc: GeoJSON.FeatureCollection
+): [[number, number], [number, number]] | null {
+    let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+    const visit = (lon: number, lat: number) => {
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+        if (lon < minLon) minLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lon > maxLon) maxLon = lon;
+        if (lat > maxLat) maxLat = lat;
+    };
+    for (const f of fc.features ?? []) {
+        const g = f.geometry;
+        if (!g) continue;
+        if (g.type === 'LineString') {
+            for (const c of g.coordinates) visit(c[0], c[1]);
+        } else if (g.type === 'MultiLineString') {
+            for (const line of g.coordinates) for (const c of line) visit(c[0], c[1]);
+        } else if (g.type === 'Point') {
+            visit(g.coordinates[0], g.coordinates[1]);
+        }
+    }
+    if (minLon === Infinity) return null; // no coordinates seen
+    return [[minLon, minLat], [maxLon, maxLat]];
+}
+
 function formatDistance(meters?: number): string | undefined {
     if (!meters || meters <= 0) return undefined;
     return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
@@ -336,8 +367,17 @@ export class PublicOverlaysLayer {
                         const gpxRes = await fetch(m.downloadUrl);
                         if (!gpxRes.ok) return;
                         const file = parseGPX(await gpxRes.text());
+                        const geojson = file.toGeoJSON();
                         this.addRouteLayer(m, group.folderName);
-                        this.setRouteData(m.fileId, file.toGeoJSON());
+                        this.setRouteData(m.fileId, geojson);
+                        // Standalone CMS routes arrive with no precomputed manifest bounds, so
+                        // derive them client-side from the parsed GeoJSON — only when we don't
+                        // already have a bounds entry (the m.bounds pre-cache above wins), and
+                        // only when a real box comes back (never store a degenerate/NaN box).
+                        if (!this.routeBounds.has(m.fileId)) {
+                            const box = boundsFromGeoJSON(geojson);
+                            if (box) this.routeBounds.set(m.fileId, box);
+                        }
                         // toGeoJSON() only emits tracks — waypoints (POIs) ride separately.
                         this.addRoutePois(m, (file.wpt as GpxWaypoint[]) ?? []);
                     } catch (err) {
