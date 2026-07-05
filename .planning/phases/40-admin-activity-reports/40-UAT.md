@@ -79,11 +79,12 @@ result: pass
 source: automated
 evidence: `terraform validate` = "Success! The configuration is valid." Inventory: 8 metric filters, 7 `admin/*` query definitions, 1 dashboard, 4 alarms, 1 SNS topic, retention `import{}` block + 2 `prevent_destroy`.
 
-### 11. /ecs/* retention adoption is non-destructive (live plan)
+### 11. /ecs/* retention adoption is non-destructive (live plan + apply)
 expected: `terragrunt plan` of the us-east-1/admin-reports unit shows the existing ECS-created `/ecs/*` log groups ADOPTED via import (retention set), with NO destroy/recreate.
-result: blocked
-blocked_by: release-build
-reason: "Requires AWS credentials + live terragrunt plan; sandbox has no creds (sops/KMS unreachable). Gated on 40-07."
+result: pass
+source: automated
+evidence: Live via terragrunt-plan (run 28754047670) then terragrunt-apply (run 28754121487): `Apply complete! Resources: 3 imported, 22 added, 3 changed, 0 destroyed.` The 3 `/ecs/run-{app}-app-run-{app}-use1-dc34` groups were imported (adopted) and only `retention_in_days 0 → 90` changed. Zero destroy.
+found+fixed during enablement (PR #404): (a) module root declared duplicate `required_providers` vs terragrunt-generated provider.tf; (b) log-group names lacked the `-use1-dc34` family suffix — the un-suffixed names hard-errored `Cannot import non-existent remote object`. Both caught by the plan gate before any apply.
 
 ### 12. Events increment DefconRun/Activity metrics in prod
 expected: firing one of each event in the running us-east-1 environment increments the matching metric within a few minutes.
@@ -112,12 +113,12 @@ reason: "Operator action during 40-07 apply; cannot be automated."
 ## Summary
 
 total: 15
-passed: 10
+passed: 11
 issues: 0
 pending: 0
 skipped: 0
-blocked: 5
+blocked: 4
 
 ## Gaps
 
-[none — 0 issues found. The 5 blocked tests are prod-deploy prerequisites (40-07), not defects.]
+[none — 0 issues found. 2 module bugs (duplicate required_providers; missing -use1-dc34 log-group suffix) were found by the plan gate during 40-07 enablement and fixed on main via PR #404 before any apply — see test 11. The 4 remaining blocked tests need operator action: confirm the SNS subscription email (test 15) and fire live events to observe metrics/widgets/tripwire (tests 12–14).]
