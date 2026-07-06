@@ -63,6 +63,18 @@
     "bib.bibform.saveError": "Save failed ({detail}) — try again.",
     "bib.bibform.runnerCodeLabel": "Runner code",
     "bib.bibform.copy": "Copy",
-    "bib.bibform.copied": "Copied!"
+    "bib.bibform.copied": "Copied!",
+    "bib.txn.totalContributed": "Total contributed",
+    "bib.txn.kindBib": "Bib",
+    "bib.txn.kindDonation": "Donation",
+    "bib.txn.inProgress": "In progress",
+    "bib.txn.reconcileNote": "Venmo & Cash App contributions appear here once an organizer confirms them.",
+    "bib.admin.failText": "Couldn't apply — try again.",
+    "bib.admin.dedupedText": "Already reconciled — amount unchanged.",
+    "bib.admin.approve": "Approve",
+    "bib.admin.paid": "PAID",
+    "bib.admin.alreadyBooked": "Already booked.",
+    "bib.admin.reject": "Reject",
+    "bib.admin.rejectConfirm": "Reject this bib? This deletes the bib and pending payments and resets the runner's name-change quota. Donations are kept."
   }
 }

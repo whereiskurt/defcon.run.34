@@ -92,6 +92,20 @@ const REQUIRED_BIB_KEYS = [
   "bib.bibform.runnerCodeLabel",
   "bib.bibform.copy",
   "bib.bibform.copied",
+  // Phase 39-01 (MIGR-02): remaining bib transaction-history prose (39-04 wires it).
+  "bib.txn.totalContributed",
+  "bib.txn.kindBib",
+  "bib.txn.kindDonation",
+  "bib.txn.inProgress",
+  "bib.txn.reconcileNote",
+  // Phase 39-01 (MIGR-02): remaining bib admin-action prose (39-04 wires it).
+  "bib.admin.failText",
+  "bib.admin.dedupedText",
+  "bib.admin.approve",
+  "bib.admin.paid",
+  "bib.admin.alreadyBooked",
+  "bib.admin.reject",
+  "bib.admin.rejectConfirm",
 ] as const;
 
 describe("Test A — bib.* key-set floor (SC-4 contract)", () => {
