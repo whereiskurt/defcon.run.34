@@ -453,5 +453,14 @@ Plans:
   2. Shared chrome copy is keyed under `common.header.*` and `common.profileMenu.*`, and each app renders those labels through `t()` from the same keys.
   3. Editing a `common.*` key changes the wording in every app that reads it — the copy-paste de-dup win — with no shared React component change and no deploy.
 
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 39-01-PLAN.md — Author remaining bib.* + shared common.* keys into bib snapshot; namespace-aware import (Wave 1)
+- [ ] 39-02-PLAN.md — Port toolkit into run.human + snapshot + import + mount CopyProvider in both layouts (Wave 1)
+- [ ] 39-03-PLAN.md — Wire run.bib chrome (header/menu/profile/footer) to common.* (Wave 2)
+- [ ] 39-04-PLAN.md — Migrate run.bib remaining copy (TransactionHistory/AdminActions) to bib.* (Wave 2)
+- [ ] 39-05-PLAN.md — Wire run.human chrome to the same common.* keys + bounded human.* easy wins (Wave 2)
+- [ ] 39-06-PLAN.md — Verify SC-1/2/3 + fallback: cross-snapshot lock, operator import, live cross-app edit (Wave 3)
+
 **UI hint**: yes
