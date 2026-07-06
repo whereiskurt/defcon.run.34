@@ -1,4 +1,5 @@
 import dumpsterFire from "@public/dumpster-fire.gif";
+import { useCopy } from "@/components/CopyProvider";
 
 /**
  * BurningBib (Kurt 2026-07-05: "🔥 Fuck your bib").
@@ -14,12 +15,13 @@ import dumpsterFire from "@public/dumpster-fire.gif";
  * next/image) so the animation is preserved. Scales up to ~bib-preview size.
  */
 export function BurningBib() {
+  const { t } = useCopy();
   return (
     <div className="burning-bib">
       <img
         className="burn-gif"
         src={dumpsterFire.src}
-        alt="Your bib is a dumpster fire."
+        alt={t("bib.status.burningBibAlt")}
         width={dumpsterFire.width}
         height={dumpsterFire.height}
       />
