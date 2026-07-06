@@ -300,7 +300,7 @@ Plans:
 | 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
-| 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 2/6 | In Progress|  |
+| 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 3/6 | In Progress|  |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -453,7 +453,7 @@ Plans:
   2. Shared chrome copy is keyed under `common.header.*` and `common.profileMenu.*`, and each app renders those labels through `t()` from the same keys.
   3. Editing a `common.*` key changes the wording in every app that reads it — the copy-paste de-dup win — with no shared React component change and no deploy.
 
-**Plans**: 2/6 plans executed
+**Plans**: 3/6 plans executed
 
 Plans:
 **Wave 1**
@@ -463,7 +463,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 39-03-PLAN.md — Wire run.bib chrome (header/menu/profile/footer) to common.* (Wave 2)
+- [x] 39-03-PLAN.md — Wire run.bib chrome (header/menu/profile/footer) to common.* (Wave 2)
 - [ ] 39-04-PLAN.md — Migrate run.bib remaining copy (TransactionHistory/AdminActions) to bib.* (Wave 2)
 - [ ] 39-05-PLAN.md — Wire run.human chrome to the same common.* keys + bounded human.* easy wins (Wave 2)
 
