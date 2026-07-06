@@ -19,15 +19,13 @@ Region chips show which regions are deployed (`use1` live; `cac1`/`apse1` dimmed
 
 ## Updating status (the whole point)
 
-Everything is data-driven by two files — edit them, then run `release.sh`:
-
-- [`site/status.json`](./site/status.json) — services, states, versions, notes, regions.
-- [`site/marquee.json`](./site/marquee.json) — the scrolling ticker lines.
+Everything is data-driven by [`site/status.json`](./site/status.json) — services, states,
+versions, notes, regions. Edit it, then run `release.sh`:
 
 ```bash
 # edit site/status.json  (e.g. set gpx → "live", bump its version)
 ./release.sh                 # full publish + invalidate
-./release.sh --status-only   # fast: only status.json + marquee.json
+./release.sh --status-only   # fast: only status.json
 ```
 
 `release.sh` uses the **`dc34-application`** AWS profile, discovers the bucket /
@@ -37,6 +35,10 @@ the HTML shell is cached hard.
 
 ## Easter eggs
 
+- **MATRIX RUN** — the dark panel below the title (where the old ticker was) is a tiny
+  Chrome-dino-style runner. Neo auto-jogs; click/tap the panel then press **Space** (or
+  tap) to jump Agent Smith and grab white rabbits. High score persists in `localStorage`.
+  It's pure canvas in `site/index.html` — no data file, not part of the release flow.
 - **Konami** (↑↑↓↓←→←→ B A) or **5 rapid taps** → Matrix mode (auto-exits after 10s).
 - Exiting Matrix, typing `elkentaro`, reveals a 🎂 birthday card (swap the placeholder
   avatar via `window.__elkImg` / the card `src`, and point `ELKENTARO_URL` at the form).

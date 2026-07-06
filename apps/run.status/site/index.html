@@ -62,12 +62,12 @@
   .rchip.off { color:var(--faint); opacity:.55; }
   .rchip.off .rd { background:var(--faint); }
 
-  .marquee { margin:22px 0 2px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); overflow:hidden; white-space:nowrap; -webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent); mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent); }
-  .marquee .track { display:inline-block; padding:9px 0; font-family:var(--font-mono); font-size:.76rem; letter-spacing:.06em; color:var(--brand); animation:scroll 34s linear infinite; }
-  .marquee .track span { margin:0 30px; }
-  .marquee .track span::before { content:'▚ '; color:var(--faint); }
-  .marquee:hover .track { animation-play-state:paused; }
-  @keyframes scroll { from{transform:translateX(0);} to{transform:translateX(-50%);} }
+  /* MATRIX RUN — the little runner that lives where the marquee used to be */
+  .game { position:relative; margin:22px 0 2px; border-radius:14px; overflow:hidden;
+    background:#05070a; border:1px solid var(--border); outline:none;
+    transition:border-color .2s, box-shadow .2s; cursor:pointer; }
+  .game.focused { border-color:var(--brand); box-shadow:0 0 22px #00d4aa22; }
+  .game canvas { display:block; width:100%; height:140px; }
 
   .banner {
     margin:28px 0 32px; padding:18px 22px; border-radius:14px;
@@ -167,7 +167,10 @@
       <span id="refresh"></span>
     </div>
 
-    <div class="marquee"><div class="track" id="marquee"></div></div>
+    <div class="game" id="game" tabindex="0" role="application"
+         aria-label="MATRIX RUN — a tiny Matrix-themed jumping game. Click or tap to play, then press Space to jump.">
+      <canvas id="mrun"></canvas>
+    </div>
 
     <div class="banner" id="banner">
       <div class="bigdot"></div>
@@ -190,7 +193,6 @@
 
   // ---- fallbacks (used only if the JSON files can't be fetched) ----
   let DATA = { updated:"—", poll_seconds:300, regions:[{id:"use1",deployed:true}], services:[] };
-  let MARQUEE = ["HACK THE PLANET", "DEF CON 34 // run.defcon.run"];
 
   function render() {
     const grid = document.getElementById('grid');
@@ -236,11 +238,6 @@
     ).join('');
   }
 
-  function renderMarquee() {
-    const items = (MARQUEE || []).map(t => '<span>' + esc(t) + '</span>').join('');
-    document.getElementById('marquee').innerHTML = items + items;
-  }
-
   function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
   // ---- elkentaro birthday egg (pinned to top) ----
@@ -277,7 +274,7 @@
   // ---- mobile: 5 rapid taps → matrix ----
   let taps = [];
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.rsvp, a')) return;
+    if (e.target.closest('.rsvp, a, #game')) return;
     const now = Date.now();
     taps = taps.filter(t => now - t < 1500);
     taps.push(now);
@@ -346,17 +343,196 @@
       if (r.ok) { DATA = await r.json(); render(); }
     } catch(_) {}
   }
-  async function fetchMarquee() {
-    try {
-      const r = await fetch('./marquee.json', { cache:'no-store' });
-      if (r.ok) { const m = await r.json(); if (Array.isArray(m.items)) MARQUEE = m.items; renderMarquee(); }
-    } catch(_) {}
-  }
+  // ---- MATRIX RUN: the little runner living in the old marquee slot ----
+  // Chrome-dino, Matrix-skinned. Neo auto-jogs; Space/tap jumps Agent Smith,
+  // grab the white rabbits for bonus. Crash → glitch → retry. All canvas, no assets.
+  (function matrixRun(){
+    const panel = document.getElementById('game');
+    const cv = panel && document.getElementById('mrun');
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const H = 140;
+    let W = 0, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const glyphs = 'アカサタナ01DEFCONRUN$#@'.split('');
+    let rain = [];
+    function initRain(){
+      rain = [];
+      const cols = Math.max(1, Math.floor(W/14));
+      for (let i=0;i<cols;i++) rain.push({ x:i*14+4, y:Math.random()*H, s:.6+Math.random()*1.8, c:glyphs[(Math.random()*glyphs.length)|0] });
+    }
+    function resize(){
+      W = panel.clientWidth || 600;
+      cv.width = W*dpr; cv.height = H*dpr;
+      cv.style.height = H+'px';
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      initRain();
+    }
+    window.addEventListener('resize', resize);
+
+    const groundY = H - 22;
+    const HI_KEY = 'dcr-matrixrun-hi';
+    let hi = 0; try { hi = parseInt(localStorage.getItem(HI_KEY)||'0',10) || 0; } catch(_){}
+
+    let state = 'attract';           // attract | playing | dead
+    let focused = false, running = false;
+    let t = 0, speed = 3, score = 0, deathT = 0;
+    const neo = { x:54, y:groundY, vy:0, w:16, h:26, onGround:true };
+    let obstacles = [], rabbits = [], nextObs = 40, nextRab = 90;
+
+    function reset(){
+      obstacles = []; rabbits = []; nextObs = 40; nextRab = 90;
+      speed = 3; score = 0; neo.y = groundY; neo.vy = 0; neo.onGround = true;
+    }
+    function ensureLoop(){ if (!running){ running = true; requestAnimationFrame(loop); } }
+    function jump(){
+      if (state === 'attract'){ state = 'playing'; reset(); ensureLoop(); return; }
+      if (state === 'dead'){ if (t - deathT < 18) return; state = 'playing'; reset(); return; }
+      if (neo.onGround){ neo.vy = -8.9; neo.onGround = false; }
+    }
+    function die(){
+      state = 'dead'; deathT = t;
+      if ((score|0) > hi){ hi = score|0; try { localStorage.setItem(HI_KEY, String(hi)); } catch(_){} }
+    }
+
+    panel.addEventListener('pointerdown', () => { panel.focus(); jump(); });
+    panel.addEventListener('focus', () => { focused = true; panel.classList.add('focused'); });
+    panel.addEventListener('blur',  () => { focused = false; panel.classList.remove('focused'); });
+    panel.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.key === ' ' || e.key === 'ArrowUp') {
+        e.preventDefault(); jump();
+      }
+    });
+
+    function spawn(){
+      if (--nextObs <= 0){
+        obstacles.push({ x: W+20, w: 15 + (Math.random()*8|0), h: 20 + (Math.random()*12|0) });
+        nextObs = Math.max(52, (120 - speed*8)|0) + (Math.random()*45|0);
+      }
+      if (--nextRab <= 0){
+        rabbits.push({ x: W+20, y: groundY - 46 - (Math.random()*18|0), w:14, h:14, got:false });
+        nextRab = 150 + (Math.random()*130|0);
+      }
+    }
+    function update(){
+      t++;
+      if (state === 'playing'){
+        speed = Math.min(7.2, 3 + score*0.0009);
+        score += speed*0.12;
+        spawn();
+        neo.vy += 0.6; neo.y += neo.vy;
+        if (neo.y >= groundY){ neo.y = groundY; neo.vy = 0; neo.onGround = true; }
+        obstacles.forEach(o => o.x -= speed);
+        rabbits.forEach(r => r.x -= speed);
+        obstacles = obstacles.filter(o => o.x + o.w > -12);
+        rabbits = rabbits.filter(r => r.x + r.w > -12 && !r.got);
+        const nx = neo.x, ny = neo.y - neo.h, nw = neo.w, nh = neo.h;
+        for (const o of obstacles){
+          const oy = groundY - o.h;
+          if (nx < o.x+o.w && nx+nw > o.x && ny+nh > oy){ die(); break; }
+        }
+        for (const r of rabbits){
+          if (!r.got && nx < r.x+r.w && nx+nw > r.x && ny < r.y+r.h && ny+nh > r.y){ r.got = true; score += 40; }
+        }
+      } else if (state === 'attract'){
+        neo.y = groundY - Math.abs(Math.sin(t*0.11))*6;
+      }
+    }
+
+    function drawRain(){
+      ctx.font = '12px "Fira Code", monospace';
+      ctx.fillStyle = 'rgba(0,212,170,0.10)';
+      const mul = state === 'playing' ? 1.4 : 0.7;
+      for (const d of rain){
+        d.y += d.s * mul;
+        if (d.y > H){ d.y = -8; d.c = glyphs[(Math.random()*glyphs.length)|0]; }
+        ctx.fillText(d.c, d.x, d.y);
+      }
+    }
+    function drawGround(){
+      ctx.strokeStyle = 'rgba(0,212,170,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, groundY+1); ctx.lineTo(W, groundY+1); ctx.stroke();
+      ctx.fillStyle = 'rgba(0,212,170,0.22)';
+      const off = (t*speed) % 24;
+      for (let x = -off; x < W; x += 24) ctx.fillRect(x, groundY+4, 10, 2);
+    }
+    function drawNeo(){
+      const x = neo.x, y = neo.y, w = neo.w, h = neo.h;
+      ctx.fillStyle = 'rgba(0,212,170,0.12)'; ctx.fillRect(x-8, y-h, 4, h);       // trail
+      ctx.fillStyle = '#0c0f12'; ctx.fillRect(x, y-h, w, h);                       // coat
+      ctx.strokeStyle = '#00d4aa'; ctx.lineWidth = 1.3; ctx.strokeRect(x+0.5, y-h+0.5, w-1, h-1);
+      ctx.fillStyle = '#141a1e'; ctx.fillRect(x+2, y-h-8, w-4, 9);                 // head
+      ctx.strokeRect(x+2.5, y-h-7.5, w-5, 8);
+      ctx.fillStyle = '#00d4aa'; ctx.fillRect(x+3, y-h-4, w-6, 2);                 // shades
+      const ph = Math.sin(t*0.5) > 0;                                             // feet
+      ctx.fillStyle = '#00d4aa';
+      ctx.fillRect(x+2, y-2, 5, 2 + (ph?2:0));
+      ctx.fillRect(x+w-7, y-2, 5, 2 + (ph?0:2));
+    }
+    function drawAgent(o){
+      const x = o.x, y = groundY, w = o.w, h = o.h;
+      ctx.fillStyle = '#2a2f36'; ctx.fillRect(x, y-h, w, h);                       // suit
+      ctx.strokeStyle = 'rgba(0,212,170,0.55)'; ctx.lineWidth = 1; ctx.strokeRect(x+0.5, y-h+0.5, w-1, h-1);
+      ctx.fillStyle = '#cbd5cf';                                                   // shirt V
+      ctx.beginPath(); ctx.moveTo(x+w/2-3, y-h); ctx.lineTo(x+w/2+3, y-h); ctx.lineTo(x+w/2, y-h+8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#00d4aa'; ctx.fillRect(x+w/2-1, y-h+3, 2, 8);               // tie
+      ctx.fillStyle = '#3a4048'; ctx.fillRect(x+3, y-h-8, w-6, 8);                 // head
+      ctx.fillStyle = '#0a0a0a'; ctx.fillRect(x+3, y-h-5, w-6, 3);                 // shades
+    }
+    function drawRabbit(r){
+      if (r.got) return;
+      ctx.fillStyle = '#f4f4f8';
+      ctx.fillRect(r.x, r.y+4, r.w, r.h-4);                                        // body
+      ctx.fillRect(r.x+2, r.y-4, 3, 8);                                            // ear
+      ctx.fillRect(r.x+r.w-5, r.y-4, 3, 8);                                        // ear
+      ctx.fillStyle = '#00d4aa'; ctx.fillRect(r.x+r.w-5, r.y+7, 2, 2);             // eye
+    }
+    function drawGlitch(){
+      if (state !== 'dead') return;
+      const age = t - deathT; if (age > 14) return;
+      ctx.globalAlpha = 1 - age/14;
+      for (let i=0;i<7;i++){
+        ctx.fillStyle = i%2 ? 'rgba(0,212,170,0.5)' : 'rgba(239,68,68,0.4)';
+        ctx.fillRect((Math.random()-0.5)*30, (Math.random()*H)|0, W, 1 + (Math.random()*5|0));
+      }
+      ctx.globalAlpha = 1;
+    }
+    function drawHud(){
+      ctx.font = '10px "Fira Code", monospace'; ctx.textBaseline = 'alphabetic';
+      ctx.textAlign = 'left';  ctx.fillStyle = 'rgba(0,212,170,0.85)'; ctx.fillText('MATRIX RUN', 12, 16);
+      ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(228,228,239,0.9)';
+      ctx.fillText('SCORE ' + String(score|0).padStart(5,'0') + '   HI ' + String(hi).padStart(5,'0'), W-12, 16);
+      ctx.textAlign = 'center';
+      if (state === 'attract'){
+        ctx.fillStyle = (t % 60 < 38) ? 'rgba(0,212,170,0.9)' : 'rgba(0,212,170,0.28)';
+        ctx.font = '11px "Fira Code", monospace';
+        ctx.fillText(focused ? 'press SPACE to run' : 'click / tap to play', W/2, H-9);
+      } else if (state === 'dead'){
+        ctx.fillStyle = 'rgba(239,68,68,0.95)'; ctx.font = 'bold 15px "Fira Code", monospace';
+        ctx.fillText('FLATLINED', W/2, H/2 - 1);
+        ctx.fillStyle = 'rgba(228,228,239,0.7)'; ctx.font = '10px "Fira Code", monospace';
+        ctx.fillText('SPACE / TAP to retry', W/2, H/2 + 15);
+      }
+      ctx.textAlign = 'left';
+    }
+    function draw(){
+      ctx.fillStyle = '#05070a'; ctx.fillRect(0,0,W,H);
+      drawRain(); drawGround();
+      if (state !== 'attract'){ obstacles.forEach(drawAgent); rabbits.forEach(drawRabbit); }
+      drawNeo(); drawGlitch(); drawHud();
+    }
+    function loop(){ update(); draw(); requestAnimationFrame(loop); }
+
+    resize();
+    if (reduce) { draw(); }   // reduced-motion: static card until the user opts in by playing
+    else ensureLoop();
+  })();
 
   // ---- boot ----
   (async function boot(){
-    await Promise.all([fetchStatus(), fetchMarquee()]);
-    render(); renderMarquee();
+    await fetchStatus();
+    render();
     remaining = DATA.poll_seconds || 300;
     tickRefresh();
     setInterval(tickRefresh, 1000);

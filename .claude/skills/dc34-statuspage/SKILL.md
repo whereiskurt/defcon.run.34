@@ -46,7 +46,7 @@ The page renders only these `state` values — anything else shows with no color
 - **Never hand-edit `updated`** — `release.sh` stamps it. Never hand-edit `state` in the JSON directly; use the setter so ids/states are validated.
 - **`cms` intentionally has no `link` field** — don't add one.
 - **AWS**: publishing needs the `dc34-application` profile (SSM read + S3 write + CloudFront invalidate). If `aws sts get-caller-identity --profile dc34-application` fails, stop before step 6 and tell the user to authenticate.
-- This skill only changes **state**. To edit a service's `version`, `note`, or the `marquee.json` ticker, do it directly in the JSON, then run `./release.sh` (full) — that's out of this skill's batch flow.
+- This skill only changes **state**. To edit a service's `version` or `note`, do it directly in `status.json`, then run `./release.sh` — that's out of this skill's batch flow. (The old scrolling `marquee.json` ticker is gone; its slot is now the **MATRIX RUN** canvas mini-game in `index.html`, which has no data file and is not part of this flow.)
 
 ## Reference
 
