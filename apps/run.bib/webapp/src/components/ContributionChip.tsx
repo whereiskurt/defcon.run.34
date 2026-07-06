@@ -9,6 +9,8 @@
  * tile — the familiar payment-method look, theme-independent. Server component.
  */
 
+import { loadCopy, t } from "@/lib/copy";
+
 function usd(cents: number): string {
   return `$${(cents / 100).toLocaleString("en-US", {
     minimumFractionDigits: 2,
@@ -35,7 +37,7 @@ const BRANDS: Record<string, { label: string; color: string; path: string }> = {
   },
 };
 
-export function ContributionChip({
+export async function ContributionChip({
   totalCents,
   providers,
 }: {
@@ -46,15 +48,21 @@ export function ContributionChip({
   if (totalCents <= 0) return null;
   const provs = providers.length > 0 ? providers : ["stripe"];
   const amount = usd(totalCents);
+  const copy = await loadCopy("default");
 
   return (
     <div style={{ display: "flex", justifyContent: "center" }}>
       <div
         className="bib-contrib-chip"
         role="status"
-        aria-label={`Thank you — you've contributed ${amount} via ${provs.join(", ")}`}
+        aria-label={t(copy, "bib.contribution.chipAria", {
+          amount,
+          providers: provs.join(", "),
+        })}
       >
-        <span className="bib-contrib-thanks">Thank you</span>
+        <span className="bib-contrib-thanks">
+          {t(copy, "bib.contribution.thanks")}
+        </span>
         <span className="bib-contrib-amt">{amount}</span>
         <span className="bib-contrib-provs">
           {provs.map((p) => {
