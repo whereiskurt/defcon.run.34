@@ -128,6 +128,70 @@ html.light {
   --bib-pending-border: #ecdca6;
 }
 
+/* Contribution chip (Kurt 2026-07-05) — compact "you've contributed $X · via"
+   pill that replaces the big transaction panel. Mint-accented, theme-aware. */
+.bib-contrib-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 9px;
+  border-radius: 999px;
+  background: var(--bib-surface);
+  border: 1px solid var(--bib-border);
+  box-shadow: 0 0 0 1px #6ccdb81f, 0 10px 26px -16px #6ccdb877;
+}
+.bib-contrib-thanks {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #06231d;
+  background: #6ccdb8;
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+.bib-contrib-amt {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  color: #6ccdb8;
+}
+.bib-contrib-provs {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.bib-prov {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  border-radius: 7px;
+  background: #fff;
+  border: 1px solid #0000001a;
+  box-shadow: 0 1px 2px #00000033;
+}
+.bib-prov svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.bib-prov--text {
+  width: auto;
+  height: 26px;
+  padding: 0 9px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bib-muted);
+  background: var(--bib-surface-2);
+  border: 1px solid var(--bib-border);
+}
+
 /* Cash rain — USD bills fall over the bib preview and pile up when the runner
    pledges to contribute in person (Kurt 2026-07-03). Overlay is click-through. */
 .cash-rain {
