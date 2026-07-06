@@ -398,11 +398,20 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 37-01-PLAN.md — Author all bib.* keys into copy-snapshot.json + dependency-free CMS import script + round-trip/security tests (Wave 1, foundation)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 37-02-PLAN.md — Migrate server surface (SponsorInstructions, /sponsor/venmo, /sponsor/cashapp, orderform) to loadCopy (Wave 2)
 - [ ] 37-03-PLAN.md — Migrate client checkout (SponsorForm interpolated CTA + RunnerCodeBadge) to useCopy (Wave 2)
 - [ ] 37-04-PLAN.md — Migrate client name-entry (BibForm) + profile/QR/logout + mobile menus to useCopy (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 37-05-PLAN.md — Human-verify SC-1..SC-4 against a real build (import round-trip, live edit, CMS-down fallback) (Wave 3)
+
 **UI hint**: yes
 
 ### Phase 38: Custom Copy Admin Plugin
