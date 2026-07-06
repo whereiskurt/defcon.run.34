@@ -157,6 +157,118 @@ const ErrorRowCell = styled.td`
   border-bottom: 1px solid ${({ theme }) => theme.colors.neutral150};
 `;
 
+// ── Namespace colour map — one hue per section, readable on light + dark ───────
+const NS_COLORS: Record<string, string> = {
+  common: '#64748B', // slate
+  bib: '#2563EB', // blue
+  human: '#059669', // green
+  auth: '#D97706', // amber
+  gpx: '#7C3AED', // violet
+  flash: '#DB2777', // pink
+};
+const nsColor = (key: string): string => NS_COLORS[namespaceOf(key)] ?? '#64748B';
+
+// Label cell shows the key as colour-coded, dot-separated segments (display mode);
+// clicking swaps to the raw monospace input (edit mode). Native inputs can't colour
+// sub-strings, so the read/edit split is what makes `x.y.z` sections visually distinct.
+const KeyDisplay = styled.div`
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 16px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+  &:focus {
+    outline: 2px solid ${({ theme }) => theme.colors.primary600};
+    outline-offset: -2px;
+  }
+`;
+const Dot = styled.span`
+  color: ${({ theme }) => theme.colors.neutral400};
+  padding: 0 1px;
+`;
+const Seg = styled.span<{ $color?: string; $bold?: boolean; $muted?: boolean }>`
+  color: ${({ theme, $color, $muted }) =>
+    $color || ($muted ? theme.colors.neutral600 : theme.colors.neutral800)};
+  font-weight: ${({ $bold }) => ($bold ? 600 : 400)};
+`;
+
+const renderKeySegments = (key: string): React.ReactNode => {
+  const parts = key.split('.');
+  const last = parts.length - 1;
+  const color = nsColor(key);
+  return parts.map((seg, i) => (
+    <React.Fragment key={i}>
+      {i > 0 && <Dot>.</Dot>}
+      {/* first segment = namespace (tinted + bold); middle segments muted; last = emphasized */}
+      <Seg $color={i === 0 ? color : undefined} $bold={i === 0} $muted={i !== 0 && i !== last}>
+        {seg}
+      </Seg>
+    </React.Fragment>
+  ));
+};
+
+interface KeyCellProps {
+  value: string;
+  error: boolean;
+  startEditing: boolean;
+  onStartEditing: () => void;
+  onChange: (v: string) => void;
+}
+
+const KeyCell: React.FC<KeyCellProps> = ({ value, error, startEditing, onStartEditing, onChange }) => {
+  const [editing, setEditing] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // A freshly added row opens straight into edit mode with focus (D-05).
+  React.useEffect(() => {
+    if (startEditing) {
+      setEditing(true);
+      onStartEditing();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startEditing]);
+
+  React.useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <CellInput
+        ref={inputRef}
+        $mono
+        $error={error}
+        aria-label={COPY.colLabel}
+        value={value}
+        placeholder="namespace.area.element"
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setEditing(false)}
+      />
+    );
+  }
+  return (
+    <KeyDisplay
+      role="button"
+      tabIndex={0}
+      aria-label={COPY.colLabel}
+      title={value}
+      onClick={() => setEditing(true)}
+      onFocus={() => setEditing(true)}
+    >
+      {value ? (
+        renderKeySegments(value)
+      ) : (
+        <Seg $muted>namespace.area.element</Seg>
+      )}
+    </KeyDisplay>
+  );
+};
+
 const CopyCatalog: React.FC = () => {
   const { get, post } = useFetchClient();
   const { toggleNotification } = useNotification();
@@ -307,17 +419,6 @@ const CopyCatalog: React.FC = () => {
     }
   }, [rows, post, toggleNotification]);
 
-  // Move focus to a newly added row's Label cell.
-  const registerFocus = React.useCallback(
-    (tempKey: string) => (el: HTMLInputElement | null) => {
-      if (el && tempKey === focusKey) {
-        el.focus();
-        setFocusKey(null);
-      }
-    },
-    [focusKey]
-  );
-
   return (
     <Page.Main>
       <Layouts.Root>
@@ -431,14 +532,12 @@ const CopyCatalog: React.FC = () => {
                           <React.Fragment key={row.tempKey}>
                             <BodyRow $dirty={changed} $error={hasError}>
                               <Cell>
-                                <CellInput
-                                  $mono
-                                  $error={hasError}
-                                  aria-label={COPY.colLabel}
+                                <KeyCell
                                   value={row.key}
-                                  placeholder="namespace.area.element"
-                                  ref={registerFocus(row.tempKey)}
-                                  onChange={(e) => patchRow(row.tempKey, { key: e.target.value })}
+                                  error={hasError}
+                                  startEditing={row.tempKey === focusKey}
+                                  onStartEditing={() => setFocusKey(null)}
+                                  onChange={(v) => patchRow(row.tempKey, { key: v })}
                                 />
                               </Cell>
                               <Cell>
