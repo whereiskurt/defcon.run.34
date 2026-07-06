@@ -57,7 +57,7 @@
       "name": "run.bib",
       "host": "bib.defcon.run",
       "link": "https://bib.defcon.run",
-      "version": "v0.0.46",
+      "version": "v0.0.47",
       "state": "dev",
       "note": "Bib registration"
     },
