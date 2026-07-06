@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
-current_phase: 37
-current_phase_name: bib-donate-sponsor-proof-surface
+current_phase: 38
+current_phase_name: custom-copy-admin-plugin
 status: executing
 stopped_at: Phase 38 UI-SPEC approved
-last_updated: "2026-07-06T04:31:01.557Z"
+last_updated: "2026-07-06T05:04:01.709Z"
 last_activity: 2026-07-06
-last_activity_desc: Phase 37 execution started
+last_activity_desc: Phase 38 execution started
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 15
+  completed_plans: 13
   percent: 60
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. This milestone lets organizers change static UI wording live from the CMS — no code change, no deploy.
-**Current focus:** Phase 37 — bib-donate-sponsor-proof-surface
+**Current focus:** Phase 38 — custom-copy-admin-plugin
 
 ## Current Position
 
-Phase: 37 (bib-donate-sponsor-proof-surface) — EXECUTING
-Plan: 6 of 6
+Phase: 38 (custom-copy-admin-plugin) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-07-06 — Phase 37 execution started
+Last activity: 2026-07-06 — Phase 38 execution started
 
 ## Roadmap Summary (v1.9)
 
@@ -73,6 +73,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 37-02: server donate/sponsor surface reads catalog via loadCopy+t; reconcile note split around <code>{runnerCode}</code>
 - [Phase ?]: 37-03: DonateModal submit CTA interpolated in-component via nested t() (bib.checkout.cta { label, amount }) — SC-2 proven on client
 - [Phase ?]: 37-04: ContributionChip async server component via loadCopy; orderform needs no edit
+- [Phase ?]: Phase 38-01 bulk-upsert reuses Phase-35 lifecycle write path (uniqueness guard + S3 export) via strapi.db.query inside one transaction; pure bulk-validate.ts holds intra-batch rules
 
 ### Pending Todos
 
@@ -84,7 +85,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T04:31:01.549Z
+Last session: 2026-07-06T05:03:29.246Z
 Stopped at: Phase 38 UI-SPEC approved
 Resume file: .planning/phases/38-custom-copy-admin-plugin/38-UI-SPEC.md
 
@@ -112,3 +113,4 @@ Resume file: .planning/phases/38-custom-copy-admin-plugin/38-UI-SPEC.md
 | Phase 37 P03 | 6min | 3 tasks | 5 files |
 | Phase 37 P04 | 15m | 3 tasks | 3 files |
 | Phase 37 P05 | ~12m | 3 tasks | 5 files |
+| Phase 38 P01 | 15min | 2 tasks | 4 files |

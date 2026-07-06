@@ -35,7 +35,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 - [ ] **ADMN-01**: A custom Strapi admin page shows copy as a three-column table (`label · locale · value`) with inline edit and add-row
 - [ ] **ADMN-02**: The admin page filters by `namespace`
-- [ ] **ADMN-03**: Bulk save upserts rows, enforcing `(key, locale)` uniqueness
+- [x] **ADMN-03**: Bulk save upserts rows, enforcing `(key, locale)` uniqueness
 
 ### MIGR — String migration (bib + shared chrome)
 
@@ -91,7 +91,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | FALL-04 | Phase 36 | Complete |
 | ADMN-01 | Phase 38 | Pending |
 | ADMN-02 | Phase 38 | Pending |
-| ADMN-03 | Phase 38 | Pending |
+| ADMN-03 | Phase 38 | Complete |
 | MIGR-01 | Phase 37 | Complete |
 | MIGR-02 | Phase 39 | Pending |
 | MIGR-03 | Phase 39 | Pending |

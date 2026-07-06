@@ -299,7 +299,7 @@ Plans:
 | 35. CMS Copy Catalog Foundation | v1.9 | 3/3 | Complete    | 2026-07-05 |
 | 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
-| 38. Custom Copy Admin Plugin | v1.9 | 0/3 | Planned | - |
+| 38. Custom Copy Admin Plugin | v1.9 | 1/3 | In Progress|  |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
@@ -426,13 +426,13 @@ Plans:
   2. The editor can filter the grid by `namespace`.
   3. A single bulk save upserts all edited and new rows, enforcing `(key, locale)` uniqueness (duplicates rejected/merged, not silently duplicated).
 
-**Plans**: 3 plans
+**Plans**: 1/3 plans executed
 **UI hint**: yes
 
 Plans:
 **Wave 1**
 
-- [ ] 38-01-PLAN.md — Bulk-upsert server endpoint (route + controller + service on `api::ui-string`) reusing the Phase-35 uniqueness guard + S3 export — ADMN-03 [Wave 1]
+- [x] 38-01-PLAN.md — Bulk-upsert server endpoint (route + controller + service on `api::ui-string`) reusing the Phase-35 uniqueness guard + S3 export — ADMN-03 [Wave 1]
 
 **Wave 2** *(blocked on Wave 1; disjoint files — src/admin/* vs src/api/*)*
 
