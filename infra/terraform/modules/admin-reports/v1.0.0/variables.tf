@@ -100,6 +100,18 @@ variable "threshold_alb_5xx_per_5min" {
   default     = 10
 }
 
+variable "alb_anomaly_alarm_enabled" {
+  description = <<-EOT
+    Whether to create the ALB RequestCount anomaly-detection alarm. Default false:
+    pre-con the traffic baseline is ~0, so the self-trained band is extremely tight
+    and any normal traffic flaps it every few minutes (notification noise). Flip to
+    true closer to con-week once there is a real traffic baseline for the band to
+    train on. The threshold tripwires (signups/gpx/5xx) are unaffected.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Common resource tags."
   type        = map(string)

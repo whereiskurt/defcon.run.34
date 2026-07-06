@@ -92,6 +92,7 @@ inputs = {
   threshold_signups_per_hour     = local.site_vars.locals.admin_reports.thresholds.signups_per_hour
   threshold_gpx_uploads_per_hour = local.site_vars.locals.admin_reports.thresholds.gpx_uploads_per_hour
   threshold_alb_5xx_per_5min     = local.site_vars.locals.admin_reports.thresholds.alb_5xx_per_5min
+  alb_anomaly_alarm_enabled      = try(local.site_vars.locals.admin_reports.alb_anomaly_alarm_enabled, false)
 
   tags = {
     Site      = local.site_vars.locals.site.label
