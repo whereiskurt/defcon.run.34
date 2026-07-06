@@ -208,7 +208,15 @@ jobs:
 
           echo "Running: ./apps/release-all.sh $ARGS"
           # Capture output to extract PR URL
-          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr)
+          # Capture release-all.sh's REAL exit via PIPESTATUS — `| tee` would otherwise
+          # mask a failure (assignment captures tee's 0), letting a partial/failed build
+          # merge the version PR and ship task defs whose images were never pushed.
+          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr; exit "${PIPESTATUS[0]}")
+          RELEASE_RC=$?
+          if [[ "$RELEASE_RC" -ne 0 ]]; then
+            echo "::error::release-all.sh exited ${RELEASE_RC} (e.g. 'N build(s) failed') — failing the build so a partial release is not merged or deployed."
+            exit "$RELEASE_RC"
+          fi
 
           # Extract PR URL from output
           PR_URL=$(echo "$OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' | head -1 || true)
@@ -516,7 +524,15 @@ jobs:
 
           echo "Running: ./apps/release-all.sh $ARGS"
           # Capture output to extract PR URL
-          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr)
+          # Capture release-all.sh's REAL exit via PIPESTATUS — `| tee` would otherwise
+          # mask a failure (assignment captures tee's 0), letting a partial/failed build
+          # merge the version PR and ship task defs whose images were never pushed.
+          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr; exit "${PIPESTATUS[0]}")
+          RELEASE_RC=$?
+          if [[ "$RELEASE_RC" -ne 0 ]]; then
+            echo "::error::release-all.sh exited ${RELEASE_RC} (e.g. 'N build(s) failed') — failing the build so a partial release is not merged or deployed."
+            exit "$RELEASE_RC"
+          fi
 
           # Extract PR URL from output
           PR_URL=$(echo "$OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' | head -1 || true)
@@ -682,7 +698,15 @@ jobs:
 
           echo "Running: ./apps/release-all.sh $ARGS"
           # Capture output to extract PR URL
-          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr)
+          # Capture release-all.sh's REAL exit via PIPESTATUS — `| tee` would otherwise
+          # mask a failure (assignment captures tee's 0), letting a partial/failed build
+          # merge the version PR and ship task defs whose images were never pushed.
+          OUTPUT=$(./apps/release-all.sh $ARGS 2>&1 | tee /dev/stderr; exit "${PIPESTATUS[0]}")
+          RELEASE_RC=$?
+          if [[ "$RELEASE_RC" -ne 0 ]]; then
+            echo "::error::release-all.sh exited ${RELEASE_RC} (e.g. 'N build(s) failed') — failing the build so a partial release is not merged or deployed."
+            exit "$RELEASE_RC"
+          fi
 
           # Extract PR URL from output
           PR_URL=$(echo "$OUTPUT" | grep -oE 'https://github.com/[^/]+/[^/]+/pull/[0-9]+' | head -1 || true)
