@@ -140,6 +140,11 @@ None - no external service configuration required (reuses the Phase-35 S3 env; n
 - Server endpoint ready for **38-02** (the custom admin grid) to POST dirty+new rows to `/ui-strings/bulk-upsert` and reconcile returned ids; error payload shape (`{ index, code, message }`) and copy match 38-UI-SPEC so the grid can render errors inline.
 - Runtime/atomicity/S3-export/auth behavior is proven live in **38-03** (no in-process test framework exists).
 
+## Self-Check: PASSED
+
+- All created/modified files present on disk (bulk-validate.ts, ui-string-bulk.ts, ui-string.ts service + controller, 38-01-SUMMARY.md).
+- All commits present: `9123fe74` (feat service), `96cad49d` (feat controller+route), `41c0dc44` (fix NUL), `13e2c65b` (docs).
+
 ---
 *Phase: 38-custom-copy-admin-plugin*
 *Completed: 2026-07-06*
