@@ -77,6 +77,43 @@ describe("Test A — common.* chrome key-floor (D-07 / SC-4 contract)", () => {
   });
 });
 
+/**
+ * Phase 39-06 (D-07 invariant): the two apps carry their own offline snapshot
+ * floors, but the shared `common.*` subset MUST be byte-identical across both —
+ * a single CMS `common.*` row is what changes wording in run.human AND bib live
+ * (SC-3), so the offline floors that back it must never diverge. Reading the
+ * sibling app's snapshot straight off disk (node:fs, no bundler alias) makes any
+ * future divergence of the shared floor a RED test in BOTH apps.
+ */
+function commonSubset(map: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(map)
+      .filter(([k]) => k.startsWith("common."))
+      .sort(([a], [b]) => a.localeCompare(b))
+  );
+}
+
+describe("Test D — cross-snapshot common.* byte-equality (D-07 shared floor)", () => {
+  it("run.human and bib snapshots carry a byte-identical common.* subset", () => {
+    const testDir = dirname(fileURLToPath(import.meta.url));
+    // apps/run.human/webapp/src/lib/__tests__ -> apps/run.bib/webapp/src/lib
+    const siblingPath = resolve(
+      testDir,
+      "../../../../../run.bib/webapp/src/lib/copy-snapshot.json"
+    );
+    const sibling = JSON.parse(readFileSync(siblingPath, "utf8")) as {
+      default: Record<string, string>;
+    };
+    const mine = commonSubset(DEFAULT);
+    const theirs = commonSubset(sibling.default);
+    // Guard against a vacuous pass: both floors must actually carry common.* keys.
+    expect(Object.keys(mine).length).toBeGreaterThan(0);
+    expect(Object.keys(theirs).length).toBe(Object.keys(mine).length);
+    // Deep-equality: same keys AND same values (byte-equal shared floor).
+    expect(mine).toEqual(theirs);
+  });
+});
+
 /** Recursively collect every `.tsx` file under `dir` (missing dir → []). */
 function collectTsx(dir: string): string[] {
   let out: string[] = [];
