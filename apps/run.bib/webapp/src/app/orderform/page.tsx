@@ -10,7 +10,8 @@ import { createBib, getBib, type BibItem } from "@/entities/bib";
 import { listDonationsForOwner } from "@/entities/general-donation";
 import { listPendingForOwner } from "@/entities/pending-contribution";
 import { checkQuota } from "@/lib/quota-client";
-import TransactionHistory, { type Txn } from "@/components/TransactionHistory";
+import { type Txn } from "@/components/TransactionHistory";
+import { ContributionChip } from "@/components/ContributionChip";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 import { getSocialQrHash, buildSocialQrUrl } from "@/lib/social-qr";
 
@@ -149,6 +150,11 @@ export default async function Home({ searchParams }: HomeProps) {
     }))
     .sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1));
   const txns: Txn[] = [...pendingTxns, ...reconciled];
+  // Distinct providers that have contributed — feeds the compact chip's tag
+  // (e.g. "stripe / venmo"). Order-preserving dedupe over the transaction list.
+  const providers = Array.from(
+    new Set(txns.map((t) => t.provider).filter(Boolean))
+  );
 
   // Social-QR (Plan 34-04, Slice C — C-T3): best-effort resolve the runner's
   // real per-user social-QR hash from run.human and build the `/r?h=` URL to
@@ -225,24 +231,10 @@ export default async function Home({ searchParams }: HomeProps) {
 
       {status && <StripeStatusBanner status={status} />}
 
-      {/* Once the bib is sponsored, lead with a big green THANK YOU above the
-        * name (Kurt 2026-07-04) — replaces the old inline "you're all set" line. */}
-      {hasSponsored && (
-        <p
-          role="status"
-          style={{
-            margin: 0,
-            textAlign: "center",
-            color: "#7fdc9e",
-            fontSize: 44,
-            fontWeight: 900,
-            letterSpacing: "0.04em",
-            textTransform: "uppercase",
-          }}
-        >
-          Thank You
-        </p>
-      )}
+      {/* Compact contribution chip (Kurt 2026-07-05) — bubbles the THANK YOU +
+        * total + payment brands into one pill, above the bib name. Replaces both
+        * the big transaction panel and the separate 44px THANK YOU banner. */}
+      <ContributionChip totalCents={totalCents} providers={providers} />
 
       {/* Get your bib — name first (A3), live preview below. GetYourBib is a
         * thin client wrapper; checking "contribute in person" (now in the tile
@@ -261,8 +253,6 @@ export default async function Home({ searchParams }: HomeProps) {
           socialQrUrl,
         }}
       />
-
-        <TransactionHistory totalCents={totalCents} txns={txns} />
 
         {/* Pay-in-person tagline — client-driven (rain-store) so it flips
           * instantly: in person → "OK! You promised 🙏"; burn/nothing → nothing.
