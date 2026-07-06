@@ -298,7 +298,7 @@ Plans:
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
 | 35. CMS Copy Catalog Foundation | v1.9 | 3/3 | Complete    | 2026-07-05 |
 | 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
-| 37. Bib Donate/Sponsor Proof Surface | v1.9 | 5/6 | In Progress|  |
+| 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 38. Custom Copy Admin Plugin | v1.9 | 0/TBD | Planned | - |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
 
@@ -330,7 +330,7 @@ Plans:
 
 - [x] **Phase 35: CMS Copy Catalog Foundation** - `ui-string` content type, `(key,locale)` uniqueness, read-only API-token permission, and the S3 export lifecycle hook (completed 2026-07-05)
 - [x] **Phase 36: Runtime Copy Toolkit** - `loadCopy` + Next.js Data Cache, merged-map `t()`, `CopyProvider`/`useCopy`, cached S3 fallback + committed snapshot floor (completed 2026-07-05)
-- [ ] **Phase 37: Bib Donate/Sponsor Proof Surface** - wire the bib donate/sponsor copy (forms, instructions, payment/Venmo/CashApp, sponsor/QR/logout modals) end-to-end through the catalog
+- [x] **Phase 37: Bib Donate/Sponsor Proof Surface** - wire the bib donate/sponsor copy (forms, instructions, payment/Venmo/CashApp, sponsor/QR/logout modals) end-to-end through the catalog (completed 2026-07-06)
 - [ ] **Phase 38: Custom Copy Admin Plugin** - three-column `label·locale·value` Strapi admin page with namespace filter + bulk upsert
 - [ ] **Phase 39: Copy Migration — Remaining Bib + Shared Chrome** - remaining `run.bib` copy + shared `common.*` header/profile-menu keys unified across apps
 
@@ -395,7 +395,7 @@ Plans:
   3. Editing a bib donate/sponsor string in the CMS changes the rendered wording within the propagation window with no deploy.
   4. With the CMS unavailable, the bib donate/sponsor copy still renders via the fallback chain — never a raw dotted key.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -411,7 +411,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 37-06-PLAN.md — Human-verify SC-1..SC-4 against a real build (live import round-trip, live CMS edit no-deploy, CMS-down fallback) + server-floor test (Wave 3)
+- [x] 37-06-PLAN.md — Human-verify SC-1..SC-4 against a real build (live import round-trip, live CMS edit no-deploy, CMS-down fallback) + server-floor test (Wave 3)
 
 **UI hint**: yes
 
