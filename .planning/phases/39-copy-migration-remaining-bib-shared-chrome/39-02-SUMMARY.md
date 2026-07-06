@@ -39,7 +39,7 @@ decisions:
   - Toolkit ported verbatim (byte-identical to run.bib) via cp; @/* + resolveJsonModule in run.human tsconfig resolve the @/lib/copy-core + @/lib/copy-snapshot.json imports identically to bib — no import-path edits needed.
   - CopyProvider mounted INSIDE SessionProvider in each group layout, wrapping the MapBackground + Header/main/Footer flex column, mirroring bib's layout.tsx placement.
 metrics:
-  duration: ~15m
+  duration: ~6m
   completed: 2026-07-06
   tasks: 3
   files: 10
