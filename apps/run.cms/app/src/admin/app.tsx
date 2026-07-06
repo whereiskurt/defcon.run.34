@@ -7,6 +7,8 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { Pencil } from '@strapi/icons';
+
 declare const window: any;
 declare class Promise<T> {
   constructor(executor: (resolve: (value: T) => void, reject: (reason?: any) => void) => void);
@@ -143,6 +145,25 @@ export default {
     notifications: {
       releases: false,
     },
+  },
+
+  // Register runs before bootstrap — inject the custom Copy Catalog admin page
+  // (Phase 38-02). This is the first `register`/`addMenuLink` injection in the
+  // repo. The menu `to` is admin-relative; the region prefix (`/{region}/admin`)
+  // is applied by the Vite base + config/admin.ts, so it resolves to
+  // `/{region}/admin/copy-catalog`. `permissions: []` = any authenticated admin
+  // (the page sits behind the admin panel's own SSO-backed auth — no custom RBAC).
+  register(app: any) {
+    app.addMenuLink({
+      to: '/copy-catalog',
+      icon: Pencil,
+      intlLabel: { id: 'copy-catalog.menu', defaultMessage: 'Copy Catalog' },
+      permissions: [],
+      Component: async () => {
+        const { CopyCatalog } = await import('./pages/CopyCatalog');
+        return { default: CopyCatalog };
+      },
+    });
   },
 
   // Bootstrap function runs on admin panel load
