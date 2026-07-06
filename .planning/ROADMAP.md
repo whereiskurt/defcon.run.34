@@ -299,7 +299,7 @@ Plans:
 | 35. CMS Copy Catalog Foundation | v1.9 | 3/3 | Complete    | 2026-07-05 |
 | 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
-| 38. Custom Copy Admin Plugin | v1.9 | 0/TBD | Planned | - |
+| 38. Custom Copy Admin Plugin | v1.9 | 0/3 | Planned | - |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
@@ -426,8 +426,21 @@ Plans:
   2. The editor can filter the grid by `namespace`.
   3. A single bulk save upserts all edited and new rows, enforcing `(key, locale)` uniqueness (duplicates rejected/merged, not silently duplicated).
 
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
+
+Plans:
+**Wave 1**
+
+- [ ] 38-01-PLAN.md — Bulk-upsert server endpoint (route + controller + service on `api::ui-string`) reusing the Phase-35 uniqueness guard + S3 export — ADMN-03 [Wave 1]
+
+**Wave 2** *(blocked on Wave 1; disjoint files — src/admin/* vs src/api/*)*
+
+- [ ] 38-02-PLAN.md — Custom `src/admin` Copy Catalog page + `register()`/`addMenuLink`: three-column Label·Locale·Value grid, client-side namespace filter, inline edit, add-row, bulk Save — ADMN-01, ADMN-02 [Wave 2]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 38-03-PLAN.md — Human-verify ADMN-01..ADMN-03 end-to-end (menu + region-prefixed route, filter/grid/add-row, atomic bulk upsert + duplicate rejection + copy.json S3 export) [Wave 3]
 
 ### Phase 39: Copy Migration — Remaining Bib + Shared Chrome
 
