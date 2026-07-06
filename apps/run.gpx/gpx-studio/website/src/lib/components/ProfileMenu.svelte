@@ -2,7 +2,8 @@
     import { onMount } from 'svelte';
     import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
     import { auth, currentUser, isAuthenticated } from '$lib/stores/auth';
-    import { CircleUserRound, LogIn, LogOut, Ticket, PencilRuler } from '@lucide/svelte';
+    import { CircleUserRound, LogIn, LogOut, Ticket, PencilRuler, Moon, Sun } from '@lucide/svelte';
+    import { mode, setMode } from 'mode-watcher';
 
     /**
      * Floating profile menu (top-right, beside the map controls) — the studio's
@@ -35,16 +36,40 @@
     const isAdmin = $derived(($currentUser?.services ?? []).includes('admin'));
 </script>
 
-<div class="absolute top-[10px] right-14 z-30">
+<div class="absolute top-[10px] right-14 z-30 flex flex-row items-center gap-2">
+    <!-- Global light/dark toggle — drives mode-watcher, so it stays in sync with the
+         menu's theme radio, and (via LayerControl) swaps the map to a dark basemap. -->
+    <button
+        type="button"
+        class="flex h-[29px] w-[29px] items-center justify-center rounded-full border-2
+               border-[#00d4aa] bg-background shadow-md hover:scale-105 transition-transform"
+        aria-label="Toggle dark mode"
+        onclick={() => setMode(mode.current === 'dark' ? 'light' : 'dark')}
+    >
+        {#if mode.current === 'dark'}
+            <Moon size="15" />
+        {:else}
+            <Sun size="15" />
+        {/if}
+    </button>
     {#if $isAuthenticated}
         <DropdownMenu.Root>
             <DropdownMenu.Trigger
-                class="flex h-[29px] w-[29px] items-center justify-center rounded-full border-2
-                       border-[#00d4aa] bg-background text-sm font-bold shadow-md
+                class="flex h-[29px] w-[29px] items-center justify-center overflow-hidden rounded-full
+                       border-2 border-[#00d4aa] bg-background text-sm font-bold shadow-md
                        hover:scale-105 transition-transform"
                 aria-label="Profile menu"
             >
-                {initial}
+                {#if $currentUser?.image}
+                    <img
+                        src={$currentUser.image}
+                        alt=""
+                        referrerpolicy="no-referrer"
+                        class="h-full w-full rounded-full object-cover"
+                    />
+                {:else}
+                    {initial}
+                {/if}
             </DropdownMenu.Trigger>
             <DropdownMenu.Content class="w-52" align="end">
                 <DropdownMenu.Label>

@@ -13,6 +13,14 @@
     import { customBasemapUpdate, getLayers } from './utils';
     import type { ImportSpecification, StyleSpecification } from 'mapbox-gl';
     import { untrack } from 'svelte';
+    import { mode } from 'mode-watcher';
+
+    // DEF CON: in dark UI mode, swap the outdoors basemap for a dark map so the
+    // tiles darken with the theme. Only Mapbox styles have a dark equivalent;
+    // other basemaps (OSM, topo, satellite, ...) are left unchanged.
+    const darkBasemapFor: Record<string, string> = {
+        mapboxOutdoors: 'mapboxDark',
+    };
 
     let container: HTMLDivElement;
     let overpassLayer: OverpassLayer;
@@ -34,8 +42,14 @@
         if (!$map) {
             return;
         }
-        let basemap = basemaps.hasOwnProperty($currentBasemap)
-            ? basemaps[$currentBasemap]
+        // Resolve the effective basemap key: in dark mode, a Mapbox basemap with a
+        // dark equivalent is swapped out. Custom layers still key off $currentBasemap.
+        const styleKey =
+            mode.current === 'dark' && darkBasemapFor[$currentBasemap]
+                ? darkBasemapFor[$currentBasemap]
+                : $currentBasemap;
+        let basemap = basemaps.hasOwnProperty(styleKey)
+            ? basemaps[styleKey]
             : ($customLayers[$currentBasemap]?.value ?? basemaps[defaultBasemap]);
         $map.removeImport('basemap');
         if (typeof basemap === 'string') {
@@ -64,7 +78,9 @@
     }
 
     $effect(() => {
-        if ($map && ($currentBasemap || $customBasemapUpdate)) {
+        // Track mode.current so toggling light/dark re-styles the live map.
+        const currentMode = mode.current;
+        if ($map && ($currentBasemap || $customBasemapUpdate || currentMode)) {
             untrack(() => setStyle());
         }
     });

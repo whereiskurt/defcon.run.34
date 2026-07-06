@@ -216,6 +216,9 @@ export const authConfig: NextAuthConfig = {
           (profile as { linked_providers?: string[] }).linked_providers ?? [];
         token.mapboxPublicToken = (profile as { mapboxPublicToken?: string })
           .mapboxPublicToken;
+        // OIDC picture claim -> avatar image (shown as the round profile picture
+        // in gpx-studio's ProfileMenu; falls back to an initial when absent).
+        token.picture = (profile as { picture?: string }).picture;
         token.sub = profile.sub as string;
         token.sessionVersion = 1;
         token.lastRefresh = now;
@@ -259,6 +262,10 @@ export const authConfig: NextAuthConfig = {
         : [];
       (session.user as { mapboxPublicToken?: string }).mapboxPublicToken =
         token.mapboxPublicToken as string | undefined;
+      // Expose the avatar image so the studio shows the round profile picture.
+      if (token.picture) {
+        session.user.image = token.picture as string;
+      }
       if (token.sub) {
         session.user.id = token.sub;
       }
