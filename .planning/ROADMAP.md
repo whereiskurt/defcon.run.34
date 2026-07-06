@@ -395,7 +395,14 @@ Plans:
   3. Editing a bib donate/sponsor string in the CMS changes the rendered wording within the propagation window with no deploy.
   4. With the CMS unavailable, the bib donate/sponsor copy still renders via the fallback chain — never a raw dotted key.
 
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 37-01-PLAN.md — Author all bib.* keys into copy-snapshot.json + dependency-free CMS import script + round-trip/security tests (Wave 1, foundation)
+- [ ] 37-02-PLAN.md — Migrate server surface (SponsorInstructions, /sponsor/venmo, /sponsor/cashapp, orderform) to loadCopy (Wave 2)
+- [ ] 37-03-PLAN.md — Migrate client checkout (SponsorForm interpolated CTA + RunnerCodeBadge) to useCopy (Wave 2)
+- [ ] 37-04-PLAN.md — Migrate client name-entry (BibForm) + profile/QR/logout + mobile menus to useCopy (Wave 2)
+- [ ] 37-05-PLAN.md — Human-verify SC-1..SC-4 against a real build (import round-trip, live edit, CMS-down fallback) (Wave 3)
 **UI hint**: yes
 
 ### Phase 38: Custom Copy Admin Plugin
