@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
-current_phase: 38
-current_phase_name: custom-copy-admin-plugin
+current_phase: 39
+current_phase_name: copy-migration-remaining-bib-shared-chrome
 status: executing
-stopped_at: Phase 38 complete — human-verify passed (live UAT), UI polished
-last_updated: "2026-07-06T06:19:43.554Z"
+stopped_at: Phase 39 context gathered
+last_updated: "2026-07-06T16:43:57.261Z"
 last_activity: 2026-07-06
-last_activity_desc: Phase 38 execution started
+last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
-  percent: 80
+  completed_phases: 5
+  total_plans: 21
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. This milestone lets organizers change static UI wording live from the CMS — no code change, no deploy.
-**Current focus:** Phase 38 — custom-copy-admin-plugin
+**Current focus:** Phase 39 — copy-migration-remaining-bib-shared-chrome
 
 ## Current Position
 
-Phase: 38 (custom-copy-admin-plugin) — EXECUTING
-Plan: 3 of 3
+Phase: 39 (copy-migration-remaining-bib-shared-chrome) — EXECUTING
+Plan: 6 of 6
 Status: Ready to execute
-Last activity: 2026-07-06 — Phase 38 execution started
+Last activity: 2026-07-06 — Phase 39 execution started
 
 ## Roadmap Summary (v1.9)
 
@@ -77,6 +77,10 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 38-02]: Copy Catalog admin page mounted via the first register()/addMenuLink injection in the repo (alongside app.tsx config+SSO bootstrap); resolves at /{region}/admin/copy-catalog
 - [Phase ?]: [Phase 38-02]: added src/admin/tsconfig.json (admin preset) + excluded src/admin from server tsconfig — standard Strapi-5 split for the first JSX admin page; Vite bundles the admin so npm run build is the import/JSX gate
 - [Phase ?]: [Phase 38-02]: admin fetch client targets /api/ui-strings + /api/ui-strings/bulk-upsert (no auto /api prepend); per-row errors map back by payload index, new ids reconciled by (key,locale)
+- [Phase ?]: 39-01: Copy floor scoped to exactly what Wave 2 consumes (common.* chrome, bib.txn.*, bib.admin.*); admin dashboard/access-denied/signin pages stay literal.
+- [Phase ?]: 39-01: common.header.donate re-homes the donate trigger; bib.donate.trigger left seeded until 39-04 re-points bib header/menu.
+- [Phase 39]: 39-02: run.human copy toolkit installed (ported verbatim from run.bib, D-05); snapshot floor carries byte-identical common.* union (D-07); CopyProvider mounted in both group layouts; zero human.* easy wins authored (D-06 bias-to-defer)
+- [Phase ?]: 39-04: TransactionHistory async loadCopy+t; AdminActions useCopy() (module consts removed) — words byte-identical
 
 ### Pending Todos
 
@@ -85,12 +89,13 @@ None.
 ### Blockers/Concerns
 
 - [v1.4 / Phase 19 — HARDWARE-IN-LOOP]: **tlora-t3s3 flashMode 'dio' boot** — verify the explicit branch (`use-flash.ts:104-106`) produces a bootable tlora-t3s3 device. Only remaining v1.4 open item — Kurt didn't have a tlora-t3s3 during 2026-07-02 hardware verification.
+- 39-06 Task 2 live SC-3 proof pending operator: run copy:import with STRAPI_WRITE_TOKEN in both apps, then edit one common.* CMS row and confirm wording changes in BOTH bib and run.human live
 
 ## Session Continuity
 
-Last session: 2026-07-06T06:19:43.546Z
-Stopped at: Phase 38 complete — human-verify passed (live UAT), UI polished
-Resume file: .planning/phases/38-custom-copy-admin-plugin/38-03-SUMMARY.md
+Last session: 2026-07-06T16:43:51.279Z
+Stopped at: Phase 39 context gathered
+Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
 
 ## Operator Next Steps
 
@@ -118,3 +123,8 @@ Resume file: .planning/phases/38-custom-copy-admin-plugin/38-03-SUMMARY.md
 | Phase 37 P05 | ~12m | 3 tasks | 5 files |
 | Phase 38 P01 | 15min | 2 tasks | 4 files |
 | Phase 38 P02 | ~7min | 2 tasks | 4 files |
+| Phase 39 P39-01 | 5m | 3 tasks | 3 files |
+| Phase 39 P39-02 | ~6m | 3 tasks | 10 files |
+| Phase 39 P39-03 | 8m | 2 tasks | 3 files |
+| Phase 39 P39-04 | ~10m | 2 tasks | 2 files |
+| Phase 39 P05 | 3min | 2 tasks | 4 files |

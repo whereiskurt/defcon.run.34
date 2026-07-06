@@ -16,12 +16,14 @@ import { MenuIcon } from './icon/menu';
 import { FaUserAlt } from 'react-icons/fa';
 import { PiPersonSimpleRun } from 'react-icons/pi';
 import { FiDollarSign } from 'react-icons/fi';
+import { useCopy } from '../CopyProvider';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
 
 const MenuDropDown = (params: any) => {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const { t } = useCopy();
   const onDonate: (() => void) | undefined = params?.onDonate;
 
   const handleNavigation = (href: string) => {
@@ -68,7 +70,7 @@ const MenuDropDown = (params: any) => {
             showDivider
             onClick={() => handleNavigation('/whoami')}
           >
-            <span className="text-base">Who Am I</span>
+            <span className="text-base">{t('common.header.whoami')}</span>
           </DropdownItem>
 
           <DropdownItem
@@ -77,7 +79,7 @@ const MenuDropDown = (params: any) => {
             key="maps"
             onClick={() => { setIsOpen(false); window.open('https://gpx.defcon.run', '_blank'); }}
           >
-            <span className="text-base">Maps</span>
+            <span className="text-base">{t('common.header.maps')}</span>
           </DropdownItem>
 
           <DropdownItem
@@ -87,7 +89,7 @@ const MenuDropDown = (params: any) => {
             showDivider
             onClick={() => handleNavigation('/meshtastic')}
           >
-            <span className="text-base">Meshtastic</span>
+            <span className="text-base">{t('common.header.meshtastic')}</span>
           </DropdownItem>
 
           <DropdownItem
@@ -96,7 +98,7 @@ const MenuDropDown = (params: any) => {
             key="bib"
             onClick={() => { setIsOpen(false); window.open('https://bib.defcon.run', '_blank'); }}
           >
-            <span className="text-base">Bib</span>
+            <span className="text-base">{t('common.header.bib')}</span>
           </DropdownItem>
 
           <DropdownItem
@@ -106,7 +108,7 @@ const MenuDropDown = (params: any) => {
             showDivider
             onClick={() => { setIsOpen(false); onDonate?.(); }}
           >
-            <span className="text-base">Donate $</span>
+            <span className="text-base">{t('common.header.donate')}</span>
           </DropdownItem>
 
           <DropdownItem
@@ -115,7 +117,7 @@ const MenuDropDown = (params: any) => {
             key="faq"
             onClick={() => handleNavigation('/faq')}
           >
-            <span className="text-base">FAQ</span>
+            <span className="text-base">{t('common.header.faq')}</span>
           </DropdownItem>
         </DropdownSection>
       </DropdownMenu>

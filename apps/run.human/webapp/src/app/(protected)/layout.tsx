@@ -8,6 +8,8 @@ import { SessionProvider } from "next-auth/react";
 import { Header } from "@header";
 import { Footer } from "@/components/footer";
 import { MapBackground } from "@/components/map-background";
+import { CopyProvider } from "@/components/CopyProvider";
+import { loadCopy } from "@/lib/copy";
 import { auth } from "@auth";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -43,6 +45,12 @@ export default async function ProtectedRootLayout({
   const versionNginx = process.env.NEXT_PUBLIC_VERSION_NGINX || 'unknown';
   const session = await auth();
 
+  // Phase 39 copy toolkit: resolve the merged copy map ONCE server-side (cached,
+  // O(1) lookups thereafter) and hand ONLY the resolved map to the client
+  // CopyProvider. The CMS token / URL are read inside loadCopy and never cross
+  // the boundary. run.human has NO root layout, so both group layouts mount it.
+  const copy = await loadCopy("default");
+
   return (
     <html suppressHydrationWarning lang="en">
       <head>
@@ -60,16 +68,18 @@ export default async function ProtectedRootLayout({
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
-            <MapBackground />
-            <div className="relative flex flex-col min-h-dvh noise-overlay">
-              <div className="flex-shrink-0 relative z-10">
-                <Header session={session} />
+            <CopyProvider value={copy}>
+              <MapBackground />
+              <div className="relative flex flex-col min-h-dvh noise-overlay">
+                <div className="flex-shrink-0 relative z-10">
+                  <Header session={session} />
+                </div>
+                <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-3 pb-4 relative z-10">
+                  {children}
+                </main>
+                <Footer versionTooltip={APP_VERSION_TOOLTIP} />
               </div>
-              <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-3 pb-4 relative z-10">
-                {children}
-              </main>
-              <Footer versionTooltip={APP_VERSION_TOOLTIP} />
-            </div>
+            </CopyProvider>
           </SessionProvider>
         </Providers>
       </body>

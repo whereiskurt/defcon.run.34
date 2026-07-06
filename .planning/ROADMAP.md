@@ -300,7 +300,7 @@ Plans:
 | 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
-| 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
+| 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -332,7 +332,7 @@ Plans:
 - [x] **Phase 36: Runtime Copy Toolkit** - `loadCopy` + Next.js Data Cache, merged-map `t()`, `CopyProvider`/`useCopy`, cached S3 fallback + committed snapshot floor (completed 2026-07-05)
 - [x] **Phase 37: Bib Donate/Sponsor Proof Surface** - wire the bib donate/sponsor copy (forms, instructions, payment/Venmo/CashApp, sponsor/QR/logout modals) end-to-end through the catalog (completed 2026-07-06)
 - [x] **Phase 38: Custom Copy Admin Plugin** - three-column `label·locale·value` Strapi admin page with namespace filter + bulk upsert (completed 2026-07-06)
-- [ ] **Phase 39: Copy Migration — Remaining Bib + Shared Chrome** - remaining `run.bib` copy + shared `common.*` header/profile-menu keys unified across apps
+- [x] **Phase 39: Copy Migration — Remaining Bib + Shared Chrome** - remaining `run.bib` copy + shared `common.*` header/profile-menu keys unified across apps (completed 2026-07-06)
 
 ### Phase 35: CMS Copy Catalog Foundation
 
@@ -453,5 +453,22 @@ Plans:
   2. Shared chrome copy is keyed under `common.header.*` and `common.profileMenu.*`, and each app renders those labels through `t()` from the same keys.
   3. Editing a `common.*` key changes the wording in every app that reads it — the copy-paste de-dup win — with no shared React component change and no deploy.
 
-**Plans**: TBD
+**Plans**: 6/6 plans complete
+
+Plans:
+**Wave 1**
+
+- [x] 39-01-PLAN.md — Author remaining bib.* + shared common.* keys into bib snapshot; namespace-aware import (Wave 1)
+- [x] 39-02-PLAN.md — Port toolkit into run.human + snapshot + import + mount CopyProvider in both layouts (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 39-03-PLAN.md — Wire run.bib chrome (header/menu/profile/footer) to common.* (Wave 2)
+- [x] 39-04-PLAN.md — Migrate run.bib remaining copy (TransactionHistory/AdminActions) to bib.* (Wave 2)
+- [x] 39-05-PLAN.md — Wire run.human chrome to the same common.* keys + bounded human.* easy wins (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 39-06-PLAN.md — Verify SC-1/2/3 + fallback: cross-snapshot lock, operator import, live cross-app edit (Wave 3)
+
 **UI hint**: yes

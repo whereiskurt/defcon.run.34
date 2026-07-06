@@ -43,9 +43,9 @@ const DONATE_REGION_PREFIX =
 const APP_VERSION_TOOLTIP = `DC34 ${process.env.NEXT_PUBLIC_VERSION_APP || "dev"}`;
 
 const navItems = [
-  { href: "https://gpx.defcon.run", label: "Maps", icon: GrMapLocation, external: true },
-  { href: runHumanUrl("/meshtastic"), label: "Meshtastic", icon: FaRadio, external: true },
-  { href: "/orderform", label: "Bib", icon: PiPersonSimpleRun, external: false },
+  { href: "https://gpx.defcon.run", labelKey: "common.header.maps", icon: GrMapLocation, external: true },
+  { href: runHumanUrl("/meshtastic"), labelKey: "common.header.meshtastic", icon: FaRadio, external: true },
+  { href: "/orderform", labelKey: "common.header.bib", icon: PiPersonSimpleRun, external: false },
 ] as const;
 
 export interface HeaderProps {
@@ -87,7 +87,7 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
       {/* Desktop: wordmark + nav */}
       <NavbarContent className="sm:flex hidden gap-6" justify="center">
         <NavbarItem>{Wordmark}</NavbarItem>
-        {navItems.map(({ href, label, icon: Icon, external }) => {
+        {navItems.map(({ href, labelKey, icon: Icon, external }) => {
           const isActive = !external && normalized.startsWith(href);
           return (
             <NavbarItem key={href}>
@@ -103,11 +103,11 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  {label}
+                  {t(labelKey)}
                 </Link>
                 {/* "Bib" gains a sibling "Donate $" that opens the quick-give
                   * modal in place (same-origin here in run.bib). */}
-                {label === "Bib" && (
+                {href === "/orderform" && (
                   <>
                     <span className="text-default-400">/</span>
                     <button
@@ -115,7 +115,7 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
                       onClick={() => setDonateOpen(true)}
                       className="transition-colors text-default-500 hover:text-foreground"
                     >
-                      {t("bib.donate.trigger")}
+                      {t("common.header.donate")}
                     </button>
                   </>
                 )}
@@ -135,7 +135,7 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
               }`}
             >
               <FiShield className="w-4 h-4" />
-              Admin
+              {t("common.header.admin")}
             </Link>
           </NavbarItem>
         )}

@@ -17,6 +17,7 @@ import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
 import { PiPersonSimpleRun } from 'react-icons/pi';
 import { DonateModal } from '../DonateModal';
+import { useCopy } from '../CopyProvider';
 
 const UserDropDown = dynamic(() => import('./dropdown-user'), {
   ssr: false,
@@ -56,9 +57,9 @@ const BIB_ORIGIN = 'https://bib.defcon.run';
 const BIB_REGION_PREFIX = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
 
 const navItems = [
-  { href: 'https://gpx.defcon.run', label: 'Maps', icon: GrMapLocation, external: true },
-  { href: '/meshtastic', label: 'Meshtastic', icon: FaRadio, external: false },
-  { href: 'https://bib.defcon.run', label: 'Bib', icon: PiPersonSimpleRun, external: true },
+  { href: 'https://gpx.defcon.run', label: 'Maps', labelKey: 'common.header.maps', icon: GrMapLocation, external: true },
+  { href: '/meshtastic', label: 'Meshtastic', labelKey: 'common.header.meshtastic', icon: FaRadio, external: false },
+  { href: 'https://bib.defcon.run', label: 'Bib', labelKey: 'common.header.bib', icon: PiPersonSimpleRun, external: true },
 ] as const;
 
 export function Header(params: any) {
@@ -66,6 +67,7 @@ export function Header(params: any) {
   const hasSession = session !== null;
   const pathname = usePathname();
   const [donateOpen, setDonateOpen] = useState(false);
+  const { t } = useCopy();
 
   return (
     <>
@@ -108,7 +110,7 @@ export function Header(params: any) {
           </Tooltip>
         </NavbarItem>
 
-        {navItems.map(({ href, label, icon: Icon, external }) => {
+        {navItems.map(({ href, label, labelKey, icon: Icon, external }) => {
           const isActive = !external && !!pathname && pathname.replace(basePath, '').startsWith(href);
           return (
             <NavbarItem key={href}>
@@ -124,7 +126,7 @@ export function Header(params: any) {
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  {label}
+                  {t(labelKey)}
                 </Link>
                 {/* "Bib" gains a "Donate $" sibling that opens the quick-give
                   * modal in place (cross-origin to the bib app). */}
@@ -136,7 +138,7 @@ export function Header(params: any) {
                       onClick={() => setDonateOpen(true)}
                       className="transition-colors text-default-500 hover:text-foreground"
                     >
-                      Donate $
+                      {t('common.header.donate')}
                     </button>
                   </>
                 )}

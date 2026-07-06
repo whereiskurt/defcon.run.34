@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCopy } from "@/components/CopyProvider";
 
 /**
  * AdminActions — v1.8 Phase 34 (Kurt 2026-07-04).
@@ -19,11 +20,12 @@ import { useRouter } from "next/navigation";
  * #ff8a8a destructive, 13px monospace/700). See 34-UI-SPEC.md IC-4.
  */
 
-const FAIL_TEXT = "Couldn't apply — try again.";
-// WR-01: the reconcile marker embeds the ORIGINAL amount, so re-approving an
-// edited amount is an idempotent no-op server-side. Surface that explicitly so
-// an admin correcting an amount knows the correction did NOT land.
-const DEDUPED_TEXT = "Already reconciled — amount unchanged.";
+// Visible prose (fail/deduped/labels/reject-confirm) now resolves from the
+// bib.admin.* catalog via useCopy() at render — NOT module scope (hook rule).
+// WR-01 rationale for the deduped notice (bib.admin.dedupedText): the reconcile
+// marker embeds the ORIGINAL amount, so re-approving an edited amount is an
+// idempotent no-op server-side; surface that so an admin correcting an amount
+// knows the correction did NOT land.
 
 export interface ReconcileActionProps {
   apiBase: string;
@@ -43,6 +45,7 @@ export function ReconcileAction({
   amountCents,
 }: ReconcileActionProps) {
   const router = useRouter();
+  const { t } = useCopy();
   // Cents-int discipline: the field holds the integer amount in cents,
   // prefilled from the intent's amountCents (34-UI-SPEC.md).
   const [value, setValue] = useState<string>(String(amountCents ?? 0));
@@ -131,11 +134,11 @@ export function ReconcileAction({
           whiteSpace: "nowrap",
         }}
       >
-        Approve
+        {t("bib.admin.approve")}
       </button>
       {failed && (
         <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
-          {FAIL_TEXT}
+          {t("bib.admin.failText")}
         </span>
       )}
       {deduped && (
@@ -143,7 +146,7 @@ export function ReconcileAction({
           role="status"
           style={{ fontSize: 13, color: "#f4c680", whiteSpace: "nowrap" }}
         >
-          {DEDUPED_TEXT}
+          {t("bib.admin.dedupedText")}
         </span>
       )}
     </span>
@@ -170,6 +173,7 @@ export function MarkPaidAction({
   amountCents = 2000,
 }: MarkPaidActionProps) {
   const router = useRouter();
+  const { t } = useCopy();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [deduped, setDeduped] = useState(false);
@@ -223,11 +227,11 @@ export function MarkPaidAction({
           whiteSpace: "nowrap",
         }}
       >
-        PAID
+        {t("bib.admin.paid")}
       </button>
       {failed && (
         <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
-          {FAIL_TEXT}
+          {t("bib.admin.failText")}
         </span>
       )}
       {deduped && (
@@ -235,7 +239,7 @@ export function MarkPaidAction({
           role="status"
           style={{ fontSize: 13, color: "#f4c680", whiteSpace: "nowrap" }}
         >
-          Already booked.
+          {t("bib.admin.alreadyBooked")}
         </span>
       )}
     </span>
@@ -249,13 +253,12 @@ export interface RejectActionProps {
 
 export function RejectAction({ apiBase, ownerSub }: RejectActionProps) {
   const router = useRouter();
+  const { t } = useCopy();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
   const onReject = async () => {
-    const ok = window.confirm(
-      "Reject this bib? This deletes the bib and pending payments and resets the runner's name-change quota. Donations are kept."
-    );
+    const ok = window.confirm(t("bib.admin.rejectConfirm"));
     if (!ok) return;
 
     setBusy(true);
@@ -298,11 +301,11 @@ export function RejectAction({ apiBase, ownerSub }: RejectActionProps) {
           whiteSpace: "nowrap",
         }}
       >
-        Reject
+        {t("bib.admin.reject")}
       </button>
       {failed && (
         <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
-          {FAIL_TEXT}
+          {t("bib.admin.failText")}
         </span>
       )}
     </span>
