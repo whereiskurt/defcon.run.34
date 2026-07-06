@@ -6,7 +6,7 @@ current_phase: 37
 current_phase_name: bib-donate-sponsor-proof-surface
 status: executing
 stopped_at: Phase 37 context gathered
-last_updated: "2026-07-06T02:09:13.693Z"
+last_updated: "2026-07-06T02:15:11.493Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 37 execution started
 progress:
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 37 (bib-donate-sponsor-proof-surface) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-07-06 — Phase 37 execution started
 
@@ -70,6 +70,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 36-02: copy links require explicit http/https/mailto scheme; javascript:/data:/relative URLs drop href and render label as plain text
 - [Phase ?]: CopyProvider passes only the resolved copy map client-side; never the server-only lib/copy resolver, token, or CMS URL (grep-gated)
 - [Phase ?]: [Phase 37-01]: copy-snapshot.json is the authored source of truth for all 62 bib.* keys (SC-4 floor); import-copy.mjs upserts them into Strapi via a write-only STRAPI_WRITE_TOKEN, distinct from the runtime read-only token
+- [Phase ?]: 37-02: server donate/sponsor surface reads catalog via loadCopy+t; reconcile note split around <code>{runnerCode}</code>
 
 ### Pending Todos
 
@@ -81,7 +82,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T02:08:42.857Z
+Last session: 2026-07-06T02:14:51.874Z
 Stopped at: Phase 37 context gathered
 Resume file: .planning/phases/37-bib-donate-sponsor-proof-surface/37-CONTEXT.md
 
@@ -105,3 +106,4 @@ Resume file: .planning/phases/37-bib-donate-sponsor-proof-surface/37-CONTEXT.md
 | Phase 36 P02 | 6 | 1 tasks | 2 files |
 | Phase 36 P03 | 15min | 2 tasks | 3 files |
 | Phase 37 P01 | 12min | 3 tasks | 4 files |
+| Phase 37 P02 | 12m | 3 tasks | 4 files |
