@@ -299,7 +299,7 @@ Plans:
 | 35. CMS Copy Catalog Foundation | v1.9 | 3/3 | Complete    | 2026-07-05 |
 | 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
-| 38. Custom Copy Admin Plugin | v1.9 | 1/3 | In Progress|  |
+| 38. Custom Copy Admin Plugin | v1.9 | 2/3 | In Progress|  |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
@@ -426,7 +426,7 @@ Plans:
   2. The editor can filter the grid by `namespace`.
   3. A single bulk save upserts all edited and new rows, enforcing `(key, locale)` uniqueness (duplicates rejected/merged, not silently duplicated).
 
-**Plans**: 1/3 plans executed
+**Plans**: 2/3 plans executed
 **UI hint**: yes
 
 Plans:
@@ -436,7 +436,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1; disjoint files — src/admin/* vs src/api/*)*
 
-- [ ] 38-02-PLAN.md — Custom `src/admin` Copy Catalog page + `register()`/`addMenuLink`: three-column Label·Locale·Value grid, client-side namespace filter, inline edit, add-row, bulk Save — ADMN-01, ADMN-02 [Wave 2]
+- [x] 38-02-PLAN.md — Custom `src/admin` Copy Catalog page + `register()`/`addMenuLink`: three-column Label·Locale·Value grid, client-side namespace filter, inline edit, add-row, bulk Save — ADMN-01, ADMN-02 [Wave 2]
 
 **Wave 3** *(blocked on Wave 2)*
 

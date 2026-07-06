@@ -6,14 +6,14 @@ current_phase: 38
 current_phase_name: custom-copy-admin-plugin
 status: executing
 stopped_at: Phase 38 UI-SPEC approved
-last_updated: "2026-07-06T05:04:01.709Z"
+last_updated: "2026-07-06T05:20:41.960Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 38 execution started
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
   percent: 60
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 38 (custom-copy-admin-plugin) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-07-06 — Phase 38 execution started
 
@@ -74,6 +74,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 37-03: DonateModal submit CTA interpolated in-component via nested t() (bib.checkout.cta { label, amount }) — SC-2 proven on client
 - [Phase ?]: 37-04: ContributionChip async server component via loadCopy; orderform needs no edit
 - [Phase ?]: Phase 38-01 bulk-upsert reuses Phase-35 lifecycle write path (uniqueness guard + S3 export) via strapi.db.query inside one transaction; pure bulk-validate.ts holds intra-batch rules
+- [Phase ?]: [Phase 38-02]: Copy Catalog admin page mounted via the first register()/addMenuLink injection in the repo (alongside app.tsx config+SSO bootstrap); resolves at /{region}/admin/copy-catalog
+- [Phase ?]: [Phase 38-02]: added src/admin/tsconfig.json (admin preset) + excluded src/admin from server tsconfig — standard Strapi-5 split for the first JSX admin page; Vite bundles the admin so npm run build is the import/JSX gate
+- [Phase ?]: [Phase 38-02]: admin fetch client targets /api/ui-strings + /api/ui-strings/bulk-upsert (no auto /api prepend); per-row errors map back by payload index, new ids reconciled by (key,locale)
 
 ### Pending Todos
 
@@ -85,7 +88,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T05:03:29.246Z
+Last session: 2026-07-06T05:20:12.696Z
 Stopped at: Phase 38 UI-SPEC approved
 Resume file: .planning/phases/38-custom-copy-admin-plugin/38-UI-SPEC.md
 
@@ -114,3 +117,4 @@ Resume file: .planning/phases/38-custom-copy-admin-plugin/38-UI-SPEC.md
 | Phase 37 P04 | 15m | 3 tasks | 3 files |
 | Phase 37 P05 | ~12m | 3 tasks | 5 files |
 | Phase 38 P01 | 15min | 2 tasks | 4 files |
+| Phase 38 P02 | ~7min | 2 tasks | 4 files |
