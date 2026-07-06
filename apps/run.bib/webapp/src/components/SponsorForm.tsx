@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CashAppMark, StripeMark, VenmoMark } from "./payment-icons";
 import { RunnerCodeBadge } from "./RunnerCodeBadge";
+import { useCopy } from "@/components/CopyProvider";
 import { flushPendingBibName } from "@/lib/pending-bib-save";
 
 /**
@@ -246,6 +247,7 @@ export function SponsorForm({
   disabled: forceDisabled = false,
 }: SponsorFormProps = {}) {
   const router = useRouter();
+  const { t } = useCopy();
 
   const minCents = variant === "bib" ? BIB_MIN_CENTS : GENERAL_MIN_CENTS;
   // Clamp into [variant minimum, $2000], snapping to whole cents. Delegates to
@@ -337,7 +339,11 @@ export function SponsorForm({
   );
 
   const disabled = forceDisabled || submit.kind === "submitting";
-  const resolvedCtaLabel = ctaLabel ?? (variant === "bib" ? "Sponsor" : "Donate");
+  const resolvedCtaLabel =
+    ctaLabel ??
+    (variant === "bib"
+      ? t("bib.contribution.sponsorVerb")
+      : t("bib.contribution.donateVerb"));
 
   return (
     <form
@@ -365,7 +371,9 @@ export function SponsorForm({
           textTransform: "uppercase",
         }}
       >
-        {variant === "bib" ? "Sponsor amount" : "Donation amount"}
+        {variant === "bib"
+          ? t("bib.sponsor.amountLabel")
+          : t("bib.donate.amountLabel")}
       </span>
 
       {/* A7 (Kurt 2026-07-03): slider + an editable amount box at its right
@@ -429,8 +437,10 @@ export function SponsorForm({
         </div>
       </div>
       <span style={{ fontSize: 12, color: "var(--bib-faint)" }}>
-        Slide or type any amount from ${minCents / 100} up to $
-        {AMOUNT_MAX_CENTS / 100}.
+        {t("bib.checkout.sliderHelper", {
+          min: minCents / 100,
+          max: AMOUNT_MAX_CENTS / 100,
+        })}
       </span>
 
       {offerNonStripe && (
@@ -444,13 +454,13 @@ export function SponsorForm({
               textTransform: "uppercase",
             }}
           >
-            Payment method
+            {t("bib.checkout.paymentMethod")}
           </span>
           {/* One-line row of provider pills with little brand icons. */}
           <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
             <ProviderPill
               value="stripe"
-              label="Card"
+              label={t("bib.checkout.providerCard")}
               icon={<StripeMark />}
               selected={provider}
               onSelect={setProvider}
@@ -458,7 +468,7 @@ export function SponsorForm({
             />
             <ProviderPill
               value="cashapp"
-              label="Cash App"
+              label={t("bib.checkout.providerCashApp")}
               icon={<CashAppMark />}
               selected={provider}
               onSelect={setProvider}
@@ -466,7 +476,7 @@ export function SponsorForm({
             />
             <ProviderPill
               value="venmo"
-              label="Venmo"
+              label={t("bib.checkout.providerVenmo")}
               icon={<VenmoMark />}
               selected={provider}
               onSelect={setProvider}
@@ -475,8 +485,7 @@ export function SponsorForm({
           </div>
           {(provider === "venmo" || provider === "cashapp") && (
             <p style={{ fontSize: 12, color: "var(--bib-muted)", margin: "8px 0 0" }}>
-              Venmo &amp; Cash App are confirmed by an organizer — your
-              contribution appears once approved.
+              {t("bib.checkout.providerNote")}
             </p>
           )}
         </div>
@@ -508,8 +517,11 @@ export function SponsorForm({
           * force-disabled (runner pledged to pay in person) keep the normal
           * label so the button doesn't read as an in-flight redirect. */}
         {submit.kind === "submitting"
-          ? "Redirecting…"
-          : `${resolvedCtaLabel} ${displayAmount}`}
+          ? t("bib.checkout.redirecting")
+          : t("bib.checkout.cta", {
+              label: resolvedCtaLabel,
+              amount: displayAmount,
+            })}
       </button>
 
       {submit.kind === "error" && (
@@ -520,7 +532,7 @@ export function SponsorForm({
             color: "#ff8a8a",
           }}
         >
-          Could not start checkout ({submit.detail}) — try again.
+          {t("bib.checkout.error", { detail: submit.detail ?? "" })}
         </div>
       )}
     </form>
