@@ -96,11 +96,11 @@ const HeadCell = styled.th<{ $w?: string }>`
   top: 0;
   z-index: 1;
   text-align: left;
-  padding: 6px 10px;
+  padding: 3px 8px;
   background: ${({ theme }) => theme.colors.neutral100};
   color: ${({ theme }) => theme.colors.neutral600};
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border-bottom: 1px solid ${({ theme }) => theme.colors.neutral200};
@@ -135,9 +135,9 @@ const CellInput = styled.input<{ $mono?: boolean; $error?: boolean }>`
   box-sizing: border-box;
   border: none;
   background: transparent;
-  padding: 4px 10px;
-  font-size: 13px;
-  line-height: 20px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 16px;
   color: ${({ theme, $error }) => ($error ? theme.colors.danger600 : theme.colors.neutral800)};
   font-family: ${({ $mono }) =>
     $mono ? 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' : 'inherit'};
