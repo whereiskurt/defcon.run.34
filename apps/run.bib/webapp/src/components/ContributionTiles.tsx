@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import SponsorForm from "./SponsorForm";
 import { CashRain } from "./CashRain";
+import { useCopy } from "@/components/CopyProvider";
 import { getRaining, subscribe as subscribeRain } from "@/lib/rain-store";
 import { getBurning, subscribe as subscribeBurn } from "@/lib/burn-store";
 
@@ -39,6 +40,7 @@ export function ContributionTiles({
   initialBurning,
   runnerCode,
 }: ContributionTilesProps) {
+  const { t } = useCopy();
   // Track the shared stores the ContributionChoice checkbox pushes to. Follow
   // them on AND off (unlike BibForm's one-directional server seed) — the store
   // is the source of truth for live toggles.
@@ -61,11 +63,15 @@ export function ContributionTiles({
   const donateTile = (kicker: string) => (
     <Tile
       kicker={kicker}
-      title="Just donate"
-      body="This long-running event would value any financial support you'd like to give. Every year we try to provide an accessible and memorable event for all."
+      title={t("bib.donate.title")}
+      body={t("bib.contribution.donateBody")}
       art={<DonateArt />}
     >
-      <SponsorForm variant="general" ctaLabel="Donate" runnerCode={runnerCode} />
+      <SponsorForm
+        variant="general"
+        ctaLabel={t("bib.contribution.donateVerb")}
+        runnerCode={runnerCode}
+      />
     </Tile>
   );
 
@@ -73,7 +79,11 @@ export function ContributionTiles({
   // twice); only Donate remains, full-width (Kurt 2026-07-05). A donation does
   // NOT trigger this — hasSponsored is real bib payment only.
   if (hasSponsored) {
-    return <div style={{ minWidth: 0 }}>{donateTile("Support")}</div>;
+    return (
+      <div style={{ minWidth: 0 }}>
+        {donateTile(t("bib.contribution.kickerSupport"))}
+      </div>
+    );
   }
 
   // Not paid: show both tiles. Pledging in person / torching the bib dims + moves
@@ -95,14 +105,14 @@ export function ContributionTiles({
           style={dimSponsor ? { opacity: 0.5, pointerEvents: "none" } : undefined}
         >
           <Tile
-            kicker="This"
-            title="Sponsor this bib"
-            body="Contributing to the event helps cover the cost of bibs and other swag. We appreciate your support."
+            kicker={t("bib.contribution.kickerThis")}
+            title={t("bib.contribution.sponsorTitle")}
+            body={t("bib.contribution.sponsorBody")}
             art={<SponsorArt />}
           >
             <SponsorForm
               variant="bib"
-              ctaLabel="Sponsor"
+              ctaLabel={t("bib.contribution.sponsorVerb")}
               runnerCode={runnerCode}
               disabled={dimSponsor}
             />
@@ -113,7 +123,11 @@ export function ContributionTiles({
       </div>
 
       <div className={dimSponsor ? "order-1" : "order-2"} style={{ minWidth: 0 }}>
-        {donateTile(dimSponsor ? "Support" : "or That")}
+        {donateTile(
+          dimSponsor
+            ? t("bib.contribution.kickerSupport")
+            : t("bib.contribution.kickerOrThat")
+        )}
       </div>
     </div>
   );
