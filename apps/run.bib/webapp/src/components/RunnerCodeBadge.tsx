@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useCopy } from "@/components/CopyProvider";
 
 /**
  * Runner-code pill with a copy button (Kurt 2026-07-03). Sits right above the
@@ -8,6 +9,7 @@ import { useState } from "react";
  * comment — the code (BIB-XXXX) is how those payments reconcile back to a bib.
  */
 export function RunnerCodeBadge({ code }: { code: string }) {
+  const { t } = useCopy();
   const [copied, setCopied] = useState(false);
 
   const copy = async () => {
@@ -43,7 +45,7 @@ export function RunnerCodeBadge({ code }: { code: string }) {
           color: "#8f8fa8",
         }}
       >
-        Runner code
+        {t("bib.bibform.runnerCodeLabel")}
       </span>
       <span
         style={{
@@ -74,7 +76,7 @@ export function RunnerCodeBadge({ code }: { code: string }) {
           whiteSpace: "nowrap",
         }}
       >
-        {copied ? "Copied!" : "Copy"}
+        {copied ? t("bib.bibform.copied") : t("bib.bibform.copy")}
       </button>
     </div>
   );
