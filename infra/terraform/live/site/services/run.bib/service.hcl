@@ -132,6 +132,14 @@ locals {
           {
             name  = "RUN_HUMAN_INTERNAL_URL"
             value = "http://run-human.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
+          },
+          {
+            # CMS (Strapi worker) — read-only source for the live UI copy catalog
+            # (Phase 36/37). Mirrors run.human; reads from the regional worker
+            # replica (Litestream-restored). Without this, copy.ts short-circuits
+            # (`!baseUrl` → {}) and the app never reads the CMS (snapshot only).
+            name  = "CMS_INTERNAL_URL"
+            value = "http://run-cms-worker.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:1337"
           }
         ]
 
@@ -140,6 +148,13 @@ locals {
         # the shared secrets module. Path is stable, so this definition is
         # forward-compatible; deploy will fail until Phase 21 lands.
         secrets = [
+          {
+            # Read-only run-human-internal API token (Phase 35), shared with
+            # run.human. Pairs with CMS_INTERNAL_URL so copy.ts can read the
+            # ui-string catalog. Read-only: write attempts with it are denied.
+            name      = "STRAPI_API_TOKEN"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/strapi/run_human_api_token"
+          },
           {
             name      = "AUTH_JWT_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/secret"
