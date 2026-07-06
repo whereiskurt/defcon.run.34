@@ -300,7 +300,7 @@ Plans:
 | 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
-| 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 5/6 | In Progress|  |
+| 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -332,7 +332,7 @@ Plans:
 - [x] **Phase 36: Runtime Copy Toolkit** - `loadCopy` + Next.js Data Cache, merged-map `t()`, `CopyProvider`/`useCopy`, cached S3 fallback + committed snapshot floor (completed 2026-07-05)
 - [x] **Phase 37: Bib Donate/Sponsor Proof Surface** - wire the bib donate/sponsor copy (forms, instructions, payment/Venmo/CashApp, sponsor/QR/logout modals) end-to-end through the catalog (completed 2026-07-06)
 - [x] **Phase 38: Custom Copy Admin Plugin** - three-column `label·locale·value` Strapi admin page with namespace filter + bulk upsert (completed 2026-07-06)
-- [ ] **Phase 39: Copy Migration — Remaining Bib + Shared Chrome** - remaining `run.bib` copy + shared `common.*` header/profile-menu keys unified across apps
+- [x] **Phase 39: Copy Migration — Remaining Bib + Shared Chrome** - remaining `run.bib` copy + shared `common.*` header/profile-menu keys unified across apps (completed 2026-07-06)
 
 ### Phase 35: CMS Copy Catalog Foundation
 
@@ -453,7 +453,7 @@ Plans:
   2. Shared chrome copy is keyed under `common.header.*` and `common.profileMenu.*`, and each app renders those labels through `t()` from the same keys.
   3. Editing a `common.*` key changes the wording in every app that reads it — the copy-paste de-dup win — with no shared React component change and no deploy.
 
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -469,6 +469,6 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 39-06-PLAN.md — Verify SC-1/2/3 + fallback: cross-snapshot lock, operator import, live cross-app edit (Wave 3)
+- [x] 39-06-PLAN.md — Verify SC-1/2/3 + fallback: cross-snapshot lock, operator import, live cross-app edit (Wave 3)
 
 **UI hint**: yes

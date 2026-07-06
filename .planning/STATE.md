@@ -6,15 +6,15 @@ current_phase: 39
 current_phase_name: copy-migration-remaining-bib-shared-chrome
 status: executing
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-06T16:35:07.096Z"
+last_updated: "2026-07-06T16:43:57.261Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 21
-  completed_plans: 20
-  percent: 80
+  completed_plans: 21
+  percent: 100
 ---
 
 # Project State
@@ -89,10 +89,11 @@ None.
 ### Blockers/Concerns
 
 - [v1.4 / Phase 19 — HARDWARE-IN-LOOP]: **tlora-t3s3 flashMode 'dio' boot** — verify the explicit branch (`use-flash.ts:104-106`) produces a bootable tlora-t3s3 device. Only remaining v1.4 open item — Kurt didn't have a tlora-t3s3 during 2026-07-02 hardware verification.
+- 39-06 Task 2 live SC-3 proof pending operator: run copy:import with STRAPI_WRITE_TOKEN in both apps, then edit one common.* CMS row and confirm wording changes in BOTH bib and run.human live
 
 ## Session Continuity
 
-Last session: 2026-07-06T16:34:39.239Z
+Last session: 2026-07-06T16:43:51.279Z
 Stopped at: Phase 39 context gathered
 Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
 
