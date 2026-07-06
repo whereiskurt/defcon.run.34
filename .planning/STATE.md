@@ -6,14 +6,14 @@ current_phase: 39
 current_phase_name: copy-migration-remaining-bib-shared-chrome
 status: executing
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-06T16:21:59.360Z"
+last_updated: "2026-07-06T16:28:43.675Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 21
-  completed_plans: 18
+  completed_plans: 19
   percent: 80
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 39 (copy-migration-remaining-bib-shared-chrome) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-07-06 — Phase 39 execution started
 
@@ -80,6 +80,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 39-01: Copy floor scoped to exactly what Wave 2 consumes (common.* chrome, bib.txn.*, bib.admin.*); admin dashboard/access-denied/signin pages stay literal.
 - [Phase ?]: 39-01: common.header.donate re-homes the donate trigger; bib.donate.trigger left seeded until 39-04 re-points bib header/menu.
 - [Phase 39]: 39-02: run.human copy toolkit installed (ported verbatim from run.bib, D-05); snapshot floor carries byte-identical common.* union (D-07); CopyProvider mounted in both group layouts; zero human.* easy wins authored (D-06 bias-to-defer)
+- [Phase ?]: 39-04: TransactionHistory async loadCopy+t; AdminActions useCopy() (module consts removed) — words byte-identical
 
 ### Pending Todos
 
@@ -91,7 +92,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T16:21:34.287Z
+Last session: 2026-07-06T16:28:29.618Z
 Stopped at: Phase 39 context gathered
 Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
 
@@ -124,3 +125,4 @@ Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-C
 | Phase 39 P39-01 | 5m | 3 tasks | 3 files |
 | Phase 39 P39-02 | ~6m | 3 tasks | 10 files |
 | Phase 39 P39-03 | 8m | 2 tasks | 3 files |
+| Phase 39 P39-04 | ~10m | 2 tasks | 2 files |
