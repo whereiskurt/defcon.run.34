@@ -158,7 +158,7 @@ resource "aws_glue_catalog_table" "alb_access_logs" {
         # capture groups so Plan 02 queries key on client_ip / request_verb /
         # request_url directly. 33 groups == 33 columns below.
         "input.regex" = trimspace(<<-REGEX
-          ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*):([0-9]*) ([^ ]*)[:-]([0-9]*) ([-.0-9]*) ([-.0-9]*) ([-.0-9]*) (|[-0-9]*) (-|[-0-9]*) ([-0-9]*) ([-0-9]*) "([^ ]*) (.*) (- |[^ ]*)" "([^"]*)" ([A-Z0-9-_]+) ([A-Za-z0-9.-]*) ([^ ]*) "([^"]*)" "([^"]*)" "([^"]*)" ([-.0-9]*) ([^ ]*) "([^"]*)" "([^"]*)" "([^ ]*)" "([^\s]+?)" "([^\s]+)" "([^ ]*)" "([^ ]*)"
+          ([^ ]*) ([^ ]*) ([^ ]*) ([^ ]*):([0-9]*) ([^ ]*)[:-]([0-9]*) ([-.0-9]*) ([-.0-9]*) ([-.0-9]*) (|[-0-9]*) (-|[-0-9]*) ([-0-9]*) ([-0-9]*) "([^ ]*) (.*) (- |[^ ]*)" "([^"]*)" ([A-Z0-9-_]+) ([A-Za-z0-9.-]*) ([^ ]*) "([^"]*)" "([^"]*)" "([^"]*)" ([-.0-9]*) ([^ ]*) "([^"]*)" "([^"]*)" "([^ ]*)" "([^\s]+?)" "([^\s]+)" "([^ ]*)" "([^ ]*)"(.*)
         REGEX
         )
       }
@@ -295,6 +295,15 @@ resource "aws_glue_catalog_table" "alb_access_logs" {
     }
     columns {
       name = "classification_reason"
+      type = "string"
+    }
+    # Catch-all for trailing fields AWS keeps appending to the ALB log format
+    # (conn_trace_id `TID_...`, then lambda/websocket trailers). The final
+    # `(.*)` regex group absorbs all of them into this one column so the
+    # RegexSerDe still full-line-matches — without it, EVERY row parses to null.
+    # Not used by the detection queries; exists only to keep the match total.
+    columns {
+      name = "trailing"
       type = "string"
     }
   }
