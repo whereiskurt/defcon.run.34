@@ -395,22 +395,23 @@ Plans:
   3. Editing a bib donate/sponsor string in the CMS changes the rendered wording within the propagation window with no deploy.
   4. With the CMS unavailable, the bib donate/sponsor copy still renders via the fallback chain — never a raw dotted key.
 
-**Plans**: 5 plans
+**Plans**: 6 plans
 
 Plans:
 **Wave 1**
 
-- [ ] 37-01-PLAN.md — Author all bib.* keys into copy-snapshot.json + dependency-free CMS import script + round-trip/security tests (Wave 1, foundation)
+- [ ] 37-01-PLAN.md — Author all bib.* keys (~63) into copy-snapshot.json + dependency-free CMS import script (copy:import) + key-set/token-boundary tests (Wave 1, foundation)
 
-**Wave 2** *(blocked on Wave 1 completion)*
+**Wave 2** *(blocked on Wave 1 completion; disjoint files)*
 
-- [ ] 37-02-PLAN.md — Migrate server surface (SponsorInstructions, /sponsor/venmo, /sponsor/cashapp, orderform) to loadCopy (Wave 2)
-- [ ] 37-03-PLAN.md — Migrate client checkout (SponsorForm interpolated CTA + RunnerCodeBadge) to useCopy (Wave 2)
-- [ ] 37-04-PLAN.md — Migrate client name-entry (BibForm) + profile/QR/logout + mobile menus to useCopy (Wave 2)
+- [ ] 37-02-PLAN.md — Migrate server surface (SponsorInstructions, /sponsor/venmo, /sponsor/cashapp, orderform landing) to loadCopy+t (Wave 2)
+- [ ] 37-03-PLAN.md — Migrate donate modal + Stripe status banner + pledge tagline + "Donate $" chrome trigger to useCopy (Wave 2)
+- [ ] 37-04-PLAN.md — Migrate contribution tiles/choice (useCopy) + ContributionChip (loadCopy) to the catalog (Wave 2)
+- [ ] 37-05-PLAN.md — Migrate SponsorForm + BibForm + BibPreview stamps + RunnerCodeBadge + BurningBib alt to useCopy (Wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 37-05-PLAN.md — Human-verify SC-1..SC-4 against a real build (import round-trip, live edit, CMS-down fallback) (Wave 3)
+- [ ] 37-06-PLAN.md — Human-verify SC-1..SC-4 against a real build (live import round-trip, live CMS edit no-deploy, CMS-down fallback) + server-floor test (Wave 3)
 
 **UI hint**: yes
 
