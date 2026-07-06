@@ -453,6 +453,12 @@ locals {
       gpx_uploads_per_hour = 5
       alb_5xx_per_5min     = 10
     }
+
+    # ALB RequestCount anomaly-detection alarm — OFF pre-con. On a ~0 baseline the
+    # self-trained band is razor-tight (upper ~3-6 req) so any normal traffic flaps
+    # it every few minutes (pure email noise). Flip true near con-week once there's
+    # a real baseline. Threshold tripwires above are unaffected.
+    alb_anomaly_alarm_enabled = false
   }
 
   # Abuse / pentester detection (Phase 41, AD-08): Athena-over-ALB-logs +

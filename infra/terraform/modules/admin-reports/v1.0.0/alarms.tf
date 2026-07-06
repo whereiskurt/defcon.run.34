@@ -35,8 +35,9 @@ resource "aws_cloudwatch_metric_alarm" "signups" {
   comparison_operator = "GreaterThanOrEqualToThreshold"
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.tripwire.arn]
-  ok_actions          = [aws_sns_topic.tripwire.arn]
-  tags                = var.tags
+  # No ok_actions: a signup firing is news; the follow-up "returned to OK" email
+  # (count fell back to 0 after the hour) is just noise.
+  tags = var.tags
 }
 
 # (b) GpxUploads >= threshold per hour.
@@ -59,6 +60,7 @@ resource "aws_cloudwatch_metric_alarm" "gpx_uploads" {
 # alarm fires when observed RequestCount breaches the upper edge of the expected
 # band. LoadBalancer dimension bound to var.alb_arn_suffix.
 resource "aws_cloudwatch_metric_alarm" "alb_request_anomaly" {
+  count               = var.alb_anomaly_alarm_enabled ? 1 : 0
   alarm_name          = "dcr-admin-alb-requestcount-anomaly"
   alarm_description   = "ALB total RequestCount outside its anomaly-detection band (unusual traffic volume)."
   comparison_operator = "GreaterThanUpperThreshold"
