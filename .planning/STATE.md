@@ -6,14 +6,14 @@ current_phase: 37
 current_phase_name: bib-donate-sponsor-proof-surface
 status: executing
 stopped_at: Phase 37 context gathered
-last_updated: "2026-07-06T02:25:50.892Z"
+last_updated: "2026-07-06T02:32:31.700Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 37 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 40
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 37 (bib-donate-sponsor-proof-surface) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-07-06 — Phase 37 execution started
 
@@ -72,6 +72,7 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 37-01]: copy-snapshot.json is the authored source of truth for all 62 bib.* keys (SC-4 floor); import-copy.mjs upserts them into Strapi via a write-only STRAPI_WRITE_TOKEN, distinct from the runtime read-only token
 - [Phase ?]: 37-02: server donate/sponsor surface reads catalog via loadCopy+t; reconcile note split around <code>{runnerCode}</code>
 - [Phase ?]: 37-03: DonateModal submit CTA interpolated in-component via nested t() (bib.checkout.cta { label, amount }) — SC-2 proven on client
+- [Phase ?]: 37-04: ContributionChip async server component via loadCopy; orderform needs no edit
 
 ### Pending Todos
 
@@ -83,7 +84,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T02:24:56.681Z
+Last session: 2026-07-06T02:32:09.086Z
 Stopped at: Phase 37 context gathered
 Resume file: .planning/phases/37-bib-donate-sponsor-proof-surface/37-CONTEXT.md
 
@@ -109,3 +110,4 @@ Resume file: .planning/phases/37-bib-donate-sponsor-proof-surface/37-CONTEXT.md
 | Phase 37 P01 | 12min | 3 tasks | 4 files |
 | Phase 37 P02 | 12m | 3 tasks | 4 files |
 | Phase 37 P03 | 6min | 3 tasks | 5 files |
+| Phase 37 P04 | 15m | 3 tasks | 3 files |
