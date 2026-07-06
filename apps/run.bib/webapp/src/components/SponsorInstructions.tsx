@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { formatCentsUsd } from "@/lib/amount";
+import { loadCopy, t } from "@/lib/copy";
 
 /**
  * SponsorInstructions
@@ -50,7 +51,7 @@ export interface SponsorInstructionsProps {
   footer?: ReactNode;
 }
 
-export function SponsorInstructions({
+export async function SponsorInstructions({
   providerLabel,
   handle,
   runnerCode,
@@ -60,6 +61,7 @@ export function SponsorInstructions({
   footer,
 }: SponsorInstructionsProps) {
   const amountDisplay = formatCentsUsd(amountCents);
+  const copy = await loadCopy("default");
 
   return (
     <section
@@ -87,7 +89,7 @@ export function SponsorInstructions({
             textTransform: "uppercase",
           }}
         >
-          Pay via {providerLabel}
+          {t(copy, "bib.instructions.payVia", { provider: providerLabel })}
         </span>
         <div
           style={{
@@ -105,16 +107,16 @@ export function SponsorInstructions({
       </header>
 
       <InstructionRow
-        label="Send to"
+        label={t(copy, "bib.instructions.sendTo")}
         value={handle}
         accentColor={accentColor}
       />
 
       <InstructionRow
-        label="Required comment"
+        label={t(copy, "bib.instructions.requiredComment")}
         value={runnerCode}
         accentColor={accentColor}
-        hint="This BIB-XXXX code must be in the payment note so we can match your sponsorship to your bib."
+        hint={t(copy, "bib.instructions.requiredCommentHint")}
       />
 
       {deepLink && (
@@ -136,7 +138,7 @@ export function SponsorInstructions({
             letterSpacing: "0.02em",
           }}
         >
-          Open {providerLabel}
+          {t(copy, "bib.instructions.openProvider", { provider: providerLabel })}
         </a>
       )}
 
@@ -148,10 +150,9 @@ export function SponsorInstructions({
           lineHeight: 1.6,
         }}
       >
-        After you send the payment, come back here — reconciliation is
-        automatic and usually finishes within a few minutes. Payments
-        without <code>{runnerCode}</code> in the note are flagged for
-        manual review.
+        {t(copy, "bib.instructions.reconcileNoteBefore")}
+        <code>{runnerCode}</code>
+        {t(copy, "bib.instructions.reconcileNoteAfter")}
       </p>
 
       {footer}
