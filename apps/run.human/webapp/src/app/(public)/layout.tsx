@@ -11,6 +11,8 @@ import { cookies, headers } from "next/headers";
 import { Header } from "@header";
 import { Footer } from "@/components/footer";
 import { MapBackground } from "@/components/map-background";
+import { CopyProvider } from "@/components/CopyProvider";
+import { loadCopy } from "@/lib/copy";
 import { config } from "@/config";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -95,6 +97,12 @@ export default async function PublicLayout({
     }
   }
 
+  // Phase 39 copy toolkit: resolve the merged copy map ONCE server-side and hand
+  // ONLY the resolved map to the client CopyProvider (token/URL stay server-side).
+  // run.human has NO root layout, so both group layouts mount it. Resolved after
+  // the silent-SSO redirect so a redirecting request skips the copy fetch.
+  const copy = await loadCopy("default");
+
   const versionApp = process.env.NEXT_PUBLIC_VERSION_APP || "unknown";
   const versionNginx = process.env.NEXT_PUBLIC_VERSION_NGINX || "unknown";
   const APP_VERSION_TOOLTIP = `DC34 ${versionApp}`;
@@ -116,16 +124,18 @@ export default async function PublicLayout({
       >
         <Providers themeProps={{ attribute: "class", defaultTheme: "dark" }}>
           <SessionProvider basePath={authBasePath}>
-            <MapBackground />
-            <div className="relative flex flex-col min-h-dvh noise-overlay">
-              <div className="flex-shrink-0 relative z-10">
-                <Header session={session} />
+            <CopyProvider value={copy}>
+              <MapBackground />
+              <div className="relative flex flex-col min-h-dvh noise-overlay">
+                <div className="flex-shrink-0 relative z-10">
+                  <Header session={session} />
+                </div>
+                <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-3 pb-4 relative z-10">
+                  {children}
+                </main>
+                <Footer versionTooltip={APP_VERSION_TOOLTIP} />
               </div>
-              <main className="container mx-auto max-w-[900px] px-6 flex-grow pt-3 pb-4 relative z-10">
-                {children}
-              </main>
-              <Footer versionTooltip={APP_VERSION_TOOLTIP} />
-            </div>
+            </CopyProvider>
           </SessionProvider>
         </Providers>
       </body>
