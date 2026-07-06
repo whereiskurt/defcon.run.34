@@ -325,8 +325,16 @@ function markerImageId(url: string): string {
 /** Point-of-interest popup — colored left tab in the route color, name + (optional) escaped
  * description, and (for Strapi POIs) an optional escaped `<img>` photo below the text. The
  * photo uses a plain `<img>` (not a canvas) so it is unaffected by cross-origin taint (Risk 3).
- * `name`/`desc`/`photoUrl` are ALL escaped — POI text is plain CMS text, never raw HTML. */
-function poiPopupHtml(name: string, desc: string, color: string, photoUrl?: string): string {
+ * The eyebrow shows the owning route/overlay name (e.g. "HISTORY") so a pin's map is obvious at
+ * a glance — mirroring the route details popup. `eyebrow`/`name`/`desc`/`photoUrl` are ALL
+ * escaped — POI text is plain CMS text, never raw HTML. */
+function poiPopupHtml(
+    name: string,
+    desc: string,
+    color: string,
+    eyebrow: string,
+    photoUrl?: string
+): string {
     const detail = desc
         ? `<div style="font-size:12px;opacity:.8;margin-top:4px">${escapeHtml(desc)}</div>`
         : '';
@@ -335,7 +343,7 @@ function poiPopupHtml(name: string, desc: string, color: string, photoUrl?: stri
         : '';
     return `
         <div style="padding:8px 10px;border-left:4px solid ${color};font-family:system-ui,sans-serif;color:#e4e4ef">
-            <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Point of interest</div>
+            <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">${escapeHtml(eyebrow || 'Point of interest')}</div>
             <div style="font-size:14px;font-weight:600;margin-top:2px">${escapeHtml(name)}</div>
             ${detail}
             ${photo}
@@ -904,6 +912,9 @@ export class PublicOverlaysLayer {
                         photoUrl?: string;
                     };
                     this.hoverPopup.remove();
+                    // Eyebrow = the owning route/overlay name (e.g. "HISTORY") so it's clear
+                    // which map the pin belongs to — same label as the layer control / route popup.
+                    const routeName = m.title || prettyRouteName(m.fileName);
                     // Route the popup by feature kind: Strapi POIs get the photo-extended
                     // popup, GPX waypoints keep the existing name/description popup.
                     const html =
@@ -912,9 +923,10 @@ export class PublicOverlaysLayer {
                                   p.name || 'Point of interest',
                                   p.desc || '',
                                   m.color,
+                                  routeName,
                                   p.photoUrl || undefined
                               )
-                            : poiPopupHtml(p.name || 'Waypoint', p.desc || '', m.color);
+                            : poiPopupHtml(p.name || 'Waypoint', p.desc || '', m.color, routeName);
                     this.popup
                         .setLngLat(
                             (f.geometry as GeoJSON.Point).coordinates as [number, number]
