@@ -4,6 +4,8 @@
  * component (no client JS). Venmo/CashApp entries only appear here once an
  * organizer reconciles them, so a note calls that out.
  */
+import { loadCopy, t } from "@/lib/copy";
+
 export type Txn = {
   kind: "bib" | "donation";
   provider: string;
@@ -25,7 +27,7 @@ function fmtDate(ts: string): string {
     : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default function TransactionHistory({
+export default async function TransactionHistory({
   totalCents,
   txns,
 }: {
@@ -33,6 +35,8 @@ export default function TransactionHistory({
   txns: Txn[];
 }) {
   if (totalCents <= 0 && txns.length === 0) return null;
+
+  const copy = await loadCopy("default");
 
   return (
     <section
@@ -57,7 +61,7 @@ export default function TransactionHistory({
             textTransform: "uppercase",
           }}
         >
-          Total contributed
+          {t(copy, "bib.txn.totalContributed")}
         </span>
         <span
           style={{
@@ -83,8 +87,8 @@ export default function TransactionHistory({
             gap: 6,
           }}
         >
-          {txns.map((t, i) => {
-            const isPending = t.status === "pending";
+          {txns.map((tx, i) => {
+            const isPending = tx.status === "pending";
             return (
               <li
                 key={i}
@@ -112,8 +116,8 @@ export default function TransactionHistory({
                     gap: 8,
                   }}
                 >
-                  {t.kind === "bib" ? "Bib" : "Donation"}
-                  <span style={{ color: "var(--bib-faint)" }}>· {t.provider}</span>
+                  {t(copy, tx.kind === "bib" ? "bib.txn.kindBib" : "bib.txn.kindDonation")}
+                  <span style={{ color: "var(--bib-faint)" }}>· {tx.provider}</span>
                   {isPending && (
                     <span
                       style={{
@@ -128,13 +132,13 @@ export default function TransactionHistory({
                         padding: "1px 8px",
                       }}
                     >
-                      In progress
+                      {t(copy, "bib.txn.inProgress")}
                     </span>
                   )}
                 </span>
                 <span style={{ display: "flex", gap: 12, alignItems: "center" }}>
                   <span style={{ color: "var(--bib-faint)", fontSize: 13 }}>
-                    {fmtDate(t.timestamp)}
+                    {fmtDate(tx.timestamp)}
                   </span>
                   <span
                     style={{
@@ -144,7 +148,7 @@ export default function TransactionHistory({
                         "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
                     }}
                   >
-                    {usd(t.amountCents)}
+                    {usd(tx.amountCents)}
                   </span>
                 </span>
               </li>
@@ -154,8 +158,7 @@ export default function TransactionHistory({
       )}
 
       <p style={{ margin: 0, fontSize: 12, color: "var(--bib-faint)" }}>
-        Venmo &amp; Cash App contributions appear here once an organizer
-        confirms them.
+        {t(copy, "bib.txn.reconcileNote")}
       </p>
     </section>
   );
