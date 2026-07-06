@@ -2,18 +2,18 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
-current_phase: 36
-current_phase_name: runtime-copy-toolkit
-status: verifying
-stopped_at: Phase 36 context gathered
-last_updated: "2026-07-05T20:53:53.264Z"
-last_activity: 2026-07-05
-last_activity_desc: Phase 36 execution started
+current_phase: 37
+current_phase_name: bib-donate-sponsor-proof-surface
+status: executing
+stopped_at: Phase 37 context gathered
+last_updated: "2026-07-06T02:42:15.526Z"
+last_activity: 2026-07-06
+last_activity_desc: Phase 37 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 12
+  completed_plans: 11
   percent: 40
 ---
 
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. This milestone lets organizers change static UI wording live from the CMS — no code change, no deploy.
-**Current focus:** Phase 36 — runtime-copy-toolkit
+**Current focus:** Phase 37 — bib-donate-sponsor-proof-surface
 
 ## Current Position
 
-Phase: 36 (runtime-copy-toolkit) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
-Last activity: 2026-07-05 — Phase 36 execution started
+Phase: 37 (bib-donate-sponsor-proof-surface) — EXECUTING
+Plan: 6 of 6
+Status: Ready to execute
+Last activity: 2026-07-06 — Phase 37 execution started
 
 ## Roadmap Summary (v1.9)
 
@@ -69,6 +69,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 36-02: renderCopy returns React nodes and relies on React text-node escaping (no manual escape) so escape-first holds without double-escaping
 - [Phase ?]: 36-02: copy links require explicit http/https/mailto scheme; javascript:/data:/relative URLs drop href and render label as plain text
 - [Phase ?]: CopyProvider passes only the resolved copy map client-side; never the server-only lib/copy resolver, token, or CMS URL (grep-gated)
+- [Phase ?]: [Phase 37-01]: copy-snapshot.json is the authored source of truth for all 62 bib.* keys (SC-4 floor); import-copy.mjs upserts them into Strapi via a write-only STRAPI_WRITE_TOKEN, distinct from the runtime read-only token
+- [Phase ?]: 37-02: server donate/sponsor surface reads catalog via loadCopy+t; reconcile note split around <code>{runnerCode}</code>
+- [Phase ?]: 37-03: DonateModal submit CTA interpolated in-component via nested t() (bib.checkout.cta { label, amount }) — SC-2 proven on client
+- [Phase ?]: 37-04: ContributionChip async server component via loadCopy; orderform needs no edit
 
 ### Pending Todos
 
@@ -80,9 +84,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-05T20:53:24.640Z
-Stopped at: Phase 36 context gathered
-Resume file: .planning/phases/36-runtime-copy-toolkit/36-CONTEXT.md
+Last session: 2026-07-06T02:42:00.945Z
+Stopped at: Phase 37 context gathered
+Resume file: .planning/phases/37-bib-donate-sponsor-proof-surface/37-CONTEXT.md
 
 ## Operator Next Steps
 
@@ -103,3 +107,8 @@ Resume file: .planning/phases/36-runtime-copy-toolkit/36-CONTEXT.md
 | Phase 36 P01 | 50min | 2 tasks | 7 files |
 | Phase 36 P02 | 6 | 1 tasks | 2 files |
 | Phase 36 P03 | 15min | 2 tasks | 3 files |
+| Phase 37 P01 | 12min | 3 tasks | 4 files |
+| Phase 37 P02 | 12m | 3 tasks | 4 files |
+| Phase 37 P03 | 6min | 3 tasks | 5 files |
+| Phase 37 P04 | 15m | 3 tasks | 3 files |
+| Phase 37 P05 | ~12m | 3 tasks | 5 files |

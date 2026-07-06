@@ -14,6 +14,7 @@ import { type Txn } from "@/components/TransactionHistory";
 import { ContributionChip } from "@/components/ContributionChip";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 import { getSocialQrHash, buildSocialQrUrl } from "@/lib/social-qr";
+import { loadCopy, t } from "@/lib/copy";
 
 /**
  * Home is a server-component route that receives `searchParams` from
@@ -164,6 +165,8 @@ export default async function Home({ searchParams }: HomeProps) {
   const socialQrHash = await getSocialQrHash(ownerSub);
   const socialQrUrl = socialQrHash ? buildSocialQrUrl(socialQrHash) : undefined;
 
+  const copy = await loadCopy("default");
+
   // hasTransacted = any money at all (bib payment OR donation). Kept ONLY for
   // the DRAFT stamp (a donation counts as "committed" — clears DRAFT). It does
   // NOT gate the bib actions: donations are purely additive (Kurt 2026-07-05).
@@ -221,11 +224,10 @@ export default async function Home({ searchParams }: HomeProps) {
             letterSpacing: "0.01em",
           }}
         >
-          Bibs &amp; Donation
+          {t(copy, "bib.landing.title")}
         </h1>
         <p style={{ margin: 0, color: "var(--bib-muted)", fontSize: 15 }}>
-          defcon.run remains a FREE daily event — if you&apos;d like to
-          financially support, we would appreciate it.
+          {t(copy, "bib.landing.intro")}
         </p>
       </header>
 

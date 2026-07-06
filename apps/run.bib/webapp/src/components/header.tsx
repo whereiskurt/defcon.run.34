@@ -15,6 +15,7 @@ import { PiPersonSimpleRun } from "react-icons/pi";
 import { FiShield } from "react-icons/fi";
 
 import { runHumanUrl } from "@/lib/run-human-url";
+import { useCopy } from "@/components/CopyProvider";
 
 import { ThemeSwitch } from "./theme-switch";
 import { UserDropdown } from "./user-dropdown";
@@ -53,6 +54,7 @@ export interface HeaderProps {
 }
 
 export function Header({ userName, isAdmin = false }: HeaderProps) {
+  const { t } = useCopy();
   const pathname = usePathname();
   const normalized = (pathname || "").replace(basePath, "");
   const [donateOpen, setDonateOpen] = useState(false);
@@ -113,7 +115,7 @@ export function Header({ userName, isAdmin = false }: HeaderProps) {
                       onClick={() => setDonateOpen(true)}
                       className="transition-colors text-default-500 hover:text-foreground"
                     >
-                      Donate $
+                      {t("bib.donate.trigger")}
                     </button>
                   </>
                 )}

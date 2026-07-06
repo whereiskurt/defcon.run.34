@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useCopy } from "@/components/CopyProvider";
 import { setRaining } from "@/lib/rain-store";
 import { setBurning } from "@/lib/burn-store";
 
@@ -53,6 +54,7 @@ export interface ContributionChoiceProps {
 }
 
 export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
+  const { t } = useCopy();
   const [choice, setChoice] = useState<Choice>(initialChoice);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [limitReached, setLimitReached] = useState(false);
@@ -180,8 +182,8 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
         }}
       >
         {limitReached
-          ? "That's plenty of cash for now — 30 rains max per event! 💸"
-          : hintFor(choice, saveState)}
+          ? t("bib.contribution.limitNote")
+          : hintFor(choice, saveState, t)}
       </span>
 
       {/* Two checkboxes side by side (wrap to stacked on narrow screens),
@@ -194,7 +196,7 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
           disabled={busy}
           onChange={(on) => onSelect(on ? "inperson" : "nothing")}
           accent="#6CCDB8"
-          label="I'll give $20USD in person."
+          label={t("bib.contribution.optInPerson")}
         />
         <CheckRow
           id="opt-burn"
@@ -202,24 +204,29 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
           disabled={busy}
           onChange={(on) => onSelect(on ? "burn" : "nothing")}
           accent="#ff6a00"
-          label="🔥 Fuck that bib. I don't want one."
+          label={t("bib.contribution.optBurn")}
         />
       </div>
     </div>
   );
 }
 
-function hintFor(choice: Choice, state: SaveState): string {
+function hintFor(
+  choice: Choice,
+  state: SaveState,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): string {
+  // D-03: migrate the user-facing error SENTENCE; the {detail} token stays raw.
   if (state.kind === "error")
-    return `Couldn't save (${state.detail}) — try again.`;
+    return t("bib.contribution.saveError", { detail: state.detail });
   switch (choice) {
     case "inperson":
-      return "Pay $20 cash/card at defcon.run 34 and we'll print your name on a custom bib.";
+      return t("bib.contribution.hintInPerson");
     case "burn":
-      return "You torched it. No name, no bib — pick another option to bring it back.";
+      return t("bib.contribution.hintBurn");
     case "nothing":
     default:
-      return "Free bib without customization.";
+      return t("bib.contribution.hintNothing");
   }
 }
 

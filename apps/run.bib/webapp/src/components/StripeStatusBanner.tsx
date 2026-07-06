@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useCopy } from "@/components/CopyProvider";
+
 /**
  * StripeStatusBanner (Kurt 2026-07-05 — now client + auto-dismiss).
  *
@@ -13,6 +15,7 @@ import { useEffect, useState } from "react";
  * (which the name field, the checkboxes, and the donate forms all fire).
  */
 export function StripeStatusBanner({ status }: { status: "success" | "cancel" }) {
+  const { t } = useCopy();
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -32,8 +35,8 @@ export function StripeStatusBanner({ status }: { status: "success" | "cancel" })
 
   const isSuccess = status === "success";
   const message = isSuccess
-    ? "Payment received — thanks for supporting defcon.run 34! Reconciliation may take a moment."
-    : "Checkout cancelled. No charge was made — you can try again below.";
+    ? t("bib.status.paymentSuccess")
+    : t("bib.status.paymentCancel");
 
   return (
     <div

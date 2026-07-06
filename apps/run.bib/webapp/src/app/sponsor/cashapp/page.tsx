@@ -5,6 +5,7 @@ import { getBib } from "@/entities/bib";
 import { recordPending } from "@/entities/pending-contribution";
 import { getCashAppHandle } from "@/lib/handles";
 import { parseAmountCentsFromQuery } from "@/lib/amount";
+import { loadCopy, t } from "@/lib/copy";
 import SponsorInstructions from "@/components/SponsorInstructions";
 
 /**
@@ -54,6 +55,7 @@ export default async function CashAppInstructionsPage({
   const params = (await searchParams) ?? {};
   const amountCents = parseAmountCentsFromQuery(params.amount_cents);
   const handle = await getCashAppHandle();
+  const copy = await loadCopy("default");
 
   // Record the intent so it shows as "in progress" in the runner's
   // transaction history until an organizer reconciles the receipt. Best-effort:
@@ -109,11 +111,10 @@ export default async function CashAppInstructionsPage({
               letterSpacing: "0.01em",
             }}
           >
-            Sponsor via Cash App
+            {t(copy, "bib.instructions.cashappTitle")}
           </h1>
           <p style={{ margin: 0, color: "#a4a4b8", fontSize: 15 }}>
-            DEF CON 34 — send the amount below and paste your runner
-            code as the note before you tap send.
+            {t(copy, "bib.instructions.cashappSubhead")}
           </p>
         </header>
 
@@ -130,7 +131,7 @@ export default async function CashAppInstructionsPage({
             href="/"
             style={{ color: "#8f8fa8", textDecoration: "underline" }}
           >
-            ← Back to bib
+            {t(copy, "bib.instructions.backToBib")}
           </a>
         </p>
       </div>

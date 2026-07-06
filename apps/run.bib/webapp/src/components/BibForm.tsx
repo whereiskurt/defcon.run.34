@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import BibPreview from "./BibPreview";
 import { CashRain } from "./CashRain";
 import { BurningBib } from "./BurningBib";
+import { useCopy } from "@/components/CopyProvider";
 import { solveAltcha } from "@/lib/altcha-client";
 import { registerBibFlusher } from "@/lib/pending-bib-save";
 import { getRaining, subscribe as subscribeRain } from "@/lib/rain-store";
@@ -85,6 +86,7 @@ export function BibForm({
   initialBurning = false,
   hasTransacted = false,
 }: BibFormProps) {
+  const { t } = useCopy();
   const [name, setName] = useState<string>(initialName);
   const [savedName, setSavedName] = useState<string>(initialName);
   const [nameLocked, setNameLocked] = useState<boolean>(initialLocked);
@@ -306,9 +308,9 @@ export function BibForm({
           >
             {busy
               ? saveState.kind === "verifying"
-                ? "Verifying…"
-                : "Saving…"
-              : "Save"}
+                ? t("bib.bibform.verifying")
+                : t("bib.bibform.saving")
+              : t("bib.bibform.save")}
           </button>
           <button
             type="button"
@@ -325,7 +327,7 @@ export function BibForm({
               cursor: !dirty || saving ? "not-allowed" : "pointer",
             }}
           >
-            Cancel
+            {t("bib.bibform.cancel")}
           </button>
         </div>
 
@@ -362,19 +364,20 @@ function SaveStateHint({
   state: SaveState;
   nameLocked: boolean;
 }) {
+  const { t } = useCopy();
   const base: React.CSSProperties = { fontSize: 13, minHeight: 18 };
 
   if (nameLocked || state.kind === "locked") {
     return (
       <span id="bib-name-hint" role="status" style={{ ...base, color: "#6CCDB8" }}>
-        Name locked for print — contact organizers to change it.
+        {t("bib.bibform.lockedHint")}
       </span>
     );
   }
   if (state.kind === "error") {
     return (
       <span id="bib-name-hint" role="status" style={{ ...base, color: "#ff8a8a" }}>
-        Save failed ({state.detail}) — try again.
+        {t("bib.bibform.saveError", { detail: state.detail })}
       </span>
     );
   }

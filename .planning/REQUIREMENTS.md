@@ -39,7 +39,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### MIGR — String migration (bib + shared chrome)
 
-- [ ] **MIGR-01**: The bib donate/sponsor surface (forms, instructions, payment/Venmo/CashApp copy, sponsor/QR/logout modals) is fully catalog-driven — the proof surface
+- [x] **MIGR-01**: The bib donate/sponsor surface (forms, instructions, payment/Venmo/CashApp copy, sponsor/QR/logout modals) is fully catalog-driven — the proof surface
 - [ ] **MIGR-02**: Remaining `run.bib` copy is migrated to catalog keys
 - [ ] **MIGR-03**: Shared chrome copy (`common.header.*`, `common.profileMenu.*`) is migrated so every app reads the same keys (words unify without a shared React component)
 
@@ -92,7 +92,7 @@ Which phases cover which requirements. Populated during roadmap creation.
 | ADMN-01 | Phase 38 | Pending |
 | ADMN-02 | Phase 38 | Pending |
 | ADMN-03 | Phase 38 | Pending |
-| MIGR-01 | Phase 37 | Pending |
+| MIGR-01 | Phase 37 | Complete |
 | MIGR-02 | Phase 39 | Pending |
 | MIGR-03 | Phase 39 | Pending |
 

@@ -1,6 +1,7 @@
 import QRCode from "qrcode";
 import { DC34_LOGO_DATA_URI } from "./dc34-logo";
 import { DC34_SMILEY_DATA_URI } from "./dc34-smiley";
+import { useCopy } from "@/components/CopyProvider";
 
 /**
  * BibPreview
@@ -124,6 +125,7 @@ export function BibPreview({
   dirty = false,
   draft = false,
 }: BibPreviewProps) {
+  const { t } = useCopy();
   const trimmedName = name.trim();
   const hasName = trimmedName.length > 0;
 
@@ -367,7 +369,7 @@ export function BibPreview({
             fill="#fff"
             letterSpacing="2"
           >
-            UNSAVED
+            {t("bib.status.stampUnsaved")}
           </text>
         </g>
       ) : draft ? (
@@ -400,7 +402,7 @@ export function BibPreview({
             fill="#fff"
             letterSpacing="4"
           >
-            DRAFT
+            {t("bib.status.stampDraft")}
           </text>
         </g>
       ) : (
@@ -432,7 +434,7 @@ export function BibPreview({
               fill="#fff"
               letterSpacing="1"
             >
-              PAID!
+              {t("bib.status.stampPaid")}
             </text>
             <text
               x="806"
@@ -444,7 +446,7 @@ export function BibPreview({
               fill="#eafff8"
               letterSpacing="2"
             >
-              THANK YOU!
+              {t("bib.status.stampThankYou")}
             </text>
           </g>
         )

@@ -14,6 +14,7 @@ import { PiPersonSimpleRun } from "react-icons/pi";
 import { FiShield, FiMenu, FiDollarSign } from "react-icons/fi";
 
 import { runHumanUrl } from "@/lib/run-human-url";
+import { useCopy } from "@/components/CopyProvider";
 
 /**
  * Mobile hamburger nav for the bib header — mirrors run.human's MenuDropDown
@@ -29,6 +30,7 @@ export function MenuDropdown({
   isAdmin?: boolean;
   onDonate?: () => void;
 }) {
+  const { t } = useCopy();
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
@@ -88,7 +90,7 @@ export function MenuDropdown({
             onDonate?.();
           }}
         >
-          <span className="text-base">Donate $</span>
+          <span className="text-base">{t("bib.donate.trigger")}</span>
         </DropdownItem>
         <DropdownItem
           key="maps"

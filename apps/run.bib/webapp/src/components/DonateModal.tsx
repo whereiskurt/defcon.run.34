@@ -3,9 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { useCopy } from "@/components/CopyProvider";
+
 /**
- * DonateModal — a self-contained "Just donate" quick-give overlay (Kurt
- * 2026-07-05, item #2).
+ * DonateModal — a self-contained quick-give donate overlay (Kurt
+ * 2026-07-05, item #2). Its visible copy is catalog-driven via useCopy()
+ * (Phase 37-03) — the title/subhead/labels/CTA resolve from bib.donate.* /
+ * bib.checkout.* keys, no longer inline literals.
  *
  * This is the CANONICAL copy. The IDENTICAL file is duplicated into
  * run.human and run.flash (this monorepo duplicates shared header UI per app
@@ -14,7 +18,7 @@ import { createPortal } from "react-dom";
  * the header passes in.
  *
  * Behaviour:
- *   - Renders the same amount picker + provider pills as the bib "Just donate"
+ *   - Renders the same amount picker + provider pills as the bib donate
  *     tile, in a centered modal over a blurred backdrop.
  *   - Card (Stripe): credentialed POST to `${bibOrigin}/api/checkout/general`,
  *     then a full-page redirect to the Stripe Checkout URL. Stripe's
@@ -76,6 +80,7 @@ export function DonateModal({
   bibOrigin = "",
   regionPrefix = "",
 }: DonateModalProps) {
+  const { t } = useCopy();
   const [amountCents, setAmountCents] = useState<number>(2_000); // $20 default
   // Free-text so typing "55" isn't hijacked by the min-clamp mid-keystroke;
   // the $10 floor is only enforced on blur / submit.
@@ -228,10 +233,10 @@ export function DonateModal({
         >
           <div>
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
-              Just donate
+              {t("bib.donate.title")}
             </h2>
             <p style={{ margin: "4px 0 0", color: "#a4a4b8", fontSize: 13 }}>
-              Support goes directly to defcon.run 34. Thank you!
+              {t("bib.donate.subhead")}
             </p>
           </div>
           <button
@@ -275,7 +280,7 @@ export function DonateModal({
                 textTransform: "uppercase",
               }}
             >
-              Donation amount
+              {t("bib.donate.amountLabel")}
             </span>
             {/* Slider + editable amount box — matches the Sponsor/Donate tile
               * panels (SponsorForm) so the modal reads as the same control. */}
@@ -350,8 +355,10 @@ export function DonateModal({
                 display: "block",
               }}
             >
-              Slide or type any amount from ${MIN_CENTS / 100} up to $
-              {MAX_CENTS / 100}.
+              {t("bib.checkout.sliderHelper", {
+                min: MIN_CENTS / 100,
+                max: MAX_CENTS / 100,
+              })}
             </span>
           </div>
 
@@ -365,14 +372,14 @@ export function DonateModal({
                 textTransform: "uppercase",
               }}
             >
-              Payment method
+              {t("bib.checkout.paymentMethod")}
             </span>
             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
               {(
                 [
-                  ["stripe", "Card"],
-                  ["cashapp", "Cash App"],
-                  ["venmo", "Venmo"],
+                  ["stripe", t("bib.checkout.providerCard")],
+                  ["cashapp", t("bib.checkout.providerCashApp")],
+                  ["venmo", t("bib.checkout.providerVenmo")],
                 ] as Array<[Provider, string]>
               ).map(([value, label]) => {
                 const selected = provider === value;
@@ -406,8 +413,7 @@ export function DonateModal({
             </div>
             {(provider === "venmo" || provider === "cashapp") && (
               <p style={{ fontSize: 12, color: "#a4a4b8", margin: "8px 0 0" }}>
-                Venmo &amp; Cash App are confirmed by an organizer — your
-                contribution appears once approved.
+                {t("bib.checkout.providerNote")}
               </p>
             )}
           </div>
@@ -427,12 +433,17 @@ export function DonateModal({
               letterSpacing: "0.02em",
             }}
           >
-            {disabled ? "Redirecting…" : `Donate ${displayAmount}`}
+            {disabled
+              ? t("bib.checkout.redirecting")
+              : t("bib.checkout.cta", {
+                  label: t("bib.contribution.donateVerb"),
+                  amount: displayAmount,
+                })}
           </button>
 
           {submit.kind === "error" && (
             <div role="alert" style={{ fontSize: 13, color: "#ff8a8a" }}>
-              Could not start checkout ({submit.detail}) — try again.
+              {t("bib.checkout.error", { detail: submit.detail })}
             </div>
           )}
         </form>
