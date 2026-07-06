@@ -1,31 +1,23 @@
 /**
- * Copy Catalog — custom Strapi admin page (Phase 38-02).
+ * Copy Catalog — custom Strapi admin page (Phase 38).
  *
  * The organizer-facing authoring surface for the v1.9 ui-string copy catalog:
- * a load-all, spreadsheet-style three-column (Label · Locale · Value) grid over
- * the whole `ui-string` catalog with a client-side namespace filter, inline edit,
- * add-row, and a single bulk Save that posts only dirty + new rows to the 38-01
- * endpoint (POST /ui-strings/bulk-upsert) with atomic-reject per-row errors.
+ * a load-all, DENSE spreadsheet-style three-column (Label · Locale · Value) grid
+ * over the whole `ui-string` catalog with a namespace filter + free-text search,
+ * inline edit, add-row, and a single bulk Save that posts only dirty + new rows to
+ * the admin-authed endpoint (POST /copy-catalog/ui-strings/bulk-upsert) with
+ * atomic-reject per-row errors.
  *
  * Surface: rendered INSIDE the Strapi 5.6 admin panel (mounted via the src/admin
- * register hook in app.tsx). All spacing/typography/color derive from Strapi's
- * admin theme tokens (theme.spaces[n] via Box/Flex props, <Typography variant>,
- * theme.colors.* via token props) — no hardcoded px/hex, no external UI registry.
- *
- * First custom admin page in this repo (no prior analog); composed from
- * @strapi/design-system v2.0.1 + @strapi/icons v2.0.1 + @strapi/strapi/admin.
+ * register hook in app.tsx), so it inherits admin auth (SSO) + nav chrome. The grid
+ * itself is a compact native <table> styled via styled-components against Strapi's
+ * theme tokens (theme.colors.* — light/dark aware) rather than the roomy
+ * @strapi/design-system field components, so it reads like a real spreadsheet.
  */
 import * as React from 'react';
 import {
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Td,
-  Th,
   Typography,
   TextInput,
-  Textarea,
   SingleSelect,
   SingleSelectOption,
   Button,
@@ -35,13 +27,15 @@ import {
 } from '@strapi/design-system';
 import { Plus } from '@strapi/icons';
 import { Layouts, Page, useFetchClient, useNotification } from '@strapi/strapi/admin';
+import styled from 'styled-components';
 
-// ── Copywriting Contract (38-UI-SPEC — verbatim) ───────────────────────────────
+// ── Copywriting Contract (38-UI-SPEC — verbatim, + dense-mode additions) ───────
 const COPY = {
   title: 'Copy Catalog',
   subtitle: 'Edit UI copy strings live — changes propagate to all regions within ~15 minutes.',
   namespaceLabel: 'Namespace',
   allNamespaces: 'All namespaces',
+  searchPlaceholder: 'Search key or value…',
   save: 'Save',
   saving: 'Saving…',
   nothingToSave: 'Nothing to save',
@@ -49,8 +43,8 @@ const COPY = {
   saveSuccess: 'Copy saved. Changes will reach all regions within ~15 minutes.',
   emptyHeading: 'No copy strings yet',
   emptyBody: 'Add your first row to start editing UI copy.',
-  filteredEmptyHeading: 'No strings in this namespace',
-  filteredEmptyBody: 'Choose "All namespaces" or add a row to this namespace.',
+  filteredEmptyHeading: 'No matching strings',
+  filteredEmptyBody: 'Clear the search or namespace filter, or add a row.',
   rejectBanner: 'Save failed — nothing was written. Fix the highlighted rows and try again.',
   loadError: "Couldn't load the copy catalog. Refresh to try again.",
   colLabel: 'Label',
@@ -71,7 +65,7 @@ interface RowError {
 
 // A grid row. `id` is the numeric DB id (null for a not-yet-saved new row);
 // `tempKey` is a stable client-side key so React and dirty-tracking work before
-// a new row has a DB id (D-06 discretion).
+// a new row has a DB id.
 interface Row {
   id: number | null;
   tempKey: string;
@@ -89,6 +83,80 @@ const nextTempKey = (): string => `new-${Date.now()}-${tempSeq++}`;
 // Namespace of a row = the segment before the first dot of its dotted key (D-05).
 const namespaceOf = (key: string): string => (key ?? '').split('.')[0];
 
+// ── Dense spreadsheet styling (theme-token driven, light/dark aware) ───────────
+const Grid = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  border: 1px solid ${({ theme }) => theme.colors.neutral200};
+`;
+
+const HeadCell = styled.th<{ $w?: string }>`
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  padding: 6px 10px;
+  background: ${({ theme }) => theme.colors.neutral100};
+  color: ${({ theme }) => theme.colors.neutral600};
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.neutral200};
+  width: ${({ $w }) => $w || 'auto'};
+`;
+
+const BodyRow = styled.tr<{ $dirty?: boolean; $error?: boolean }>`
+  background: ${({ theme, $dirty, $error }) =>
+    $error ? theme.colors.danger100 : $dirty ? theme.colors.primary100 : theme.colors.neutral0};
+  &:nth-of-type(even) {
+    background: ${({ theme, $dirty, $error }) =>
+      $error ? theme.colors.danger100 : $dirty ? theme.colors.primary100 : theme.colors.neutral100};
+  }
+  &:hover {
+    background: ${({ theme, $dirty, $error }) =>
+      $error ? theme.colors.danger100 : $dirty ? theme.colors.primary100 : theme.colors.neutral150};
+  }
+`;
+
+const Cell = styled.td`
+  padding: 0;
+  border-bottom: 1px solid ${({ theme }) => theme.colors.neutral150};
+  border-right: 1px solid ${({ theme }) => theme.colors.neutral150};
+  vertical-align: middle;
+  &:last-of-type {
+    border-right: none;
+  }
+`;
+
+const CellInput = styled.input<{ $mono?: boolean; $error?: boolean }>`
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  background: transparent;
+  padding: 4px 10px;
+  font-size: 13px;
+  line-height: 20px;
+  color: ${({ theme, $error }) => ($error ? theme.colors.danger600 : theme.colors.neutral800)};
+  font-family: ${({ $mono }) =>
+    $mono ? 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace' : 'inherit'};
+  &:focus {
+    outline: 2px solid ${({ theme }) => theme.colors.primary600};
+    outline-offset: -2px;
+    background: ${({ theme }) => theme.colors.neutral0};
+  }
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.neutral500};
+  }
+`;
+
+const ErrorRowCell = styled.td`
+  padding: 2px 10px 4px;
+  background: ${({ theme }) => theme.colors.danger100};
+  border-bottom: 1px solid ${({ theme }) => theme.colors.neutral150};
+`;
+
 const CopyCatalog: React.FC = () => {
   const { get, post } = useFetchClient();
   const { toggleNotification } = useNotification();
@@ -96,6 +164,7 @@ const CopyCatalog: React.FC = () => {
   const [rows, setRows] = React.useState<Row[]>([]);
   const [status, setStatus] = React.useState<'loading' | 'ready' | 'error'>('loading');
   const [namespace, setNamespace] = React.useState<string>(ALL);
+  const [search, setSearch] = React.useState<string>('');
   const [saving, setSaving] = React.useState(false);
   const [rejected, setRejected] = React.useState(false);
   const [focusKey, setFocusKey] = React.useState<string | null>(null);
@@ -105,7 +174,7 @@ const CopyCatalog: React.FC = () => {
     let cancelled = false;
     (async () => {
       try {
-        const { data } = await get('/api/ui-strings?pagination[pageSize]=1000&sort=key:asc');
+        const { data } = await get('/copy-catalog/ui-strings?pagination[pageSize]=1000&sort=key:asc');
         if (cancelled) return;
         const list: Row[] = (data?.data ?? []).map((e: any) => ({
           id: e.id ?? null,
@@ -127,11 +196,17 @@ const CopyCatalog: React.FC = () => {
     };
   }, [get]);
 
-  // ── Client-side namespace filter over the already-loaded catalog (D-04) ──────
+  // ── Client-side namespace + text filter over the already-loaded catalog (D-04) ─
   const visibleRows = React.useMemo(() => {
-    if (namespace === ALL) return rows;
-    return rows.filter((r) => namespaceOf(r.key) === namespace);
-  }, [rows, namespace]);
+    const q = search.trim().toLowerCase();
+    return rows.filter(
+      (r) =>
+        (namespace === ALL || namespaceOf(r.key) === namespace) &&
+        (q === '' ||
+          r.key.toLowerCase().includes(q) ||
+          r.value.toLowerCase().includes(q))
+    );
+  }, [rows, namespace, search]);
 
   const dirtyCount = React.useMemo(
     () => rows.filter((r) => r.dirty || r.isNew).length,
@@ -184,7 +259,7 @@ const CopyCatalog: React.FC = () => {
     }));
 
     try {
-      const { data } = await post('/api/ui-strings/bulk-upsert', { data: payload });
+      const { data } = await post('/copy-catalog/ui-strings/bulk-upsert', { data: payload });
       const saved: any[] = data?.data ?? [];
 
       setRows((prev) =>
@@ -255,7 +330,7 @@ const CopyCatalog: React.FC = () => {
           )}
 
           {status === 'error' && (
-            <Box padding={8} background="neutral0" hasRadius>
+            <Box padding={6} background="neutral0" hasRadius>
               <Typography variant="omega" textColor="danger600">
                 {COPY.loadError}
               </Typography>
@@ -263,46 +338,64 @@ const CopyCatalog: React.FC = () => {
           )}
 
           {status === 'ready' && (
-            <Flex direction="column" alignItems="stretch" gap={4}>
-              {/* Toolbar */}
-              <Flex justifyContent="space-between" gap={2}>
-                <Box width="20rem">
-                  <SingleSelect
-                    aria-label={COPY.namespaceLabel}
-                    placeholder={COPY.namespaceLabel}
-                    value={namespace}
-                    onChange={(v) => setNamespace(String(v))}
-                  >
-                    <SingleSelectOption value={ALL}>{COPY.allNamespaces}</SingleSelectOption>
-                    {NAMESPACES.map((ns) => (
-                      <SingleSelectOption key={ns} value={ns}>
-                        {ns}
-                      </SingleSelectOption>
-                    ))}
-                  </SingleSelect>
-                </Box>
+            <Flex direction="column" alignItems="stretch" gap={3}>
+              {/* Dense toolbar: namespace filter · key/value search · row count · Add · Save */}
+              <Flex justifyContent="space-between" gap={2} wrap="wrap">
                 <Flex gap={2}>
-                  <Button variant="secondary" startIcon={<Plus />} onClick={addRow}>
+                  <Box width="12rem">
+                    <SingleSelect
+                      size="S"
+                      aria-label={COPY.namespaceLabel}
+                      placeholder={COPY.namespaceLabel}
+                      value={namespace}
+                      onChange={(v) => setNamespace(String(v))}
+                    >
+                      <SingleSelectOption value={ALL}>{COPY.allNamespaces}</SingleSelectOption>
+                      {NAMESPACES.map((ns) => (
+                        <SingleSelectOption key={ns} value={ns}>
+                          {ns}
+                        </SingleSelectOption>
+                      ))}
+                    </SingleSelect>
+                  </Box>
+                  <Box width="18rem">
+                    <TextInput
+                      size="S"
+                      aria-label="Search"
+                      placeholder={COPY.searchPlaceholder}
+                      value={search}
+                      onChange={(e: any) => setSearch(e.target.value)}
+                    />
+                  </Box>
+                  <Flex paddingLeft={1}>
+                    <Typography variant="pi" textColor="neutral600">
+                      {visibleRows.length}
+                      {visibleRows.length === rows.length ? '' : ` / ${rows.length}`} rows
+                      {dirtyCount > 0 ? ` · ${dirtyCount} unsaved` : ''}
+                    </Typography>
+                  </Flex>
+                </Flex>
+                <Flex gap={2}>
+                  <Button size="S" variant="secondary" startIcon={<Plus />} onClick={addRow}>
                     {COPY.addRow}
                   </Button>
-                  <Button onClick={save} disabled={saving || dirtyCount === 0} loading={saving}>
-                    {saving ? COPY.saving : COPY.save}
+                  <Button
+                    size="S"
+                    onClick={save}
+                    disabled={saving || dirtyCount === 0}
+                    loading={saving}
+                  >
+                    {saving ? COPY.saving : dirtyCount === 0 ? COPY.nothingToSave : COPY.save}
                   </Button>
                 </Flex>
               </Flex>
 
               {rejected && (
-                <Box padding={3} background="danger100" hasRadius>
-                  <Typography variant="omega" textColor="danger700">
+                <Box padding={2} background="danger100" hasRadius>
+                  <Typography variant="pi" textColor="danger700">
                     {COPY.rejectBanner}
                   </Typography>
                 </Box>
-              )}
-
-              {dirtyCount === 0 && (
-                <Typography variant="pi" textColor="neutral600">
-                  {COPY.nothingToSave}
-                </Typography>
               )}
 
               {/* Empty / filtered-empty states */}
@@ -321,64 +414,67 @@ const CopyCatalog: React.FC = () => {
                   </Typography>
                 </Flex>
               ) : (
-                <Table colCount={3} rowCount={visibleRows.length}>
-                  <Thead>
-                    <Tr>
-                      <Th>
-                        <Typography variant="sigma">{COPY.colLabel}</Typography>
-                      </Th>
-                      <Th>
-                        <Typography variant="sigma">{COPY.colLocale}</Typography>
-                      </Th>
-                      <Th>
-                        <Typography variant="sigma">{COPY.colValue}</Typography>
-                      </Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {visibleRows.map((row) => {
-                      const changed = row.dirty || row.isNew;
-                      const hasError = !!row.errors?.length;
-                      return (
-                        <Tr key={row.tempKey} background={changed ? 'primary100' : undefined}>
-                          <Td>
-                            <Flex direction="column" alignItems="stretch" gap={1}>
-                              <TextInput
-                                aria-label={COPY.colLabel}
-                                value={row.key}
-                                hasError={hasError}
-                                ref={registerFocus(row.tempKey)}
-                                onChange={(e: any) => patchRow(row.tempKey, { key: e.target.value })}
-                              />
-                              {row.errors?.map((err) => (
-                                <Typography key={err.code} variant="pi" textColor="danger600">
-                                  {err.message}
-                                </Typography>
-                              ))}
-                            </Flex>
-                          </Td>
-                          <Td>
-                            <TextInput
-                              aria-label={COPY.colLocale}
-                              value={row.locale}
-                              hasError={hasError}
-                              onChange={(e: any) => patchRow(row.tempKey, { locale: e.target.value })}
-                            />
-                          </Td>
-                          <Td>
-                            <Textarea
-                              aria-label={COPY.colValue}
-                              value={row.value}
-                              hasError={hasError}
-                              rows={2}
-                              onChange={(e: any) => patchRow(row.tempKey, { value: e.target.value })}
-                            />
-                          </Td>
-                        </Tr>
-                      );
-                    })}
-                  </Tbody>
-                </Table>
+                <Box hasRadius overflow="hidden">
+                  <Grid>
+                    <thead>
+                      <tr>
+                        <HeadCell $w="34%">{COPY.colLabel}</HeadCell>
+                        <HeadCell $w="12%">{COPY.colLocale}</HeadCell>
+                        <HeadCell>{COPY.colValue}</HeadCell>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleRows.map((row) => {
+                        const changed = row.dirty || row.isNew;
+                        const hasError = !!row.errors?.length;
+                        return (
+                          <React.Fragment key={row.tempKey}>
+                            <BodyRow $dirty={changed} $error={hasError}>
+                              <Cell>
+                                <CellInput
+                                  $mono
+                                  $error={hasError}
+                                  aria-label={COPY.colLabel}
+                                  value={row.key}
+                                  placeholder="namespace.area.element"
+                                  ref={registerFocus(row.tempKey)}
+                                  onChange={(e) => patchRow(row.tempKey, { key: e.target.value })}
+                                />
+                              </Cell>
+                              <Cell>
+                                <CellInput
+                                  $mono
+                                  aria-label={COPY.colLocale}
+                                  value={row.locale}
+                                  onChange={(e) => patchRow(row.tempKey, { locale: e.target.value })}
+                                />
+                              </Cell>
+                              <Cell>
+                                <CellInput
+                                  aria-label={COPY.colValue}
+                                  value={row.value}
+                                  placeholder="(empty)"
+                                  onChange={(e) => patchRow(row.tempKey, { value: e.target.value })}
+                                />
+                              </Cell>
+                            </BodyRow>
+                            {hasError && (
+                              <tr>
+                                <ErrorRowCell colSpan={3}>
+                                  {row.errors?.map((err) => (
+                                    <Typography key={err.code} variant="pi" textColor="danger700">
+                                      {err.message}
+                                    </Typography>
+                                  ))}
+                                </ErrorRowCell>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </Grid>
+                </Box>
               )}
             </Flex>
           )}
