@@ -456,11 +456,19 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 39-01-PLAN.md — Author remaining bib.* + shared common.* keys into bib snapshot; namespace-aware import (Wave 1)
 - [ ] 39-02-PLAN.md — Port toolkit into run.human + snapshot + import + mount CopyProvider in both layouts (Wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 39-03-PLAN.md — Wire run.bib chrome (header/menu/profile/footer) to common.* (Wave 2)
 - [ ] 39-04-PLAN.md — Migrate run.bib remaining copy (TransactionHistory/AdminActions) to bib.* (Wave 2)
 - [ ] 39-05-PLAN.md — Wire run.human chrome to the same common.* keys + bounded human.* easy wins (Wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 39-06-PLAN.md — Verify SC-1/2/3 + fallback: cross-snapshot lock, operator import, live cross-app edit (Wave 3)
 
 **UI hint**: yes
