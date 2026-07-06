@@ -1,0 +1,107 @@
+/**
+ * Pure batch-validation helper for the ui-string bulk-upsert (Phase 38-01, D-03/D-05).
+ *
+ * Intentionally dependency-free: no `strapi` global, no DB access, no side effects
+ * (mirroring the import-only house style of copy-export.ts). This keeps the intra-batch
+ * rules independently testable with a plain node/assert self-check — the cross-row DB
+ * uniqueness check (which needs `strapi.db`) lives in services/ui-string.ts.
+ *
+ * User-facing messages are the exact strings from 38-UI-SPEC "Copywriting Contract"
+ * (Row-error rows) so the admin grid renders identical copy inline.
+ */
+
+// From schema.json ui-string.namespace enum.
+export const VALID_NAMESPACES = ['common', 'human', 'auth', 'gpx', 'bib', 'flash'] as const;
+
+// From lifecycles.ts DEFAULT_LOCALE — a missing locale coerces to "default".
+export const DEFAULT_LOCALE = 'default';
+
+// 38-UI-SPEC Copywriting Contract — Row-error rows (verbatim).
+export const MESSAGES = {
+  DUPLICATE_PAIR: 'This label + locale already exists. Each label must be unique per locale.',
+  BAD_NAMESPACE_PREFIX:
+    'Label must start with a valid namespace: common, human, auth, gpx, bib, or flash.',
+  EMPTY_REQUIRED_FIELD: 'Label and value are required.',
+} as const;
+
+export type ErrorCode = 'DUPLICATE_PAIR' | 'BAD_NAMESPACE_PREFIX' | 'EMPTY_REQUIRED_FIELD';
+
+export interface BulkRow {
+  /** DB id present => in-place update; absent => create. */
+  id?: number | null;
+  key?: string;
+  locale?: string | null;
+  value?: string | null;
+  namespace?: string;
+}
+
+export interface RowError {
+  index: number;
+  code: ErrorCode;
+  message: string;
+}
+
+/** Namespace is the segment before the first dot of the dotted key (D-05). */
+export function deriveNamespace(key: string): string {
+  return (key ?? '').split('.')[0];
+}
+
+/** A missing/blank locale coerces to "default", matching lifecycles.ts. */
+export function resolveLocale(locale?: string | null): string {
+  return locale == null || locale === '' ? DEFAULT_LOCALE : locale;
+}
+
+function isEmpty(v: unknown): boolean {
+  return v === undefined || v === null || String(v).trim() === '';
+}
+
+/**
+ * Validate a submitted batch WITHOUT touching the database. Returns one
+ * `{ index, code, message }` per offending row (a row may collect more than one).
+ *
+ * Rules:
+ *  - empty required `key` or `value`            -> EMPTY_REQUIRED_FIELD
+ *  - key whose namespace prefix is not in enum  -> BAD_NAMESPACE_PREFIX
+ *  - two rows sharing the same (key, locale)    -> DUPLICATE_PAIR (all such rows flagged)
+ *
+ * A row that fails the required/namespace check is excluded from duplicate tracking
+ * (it will not be written regardless).
+ */
+export function validateBatch(rows: BulkRow[]): RowError[] {
+  const errors: RowError[] = [];
+  const seen = new Map<string, number[]>();
+
+  rows.forEach((row, index) => {
+    const key = (row.key ?? '').trim();
+
+    if (isEmpty(key) || isEmpty(row.value)) {
+      errors.push({ index, code: 'EMPTY_REQUIRED_FIELD', message: MESSAGES.EMPTY_REQUIRED_FIELD });
+      return;
+    }
+
+    const namespace = deriveNamespace(key);
+    if (!(VALID_NAMESPACES as readonly string[]).includes(namespace)) {
+      errors.push({
+        index,
+        code: 'BAD_NAMESPACE_PREFIX',
+        message: MESSAGES.BAD_NAMESPACE_PREFIX,
+      });
+      return;
+    }
+
+    const pairKey = `${key} ${resolveLocale(row.locale)}`;
+    const bucket = seen.get(pairKey);
+    if (bucket) bucket.push(index);
+    else seen.set(pairKey, [index]);
+  });
+
+  for (const indices of seen.values()) {
+    if (indices.length > 1) {
+      for (const index of indices) {
+        errors.push({ index, code: 'DUPLICATE_PAIR', message: MESSAGES.DUPLICATE_PAIR });
+      }
+    }
+  }
+
+  return errors;
+}

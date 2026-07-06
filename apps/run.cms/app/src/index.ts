@@ -162,7 +162,36 @@ export default {
    *
    * This gives you an opportunity to extend code.
    */
-  register(/* { strapi } */) {},
+  register({ strapi }) {
+    // Admin-authed routes for the Copy Catalog page (Phase 38).
+    //
+    // The custom admin page (src/admin/pages/CopyCatalog.tsx) calls the server via
+    // `useFetchClient`, which sends the Strapi admin session JWT. Strapi forces
+    // every `src/api` route to `type: 'content-api'` (see @strapi/core
+    // register-routes.js), whose auth strategies reject the admin JWT with 401 —
+    // so the page's list + bulk-upsert MUST live on the ADMIN router, which
+    // authenticates the admin session. Registered here (not in src/api/.../routes)
+    // for exactly that reason. The `/api/ui-strings` content route (read-only API
+    // token) is intentionally left intact for the Phase-36 runtime copy toolkit;
+    // this only adds an admin-authed authoring surface.
+    strapi.server.routes({
+      type: 'admin',
+      routes: [
+        {
+          method: 'GET',
+          path: '/copy-catalog/ui-strings',
+          handler: 'api::ui-string.ui-string.find',
+          config: { policies: [] },
+        },
+        {
+          method: 'POST',
+          path: '/copy-catalog/ui-strings/bulk-upsert',
+          handler: 'api::ui-string.ui-string.bulkUpsert',
+          config: { policies: [] },
+        },
+      ],
+    });
+  },
 
   /**
    * An asynchronous bootstrap function that runs before
