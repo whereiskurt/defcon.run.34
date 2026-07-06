@@ -38,6 +38,14 @@
     background-size:256px 256px;
   }
   html.light body::before { opacity:.02; }
+  /* faint Vegas map behind everything, mouse-follow parallax — matches run/flash/bib */
+  .map-bg {
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:url('./vegas-z10.png') center/cover no-repeat;
+    opacity:.12; filter:brightness(1.8) contrast(1.2);
+    transform:scale(1.15); will-change:transform; transition:transform .3s ease-out;
+  }
+  html.light .map-bg { filter:invert(1) brightness(1.4) contrast(.6); opacity:.16; }
   .wrap { position:relative; z-index:1; max-width:860px; margin:0 auto; padding:48px 24px 80px; }
 
   .theme-toggle {
@@ -155,6 +163,8 @@
        data-next="/use1/status.json">
     you found the ghost in the machine. now find the other three. — kph
   </div>
+
+  <div class="map-bg" id="mapbg" aria-hidden="true"></div>
 
   <button class="theme-toggle" id="themeToggle">🌙 dark</button>
 
@@ -293,6 +303,22 @@
   try { savedTheme = localStorage.getItem('dcr-theme') || 'dark'; } catch(_) {}
   applyTheme(savedTheme);
   tbtn.addEventListener('click', () => applyTheme(root.classList.contains('dark') ? 'light' : 'dark'));
+
+  // ---- vegas map parallax (mouse-follow), like run/flash/bib ----
+  (function mapParallax(){
+    const bg = document.getElementById('mapbg');
+    if (!bg || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    window.addEventListener('mousemove', (e) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const x = ((e.clientX / window.innerWidth) - 0.5) * 60;   // -30..30px
+        const y = ((e.clientY / window.innerHeight) - 0.5) * 60;
+        bg.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(1.15)';
+      });
+    }, { passive:true });
+  })();
 
   // ---- matrix rain (auto-exit after 10s) ----
   let mAnim = null, mTimeout = null;
