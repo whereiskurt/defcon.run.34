@@ -75,6 +75,23 @@
     "bib.admin.paid": "PAID",
     "bib.admin.alreadyBooked": "Already booked.",
     "bib.admin.reject": "Reject",
-    "bib.admin.rejectConfirm": "Reject this bib? This deletes the bib and pending payments and resets the runner's name-change quota. Donations are kept."
+    "bib.admin.rejectConfirm": "Reject this bib? This deletes the bib and pending payments and resets the runner's name-change quota. Donations are kept.",
+    "common.header.maps": "Maps",
+    "common.header.meshtastic": "Meshtastic",
+    "common.header.bib": "Bib",
+    "common.header.donate": "Donate $",
+    "common.header.admin": "Admin",
+    "common.header.myBibMobile": "My bib",
+    "common.header.whoami": "Who Am I",
+    "common.header.faq": "FAQ",
+    "common.profileMenu.profile": "Profile",
+    "common.profileMenu.myBib": "My Bib",
+    "common.profileMenu.cms": "CMS",
+    "common.profileMenu.adminReports": "Admin reports",
+    "common.profileMenu.gpsCheckin": "GPS Check-in",
+    "common.profileMenu.showQr": "Show My QR",
+    "common.profileMenu.signOut": "Sign out",
+    "common.profileMenu.logout": "Logout",
+    "common.footer.credits": "Credits"
   }
 }
