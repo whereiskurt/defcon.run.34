@@ -70,7 +70,11 @@ async function main() {
     try {
       const findUrl = new URL(`${baseUrl}/api/ui-strings`);
       findUrl.searchParams.set("filters[key][$eq]", key);
-      findUrl.searchParams.set("filters[locale][$eq]", DEFAULT_LOCALE);
+      // NB: do NOT filter by `locale` in the query — Strapi 5 reserves `locale`
+      // as a query key (i18n), so `filters[locale][$eq]` 400s ("Invalid key
+      // locale") against our own non-i18n `locale` column. Select the locale
+      // from the returned rows in JS instead.
+      findUrl.searchParams.set("pagination[pageSize]", "100");
 
       const findRes = await fetch(findUrl.toString(), { headers });
       if (!findRes.ok) {
@@ -79,7 +83,10 @@ async function main() {
       const findJson = await findRes.json();
       const rows = Array.isArray(findJson?.data) ? findJson.data : [];
       // Strapi 5 flattens attributes onto the row; documentId lives on the row.
-      const existing = rows[0];
+      // Match the target locale in JS (only `default` exists in v1).
+      const existing =
+        rows.find((r) => (r?.locale ?? r?.attributes?.locale) === DEFAULT_LOCALE) ??
+        rows[0];
       const documentId = existing?.documentId ?? existing?.attributes?.documentId;
 
       if (documentId) {

@@ -49,7 +49,10 @@ async function fetchStrapi(locale: string): Promise<CopyMap> {
 
   try {
     const url = new URL(`${baseUrl}/api/ui-strings`);
-    url.searchParams.set("filters[locale][$eq]", locale);
+    // NB: do NOT filter by `locale` in the query — Strapi 5 reserves `locale`
+    // as a query key (i18n), so `filters[locale][$eq]` 400s ("Invalid key
+    // locale") against our own non-i18n `locale` column. Fetch all rows and
+    // select the locale in JS below. Safe: v1 only populates `default`.
     url.searchParams.set("pagination[pageSize]", "1000");
 
     const res = await fetch(url.toString(), {
@@ -68,6 +71,9 @@ async function fetchStrapi(locale: string): Promise<CopyMap> {
     for (const row of rows) {
       // Strapi 5 flattens attributes onto the row; tolerate the v4 shape too.
       const attrs = row?.attributes ?? row;
+      // Locale selection happens here (not in the query — see note above).
+      // A row with no locale is tolerated (treated as the requested one).
+      if (attrs?.locale != null && attrs.locale !== locale) continue;
       if (attrs?.key) map[attrs.key] = attrs.value ?? "";
     }
     return map;
