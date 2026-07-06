@@ -4,11 +4,10 @@ Instructions for AI agents updating the public status page.
 
 ## What this is
 
-`status.defcon.run` is a **static** page — S3 origin + CloudFront, no ECS/Node/backend. It has its own Terragrunt state and does not touch the shared CloudFront/global infra. All content lives in three files under `apps/run.status/site/`:
+`status.defcon.run` is a **static** page — S3 origin + CloudFront, no ECS/Node/backend. It has its own Terragrunt state and does not touch the shared CloudFront/global infra. All content lives under `apps/run.status/site/`:
 
 - `status.json` — the service list + per-service `state` (the thing you usually change).
-- `marquee.json` — the scrolling ticker (`items` array of strings).
-- `index.html` — the self-contained page (inline CSS/JS; polls `status.json`).
+- `index.html` — the self-contained page (inline CSS/JS; polls `status.json`). Also holds the **MATRIX RUN** mini-game (canvas, no data file) that sits below the title.
 
 It is **global / single source** — one S3 origin, one CloudFront, one `status.json`. The `regions` array in the JSON is display-only chips; a status change is global.
 
@@ -36,7 +35,7 @@ cd apps/run.status
 #    Or use the setter (validates ids + states, leaves `updated` alone):
 #      .claude/skills/dc34-statuspage/scripts/set-status.sh human=down gpx=live
 # 2. publish:
-./release.sh --status-only   # fast: status.json + marquee.json only
+./release.sh --status-only   # fast: status.json only
 ./release.sh                 # full sync of site/ + invalidate (use when index.html changed)
 ```
 

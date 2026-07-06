@@ -7,7 +7,7 @@
 #
 # Usage:
 #   ./release.sh                # publish everything
-#   ./release.sh --status-only  # publish only status.json + marquee.json (fast content update)
+#   ./release.sh --status-only  # publish only status.json (fast content update)
 #   ./release.sh --no-stamp     # don't rewrite the "updated" timestamp in status.json
 #
 set -euo pipefail
@@ -50,8 +50,7 @@ s3() { aws s3 cp "$1" "s3://${BUCKET}/${PREFIX}/$2" --profile "$PROFILE" --regio
 
 if [ "$STATUS_ONLY" = true ]; then
   s3 "${SRC}/status.json"  status.json  --content-type application/json --cache-control "max-age=30"
-  s3 "${SRC}/marquee.json" marquee.json --content-type application/json --cache-control "max-age=30"
-  PATHS="/${PREFIX}/status.json /${PREFIX}/marquee.json"
+  PATHS="/${PREFIX}/status.json"
 else
   # full sync of the site under the region prefix; short cache on the json, longer on the shell
   aws s3 sync "${SRC}/" "s3://${BUCKET}/${PREFIX}/" \
@@ -60,7 +59,6 @@ else
     --exclude "*.json" \
     --cache-control "max-age=3600"
   s3 "${SRC}/status.json"  status.json  --content-type application/json --cache-control "max-age=30"
-  s3 "${SRC}/marquee.json" marquee.json --content-type application/json --cache-control "max-age=30"
   PATHS="/${PREFIX}/*"
 fi
 
