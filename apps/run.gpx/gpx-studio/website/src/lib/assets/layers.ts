@@ -31,6 +31,9 @@ import bikerouterGravel from './custom/bikerouter-gravel.json';
 export const basemaps: { [key: string]: string | StyleSpecification } = {
     mapboxOutdoors: 'mapbox://styles/mapbox/outdoors-v12',
     mapboxSatellite: 'mapbox://styles/mapbox/satellite-streets-v12',
+    // DEF CON: dark equivalent of mapboxOutdoors, swapped in by LayerControl when
+    // the UI is in dark mode. Not listed in the basemap tree — used programmatically.
+    mapboxDark: 'mapbox://styles/mapbox/dark-v11',
     openStreetMap: {
         version: 8,
         sources: {
