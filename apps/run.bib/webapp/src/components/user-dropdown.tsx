@@ -17,6 +17,7 @@ import { FiShield } from "react-icons/fi";
 import { LogOut, QrCode } from "lucide-react";
 
 import { runHumanUrl } from "@/lib/run-human-url";
+import { useCopy } from "@/components/CopyProvider";
 
 /**
  * User avatar + dropdown for the bib header — mirrors flash/run.human's user
@@ -37,6 +38,7 @@ import { runHumanUrl } from "@/lib/run-human-url";
  * and falls back to initials from the name when no image is present.
  */
 export function UserDropdown() {
+  const { t } = useCopy();
   const { data: session } = useSession();
   const user = session?.user as
     | { name?: string | null; email?: string | null; image?: string | null; services?: string[] }
@@ -98,7 +100,7 @@ export function UserDropdown() {
             textValue="Profile"
             className="py-2"
           >
-            Profile
+            {t("common.profileMenu.profile")}
           </DropdownItem>
           <DropdownItem
             key="bib"
@@ -107,7 +109,7 @@ export function UserDropdown() {
             textValue="My Bib"
             className="py-2"
           >
-            My Bib
+            {t("common.profileMenu.myBib")}
           </DropdownItem>
           {hasCms ? (
             <DropdownItem
@@ -119,7 +121,7 @@ export function UserDropdown() {
               textValue="CMS"
               className="py-2"
             >
-              CMS
+              {t("common.profileMenu.cms")}
             </DropdownItem>
           ) : null}
           {isAdmin ? (
@@ -130,7 +132,7 @@ export function UserDropdown() {
               textValue="Admin"
               className="py-2"
             >
-              Admin reports
+              {t("common.profileMenu.adminReports")}
             </DropdownItem>
           ) : null}
         </DropdownSection>
@@ -145,7 +147,7 @@ export function UserDropdown() {
             textValue="GPS Check-in"
             className="py-2"
           >
-            GPS Check-in
+            {t("common.profileMenu.gpsCheckin")}
           </DropdownItem>
           <DropdownItem
             key="showqr"
@@ -156,7 +158,7 @@ export function UserDropdown() {
             textValue="Show My QR"
             className="py-2"
           >
-            Show My QR
+            {t("common.profileMenu.showQr")}
           </DropdownItem>
         </DropdownSection>
 
@@ -169,7 +171,7 @@ export function UserDropdown() {
             className="py-2 text-danger"
             onPress={() => signOut({ callbackUrl: "/orderform" })}
           >
-            Sign out
+            {t("common.profileMenu.signOut")}
           </DropdownItem>
         </DropdownSection>
       </DropdownMenu>
