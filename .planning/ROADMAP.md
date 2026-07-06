@@ -298,7 +298,7 @@ Plans:
 | 27. CMS Incognito SSO Fix | v1.6 | 0/TBD | Planned | - |
 | 35. CMS Copy Catalog Foundation | v1.9 | 3/3 | Complete    | 2026-07-05 |
 | 36. Runtime Copy Toolkit | v1.9 | 3/3 | Complete   | 2026-07-05 |
-| 37. Bib Donate/Sponsor Proof Surface | v1.9 | 0/TBD | Planned | - |
+| 37. Bib Donate/Sponsor Proof Surface | v1.9 | 1/6 | In Progress|  |
 | 38. Custom Copy Admin Plugin | v1.9 | 0/TBD | Planned | - |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 0/TBD | Planned | - |
 
@@ -395,12 +395,12 @@ Plans:
   3. Editing a bib donate/sponsor string in the CMS changes the rendered wording within the propagation window with no deploy.
   4. With the CMS unavailable, the bib donate/sponsor copy still renders via the fallback chain — never a raw dotted key.
 
-**Plans**: 6 plans
+**Plans**: 1/6 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 37-01-PLAN.md — Author all bib.* keys (~63) into copy-snapshot.json + dependency-free CMS import script (copy:import) + key-set/token-boundary tests (Wave 1, foundation)
+- [x] 37-01-PLAN.md — Author all bib.* keys (~63) into copy-snapshot.json + dependency-free CMS import script (copy:import) + key-set/token-boundary tests (Wave 1, foundation)
 
 **Wave 2** *(blocked on Wave 1 completion; disjoint files)*
 

@@ -6,14 +6,14 @@ current_phase: 37
 current_phase_name: bib-donate-sponsor-proof-surface
 status: executing
 stopped_at: Phase 37 context gathered
-last_updated: "2026-07-06T02:02:01.003Z"
+last_updated: "2026-07-06T02:09:13.693Z"
 last_activity: 2026-07-06
 last_activity_desc: Phase 37 execution started
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 6
+  completed_plans: 7
   percent: 40
 ---
 
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 ## Current Position
 
 Phase: 37 (bib-donate-sponsor-proof-surface) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 37
+Plan: 2 of 6
+Status: Ready to execute
 Last activity: 2026-07-06 — Phase 37 execution started
 
 ## Roadmap Summary (v1.9)
@@ -69,6 +69,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 36-02: renderCopy returns React nodes and relies on React text-node escaping (no manual escape) so escape-first holds without double-escaping
 - [Phase ?]: 36-02: copy links require explicit http/https/mailto scheme; javascript:/data:/relative URLs drop href and render label as plain text
 - [Phase ?]: CopyProvider passes only the resolved copy map client-side; never the server-only lib/copy resolver, token, or CMS URL (grep-gated)
+- [Phase ?]: [Phase 37-01]: copy-snapshot.json is the authored source of truth for all 62 bib.* keys (SC-4 floor); import-copy.mjs upserts them into Strapi via a write-only STRAPI_WRITE_TOKEN, distinct from the runtime read-only token
 
 ### Pending Todos
 
@@ -80,7 +81,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T00:26:52.320Z
+Last session: 2026-07-06T02:08:42.857Z
 Stopped at: Phase 37 context gathered
 Resume file: .planning/phases/37-bib-donate-sponsor-proof-surface/37-CONTEXT.md
 
@@ -103,3 +104,4 @@ Resume file: .planning/phases/37-bib-donate-sponsor-proof-surface/37-CONTEXT.md
 | Phase 36 P01 | 50min | 2 tasks | 7 files |
 | Phase 36 P02 | 6 | 1 tasks | 2 files |
 | Phase 36 P03 | 15min | 2 tasks | 3 files |
+| Phase 37 P01 | 12min | 3 tasks | 4 files |
