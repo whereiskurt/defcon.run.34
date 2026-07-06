@@ -24,6 +24,7 @@ import { FaUserAlt, FaMapMarkerAlt } from 'react-icons/fa';
 import { FaPenToSquare } from 'react-icons/fa6';
 import { PiPersonSimpleRun } from 'react-icons/pi';
 import CheckInModal from '@/components/CheckInModal';
+import { useCopy } from '../CopyProvider';
 import { LogoutIcon } from './icon/logout';
 import { QRIcon } from './icon/qr';
 import { useEffect, useState } from 'react';
@@ -53,6 +54,7 @@ const UserDropDown = (params: any) => {
   const [userDetail, setUserDetail] = useState<any>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useCopy();
 
   // Cross-app deep links (e.g. flash.defcon.run's user menu): ?open=checkin|qr
   // auto-opens the matching modal. Only mounted when a session exists.
@@ -197,7 +199,7 @@ const UserDropDown = (params: any) => {
               href="/whoami"
               closeOnSelect={true}
             >
-              Profile
+              {t('common.profileMenu.profile')}
             </DropdownItem>
 
             <DropdownItem
@@ -208,7 +210,7 @@ const UserDropDown = (params: any) => {
               onPress={() => window.open('https://bib.defcon.run', '_blank')}
               closeOnSelect={true}
             >
-              My Bib
+              {t('common.profileMenu.myBib')}
             </DropdownItem>
 
             {hasCms ? (
@@ -220,7 +222,7 @@ const UserDropDown = (params: any) => {
                 onPress={() => window.open('https://cms.defcon.run', '_blank')}
                 closeOnSelect={true}
               >
-                CMS
+                {t('common.profileMenu.cms')}
               </DropdownItem>
             ) : null}
           </DropdownSection>
@@ -235,7 +237,7 @@ const UserDropDown = (params: any) => {
               closeOnSelect={true}
               description={checkInQuotaExhausted ? 'Check-in limit reached for today' : undefined}
             >
-              GPS Check-in
+              {t('common.profileMenu.gpsCheckin')}
             </DropdownItem>
           </DropdownSection>
 
@@ -248,7 +250,7 @@ const UserDropDown = (params: any) => {
               onPress={() => showQR()}
               closeOnSelect={true}
             >
-              Show My QR
+              {t('common.profileMenu.showQr')}
             </DropdownItem>
           </DropdownSection>
 
@@ -261,7 +263,7 @@ const UserDropDown = (params: any) => {
               onPress={() => showLogoutModal()}
               closeOnSelect={true}
             >
-              Logout
+              {t('common.profileMenu.logout')}
             </DropdownItem>
           </DropdownSection>
         </DropdownMenu>
