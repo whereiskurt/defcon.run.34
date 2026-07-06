@@ -5,8 +5,10 @@
  *
  * This is a MANUAL / CI-only tool. It reads the authored source of truth
  * (src/lib/copy-snapshot.json `default` map) and upserts each (key, value) row
- * into Strapi as `namespace: "bib"`, `locale: "default"`, satisfying the
- * edit-proof requirement (SC-3, a live CMS row) from the same authoring pass
+ * into Strapi at `locale: "default"` under the namespace DERIVED from the key's
+ * first dotted segment (39-01: common.* -> "common", bib.* -> "bib"), so one
+ * import seeds both the shared chrome and the bib-specific rows. This satisfies
+ * the edit-proof requirement (SC-3, a live CMS row) from the same authoring pass
  * that produced the fallback-proof snapshot (SC-4).
  *
  * TOKEN SAFETY (T-37-01, high): the import needs a WRITE-capable token, which is
@@ -32,7 +34,17 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const DEFAULT_LOCALE = "default";
-const NAMESPACE = "bib";
+
+// Phase 35 namespace enum — the ONLY valid `namespace` values in the catalog.
+// The namespace is derived per key from its first dotted segment (39-01), so a
+// single import seeds common.* and bib.* rows correctly. A key whose prefix is
+// not in this enum is skipped + logged, never POSTed (T-39-02, tampering guard).
+const NAMESPACE_ENUM = new Set(["common", "human", "auth", "gpx", "bib", "flash"]);
+
+/** Derive the catalog namespace from a key's first dotted segment. */
+function namespaceForKey(key) {
+  return key.split('.')[0];
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SNAPSHOT_PATH = resolve(__dirname, "../src/lib/copy-snapshot.json");
@@ -65,8 +77,19 @@ async function main() {
   let created = 0;
   let updated = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const [key, value] of entries) {
+    // Derive + validate the namespace from the key prefix. An unknown prefix is
+    // skipped and logged — never POSTed with an invalid namespace (T-39-02).
+    const namespace = namespaceForKey(key);
+    if (!NAMESPACE_ENUM.has(namespace)) {
+      skipped += 1;
+      console.error(
+        `[copy:import] ${key}: unknown namespace "${namespace}" — skipped (not in enum).`
+      );
+      continue;
+    }
     try {
       const findUrl = new URL(`${baseUrl}/api/ui-strings`);
       findUrl.searchParams.set("filters[key][$eq]", key);
@@ -104,7 +127,7 @@ async function main() {
           method: "POST",
           headers,
           body: JSON.stringify({
-            data: { key, locale: DEFAULT_LOCALE, value, namespace: NAMESPACE },
+            data: { key, locale: DEFAULT_LOCALE, value, namespace },
           }),
         });
         if (!postRes.ok) {
@@ -120,7 +143,7 @@ async function main() {
   }
 
   console.log(
-    `[copy:import] created ${created}, updated ${updated}, failed ${failed} (of ${entries.length}).`
+    `[copy:import] created ${created}, updated ${updated}, skipped ${skipped}, failed ${failed} (of ${entries.length}).`
   );
   if (failed > 0) process.exit(1);
 }
