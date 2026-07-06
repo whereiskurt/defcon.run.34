@@ -79,7 +79,7 @@ export function MenuDropdown({
           startContent={<PiPersonSimpleRun className={iconClasses} />}
           onPress={() => go("/orderform")}
         >
-          <span className="text-base">My bib</span>
+          <span className="text-base">{t("common.header.myBibMobile")}</span>
         </DropdownItem>
         <DropdownItem
           key="donate"
@@ -90,7 +90,7 @@ export function MenuDropdown({
             onDonate?.();
           }}
         >
-          <span className="text-base">{t("bib.donate.trigger")}</span>
+          <span className="text-base">{t("common.header.donate")}</span>
         </DropdownItem>
         <DropdownItem
           key="maps"
@@ -98,7 +98,7 @@ export function MenuDropdown({
           startContent={<GrMapLocation className={iconClasses} />}
           onPress={() => ext("https://gpx.defcon.run")}
         >
-          <span className="text-base">Maps</span>
+          <span className="text-base">{t("common.header.maps")}</span>
         </DropdownItem>
         <DropdownItem
           key="meshtastic"
@@ -106,7 +106,7 @@ export function MenuDropdown({
           startContent={<FaRadio className={iconClasses} />}
           onPress={() => ext(runHumanUrl("/meshtastic"))}
         >
-          <span className="text-base">Meshtastic</span>
+          <span className="text-base">{t("common.header.meshtastic")}</span>
         </DropdownItem>
         {isAdmin ? (
           <DropdownItem
@@ -115,7 +115,7 @@ export function MenuDropdown({
             startContent={<FiShield className={iconClasses} />}
             onPress={() => go("/admin")}
           >
-            <span className="text-base">Admin reports</span>
+            <span className="text-base">{t("common.profileMenu.adminReports")}</span>
           </DropdownItem>
         ) : null}
       </DropdownMenu>
