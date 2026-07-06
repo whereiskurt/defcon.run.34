@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
-current_phase: 38
-current_phase_name: custom-copy-admin-plugin
+current_phase: 39
+current_phase_name: copy-migration-remaining-bib-shared-chrome
 status: executing
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-06T15:28:28.066Z"
+last_updated: "2026-07-06T16:03:22.696Z"
 last_activity: 2026-07-06
-last_activity_desc: Phase 38 execution started
+last_activity_desc: Phase 39 execution started
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
-  percent: 80
+  total_plans: 21
+  completed_plans: 16
+  percent: 76
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. This milestone lets organizers change static UI wording live from the CMS — no code change, no deploy.
-**Current focus:** Phase 38 — custom-copy-admin-plugin
+**Current focus:** Phase 39 — copy-migration-remaining-bib-shared-chrome
 
 ## Current Position
 
-Phase: 38 (custom-copy-admin-plugin) — EXECUTING
-Plan: 3 of 3
+Phase: 39 (copy-migration-remaining-bib-shared-chrome) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-07-06 — Phase 38 execution started
+Last activity: 2026-07-06 — Phase 39 execution started
 
 ## Roadmap Summary (v1.9)
 
@@ -77,6 +77,8 @@ Recent decisions affecting current work:
 - [Phase ?]: [Phase 38-02]: Copy Catalog admin page mounted via the first register()/addMenuLink injection in the repo (alongside app.tsx config+SSO bootstrap); resolves at /{region}/admin/copy-catalog
 - [Phase ?]: [Phase 38-02]: added src/admin/tsconfig.json (admin preset) + excluded src/admin from server tsconfig — standard Strapi-5 split for the first JSX admin page; Vite bundles the admin so npm run build is the import/JSX gate
 - [Phase ?]: [Phase 38-02]: admin fetch client targets /api/ui-strings + /api/ui-strings/bulk-upsert (no auto /api prepend); per-row errors map back by payload index, new ids reconciled by (key,locale)
+- [Phase ?]: 39-01: Copy floor scoped to exactly what Wave 2 consumes (common.* chrome, bib.txn.*, bib.admin.*); admin dashboard/access-denied/signin pages stay literal.
+- [Phase ?]: 39-01: common.header.donate re-homes the donate trigger; bib.donate.trigger left seeded until 39-04 re-points bib header/menu.
 
 ### Pending Todos
 
@@ -88,7 +90,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T15:28:28.055Z
+Last session: 2026-07-06T16:03:07.313Z
 Stopped at: Phase 39 context gathered
 Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
 
@@ -118,3 +120,4 @@ Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-C
 | Phase 37 P05 | ~12m | 3 tasks | 5 files |
 | Phase 38 P01 | 15min | 2 tasks | 4 files |
 | Phase 38 P02 | ~7min | 2 tasks | 4 files |
+| Phase 39 P39-01 | 5m | 3 tasks | 3 files |
