@@ -22,10 +22,10 @@ resource "aws_sns_topic_subscription" "tripwire_email" {
   endpoint  = var.sns_alarm_email
 }
 
-# (a) Signups >= threshold per hour — pre-con: any signup is news.
+# (a) Signups >= threshold per hour — spike detection (bulk-registration / recon).
 resource "aws_cloudwatch_metric_alarm" "signups" {
   alarm_name          = "dcr-admin-signups-tripwire"
-  alarm_description   = "DefconRun/Activity Signups >= ${var.threshold_signups_per_hour} in 1h (pre-con: any signup is news)."
+  alarm_description   = "DefconRun/Activity Signups >= ${var.threshold_signups_per_hour} in 1h (spike: bulk-registration / recon flood)."
   namespace           = var.metric_namespace
   metric_name         = "Signups"
   statistic           = "Sum"

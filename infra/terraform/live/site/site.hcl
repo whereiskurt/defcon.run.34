@@ -448,8 +448,11 @@ locals {
 
     # Pre-con posture: any activity is presumptively recon/abuse, so thresholds
     # are deliberately low. Bump these one line for con-week.
+    # signups_per_hour: spike-only (>=10/hr). A normal trickle of real signups is
+    # expected pre-con and shouldn't email; only a bulk-registration / recon flood
+    # (10+ in one hour) is worth a page. (Was 1 = one email per signup — too noisy.)
     thresholds = {
-      signups_per_hour     = 1
+      signups_per_hour     = 10
       gpx_uploads_per_hour = 5
       alb_5xx_per_5min     = 10
     }
