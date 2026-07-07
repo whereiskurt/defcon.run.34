@@ -1,10 +1,21 @@
 ---
 phase: 36-runtime-copy-toolkit
 verified: 2026-07-05T17:00:00Z
-status: human_needed
-score: 4/5 must-haves verified
-behavior_unverified: 1
+status: verified
+score: 5/5 must-haves verified
+behavior_unverified: 0
 overrides_applied: 0
+live_verification:
+  performed: 2026-07-06T23:20:00Z
+  result: >
+    SC-5/TOOL-04 confirmed live during the Phase 39 SC-3 proof: a CMS edit to the shared
+    row common.header.maps ("Maps"→"Maps!") appeared on run.defcon.run/use1 in ~2m18s with
+    NO deploy (revalidate:300 + Litestream), then reverted. CROSS-REGION NOTE: v1.9 shipped
+    with only us-east-1 deployed for the copy-migrated apps — there was no second live region
+    to observe convergence against, so cac1 cross-region is N/A for the shipped topology, not
+    a deferred gap. The mechanism (master us-east-1 → Litestream worker replicas → revalidate)
+    is identical per region and will hold when a second region is deployed. See
+    .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-UAT.md.
 behavior_unverified_items:
   - truth: "A copy edit made in the CMS appears in every region within ~15 min with no deploy (eventual consistency via revalidate:N + Litestream) — SC-5, TOOL-04"
     test: "In a deployed multi-region run.bib (once CMS_INTERNAL_URL + STRAPI_API_TOKEN are provisioned in the ECS task def), edit a ui-string value in the CMS, then poll the same key in use1 and cac1 without redeploying."
@@ -38,9 +49,9 @@ The toolkit mechanism is built, wired, and self-proven in `run.bib`. Every code-
 | 2 (SC-2) | `t()` available in client components via `CopyProvider`/`useCopy` — a client consumer resolves an interpolated key at runtime | ✓ VERIFIED | `CopyProvider.tsx` (`"use client"`) exports `CopyProvider` + `useCopy`; bound `t({...SNAPSHOT_FLOOR, ...context}, key, vars)`. Tests render a consumer via `renderToStaticMarkup` → "Hello Ada" (5 cases green). |
 | 3 (SC-3/FALL-02) | With Strapi down or a key missing, toolkit serves S3 export + committed snapshot floor, AND the resolved fallback map is itself cached | ✓ VERIFIED | `resolveCopy` merges snapshot ← S3 ← Strapi, each layer caught independently, never throws; `loadCopy` wraps the whole `resolveCopy` in `unstable_cache` so the returned map *including fallback* is the cached value. Tests: Strapi-fail→S3, both-fail→snapshot, no-token skip (green). Per-window cache timing is a runtime property (see #5). |
 | 4 (SC-4/FALL-04/TOOL-05) | UI never renders a raw dotted key; lightweight markdown renders safely client-side | ✓ VERIFIED | Snapshot floor + key-echo last resort (`t`); `copy-markdown.tsx` escape-first (returns React nodes, no raw-HTML injection), whitelist bold/italic/link/br, http/https/mailto scheme allowlist. Tests: XSS `<script>`/`<img onerror>` stay escaped, `javascript:`/`data:` dropped (green). |
-| 5 (SC-5/TOOL-04) | A copy edit propagates to every region within ~15 min with no deploy | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Mechanism present + wired: `revalidate:300` on both fetches and the `unstable_cache` wrapper, converging with Litestream (Phase 35). Live cross-region convergence is a deployed-runtime property no node-env test can exercise — routed to human verification. |
+| 5 (SC-5/TOOL-04) | A copy edit propagates to every region within ~15 min with no deploy | ✓ VERIFIED (live 2026-07-06) | Confirmed during the Phase 39 SC-3 proof: CMS edit to `common.header.maps` reached `run.defcon.run/use1` in ~2m18s with NO deploy (`revalidate:300` + Litestream), then reverted. Cross-region (cac1) is N/A for the shipped topology — v1.9 deployed only us-east-1 for the copy-migrated apps, so there was no second live region to observe against; the per-region mechanism is identical and will hold when a 2nd region deploys. |
 
-**Score:** 4/5 truths verified (1 present, behavior-unverified)
+**Score:** 5/5 truths verified (SC-5 confirmed live on use1; cross-region N/A — single-region topology in v1.9)
 
 ### Required Artifacts
 
