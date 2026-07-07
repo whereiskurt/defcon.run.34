@@ -8,7 +8,7 @@
 - [x] **v1.3 Meshtk Integration** - Phases 14-17 (shipped 2026-07-01)
 - [ ] **v1.4 Flash Service Refresh** - Phases 18-19 (in progress — code shipped 2026-07-01, hardware verification pending)
 - [ ] **v1.4.1 nRF52840 / T-1000E Flash Support** - Phases 24-25 (planned, parallel-safe with v1.5)
-- [ ] **v1.5 Bib Registration** - Phases 20-23 (planned)
+- [x] **v1.5 Bib Registration** - Phases 20-23 (shipped 2026-07-03; bib.defcon.run live, first release v0.0.18)
 - [ ] **v1.6 Header & Meshtastic UX Refresh** - Phases 26-27 (planned 2026-07-02)
 - [ ] **v1.7 GPX Routes — Private Collection, Public Overlay & Strava Sync** - Phases 28-32 (autonomous build authorized 2026-07-02; workstream `v1-7-gpx-routes`, parallel-safe)
 - [x] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (shipped 2026-07-06; edit UI copy live from Strapi, no deploy — SC-3 de-dup proven live)
@@ -114,18 +114,17 @@ Plans:
 - [ ] **Phase 24: Device-family router + nRF52 flash path** - Unblock `nrf52840` in Dockerfile Stage 1 filter, extract `.uf2` alongside `.factory.bin`, add family discriminator + router in `use-flash.ts`, implement Web USB DFU (or File System Access UF2 drop) write path
 - [ ] **Phase 25: nRF52 UX + verification** - Bootloader-help variant for double-tap RST, chip-mismatch coverage for nRF chip families, four connect-error categories re-validated for the nRF path, T-1000E boot verification (hardware-in-loop)
 
-### v1.5 Bib Registration (Planned)
+<details>
+<summary>v1.5 Bib Registration (Phases 20-23) - SHIPPED 2026-07-03</summary>
 
-**Milestone Goal:** Participants register a race bib at bib.defcon.run -- enter the name to print on the bib (auto-shrinking to fit, ~32-char cap) and give via preset tiers ($10/$20/$50/$500), paying at launch through **cash on-site, Stripe (cards + Apple/Google Pay), or PayPal/Venmo** behind one provider-agnostic seam (crypto BTC/ETH seam-ready but deferred) -- deployed to both regions using the same two-container (nginx + Next.js) ECS Fargate + CloudFront layout as flash.defcon.run, with the run.gpx auth pattern, and shipped through the existing GitHub Actions held-release pipeline (no new workflow).
+See `.planning/milestones/v1.5-ROADMAP.md` for the archived v1.5 roadmap and `.planning/milestones/v1.5-phases/` for phase artifacts. Accomplishments summarized in `.planning/MILESTONES.md`.
 
-**Layout source of truth:** `apps/run.flash/` + `infra/terraform/live/site/services/run.flash/service.hcl`. Bib mirrors this structure exactly, swapping flash-specific logic for bib registration + payment.
+- [x] Phase 20: Infrastructure Foundation (2/2 plans) — ACM/CloudFront, ECR, service.hcl, SSM, shared electro table
+- [x] Phase 21: App Scaffold + Bib Registration — Next.js scaffold, Bib/BibReconcile entities, /api/bib, gpx auth pattern, DC34 bib preview
+- [x] Phase 22: Payments — Stripe Checkout (2 products) + Venmo/CashApp + custom-amount slider + SES→Haiku reconciliation Lambda (diverged from the planned provider-seam/tiers/PayPal design)
+- [x] Phase 23: Build/Deploy + Branding — run.bib wired into build/deploy/release + buildpub/deploy, live at bib.defcon.run (v0.0.18), iterated through feedback batches 1-3
 
-> **Phase-numbering:** Bib is milestone **v1.5**, phases **20-23**, sequenced right after v1.4 Flash Service Refresh's phases 18-19.
-
-- [ ] **Phase 20: Infrastructure Foundation** - subdomain, ECR repos, ACM/CloudFront, SSM params (OIDC + Stripe), service.hcl, site.hcl wiring
-- [ ] **Phase 21: App Scaffold + Bib Registration** - Next.js webapp mirroring run.flash, Bib ElectroDB entity, registration form, API routes, OIDC `bib` claim gate, nginx container
-- [ ] **Phase 22: Payments (Cash + Stripe + PayPal/Venmo, crypto-ready)** - provider-agnostic seam, method chooser, give tiers, cash path, working Stripe + PayPal/Venmo providers, crypto seam deferred
-- [ ] **Phase 23: Build/Deploy + Branding** - run.bib added to build.sh/deploy.sh/release-all.sh + buildpub.yml/deploy.yml, DC34 branding, both-region verification
+</details>
 
 ### v1.6 Header & Meshtastic UX Refresh (Planned)
 

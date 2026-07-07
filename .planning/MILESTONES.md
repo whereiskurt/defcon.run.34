@@ -17,12 +17,26 @@
 
 ---
 
-## v1.5 Bib Registration (Planned)
+## v1.5 Bib Registration (Shipped: 2026-07-03)
 
-**Phases:** 20-23, 4 phases (sequenced after v1.4 Flash Service Refresh's 18-19)
-**Goal:** Participants register a race bib at bib.defcon.run — name-on-bib (auto-shrink, ~32 chars) + give tiers ($10/$20/$50/$500), paying at launch via cash on-site, Stripe, or PayPal/Venmo behind one provider-agnostic seam (crypto BTC/ETH seam-ready, deferred). Login-gated (run.gpx auth pattern) and account-linked (bib written to the user's account). Mirrors the flash.defcon.run two-container layout, reuses the shared electro table, and ships through the existing held-release pipeline. Requirements: `.planning/REQUIREMENTS-v1.5-bib.md`; runbook: `.planning/AUTONOMOUS-BUILD.md`.
+**Phases completed:** 4 phases (20-23), 12 plans — live at bib.defcon.run (us-east-1), first prod release v0.0.18
 
-*(v1.4 Flash Service Refresh — the active milestone — is tracked in root ROADMAP/REQUIREMENTS/STATE.)*
+**Key accomplishments:**
+
+- Two-container (nginx + Next.js) ECS Fargate service for bib.defcon.run modeled on run.flash — ACM + CloudFront (global+regional), ECR repos, `services/run.bib/service.hcl`, SSM secrets, reusing the shared `run-human-electro` DynamoDB table (no new table)
+- Next.js webapp mirroring run.flash (region basePath/middleware, providers, theme) with the run.gpx Auth.js pattern — login required for ALL giving, no anonymous path; `Bib` + `BibReconcile` ElectroDB entities + `/api/bib` routes
+- Login-gated `/orderform` (root `/` 307-redirects to it) with a 3-section layout: free "Get your bib" (nameOnBib + willPayInPerson + live DC34-SVG bib preview, `1337` placeholder replaced by the entered name), "Sponsor this bib" (custom-amount slider), and "Just donate"
+- **Payments diverged from the original spec (Kurt design contract, 2026-07-02):** the planned `PaymentProvider` registry + preset tiers ($10/$20/$50/$500) + PayPal were dropped in favor of **Stripe Checkout (2 products) + Venmo/CashApp** with a **custom-amount slider**; name prints on the physical bib iff paidAmount ≥ $10 and an admin `nameLocked` flag hasn't fired; no size field
+- `BIB-XXXX` immutable per-user runner reconciliation code as the Venmo/CashApp comment key, matched by a **SES → Haiku Lambda** (`claude-haiku-4-5-20251001`, $20/day budget cap) that extracts `{amount, comment, sender}` from forwarded receipt emails; unmatched → notification back to `defcon.run@gmail.com`
+- run.bib wired into build.sh/deploy.sh/release-all.sh + buildpub.yml/deploy.yml (nginx + app components) piggybacking the existing held-release pipeline; iterated live through feedback batches 1-3 (green palette, amount chips, runner-code placement, sponsor+donate tiles) across ~25 hotfix releases
+
+**Open at close (carried forward, not blocking):**
+
+- Admin allowlist held only `whereiskurt@gmail.com` at close — Jesse's identity needs adding to `/dc34/secrets/use1/bib/admin/allowlist` (fail-closed by design)
+- Live-payment HITL verification pending — real Stripe live-mode + a real Venmo/CashApp receipt round-trip can't run in sandbox; confirm live-vs-test Stripe product IDs (PR #309 pointed at sandbox) before real launch
+- Deferred to v1.6+: anonymous `/api/checkout/general`, Venmo/CashApp general-donation matcher fallback, optional `byWillPayInPerson` GSI. Crypto (BTC/ETH) remains a deferred v2 item (PAY-01)
+
+Archives: `.planning/milestones/v1.5-{REQUIREMENTS,ROADMAP,WORKSTREAM-STATE}.md` + `v1.5-phases/`.
 
 ---
 

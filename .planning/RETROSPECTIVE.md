@@ -82,6 +82,43 @@
 
 ---
 
+## Milestone: v1.5 — Bib Registration
+
+**Shipped:** 2026-07-03
+**Phases:** 4 (20–23) | **Plans:** 12
+
+### What Was Built
+- Two-container (nginx + Next.js) ECS Fargate service for bib.defcon.run modeled on run.flash — ACM/CloudFront (global+regional), ECR, `services/run.bib/service.hcl`, SSM secrets, reusing the shared `run-human-electro` table (no new table)
+- Login-gated `/orderform` (run.gpx Auth.js pattern, no anonymous path) with a live DC34-SVG bib preview (`1337` placeholder → entered name), custom-amount sponsor slider, and a donate path
+- Stripe Checkout (2 products) + Venmo/CashApp giving, with an immutable per-user `BIB-XXXX` runner code reconciled by a SES → Haiku Lambda (`claude-haiku-4-5-20251001`, $20/day cap) that parses forwarded receipt emails; name prints on the physical bib iff paidAmount ≥ $10 and no admin `nameLocked`
+- run.bib wired into build/deploy/release-all + buildpub/deploy, shipped through the existing held-release pipeline (no new workflow)
+
+### What Worked
+- Mirroring run.flash's two-container layout + reusing the shared electro table kept infra wiring fast and low-risk
+- Executing in an isolated `v1-5-bib` workstream/worktree kept it parallel-safe with v1.4.1 (zero file overlap) — both milestones progressed concurrently
+- The Haiku-over-SES reconciliation neatly solved the "no Venmo/CashApp API" problem with a runner-code comment key + budget cap
+
+### What Was Inefficient
+- **Scope diverged mid-flight from the written requirements** — the planned `PaymentProvider` registry + preset tiers + PayPal were dropped for a custom slider + Stripe + Venmo/CashApp per the 2026-07-02 design contract. The requirements doc was never reconciled at close (done now, retroactively), so the milestone read "planned" long after it shipped live
+- ~25 hotfix/feedback releases (#267–#315) after the first deploy — many were basePath/OIDC/nginx-rewrite prod issues (the same class v1.0 flagged), plus 3 live UI feedback batches
+- v1.5 was never run through `/gsd-complete-milestone`; artifacts lived only in the workstream and stubs on main went stale (this archive reconciles that)
+
+### Patterns Established
+- SES → Lambda → Haiku extraction with a hard daily budget cap for parsing unstructured human input (payment receipts) — reusable for any "match a human note to a record" problem
+- Isolated GSD workstream/worktree per milestone for parallel-safe, zero-overlap concurrent milestones
+
+### Key Lessons
+1. **Reconcile requirements ↔ shipped reality at close, every time** — a mid-flight design contract that isn't folded back leaves the roadmap lying about what exists (v1.5 showed "planned" while live in prod)
+2. **basePath/OIDC/nginx-rewrite prod issues recur on every new subdomain app** — v1.0's lesson wasn't applied to v1.5's deploy; fold it into a per-app deploy checklist
+3. **Run `/gsd-complete-milestone` before moving on** — skipping it stranded artifacts in the workstream and left stub dirs on main
+
+### Open at Close (carried forward)
+- Jesse missing from the bib admin allowlist (SSM param update)
+- Live-payment HITL verification (real Stripe live-mode + Venmo/CashApp round-trip); confirm live-vs-test Stripe product IDs before launch
+- Deferred: anonymous general-donation checkout, Venmo/CashApp donation matcher fallback, crypto (PAY-01)
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -90,6 +127,7 @@
 |-----------|--------|-------|------------|
 | v1.0 | 4 | 9 | First milestone — established deployment checklist patterns |
 | v1.3 | 4 | 9 | Multi-container ECS + NLB raw-TCP service; `get_components()` build abstraction |
+| v1.5 | 4 | 12 | New subdomain app (bib) via isolated workstream; SES→Haiku payment reconciliation; mid-flight design-contract divergence |
 
 ### Top Lessons (Verified Across Milestones)
 
