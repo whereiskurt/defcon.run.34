@@ -76,12 +76,20 @@ export function ContributionTiles({
   );
 
   // Already PAID for a bib → the Sponsor tile is gone (you can't buy the same bib
-  // twice); only Donate remains, full-width (Kurt 2026-07-05). A donation does
-  // NOT trigger this — hasSponsored is real bib payment only.
+  // twice); only Donate remains. It keeps the SAME half width it has in the 2-up
+  // grid (Kurt UI fix) — it must not stretch to full container width just because
+  // its neighbour is gone. Centered on desktop; naturally full-width on mobile
+  // where the grid is single-column anyway. A donation does NOT trigger this —
+  // hasSponsored is real bib payment only.
   if (hasSponsored) {
     return (
-      <div style={{ minWidth: 0 }}>
-        {donateTile(t("bib.contribution.kickerSupport"))}
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <div
+          className="w-full sm:w-[calc(50%-0.5rem)]"
+          style={{ minWidth: 0 }}
+        >
+          {donateTile(t("bib.contribution.kickerSupport"))}
+        </div>
       </div>
     );
   }
