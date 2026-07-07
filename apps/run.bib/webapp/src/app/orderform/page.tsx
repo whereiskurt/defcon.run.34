@@ -175,11 +175,11 @@ export default async function Home({ searchParams }: HomeProps) {
   // Pay-in-person state, threaded to the choice control (in the tile grid) and
   // used to seed the bib preview's cash-rain on load.
   const willPayInitial = bib.willPayInPerson === true;
-  // Show the pledge/burn checkboxes UNLESS they've actually PAID FOR THE BIB
-  // (sponsored). A donation must NOT hide them (Kurt 2026-07-05) — a donor can
-  // still pledge $20 in person or torch their bib. Once they've paid online, the
-  // in-person pledge / burn are moot, so the whole control hides.
-  const showCheckbox = !hasSponsored;
+  // Show the pledge/burn checkboxes UNLESS the runner has ALREADY CONTRIBUTED
+  // money — sponsored the bib OR donated (Kurt UI fix; supersedes the 2026-07-05
+  // "a donation must not hide them" rule). Once they've given, the "I'll pay $20
+  // in person" pledge and the burn opt-out are moot, so the whole control hides.
+  const showCheckbox = !hasTransacted;
   // WR-02: seed the cash-rain from the SAME gate that shows the control.
   // willPayInPerson is never cleared in the DB when money moves (A4 "drop the
   // pledge" is realized by hiding the control, not mutating the flag), so a
@@ -259,7 +259,7 @@ export default async function Home({ searchParams }: HomeProps) {
         {/* Pay-in-person tagline — client-driven (rain-store) so it flips
           * instantly: in person → "OK! You promised 🙏"; burn/nothing → nothing.
           * hasSponsored gets the big THANK YOU up top instead. */}
-        {!hasSponsored && <PledgeTagline initialRaining={initialRaining} />}
+        {!hasTransacted && <PledgeTagline initialRaining={initialRaining} />}
 
         {/* Pay-in-person pledge — full-width, ABOVE both tiles (Kurt 2026-07-05).
           * Checking it no longer removes the Sponsor tile; instead the two tiles
