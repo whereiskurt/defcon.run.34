@@ -1,5 +1,22 @@
 # Milestones
 
+## v1.9 CMS-Driven UI Copy Catalog (Shipped: 2026-07-06)
+
+**Phases completed:** 5 phases (35-39), 21 plans
+
+**Key accomplishments:**
+
+- `ui-string` Strapi catalog (`key·locale·value·namespace·notes`) with `(key,locale)` uniqueness (lifecycle 4xx guard + DB unique-index backstop), read-only API-token find/findOne, and a master-only S3 `copy.json` export regenerated on every create/update/delete
+- Cached, fallback-safe copy toolkit: `loadCopy` wraps the Strapi→S3→committed-snapshot resolver in the Next.js Data Cache (`revalidate:300`); `t()` merged-map O(1) lookup with `{placeholder}` interpolation; `CopyProvider`/`useCopy` for client modals/toasts; XSS-safe inline markdown; UI never renders a raw dotted key
+- Bib donate/sponsor proof surface fully catalog-driven end-to-end — the hardest case (client-side, interpolated, modal-heavy) — validating the whole approach
+- Custom three-column `label·locale·value` Strapi admin page (first `register()`/`addMenuLink` in the repo) with client-side namespace filter, inline edit, add-row, and atomic bulk upsert reusing the Phase-35 uniqueness guard + S3 export
+- Shared chrome unified under `common.header.*` / `common.profileMenu.*` keys read by BOTH run.bib and run.human — words de-dup without a shared React component (words-only scope); toolkit copy-ported into run.human with CopyProvider mounted in both group layouts
+- **SC-3 headline proof, live on prod (2026-07-06):** operator import lifted the live catalog 64 → 93 keys; editing one shared `common.header.maps` row changed the wording on run.defcon.run in ~2m18s with no deploy and no shared component, then reverted. Discovered en route: what looked "already deployed" was code-only — the catalog rows had never been imported (the snapshot fallback masked the empty catalog until the source was read directly)
+
+**Known verification overrides / deferrals at close:** 5 non-v1.9 items acknowledged and deferred (see STATE.md Deferred Items) — Phase 18/19 (v1.4 hardware verification), Phase 33 (OIDC silent SSO), and 2 backlog quick-tasks. Cross-region (cac1) copy convergence is N/A for the shipped topology (only us-east-1 deployed for copy-migrated apps). Deferred to v2: MIGR-04 (flash/human/auth/gpx migration), I18N-01 (locales + switcher).
+
+---
+
 ## v1.5 Bib Registration (Planned)
 
 **Phases:** 20-23, 4 phases (sequenced after v1.4 Flash Service Refresh's 18-19)

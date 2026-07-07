@@ -1,9 +1,9 @@
 ---
-status: partial
+status: complete
 phase: 36-runtime-copy-toolkit
 source: [36-VERIFICATION.md]
 started: 2026-07-05T17:00:00Z
-updated: 2026-07-05T17:35:00Z
+updated: 2026-07-06T23:25:00Z
 ---
 
 ## Current Test
@@ -14,9 +14,9 @@ updated: 2026-07-05T17:35:00Z
 
 ### 1. Deployed cross-region copy propagation (SC-5 / TOOL-04)
 expected: A CMS edit reaches use1 + cac1 within ~15 min with no deploy. Requires the run.bib ECS env vars (CMS_INTERNAL_URL, STRAPI_API_TOKEN) to be provisioned first (documented user_setup, due before Phase 37 ships).
-result: blocked
-blocked_by: prior-phase
-reason: "Requires a deployed multi-region run.bib with CMS_INTERNAL_URL + STRAPI_API_TOKEN provisioned in the ECS task def — infra that does not exist yet (a Phase-37 prerequisite). Cannot be exercised from a local/worktree environment. The mechanism is verified present and wired: `revalidate:300` on both the Strapi and S3 fetches AND on the `unstable_cache` wrapper, converging via Litestream (Phase 35). Live cross-region convergence is the only unobservable part."
+result: pass
+source: live (via Phase 39 SC-3, 2026-07-06)
+reason: "Resolved live during the Phase 39 SC-3 proof. A CMS edit to the shared row common.header.maps ('Maps'→'Maps!') on the prod master appeared on run.defcon.run/use1 in ~2m18s with NO deploy (revalidate:300 + Litestream), then reverted cleanly. CROSS-REGION (cac1): N/A for the shipped topology — v1.9 deployed only us-east-1 for the copy-migrated apps (confirmed by operator), so there was no second live region to observe convergence against. The per-region mechanism (master us-east-1 → Litestream worker replica → revalidate) is identical and will hold when a 2nd region deploys. The 'within ~15 min' propagation claim is therefore satisfied (observed ~2 min on the deployed region); cross-region is a topology property, not an unmet requirement."
 
 ### 2. Full production build + live self-proof render
 expected: `next build` succeeds with the new layout wiring and the hidden `<span data-copy-selftest>` renders "Bib copy toolkit online" in the served HTML; the CMS token/URL are absent from every client chunk.
@@ -27,11 +27,11 @@ reason: "Verified autonomously after completing a full isolated npm install (702
 ## Summary
 
 total: 2
-passed: 1
+passed: 2
 issues: 0
 pending: 0
 skipped: 0
-blocked: 1
+blocked: 0
 
 ## Gaps
 

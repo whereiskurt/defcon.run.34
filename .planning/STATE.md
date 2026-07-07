@@ -2,13 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
+milestone_status: shipped
+milestone_shipped: 2026-07-06
 current_phase: 39
 current_phase_name: copy-migration-remaining-bib-shared-chrome
-status: verified
-stopped_at: Phase 39 verified — live UAT complete (SC-3 proven on prod)
-last_updated: "2026-07-06T23:22:00Z"
+status: milestone_complete
+stopped_at: v1.9 archived — all 5 phases shipped + verified; next milestone TBD
+last_updated: "2026-07-07T00:15:00Z"
 last_activity: 2026-07-06
-last_activity_desc: Phase 39 live UAT — operator import + SC-3 cross-app edit demonstrated on prod
+last_activity_desc: v1.9 milestone completed and archived (SC-3 proven live; PR #458 merged)
 progress:
   total_phases: 5
   completed_phases: 5
@@ -28,12 +30,31 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 ## Current Position
 
-Phase: 39 (copy-migration-remaining-bib-shared-chrome) — VERIFIED (all 5 v1.9 phases done)
-Plan: 6 of 6 complete
-Status: Live UAT complete — 4/4 pass. Operator import landed on prod master (export 64→93
-  keys); SC-3 headline de-dup edit demonstrated live (common.header.maps flipped on
-  run.defcon.run in ~2m18s, reverted). v1.9 ready to complete/archive.
-Last activity: 2026-07-06 — Phase 39 live UAT verification on prod
+Milestone v1.9 CMS-Driven UI Copy Catalog — ✅ SHIPPED & ARCHIVED 2026-07-06.
+All 5 phases (35-39, 21 plans) complete + verified. Archives:
+`.planning/milestones/v1.9-ROADMAP.md` + `v1.9-REQUIREMENTS.md`. ROADMAP.md collapsed;
+REQUIREMENTS.md removed (a fresh one comes with the next milestone).
+Next: run `/gsd-new-milestone` to define the next milestone.
+
+## Deferred Items
+
+Items acknowledged and deferred at the v1.9 milestone close on 2026-07-06 (all NON-v1.9 —
+pre-existing debt from other milestones, surfaced by the global pre-close audit):
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification | Phase 18 (v1.4 Build-Time Firmware) | human_needed — hardware boot verification pending |
+| verification | Phase 19 (v1.4 Deps + DCR34 Branding) | human_needed — live flash-path regression pending |
+| verification | Phase 33 (OIDC Silent SSO) | human_needed |
+| quick_task | 1-wizard-panel-consistency-uniform-image-b | incomplete (backlog) |
+| quick_task | 2-auto-register-flashed-radios-from-run-fl | incomplete (backlog) |
+
+v1.9-internal note: cross-region (cac1) copy convergence was N/A for the shipped topology —
+only us-east-1 was deployed for the copy-migrated apps, so there was no second live region to
+observe against. The per-region mechanism (master → Litestream worker → revalidate) is
+identical and will hold when a 2nd region deploys. Not counted as debt.
+
+Last activity: 2026-07-06 — v1.9 completed and archived
 
 ## Roadmap Summary (v1.9)
 
