@@ -4,11 +4,11 @@ milestone: v1.9
 milestone_name: CMS-Driven UI Copy Catalog
 current_phase: 39
 current_phase_name: copy-migration-remaining-bib-shared-chrome
-status: executing
-stopped_at: Phase 39 context gathered
-last_updated: "2026-07-06T16:43:57.261Z"
+status: verified
+stopped_at: Phase 39 verified — live UAT complete (SC-3 proven on prod)
+last_updated: "2026-07-06T23:22:00Z"
 last_activity: 2026-07-06
-last_activity_desc: Phase 39 execution started
+last_activity_desc: Phase 39 live UAT — operator import + SC-3 cross-app edit demonstrated on prod
 progress:
   total_phases: 5
   completed_phases: 5
@@ -28,10 +28,12 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 ## Current Position
 
-Phase: 39 (copy-migration-remaining-bib-shared-chrome) — EXECUTING
-Plan: 6 of 6
-Status: Ready to execute
-Last activity: 2026-07-06 — Phase 39 execution started
+Phase: 39 (copy-migration-remaining-bib-shared-chrome) — VERIFIED (all 5 v1.9 phases done)
+Plan: 6 of 6 complete
+Status: Live UAT complete — 4/4 pass. Operator import landed on prod master (export 64→93
+  keys); SC-3 headline de-dup edit demonstrated live (common.header.maps flipped on
+  run.defcon.run in ~2m18s, reverted). v1.9 ready to complete/archive.
+Last activity: 2026-07-06 — Phase 39 live UAT verification on prod
 
 ## Roadmap Summary (v1.9)
 

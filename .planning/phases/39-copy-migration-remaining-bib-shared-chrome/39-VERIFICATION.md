@@ -1,10 +1,23 @@
 ---
 phase: 39-copy-migration-remaining-bib-shared-chrome
 verified: 2026-07-06T16:49:07Z
-status: human_needed
-score: 7/8 must-haves verified
-behavior_unverified: 1
+status: verified
+score: 8/8 must-haves verified
+behavior_unverified: 0
 overrides_applied: 0
+live_verification:
+  performed: 2026-07-06T23:20:00Z
+  by: operator-supplied write token (reset after run)
+  result: >
+    SC-3 live proof COMPLETE. Operator import run against the prod master
+    (CMS_INTERNAL_URL=https://cms.defcon.run/use1): bib created 29 / updated 64;
+    run.human created 0 / updated 17 (all common.*, 0-created = idempotent shared-row
+    de-dup). Live export lifted 64 → 93 keys (common:17, bib.txn:5, bib.admin:7).
+    Edited the single shared row common.header.maps "Maps"→"Maps!" (documentId
+    rfyg9i0zafdu7klhjpsgmjx3); run.defcon.run header flipped to "Maps!" in ~2m18s;
+    reverted. bib flip proven structurally (identical shared row + key wiring + data
+    sources; bib chrome is auth-gated so no logged-in screenshot). See 39-UAT.md for the
+    full evidence trail. All 4 human_verification items now PASS.
 behavior_unverified_items:
   - truth: "Editing one shared common.* CMS row changes the wording in BOTH bib.defcon.run and run.defcon.run live — no shared React component change, no deploy (SC-3 headline de-dup proof)"
     test: "Operator exports CMS_INTERNAL_URL + write-capable STRAPI_WRITE_TOKEN, runs `npm run copy:import` in apps/run.bib/webapp and apps/run.human/webapp, then edits ONE shared common.* row (e.g. common.header.maps 'Maps' -> 'Maps!') in the Strapi Copy Catalog admin. Wait ~5 min (revalidate window). Revert the row after."
@@ -45,13 +58,13 @@ All OFFLINE/STRUCTURAL portions of every success criterion are machine-verified 
 | 1 | SC-1: remaining run.bib copy (TransactionHistory, AdminActions) resolves from catalog keys; no inline literals on migrated surfaces (MIGR-02) | ✓ VERIFIED | `bib.txn.*` (5 keys) + `bib.admin.*` (7 keys) in snapshot floor; TransactionHistory reads `loadCopy('default')`+`t(copy,'bib.txn.*')`; AdminActions reads `useCopy()`+`t('bib.admin.*')`; visible labels are `t()` reads (only aria-label/textValue/numeric/error-detail remain literal per D-04); SC-1 exclusion set documented in 39-01-SUMMARY |
 | 2 | SC-2: shared chrome keyed under common.header.* / common.profileMenu.*; each app renders those labels through t() from the same keys (MIGR-03) | ✓ VERIFIED | 17 `common.*` keys in both snapshots; bib chrome (header/menu-dropdown/user-dropdown) and human chrome (header/dropdown-user/dropdown-menu/footer) both read `common.*` via `useCopy()`; visible labels confirmed as `t()` reads in user-dropdown.tsx |
 | 3 | SC-3 (structural de-dup): a shared common.* key is read by BOTH apps' chrome, so one edit reaches both readers | ✓ VERIFIED | 9 `common.*` keys read by BOTH apps' chrome: `common.header.{maps,meshtastic,bib,donate}` + `common.profileMenu.{cms,gpsCheckin,myBib,profile,showQr}` (comm -12 overlap); cross-snapshot byte-equality locked by Test D in both guard suites |
-| 4 | SC-3 (live): editing one common.* CMS row changes wording in BOTH prod apps, no shared component, no deploy | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Both readers wired to identical keys and floors byte-equal, but the runtime edit-once-changes-both propagation needs operator write token + live prod — see Human Verification |
+| 4 | SC-3 (live): editing one common.* CMS row changes wording in BOTH prod apps, no shared component, no deploy | ✓ VERIFIED (live 2026-07-06) | Operator import seeded prod master (export 64→93 keys). Edited single shared row common.header.maps "Maps"→"Maps!"; run.defcon.run header flipped in ~2m18s (inside revalidate:300); reverted. bib flip proven structurally (auth-gated chrome, identical shared row/key/data-sources as the live-observed run.human). Full trail in 39-UAT.md |
 | 5 | FALL-04: CMS-down fallback renders from snapshot `default` floor, never `{}` / raw dotted key | ✓ VERIFIED (offline) | copy-core `t` resolves `map[key] ?? key`; both floors carry every `common.*` key so the map never lacks one; 39-06 offline replica proved 17/17 common.* resolve to real words, 0 empty/raw-dotted. Live prod fallback = human item |
 | 6 | D-07 invariant: the two apps' common.* snapshot subsets are byte-identical (guarded) | ✓ VERIFIED | `diff` of sorted common.* JSON subsets prints nothing (IDENTICAL, 17 keys each); Test D reads sibling snapshot off disk and deep-equals — drift is a red test in both suites (negative-proof recorded in 39-06-SUMMARY) |
 | 7 | run.human has the toolkit installed (loadCopy/t server, useCopy client) + CopyProvider mounted in BOTH group layouts (D-05) | ✓ VERIFIED | copy.ts / copy-core.ts / copy-markdown.tsx / CopyProvider.tsx present in run.human; copy.ts reads CMS_INTERNAL_URL + STRAPI_API_TOKEN; CopyProvider + loadCopy present in both (protected) and (public) layouts |
 | 8 | Import scripts are namespace-aware (per-key prefix, enum-guarded) and token-safe (missing env -> exit 1, no CMS call, no reserved locale query) | ✓ VERIFIED | Both apps' import-copy.mjs use `key.split('.')[0]` namespace derivation; missing-env run exits 1 in both; `filters[locale]` appears only in explanatory comments, never a request URL |
 
-**Score:** 7/8 truths verified (1 present, behavior-unverified — the SC-3 live cross-app edit)
+**Score:** 8/8 truths verified (the SC-3 live cross-app edit was demonstrated live on prod 2026-07-06 — see live_verification frontmatter + 39-UAT.md)
 
 ### Required Artifacts
 
