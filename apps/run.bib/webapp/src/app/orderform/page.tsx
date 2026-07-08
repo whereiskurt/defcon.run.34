@@ -267,7 +267,12 @@ export default async function Home({ searchParams }: HomeProps) {
           * and dimmed in place. On mobile the effect is: checkbox → Donate →
           * disabled Sponsor at the bottom. Still rains cash over the preview via
           * the rain-store, and the swap is driven by hideBuyBib (pledge or paid). */}
-        {showCheckbox && <ContributionChoice initialChoice={initialChoice} />}
+        {showCheckbox && (
+          <ContributionChoice
+            initialChoice={initialChoice}
+            runnerCode={bib.runnerCode}
+          />
+        )}
 
         {/* Sponsor / Donate tiles — CLIENT-reactive to the pledge (Kurt
           * 2026-07-05): ticking/un-ticking pay-in-person instantly swaps the

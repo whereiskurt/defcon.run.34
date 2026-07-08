@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useCopy } from "@/components/CopyProvider";
 import { setRaining } from "@/lib/rain-store";
 import { setBurning } from "@/lib/burn-store";
+import { CashConfirmModal } from "./CashConfirmModal";
 
 /**
  * ContributionChoice (Kurt 2026-07-05) — a 3-way opt between:
@@ -26,6 +27,23 @@ const PATCH_DEBOUNCE_MS = 250;
 const API_BIB_PATH = "/api/bib";
 
 export type Choice = "nothing" | "inperson" | "burn";
+
+/** What selecting a choice does. Pay-in-person defers to the Signal-confirm
+ *  modal (⑤ 2026-07-08); every other pick applies immediately. */
+export type SelectEffect =
+  | { kind: "open-cash-modal" }
+  | { kind: "apply"; choice: Choice };
+
+/**
+ * Pure decision behind onSelect — pinned by contribution-choice-cash-gate.test.ts.
+ * Pay-in-person opens the cash-confirm modal (the pledge is committed only on OK);
+ * burn/nothing apply immediately. Returns null for a no-op (unchanged pick).
+ */
+export function planSelect(next: Choice, current: Choice): SelectEffect | null {
+  if (next === current) return null;
+  if (next === "inperson") return { kind: "open-cash-modal" };
+  return { kind: "apply", choice: next };
+}
 
 type SaveState =
   | { kind: "idle" }
@@ -51,13 +69,19 @@ function payloadFor(choice: Choice): {
 
 export interface ContributionChoiceProps {
   initialChoice: Choice;
+  /** Runner's BIB-XXXX code — shown (copyable) in the cash-confirm modal. */
+  runnerCode?: string;
 }
 
-export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
+export function ContributionChoice({
+  initialChoice,
+  runnerCode,
+}: ContributionChoiceProps) {
   const { t } = useCopy();
   const [choice, setChoice] = useState<Choice>(initialChoice);
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [limitReached, setLimitReached] = useState(false);
+  const [cashModalOpen, setCashModalOpen] = useState(false);
 
   const lastSavedRef = useRef<Choice>(initialChoice);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,9 +156,10 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
     [applyStores]
   );
 
-  const onSelect = useCallback(
+  // Commit a choice for real: flip state, drive the stores (rain/burn), and
+  // debounce-persist. Shared by the immediate picks and the modal's OK path.
+  const applyChoice = useCallback(
     (next: Choice) => {
-      if (next === choice) return;
       setLimitReached(false);
       setChoice(next);
       // Optimistic view — rain / burn respond instantly; the write is debounced.
@@ -145,8 +170,29 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
         runPatch(next);
       }, PATCH_DEBOUNCE_MS);
     },
-    [choice, applyStores, runPatch]
+    [applyStores, runPatch]
   );
+
+  const onSelect = useCallback(
+    (next: Choice) => {
+      const effect = planSelect(next, choice);
+      if (!effect) return;
+      // Pay-in-person is gated behind the Signal-confirm modal (⑤): don't flip
+      // the checkbox, rain, or PATCH until the runner clicks OK.
+      if (effect.kind === "open-cash-modal") {
+        setCashModalOpen(true);
+        return;
+      }
+      applyChoice(effect.choice);
+    },
+    [choice, applyChoice]
+  );
+
+  // Modal OK → commit the pay-in-person pledge for real (rain + persist).
+  const commitInPerson = useCallback(() => {
+    setCashModalOpen(false);
+    applyChoice("inperson");
+  }, [applyChoice]);
 
   useEffect(() => {
     return () => {
@@ -207,6 +253,13 @@ export function ContributionChoice({ initialChoice }: ContributionChoiceProps) {
           label={t("bib.contribution.optBurn")}
         />
       </div>
+
+      <CashConfirmModal
+        open={cashModalOpen}
+        runnerCode={runnerCode}
+        onConfirm={commitInPerson}
+        onCancel={() => setCashModalOpen(false)}
+      />
     </div>
   );
 }
