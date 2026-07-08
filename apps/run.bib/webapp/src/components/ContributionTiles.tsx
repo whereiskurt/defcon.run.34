@@ -58,77 +58,45 @@ export function ContributionTiles({
 
   const isBurned = burning;
 
-  // The Donate tile — always available, over and over (never disabled). Reused
-  // full-width when the bib is already paid.
-  const donateTile = (kicker: string) => (
-    <Tile
-      kicker={kicker}
-      title={t("bib.donate.title")}
-      body={t("bib.contribution.donateBody")}
-      art={<DonateArt />}
-    >
-      <SponsorForm
-        variant="general"
-        ctaLabel={t("bib.contribution.donateVerb")}
-        runnerCode={runnerCode}
-      />
-    </Tile>
-  );
+  // Already PAID → nothing left to buy (you can't buy the same bib twice, and
+  // donations moved to the header modal — Kurt 2026-07-08). The page's
+  // contribution chip + thank-you banner communicate the paid state. A donation
+  // does NOT trigger this — hasSponsored is real bib payment only.
+  if (hasSponsored) return null;
 
-  // Already PAID for a bib → the Sponsor tile is gone (you can't buy the same bib
-  // twice); only Donate remains, full-width (Kurt 2026-07-05). A donation does
-  // NOT trigger this — hasSponsored is real bib payment only.
-  if (hasSponsored) {
-    return (
-      <div style={{ minWidth: 0 }}>
-        {donateTile(t("bib.contribution.kickerSupport"))}
-      </div>
-    );
-  }
-
-  // Not paid: show both tiles. Pledging in person / torching the bib dims + moves
-  // the Sponsor tile (and rains over it, unless burned) — live, via the stores.
+  // Not paid: a single FULL-WIDTH Sponsor tile (Donate moved to the header modal).
+  // Pledging in person / torching the bib dims the tile and (unless burned) rains
+  // cash over it — live, via the stores.
   const dimSponsor = raining || isBurned;
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div
+      aria-disabled={dimSponsor || undefined}
+      style={{
+        minWidth: 0,
+        position: "relative",
+        borderRadius: 14,
+        overflow: "hidden",
+      }}
+    >
       <div
-        className={dimSponsor ? "order-2" : "order-1"}
-        aria-disabled={dimSponsor || undefined}
-        style={{
-          minWidth: 0,
-          position: "relative",
-          borderRadius: 14,
-          overflow: "hidden",
-        }}
+        style={dimSponsor ? { opacity: 0.5, pointerEvents: "none" } : undefined}
       >
-        <div
-          style={dimSponsor ? { opacity: 0.5, pointerEvents: "none" } : undefined}
+        <Tile
+          kicker={t("bib.contribution.kickerThis")}
+          title={t("bib.contribution.sponsorTitle")}
+          body={t("bib.contribution.sponsorBody")}
+          art={<SponsorArt />}
         >
-          <Tile
-            kicker={t("bib.contribution.kickerThis")}
-            title={t("bib.contribution.sponsorTitle")}
-            body={t("bib.contribution.sponsorBody")}
-            art={<SponsorArt />}
-          >
-            <SponsorForm
-              variant="bib"
-              ctaLabel={t("bib.contribution.sponsorVerb")}
-              runnerCode={runnerCode}
-              disabled={dimSponsor}
-            />
-          </Tile>
-        </div>
-        {/* Cash rains over the dimmed tile — but not when torched (fire, not cash). */}
-        {dimSponsor && !isBurned && <CashRain active />}
+          <SponsorForm
+            variant="bib"
+            ctaLabel={t("bib.contribution.sponsorVerb")}
+            runnerCode={runnerCode}
+            disabled={dimSponsor}
+          />
+        </Tile>
       </div>
-
-      <div className={dimSponsor ? "order-1" : "order-2"} style={{ minWidth: 0 }}>
-        {donateTile(
-          dimSponsor
-            ? t("bib.contribution.kickerSupport")
-            : t("bib.contribution.kickerOrThat")
-        )}
-      </div>
+      {/* Cash rains over the dimmed tile — but not when torched (fire, not cash). */}
+      {dimSponsor && !isBurned && <CashRain active />}
     </div>
   );
 }
@@ -226,21 +194,6 @@ function SponsorArt() {
       <rect x="32" y="66" width="24" height="6" rx="1" fill="currentColor" fillOpacity="0.4" />
       <path d="M76 14 Q66 6 56 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
       <path d="M56 14 L60 10 M56 14 L60 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/** Donate tile art — pixel-coin motif. */
-function DonateArt() {
-  return (
-    <svg width="88" height="88" viewBox="0 0 88 88" fill="none" aria-hidden="true">
-      <circle cx="52" cy="52" r="20" fill="currentColor" fillOpacity="0.15" />
-      <circle cx="44" cy="44" r="24" stroke="currentColor" strokeWidth="2.5" fill="none" />
-      <circle cx="44" cy="44" r="18" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="4 3" />
-      <text x="44" y="52" textAnchor="middle" fontSize="24" fontWeight="900" fill="currentColor" fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace">$</text>
-      <circle cx="20" cy="20" r="2" fill="currentColor" fillOpacity="0.7" />
-      <circle cx="72" cy="16" r="1.5" fill="currentColor" fillOpacity="0.5" />
-      <circle cx="16" cy="72" r="1.5" fill="currentColor" fillOpacity="0.5" />
     </svg>
   );
 }

@@ -15,6 +15,8 @@ import { ContributionChip } from "@/components/ContributionChip";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 import { getSocialQrHash, buildSocialQrUrl } from "@/lib/social-qr";
 import { loadCopy, t } from "@/lib/copy";
+import { parseStatus } from "@/lib/order-status";
+import { DonationRain } from "@/components/DonationRain";
 
 /**
  * Home is a server-component route that receives `searchParams` from
@@ -80,9 +82,7 @@ export default async function Home({ searchParams }: HomeProps) {
   // redirect-back after a Checkout Session. `searchParams` may be
   // undefined in dev when the page renders without any query.
   const params = (await searchParams) ?? {};
-  const statusRaw = params.status;
-  const status =
-    statusRaw === "success" || statusRaw === "cancel" ? statusRaw : null;
+  const status = parseStatus(params.status);
 
   // Phase 22-05-06 sponsor charm accent — threaded through BibForm to
   // BibPreview. Source of truth is server-side bib.paidAmount from the
@@ -175,11 +175,11 @@ export default async function Home({ searchParams }: HomeProps) {
   // Pay-in-person state, threaded to the choice control (in the tile grid) and
   // used to seed the bib preview's cash-rain on load.
   const willPayInitial = bib.willPayInPerson === true;
-  // Show the pledge/burn checkboxes UNLESS they've actually PAID FOR THE BIB
-  // (sponsored). A donation must NOT hide them (Kurt 2026-07-05) — a donor can
-  // still pledge $20 in person or torch their bib. Once they've paid online, the
-  // in-person pledge / burn are moot, so the whole control hides.
-  const showCheckbox = !hasSponsored;
+  // Show the pledge/burn checkboxes UNLESS the runner has ALREADY CONTRIBUTED
+  // money — sponsored the bib OR donated (Kurt UI fix; supersedes the 2026-07-05
+  // "a donation must not hide them" rule). Once they've given, the "I'll pay $20
+  // in person" pledge and the burn opt-out are moot, so the whole control hides.
+  const showCheckbox = !hasTransacted;
   // WR-02: seed the cash-rain from the SAME gate that shows the control.
   // willPayInPerson is never cleared in the DB when money moves (A4 "drop the
   // pledge" is realized by hiding the control, not mutating the flag), so a
@@ -232,6 +232,7 @@ export default async function Home({ searchParams }: HomeProps) {
       </header>
 
       {status && <StripeStatusBanner status={status} />}
+      {status === "donated" && <DonationRain />}
 
       {/* Compact contribution chip (Kurt 2026-07-05) — bubbles the THANK YOU +
         * total + payment brands into one pill, above the bib name. Replaces both
@@ -259,7 +260,7 @@ export default async function Home({ searchParams }: HomeProps) {
         {/* Pay-in-person tagline — client-driven (rain-store) so it flips
           * instantly: in person → "OK! You promised 🙏"; burn/nothing → nothing.
           * hasSponsored gets the big THANK YOU up top instead. */}
-        {!hasSponsored && <PledgeTagline initialRaining={initialRaining} />}
+        {!hasTransacted && <PledgeTagline initialRaining={initialRaining} />}
 
         {/* Pay-in-person pledge — full-width, ABOVE both tiles (Kurt 2026-07-05).
           * Checking it no longer removes the Sponsor tile; instead the two tiles
@@ -267,7 +268,12 @@ export default async function Home({ searchParams }: HomeProps) {
           * and dimmed in place. On mobile the effect is: checkbox → Donate →
           * disabled Sponsor at the bottom. Still rains cash over the preview via
           * the rain-store, and the swap is driven by hideBuyBib (pledge or paid). */}
-        {showCheckbox && <ContributionChoice initialChoice={initialChoice} />}
+        {showCheckbox && (
+          <ContributionChoice
+            initialChoice={initialChoice}
+            runnerCode={bib.runnerCode}
+          />
+        )}
 
         {/* Sponsor / Donate tiles — CLIENT-reactive to the pledge (Kurt
           * 2026-07-05): ticking/un-ticking pay-in-person instantly swaps the

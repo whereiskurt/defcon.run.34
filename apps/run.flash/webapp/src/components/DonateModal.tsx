@@ -220,27 +220,24 @@ export function DonateModal({
       >
         <div
           style={{
+            position: "relative",
             display: "flex",
-            alignItems: "flex-start",
-            justifyContent: "space-between",
-            gap: 12,
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
+            textAlign: "center",
+            paddingBottom: 4,
           }}
         >
-          <div>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
-              Just donate
-            </h2>
-            <p style={{ margin: "4px 0 0", color: "#a4a4b8", fontSize: 13 }}>
-              Support goes directly to defcon.run 34. Thank you!
-            </p>
-          </div>
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Close"
             style={{
-              flex: "0 0 auto",
+              position: "absolute",
+              top: 0,
+              right: 0,
               width: 30,
               height: 30,
               borderRadius: 8,
@@ -254,6 +251,26 @@ export function DonateModal({
           >
             ✕
           </button>
+          <span
+            style={{
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              fontSize: 11,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              color: "#7a9dff",
+            }}
+          >
+            Support
+          </span>
+          <div style={{ color: "#7a9dff" }}>
+            <DonateArt />
+          </div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>
+            Just donate
+          </h2>
+          <p style={{ margin: 0, color: "#a4a4b8", fontSize: 13 }}>
+            Support goes directly to defcon.run 34. Thank you!
+          </p>
         </div>
 
         <form
@@ -439,6 +456,21 @@ export function DonateModal({
       </div>
     </div>,
     document.body
+  );
+}
+
+/** Donate panel art — pixel-coin motif (matches the on-page bib donate tile). */
+function DonateArt() {
+  return (
+    <svg width="72" height="72" viewBox="0 0 88 88" fill="none" aria-hidden="true">
+      <circle cx="52" cy="52" r="20" fill="currentColor" fillOpacity="0.15" />
+      <circle cx="44" cy="44" r="24" stroke="currentColor" strokeWidth="2.5" fill="none" />
+      <circle cx="44" cy="44" r="18" stroke="currentColor" strokeWidth="1.5" fill="none" strokeDasharray="4 3" />
+      <text x="44" y="52" textAnchor="middle" fontSize="24" fontWeight="900" fill="currentColor" fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace">$</text>
+      <circle cx="20" cy="20" r="2" fill="currentColor" fillOpacity="0.7" />
+      <circle cx="72" cy="16" r="1.5" fill="currentColor" fillOpacity="0.5" />
+      <circle cx="16" cy="72" r="1.5" fill="currentColor" fillOpacity="0.5" />
+    </svg>
   );
 }
 
