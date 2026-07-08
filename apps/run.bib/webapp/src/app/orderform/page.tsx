@@ -15,6 +15,8 @@ import { ContributionChip } from "@/components/ContributionChip";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 import { getSocialQrHash, buildSocialQrUrl } from "@/lib/social-qr";
 import { loadCopy, t } from "@/lib/copy";
+import { parseStatus } from "@/lib/order-status";
+import { DonationRain } from "@/components/DonationRain";
 
 /**
  * Home is a server-component route that receives `searchParams` from
@@ -80,9 +82,7 @@ export default async function Home({ searchParams }: HomeProps) {
   // redirect-back after a Checkout Session. `searchParams` may be
   // undefined in dev when the page renders without any query.
   const params = (await searchParams) ?? {};
-  const statusRaw = params.status;
-  const status =
-    statusRaw === "success" || statusRaw === "cancel" ? statusRaw : null;
+  const status = parseStatus(params.status);
 
   // Phase 22-05-06 sponsor charm accent — threaded through BibForm to
   // BibPreview. Source of truth is server-side bib.paidAmount from the
@@ -232,6 +232,7 @@ export default async function Home({ searchParams }: HomeProps) {
       </header>
 
       {status && <StripeStatusBanner status={status} />}
+      {status === "donated" && <DonationRain />}
 
       {/* Compact contribution chip (Kurt 2026-07-05) — bubbles the THANK YOU +
         * total + payment brands into one pill, above the bib name. Replaces both

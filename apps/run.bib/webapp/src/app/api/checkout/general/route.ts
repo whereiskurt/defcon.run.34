@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
         donation_type: "general",
         owner_sub: ownerSub,
       },
-      success_url: `${base}/orderform?status=success`,
+      success_url: `${base}/orderform?status=donated`,
       cancel_url: `${base}/orderform?status=cancel`,
     });
 

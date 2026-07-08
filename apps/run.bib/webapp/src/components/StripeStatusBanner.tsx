@@ -14,7 +14,11 @@ import { useCopy } from "@/components/CopyProvider";
  * around. Listens for the first `input` / `change` / `submit` anywhere on the page
  * (which the name field, the checkboxes, and the donate forms all fire).
  */
-export function StripeStatusBanner({ status }: { status: "success" | "cancel" }) {
+export function StripeStatusBanner({
+  status,
+}: {
+  status: "success" | "cancel" | "donated";
+}) {
   const { t } = useCopy();
   const [dismissed, setDismissed] = useState(false);
 
@@ -33,10 +37,13 @@ export function StripeStatusBanner({ status }: { status: "success" | "cancel" })
 
   if (dismissed) return null;
 
-  const isSuccess = status === "success";
-  const message = isSuccess
-    ? t("bib.status.paymentSuccess")
-    : t("bib.status.paymentCancel");
+  const isSuccess = status === "success" || status === "donated";
+  const message =
+    status === "donated"
+      ? t("bib.status.donationSuccess")
+      : status === "success"
+        ? t("bib.status.paymentSuccess")
+        : t("bib.status.paymentCancel");
 
   return (
     <div
