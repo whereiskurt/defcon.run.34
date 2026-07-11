@@ -85,7 +85,9 @@
                         onchange={(e) =>
                             layer?.setGroupVisible(group.folderId, e.currentTarget.checked)}
                     />
-                    {group.folderName}
+                    <!-- "Maps" -> "Routes" for consistent language (Kurt 2026-07-11);
+                         the underlying GLOBAL folder is still named "DEF CON 34 Maps". -->
+                    {group.folderName.replace(/\bMaps\b/, 'Routes')}
                 </label>
                 <!-- Per-route toggles -->
                 <div class="flex flex-col gap-0.5 pl-5">
