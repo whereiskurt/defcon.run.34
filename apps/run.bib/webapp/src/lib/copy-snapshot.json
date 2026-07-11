@@ -4,7 +4,7 @@
     "bib.selftest.clientGreeting": "Hello {name}",
     "bib.landing.title": "Bibs & Donation",
     "bib.landing.intro": "defcon.run remains a FREE daily event — if you'd like to financially support, we would appreciate it.",
-    "bib.landing.changeDeadline": "You can change the name on your bib until July 23rd at midnight.",
+    "bib.landing.changeDeadline": "Change the name on your bib",
     "bib.donate.trigger": "Donate $",
     "bib.donate.title": "Just donate",
     "bib.donate.subhead": "Support goes directly to defcon.run 34. Thank you!",
