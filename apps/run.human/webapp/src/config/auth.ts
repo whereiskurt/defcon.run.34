@@ -88,6 +88,28 @@ async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
   }
 }
 
+/**
+ * Synchronous fresh-claims admin revalidation (ADMN-01, threat T-43-06).
+ *
+ * Fetches LIVE claims from run.auth (reusing the module-private
+ * `fetchFreshClaims` internal-secret validate path — single source, no
+ * duplicated fetch) and returns whether the user is STILL an admin right now.
+ *
+ * This defeats the ~5-min JWT staleness window: a just-revoked admin whose
+ * cached session JWT still carries `services: ["admin"]` is denied because the
+ * live AuthProfile no longer lists "admin" (or is locked out).
+ *
+ * Fail-closed: any null result (auth server unreachable / invalid / not found)
+ * yields `false` — deny, never grant on error.
+ *
+ * The admin gate MUST await this on `/admin` entry after the sync
+ * `requireAdmin(session)` passes.
+ */
+export async function revalidateAdmin(userId: string): Promise<boolean> {
+  const fresh = await fetchFreshClaims(userId);
+  return Boolean(fresh?.services?.includes("admin")) && !fresh?.lockedOut;
+}
+
 const providers: Provider[] = [
   {
     id: "run.defcon.run",
