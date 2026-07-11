@@ -284,6 +284,36 @@ export async function markFailed(
 }
 
 /**
+ * Scan every UserUpload row ONCE and reduce it to a per-user upload-count map
+ * for the admin reporting dashboard (Phase 43, ADMN-02 join column).
+ *
+ * Returns `userId → { gpx, photo }` counts. This is the fan-out-free replacement
+ * for a per-user `listUploadsByUser` loop: none of the userId-partitioned readers
+ * (listUploadsByUser/ByType/ByStatus) can count across users, and a paginated
+ * per-user query caps at ~20 rows and returns a page, not a total — so the count
+ * column MUST come from this single full-table scan, NOT N per-user calls.
+ *
+ * Full-table scan — acceptable at event scale per the phase decision. Note this
+ * adds one more full scan to the report build (RunUser + authjs accounts + Bib +
+ * UserUpload); the lazy-on-expand uploads alternative is documented in CONTEXT if
+ * the table grows. Server-only read wrapper — does NOT alter the entity schema.
+ */
+export async function scanAllUploads(): Promise<
+  Record<string, { gpx: number; photo: number }>
+> {
+  const result = await UserUpload.scan.go({ pages: "all" });
+  return result.data.reduce<Record<string, { gpx: number; photo: number }>>(
+    (acc, row) => {
+      const counts = (acc[row.userId] ??= { gpx: 0, photo: 0 });
+      if (row.uploadType === "gpx") counts.gpx += 1;
+      else if (row.uploadType === "photo") counts.photo += 1;
+      return acc;
+    },
+    {}
+  );
+}
+
+/**
  * List all uploads for a user (most recent first)
  */
 export async function listUploadsByUser(

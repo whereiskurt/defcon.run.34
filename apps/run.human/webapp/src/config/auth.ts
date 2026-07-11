@@ -17,6 +17,12 @@ declare module "next-auth" {
       hasGithub: boolean;
       sessionVersion: number;
       lastRefresh?: number;
+      /**
+       * The auth.defcon.run profile sub (OIDC sub) — the identifier the run.auth
+       * validate endpoint is keyed by. This is NOT the same as `id` (adapter/local
+       * id). Pass THIS to revalidateAdmin()/fetchFreshClaims — see admin-gate.ts.
+       */
+      authUserId?: string;
     } & DefaultSession["user"];
   }
   interface User {
@@ -86,6 +92,28 @@ async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
     console.error("[run.human] Error fetching fresh claims:", error);
     return null;
   }
+}
+
+/**
+ * Synchronous fresh-claims admin revalidation (ADMN-01, threat T-43-06).
+ *
+ * Fetches LIVE claims from run.auth (reusing the module-private
+ * `fetchFreshClaims` internal-secret validate path — single source, no
+ * duplicated fetch) and returns whether the user is STILL an admin right now.
+ *
+ * This defeats the ~5-min JWT staleness window: a just-revoked admin whose
+ * cached session JWT still carries `services: ["admin"]` is denied because the
+ * live AuthProfile no longer lists "admin" (or is locked out).
+ *
+ * Fail-closed: any null result (auth server unreachable / invalid / not found)
+ * yields `false` — deny, never grant on error.
+ *
+ * The admin gate MUST await this on `/admin` entry after the sync
+ * `requireAdmin(session)` passes.
+ */
+export async function revalidateAdmin(userId: string): Promise<boolean> {
+  const fresh = await fetchFreshClaims(userId);
+  return Boolean(fresh?.services?.includes("admin")) && !fresh?.lockedOut;
 }
 
 const providers: Provider[] = [
@@ -267,6 +295,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       const linkedProviders = (token.linkedProviders ?? []) as string[];
       session.user.id = (token.sub ?? token.userId) as string;
+      // OIDC sub (auth.defcon.run) — the id the run.auth validate endpoint expects.
+      // Distinct from `id` above; revalidateAdmin() must be called with THIS.
+      session.user.authUserId = token.authUserId as string | undefined;
       session.user.email = token.email as string;
       session.user.displayName = token.displayName as string | undefined;
       session.user.services = (token.services ?? []) as string[];

@@ -12,6 +12,7 @@
 - [ ] **v1.6 Header & Meshtastic UX Refresh** - Phases 26-27 (planned 2026-07-02)
 - [ ] **v1.7 GPX Routes — Private Collection, Public Overlay & Strava Sync** - Phases 28-32 (autonomous build authorized 2026-07-02; workstream `v1-7-gpx-routes`, parallel-safe)
 - [x] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (shipped 2026-07-06; edit UI copy live from Strapi, no deploy — SC-3 de-dup proven live)
+- [ ] **v2.0 Admin & Reporting** - Phase 43 (planned 2026-07-11; read-only run.human /admin dashboard — users, activity, gpx usage)
 
 ## Phases
 
@@ -301,6 +302,7 @@ Plans:
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
+| 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -317,6 +319,38 @@ Plans:
 - [x] 33-04-PLAN.md — IdP integration tests (prompt=none flows + interaction render split) (SSO-06)
 - [x] 33-05-PLAN.md — Parity test + pure-logic unit tests in run.bib vitest (SSO-05/07)
 - [x] 33-06-PLAN.md — e2e Playwright: full on gpx, smoke on flash + bib (SSO-08)
+
+---
+
+### v2.0 Admin & Reporting (Planned)
+
+### Phase 43: run.human Admin Reporting Dashboard
+
+**Goal:** Admins (users with `"admin"` in `services`) get a read-only dashboard at `run.defcon.run/admin` that lists run.human users with sign-up, activity, and gpx-usage signals — designed to surface who signed up and who is actively using gpx/services. Email is searchable but masked on screen. Design spec: `docs/superpowers/specs/2026-07-11-run-human-admin-dashboard-design.md`.
+**Depends on:** existing run.auth OIDC `services` claim + run.human Auth.js session (no prior phase dependency); reuses the `services.includes("admin")` gate pattern from run.bib `admin-gate.ts`.
+**Requirements**: ADMN-01 (admin-only gate: `services.includes("admin")` + synchronous fresh-claims revalidation on `/admin` entry; non-admin → 404), ADMN-02 (user list from `RunUser` scan with displayName/signup/last-login/last-activity/check-in attributes), ADMN-03 (email masked-by-default, server-side search, reveal-on-click; sourced from the run.human Auth.js adapter table), ADMN-04 (per-user gpx usage — `gpx_upload`/`gpx_save`/`gpx_share` consumption — via a new read-only bulk quota endpoint on run.auth over the existing `byQuotaRemaining` GSI), ADMN-05 (runner QR URL + bib `runnerCode` columns, resolved without per-row N fan-out), ADMN-06 (summary tiles + sortable/paginated table; sort by gpx usage, signup, last activity), ADMN-07 (CSV export of the current filtered/sorted view, admin-gated, full emails)
+**Success Criteria** (what must be TRUE):
+
+  1. A non-admin session (no `"admin"` in `services`) receives a 404 on both the `/admin` page and its API routes; an admin session gets the dashboard. A session whose cached JWT claims admin but whose fresh run.auth claims do not is denied on entry (revalidation closes the ~5-min staleness window).
+  2. The dashboard lists run.human users with sign-up date, last login, last activity, and check-in counts, sortable and paginated, defaulting to most-recently-active.
+  3. Emails are masked on screen by default; an admin can search by full email to filter to a user and reveal an individual email on demand — no full-email column is rendered unrevealed.
+  4. Each user row shows gpx usage (routes/saves/shares) sourced in bulk (one query per quota type, not per-user fan-out), and the list can be sorted by gpx usage across all users to surface heavy users.
+  5. Each row shows the runner's QR URL (`https://run.<domain>/<region>/r?h=<hash>`) and bib `runnerCode` (blank when absent).
+  6. An admin can export the current filtered/sorted table to CSV (full emails, QR URLs, bib codes).
+
+**Plans:** 5 plans (waves: 1={01,02,03} parallel, 2={04}, 3={05}) — **BUILT + LIVE-SMOKE-VERIFIED 2026-07-11 on `gsd/phase-43-work`.** Ran run.human locally against the REAL `run-human-electro`/`authjs` tables (dc34 creds + a dev-only revalidate bypass, since reverted): `/admin` rendered 46 real users (masked emails, bib codes, QR URLs, activity); `/admin` + `/api/admin/users` returned **404 without a session / 200 with an admin session**; CSV export streamed a dated attachment. Left for full sign-off: gpx columns with run.auth running, and interactive reveal/search/sort clicks.
+
+Plans:
+
+- [x] 43-01-PLAN.md — run.auth read-only bulk quota-by-type endpoint over the existing `byQuotaRemaining` GSI (`listQuotaByType` + internal-secret gate) (ADMN-04) — vitest 4/4
+- [x] 43-02-PLAN.md — run.human shared admin gate (`isAdmin`/`requireAdmin`, no allowlist) + `revalidateAdmin` (synchronous fresh-claims, fail-closed); denial → 404 (ADMN-01)
+- [x] 43-03-PLAN.md — run.human fan-out-free read helpers: `scanAllRunUsers`, `scanAllUploads`, authjs email + `scanAccountSubs`, `scanRunnerCodesBySub`, `getQuotaByType` (ADMN-02/03/04/05)
+- [x] 43-04-PLAN.md — admin-report assembly (join + `maskEmail` + `toCsv` + `runnerQrUrl` + tiles) + `/api/admin/users` (404 gate, masked JSON, per-row reveal, `?q` search, sort, paginate, `?format=csv`) (ADMN-02/03/04/05/06/07) — vitest 16/16
+- [~] 43-05-PLAN.md — `/admin` page (server component): gate-on-entry → `notFound()`, tiles, sortable/paginated masked table, reveal, search, Download CSV. Code BUILT + tsc-clean; **human-verify checkpoint (live admin login → dashboard, non-admin → 404) PENDING** (ADMN-01/06/07)
+
+**Mid-build fix (not in original plans):** exposed `session.user.authUserId` (OIDC sub) in `config/auth.ts` — the gate must revalidate with the OIDC sub, not the adapter `session.user.id`, or it fails closed for real admins (known auth ID namespace mismatch).
+
+**Known v1 gap:** the `services` column renders empty — `buildUserReport` sets `services: []` (services live on the Auth.js session / run.auth AuthProfile, not on any bulk read helper). Follow-up: add a run.auth bulk-services read (mirror the gpx bulk endpoint) to populate it.
 
 ---
 
