@@ -63,8 +63,11 @@ export interface BibFormProps {
 }
 
 const API_BIB_PATH = "/api/bib";
-// Kurt 2026-07-03: 24-char cap (was 32) — matches the physical bib render budget.
-const NAME_MAX = 24;
+// Kurt 2026-07-11: hard cap 16 chars (was 24). Past NAME_SOFT the name starts
+// to print small on the physical bib, so we warn (amber glow) but still allow
+// up to NAME_MAX. Server keeps a looser 24-char backstop.
+const NAME_MAX = 16;
+const NAME_SOFT = 8;
 
 type SaveState =
   | { kind: "idle" }
@@ -137,6 +140,9 @@ export function BibForm({
   const canSave = dirty && !nameLocked && !quotaSpent && !busy;
   // Green halo on the NAME BOX when it's saved (a real name, no unsaved edits).
   const nameSaved = !dirty && !nameLocked && savedName.trim().length > 0;
+  // Amber warning once the name grows past NAME_SOFT: it still saves, but it
+  // will print small on the bib. Clears the moment they trim back to <= NAME_SOFT.
+  const nameTooLong = !nameLocked && name.length > NAME_SOFT;
   // Which glow the Save button wears: zero→red(disabled), low→amber, dirty→green.
   const saveGlow = quotaSpent
     ? "bib-save-zero"
@@ -268,8 +274,17 @@ export function BibForm({
             spellCheck={false}
             placeholder="1337"
             aria-label="Name on bib"
-            aria-describedby="bib-name-hint"
-            className={nameSaved ? "bib-name-saved" : undefined}
+            aria-describedby={
+              nameTooLong ? "bib-name-warn-msg bib-name-hint" : "bib-name-hint"
+            }
+            aria-invalid={nameTooLong || undefined}
+            className={
+              nameTooLong
+                ? "bib-name-warn"
+                : nameSaved
+                  ? "bib-name-saved"
+                  : undefined
+            }
             style={{
               flex: "1 1 220px",
               minWidth: 0,
@@ -330,6 +345,23 @@ export function BibForm({
             {t("bib.bibform.cancel")}
           </button>
         </div>
+
+        {nameTooLong && (
+          <p
+            id="bib-name-warn-msg"
+            role="status"
+            style={{
+              margin: 0,
+              fontSize: 13,
+              lineHeight: 1.35,
+              fontWeight: 600,
+              color: "#f4a240",
+            }}
+          >
+            Heads up — names over {NAME_SOFT} characters may print small on the
+            bib. Trim to {NAME_SOFT} or fewer for a bold, readable bib.
+          </p>
+        )}
 
         <SaveStateHint state={saveState} nameLocked={nameLocked} />
       </div>
