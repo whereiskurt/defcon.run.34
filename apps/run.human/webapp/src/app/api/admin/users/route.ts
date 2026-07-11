@@ -58,6 +58,7 @@ const CSV_COLUMNS: { key: string; header: string }[] = [
   { key: "gpxSaves", header: "GPX Saves" },
   { key: "gpxShares", header: "GPX Shares" },
   { key: "uploads", header: "Uploads" },
+  { key: "services", header: "Services" },
 ];
 
 const iso = (ts: number | null): string => (ts ? new Date(ts).toISOString() : "");
@@ -109,6 +110,9 @@ export async function GET(request: Request) {
         gpxSaves: r.gpxSaves,
         gpxShares: r.gpxShares,
         uploads: r.uploads,
+        // Join with "; " so member commas don't split the CSV cell (csvCell
+        // still quotes/escapes the whole value defensively).
+        services: r.services.join("; "),
       }))
     );
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD

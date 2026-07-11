@@ -7,6 +7,7 @@ import {
   filterByEmail,
   lastActivityOf,
   runnerQrUrl,
+  servicesForUser,
   type UserReportRow,
 } from "./admin-report";
 
@@ -174,6 +175,36 @@ describe("filterByEmail", () => {
     expect(filterByEmail(rows, "GMAIL").map((r) => r.userId)).toEqual(["a"]);
     expect(filterByEmail(rows, "example").map((r) => r.userId)).toEqual(["b"]);
     expect(filterByEmail(rows, "").map((r) => r.userId)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("servicesForUser", () => {
+  const adapterToSub = { "adapter-1": "sub-a", "adapter-2": "sub-b" };
+  const servicesBySub = {
+    "sub-a": ["auth", "run", "gpxstudio"],
+    "sub-b": [],
+  };
+
+  it("joins services via the adapter→sub→services bridge", () => {
+    expect(servicesForUser("adapter-1", adapterToSub, servicesBySub)).toEqual([
+      "auth",
+      "run",
+      "gpxstudio",
+    ]);
+  });
+
+  it("returns [] when the sub has an empty services list", () => {
+    expect(servicesForUser("adapter-2", adapterToSub, servicesBySub)).toEqual([]);
+  });
+
+  it("returns [] when the adapter id has no sub mapping", () => {
+    expect(servicesForUser("adapter-x", adapterToSub, servicesBySub)).toEqual([]);
+  });
+
+  it("returns [] when the sub is present but absent from servicesBySub", () => {
+    expect(
+      servicesForUser("adapter-1", adapterToSub, { "sub-z": ["run"] })
+    ).toEqual([]);
   });
 });
 

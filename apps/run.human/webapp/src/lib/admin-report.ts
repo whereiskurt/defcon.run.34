@@ -27,7 +27,11 @@ import { getAuthUserEmails } from "@/entities/auth-user";
 import { scanAccountSubs } from "@/entities/auth-user";
 import { scanRunnerCodesBySub } from "@/entities/bib";
 import { scanAllUploads } from "@/entities/user-upload";
-import { getQuotaByType, type QuotaByTypeRow } from "@/lib/quota-client";
+import {
+  getQuotaByType,
+  getAllProfileServices,
+  type QuotaByTypeRow,
+} from "@/lib/quota-client";
 
 /** One assembled row for the admin users report. `emailFull` is PII. */
 export type UserReportRow = {
@@ -158,6 +162,21 @@ export function summaryTiles(rows: UserReportRow[]): SummaryTiles {
   };
 }
 
+/**
+ * Resolve a user's services through the adapter→sub→services bridge: the same
+ * namespace hop the bib-code join uses. `adapterToSub` maps the Auth.js adapter
+ * uuid (RunUser.userId) to the OIDC sub; `servicesBySub` is keyed by that sub.
+ * Returns [] when either hop misses. PURE.
+ */
+export function servicesForUser(
+  userId: string,
+  adapterToSub: Record<string, string>,
+  servicesBySub: Record<string, string[]>
+): string[] {
+  const sub = adapterToSub[userId];
+  return sub ? servicesBySub[sub] ?? [] : [];
+}
+
 /** Index a bulk quota-by-type response by userId → consumptionCount. PURE. */
 function indexQuota(rows: QuotaByTypeRow[]): Record<string, number> {
   return rows.reduce<Record<string, number>>((acc, r) => {
@@ -176,16 +195,25 @@ export async function buildUserReport(): Promise<UserReportRow[]> {
   const users = await scanAllRunUsers();
   const userIds = users.map((u) => u.userId);
 
-  const [emails, gpxUpload, gpxSave, gpxShare, uploadsMap, adapterToSub, subToCode] =
-    await Promise.all([
-      getAuthUserEmails(userIds),
-      getQuotaByType("gpx_upload"),
-      getQuotaByType("gpx_save"),
-      getQuotaByType("gpx_share"),
-      scanAllUploads(),
-      scanAccountSubs(),
-      scanRunnerCodesBySub(),
-    ]);
+  const [
+    emails,
+    gpxUpload,
+    gpxSave,
+    gpxShare,
+    uploadsMap,
+    adapterToSub,
+    subToCode,
+    servicesBySub,
+  ] = await Promise.all([
+    getAuthUserEmails(userIds),
+    getQuotaByType("gpx_upload"),
+    getQuotaByType("gpx_save"),
+    getQuotaByType("gpx_share"),
+    scanAllUploads(),
+    scanAccountSubs(),
+    scanRunnerCodesBySub(),
+    getAllProfileServices(),
+  ]);
 
   const routesIdx = indexQuota(gpxUpload);
   const savesIdx = indexQuota(gpxSave);
@@ -212,10 +240,9 @@ export async function buildUserReport(): Promise<UserReportRow[]> {
       gpxSaves: savesIdx[u.userId] ?? 0,
       gpxShares: sharesIdx[u.userId] ?? 0,
       uploads: up.gpx + up.photo,
-      // RunUser carries no group/services claim; services live on the Auth.js
-      // session, not in any read helper this join consumes. Default to empty so
-      // the row shape is stable — the route does not depend on it.
-      services: [],
+      // Services live on the AuthProfile (keyed by OIDC sub), joined through the
+      // SAME adapter→sub bridge as the bib code — a pure map lookup, no fan-out.
+      services: servicesForUser(u.userId, adapterToSub, servicesBySub),
     };
   });
 }

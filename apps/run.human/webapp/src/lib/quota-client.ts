@@ -148,6 +148,40 @@ export async function getQuotaByType(
 }
 
 /**
+ * Bulk profile-services row from the run.auth internal endpoint (ONE scan).
+ * `sub` is the OIDC sub (== AuthProfile userId).
+ */
+export interface ProfileServicesRow {
+  sub: string;
+  services: string[];
+}
+
+/**
+ * List every user's authorized services via the run.auth bulk endpoint (ONE
+ * AuthProfile scan on the auth side), reduced to a `sub → services[]` map.
+ * Reuses quotaRequest, which already attaches X-Internal-Secret + the private
+ * auth base URL — do not hand-roll a fetch. Degrades to an EMPTY map on failure
+ * so a quota-service outage does not crash the admin report (same fail-safe as
+ * getQuotaByType).
+ */
+export async function getAllProfileServices(): Promise<
+  Record<string, string[]>
+> {
+  try {
+    const rows = await quotaRequest<ProfileServicesRow[]>(
+      `/api/internal/auth-profiles/services`
+    );
+    return rows.reduce<Record<string, string[]>>((acc, r) => {
+      acc[r.sub] = r.services ?? [];
+      return acc;
+    }, {});
+  } catch (error) {
+    console.error(`[quota-client] getAllProfileServices() failed:`, error);
+    return {};
+  }
+}
+
+/**
  * Get quota definitions (public endpoint, no auth required)
  */
 export async function getQuotaDefinitions(): Promise<QuotaDefinition[]> {
