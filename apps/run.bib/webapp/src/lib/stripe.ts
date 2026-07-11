@@ -8,11 +8,13 @@ import { getSecureParam } from "./ssm";
  * - Server-side ONLY. The raw `sk_test_*` / `sk_live_*` never enters the
  *   browser. Every call site (checkout create, webhook signature verify)
  *   goes through `getStripeClient()`.
- * - Secret key lives at `/dc34/secrets/use1/bib/stripe/secret_key` (SSM
- *   SecureString). Env fallback `STRIPE_SECRET_KEY` for dev/CI.
- * - Webhook signing secret lives at
- *   `/dc34/secrets/use1/bib/stripe/webhook_signing_secret`. Env fallback
- *   `STRIPE_WEBHOOK_SIGNING_SECRET`.
+ * - Test-vs-live is chosen by the `STRIPE_LIVE_MODE` env var (see
+ *   `isLiveMode()`). Both credential pairs are injected into the task:
+ *     test → `/dc34/secrets/use1/bib/stripe/{secret_key,webhook_signing_secret}`
+ *            (env fallback `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SIGNING_SECRET`)
+ *     live → the same paths suffixed `_live`
+ *            (env fallback `STRIPE_SECRET_KEY_LIVE` /
+ *            `STRIPE_WEBHOOK_SIGNING_SECRET_LIVE`)
  * - Both cached via `getSecureParam` (5-min TTL, process-local).
  *
  * Singleton: memoized on the sk value. If Kurt rotates the key mid-run,
@@ -38,6 +40,42 @@ interface CachedClient {
 let cached: CachedClient | null = null;
 
 /**
+ * Test-vs-live mode selector, driven by the `STRIPE_LIVE_MODE` env var
+ * (injected as a plain container env in service.hcl). Only the exact string
+ * `"true"` enables live mode — anything else (unset, "false", "1") stays on
+ * the test-mode credentials, so a misconfig fails safe toward sandbox.
+ *
+ * Read at call time (not module load) so the running mode is always current
+ * and tests can flip it. Both credential pairs are injected into the task;
+ * this picks which env/SSM pair each helper reads.
+ */
+function isLiveMode(): boolean {
+  return process.env.STRIPE_LIVE_MODE === "true";
+}
+
+interface StripeParamRef {
+  envKey: string;
+  ssmPath: string;
+}
+
+const SECRET_KEY_TEST: StripeParamRef = {
+  envKey: "STRIPE_SECRET_KEY",
+  ssmPath: "/dc34/secrets/use1/bib/stripe/secret_key",
+};
+const SECRET_KEY_LIVE: StripeParamRef = {
+  envKey: "STRIPE_SECRET_KEY_LIVE",
+  ssmPath: "/dc34/secrets/use1/bib/stripe/secret_key_live",
+};
+const WEBHOOK_SECRET_TEST: StripeParamRef = {
+  envKey: "STRIPE_WEBHOOK_SIGNING_SECRET",
+  ssmPath: "/dc34/secrets/use1/bib/stripe/webhook_signing_secret",
+};
+const WEBHOOK_SECRET_LIVE: StripeParamRef = {
+  envKey: "STRIPE_WEBHOOK_SIGNING_SECRET_LIVE",
+  ssmPath: "/dc34/secrets/use1/bib/stripe/webhook_signing_secret_live",
+};
+
+/**
  * Get a Stripe client instance. Reads `sk_test_*` from SSM (env-fallback
  * `STRIPE_SECRET_KEY`) and memoizes the client for the lifetime of the
  * key. Callers should not cache the returned instance themselves — always
@@ -47,10 +85,8 @@ let cached: CachedClient | null = null;
  *   translates to a 500 (checkout route) or handles placeholder mode.
  */
 export async function getStripeClient(): Promise<Stripe> {
-  const key = await getSecureParam({
-    envKey: "STRIPE_SECRET_KEY",
-    ssmPath: "/dc34/secrets/use1/bib/stripe/secret_key",
-  });
+  const ref = isLiveMode() ? SECRET_KEY_LIVE : SECRET_KEY_TEST;
+  const key = await getSecureParam(ref);
 
   if (cached && cached.key === key) {
     return cached.client;
@@ -77,10 +113,7 @@ export async function getStripeClient(): Promise<Stripe> {
  * signing secret should NOT force a rebuild of the Stripe API client.
  */
 export async function getStripeWebhookSecret(): Promise<string> {
-  return getSecureParam({
-    envKey: "STRIPE_WEBHOOK_SIGNING_SECRET",
-    ssmPath: "/dc34/secrets/use1/bib/stripe/webhook_signing_secret",
-  });
+  return getSecureParam(isLiveMode() ? WEBHOOK_SECRET_LIVE : WEBHOOK_SECRET_TEST);
 }
 
 /**

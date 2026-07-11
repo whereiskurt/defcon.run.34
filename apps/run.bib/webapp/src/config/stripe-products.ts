@@ -1,5 +1,5 @@
 /**
- * Stripe Product IDs — Kurt's test-mode sandbox (rotated 2026-07-03).
+ * Stripe Product IDs.
  *   STRIPE_PRODUCT_GENERAL → "Global Participant" (general donation flow)
  *   STRIPE_PRODUCT_BIB     → "Bib Pickup (Custom)" (bib flow)
  *
@@ -7,8 +7,13 @@
  * Stripe dashboard groups per-session Prices under a single Product. Metadata
  * `donation_type` still discriminates in the webhook.
  *
- * Env override lets a different account (e.g. live-mode) supply its own IDs
- * without a code change.
+ * These IDs are valid in BOTH modes: the live account was seeded via Stripe's
+ * "copy to live" which preserved the sandbox IDs, so the same strings resolve
+ * to the (distinct) live objects when STRIPE_LIVE_MODE=true. No mode branch is
+ * needed here — only the secret/webhook keys differ by mode (see lib/stripe.ts).
+ *
+ * Env override lets a different account supply its own IDs without a code
+ * change (dev/CI or an emergency hot-patch).
  */
 export const STRIPE_PRODUCT_BIB =
   process.env.STRIPE_PRODUCT_BIB ?? "prod_UokaCinrlgtGNt";

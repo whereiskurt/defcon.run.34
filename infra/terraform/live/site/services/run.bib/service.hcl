@@ -140,6 +140,15 @@ locals {
             # (`!baseUrl` → {}) and the app never reads the CMS (snapshot only).
             name  = "CMS_INTERNAL_URL"
             value = "http://run-cms-worker.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:1337"
+          },
+          {
+            # Stripe test-vs-live selector. "false" → reads the test-mode
+            # secret_key / webhook_signing_secret + test product IDs. "true" →
+            # reads the *_live SSM params + live product IDs. Both credential
+            # sets live in SSM permanently; this flag picks which pair the app
+            # uses. Flip to "true" + redeploy to go live; flip back to roll back.
+            name  = "STRIPE_LIVE_MODE"
+            value = "true"
           }
         ]
 
@@ -190,6 +199,18 @@ locals {
           {
             name      = "STRIPE_WEBHOOK_SIGNING_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/webhook_signing_secret"
+          },
+          {
+            # Live-mode Stripe credentials. Injected alongside the test-mode
+            # pair (both always present in the task); the app selects which to
+            # read via STRIPE_LIVE_MODE. Placeholder-safe: decrypts fine until
+            # Kurt sets the real sk_live_* / whsec_* out-of-band via AWS CLI.
+            name      = "STRIPE_SECRET_KEY_LIVE"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/secret_key_live"
+          },
+          {
+            name      = "STRIPE_WEBHOOK_SIGNING_SECRET_LIVE"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/webhook_signing_secret_live"
           },
           {
             # Delivered via secrets{} so the task role gets read access without

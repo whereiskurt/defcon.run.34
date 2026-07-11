@@ -135,6 +135,14 @@ locals {
             # Internal run.human URL via service discovery (for user profile/MQTT lookup)
             name  = "RUN_HUMAN_INTERNAL_URL"
             value = "http://run-human.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
+          },
+          {
+            # Stripe test-vs-live selector. "false" → test-mode secret_key /
+            # webhook_signing_secret + test product IDs. "true" → the *_live SSM
+            # params + live product IDs. Both credential sets live in SSM
+            # permanently; flip to "true" + redeploy to go live.
+            name  = "STRIPE_LIVE_MODE"
+            value = "true"
           }
         ]
 
@@ -174,6 +182,18 @@ locals {
           {
             name      = "STRIPE_WEBHOOK_SIGNING_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/webhook_signing_secret"
+          },
+          {
+            # Live-mode Stripe credentials. Injected alongside the test-mode
+            # pair; the app selects which to read via STRIPE_LIVE_MODE.
+            # Placeholder-safe until the real sk_live_* / whsec_* are set
+            # out-of-band via AWS CLI.
+            name      = "STRIPE_SECRET_KEY_LIVE"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/secret_key_live"
+          },
+          {
+            name      = "STRIPE_WEBHOOK_SIGNING_SECRET_LIVE"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/webhook_signing_secret_live"
           },
           {
             # Delivered via secrets{} so the task role gets read access without
