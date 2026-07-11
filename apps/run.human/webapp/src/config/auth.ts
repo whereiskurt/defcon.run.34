@@ -17,6 +17,12 @@ declare module "next-auth" {
       hasGithub: boolean;
       sessionVersion: number;
       lastRefresh?: number;
+      /**
+       * The auth.defcon.run profile sub (OIDC sub) — the identifier the run.auth
+       * validate endpoint is keyed by. This is NOT the same as `id` (adapter/local
+       * id). Pass THIS to revalidateAdmin()/fetchFreshClaims — see admin-gate.ts.
+       */
+      authUserId?: string;
     } & DefaultSession["user"];
   }
   interface User {
@@ -289,6 +295,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
       const linkedProviders = (token.linkedProviders ?? []) as string[];
       session.user.id = (token.sub ?? token.userId) as string;
+      // OIDC sub (auth.defcon.run) — the id the run.auth validate endpoint expects.
+      // Distinct from `id` above; revalidateAdmin() must be called with THIS.
+      session.user.authUserId = token.authUserId as string | undefined;
       session.user.email = token.email as string;
       session.user.displayName = token.displayName as string | undefined;
       session.user.services = (token.services ?? []) as string[];
