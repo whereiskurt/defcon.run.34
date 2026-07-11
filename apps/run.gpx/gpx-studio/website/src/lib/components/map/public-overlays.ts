@@ -35,6 +35,9 @@ function regionPrefix(): string {
 }
 
 const MANIFEST_URL = `${regionPrefix()}/api/gpx/public/maps`;
+// GLOBAL folder shown ON by default (Kurt 2026-07-11). Other groups (e.g.
+// "Rabbit Routes") stay off until the viewer opts in.
+const DEFAULT_ON_FOLDER = 'DEF CON 34 Maps';
 const SOURCE_PREFIX = 'public-map-';
 const CORE_WIDTH = 4;
 const GLOW_BLUR = 6;
@@ -401,18 +404,21 @@ export class PublicOverlaysLayer {
             };
             // Assign a varied palette color across the whole set so adjacent routes differ.
             let routeIndex = 0;
-            groups = body.groups.map((g) => ({
-                folderId: g.folderId,
-                folderName: g.folderName,
-                // Default off — the viewer opts in via the "DEF CON 34 maps on/off" toggle.
-                visible: false,
-                maps: g.maps.map((m) => ({
-                    ...m,
-                    // CMS-provided mapColor wins; otherwise cycle the DC34 varied ramp.
-                    color: m.mapColor || routeColor(routeIndex++),
-                    visible: false,
-                })),
-            }));
+            groups = body.groups.map((g) => {
+                // "DEF CON 34 Maps" is ON by default; every other group opts in.
+                const on = g.folderName === DEFAULT_ON_FOLDER;
+                return {
+                    folderId: g.folderId,
+                    folderName: g.folderName,
+                    visible: on,
+                    maps: g.maps.map((m) => ({
+                        ...m,
+                        // CMS-provided mapColor wins; otherwise cycle the DC34 varied ramp.
+                        color: m.mapColor || routeColor(routeIndex++),
+                        visible: on,
+                    })),
+                };
+            });
             // Cache per-route bounds so toggling a layer on can fit it in view.
             for (const g of groups) {
                 for (const m of g.maps) {
@@ -465,6 +471,13 @@ export class PublicOverlaysLayer {
 
         this.loaded = true;
         publicOverlayGroups.set(groups);
+
+        // Apply the default-on state to the layers that were added hidden above.
+        // No fitToRoutes here — defaulting maps on must not hijack the map view.
+        for (const g of groups) {
+            if (!g.visible) continue;
+            for (const m of g.maps) this.setLayerPairVisible(m.fileId, true);
+        }
 
         await this.addAggregate();
         await this.addCheckIns();
