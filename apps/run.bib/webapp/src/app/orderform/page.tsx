@@ -229,6 +229,21 @@ export default async function Home({ searchParams }: HomeProps) {
         <p style={{ margin: 0, color: "var(--bib-muted)", fontSize: 15 }}>
           {t(copy, "bib.landing.intro")}
         </p>
+        <p
+          style={{
+            margin: 0,
+            alignSelf: "flex-start",
+            color: "var(--bib-ink)",
+            fontSize: 13,
+            fontWeight: 600,
+            padding: "6px 10px",
+            borderRadius: 8,
+            background: "var(--bib-pending-bg)",
+            border: "1px solid var(--bib-pending-border)",
+          }}
+        >
+          {t(copy, "bib.landing.changeDeadline")}
+        </p>
       </header>
 
       {status && <StripeStatusBanner status={status} />}
