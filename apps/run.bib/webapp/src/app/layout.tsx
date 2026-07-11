@@ -46,7 +46,11 @@ export default async function RootLayout({
     | { name?: string | null; email?: string | null; services?: string[] }
     | undefined;
   const userName = user?.name || user?.email || null;
-  const isAdmin = Array.isArray(user?.services) && user.services.includes("admin");
+  // Admin nav link shows for the bib-admin group OR the admin superuser (mirrors
+  // requireBibAdmin) so a bibadmin-only organizer sees the entry, not just a URL.
+  const isAdmin =
+    Array.isArray(user?.services) &&
+    (user.services.includes("admin") || user.services.includes("bibadmin"));
   const versionApp = process.env.NEXT_PUBLIC_VERSION_APP || "dev";
 
   // Phase 36 copy toolkit: resolve the merged copy map ONCE server-side (cached,

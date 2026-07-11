@@ -14,7 +14,7 @@ import { describe, it, expect } from "vitest";
  *     admin → ok with the email echoed back.
  */
 
-import { isAdmin, requireAdmin } from "@/lib/admin-gate";
+import { isAdmin, requireAdmin, requireBibAdmin, requireRunAdmin } from "@/lib/admin-gate";
 
 describe("isAdmin()", () => {
   it("returns true when services includes 'admin'", () => {
@@ -75,5 +75,40 @@ describe("requireAdmin()", () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toBe("not_admin");
+  });
+});
+
+describe("requireBibAdmin()", () => {
+  it("admits a bibadmin", () => {
+    const r = requireBibAdmin({ user: { email: "a@x.com", services: ["run", "bibadmin"] } });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.email).toBe("a@x.com");
+  });
+  it("admits a superuser admin without bibadmin", () => {
+    expect(requireBibAdmin({ user: { services: ["admin"] } }).ok).toBe(true);
+  });
+  it("rejects a plain user (not_admin)", () => {
+    const r = requireBibAdmin({ user: { services: ["run", "flash"] } });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("not_admin");
+  });
+  it("rejects no session (no_session)", () => {
+    const r = requireBibAdmin(null);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("no_session");
+  });
+});
+
+describe("requireRunAdmin()", () => {
+  it("admits a runadmin", () => {
+    expect(requireRunAdmin({ user: { services: ["runadmin"] } }).ok).toBe(true);
+  });
+  it("admits a superuser admin", () => {
+    expect(requireRunAdmin({ user: { services: ["admin"] } }).ok).toBe(true);
+  });
+  it("rejects a bibadmin-only user", () => {
+    const r = requireRunAdmin({ user: { services: ["bibadmin"] } });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.reason).toBe("not_admin");
   });
 });

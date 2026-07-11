@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/config/auth";
-import { requireAdmin } from "@/lib/admin-gate";
+import { requireBibAdmin } from "@/lib/admin-gate";
 import {
   loadReports,
   buildDashboard,
@@ -15,12 +15,14 @@ import {
   ReconcileAction,
   RejectAction,
   MarkPaidAction,
+  DenyPendingAction,
 } from "@/components/AdminActions";
 
 /**
  * /admin — v1.6 gated admin reporting dashboard (Kurt 2026-07-03).
  *
- * Server component. Gated on the "admin" group claim (requireAdmin). Reads
+ * Server component. Gated on the bibadmin group claim, or admin as superuser
+ * (requireBibAdmin). Reads
  * the report bundle in-process (same DynamoDB scans as the CSV endpoints)
  * and renders four tables — print-name list, payments/revenue, outstanding +
  * in-person, all registrations — each with a CSV download link.
@@ -44,7 +46,7 @@ function apiBase(): string {
 
 export default async function AdminPage() {
   const session = await auth();
-  const gate = requireAdmin(session);
+  const gate = requireBibAdmin(session);
 
   if (!gate.ok && gate.reason === "no_session") {
     redirect("/signin");
@@ -161,14 +163,17 @@ export default async function AdminPage() {
             columns={["Action", "Name", "Runner code", "Source", "Status", "Provider", "Amount", "Detail"]}
             rows={bundle.outstanding.map((r) => [
               r.source === "pending-intent" && r.pendingId && r.ownerSub && r.kind ? (
-                <ReconcileAction
-                  apiBase={base}
-                  pendingId={r.pendingId}
-                  ownerSub={r.ownerSub}
-                  kind={r.kind}
-                  provider={r.provider as "venmo" | "cashapp"}
-                  amountCents={r.amountCents}
-                />
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <ReconcileAction
+                    apiBase={base}
+                    pendingId={r.pendingId}
+                    ownerSub={r.ownerSub}
+                    kind={r.kind}
+                    provider={r.provider as "venmo" | "cashapp"}
+                    amountCents={r.amountCents}
+                  />
+                  <DenyPendingAction apiBase={base} pendingId={r.pendingId} />
+                </span>
               ) : r.source === "in-person" && r.ownerSub ? (
                 // Runner paid their pledged $20 cash at the event → book it.
                 <MarkPaidAction
@@ -342,6 +347,7 @@ function DashboardHeader({
           v={totals.pendingCount}
           attn={totals.pendingCount > 0}
         />
+        <Chip k="Denied" v={totals.deniedCount} />
       </div>
 
       <RevenuePanel dash={dash} now={now} />
@@ -821,7 +827,7 @@ function Forbidden() {
       <div style={{ textAlign: "center", maxWidth: 420 }}>
         <h1 style={{ fontSize: 24, margin: "0 0 8px" }}>Admin access required</h1>
         <p style={{ color: "var(--bib-muted)", fontSize: 15, lineHeight: 1.6 }}>
-          Your account is not in the <code>admin</code> group. Ask an organizer
+          Your account is not in the <code>bibadmin</code> group. Ask an organizer
           to grant access, then sign out and back in.
         </p>
       </div>

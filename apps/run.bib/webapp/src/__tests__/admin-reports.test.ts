@@ -325,7 +325,96 @@ describe("CSV helpers", () => {
   it("reportToCsv print-names has a header row + one line per named bib", () => {
     const csv = reportToCsv(buildReports(baseInput()), "print-names");
     const lines = csv.trim().split("\n");
-    expect(lines[0]).toBe("name,runnerCode,paidUsd,printEligible,nameLocked");
+    expect(lines[0]).toBe(
+      "name,runnerCode,paidUsd,printEligible,nameLocked,paymentTypes,email,qrUrl"
+    );
     expect(lines).toHaveLength(1 + 3); // header + 3 named bibs
+  });
+});
+
+describe("deny + print-names enrichment fields", () => {
+  it("excludes denied pending intents from outstanding and counts them", () => {
+    const bundle = buildReports({
+      bibs: [],
+      donations: [],
+      reconciles: [],
+      pendings: [
+        { pendingId: "p1", ownerSub: "u1", kind: "bib", provider: "venmo", amountCents: 2000, runnerCode: "BIB-1", createdAt: "2026-07-10T00:00:00Z" },
+        { pendingId: "p2", ownerSub: "u2", kind: "bib", provider: "venmo", amountCents: 2000, runnerCode: "BIB-2", createdAt: "2026-07-10T00:00:00Z", deniedAt: "2026-07-11T00:00:00Z" },
+      ],
+    });
+    const pendingRows = bundle.outstanding.filter((r) => r.source === "pending-intent");
+    expect(pendingRows.map((r) => r.pendingId)).toEqual(["p1"]);
+    expect(bundle.totals.deniedCount).toBe(1);
+  });
+
+  it("carries ownerSub and a deduped joined paymentTypes on print-names rows", () => {
+    const bundle = buildReports({
+      bibs: [
+        {
+          ownerSub: "owner-9",
+          runnerCode: "BIB-9",
+          nameOnBib: "Dprk Runner",
+          paidAmount: 4000,
+          nameLocked: false,
+          willPayInPerson: false,
+          paidStatusHistory: [
+            { provider: "cash", amount: 2000, timestamp: "2026-07-10T00:00:00Z" },
+            { provider: "stripe", amount: 2000, timestamp: "2026-07-10T01:00:00Z" },
+            { provider: "cash", amount: 0, timestamp: "2026-07-10T02:00:00Z" },
+          ],
+        } as never,
+      ],
+      donations: [],
+      reconciles: [],
+      pendings: [],
+    });
+    const row = bundle.printNames.find((r) => r.runnerCode === "BIB-9")!;
+    expect(row.ownerSub).toBe("owner-9");
+    expect(row.paymentTypes).toBe("cash+stripe");
+    expect(row.email).toBeUndefined();
+    expect(row.qrUrl).toBeUndefined();
+  });
+
+  it("gives an empty paymentTypes string when there is no payment history", () => {
+    const bundle = buildReports({
+      bibs: [
+        { ownerSub: "o1", runnerCode: "BIB-0", nameOnBib: "No Pay", paidAmount: 0, nameLocked: false, willPayInPerson: true } as never,
+      ],
+      donations: [],
+      reconciles: [],
+      pendings: [],
+    });
+    expect(bundle.printNames[0].paymentTypes).toBe("");
+  });
+});
+
+describe("reportToCsv print-names columns", () => {
+  it("emits paymentTypes, email and qrUrl columns", () => {
+    const bundle = buildReports({
+      bibs: [
+        {
+          ownerSub: "o1",
+          runnerCode: "BIB-1",
+          nameOnBib: "Ada",
+          paidAmount: 2000,
+          nameLocked: false,
+          willPayInPerson: false,
+          paidStatusHistory: [{ provider: "stripe", amount: 2000, timestamp: "2026-07-10T00:00:00Z" }],
+        } as never,
+      ],
+      donations: [],
+      reconciles: [],
+      pendings: [],
+    });
+    // Simulate the route's enrichment having run:
+    bundle.printNames[0].email = "ada@x.com";
+    bundle.printNames[0].qrUrl = "https://run.defcon.run/use1/r?h=H1";
+    const csv = reportToCsv(bundle, "print-names");
+    const [header, firstRow] = csv.split("\n");
+    expect(header).toBe("name,runnerCode,paidUsd,printEligible,nameLocked,paymentTypes,email,qrUrl");
+    expect(firstRow).toContain("stripe");
+    expect(firstRow).toContain("ada@x.com");
+    expect(firstRow).toContain("https://run.defcon.run/use1/r?h=H1");
   });
 });

@@ -54,3 +54,36 @@ export function requireAdmin(session: SessionLike): RequireAdminResult {
   }
   return { ok: true, email: session.user.email ?? null };
 }
+
+/**
+ * True iff the session carries a specific service/group. Fail-closed on a
+ * missing/null services array. Pure + sync (same contract as isAdmin).
+ */
+export function hasGroup(session: SessionLike, group: string): boolean {
+  const services = session?.user?.services;
+  return Array.isArray(services) && services.includes(group);
+}
+
+/**
+ * Gate for the bib admin surface: admits `bibadmin` OR the `admin` superuser.
+ * Same discriminated result + status mapping as requireAdmin.
+ */
+export function requireBibAdmin(session: SessionLike): RequireAdminResult {
+  if (!session?.user) return { ok: false, reason: "no_session" };
+  if (!hasGroup(session, "bibadmin") && !hasGroup(session, "admin")) {
+    return { ok: false, reason: "not_admin" };
+  }
+  return { ok: true, email: session.user.email ?? null };
+}
+
+/**
+ * Gate for the run admin surface: admits `runadmin` OR the `admin` superuser.
+ * Reserved for the run.human admin dashboard — no run.bib route consumes it yet.
+ */
+export function requireRunAdmin(session: SessionLike): RequireAdminResult {
+  if (!session?.user) return { ok: false, reason: "no_session" };
+  if (!hasGroup(session, "runadmin") && !hasGroup(session, "admin")) {
+    return { ok: false, reason: "not_admin" };
+  }
+  return { ok: true, email: session.user.email ?? null };
+}

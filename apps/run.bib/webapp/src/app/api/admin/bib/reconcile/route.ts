@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { auth } from "@/config/auth";
-import { requireAdmin } from "@/lib/admin-gate";
+import { requireBibAdmin } from "@/lib/admin-gate";
 import { applyPayment, getBib } from "@/entities/bib";
 import { recordDonation, getDonation } from "@/entities/general-donation";
 import { clearPendingById } from "@/entities/pending-contribution";
@@ -44,7 +44,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const gate = requireAdmin(await auth());
+  const gate = requireBibAdmin(await auth());
   if (!gate.ok) {
     const status = gate.reason === "no_session" ? 401 : 403;
     return new Response(

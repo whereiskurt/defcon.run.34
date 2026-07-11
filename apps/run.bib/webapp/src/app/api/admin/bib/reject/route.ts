@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { auth } from "@/config/auth";
-import { requireAdmin } from "@/lib/admin-gate";
+import { requireBibAdmin } from "@/lib/admin-gate";
 import { Bib } from "@/entities/bib";
 import {
   clearPendingForOwner,
@@ -36,7 +36,7 @@ const PENDING_KINDS: PendingKind[] = ["bib", "donation"];
 const PENDING_PROVIDERS: PendingProvider[] = ["venmo", "cashapp"];
 
 export async function POST(req: Request) {
-  const gate = requireAdmin(await auth());
+  const gate = requireBibAdmin(await auth());
   if (!gate.ok) {
     const status = gate.reason === "no_session" ? 401 : 403;
     return new Response(
