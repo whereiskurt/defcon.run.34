@@ -5,6 +5,7 @@ import {
   reportToCsv,
   type ReportType,
 } from "@/lib/admin-reports";
+import { enrichPrintNames } from "@/lib/admin-report-enrich";
 
 /**
  * GET /api/admin/bib/report/{type} — v1.6 admin CSV export.
@@ -46,6 +47,12 @@ export async function GET(
 
   try {
     const bundle = await loadReports();
+    // Only the vendor-facing print-names CSV pays the per-runner run.human
+    // lookup cost (email + QR). Fail-open inside enrichPrintNames — blank cells,
+    // never a failed download.
+    if (type === "print-names") {
+      bundle.printNames = await enrichPrintNames(bundle.printNames);
+    }
     const csv = reportToCsv(bundle, type as ReportType);
     return new Response(csv, {
       status: 200,

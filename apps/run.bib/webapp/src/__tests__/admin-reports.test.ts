@@ -325,7 +325,9 @@ describe("CSV helpers", () => {
   it("reportToCsv print-names has a header row + one line per named bib", () => {
     const csv = reportToCsv(buildReports(baseInput()), "print-names");
     const lines = csv.trim().split("\n");
-    expect(lines[0]).toBe("name,runnerCode,paidUsd,printEligible,nameLocked");
+    expect(lines[0]).toBe(
+      "name,runnerCode,paidUsd,printEligible,nameLocked,paymentTypes,email,qrUrl"
+    );
     expect(lines).toHaveLength(1 + 3); // header + 3 named bibs
   });
 });
@@ -384,5 +386,35 @@ describe("deny + print-names enrichment fields", () => {
       pendings: [],
     });
     expect(bundle.printNames[0].paymentTypes).toBe("");
+  });
+});
+
+describe("reportToCsv print-names columns", () => {
+  it("emits paymentTypes, email and qrUrl columns", () => {
+    const bundle = buildReports({
+      bibs: [
+        {
+          ownerSub: "o1",
+          runnerCode: "BIB-1",
+          nameOnBib: "Ada",
+          paidAmount: 2000,
+          nameLocked: false,
+          willPayInPerson: false,
+          paidStatusHistory: [{ provider: "stripe", amount: 2000, timestamp: "2026-07-10T00:00:00Z" }],
+        } as never,
+      ],
+      donations: [],
+      reconciles: [],
+      pendings: [],
+    });
+    // Simulate the route's enrichment having run:
+    bundle.printNames[0].email = "ada@x.com";
+    bundle.printNames[0].qrUrl = "https://run.defcon.run/use1/r?h=H1";
+    const csv = reportToCsv(bundle, "print-names");
+    const [header, firstRow] = csv.split("\n");
+    expect(header).toBe("name,runnerCode,paidUsd,printEligible,nameLocked,paymentTypes,email,qrUrl");
+    expect(firstRow).toContain("stripe");
+    expect(firstRow).toContain("ada@x.com");
+    expect(firstRow).toContain("https://run.defcon.run/use1/r?h=H1");
   });
 });

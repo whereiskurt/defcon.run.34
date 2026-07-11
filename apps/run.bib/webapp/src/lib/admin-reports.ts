@@ -489,10 +489,15 @@ export function reportToCsv(bundle: ReportBundle, type: ReportType): string {
           { key: "paid", header: "paidUsd" },
           { key: "printEligible", header: "printEligible" },
           { key: "nameLocked", header: "nameLocked" },
+          { key: "paymentTypes", header: "paymentTypes" },
+          { key: "email", header: "email" },
+          { key: "qrUrl", header: "qrUrl" },
         ],
         bundle.printNames.map((r) => ({
           ...r,
           paid: dollars(r.paidAmountCents),
+          email: r.email ?? "",
+          qrUrl: r.qrUrl ?? "",
         }))
       );
     case "payments":
