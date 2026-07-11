@@ -338,3 +338,76 @@ export function RejectAction({ apiBase, ownerSub }: RejectActionProps) {
     </span>
   );
 }
+
+export interface DenyPendingActionProps {
+  apiBase: string;
+  pendingId: string;
+}
+
+/**
+ * DenyPendingAction (Kurt 2026-07-11) — the destructive "Deny" pill beside
+ * Approve on Outstanding pending-intent rows. Soft-denies a fake Venmo/Cash App
+ * submission via /api/admin/bib/deny-pending (sets deniedAt), dropping it off
+ * the list. Behind a window.confirm(). Copy is hardcoded to avoid touching the
+ * REQUIRED_BIB_KEYS CMS catalog.
+ */
+export function DenyPendingAction({ apiBase, pendingId }: DenyPendingActionProps) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const onDeny = async () => {
+    const ok = window.confirm(
+      "Deny this pending payment? It drops off the outstanding list (kept for audit). The runner's donation quota is NOT refunded."
+    );
+    if (!ok) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const res = await fetch(`${apiBase}/api/admin/bib/deny-pending`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingId }),
+      });
+      if (res.ok) {
+        router.refresh();
+        return;
+      }
+      setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <button
+        type="button"
+        onClick={onDeny}
+        disabled={busy}
+        aria-label="Deny pending payment"
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#ff8a8a",
+          backgroundColor: "transparent",
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: "1px solid #3a2a2e",
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.6 : 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        Deny
+      </button>
+      {failed && (
+        <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
+          Couldn&apos;t apply — try again.
+        </span>
+      )}
+    </span>
+  );
+}

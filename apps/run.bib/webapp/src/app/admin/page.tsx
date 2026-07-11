@@ -15,6 +15,7 @@ import {
   ReconcileAction,
   RejectAction,
   MarkPaidAction,
+  DenyPendingAction,
 } from "@/components/AdminActions";
 
 /**
@@ -161,14 +162,17 @@ export default async function AdminPage() {
             columns={["Action", "Name", "Runner code", "Source", "Status", "Provider", "Amount", "Detail"]}
             rows={bundle.outstanding.map((r) => [
               r.source === "pending-intent" && r.pendingId && r.ownerSub && r.kind ? (
-                <ReconcileAction
-                  apiBase={base}
-                  pendingId={r.pendingId}
-                  ownerSub={r.ownerSub}
-                  kind={r.kind}
-                  provider={r.provider as "venmo" | "cashapp"}
-                  amountCents={r.amountCents}
-                />
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <ReconcileAction
+                    apiBase={base}
+                    pendingId={r.pendingId}
+                    ownerSub={r.ownerSub}
+                    kind={r.kind}
+                    provider={r.provider as "venmo" | "cashapp"}
+                    amountCents={r.amountCents}
+                  />
+                  <DenyPendingAction apiBase={base} pendingId={r.pendingId} />
+                </span>
               ) : r.source === "in-person" && r.ownerSub ? (
                 // Runner paid their pledged $20 cash at the event → book it.
                 <MarkPaidAction
@@ -342,6 +346,7 @@ function DashboardHeader({
           v={totals.pendingCount}
           attn={totals.pendingCount > 0}
         />
+        <Chip k="Denied" v={totals.deniedCount} />
       </div>
 
       <RevenuePanel dash={dash} now={now} />
