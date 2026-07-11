@@ -243,7 +243,7 @@ export function BibForm({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 24,
+        gap: 14,
         width: "100%",
         maxWidth: 720,
         margin: "0 auto",
@@ -413,7 +413,9 @@ function SaveStateHint({
     );
   }
   // idle / saving / saved / quota → conveyed by the field + Save-button glows.
-  return <span id="bib-name-hint" role="status" style={base} />;
+  // Don't reserve the 18px min-height here: when empty it's pure dead space
+  // between the name field and the bib preview (Kurt 2026-07-11).
+  return <span id="bib-name-hint" role="status" style={{ fontSize: 13 }} />;
 }
 
 export default BibForm;
