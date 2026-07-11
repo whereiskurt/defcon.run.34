@@ -35,7 +35,7 @@ Scan analytics are collected off the hot path via structured log lines and rolle
 
 **Non-goals (YAGNI)**
 - QR *image* generation (out of scope; codes are just URLs).
-- CloudFront in front of `q./r./h.` — DNS points straight at the ALB.
+- ~~CloudFront in front of `q./r./h.` — DNS points straight at the ALB.~~ **CORRECTED (2026-07-11):** the public ALB's security group accepts 443 **only** from the CloudFront origin-facing prefix list, so DNS pointing straight at the ALB is unreachable (connect times out). Any public hostname MUST front through CloudFront. Phase 1 `r./h.` therefore ship as **CloudFront edge-function redirects** (a viewer-request CloudFront Function returns the 301/302; no ALB, no origin contacted). **Phase 2 implication:** the `q.` resolver cannot be reached direct-to-ALB either — it must be **CloudFront → ALB → Lambda** (Host header forwarded, caching disabled), or the resolver moves to a **CloudFront Function / Lambda@Edge**. See memory `reference_alb_cloudfront_only`.
 - Per-scan atomic DynamoDB counters.
 - Truly secret flags delivered over a GET URL (see §9 Security — flag values in a scanned URL are semi-public by nature).
 
@@ -219,7 +219,7 @@ Shared / global:
 
 | Phase | Deliverable | Independently shippable |
 |-------|-------------|-------------------------|
-| **1. Static redirects** | `r./h.` redirect listener rules + DNS + new `redirect-rule` terraform | ✅ value day one |
+| **1. Static redirects** | `r./h.` CloudFront edge-function redirects + apex DNS + `cloudfront-redirect` module (superseded the initial ALB-listener-rule approach — the ALB is CloudFront-only) | ✅ value day one |
 | **2. Resolver MVP** | ALB→Lambda target, resolver Lambda, `qr` entity, `q.` DNS — simple redirect only | ✅ |
 | **3. Rule engine** | param rules, time windows, enrichment; warm-cache | ✅ |
 | **4. Analytics + admin UI** | log line → rollup Lambda → `qrstat`, `/_flush`; admin dashboard CRUD + scan counts | ✅ |

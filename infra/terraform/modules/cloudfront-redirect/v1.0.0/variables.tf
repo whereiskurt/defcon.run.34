@@ -19,19 +19,9 @@ variable "dns" {
   description = "Apex DNS zone, e.g. defcon.run"
 }
 
-variable "alb_listener_arn" {
-  type        = string
-  description = "ARN of the ALB HTTPS listener to attach redirect rules to."
-}
-
-variable "alb_dns_name" {
-  type        = string
-  description = "DNS name of the ALB (ALIAS record target)."
-}
-
-variable "alb_zone_id" {
-  type        = string
-  description = "Canonical hosted-zone ID of the ALB (ALIAS record target)."
+variable "cert_map" {
+  description = "ACM cert map from the us-east-1 certs unit, keyed by domain name. The vanity hosts ride the wildcard *.defcon.run SAN on the primary cert, keyed by the apex zonename. CloudFront requires the cert in us-east-1."
+  type        = map(object({ arn = string }))
 }
 
 variable "zone_map" {
@@ -44,14 +34,14 @@ variable "zone_map" {
 }
 
 variable "redirects" {
-  description = "Host-based ALB redirect rules (no compute). host is the subdomain label under dns.zonename."
+  description = "Host-based edge redirects. host is the subdomain label under dns.zonename. priority is unused by the CloudFront edge implementation and retained only for config compatibility with the redirects list."
   type = list(object({
     host         = string
     target_host  = string
     target_path  = optional(string, "/")
     target_query = optional(string, "")
     status_code  = optional(string, "HTTP_302")
-    priority     = number
+    priority     = optional(number)
   }))
   default = []
 }
