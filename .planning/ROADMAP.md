@@ -302,7 +302,7 @@ Plans:
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
-| 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — UAT pending | - |
+| 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -338,7 +338,7 @@ Plans:
   5. Each row shows the runner's QR URL (`https://run.<domain>/<region>/r?h=<hash>`) and bib `runnerCode` (blank when absent).
   6. An admin can export the current filtered/sorted table to CSV (full emails, QR URLs, bib codes).
 
-**Plans:** 5 plans (waves: 1={01,02,03} parallel, 2={04}, 3={05}) — **BUILT 2026-07-11 on `gsd/phase-43-work` worktree; human UAT of `/admin` pending (Plan 05 checkpoint).**
+**Plans:** 5 plans (waves: 1={01,02,03} parallel, 2={04}, 3={05}) — **BUILT + LIVE-SMOKE-VERIFIED 2026-07-11 on `gsd/phase-43-work`.** Ran run.human locally against the REAL `run-human-electro`/`authjs` tables (dc34 creds + a dev-only revalidate bypass, since reverted): `/admin` rendered 46 real users (masked emails, bib codes, QR URLs, activity); `/admin` + `/api/admin/users` returned **404 without a session / 200 with an admin session**; CSV export streamed a dated attachment. Left for full sign-off: gpx columns with run.auth running, and interactive reveal/search/sort clicks.
 
 Plans:
 
