@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import { useTheme } from 'next-themes';
 import { Card, CardBody, Chip, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
 import { ChevronDown, ChevronRight, Trash2, Plus, Clipboard, Check } from 'lucide-react';
@@ -44,6 +44,8 @@ interface PageCache {
 interface CheckInHistoryProps {
   checkInCount: number;
   checkinPreference?: string;
+  /** Extra content rendered inside the card, below the check-in list (e.g. the Check-in Pin picker). */
+  children?: ReactNode;
 }
 
 function formatRelativeTime(timestamp: number): string {
@@ -148,7 +150,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-export default function CheckInHistory({ checkInCount, checkinPreference }: CheckInHistoryProps) {
+export default function CheckInHistory({ checkInCount, checkinPreference, children }: CheckInHistoryProps) {
   const { resolvedTheme } = useTheme();
   const tileUrl = resolvedTheme === 'dark' ? TILES_DARK : TILES_LIGHT;
   const [isOpen, setIsOpen] = useState(true);
@@ -526,6 +528,9 @@ export default function CheckInHistory({ checkInCount, checkinPreference }: Chec
                 />
               </div>
             )}
+
+            {/* Nested extras (e.g. the Check-in Pin picker) */}
+            {children}
           </div>
         )}
       </CardBody>
