@@ -78,9 +78,7 @@
     "text": "An official DEF CON 34 event",
     "note": "See you in the desert.",
     "credit": "Another Casual Ultra · a Production of Death by Emoji 💀😀",
-    "links": [
-      { "label": "run.defcon.run", "url": "https://run.defcon.run" }
-    ]
+    "links": []
   },
   "cancelled": {
     "flashMinSeconds": 10,
