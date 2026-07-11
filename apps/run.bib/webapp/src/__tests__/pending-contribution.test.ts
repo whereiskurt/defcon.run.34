@@ -15,6 +15,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockUpsert = vi.fn();
 const mockDelete = vi.fn();
 const mockScan = vi.fn();
+const mockPatch = vi.fn();
 
 vi.mock("electrodb", () => {
   class Entity {
@@ -24,6 +25,9 @@ vi.mock("electrodb", () => {
     }
     delete(key: unknown) {
       return { go: () => mockDelete(key) };
+    }
+    patch(key: unknown) {
+      return { set: (attrs: unknown) => ({ go: () => mockPatch(key, attrs) }) };
     }
     scan = {
       where: (_fn: unknown) => ({ go: () => mockScan() }),
@@ -42,6 +46,7 @@ import {
   recordPending,
   clearPendingForOwner,
   clearPendingById,
+  denyPendingById,
 } from "@/entities/pending-contribution";
 
 describe("pendingContributionId()", () => {
@@ -141,5 +146,27 @@ describe("clearPendingById()", () => {
     expect(mockDelete.mock.calls.map((c) => c[0].pendingId)).toEqual([
       "pending:u1:bib:venmo:2000",
     ]);
+  });
+});
+
+describe("denyPendingById()", () => {
+  beforeEach(() => {
+    mockPatch.mockReset();
+    mockPatch.mockResolvedValue({ data: {} });
+    mockDelete.mockReset();
+  });
+
+  it("patches deniedAt + deniedBy on exactly that pendingId (soft delete)", async () => {
+    await denyPendingById("pending:u1:bib:venmo:2000", "admin@x.com");
+    expect(mockPatch).toHaveBeenCalledTimes(1);
+    const [key, attrs] = mockPatch.mock.calls[0];
+    expect(key).toEqual({ pendingId: "pending:u1:bib:venmo:2000" });
+    expect(attrs.deniedBy).toBe("admin@x.com");
+    expect(typeof attrs.deniedAt).toBe("string");
+  });
+
+  it("never deletes the row", async () => {
+    await denyPendingById("pending:u1:donation:venmo:1000", "admin@x.com");
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 });

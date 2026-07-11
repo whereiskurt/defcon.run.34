@@ -74,6 +74,16 @@ export const PendingContribution = new Entity(
         type: "string",
         required: true,
       },
+      deniedAt: {
+        type: "string",
+        // Soft-delete marker (Kurt 2026-07-11): set when an admin denies a fake
+        // Venmo/CashApp intent. Presence hides the row from the Outstanding list;
+        // the row survives for audit. Donation quota stays consumed (no restore).
+      },
+      deniedBy: {
+        type: "string",
+        // Admin email that denied the intent (audit trail).
+      },
     },
     indexes: {
       primary: {
@@ -190,4 +200,19 @@ export async function clearPendingForOwner(
  */
 export async function clearPendingById(pendingId: string): Promise<void> {
   await PendingContribution.delete({ pendingId }).go();
+}
+
+/**
+ * Deny a single pending intent (Kurt 2026-07-11). Soft-delete: patch the row to
+ * set deniedAt (now) + deniedBy rather than deleting it, so a fake Venmo/CashApp
+ * submission drops off the Outstanding list but stays auditable. Quota is
+ * deliberately NOT restored — a denied attempt still counts against the runner.
+ */
+export async function denyPendingById(
+  pendingId: string,
+  deniedBy: string
+): Promise<void> {
+  await PendingContribution.patch({ pendingId })
+    .set({ deniedAt: new Date().toISOString(), deniedBy })
+    .go();
 }
