@@ -148,29 +148,60 @@ export async function SponsorInstructions({
         </div>
       </header>
 
-      <InstructionRow
-        label={t(copy, "bib.instructions.sendTo")}
-        value={handle}
-        accentColor={accentColor}
-      />
+      {/* Two-column on wide screens (info rows left, QR/toggle beside);
+        * wraps to a single stacked column on narrow/mobile. Keeps the card
+        * from getting tall. */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 24,
+          alignItems: "flex-start",
+        }}
+      >
+        <div
+          style={{
+            flex: "1 1 260px",
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+          }}
+        >
+          <InstructionRow
+            label={t(copy, "bib.instructions.sendTo")}
+            value={handle}
+            accentColor={accentColor}
+          />
 
-      <InstructionRow
-        label={t(copy, "bib.instructions.requiredComment")}
-        value={runnerCode}
-        accentColor={accentColor}
-        hint={t(copy, "bib.instructions.requiredCommentHint")}
-      />
+          <InstructionRow
+            label={t(copy, "bib.instructions.requiredComment")}
+            value={runnerCode}
+            accentColor={accentColor}
+            hint={t(copy, "bib.instructions.requiredCommentHint")}
+          />
+        </div>
 
-      {payVariants.length > 0 && (
-        <PayLinkPanel
-          variants={payVariants}
-          providerLabel={providerLabel}
-          runnerCode={runnerCode}
-          amountDisplay={amountDisplay}
-          accentColor={accentColor}
-          openLabel={openLabel}
-        />
-      )}
+        {payVariants.length > 0 && (
+          <div
+            style={{
+              flex: "1 1 240px",
+              minWidth: 0,
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            <PayLinkPanel
+              variants={payVariants}
+              providerLabel={providerLabel}
+              runnerCode={runnerCode}
+              amountDisplay={amountDisplay}
+              accentColor={accentColor}
+              openLabel={openLabel}
+            />
+          </div>
+        )}
+      </div>
 
       <p
         style={{
