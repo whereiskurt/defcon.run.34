@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/config/auth";
-import { requireAdmin } from "@/lib/admin-gate";
+import { requireBibAdmin } from "@/lib/admin-gate";
 import {
   loadReports,
   buildDashboard,
@@ -44,7 +44,7 @@ function apiBase(): string {
 
 export default async function AdminPage() {
   const session = await auth();
-  const gate = requireAdmin(session);
+  const gate = requireBibAdmin(session);
 
   if (!gate.ok && gate.reason === "no_session") {
     redirect("/signin");
@@ -821,7 +821,7 @@ function Forbidden() {
       <div style={{ textAlign: "center", maxWidth: 420 }}>
         <h1 style={{ fontSize: 24, margin: "0 0 8px" }}>Admin access required</h1>
         <p style={{ color: "var(--bib-muted)", fontSize: 15, lineHeight: 1.6 }}>
-          Your account is not in the <code>admin</code> group. Ask an organizer
+          Your account is not in the <code>bibadmin</code> group. Ask an organizer
           to grant access, then sign out and back in.
         </p>
       </div>

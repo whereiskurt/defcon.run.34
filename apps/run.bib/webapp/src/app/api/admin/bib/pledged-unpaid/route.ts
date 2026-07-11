@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { Bib } from "@/entities/bib";
-import { requireAdmin } from "@/lib/admin-gate";
+import { requireBibAdmin } from "@/lib/admin-gate";
 
 /**
  * GET /api/admin/bib/pledged-unpaid — Phase 22-05-07 admin report.
@@ -48,7 +48,7 @@ type PledgedBibRow = {
 
 export async function GET() {
   const session = await auth();
-  const gate = requireAdmin(session);
+  const gate = requireBibAdmin(session);
   if (!gate.ok) {
     if (gate.reason === "no_session") {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });

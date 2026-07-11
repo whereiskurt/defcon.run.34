@@ -1,5 +1,5 @@
 import { auth } from "@/config/auth";
-import { requireAdmin } from "@/lib/admin-gate";
+import { requireBibAdmin } from "@/lib/admin-gate";
 import {
   loadReports,
   reportToCsv,
@@ -31,7 +31,7 @@ export async function GET(
   ctx: { params: Promise<{ type: string }> }
 ) {
   const session = await auth();
-  const gate = requireAdmin(session);
+  const gate = requireBibAdmin(session);
   if (!gate.ok) {
     const status = gate.reason === "no_session" ? 401 : 403;
     return new Response(gate.reason === "no_session" ? "unauthorized" : "forbidden", {
