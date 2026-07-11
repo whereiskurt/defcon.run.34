@@ -536,7 +536,7 @@
     // ---------- "DEF CON is CANCELLED" troll ----------
     // Type "!!!" to flip HAPPENING → CANCELLED (red), freeze the clock at zero,
     // and rain money + burning dumpsters. An ambient horror-flash also blips the
-    // cancelled state for ~0.75s at a random 3–7s cadence.
+    // cancelled state for ~1s — first at 3–5s, then a random FLASH_MIN..MAX cadence.
     (function () {
       var body = document.body;
       var headline = document.getElementById('headline');
@@ -612,8 +612,11 @@
       // NB: deliberately NOT gated on prefers-reduced-motion — this troll is the
       // whole point, and reduced-motion would silence it (as it once hid the bib
       // cash-rain). Skipped only while manually cancelled or the tab is hidden.
-      function scheduleFlash() {
-        var delay = (FLASH_MIN + Math.random() * (FLASH_MAX - FLASH_MIN)) * 1000;
+      // First flash lands quick (3–5s) to hook the visitor; later ones settle
+      // into the configured FLASH_MIN..FLASH_MAX cadence.
+      function scheduleFlash(first) {
+        var lo = first ? 3 : FLASH_MIN, hi = first ? 5 : FLASH_MAX;
+        var delay = (lo + Math.random() * (hi - lo)) * 1000;
         setTimeout(function () {
           if (!manual && !document.hidden) {
             body.classList.add('flash'); apply(true);
@@ -624,7 +627,7 @@
           scheduleFlash();
         }, delay);
       }
-      scheduleFlash();
+      scheduleFlash(true);
     })();
 
     // ---------- Matrix rain ----------
