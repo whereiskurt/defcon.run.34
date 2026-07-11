@@ -27,7 +27,9 @@ locals {
     h => r.og.image_file if try(r.og.image_file, null) != null
   }
 
-  bucket_name = "redirect-pages-${var.site.label}-${var.site.random_suffix}"
+  # Bucket name is prefixed with the site label so it matches the CI deploy
+  # role's s3:PutObject grant (arn:aws:s3:::${site.label}-*, see site.hcl S3Assets).
+  bucket_name = "${var.site.label}-redirect-pages-${var.site.random_suffix}"
 }
 
 # Private bucket holding each host's interstitial page + any local images.
