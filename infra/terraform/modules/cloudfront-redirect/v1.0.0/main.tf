@@ -8,6 +8,9 @@ locals {
     h => "https://${r.target_host}${r.target_path}${r.target_query != "" ? "?${r.target_query}" : ""}"
   }
 
+  status_num  = { HTTP_301 = 301, HTTP_302 = 302 }
+  status_desc = { HTTP_301 = "Moved Permanently", HTTP_302 = "Found" }
+
   # Rendered interstitial HTML per host: OG tags for crawlers + client redirect for humans.
   html = {
     for h, r in local.redirect_map :
@@ -56,6 +59,34 @@ resource "aws_cloudfront_origin_access_control" "pages" {
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
   provider                          = aws.global-application
+}
+
+# Legacy edge-redirect functions from the pre-interstitial design. They are the
+# functions currently LIVE on the distributions. Kept defined here (with byte-
+# identical code, so terraform makes NO change to them) but deliberately
+# UNASSOCIATED below, so the switch to the S3 origin removes the association
+# without terraform ever issuing DeleteFunction on an in-use function (CloudFront
+# returns 409 for that). Safe to remove in a follow-up once the distributions are
+# fully on the S3 origin.
+resource "aws_cloudfront_function" "redirect" {
+  for_each = local.redirect_map
+
+  name    = "${var.site.label}-redirect-${each.key}"
+  runtime = "cloudfront-js-2.0"
+  comment = "Edge redirect ${each.key}.${var.dns.zonename} -> ${local.location[each.key]}"
+  publish = true
+
+  code = <<-EOT
+    function handler(event) {
+      return {
+        statusCode: ${local.status_num[each.value.status_code]},
+        statusDescription: '${local.status_desc[each.value.status_code]}',
+        headers: { 'location': { value: '${local.location[each.key]}' } }
+      };
+    }
+  EOT
+
+  provider = aws.global-application
 }
 
 # Interstitial page per host at s3://bucket/<host>/index.html
