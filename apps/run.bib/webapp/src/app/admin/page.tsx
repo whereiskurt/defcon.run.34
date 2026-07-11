@@ -21,7 +21,8 @@ import {
 /**
  * /admin — v1.6 gated admin reporting dashboard (Kurt 2026-07-03).
  *
- * Server component. Gated on the "admin" group claim (requireAdmin). Reads
+ * Server component. Gated on the bibadmin group claim, or admin as superuser
+ * (requireBibAdmin). Reads
  * the report bundle in-process (same DynamoDB scans as the CSV endpoints)
  * and renders four tables — print-name list, payments/revenue, outstanding +
  * in-person, all registrations — each with a CSV download link.

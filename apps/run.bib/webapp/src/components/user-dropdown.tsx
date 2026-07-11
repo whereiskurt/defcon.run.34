@@ -48,7 +48,11 @@ export function UserDropdown() {
   const name = user.name || user.email || "Runner";
   const services = user.services;
   const hasCms = Array.isArray(services) && services.includes("cms");
-  const isAdmin = Array.isArray(services) && services.includes("admin");
+  // Admin item shows for the bib-admin group OR the admin superuser (mirrors
+  // requireBibAdmin) so a bibadmin-only organizer sees it.
+  const isAdmin =
+    Array.isArray(services) &&
+    (services.includes("admin") || services.includes("bibadmin"));
 
   return (
     <Dropdown
