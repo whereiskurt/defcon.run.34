@@ -20,18 +20,58 @@
 <meta name="twitter:description" content="${og_description}">
 <meta name="twitter:image" content="${og_image}">
 
-<!-- Human redirect: fires before render (no visible page); meta-refresh is the no-JS fallback. -->
-<meta http-equiv="refresh" content="0;url=${target_url}">
-<script>location.replace(${target_url_json});</script>
+<!-- Deliberate redirect: a themed splash shows first (so the browser tab reads
+     the og_title, not the destination), then we navigate. meta-refresh is the
+     no-JS fallback (longer, so it never preempts the splash). -->
+<meta http-equiv="refresh" content="4;url=${target_url}">
 <link rel="canonical" href="${target_url}">
 <style>
-  html,body{height:100%;margin:0;background:#04060d;color:#8fd0ff;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-    display:flex;align-items:center;justify-content:center;text-align:center}
-  a{color:#7fe1ff}
+  :root{ --cy:#7fe1ff; --mg:#ff3caa; --gr:#5aff96; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:#04060d; color:var(--cy); overflow:hidden;
+    font-family:"Courier New",ui-monospace,monospace;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .glow{position:fixed;inset:0;background:
+    radial-gradient(60% 70% at 20% 10%,rgba(70,190,255,.22),transparent 60%),
+    radial-gradient(70% 80% at 85% 100%,rgba(255,40,170,.22),transparent 60%);}
+  .scan{position:fixed;inset:0;pointer-events:none;mix-blend-mode:multiply;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.30) 0 1px,transparent 1px 3px)}
+  .wrap{position:relative;z-index:2;padding:24px;max-width:680px}
+  .title{font-family:"Arial Black",Impact,sans-serif;font-size:clamp(48px,15vw,120px);
+    letter-spacing:.02em;color:var(--cy);transform:skewX(-6deg);line-height:.9;
+    text-shadow:0 0 2px #eafcff,0 0 22px rgba(120,225,255,.9),0 0 60px rgba(90,190,255,.7),
+      3px 3px 0 #b8860b,0 0 90px rgba(255,60,170,.35);}
+  .term{margin-top:22px;font-size:clamp(12px,3.6vw,15px);color:var(--gr);
+    text-shadow:0 0 8px rgba(60,255,130,.6);white-space:nowrap;overflow:hidden}
+  .term .cursor{display:inline-block;width:.6em;background:var(--gr);animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+  .load{margin-top:18px;font-size:clamp(13px,3.8vw,16px);letter-spacing:.18em;color:#cfe6ff}
+  .bar{margin:14px auto 0;width:min(360px,80vw);height:8px;border:1px solid rgba(127,225,255,.4);
+    border-radius:6px;overflow:hidden;background:rgba(10,30,60,.5)}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cy),var(--mg));
+    box-shadow:0 0 14px rgba(120,225,255,.8);animation:fill 1.5s ease-out forwards}
+  @keyframes fill{to{width:100%}}
+  .foot{margin-top:20px;font-size:12px;letter-spacing:.14em;color:#8fd0ff;opacity:.8}
+  .foot a{color:var(--cy);text-decoration:none}
+  @media (prefers-reduced-motion:reduce){.bar>i{animation:none;width:100%}.term .cursor{animation:none}}
 </style>
 </head>
 <body>
-  <p>Redirecting&hellip; <a href="${target_url}">click here</a> if you are not redirected.</p>
+  <div class="glow"></div><div class="scan"></div>
+  <div class="wrap">
+    <div class="title">HACKERS</div>
+    <div class="term">root@gibson:~# ./play --feature<span class="cursor">&nbsp;</span></div>
+    <div class="load">▶ LOADING FEATURE PRESENTATION&hellip;</div>
+    <div class="bar"><i></i></div>
+    <div class="foot"><a href="${target_url}">skip &rsaquo;</a> &nbsp;·&nbsp; run.defcon.run</div>
+  </div>
+<script>
+  // Deliberate ~1.6s beat so the "HACKERS" splash + tab title register, then go.
+  var TARGET = ${target_url_json};
+  setTimeout(function(){ location.replace(TARGET); }, 1600);
+</script>
 </body>
 </html>
