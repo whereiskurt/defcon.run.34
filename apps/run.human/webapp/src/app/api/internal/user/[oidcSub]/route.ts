@@ -72,6 +72,21 @@ export async function GET(
       );
     }
 
+    // The runner's email lives on the authjs adapter USER record (not on
+    // RunUser). Best-effort: a lookup miss returns null email rather than
+    // failing the whole endpoint — the bib CSV enrichment treats null as blank.
+    let email: string | null = null;
+    try {
+      const userRec = await dynamodbClient.get({
+        TableName: DYNAMODB_TABLE,
+        Key: { pk: `USER#${adapterUserId}`, sk: `USER#${adapterUserId}` },
+      });
+      const raw = userRec.Item?.email;
+      email = typeof raw === "string" && raw ? raw : null;
+    } catch (e) {
+      console.error("[run.human] /api/internal/user email lookup:", e);
+    }
+
     // Return safe subset needed by flash + bib.
     // `hash` is the SHA256 QR-lookup value already surfaced in public /r?h= URLs;
     // it is NOT a secret. Never expose the random QR seed or the RSA key-pair
@@ -83,6 +98,7 @@ export async function GET(
       mqttPassword: user.mqttPassword,
       mqttUsertype: user.mqttUsertype,
       hash: user.hash,
+      email,
     });
   } catch (error) {
     console.error("[run.human] /api/internal/user error:", error);
