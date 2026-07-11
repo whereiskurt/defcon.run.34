@@ -188,6 +188,11 @@
     font-size: clamp(15px, 3.4vw, 19px); color: var(--fg);
   }
   .subhead b { color: var(--primary); font-weight: 700; }
+  .subhead a {
+    color: var(--primary); font-weight: 700; text-decoration: none;
+    border-bottom: 1px solid var(--line); transition: color 0.2s, border-color 0.2s;
+  }
+  .subhead a:hover { color: var(--accent); border-color: var(--accent); }
   .eventline {
     margin-top: 16px; font-family: var(--font-mono);
     font-size: 13px; letter-spacing: 0.16em; color: var(--muted);
@@ -455,7 +460,7 @@
       <span class="badge reveal" style="animation-delay: 0.05s"><span class="dot"></span><span id="badgeText" data-live="{{HYPE_BADGE}}" data-dead="{{HYPE_BADGE_CANCELLED}}">{{HYPE_BADGE}}</span></span>
       <p class="kicker reveal" style="animation-delay: 0.12s">{{HYPE_KICKER}}</p>
       <h1 id="headline" class="glitch reveal" style="animation-delay: 0.18s" data-live="{{HYPE_HEADLINE}}" data-dead="{{HYPE_HEADLINE_CANCELLED}}">{{HYPE_HEADLINE}}</h1>
-      <p class="subhead reveal" style="animation-delay: 0.28s">{{HYPE_SUBHEAD}}</p>
+      <p class="subhead reveal" style="animation-delay: 0.28s">defcon.run 34 is happening. Get your <a href="https://bib.defcon.run" target="_blank" rel="noopener noreferrer">bib</a>, check out the <a href="https://gpx.defcon.run" target="_blank" rel="noopener noreferrer">maps</a>, and <a href="https://run.defcon.run" target="_blank" rel="noopener noreferrer">flash your Meshtastic device</a>.</p>
       <p class="eventline reveal" style="animation-delay: 0.36s">{{HYPE_EVENTLINE}}</p>
     </section>
 
