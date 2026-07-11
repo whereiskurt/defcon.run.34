@@ -2,6 +2,20 @@ import type { ReactNode } from "react";
 import QRCode from "qrcode";
 import { formatCentsUsd } from "@/lib/amount";
 import { loadCopy, t } from "@/lib/copy";
+import PayLinkPanel, { type PayVariant } from "@/components/PayLinkPanel";
+
+const QR_OPTS = {
+  margin: 1,
+  width: 240,
+  errorCorrectionLevel: "M" as const,
+  color: { dark: "#0a0a0aff", light: "#ffffffff" },
+};
+
+/** Label the scheme of a pay URL for the toggle ("venmo://" / "https://"). */
+function schemeLabel(url: string): string {
+  const scheme = url.slice(0, url.indexOf(":") + 1);
+  return scheme === "https:" ? "https://" : scheme + "//";
+}
 
 /**
  * SponsorInstructions
@@ -40,6 +54,13 @@ export interface SponsorInstructionsProps {
    */
   deepLink?: string;
   /**
+   * Optional HTTPS equivalent of `deepLink` (e.g.
+   * `https://venmo.com/?txn=pay&...`). When present, the pay panel gains a
+   * slick toggle that swaps the QR + URL + button between the native scheme
+   * (`deepLink`, shown first) and this web link.
+   */
+  httpsDeepLink?: string;
+  /**
    * Optional accent color for the amount + handle typography. Defaults
    * to the DEF CON green (DC34 mint palette #6CCDB8) (#6CCDB8) shared with SponsorForm.
    */
@@ -58,24 +79,31 @@ export async function SponsorInstructions({
   runnerCode,
   amountCents,
   deepLink,
+  httpsDeepLink,
   accentColor = "#6CCDB8",
   footer,
 }: SponsorInstructionsProps) {
   const amountDisplay = formatCentsUsd(amountCents);
   const copy = await loadCopy("default");
 
-  // Encode the SAME deep link the button uses, so scanning the QR with a phone
-  // is equivalent to tapping "Open <provider>" — the app opens with the amount,
-  // recipient, and runner-code note prefilled. Rendered as a PNG data URI so
-  // there's no client JS. Dark modules on a white tile for camera contrast.
-  const qrDataUrl = deepLink
-    ? await QRCode.toDataURL(deepLink, {
-        margin: 1,
-        width: 240,
-        errorCorrectionLevel: "M",
-        color: { dark: "#0a0a0aff", light: "#ffffffff" },
-      })
-    : null;
+  // Build the pay-link variants (native scheme first, optional HTTPS second)
+  // and pre-render each QR to a PNG data URI on the server — the client panel
+  // just swaps between them, so no client-side QR generation. Encoding the same
+  // URL the button uses means scanning == tapping "Open <provider>".
+  const linkUrls = [deepLink, httpsDeepLink].filter(
+    (u): u is string => typeof u === "string" && u.length > 0
+  );
+  const payVariants: PayVariant[] = await Promise.all(
+    linkUrls.map(async (url) => ({
+      key: schemeLabel(url),
+      schemeLabel: schemeLabel(url),
+      url,
+      qr: await QRCode.toDataURL(url, QR_OPTS),
+    }))
+  );
+  const openLabel = t(copy, "bib.instructions.openProvider", {
+    provider: providerLabel,
+  });
 
   return (
     <section
@@ -133,68 +161,15 @@ export async function SponsorInstructions({
         hint={t(copy, "bib.instructions.requiredCommentHint")}
       />
 
-      {qrDataUrl && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 10,
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: "#ffffff",
-              padding: 12,
-              borderRadius: 12,
-              lineHeight: 0,
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qrDataUrl}
-              alt={`Scan to pay ${amountDisplay} to ${handle} via ${providerLabel} — note ${runnerCode}`}
-              width={200}
-              height={200}
-              style={{ display: "block", width: 200, height: 200 }}
-            />
-          </div>
-          <span
-            style={{
-              fontSize: 13,
-              color: "#a4a4b8",
-              textAlign: "center",
-              maxWidth: 340,
-              lineHeight: 1.5,
-            }}
-          >
-            On a computer? Scan with your phone to open {providerLabel} with the
-            amount and <code>{runnerCode}</code> note prefilled.
-          </span>
-        </div>
-      )}
-
-      {deepLink && (
-        <a
-          href={deepLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-block",
-            textAlign: "center",
-            padding: "14px 20px",
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#0a0a0a",
-            backgroundColor: accentColor,
-            border: "none",
-            borderRadius: 6,
-            textDecoration: "none",
-            letterSpacing: "0.02em",
-          }}
-        >
-          {t(copy, "bib.instructions.openProvider", { provider: providerLabel })}
-        </a>
+      {payVariants.length > 0 && (
+        <PayLinkPanel
+          variants={payVariants}
+          providerLabel={providerLabel}
+          runnerCode={runnerCode}
+          amountDisplay={amountDisplay}
+          accentColor={accentColor}
+          openLabel={openLabel}
+        />
       )}
 
       <p
