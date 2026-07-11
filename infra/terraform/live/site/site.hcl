@@ -666,7 +666,7 @@ locals {
                 {
                   Sid      = "S3"
                   Effect   = "Allow"
-                  Action   = ["s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy", "s3:DeleteObject", "s3:DeleteObjectVersion", "s3:DeleteReplicationConfiguration", "s3:Get*", "s3:HeadBucket", "s3:List*", "s3:PutBucket*", "s3:PutEncryptionConfiguration", "s3:PutLifecycleConfiguration", "s3:PutReplicationConfiguration", "s3:TagResource", "s3:UntagResource"]
+                  Action   = ["s3:CreateBucket", "s3:DeleteBucket", "s3:DeleteBucketPolicy", "s3:DeleteObject", "s3:DeleteObjectVersion", "s3:DeleteReplicationConfiguration", "s3:Get*", "s3:HeadBucket", "s3:List*", "s3:PutBucket*", "s3:PutEncryptionConfiguration", "s3:PutLifecycleConfiguration", "s3:PutObject", "s3:PutReplicationConfiguration", "s3:TagResource", "s3:UntagResource"]
                   Resource = "*"
                 },
                 {
