@@ -302,7 +302,7 @@ Plans:
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
-| 43. run.human Admin Reporting Dashboard | v2.0 | 0/TBD | Planned | - |
+| 43. run.human Admin Reporting Dashboard | v2.0 | 0/5 | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -338,7 +338,15 @@ Plans:
   5. Each row shows the runner's QR URL (`https://run.<domain>/<region>/r?h=<hash>`) and bib `runnerCode` (blank when absent).
   6. An admin can export the current filtered/sorted table to CSV (full emails, QR URLs, bib codes).
 
-**Plans:** TBD (set by planner)
+**Plans:** 5 plans (waves: 1={01,02,03} parallel, 2={04}, 3={05})
+
+Plans:
+
+- [ ] 43-01-PLAN.md — run.auth read-only bulk quota-by-type endpoint over the existing `byQuotaRemaining` GSI (`listQuotaByType` + internal-secret gate) (ADMN-04)
+- [ ] 43-02-PLAN.md — run.human shared admin gate (`isAdmin`/`requireAdmin`, no allowlist) + `revalidateAdmin` (synchronous fresh-claims, fail-closed); denial → 404 (ADMN-01)
+- [ ] 43-03-PLAN.md — run.human fan-out-free read helpers: `scanAllRunUsers`, authjs email + `scanAccountSubs`, `scanRunnerCodesBySub`, `getQuotaByType` (ADMN-02/03/04/05)
+- [ ] 43-04-PLAN.md — admin-report assembly (join + `maskEmail` + `toCsv` + `runnerQrUrl` + tiles) + `/api/admin/users` (404 gate, masked JSON, per-row reveal, `?q` search, sort, paginate, `?format=csv`) (ADMN-02/03/04/05/06/07)
+- [ ] 43-05-PLAN.md — `/admin` page (server component): gate-on-entry → `notFound()`, tiles, sortable/paginated masked table, reveal, search, Download CSV + human-verify checkpoint (ADMN-01/06/07)
 
 ---
 
