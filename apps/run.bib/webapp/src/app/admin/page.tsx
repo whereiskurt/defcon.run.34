@@ -729,14 +729,19 @@ function Table({
       <table
         style={{
           width: "100%",
-          borderCollapse: "collapse",
+          // `separate` (not `collapse`) so the sticky first column keeps its
+          // borders while the rest of the table scrolls under it.
+          borderCollapse: "separate",
+          borderSpacing: 0,
+          // Keep columns legible; below this the wrapper (overflow-x) scrolls.
+          minWidth: 560,
           fontSize: 13,
           fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         }}
       >
         <thead>
           <tr>
-            {columns.map((c) => (
+            {columns.map((c, idx) => (
               <th
                 key={c}
                 style={{
@@ -746,6 +751,17 @@ function Table({
                   color: "var(--bib-faint)",
                   fontWeight: 600,
                   whiteSpace: "nowrap",
+                  // Freeze the first column (the Action / Name column) so it
+                  // stays on-screen while the rest scrolls sideways on mobile.
+                  ...(idx === 0
+                    ? {
+                        position: "sticky",
+                        left: 0,
+                        zIndex: 2,
+                        backgroundColor: "var(--bib-surface)",
+                        borderRight: "1px solid var(--bib-border)",
+                      }
+                    : {}),
                 }}
               >
                 {c}
@@ -763,7 +779,18 @@ function Table({
                     padding: "7px 10px",
                     borderBottom: "1px solid var(--bib-border)",
                     color: "var(--bib-ink)",
-                    whiteSpace: "nowrap",
+                    // Long columns (e.g. Detail timestamps) wrap instead of
+                    // forcing the whole table absurdly wide.
+                    ...(j === 0
+                      ? {
+                          position: "sticky",
+                          left: 0,
+                          zIndex: 1,
+                          backgroundColor: "var(--bib-surface)",
+                          borderRight: "1px solid var(--bib-border)",
+                          whiteSpace: "nowrap",
+                        }
+                      : { whiteSpace: "normal" }),
                   }}
                 >
                   {cell}
