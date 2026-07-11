@@ -2,7 +2,11 @@
   "meta": {
     "title": "defcon.run 34 — it's happening",
     "description": "defcon.run 34 is happening. Get your bib, check out the maps, and flash your Meshtastic device. An official DEF CON 34 event in Las Vegas.",
-    "themeColor": "#00d4aa"
+    "themeColor": "#00d4aa",
+    "url": "https://defcon.run/",
+    "siteName": "defcon.run",
+    "image": "https://defcon.run/og.png",
+    "imageAlt": "defcon.run 34 — IT'S HAPPENING. An official DEF CON 34 event in Las Vegas."
   },
   "brand": {
     "wordmark": "defcon.run",
