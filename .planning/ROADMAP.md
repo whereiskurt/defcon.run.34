@@ -12,6 +12,7 @@
 - [ ] **v1.6 Header & Meshtastic UX Refresh** - Phases 26-27 (planned 2026-07-02)
 - [ ] **v1.7 GPX Routes — Private Collection, Public Overlay & Strava Sync** - Phases 28-32 (autonomous build authorized 2026-07-02; workstream `v1-7-gpx-routes`, parallel-safe)
 - [x] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (shipped 2026-07-06; edit UI copy live from Strapi, no deploy — SC-3 de-dup proven live)
+- [ ] **v2.0 Admin & Reporting** - Phase 43 (planned 2026-07-11; read-only run.human /admin dashboard — users, activity, gpx usage)
 
 ## Phases
 
@@ -301,6 +302,7 @@ Plans:
 | 37. Bib Donate/Sponsor Proof Surface | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
+| 43. run.human Admin Reporting Dashboard | v2.0 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -317,6 +319,26 @@ Plans:
 - [x] 33-04-PLAN.md — IdP integration tests (prompt=none flows + interaction render split) (SSO-06)
 - [x] 33-05-PLAN.md — Parity test + pure-logic unit tests in run.bib vitest (SSO-05/07)
 - [x] 33-06-PLAN.md — e2e Playwright: full on gpx, smoke on flash + bib (SSO-08)
+
+---
+
+### v2.0 Admin & Reporting (Planned)
+
+### Phase 43: run.human Admin Reporting Dashboard
+
+**Goal:** Admins (users with `"admin"` in `services`) get a read-only dashboard at `run.defcon.run/admin` that lists run.human users with sign-up, activity, and gpx-usage signals — designed to surface who signed up and who is actively using gpx/services. Email is searchable but masked on screen. Design spec: `docs/superpowers/specs/2026-07-11-run-human-admin-dashboard-design.md`.
+**Depends on:** existing run.auth OIDC `services` claim + run.human Auth.js session (no prior phase dependency); reuses the `services.includes("admin")` gate pattern from run.bib `admin-gate.ts`.
+**Requirements**: ADMN-01 (admin-only gate: `services.includes("admin")` + synchronous fresh-claims revalidation on `/admin` entry; non-admin → 404), ADMN-02 (user list from `RunUser` scan with displayName/signup/last-login/last-activity/check-in attributes), ADMN-03 (email masked-by-default, server-side search, reveal-on-click; sourced from the run.human Auth.js adapter table), ADMN-04 (per-user gpx usage — `gpx_upload`/`gpx_save`/`gpx_share` consumption — via a new read-only bulk quota endpoint on run.auth over the existing `byQuotaRemaining` GSI), ADMN-05 (runner QR URL + bib `runnerCode` columns, resolved without per-row N fan-out), ADMN-06 (summary tiles + sortable/paginated table; sort by gpx usage, signup, last activity), ADMN-07 (CSV export of the current filtered/sorted view, admin-gated, full emails)
+**Success Criteria** (what must be TRUE):
+
+  1. A non-admin session (no `"admin"` in `services`) receives a 404 on both the `/admin` page and its API routes; an admin session gets the dashboard. A session whose cached JWT claims admin but whose fresh run.auth claims do not is denied on entry (revalidation closes the ~5-min staleness window).
+  2. The dashboard lists run.human users with sign-up date, last login, last activity, and check-in counts, sortable and paginated, defaulting to most-recently-active.
+  3. Emails are masked on screen by default; an admin can search by full email to filter to a user and reveal an individual email on demand — no full-email column is rendered unrevealed.
+  4. Each user row shows gpx usage (routes/saves/shares) sourced in bulk (one query per quota type, not per-user fan-out), and the list can be sorted by gpx usage across all users to surface heavy users.
+  5. Each row shows the runner's QR URL (`https://run.<domain>/<region>/r?h=<hash>`) and bib `runnerCode` (blank when absent).
+  6. An admin can export the current filtered/sorted table to CSV (full emails, QR URLs, bib codes).
+
+**Plans:** TBD (set by planner)
 
 ---
 
