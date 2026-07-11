@@ -329,3 +329,60 @@ describe("CSV helpers", () => {
     expect(lines).toHaveLength(1 + 3); // header + 3 named bibs
   });
 });
+
+describe("deny + print-names enrichment fields", () => {
+  it("excludes denied pending intents from outstanding and counts them", () => {
+    const bundle = buildReports({
+      bibs: [],
+      donations: [],
+      reconciles: [],
+      pendings: [
+        { pendingId: "p1", ownerSub: "u1", kind: "bib", provider: "venmo", amountCents: 2000, runnerCode: "BIB-1", createdAt: "2026-07-10T00:00:00Z" },
+        { pendingId: "p2", ownerSub: "u2", kind: "bib", provider: "venmo", amountCents: 2000, runnerCode: "BIB-2", createdAt: "2026-07-10T00:00:00Z", deniedAt: "2026-07-11T00:00:00Z" },
+      ],
+    });
+    const pendingRows = bundle.outstanding.filter((r) => r.source === "pending-intent");
+    expect(pendingRows.map((r) => r.pendingId)).toEqual(["p1"]);
+    expect(bundle.totals.deniedCount).toBe(1);
+  });
+
+  it("carries ownerSub and a deduped joined paymentTypes on print-names rows", () => {
+    const bundle = buildReports({
+      bibs: [
+        {
+          ownerSub: "owner-9",
+          runnerCode: "BIB-9",
+          nameOnBib: "Dprk Runner",
+          paidAmount: 4000,
+          nameLocked: false,
+          willPayInPerson: false,
+          paidStatusHistory: [
+            { provider: "cash", amount: 2000, timestamp: "2026-07-10T00:00:00Z" },
+            { provider: "stripe", amount: 2000, timestamp: "2026-07-10T01:00:00Z" },
+            { provider: "cash", amount: 0, timestamp: "2026-07-10T02:00:00Z" },
+          ],
+        } as never,
+      ],
+      donations: [],
+      reconciles: [],
+      pendings: [],
+    });
+    const row = bundle.printNames.find((r) => r.runnerCode === "BIB-9")!;
+    expect(row.ownerSub).toBe("owner-9");
+    expect(row.paymentTypes).toBe("cash+stripe");
+    expect(row.email).toBeUndefined();
+    expect(row.qrUrl).toBeUndefined();
+  });
+
+  it("gives an empty paymentTypes string when there is no payment history", () => {
+    const bundle = buildReports({
+      bibs: [
+        { ownerSub: "o1", runnerCode: "BIB-0", nameOnBib: "No Pay", paidAmount: 0, nameLocked: false, willPayInPerson: true } as never,
+      ],
+      donations: [],
+      reconciles: [],
+      pendings: [],
+    });
+    expect(bundle.printNames[0].paymentTypes).toBe("");
+  });
+});

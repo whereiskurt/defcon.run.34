@@ -34,9 +34,17 @@ export type ReportType =
 export type PrintNameRow = {
   nameOnBib: string;
   runnerCode: string;
+  ownerSub: string;
   paidAmountCents: number;
   nameLocked: boolean;
   printEligible: boolean;
+  // Deduped, first-seen-ordered, "+"-joined payment methods from the bib's
+  // paidStatusHistory (e.g. "cash+stripe"). Empty when unpaid.
+  paymentTypes: string;
+  // Populated by the CSV enrichment step (admin-report-enrich); undefined in the
+  // pure builder and on the live dashboard.
+  email?: string;
+  qrUrl?: string;
 };
 
 export type PaymentRow = {
@@ -83,6 +91,9 @@ export type ReportTotals = {
   grandTotalCents: number;
   pendingCount: number;
   printEligible: number;
+  // Denied pending intents (soft-deleted fakes) — surfaced so they are counted,
+  // not silently vanished.
+  deniedCount: number;
 };
 
 export type ReportBundle = {
@@ -122,6 +133,8 @@ type PendingLike = {
   createdAt?: string;
   pendingId?: string;
   ownerSub?: string;
+  // Soft-deny marker — denied intents are excluded from Outstanding (Kurt 2026-07-11).
+  deniedAt?: string;
 };
 
 export type ReportInput = {
@@ -175,13 +188,20 @@ export function buildReports(input: ReportInput): ReportBundle {
       // which stay based on real reconciled money.
       const pledgedInPerson = b.willPayInPerson === true && paid === 0;
       const effectivePaidCents = pledgedInPerson ? PRINT_GATE_CENTS : paid;
+      const providers: string[] = [];
+      for (const p of (b.paidStatusHistory ?? []) as Array<{ provider?: string }>) {
+        const prov = (p.provider ?? "").trim();
+        if (prov && !providers.includes(prov)) providers.push(prov);
+      }
       return {
         nameOnBib: b.nameOnBib ?? "",
         runnerCode: b.runnerCode,
+        ownerSub: b.ownerSub,
         paidAmountCents: effectivePaidCents,
         nameLocked: locked,
         // Eligible at the $20 bib-spend gate OR an in-person pledge.
         printEligible: effectivePaidCents >= PRINT_GATE_CENTS,
+        paymentTypes: providers.join("+"),
       };
     })
     // Eligible first, then by amount desc, then name.
@@ -242,7 +262,9 @@ export function buildReports(input: ReportInput): ReportBundle {
       // (Kurt 2026-07-05) — clicking it reconciles the pledge into real revenue.
       ownerSub: b.ownerSub,
     }));
-  const pendingRows: OutstandingRow[] = pendings.map((p) => ({
+  const activePendings = pendings.filter((p) => !p.deniedAt);
+  const deniedCount = pendings.length - activePendings.length;
+  const pendingRows: OutstandingRow[] = activePendings.map((p) => ({
     source: "pending-intent" as const,
     runnerCode: p.runnerCode ?? "—",
     nameOnBib: bibByRunner.get(p.runnerCode ?? "")?.nameOnBib ?? "",
@@ -294,6 +316,7 @@ export function buildReports(input: ReportInput): ReportBundle {
     grandTotalCents: bibCollectedCents + donationCents,
     pendingCount: pendingRows.length + reconcileRows.length,
     printEligible: printNames.filter((r) => r.printEligible).length,
+    deniedCount,
   };
 
   return {
