@@ -1,15 +1,22 @@
-# Static host-based ALB redirects (QR service Phase 1): r.defcon.run -> YouTube
-# rickroll, h.defcon.run -> run.defcon.run. Pure ALB redirect actions + apex-zone
-# ALIAS records; no target group, no ECS. Mirrors abuse-detection's region-level,
-# self-contained wiring: owns its state key, reads site.hcl, sources the versioned
-# module, depends on network (ALB) and site (zone map).
+# Vanity host redirects via CloudFront edge functions (QR service Phase 1, fixed):
+# r.defcon.run -> YouTube rickroll (302), h.defcon.run -> run.defcon.run (301).
 #
-# SHIPS DARK when site.hcl redirects.enabled = false (exclude below -> no rules,
-# no records).
+# WHY CLOUDFRONT: the public ALB's security group accepts 443 ONLY from the
+# CloudFront origin-facing prefix list, so DNS pointing straight at the ALB is
+# unreachable (browser connect times out). These hosts must front through
+# CloudFront; a viewer-request CloudFront Function returns the redirect at the
+# edge and the origin is never contacted.
 #
-# VALIDATION: scoped `terragrunt plan` in THIS directory — NOT bare
-# `terraform validate` (which misses the generated aliased providers the DNS
-# records require).
+# STATE TRANSITION: this unit previously sourced modules/redirect-rules (ALB
+# listener rules + ALIAS->ALB). Re-pointing the source to cloudfront-redirect
+# in the SAME unit dir keeps the state key, so a plan destroys the dead ALB
+# listener rules and updates the r./h. aws_route53_record.redirect_alias records
+# in place from ALB -> CloudFront. The dir name stays "redirect-rules" on purpose
+# to preserve that continuity.
+#
+# SHIPS DARK when site.hcl redirects.enabled = false.
+# VALIDATION: scoped `terragrunt plan` (needs creds), or the terragrunt-plan.yml
+# GH Action with region=us-east-1, modules=redirect-rules.
 
 locals {
   site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
@@ -20,13 +27,17 @@ exclude {
   actions = ["all"]
 }
 
-dependency "network" {
-  config_path = "../network"
+# us-east-1 ACM cert (CloudFront requires the cert in us-east-1). The vanity
+# hosts ride the wildcard *.defcon.run SAN, keyed by the apex zonename.
+dependency "certs" {
+  config_path = "../certs"
 
   mock_outputs = {
-    alb_listener_arn = "arn:aws:elasticloadbalancing:us-east-1:123456789012:listener/app/mock/0000000000000000/0000000000000000"
-    alb_dns_name     = "mock-alb-1234567890.us-east-1.elb.amazonaws.com"
-    alb_zone_id      = "Z35SXDOTRQ7X7K"
+    cert_map = {
+      (local.site_vars.locals.dns.zonename) = {
+        arn = "arn:aws:acm:us-east-1:123456789012:certificate/mock-cert-id"
+      }
+    }
   }
   mock_outputs_allowed_terraform_commands = ["init", "validate", "plan", "destroy"]
 }
@@ -51,7 +62,7 @@ include "providers" {
 }
 
 terraform {
-  source = "${dirname(find_in_parent_folders("AGENTS.md"))}/infra/terraform/modules/redirect-rules/v1.0.0"
+  source = "${dirname(find_in_parent_folders("AGENTS.md"))}/infra/terraform/modules/cloudfront-redirect/v1.0.0"
 }
 
 inputs = {
@@ -64,16 +75,13 @@ inputs = {
     zonename = local.site_vars.locals.dns.zonename
   }
 
-  alb_listener_arn = dependency.network.outputs.alb_listener_arn
-  alb_dns_name     = dependency.network.outputs.alb_dns_name
-  alb_zone_id      = dependency.network.outputs.alb_zone_id
-  zone_map         = dependency.site.outputs.zone_map
-
+  cert_map  = dependency.certs.outputs.cert_map
+  zone_map  = dependency.site.outputs.zone_map
   redirects = local.site_vars.locals.redirects.rules
 
   tags = {
     Site      = local.site_vars.locals.site.label
-    Component = "redirect-rules"
+    Component = "cloudfront-redirect"
     ManagedBy = "terragrunt"
   }
 }
