@@ -14,7 +14,7 @@
     "bib.checkout.providerCard": "Card",
     "bib.checkout.providerCashApp": "Cash App",
     "bib.checkout.providerVenmo": "Venmo",
-    "bib.checkout.providerNote": "Venmo & Cash App are confirmed by an organizer — your contribution appears once approved.",
+    "bib.checkout.providerNote": "Venmo contributions are confirmed by an organizer — your contribution appears once approved.",
     "bib.checkout.redirecting": "Redirecting…",
     "bib.checkout.error": "Could not start checkout ({detail}) — try again.",
     "bib.checkout.cta": "{label} {amount}",

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CashAppMark, StripeMark, VenmoMark } from "./payment-icons";
+import { StripeMark, VenmoMark } from "./payment-icons";
 import { RunnerCodeBadge } from "./RunnerCodeBadge";
 import { useCopy } from "@/components/CopyProvider";
 import { flushPendingBibName } from "@/lib/pending-bib-save";
@@ -12,7 +12,7 @@ import { flushPendingBibName } from "@/lib/pending-bib-save";
  *
  * Client-side custom-amount + provider CTA rendered inside a landing-page
  * section. Owns the slider ($1..$1000 in $1 steps) and the provider
- * picker (Stripe | Venmo | CashApp). Phase 22-05 §22-05-04 introduces a
+ * picker (Stripe | Venmo). Phase 22-05 §22-05-04 introduces a
  * `variant` prop so the same component can back both the "Sponsor this
  * bib" section (POSTs /api/checkout/bib) and the "Just donate" section
  * (POSTs /api/checkout/general).
@@ -20,14 +20,11 @@ import { flushPendingBibName } from "@/lib/pending-bib-save";
  * On submit:
  *   - `stripe`   → POST /api/checkout/${variant}, redirect to Stripe URL.
  *   - `venmo`    → route to /sponsor/venmo?amount_cents=... (Plan 22-02).
- *                  Only offered when variant='bib' — general Venmo /
- *                  CashApp donations are v1.6.
- *   - `cashapp`  → route to /sponsor/cashapp?amount_cents=... (same v1.5 gate).
  *
  * Design contract (v1.5 Phase 22 PLAN.md §22-01-02, extended by 22-05-04):
  * - Slider is a raw <input type="range" min={100} max={100000} step={100}>.
  * - Provider radio: Stripe default.
- *   - variant='bib' offers Stripe + Venmo + CashApp (unchanged from 22-01).
+ *   - variant='bib' offers Stripe + Venmo.
  *   - variant='general' offers Stripe only for MVP.
  * - Amount display: `$XX.XX` (cents → dollars, 2dp).
  * - Login gate: this component renders inside the landing page which is
@@ -274,8 +271,8 @@ export function SponsorForm({
     [amountCents]
   );
 
-  // Both bib + general offer Stripe / Venmo / CashApp (Kurt 2026-07-03).
-  // Venmo/CashApp don't reconcile instantly — they surface for the runner
+  // Both bib + general offer Stripe / Venmo (Kurt 2026-07-03).
+  // Venmo doesn't reconcile instantly — it surfaces for the runner
   // only after an admin approves the match.
   const offerNonStripe = true;
 
@@ -467,14 +464,6 @@ export function SponsorForm({
               disabled={disabled}
             />
             <ProviderPill
-              value="cashapp"
-              label={t("bib.checkout.providerCashApp")}
-              icon={<CashAppMark />}
-              selected={provider}
-              onSelect={setProvider}
-              disabled={disabled}
-            />
-            <ProviderPill
               value="venmo"
               label={t("bib.checkout.providerVenmo")}
               icon={<VenmoMark />}
@@ -483,7 +472,7 @@ export function SponsorForm({
               disabled={disabled}
             />
           </div>
-          {(provider === "venmo" || provider === "cashapp") && (
+          {provider === "venmo" && (
             <p style={{ fontSize: 12, color: "var(--bib-muted)", margin: "8px 0 0" }}>
               {t("bib.checkout.providerNote")}
             </p>

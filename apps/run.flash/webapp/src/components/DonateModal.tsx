@@ -21,9 +21,9 @@ import { createPortal } from "react-dom";
  *     success_url is hard-coded (server-side) to the bib orderform page, so a
  *     completed donation always lands the donor on the Bib & Donation page —
  *     no matter which app opened the modal.
- *   - Venmo / Cash App: navigate to the bib provider page
- *     `${bibOrigin}/${regionPrefix}/sponsor/{venmo,cashapp}?amount_cents=...`
- *     (these are region-prefixed PAGES; the /api/* route is not — bib's nginx
+ *   - Venmo: navigate to the bib provider page
+ *     `${bibOrigin}/${regionPrefix}/sponsor/venmo?amount_cents=...`
+ *     (a region-prefixed PAGE; the /api/* route is not — bib's nginx
  *     rewrites naked /api/* to /{region}/api/*).
  *
  * URL wiring (2 props, so the same file is same-origin in run.bib and
@@ -38,7 +38,7 @@ const MAX_CENTS = 200_000; //    $2000 ceiling (matches /api/checkout/general)
 const SLIDER_MAX_CENTS = 20_000; // $200 slider ceiling (matches the SponsorForm panels)
 const SLIDER_STEP_CENTS = 1_000; //  $10 slider steps
 
-type Provider = "stripe" | "cashapp" | "venmo";
+type Provider = "stripe" | "venmo";
 
 type SubmitState =
   | { kind: "idle" }
@@ -64,7 +64,7 @@ export interface DonateModalProps {
    */
   bibOrigin?: string;
   /**
-   * Region prefix for the Venmo / Cash App provider PAGES (e.g. "use1").
+   * Region prefix for the Venmo provider PAGE (e.g. "use1").
    * Empty in dev / when there is no basePath.
    */
   regionPrefix?: string;
@@ -144,7 +144,7 @@ export function DonateModal({
       e.preventDefault();
       const cents = clampCents(amountCents);
 
-      if (provider === "venmo" || provider === "cashapp") {
+      if (provider === "venmo") {
         window.location.href = `${providerBase}/sponsor/${provider}?amount_cents=${cents}`;
         return;
       }
@@ -388,7 +388,6 @@ export function DonateModal({
               {(
                 [
                   ["stripe", "Card"],
-                  ["cashapp", "Cash App"],
                   ["venmo", "Venmo"],
                 ] as Array<[Provider, string]>
               ).map(([value, label]) => {
@@ -421,9 +420,9 @@ export function DonateModal({
                 );
               })}
             </div>
-            {(provider === "venmo" || provider === "cashapp") && (
+            {provider === "venmo" && (
               <p style={{ fontSize: 12, color: "#a4a4b8", margin: "8px 0 0" }}>
-                Venmo &amp; Cash App are confirmed by an organizer — your
+                Venmo contributions are confirmed by an organizer — your
                 contribution appears once approved.
               </p>
             )}
