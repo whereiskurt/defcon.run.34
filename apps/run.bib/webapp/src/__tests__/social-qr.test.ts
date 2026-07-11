@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildSocialQrUrl, getSocialQrHash } from "@/lib/social-qr";
+import { buildSocialQrUrl, getSocialQrHash, getRunnerContact } from "@/lib/social-qr";
 
 /**
  * Social-QR lib unit tests (Plan 34-02, Slice C backend).
@@ -113,5 +113,39 @@ describe("getSocialQrHash", () => {
       "http://human.internal.test/use1/api/internal/user/sub-x",
       expect.anything()
     );
+  });
+});
+
+describe("getRunnerContact()", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("returns hash + email from a 200 response", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hash: "abc123", email: "runner@x.com" }),
+    }) as never;
+    expect(await getRunnerContact("sub-1")).toEqual({ hash: "abc123", email: "runner@x.com" });
+  });
+
+  it("returns nulls on a non-2xx response", async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }) as never;
+    expect(await getRunnerContact("sub-1")).toEqual({ hash: null, email: null });
+  });
+
+  it("returns nulls (never throws) on a network error", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("boom")) as never;
+    expect(await getRunnerContact("sub-1")).toEqual({ hash: null, email: null });
+  });
+
+  it("nulls missing/blank fields individually", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hash: "h", email: "" }),
+    }) as never;
+    expect(await getRunnerContact("sub-1")).toEqual({ hash: "h", email: null });
   });
 });

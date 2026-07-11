@@ -88,3 +88,31 @@ export function buildSocialQrUrl(hash: string): string {
   // matching how getSocialQrHash already encodeURIComponent's ownerSub.
   return `https://run.${domain}/${regionShort}/r?h=${encodeURIComponent(hash)}`;
 }
+
+/**
+ * Resolve BOTH the runner's social-QR hash and email from run.human's internal
+ * user endpoint in a single call (Kurt 2026-07-11) — used by the admin
+ * print-names CSV enrichment. Fail-open: any error / non-2xx / missing field
+ * yields null for that field and never throws, so a CSV download never 500s.
+ */
+export async function getRunnerContact(
+  ownerSub: string
+): Promise<{ hash: string | null; email: string | null }> {
+  try {
+    const url = `${HUMAN_BASE_URL}/api/internal/user/${encodeURIComponent(ownerSub)}`;
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        "X-Internal-Secret": INTERNAL_SECRET,
+      },
+    });
+    if (!response.ok) return { hash: null, email: null };
+    const json = (await response.json()) as { hash?: unknown; email?: unknown };
+    return {
+      hash: typeof json.hash === "string" && json.hash ? json.hash : null,
+      email: typeof json.email === "string" && json.email ? json.email : null,
+    };
+  } catch {
+    return { hash: null, email: null };
+  }
+}
