@@ -82,3 +82,20 @@ export async function getRunnerCode(adapterUserId: string): Promise<string | nul
   const result = await Bib.get({ ownerSub }).go();
   return result.data?.runnerCode ?? null;
 }
+
+/**
+ * Scan the Bib table ONCE and build an ownerSub → runnerCode map for the admin
+ * reporting dashboard (Phase 43, ADMN-05). Rows without a runnerCode are skipped.
+ *
+ * Plan 04 composes this with scanAccountSubs() (adapterId → sub) to resolve every
+ * user's bib code with ZERO per-row fan-out — do NOT call getRunnerCode/
+ * resolveOidcSub once per user. Read-only wrapper; the Bib entity is unchanged.
+ * Server-only.
+ */
+export async function scanRunnerCodesBySub(): Promise<Record<string, string>> {
+  const result = await Bib.scan.go({ pages: "all" });
+  return result.data.reduce<Record<string, string>>((acc, row) => {
+    if (row.ownerSub && row.runnerCode) acc[row.ownerSub] = row.runnerCode;
+    return acc;
+  }, {});
+}

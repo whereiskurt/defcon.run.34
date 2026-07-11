@@ -118,6 +118,36 @@ export async function getUserQuotas(userId: string): Promise<UserQuotasResponse>
 }
 
 /**
+ * Bulk gpx-usage row for the admin reporting dashboard (Phase 43, ADMN-04).
+ */
+export interface QuotaByTypeRow {
+  userId: string;
+  consumptionCount: number;
+  remaining: number;
+  updatedAt: number;
+}
+
+/**
+ * List every user's consumption for a single quota type via the run.auth bulk
+ * endpoint (ONE GSI query on the auth side). Reuses quotaRequest, which already
+ * attaches X-Internal-Secret + the private auth base URL — do not hand-roll a
+ * fetch. Degrades to an EMPTY array on failure so a quota-service outage does not
+ * crash the admin report (getUserQuotas throws by design; this one must not).
+ */
+export async function getQuotaByType(
+  quotaId: QuotaId
+): Promise<QuotaByTypeRow[]> {
+  try {
+    return await quotaRequest<QuotaByTypeRow[]>(
+      `/api/internal/quota/by-type/${quotaId}`
+    );
+  } catch (error) {
+    console.error(`[quota-client] getQuotaByType(${quotaId}) failed:`, error);
+    return [];
+  }
+}
+
+/**
  * Get quota definitions (public endpoint, no auth required)
  */
 export async function getQuotaDefinitions(): Promise<QuotaDefinition[]> {
