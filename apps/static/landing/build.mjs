@@ -38,8 +38,9 @@ function wordmarkHtml(word) {
 const cardsHtml = content.cards
   .map((c, i) => {
     const delay = (0.52 + i * 0.1).toFixed(2);
-    return `<a class="card reveal" href="${escAttr(c.url)}" target="_blank" rel="noopener noreferrer" style="animation-delay: ${delay}s">
-        <div class="card-media">
+    const fit = ["cover", "emblem", "blend"].includes(c.fit) ? c.fit : "cover";
+    return `<a class="card reveal" data-id="${escAttr(c.id)}" href="${escAttr(c.url)}" target="_blank" rel="noopener noreferrer" style="animation-delay: ${delay}s">
+        <div class="card-media" data-fit="${fit}">
           <img src="${escAttr(c.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.classList.add('img-fail')" />
           <span class="card-emoji">${esc(c.emoji)}</span>
         </div>
@@ -71,8 +72,10 @@ const map = {
   BRAND_WORDMARK_HTML: wordmarkHtml(content.brand.wordmark),
   BRAND_VERSION: esc(content.brand.version),
   HYPE_BADGE: esc(content.hype.badge),
+  HYPE_BADGE_CANCELLED: escAttr(content.hype.badgeCancelled || "CANCELLED"),
   HYPE_KICKER: esc(content.hype.kicker),
   HYPE_HEADLINE: esc(content.hype.headline),
+  HYPE_HEADLINE_CANCELLED: escAttr(content.hype.headlineCancelled || "IT'S CANCELLED"),
   HYPE_SUBHEAD: esc(content.hype.subhead),
   HYPE_EVENTLINE: esc(content.hype.eventLine),
   CD_LABEL: esc(content.countdown.label),
@@ -84,10 +87,15 @@ const map = {
   CARDS: cardsHtml,
   FOOTER_TEXT: esc(content.footer.text),
   FOOTER_NOTE: esc(content.footer.note),
+  FOOTER_CREDIT: esc(content.footer.credit || ""),
   FOOTER_LINKS: footerLinks,
   // JS-context values — JSON.stringify makes them safe quoted literals
   CD_TARGET_JSON: JSON.stringify(content.countdown.targetISO),
   CD_DONE_JSON: JSON.stringify(content.countdown.done),
+  CANCEL_RAIN_GIF_JSON: JSON.stringify(content.cancelled?.rainGif || ""),
+  CANCEL_RAIN_EMOJI_JSON: JSON.stringify(content.cancelled?.rainEmoji || ["💵"]),
+  CANCEL_FLASH_MIN: String(Number(content.cancelled?.flashMinSeconds ?? 3)),
+  CANCEL_FLASH_MAX: String(Number(content.cancelled?.flashMaxSeconds ?? 7)),
 };
 
 for (const [key, value] of Object.entries(map)) {

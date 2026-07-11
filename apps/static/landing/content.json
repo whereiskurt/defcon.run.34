@@ -14,8 +14,10 @@
   },
   "hype": {
     "badge": "LIVE",
+    "badgeCancelled": "CANCELLED",
     "kicker": "AN OFFICIAL DEF CON 34 EVENT",
     "headline": "IT'S HAPPENING",
+    "headlineCancelled": "IT'S CANCELLED",
     "subhead": "defcon.run 34 is happening. Get your bib, check out the maps, and flash your Meshtastic device.",
     "eventLine": "Las Vegas // August 2026"
   },
@@ -35,7 +37,8 @@
       "blurb": "Register, lock in your runner code, and claim your place on the start line.",
       "cta": "Get your bib",
       "url": "https://bib.defcon.run",
-      "image": "https://defcon.run/landing-bib.png"
+      "image": "https://defcon.run/landing-bib.png",
+      "fit": "blend"
     },
     {
       "id": "maps",
@@ -45,7 +48,8 @@
       "blurb": "Browse the routes and GPX tracks winding across the Strip and out into the desert.",
       "cta": "Open the maps",
       "url": "https://gpx.defcon.run",
-      "image": "https://defcon.run/landing-maps.png"
+      "image": "https://defcon.run/landing-maps.png",
+      "fit": "cover"
     },
     {
       "id": "mesh",
@@ -55,7 +59,8 @@
       "blurb": "Set up your Meshtastic device and join the mesh while you move.",
       "cta": "Flash your device",
       "url": "https://flash.defcon.run",
-      "image": "https://defcon.run/landing-mesh.png"
+      "image": "https://defcon.run/landing-mesh.svg",
+      "fit": "emblem"
     },
     {
       "id": "faq",
@@ -65,15 +70,23 @@
       "blurb": "New to the run? Everything you need to know before you toe the line.",
       "cta": "Read the FAQ",
       "url": "https://run.defcon.run/faq",
-      "image": "https://defcon.run/landing-faq.png"
+      "image": "https://defcon.run/landing-faq.svg",
+      "fit": "emblem"
     }
   ],
   "footer": {
     "text": "An official DEF CON 34 event",
     "note": "See you in the desert.",
+    "credit": "Another Casual Ultra · a Production of Death by Emoji 💀😀",
     "links": [
       { "label": "run.defcon.run", "url": "https://run.defcon.run" }
     ]
+  },
+  "cancelled": {
+    "flashMinSeconds": 10,
+    "flashMaxSeconds": 15,
+    "rainGif": "https://defcon.run/dumpster-fire.gif",
+    "rainEmoji": ["💵", "💸", "🤑", "💰"]
   },
   "theme": {
     "default": "dark"

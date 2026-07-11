@@ -128,16 +128,18 @@
   }
   .brand {
     font-family: var(--font-display);
-    font-weight: 700; font-size: 20px; letter-spacing: 0.02em;
+    font-weight: 700; font-size: clamp(26px, 4.8vw, 44px); letter-spacing: 0.005em;
     text-decoration: none; color: var(--fg);
     display: inline-flex; align-items: baseline; gap: 2px;
+    text-shadow: 0 0 30px rgba(0, 212, 170, 0.22);
   }
+  html.light .brand { text-shadow: none; }
   .brand b { color: var(--primary); }
   .brand .v {
-    font-family: var(--font-mono); font-size: 12px; font-weight: 700;
+    font-family: var(--font-mono); font-size: clamp(13px, 1.8vw, 18px); font-weight: 700;
     color: var(--bg); background: var(--primary);
-    padding: 2px 6px; border-radius: 5px; margin-left: 8px;
-    transform: translateY(-2px); box-shadow: var(--glow);
+    padding: 2px 8px; border-radius: 7px; margin-left: 10px;
+    transform: translateY(-3px); box-shadow: var(--glow);
   }
   .toggle {
     appearance: none; cursor: pointer;
@@ -189,6 +191,103 @@
   .eventline {
     margin-top: 16px; font-family: var(--font-mono);
     font-size: 13px; letter-spacing: 0.16em; color: var(--muted);
+  }
+
+  /* ---- CANCELLED state (the classic DEF CON troll) ---- */
+  :root { --dead: #ff2b2b; }
+  body.cancelled h1 {
+    background: none; -webkit-text-fill-color: var(--dead); color: var(--dead);
+    text-shadow: 0 0 44px rgba(255, 43, 43, 0.6);
+  }
+  body.cancelled .cd-num { color: var(--dead); text-shadow: 0 0 24px rgba(255, 43, 43, 0.55); }
+  body.cancelled .cd-cell::before { background: linear-gradient(90deg, transparent, var(--dead), transparent); }
+  body.cancelled .cd-label { color: var(--dead); }
+  body.cancelled .badge { color: var(--dead); border-color: rgba(255, 43, 43, 0.45); }
+  body.cancelled .dot { background: var(--dead); box-shadow: 0 0 12px var(--dead); }
+  body.cancelled .cd-cell { border-color: rgba(255, 43, 43, 0.3); }
+  /* the wordmark loses it too: flipped, mirrored, and bleeding red */
+  .brand { transition: transform 0.35s var(--ease), color 0.35s; }
+  body.cancelled .brand {
+    color: var(--dead); transform: scale(-1, -1);
+    text-shadow: 0 0 30px rgba(255, 43, 43, 0.45);
+  }
+  body.cancelled .brand b { color: var(--dead); }
+  body.cancelled .brand .v {
+    background: var(--dead); color: #0a0a0f;
+    box-shadow: 0 0 18px rgba(255, 43, 43, 0.5);
+  }
+  /* cards go red too when cancelled — kickers, CTAs, glows, device tint */
+  body.cancelled .card-kicker,
+  body.cancelled .card-cta .arrow { color: var(--dead); }
+  body.cancelled .card-media {
+    background:
+      radial-gradient(120% 120% at 20% 0%, rgba(255, 43, 43, 0.30), transparent 60%),
+      radial-gradient(120% 120% at 100% 100%, rgba(255, 46, 151, 0.20), transparent 55%),
+      #0d0f16;
+  }
+  body.cancelled .card-media[data-fit="emblem"] img {
+    filter: hue-rotate(185deg) saturate(1.3) drop-shadow(0 0 22px rgba(255, 43, 43, 0.6));
+  }
+  /* bunny (bib) + jack (faq) flip upside-down when cancelled; radio + map stay put */
+  body.cancelled .card[data-id="bib"] .card-media img,
+  body.cancelled .card[data-id="faq"] .card-media img { transform: rotate(180deg); }
+  body.cancelled .card[data-id="bib"]:hover .card-media img,
+  body.cancelled .card[data-id="faq"]:hover .card-media img { transform: rotate(180deg) scale(1.06); }
+  body.cancelled .card:hover {
+    border-color: var(--dead);
+    box-shadow: 0 24px 60px -24px rgba(255, 43, 43, 0.5), 0 0 46px rgba(255, 43, 43, 0.3);
+  }
+  /* ambient horror flash — a violent red strobe + screen shake + glitch */
+  #redflash {
+    position: fixed; inset: 0; z-index: 60; pointer-events: none; opacity: 0;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(255, 20, 20, 0.55), rgba(150, 0, 0, 0.35) 60%, rgba(90, 0, 0, 0.5));
+    mix-blend-mode: screen;
+  }
+  body.flash #redflash { animation: redflash 1s ease-out; }
+  @keyframes redflash {
+    0% { opacity: 0; }
+    6% { opacity: 0.95; }
+    16% { opacity: 0.15; }
+    26% { opacity: 0.85; }
+    44% { opacity: 0.1; }
+    60% { opacity: 0.6; }
+    100% { opacity: 0; }
+  }
+  @keyframes horror {
+    0%, 100% { opacity: 1; transform: none; filter: none; }
+    10% { opacity: 0.15; transform: translate(-6px, 2px) skewX(-4deg); filter: blur(1px); }
+    22% { opacity: 1; transform: translate(8px, -2px); }
+    36% { opacity: 0.3; transform: translate(-4px, 1px) scale(1.03); }
+    52% { opacity: 1; transform: translate(5px, 2px); }
+    70% { opacity: 0.2; transform: translate(-7px, -2px) skewX(3deg); filter: blur(1.5px); }
+    86% { opacity: 1; transform: translate(2px, 0); }
+  }
+  body.flash h1, body.flash .badge, body.flash .cd-grid { animation: horror 0.9s steps(1, end) both; }
+  @keyframes shake {
+    10%, 90% { transform: translate(-2px, 0); }
+    20%, 80% { transform: translate(4px, 0); }
+    30%, 50%, 70% { transform: translate(-9px, 1px); }
+    40%, 60% { transform: translate(9px, -1px); }
+  }
+  body.flash .wrap { animation: shake 0.55s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+  body.cancelled #matrix { filter: hue-rotate(140deg) saturate(1.6) brightness(1.2); }
+
+  /* ---- Money + dumpster rain (only on explicit "!!!") ---- */
+  #rain { position: fixed; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+  .drop {
+    position: absolute; top: -12vh; will-change: transform;
+    animation: drop linear forwards;
+  }
+  .drop-emoji { font-size: 34px; line-height: 1; }
+  .drop-gif {
+    width: 68px; height: auto; border-radius: 5px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  }
+  @keyframes drop {
+    0%   { transform: translate3d(0, -12vh, 0) rotate(0deg) scale(var(--scale, 1)); opacity: 0; }
+    8%   { opacity: 1; }
+    100% { transform: translate3d(var(--sway, 0), 116vh, 0) rotate(var(--spin, 360deg)) scale(var(--scale, 1)); opacity: 1; }
   }
 
   /* ---- Countdown ---- */
@@ -252,28 +351,40 @@
   }
   .card-media {
     position: relative; aspect-ratio: 16 / 10; overflow: hidden;
+    /* forced-dark plate so line-art emblems read in both light & dark themes */
     background:
-      radial-gradient(120% 120% at 20% 0%, rgba(0, 212, 170, 0.28), transparent 60%),
-      radial-gradient(120% 120% at 100% 100%, rgba(255, 46, 151, 0.2), transparent 55%),
-      var(--panel-solid);
+      radial-gradient(120% 120% at 20% 0%, rgba(0, 212, 170, 0.30), transparent 60%),
+      radial-gradient(120% 120% at 100% 100%, rgba(255, 46, 151, 0.22), transparent 55%),
+      #0d0f16;
     display: grid; place-items: center;
   }
   .card-media img {
     position: absolute; inset: 0; width: 100%; height: 100%;
     object-fit: cover; transition: transform 0.6s var(--ease);
   }
+  /* emblem: centered logo/illustration with a neon glow */
+  .card-media[data-fit="emblem"] img {
+    object-fit: contain; padding: 15%;
+    filter: drop-shadow(0 0 22px rgba(0, 212, 170, 0.55));
+  }
+  /* blend: white line-art on a black plate — screen-blend drops the black box */
+  .card-media[data-fit="blend"] img {
+    object-fit: contain; padding: 8%; mix-blend-mode: screen;
+  }
   .card-media img.img-fail { opacity: 0; }
   .card:hover .card-media img { transform: scale(1.06); }
+  .card-media[data-fit="emblem"] img,
+  .card-media[data-fit="blend"] img { transform-origin: center; }
   .card-emoji {
-    font-size: 46px; filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4));
-    z-index: 1; transition: transform 0.5s var(--ease);
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    font-size: 46px; opacity: 0; z-index: 2;                 /* fallback only */
+    filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.4));
   }
-  .card:hover .card-emoji { transform: scale(1.12) translateY(-2px); }
+  .card-media img.img-fail + .card-emoji { opacity: 1; }
   .card-media::before {
-    content: ''; position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(180deg, transparent 45%, rgba(8, 8, 12, 0.55));
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(180deg, transparent 58%, rgba(8, 8, 12, 0.5));
   }
-  html.light .card-media::before { background: linear-gradient(180deg, transparent 55%, rgba(0,0,0,0.12)); }
   .card-body { padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
   .card-kicker { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.2em; color: var(--primary); }
   .card-title { font-family: var(--font-display); font-weight: 700; font-size: 23px; letter-spacing: 0.01em; }
@@ -291,13 +402,14 @@
     position: relative; z-index: 2;
     margin-top: 30px; padding: 30px 0 46px;
     border-top: 1px solid var(--card-line);
-    display: flex; flex-wrap: wrap; gap: 10px 18px;
-    align-items: center; justify-content: space-between;
+    display: flex; flex-wrap: wrap; gap: 6px 18px;
+    align-items: center; justify-content: center; text-align: center;
     font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: 0.06em;
   }
   footer a { color: var(--primary); text-decoration: none; }
   footer a:hover { text-decoration: underline; }
-  .foot-note b { color: var(--fg); font-weight: 700; }
+  .foot-credit { flex: 0 1 auto; }
+  .foot-credit b { color: var(--fg); font-weight: 700; }
 
   /* ---- Load-in reveal ---- */
   .reveal { opacity: 0; transform: translateY(18px); animation: rise 0.9s var(--ease) forwards; }
@@ -328,6 +440,8 @@
   <div class="backdrop" aria-hidden="true"></div>
   <div class="grid-overlay" aria-hidden="true"></div>
   <div class="grain" aria-hidden="true"></div>
+  <div id="redflash" aria-hidden="true"></div>
+  <div id="rain" aria-hidden="true"></div>
 
   <div class="wrap">
     <header>
@@ -338,9 +452,9 @@
     </header>
 
     <section class="hero">
-      <span class="badge reveal" style="animation-delay: 0.05s"><span class="dot"></span>{{HYPE_BADGE}}</span>
+      <span class="badge reveal" style="animation-delay: 0.05s"><span class="dot"></span><span id="badgeText" data-live="{{HYPE_BADGE}}" data-dead="{{HYPE_BADGE_CANCELLED}}">{{HYPE_BADGE}}</span></span>
       <p class="kicker reveal" style="animation-delay: 0.12s">{{HYPE_KICKER}}</p>
-      <h1 class="glitch reveal" style="animation-delay: 0.18s">{{HYPE_HEADLINE}}</h1>
+      <h1 id="headline" class="glitch reveal" style="animation-delay: 0.18s" data-live="{{HYPE_HEADLINE}}" data-dead="{{HYPE_HEADLINE_CANCELLED}}">{{HYPE_HEADLINE}}</h1>
       <p class="subhead reveal" style="animation-delay: 0.28s">{{HYPE_SUBHEAD}}</p>
       <p class="eventline reveal" style="animation-delay: 0.36s">{{HYPE_EVENTLINE}}</p>
     </section>
@@ -363,8 +477,8 @@
     </section>
 
     <footer>
-      <span class="foot-note"><b>{{FOOTER_TEXT}}</b> · {{FOOTER_NOTE}}</span>
-      <span>{{FOOTER_LINKS}}</span>
+      <span class="foot-credit">{{FOOTER_CREDIT}}</span>
+      <span class="foot-links">{{FOOTER_LINKS}}</span>
     </footer>
   </div>
 
@@ -390,33 +504,127 @@
         minutes: document.querySelector('[data-cd="minutes"]'),
         seconds: document.querySelector('[data-cd="seconds"]')
       };
-      var last = {};
-      function pad(n, w) { n = String(n); while (n.length < (w || 2)) n = '0' + n; return n; }
+      var last = {}, doneShown = false;
+      function pad(n) { n = String(n); return n.length < 2 ? '0' + n : n; }
+      function set(k, str) {
+        if (last[k] === str) return;
+        cells[k].textContent = str;
+        var cell = cells[k].parentElement;
+        cell.classList.remove('tick'); void cell.offsetWidth; cell.classList.add('tick');
+        last[k] = str;
+      }
       function tick() {
-        var diff = target - Date.now();
-        if (diff <= 0) {
-          grid.innerHTML = '<div class="cd-done">' + doneText + '</div>';
-          return;
-        }
-        var s = Math.floor(diff / 1000);
-        var v = {
-          days: Math.floor(s / 86400),
-          hours: Math.floor((s % 86400) / 3600),
-          minutes: Math.floor((s % 3600) / 60),
-          seconds: s % 60
-        };
-        for (var k in cells) {
-          var str = k === 'days' ? pad(v[k], 2) : pad(v[k], 2);
-          if (last[k] !== str) {
-            cells[k].textContent = str;
-            var cell = cells[k].parentElement;
-            cell.classList.remove('tick'); void cell.offsetWidth; cell.classList.add('tick');
-            last[k] = str;
+        if (window.__dcrCancelled) {
+          for (var z in cells) set(z, '00');   // cancelled → frozen at zero
+        } else {
+          var diff = target - Date.now();
+          if (diff <= 0) {
+            if (!doneShown) { grid.innerHTML = '<div class="cd-done">' + doneText + '</div>'; doneShown = true; }
+          } else {
+            var s = Math.floor(diff / 1000);
+            set('days', pad(Math.floor(s / 86400)));
+            set('hours', pad(Math.floor((s % 86400) / 3600)));
+            set('minutes', pad(Math.floor((s % 3600) / 60)));
+            set('seconds', pad(s % 60));
           }
         }
-        requestAnimationFrame(function () { setTimeout(tick, 250); });
+        setTimeout(tick, 250);
       }
       tick();
+    })();
+
+    // ---------- "DEF CON is CANCELLED" troll ----------
+    // Type "!!!" to flip HAPPENING → CANCELLED (red), freeze the clock at zero,
+    // and rain money + burning dumpsters. An ambient horror-flash also blips the
+    // cancelled state for ~0.75s at a random 3–7s cadence.
+    (function () {
+      var body = document.body;
+      var headline = document.getElementById('headline');
+      var badge = document.getElementById('badgeText');
+      var rain = document.getElementById('rain');
+      var GIF = {{CANCEL_RAIN_GIF_JSON}};
+      var EMOJI = {{CANCEL_RAIN_EMOJI_JSON}};
+      var FLASH_MIN = {{CANCEL_FLASH_MIN}}, FLASH_MAX = {{CANCEL_FLASH_MAX}};
+      var manual = false, rainTimer = null;
+
+      function apply(on) {
+        window.__dcrCancelled = on;
+        body.classList.toggle('cancelled', on);
+        headline.textContent = on ? headline.dataset.dead : headline.dataset.live;
+        if (badge) badge.textContent = on ? badge.dataset.dead : badge.dataset.live;
+      }
+
+      function spawnDrop() {
+        var gif = Math.random() < 0.3;
+        var el;
+        if (gif) {
+          el = document.createElement('img');
+          el.src = GIF; el.className = 'drop drop-gif'; el.alt = '';
+        } else {
+          el = document.createElement('span');
+          el.className = 'drop drop-emoji';
+          el.textContent = EMOJI[(Math.random() * EMOJI.length) | 0];
+        }
+        el.style.left = (Math.random() * 100) + 'vw';
+        el.style.animationDuration = (2.6 + Math.random() * 3.2) + 's';
+        el.style.setProperty('--sway', ((Math.random() * 80) - 40) + 'px');
+        el.style.setProperty('--spin', ((Math.random() * 760) - 380) + 'deg');
+        el.style.setProperty('--scale', (gif ? 0.5 + Math.random() * 0.55 : 0.8 + Math.random() * 0.9).toFixed(2));
+        el.addEventListener('animationend', function () { el.remove(); });
+        rain.appendChild(el);
+      }
+      function startRain() {
+        if (rainTimer) return;
+        for (var i = 0; i < 14; i++) spawnDrop();        // opening burst
+        rainTimer = setInterval(spawnDrop, 170);
+      }
+      function stopRain() {
+        if (rainTimer) { clearInterval(rainTimer); rainTimer = null; }
+        rain.innerHTML = '';   // clear the falling images immediately on toggle-off
+      }
+      function setManual(on) {
+        manual = on; apply(on);
+        if (on) startRain(); else stopRain();
+      }
+
+      // Desktop trigger: type "!!!"
+      var seq = [];
+      window.addEventListener('keydown', function (e) {
+        if (e.key === '!') {
+          var now = Date.now();
+          seq.push(now);
+          seq = seq.filter(function (t) { return now - t < 1200; });
+          if (seq.length >= 3) { seq = []; setManual(!manual); }
+        } else if (e.key === 'Escape' && manual) {
+          setManual(false);
+        }
+      });
+      // Mobile trigger: tap the theme toggle 5× fast (no keyboard on phones)
+      var taps = [];
+      document.getElementById('themeToggle').addEventListener('click', function () {
+        var now = Date.now();
+        taps.push(now);
+        taps = taps.filter(function (t) { return now - t < 2000; });
+        if (taps.length >= 5) { taps = []; setManual(!manual); }
+      });
+
+      // Ambient horror-flash — random FLASH_MIN..FLASH_MAX cadence.
+      // NB: deliberately NOT gated on prefers-reduced-motion — this troll is the
+      // whole point, and reduced-motion would silence it (as it once hid the bib
+      // cash-rain). Skipped only while manually cancelled or the tab is hidden.
+      function scheduleFlash() {
+        var delay = (FLASH_MIN + Math.random() * (FLASH_MAX - FLASH_MIN)) * 1000;
+        setTimeout(function () {
+          if (!manual && !document.hidden) {
+            body.classList.add('flash'); apply(true);
+            setTimeout(function () {
+              if (!manual) { apply(false); body.classList.remove('flash'); }
+            }, 1000);
+          }
+          scheduleFlash();
+        }, delay);
+      }
+      scheduleFlash();
     })();
 
     // ---------- Matrix rain ----------
