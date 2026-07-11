@@ -73,7 +73,7 @@ resource "aws_cloudfront_function" "redirect" {
 
   name    = "${var.site.label}-redirect-${each.key}"
   runtime = "cloudfront-js-2.0"
-  comment = "Edge redirect ${each.key}.${var.dns.zonename} -> ${local.location[each.key]}"
+  comment = "Edge redirect ${each.key}.${var.dns.zonename} -> ${local.target_url[each.key]}"
   publish = true
 
   code = <<-EOT
@@ -81,7 +81,7 @@ resource "aws_cloudfront_function" "redirect" {
       return {
         statusCode: ${local.status_num[each.value.status_code]},
         statusDescription: '${local.status_desc[each.value.status_code]}',
-        headers: { 'location': { value: '${local.location[each.key]}' } }
+        headers: { 'location': { value: '${local.target_url[each.key]}' } }
       };
     }
   EOT
