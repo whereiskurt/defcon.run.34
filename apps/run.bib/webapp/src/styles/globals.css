@@ -333,9 +333,19 @@ html.light {
   box-shadow: 0 0 0 3px #ff6b6b66, 0 0 16px #ff6b6b99;
 }
 
+/* Name box — grown past the soft length: amber ring + pulse ("this'll print
+   small on the bib"). Clears the moment they trim back. Reuses the save-low
+   amber keyframe so the whole form speaks one warning language. */
+.bib-name-warn {
+  border-color: #f4a240 !important;
+  box-shadow: 0 0 0 3px #f4a24066, 0 0 16px #f4a240aa;
+  animation: bib-save-low-pulse 1.6s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bib-save-dirty,
-  .bib-save-low {
+  .bib-save-low,
+  .bib-name-warn {
     animation: none;
   }
 }

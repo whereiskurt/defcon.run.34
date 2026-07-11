@@ -81,6 +81,14 @@ export default async function VenmoInstructionsPage({
     `&recipients=${encodeURIComponent(handleForDeepLink)}` +
     `&amount=${amountDollars}` +
     `&note=${encodeURIComponent(bib.runnerCode)}`;
+  // HTTPS/web equivalent — same params on venmo.com. On mobile this is a
+  // universal link that routes to the app; on desktop it opens the web pay
+  // flow. Offered as the toggle's second option (native venmo:// is default).
+  const webLink =
+    `https://venmo.com/?txn=pay` +
+    `&recipients=${encodeURIComponent(handleForDeepLink)}` +
+    `&amount=${amountDollars}` +
+    `&note=${encodeURIComponent(bib.runnerCode)}`;
 
   return (
     <main
@@ -123,6 +131,7 @@ export default async function VenmoInstructionsPage({
           runnerCode={bib.runnerCode}
           amountCents={amountCents}
           deepLink={deepLink}
+          httpsDeepLink={webLink}
         />
 
         <p style={{ margin: 0, color: "#8f8fa8", fontSize: 13 }}>

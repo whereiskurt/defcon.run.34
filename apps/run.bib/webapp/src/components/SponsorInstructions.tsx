@@ -1,6 +1,21 @@
 import type { ReactNode } from "react";
+import QRCode from "qrcode";
 import { formatCentsUsd } from "@/lib/amount";
 import { loadCopy, t } from "@/lib/copy";
+import PayLinkPanel, { type PayVariant } from "@/components/PayLinkPanel";
+
+const QR_OPTS = {
+  margin: 1,
+  width: 240,
+  errorCorrectionLevel: "M" as const,
+  color: { dark: "#0a0a0aff", light: "#ffffffff" },
+};
+
+/** Label the scheme of a pay URL for the toggle ("venmo://" / "https://"). */
+function schemeLabel(url: string): string {
+  const scheme = url.slice(0, url.indexOf(":") + 1);
+  return scheme === "https:" ? "https://" : scheme + "//";
+}
 
 /**
  * SponsorInstructions
@@ -39,6 +54,13 @@ export interface SponsorInstructionsProps {
    */
   deepLink?: string;
   /**
+   * Optional HTTPS equivalent of `deepLink` (e.g.
+   * `https://venmo.com/?txn=pay&...`). When present, the pay panel gains a
+   * slick toggle that swaps the QR + URL + button between the native scheme
+   * (`deepLink`, shown first) and this web link.
+   */
+  httpsDeepLink?: string;
+  /**
    * Optional accent color for the amount + handle typography. Defaults
    * to the DEF CON green (DC34 mint palette #6CCDB8) (#6CCDB8) shared with SponsorForm.
    */
@@ -57,11 +79,31 @@ export async function SponsorInstructions({
   runnerCode,
   amountCents,
   deepLink,
+  httpsDeepLink,
   accentColor = "#6CCDB8",
   footer,
 }: SponsorInstructionsProps) {
   const amountDisplay = formatCentsUsd(amountCents);
   const copy = await loadCopy("default");
+
+  // Build the pay-link variants (native scheme first, optional HTTPS second)
+  // and pre-render each QR to a PNG data URI on the server — the client panel
+  // just swaps between them, so no client-side QR generation. Encoding the same
+  // URL the button uses means scanning == tapping "Open <provider>".
+  const linkUrls = [deepLink, httpsDeepLink].filter(
+    (u): u is string => typeof u === "string" && u.length > 0
+  );
+  const payVariants: PayVariant[] = await Promise.all(
+    linkUrls.map(async (url) => ({
+      key: schemeLabel(url),
+      schemeLabel: schemeLabel(url),
+      url,
+      qr: await QRCode.toDataURL(url, QR_OPTS),
+    }))
+  );
+  const openLabel = t(copy, "bib.instructions.openProvider", {
+    provider: providerLabel,
+  });
 
   return (
     <section
@@ -79,68 +121,67 @@ export async function SponsorInstructions({
         margin: "24px auto 0",
       }}
     >
-      <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#8f8fa8",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
-          {t(copy, "bib.instructions.payVia", { provider: providerLabel })}
-        </span>
-        <div
-          style={{
-            fontSize: 40,
-            fontWeight: 800,
-            color: accentColor,
-            fontFamily:
-              "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-            letterSpacing: "0.02em",
-            lineHeight: 1.1,
-          }}
-        >
-          {amountDisplay}
-        </div>
-      </header>
+      {(() => {
+        // Left column = amount header + the info rows, so the QR/toggle column
+        // beside it rises to the very top of the card (aligned with the amount).
+        const leftColumn = (
+          <>
+            <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#8f8fa8",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {t(copy, "bib.instructions.payVia", { provider: providerLabel })}
+              </span>
+              <div
+                style={{
+                  fontSize: 40,
+                  fontWeight: 800,
+                  color: accentColor,
+                  fontFamily:
+                    "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+                  letterSpacing: "0.02em",
+                  lineHeight: 1.1,
+                }}
+              >
+                {amountDisplay}
+              </div>
+            </header>
 
-      <InstructionRow
-        label={t(copy, "bib.instructions.sendTo")}
-        value={handle}
-        accentColor={accentColor}
-      />
-
-      <InstructionRow
-        label={t(copy, "bib.instructions.requiredComment")}
-        value={runnerCode}
-        accentColor={accentColor}
-        hint={t(copy, "bib.instructions.requiredCommentHint")}
-      />
-
-      {deepLink && (
-        <a
-          href={deepLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-block",
-            textAlign: "center",
-            padding: "14px 20px",
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#0a0a0a",
-            backgroundColor: accentColor,
-            border: "none",
-            borderRadius: 6,
-            textDecoration: "none",
-            letterSpacing: "0.02em",
-          }}
-        >
-          {t(copy, "bib.instructions.openProvider", { provider: providerLabel })}
-        </a>
-      )}
+            <InstructionRow
+              label={t(copy, "bib.instructions.sendTo")}
+              value={handle}
+              accentColor={accentColor}
+            />
+            <InstructionRow
+              label={t(copy, "bib.instructions.requiredComment")}
+              value={runnerCode}
+              accentColor={accentColor}
+              hint={t(copy, "bib.instructions.requiredCommentHint")}
+            />
+          </>
+        );
+        // With pay links, PayLinkPanel owns the layout (left column, QR +
+        // toggle beside, actions full-width below). Without, just the column.
+        return payVariants.length > 0 ? (
+          <PayLinkPanel
+            variants={payVariants}
+            providerLabel={providerLabel}
+            runnerCode={runnerCode}
+            amountDisplay={amountDisplay}
+            accentColor={accentColor}
+            openLabel={openLabel}
+            infoRows={leftColumn}
+          />
+        ) : (
+          leftColumn
+        );
+      })()}
 
       <p
         style={{
