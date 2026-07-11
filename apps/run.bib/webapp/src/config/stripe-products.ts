@@ -7,16 +7,31 @@
  * Stripe dashboard groups per-session Prices under a single Product. Metadata
  * `donation_type` still discriminates in the webhook.
  *
- * These IDs are valid in BOTH modes: the live account was seeded via Stripe's
- * "copy to live" which preserved the sandbox IDs, so the same strings resolve
- * to the (distinct) live objects when STRIPE_LIVE_MODE=true. No mode branch is
- * needed here — only the secret/webhook keys differ by mode (see lib/stripe.ts).
+ * Mode-aware (mirrors the key toggle in lib/stripe.ts): live-mode product IDs
+ * differ from the sandbox ones and are supplied via SSM so a dashboard product
+ * swap is a `put-parameter` + task refresh — no image rebuild. Resolution order
+ * per mode:
+ *   live  → env STRIPE_PRODUCT_*_LIVE (from SSM `.../stripe/product_*_live`),
+ *           else the baked live fallback.
+ *   test  → env STRIPE_PRODUCT_* (dev/CI), else the baked sandbox fallback.
  *
- * Env override lets a different account supply its own IDs without a code
- * change (dev/CI or an emergency hot-patch).
+ * The baked fallbacks are last-resort only; SSM is the source of truth in prod.
  */
+
+// Baked fallbacks (last resort if the SSM-injected env is missing).
+const TEST_PRODUCT_BIB = "prod_UokaCinrlgtGNt";
+const TEST_PRODUCT_GENERAL = "prod_Uol30buDvGTFiW";
+const LIVE_PRODUCT_BIB = "prod_UrZhCH9JWyTTNt";
+const LIVE_PRODUCT_GENERAL = "prod_Uol30buDvGTFiW";
+
+const live = process.env.STRIPE_LIVE_MODE === "true";
+
 export const STRIPE_PRODUCT_BIB =
-  process.env.STRIPE_PRODUCT_BIB ?? "prod_UokaCinrlgtGNt";
+  (live ? process.env.STRIPE_PRODUCT_BIB_LIVE : process.env.STRIPE_PRODUCT_BIB) ??
+  (live ? LIVE_PRODUCT_BIB : TEST_PRODUCT_BIB);
 
 export const STRIPE_PRODUCT_GENERAL =
-  process.env.STRIPE_PRODUCT_GENERAL ?? "prod_Uol30buDvGTFiW";
+  (live
+    ? process.env.STRIPE_PRODUCT_GENERAL_LIVE
+    : process.env.STRIPE_PRODUCT_GENERAL) ??
+  (live ? LIVE_PRODUCT_GENERAL : TEST_PRODUCT_GENERAL);

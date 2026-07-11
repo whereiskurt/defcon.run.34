@@ -103,3 +103,31 @@ resource "aws_ssm_parameter" "cashapp_handle" {
   value = "$defconrun"
   tags  = local.tags
 }
+
+# --- Live-mode Stripe product IDs (String; not secret) ---
+# Sourced by the app in live mode so a dashboard product swap is a
+# `aws ssm put-parameter` + task refresh — no image rebuild. `ignore_changes`
+# on value so a CLI swap isn't reverted by a later apply. Seed values are the
+# current live products; update the SSM value, not this file, to swap.
+
+resource "aws_ssm_parameter" "stripe_product_bib_live" {
+  name  = "/dc34/secrets/use1/bib/stripe/product_bib_live"
+  type  = "String"
+  value = "prod_UrZhCH9JWyTTNt"
+  tags  = local.tags
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_ssm_parameter" "stripe_product_general_live" {
+  name  = "/dc34/secrets/use1/bib/stripe/product_general_live"
+  type  = "String"
+  value = "prod_Uol30buDvGTFiW"
+  tags  = local.tags
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}

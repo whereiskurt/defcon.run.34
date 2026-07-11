@@ -39,6 +39,8 @@ const ENV_KEYS = [
   "STRIPE_WEBHOOK_SIGNING_SECRET_LIVE",
   "STRIPE_PRODUCT_BIB",
   "STRIPE_PRODUCT_GENERAL",
+  "STRIPE_PRODUCT_BIB_LIVE",
+  "STRIPE_PRODUCT_GENERAL_LIVE",
 ];
 
 function clearEnv(): void {
@@ -97,27 +99,43 @@ describe("STRIPE_LIVE_MODE — webhook secret selection", () => {
   });
 });
 
-describe("product IDs (mode-independent — copy-to-live preserved the IDs)", () => {
-  async function loadProducts(mode?: string) {
+describe("product ID selection (mode-aware; live IDs from SSM env)", () => {
+  async function loadProducts(env: Record<string, string> = {}) {
     vi.resetModules();
     clearEnv();
-    if (mode !== undefined) process.env.STRIPE_LIVE_MODE = mode;
+    Object.assign(process.env, env);
     return import("@/config/stripe-products");
   }
 
-  it("resolves the known IDs regardless of STRIPE_LIVE_MODE", async () => {
-    for (const mode of [undefined, "true", "false"]) {
-      const p = await loadProducts(mode);
-      expect(p.STRIPE_PRODUCT_BIB).toBe("prod_UokaCinrlgtGNt");
-      expect(p.STRIPE_PRODUCT_GENERAL).toBe("prod_Uol30buDvGTFiW");
-    }
+  it("uses the sandbox fallbacks in test mode", async () => {
+    const p = await loadProducts();
+    expect(p.STRIPE_PRODUCT_BIB).toBe("prod_UokaCinrlgtGNt");
+    expect(p.STRIPE_PRODUCT_GENERAL).toBe("prod_Uol30buDvGTFiW");
   });
 
-  it("lets a per-var env override win", async () => {
-    vi.resetModules();
-    clearEnv();
-    process.env.STRIPE_PRODUCT_BIB = "prod_override_XYZ";
-    const p = await import("@/config/stripe-products");
+  it("uses the live fallbacks in live mode when no SSM env is set", async () => {
+    const p = await loadProducts({ STRIPE_LIVE_MODE: "true" });
+    expect(p.STRIPE_PRODUCT_BIB).toBe("prod_UrZhCH9JWyTTNt");
+    expect(p.STRIPE_PRODUCT_GENERAL).toBe("prod_Uol30buDvGTFiW");
+  });
+
+  it("prefers the SSM-injected _LIVE env in live mode (swap without rebuild)", async () => {
+    const p = await loadProducts({
+      STRIPE_LIVE_MODE: "true",
+      STRIPE_PRODUCT_BIB_LIVE: "prod_newlyswapped",
+      STRIPE_PRODUCT_GENERAL_LIVE: "prod_genswapped",
+    });
+    expect(p.STRIPE_PRODUCT_BIB).toBe("prod_newlyswapped");
+    expect(p.STRIPE_PRODUCT_GENERAL).toBe("prod_genswapped");
+  });
+
+  it("ignores the _LIVE env when in test mode", async () => {
+    const p = await loadProducts({ STRIPE_PRODUCT_BIB_LIVE: "prod_shouldbeignored" });
+    expect(p.STRIPE_PRODUCT_BIB).toBe("prod_UokaCinrlgtGNt");
+  });
+
+  it("lets the test-mode per-var env override win", async () => {
+    const p = await loadProducts({ STRIPE_PRODUCT_BIB: "prod_override_XYZ" });
     expect(p.STRIPE_PRODUCT_BIB).toBe("prod_override_XYZ");
   });
 });

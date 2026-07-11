@@ -213,6 +213,18 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/webhook_signing_secret_live"
           },
           {
+            # Live-mode Stripe product IDs (String params, delivered via
+            # secrets{} like the handles below). App reads these in live mode so
+            # a dashboard product swap is a put-parameter + task refresh — no
+            # image rebuild. Test mode falls back to the code defaults.
+            name      = "STRIPE_PRODUCT_BIB_LIVE"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/product_bib_live"
+          },
+          {
+            name      = "STRIPE_PRODUCT_GENERAL_LIVE"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/bib/stripe/product_general_live"
+          },
+          {
             # Delivered via secrets{} so the task role gets read access without
             # extra IAM plumbing, even though the param is a String type.
             name      = "VENMO_HANDLE"
