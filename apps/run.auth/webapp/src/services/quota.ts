@@ -364,6 +364,38 @@ export async function getUserQuotas(userId: string): Promise<UserQuotaItem[]> {
 }
 
 /**
+ * List every user's consumption for a single quota type in ONE GSI query.
+ *
+ * Reads the existing `byQuotaRemaining` GSI (pk = quotaId) with `pages: "all"`
+ * and maps each row to the bulk shape consumed by run.human. This is a read-only
+ * admin/analytics query (ADMN-04) — no per-user fan-out, no schema change.
+ *
+ * @param quotaId - The quota type to report on (e.g. "gpx_upload")
+ * @returns One row per user holding that quota: { userId, consumptionCount, remaining, updatedAt }
+ */
+export async function listQuotaByType(
+  quotaId: string
+): Promise<
+  Array<{
+    userId: string;
+    consumptionCount: number;
+    remaining: number;
+    updatedAt: number | undefined;
+  }>
+> {
+  const result = await UserQuota.query
+    .byQuotaRemaining({ quotaId })
+    .go({ pages: "all" });
+
+  return result.data.map((q) => ({
+    userId: q.userId,
+    consumptionCount: q.consumptionCount ?? 0,
+    remaining: q.remaining,
+    updatedAt: q.updatedAt,
+  }));
+}
+
+/**
  * Batch check multiple quotas at once.
  * Useful for checking if a user can perform an action that requires multiple quotas.
  */
