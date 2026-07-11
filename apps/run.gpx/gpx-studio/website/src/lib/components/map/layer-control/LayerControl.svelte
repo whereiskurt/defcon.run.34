@@ -211,6 +211,15 @@
         });
     });
 
+    // Whether the "Overlays" tree has any actual layers. For DEF CON it's empty
+    // (`{ overlays: {} }`), so we hide that whole band to tidy the panel.
+    let hasOverlays = $derived(
+        !!$selectedOverlayTree &&
+            Object.values($selectedOverlayTree).some(
+                (v) => v && typeof v === 'object' && Object.keys(v as object).length > 0
+            )
+    );
+
     let open = $state(false);
     function openLayerControl() {
         open = true;
@@ -257,23 +266,24 @@
                             layerTree={$selectedBasemapTree}
                             name="basemaps"
                             selected={$currentBasemap}
+                            defaultState="closed"
                             onselect={(value) => {
                                 $previousBasemap = $currentBasemap;
                                 $currentBasemap = value;
                             }}
                         />
                     </div>
-                    <Separator class="w-full" />
-                    <div class="p-2 ml-1">
-                        {#if $currentOverlays}
+                    {#if hasOverlays}
+                        <Separator class="w-full" />
+                        <div class="p-2 ml-1">
                             <LayerTree
                                 layerTree={$selectedOverlayTree}
                                 name="overlays"
                                 multiple={true}
                                 bind:checked={$currentOverlays}
                             />
-                        {/if}
-                    </div>
+                        </div>
+                    {/if}
                     {#if $publicOverlayGroups.length > 0 || $publicAggregate.available}
                         <Separator class="w-full" />
                         <div class="p-2 ml-1">

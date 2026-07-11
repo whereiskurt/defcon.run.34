@@ -60,12 +60,20 @@ export async function GET(req: NextRequest) {
     // Batch-join display names (unique users only; a failed lookup just
     // falls back to the anonymous label rather than dropping the point).
     const userIds = [...new Set(visible.map((c) => c.userId))];
-    const names = new Map<string, string | undefined>();
+    const users = new Map<
+      string,
+      { displayName?: string; userType?: string }
+    >();
     await Promise.all(
       userIds.map(async (userId) => {
         try {
           const user = await getRunUser(userId);
-          names.set(userId, user?.displayName);
+          // userType (mqttUsertype: rabbit/admin/wildhare/og) lets the map
+          // filter/highlight check-ins by user type (Kurt 2026-07-11).
+          users.set(userId, {
+            displayName: user?.displayName,
+            userType: user?.mqttUsertype,
+          });
         } catch {
           // leave unset — falls back below
         }
@@ -75,7 +83,8 @@ export async function GET(req: NextRequest) {
     const checkIns = visible.map((c) => ({
       lat: c.averageCoordinates.latitude,
       lon: c.averageCoordinates.longitude,
-      displayName: names.get(c.userId) || "a rabbit",
+      displayName: users.get(c.userId)?.displayName || "a rabbit",
+      userType: users.get(c.userId)?.userType,
       timestamp: c.timestamp,
       checkInType: c.checkInType,
       pinIcon: c.pinIcon,

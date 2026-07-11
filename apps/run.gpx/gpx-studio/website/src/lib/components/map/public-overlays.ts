@@ -123,17 +123,30 @@ type PublicCheckIn = {
     lat: number;
     lon: number;
     displayName: string;
+    userType?: string; // rabbit | admin | wildhare | og (from the run-user record)
     timestamp: number;
     checkInType?: string;
     pinIcon?: string; // dc34-pins catalog id; absent → default pin
     pinColor?: string; // #rrggbb; absent → default color
 };
 
+// User types a check-in owner can have; the filter chips + color legend key off
+// these (Kurt 2026-07-11). Order = chip order.
+export const CHECKIN_USER_TYPES = ['rabbit', 'admin', 'wildhare', 'og'] as const;
+export type CheckinUserType = (typeof CHECKIN_USER_TYPES)[number];
+
 // Check-in view filters (v1.8 Phase 4): time window chips + runner highlight.
 export type CheckinWindow = 'hour' | 'today' | 'all';
-export const checkinFilters = writable<{ window: CheckinWindow; runner: string | null }>({
+export const checkinFilters = writable<{
+    window: CheckinWindow;
+    runner: string | null;
+    match: string; // 4-5 char handle/code substring; '' = no match filter
+    types: string[]; // selected user types; [] = all types
+}>({
     window: 'all',
     runner: null,
+    match: '',
+    types: [],
 });
 
 // Structural view of the parsed GPX waypoints (avoids importing the class).
@@ -565,8 +578,15 @@ export class PublicOverlaysLayer {
             all: 0,
         };
         const since = sinceByWindow[f.window];
+        const match = f.match.trim().toLowerCase();
         const visible = this.checkins.filter(
-            (c) => c.timestamp >= since && (!f.runner || c.displayName === f.runner)
+            (c) =>
+                c.timestamp >= since &&
+                (!f.runner || c.displayName === f.runner) &&
+                // 4-5 char handle/code: case-insensitive substring of the name.
+                (!match || c.displayName.toLowerCase().includes(match)) &&
+                // user-type chips: [] = all; else the owner's type must be selected.
+                (f.types.length === 0 || (!!c.userType && f.types.includes(c.userType)))
         );
         return {
             type: 'FeatureCollection',
@@ -578,6 +598,7 @@ export class PublicOverlaysLayer {
                     geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
                     properties: {
                         displayName: c.displayName,
+                        userType: c.userType ?? '',
                         timestamp: c.timestamp,
                         checkInType: c.checkInType ?? '',
                         iconId: pin.iconId,
@@ -588,7 +609,14 @@ export class PublicOverlaysLayer {
     }
 
     /** Update the check-in filters (time window / runner) and re-cluster. */
-    setCheckInFilters(partial: Partial<{ window: CheckinWindow; runner: string | null }>) {
+    setCheckInFilters(
+        partial: Partial<{
+            window: CheckinWindow;
+            runner: string | null;
+            match: string;
+            types: string[];
+        }>
+    ) {
         checkinFilters.update((f) => ({ ...f, ...partial }));
         const source = this.map.getSource(CHECKINS_SOURCE) as mapboxgl.GeoJSONSource | undefined;
         if (source) source.setData(this.checkinFeatures());
@@ -1056,7 +1084,7 @@ export class PublicOverlaysLayer {
         publicOverlayGroups.set([]);
         publicAggregate.set({ available: false, visible: false });
         publicCheckIns.set({ available: false, visible: false, count: 0 });
-        checkinFilters.set({ window: 'all', runner: null });
+        checkinFilters.set({ window: 'all', runner: null, match: '', types: [] });
     }
 }
 
@@ -1066,9 +1094,16 @@ function getGroupsSnapshot(): PublicOverlayGroup[] {
     return _snapshot;
 }
 
-let _filtersSnapshot: { window: CheckinWindow; runner: string | null } = {
+let _filtersSnapshot: {
+    window: CheckinWindow;
+    runner: string | null;
+    match: string;
+    types: string[];
+} = {
     window: 'all',
     runner: null,
+    match: '',
+    types: [],
 };
 checkinFilters.subscribe((f) => (_filtersSnapshot = f));
 function getCheckinFiltersSnapshot() {

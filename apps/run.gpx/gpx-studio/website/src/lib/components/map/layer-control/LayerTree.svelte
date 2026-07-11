@@ -10,6 +10,7 @@
         onselect = () => {},
         multiple = false,
         checked = $bindable({}),
+        defaultState = 'open',
     }: {
         layerTree: LayerTreeType;
         name: string;
@@ -17,12 +18,13 @@
         onselect?: (value: string) => void;
         multiple?: boolean;
         checked?: LayerTreeType;
+        defaultState?: 'open' | 'closed';
     } = $props();
 </script>
 
 <form>
     <fieldset class="min-w-64 mb-1">
-        <CollapsibleTree nohover={true}>
+        <CollapsibleTree nohover={true} {defaultState}>
             <LayerTreeNode {name} node={layerTree} {selected} {onselect} {multiple} bind:checked />
         </CollapsibleTree>
     </fieldset>
