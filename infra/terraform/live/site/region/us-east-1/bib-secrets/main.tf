@@ -1,12 +1,8 @@
-terraform {
-  required_version = ">= 1.5"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
-  }
-}
+# NB: no `terraform { required_providers }` block here — Terragrunt generates the
+# aws provider (+ version constraint) via the shared providers include, same as
+# the sibling regional modules (secrets, dynamodb). A local required_providers
+# block collides with the generated one ("Duplicate required providers
+# configuration") and blocks `terragrunt init`/apply for this module.
 
 locals {
   tags = {
