@@ -239,6 +239,22 @@ export async function getRunUser(userId: string) {
 }
 
 /**
+ * Scan every RunUser row for the admin reporting dashboard (Phase 43, ADMN-02).
+ *
+ * Full-table scan — acceptable at event scale (hundreds–low-thousands of rows)
+ * per the phase decision. ElectroDB auto-filters the scan to the RunUser entity,
+ * so no manual entity filter is required. Server-only; never import into a client
+ * component. This is a read-only wrapper — it does NOT alter the entity schema.
+ */
+export async function scanAllRunUsers(): Promise<RunUserItem[]> {
+  const result = await RunUser.scan.go({ pages: "all" });
+  // ElectroDB infers meshtasticRadios map subfields as optional, whereas the
+  // hand-authored RunUserItem marks them required; the rows are the same entity,
+  // so reconcile to the declared external contract.
+  return result.data as RunUserItem[];
+}
+
+/**
  * Get a user by their QR hash (for scanning interactions)
  */
 export async function getUserByHash(hash: string) {
