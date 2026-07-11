@@ -46,7 +46,10 @@ All items below are **locked** (carried from the approved design spec).
   `lastCheckInAt`, `checkInCount`, `updatedAt`.
 - "Last activity" = max of (`updatedAt`, `lastLoginAt`, `lastCheckInAt`) present on
   the RunUser record.
-- Uploads (gpx/photo counts) from `UserUpload` (`listUploadsByUser`).
+- Uploads (gpx/photo counts) from `UserUpload` via a **single fan-out-free
+  `scanAllUploads()`** pass reduced to a `userId → {gpx,photo}` count map — NOT
+  per-user `listUploadsByUser` (userId-partitioned + paginated → N fan-out +
+  undercount). If the uploads table grows, fall back to lazy-on-row-expand.
 
 ### Email (masked / searchable)
 - Emails are **not** on `RunUser`; resolve them from run.human's **own** Auth.js
