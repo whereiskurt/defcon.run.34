@@ -76,9 +76,18 @@ Server component. Admin-gated. Renders:
 - **Summary tiles:** total users · new signups (7d) · active (7d) · users with any
   gpx activity.
 - **User table** (paginated, sortable, one row per user):
-  displayName · email (masked, click to reveal) · signed-up (`createdAt`) · last
-  login (`lastLoginAt`) · last activity · check-ins (`checkInCount` /
-  `lastCheckInAt`) · gpx routes/saves/shares · uploads · services.
+  displayName · email (masked, click to reveal) · **bib code (`runnerCode`)** ·
+  **runner QR URL** · signed-up (`createdAt`) · last login (`lastLoginAt`) · last
+  activity · check-ins (`checkInCount` / `lastCheckInAt`) · gpx routes/saves/shares ·
+  uploads · services.
+  - **Runner QR URL** = the link the QR encodes, built from the RunUser `hash`:
+    `https://run.<siteDomain>/<REGION_SHORT>/r?h=<hash>` (see
+    `run-user.ts:191`). Rendered as a clickable/copyable link. The `eqr` field is
+    the pre-rendered QR-image data-URL of that same link — available for an inline
+    QR thumbnail on row expand, but the plain URL is the primary column.
+  - **Bib code (`runnerCode`)** = the runner's bib code from the Bib entity, via
+    `getRunnerCode(userId)` (resolves adapter id → OIDC sub → Bib). Blank for users
+    without a bib.
 - **Sort:** any column; default "last activity" desc. Flip to "gpx routes desc" to
   find heavy gpx users, "signup desc" for newest.
 - **Search box:** matches full email server-side → filters to that user. Emails are
@@ -95,7 +104,8 @@ the RunUser record.
 | Email (masked/search) | Auth.js adapter table (`run-human-authjs`, `USER#`) | run.human's own table; same `userId` key; no cross-app call |
 | Uploads | `UserUpload` (`listUploadsByUser`) | gpx/photo counts |
 | GPX usage | run.auth quota `gpx_upload`/`gpx_save`/`gpx_share` `consumptionCount` | Via new bulk endpoint (unit 2) |
-| Bib | `getRunnerCode(userId)` | optional column |
+| Bib code | `getRunnerCode(userId)` → Bib `runnerCode` | Blank if no bib; resolves adapter id → OIDC sub → Bib |
+| Runner QR URL | RunUser `hash` → `https://run.<siteDomain>/<REGION_SHORT>/r?h=<hash>` | Link the QR encodes (`run-user.ts:191`); `eqr` is its pre-rendered image data-URL |
 
 ## Known limitations (acceptable for v1)
 
@@ -111,6 +121,11 @@ the RunUser record.
 - **RunUser has no list-all GSI**, so the list uses a `.scan` (ElectroDB
   auto-filters by entity). Fine at event scale (hundreds–low-thousands); revisit if
   it grows.
+- **Bib code is a per-user two-hop resolve** (`getRunnerCode`: adapter id → OIDC
+  sub via the authjs accounts table → Bib). Doing this per row is N fan-out, same as
+  the gpx-count problem. Planning should either (a) build a `sub → runnerCode` map
+  once (single Bib listing) and join, or (b) resolve bib code lazily on row
+  expand — not one blocking call per user in the list.
 
 ## Testing
 
