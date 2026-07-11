@@ -506,6 +506,31 @@ locals {
     alert_email    = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
   }
 
+  # Static host-based ALB redirects (QR service Phase 1). Pure ALB redirect
+  # actions + apex-zone ALIAS records — no target group, no ECS. Consumed by
+  # region/us-east-1/redirect-rules. Set enabled=false to ship dark.
+  redirects = {
+    enabled = true
+    rules = [
+      {
+        host         = "r"
+        target_host  = "www.youtube.com"
+        target_path  = "/watch"
+        target_query = "v=dQw4w9WgXcQ"
+        status_code  = "HTTP_302"
+        priority     = 90
+      },
+      {
+        host         = "h"
+        target_host  = "run.defcon.run"
+        target_path  = "/"
+        target_query = ""
+        status_code  = "HTTP_301"
+        priority     = 91
+      },
+    ]
+  }
+
   # Extracted to avoid self-reference within github_oidc block
   github_oidc_delegate_role_name = "${local.site.label}-github-delegate" # "dc34-github-delegate"
 
