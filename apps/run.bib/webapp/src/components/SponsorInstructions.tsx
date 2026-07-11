@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import QRCode from "qrcode";
 import { formatCentsUsd } from "@/lib/amount";
 import { loadCopy, t } from "@/lib/copy";
 
@@ -63,6 +64,19 @@ export async function SponsorInstructions({
   const amountDisplay = formatCentsUsd(amountCents);
   const copy = await loadCopy("default");
 
+  // Encode the SAME deep link the button uses, so scanning the QR with a phone
+  // is equivalent to tapping "Open <provider>" — the app opens with the amount,
+  // recipient, and runner-code note prefilled. Rendered as a PNG data URI so
+  // there's no client JS. Dark modules on a white tile for camera contrast.
+  const qrDataUrl = deepLink
+    ? await QRCode.toDataURL(deepLink, {
+        margin: 1,
+        width: 240,
+        errorCorrectionLevel: "M",
+        color: { dark: "#0a0a0aff", light: "#ffffffff" },
+      })
+    : null;
+
   return (
     <section
       aria-label={`${providerLabel} payment instructions`}
@@ -118,6 +132,47 @@ export async function SponsorInstructions({
         accentColor={accentColor}
         hint={t(copy, "bib.instructions.requiredCommentHint")}
       />
+
+      {qrDataUrl && (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: "#ffffff",
+              padding: 12,
+              borderRadius: 12,
+              lineHeight: 0,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={qrDataUrl}
+              alt={`Scan to pay ${amountDisplay} to ${handle} via ${providerLabel} — note ${runnerCode}`}
+              width={200}
+              height={200}
+              style={{ display: "block", width: 200, height: 200 }}
+            />
+          </div>
+          <span
+            style={{
+              fontSize: 13,
+              color: "#a4a4b8",
+              textAlign: "center",
+              maxWidth: 340,
+              lineHeight: 1.5,
+            }}
+          >
+            On a computer? Scan with your phone to open {providerLabel} with the
+            amount and <code>{runnerCode}</code> note prefilled.
+          </span>
+        </div>
+      )}
 
       {deepLink && (
         <a
