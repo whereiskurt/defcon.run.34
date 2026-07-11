@@ -46,15 +46,19 @@ export function ReconcileAction({
 }: ReconcileActionProps) {
   const router = useRouter();
   const { t } = useCopy();
-  // Cents-int discipline: the field holds the integer amount in cents,
-  // prefilled from the intent's amountCents (34-UI-SPEC.md).
-  const [value, setValue] = useState<string>(String(amountCents ?? 0));
+  // The field holds the amount as DOLLARS for display/entry (prefilled from the
+  // intent's amountCents, e.g. 2000 → "20.00"), converted back to integer cents
+  // on submit. The reconcile API contract is unchanged — it still POSTs cents.
+  const [value, setValue] = useState<string>(
+    ((amountCents ?? 0) / 100).toFixed(2)
+  );
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [deduped, setDeduped] = useState(false);
 
   const onApprove = async () => {
-    const cents = Math.trunc(Number(value));
+    // Dollars → integer cents (the field is money now, not raw cents).
+    const cents = Math.round(Number(value) * 100);
     if (!Number.isFinite(cents) || cents <= 0) {
       setFailed(true);
       return;
@@ -97,25 +101,48 @@ export function ReconcileAction({
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        aria-label="Amount in cents"
-        title="Amount in cents"
-        disabled={busy}
+      <span
         style={{
-          width: 76,
-          padding: "5px 8px",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "0 8px",
           borderRadius: 4,
           border: "1px solid #2a2a34",
           backgroundColor: "#0a0a0f",
-          color: "#e4e4ef",
-          fontSize: 13,
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         }}
-      />
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            color: "#8f8fa8",
+            fontSize: 13,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          }}
+        >
+          $
+        </span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          // Money field: allow only digits and a single decimal point.
+          onChange={(e) => setValue(e.target.value.replace(/[^0-9.]/g, ""))}
+          aria-label="Amount in dollars"
+          title="Amount in dollars"
+          disabled={busy}
+          style={{
+            width: 60,
+            padding: "5px 0",
+            border: "none",
+            outline: "none",
+            backgroundColor: "transparent",
+            color: "#e4e4ef",
+            fontSize: 13,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          }}
+        />
+      </span>
       <button
         type="button"
         onClick={onApprove}
