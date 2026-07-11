@@ -1,0 +1,77 @@
+{
+  "meta": {
+    "title": "defcon.run 34 — it's happening",
+    "description": "defcon.run 34 is happening. Get your bib, check out the maps, and flash your Meshtastic device. An official DEF CON 34 event in Las Vegas.",
+    "themeColor": "#00d4aa"
+  },
+  "brand": {
+    "wordmark": "defcon.run",
+    "version": "34"
+  },
+  "hype": {
+    "badge": "LIVE",
+    "kicker": "AN OFFICIAL DEF CON 34 EVENT",
+    "headline": "IT'S HAPPENING",
+    "subhead": "defcon.run 34 is happening. Get your bib, check out the maps, and flash your Meshtastic device.",
+    "eventLine": "Las Vegas // August 2026"
+  },
+  "countdown": {
+    "targetISO": "2026-08-06T13:00:00Z",
+    "label": "T-MINUS TO GATES OPEN",
+    "sublabel": "Aug 6 · 06:00 Las Vegas time",
+    "done": "GATES ARE OPEN — GO RUN",
+    "units": { "days": "DAYS", "hours": "HRS", "minutes": "MIN", "seconds": "SEC" }
+  },
+  "cards": [
+    {
+      "id": "bib",
+      "emoji": "🎽",
+      "kicker": "01 / REGISTER",
+      "title": "Grab Your Bib",
+      "blurb": "Register, lock in your runner code, and claim your place on the start line.",
+      "cta": "Get your bib",
+      "url": "https://bib.defcon.run",
+      "image": "https://defcon.run/landing-bib.png"
+    },
+    {
+      "id": "maps",
+      "emoji": "🗺️",
+      "kicker": "02 / EXPLORE",
+      "title": "Check the Maps",
+      "blurb": "Browse the routes and GPX tracks winding across the Strip and out into the desert.",
+      "cta": "Open the maps",
+      "url": "https://gpx.defcon.run",
+      "image": "https://defcon.run/landing-maps.png"
+    },
+    {
+      "id": "mesh",
+      "emoji": "📡",
+      "kicker": "03 / CONNECT",
+      "title": "Flash Your Radio",
+      "blurb": "Set up your Meshtastic device and join the mesh while you move.",
+      "cta": "Flash your device",
+      "url": "https://flash.defcon.run",
+      "image": "https://defcon.run/landing-mesh.png"
+    },
+    {
+      "id": "faq",
+      "emoji": "❓",
+      "kicker": "04 / LEARN",
+      "title": "Read the FAQ",
+      "blurb": "New to the run? Everything you need to know before you toe the line.",
+      "cta": "Read the FAQ",
+      "url": "https://run.defcon.run/faq",
+      "image": "https://defcon.run/landing-faq.png"
+    }
+  ],
+  "footer": {
+    "text": "An official DEF CON 34 event",
+    "note": "See you in the desert.",
+    "links": [
+      { "label": "run.defcon.run", "url": "https://run.defcon.run" }
+    ]
+  },
+  "theme": {
+    "default": "dark"
+  }
+}
