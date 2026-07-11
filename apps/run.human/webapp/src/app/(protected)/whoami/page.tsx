@@ -297,7 +297,7 @@ export default function WhoAmIPage() {
                 <span className="font-mono text-xs text-default-400">{userData.mqttUsername}</span>
               )}
               {userData?.runnerCode && (
-                <span className="font-mono text-xs text-primary">🎽 {userData.runnerCode}</span>
+                <span className="font-mono text-xs text-primary">🎽 {userData.runnerCode.toUpperCase()}</span>
               )}
             </div>
           </div>
@@ -309,81 +309,10 @@ export default function WhoAmIPage() {
         </CardBody>
       </Card>
 
-      {/* Two-column: Providers + Services */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-        {/* Linked Providers */}
-        <Card className="glass-card overflow-hidden">
-          <CardBody className="px-5 py-4 space-y-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
-              Linked Providers
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {providerList.map(({ name, icon: Icon, key, color }) => {
-                const isConnected = user[key];
-                const linkable = !isConnected && name === 'Strava';
-                const chip = (
-                  <Chip
-                    key={name}
-                    size="sm"
-                    variant="flat"
-                    color={isConnected ? 'success' : linkable ? 'warning' : 'default'}
-                    startContent={
-                      <Icon className="w-3 h-3 ml-1" style={{ color: isConnected ? color : linkable ? '#FC4C02' : undefined }} />
-                    }
-                    classNames={{ base: `font-mono text-xs ${linkable ? 'cursor-pointer hover:scale-105 transition-transform border-1 border-warning/50' : ''}` }}
-                  >
-                    {linkable ? 'Link Strava ↗' : name}
-                  </Chip>
-                );
-                if (linkable) {
-                  const authBase = isDev
-                    ? `http://localhost:${LOCAL_AUTH_PORT}`
-                    : `https://auth.${siteDomain}/${REGION_SHORT}`;
-                  return (
-                    <a key={name} href={`${authBase}/strava?autoLink`} target="_blank" rel="noopener noreferrer">
-                      {chip}
-                    </a>
-                  );
-                }
-                return chip;
-              })}
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Authorized Services */}
-        <Card className="glass-card overflow-hidden">
-          <CardBody className="px-5 py-4 space-y-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
-              Authorized Services
-            </span>
-            {services.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {services.map((s) => (
-                  <Chip
-                    key={s}
-                    size="sm"
-                    variant="flat"
-                    color="primary"
-                    classNames={{ base: "font-mono text-xs" }}
-                  >
-                    {s}
-                  </Chip>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-default-400">No services assigned</p>
-            )}
-
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Check-in History */}
-      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference} />
-
-      {/* Check-in Pin */}
-      <CheckInPinCard />
+      {/* Check-in History (Check-in Pin nested inside) */}
+      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference}>
+        <CheckInPinCard />
+      </CheckInHistory>
 
       {/* Meshtastic Radios */}
       <MeshtasticRadios
@@ -471,6 +400,76 @@ export default function WhoAmIPage() {
           </CardBody>
         </Card>
       )}
+
+      {/* Two-column: Providers + Services */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+        {/* Linked Providers */}
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-4 space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
+              Linked Providers
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {providerList.map(({ name, icon: Icon, key, color }) => {
+                const isConnected = user[key];
+                const linkable = !isConnected && name === 'Strava';
+                const chip = (
+                  <Chip
+                    key={name}
+                    size="sm"
+                    variant="flat"
+                    color={isConnected ? 'success' : linkable ? 'warning' : 'default'}
+                    startContent={
+                      <Icon className="w-3 h-3 ml-1" style={{ color: isConnected ? color : linkable ? '#FC4C02' : undefined }} />
+                    }
+                    classNames={{ base: `font-mono text-xs ${linkable ? 'cursor-pointer hover:scale-105 transition-transform border-1 border-warning/50' : ''}` }}
+                  >
+                    {linkable ? 'Link Strava ↗' : name}
+                  </Chip>
+                );
+                if (linkable) {
+                  const authBase = isDev
+                    ? `http://localhost:${LOCAL_AUTH_PORT}`
+                    : `https://auth.${siteDomain}/${REGION_SHORT}`;
+                  return (
+                    <a key={name} href={`${authBase}/strava?autoLink`} target="_blank" rel="noopener noreferrer">
+                      {chip}
+                    </a>
+                  );
+                }
+                return chip;
+              })}
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* Authorized Services */}
+        <Card className="glass-card overflow-hidden">
+          <CardBody className="px-5 py-4 space-y-3">
+            <span className="text-xs font-semibold uppercase tracking-wider text-default-400">
+              Authorized Services
+            </span>
+            {services.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {services.map((s) => (
+                  <Chip
+                    key={s}
+                    size="sm"
+                    variant="flat"
+                    color="primary"
+                    classNames={{ base: "font-mono text-xs" }}
+                  >
+                    {s}
+                  </Chip>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-default-400">No services assigned</p>
+            )}
+
+          </CardBody>
+        </Card>
+      </div>
 
       {/* Debug */}
       <Card className="glass-card overflow-hidden">
