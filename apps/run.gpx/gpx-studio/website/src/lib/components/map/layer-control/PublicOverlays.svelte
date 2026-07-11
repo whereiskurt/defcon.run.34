@@ -5,6 +5,7 @@
         publicCheckIns,
         checkinFilters,
         prettyRouteName,
+        CHECKIN_USER_TYPES,
     } from '../public-overlays';
     import type { PublicOverlaysLayer, CheckinWindow } from '../public-overlays';
 
@@ -13,6 +14,21 @@
         { key: 'today', label: 'Today' },
         { key: 'all', label: 'Whole con' },
     ];
+
+    // Chip label + color per user type (rabbit/admin/wildhare/og).
+    const TYPE_META: Record<string, { label: string; color: string }> = {
+        rabbit: { label: '🐇 Rabbit', color: '#e6007a' },
+        admin: { label: '★ Admin', color: '#f4a240' },
+        wildhare: { label: '⚡ Wildhare', color: '#00c2b8' },
+        og: { label: '☆ OG', color: '#8b5cf6' },
+    };
+
+    // Toggle a user-type chip in the (multi-select) type filter. [] = all.
+    function toggleType(t: string) {
+        const cur = $checkinFilters.types;
+        const next = cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t];
+        layer?.setCheckInFilters({ types: next });
+    }
 
     // The layer instance is created in LayerControl's map.onLoad; may be undefined
     // for the first frame before the map loads.
@@ -54,6 +70,33 @@
                             onclick={() => layer?.setCheckInFilters({ window: w.key })}
                         >
                             {w.label}
+                        </button>
+                    {/each}
+                </div>
+                <!-- 4-5 char handle/code match: shows only check-ins whose name matches -->
+                <input
+                    type="text"
+                    maxlength="16"
+                    placeholder="match a handle…"
+                    value={$checkinFilters.match}
+                    oninput={(e) => layer?.setCheckInFilters({ match: e.currentTarget.value })}
+                    class="w-full rounded border border-border bg-transparent px-2 py-0.5 text-xs"
+                />
+                <!-- User-type chips (multi-select; none selected = all types) -->
+                <div class="flex flex-row flex-wrap gap-1">
+                    {#each CHECKIN_USER_TYPES as t (t)}
+                        {@const on = $checkinFilters.types.includes(t)}
+                        <button
+                            type="button"
+                            class="rounded-full px-2 py-0.5 text-xs border transition-colors {on
+                                ? 'font-semibold'
+                                : 'border-border hover:bg-accent'}"
+                            style={on
+                                ? `border-color:${TYPE_META[t].color};background:${TYPE_META[t].color}22;color:${TYPE_META[t].color}`
+                                : ''}
+                            onclick={() => toggleType(t)}
+                        >
+                            {TYPE_META[t].label}
                         </button>
                     {/each}
                 </div>
