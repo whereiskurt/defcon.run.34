@@ -121,36 +121,38 @@ export async function SponsorInstructions({
         margin: "24px auto 0",
       }}
     >
-      <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        <span
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#8f8fa8",
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
-          {t(copy, "bib.instructions.payVia", { provider: providerLabel })}
-        </span>
-        <div
-          style={{
-            fontSize: 40,
-            fontWeight: 800,
-            color: accentColor,
-            fontFamily:
-              "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-            letterSpacing: "0.02em",
-            lineHeight: 1.1,
-          }}
-        >
-          {amountDisplay}
-        </div>
-      </header>
-
       {(() => {
-        const infoRows = (
+        // Left column = amount header + the info rows, so the QR/toggle column
+        // beside it rises to the very top of the card (aligned with the amount).
+        const leftColumn = (
           <>
+            <header style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#8f8fa8",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {t(copy, "bib.instructions.payVia", { provider: providerLabel })}
+              </span>
+              <div
+                style={{
+                  fontSize: 40,
+                  fontWeight: 800,
+                  color: accentColor,
+                  fontFamily:
+                    "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+                  letterSpacing: "0.02em",
+                  lineHeight: 1.1,
+                }}
+              >
+                {amountDisplay}
+              </div>
+            </header>
+
             <InstructionRow
               label={t(copy, "bib.instructions.sendTo")}
               value={handle}
@@ -164,8 +166,8 @@ export async function SponsorInstructions({
             />
           </>
         );
-        // With pay links, PayLinkPanel owns the layout (info rows left, QR +
-        // toggle beside, actions full-width below). Without, just the rows.
+        // With pay links, PayLinkPanel owns the layout (left column, QR +
+        // toggle beside, actions full-width below). Without, just the column.
         return payVariants.length > 0 ? (
           <PayLinkPanel
             variants={payVariants}
@@ -174,10 +176,10 @@ export async function SponsorInstructions({
             amountDisplay={amountDisplay}
             accentColor={accentColor}
             openLabel={openLabel}
-            infoRows={infoRows}
+            infoRows={leftColumn}
           />
         ) : (
-          infoRows
+          leftColumn
         );
       })()}
 
