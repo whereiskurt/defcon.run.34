@@ -2,77 +2,110 @@ locals {
   # subdomain label -> redirect object, e.g. "r" => {...}
   redirect_map = { for r in var.redirects : r.host => r }
 
-  status_num  = { HTTP_301 = 301, HTTP_302 = 302 }
-  status_desc = { HTTP_301 = "Moved Permanently", HTTP_302 = "Found" }
-
-  # Full destination URL per host, e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ
-  location = {
+  # Full human destination URL per host, e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ
+  target_url = {
     for h, r in local.redirect_map :
     h => "https://${r.target_host}${r.target_path}${r.target_query != "" ? "?${r.target_query}" : ""}"
   }
+
+  # Rendered interstitial HTML per host: OG tags for crawlers + client redirect for humans.
+  html = {
+    for h, r in local.redirect_map :
+    h => templatefile("${path.module}/assets/interstitial.html.tftpl", {
+      og_title        = r.og.title
+      og_description  = r.og.description
+      og_image        = r.og.image
+      page_url        = "https://${h}.${var.dns.zonename}/"
+      target_url      = local.target_url[h]
+      target_url_json = jsonencode(local.target_url[h])
+    })
+  }
+
+  # Hosts that ship a local image file (from assets/) to upload under their prefix.
+  image_uploads = {
+    for h, r in local.redirect_map :
+    h => r.og.image_file if try(r.og.image_file, null) != null
+  }
+
+  bucket_name = "redirect-pages-${var.site.label}-${var.site.random_suffix}"
 }
 
-# One edge-redirect function per host. Returning a response object at
-# viewer-request short-circuits the request, so the origin below is never
-# contacted — the redirect is served entirely at the CloudFront edge.
-resource "aws_cloudfront_function" "redirect" {
-  for_each = local.redirect_map
-
-  name    = "${var.site.label}-redirect-${each.key}"
-  runtime = "cloudfront-js-2.0"
-  comment = "Edge redirect ${each.key}.${var.dns.zonename} -> ${local.location[each.key]}"
-  publish = true
-
-  code = <<-EOT
-    function handler(event) {
-      return {
-        statusCode: ${local.status_num[each.value.status_code]},
-        statusDescription: '${local.status_desc[each.value.status_code]}',
-        headers: { 'location': { value: '${local.location[each.key]}' } }
-      };
-    }
-  EOT
-
+# Private bucket holding each host's interstitial page + any local images.
+# Read only by the CloudFront distributions below via OAC (no public access).
+resource "aws_s3_bucket" "pages" {
+  bucket   = local.bucket_name
+  tags     = var.tags
   provider = aws.global-application
 }
 
-# One CloudFront distribution per vanity host. The public ALB only accepts 443
-# from CloudFront, so these hosts must front through CloudFront; the function
-# above serves the redirect at the edge. The origin is a formality (never
-# contacted) — pointed at the redirect target so it is a sane, resolvable
-# fallback rather than a fake domain.
+resource "aws_s3_bucket_public_access_block" "pages" {
+  bucket                  = aws_s3_bucket.pages.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+  provider                = aws.global-application
+}
+
+resource "aws_cloudfront_origin_access_control" "pages" {
+  name                              = "${var.site.label}-redirect-pages-oac"
+  description                       = "OAC for vanity-redirect interstitial pages"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+  provider                          = aws.global-application
+}
+
+# Interstitial page per host at s3://bucket/<host>/index.html
+resource "aws_s3_object" "index" {
+  for_each = local.redirect_map
+
+  bucket       = aws_s3_bucket.pages.id
+  key          = "${each.key}/index.html"
+  content      = local.html[each.key]
+  etag         = md5(local.html[each.key])
+  content_type = "text/html; charset=utf-8"
+  provider     = aws.global-application
+}
+
+# Local card image per host at s3://bucket/<host>/<file> (e.g. r/hackers.png)
+resource "aws_s3_object" "image" {
+  for_each = local.image_uploads
+
+  bucket       = aws_s3_bucket.pages.id
+  key          = "${each.key}/${each.value}"
+  source       = "${path.module}/assets/${each.value}"
+  etag         = filemd5("${path.module}/assets/${each.value}")
+  content_type = "image/png"
+  provider     = aws.global-application
+}
+
+# One CloudFront distribution per vanity host, fronting the private S3 page.
+# The public ALB only accepts 443 from CloudFront, and CloudFront Functions
+# cannot return an HTML body, so the unfurl card is served as a static S3 page.
 resource "aws_cloudfront_distribution" "redirect" {
   for_each = local.redirect_map
 
-  enabled         = true
-  is_ipv6_enabled = true
-  comment         = "Vanity redirect ${each.key}.${var.dns.zonename}"
-  aliases         = ["${each.key}.${var.dns.zonename}"]
-  price_class     = "PriceClass_100"
+  enabled             = true
+  is_ipv6_enabled     = true
+  comment             = "Vanity redirect ${each.key}.${var.dns.zonename}"
+  aliases             = ["${each.key}.${var.dns.zonename}"]
+  price_class         = "PriceClass_100"
+  default_root_object = "index.html"
 
   origin {
-    domain_name = each.value.target_host
-    origin_id   = "redirect-origin"
-
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
+    domain_name              = aws_s3_bucket.pages.bucket_regional_domain_name
+    origin_id                = "s3-redirect"
+    origin_path              = "/${each.key}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.pages.id
   }
 
   default_cache_behavior {
-    target_origin_id       = "redirect-origin"
+    target_origin_id       = "s3-redirect"
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     cache_policy_id        = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
-
-    function_association {
-      event_type   = "viewer-request"
-      function_arn = aws_cloudfront_function.redirect[each.key].arn
-    }
   }
 
   viewer_certificate {
@@ -94,6 +127,30 @@ resource "aws_cloudfront_distribution" "redirect" {
   })
 
   provider = aws.global-application
+}
+
+# Grant only these distributions read access to the private bucket (OAC).
+resource "aws_s3_bucket_policy" "pages" {
+  bucket = aws_s3_bucket.pages.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "AllowCloudFrontOAC"
+      Effect    = "Allow"
+      Principal = { Service = "cloudfront.amazonaws.com" }
+      Action    = "s3:GetObject"
+      Resource  = "${aws_s3_bucket.pages.arn}/*"
+      Condition = {
+        StringEquals = {
+          "AWS:SourceArn" = [for d in aws_cloudfront_distribution.redirect : d.arn]
+        }
+      }
+    }]
+  })
+
+  provider   = aws.global-application
+  depends_on = [aws_cloudfront_distribution.redirect]
 }
 
 # Apex-zone ALIAS A record per host -> its CloudFront distribution.
