@@ -358,8 +358,7 @@ export function BibForm({
               color: "#f4a240",
             }}
           >
-            Heads up — names over {NAME_SOFT} characters may print small on the
-            bib. Trim to {NAME_SOFT} or fewer for a bold, readable bib.
+            {t("bib.bibform.tooLongWarn", { max: String(NAME_SOFT) })}
           </p>
         )}
 

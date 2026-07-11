@@ -1,4 +1,7 @@
-export default function AccessDenied() {
+import { loadCopy, t } from "@/lib/copy";
+
+export default async function AccessDenied() {
+  const copy = await loadCopy("default");
   return (
     <div
       style={{
@@ -14,23 +17,14 @@ export default function AccessDenied() {
         textAlign: "center",
       }}
     >
-      <h1 style={{ color: "#ef4444", marginBottom: "1rem" }}>Access Denied</h1>
+      <h1 style={{ color: "#ef4444", marginBottom: "1rem" }}>
+        {t(copy, "bib.accessDenied.title")}
+      </h1>
       <p style={{ color: "#a1a1aa", marginBottom: "1.5rem", maxWidth: "400px" }}>
-        You don&apos;t have access to the defcon.run 34 bib registration app.
-        This service requires the{" "}
-        <code
-          style={{
-            background: "#1f1f1f",
-            padding: "0.25rem 0.5rem",
-            borderRadius: "0.25rem",
-          }}
-        >
-          bib
-        </code>{" "}
-        service claim on your defcon.run account.
+        {t(copy, "bib.accessDenied.body")}
       </p>
       <p style={{ color: "#a1a1aa", marginBottom: "2rem" }}>
-        Contact an administrator to request access.
+        {t(copy, "bib.accessDenied.contact")}
       </p>
       <a
         href="/"
@@ -42,7 +36,7 @@ export default function AccessDenied() {
           borderRadius: "0.5rem",
         }}
       >
-        Return Home
+        {t(copy, "bib.accessDenied.cta")}
       </a>
     </div>
   );

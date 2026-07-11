@@ -2,8 +2,10 @@
 
 import { signIn } from "next-auth/react";
 import { useEffect } from "react";
+import { useCopy } from "@/components/CopyProvider";
 
 export default function SignInPage() {
+  const { t } = useCopy();
   useEffect(() => {
     // Get region from URL path (e.g., /use1/signin -> use1)
     // In production, the path is /{region}/signin, so pathParts[0] is the region
@@ -32,7 +34,7 @@ export default function SignInPage() {
       backgroundColor: "#1a1a1a",
       color: "#fff"
     }}>
-      <p>Redirecting to defcon.run login...</p>
+      <p>{t("bib.signin.redirecting")}</p>
     </div>
   );
 }

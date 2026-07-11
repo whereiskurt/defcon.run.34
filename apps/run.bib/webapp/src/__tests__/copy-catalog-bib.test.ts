@@ -111,6 +111,15 @@ const REQUIRED_BIB_KEYS = [
   "bib.admin.alreadyBooked",
   "bib.admin.reject",
   "bib.admin.rejectConfirm",
+  // Runner-facing copy sweep (2026-07-11): name-length warning, QR scan
+  // caption, and the access-denied / signin one-liners.
+  "bib.bibform.tooLongWarn",
+  "bib.instructions.scanCaption",
+  "bib.accessDenied.title",
+  "bib.accessDenied.body",
+  "bib.accessDenied.contact",
+  "bib.accessDenied.cta",
+  "bib.signin.redirecting",
 ] as const;
 
 /**
@@ -226,6 +235,14 @@ describe("Test B — interpolation token shape", () => {
   it("bib.checkout.sliderHelper carries {min} and {max}", () => {
     expect(DEFAULT["bib.checkout.sliderHelper"]).toContain("{min}");
     expect(DEFAULT["bib.checkout.sliderHelper"]).toContain("{max}");
+  });
+
+  it("bib.bibform.tooLongWarn carries {max}", () => {
+    expect(DEFAULT["bib.bibform.tooLongWarn"]).toContain("{max}");
+  });
+
+  it("bib.instructions.scanCaption carries {provider}", () => {
+    expect(DEFAULT["bib.instructions.scanCaption"]).toContain("{provider}");
   });
 
   it("bib.instructions.payVia carries {provider}", () => {
