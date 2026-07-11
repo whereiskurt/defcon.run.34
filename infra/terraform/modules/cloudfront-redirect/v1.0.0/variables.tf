@@ -34,7 +34,16 @@ variable "zone_map" {
 }
 
 variable "redirects" {
-  description = "Host-based edge redirects. host is the subdomain label under dns.zonename. priority is unused by the CloudFront edge implementation and retained only for config compatibility with the redirects list."
+  description = <<-EOT
+    Host-based redirects. Each host is served as a small S3-hosted interstitial
+    page behind its own CloudFront distribution: social crawlers read the og.*
+    tags (the unfurl card); humans are redirected client-side to the target.
+
+    og.image is an absolute URL (may be external, e.g. https://defcon.run/og.png).
+    og.image_file, when set, uploads a local file from the module's assets/ dir to
+    the host's S3 prefix — reference it in og.image as https://<host>.<zone>/<file>.
+    priority is retained only for config compatibility and is unused here.
+  EOT
   type = list(object({
     host         = string
     target_host  = string
@@ -42,6 +51,12 @@ variable "redirects" {
     target_query = optional(string, "")
     status_code  = optional(string, "HTTP_302")
     priority     = optional(number)
+    og = object({
+      title       = string
+      description = string
+      image       = string
+      image_file  = optional(string)
+    })
   }))
   default = []
 }

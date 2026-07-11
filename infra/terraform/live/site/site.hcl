@@ -506,9 +506,13 @@ locals {
     alert_email    = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
   }
 
-  # Static host-based ALB redirects (QR service Phase 1). Pure ALB redirect
-  # actions + apex-zone ALIAS records — no target group, no ECS. Consumed by
+  # Vanity host redirects (QR service Phase 1) — served as S3-hosted interstitial
+  # pages behind per-host CloudFront distributions. Crawlers read the og.* tags
+  # (the unfurl card); humans are redirected client-side to target_*. Consumed by
   # region/us-east-1/redirect-rules. Set enabled=false to ship dark.
+  #
+  # og.image is an absolute URL. og.image_file (optional) uploads a local file
+  # from the cloudfront-redirect module's assets/ dir to the host's S3 prefix.
   redirects = {
     enabled = true
     rules = [
@@ -519,6 +523,12 @@ locals {
         target_query = "v=dQw4w9WgXcQ"
         status_code  = "HTTP_302"
         priority     = 90
+        og = {
+          title       = "Hackers (1995) — DEF CON 34 Remaster"
+          description = "Their crime is curiosity. Mess with the best, die like the rest. ▶ Watch the feature presentation now."
+          image       = "https://r.defcon.run/hackers.png"
+          image_file  = "hackers.png"
+        }
       },
       {
         host         = "h"
@@ -527,6 +537,11 @@ locals {
         target_query = ""
         status_code  = "HTTP_301"
         priority     = 91
+        og = {
+          title       = "defcon.run 34 — it's happening"
+          description = "defcon.run 34 is happening. Get your bib, check the maps, and flash your Meshtastic device. An official DEF CON 34 event in Las Vegas."
+          image       = "https://defcon.run/og.png"
+        }
       },
     ]
   }
