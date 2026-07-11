@@ -32,14 +32,17 @@ const nextConfig: NextConfig = {
         source: "/studio/:lang/app",
         destination: "/studio/:lang/app.html",
       },
-      // Proxy BRouter requests to avoid CORS issues
+      // Proxy BRouter requests to avoid CORS issues. gpx.studio's own
+      // brouter.gpx.studio host went dead (DNS ENOTFOUND) — repoint at the
+      // canonical public BRouter (Kurt 2026-07-11). NB: the studio's custom
+      // profile names are remapped to brouter.de's standard set in routing.ts.
       {
         source: "/api/brouter",
-        destination: "https://brouter.gpx.studio/",
+        destination: "https://brouter.de/brouter",
       },
       {
         source: "/api/brouter/:path*",
-        destination: "https://brouter.gpx.studio/:path*",
+        destination: "https://brouter.de/brouter/:path*",
       },
     ];
   },

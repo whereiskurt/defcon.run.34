@@ -12,13 +12,16 @@ function getApiBase(): string {
     return base.replace('/studio', '');
 }
 
+// brouter.de (our routing host after brouter.gpx.studio died) only serves the
+// standard BRouter profile set, so the studio's custom profile names are mapped
+// to close standard equivalents (Kurt 2026-07-11).
 export const brouterProfiles: { [key: string]: string } = {
-    bike: 'Trekking-dry',
+    bike: 'trekking', // was 'Trekking-dry'
     racing_bike: 'fastbike',
     gravel_bike: 'gravel',
-    mountain_bike: 'MTB',
-    foot: 'Hiking-Alpine-SAC6',
-    motorcycle: 'Car-FastEco',
+    mountain_bike: 'mtb', // was 'MTB'
+    foot: 'hiking-mountain', // was 'Hiking-Alpine-SAC6'
+    motorcycle: 'car-fast', // was 'Car-FastEco'
     water: 'river',
     railway: 'rail',
 };
@@ -41,7 +44,12 @@ async function getRoute(
     const brouterBase = typeof window !== 'undefined' && window.location.hostname !== 'gpx.studio'
         ? `${getApiBase()}/api/brouter`
         : 'https://brouter.gpx.studio';
-    let url = `${brouterBase}?lonlats=${points.map((point) => `${point.lon.toFixed(8)},${point.lat.toFixed(8)}`).join('|')}&profile=${brouterProfile + (privateRoads ? '-private' : '')}&format=geojson&alternativeidx=0`;
+    // NB: brouter.de has no `-private` profile variants, so we no longer append
+    // the suffix (it would 500). The private-roads toggle is a no-op until we
+    // self-host BRouter with those profiles. `privateRoads` kept for signature
+    // compatibility.
+    void privateRoads;
+    let url = `${brouterBase}?lonlats=${points.map((point) => `${point.lon.toFixed(8)},${point.lat.toFixed(8)}`).join('|')}&profile=${brouterProfile}&format=geojson&alternativeidx=0`;
 
     let response = await fetch(url);
 
