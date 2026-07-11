@@ -57,7 +57,8 @@ renders nothing. Responsibilities:
 - **Join uploads** via `listUploadsByUser` / `UserUpload` counts (gpx/photo).
 - **Join gpx usage** from the run.auth quota service (see unit 2).
 - **Join bib/runnerCode** (optional column) via `getRunnerCode`.
-- Support server-side **sort**, **pagination**, and **email search**.
+- Support server-side **sort**, **pagination**, **email search**, and a **CSV
+  export** mode (`format=csv`) that streams the full filtered/sorted result set.
 
 ### 2. Bulk gpx-usage read — new endpoint on run.auth
 
@@ -92,6 +93,15 @@ Server component. Admin-gated. Renders:
   find heavy gpx users, "signup desc" for newest.
 - **Search box:** matches full email server-side → filters to that user. Emails are
   never rendered unless explicitly revealed.
+- **CSV export:** a "Download CSV" button exports the table. It exports the
+  **current filtered/sorted view** (all matching rows, not just the visible page).
+  Columns match the table, one row per user. Because the CSV is an admin-only
+  download (behind the same gate) and its purpose is offline analysis, it contains
+  **full emails, full runner QR URLs, and bib codes** — masking is an on-screen
+  shoulder-surfing measure, not an access control, and an admin can already reveal
+  any row. Generated server-side by the admin users API (`format=csv`), streamed
+  with `Content-Disposition: attachment`; filename includes the date. Timestamps
+  formatted as ISO for spreadsheet friendliness.
 
 "Last activity" = max of (`updatedAt`, `lastLoginAt`, `lastCheckInAt`) available on
 the RunUser record.
@@ -136,10 +146,11 @@ the RunUser record.
   search by full email returns the matching user only.
 - **Bulk gpx endpoint:** returns rows for the quotaId; internal-secret required.
 - **Sort/paginate:** sort by gpx routes desc surfaces heavy users; pagination stable.
+- **CSV export:** admin-gated; `format=csv` returns all filtered/sorted rows (not
+  just the page) with full emails; non-admin gets 404; header row + escaping correct.
 
 ## Out of scope (future follow-ups)
 
 - Any write/admin action (quota reset, lockout, service grant).
 - Exact gpx file counts via run.gpx scan.
 - CloudWatch/Phase-40 activity-event drill-downs.
-- CSV export.
