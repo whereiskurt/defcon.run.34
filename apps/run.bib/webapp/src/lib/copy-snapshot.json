@@ -97,6 +97,13 @@
     "common.profileMenu.showQr": "Show My QR",
     "common.profileMenu.signOut": "Sign out",
     "common.profileMenu.logout": "Logout",
-    "common.footer.credits": "Credits"
+    "common.footer.credits": "Credits",
+    "bib.bibform.tooLongWarn": "Heads up — names over {max} characters may print small on the bib. Trim to {max} or fewer for a bold, readable bib.",
+    "bib.instructions.scanCaption": "On a computer? Scan with your phone to open {provider} with the amount and runner code prefilled.",
+    "bib.accessDenied.title": "Access Denied",
+    "bib.accessDenied.body": "You don't have access to the defcon.run 34 bib registration app. This service requires the bib service claim on your defcon.run account.",
+    "bib.accessDenied.contact": "Contact an administrator to request access.",
+    "bib.accessDenied.cta": "Return Home",
+    "bib.signin.redirecting": "Redirecting to defcon.run login…"
   }
 }

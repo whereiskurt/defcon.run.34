@@ -1,6 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
+import { useCopy } from "@/components/CopyProvider";
 
 /**
  * PayLinkPanel — client-side pay-link switcher for the sponsor pages.
@@ -45,6 +46,7 @@ export default function PayLinkPanel({
   openLabel,
   infoRows,
 }: PayLinkPanelProps) {
+  const { t } = useCopy();
   const [idx, setIdx] = useState(0);
   const [copied, setCopied] = useState(false);
   const active = variants[idx] ?? variants[0];
@@ -165,8 +167,7 @@ export default function PayLinkPanel({
               lineHeight: 1.5,
             }}
           >
-            On a computer? Scan with your phone to open {providerLabel} with the
-            amount and <code>{runnerCode}</code> note prefilled.
+            {t("bib.instructions.scanCaption", { provider: providerLabel })}
           </span>
         </div>
       </div>
@@ -205,7 +206,7 @@ export default function PayLinkPanel({
             cursor: "pointer",
           }}
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("bib.bibform.copied") : t("bib.bibform.copy")}
         </button>
       </div>
 
