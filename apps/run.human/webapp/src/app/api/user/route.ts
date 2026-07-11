@@ -1,8 +1,19 @@
 import { auth } from "@auth";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
+import { getRunnerCode } from "@/entities/bib";
 import { pinIconById, canUsePinIcon, isValidPinColor } from "@/lib/pin-icons";
-import { getUserQuotas, getQuotaDefinitions, type QuotaId } from "@/lib/quota-client";
+import {
+  getUserQuotas,
+  getQuotaDefinitions,
+  requireAndConsumeQuota,
+  isQuotaExceededError,
+  type QuotaId,
+} from "@/lib/quota-client";
 import { NextRequest, NextResponse } from "next/server";
+
+// displayName edit rules (kept simple — matches the dc33 behavior).
+const DISPLAYNAME_MIN = 3;
+const DISPLAYNAME_MAX = 20;
 
 // Quota IDs we want to fetch for the user profile
 const PROFILE_QUOTA_IDS: QuotaId[] = [
@@ -31,10 +42,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: "User not found" }, { status: 404 });
   }
 
-  // Get all quotas from the central quota service
-  const [userQuotasResponse, definitions] = await Promise.all([
+  // Get all quotas from the central quota service (+ the runner's bib code, if
+  // they've claimed one over on the bib service — read-only, same shared table).
+  const [userQuotasResponse, definitions, runnerCode] = await Promise.all([
     getUserQuotas(session.user.id),
     getQuotaDefinitions(),
+    getRunnerCode(session.user.id).catch(() => null),
   ]);
 
   // Determine user's tier from the quota response (default to "upload")
@@ -78,6 +91,8 @@ export async function GET(req: NextRequest) {
     displayname: safeUserData.displayName,
     // Map preferences.checkinPreference to checkin_preference for compatibility
     checkin_preference: safeUserData.preferences?.checkinPreference || "public",
+    // Runner's bib code (BIB-XXXX) if they've claimed one; null otherwise
+    runnerCode,
     // Include quotas
     quotas,
   };
@@ -103,7 +118,36 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { checkinPreference, pinIcon, pinColor } = body;
+    const { checkinPreference, pinIcon, pinColor, displayName } = body;
+
+    const response: Record<string, unknown> = { success: true };
+
+    // displayName is a top-level, quota-gated field (not a preference). Handle
+    // it first so a name-only change is a valid request.
+    if (displayName !== undefined) {
+      const trimmed = typeof displayName === "string" ? displayName.trim() : "";
+      if (trimmed.length < DISPLAYNAME_MIN || trimmed.length > DISPLAYNAME_MAX) {
+        return NextResponse.json(
+          {
+            error: `displayName must be ${DISPLAYNAME_MIN}–${DISPLAYNAME_MAX} characters`,
+          },
+          { status: 400 }
+        );
+      }
+      try {
+        await requireAndConsumeQuota(session.user.id, "displayname_change");
+      } catch (err) {
+        if (isQuotaExceededError(err)) {
+          return NextResponse.json(
+            { error: "You've used all your name changes" },
+            { status: 429 }
+          );
+        }
+        throw err;
+      }
+      await updateRunUserProfile(session.user.id, { displayName: trimmed });
+      response.displayName = trimmed;
+    }
 
     const updates: Record<string, string> = {};
 
@@ -139,21 +183,22 @@ export async function PATCH(req: NextRequest) {
       updates.pinColor = pinColor;
     }
 
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(updates).length > 0) {
+      // ElectroDB set() replaces map attributes wholesale — merge with the
+      // current preferences so an update to one field doesn't drop the others.
+      const user = await getRunUser(session.user.id);
+      await updateRunUserProfile(session.user.id, {
+        preferences: { ...user?.preferences, ...updates },
+      });
+      Object.assign(response, updates);
+    } else if (displayName === undefined) {
       return NextResponse.json(
-        { error: "No valid preference fields provided" },
+        { error: "No valid fields provided" },
         { status: 400 }
       );
     }
 
-    // ElectroDB set() replaces map attributes wholesale — merge with the
-    // current preferences so an update to one field doesn't drop the others.
-    const user = await getRunUser(session.user.id);
-    await updateRunUserProfile(session.user.id, {
-      preferences: { ...user?.preferences, ...updates },
-    });
-
-    return NextResponse.json({ success: true, ...updates });
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Error updating user preference:", error);
     return NextResponse.json(

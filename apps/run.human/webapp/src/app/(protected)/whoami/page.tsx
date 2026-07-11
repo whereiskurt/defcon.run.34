@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
-import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw } from 'lucide-react';
+import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
@@ -34,6 +34,7 @@ interface UserData {
   meshtasticRadios?: any[];
   checkIns?: any[];
   checkInCount?: number;
+  runnerCode?: string | null;
   quotas?: Record<string, QuotaInfo>;
   preferences?: {
     checkinPreference?: string;
@@ -103,6 +104,10 @@ export default function WhoAmIPage() {
   const [isQuotasOpen, setIsQuotasOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -159,6 +164,44 @@ export default function WhoAmIPage() {
     }
   };
 
+  const startEditName = (current: string) => {
+    setNameInput(current);
+    setNameError(null);
+    setIsEditingName(true);
+  };
+
+  const saveName = async () => {
+    const trimmed = nameInput.trim();
+    if (trimmed === displayName) {
+      setIsEditingName(false); // no change — don't burn a name-change quota
+      return;
+    }
+    if (trimmed.length < 3 || trimmed.length > 20) {
+      setNameError('Must be 3–20 characters');
+      return;
+    }
+    setSavingName(true);
+    setNameError(null);
+    try {
+      const res = await fetch(apiUrl('/api/user'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: trimmed }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Could not save name');
+      }
+      setIsEditingName(false);
+      await update({ refreshClaims: true }); // pull the new name into the session
+      await fetchUserData(); // refresh name + name-change quota
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : 'Could not save name');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   if (!mounted || status === 'loading' || loading) {
     return (
       <div className="max-w-2xl mx-auto space-y-4">
@@ -187,6 +230,7 @@ export default function WhoAmIPage() {
 
   const { user } = session;
   const displayName = userData?.displayname || userData?.displayName || user?.displayName || user?.name || 'Runner';
+  const nameChangesLeft = userData?.quotas?.displayname_change?.remaining ?? 0;
   const services: string[] = user.services || [];
 
   return (
@@ -203,15 +247,57 @@ export default function WhoAmIPage() {
               color="primary"
               classNames={{ base: "ring-2 ring-primary/20" }}
             />
-            <div className="flex flex-col min-w-0">
-              <span className="font-museo text-lg font-bold text-foreground truncate">
-                {displayName}
-              </span>
+            <div className="flex flex-col min-w-0 flex-1">
+              {isEditingName ? (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      autoFocus
+                      size="sm"
+                      value={nameInput}
+                      onValueChange={setNameInput}
+                      maxLength={20}
+                      isDisabled={savingName}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveName();
+                        if (e.key === 'Escape') setIsEditingName(false);
+                      }}
+                      classNames={{ inputWrapper: 'h-8', input: 'font-museo font-bold' }}
+                    />
+                    <Button isIconOnly size="sm" variant="flat" color="primary" isLoading={savingName} onPress={saveName}>
+                      <Check className="w-4 h-4" />
+                    </Button>
+                    <Button isIconOnly size="sm" variant="light" isDisabled={savingName} onPress={() => setIsEditingName(false)}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  {nameError && <span className="text-danger text-xs">{nameError}</span>}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className="font-museo text-lg font-bold text-foreground truncate">
+                    {displayName}
+                  </span>
+                  {nameChangesLeft > 0 && (
+                    <button
+                      onClick={() => startEditName(displayName)}
+                      className="shrink-0 text-default-400 hover:text-primary transition-colors cursor-pointer"
+                      aria-label="Edit display name"
+                      title={`Change your name (${nameChangesLeft} left)`}
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
               {user?.email && (
                 <span className="text-xs text-default-500 truncate">{user.email}</span>
               )}
               {userData?.mqttUsername && (
                 <span className="font-mono text-xs text-default-400">{userData.mqttUsername}</span>
+              )}
+              {userData?.runnerCode && (
+                <span className="font-mono text-xs text-primary">🎽 {userData.runnerCode}</span>
               )}
             </div>
           </div>
@@ -293,11 +379,11 @@ export default function WhoAmIPage() {
         </Card>
       </div>
 
-      {/* Check-in Pin */}
-      <CheckInPinCard />
-
       {/* Check-in History */}
       <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference} />
+
+      {/* Check-in Pin */}
+      <CheckInPinCard />
 
       {/* Meshtastic Radios */}
       <MeshtasticRadios
