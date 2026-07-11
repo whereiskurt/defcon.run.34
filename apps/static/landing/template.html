@@ -124,8 +124,9 @@
   header {
     position: relative; z-index: 3;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 22px 0 10px;
+    gap: 14px; padding: 22px 0 10px;
   }
+  .brandrow { display: inline-flex; align-items: center; gap: 16px; min-width: 0; }
   .brand {
     font-family: var(--font-display);
     font-weight: 700; font-size: clamp(26px, 4.8vw, 44px); letter-spacing: 0.005em;
@@ -155,7 +156,7 @@
   html.light .toggle .moon { display: inline; }
 
   /* ---- Hero / hype ---- */
-  .hero { padding: 40px 0 8px; text-align: center; }
+  .hero { padding: 10px 0 8px; text-align: center; }
   .badge {
     display: inline-flex; align-items: center; gap: 9px;
     font-family: var(--font-mono); font-size: 12px; font-weight: 700;
@@ -450,14 +451,16 @@
 
   <div class="wrap">
     <header>
-      <a class="brand" href="https://run.defcon.run" target="_blank" rel="noopener noreferrer">{{BRAND_WORDMARK_HTML}}<span class="v">{{BRAND_VERSION}}</span></a>
+      <div class="brandrow">
+        <a class="brand" href="https://run.defcon.run" target="_blank" rel="noopener noreferrer">{{BRAND_WORDMARK_HTML}}<span class="v">{{BRAND_VERSION}}</span></a>
+        <span class="badge reveal" style="animation-delay: 0.05s"><span class="dot"></span><span id="badgeText" data-live="{{HYPE_BADGE}}" data-dead="{{HYPE_BADGE_CANCELLED}}">{{HYPE_BADGE}}</span></span>
+      </div>
       <button class="toggle" id="themeToggle" type="button" aria-label="Toggle color theme">
         <span class="sun">☀</span><span class="moon">☾</span>
       </button>
     </header>
 
     <section class="hero">
-      <span class="badge reveal" style="animation-delay: 0.05s"><span class="dot"></span><span id="badgeText" data-live="{{HYPE_BADGE}}" data-dead="{{HYPE_BADGE_CANCELLED}}">{{HYPE_BADGE}}</span></span>
       <p class="kicker reveal" style="animation-delay: 0.12s">{{HYPE_KICKER}}</p>
       <h1 id="headline" class="glitch reveal" style="animation-delay: 0.18s" data-live="{{HYPE_HEADLINE}}" data-dead="{{HYPE_HEADLINE_CANCELLED}}">{{HYPE_HEADLINE}}</h1>
       <p class="subhead reveal" style="animation-delay: 0.28s">defcon.run 34 is happening. Get your <a href="https://bib.defcon.run" target="_blank" rel="noopener noreferrer">bib</a>, check out the <a href="https://gpx.defcon.run" target="_blank" rel="noopener noreferrer">maps</a>, and <a href="https://run.defcon.run" target="_blank" rel="noopener noreferrer">flash your Meshtastic device</a>.</p>
