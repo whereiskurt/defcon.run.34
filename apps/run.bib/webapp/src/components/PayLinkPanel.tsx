@@ -1,18 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 /**
  * PayLinkPanel — client-side pay-link switcher for the sponsor pages.
  *
- * Shows a scannable QR + the raw pay URL + an "Open" button, all driven by the
- * currently-selected variant. When more than one variant is supplied (Venmo:
- * `venmo://` native vs `https://` web), a slick segmented toggle swaps the QR,
- * the URL text, and the button href together. Defaults to the FIRST variant
- * (native `venmo://`), per Kurt's spec.
+ * Layout (per Kurt): a two-column top — the caller's info rows on the left,
+ * the toggle + QR + scan caption beside them on the right — then the raw URL
+ * (with Copy) and the "Open" button span full width underneath. Keeps the card
+ * short instead of one tall stack. Wraps to a single column on narrow screens.
  *
- * QRs are pre-rendered to PNG data URIs on the server (no client-side QR gen);
- * this component just swaps between them, so the switch is instant.
+ * When more than one variant is supplied (Venmo: `venmo://` native vs
+ * `https://` web) a segmented toggle swaps the QR, the URL text, and the button
+ * href together. Defaults to the FIRST variant (native `venmo://`). QRs are
+ * pre-rendered to PNG data URIs on the server — this just swaps between them.
  */
 export interface PayVariant {
   /** Stable key + accessible label, e.g. "venmo://" / "https://". */
@@ -31,6 +32,8 @@ export interface PayLinkPanelProps {
   amountDisplay: string;
   accentColor: string;
   openLabel: string;
+  /** Server-rendered info rows (Send-to, Required-comment) for the left column. */
+  infoRows: ReactNode;
 }
 
 export default function PayLinkPanel({
@@ -40,6 +43,7 @@ export default function PayLinkPanel({
   amountDisplay,
   accentColor,
   openLabel,
+  infoRows,
 }: PayLinkPanelProps) {
   const [idx, setIdx] = useState(0);
   const [copied, setCopied] = useState(false);
@@ -57,99 +61,118 @@ export default function PayLinkPanel({
   };
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 14,
-      }}
-    >
-      {hasToggle && (
-        <div
-          role="tablist"
-          aria-label={`${providerLabel} link type`}
-          style={{
-            display: "inline-flex",
-            gap: 4,
-            padding: 4,
-            backgroundColor: "#1a1a24",
-            border: "1px solid #2a2a34",
-            borderRadius: 999,
-          }}
-        >
-          {variants.map((v, i) => {
-            const selected = i === idx;
-            return (
-              <button
-                key={v.key}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                onClick={() => setIdx(i)}
-                style={{
-                  padding: "7px 18px",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  borderRadius: 999,
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily:
-                    "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-                  backgroundColor: selected ? accentColor : "transparent",
-                  color: selected ? "#0a0a0a" : "#a4a4b8",
-                  transition:
-                    "background-color 140ms ease, color 140ms ease",
-                }}
-              >
-                {v.schemeLabel}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      <div
-        style={{
-          backgroundColor: "#ffffff",
-          padding: 12,
-          borderRadius: 12,
-          lineHeight: 0,
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          key={active.key}
-          src={active.qr}
-          alt={`Scan to pay ${amountDisplay} to ${providerLabel} — note ${runnerCode}`}
-          width={200}
-          height={200}
-          style={{ display: "block", width: 200, height: 200 }}
-        />
-      </div>
-
-      <span
-        style={{
-          fontSize: 13,
-          color: "#a4a4b8",
-          textAlign: "center",
-          maxWidth: 340,
-          lineHeight: 1.5,
-        }}
-      >
-        On a computer? Scan with your phone to open {providerLabel} with the
-        amount and <code>{runnerCode}</code> note prefilled.
-      </span>
-
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Top: info rows (left) | toggle + QR + caption (right). Wraps on mobile. */}
       <div
         style={{
           display: "flex",
-          alignItems: "stretch",
-          gap: 8,
-          width: "100%",
-          maxWidth: 440,
+          flexWrap: "wrap",
+          gap: 24,
+          alignItems: "flex-start",
         }}
       >
+        <div
+          style={{
+            flex: "1 1 260px",
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+          }}
+        >
+          {infoRows}
+        </div>
+
+        <div
+          style={{
+            flex: "1 1 240px",
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          {hasToggle && (
+            <div
+              role="tablist"
+              aria-label={`${providerLabel} link type`}
+              style={{
+                display: "inline-flex",
+                gap: 4,
+                padding: 4,
+                backgroundColor: "#1a1a24",
+                border: "1px solid #2a2a34",
+                borderRadius: 999,
+              }}
+            >
+              {variants.map((v, i) => {
+                const selected = i === idx;
+                return (
+                  <button
+                    key={v.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    onClick={() => setIdx(i)}
+                    style={{
+                      padding: "7px 18px",
+                      fontSize: 13,
+                      fontWeight: 700,
+                      borderRadius: 999,
+                      border: "none",
+                      cursor: "pointer",
+                      fontFamily:
+                        "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
+                      backgroundColor: selected ? accentColor : "transparent",
+                      color: selected ? "#0a0a0a" : "#a4a4b8",
+                      transition:
+                        "background-color 140ms ease, color 140ms ease",
+                    }}
+                  >
+                    {v.schemeLabel}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div
+            style={{
+              backgroundColor: "#ffffff",
+              padding: 12,
+              borderRadius: 12,
+              lineHeight: 0,
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              key={active.key}
+              src={active.qr}
+              alt={`Scan to pay ${amountDisplay} to ${providerLabel} — note ${runnerCode}`}
+              width={180}
+              height={180}
+              style={{ display: "block", width: 180, height: 180 }}
+            />
+          </div>
+
+          <span
+            style={{
+              fontSize: 13,
+              color: "#a4a4b8",
+              textAlign: "center",
+              maxWidth: 300,
+              lineHeight: 1.5,
+            }}
+          >
+            On a computer? Scan with your phone to open {providerLabel} with the
+            amount and <code>{runnerCode}</code> note prefilled.
+          </span>
+        </div>
+      </div>
+
+      {/* Full width below: raw URL + Copy, then the Open button. */}
+      <div style={{ display: "flex", alignItems: "stretch", gap: 8, width: "100%" }}>
         <code
           style={{
             flex: 1,
@@ -172,7 +195,7 @@ export default function PayLinkPanel({
           aria-label="Copy pay link"
           style={{
             flexShrink: 0,
-            padding: "0 14px",
+            padding: "0 16px",
             fontSize: 13,
             fontWeight: 700,
             color: "#e4e4ef",
@@ -191,10 +214,9 @@ export default function PayLinkPanel({
         target="_blank"
         rel="noopener noreferrer"
         style={{
-          display: "inline-block",
+          display: "block",
           textAlign: "center",
           width: "100%",
-          maxWidth: 440,
           padding: "14px 20px",
           fontSize: 16,
           fontWeight: 700,
