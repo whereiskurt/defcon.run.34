@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
       { key: "createdAtIso", header: "createdAt" },
       { key: "services", header: "services" },
       { key: "lockedOut", header: "lockedOut" },
+      { key: "jailed", header: "jailed" },
+      { key: "jailLevel", header: "jailLevel" },
       { key: "userId", header: "userId" },
     ];
     const csvRows = rows.map((r) => ({
