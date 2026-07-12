@@ -88,7 +88,7 @@ describe("PATCH /api/internal/user/[oidcSub]", () => {
   it("skips (manual) by heuristic when flag absent and name is non-default", async () => {
     mockGetRunUser.mockResolvedValue({
       userId: "adapter-abcd1234",
-      displayName: "KPH", // != rabbit_abcd
+      displayName: "KPH", // != the auto-default rabbit_adap (slice(0,4) of adapter id)
     });
     const { request, params } = req("s3cret", { displayName: "OGRE" });
     const res = await PATCH(request, { params });

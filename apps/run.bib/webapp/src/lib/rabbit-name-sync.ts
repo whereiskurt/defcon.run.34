@@ -29,6 +29,12 @@ const HUMAN_BASE_URL =
 
 const INTERNAL_SECRET = process.env.AUTH_INTERNAL_SECRET || "";
 
+// Hard ceiling on the sync round-trip. This call sits on the bib name-save
+// response path, so a run.human task that is UP BUT HUNG must not stall the
+// save for undici's ~300s default. On timeout the fetch aborts -> caught ->
+// "failed", preserving fail-open while bounding the added latency.
+const SYNC_TIMEOUT_MS = 1500;
+
 /**
  * Reconcile a bib name to run.human's 3-20 rabbit-name rules.
  * Returns null when it can't be synced (< 3 chars after trim), else the trimmed
@@ -60,6 +66,7 @@ export async function syncRabbitName(
         "X-Internal-Secret": INTERNAL_SECRET,
       },
       body: JSON.stringify({ displayName: name }),
+      signal: AbortSignal.timeout(SYNC_TIMEOUT_MS),
     });
     return res.ok;
   } catch {

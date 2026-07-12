@@ -165,6 +165,11 @@ export async function PATCH(
       return NextResponse.json({ synced: false, reason: "manual" });
     }
 
+    // Accepted TOCTOU: the read above and the write below are not atomic, so a
+    // pencil edit landing in the gap could be clobbered by this sync. The window
+    // is sub-second and the field is a cosmetic display name, so we accept it
+    // rather than add a conditional write.
+
     await updateRunUserProfile(adapterUserId, {
       displayName: name,
       displayNameManual: false,

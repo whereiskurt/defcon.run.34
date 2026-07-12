@@ -42,6 +42,14 @@ describe("syncRabbitName", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
     await expect(syncRabbitName("sub-3", "OGRE")).resolves.toBe(false);
   });
+
+  it("passes an abort signal so a hung run.human can't stall the save", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    await syncRabbitName("sub-4", "OGRE");
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
 });
 
 describe("maybeSyncRabbitName", () => {
