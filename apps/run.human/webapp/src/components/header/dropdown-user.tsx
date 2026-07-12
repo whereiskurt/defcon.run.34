@@ -27,6 +27,7 @@ import CheckInModal from '@/components/CheckInModal';
 import { useCopy } from '../CopyProvider';
 import { LogoutIcon } from './icon/logout';
 import { QRIcon } from './icon/qr';
+import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
 import { useEffect, useState } from 'react';
 import { apiUrl } from '@/lib/api';
 
@@ -317,7 +318,7 @@ function QRModal(isOpen: boolean, onClose: () => void, userDetail: any) {
     onClose();
   };
 
-  const hasQR = userDetail?.eqr;
+  const hasQR = userDetail?.hash || userDetail?.eqr;
 
   return (
     <Modal
@@ -339,7 +340,7 @@ function QRModal(isOpen: boolean, onClose: () => void, userDetail: any) {
             <ModalBody className="p-0 pt-0">
               {hasQR ? (
                 <div className="p-0 overflow-hidden">
-                  <img src={userDetail.eqr} className="w-full scale-110 -m-[0px]" />
+                  <StyledRunnerQr hash={userDetail.hash} eqrFallback={userDetail.eqr} className="w-full scale-110 -m-[0px]" />
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-[300px]">

@@ -58,3 +58,4 @@ lambda_*.zip
 .*.json
 apps/configui/backups/
 excalidraw.log
+.superpowers/
