@@ -184,6 +184,7 @@ export function DonateModal({
           }
           onSubmit={runCheckout}
           copy={{
+            kicker: "Support",
             supportLabel: "Your support",
             title: "Just donate",
             subhead: "Support goes directly to defcon.run 34. Thank you!",

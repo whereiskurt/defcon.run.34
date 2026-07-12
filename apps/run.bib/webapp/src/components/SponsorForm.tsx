@@ -233,6 +233,13 @@ export interface SponsorFormProps {
    * on the page (swapped below "Just donate") instead of being removed.
    */
   disabled?: boolean;
+  /**
+   * Presentation (Kurt 2026-07-11). "tile" (default) renders the bare tile
+   * control set inside the Sponsor tile (which supplies its own card + kicker +
+   * art). "page" renders the full modal-style DonateCard — kicker + coin art +
+   * title + card chrome — for the standalone /donate page.
+   */
+  presentation?: "tile" | "page";
 }
 
 export function SponsorForm({
@@ -241,6 +248,7 @@ export function SponsorForm({
   defaultAmountCents,
   runnerCode,
   disabled: forceDisabled = false,
+  presentation = "tile",
 }: SponsorFormProps = {}) {
   const router = useRouter();
   const { t } = useCopy();
@@ -295,11 +303,12 @@ export function SponsorForm({
       ? t("bib.contribution.sponsorVerb")
       : t("bib.contribution.donateVerb"));
 
-  // Rendered bare — the orderform Sponsor tile already provides the card + the
-  // title/art, so DonateCard drops its own chrome + title here.
+  // "tile" → bare (the Sponsor tile supplies card + kicker + art).
+  // "page" → full modal-style card (kicker + coin art + title) for /donate.
+  const asPage = presentation === "page";
   return (
     <DonateCard
-      bare
+      bare={!asPage}
       amountCents={amountCents}
       minCents={minCents}
       maxCents={AMOUNT_MAX_CENTS}
@@ -317,9 +326,12 @@ export function SponsorForm({
       }
       onSubmit={runCheckout}
       copy={{
+        kicker: asPage ? t("bib.contribution.kickerSupport") : undefined,
         supportLabel: "Your support",
-        title: "",
-        subhead: "",
+        title: asPage ? "Support defcon.run" : "",
+        subhead: asPage
+          ? "defcon.run is a FREE daily event — chip in to help cover bibs, swag, and the morning meetups at the Spot."
+          : "",
         stepHint: variant === "bib" ? "per bib · $5 steps" : "$5 steps",
         payWith: t("bib.checkout.paymentMethod"),
         card: t("bib.checkout.providerCard"),

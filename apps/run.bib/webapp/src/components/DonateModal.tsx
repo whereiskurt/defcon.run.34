@@ -189,7 +189,8 @@ export function DonateModal({
           }
           onSubmit={runCheckout}
           copy={{
-            supportLabel: t("bib.contribution.kickerSupport"),
+            kicker: t("bib.contribution.kickerSupport"),
+            supportLabel: "Your support",
             title: t("bib.donate.title"),
             subhead: t("bib.donate.subhead"),
             stepHint: "$5 steps",
