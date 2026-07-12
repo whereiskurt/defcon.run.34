@@ -256,9 +256,10 @@ export default function WhoAmIPage() {
     <div className="max-w-[900px] mx-auto space-y-2.5 animate-fade-up">
       {/* Identity card */}
       <Card className="glass-card overflow-hidden">
-        <CardBody className="px-5 py-4 space-y-4">
+        <CardBody className="px-5 py-4">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="flex flex-col gap-4 min-w-0 flex-1">
+            <div className="flex items-center gap-3 min-w-0">
             <Avatar
               src={user?.image || undefined}
               name={displayName}
@@ -321,16 +322,17 @@ export default function WhoAmIPage() {
               )}
             </div>
             </div>
+            {session.expires && (
+              <p className="font-mono text-xs text-default-400">
+                Session: {relativeExpiry(session.expires)} remaining
+              </p>
+            )}
+            </div>
             <SocialQRRow
               stravaUrl={stravaGroupUrl}
               signalUrl={signalGroupUrl}
             />
           </div>
-          {session.expires && (
-            <p className="font-mono text-xs text-default-400">
-              Session: {relativeExpiry(session.expires)} remaining
-            </p>
-          )}
         </CardBody>
       </Card>
 
