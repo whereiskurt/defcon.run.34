@@ -150,14 +150,16 @@ Controls:
 - **Style**:
   - Module shape: square / dots / rounded / classy.
   - Eyes: corner-square shape (square / rounded / dot) + independent eye color.
-  - Center logo: none / bundled DC34 marks (skull badge, dcjack, bunny —
-    sourced from existing repo art, bundled under `public/`) / file upload.
+  - Center logo: none / bundled DC34 marks (dcjack, meshtastic, dc34 —
+    the marks that exist as usable repo art; no standalone skull asset
+    exists and bunny-head.png has an opaque background) / file upload.
     Uploaded images stay client-side and are embedded straight into the PDF —
     never uploaded to a server. Enabling any logo forces error-correction to H
     and caps the logo at ~22% of QR width.
   - **DC34 template presets** (one click sets shape + colors + logo):
     - *Classic* — black squares on white, no logo.
-    - *Run Hacker Run* — dark-teal modules, magenta eyes, skull badge logo.
+    - *Run Hacker Run* — dark-teal `#12836f` modules, deep-magenta `#8f1857`
+      eyes, DC34 mark logo.
     - *Mesh* — black modules, teal eyes, mesh logo.
     - *Stealth* — near-black modules, dcjack logo.
     Presets keep dark-on-light contrast so codes scan reliably; a contrast
