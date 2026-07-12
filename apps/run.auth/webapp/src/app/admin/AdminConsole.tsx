@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type CSSProperties } from "react";
 import type { IdentityRow, IdentitySort, SummaryTiles, ProviderKey } from "@/lib/identity-report";
 import { LockAction, UnlinkAction, DeleteIdentityAction } from "./AdminActions";
 import { SiGithub, SiDiscord, SiStrava } from "react-icons/si";
@@ -9,7 +9,16 @@ import { Mail, Users, UserPlus, Layers, Lock } from "lucide-react";
 // Loose icon type so react-icons (IconType) and lucide (LucideIcon) both fit.
 type Ico = ComponentType<{ size?: number; style?: CSSProperties }>;
 
-type Row = Omit<IdentityRow, "emailFull">;
+// In production the app is mounted at basePath /{region}; client fetches MUST
+// prefix it or they 404 (the routes live at /use1/api/..., not /api/...).
+const BASE = process.env.NODE_ENV === "production"
+  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || "use1"}`
+  : "";
+
+// This panel is admin-only (non-disclosure 404 for everyone else) and seen by
+// ~2 trusted admins, so we ship the full email to the client for direct search
+// + reveal, rather than the masked-only projection used by less-restricted views.
+type Row = IdentityRow;
 type RunHumanRef = { found: boolean; runUserId: string | null; displayName: string | null };
 type Detail = {
   identity: { userId: string; displayName: string; email: string | null; services: string[];
@@ -101,7 +110,6 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   const [rows, setRows] = useState<Row[]>(initialRows);
   useEffect(() => { setRows(initialRows); }, [initialRows]);
   const [q, setQ] = useState("");
-  const [matchedIds, setMatchedIds] = useState<Set<string> | null>(null);
   const [sort, setSort] = useState<IdentitySort>("created");
   const [pill, setPill] = useState<null | "multi" | "locked" | "new24h" | "notRunHuman">(null);
   const [page, setPage] = useState(0);
@@ -109,33 +117,18 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   const [refs, setRefs] = useState<Record<string, RunHumanRef>>({});
   const [drawer, setDrawer] = useState<Detail | null>(null);
   const [drawerLoading, setDrawerLoading] = useState(false);
-  const searchSeq = useRef(0);
-
-  // Server-side FULL-email search (debounced) — matches emails the admin can't
-  // see (they're masked). Unioned with the client-side visible-field match below.
-  useEffect(() => {
-    if (!q.trim()) { searchSeq.current += 1; setMatchedIds(null); return; }
-    const seq = ++searchSeq.current;
-    const t = setTimeout(async () => {
-      const res = await fetch(`/api/admin/identities?q=${encodeURIComponent(q)}`, { cache: "no-store" });
-      if (!res.ok) return;
-      const data = (await res.json()) as { rows: Row[] };
-      if (seq === searchSeq.current) setMatchedIds(new Set(data.rows.map((r) => r.userId)));
-    }, 220);
-    return () => clearTimeout(t);
-  }, [q]);
+  const [reveal, setReveal] = useState(false); // admin-only panel (2 trusted admins) — reveal full emails
 
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
     let out = [...rows];
     if (nq) {
-      // Match the VISIBLE fields instantly (rabbit name, masked email, groups),
-      // OR a server-side full-email hit once it arrives.
+      // Full client-side match on rabbit name, FULL email, and groups — the
+      // client now holds emailFull, so search is instant and complete.
       out = out.filter((r) =>
         r.displayName.toLowerCase().includes(nq) ||
-        r.emailMasked.toLowerCase().includes(nq) ||
-        r.services.some((s) => s.toLowerCase().includes(nq)) ||
-        (matchedIds?.has(r.userId) ?? false));
+        (r.emailFull ?? "").toLowerCase().includes(nq) ||
+        r.services.some((s) => s.toLowerCase().includes(nq)));
     }
     if (pill === "multi") out = out.filter((r) => r.providerCount > 1);
     if (pill === "locked") out = out.filter((r) => r.lockedOut);
@@ -150,7 +143,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
       displayName: (a, b) => a.displayName.localeCompare(b.displayName),
     };
     return out.sort(cmp[sort]);
-  }, [rows, q, matchedIds, pill, sort, refs]);
+  }, [rows, q, pill, sort, refs]);
 
   const pageRows = filtered.slice(page * perPage, page * perPage + perPage);
 
@@ -171,7 +164,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
     const need = pageRows.map((r) => r.userId).filter((id) => !(id in refs));
     if (need.length === 0) return;
     (async () => {
-      const res = await fetch(`/api/admin/identities/resolve-runhuman`, {
+      const res = await fetch(`${BASE}/api/admin/identities/resolve-runhuman`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userIds: need }),
       });
@@ -180,16 +173,16 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
       setRefs((prev) => ({ ...prev, ...data.refs }));
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, perPage, filtered.length, sort, pill, q, matchedIds]);
+  }, [page, perPage, filtered.length, sort, pill, q]);
 
   async function openDrawer(userId: string) {
     setDrawerLoading(true); setDrawer(null);
-    const res = await fetch(`/api/admin/identities/${encodeURIComponent(userId)}`, { cache: "no-store" });
+    const res = await fetch(`${BASE}/api/admin/identities/${encodeURIComponent(userId)}`, { cache: "no-store" });
     setDrawerLoading(false);
     if (res.ok) setDrawer((await res.json()) as Detail);
   }
 
-  const csvHref = `/api/admin/identities?format=csv&sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+  const csvHref = `${BASE}/api/admin/identities?format=csv&sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
   const heroes: { key: string; label: string; value: number; tint: string; Icon: Ico; note?: string; spark?: boolean }[] = [
     { key: "ids", label: "Identities", value: tiles.totalIdentities, tint: "#00d4aa", Icon: Users,
@@ -237,8 +230,13 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
       {/* controls */}
       <div className="mb-3.5 flex flex-wrap items-center gap-2.5">
         <input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }}
-          placeholder="search rabbit or email…"
+          placeholder="search rabbit or full email…"
           className="min-w-[220px] max-w-[340px] flex-1 rounded-lg border border-divider bg-content1 px-3 py-2 text-[13px] outline-none focus:border-primary" />
+        <button onClick={() => setReveal((v) => !v)}
+          className={`rounded-full border px-3 py-1.5 font-mono text-xs transition-colors ${
+            reveal ? "border-primary bg-primary/10 text-primary" : "border-divider text-default-500 hover:text-foreground"}`}>
+          {reveal ? "emails shown" : "reveal emails"}
+        </button>
         {([["multi", "multi-provider"], ["locked", "locked"], ["new24h", "created <24h"], ["notRunHuman", "not in run.human"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => { setPill(pill === key ? null : key); setPage(0); }}
             className={`rounded-full border px-3 py-1.5 font-mono text-xs transition-colors ${
@@ -287,7 +285,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="font-mono text-[11px] text-default-500 blur-[3px] transition-[filter] hover:blur-none">{r.emailMasked}</span>
+                      <span className={`font-mono text-[11px] text-default-500 transition-[filter] ${reveal ? "" : "blur-[3px] hover:blur-none"}`}>{r.emailFull ?? r.emailMasked}</span>
                     </td>
                     <td className="px-3 py-2.5">
                       <span className="flex flex-wrap gap-1.5">
