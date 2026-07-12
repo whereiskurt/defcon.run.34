@@ -162,8 +162,13 @@ const providers: Provider[] = [
   }),
   // Sign In with LinkedIn using OpenID Connect. The built-in provider is
   // type: "oidc" and already sets issuer + token_endpoint_auth_method:
-  // "client_secret_post" + checks: ["state"]. We only override the scope and
-  // the region-prefixed redirect_uri (baseUrl includes /{region} in prod).
+  // "client_secret_post" + checks: ["state"]. We override the scope and the
+  // region-prefixed redirect_uri (baseUrl includes /{region} in prod). The
+  // redirect_uri MUST be set on BOTH authorization AND token: OAuth requires
+  // the token-exchange redirect_uri to byte-match the authorize one, and
+  // Auth.js's default token redirect_uri drops the /{region} prefix → LinkedIn
+  // rejects with invalid_redirect_uri. Same reason Github/Discord/Strava set it
+  // in both places above.
   LinkedIn({
     clientId: config.providers.linkedin.clientId,
     clientSecret: config.providers.linkedin.clientSecret,
@@ -171,6 +176,11 @@ const providers: Provider[] = [
     authorization: {
       params: {
         scope: "openid profile email",
+        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/linkedin`,
+      },
+    },
+    token: {
+      params: {
         redirect_uri: `${config.urls.baseUrl}/api/auth/callback/linkedin`,
       },
     },
