@@ -1,9 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dynamodbClient, DYNAMODB_TABLE } from "@/entities/client";
-import { getRunUser } from "@/entities/run-user";
+import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
+import {
+  isDisplayNameLocked,
+  normalizeSyncedName,
+} from "@/lib/rabbit-name-sync";
 import { config } from "@/config";
 
 const OIDC_PROVIDER = "run.defcon.run";
+
+/**
+ * Resolve an OIDC subject to its Auth.js adapter userId via the accounts GSI1.
+ * Returns null when no account maps to the subject.
+ */
+async function resolveAdapterUserId(oidcSub: string): Promise<string | null> {
+  const accountResult = await dynamodbClient.query({
+    TableName: DYNAMODB_TABLE,
+    IndexName: "GSI1",
+    KeyConditionExpression: "#gsi1pk = :gsi1pk AND #gsi1sk = :gsi1sk",
+    ExpressionAttributeNames: { "#gsi1pk": "GSI1PK", "#gsi1sk": "GSI1SK" },
+    ExpressionAttributeValues: {
+      ":gsi1pk": `ACCOUNT#${OIDC_PROVIDER}`,
+      ":gsi1sk": `ACCOUNT#${oidcSub}`,
+    },
+  });
+  const account = accountResult.Items?.[0];
+  const adapterUserId = account?.userId as string | undefined;
+  return adapterUserId ?? null;
+}
 
 /**
  * Internal API: Get RunUser profile by OIDC subject.
@@ -30,36 +54,12 @@ export async function GET(
   }
 
   try {
-    // Look up the adapter userId from the authjs accounts table
-    // The adapter stores: gsi1pk=ACCOUNT#provider, gsi1sk=ACCOUNT#providerAccountId
-    const accountResult = await dynamodbClient.query({
-      TableName: DYNAMODB_TABLE,
-      IndexName: "GSI1",
-      KeyConditionExpression: "#gsi1pk = :gsi1pk AND #gsi1sk = :gsi1sk",
-      ExpressionAttributeNames: {
-        "#gsi1pk": "GSI1PK",
-        "#gsi1sk": "GSI1SK",
-      },
-      ExpressionAttributeValues: {
-        ":gsi1pk": `ACCOUNT#${OIDC_PROVIDER}`,
-        ":gsi1sk": `ACCOUNT#${oidcSub}`,
-      },
-    });
-
-    const account = accountResult.Items?.[0];
-    if (!account) {
+    // Resolve the OIDC subject to its Auth.js adapter userId.
+    const adapterUserId = await resolveAdapterUserId(oidcSub);
+    if (!adapterUserId) {
       return NextResponse.json(
         { error: "No account found for OIDC subject" },
         { status: 404 }
-      );
-    }
-
-    // The account record has a 'userId' field linking to the adapter user
-    const adapterUserId = account.userId as string;
-    if (!adapterUserId) {
-      return NextResponse.json(
-        { error: "Account missing userId" },
-        { status: 500 }
       );
     }
 
@@ -102,6 +102,76 @@ export async function GET(
     });
   } catch (error) {
     console.error("[run.human] /api/internal/user error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * Internal API: overwrite a runner's rabbit name (displayName) from run.bib.
+ *
+ * Secret-gated, server-to-server only. Fires when the runner saves their bib
+ * name. Refuses to overwrite a manually-claimed name (see isDisplayNameLocked)
+ * and never consumes the displayname_change quota — this is an internal sync,
+ * not a user-initiated change. Idempotent and safe to call on every bib save.
+ */
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ oidcSub: string }> }
+) {
+  const secret = req.headers.get("x-internal-secret");
+  if (!secret || secret !== config.auth.internalSecret) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const { oidcSub } = await params;
+  if (!oidcSub) {
+    return NextResponse.json({ error: "Missing oidcSub" }, { status: 400 });
+  }
+
+  let body: { displayName?: unknown };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+  }
+
+  const rawName = typeof body.displayName === "string" ? body.displayName : "";
+  const name = normalizeSyncedName(rawName);
+  if (!name) {
+    // Too short / empty — nothing to sync, leave the rabbit name as-is.
+    return NextResponse.json({ synced: false, reason: "too_short" });
+  }
+
+  try {
+    const adapterUserId = await resolveAdapterUserId(oidcSub);
+    if (!adapterUserId) {
+      return NextResponse.json(
+        { error: "No account found for OIDC subject" },
+        { status: 404 }
+      );
+    }
+
+    const user = await getRunUser(adapterUserId);
+    if (!user) {
+      return NextResponse.json({ error: "RunUser not found" }, { status: 404 });
+    }
+
+    if (
+      isDisplayNameLocked(user.displayName, user.displayNameManual, adapterUserId)
+    ) {
+      return NextResponse.json({ synced: false, reason: "manual" });
+    }
+
+    await updateRunUserProfile(adapterUserId, {
+      displayName: name,
+      displayNameManual: false,
+    });
+    return NextResponse.json({ synced: true, displayName: name });
+  } catch (error) {
+    console.error("[run.human] PATCH /api/internal/user error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
