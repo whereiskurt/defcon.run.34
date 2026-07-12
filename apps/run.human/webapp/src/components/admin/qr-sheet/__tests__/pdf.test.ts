@@ -23,22 +23,30 @@ describe("sheetFilename", () => {
 });
 
 describe("buildProgressiveUrls", () => {
-  const url = "https://q.defcon.run/LONGCODE";
-  it("starts at the origin, ends at the full URL, exact cell count", () => {
+  const url = "https://q.defcon.run/CTF";
+  it("starts at the base URL and grows STRICTLY denser every cell", () => {
     const urls = buildProgressiveUrls(url, 12);
     expect(urls).toHaveLength(12);
-    expect(urls[0]).toBe("https://q.defcon.run");
-    expect(urls[urls.length - 1]).toBe(url);
-    // monotonically non-shrinking prefixes of the target
+    expect(urls[0]).toBe(url);
     for (let i = 1; i < urls.length; i++) {
-      expect(urls[i].length).toBeGreaterThanOrEqual(urls[i - 1].length);
-      expect(url.startsWith(urls[i])).toBe(true);
+      // every later cell appends ?p=… filler — strictly longer than the last
+      expect(urls[i].length).toBeGreaterThan(urls[i - 1].length);
+      expect(urls[i].startsWith(`${url}?p=`)).toBe(true);
     }
   });
-  it("handles more cells than characters by padding with the full URL", () => {
-    const urls = buildProgressiveUrls("https://a.io/x", 30);
-    expect(urls).toHaveLength(30);
-    expect(urls[29]).toBe("https://a.io/x");
+
+  it("keeps growing even for a short base URL (the dc33 '+1 forever' bug)", () => {
+    const urls = buildProgressiveUrls("https://q.defcon.run/", 36);
+    expect(urls).toHaveLength(36);
+    const last = urls[35];
+    // ramps toward ~240 appended chars regardless of base length
+    expect(last.length - "https://q.defcon.run/".length).toBeGreaterThanOrEqual(200);
+    expect(new Set(urls).size).toBe(36); // no duplicate cells
+  });
+
+  it("appends with & when the base already has a query", () => {
+    const urls = buildProgressiveUrls("https://a.io/x?y=1", 3);
+    expect(urls[1].startsWith("https://a.io/x?y=1&p=")).toBe(true);
   });
 });
 

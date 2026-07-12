@@ -106,25 +106,30 @@ const COMPARISON_CONFIGS = [
   { across: 7, down: 8 }, { across: 8, down: 8 },
 ];
 
-/** dc33's progressive data-density URL ladder: origin → full URL. */
+/**
+ * Progressive data-density ladder. dc33 grew the URL only up to its OWN full
+ * length — a short base like "https://q.defcon.run/" topped out at "+1" and
+ * padded every remaining cell with the identical code, so nothing got denser.
+ * Instead: cell 0 is the base URL, and every later cell APPENDS a growing
+ * `?p=…` filler (the resolver's scan-param convention, so the codes stay
+ * live), ramping ~TARGET_EXTRA total characters across the page regardless of
+ * cell count — each step visibly bumps the QR version/density.
+ */
+const TARGET_EXTRA = 240;
+const FILLER = "abcdefghijklmnopqrstuvwxyz0123456789";
+
 export function buildProgressiveUrls(url: string, totalCells: number): string[] {
   if (totalCells <= 0) return [];
-  const parts = url.split("/");
-  const origin = parts.slice(0, 3).join("/");
-  const fullPath = parts.length > 3 ? "/" + parts.slice(3).join("/") : "";
-  const urls: string[] = [origin];
-  const cellsNeeded = Math.min(Math.max(totalCells - 1, 0), fullPath.length);
-  const charsPerStep = Math.max(
-    1,
-    Math.ceil(fullPath.length / Math.max(cellsNeeded, 1))
-  );
-  for (let i = 0; i < cellsNeeded; i++) {
-    const end = Math.min((i + 1) * charsPerStep, fullPath.length);
-    urls.push(origin + fullPath.substring(0, end));
-    if (end >= fullPath.length) break;
+  const urls: string[] = [url];
+  if (totalCells === 1) return urls;
+  const sep = url.includes("?") ? "&" : "?";
+  const step = Math.max(4, Math.ceil(TARGET_EXTRA / (totalCells - 1)));
+  for (let i = 1; i < totalCells; i++) {
+    const n = i * step;
+    let pad = "";
+    while (pad.length < n) pad += FILLER;
+    urls.push(`${url}${sep}p=${pad.slice(0, n)}`);
   }
-  while (urls.length < totalCells) urls.push(url);
-  urls.splice(totalCells);
   return urls;
 }
 
@@ -364,7 +369,6 @@ export async function buildSheetPdf(opts: {
     );
 
     const urls = buildProgressiveUrls(url, progCols * progRows);
-    const origin = url.split("/").slice(0, 3).join("/");
     for (let i = 0; i < urls.length; i++) {
       const col = i % progCols;
       const row = Math.floor(i / progCols);
@@ -374,7 +378,7 @@ export async function buildSheetPdf(opts: {
       try {
         const image = await doc.embedPng(await renderPng(u, pxFor(qrPt)));
         prog.drawImage(image, { x, y, width: qrPt, height: qrPt });
-        const extra = u.length - origin.length;
+        const extra = u.length - url.length;
         const label = extra === 0 ? "Base" : `+${extra}`;
         prog.drawText(label, {
           x: x + qrPt / 2 - label.length * 6 * 0.3,
@@ -391,12 +395,10 @@ export async function buildSheetPdf(opts: {
       "This page tests QR code readability as data density increases.",
       { x: 40, y: ey + 30, size: 9, color: MID_GREY }
     );
-    prog.drawText("Each QR code adds more characters from the full URL path.", {
-      x: 40,
-      y: ey + 15,
-      size: 9,
-      color: MID_GREY,
-    });
+    prog.drawText(
+      "Each QR appends more ?p=… characters to the base URL — find where density stops scanning.",
+      { x: 40, y: ey + 15, size: 9, color: MID_GREY }
+    );
     prog.drawText(
       `QRs match the sheet's printed QR size: ${(qrPt / DPI).toFixed(2)}"`,
       { x: 40, y: ey, size: 9, color: MID_GREY }
