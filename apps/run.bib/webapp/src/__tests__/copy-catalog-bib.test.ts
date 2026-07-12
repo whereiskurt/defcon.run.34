@@ -32,6 +32,7 @@ const DEFAULT: Record<string, string> = (
 const REQUIRED_BIB_KEYS = [
   "bib.landing.title",
   "bib.landing.intro",
+  "bib.landing.changeDeadline",
   "bib.donate.trigger",
   "bib.donate.title",
   "bib.donate.subhead",
