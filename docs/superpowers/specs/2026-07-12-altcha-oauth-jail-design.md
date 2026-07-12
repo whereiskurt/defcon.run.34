@@ -191,3 +191,20 @@ non-jailed users' silent SSO is untouched.
 - `src/app/api/admin/identities/[userId]/jail/route.ts` — NEW admin route
 - `src/app/admin/AdminActions.tsx` / `AdminConsole.tsx` — jail action + badge + pill (PR #542 files)
 - `src/config/auth.ts` — the email `/api/login` reconciliation (avoid double-challenge)
+
+## v1 Implementation Notes (delivered)
+
+- Enforcement is **gate-only**: the `[uid].ts` interaction route does a live
+  `getAuthProfile` read and challenges when due. Jail bumps `sessionVersion` for
+  parity with lock (kicks consuming-service sessions) but does NOT instantly
+  invalidate a warm run.auth session — a jailed user on a warm oidc `_session`
+  silent-SSOs past the gate until it lapses or they re-login. Accepted for v1.
+- Difficulty levels ship as: baseline 1×2M; jail L1 2×2M, L2 3×3M, L3 4×4M,
+  L4 6×6M, L5 8×8M. Tunable in `src/lib/altcha-gate.ts`.
+- Replay guard is per-instance in-memory (not shared across ECS tasks).
+
+### Follow-ups (not in v1)
+- Instant jail bite: add `sessionVersion` compare in the `jwt` callback +
+  destroy the user's oidc-provider `_session` on jail.
+- Distributed replay protection (DynamoDB-backed used-solution tracking).
+- Gate the rare direct, non-SSO run.auth page logins (middleware).
