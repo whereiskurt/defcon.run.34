@@ -35,6 +35,12 @@ export const RunUser = new Entity(
       displayName: {
         type: "string",
       },
+      // Set true once the runner edits their display name with the profile
+      // pencil. The bib-name sync refuses to overwrite a manually-claimed name
+      // and stamps this false on each of its own writes. See lib/rabbit-name-sync.
+      displayNameManual: {
+        type: "boolean",
+      },
       bio: {
         type: "string",
       },
@@ -279,6 +285,7 @@ export async function updateRunUserProfile(
   userId: string,
   data: {
     displayName?: string;
+    displayNameManual?: boolean;
     bio?: string;
     preferences?: {
       theme?: string;
@@ -342,6 +349,7 @@ export function sanitizeRadio(radio: MeshtasticRadio): MeshtasticRadio {
 export type RunUserItem = {
   userId: string;
   displayName?: string;
+  displayNameManual?: boolean;
   bio?: string;
   seed?: string;
   hash?: string;
