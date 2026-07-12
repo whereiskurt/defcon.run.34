@@ -113,7 +113,13 @@ async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
  */
 export async function revalidateAdmin(userId: string): Promise<boolean> {
   const fresh = await fetchFreshClaims(userId);
-  return Boolean(fresh?.services?.includes("admin")) && !fresh?.lockedOut;
+  // Grant on ANY admin group (admin = superuser, runadmin = run.human operator);
+  // keep in lock-step with ADMIN_GROUPS in lib/admin-gate.ts.
+  const services = fresh?.services;
+  const hasAdminGroup =
+    Array.isArray(services) &&
+    (services.includes("admin") || services.includes("runadmin"));
+  return hasAdminGroup && !fresh?.lockedOut;
 }
 
 const providers: Provider[] = [
