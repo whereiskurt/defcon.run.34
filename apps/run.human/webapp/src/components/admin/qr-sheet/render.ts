@@ -9,7 +9,18 @@
  */
 import * as qrLib from "qrcode";
 
+import { apiBase } from "@/components/admin/qr-ui";
 import { LOGO_SIZE_RATIO, type QrStyle } from "./styles";
+
+/**
+ * Resolve a logo source for fetching. Bundled logos are stored app-relative
+ * ("/qr-logos/x.svg") but prod mounts the app under a region basePath
+ * ("/use1") — Next rewrites <img>/link hrefs but NOT runtime fetches like
+ * qr-code-styling's image loader, so prefix explicitly. Data URLs pass through.
+ */
+export function resolveLogoSrc(logo: string): string {
+  return logo.startsWith("/") ? `${apiBase()}${logo}` : logo;
+}
 
 const EC_LADDER = ["H", "Q", "M", "L"] as const;
 type EcLevel = (typeof EC_LADDER)[number];
@@ -76,7 +87,7 @@ export async function renderQrPng(
     backgroundOptions: { color: style.background },
     ...(style.logo
       ? {
-          image: style.logo,
+          image: resolveLogoSrc(style.logo),
           imageOptions: {
             imageSize: LOGO_SIZE_RATIO,
             margin: Math.max(2, Math.round(sizePx / 100)),
