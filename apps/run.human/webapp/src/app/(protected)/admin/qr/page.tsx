@@ -44,9 +44,14 @@ export default async function QrAdminPage() {
             {email ? ` · ${email}` : ""}.
           </p>
         </div>
-        <Link href="/admin" className={cls.btn}>
-          ← Admin
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/qr/sheet" className={cls.btn}>
+            ⊞ Sheet designer
+          </Link>
+          <Link href="/admin" className={cls.btn}>
+            ← Admin
+          </Link>
+        </div>
       </div>
 
       {/* QR codes */}
@@ -62,7 +67,7 @@ export default async function QrAdminPage() {
             <table className={`${cls.table} min-w-[720px]`}>
               <thead className={cls.thead}>
                 <tr>
-                  {["Code", "Destination", "Rules", "Enabled", "Scans", "Updated", ""].map(
+                  {["Code", "Destination", "Rules", "Enabled", "Scans", "Updated", "", ""].map(
                     (c, i) => (
                       <th key={c || i} className={cls.th}>
                         {c}
@@ -74,7 +79,7 @@ export default async function QrAdminPage() {
               <tbody>
                 {sortedCodes.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="p-6 text-center text-default-400 text-sm">
+                    <td colSpan={8} className="p-6 text-center text-default-400 text-sm">
                       No codes yet. Create one to make a live q.defcon.run short link.
                     </td>
                   </tr>
@@ -102,6 +107,14 @@ export default async function QrAdminPage() {
                       </td>
                       <td className={`${cls.td} tabular-nums`}>{totals[row.code] ?? 0}</td>
                       <td className={`${cls.td} text-default-500`}>{fmtDate(row.updatedAt)}</td>
+                      <td className={cls.td}>
+                        <Link
+                          href={`/admin/qr/sheet?url=${encodeURIComponent(`${QR_ORIGIN}/${row.code}`)}`}
+                          className="text-default-400"
+                        >
+                          sheet
+                        </Link>
+                      </td>
                       <td className={cls.td}>
                         <Link href={`/admin/qr/${row.code}`} className="text-default-400">
                           edit
