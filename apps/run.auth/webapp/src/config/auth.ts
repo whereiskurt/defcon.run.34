@@ -42,6 +42,8 @@ import Discord from "next-auth/providers/discord";
 import Github from "next-auth/providers/github";
 import Strava from "next-auth/providers/strava";
 import LinkedIn from "next-auth/providers/linkedin";
+import { customFetch } from "next-auth";
+import { applyLinkedInTokenRedirectUri } from "./linkedin-token-fetch";
 
 // DynamoDB client configuration
 const dynamoConfig: DynamoDBClientConfig = {
@@ -162,13 +164,22 @@ const providers: Provider[] = [
   }),
   // Sign In with LinkedIn using OpenID Connect. The built-in provider is
   // type: "oidc" and already sets issuer + token_endpoint_auth_method:
-  // "client_secret_post" + checks: ["state"]. We override the scope and the
-  // region-prefixed redirect_uri (baseUrl includes /{region} in prod). The
-  // redirect_uri MUST be set on BOTH authorization AND token: OAuth requires
-  // the token-exchange redirect_uri to byte-match the authorize one, and
-  // Auth.js's default token redirect_uri drops the /{region} prefix → LinkedIn
-  // rejects with invalid_redirect_uri. Same reason Github/Discord/Strava set it
-  // in both places above.
+  // "client_secret_post" + checks: ["state"].
+  //
+  // Region-prefix problem: this app runs under Next.js basePath `/${region}`,
+  // which strips the prefix before Auth.js sees the request. Auth.js therefore
+  // computes `provider.callbackUrl` WITHOUT the prefix. The authorize step lets
+  // us override redirect_uri via authorization.params (below), but the TOKEN
+  // exchange uses provider.callbackUrl verbatim (packages/core callback.js) and
+  // ignores authorization.params/token.params. LinkedIn strictly requires the
+  // token redirect_uri to byte-match the authorize one, so the mismatch fails
+  // with invalid_redirect_uri. (Github/Discord survive the same mismatch only
+  // because their token endpoints don't enforce it.)
+  //
+  // Fix: intercept LinkedIn's token request via [customFetch] and rewrite
+  // redirect_uri to the region-prefixed value — the SAME `config.urls.baseUrl`
+  // the authorize step uses, so it is correct on use1 AND cac1. All other
+  // LinkedIn calls (discovery/jwks/userinfo) pass through untouched.
   LinkedIn({
     clientId: config.providers.linkedin.clientId,
     clientSecret: config.providers.linkedin.clientSecret,
@@ -179,10 +190,13 @@ const providers: Provider[] = [
         redirect_uri: `${config.urls.baseUrl}/api/auth/callback/linkedin`,
       },
     },
-    token: {
-      params: {
-        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/linkedin`,
-      },
+    [customFetch]: async (...args: Parameters<typeof fetch>) => {
+      applyLinkedInTokenRedirectUri(
+        String(args[0]),
+        (args[1] as { body?: unknown } | undefined)?.body,
+        `${config.urls.baseUrl}/api/auth/callback/linkedin`
+      );
+      return fetch(...args);
     },
   }),
 ];
