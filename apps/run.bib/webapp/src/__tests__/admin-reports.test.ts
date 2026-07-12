@@ -418,3 +418,29 @@ describe("reportToCsv print-names columns", () => {
     expect(firstRow).toContain("https://run.defcon.run/use1/r?h=H1");
   });
 });
+
+describe("PaymentRow reversal keys", () => {
+  it("carries ownerSub + reconciledVia on bib payment rows", () => {
+    const bundle = buildReports({
+      bibs: [
+        {
+          ownerSub: "owner-x",
+          runnerCode: "BIB-wbbb",
+          nameOnBib: "OGRE",
+          paidAmount: 2000,
+          nameLocked: false,
+          willPayInPerson: false,
+          paidStatusHistory: [
+            { provider: "cash", amount: 2000, timestamp: "2026-07-11T22:01:06.000Z", reconciled_via: "admin_inperson_cash_owner-x" },
+          ],
+        } as never,
+      ],
+      donations: [],
+      reconciles: [],
+      pendings: [],
+    });
+    const row = bundle.payments.rows.find((r) => r.provider === "cash")!;
+    expect(row.ownerSub).toBe("owner-x");
+    expect(row.reconciledVia).toBe("admin_inperson_cash_owner-x");
+  });
+});
