@@ -72,6 +72,17 @@ export async function GET(
       );
     }
 
+    // Least-privilege summary for the run.auth admin dashboard tie-back:
+    // only the run.human id + display name cross the wire, never mqtt secrets.
+    const url = new URL(req.url);
+    if (url.searchParams.get("summary") === "1") {
+      return NextResponse.json({
+        found: true,
+        runUserId: user.userId,
+        displayName: user.displayName,
+      });
+    }
+
     // The runner's email lives on the authjs adapter USER record (not on
     // RunUser). Best-effort: a lookup miss returns null email rather than
     // failing the whole endpoint — the bib CSV enrichment treats null as blank.
