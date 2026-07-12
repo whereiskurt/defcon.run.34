@@ -3,7 +3,7 @@ import { AuthError } from "next-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { verifySolution } from "altcha-lib";
 import { getAuthProfileByEmail } from "@/entities/auth-profile";
-import { makeAltchaOk, emailKey, ALTCHA_OK_COOKIE, OK_TTL_MS } from "@/lib/altcha-gate";
+import { makeAltchaOk, emailKey, ALTCHA_OK_COOKIE, OK_TTL_MS, isBaselineEnforced } from "@/lib/altcha-gate";
 
 const inviteCodes = process.env.AUTH_INVITE_CODES?.split(",");
 const ALTCHA_HMAC_KEY = process.env.ALTCHA_HMAC_KEY;
@@ -164,7 +164,10 @@ export async function POST(req: NextRequest) {
     { message: "Success. Check your email." },
     { status: 200 }
   );
-  if (precleared) {
+  // Only mint the pre-clear cookie when the baseline gate is actually enforced —
+  // otherwise the gate never reads it (required.count === 0), so it's a needless
+  // standing cookie. Keeps the feature's inert-by-default state free of side effects.
+  if (precleared && isBaselineEnforced()) {
     const isDev = process.env.NODE_ENV !== "production";
     successRes.cookies.set(ALTCHA_OK_COOKIE, makeAltchaOk(emailKey(email), 1), {
       httpOnly: true,
