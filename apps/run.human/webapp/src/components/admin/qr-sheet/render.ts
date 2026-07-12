@@ -23,7 +23,16 @@ export function resolveLogoSrc(logo: string): string {
 }
 
 const EC_LADDER = ["H", "Q", "M", "L"] as const;
-type EcLevel = (typeof EC_LADDER)[number];
+export type EcLevel = (typeof EC_LADDER)[number];
+export type EcChoice = EcLevel | "auto";
+
+/** Redundancy (damage budget) per level, for UI labels and proof pages. */
+export const EC_INFO: { level: EcLevel; pct: number }[] = [
+  { level: "L", pct: 7 },
+  { level: "M", pct: 15 },
+  { level: "Q", pct: 25 },
+  { level: "H", pct: 30 },
+];
 
 export function pickEcLevel(url: string, hasLogo: boolean): EcLevel {
   const ladder = hasLogo ? EC_LADDER.slice(0, 2) : EC_LADDER;
@@ -40,6 +49,29 @@ export function pickEcLevel(url: string, hasLogo: boolean): EcLevel {
       ? "URL too long for a QR code with a logo — shorten the URL or remove the logo."
       : "URL too long for a QR code."
   );
+}
+
+/**
+ * Effective level for a choice: "auto" runs the adaptive ladder; an explicit
+ * level is validated for capacity (throws if the URL doesn't fit at it).
+ * Explicit levels are taken verbatim — even below the logo's Q floor — so
+ * proof pages can demonstrate what a too-low level looks like; the designer
+ * UI is responsible for disabling L/M chips while a logo is set.
+ */
+export function effectiveEcLevel(
+  url: string,
+  hasLogo: boolean,
+  choice: EcChoice = "auto"
+): EcLevel {
+  if (choice === "auto") return pickEcLevel(url, hasLogo);
+  try {
+    qrLib.create(url, { errorCorrectionLevel: choice });
+  } catch {
+    throw new Error(
+      `URL too long for a QR code at level ${choice} — pick a lower redundancy level or shorten the URL.`
+    );
+  }
+  return choice;
 }
 
 // qr-code-styling's type names for our style vocabulary.
@@ -78,14 +110,19 @@ function preloadLogo(src: string, timeoutMs = 4000): Promise<boolean> {
   });
 }
 
-/** Render one styled QR as a PNG ArrayBuffer at sizePx × sizePx. Browser only. */
+/**
+ * Render one styled QR as a PNG ArrayBuffer at sizePx × sizePx. Browser only.
+ * `ec` defaults to the adaptive ladder; pass a level to force it (used by the
+ * manual override and the redundancy-comparison proof page).
+ */
 export async function renderQrPng(
   url: string,
   style: QrStyle,
-  sizePx: number
+  sizePx: number,
+  ec: EcChoice = "auto"
 ): Promise<ArrayBuffer> {
   const { default: QRCodeStyling } = await import("qr-code-styling");
-  const level = pickEcLevel(url, Boolean(style.logo));
+  const level = effectiveEcLevel(url, Boolean(style.logo), ec);
 
   if (style.logo && !(await preloadLogo(resolveLogoSrc(style.logo)))) {
     throw new Error("Logo image failed to load.");

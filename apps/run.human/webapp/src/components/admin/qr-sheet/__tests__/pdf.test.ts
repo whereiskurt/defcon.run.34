@@ -68,16 +68,29 @@ describe("buildSheetPdf (stub renderer)", () => {
     expect(doc.getPageCount()).toBe(1);
   });
 
-  it("produces 4+ pages with proof pages on", async () => {
+  it("produces 5+ pages with proof pages on, forcing all four EC levels on the redundancy page", async () => {
+    const forcedLevels: string[] = [];
+    const spyRender = async (
+      url: string,
+      sizePx: number,
+      ecLevel?: "L" | "M" | "Q" | "H"
+    ) => {
+      if (ecLevel) forcedLevels.push(ecLevel);
+      return stubRender(url, sizePx);
+    };
     const bytes = await buildSheetPdf({
       url: "https://q.defcon.run/CTF",
       layout: parseTemplate("3x3")!,
       includeProofPages: true,
-      renderPng: stubRender,
+      renderPng: spyRender,
     });
     const { PDFDocument } = await import("pdf-lib");
     const doc = await PDFDocument.load(bytes);
-    // page 1 grid + page 2 giant + ≥1 size-comparison page + progressive page
-    expect(doc.getPageCount()).toBeGreaterThanOrEqual(4);
+    // grid + giant + ≥1 size-comparison + EC-comparison + progressive
+    expect(doc.getPageCount()).toBeGreaterThanOrEqual(5);
+    // the redundancy page rendered every level explicitly
+    for (const lvl of ["L", "M", "Q", "H"]) {
+      expect(forcedLevels).toContain(lvl);
+    }
   }, 30000);
 });
