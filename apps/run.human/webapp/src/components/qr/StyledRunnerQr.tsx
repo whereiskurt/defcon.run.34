@@ -16,7 +16,13 @@ export default function StyledRunnerQr({ hash, eqrFallback, className, alt }: Pr
   const src = useMemo(() => {
     if (!hash) return eqrFallback ?? '';
     try {
-      const svg = renderStyledQr(buildQrPayload(hash));
+      // The renderer emits viewBox only; an SVG-in-<img> without root
+      // width/height has no intrinsic size and collapses to nothing.
+      // 300px matches the stored eqr PNG so existing CSS behaves the same.
+      const svg = renderStyledQr(buildQrPayload(hash)).replace(
+        '<svg ',
+        '<svg width="300" height="300" ',
+      );
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     } catch {
       return eqrFallback ?? '';
