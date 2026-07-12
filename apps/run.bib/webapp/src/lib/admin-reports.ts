@@ -54,6 +54,10 @@ export type PaymentRow = {
   provider: string;
   amountCents: number;
   timestamp: string;
+  // Reversal keys — carried on bib rows so RemoveCashAction can target the exact
+  // paidStatusHistory entry (Kurt 2026-07-11). Undefined for donation rows.
+  ownerSub?: string;
+  reconciledVia?: string;
 };
 
 export type OutstandingRow = {
@@ -219,6 +223,7 @@ export function buildReports(input: ReportInput): ReportBundle {
       provider?: string;
       amount?: number;
       timestamp?: string;
+      reconciled_via?: string;
     }>).map((p) => ({
       kind: "bib" as const,
       runnerCode: b.runnerCode,
@@ -226,6 +231,8 @@ export function buildReports(input: ReportInput): ReportBundle {
       provider: p.provider ?? "stripe",
       amountCents: p.amount ?? 0,
       timestamp: p.timestamp ?? "",
+      ownerSub: b.ownerSub,
+      reconciledVia: p.reconciled_via,
     }))
   );
   const donationPayments: PaymentRow[] = donations.map((d) => ({

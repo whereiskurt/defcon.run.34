@@ -411,3 +411,82 @@ export function DenyPendingAction({ apiBase, pendingId }: DenyPendingActionProps
     </span>
   );
 }
+
+export interface RemoveCashActionProps {
+  apiBase: string;
+  ownerSub: string;
+  timestamp: string;
+  reconciledVia: string;
+}
+
+/**
+ * RemoveCashAction (Kurt 2026-07-11) — the destructive "Remove" pill on CASH
+ * rows in the Payments/revenue table. Un-books a mistaken cash payment via
+ * /api/admin/bib/reverse-payment (subtracts the amount, deletes the ledger
+ * entry). Behind a window.confirm(). Copy hardcoded to avoid the CMS catalog.
+ */
+export function RemoveCashAction({
+  apiBase,
+  ownerSub,
+  timestamp,
+  reconciledVia,
+}: RemoveCashActionProps) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const onRemove = async () => {
+    const ok = window.confirm(
+      "Remove this cash payment? It subtracts the amount from the runner's paid total and deletes the ledger entry. Use only for a mistaken cash booking."
+    );
+    if (!ok) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const res = await fetch(`${apiBase}/api/admin/bib/reverse-payment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerSub, timestamp, reconciledVia }),
+      });
+      if (res.ok) {
+        router.refresh();
+        return;
+      }
+      setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <button
+        type="button"
+        onClick={onRemove}
+        disabled={busy}
+        aria-label="Remove cash payment"
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#ff8a8a",
+          backgroundColor: "transparent",
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: "1px solid #3a2a2e",
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.6 : 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        Remove
+      </button>
+      {failed && (
+        <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
+          Couldn&apos;t remove — try again.
+        </span>
+      )}
+    </span>
+  );
+}
