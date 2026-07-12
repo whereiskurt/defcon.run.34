@@ -28,6 +28,8 @@ type Detail = {
   oidcSessions: { id: string; expiresAt: number | null }[];
   runHuman: RunHumanRef;
 };
+type IpRow = { ip: string; logins: number; firstSeen: string | null; lastSeen: string | null; agents: number };
+type UserRow = { userId: string; email: string | null; logins: number; firstSeen: string | null; lastSeen: string | null };
 
 // Provider brand table — chips render ONLY the linked providers, brand-colored.
 const PROVIDER_META: Record<ProviderKey, { label: string; color: string; Icon: Ico }> = {
@@ -119,6 +121,17 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   const [drawerLoading, setDrawerLoading] = useState(false);
   const [reveal, setReveal] = useState(false); // admin-only panel (2 trusted admins) — reveal full emails
 
+  // login-IP cache, keyed by userId so j/k stepping between identities in the
+  // drawer doesn't refetch/clear (openDrawer resets `drawer` itself, so this
+  // must live in separate state), plus the top-level reverse IP-lookup panel.
+  const [loginIps, setLoginIps] = useState<Record<string, IpRow[]>>({});
+  const [ipsLoading, setIpsLoading] = useState(false);
+
+  const [lookupIp, setLookupIp] = useState("");
+  const [lookupUsers, setLookupUsers] = useState<UserRow[] | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupPartial, setLookupPartial] = useState(false);
+
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
     let out = [...rows];
@@ -181,6 +194,43 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
     const res = await fetch(`${BASE}/api/admin/identities/${encodeURIComponent(userId)}`, { cache: "no-store" });
     setDrawerLoading(false);
     if (res.ok) setDrawer((await res.json()) as Detail);
+  }
+
+  // Lazily fetch login IPs when the drawer opens, caching by userId so j/k
+  // stepping between identities (which calls openDrawer, resetting `drawer`)
+  // doesn't refetch or drop already-loaded rows.
+  useEffect(() => {
+    const uid = drawer?.identity.userId;
+    if (!uid || loginIps[uid]) return; // cached
+    let cancelled = false;
+    setIpsLoading(true);
+    fetch(`${BASE}/api/admin/identities/${encodeURIComponent(uid)}/ips`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { ips: [] }))
+      .then((d) => { if (!cancelled) setLoginIps((m) => ({ ...m, [uid]: d.ips ?? [] })); })
+      .catch(() => { if (!cancelled) setLoginIps((m) => ({ ...m, [uid]: [] })); })
+      .finally(() => { if (!cancelled) setIpsLoading(false); });
+    return () => { cancelled = true; };
+  }, [drawer?.identity.userId, loginIps]);
+
+  // Reverse IP lookup, shared by the top-level panel input and clicking an IP
+  // in the drawer's login-IPs list.
+  async function runIpLookup(ip: string) {
+    const v = ip.trim();
+    setLookupIp(v);
+    if (!v) { setLookupUsers(null); return; }
+    setLookupLoading(true);
+    setLookupPartial(false);
+    try {
+      const res = await fetch(`${BASE}/api/admin/ip-lookup?ip=${encodeURIComponent(v)}`, { cache: "no-store" });
+      if (!res.ok) { setLookupUsers([]); return; }
+      const d = await res.json();
+      setLookupUsers(d.users ?? []);
+      setLookupPartial(Boolean(d.partial));
+    } catch {
+      setLookupUsers([]);
+    } finally {
+      setLookupLoading(false);
+    }
   }
 
   // Esc closes the drawer; j/k step to the next/prev identity in the current
@@ -250,6 +300,38 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
             {h.note && <div className="mt-2 text-[11.5px] text-default-500">{h.note}</div>}
           </div>
         ))}
+      </section>
+
+      {/* IP lookup — reverse lookup, cross-linked with the drawer's login-IPs list */}
+      <section className="mb-5 rounded-2xl border border-divider bg-content1 p-[18px]">
+        <h2 className="mb-2 text-[12px] uppercase tracking-wide text-default-400">IP lookup <span className="text-default-300">· who logged in from an IP</span></h2>
+        <div className="flex gap-2">
+          <input
+            value={lookupIp}
+            onChange={(e) => setLookupIp(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") runIpLookup(lookupIp); }}
+            placeholder="paste an IP (IPv4 or IPv6)"
+            className="flex-1 rounded-lg border border-divider bg-content1 px-3 py-2 text-[13px] outline-none focus:border-primary"
+          />
+          <button type="button" onClick={() => runIpLookup(lookupIp)} className="rounded-lg border border-divider px-3 py-2 text-[13px] hover:border-primary">Look up</button>
+        </div>
+        {lookupLoading ? (
+          <p className="mt-2 text-[12px] text-default-400">Searching…</p>
+        ) : lookupUsers === null ? null : lookupUsers.length === 0 ? (
+          <p className="mt-2 text-[12px] text-default-400">No login events from this IP in the last 90 days.</p>
+        ) : (
+          <div className="mt-3">
+            {lookupPartial && <p className="mb-1 text-[11px] text-warning">Partial results (query timed out).</p>}
+            {lookupUsers.map((u) => (
+              <div key={u.userId} className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-divider p-2.5 text-[12.5px]">
+                <button type="button" onClick={() => openDrawer(u.userId)} className="cursor-pointer text-primary hover:underline">
+                  {u.email ?? u.userId}
+                </button>
+                <span className="text-default-500">{u.logins} logins</span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* controls */}
@@ -426,6 +508,26 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                     </div>
                   );
                 })()}
+
+                <div>
+                  <h3 className="mb-2 text-[11px] uppercase tracking-wide text-default-400">
+                    login IPs <span className="text-default-300">· last 90 days</span>
+                  </h3>
+                  {ipsLoading && !loginIps[drawer.identity.userId] ? (
+                    <p className="text-[12px] text-default-400">Loading…</p>
+                  ) : (loginIps[drawer.identity.userId]?.length ?? 0) === 0 ? (
+                    <p className="text-[12px] text-default-400">No login events in the last 90 days.</p>
+                  ) : (
+                    loginIps[drawer.identity.userId].map((r) => (
+                      <div key={r.ip} className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-divider p-2.5 text-[12.5px]">
+                        <button type="button" onClick={() => runIpLookup(r.ip)} className="cursor-pointer font-mono text-[11.5px] text-primary hover:underline" title="who else used this IP?">
+                          {r.ip}
+                        </button>
+                        <span className="text-default-500">{r.logins} logins · {r.agents} agents</span>
+                      </div>
+                    ))
+                  )}
+                </div>
 
                 <div className="flex flex-col gap-3 border-t border-divider pt-4">
                   <LockAction userId={drawer.identity.userId} locked={drawer.identity.lockedOut}
