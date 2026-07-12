@@ -42,6 +42,16 @@ describe("parseResultRows", () => {
     expect(out[0]._ts).toBe(1752278400000);
   });
 
+  it("parses the real Lambda TEXT-format @message (ts\\treqId\\tINFO\\t{json}) — regression: counts never populated", () => {
+    // Production @message is prefixed by the Lambda runtime; a bare JSON.parse
+    // of it throws, which silently dropped every scan so the rollup counted 0.
+    const inner = JSON.stringify({ type: "redirect", code: "RICK", param: null });
+    const msg = `2026-07-12T19:11:01.136Z\t37f817f8-2d40-42f0-83af-230a70d5521c\tINFO\t${inner}`;
+    const out = parseResultRows({ results: [row(msg, "2026-07-12 19:11:01.136")] });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ type: "redirect", code: "RICK" });
+  });
+
   it("skips rows with unparseable @message or no @message", () => {
     const out = parseResultRows({
       results: [
