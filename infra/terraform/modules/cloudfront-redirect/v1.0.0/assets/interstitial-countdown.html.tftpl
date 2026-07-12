@@ -20,10 +20,11 @@
 <meta name="twitter:description" content="${og_description}">
 <meta name="twitter:image" content="${og_image}">
 
-<!-- Electronic boot splash with a visible 5s countdown, then navigate (so the tab
-     title reads the og_title, not the destination). meta-refresh is the no-JS
-     fallback, set to 7s — longer than the 5s countdown so it never preempts it. -->
-<meta http-equiv="refresh" content="7;url=${target_url}">
+<!-- Electronic boot splash: a 3s countdown, then a brief "reveal" beat (so the
+     joke lands even for logged-out users who then hit the bib login wall), then
+     navigate. meta-refresh is the no-JS fallback, set to 6s — longer than the
+     ~4.3s JS sequence so it never preempts it. -->
+<meta http-equiv="refresh" content="6;url=${target_url}">
 <link rel="canonical" href="${target_url}">
 <style>
   :root{ --mask:#0a2a1a; --cop:#f4d27a; --mesh:#3ecf6e; --silk:#e9f5ec; --dim:#9dc7ac; }
@@ -40,7 +41,7 @@
   }
   .scan{position:fixed;inset:0;pointer-events:none;mix-blend-mode:multiply;
     background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px)}
-  .wrap{position:relative;z-index:2;padding:24px;max-width:720px}
+  .wrap{position:relative;z-index:2;padding:24px;max-width:760px}
   .kick{font-size:13px;letter-spacing:.30em;color:var(--dim);font-weight:700}
   .title{font-family:"Arial Black",Impact,sans-serif;font-size:clamp(64px,19vw,150px);
     letter-spacing:.08em;color:var(--cop);line-height:.9;margin-top:8px;
@@ -55,11 +56,18 @@
   .bar{margin:12px auto 0;width:min(380px,82vw);height:9px;border:1px solid rgba(244,210,122,.5);
     border-radius:6px;overflow:hidden;background:rgba(10,40,26,.6)}
   .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mesh),var(--cop));
-    box-shadow:0 0 14px rgba(244,210,122,.7);animation:fill 5s linear forwards}
+    box-shadow:0 0 14px rgba(244,210,122,.7);animation:fill 3s linear forwards}
   @keyframes fill{to{width:100%}}
+  /* reveal beat */
+  .reveal{margin-top:16px;animation:pop .34s ease-out both}
+  .reveal .rbig{font-family:"Arial Black",Impact,sans-serif;font-size:clamp(40px,11vw,82px);
+    letter-spacing:.02em;line-height:.96;color:var(--cop);
+    text-shadow:0 2px 0 #7a5410, 0 0 26px rgba(244,210,122,.5)}
+  .reveal .rsub{margin-top:12px;font-size:clamp(13px,3.6vw,18px);letter-spacing:.12em;color:var(--mesh)}
+  @keyframes pop{0%%{transform:scale(.7);opacity:0}60%%{transform:scale(1.06)}100%%{transform:scale(1);opacity:1}}
   .foot{margin-top:20px;font-size:12px;letter-spacing:.14em;color:var(--dim)}
   .foot a{color:var(--cop);text-decoration:none}
-  @media (prefers-reduced-motion:reduce){.bar>i{animation:none;width:100%}.term .cursor{animation:none}}
+  @media (prefers-reduced-motion:reduce){.bar>i{animation:none;width:100%}.term .cursor{animation:none}.reveal{animation:none}}
 </style>
 </head>
 <body>
@@ -67,26 +75,37 @@
   <div class="wrap">
     <div class="kick">DC34-SAO-01 &middot; SIMPLE ADD-ON &middot; v1.69bis</div>
     <div class="title">SAO</div>
-    <div class="sub">&#9642; MOUNTING SIMPLE ADD-ON</div>
-    <div class="term" id="term">i2c: probing 0x69<span class="cursor">&nbsp;</span></div>
-    <div class="count">INITIALIZING &middot; <b id="n">5</b></div>
-    <div class="bar"><i></i></div>
+    <div class="sub" id="sub">&#9642; MOUNTING SIMPLE ADD-ON</div>
+    <div id="boot">
+      <div class="term" id="term">i2c: probing 0x69<span class="cursor">&nbsp;</span></div>
+      <div class="count">INITIALIZING &middot; <b id="n">3</b></div>
+      <div class="bar"><i></i></div>
+    </div>
+    <div class="reveal" id="reveal" hidden>
+      <div class="rbig">IT&rsquo;S THE BIB.</div>
+      <div class="rsub">RUN BIB #34 &middot; lace up, Vegas &#127939;</div>
+    </div>
     <div class="foot"><a href="${target_url}">skip &rsaquo;</a> &nbsp;&middot;&nbsp; sao.defcon.run</div>
   </div>
 <script>
   var TARGET = ${target_url_json};
   var lines = ["i2c: probing 0x69 ... device found", "meshtastic: pairing node ...", "mounting add-on ..."];
   var term = document.getElementById("term"), nEl = document.getElementById("n");
+  var sub = document.getElementById("sub"), boot = document.getElementById("boot"), reveal = document.getElementById("reveal");
   var i = 0;
   var lt = setInterval(function(){
     i++;
     if (i < lines.length) { term.innerHTML = lines[i] + '<span class="cursor">&nbsp;</span>'; }
-  }, 1300);
-  var n = 5;
+  }, 900);
+  var n = 3;
   var ct = setInterval(function(){
     n--;
-    if (n <= 0) { clearInterval(ct); clearInterval(lt); location.replace(TARGET); }
-    else { nEl.textContent = n; }
+    if (n <= 0) {
+      clearInterval(ct); clearInterval(lt);
+      sub.innerHTML = "&#10003; ADD-ON MOUNTED";
+      boot.hidden = true; reveal.hidden = false;
+      setTimeout(function(){ location.replace(TARGET); }, 1300);
+    } else { nEl.textContent = n; }
   }, 1000);
 </script>
 </body>
