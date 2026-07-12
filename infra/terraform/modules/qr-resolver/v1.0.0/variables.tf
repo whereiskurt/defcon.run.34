@@ -136,3 +136,27 @@ variable "resolver_host" {
   type        = string
   default     = "q.defcon.run"
 }
+
+variable "alb_dns_name" {
+  description = "DNS name of the public ALB, used as the CloudFront origin domain. Only used when enable_transport = true."
+  type        = string
+  default     = ""
+}
+
+variable "cert_arn" {
+  description = "ARN of the us-east-1 ACM cert covering the resolver host (rides the *.defcon.run wildcard SAN). CloudFront requires the cert in us-east-1. Only used when enable_transport = true."
+  type        = string
+  default     = ""
+}
+
+variable "zone_id" {
+  description = "Route53 hosted-zone id of the apex defcon.run zone for the q. ALIAS record. Only used when enable_transport = true."
+  type        = string
+  default     = ""
+}
+
+variable "tags" {
+  description = "Extra tags merged onto the CloudFront distribution."
+  type        = map(string)
+  default     = {}
+}

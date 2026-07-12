@@ -32,3 +32,18 @@ output "resolver_target_group_arn" {
   description = "ARN of the ALB->Lambda target group when enable_transport = true, else empty."
   value       = var.enable_transport ? aws_lb_target_group.resolver[0].arn : ""
 }
+
+output "resolver_distribution_id" {
+  description = "Id of the q.defcon.run CloudFront distribution when enable_transport = true, else empty."
+  value       = var.enable_transport ? aws_cloudfront_distribution.resolver[0].id : ""
+}
+
+output "resolver_distribution_domain_name" {
+  description = "CloudFront domain name (dxxx.cloudfront.net) fronting the resolver when enable_transport = true, else empty."
+  value       = var.enable_transport ? aws_cloudfront_distribution.resolver[0].domain_name : ""
+}
+
+output "resolver_distribution_arn" {
+  description = "ARN of the q.defcon.run CloudFront distribution when enable_transport = true, else empty."
+  value       = var.enable_transport ? aws_cloudfront_distribution.resolver[0].arn : ""
+}
