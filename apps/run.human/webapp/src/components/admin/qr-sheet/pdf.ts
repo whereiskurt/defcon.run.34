@@ -18,7 +18,16 @@ import {
   type SheetLayout,
 } from "./templates";
 
-export type RenderPng = (url: string, sizePx: number) => Promise<ArrayBuffer>;
+/**
+ * Injected renderer. `ecLevel` is only passed on the redundancy-comparison
+ * proof page (to force L/M/Q/H); omitted everywhere else so the caller's own
+ * auto/override choice applies.
+ */
+export type RenderPng = (
+  url: string,
+  sizePx: number,
+  ecLevel?: "L" | "M" | "Q" | "H"
+) => Promise<ArrayBuffer>;
 
 const GREY = rgb(0.3, 0.3, 0.3);
 const LIGHT_GREY = rgb(0.7, 0.7, 0.7);
@@ -224,6 +233,85 @@ export async function buildSheetPdf(opts: {
       });
       cx += sizePt + spacing;
       rowMax = Math.max(rowMax, sizePt);
+    }
+
+    // ── Redundancy (error-correction) comparison page ────────────────────
+    // The same QR at all four EC levels, each at THIS sheet's cell size —
+    // print it, damage/scan-test it, and pick the level that survives.
+    const ecPage = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    ecPage.drawText("Error-Correction (Redundancy) Comparison", {
+      x: 40,
+      y: HEADER_Y,
+      size: 12,
+      color: GREY,
+    });
+    ecPage.drawText(`Base URL: ${url}`, {
+      x: 40,
+      y: HEADER_Y - 15,
+      size: 8,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+
+    const EC_PAGE_LEVELS: { level: "L" | "M" | "Q" | "H"; pct: number }[] = [
+      { level: "L", pct: 7 },
+      { level: "M", pct: 15 },
+      { level: "Q", pct: 25 },
+      { level: "H", pct: 30 },
+    ];
+    // 2×2 of large samples plus cell-size samples underneath — skipped when
+    // the sheet's cells are already large (they'd duplicate the big samples
+    // and overflow the page).
+    const bigPt = 200;
+    const cellSamplePt = qrPt <= 140 ? qrPt : 0;
+    for (let i = 0; i < EC_PAGE_LEVELS.length; i++) {
+      const { level, pct } = EC_PAGE_LEVELS[i];
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const bx = 80 + col * (bigPt + 90);
+      const by = PAGE_HEIGHT - 120 - bigPt - row * (bigPt + 60);
+      try {
+        const big = await doc.embedPng(await renderPng(url, pxFor(bigPt), level));
+        ecPage.drawImage(big, { x: bx, y: by, width: bigPt, height: bigPt });
+        ecPage.drawText(`${level} — ${pct}% redundancy`, {
+          x: bx,
+          y: by - 14,
+          size: 9,
+          color: GREY,
+        });
+      } catch {
+        ecPage.drawText(`${level} — ${pct}%: URL does not fit at this level`, {
+          x: bx,
+          y: by + bigPt / 2,
+          size: 9,
+          color: MID_GREY,
+        });
+      }
+      // cell-size sample beside the label, matching the printed sheet
+      if (cellSamplePt > 0) {
+        try {
+          const small = await doc.embedPng(
+            await renderPng(url, pxFor(cellSamplePt), level)
+          );
+          ecPage.drawImage(small, {
+            x: bx + bigPt - cellSamplePt,
+            y: by - 14 - cellSamplePt - 4,
+            width: cellSamplePt,
+            height: cellSamplePt,
+          });
+        } catch {
+          // no cell-size sample if it doesn't fit — big label already says so
+        }
+      }
+    }
+    ecPage.drawText(
+      "Higher redundancy survives more damage/logo coverage but packs modules denser.",
+      { x: 40, y: 46, size: 9, color: MID_GREY }
+    );
+    if (cellSamplePt > 0) {
+      ecPage.drawText(
+        `Small samples are this sheet's cell size (${(l.qrBox / DPI).toFixed(2)}").`,
+        { x: 40, y: 32, size: 9, color: MID_GREY }
+      );
     }
 
     // ── Progressive data-density page ────────────────────────────────────

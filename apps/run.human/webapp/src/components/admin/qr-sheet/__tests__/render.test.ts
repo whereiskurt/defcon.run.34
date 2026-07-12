@@ -1,5 +1,23 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { pickEcLevel, resolveLogoSrc } from "../render";
+import { pickEcLevel, effectiveEcLevel, resolveLogoSrc } from "../render";
+
+describe("effectiveEcLevel", () => {
+  it("auto delegates to the adaptive ladder", () => {
+    expect(effectiveEcLevel("https://q.defcon.run/CTF", false, "auto")).toBe("H");
+  });
+
+  it("returns an explicit level verbatim when the URL fits", () => {
+    expect(effectiveEcLevel("https://q.defcon.run/CTF", false, "L")).toBe("L");
+    // explicit levels bypass the logo floor (proof pages demonstrate risk)
+    expect(effectiveEcLevel("https://q.defcon.run/CTF", true, "L")).toBe("L");
+  });
+
+  it("throws when the URL does not fit at the forced level", () => {
+    const long = "https://q.defcon.run/" + "a".repeat(1700); // > Q's 1663-byte cap
+    expect(() => effectiveEcLevel(long, false, "Q")).toThrow(/level Q/);
+    expect(effectiveEcLevel(long, false, "M")).toBe("M");
+  });
+});
 
 describe("resolveLogoSrc", () => {
   afterEach(() => vi.unstubAllEnvs());

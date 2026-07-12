@@ -23,7 +23,12 @@ import {
   type EyeShape,
   type QrStyle,
 } from "@/components/admin/qr-sheet/styles";
-import { renderQrPng } from "@/components/admin/qr-sheet/render";
+import {
+  EC_INFO,
+  effectiveEcLevel,
+  renderQrPng,
+  type EcChoice,
+} from "@/components/admin/qr-sheet/render";
 import { buildSheetPdf, sheetFilename } from "@/components/admin/qr-sheet/pdf";
 
 const MODULE_SHAPES: ModuleShape[] = ["square", "dots", "rounded", "classy"];
@@ -76,6 +81,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
   const [style, setStyle] = useState<QrStyle>(DC34_PRESETS[0].style);
   const [presetId, setPresetId] = useState<string>(DC34_PRESETS[0].id);
   const [proofPages, setProofPages] = useState(true);
+  const [ecChoice, setEcChoice] = useState<EcChoice>("auto");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -87,6 +93,19 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
   );
   const urlOk = /^https?:\/\/\S+$/.test(url.trim());
   const contrast = contrastWarning(style);
+
+  // Logo knockout eats ~6% of modules — below Q it stops being recoverable.
+  const hasLogo = Boolean(style.logo);
+  const ecDisabled = (lvl: string) => hasLogo && (lvl === "L" || lvl === "M");
+  const effectiveEc = useMemo(() => {
+    if (!urlOk) return null;
+    try {
+      return effectiveEcLevel(url.trim(), hasLogo, ecChoice);
+    } catch {
+      return null;
+    }
+  }, [url, urlOk, hasLogo, ecChoice]);
+  const effectiveEcPct = EC_INFO.find((e) => e.level === effectiveEc)?.pct;
 
   const patchStyle = (patch: Partial<QrStyle> & { logo?: string }) => {
     setPresetId("");
@@ -103,6 +122,12 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
     setPresetId(id);
     setStyle({ ...p.style });
   };
+
+  // Turning a logo on while L/M is forced would print an unrecoverable code —
+  // snap back to auto (the chips also disable L/M while a logo is set).
+  useEffect(() => {
+    if (hasLogo && (ecChoice === "L" || ecChoice === "M")) setEcChoice("auto");
+  }, [hasLogo, ecChoice]);
 
   const onLogoUpload = (file: File | null) => {
     if (!file) return;
@@ -128,12 +153,19 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
       };
       try {
         setWarning(contrast);
-        show(await renderQrPng(url.trim(), style, 240));
+        show(await renderQrPng(url.trim(), style, 240, ecChoice));
       } catch (e) {
         // Retry once without the logo — a broken image must not brick preview.
         if (style.logo) {
           try {
-            show(await renderQrPng(url.trim(), { ...style, logo: undefined }, 240));
+            show(
+              await renderQrPng(
+                url.trim(),
+                { ...style, logo: undefined },
+                240,
+                ecChoice
+              )
+            );
             setWarning("Logo image failed to load — previewing without it.");
             return;
           } catch {
@@ -144,7 +176,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [url, urlOk, style, contrast]);
+  }, [url, urlOk, style, contrast, ecChoice]);
 
   // ── Download ──────────────────────────────────────────────────────────────
   const download = useCallback(async () => {
@@ -154,9 +186,16 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
     try {
       const effective = { ...style };
       let logoWarned = false;
-      const renderPng = async (u: string, px: number): Promise<ArrayBuffer> => {
+      // Proof pages pass an explicit level (redundancy comparison); everywhere
+      // else the user's auto/override choice applies.
+      const renderPng = async (
+        u: string,
+        px: number,
+        lvl?: "L" | "M" | "Q" | "H"
+      ): Promise<ArrayBuffer> => {
+        const ec: EcChoice = lvl ?? ecChoice;
         try {
-          return await renderQrPng(u, effective, px);
+          return await renderQrPng(u, effective, px, ec);
         } catch (e) {
           if (effective.logo) {
             // drop the logo for the whole sheet and warn once
@@ -165,7 +204,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
               setWarning("Logo image failed to load — sheet generated without it.");
               logoWarned = true;
             }
-            return renderQrPng(u, effective, px);
+            return renderQrPng(u, effective, px, ec);
           }
           throw e;
         }
@@ -189,7 +228,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
     } finally {
       setBusy(false);
     }
-  }, [url, urlOk, layout, style, proofPages]);
+  }, [url, urlOk, layout, style, proofPages, ecChoice]);
 
   const activeLogo =
     BUNDLED_LOGOS.find((l) => l.path === style.logo)?.id ??
@@ -363,6 +402,41 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
           </p>
         </div>
 
+        {/* Error correction / redundancy */}
+        <div className="flex flex-col gap-2">
+          <label className={cls.label}>Redundancy (error correction)</label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setEcChoice("auto")}
+              className={ecChoice === "auto" ? cls.btnPrimary : cls.btn}
+            >
+              Auto
+            </button>
+            {EC_INFO.map((e) => (
+              <button
+                key={e.level}
+                type="button"
+                disabled={ecDisabled(e.level)}
+                title={
+                  ecDisabled(e.level)
+                    ? "Too little redundancy for a center logo — needs Q or H"
+                    : `${e.pct}% of the code can be damaged and still scan`
+                }
+                onClick={() => setEcChoice(e.level)}
+                className={ecChoice === e.level ? cls.btnPrimary : cls.btn}
+              >
+                {e.level} · {e.pct}%
+              </button>
+            ))}
+          </div>
+          <p className="text-[11.5px] text-default-400">
+            How much of the printed code can be damaged (or covered by a logo)
+            and still scan. Higher survives more abuse; lower packs modules less
+            densely. Auto picks the highest level the URL fits at.
+          </p>
+        </div>
+
         {/* Proof pages + download */}
         <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-divider">
           <label className="flex items-center gap-2 text-[13px] cursor-pointer">
@@ -399,6 +473,14 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
           />
         ) : (
           <div className="w-[240px] h-[240px] rounded-lg border border-divider bg-content2" />
+        )}
+        {effectiveEc && (
+          <p className="text-[11.5px] text-default-500 -mt-2">
+            EC level <span className="font-mono font-semibold">{effectiveEc}</span>
+            {" · "}
+            {effectiveEcPct}% redundancy
+            {ecChoice === "auto" ? " (auto)" : " (forced)"}
+          </p>
         )}
         {layout && (
           <>
