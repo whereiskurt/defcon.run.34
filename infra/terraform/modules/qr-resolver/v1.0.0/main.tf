@@ -18,6 +18,30 @@ locals {
 }
 
 # ---------------------------------------------------------------------------
+# Optional "test scan" token. A scan carrying `x-qr-test: <token>` redirects
+# normally but is NOT logged (so the rollup never counts it) — for operators to
+# verify a live code without polluting analytics. The token is the operator-
+# facing source of truth in SSM (SecureString) and is injected into the resolver
+# env at apply time, so the Lambda needs no runtime SSM read / IAM. Retrieve it:
+#   aws ssm get-parameter --name <test_token_ssm_name> --with-decryption \
+#     --query Parameter.Value --output text
+# ---------------------------------------------------------------------------
+resource "random_password" "test_token" {
+  count   = var.test_token_enabled ? 1 : 0
+  length  = 40
+  special = false
+}
+
+resource "aws_ssm_parameter" "test_token" {
+  count       = var.test_token_enabled ? 1 : 0
+  name        = "/dc34/infra/${var.region.label}/qr/test_token"
+  description = "x-qr-test token — a scan carrying this header redirects but is not logged/counted."
+  type        = "SecureString"
+  value       = random_password.test_token[0].result
+  tags        = merge(local.common_tags, { Name = "qr-test-token-${var.region.label}" })
+}
+
+# ---------------------------------------------------------------------------
 # Resolver Lambda — parse path, GetItem qr, apply rules, 302, emit 1 log line.
 # Handler `handler` exported from index.mjs (ES module). Node 22.x runs .mjs
 # natively; no bundler. Source dir must already contain node_modules/ (the
@@ -52,6 +76,9 @@ resource "aws_lambda_function" "resolver" {
         RUN_ELECTRO_DBNAME = var.electro_table_name
         REGION_LABEL       = var.region.label
       },
+      # Optional "test scan" token — a scan carrying `x-qr-test: <this>`
+      # redirects normally but is not logged/counted (lib/testmode.mjs).
+      var.test_token_enabled ? { QR_TEST_TOKEN = aws_ssm_parameter.test_token[0].value } : {},
       var.extra_environment,
     )
   }

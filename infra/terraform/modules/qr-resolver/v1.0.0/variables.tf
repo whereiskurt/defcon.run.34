@@ -104,6 +104,12 @@ variable "extra_environment" {
   default     = {}
 }
 
+variable "test_token_enabled" {
+  description = "Create an SSM SecureString test token and inject it as the resolver's QR_TEST_TOKEN. A scan carrying `x-qr-test: <token>` then redirects normally but is NOT logged/counted — for operators to verify a live code without polluting analytics. Read the token from the SSM param name this module outputs."
+  type        = bool
+  default     = false
+}
+
 # --- Transport (PENDING DECISION 1 — see README + spec-corrections doc) -----
 
 variable "enable_transport" {
