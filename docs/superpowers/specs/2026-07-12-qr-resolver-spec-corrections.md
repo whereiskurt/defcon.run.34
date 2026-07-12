@@ -63,7 +63,17 @@ to be transport-agnostic — only the thin `index.mjs` handler adapter changes.
 
 ---
 
-## DECISION 2 — Region-awareness → **RESOLVED: region moves to the edge**
+> **UPDATE (2026-07-12, post-Phase-A):** the edge-prefixer plan below was
+> **superseded**. Observing the live `run.defcon.run` distro showed it's an
+> intricate mixed-origin setup (S3 landing via `default_root_object` + S3 assets
+> + CMS media + ALB app, with per-region ordered behaviors). Region-prefixing
+> there is a risky prod-site change, not a no-op swap. Since **only `use1` serves**,
+> we instead prefix `/use1` **resolver-side** in `respond.mjs` (`withRegion`,
+> for `run.defcon.run` hosts only, idempotent). Zero changes to the run.human
+> distro; no cookie, ever. The `cloudfront-region-prefix` module remains authored
+> for a future multi-region edge project. See resolver `respond.mjs`.
+
+## DECISION 2 — Region-awareness → ~~region moves to the edge~~ (superseded, see UPDATE above)
 
 **Spec said:** resolver reads a run.human "region cookie" and rewrites run.human
 destinations to `/use1//cac1/` (§6 step 5, §8).
