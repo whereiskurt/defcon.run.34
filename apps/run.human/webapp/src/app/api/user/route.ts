@@ -145,7 +145,12 @@ export async function PATCH(req: NextRequest) {
         }
         throw err;
       }
-      await updateRunUserProfile(session.user.id, { displayName: trimmed });
+      // A manual pencil edit claims the rabbit name: mark it so the bib-name
+      // sync stops overwriting it (docs/.../bib-name-rabbit-sync-design.md).
+      await updateRunUserProfile(session.user.id, {
+        displayName: trimmed,
+        displayNameManual: true,
+      });
       response.displayName = trimmed;
     }
 
