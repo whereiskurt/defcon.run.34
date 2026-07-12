@@ -126,6 +126,10 @@ inputs = merge(
     enable_transport = true
     resolver_host    = "q.${local.site_vars.locals.dns.zonename}"
 
+    # Create the x-qr-test token so operators can test codes without counting.
+    # Read it from SSM: aws ssm get-parameter --name /dc34/infra/use1/qr/test_token --with-decryption
+    test_token_enabled = true
+
     electro_table_name = dependency.dynamodb.outputs.tables["run-human-electro"].table_name
     electro_table_arn  = dependency.dynamodb.outputs.tables["run-human-electro"].table_arn
 

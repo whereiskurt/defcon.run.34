@@ -13,6 +13,11 @@ output "resolver_log_group_name" {
   value       = aws_cloudwatch_log_group.resolver.name
 }
 
+output "test_token_ssm_name" {
+  description = "SSM SecureString param holding the x-qr-test token (empty when disabled). Read with: aws ssm get-parameter --name <name> --with-decryption --query Parameter.Value --output text"
+  value       = var.test_token_enabled ? aws_ssm_parameter.test_token[0].name : ""
+}
+
 output "rollup_function_name" {
   description = "Name of the analytics rollup Lambda function."
   value       = aws_lambda_function.rollup.function_name
