@@ -16,6 +16,7 @@ import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
 import { PiPersonSimpleRun } from 'react-icons/pi';
+import { FiShield } from 'react-icons/fi';
 import { DonateModal } from '../DonateModal';
 import { useCopy } from '../CopyProvider';
 
@@ -69,6 +70,14 @@ export function Header(params: any) {
   const [donateOpen, setDonateOpen] = useState(false);
   const { t } = useCopy();
 
+  // Admin console link shows ONLY for admin/runadmin operators. This is a
+  // convenience gate on the cached session claims; the /admin route itself
+  // re-checks + live-revalidates, so a stale claim can never grant real access.
+  const services = session?.user?.services;
+  const isAdmin =
+    Array.isArray(services) &&
+    (services.includes('admin') || services.includes('runadmin'));
+
   return (
     <>
     <Navbar
@@ -81,7 +90,7 @@ export function Header(params: any) {
       {/* Mobile: hamburger */}
       <NavbarContent className="sm:hidden" justify="start">
         <NavbarItem>
-          <MenuDropDown session={session} onDonate={() => setDonateOpen(true)} />
+          <MenuDropDown session={session} isAdmin={isAdmin} onDonate={() => setDonateOpen(true)} />
         </NavbarItem>
       </NavbarContent>
 
@@ -146,6 +155,23 @@ export function Header(params: any) {
             </NavbarItem>
           );
         })}
+
+        {isAdmin && (
+          <NavbarItem>
+            <Link
+              color="foreground"
+              href="/admin"
+              className={`flex items-center gap-1.5 transition-colors relative ${
+                pathname && pathname.replace(basePath, '').startsWith('/admin')
+                  ? 'text-primary font-medium nav-active'
+                  : 'text-default-500 hover:text-foreground'
+              }`}
+            >
+              <FiShield className="w-4 h-4" />
+              {t('common.header.admin')}
+            </Link>
+          </NavbarItem>
+        )}
       </NavbarContent>
 
       {/* Right: theme + auth */}

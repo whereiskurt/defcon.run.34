@@ -36,6 +36,8 @@ function row(over: Partial<UserReportRow>): UserReportRow {
     gpxRoutes: 0,
     gpxSaves: 0,
     gpxShares: 0,
+    gpxUploads: 0,
+    photoUploads: 0,
     uploads: 0,
     services: [],
     ...over,

@@ -42,12 +42,23 @@ export type SessionLike =
   | undefined;
 
 /**
- * True iff the session carries the `"admin"` service/group. Pure + sync so
- * server components and API routes can gate without an async hop.
+ * Groups that grant admin-console access. Membership in ANY of these on the
+ * user's `services` list opens the gate. Kept as ONE list so the nav link, the
+ * page/API gate, and the live `revalidateAdmin` all agree on who is an admin.
+ * (`runadmin` = run.human operators; `admin` = full superuser.)
+ */
+export const ADMIN_GROUPS = ["admin", "runadmin"] as const;
+
+/**
+ * True iff the session carries one of the ADMIN_GROUPS service/groups. Pure +
+ * sync so server components and API routes can gate without an async hop.
  */
 export function isAdmin(session: SessionLike): boolean {
   const services = session?.user?.services;
-  return Array.isArray(services) && services.includes("admin");
+  return (
+    Array.isArray(services) &&
+    services.some((s) => (ADMIN_GROUPS as readonly string[]).includes(s))
+  );
 }
 
 /**

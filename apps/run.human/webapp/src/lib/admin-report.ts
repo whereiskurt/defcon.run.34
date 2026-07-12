@@ -48,6 +48,8 @@ export type UserReportRow = {
   gpxRoutes: number;
   gpxSaves: number;
   gpxShares: number;
+  gpxUploads: number;
+  photoUploads: number;
   uploads: number;
   services: string[];
 };
@@ -239,6 +241,8 @@ export async function buildUserReport(): Promise<UserReportRow[]> {
       gpxRoutes: routesIdx[u.userId] ?? 0,
       gpxSaves: savesIdx[u.userId] ?? 0,
       gpxShares: sharesIdx[u.userId] ?? 0,
+      gpxUploads: up.gpx,
+      photoUploads: up.photo,
       uploads: up.gpx + up.photo,
       // Services live on the AuthProfile (keyed by OIDC sub), joined through the
       // SAME adapter→sub bridge as the bib code — a pure map lookup, no fan-out.

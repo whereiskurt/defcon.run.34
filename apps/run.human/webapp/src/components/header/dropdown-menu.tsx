@@ -15,7 +15,7 @@ import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaUserAlt } from 'react-icons/fa';
 import { PiPersonSimpleRun } from 'react-icons/pi';
-import { FiDollarSign } from 'react-icons/fi';
+import { FiDollarSign, FiShield } from 'react-icons/fi';
 import { useCopy } from '../CopyProvider';
 
 const iconClasses = 'text-lg text-default-400 pointer-events-none flex-shrink-0';
@@ -25,6 +25,7 @@ const MenuDropDown = (params: any) => {
   const router = useRouter();
   const { t } = useCopy();
   const onDonate: (() => void) | undefined = params?.onDonate;
+  const isAdmin: boolean = !!params?.isAdmin;
 
   const handleNavigation = (href: string) => {
     setIsOpen(false);
@@ -110,6 +111,18 @@ const MenuDropDown = (params: any) => {
           >
             <span className="text-base">{t('common.header.donate')}</span>
           </DropdownItem>
+
+          {isAdmin ? (
+            <DropdownItem
+              textValue="admin"
+              startContent={<FiShield className={iconClasses} />}
+              key="admin"
+              showDivider
+              onClick={() => handleNavigation('/admin')}
+            >
+              <span className="text-base">{t('common.header.admin')}</span>
+            </DropdownItem>
+          ) : null}
 
           <DropdownItem
             textValue="faq"
