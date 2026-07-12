@@ -13,7 +13,7 @@ import {
 
 import type React from 'react';
 import { Key, Wand, RefreshCw, ArrowRight } from 'lucide-react';
-import { FaDiscord, FaGithub } from 'react-icons/fa';
+import { FaDiscord, FaGithub, FaLinkedin } from 'react-icons/fa';
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { getCsrfToken, useSession, signOut, signIn } from 'next-auth/react';
 import { useSearchParams } from 'next/navigation';
@@ -294,6 +294,18 @@ function ClientOnlyForm() {
                 })}
               >
                 GitHub
+              </Button>
+              <Button
+                variant="flat"
+                className="flex-1"
+                startContent={<FaLinkedin className="w-4 h-4" />}
+                onPress={() => signIn('linkedin', {
+                  callbackUrl: oidcInteraction
+                    ? `${basePath}/login?oidc=${oidcInteraction}`
+                    : `${basePath}/`
+                })}
+              >
+                LinkedIn
               </Button>
             </div>
           </CardFooter>

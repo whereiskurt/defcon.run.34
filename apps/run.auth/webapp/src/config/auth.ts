@@ -41,6 +41,7 @@ import Email from "@auth/core/providers/nodemailer";
 import Discord from "next-auth/providers/discord";
 import Github from "next-auth/providers/github";
 import Strava from "next-auth/providers/strava";
+import LinkedIn from "next-auth/providers/linkedin";
 
 // DynamoDB client configuration
 const dynamoConfig: DynamoDBClientConfig = {
@@ -156,6 +157,21 @@ const providers: Provider[] = [
       url: "https://discord.com/api/oauth2/token",
       params: {
         redirect_uri: `${config.urls.baseUrl}/api/auth/callback/discord`,
+      },
+    },
+  }),
+  // Sign In with LinkedIn using OpenID Connect. The built-in provider is
+  // type: "oidc" and already sets issuer + token_endpoint_auth_method:
+  // "client_secret_post" + checks: ["state"]. We only override the scope and
+  // the region-prefixed redirect_uri (baseUrl includes /{region} in prod).
+  LinkedIn({
+    clientId: config.providers.linkedin.clientId,
+    clientSecret: config.providers.linkedin.clientSecret,
+    allowDangerousEmailAccountLinking: true,
+    authorization: {
+      params: {
+        scope: "openid profile email",
+        redirect_uri: `${config.urls.baseUrl}/api/auth/callback/linkedin`,
       },
     },
   }),
@@ -328,6 +344,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               // Store the full raw profile for later use
               stravaProfile: profile as Record<string, unknown>,
             }).catch((err) => console.error("Failed to upsert Strava profile:", err));
+          }
+        } else if (account.provider === "linkedin") {
+          token.name = `${profile.name}`;
+          token.picture = `${profile.picture}`;
+
+          // Persist LinkedIn profile to AuthProfile entity
+          if (userId) {
+            upsertAuthProfile(userId, "linkedin", {
+              email: profile.email as string | undefined,
+              linkedin: {
+                id: String(profile.sub),
+                name: profile.name as string | undefined,
+                givenName: profile.given_name as string | undefined,
+                familyName: profile.family_name as string | undefined,
+                picture: profile.picture as string | undefined,
+                email: profile.email as string | undefined,
+              },
+              // Store the full raw profile for later use
+              linkedinProfile: profile as Record<string, unknown>,
+            }).catch((err) => console.error("Failed to upsert LinkedIn profile:", err));
           }
         }
       } else if (account && account.provider === "nodemailer") {

@@ -104,6 +104,10 @@ export const config = {
       clientId: process.env.AUTH_DISCORD_CLIENT_ID,
       clientSecret: process.env.AUTH_DISCORD_CLIENT_SECRET,
     },
+    linkedin: {
+      clientId: process.env.AUTH_LINKEDIN_CLIENT_ID,
+      clientSecret: process.env.AUTH_LINKEDIN_CLIENT_SECRET,
+    },
   },
 
   dynamodb: {

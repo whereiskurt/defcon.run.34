@@ -79,6 +79,22 @@ export async function GET() {
     linkedAccounts.strava = { linked: false };
   }
 
+  if (profile.linkedin?.id) {
+    linkedAccounts.linkedin = {
+      linked: true,
+      name: profile.linkedin.name,
+      givenName: profile.linkedin.givenName,
+      familyName: profile.linkedin.familyName,
+      avatarUrl: profile.linkedin.picture,
+      email: profile.linkedin.email ? maskEmail(profile.linkedin.email) : undefined,
+      linkedAt: profile.linkedin.linkedAt
+        ? new Date(profile.linkedin.linkedAt).toISOString()
+        : undefined,
+    };
+  } else {
+    linkedAccounts.linkedin = { linked: false };
+  }
+
   return NextResponse.json({
     user: {
       userId: profile.userId,
