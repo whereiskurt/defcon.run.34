@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X } from 'lucide-react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
 import CheckInPinCard from '@/components/profile/CheckInPinCard';
 import SocialQRRow from '@/components/profile/SocialQRRow';
 import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
+import QrCardModal from '@/components/qr/QrCardModal';
 import { useCopy } from '@/components/CopyProvider';
 import { apiUrl } from '@/lib/api';
 
@@ -112,6 +113,7 @@ function QuotaBar({ remaining, initial, label }: { remaining: number; initial: n
 export default function WhoAmIPage() {
   const [mounted, setMounted] = useState(false);
   const [isQROpen, setIsQROpen] = useState(false);
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isQuotasOpen, setIsQuotasOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -135,6 +137,20 @@ export default function WhoAmIPage() {
   };
   const stravaGroupUrl = asUrl('socials.strava_group_url') || DEFAULT_STRAVA_GROUP_URL;
   const signalGroupUrl = asUrl('socials.signal_group_url') || DEFAULT_SIGNAL_GROUP_URL;
+
+  // Same default-floor idiom as asUrl above: t() echoes the raw key when unset.
+  const copyOr = (key: string, fallback: string) => {
+    const v = t(key);
+    return !v || v === key ? fallback : v;
+  };
+  const qrCardCopy = {
+    tagline: copyOr('qrcard.tagline', 'SCAN TO CONNECT'),
+    prompt: copyOr('qrcard.prompt', '$ defcon.run/connect_'),
+    wordmark: copyOr('qrcard.wordmark', 'DEF CON 34'),
+    site: copyOr('qrcard.site', 'defcon.run'),
+    optionWallpaper: copyOr('qrcard.option.wallpaper', 'Lock-screen wallpaper'),
+    optionShare: copyOr('qrcard.option.share', 'Share card'),
+  };
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -369,6 +385,25 @@ export default function WhoAmIPage() {
                 <p className="text-xs text-default-400 text-center">
                   Share this QR code to connect with other runners
                 </p>
+                {userData.hash && (
+                  <>
+                    <Button
+                      size="sm" color="primary" variant="flat"
+                      startContent={<Download className="w-4 h-4" />}
+                      onPress={() => setIsCardModalOpen(true)}
+                    >
+                      {copyOr('qrcard.button', 'Save QR card')}
+                    </Button>
+                    <QrCardModal
+                      isOpen={isCardModalOpen}
+                      onClose={() => setIsCardModalOpen(false)}
+                      hash={userData.hash}
+                      name={displayName}
+                      bib={userData.runnerCode ? userData.runnerCode.toUpperCase() : null}
+                      copy={qrCardCopy}
+                    />
+                  </>
+                )}
               </div>
             )}
           </CardBody>
