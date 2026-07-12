@@ -11,6 +11,7 @@ import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
 import CheckInPinCard from '@/components/profile/CheckInPinCard';
 import SocialQRRow from '@/components/profile/SocialQRRow';
+import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
 import { useCopy } from '@/components/CopyProvider';
 import { apiUrl } from '@/lib/api';
 
@@ -37,6 +38,7 @@ interface UserData {
   displayname?: string;
   displayName?: string;
   eqr?: string;
+  hash?: string;
   mqttUsername?: string;
   mqttPassword?: string;
   mqttUsertype?: string;
@@ -337,7 +339,7 @@ export default function WhoAmIPage() {
       </Card>
 
       {/* Your Social QR (collapsed by default) — sits directly under the header */}
-      {userData?.eqr && (
+      {(userData?.hash || userData?.eqr) && (
         <Card className="glass-card overflow-hidden">
           <CardBody className="px-5 py-3">
             <button
@@ -357,8 +359,9 @@ export default function WhoAmIPage() {
             {isQROpen && (
               <div className="flex flex-col items-center mt-3 space-y-3">
                 <div className="bg-white p-3 rounded-lg">
-                  <img
-                    src={userData.eqr}
+                  <StyledRunnerQr
+                    hash={userData.hash}
+                    eqrFallback={userData.eqr}
                     alt="Your QR Code"
                     className="max-w-[220px]"
                   />
