@@ -34,6 +34,7 @@ export type MaskedRow = {
   gpxUploads: number;
   photoUploads: number;
   uploads: number;
+  runnerType: "rabbit" | "admin" | "wildhare" | "og" | null;
   services: string[];
 };
 
@@ -61,6 +62,19 @@ const SVC_COLOR: Record<string, string> = {
   run: "#00d4aa",
   gpx: "#f5a623",
   cms: "#37c7e0",
+};
+/** Runner class (mqttUsertype) colour + short label. wildhare renders as "hare". */
+const RUNNER_COLOR: Record<string, string> = {
+  admin: "#ff5c72",
+  wildhare: "#f5a623",
+  rabbit: "#37c7e0",
+  og: "#9a7cff",
+};
+const RUNNER_LABEL: Record<string, string> = {
+  admin: "admin",
+  wildhare: "hare",
+  rabbit: "rabbit",
+  og: "og",
 };
 /** Human labels for known quota ids; unknown ids fall back to the raw id. */
 const QUOTA_LABEL: Record<string, string> = {
@@ -120,7 +134,7 @@ export function AdminConsole({
   const [sortDir, setSortDir] = useState<-1 | 1>(-1);
   const [filters, setFilters] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(200);
   const [emailIds, setEmailIds] = useState<Set<string> | null>(null);
 
   const [selected, setSelected] = useState<MaskedRow | null>(null);
@@ -190,6 +204,8 @@ export function AdminConsole({
         !(r.lastActivityAt && Date.now() - r.lastActivityAt <= WEEK)
       )
         return false;
+      if (filters.has("admin") && r.runnerType !== "admin") return false;
+      if (filters.has("hare") && r.runnerType !== "wildhare") return false;
       return true;
     });
     const keyOf = (r: MaskedRow): number | string => {
@@ -232,11 +248,33 @@ export function AdminConsole({
       .finally(() => setDetailLoading(false));
   };
   const closeDrawer = () => setSelected(null);
+  // Esc closes; j/k step to the next/prev user in the CURRENT filtered+sorted
+  // view while the drawer is open (skipped when a form field has focus). Jumps
+  // the page so the highlighted row stays visible.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeDrawer();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeDrawer();
+        return;
+      }
+      if (!selected || (e.key !== "j" && e.key !== "k")) return;
+      const el = document.activeElement;
+      if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+      const idx = view.findIndex((r) => r.userId === selected.userId);
+      if (idx < 0) return;
+      const next = Math.min(
+        view.length - 1,
+        Math.max(0, idx + (e.key === "j" ? 1 : -1))
+      );
+      if (next === idx) return;
+      e.preventDefault();
+      setPage(Math.floor(next / pageSize));
+      openUser(view[next]);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, view, pageSize]);
 
   // ── client-side tiles (from the full row set) ───────────────────────────────
   const tiles = useMemo(() => {
@@ -320,6 +358,8 @@ export function AdminConsole({
           { f: "gpx", label: "uses gpx" },
           { f: "bib", label: "has bib" },
           { f: "active", label: "active 7d" },
+          { f: "admin", label: "admins" },
+          { f: "hare", label: "hares" },
         ].map(({ f, label }) => (
           <button
             key={f}
@@ -357,6 +397,7 @@ export function AdminConsole({
                 <Th onClick={() => setSort("signup")}>Signed up<Arrow k="signup" /></Th>
                 <Th onClick={() => setSort("lastActivity")}>Last active<Arrow k="lastActivity" /></Th>
                 <Th onClick={() => setSort("gpxUsage")}>GPX<Arrow k="gpxUsage" /></Th>
+                <Th>Type</Th>
                 <Th>Services</Th>
                 <Th>Bib</Th>
               </tr>
@@ -364,7 +405,7 @@ export function AdminConsole({
             <tbody>
               {slice.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-default-400 text-sm">
+                  <td colSpan={7} className="p-6 text-center text-default-400 text-sm">
                     No users match the current filter.
                   </td>
                 </tr>
@@ -427,6 +468,13 @@ export function AdminConsole({
                         )}
                       </td>
                       <td className="px-4 py-2.5">
+                        {r.runnerType ? (
+                          <RunnerTag t={r.runnerType} />
+                        ) : (
+                          <span className="text-default-400 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
                         <span className="flex gap-1 flex-wrap">
                           {r.services.map((s) => (
                             <Tag key={s} s={s} />
@@ -468,7 +516,7 @@ export function AdminConsole({
               }}
               className="h-7 rounded-md border border-divider bg-content1 text-foreground font-mono"
             >
-              {[25, 50, 100].map((n) => (
+              {[25, 50, 100, 200].map((n) => (
                 <option key={n}>{n}</option>
               ))}
             </select>
@@ -483,7 +531,8 @@ export function AdminConsole({
 
       <p className="text-[11.5px] text-default-400">
         Emails are masked + blurred; hover to peek the mask, drill in to reveal one. Full emails
-        never load in bulk — search matches them server-side. Quota usage is a proxy for activity;
+        never load in bulk — search matches them server-side. With a user open, <kbd>j</kbd> /{" "}
+        <kbd>k</kbd> step to the next / previous user. Quota usage is a proxy for activity;
         session-log reads come later.
       </p>
 
@@ -507,7 +556,10 @@ export function AdminConsole({
                 {(selected.displayName || "??").slice(0, 2).toUpperCase()}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-medium truncate">{selected.displayName || "—"}</div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[15px] font-medium truncate">{selected.displayName || "—"}</span>
+                  {selected.runnerType ? <RunnerTag t={selected.runnerType} /> : null}
+                </div>
                 <div className="font-mono text-[11px] text-default-400 truncate">
                   {revealEmail && detail?.email ? (
                     <span className="text-primary">{detail.email}</span>
@@ -652,6 +704,17 @@ function Tag({ s }: { s: string }) {
       style={{ color: c, borderColor: `${c}66`, background: `${c}1f` }}
     >
       {s}
+    </span>
+  );
+}
+function RunnerTag({ t }: { t: string }) {
+  const c = RUNNER_COLOR[t] ?? "#8888a0";
+  return (
+    <span
+      className="font-mono text-[10.5px] uppercase tracking-wide px-1.5 py-0.5 rounded border shrink-0"
+      style={{ color: c, borderColor: `${c}66`, background: `${c}1f` }}
+    >
+      {RUNNER_LABEL[t] ?? t}
     </span>
   );
 }
