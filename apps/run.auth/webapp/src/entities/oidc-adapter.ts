@@ -8,7 +8,7 @@ import { electroClient, ELECTRO_TABLE } from "./client";
  *         RegistrationAccessToken, Interaction, ReplayDetection,
  *         PushedAuthorizationRequest, Grant, BackchannelAuthenticationRequest
  */
-const OIDCModel = new Entity(
+export const OIDCModel = new Entity(
   {
     model: {
       entity: "OIDCModel",
