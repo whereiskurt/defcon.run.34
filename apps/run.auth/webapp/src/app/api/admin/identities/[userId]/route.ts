@@ -48,6 +48,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
         lockoutReason: profile.lockoutReason ?? null,
         lockedAt: profile.lockedAt ?? null,
         sessionVersion: profile.sessionVersion ?? 1,
+        jailed: profile.jailed ?? false,
+        jailLevel: typeof profile.jailLevel === "number" ? profile.jailLevel : null,
       },
       accounts,
       oidcSessions,

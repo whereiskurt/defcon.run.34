@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties } from "react";
 import type { IdentityRow, IdentitySort, SummaryTiles, ProviderKey } from "@/lib/identity-report";
-import { LockAction, UnlinkAction, DeleteIdentityAction } from "./AdminActions";
+import { LockAction, UnlinkAction, DeleteIdentityAction, JailAction } from "./AdminActions";
 import { SiGithub, SiDiscord, SiStrava } from "react-icons/si";
 import { FaLinkedin } from "react-icons/fa";
-import { Mail, Users, UserPlus, Layers, Lock } from "lucide-react";
+import { Mail, Users, UserPlus, Layers, Lock, ShieldAlert } from "lucide-react";
 
 // Loose icon type so react-icons (IconType) and lucide (LucideIcon) both fit.
 type Ico = ComponentType<{ size?: number; style?: CSSProperties }>;
@@ -23,7 +23,7 @@ type RunHumanRef = { found: boolean; runUserId: string | null; displayName: stri
 type Detail = {
   identity: { userId: string; displayName: string; email: string | null; services: string[];
     lastProvider: string | null; createdAt: number | null; lockedOut: boolean;
-    lockoutReason: string | null; sessionVersion: number };
+    lockoutReason: string | null; sessionVersion: number; jailed: boolean; jailLevel: number | null };
   accounts: { provider: string; providerAccountId: string; userId: string }[];
   oidcSessions: { id: string; expiresAt: number | null }[];
   runHuman: RunHumanRef;
@@ -111,7 +111,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   useEffect(() => { setRows(initialRows); }, [initialRows]);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<IdentitySort>("created");
-  const [pill, setPill] = useState<null | "multi" | "locked" | "new24h" | "notRunHuman">(null);
+  const [pill, setPill] = useState<null | "multi" | "locked" | "jailed" | "new24h" | "notRunHuman">(null);
   const [page, setPage] = useState(0);
   const [perPage, setPerPage] = useState(200);
   const [refs, setRefs] = useState<Record<string, RunHumanRef>>({});
@@ -132,6 +132,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
     }
     if (pill === "multi") out = out.filter((r) => r.providerCount > 1);
     if (pill === "locked") out = out.filter((r) => r.lockedOut);
+    if (pill === "jailed") out = out.filter((r) => r.jailed);
     if (pill === "new24h") {
       const cut = Date.now() - 24 * 3600 * 1000;
       out = out.filter((r) => r.createdAt != null && r.createdAt >= cut);
@@ -214,6 +215,8 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
       note: "same email collapsed onto one identity" },
     { key: "lk", label: "Locked", value: tiles.locked, tint: "#f59e0b", Icon: Lock,
       note: tiles.locked === 0 ? "none locked out" : undefined },
+    { key: "jl", label: "Jailed", value: tiles.jailed, tint: "#ff5c72", Icon: ShieldAlert,
+      note: tiles.jailed === 0 ? "none jailed" : undefined },
   ];
 
   return (
@@ -259,7 +262,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
             reveal ? "border-primary bg-primary/10 text-primary" : "border-divider text-default-500 hover:text-foreground"}`}>
           {reveal ? "emails shown" : "reveal emails"}
         </button>
-        {([["multi", "multi-provider"], ["locked", "locked"], ["new24h", "created <24h"], ["notRunHuman", "not in run.human"]] as const).map(([key, label]) => (
+        {([["multi", "multi-provider"], ["locked", "locked"], ["jailed", "jailed"], ["new24h", "created <24h"], ["notRunHuman", "not in run.human"]] as const).map(([key, label]) => (
           <button key={key} onClick={() => { setPill(pill === key ? null : key); setPage(0); }}
             className={`rounded-full border px-3 py-1.5 font-mono text-xs transition-colors ${
               pill === key ? "border-primary bg-primary/10 text-primary" : "border-divider text-default-500 hover:text-foreground"}`}>
@@ -304,6 +307,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                         </span>
                         <span className="font-semibold">{r.displayName}</span>
                         {r.lockedOut && <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[9.5px] font-extrabold tracking-wide text-warning">LOCKED</span>}
+                        {r.jailed && <span className="rounded bg-danger/20 px-1.5 py-0.5 text-[9.5px] font-extrabold tracking-wide text-danger">JAILED L{r.jailLevel ?? 1}</span>}
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
@@ -362,6 +366,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                     </span>
                     <h2 className="text-[17px] font-bold">{drawer.identity.displayName}</h2>
                     {drawer.identity.lockedOut && <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[9.5px] font-extrabold text-warning">LOCKED</span>}
+                    {drawer.identity.jailed && <span className="rounded bg-danger/20 px-1.5 py-0.5 text-[9.5px] font-extrabold text-danger">JAILED L{drawer.identity.jailLevel ?? 1}</span>}
                   </div>
                   <div className="flex items-center gap-2.5">
                     <span className="font-mono text-[10px] text-default-300">j/k · esc</span>
@@ -424,6 +429,8 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
 
                 <div className="flex flex-col gap-3 border-t border-divider pt-4">
                   <LockAction userId={drawer.identity.userId} locked={drawer.identity.lockedOut}
+                    onComplete={() => openDrawer(drawer.identity.userId)} />
+                  <JailAction userId={drawer.identity.userId} jailed={drawer.identity.jailed} jailLevel={drawer.identity.jailLevel}
                     onComplete={() => openDrawer(drawer.identity.userId)} />
                   <DeleteIdentityAction userId={drawer.identity.userId} displayName={drawer.identity.displayName}
                     onComplete={() => setDrawer(null)} />
