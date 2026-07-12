@@ -543,6 +543,21 @@ locals {
           image       = "https://defcon.run/og.png"
         }
       },
+      {
+        host         = "sao"
+        target_host  = "bib.defcon.run"
+        target_path  = "/"
+        target_query = ""
+        status_code  = "HTTP_302"
+        priority     = 92
+        splash_style = "countdown"
+        og = {
+          title       = "DC34-SAO-01 — Sh*tty Add-On (v1.69bis)"
+          description = "The DEF CON 34 SAO that pairs with your Meshtastic node. I²C, 6-pin, 1.1 millihorsepower. 1 per DC34 run kit."
+          image       = "https://sao.defcon.run/sao.png"
+          image_file  = "sao.png"
+        }
+      },
     ]
   }
 

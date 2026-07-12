@@ -43,6 +43,10 @@ variable "redirects" {
     og.image_file, when set, uploads a local file from the module's assets/ dir to
     the host's S3 prefix — reference it in og.image as https://<host>.<zone>/<file>.
     priority is retained only for config compatibility and is unused here.
+
+    splash_style selects the interstitial splash template: "hackers" (default) =
+    the movie-marquee splash (interstitial.html.tftpl); "countdown" = an electronic
+    boot splash with a visible 5s countdown (interstitial-countdown.html.tftpl).
   EOT
   type = list(object({
     host         = string
@@ -51,6 +55,7 @@ variable "redirects" {
     target_query = optional(string, "")
     status_code  = optional(string, "HTTP_302")
     priority     = optional(number)
+    splash_style = optional(string, "hackers")
     og = object({
       title       = string
       description = string

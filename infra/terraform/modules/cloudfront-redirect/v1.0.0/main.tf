@@ -11,10 +11,16 @@ locals {
   status_num  = { HTTP_301 = 301, HTTP_302 = 302 }
   status_desc = { HTTP_301 = "Moved Permanently", HTTP_302 = "Found" }
 
+  # Splash template per host, selected by splash_style (default "hackers").
+  splash_tpl = {
+    for h, r in local.redirect_map :
+    h => r.splash_style == "countdown" ? "interstitial-countdown.html.tftpl" : "interstitial.html.tftpl"
+  }
+
   # Rendered interstitial HTML per host: OG tags for crawlers + client redirect for humans.
   html = {
     for h, r in local.redirect_map :
-    h => templatefile("${path.module}/assets/interstitial.html.tftpl", {
+    h => templatefile("${path.module}/assets/${local.splash_tpl[h]}", {
       og_title        = r.og.title
       og_description  = r.og.description
       og_image        = r.og.image
