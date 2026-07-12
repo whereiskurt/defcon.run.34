@@ -164,3 +164,23 @@ scope. A "copy IP" affordance on each IP (sets up the future WAF-block).
 - `src/app/api/admin/ip-lookup/route.ts` — NEW (IP → users)
 - `src/app/admin/AdminConsole.tsx` — drawer "login IPs" section + IP-lookup panel
 - `infra/terraform/live/site/services/run.auth/…` — IAM grant for Insights read
+
+## v1 Implementation Notes (delivered)
+
+- **No Terraform/IAM change was needed.** The shared `app`-cluster ECS task role
+  already grants `logs:*` on `*` (+ `CloudWatchFullAccessV2`), so the CloudWatch
+  Logs client uses the default credential provider chain (task-role creds). The
+  spec's "IAM (Terraform)" section is superseded — no least-privilege statement was
+  added (doing so would require editing the shared `ecs-cluster` module, affecting
+  every service; not worth it for read-only Insights on our own log group).
+- **Per-region:** the log group is `/ecs/run-auth-app-run-auth-${REGION_SHORT}-dc34`;
+  each region's console queries its own region. Cross-region aggregation is a follow-up.
+- **Query injection:** `ip` (shape) and `userId` (id-charset) are validated → 400
+  before interpolation, even though the routes are admin-gated.
+- **Insights latency:** queries poll (StartQuery→GetQueryResults) with a ~10s cap;
+  on timeout the route returns `partial:true` and StopQuery is best-effort called.
+
+### Follow-ups (not in v1)
+- WAF-block action (add IP to CloudFront WAFv2 IPSet) — its own spec.
+- Cross-region log aggregation; standing "shared IP (N accounts)" report.
+- Caching the IP-lookup direction if the log group grows.
