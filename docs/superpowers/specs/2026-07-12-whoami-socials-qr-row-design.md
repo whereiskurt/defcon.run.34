@@ -114,11 +114,16 @@ shared `common.*` chrome union (zero non-chrome keys, D-06 bias-to-defer). So
 the socials keys live in the **live CMS context only** (`loadCopy("default")` →
 Strapi/S3 → `CopyProvider`), never the offline floor.
 
-Net behavior is identical to a floor of empty strings: when a key is unset,
-`useCopy().t(key)` echoes the raw dotted key, which is not an `http(s)` URL, so
-the page's `asUrl()` guard maps it to `''` and `buildTiles` omits that tile. On
-first deploy (CMS keys unset) only the Runner QR shows; the socials light up the
-moment the two rows are added in Strapi — no redeploy.
+When a key is unset, `useCopy().t(key)` echoes the raw dotted key, which is not
+an `http(s)` URL, so the page's `asUrl()` guard maps it to `''`.
+
+**Code-level default floor (added post-initial-deploy):** because prod CMS writes
+aren't reachable from the build environment (GitHub-OIDC deploys, VPC-internal
+`CMS_INTERNAL_URL`), the two real DEF CON run URLs are committed as constants
+(`DEFAULT_STRAVA_GROUP_URL` / `DEFAULT_SIGNAL_GROUP_URL`) and read as
+`asUrl('socials.…') || DEFAULT`. So the tiles work out of the box, and a CMS
+`socials.*` row still overrides the default at runtime with no redeploy —
+preserving the CMS-editability requirement. Empty a default to hide that tile.
 
 ## Error / edge handling
 
