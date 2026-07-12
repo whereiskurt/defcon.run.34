@@ -70,9 +70,16 @@ export interface BibPreviewProps {
    * UNSAVED — signalling the bib isn't finalized for a custom print until the
    * runner commits (pledges $20 in person, donates, OR sponsors). Cleared the
    * moment any of those happen. Stamp priority: UNSAVED (dirty) > PAID
-   * (sponsored) > DRAFT (uncommitted) > none (committed via pledge/donation).
+   * (sponsored) > SAVED (name committed) > DRAFT (uncommitted) > none.
    */
   draft?: boolean;
+  /**
+   * Name-committed state (Kurt 2026-07-11). When `true` on an unpaid/uncommitted
+   * (draft) bib, the top-right slot shows a mint "SAVED" stamp instead of DRAFT —
+   * a saved name reading "DRAFT" was confusing. Matches the input's saved halo.
+   * Outranked by UNSAVED (dirty) and PAID (sponsored).
+   */
+  saved?: boolean;
 }
 
 /** Design-contract placeholder rendered when the user has not typed a name.
@@ -124,6 +131,7 @@ export function BibPreview({
   socialQrUrl,
   dirty = false,
   draft = false,
+  saved = false,
 }: BibPreviewProps) {
   const { t } = useCopy();
   const trimmedName = name.trim();
@@ -370,6 +378,40 @@ export function BibPreview({
             letterSpacing="2"
           >
             {t("bib.status.stampUnsaved")}
+          </text>
+        </g>
+      ) : draft && saved ? (
+        // Name committed on an unpaid bib (Kurt 2026-07-11): mint SAVED stamp
+        // (matches the input's saved halo) — a saved name reading "DRAFT" was
+        // confusing. Outranks DRAFT; PAID/UNSAVED still outrank this.
+        <g
+          id="saved-charm"
+          role="img"
+          aria-label="Name saved"
+          data-testid="saved-charm"
+          transform="rotate(-11 806 208)"
+        >
+          <rect
+            x="712"
+            y="176"
+            width="188"
+            height="64"
+            rx="10"
+            fill="#6CCDB8"
+            stroke="#eafff8"
+            strokeWidth="3"
+          />
+          <text
+            x="806"
+            y="212"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="30"
+            fontWeight="900"
+            fill="#06110d"
+            letterSpacing="3"
+          >
+            {t("bib.status.stampSaved")}
           </text>
         </g>
       ) : draft ? (

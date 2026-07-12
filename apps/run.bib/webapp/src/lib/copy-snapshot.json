@@ -46,6 +46,7 @@
     "bib.status.pledgeTagline": "OK! You promised 🙏",
     "bib.status.burningBibAlt": "Your bib is a dumpster fire.",
     "bib.status.stampUnsaved": "UNSAVED",
+    "bib.status.stampSaved": "SAVED",
     "bib.status.stampDraft": "DRAFT",
     "bib.status.stampPaid": "PAID!",
     "bib.status.stampThankYou": "THANK YOU!",
