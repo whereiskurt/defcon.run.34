@@ -71,6 +71,35 @@ function toMs(v) {
  * @param {{results?:Array}|Array} insightsResults
  * @returns {Array<object>} parsed `{...logObj, _ts}` entries
  */
+/**
+ * Extract the emitted JSON object from a Logs Insights `@message`.
+ *
+ * The resolver emits one line via `console.log(JSON.stringify(obj))`, but the
+ * Lambda TEXT log format wraps it: `@message` arrives as
+ * `"<ISO ts>\t<reqId>\tINFO\t{...json...}"`, so a bare `JSON.parse(@message)`
+ * throws in production and every line is silently dropped (counts never
+ * populate). Try the whole string first (already-clean lines / unit tests),
+ * then fall back to slicing from the first `{` — the emit is a single trailing
+ * JSON object, and nothing in the Lambda prefix contains a brace.
+ *
+ * @param {string} message
+ * @returns {object|null}
+ */
+function parseLogJson(message) {
+  const candidates = [message];
+  const brace = message.indexOf("{");
+  if (brace > 0) candidates.push(message.slice(brace));
+  for (const s of candidates) {
+    try {
+      const v = JSON.parse(s);
+      if (v && typeof v === "object") return v;
+    } catch {
+      // try the next candidate
+    }
+  }
+  return null;
+}
+
 export function parseResultRows(insightsResults) {
   const rows = Array.isArray(insightsResults)
     ? insightsResults
@@ -87,12 +116,7 @@ export function parseResultRows(insightsResults) {
       else if (cell.field === "@timestamp") ts = cell.value;
     }
     if (message == null) continue;
-    let parsed;
-    try {
-      parsed = JSON.parse(message);
-    } catch {
-      continue;
-    }
+    const parsed = parseLogJson(message);
     if (parsed == null || typeof parsed !== "object") continue;
     out.push({ ...parsed, _ts: toMs(ts) });
   }

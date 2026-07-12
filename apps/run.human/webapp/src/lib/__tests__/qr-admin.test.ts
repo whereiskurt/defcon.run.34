@@ -28,9 +28,9 @@ describe("validateDestination", () => {
 });
 
 describe("normalizeCode", () => {
-  it("uppercases and trims", () => {
-    expect(normalizeCode("  bunny ")).toBe("BUNNY");
-    expect(normalizeCode("Flag-1_a")).toBe("FLAG-1_A");
+  it("lowercases and trims", () => {
+    expect(normalizeCode("  BUNNY ")).toBe("bunny");
+    expect(normalizeCode("Flag-1_A")).toBe("flag-1_a");
   });
 
   it.each([

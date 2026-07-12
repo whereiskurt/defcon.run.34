@@ -32,6 +32,7 @@
 
 import { Qr } from "./lib/entities.mjs";
 import { resolve } from "./lib/resolve.mjs";
+import { isTestRequest } from "./lib/testmode.mjs";
 
 /** Warm-cache entry lifetime, milliseconds. */
 export const CACHE_TTL_MS = 60_000;
@@ -105,7 +106,15 @@ export function _buildHandler({ getQr, cacheTtlMs = CACHE_TTL_MS, now = () => Da
     const path = reconstructPath(event);
     const headers = event?.headers ?? {};
     const nowMs = now();
-    return resolve({ path, headers, nowMs }, { getQr: cachedGetQr });
+    // Admin "test scan": a request carrying a valid x-qr-test token redirects
+    // exactly as normal but is NOT logged — so the rollup never counts it and an
+    // operator can verify a live code without polluting analytics. Off unless
+    // QR_TEST_TOKEN is configured (see lib/testmode.mjs).
+    const deps = { getQr: cachedGetQr };
+    if (isTestRequest(headers, process.env.QR_TEST_TOKEN)) {
+      deps.log = () => {};
+    }
+    return resolve({ path, headers, nowMs }, deps);
   };
 }
 
