@@ -17,6 +17,7 @@ import {
   MarkPaidAction,
   DenyPendingAction,
   RemoveCashAction,
+  DenyPledgeAction,
 } from "@/components/AdminActions";
 
 /**
@@ -190,12 +191,16 @@ export default async function AdminPage() {
                   <DenyPendingAction apiBase={base} pendingId={r.pendingId} />
                 </span>
               ) : r.source === "in-person" && r.ownerSub ? (
-                // Runner paid their pledged $20 cash at the event → book it.
-                <MarkPaidAction
-                  apiBase={base}
-                  ownerSub={r.ownerSub}
-                  amountCents={r.amountCents}
-                />
+                // Runner pledged to pay cash in person → Approve (book the
+                // editable amount) or Deny (soft-clear the pledge; bib kept).
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <MarkPaidAction
+                    apiBase={base}
+                    ownerSub={r.ownerSub}
+                    amountCents={r.amountCents}
+                  />
+                  <DenyPledgeAction apiBase={base} ownerSub={r.ownerSub} />
+                </span>
               ) : (
                 ""
               ),
