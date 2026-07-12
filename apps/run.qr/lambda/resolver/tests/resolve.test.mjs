@@ -100,6 +100,43 @@ describe("resolve — redirect", () => {
     expect(lines).toHaveLength(0);
   });
 
+  it("regression: a matching but dest-less time rule falls back to the base (not a 502)", async () => {
+    // The exact shape that 502'd in prod: a time rule whose window contains now
+    // but whose dest is null. Must redirect to the base destination instead.
+    const item = {
+      destination: "https://r.defcon.run",
+      enabled: true,
+      rules: [
+        { kind: "time", from: "2026-01-01T00:00:00", to: "2026-12-01T00:00:00", dest: null },
+      ],
+    };
+    const getQr = vi.fn(async () => item);
+    const { lines, log } = captureLog();
+
+    const res = await resolve({ path: "/RICK", headers: {}, nowMs: NOW }, { getQr, log });
+
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.Location).toBe("https://r.defcon.run/");
+    expect(lines[0]).toMatchObject({ matchedRule: "default", destHost: "r.defcon.run" });
+  });
+
+  it("404s (never a broken 302) when the resolved destination has no host", async () => {
+    // Base destination itself empty + a dest-less rule → nothing usable. Must be
+    // a clean 404, never a 302 with a blank Location.
+    const item = {
+      destination: "",
+      enabled: true,
+      rules: [{ kind: "param", match: "*", dest: "" }],
+    };
+    const getQr = vi.fn(async () => item);
+    const { lines, log } = captureLog();
+
+    const res = await resolve({ path: "/BROKE?p=1", headers: {}, nowMs: NOW }, { getQr, log });
+
+    expect(res.statusCode).toBe(404);
+    expect(lines).toHaveLength(0); // no redirect line emitted for a non-redirect
+  });
+
   it("404s on a disabled code (enabled:false)", async () => {
     const item = { destination: "https://example.com/", enabled: false };
     const getQr = vi.fn(async () => item);
