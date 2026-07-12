@@ -125,7 +125,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   // drawer doesn't refetch/clear (openDrawer resets `drawer` itself, so this
   // must live in separate state), plus the top-level reverse IP-lookup panel.
   const [loginIps, setLoginIps] = useState<Record<string, IpRow[]>>({});
-  const [ipsLoading, setIpsLoading] = useState(false);
+  const [ipsPartial, setIpsPartial] = useState<Record<string, boolean>>({});
 
   const [lookupIp, setLookupIp] = useState("");
   const [lookupUsers, setLookupUsers] = useState<UserRow[] | null>(null);
@@ -203,12 +203,14 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
     const uid = drawer?.identity.userId;
     if (!uid || loginIps[uid]) return; // cached
     let cancelled = false;
-    setIpsLoading(true);
     fetch(`${BASE}/api/admin/identities/${encodeURIComponent(uid)}/ips`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { ips: [] }))
-      .then((d) => { if (!cancelled) setLoginIps((m) => ({ ...m, [uid]: d.ips ?? [] })); })
-      .catch(() => { if (!cancelled) setLoginIps((m) => ({ ...m, [uid]: [] })); })
-      .finally(() => { if (!cancelled) setIpsLoading(false); });
+      .then((d) => {
+        if (cancelled) return;
+        setLoginIps((m) => ({ ...m, [uid]: d.ips ?? [] }));
+        setIpsPartial((m) => ({ ...m, [uid]: Boolean(d.partial) }));
+      })
+      .catch(() => { if (!cancelled) setLoginIps((m) => ({ ...m, [uid]: [] })); });
     return () => { cancelled = true; };
   }, [drawer?.identity.userId, loginIps]);
 
@@ -318,7 +320,10 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
         {lookupLoading ? (
           <p className="mt-2 text-[12px] text-default-400">Searching…</p>
         ) : lookupUsers === null ? null : lookupUsers.length === 0 ? (
-          <p className="mt-2 text-[12px] text-default-400">No login events from this IP in the last 90 days.</p>
+          <>
+            {lookupPartial && <p className="mt-2 text-[11px] text-warning">Partial results (query timed out).</p>}
+            <p className="mt-2 text-[12px] text-default-400">No login events from this IP in the last 90 days.</p>
+          </>
         ) : (
           <div className="mt-3">
             {lookupPartial && <p className="mb-1 text-[11px] text-warning">Partial results (query timed out).</p>}
@@ -513,19 +518,24 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                   <h3 className="mb-2 text-[11px] uppercase tracking-wide text-default-400">
                     login IPs <span className="text-default-300">· last 90 days</span>
                   </h3>
-                  {ipsLoading && !loginIps[drawer.identity.userId] ? (
+                  {loginIps[drawer.identity.userId] === undefined ? (
                     <p className="text-[12px] text-default-400">Loading…</p>
-                  ) : (loginIps[drawer.identity.userId]?.length ?? 0) === 0 ? (
+                  ) : loginIps[drawer.identity.userId].length === 0 ? (
                     <p className="text-[12px] text-default-400">No login events in the last 90 days.</p>
                   ) : (
-                    loginIps[drawer.identity.userId].map((r) => (
-                      <div key={r.ip} className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-divider p-2.5 text-[12.5px]">
-                        <button type="button" onClick={() => runIpLookup(r.ip)} className="cursor-pointer font-mono text-[11.5px] text-primary hover:underline" title="who else used this IP?">
-                          {r.ip}
-                        </button>
-                        <span className="text-default-500">{r.logins} logins · {r.agents} agents</span>
-                      </div>
-                    ))
+                    <>
+                      {ipsPartial[drawer.identity.userId] && (
+                        <p className="mb-1 text-[11px] text-warning">Partial results (query timed out).</p>
+                      )}
+                      {loginIps[drawer.identity.userId].map((r) => (
+                        <div key={r.ip} className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-divider p-2.5 text-[12.5px]">
+                          <button type="button" onClick={() => { runIpLookup(r.ip); setDrawer(null); }} className="cursor-pointer font-mono text-[11.5px] text-primary hover:underline" title="who else used this IP?">
+                            {r.ip}
+                          </button>
+                          <span className="text-default-500">{r.logins} logins · {r.agents} agents</span>
+                        </div>
+                      ))}
+                    </>
                   )}
                 </div>
 
