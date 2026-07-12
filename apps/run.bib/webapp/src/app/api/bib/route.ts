@@ -13,6 +13,7 @@ import {
 import { consumeQuota, type QuotaTier } from "@/lib/quota-client";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 import { verifyBibSolution } from "@/lib/altcha";
+import { maybeSyncRabbitName } from "@/lib/rabbit-name-sync";
 
 /**
  * /api/bib — read / idempotent create / edit the signed-in user's bib.
@@ -226,6 +227,12 @@ export async function PATCH(req: NextRequest) {
         renamesRemaining = q.remaining;
       }
       bib = await updateBibName(session.user.id, parsed.data.nameOnBib);
+      // Best-effort: propagate the saved bib name to the runner's run.human
+      // rabbit name (displayName), until they've claimed it manually with the
+      // profile pencil. maybeSyncRabbitName never throws and its result is
+      // intentionally ignored — a sync miss must never fail the bib save.
+      // (Awaited so the ECS Node runtime completes it before the response.)
+      await maybeSyncRabbitName(session.user.id, parsed.data.nameOnBib);
     }
     let togglesRemaining: number | undefined;
     if (parsed.data.willPayInPerson !== undefined) {
