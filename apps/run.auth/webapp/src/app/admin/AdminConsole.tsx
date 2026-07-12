@@ -328,7 +328,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
           <div className="mt-3">
             {lookupPartial && <p className="mb-1 text-[11px] text-warning">Partial results (query timed out).</p>}
             {lookupUsers.map((u) => (
-              <div key={u.userId} className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-divider p-2.5 text-[12.5px]">
+              <div key={`${u.userId}:${u.email ?? ""}`} className="mb-2 flex items-center justify-between gap-2 rounded-lg border border-divider p-2.5 text-[12.5px]">
                 <button type="button" onClick={() => openDrawer(u.userId)} className="cursor-pointer text-primary hover:underline">
                   {u.email ?? u.userId}
                 </button>
