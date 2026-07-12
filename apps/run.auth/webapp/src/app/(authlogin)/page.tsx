@@ -16,9 +16,17 @@ import { useSession, signOut } from 'next-auth/react';
 import { LogOut, ChevronRight, Shield, Copy, Check } from 'lucide-react';
 import { SiDiscord, SiGithub, SiStrava } from 'react-icons/si';
 
+const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
+
 const basePath = process.env.NODE_ENV === 'production'
-  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
+  ? `/${REGION_SHORT}`
   : '';
+
+// This bare landing (auth.defcon.run/{region}) is a historical artifact — most
+// users never need it; the real entry is run.human → OIDC → /login. So bounce
+// everyone to run.human EXCEPT admins (who use it as the console jump-off) and
+// anyone passing ?debug=true (to inspect the page directly).
+const RUN_HUMAN_URL = `https://run.${process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run'}/${REGION_SHORT}`;
 
 type LinkedAccount = { linked: boolean };
 
@@ -42,6 +50,19 @@ function DashboardContent() {
   const [linked, setLinked] = useState<Record<string, LinkedAccount> | null>(null);
   const [copied, setCopied] = useState(false);
   const services = (session?.user as { services?: string[] })?.services || [];
+  const isAdmin = services.includes('admin') || services.includes('runadmin');
+  const debug =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('debug') === 'true';
+  // Non-admin (incl. unauthenticated), non-debug, session resolved → bounce to
+  // run.human. Waits for the session to resolve so a slow load can't misclassify
+  // an admin as a non-admin. Computed synchronously so the render guard below can
+  // show the skeleton instead of flashing the Sign In card before we navigate.
+  const shouldBounce = status !== 'loading' && !isAdmin && !debug;
+
+  useEffect(() => {
+    if (shouldBounce) window.location.replace(RUN_HUMAN_URL);
+  }, [shouldBounce]);
 
   useEffect(() => {
     if (status !== 'authenticated') return;
@@ -58,7 +79,9 @@ function DashboardContent() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (status === 'loading') {
+  // Skeleton while the session resolves OR while we bounce a non-admin to
+  // run.human — avoids flashing the Sign In card / dashboard before navigating.
+  if (status === 'loading' || shouldBounce) {
     return (
       <div className="space-y-4">
         <div className="glass-card rounded-xl p-6">
