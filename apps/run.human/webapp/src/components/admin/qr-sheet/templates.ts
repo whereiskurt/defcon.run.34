@@ -35,9 +35,10 @@ export const AVERY_TEMPLATES: Record<
   "5261": { across: 2, down: 10, width: 4, height: 1, marginLeft: 0.25, marginTop: 0.5, spacingX: 0.25, spacingY: 0 },
   "5262": { across: 2, down: 7, width: 4, height: 1.33, marginLeft: 0.25, marginTop: 0.17, spacingX: 0.25, spacingY: 0.17 },
   "8160": { across: 3, down: 10, width: 2.625, height: 1, marginLeft: 0.1875, marginTop: 0.5, spacingX: 0.125, spacingY: 0 },
-  // dc33 shipped 22816 as 3×6 — geometrically impossible (16.75" of labels on
-  // an 11" page; rows 4–6 fell off the sheet). Real Avery 22816 is 9/sheet.
-  "22816": { across: 3, down: 3, width: 2.5, height: 2.5, marginLeft: 0.25, marginTop: 1.5, spacingX: 0.25, spacingY: 0.25 },
+  // dc33 shipped 22816 as 3×6 of 2.5" cells (16.75" of labels on an 11" page).
+  // Real Avery 22816 stock (per avery.com/products/labels/22816) is 2"×2",
+  // 12 per sheet, 3×4 — margins+gutters below sum exactly to 8.5"×11".
+  "22816": { across: 3, down: 4, width: 2, height: 2, marginLeft: 1, marginTop: 0.75, spacingX: 0.25, spacingY: 0.5 },
 };
 
 export type SheetLayout = {
@@ -157,5 +158,5 @@ export const AVERY_INFO = [
   { id: "5261", desc: "Address labels", dims: '4" × 1", 2×10' },
   { id: "5262", desc: "Address labels", dims: '4" × 1.33", 2×7' },
   { id: "8160", desc: "Address labels", dims: '2.625" × 1", 3×10' },
-  { id: "22816", desc: "Square labels", dims: '2.5" × 2.5", 3×3' },
+  { id: "22816", desc: "Square labels", dims: '2" × 2", 3×4' },
 ] as const;
