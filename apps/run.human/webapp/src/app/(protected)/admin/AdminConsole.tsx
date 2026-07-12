@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SummaryTiles } from "@/lib/admin-report";
 
@@ -278,10 +279,18 @@ export function AdminConsole({
             ) : null}
           </p>
         </div>
-        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-primary">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_0_3px_rgba(0,212,170,0.18)]" />
-          live
-        </span>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/qr"
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-divider bg-content1 text-foreground text-[13px] font-semibold hover:bg-content2 transition-colors"
+          >
+            QR / CTF →
+          </Link>
+          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-primary">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_0_3px_rgba(0,212,170,0.18)]" />
+            live
+          </span>
+        </div>
       </div>
 
       {/* ── tiles ───────────────────────────────────────────────────────── */}
