@@ -22,10 +22,12 @@
  *      sink is injected as `deps.log` (defaults to `emit`), so the whole flow is
  *      drivable from a unit test with a fake `getQr` and a capturing `log`.
  *
- * REGION IS DECIDED AT THE EDGE. The resolver emits bare `run.defcon.run` URLs;
- * the shared CloudFront region-prefix edge function on the run.defcon.run
- * distribution splices in `/use1`, `/cac1`, `/apse1`. The resolver neither
- * computes nor logs region.
+ * REGION PREFIXING happens in `respond.mjs` (`buildRedirect`/`buildCtfHandoff`):
+ * `run.defcon.run` destinations get `/use1` spliced in, since only use1 serves
+ * today and run.human is basePath-mounted per region. The resolver does not read
+ * or log region — it's a fixed prefix on the response side. See respond.mjs for
+ * the why (the run.defcon.run distro is mixed-origin, so edge-prefixing there is
+ * a riskier separate project).
  *
  * Header seams (analytics only — region is NOT read here):
  *   - `user-agent`   — copied verbatim into the redirect log line (`ua`).

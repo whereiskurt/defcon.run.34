@@ -9,13 +9,16 @@
  * These helpers are PURE — they take plain data and return that shape. No
  * AWS SDK, no I/O, no `process.env`.
  *
- * REGION IS NOT OUR JOB. `run.defcon.run` is region-partitioned under
- * `/use1`, `/cac1`, `/apse1`, but choosing and splicing that prefix is done by
- * a shared CloudFront region-prefix edge function on the run.defcon.run
- * distribution (geo / cookie / default lookup) — NOT here. The resolver emits
- * BARE `run.defcon.run/...` destinations and lets the edge prefix them. So
- * these builders do NO URL rewriting at all: the `Location` is whatever
- * destination they are handed, verbatim.
+ * REGION PREFIXING (pragmatic, resolver-side). `run.defcon.run` is region-
+ * partitioned under `/use1`, `/cac1`, `/apse1` (Next.js basePath), so a bare
+ * `run.defcon.run/orderform` 404s — it needs a region segment. Ideally a shared
+ * CloudFront edge function would add that on the run.defcon.run distribution,
+ * but that distro is an intricate mixed-origin setup (S3 landing + assets + CMS
+ * media + ALB app + default_root_object), so region-prefixing there is a risky
+ * prod-site change. Since ONLY `use1` serves today (cac1/apse1 are skip_regions),
+ * we instead prefix `/use1` HERE, for `run.defcon.run` destinations only, and
+ * leave every other host untouched. When multi-region actually arrives, revisit
+ * and move this to a properly-scoped edge function. See the spec-corrections doc.
  *
  * The one load-bearing rule that stays: NO CACHING. Redirects are per-scan and
  * rule-driven (time windows, params), so every response is
@@ -23,10 +26,49 @@
  * destination.
  */
 
+// The one region that serves today. run.human is basePath-mounted per region;
+// this is the only valid prefix until cac1/apse1 un-skip.
+const DEFAULT_REGION = "use1";
+
+// The one host we region-partition. Compared against `URL.hostname` (lowercased
+// + punycoded by the parser), so a lookalike like `run.defcon.run.evil.com`
+// will not match.
+const REGION_HOST = "run.defcon.run";
+
+// Path prefixes that already encode a region — presence of any means we must
+// NOT prefix again (idempotent). Matched as whole leading path segments.
+const REGION_SEGMENTS = ["use1", "cac1", "apse1"];
+
 /**
- * Build a 302 redirect response to `destination`. The `Location` is the
- * destination VERBATIM — no rewriting, no region injection (the edge owns
- * region). Always `no-store`.
+ * Splice `/<DEFAULT_REGION>` into a `run.defcon.run` destination that lacks a
+ * region segment. Any other host — and anything that fails to parse as an
+ * absolute URL — is returned unchanged (defensive: never mangle a third-party
+ * URL or throw on malformed data).
+ *
+ * @param {string} destination
+ * @returns {string}
+ */
+function withRegion(destination) {
+  let url;
+  try {
+    url = new URL(destination);
+  } catch {
+    return destination; // not absolute-parseable → pass through
+  }
+  if (url.hostname !== REGION_HOST) return destination;
+
+  // `url.pathname` is always leading-slash; first segment is split()[1].
+  const first = url.pathname.split("/")[1];
+  if (REGION_SEGMENTS.includes(first)) return destination; // already prefixed
+
+  const rest = url.pathname === "/" ? "" : url.pathname;
+  return `${url.protocol}//${url.host}/${DEFAULT_REGION}${rest}${url.search}${url.hash}`;
+}
+
+/**
+ * Build a 302 redirect response to `destination`. `run.defcon.run` destinations
+ * get `/use1` spliced in (via `withRegion`); every other host is emitted
+ * verbatim. Always `no-store`.
  *
  * @param {{ destination: string }} args
  * @returns {object} ALB response
@@ -36,7 +78,7 @@ export function buildRedirect({ destination }) {
     statusCode: 302,
     statusDescription: "302 Found",
     headers: {
-      Location: destination,
+      Location: withRegion(destination),
       "Cache-Control": "no-store",
     },
   };
@@ -46,15 +88,15 @@ export function buildRedirect({ destination }) {
  * Build the CTF hand-off redirect. The resolver NEVER validates answers — it
  * simply forwards the scanned challenge + submitted value to run.defcon.run,
  * which owns scoring. The value is `encodeURIComponent`-escaped so arbitrary
- * guesses survive the query string intact. The destination is a BARE
- * `run.defcon.run` URL (no region segment) — the edge prefixes region.
+ * guesses survive the query string intact. The claim target is region-prefixed
+ * (`/use1`) since it lives on run.defcon.run.
  *
  * @param {{ challenge: string, value: string }} args
  * @returns {object} ALB response
  */
 export function buildCtfHandoff({ challenge, value }) {
   const location =
-    `https://run.defcon.run/ctf/claim` +
+    `https://run.defcon.run/${DEFAULT_REGION}/ctf/claim` +
     `?c=${challenge}&v=${encodeURIComponent(value)}`;
   return {
     statusCode: 302,

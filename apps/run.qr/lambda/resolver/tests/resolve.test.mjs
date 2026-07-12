@@ -7,8 +7,8 @@
  * (parse-path, rules, enrich, respond, logline).
  *
  * Coverage:
- *   - redirect hit: 302 + Location emitted VERBATIM (region is the edge's job,
- *     the resolver never rewrites the destination);
+ *   - redirect hit: 302 + Location, with /use1 spliced into run.defcon.run
+ *     destinations (other hosts pass through verbatim);
  *   - miss (getQr → null) → 404;
  *   - disabled (enabled:false) → 404;
  *   - time-rule and param-rule selection end-to-end;
@@ -57,7 +57,7 @@ describe("resolve — redirect", () => {
     expect("region" in lines[0]).toBe(false);
   });
 
-  it("emits a bare run.defcon.run destination VERBATIM — no region spliced (edge's job)", async () => {
+  it("splices /use1 into a run.defcon.run destination", async () => {
     const item = { destination: "https://run.defcon.run/orderform", enabled: true };
     const getQr = vi.fn(async () => item);
     const { log } = captureLog();
@@ -67,7 +67,7 @@ describe("resolve — redirect", () => {
       { getQr, log }
     );
 
-    expect(res.headers.Location).toBe("https://run.defcon.run/orderform");
+    expect(res.headers.Location).toBe("https://run.defcon.run/use1/orderform");
   });
 
   it("carries ua + geo headers onto the redirect log line", async () => {
@@ -233,7 +233,7 @@ describe("resolve — ctf hand-off", () => {
     expect(getQr).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(302);
     expect(res.headers.Location).toBe(
-      "https://run.defcon.run/ctf/claim?c=flag1&v=my%20secret%20answer"
+      "https://run.defcon.run/use1/ctf/claim?c=flag1&v=my%20secret%20answer"
     );
     expect(res.headers["Cache-Control"]).toBe("no-store");
   });
