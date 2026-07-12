@@ -16,6 +16,7 @@ import {
   RejectAction,
   MarkPaidAction,
   DenyPendingAction,
+  RemoveCashAction,
 } from "@/components/AdminActions";
 
 /**
@@ -141,8 +142,22 @@ export default async function AdminPage() {
           csvHref={`${base}/api/admin/bib/report/payments`}
         >
           <Table
-            columns={["Name", "Runner code", "When", "Kind", "Provider", "Amount"]}
+            columns={["Action", "Name", "Runner code", "When", "Kind", "Provider", "Amount"]}
             rows={bundle.payments.rows.map((r) => [
+              r.kind === "bib" &&
+              r.provider === "cash" &&
+              r.ownerSub &&
+              r.timestamp &&
+              r.reconciledVia ? (
+                <RemoveCashAction
+                  apiBase={base}
+                  ownerSub={r.ownerSub}
+                  timestamp={r.timestamp}
+                  reconciledVia={r.reconciledVia}
+                />
+              ) : (
+                ""
+              ),
               r.nameOnBib,
               r.runnerCode,
               (r.timestamp || "").slice(0, 19),
