@@ -5,29 +5,34 @@
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { width:1200px; height:630px; overflow:hidden; }
+  :root{
+    --cy:#2fe3c6;   /* DC34 mint-teal neon (was cyan #7fe1ff) */
+    --mg:#ff2e97;   /* DC34 magenta */
+    --ice:#d7fff6;  /* title hi-light */
+  }
   body {
     font-family: "Arial Black", Impact, "Helvetica Neue", sans-serif;
     background:#04060d; position:relative;
   }
   .glow-a { position:absolute; inset:0;
     background:
-      radial-gradient(60% 70% at 18% 8%,  rgba(70,190,255,.36), transparent 60%),
-      radial-gradient(70% 80% at 92% 100%, rgba(255,40,170,.40), transparent 60%),
-      radial-gradient(50% 60% at 55% 45%, rgba(30,90,180,.28), transparent 65%);
+      radial-gradient(60% 70% at 18% 8%,  rgba(47,227,198,.34), transparent 60%),
+      radial-gradient(70% 80% at 92% 100%, rgba(255,46,151,.42), transparent 60%),
+      radial-gradient(50% 60% at 55% 45%, rgba(20,150,130,.26), transparent 65%);
   }
   .wall { position:absolute; inset:0; display:grid;
     grid-template-columns:repeat(6,1fr); grid-template-rows:repeat(4,1fr);
     gap:10px; padding:14px; opacity:.4; }
-  .mon { border:2px solid rgba(90,150,220,.26); border-radius:4px;
-    background:linear-gradient(180deg, rgba(10,30,60,.5), rgba(4,8,18,.7));
+  .mon { border:2px solid rgba(60,200,180,.24); border-radius:4px;
+    background:linear-gradient(180deg, rgba(8,40,36,.5), rgba(4,10,14,.7));
     overflow:hidden; position:relative; box-shadow:inset 0 0 30px rgba(0,0,0,.7); }
-  .mon pre { color:rgba(90,255,150,.45); font:9px/1.35 "Courier New",monospace;
-    padding:6px; white-space:pre-wrap; word-break:break-all; text-shadow:0 0 6px rgba(60,255,130,.5); }
+  .mon pre { color:rgba(90,255,180,.45); font:9px/1.35 "Courier New",monospace;
+    padding:6px; white-space:pre-wrap; word-break:break-all; text-shadow:0 0 6px rgba(60,255,150,.5); }
 
   /* neon wireframe rabbit behind the title (screen blend drops the black bg) */
   .bunny { position:absolute; top:8px; left:50%; transform:translateX(-50%);
-    height:600px; mix-blend-mode:screen; opacity:.62;
-    filter: drop-shadow(0 0 14px rgba(120,225,255,.95)) drop-shadow(0 0 42px rgba(90,190,255,.7)); }
+    height:600px; mix-blend-mode:screen; opacity:.55;
+    filter: drop-shadow(0 0 14px rgba(47,227,198,.95)) drop-shadow(0 0 42px rgba(90,190,255,.6)); }
 
   .scan { position:absolute; inset:0; pointer-events:none;
     background:repeating-linear-gradient(0deg, rgba(0,0,0,.28) 0 1px, transparent 1px 3px);
@@ -38,46 +43,54 @@
   .stage { position:absolute; inset:0; display:flex; flex-direction:column;
     align-items:center; justify-content:center; text-align:center; }
 
-  .studio { position:absolute; top:30px; left:50%; transform:translateX(-50%);
-    letter-spacing:.40em; font-size:15px; font-weight:800; color:#cfe6ff;
-    opacity:.85; text-shadow:0 0 12px rgba(90,190,255,.7); white-space:nowrap; }
+  /* top studio line, flanked by mono DC-Jack + Meshtastic marks */
+  .presents { position:absolute; top:22px; left:50%; transform:translateX(-50%);
+    display:flex; align-items:center; gap:26px; white-space:nowrap; }
+  .studio { letter-spacing:.34em; font-size:15px; font-weight:800; color:#d7fff6;
+    opacity:.9; text-shadow:0 0 12px rgba(47,227,198,.75); }
+  .plogo { height:52px; }
+  .plogo.mesh { filter: drop-shadow(0 0 10px rgba(47,227,198,.7)); }
+  .plogo.jack { filter: brightness(0) invert(1)
+    drop-shadow(0 0 10px rgba(47,227,198,.85)); opacity:.92; }
 
-  .title { font-size:188px; line-height:.86; letter-spacing:.02em; margin-top:24px;
-    color:#7fe1ff;
+  .title { font-size:104px; line-height:.84; letter-spacing:0; margin-top:20px;
+    color:var(--cy);
     text-shadow:
-      0 0 2px #eafcff, 0 0 22px rgba(120,225,255,.95), 0 0 60px rgba(90,190,255,.8),
-      4px 4px 0 #b8860b, 5px 5px 0 #7a5a08, 0 0 90px rgba(255,60,170,.35);
-    transform:skewX(-6deg); }
+      0 0 2px var(--ice), 0 0 22px rgba(47,227,198,.95), 0 0 60px rgba(47,227,198,.7),
+      4px 4px 0 #12836f, 5px 5px 0 #0c5a4d, 0 0 90px rgba(255,46,151,.4);
+    transform:skewX(-6deg); white-space:nowrap; }
   .title span { display:inline-block; }
-  .title .up { transform:translateY(-12px); }
-  .title .dn { transform:translateY(12px); }
+  .title .up { transform:translateY(-10px); }
+  .title .dn { transform:translateY(10px); }
+  .title .bang { color:var(--mg); text-shadow:0 0 2px #ffe6f3,
+    0 0 24px rgba(255,46,151,.95), 4px 4px 0 #8f1857; transform:translateY(-10px); }
+  .title .sp { width:.28em; }
 
-  .tag { margin-top:16px; letter-spacing:.42em; font-size:30px; font-weight:800;
-    color:#ffd0ec; text-shadow:0 0 16px rgba(255,60,170,.9); }
+  .tag { margin-top:16px; letter-spacing:.34em; font-size:29px; font-weight:800;
+    color:#ffd0ec; text-shadow:0 0 16px rgba(255,46,151,.9); }
   .subtag { margin-top:10px; letter-spacing:.16em; font-size:19px; font-weight:800;
-    color:#bfe6ff; opacity:.92; text-shadow:0 0 12px rgba(90,190,255,.6);
+    color:#c6fff2; opacity:.92; text-shadow:0 0 12px rgba(47,227,198,.6);
     font-family:"Helvetica Neue",Arial,sans-serif; }
 
   .bar { position:absolute; bottom:56px; left:0; right:0; display:flex;
     align-items:center; justify-content:center; gap:24px;
     font-family:"Helvetica Neue",Arial,sans-serif; }
-  .chip { font-size:19px; font-weight:800; letter-spacing:.06em; color:#dfeeff; }
-  .chip b { color:#7fe1ff; }
+  .chip { font-size:19px; font-weight:800; letter-spacing:.06em; color:#dffff8; }
+  .chip b { color:var(--cy); }
   .star { color:#ffcf3f; text-shadow:0 0 10px rgba(255,190,50,.85); }
-  .dot { color:#4a6a95; }
+  .dot { color:#3f7d70; }
   .watch { font-family:"Arial Black",sans-serif; font-size:19px; letter-spacing:.14em;
-    color:#04060d; background:#7fe1ff; padding:8px 18px; border-radius:999px;
-    box-shadow:0 0 26px rgba(120,225,255,.9); }
-  .cert { position:absolute; bottom:54px; left:36px; border:2px solid #cfe6ff;
-    border-radius:5px; padding:3px 8px; font-family:"Helvetica Neue",Arial;
-    font-size:14px; font-weight:800; color:#cfe6ff; letter-spacing:.08em; opacity:.85; }
+    color:#04060d; background:var(--cy); padding:8px 18px; border-radius:999px;
+    box-shadow:0 0 26px rgba(47,227,198,.9); }
+  /* DC34 skull badge (replaces the plain "DC 34" text cert) */
+  .cert { position:absolute; bottom:44px; left:34px; height:76px;
+    filter: drop-shadow(0 0 12px rgba(255,46,151,.55)); }
   .url { position:absolute; bottom:56px; right:36px;
     font-family:"Courier New",monospace; font-size:16px; letter-spacing:.05em;
-    color:#8fd0ff; opacity:.85; text-shadow:0 0 10px rgba(90,190,255,.6); }
-  /* Death by Emoji footer credit */
+    color:#8ff0dd; opacity:.85; text-shadow:0 0 10px rgba(47,227,198,.6); }
   .credit { position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
     font-family:"Helvetica Neue",Arial,sans-serif; font-size:14px; font-weight:700;
-    letter-spacing:.22em; color:#9fc4e8; opacity:.8; white-space:nowrap; }
+    letter-spacing:.22em; color:#9fe8d8; opacity:.8; white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -87,34 +100,38 @@
   <div class="scan"></div>
   <div class="vig"></div>
 
-  <div class="studio">R U N N I N G&nbsp;&nbsp;R A B B I T S&nbsp;&nbsp;·&nbsp;&nbsp;P R E S E N T S</div>
+  <div class="presents">
+    <img class="plogo jack" src="dcjack.svg" alt="">
+    <div class="studio">D E F&nbsp;C O N&nbsp;&nbsp;R U N&nbsp;&nbsp;3 4&nbsp;&nbsp;·&nbsp;&nbsp;P R E S E N T S</div>
+    <img class="plogo mesh" src="meshtastic.svg" alt="">
+  </div>
 
   <div class="stage">
     <div class="title">
-      <span class="up">H</span><span class="dn">A</span><span class="up">C</span><span class="dn">K</span><span class="up">E</span><span class="dn">R</span><span class="up">S</span>
+      <span class="up">R</span><span class="dn">U</span><span class="up">N</span><span class="sp"></span><span class="dn">H</span><span class="up">A</span><span class="dn">C</span><span class="up">K</span><span class="dn">E</span><span class="up">R</span><span class="sp"></span><span class="dn">R</span><span class="up">U</span><span class="dn">N</span><span class="bang">!</span>
     </div>
-    <div class="tag">THEIR&nbsp;CRIME&nbsp;IS&nbsp;CARDIO</div>
+    <div class="tag">RUNNING&nbsp;WAS&nbsp;THEIR&nbsp;REAL&nbsp;CRIME</div>
     <div class="subtag">👟&nbsp;&nbsp;THEY RUN THE STREETS OF LAS VEGAS&nbsp;&nbsp;👟</div>
   </div>
 
   <div class="bar">
     <span class="chip star">★★★★★ <b style="color:#ffcf3f">6.9/5</b></span>
     <span class="dot">|</span>
-    <span class="chip">1995 · <b>DEF&nbsp;CON&nbsp;34</b> REMASTER</span>
+    <span class="chip">2026 · <b>DEF&nbsp;CON&nbsp;34</b> REMASTER</span>
     <span class="dot">|</span>
-    <span class="watch">▶ WATCH NOW</span>
+    <span class="watch">WATCH NOW ▶</span>
   </div>
-  <div class="cert">DC&nbsp;34</div>
+  <img class="cert" src="dc34.png" alt="DC34">
   <div class="url">run.defcon.run</div>
   <div class="credit">A&nbsp;DEATH&nbsp;BY&nbsp;EMOJI&nbsp;PRODUCTION&nbsp;&nbsp;💀😀</div>
 
 <script>
   var snips = [
     "root@gibson:~# ./run --vegas\n> lacing up...\n> ACCESS GRANTED\n0xDEADBEEF 0xCAFEB",
-    "for(;;){ if(run()) strip();\n  trace=null; }\n// their crime is\n// cardio",
+    "for(;;){ if(run()) strip();\n  trace=null; }\n// running was\n// their real crime",
     "GET /the-strip HTTP/1.0\n> 22 33 44 55 66\n> RISC architecture\n> is gonna change",
     "$ nmap -sS gibson\n1337/tcp open  elite\n> mess with the best\n> run like the rest",
-    "0100 1000 0100 0001\n0100 0011 0100 1011\n> zero cool\n> crash override",
+    "0101 0010 0101 0101\n0100 1110 0010 0001\n> zero cool\n> crash override",
     "connecting run.defcon.run\n> bib::acquired\n> mesh::flashed\n> RUN THE PLANET"
   ];
   var wall = document.getElementById("wall");

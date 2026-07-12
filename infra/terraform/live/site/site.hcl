@@ -524,8 +524,8 @@ locals {
         status_code  = "HTTP_302"
         priority     = 90
         og = {
-          title       = "Hackers (1995) — DEF CON 34 Remaster"
-          description = "Their crime is curiosity. Mess with the best, die like the rest. ▶ Watch the feature presentation now."
+          title       = "Run Hacker Run! — DEF CON 34 Remaster"
+          description = "Running was their real crime. Mess with the best, run like the rest. ▶ Watch the feature presentation now."
           image       = "https://r.defcon.run/hackers.png"
           image_file  = "hackers.png"
         }
