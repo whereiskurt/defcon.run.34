@@ -64,8 +64,13 @@ export async function POST(req: NextRequest) {
   };
 
   if (solved >= count) {
+    if (required.count === 0) {
+      // Nothing is actually owed (not jailed + baseline off) — don't mint a standing
+      // bypass token when no challenge was required in the first place.
+      return NextResponse.json({ done: true, solved, required: 0 });
+    }
     const res = NextResponse.json({ done: true, solved, required: count });
-    res.cookies.set(ALTCHA_OK_COOKIE, makeAltchaOk(sub), { ...cookieOpts, maxAge: OK_TTL_MS / 1000 });
+    res.cookies.set(ALTCHA_OK_COOKIE, makeAltchaOk(sub, count), { ...cookieOpts, maxAge: OK_TTL_MS / 1000 });
     res.cookies.set(ALTCHA_PROGRESS_COOKIE, '', { ...cookieOpts, maxAge: 0 });
     return res;
   }

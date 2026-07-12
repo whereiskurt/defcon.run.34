@@ -91,15 +91,21 @@ export function emailKey(email: string): string {
   return `email:${email.toLowerCase()}`;
 }
 
-export function makeAltchaOk(key: string): string {
+export function makeAltchaOk(key: string, n: number): string {
   const now = Date.now();
-  return signPayload({ t: "ok", k: key, iat: now, exp: now + OK_TTL_MS });
+  return signPayload({ t: "ok", k: key, n, iat: now, exp: now + OK_TTL_MS });
 }
 
-export function readAltchaOk(cookieValue: string | undefined, acceptableKeys: string[]): boolean {
-  const payload = verifyPayload<{ t: string; k: string }>(cookieValue);
+export function readAltchaOk(
+  cookieValue: string | undefined,
+  acceptableKeys: string[],
+  minCount = 1
+): boolean {
+  const payload = verifyPayload<{ t: string; k: string; n?: number }>(cookieValue);
   if (!payload || payload.t !== "ok" || typeof payload.k !== "string") return false;
-  return acceptableKeys.includes(payload.k);
+  if (!acceptableKeys.includes(payload.k)) return false;
+  const satisfied = typeof payload.n === "number" ? payload.n : 1;
+  return satisfied >= minCount;
 }
 
 // --- altcha_progress (partial jail progress) ---

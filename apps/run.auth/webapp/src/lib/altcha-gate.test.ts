@@ -91,12 +91,12 @@ describe("signPayload / verifyPayload", () => {
 describe("altcha_ok cookie", () => {
   it("accepts a cookie whose key is in the acceptable set", async () => {
     const m = await load();
-    const c = m.makeAltchaOk("sub-1");
+    const c = m.makeAltchaOk("sub-1", 1);
     expect(m.readAltchaOk(c, ["sub-1", "email:a@b.com"])).toBe(true);
   });
   it("rejects a cookie whose key is not acceptable (cross-user replay)", async () => {
     const m = await load();
-    const c = m.makeAltchaOk("sub-1");
+    const c = m.makeAltchaOk("sub-1", 1);
     expect(m.readAltchaOk(c, ["sub-2"])).toBe(false);
   });
   it("emailKey lowercases", async () => {
@@ -106,7 +106,19 @@ describe("altcha_ok cookie", () => {
   it("rejects a progress token even when its key is acceptable (type confusion bypass)", async () => {
     const m = await load();
     const progressToken = m.makeProgress("sub-1", 1);
-    expect(m.readAltchaOk(progressToken, ["sub-1"])).toBe(false);
+    expect(m.readAltchaOk(progressToken, ["sub-1"], 1)).toBe(false);
+  });
+  it("accepts a token whose satisfied count meets the required minCount", async () => {
+    const m = await load();
+    expect(m.readAltchaOk(m.makeAltchaOk("sub-1", 1), ["sub-1"], 1)).toBe(true);
+  });
+  it("rejects a baseline (n=1) token against a heavier jail requirement", async () => {
+    const m = await load();
+    expect(m.readAltchaOk(m.makeAltchaOk("sub-1", 1), ["sub-1"], 4)).toBe(false);
+  });
+  it("accepts a token minted for the same heavier requirement it must clear", async () => {
+    const m = await load();
+    expect(m.readAltchaOk(m.makeAltchaOk("sub-1", 4), ["sub-1"], 4)).toBe(true);
   });
 });
 
@@ -120,7 +132,7 @@ describe("progress cookie", () => {
   });
   it("rejects an altcha_ok token even when its key matches (type confusion bypass)", async () => {
     const m = await load();
-    const okToken = m.makeAltchaOk("sub-1");
+    const okToken = m.makeAltchaOk("sub-1", 1);
     expect(m.readProgress(okToken, "sub-1")).toBe(0);
   });
 });
