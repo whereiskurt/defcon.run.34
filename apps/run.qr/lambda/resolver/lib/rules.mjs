@@ -16,8 +16,18 @@
  * Time always beats param: an active time rule wins even when a param rule
  * would also match. The caller is assumed to have already checked `enabled`.
  *
+ * A rule with no usable `dest` (empty/null — e.g. saved without a destination)
+ * is SKIPPED, not honored: resolution falls through to the next rule / the base
+ * destination rather than returning a blank dest that would produce a broken
+ * empty-`Location` redirect (which the ALB rejects with a 502).
+ *
  * Pure and total — no I/O, never throws on well-formed input.
  */
+
+/** A destination is only usable if it's a non-empty (trimmed) string. */
+function usableDest(dest) {
+  return typeof dest === "string" && dest.trim() !== "";
+}
 
 /**
  * @typedef {{ kind:"time",  from:string, to:string, dest:string }} TimeRule
@@ -41,7 +51,7 @@ export function resolveDestination(qrItem, { param, nowMs }) {
     const from = Date.parse(rule.from);
     const to = Date.parse(rule.to);
     if (Number.isNaN(from) || Number.isNaN(to)) continue;
-    if (nowMs >= from && nowMs < to) {
+    if (nowMs >= from && nowMs < to && usableDest(rule.dest)) {
       return { destination: rule.dest, matchedRule: rule };
     }
   }
@@ -52,7 +62,7 @@ export function resolveDestination(qrItem, { param, nowMs }) {
     const paramStr = String(param);
     for (const rule of rules) {
       if (rule?.kind !== "param") continue;
-      if (rule.match === "*" || rule.match === paramStr) {
+      if ((rule.match === "*" || rule.match === paramStr) && usableDest(rule.dest)) {
         return { destination: rule.dest, matchedRule: rule };
       }
     }

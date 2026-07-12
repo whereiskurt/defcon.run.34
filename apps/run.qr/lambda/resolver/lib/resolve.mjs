@@ -113,12 +113,22 @@ export async function resolve({ path, headers = {}, nowMs }, deps) {
           enrich: item.enrich,
         });
 
+        // Defense in depth: never emit a redirect to a destination with no host
+        // (empty/null/relative). buildRedirect would return a 302 with a blank
+        // Location, which the ALB rejects as a 502. A code with no usable
+        // destination is a clean 404 instead. (rules.mjs already skips dest-less
+        // rules; this also covers a base destination that is empty.)
+        const destHost = destHostOf(finalDest);
+        if (!destHost) {
+          return notFound();
+        }
+
         log(
           redirectLog({
             code,
             param,
             matchedRule,
-            destHost: destHostOf(finalDest),
+            destHost,
             geo: headers["cloudfront-viewer-country"] || "",
             ua: headers["user-agent"] || "",
           })

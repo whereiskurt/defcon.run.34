@@ -25,6 +25,48 @@ describe("resolveDestination — fallback", () => {
   });
 });
 
+describe("resolveDestination — dest-less rules are skipped (regression: 502)", () => {
+  // A time rule whose window contains `now` but whose dest is null/empty must
+  // NOT win — resolution falls through to the base destination. Honoring the
+  // blank dest produced an empty-Location 302 that the ALB turned into a 502.
+  it.each([
+    ["null dest", null],
+    ["undefined dest", undefined],
+    ["empty dest", ""],
+    ["whitespace dest", "   "],
+  ])("skips a matching TIME rule with a %s and falls back to base", (_label, dest) => {
+    const item = {
+      destination: "https://base.example/",
+      rules: [{ kind: "time", from: "2026-01-01T00:00:00Z", to: "2026-12-01T00:00:00Z", dest }],
+    };
+    const r = resolveDestination(item, { param: null, nowMs: T0 });
+    expect(r.destination).toBe("https://base.example/");
+    expect(r.matchedRule).toBe("default");
+  });
+
+  it("skips a matching PARAM rule with an empty dest and falls back to base", () => {
+    const item = {
+      destination: "https://base.example/",
+      rules: [{ kind: "param", match: "*", dest: "" }],
+    };
+    const r = resolveDestination(item, { param: "42", nowMs: T0 });
+    expect(r.destination).toBe("https://base.example/");
+    expect(r.matchedRule).toBe("default");
+  });
+
+  it("still honors a LATER usable rule when an earlier match is dest-less", () => {
+    const item = {
+      destination: "https://base.example/",
+      rules: [
+        { kind: "time", from: "2026-01-01T00:00:00Z", to: "2026-12-01T00:00:00Z", dest: "" },
+        { kind: "time", from: "2026-08-01T00:00:00Z", to: "2026-09-01T00:00:00Z", dest: "https://later.example/" },
+      ],
+    };
+    const r = resolveDestination(item, { param: null, nowMs: T0 });
+    expect(r.destination).toBe("https://later.example/");
+  });
+});
+
 describe("resolveDestination — time rules", () => {
   const timeRule = {
     kind: "time",
