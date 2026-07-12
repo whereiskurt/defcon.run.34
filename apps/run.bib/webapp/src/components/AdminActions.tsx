@@ -201,11 +201,23 @@ export function MarkPaidAction({
 }: MarkPaidActionProps) {
   const router = useRouter();
   const { t } = useCopy();
+  // Editable amount, DOLLARS for display (prefilled from the pledge's
+  // amountCents, e.g. 2000 → "20.00"), converted to integer cents on submit.
+  // The mark-paid contract is unchanged — it still receives cents.
+  const [value, setValue] = useState<string>(
+    ((amountCents ?? 0) / 100).toFixed(2)
+  );
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
   const [deduped, setDeduped] = useState(false);
 
   const onMarkPaid = async () => {
+    // Dollars → integer cents (the field is money, not raw cents).
+    const cents = Math.round(Number(value) * 100);
+    if (!Number.isFinite(cents) || cents <= 0) {
+      setFailed(true);
+      return;
+    }
     setBusy(true);
     setFailed(false);
     setDeduped(false);
@@ -213,7 +225,7 @@ export function MarkPaidAction({
       const res = await fetch(`${apiBase}/api/admin/bib/mark-paid`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ownerSub, amountCents }),
+        body: JSON.stringify({ ownerSub, amountCents: cents }),
       });
       if (res.ok) {
         const data = (await res.json().catch(() => null)) as
@@ -236,11 +248,53 @@ export function MarkPaidAction({
 
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 4,
+          padding: "0 8px",
+          borderRadius: 4,
+          border: "1px solid #2a2a34",
+          backgroundColor: "#0a0a0f",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            color: "#8f8fa8",
+            fontSize: 13,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          }}
+        >
+          $
+        </span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          // Money field: allow only digits and a single decimal point.
+          onChange={(e) => setValue(e.target.value.replace(/[^0-9.]/g, ""))}
+          aria-label="Amount in dollars"
+          title="Amount in dollars"
+          disabled={busy}
+          style={{
+            width: 60,
+            padding: "5px 0",
+            border: "none",
+            outline: "none",
+            backgroundColor: "transparent",
+            color: "#e4e4ef",
+            fontSize: 13,
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          }}
+        />
+      </span>
       <button
         type="button"
         onClick={onMarkPaid}
         disabled={busy}
-        aria-label="Mark paid in person"
+        aria-label="Approve in-person cash payment"
         style={{
           fontSize: 13,
           fontWeight: 700,
@@ -254,7 +308,7 @@ export function MarkPaidAction({
           whiteSpace: "nowrap",
         }}
       >
-        {t("bib.admin.paid")}
+        {t("bib.admin.approve")}
       </button>
       {failed && (
         <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
@@ -485,6 +539,80 @@ export function RemoveCashAction({
       {failed && (
         <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
           Couldn&apos;t remove — try again.
+        </span>
+      )}
+    </span>
+  );
+}
+
+export interface DenyPledgeActionProps {
+  apiBase: string;
+  ownerSub: string;
+}
+
+/**
+ * DenyPledgeAction (Kurt 2026-07-12) — the destructive "Deny" pill beside
+ * Approve on Outstanding in-person pledge rows. Soft-clears the runner's
+ * in-person pledge via /api/admin/bib/deny-pledge (willPayInPerson=false), so
+ * the row drops off the outstanding list. The bib, name, and quota are kept —
+ * the runner can re-pledge later. Behind a window.confirm(). Copy hardcoded to
+ * avoid touching the REQUIRED_BIB_KEYS CMS catalog.
+ */
+export function DenyPledgeAction({ apiBase, ownerSub }: DenyPledgeActionProps) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const onDeny = async () => {
+    const ok = window.confirm(
+      "Deny this in-person pledge? It drops off the outstanding list. The runner keeps their bib and name and can pledge again later."
+    );
+    if (!ok) return;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const res = await fetch(`${apiBase}/api/admin/bib/deny-pledge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ownerSub }),
+      });
+      if (res.ok) {
+        router.refresh();
+        return;
+      }
+      setFailed(true);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <button
+        type="button"
+        onClick={onDeny}
+        disabled={busy}
+        aria-label="Deny in-person pledge"
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color: "#ff8a8a",
+          backgroundColor: "transparent",
+          padding: "6px 10px",
+          borderRadius: 6,
+          border: "1px solid #3a2a2e",
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.6 : 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        Deny
+      </button>
+      {failed && (
+        <span style={{ fontSize: 13, color: "#ff8a8a", whiteSpace: "nowrap" }}>
+          Couldn&apos;t apply — try again.
         </span>
       )}
     </span>
