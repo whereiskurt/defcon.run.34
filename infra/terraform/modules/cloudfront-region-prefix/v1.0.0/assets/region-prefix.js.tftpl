@@ -1,0 +1,72 @@
+// CloudFront Function (viewer-request) — region path prefixer.
+//
+// Rendered from Terraform (`templatefile`); the placeholder tokens are injected
+// at plan time, NOT runtime. Runtime is cloudfront-js-2.0.
+//
+// Job: ensure every request path carries a served-region segment
+// (/use1, /cac1, /apse1, ...). run.human is mounted per-region via Next.js
+// basePath, so a path WITHOUT a region segment 404s. This function prepends
+// one, choosing the region by:
+//
+//   GEO = true  (multi-region deploys):  sticky cookie -> country-of-origin -> default
+//   GEO = false (single-region/override): always the default region (cheap, no lookup)
+//
+// It NEVER rewrites a path that already starts with a served region, so it is
+// idempotent and safe to run on every request.
+
+function handler(event) {
+  var request = event.request;
+  var uri = request.uri || "/";
+
+  var REGIONS = ${regions_json};          // served region labels, e.g. ["use1"]
+  var DEFAULT = "${default_region}";      // fallback + single-region target
+  var COOKIE = "${cookie_name}";          // sticky-region cookie name
+  var GEO = ${geo_enabled};               // true only when >1 region serves
+  var COUNTRY_MAP = ${country_map_json};  // { "CA": "cac1", ... }; {} when GEO off
+
+  // Already region-prefixed? First path segment matches a served region ->
+  // pass through untouched (idempotent).
+  var seg = uri.split("/")[1];
+  if (isServed(seg, REGIONS)) {
+    return request;
+  }
+
+  var region = DEFAULT;
+  if (GEO) {
+    // 1) A sticky cookie naming a served region wins (honors user override).
+    var chosen = "";
+    if (request.cookies && request.cookies[COOKIE]) {
+      chosen = request.cookies[COOKIE].value;
+    }
+    // 2) Otherwise, country-of-origin map (requires the viewer-country header
+    //    to be forwarded by the cache policy).
+    if (!isServed(chosen, REGIONS)) {
+      chosen = "";
+      if (request.headers["cloudfront-viewer-country"]) {
+        var country = request.headers["cloudfront-viewer-country"].value;
+        if (COUNTRY_MAP[country]) {
+          chosen = COUNTRY_MAP[country];
+        }
+      }
+    }
+    // 3) Fall back to DEFAULT if neither produced a served region.
+    if (isServed(chosen, REGIONS)) {
+      region = chosen;
+    }
+  }
+
+  // Prepend "/<region>", preserving the rest of the path. The query string
+  // lives on request.querystring and is left untouched.
+  request.uri = "/" + region + (uri === "/" ? "" : uri);
+  return request;
+}
+
+// True when `label` is one of the served region labels.
+function isServed(label, regions) {
+  for (var i = 0; i < regions.length; i++) {
+    if (regions[i] === label) {
+      return true;
+    }
+  }
+  return false;
+}

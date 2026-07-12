@@ -1,0 +1,44 @@
+// CloudFront Function (viewer-response) — region sticky-cookie setter.
+//
+// Rendered from Terraform (`templatefile`); runtime cloudfront-js-2.0.
+//
+// Paired with region-prefix.js (viewer-request). That function rewrote
+// request.uri to "/<region>/...". Here, on the response, we echo that region
+// back to the browser as a sticky cookie so subsequent requests skip the
+// country lookup and honor the user's effective region (and any manual
+// override they set by editing the cookie).
+//
+// Only deployed on MULTI-region distributions — on a single-region deploy
+// there is nothing to remember, so this function is not created.
+
+function handler(event) {
+  var request = event.request;
+  var response = event.response;
+
+  var REGIONS = ${regions_json};
+  var COOKIE = "${cookie_name}";
+
+  // The region the viewer-request function selected is the first segment of
+  // the (already-rewritten) request URI.
+  var seg = (request.uri || "/").split("/")[1];
+
+  var served = false;
+  for (var i = 0; i < REGIONS.length; i++) {
+    if (REGIONS[i] === seg) {
+      served = true;
+    }
+  }
+
+  if (served) {
+    if (!response.cookies) {
+      response.cookies = {};
+    }
+    response.cookies[COOKIE] = {
+      value: seg,
+      // 30 days; Lax is fine for a non-sensitive routing hint.
+      attributes: "Path=/; Max-Age=2592000; SameSite=Lax",
+    };
+  }
+
+  return response;
+}
