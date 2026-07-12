@@ -205,17 +205,40 @@ export async function getQrStats(code: string): Promise<QrStatsView> {
 // Writes (validate first, then create-or-patch to preserve createdAt on edit)
 // ---------------------------------------------------------------------------
 
-/** Build the validated attribute payload for a Qr write (no key work). */
+/**
+ * Build the validated attribute payload for a Qr write (no key work).
+ *
+ * Every rule MUST carry a usable https destination and its condition fields —
+ * a rule with a blank dest would match at the resolver but produce a redirect
+ * with no Location, which the ALB turns into a 502 (the RICK incident). We
+ * reject such rules here so the bad shape can never reach the table.
+ */
 function qrAttributes(input: QrInput) {
   if (input.destination) validateDestination(input.destination);
-  const rules = (input.rules ?? []).map((r) => {
-    if (r.dest) validateDestination(r.dest);
+  const rules = (input.rules ?? []).map((r, i) => {
+    const where = `Rule ${i + 1}`;
+    if (!r.dest || r.dest.trim() === "") {
+      throw new QrValidationError(`${where} needs a destination.`);
+    }
+    validateDestination(r.dest); // absolute https only
+    if (r.kind === "time") {
+      if (!r.from || !r.to) {
+        throw new QrValidationError(`${where} (time) needs both a From and a To.`);
+      }
+      if (Number.isNaN(Date.parse(r.from)) || Number.isNaN(Date.parse(r.to))) {
+        throw new QrValidationError(`${where} (time) has an invalid date.`);
+      }
+    } else if (r.kind === "param") {
+      if (!r.match || r.match.trim() === "") {
+        throw new QrValidationError(`${where} (param) needs a match value (use * for any).`);
+      }
+    }
     return {
       kind: r.kind,
       ...(r.from !== undefined ? { from: r.from } : {}),
       ...(r.to !== undefined ? { to: r.to } : {}),
       ...(r.match !== undefined ? { match: r.match } : {}),
-      ...(r.dest !== undefined ? { dest: r.dest } : {}),
+      dest: r.dest,
     };
   });
   return {

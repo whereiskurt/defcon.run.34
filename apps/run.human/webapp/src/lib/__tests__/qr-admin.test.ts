@@ -92,4 +92,36 @@ describe("upsertQr validation ordering", () => {
   it("rejects a reserved code before touching DynamoDB", async () => {
     await expect(upsertQr({ code: "ctf" })).rejects.toBeInstanceOf(QrValidationError);
   });
+
+  // Regression guard for the RICK 502: a rule with no destination must be
+  // refused, not stored (a blank dest at the resolver → empty-Location 502).
+  it("rejects a rule with an empty destination", async () => {
+    await expect(
+      upsertQr({
+        code: "TESTONLY",
+        destination: "https://run.defcon.run",
+        rules: [{ kind: "time", from: "2026-01-01T00:00:00Z", to: "2026-12-01T00:00:00Z", dest: "" }],
+      })
+    ).rejects.toBeInstanceOf(QrValidationError);
+  });
+
+  it("rejects a time rule missing From/To", async () => {
+    await expect(
+      upsertQr({
+        code: "TESTONLY",
+        destination: "https://run.defcon.run",
+        rules: [{ kind: "time", from: "", to: "", dest: "https://x.example" }],
+      })
+    ).rejects.toBeInstanceOf(QrValidationError);
+  });
+
+  it("rejects a param rule missing a match value", async () => {
+    await expect(
+      upsertQr({
+        code: "TESTONLY",
+        destination: "https://run.defcon.run",
+        rules: [{ kind: "param", match: "", dest: "https://x.example" }],
+      })
+    ).rejects.toBeInstanceOf(QrValidationError);
+  });
 });

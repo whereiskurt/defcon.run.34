@@ -172,6 +172,28 @@ export default function QrForm({
 
   async function onSave() {
     setError(null);
+    // Fast client-side guard (server re-validates authoritatively): a rule with
+    // no https destination would 502 the resolver, so refuse to save one.
+    for (let i = 0; i < rules.length; i++) {
+      const r = rules[i];
+      const where = `Rule ${i + 1}`;
+      if (!(r.dest ?? "").trim()) {
+        setError(`${where} needs a destination.`);
+        return;
+      }
+      if (!/^https:\/\//i.test((r.dest ?? "").trim())) {
+        setError(`${where} destination must be an https:// URL.`);
+        return;
+      }
+      if (r.kind === "time" && (!r.from || !r.to)) {
+        setError(`${where} (time) needs a From and a To — use a preset or the pickers.`);
+        return;
+      }
+      if (r.kind === "param" && !(r.match ?? "").trim()) {
+        setError(`${where} (param) needs a match value (use * for any).`);
+        return;
+      }
+    }
     setBusy(true);
     try {
       const qr = {
