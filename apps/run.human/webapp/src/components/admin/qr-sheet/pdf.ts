@@ -258,23 +258,25 @@ export async function buildSheetPdf(opts: {
       { level: "Q", pct: 25 },
       { level: "H", pct: 30 },
     ];
-    // 2×2 of large samples plus cell-size samples underneath — skipped when
-    // the sheet's cells are already large (they'd duplicate the big samples
-    // and overflow the page).
-    const bigPt = 200;
-    const cellSamplePt = qrPt <= 140 ? qrPt : 0;
+    // 2×2 of large samples (fixed quadrants; label INSIDE each quadrant so
+    // nothing bleeds into the next row), then a separate bottom strip of
+    // cell-size samples — one row, own vertical band, no overlap possible.
+    const bigPt = 190;
+    const bigCols = [75, 347];
+    const bigRows = [PAGE_HEIGHT - 140 - bigPt, PAGE_HEIGHT - 140 - bigPt - (bigPt + 46)];
+    const levelsThatFit = new Set<string>();
     for (let i = 0; i < EC_PAGE_LEVELS.length; i++) {
       const { level, pct } = EC_PAGE_LEVELS[i];
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      const bx = 80 + col * (bigPt + 90);
-      const by = PAGE_HEIGHT - 120 - bigPt - row * (bigPt + 60);
+      const bx = bigCols[i % 2];
+      const by = bigRows[Math.floor(i / 2)];
       try {
-        const big = await doc.embedPng(await renderPng(url, pxFor(bigPt), level));
+        const png = await renderPng(url, pxFor(bigPt), level);
+        levelsThatFit.add(level);
+        const big = await doc.embedPng(png);
         ecPage.drawImage(big, { x: bx, y: by, width: bigPt, height: bigPt });
         ecPage.drawText(`${level} — ${pct}% redundancy`, {
           x: bx,
-          y: by - 14,
+          y: by - 13,
           size: 9,
           color: GREY,
         });
@@ -286,33 +288,47 @@ export async function buildSheetPdf(opts: {
           color: MID_GREY,
         });
       }
-      // cell-size sample beside the label, matching the printed sheet
-      if (cellSamplePt > 0) {
+    }
+
+    // Bottom strip: the four levels at (or near) this sheet's cell size.
+    // Skipped when cells are big enough that the large samples already show it.
+    if (qrPt <= 140) {
+      const stripMax = (PAGE_WIDTH - 80 - 3 * 12) / 4; // 4-up with 12pt gaps
+      const s = Math.min(qrPt, Math.floor(stripMax));
+      const reduced = s < qrPt;
+      const gap = (PAGE_WIDTH - 80 - 4 * s) / 3;
+      const stripTitleY = 198;
+      const stripTopY = 186;
+      ecPage.drawText(
+        reduced
+          ? `At ${(s / DPI).toFixed(2)}" (near this sheet's ${(qrPt / DPI).toFixed(2)}" printed QR size, reduced to fit):`
+          : `At this sheet's printed QR size (${(qrPt / DPI).toFixed(2)}"):`,
+        { x: 40, y: stripTitleY, size: 9, color: GREY }
+      );
+      for (let i = 0; i < EC_PAGE_LEVELS.length; i++) {
+        const { level } = EC_PAGE_LEVELS[i];
+        if (!levelsThatFit.has(level)) continue; // big slot already says why
+        const x = 40 + i * (s + gap);
+        const y = stripTopY - s;
+        // re-render at the strip size for crisp modules (no upscale blur)
         try {
-          const small = await doc.embedPng(
-            await renderPng(url, pxFor(cellSamplePt), level)
-          );
-          ecPage.drawImage(small, {
-            x: bx + bigPt - cellSamplePt,
-            y: by - 14 - cellSamplePt - 4,
-            width: cellSamplePt,
-            height: cellSamplePt,
+          const small = await doc.embedPng(await renderPng(url, pxFor(s), level));
+          ecPage.drawImage(small, { x, y, width: s, height: s });
+          ecPage.drawText(level, {
+            x: x + s / 2 - 3,
+            y: y - 11,
+            size: 8,
+            color: GREY,
           });
         } catch {
-          // no cell-size sample if it doesn't fit — big label already says so
+          /* skip strip sample on failure */
         }
       }
     }
     ecPage.drawText(
       "Higher redundancy survives more damage/logo coverage but packs modules denser.",
-      { x: 40, y: 46, size: 9, color: MID_GREY }
+      { x: 40, y: 28, size: 9, color: MID_GREY }
     );
-    if (cellSamplePt > 0) {
-      ecPage.drawText(
-        `Small samples are this sheet's cell size (${(l.qrBox / DPI).toFixed(2)}").`,
-        { x: 40, y: 32, size: 9, color: MID_GREY }
-      );
-    }
 
     // ── Progressive data-density page ────────────────────────────────────
     const prog = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -329,31 +345,48 @@ export async function buildSheetPdf(opts: {
       color: rgb(0.5, 0.5, 0.5),
     });
 
-    const urls = buildProgressiveUrls(url, l.across * l.down);
+    // Own grid, NOT the sheet's edge-to-edge layout: dc33 reused the sheet
+    // grid here, which ran under the header and the explanation text and left
+    // no room for the +N labels. Cells stay at the sheet's QR size, but with
+    // a label gutter per row and a reserved footer band.
+    const progGapX = 16;
+    const progGapY = 18; // label gutter under each QR
+    const progLeft = 40;
+    const progTop = 712; // below the header block
+    const progBottom = 110; // above the explanation footer
+    const progCols = Math.max(
+      1,
+      Math.floor((PAGE_WIDTH - 2 * progLeft + progGapX) / (qrPt + progGapX))
+    );
+    const progRows = Math.max(
+      1,
+      Math.floor((progTop - progBottom + progGapY) / (qrPt + progGapY))
+    );
+
+    const urls = buildProgressiveUrls(url, progCols * progRows);
     const origin = url.split("/").slice(0, 3).join("/");
-    let i = 0;
-    for (let dx = 0; dx < l.across; dx++) {
-      for (let dy = 0; dy < l.down; dy++) {
-        if (i >= urls.length) break;
-        const u = urls[i];
-        try {
-          const image = await doc.embedPng(await renderPng(u, pxFor(qrPt)));
-          const pos = drawQrInCell(prog, l, image, qrPt, dx, dy);
-          const extra = u.length - origin.length;
-          const label = extra === 0 ? "Base" : `+${extra}`;
-          prog.drawText(label, {
-            x: pos.x + qrPt / 2 - label.length * 6 * 0.3,
-            y: pos.y - 10,
-            size: 6,
-            color: FAINT_GREY,
-          });
-        } catch {
-          // an individual progressive step failing must not kill the sheet
-        }
-        i++;
+    for (let i = 0; i < urls.length; i++) {
+      const col = i % progCols;
+      const row = Math.floor(i / progCols);
+      const x = progLeft + col * (qrPt + progGapX);
+      const y = progTop - row * (qrPt + progGapY) - qrPt;
+      const u = urls[i];
+      try {
+        const image = await doc.embedPng(await renderPng(u, pxFor(qrPt)));
+        prog.drawImage(image, { x, y, width: qrPt, height: qrPt });
+        const extra = u.length - origin.length;
+        const label = extra === 0 ? "Base" : `+${extra}`;
+        prog.drawText(label, {
+          x: x + qrPt / 2 - label.length * 6 * 0.3,
+          y: y - 11,
+          size: 6,
+          color: FAINT_GREY,
+        });
+      } catch {
+        // an individual progressive step failing must not kill the sheet
       }
     }
-    const ey = 60;
+    const ey = 46;
     prog.drawText(
       "This page tests QR code readability as data density increases.",
       { x: 40, y: ey + 30, size: 9, color: MID_GREY }
@@ -365,7 +398,7 @@ export async function buildSheetPdf(opts: {
       color: MID_GREY,
     });
     prog.drawText(
-      `Template: ${l.across}×${l.down}, Cell size: ${(l.qrBox / DPI).toFixed(2)}"`,
+      `QRs match the sheet's printed QR size: ${(qrPt / DPI).toFixed(2)}"`,
       { x: 40, y: ey, size: 9, color: MID_GREY }
     );
   }
