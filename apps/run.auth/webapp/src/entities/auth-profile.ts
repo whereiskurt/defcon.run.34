@@ -172,6 +172,24 @@ export const AuthProfile = new Entity(
       lockedAt: {
         type: "number",
       },
+      // Jail: punitive per-user Altcha friction (separate from lockedOut).
+      // Toggled from the admin identity console; dials PoW difficulty AND solve count.
+      jailed: {
+        type: "boolean",
+        default: false,
+      },
+      // Jail severity 1..5 (meaningful only when jailed)
+      jailLevel: {
+        type: "number",
+      },
+      // Admin note for why the user was jailed
+      jailReason: {
+        type: "string",
+      },
+      // When the jail was applied
+      jailedAt: {
+        type: "number",
+      },
       // Timestamps
       createdAt: {
         type: "number",

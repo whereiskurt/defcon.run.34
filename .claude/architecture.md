@@ -178,6 +178,11 @@ SSM Parameter Store (not Secrets Manager), KMS-encrypted. Source: `.secrets.sops
 
 Path pattern: `/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/{provider}/{key}`
 
+### Environment Variables (run.auth)
+
+- `ALTCHA_HMAC_KEY` (run.auth) — HMAC secret for signing Altcha challenge solutions in `/api/login` (email flow). Also used to sign the `altcha_ok` / `altcha_progress` gate cookies at the OIDC interaction chokepoint.
+- `ALTCHA_OAUTH_ENFORCED` (run.auth) — when `"true"`, every OAuth/OIDC login must solve one Altcha at the interaction chokepoint (`/challenge`). Unset/anything-else = jail-only enforcement (no baseline friction). `ALTCHA_HMAC_KEY` also signs the short-lived `altcha_ok` / `altcha_progress` gate cookies.
+
 ## Security Model
 
 | Layer | Mechanism |

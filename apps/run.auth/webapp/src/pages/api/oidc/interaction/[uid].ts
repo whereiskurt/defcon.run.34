@@ -1,12 +1,21 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getToken } from "next-auth/jwt";
 import { oidc, isSessionNotFound } from "@/config/oidc";
+import { getAuthProfile } from "@/entities/auth-profile";
+import {
+  challengeRequirement,
+  readAltchaOk,
+  emailKey,
+  clearGateCookieHeader,
+  ALTCHA_OK_COOKIE,
+} from "@/lib/altcha-gate";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
 const siteDomain = process.env.SITE_DOMAIN || "defcon.run";
 const LOCAL_RUN_PORT = process.env.LOCAL_RUN_PORT || "3001";
 const loginPath = isDev ? "/login" : `/${REGION_SHORT}/login`;
+const challengePath = isDev ? "/challenge" : `/${REGION_SHORT}/challenge`;
 
 /**
  * OIDC Interaction Completion Route (Pages Router)
@@ -64,6 +73,44 @@ export default async function handler(
 
     // Check what the interaction needs
     const { prompt } = interactionDetails;
+
+    // --- Altcha-on-OAuth gate ---------------------------------------------
+    // Every real login funnels through this route. A warm prompt=none silent SSO is
+    // auto-satisfied inside oidc-provider and normally never reaches here; as a safety
+    // belt we never challenge a prompt=none request. Otherwise, if the subject owes a
+    // challenge (baseline enforced, or jailed) and hasn't cleared it, bounce to /challenge.
+    const requestedPrompt = (interactionDetails.params?.prompt as string | undefined) || "";
+    if (requestedPrompt !== "none") {
+      let required: { count: number; difficulty: number } = { count: 0, difficulty: 0 };
+      try {
+        const gateProfile = await getAuthProfile(accountId);
+        required = challengeRequirement(gateProfile);
+      } catch (e) {
+        console.error("Altcha gate: profile read failed; failing open (no challenge):", e);
+      }
+      if (required.count > 0) {
+        const acceptableKeys = [accountId];
+        if (token.email) acceptableKeys.push(emailKey(token.email as string));
+        const okCookie = req.cookies?.[ALTCHA_OK_COOKIE];
+        // Pass required.count as minCount: an altcha_ok minted for a lighter
+        // requirement (e.g. baseline n=1) cannot clear a heavier jail requirement.
+        if (readAltchaOk(okCookie, acceptableKeys, required.count)) {
+          // One-shot: clear the cookie so it can't clear a second pending login.
+          // Append-safe: oidc-provider's signed-cookie lib may have already queued a
+          // Set-Cookie above (e.g. during OIDC_COOKIE_KEYS rotation in interactionDetails());
+          // a blind res.setHeader would silently discard it.
+          const existingCookieHeader = res.getHeader("Set-Cookie");
+          const setCookies = existingCookieHeader
+            ? (Array.isArray(existingCookieHeader) ? existingCookieHeader.map(String) : [String(existingCookieHeader)])
+            : [];
+          res.setHeader("Set-Cookie", [...setCookies, clearGateCookieHeader(ALTCHA_OK_COOKIE)]);
+        } else {
+          res.redirect(`${challengePath}?oidc=${uid}`);
+          return;
+        }
+      }
+    }
+    // --- end gate ---------------------------------------------------------
 
     let result: Record<string, unknown>;
 

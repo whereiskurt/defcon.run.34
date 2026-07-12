@@ -26,6 +26,41 @@ export function LockAction({ userId, locked, onComplete }: { userId: string; loc
   );
 }
 
+export function JailAction({ userId, jailed, jailLevel, onComplete }: { userId: string; jailed: boolean; jailLevel: number | null; onComplete?: () => void }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [level, setLevel] = useState<number>(jailLevel ?? 1);
+  async function go() {
+    if (jailed) {
+      if (!window.confirm("Release this identity from jail?")) return;
+    } else {
+      if (!window.confirm(`Jail this identity at level ${level}? They'll face escalated Altcha friction on their next interactive login.`)) return;
+    }
+    setBusy(true); setFailed(false);
+    const res = await fetch(`/api/admin/identities/${encodeURIComponent(userId)}/jail`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(jailed ? { jailed: false } : { jailed: true, level }),
+    });
+    setBusy(false);
+    if (res.ok) { router.refresh(); onComplete?.(); } else setFailed(true);
+  }
+  return (
+    <div className="flex items-center gap-2">
+      {!jailed && (
+        <select aria-label="Jail level" value={level} onChange={(e) => setLevel(Number(e.target.value))}
+          className="rounded border px-1 py-0.5 text-xs">
+          {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>L{n}</option>)}
+        </select>
+      )}
+      <button onClick={go} disabled={busy}
+        className={dangerBtn + " border-warning text-warning"}>
+        {busy ? "…" : jailed ? "Release" : "Jail"}{failed ? " ✕" : ""}
+      </button>
+    </div>
+  );
+}
+
 export function UnlinkAction({ userId, provider, providerAccountId, onComplete }: { userId: string; provider: string; providerAccountId: string; onComplete?: () => void }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);

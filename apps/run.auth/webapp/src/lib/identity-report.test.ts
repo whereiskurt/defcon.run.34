@@ -74,6 +74,24 @@ describe("mergeIdentityRows", () => {
     expect(u2.lockedOut).toBe(true);
     expect(u2.providers).toEqual(["email"]); // no accounts, lastProvider=email
   });
+
+  it("carries jailed and jailLevel onto the row", () => {
+    const jailedProfiles: ProfileRow[] = [
+      { userId: "u1", displayName: "rabbit_A", email: "a@x.com", services: ["run", "admin"],
+        lastProvider: "github", createdAt: 1000, lockedOut: false, jailed: true, jailLevel: 3,
+        github: { linkedAt: 1000 }, discord: null, strava: null },
+      { userId: "u2", displayName: "rabbit_B", email: "b@x.com", services: ["run"],
+        lastProvider: "email", createdAt: 2000, lockedOut: true,
+        github: null, discord: null, strava: null },
+    ];
+    const rows = mergeIdentityRows(jailedProfiles, accountsByUser);
+    const u1 = rows.find((r) => r.userId === "u1")!;
+    expect(u1.jailed).toBe(true);
+    expect(u1.jailLevel).toBe(3);
+    const u2 = rows.find((r) => r.userId === "u2")!;
+    expect(u2.jailed).toBe(false);
+    expect(u2.jailLevel).toBe(null);
+  });
 });
 
 describe("filter/sort/summary", () => {

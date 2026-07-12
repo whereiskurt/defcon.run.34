@@ -21,6 +21,8 @@ export type ProfileRow = {
   lastProvider: string | null;
   createdAt: number | null;
   lockedOut: boolean;
+  jailed?: boolean;
+  jailLevel?: number;
   github: { linkedAt?: number } | null;
   discord: { linkedAt?: number } | null;
   strava: { linkedAt?: number } | null;
@@ -37,6 +39,8 @@ export type IdentityRow = {
   lastProvider: string | null;
   createdAt: number | null;
   lockedOut: boolean;
+  jailed: boolean;
+  jailLevel: number | null;
   linkedAt: Partial<Record<ProviderKey, number>>;
 };
 
@@ -47,6 +51,7 @@ export type SummaryTiles = {
   new24h: number;
   multiProvider: number;
   locked: number;
+  jailed: number;
 };
 
 const KNOWN_PROVIDERS: ProviderKey[] = ["github", "discord", "linkedin", "strava", "email"];
@@ -118,6 +123,8 @@ export function mergeIdentityRows(
       lastProvider: p.lastProvider ?? null,
       createdAt: p.createdAt ?? null,
       lockedOut: p.lockedOut,
+      jailed: p.jailed === true,
+      jailLevel: typeof p.jailLevel === "number" ? p.jailLevel : null,
       linkedAt,
     };
   });
@@ -146,5 +153,6 @@ export function summaryTiles(rows: IdentityRow[]): SummaryTiles {
     new24h: rows.filter((r) => r.createdAt != null && now - r.createdAt <= DAY).length,
     multiProvider: rows.filter((r) => r.providerCount > 1).length,
     locked: rows.filter((r) => r.lockedOut).length,
+    jailed: rows.filter((r) => r.jailed).length,
   };
 }

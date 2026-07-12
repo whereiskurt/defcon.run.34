@@ -38,6 +38,8 @@ export async function scanAuthProfiles(): Promise<ProfileRow[]> {
     lastProvider: p.lastProvider ?? null,
     createdAt: p.createdAt ?? null,
     lockedOut: p.lockedOut ?? false,
+    jailed: p.jailed ?? false,
+    jailLevel: p.jailLevel ?? undefined,
     github: p.github ?? null,
     discord: p.discord ?? null,
     strava: p.strava ?? null,
