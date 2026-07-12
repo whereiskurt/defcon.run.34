@@ -32,6 +32,21 @@ Out of scope (explicitly unchanged):
 - The `eqr` generation pipeline in `run-user.ts` — reused, not touched.
 - Seeding the real URLs into Strapi — a runtime/CMS action, not code.
 
+## Revision (post-ship, 2026-07-12)
+
+After seeing it live, the layout was refined:
+- **Runner QR removed** from the header tile row — the top row now shows only the
+  two social tiles (Strava, Signal). The runner's own QR still lives in the
+  "Your Social QR" collapsible card.
+- **"Your Social QR" card moved to directly under the identity card** (was below
+  Meshtastic), and its header now shows the runner/bib code (`🎽 BIB-…`).
+- **Colored borders** on the social QR tiles: Strava orange (`#FC4C02`), Signal
+  blue (`#3A76F0`) — driven by the same `labelMeta` brand color.
+
+The original three-tile design below is retained for context; `SocialQRRow` still
+supports a Runner tile if `runnerQr` is passed — the header row simply no longer
+passes it.
+
 ## Design
 
 ### Component: `src/components/profile/SocialQRRow.tsx` (client)

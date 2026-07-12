@@ -24,9 +24,12 @@ const labelMeta: Record<string, { Icon: React.ComponentType<{ className?: string
   Runner: { Icon: Footprints },
 };
 
-function QrImage({ src, alt }: { src: string; alt: string }) {
+function QrImage({ src, alt, borderColor }: { src: string; alt: string; borderColor?: string }) {
   return (
-    <div className="bg-white p-1.5 rounded-lg shadow-sm">
+    <div
+      className="bg-white p-1.5 rounded-lg shadow-sm border-2"
+      style={{ borderColor: borderColor ?? 'transparent' }}
+    >
       <img src={src} alt={alt} width={QR_PX} height={QR_PX} style={{ width: QR_PX, height: QR_PX }} />
     </div>
   );
@@ -34,7 +37,7 @@ function QrImage({ src, alt }: { src: string; alt: string }) {
 
 function QrPlaceholder() {
   return (
-    <div className="bg-white p-1.5 rounded-lg shadow-sm">
+    <div className="bg-white p-1.5 rounded-lg shadow-sm border-2 border-transparent">
       <div className="rounded bg-content2 animate-pulse" style={{ width: QR_PX, height: QR_PX }} />
     </div>
   );
@@ -112,7 +115,7 @@ export default function SocialQRRow(props: SocialQRRowProps) {
             title={`Open ${tile.label} group`}
             className="flex flex-col items-center gap-1 hover:opacity-80 transition-opacity"
           >
-            {dataUrl ? <QrImage src={dataUrl} alt={`${tile.label} group QR code`} /> : <QrPlaceholder />}
+            {dataUrl ? <QrImage src={dataUrl} alt={`${tile.label} group QR code`} borderColor={labelMeta[tile.label]?.color} /> : <QrPlaceholder />}
             <TileLabel label={tile.label} />
           </a>
         );
