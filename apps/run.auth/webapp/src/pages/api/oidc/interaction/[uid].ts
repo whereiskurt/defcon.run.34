@@ -81,8 +81,13 @@ export default async function handler(
     // challenge (baseline enforced, or jailed) and hasn't cleared it, bounce to /challenge.
     const requestedPrompt = (interactionDetails.params?.prompt as string | undefined) || "";
     if (requestedPrompt !== "none") {
-      const gateProfile = await getAuthProfile(accountId);
-      const required = challengeRequirement(gateProfile);
+      let required: { count: number; difficulty: number } = { count: 0, difficulty: 0 };
+      try {
+        const gateProfile = await getAuthProfile(accountId);
+        required = challengeRequirement(gateProfile);
+      } catch (e) {
+        console.error("Altcha gate: profile read failed; failing open (no challenge):", e);
+      }
       if (required.count > 0) {
         const acceptableKeys = [accountId];
         if (token.email) acceptableKeys.push(emailKey(token.email as string));
@@ -91,7 +96,14 @@ export default async function handler(
         // requirement (e.g. baseline n=1) cannot clear a heavier jail requirement.
         if (readAltchaOk(okCookie, acceptableKeys, required.count)) {
           // One-shot: clear the cookie so it can't clear a second pending login.
-          res.setHeader("Set-Cookie", clearGateCookieHeader(ALTCHA_OK_COOKIE));
+          // Append-safe: oidc-provider's signed-cookie lib may have already queued a
+          // Set-Cookie above (e.g. during OIDC_COOKIE_KEYS rotation in interactionDetails());
+          // a blind res.setHeader would silently discard it.
+          const existingCookieHeader = res.getHeader("Set-Cookie");
+          const setCookies = existingCookieHeader
+            ? (Array.isArray(existingCookieHeader) ? existingCookieHeader.map(String) : [String(existingCookieHeader)])
+            : [];
+          res.setHeader("Set-Cookie", [...setCookies, clearGateCookieHeader(ALTCHA_OK_COOKIE)]);
         } else {
           res.redirect(`${challengePath}?oidc=${uid}`);
           return;
