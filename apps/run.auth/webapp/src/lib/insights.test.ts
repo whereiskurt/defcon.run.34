@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
+import { StopQueryCommand } from "@aws-sdk/client-cloudwatch-logs";
 import {
   isValidIp,
   isSafeUserId,
@@ -89,6 +90,7 @@ describe("runInsights", () => {
     const out = await runInsights("q", 0, 1000, { client: client as any, pollMs: 1, timeoutMs: 5 });
     expect(out.partial).toBe(true);
     expect(out.rows).toEqual([]);
+    expect(client.send).toHaveBeenLastCalledWith(expect.any(StopQueryCommand));
   });
 
   it("returns empty when StartQuery yields no queryId", async () => {
@@ -96,5 +98,25 @@ describe("runInsights", () => {
     const out = await runInsights("q", 0, 1000, { client: client as any });
     expect(out.rows).toEqual([]);
     expect(out.partial).toBe(false);
+  });
+
+  it("degrades to partial=true (no throw) when GetQueryResults rejects, and best-effort stops the query", async () => {
+    const send = vi.fn();
+    send.mockResolvedValueOnce({ queryId: "q1" }); // StartQuery
+    send.mockRejectedValueOnce(new Error("throttled")); // GetQueryResults throws
+    send.mockResolvedValueOnce({}); // StopQuery
+    const client = { send };
+
+    const out = await runInsights("q", 0, 1000, { client: client as any, pollMs: 1 });
+    expect(out).toEqual({ rows: [], partial: true });
+    expect(client.send).toHaveBeenLastCalledWith(expect.any(StopQueryCommand));
+  });
+
+  it("degrades to partial=true (no throw) when StartQuery itself rejects", async () => {
+    const send = vi.fn().mockRejectedValueOnce(new Error("network error"));
+    const client = { send };
+
+    const out = await runInsights("q", 0, 1000, { client: client as any, pollMs: 1 });
+    expect(out).toEqual({ rows: [], partial: true });
   });
 });

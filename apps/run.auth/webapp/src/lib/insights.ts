@@ -89,31 +89,43 @@ export async function runInsights(
   const timeoutMs = opts.timeoutMs ?? 10_000;
   const pollMs = opts.pollMs ?? 400;
 
-  const start = await client.send(
-    new StartQueryCommand({
-      logGroupName: logGroupName(),
-      startTime: Math.floor(startMs / 1000),
-      endTime: Math.floor(endMs / 1000),
-      queryString,
-    })
-  );
-  const queryId: string | undefined = start?.queryId;
-  if (!queryId) return { rows: [], partial: false };
+  let queryId: string | undefined;
 
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    const res = await client.send(new GetQueryResultsCommand({ queryId }));
-    const status: string | undefined = res?.status;
-    if (status === "Complete") return { rows: mapResults(res.results), partial: false };
-    if (status === "Failed" || status === "Cancelled" || status === "Timeout") {
-      return { rows: mapResults(res.results), partial: true };
+  try {
+    const start = await client.send(
+      new StartQueryCommand({
+        logGroupName: logGroupName(),
+        startTime: Math.floor(startMs / 1000),
+        endTime: Math.floor(endMs / 1000),
+        queryString,
+      })
+    );
+    queryId = start?.queryId;
+    if (!queryId) return { rows: [], partial: false };
+
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const res = await client.send(new GetQueryResultsCommand({ queryId }));
+      const status: string | undefined = res?.status;
+      if (status === "Complete") return { rows: mapResults(res.results), partial: false };
+      if (status === "Failed" || status === "Cancelled" || status === "Timeout") {
+        return { rows: mapResults(res.results), partial: true };
+      }
+      await sleep(pollMs);
     }
-    await sleep(pollMs);
+    await stopQueryBestEffort(client, queryId);
+    return { rows: [], partial: true };
+  } catch {
+    await stopQueryBestEffort(client, queryId);
+    return { rows: [], partial: true };
   }
+}
+
+async function stopQueryBestEffort(client: Sendable, queryId: string | undefined): Promise<void> {
+  if (!queryId) return;
   try {
     await client.send(new StopQueryCommand({ queryId }));
   } catch {
     /* best-effort */
   }
-  return { rows: [], partial: true };
 }
