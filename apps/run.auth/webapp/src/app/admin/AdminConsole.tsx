@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { IdentityRow, IdentitySort, SummaryTiles, ProviderKey } from "@/lib/identity-report";
 import { LockAction, UnlinkAction, DeleteIdentityAction } from "./AdminActions";
 
@@ -33,7 +32,6 @@ const ALL_PROVIDERS: ProviderKey[] = ["github", "discord", "linkedin", "strava",
 export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   initialRows: Row[]; tiles: SummaryTiles; adminEmail: string | null;
 }) {
-  const router = useRouter();
   const [rows, setRows] = useState<Row[]>(initialRows);
   useEffect(() => { setRows(initialRows); }, [initialRows]);
   const [q, setQ] = useState("");
