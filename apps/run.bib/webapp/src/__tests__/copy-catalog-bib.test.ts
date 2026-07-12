@@ -74,6 +74,7 @@ const REQUIRED_BIB_KEYS = [
   "bib.status.pledgeTagline",
   "bib.status.burningBibAlt",
   "bib.status.stampUnsaved",
+  "bib.status.stampSaved",
   "bib.status.stampDraft",
   "bib.status.stampPaid",
   "bib.status.stampThankYou",

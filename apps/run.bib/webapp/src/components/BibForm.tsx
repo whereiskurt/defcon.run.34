@@ -374,6 +374,7 @@ export function BibForm({
           socialQrUrl={socialQrUrl}
           dirty={dirty}
           draft={!hasTransacted && !raining}
+          saved={nameSaved}
         />
         <CashRain active={raining} />
       </div>

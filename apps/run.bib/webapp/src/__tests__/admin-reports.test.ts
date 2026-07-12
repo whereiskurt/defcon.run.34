@@ -322,6 +322,29 @@ describe("CSV helpers", () => {
     expect(csv).toContain('"quo""te"');
   });
 
+  it("toCsv neutralizes CSV formula-injection (prefixes leading = + - @ with ')", () => {
+    // Attacker-controlled bib names must not execute as spreadsheet formulas
+    // when an admin opens the export (OWASP CSV injection).
+    const csv = toCsv(
+      [{ key: "name", header: "name" }],
+      [
+        { name: "=1+1" },
+        { name: "+1" },
+        { name: "-2+3" },
+        { name: "@SUM(A1)" },
+        { name: "MTS');DROP TABLE runs;--" }, // no leading formula char → untouched
+        { name: "Bucky" },
+      ]
+    );
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe("'=1+1");
+    expect(lines[2]).toBe("'+1");
+    expect(lines[3]).toBe("'-2+3");
+    expect(lines[4]).toBe("'@SUM(A1)");
+    expect(lines[5]).toBe("MTS');DROP TABLE runs;--");
+    expect(lines[6]).toBe("Bucky");
+  });
+
   it("reportToCsv print-names has a header row + one line per named bib", () => {
     const csv = reportToCsv(buildReports(baseInput()), "print-names");
     const lines = csv.trim().split("\n");
