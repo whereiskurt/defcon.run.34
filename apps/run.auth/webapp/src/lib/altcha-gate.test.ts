@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 
 // ALTCHA_HMAC_KEY must be set BEFORE importing the module (it reads at import for signing).
 // We set it here and import dynamically inside tests to control env.
@@ -7,6 +7,15 @@ const KEY = "test-hmac-key-1234567890";
 async function load(env: Record<string, string | undefined> = {}) {
   vi.resetModules();
   vi.stubEnv("ALTCHA_HMAC_KEY", KEY);
+  for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v ?? "");
+  return await import("./altcha-gate");
+}
+
+// Loads the module with ALTCHA_HMAC_KEY stubbed to empty BEFORE the dynamic import,
+// so signPayload/verifyPayload inside this module instance both see the empty key.
+async function loadEmptyKey(env: Record<string, string | undefined> = {}) {
+  vi.resetModules();
+  vi.stubEnv("ALTCHA_HMAC_KEY", "");
   for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v ?? "");
   return await import("./altcha-gate");
 }
@@ -35,6 +44,11 @@ describe("challengeRequirement", () => {
     const m = await load();
     expect(m.challengeRequirement({ jailed: true })).toEqual({ count: 2, difficulty: 2_000_000 });
     expect(m.challengeRequirement({ jailed: true, jailLevel: 99 })).toEqual({ count: 8, difficulty: 8_000_000 });
+  });
+
+  it("rounds a fractional jailLevel instead of indexing undefined", async () => {
+    const m = await load();
+    expect(m.challengeRequirement({ jailed: true, jailLevel: 2.5 })).toEqual({ count: 4, difficulty: 4_000_000 });
   });
 });
 
@@ -67,6 +81,11 @@ describe("signPayload / verifyPayload", () => {
     expect(m.verifyPayload("")).toBeNull();
     expect(m.verifyPayload("no-dot")).toBeNull();
   });
+  it("fails closed when ALTCHA_HMAC_KEY is empty (never validates, even its own tokens)", async () => {
+    const m = await loadEmptyKey();
+    const token = m.signPayload({ k: "sub-1" });
+    expect(m.verifyPayload(token)).toBeNull();
+  });
 });
 
 describe("altcha_ok cookie", () => {
@@ -84,6 +103,11 @@ describe("altcha_ok cookie", () => {
     const m = await load();
     expect(m.emailKey("Foo@Bar.COM")).toBe("email:foo@bar.com");
   });
+  it("rejects a progress token even when its key is acceptable (type confusion bypass)", async () => {
+    const m = await load();
+    const progressToken = m.makeProgress("sub-1", 1);
+    expect(m.readAltchaOk(progressToken, ["sub-1"])).toBe(false);
+  });
 });
 
 describe("progress cookie", () => {
@@ -94,6 +118,11 @@ describe("progress cookie", () => {
     expect(m.readProgress(c, "sub-2")).toBe(0);
     expect(m.readProgress(undefined, "sub-1")).toBe(0);
   });
+  it("rejects an altcha_ok token even when its key matches (type confusion bypass)", async () => {
+    const m = await load();
+    const okToken = m.makeAltchaOk("sub-1");
+    expect(m.readProgress(okToken, "sub-1")).toBe(0);
+  });
 });
 
 describe("markSolutionUsed replay guard", () => {
@@ -102,5 +131,29 @@ describe("markSolutionUsed replay guard", () => {
     expect(m.markSolutionUsed("payload-abc")).toBe(true);
     expect(m.markSolutionUsed("payload-abc")).toBe(false);
     expect(m.markSolutionUsed("payload-def")).toBe(true);
+  });
+});
+
+describe("clearGateCookieHeader", () => {
+  it("contains the base cookie-clear directives", async () => {
+    const m = await load();
+    const header = m.clearGateCookieHeader("altcha_ok");
+    expect(header).toContain("altcha_ok=");
+    expect(header).toContain("Max-Age=0");
+    expect(header).toContain("HttpOnly");
+  });
+  it("includes Secure in production and omits it otherwise", async () => {
+    const m = await load({ NODE_ENV: "production" });
+    expect(m.clearGateCookieHeader("altcha_ok")).toContain("Secure");
+
+    const m2 = await load({ NODE_ENV: "development" });
+    expect(m2.clearGateCookieHeader("altcha_ok")).not.toContain("Secure");
+  });
+  it("includes Domain when AUTH_COOKIE_DOMAIN is set and omits it when unset", async () => {
+    const m = await load({ AUTH_COOKIE_DOMAIN: "defcon.run" });
+    expect(m.clearGateCookieHeader("altcha_ok")).toContain("Domain=defcon.run");
+
+    const m2 = await load({ AUTH_COOKIE_DOMAIN: undefined });
+    expect(m2.clearGateCookieHeader("altcha_ok")).not.toContain("Domain=");
   });
 });

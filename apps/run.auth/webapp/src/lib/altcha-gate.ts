@@ -50,7 +50,8 @@ export function challengeRequirement(
   const baseline = opts?.baselineEnforced ?? isBaselineEnforced();
   if (!jailed && !baseline) return { count: 0, difficulty: 0 };
   if (!jailed) return { count: 1, difficulty: BASE_MAXNUMBER };
-  const level = clamp(profile?.jailLevel && profile.jailLevel >= 1 ? profile.jailLevel : 1, 1, 5);
+  const raw = profile?.jailLevel;
+  const level = clamp(typeof raw === "number" && Number.isFinite(raw) && raw >= 1 ? Math.round(raw) : 1, 1, 5);
   return { count: COUNT_BY_LEVEL[level], difficulty: DIFFICULTY_BY_LEVEL[level] };
 }
 
@@ -63,6 +64,9 @@ export function signPayload(obj: Record<string, unknown>): string {
 }
 
 export function verifyPayload<T = Record<string, unknown>>(value: string | undefined | null): T | null {
+  // Fail closed: an empty/unset signing key must never validate a token. Without this,
+  // a misconfigured deployment (empty ALTCHA_HMAC_KEY) would make every forged token pass.
+  if (!ALTCHA_HMAC_KEY) return null;
   if (!value || typeof value !== "string") return null;
   const dot = value.lastIndexOf(".");
   if (dot <= 0) return null;
@@ -89,12 +93,12 @@ export function emailKey(email: string): string {
 
 export function makeAltchaOk(key: string): string {
   const now = Date.now();
-  return signPayload({ k: key, iat: now, exp: now + OK_TTL_MS });
+  return signPayload({ t: "ok", k: key, iat: now, exp: now + OK_TTL_MS });
 }
 
 export function readAltchaOk(cookieValue: string | undefined, acceptableKeys: string[]): boolean {
-  const payload = verifyPayload<{ k: string }>(cookieValue);
-  if (!payload || typeof payload.k !== "string") return false;
+  const payload = verifyPayload<{ t: string; k: string }>(cookieValue);
+  if (!payload || payload.t !== "ok" || typeof payload.k !== "string") return false;
   return acceptableKeys.includes(payload.k);
 }
 
@@ -102,23 +106,34 @@ export function readAltchaOk(cookieValue: string | undefined, acceptableKeys: st
 
 export function makeProgress(key: string, solved: number): string {
   const now = Date.now();
-  return signPayload({ k: key, solved, iat: now, exp: now + PROGRESS_TTL_MS });
+  return signPayload({ t: "progress", k: key, solved, iat: now, exp: now + PROGRESS_TTL_MS });
 }
 
 export function readProgress(cookieValue: string | undefined, key: string): number {
-  const payload = verifyPayload<{ k: string; solved: number }>(cookieValue);
-  if (!payload || payload.k !== key) return 0;
+  const payload = verifyPayload<{ t: string; k: string; solved: number }>(cookieValue);
+  if (!payload || payload.t !== "progress" || payload.k !== key) return 0;
   return typeof payload.solved === "number" ? payload.solved : 0;
 }
 
 // --- in-memory replay guard (per-instance; distributed guard is a documented follow-up) ---
 
 const usedSolutions = new Map<string, number>();
+const MAX_USED_SOLUTIONS = 20000; // hard ceiling in case a burst of distinct payloads outruns TTL-based pruning
 
 export function markSolutionUsed(payload: string): boolean {
   const now = Date.now();
   if (usedSolutions.size > 5000) {
     for (const [k, exp] of usedSolutions) if (exp < now) usedSolutions.delete(k);
+  }
+  // Defense-in-depth: if expired-pruning didn't bring us under the hard cap (all entries
+  // still live), evict oldest entries (Map preserves insertion order) until under it.
+  if (usedSolutions.size > MAX_USED_SOLUTIONS) {
+    const excess = usedSolutions.size - MAX_USED_SOLUTIONS;
+    let i = 0;
+    for (const k of usedSolutions.keys()) {
+      if (i++ >= excess) break;
+      usedSolutions.delete(k);
+    }
   }
   const hash = createHash("sha256").update(payload).digest("hex");
   const seen = usedSolutions.get(hash);
