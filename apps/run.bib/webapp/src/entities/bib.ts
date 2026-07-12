@@ -334,6 +334,60 @@ export async function applyPayment(
   return result.data as BibItem;
 }
 
+/** Options for {@link reverseCashPayment}. */
+export interface ReverseCashInput {
+  /** ISO8601 timestamp of the exact paidStatusHistory entry to reverse. */
+  timestamp: string;
+  /** reconciled_via marker of that entry (e.g. admin_inperson_cash_<ownerSub>). */
+  reconciledVia: string;
+}
+
+/**
+ * Reverse (un-book) a mistaken CASH payment (Kurt 2026-07-11).
+ *
+ * Removes exactly the paidStatusHistory entry identified by (provider="cash",
+ * timestamp, reconciled_via) and subtracts its amount from paidAmount. The
+ * `provider === "cash"` clause is the cash-only guarantee — a stripe/venmo row
+ * can never be reversed here, regardless of client input, because those reflect
+ * real external money and reversing only the ledger would desync the books.
+ *
+ * Idempotent: if no matching cash entry exists (already reversed, or wrong ids),
+ * this is a no-op returning { reversed: false }. Read-modify-write is acceptable
+ * for this rare admin-only manual correction (no concurrent writers).
+ */
+export async function reverseCashPayment(
+  ownerSub: string,
+  input: ReverseCashInput
+): Promise<{ reversed: boolean; amountCents: number }> {
+  const bib = await getBib(ownerSub);
+  if (!bib) return { reversed: false, amountCents: 0 };
+
+  const history = (bib.paidStatusHistory ?? []) as Array<{
+    provider?: string;
+    amount?: number;
+    timestamp?: string;
+    reconciled_via?: string;
+  }>;
+
+  const idx = history.findIndex(
+    (p) =>
+      p?.provider === "cash" &&
+      p?.timestamp === input.timestamp &&
+      p?.reconciled_via === input.reconciledVia
+  );
+  if (idx === -1) return { reversed: false, amountCents: 0 };
+
+  const amount = Math.max(0, Math.trunc(history[idx].amount ?? 0));
+  const newHistory = history.filter((_, i) => i !== idx);
+  const newPaid = Math.max(0, (bib.paidAmount ?? 0) - amount);
+
+  await Bib.patch({ ownerSub })
+    .set({ paidStatusHistory: newHistory, paidAmount: newPaid })
+    .go();
+
+  return { reversed: true, amountCents: amount };
+}
+
 /**
  * Update the nameOnBib for the given owner.
  * Throws NameLockedError when the bib's nameLocked flag is true — API layer
