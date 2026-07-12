@@ -605,7 +605,9 @@ Immediately AFTER `const { prompt } = interactionDetails;`, insert the gate:
         const acceptableKeys = [accountId];
         if (token.email) acceptableKeys.push(emailKey(token.email as string));
         const okCookie = req.cookies?.[ALTCHA_OK_COOKIE];
-        if (readAltchaOk(okCookie, acceptableKeys)) {
+        // Pass required.count as minCount: an altcha_ok minted for a lighter
+        // requirement (e.g. baseline n=1) cannot clear a heavier jail requirement.
+        if (readAltchaOk(okCookie, acceptableKeys, required.count)) {
           // One-shot: clear the cookie so it can't clear a second pending login.
           res.setHeader("Set-Cookie", clearGateCookieHeader(ALTCHA_OK_COOKIE));
         } else {
@@ -649,7 +651,7 @@ import { makeAltchaOk, emailKey, ALTCHA_OK_COOKIE, OK_TTL_MS } from "@/lib/altch
     const successRes = NextResponse.json({ message: "Success. Check your email." });
     if (precleared) {
       const isDev = process.env.NODE_ENV !== "production";
-      successRes.cookies.set(ALTCHA_OK_COOKIE, makeAltchaOk(emailKey(email)), {
+      successRes.cookies.set(ALTCHA_OK_COOKIE, makeAltchaOk(emailKey(email), 1), {
         httpOnly: true,
         secure: !isDev,
         sameSite: "lax",
