@@ -64,7 +64,7 @@ export function composeWallpaperSvg({ qrSvg, name, bib, bunnyDataUri, copy }: Ca
   const qrX = (w - qrSize) / 2;
   const qrY = 700;
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
     `<rect width="${w}" height="${h}" fill="${INK_BG}"/>` +
     `<defs><pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">` +
     `<rect width="4" height="1" y="3" fill="rgba(61,242,196,0.025)"/></pattern></defs>` +
@@ -88,9 +88,9 @@ export function composeShareCardSvg({ qrSvg, name, bib, bunnyDataUri, copy }: Ca
   const qrX = 80;
   const qrY = 300;
   const tx = 620; // identity block left edge
-  const nameSize = name.length > 14 ? 40 : 48;
+  const nameSize = name.length > 17 ? 32 : name.length > 14 ? 40 : 48;
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
     `<rect width="${w}" height="${h}" rx="48" fill="${CARD_BG}"/>` +
     `<rect x="1.5" y="1.5" width="${w - 3}" height="${h - 3}" rx="47" fill="none" stroke="rgba(61,242,196,0.35)" stroke-width="3"/>` +
     `<rect x="36" y="36" width="${w - 72}" height="${h - 72}" rx="36" fill="none" stroke="rgba(61,242,196,0.25)" stroke-width="2" stroke-dasharray="10 8"/>` +

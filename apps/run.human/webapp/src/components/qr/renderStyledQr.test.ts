@@ -18,7 +18,7 @@ describe('styledQrSvg invariants (all-dark 53x53 fixture)', () => {
   const svg = styledQrSvg(SIZE, () => true);
   const coords = moduleCoords(svg);
 
-  it('draws three white-34 pupils', () => {
+  it('draws three 34 pupils', () => {
     expect(svg.match(/>34<\/text>/g)?.length).toBe(3);
   });
 

@@ -15,6 +15,8 @@ export async function downloadCardPng(
       img.onerror = () => reject(new Error('SVG rasterization failed'));
       img.src = url;
     });
+    // WebKit can report load before the SVG is decodable by drawImage.
+    await img.decode().catch(() => {});
     const canvas = document.createElement('canvas');
     canvas.width = w;
     canvas.height = h;
@@ -27,8 +29,12 @@ export async function downloadCardPng(
     const a = document.createElement('a');
     a.href = URL.createObjectURL(png);
     a.download = filename;
+    // Attached anchor + deferred revoke: Safari/Firefox cancel the download
+    // when the blob URL is revoked in the same tick as click().
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   } finally {
     URL.revokeObjectURL(url);
   }
