@@ -10,6 +10,8 @@ import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
 import CheckInPinCard from '@/components/profile/CheckInPinCard';
+import SocialQRRow from '@/components/profile/SocialQRRow';
+import { useCopy } from '@/components/CopyProvider';
 import { apiUrl } from '@/lib/api';
 
 const homeUrl = '/';
@@ -114,6 +116,16 @@ export default function WhoAmIPage() {
   const router = useRouter();
   const { data: session, update, status } = useSession();
   const { logout } = useLogout();
+  const { t } = useCopy();
+
+  // Social group URLs come from CMS copy; `t` echoes the raw key when unset, so
+  // only accept a real http(s) URL — anything else hides that tile.
+  const asUrl = (key: string) => {
+    const v = t(key);
+    return v.startsWith('http') ? v : '';
+  };
+  const stravaGroupUrl = asUrl('socials.strava_group_url');
+  const signalGroupUrl = asUrl('socials.signal_group_url');
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -238,7 +250,8 @@ export default function WhoAmIPage() {
       {/* Identity card */}
       <Card className="glass-card overflow-hidden">
         <CardBody className="px-5 py-4 space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
             <Avatar
               src={user?.image || undefined}
               name={displayName}
@@ -300,6 +313,12 @@ export default function WhoAmIPage() {
                 <span className="font-mono text-xs text-primary">🎽 {userData.runnerCode.toUpperCase()}</span>
               )}
             </div>
+            </div>
+            <SocialQRRow
+              stravaUrl={stravaGroupUrl}
+              signalUrl={signalGroupUrl}
+              runnerQr={userData?.eqr}
+            />
           </div>
           {session.expires && (
             <p className="font-mono text-xs text-default-400">

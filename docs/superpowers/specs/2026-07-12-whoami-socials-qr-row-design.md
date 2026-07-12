@@ -108,11 +108,17 @@ Two new keys resolved client-side via `useCopy()` in `whoami/page.tsx`:
 - `socials.strava_group_url`
 - `socials.signal_group_url`
 
-Added to `src/lib/copy-snapshot.json` under `"default"` as the committed floor.
-Seed value: **empty string** (real URLs unknown at build time). Empty → tile
-hidden, so on first deploy only the Runner QR shows; the socials light up the
-moment the two keys are populated in Strapi (no redeploy). run.human has no
-required-keys validation, so adding keys is additive and safe.
+**NOT added to `copy-snapshot.json`.** The `copy-catalog-human` guard test
+enforces a deliberate invariant: run.human's snapshot floor carries ONLY the
+shared `common.*` chrome union (zero non-chrome keys, D-06 bias-to-defer). So
+the socials keys live in the **live CMS context only** (`loadCopy("default")` →
+Strapi/S3 → `CopyProvider`), never the offline floor.
+
+Net behavior is identical to a floor of empty strings: when a key is unset,
+`useCopy().t(key)` echoes the raw dotted key, which is not an `http(s)` URL, so
+the page's `asUrl()` guard maps it to `''` and `buildTiles` omits that tile. On
+first deploy (CMS keys unset) only the Runner QR shows; the socials light up the
+moment the two rows are added in Strapi — no redeploy.
 
 ## Error / edge handling
 
@@ -134,7 +140,9 @@ required-keys validation, so adding keys is additive and safe.
 
 ## Files
 
-1. `src/components/profile/SocialQRRow.tsx` — new component + `buildTiles`.
-2. `src/components/profile/SocialQRRow.test.ts` — `buildTiles` unit tests.
-3. `src/app/(protected)/whoami/page.tsx` — read copy, mount `SocialQRRow`.
-4. `src/lib/copy-snapshot.json` — two new keys (empty-string floor).
+1. `src/components/profile/buildTiles.ts` — pure tile-selection helper.
+2. `src/components/profile/SocialQRRow.tsx` — new component (async QR + presentation).
+3. `src/components/profile/SocialQRRow.test.ts` — `buildTiles` unit tests.
+4. `src/app/(protected)/whoami/page.tsx` — read CMS copy (`asUrl` guard), mount `SocialQRRow`.
+
+No `copy-snapshot.json` change (socials keys are CMS-context-only — see URL source).
