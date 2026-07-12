@@ -459,9 +459,18 @@ export function formatUsd(cents: number): string {
   })}`;
 }
 
-/** Escape one CSV cell (RFC-4180: quote when it contains ",\n or "). */
+/**
+ * Escape one CSV cell.
+ *  1. Formula-injection guard (OWASP): a cell that BEGINS with = + - @ or a
+ *     tab/CR is evaluated as a formula by Excel / Google Sheets / LibreOffice
+ *     when the file is opened — enabling exfiltration (=HYPERLINK/=WEBSERVICE)
+ *     or command execution (=cmd|'/c …'!A1). Bib names are attacker-controlled
+ *     (runners type them), so we neutralize by prefixing a single quote.
+ *  2. RFC-4180 quoting: wrap + double-quote when the value contains ", \n or ".
+ */
 function csvCell(value: unknown): string {
-  const s = value === null || value === undefined ? "" : String(value);
+  const raw = value === null || value === undefined ? "" : String(value);
+  const s = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
