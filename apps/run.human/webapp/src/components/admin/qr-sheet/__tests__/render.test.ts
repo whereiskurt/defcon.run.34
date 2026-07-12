@@ -1,5 +1,30 @@
-import { describe, it, expect } from "vitest";
-import { pickEcLevel } from "../render";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { pickEcLevel, resolveLogoSrc } from "../render";
+
+describe("resolveLogoSrc", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("prefixes app-relative logo paths with the region basePath in prod", () => {
+    // Prod mounts the app under /use1 — an unprefixed fetch of /qr-logos/*
+    // 404s and the preview silently drops the logo (the shipped bug).
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_REGION_SHORT", "use1");
+    expect(resolveLogoSrc("/qr-logos/dcjack.svg")).toBe(
+      "/use1/qr-logos/dcjack.svg"
+    );
+  });
+
+  it("leaves data URLs untouched", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(resolveLogoSrc("data:image/png;base64,AAAA")).toBe(
+      "data:image/png;base64,AAAA"
+    );
+  });
+
+  it("is a no-op outside production (dev serves at root)", () => {
+    expect(resolveLogoSrc("/qr-logos/dcjack.svg")).toBe("/qr-logos/dcjack.svg");
+  });
+});
 
 describe("pickEcLevel", () => {
   it("prefers H for short URLs", () => {

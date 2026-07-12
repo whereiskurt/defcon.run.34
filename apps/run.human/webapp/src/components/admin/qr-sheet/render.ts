@@ -9,7 +9,18 @@
  */
 import * as qrLib from "qrcode";
 
+import { apiBase } from "@/components/admin/qr-ui";
 import { LOGO_SIZE_RATIO, type QrStyle } from "./styles";
+
+/**
+ * Resolve a logo source for fetching. Bundled logos are stored app-relative
+ * ("/qr-logos/x.svg") but prod mounts the app under a region basePath
+ * ("/use1") — Next rewrites <img>/link hrefs but NOT runtime fetches like
+ * qr-code-styling's image loader, so prefix explicitly. Data URLs pass through.
+ */
+export function resolveLogoSrc(logo: string): string {
+  return logo.startsWith("/") ? `${apiBase()}${logo}` : logo;
+}
 
 const EC_LADDER = ["H", "Q", "M", "L"] as const;
 type EcLevel = (typeof EC_LADDER)[number];
@@ -45,6 +56,28 @@ const EYE_FRAME_TYPE = {
 } as const;
 const EYE_BALL_TYPE = { square: "square", rounded: "dot", dot: "dot" } as const;
 
+/**
+ * qr-code-styling HANGS (promise never settles) when its image URL fails to
+ * load — the internal loader has no onerror path. Pre-flight the logo
+ * ourselves so a broken image REJECTS promptly and callers' drop-the-logo
+ * fallbacks actually run instead of freezing the preview.
+ */
+function preloadLogo(src: string, timeoutMs = 4000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const timer = setTimeout(() => resolve(false), timeoutMs);
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(true);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(false);
+    };
+    img.src = src;
+  });
+}
+
 /** Render one styled QR as a PNG ArrayBuffer at sizePx × sizePx. Browser only. */
 export async function renderQrPng(
   url: string,
@@ -53,6 +86,10 @@ export async function renderQrPng(
 ): Promise<ArrayBuffer> {
   const { default: QRCodeStyling } = await import("qr-code-styling");
   const level = pickEcLevel(url, Boolean(style.logo));
+
+  if (style.logo && !(await preloadLogo(resolveLogoSrc(style.logo)))) {
+    throw new Error("Logo image failed to load.");
+  }
 
   const qr = new QRCodeStyling({
     width: sizePx,
@@ -76,7 +113,7 @@ export async function renderQrPng(
     backgroundOptions: { color: style.background },
     ...(style.logo
       ? {
-          image: style.logo,
+          image: resolveLogoSrc(style.logo),
           imageOptions: {
             imageSize: LOGO_SIZE_RATIO,
             margin: Math.max(2, Math.round(sizePx / 100)),

@@ -21,6 +21,22 @@ export type QrStyle = {
 /** Center logo caps at 22% of QR width — keeps codes scannable at EC ≥ Q. */
 export const LOGO_SIZE_RATIO = 0.22;
 
+/**
+ * DC34 brand swatches for the module/eye color pickers (the native color
+ * input stays for anything custom). Teal/mint/magentas from the Run Hacker
+ * Run interstitial; ink from the runner QR card. Light colors (mint, neon
+ * magenta) are offered deliberately — the contrast warning flags them when
+ * they'd hurt scanning.
+ */
+export const DC34_PALETTE = [
+  { name: "Black", hex: "#000000" },
+  { name: "Ink", hex: "#111118" },
+  { name: "Teal", hex: "#12836f" },
+  { name: "Mint", hex: "#2fe3c6" },
+  { name: "Magenta", hex: "#8f1857" },
+  { name: "Neon Magenta", hex: "#ff2e97" },
+] as const;
+
 export const BUNDLED_LOGOS = [
   { id: "dcjack", label: "DC Jack", path: "/qr-logos/dcjack.svg" },
   { id: "mesh", label: "Meshtastic", path: "/qr-logos/meshtastic.svg" },

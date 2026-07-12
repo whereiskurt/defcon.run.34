@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseTemplate,
   cellOrigin,
+  AVERY_TEMPLATES,
   PAGE_WIDTH,
   PAGE_HEIGHT,
 } from "../templates";
@@ -61,6 +62,22 @@ describe("parseTemplate — Avery", () => {
 
   it("rejects unknown Avery ids", () => {
     expect(parseTemplate("9999")).toBeNull();
+  });
+
+  it("every Avery template physically fits the US-Letter page", () => {
+    // dc33 shipped 22816 as 3×6 (16.75" tall) — rows fell off the sheet and
+    // the designer's thumbnail overflowed. Guard the whole table.
+    for (const id of Object.keys(AVERY_TEMPLATES)) {
+      const l = parseTemplate(id)!;
+      const last = cellOrigin(l, l.across - 1, l.down - 1);
+      expect(last.y, `${id} bottom row`).toBeGreaterThanOrEqual(0);
+      expect(last.x + l.cellW, `${id} right column`).toBeLessThanOrEqual(
+        PAGE_WIDTH
+      );
+      expect(l.startY + l.cellH, `${id} top row`).toBeLessThanOrEqual(
+        PAGE_HEIGHT
+      );
+    }
   });
 });
 

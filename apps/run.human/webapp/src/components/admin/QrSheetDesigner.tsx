@@ -16,6 +16,7 @@ import {
 } from "@/components/admin/qr-sheet/templates";
 import {
   BUNDLED_LOGOS,
+  DC34_PALETTE,
   DC34_PRESETS,
   contrastWarning,
   type ModuleShape,
@@ -27,6 +28,47 @@ import { buildSheetPdf, sheetFilename } from "@/components/admin/qr-sheet/pdf";
 
 const MODULE_SHAPES: ModuleShape[] = ["square", "dots", "rounded", "classy"];
 const EYE_SHAPES: EyeShape[] = ["square", "rounded", "dot"];
+
+/** DC34 swatch row + native picker for one color field. */
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (hex: string) => void;
+}) {
+  return (
+    <div>
+      <label className={cls.label}>{label}</label>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {DC34_PALETTE.map((c) => (
+          <button
+            key={c.hex}
+            type="button"
+            title={c.name}
+            aria-label={`${label}: ${c.name}`}
+            onClick={() => onChange(c.hex)}
+            className={`w-7 h-7 rounded-md border ${
+              value.toLowerCase() === c.hex
+                ? "border-primary ring-1 ring-primary"
+                : "border-divider"
+            }`}
+            style={{ backgroundColor: c.hex }}
+          />
+        ))}
+        <input
+          type="color"
+          title="Custom color"
+          className="w-9 h-7 rounded-md border border-divider bg-content1 cursor-pointer"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
 
 export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) {
   const [url, setUrl] = useState(initialUrl || `${QR_ORIGIN}/`);
@@ -237,7 +279,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
         </div>
 
         {/* Style controls */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className={cls.label}>Modules</label>
             <select
@@ -255,15 +297,6 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
             </select>
           </div>
           <div>
-            <label className={cls.label}>Module color</label>
-            <input
-              type="color"
-              className="w-full h-9 rounded-lg border border-divider bg-content1"
-              value={style.moduleColor}
-              onChange={(e) => patchStyle({ moduleColor: e.target.value })}
-            />
-          </div>
-          <div>
             <label className={cls.label}>Eyes</label>
             <select
               className={cls.select}
@@ -279,15 +312,16 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
               ))}
             </select>
           </div>
-          <div>
-            <label className={cls.label}>Eye color</label>
-            <input
-              type="color"
-              className="w-full h-9 rounded-lg border border-divider bg-content1"
-              value={style.eyeColor}
-              onChange={(e) => patchStyle({ eyeColor: e.target.value })}
-            />
-          </div>
+          <ColorField
+            label="Module color"
+            value={style.moduleColor}
+            onChange={(hex) => patchStyle({ moduleColor: hex })}
+          />
+          <ColorField
+            label="Eye color"
+            value={style.eyeColor}
+            onChange={(hex) => patchStyle({ eyeColor: hex })}
+          />
         </div>
 
         {/* Logo */}
@@ -369,7 +403,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
         {layout && (
           <>
             <div
-              className="relative border border-divider bg-white rounded-sm"
+              className="relative overflow-hidden border border-divider bg-white rounded-sm"
               style={{ width: 153, height: 198 }}
               aria-label="Page layout thumbnail"
             >
