@@ -32,7 +32,7 @@
 // Single source of the fresh-claims revalidation (reuses the internal-secret
 // validate path in config/auth.ts). Re-exported here so callers import both the
 // sync and async halves of the gate from one module.
-export { revalidateAdmin } from "@/config/auth";
+export { revalidateAdmin, revalidateGroups } from "@/config/auth";
 
 export type SessionLike =
   | {
@@ -50,15 +50,28 @@ export type SessionLike =
 export const ADMIN_GROUPS = ["admin", "runadmin"] as const;
 
 /**
+ * Groups that grant access to the /admin/qr surface ONLY. Superset of
+ * ADMIN_GROUPS: `qradmin` members are QR operators — they get the whole
+ * /admin/qr area (codes, ctf, sheet designer, /api/admin/qr) but NOT /admin
+ * root or any other admin surface.
+ */
+export const QR_ADMIN_GROUPS = [...ADMIN_GROUPS, "qradmin"] as const;
+
+/** True iff the session carries ANY of `groups` on its services list. */
+export function isMemberOf(
+  session: SessionLike,
+  groups: readonly string[]
+): boolean {
+  const services = session?.user?.services;
+  return Array.isArray(services) && services.some((s) => groups.includes(s));
+}
+
+/**
  * True iff the session carries one of the ADMIN_GROUPS service/groups. Pure +
  * sync so server components and API routes can gate without an async hop.
  */
 export function isAdmin(session: SessionLike): boolean {
-  const services = session?.user?.services;
-  return (
-    Array.isArray(services) &&
-    services.some((s) => (ADMIN_GROUPS as readonly string[]).includes(s))
-  );
+  return isMemberOf(session, ADMIN_GROUPS);
 }
 
 /**
@@ -78,10 +91,18 @@ export type RequireAdminResult =
  * that's the caller's job (via `await auth()`).
  */
 export function requireAdmin(session: SessionLike): RequireAdminResult {
+  return requireGroups(session, ADMIN_GROUPS);
+}
+
+/** Group-parameterized twin of requireAdmin — same result contract. */
+export function requireGroups(
+  session: SessionLike,
+  groups: readonly string[]
+): RequireAdminResult {
   if (!session?.user) {
     return { ok: false, reason: "no_session" };
   }
-  if (!isAdmin(session)) {
+  if (!isMemberOf(session, groups)) {
     return { ok: false, reason: "not_admin" };
   }
   return { ok: true, email: session.user.email ?? null };

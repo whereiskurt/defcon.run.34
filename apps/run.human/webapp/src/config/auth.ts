@@ -111,15 +111,27 @@ async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
  * The admin gate MUST await this on `/admin` entry after the sync
  * `requireAdmin(session)` passes.
  */
-export async function revalidateAdmin(userId: string): Promise<boolean> {
+/**
+ * Group-parameterized live re-check: fetch fresh claims from run.auth and
+ * grant iff the user holds ANY of `groups` and is not locked out. Fail-closed.
+ * (Group lists live in lib/admin-gate.ts — passed in to avoid an import cycle;
+ * admin-gate imports from this module.)
+ */
+export async function revalidateGroups(
+  userId: string,
+  groups: readonly string[]
+): Promise<boolean> {
   const fresh = await fetchFreshClaims(userId);
+  const services = fresh?.services;
+  const hasGroup =
+    Array.isArray(services) && services.some((s) => groups.includes(s));
+  return hasGroup && !fresh?.lockedOut;
+}
+
+export async function revalidateAdmin(userId: string): Promise<boolean> {
   // Grant on ANY admin group (admin = superuser, runadmin = run.human operator);
   // keep in lock-step with ADMIN_GROUPS in lib/admin-gate.ts.
-  const services = fresh?.services;
-  const hasAdminGroup =
-    Array.isArray(services) &&
-    (services.includes("admin") || services.includes("runadmin"));
-  return hasAdminGroup && !fresh?.lockedOut;
+  return revalidateGroups(userId, ["admin", "runadmin"]);
 }
 
 const providers: Provider[] = [

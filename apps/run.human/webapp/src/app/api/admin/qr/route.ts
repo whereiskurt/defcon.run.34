@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { auth } from "@/config/auth";
-import { requireAdmin, revalidateAdmin } from "@/lib/admin-gate";
+import {
+  QR_ADMIN_GROUPS,
+  requireGroups,
+  revalidateGroups,
+} from "@/lib/admin-gate";
 import {
   upsertQr,
   deleteQr,
@@ -15,9 +19,10 @@ import {
 /**
  * POST /api/admin/qr — QR / CTF admin mutations (Phase-4 admin CRUD).
  *
- * Action-based body `{ action, ... }`, mirroring /api/admin/quota. Gated
- * identically to /admin: sync requireAdmin, then live revalidateAdmin keyed by
- * the OIDC sub (session.user.authUserId — NOT the adapter id). Per the
+ * Action-based body `{ action, ... }`, mirroring /api/admin/quota. Gated like
+ * every /admin/qr surface: sync requireGroups(QR_ADMIN_GROUPS) — admin |
+ * runadmin | qradmin — then live revalidateGroups keyed by the OIDC sub
+ * (session.user.authUserId — NOT the adapter id). Per the
  * non-disclosure contract EVERY denial collapses to a bodiless 404, never a
  * 401/403, so the route's existence is not advertised.
  *
@@ -45,9 +50,10 @@ interface AdminQrRequest {
 export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── Gate (fail-closed; every denial → 404) ────────────────────────────────
   const session = await auth();
-  if (!requireAdmin(session).ok) return notFound();
+  if (!requireGroups(session, QR_ADMIN_GROUPS).ok) return notFound();
   const authUserId = session?.user?.authUserId;
-  if (!authUserId || !(await revalidateAdmin(authUserId))) return notFound();
+  if (!authUserId || !(await revalidateGroups(authUserId, QR_ADMIN_GROUPS)))
+    return notFound();
 
   // ── Dispatch ──────────────────────────────────────────────────────────────
   try {

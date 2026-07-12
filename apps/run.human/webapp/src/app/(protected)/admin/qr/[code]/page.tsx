@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { getQr, getQrStats } from "@/lib/qr-admin";
 import QrForm, { type QrRecord } from "@/components/admin/QrForm";
-import { cls } from "@/components/admin/qr-ui";
+import { cls, QR_ORIGIN } from "@/components/admin/qr-ui";
 import { gateAdminPage } from "../gate";
 
 /**
@@ -28,9 +28,17 @@ export default async function QrEditPage({
   return (
     <div className={cls.root}>
       <div className="flex flex-col gap-2">
-        <Link href="/admin/qr" className={`${cls.btn} self-start`}>
-          ← QR / CTF
-        </Link>
+        <div className="flex items-center justify-between gap-2">
+          <Link href="/admin/qr" className={cls.btn}>
+            ← QR / CTF
+          </Link>
+          <Link
+            href={`/admin/qr/sheet?url=${encodeURIComponent(`${QR_ORIGIN}/${record.code}`)}`}
+            className={cls.btnPrimary}
+          >
+            ⊞ Print sheet
+          </Link>
+        </div>
         <h1 className={cls.h1}>
           Edit code <span className="text-primary font-mono">{record.code}</span>
         </h1>
