@@ -15,15 +15,14 @@ import { describe, it, expect, vi } from "vitest";
 import { redirectLog, ctfHandoffLog, emit } from "../lib/logline.mjs";
 
 describe("redirectLog", () => {
-  it("returns the tagged redirect record verbatim", () => {
+  it("returns the tagged redirect record verbatim (no region field)", () => {
     const rec = redirectLog({
       code: "BUNNY",
       param: "42",
       matchedRule: "default",
       destHost: "run.defcon.run",
-      region: "use1",
-      ua: "curl/8",
       geo: "US",
+      ua: "curl/8",
     });
     expect(rec).toEqual({
       type: "redirect",
@@ -31,10 +30,21 @@ describe("redirectLog", () => {
       param: "42",
       matchedRule: "default",
       destHost: "run.defcon.run",
-      region: "use1",
-      ua: "curl/8",
       geo: "US",
+      ua: "curl/8",
     });
+  });
+
+  it("has NO region key (region is the edge's job)", () => {
+    const rec = redirectLog({
+      code: "BUNNY",
+      param: "42",
+      matchedRule: "default",
+      destHost: "run.defcon.run",
+      geo: "US",
+      ua: "curl/8",
+    });
+    expect("region" in rec).toBe(false);
   });
 
   it("carries a null param through", () => {
@@ -43,27 +53,25 @@ describe("redirectLog", () => {
       param: null,
       matchedRule: "default",
       destHost: "example.com",
-      region: "use1",
-      ua: "ua",
       geo: "CA",
+      ua: "ua",
     });
     expect(rec.param).toBeNull();
   });
 });
 
 describe("ctfHandoffLog", () => {
-  it("returns the tagged ctf-handoff record with a fixed result", () => {
-    const rec = ctfHandoffLog({ challenge: "flag1", region: "use1" });
+  it("returns the tagged ctf-handoff record with a fixed result (no region)", () => {
+    const rec = ctfHandoffLog({ challenge: "flag1" });
     expect(rec).toEqual({
       type: "ctf-handoff",
       challenge: "flag1",
-      region: "use1",
       result: "handoff",
     });
   });
 
   it("has NO value key, ever", () => {
-    const rec = ctfHandoffLog({ challenge: "flag1", region: "use1" });
+    const rec = ctfHandoffLog({ challenge: "flag1" });
     expect(Object.keys(rec)).not.toContain("value");
     expect("value" in rec).toBe(false);
   });
@@ -73,7 +81,7 @@ describe("ctfHandoffLog", () => {
     // ctfHandoffLog — the signature does not even accept it. This proves the
     // contract structurally: no code path can leak the answer into the log.
     const SECRET_SUBMITTED_VALUE = "s3cr3t-flag-guess-do-not-log";
-    const rec = ctfHandoffLog({ challenge: "flag1", region: "use1" });
+    const rec = ctfHandoffLog({ challenge: "flag1" });
     const line = JSON.stringify(rec);
     expect(line).not.toContain(SECRET_SUBMITTED_VALUE);
     expect(line).not.toContain("value");
@@ -81,10 +89,9 @@ describe("ctfHandoffLog", () => {
 
   it("does not accept a value argument (extra props are ignored)", () => {
     // Even if a caller mistakenly spreads a value in, the builder only reads
-    // the two fields it destructures — the value cannot ride along.
+    // the one field it destructures — the value cannot ride along.
     const rec = ctfHandoffLog({
       challenge: "flag1",
-      region: "use1",
       value: "should-be-dropped",
     });
     expect(JSON.stringify(rec)).not.toContain("should-be-dropped");

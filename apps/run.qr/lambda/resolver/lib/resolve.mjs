@@ -7,9 +7,9 @@
  * modules — this function only wires them together in the fixed order:
  *
  *   parsePath ─▶ classify ─▶
- *     empty / flush     → notFound()                (nothing to serve here)
- *     ctf               → region + buildCtfHandoff  (forward the guess, never score)
- *     redirect          → getQr → rules → enrich → region → buildRedirect
+ *     empty / flush     → notFound()          (nothing to serve here)
+ *     ctf               → buildCtfHandoff      (forward the guess, never score)
+ *     redirect          → getQr → rules → enrich → buildRedirect
  *
  * Two properties are load-bearing:
  *
@@ -22,9 +22,12 @@
  *      sink is injected as `deps.log` (defaults to `emit`), so the whole flow is
  *      drivable from a unit test with a fake `getQr` and a capturing `log`.
  *
- * Header seams (documented, since there is no region cookie on the resolver):
- *   - REGION_HEADER  `x-qr-region`  — CloudFront/edge-supplied region hint. Only
- *     an exact `"cac1"` flips us off the `use1` default (see resolveRegion).
+ * REGION IS DECIDED AT THE EDGE. The resolver emits bare `run.defcon.run` URLs;
+ * the shared CloudFront region-prefix edge function on the run.defcon.run
+ * distribution splices in `/use1`, `/cac1`, `/apse1`. The resolver neither
+ * computes nor logs region.
+ *
+ * Header seams (analytics only — region is NOT read here):
  *   - `user-agent`   — copied verbatim into the redirect log line (`ua`).
  *   - `cloudfront-viewer-country` — copied into the log line as `geo`.
  *   ALB lowercases header names, so these are matched lowercase.
@@ -33,15 +36,8 @@
 import { parsePath } from "./parse-path.mjs";
 import { resolveDestination } from "./rules.mjs";
 import { enrichDestination } from "./enrich.mjs";
-import { resolveRegion, buildRedirect, buildCtfHandoff, notFound } from "./respond.mjs";
+import { buildRedirect, buildCtfHandoff, notFound } from "./respond.mjs";
 import { redirectLog, ctfHandoffLog, emit } from "./logline.mjs";
-
-/**
- * Header carrying the serving-region hint. There is no region cookie on the
- * resolver (it is stateless behind the edge), so the region is a pure function
- * of this header, defaulting to `use1`.
- */
-export const REGION_HEADER = "x-qr-region";
 
 /**
  * Best-effort host extraction for the redirect log line. `enrichDestination`
@@ -86,12 +82,10 @@ export async function resolve({ path, headers = {}, nowMs }, deps) {
       // owns scoring. We NEVER inspect or log the submitted value — the log
       // builder structurally cannot carry it.
       case "ctf": {
-        const region = resolveRegion(headers[REGION_HEADER]);
-        log(ctfHandoffLog({ challenge: parsed.challenge, region }));
+        log(ctfHandoffLog({ challenge: parsed.challenge }));
         return buildCtfHandoff({
           challenge: parsed.challenge,
           value: parsed.value,
-          region,
         });
       }
 
@@ -116,7 +110,6 @@ export async function resolve({ path, headers = {}, nowMs }, deps) {
           param,
           enrich: item.enrich,
         });
-        const region = resolveRegion(headers[REGION_HEADER]);
 
         log(
           redirectLog({
@@ -124,13 +117,12 @@ export async function resolve({ path, headers = {}, nowMs }, deps) {
             param,
             matchedRule,
             destHost: destHostOf(finalDest),
-            region,
-            ua: headers["user-agent"] || "",
             geo: headers["cloudfront-viewer-country"] || "",
+            ua: headers["user-agent"] || "",
           })
         );
 
-        return buildRedirect({ destination: finalDest, region });
+        return buildRedirect({ destination: finalDest });
       }
 
       default:

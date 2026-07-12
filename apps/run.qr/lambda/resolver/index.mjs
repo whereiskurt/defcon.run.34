@@ -31,7 +31,7 @@
  */
 
 import { Qr } from "./lib/entities.mjs";
-import { resolve, REGION_HEADER } from "./lib/resolve.mjs";
+import { resolve } from "./lib/resolve.mjs";
 
 /** Warm-cache entry lifetime, milliseconds. */
 export const CACHE_TTL_MS = 60_000;

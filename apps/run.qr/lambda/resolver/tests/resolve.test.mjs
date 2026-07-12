@@ -7,17 +7,18 @@
  * (parse-path, rules, enrich, respond, logline).
  *
  * Coverage:
- *   - redirect hit: 302 + Location, region injection for run.defcon.run;
+ *   - redirect hit: 302 + Location emitted VERBATIM (region is the edge's job,
+ *     the resolver never rewrites the destination);
  *   - miss (getQr → null) → 404;
  *   - disabled (enabled:false) → 404;
  *   - time-rule and param-rule selection end-to-end;
- *   - CTF hand-off: 302 + correctly-encoded claim URL;
+ *   - CTF hand-off: 302 + BARE claim URL (no region segment), value encoded;
  *   - LOG HYGIENE: the emitted CTF log line never contains the submitted value;
  *   - a rejecting getQr never throws (degrades to 404).
  */
 
 import { describe, it, expect, vi } from "vitest";
-import { resolve, REGION_HEADER } from "../lib/resolve.mjs";
+import { resolve } from "../lib/resolve.mjs";
 
 // A tiny capturing log sink: records every emitted object.
 function captureLog() {
@@ -30,7 +31,7 @@ function captureLog() {
 const NOW = Date.parse("2026-01-01T00:00:00Z");
 
 describe("resolve — redirect", () => {
-  it("302s to the item destination and logs a redirect line", async () => {
+  it("302s to the item destination and logs a redirect line (no region field)", async () => {
     const item = { destination: "https://example.com/landing", enabled: true };
     const getQr = vi.fn(async () => item);
     const { lines, log } = captureLog();
@@ -52,11 +53,11 @@ describe("resolve — redirect", () => {
       param: null,
       matchedRule: "default",
       destHost: "example.com",
-      region: "use1",
     });
+    expect("region" in lines[0]).toBe(false);
   });
 
-  it("injects the region for a bare run.defcon.run destination", async () => {
+  it("emits a bare run.defcon.run destination VERBATIM — no region spliced (edge's job)", async () => {
     const item = { destination: "https://run.defcon.run/orderform", enabled: true };
     const getQr = vi.fn(async () => item);
     const { log } = captureLog();
@@ -66,21 +67,7 @@ describe("resolve — redirect", () => {
       { getQr, log }
     );
 
-    expect(res.headers.Location).toBe("https://run.defcon.run/use1/orderform");
-  });
-
-  it("honours the x-qr-region header (cac1) for region injection", async () => {
-    const item = { destination: "https://run.defcon.run/profile", enabled: true };
-    const getQr = vi.fn(async () => item);
-    const { lines, log } = captureLog();
-
-    const res = await resolve(
-      { path: "/PROF", headers: { [REGION_HEADER]: "cac1" }, nowMs: NOW },
-      { getQr, log }
-    );
-
-    expect(res.headers.Location).toBe("https://run.defcon.run/cac1/profile");
-    expect(lines[0].region).toBe("cac1");
+    expect(res.headers.Location).toBe("https://run.defcon.run/orderform");
   });
 
   it("carries ua + geo headers onto the redirect log line", async () => {
@@ -234,7 +221,7 @@ describe("resolve — rule selection end-to-end", () => {
 });
 
 describe("resolve — ctf hand-off", () => {
-  it("302s to the claim URL with the encoded value and default region", async () => {
+  it("302s to a BARE claim URL (no region segment) with the encoded value", async () => {
     const getQr = vi.fn();
     const { lines, log } = captureLog();
 
@@ -246,23 +233,9 @@ describe("resolve — ctf hand-off", () => {
     expect(getQr).not.toHaveBeenCalled();
     expect(res.statusCode).toBe(302);
     expect(res.headers.Location).toBe(
-      "https://run.defcon.run/use1/ctf/claim?c=flag1&v=my%20secret%20answer"
+      "https://run.defcon.run/ctf/claim?c=flag1&v=my%20secret%20answer"
     );
     expect(res.headers["Cache-Control"]).toBe("no-store");
-  });
-
-  it("uses the cac1 region hint for the claim URL", async () => {
-    const getQr = vi.fn();
-    const { log } = captureLog();
-
-    const res = await resolve(
-      { path: "/ctf/flag1/x", headers: { [REGION_HEADER]: "cac1" }, nowMs: NOW },
-      { getQr, log }
-    );
-
-    expect(res.headers.Location).toBe(
-      "https://run.defcon.run/cac1/ctf/claim?c=flag1&v=x"
-    );
   });
 
   it("LOG HYGIENE: the emitted ctf line never contains the submitted value", async () => {
@@ -279,7 +252,6 @@ describe("resolve — ctf hand-off", () => {
     expect(lines[0]).toMatchObject({
       type: "ctf-handoff",
       challenge: "flag1",
-      region: "use1",
       result: "handoff",
     });
     // Neither the object nor its serialized form may leak the guess.

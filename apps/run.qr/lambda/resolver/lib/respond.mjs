@@ -7,93 +7,36 @@
  *   { statusCode, statusDescription?, headers, body? }
  *
  * These helpers are PURE — they take plain data and return that shape. No
- * AWS SDK, no I/O, no `process.env`. All URL work goes through the WHATWG
- * `URL` global so parsing/serialization matches the browser exactly.
+ * AWS SDK, no I/O, no `process.env`.
  *
- * Two load-bearing rules live here:
+ * REGION IS NOT OUR JOB. `run.defcon.run` is region-partitioned under
+ * `/use1`, `/cac1`, `/apse1`, but choosing and splicing that prefix is done by
+ * a shared CloudFront region-prefix edge function on the run.defcon.run
+ * distribution (geo / cookie / default lookup) — NOT here. The resolver emits
+ * BARE `run.defcon.run/...` destinations and lets the edge prefix them. So
+ * these builders do NO URL rewriting at all: the `Location` is whatever
+ * destination they are handed, verbatim.
  *
- *   1. Region injection. `run.defcon.run` is region-partitioned under
- *      `/use1` and `/cac1`. A bare `run.defcon.run/...` destination gets the
- *      resolver's region spliced in right after the host — UNLESS the path
- *      already carries a region segment. Any OTHER host is passed through
- *      byte-for-byte (we never rewrite third-party or lookalike hosts).
- *
- *   2. No caching. Redirects are per-scan and rule-driven (time windows,
- *      params), so every response is `Cache-Control: no-store` to keep
- *      CloudFront / browsers from pinning a stale destination.
+ * The one load-bearing rule that stays: NO CACHING. Redirects are per-scan and
+ * rule-driven (time windows, params), so every response is
+ * `Cache-Control: no-store` to keep CloudFront / browsers from pinning a stale
+ * destination.
  */
 
-// The one host we own and region-partition. Compared against `URL.hostname`
-// (already lowercased + punycoded by the URL parser), so a lookalike like
-// `run.defcon.run.attacker.com` will not match.
-const REGION_HOST = "run.defcon.run";
-
-// Path prefixes that already encode a region — presence of either means we
-// must NOT inject again. Matched as whole leading path segments.
-const REGION_SEGMENTS = ["use1", "cac1"];
-
 /**
- * Resolve the serving region from an opaque hint (e.g. a CloudFront-supplied
- * header). This is a deliberately tiny seam: the resolver only ever serves
- * two regions and defaults to `use1`. Only an exact `"cac1"` flips it.
+ * Build a 302 redirect response to `destination`. The `Location` is the
+ * destination VERBATIM — no rewriting, no region injection (the edge owns
+ * region). Always `no-store`.
  *
- * @param {string|undefined|null} hint
- * @returns {"use1"|"cac1"}
- */
-export function resolveRegion(hint) {
-  return hint === "cac1" ? "cac1" : "use1";
-}
-
-/**
- * True when `pathname` (a `URL.pathname`, always leading-slash) already
- * begins with a region segment like `/use1` or `/cac1` — i.e. `/use1`,
- * `/use1/...`, but NOT `/use1234/...` (that is a different segment).
- */
-function hasRegionSegment(pathname) {
-  return REGION_SEGMENTS.some(
-    (seg) => pathname === `/${seg}` || pathname.startsWith(`/${seg}/`)
-  );
-}
-
-/**
- * Compute the final `Location` value for a redirect, applying region
- * injection only when the destination is our region-partitioned host and
- * does not already carry a region segment.
- *
- * Non-`run.defcon.run` destinations — and anything that fails to parse as an
- * absolute URL — are returned unchanged (defensive: we never want to mangle
- * a third-party URL or throw on malformed data).
- */
-function locationFor(destination, region) {
-  let url;
-  try {
-    url = new URL(destination);
-  } catch {
-    // Not absolute-parseable → pass through untouched.
-    return destination;
-  }
-
-  if (url.hostname !== REGION_HOST) return destination;
-  if (hasRegionSegment(url.pathname)) return destination;
-
-  // Splice `/<region>` in right after the host, preserving the remaining
-  // path, query, and fragment exactly.
-  return `${url.protocol}//${url.host}/${region}${url.pathname}${url.search}${url.hash}`;
-}
-
-/**
- * Build a 302 redirect response to `destination`, region-injected per
- * `locationFor`. Always `no-store`.
- *
- * @param {{ destination: string, region?: "use1"|"cac1" }} args
+ * @param {{ destination: string }} args
  * @returns {object} ALB response
  */
-export function buildRedirect({ destination, region = "use1" }) {
+export function buildRedirect({ destination }) {
   return {
     statusCode: 302,
     statusDescription: "302 Found",
     headers: {
-      Location: locationFor(destination, region),
+      Location: destination,
       "Cache-Control": "no-store",
     },
   };
@@ -103,14 +46,15 @@ export function buildRedirect({ destination, region = "use1" }) {
  * Build the CTF hand-off redirect. The resolver NEVER validates answers — it
  * simply forwards the scanned challenge + submitted value to run.defcon.run,
  * which owns scoring. The value is `encodeURIComponent`-escaped so arbitrary
- * guesses survive the query string intact.
+ * guesses survive the query string intact. The destination is a BARE
+ * `run.defcon.run` URL (no region segment) — the edge prefixes region.
  *
- * @param {{ challenge: string, value: string, region?: "use1"|"cac1" }} args
+ * @param {{ challenge: string, value: string }} args
  * @returns {object} ALB response
  */
-export function buildCtfHandoff({ challenge, value, region = "use1" }) {
+export function buildCtfHandoff({ challenge, value }) {
   const location =
-    `https://run.defcon.run/${region}/ctf/claim` +
+    `https://run.defcon.run/ctf/claim` +
     `?c=${challenge}&v=${encodeURIComponent(value)}`;
   return {
     statusCode: 302,

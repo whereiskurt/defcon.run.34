@@ -6,44 +6,15 @@
  * (`{ statusCode, statusDescription?, headers, body? }`). No AWS, no I/O.
  *
  * The load-bearing behaviors under test:
- *   - region injection ONLY for `run.defcon.run` destinations that don't
- *     already carry a `/use1` or `/cac1` prefix (everything else passes
- *     through byte-for-byte);
+ *   - NO region injection or URL rewriting — the `Location` is the destination
+ *     verbatim (region is the CloudFront edge's job now, not the resolver's);
  *   - every redirect is a 302 with `Cache-Control: no-store`;
- *   - the CTF hand-off URL encodes the submitted value;
- *   - `resolveRegion` defaults to `use1` and only flips to `cac1` on an
- *     exact `"cac1"` hint.
+ *   - the CTF hand-off URL is a BARE run.defcon.run/ctf/claim (no region
+ *     segment) and encodes the submitted value.
  */
 
 import { describe, it, expect } from "vitest";
-import {
-  resolveRegion,
-  buildRedirect,
-  buildCtfHandoff,
-  notFound,
-} from "../lib/respond.mjs";
-
-describe("resolveRegion", () => {
-  it("defaults to use1 when the hint is undefined", () => {
-    expect(resolveRegion(undefined)).toBe("use1");
-  });
-
-  it("defaults to use1 for an unknown hint", () => {
-    expect(resolveRegion("eu-west-1")).toBe("use1");
-    expect(resolveRegion("")).toBe("use1");
-    expect(resolveRegion(null)).toBe("use1");
-  });
-
-  it("returns cac1 ONLY for an exact 'cac1' hint", () => {
-    expect(resolveRegion("cac1")).toBe("cac1");
-  });
-
-  it("does not treat near-misses as cac1", () => {
-    expect(resolveRegion("CAC1")).toBe("use1");
-    expect(resolveRegion("cac1 ")).toBe("use1");
-    expect(resolveRegion("ca-central-1")).toBe("use1");
-  });
-});
+import { buildRedirect, buildCtfHandoff, notFound } from "../lib/respond.mjs";
 
 describe("buildRedirect", () => {
   it("emits a 302 with Cache-Control: no-store", () => {
@@ -54,119 +25,55 @@ describe("buildRedirect", () => {
 
   it("passes a non run.defcon.run destination through untouched", () => {
     const dest = "https://example.com/some/path?a=1&b=2#frag";
-    const res = buildRedirect({ destination: dest, region: "use1" });
+    const res = buildRedirect({ destination: dest });
     expect(res.headers.Location).toBe(dest);
   });
 
-  it("does not inject a region for a lookalike host", () => {
-    // `evil-run.defcon.run.attacker.com` must NOT be treated as our host.
-    const dest = "https://run.defcon.run.attacker.com/pwn";
-    const res = buildRedirect({ destination: dest, region: "use1" });
+  it("emits a bare run.defcon.run destination VERBATIM — no region spliced (edge's job)", () => {
+    const dest = "https://run.defcon.run/orderform?ref=qr";
+    const res = buildRedirect({ destination: dest });
     expect(res.headers.Location).toBe(dest);
   });
 
-  it("injects /use1 right after the run.defcon.run host, preserving path+query", () => {
-    const res = buildRedirect({
-      destination: "https://run.defcon.run/orderform?ref=qr",
-      region: "use1",
-    });
-    expect(res.headers.Location).toBe(
-      "https://run.defcon.run/use1/orderform?ref=qr"
-    );
+  it("does not rewrite a bare run.defcon.run root", () => {
+    const dest = "https://run.defcon.run/";
+    const res = buildRedirect({ destination: dest });
+    expect(res.headers.Location).toBe(dest);
   });
 
-  it("injects /cac1 when the region is cac1", () => {
-    const res = buildRedirect({
-      destination: "https://run.defcon.run/profile",
-      region: "cac1",
-    });
-    expect(res.headers.Location).toBe("https://run.defcon.run/cac1/profile");
-  });
-
-  it("injects the region for a bare run.defcon.run root", () => {
-    const res = buildRedirect({
-      destination: "https://run.defcon.run/",
-      region: "use1",
-    });
-    expect(res.headers.Location).toBe("https://run.defcon.run/use1/");
-  });
-
-  it("does NOT double-inject when the path already starts with /use1", () => {
+  it("leaves an already-region-prefixed path exactly as-is", () => {
     const dest = "https://run.defcon.run/use1/orderform";
-    const res = buildRedirect({ destination: dest, region: "use1" });
+    const res = buildRedirect({ destination: dest });
     expect(res.headers.Location).toBe(dest);
   });
 
-  it("does NOT double-inject when the path already starts with /cac1", () => {
-    const dest = "https://run.defcon.run/cac1/profile?x=1";
-    const res = buildRedirect({ destination: dest, region: "use1" });
+  it("does not touch a lookalike host", () => {
+    const dest = "https://run.defcon.run.attacker.com/pwn";
+    const res = buildRedirect({ destination: dest });
     expect(res.headers.Location).toBe(dest);
-  });
-
-  it("treats /use1234 as a distinct segment and still injects", () => {
-    // A path that merely starts with the letters "use1" but is a different
-    // segment must still get the region prefix.
-    const res = buildRedirect({
-      destination: "https://run.defcon.run/use1234/thing",
-      region: "use1",
-    });
-    expect(res.headers.Location).toBe(
-      "https://run.defcon.run/use1/use1234/thing"
-    );
-  });
-
-  it("defaults the region to use1 when omitted", () => {
-    const res = buildRedirect({ destination: "https://run.defcon.run/x" });
-    expect(res.headers.Location).toBe("https://run.defcon.run/use1/x");
   });
 
   it("returns a non-absolute destination unchanged (defensive)", () => {
-    const res = buildRedirect({ destination: "not a url", region: "use1" });
+    const res = buildRedirect({ destination: "not a url" });
     expect(res.headers.Location).toBe("not a url");
     expect(res.statusCode).toBe(302);
   });
 });
 
 describe("buildCtfHandoff", () => {
-  it("hands off to run.defcon.run/<region>/ctf/claim as a 302 no-store", () => {
-    const res = buildCtfHandoff({
-      challenge: "flag1",
-      value: "answer",
-      region: "use1",
-    });
+  it("hands off to a BARE run.defcon.run/ctf/claim as a 302 no-store (no region segment)", () => {
+    const res = buildCtfHandoff({ challenge: "flag1", value: "answer" });
     expect(res.statusCode).toBe(302);
     expect(res.headers["Cache-Control"]).toBe("no-store");
     expect(res.headers.Location).toBe(
-      "https://run.defcon.run/use1/ctf/claim?c=flag1&v=answer"
-    );
-  });
-
-  it("uses the cac1 region segment when asked", () => {
-    const res = buildCtfHandoff({
-      challenge: "flag1",
-      value: "answer",
-      region: "cac1",
-    });
-    expect(res.headers.Location).toBe(
-      "https://run.defcon.run/cac1/ctf/claim?c=flag1&v=answer"
+      "https://run.defcon.run/ctf/claim?c=flag1&v=answer"
     );
   });
 
   it("URL-encodes the submitted value", () => {
-    const res = buildCtfHandoff({
-      challenge: "flag1",
-      value: "a b&c=d/e",
-      region: "use1",
-    });
+    const res = buildCtfHandoff({ challenge: "flag1", value: "a b&c=d/e" });
     expect(res.headers.Location).toBe(
-      "https://run.defcon.run/use1/ctf/claim?c=flag1&v=a%20b%26c%3Dd%2Fe"
-    );
-  });
-
-  it("defaults the region to use1 when omitted", () => {
-    const res = buildCtfHandoff({ challenge: "flag1", value: "x" });
-    expect(res.headers.Location).toBe(
-      "https://run.defcon.run/use1/ctf/claim?c=flag1&v=x"
+      "https://run.defcon.run/ctf/claim?c=flag1&v=a%20b%26c%3Dd%2Fe"
     );
   });
 });

@@ -20,35 +20,39 @@
 /**
  * Build the log record for a resolved redirect.
  *
+ * There is no `region` field: region is decided by the shared CloudFront
+ * region-prefix edge function, not the resolver, so it is not part of the
+ * resolver's log contract. `geo` (viewer country) and `ua` are kept for
+ * analytics.
+ *
  * @param {{
  *   code: string,
  *   param: string|null,
  *   matchedRule: object|string,
  *   destHost: string,
- *   region: "use1"|"cac1",
- *   ua: string,
  *   geo: string,
+ *   ua: string,
  * }} fields
  * @returns {object}
  */
-export function redirectLog({ code, param, matchedRule, destHost, region, ua, geo }) {
-  return { type: "redirect", code, param, matchedRule, destHost, region, ua, geo };
+export function redirectLog({ code, param, matchedRule, destHost, geo, ua }) {
+  return { type: "redirect", code, param, matchedRule, destHost, geo, ua };
 }
 
 /**
  * Build the log record for a CTF hand-off.
  *
- * NOTE the signature: it takes ONLY `challenge` and `region`. There is no
- * `value` parameter and there is no `value` key in the output — this is the
- * enforcement point for the log-hygiene invariant above. `result` is a fixed
- * `"handoff"` marker so the rollup can distinguish forwarded scans from any
- * future scored outcome without ever seeing the guess itself.
+ * NOTE the signature: it takes ONLY `challenge`. There is no `value` parameter
+ * and there is no `value` key in the output — this is the enforcement point for
+ * the log-hygiene invariant above. `result` is a fixed `"handoff"` marker so
+ * the rollup can distinguish forwarded scans from any future scored outcome
+ * without ever seeing the guess itself.
  *
- * @param {{ challenge: string, region: "use1"|"cac1" }} fields
+ * @param {{ challenge: string }} fields
  * @returns {object}
  */
-export function ctfHandoffLog({ challenge, region }) {
-  return { type: "ctf-handoff", challenge, region, result: "handoff" };
+export function ctfHandoffLog({ challenge }) {
+  return { type: "ctf-handoff", challenge, result: "handoff" };
 }
 
 /**

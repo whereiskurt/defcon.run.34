@@ -15,16 +15,25 @@ to make before the Terraform is wired and deployed.**
 ## Resolved open questions (§12 of parent spec)
 
 **Q1 — Global table: RESOLVED. No new table needed.**
-`run-human-electro` is already a DynamoDB **Global Table v2** replicated to
-`us-east-1` + `ca-central-1` + `ap-southeast-1`
-(`infra/terraform/live/site/services/run.human/service.hcl:257-270`,
-module `infra/terraform/modules/dynamodb/v1.0.0/main.tf:196-204`). The `qr`,
-`ctf`, `qrstat` entities use `service: "run"` and attach to this table via
-`RUN_ELECTRO_DBNAME` — same pattern as `apps/run.bib/lambda/reconcile/lib/entities.mjs`.
+`run-human-electro` is the shared table the `qr`/`ctf`/`qrstat` entities attach
+to (`service: "run"`, via `RUN_ELECTRO_DBNAME` — same pattern as
+`apps/run.bib/lambda/reconcile/lib/entities.mjs`). No new table is needed for the
+resolver, which is **use1-only**.
+
+> **CORRECTION (was overstated):** an earlier draft called this table "already a
+> global table (use1+cac1+apse1)." It is **not** today. The `dynamodb` module
+> filters replicas by `skip_regions` (`modules/dynamodb/v1.0.0/main.tf:196-204`),
+> and `site.hcl:8` skips `ap-southeast-1` + `ca-central-1` — so the live table is
+> **use1-only**. The `replica_regions` list (`service.hcl:257-270`) merely
+> *declares* the intent. A future cac1/apse1 resolver would first need those
+> regions un-skipped (which also lights up the replicas). Immaterial to this
+> use1-only resolver.
 
 **Q5 — Region path convention: CONFIRMED.**
 run.human mounts at `/{region}` via Next.js `basePath`
-(`apps/run.human/webapp/next.config.ts:51`); `use1`/`cac1` are the segments.
+(`apps/run.human/webapp/next.config.ts:51`); `use1`/`cac1`/`apse1` are the segments.
+Note: only `use1` actually serves today (cac1/apse1 skipped); a bare, un-prefixed
+path currently **404s** — see Decision 2.
 
 ---
 
@@ -54,40 +63,58 @@ to be transport-agnostic — only the thin `index.mjs` handler adapter changes.
 
 ---
 
-## DECISION 2 — Region-awareness (no region cookie exists)
+## DECISION 2 — Region-awareness → **RESOLVED: region moves to the edge**
 
-**Spec said:** resolver reads the run.human "region cookie" and rewrites
-run.human destinations to `/use1//cac1/` accordingly (§6 step 5, §8).
+**Spec said:** resolver reads a run.human "region cookie" and rewrites run.human
+destinations to `/use1//cac1/` (§6 step 5, §8).
 
 **Reality:** **There is no region cookie.** Region is a *build/deploy-time* env
-var (`REGION_SHORT` → `basePath`, `apps/run.human/webapp/next.config.ts:7,51`),
-not a per-user value any edge component can read. run.human itself derives
-region only from the URL path or falls back to the literal `"use1"`
-(dozens of `|| "use1"` sites, e.g. `src/hooks/useLogout.ts:14-16`).
+var (`REGION_SHORT` → `basePath`, `next.config.ts:7,51`); run.human derives region
+only from the URL path or falls back to the literal `"use1"`. Worse, the run.human
+distribution's only viewer-request function (`modules/cloudfront/v1.0.0`
+`root_redirect`) is a **no-op**, so an un-prefixed path like `run.defcon.run/orderform`
+**404s today** — there is nothing adding `/use1`.
 
-So a per-user, cookie-driven region rewrite is **not implementable as specced.**
-Options for what the resolver injects when a destination targets run.human:
+**Decision (per KPH):** region prefixing is a **generic CloudFront edge behavior**,
+not the resolver's job and not a run.human cookie. A viewer-request CloudFront
+Function on *any* region-partitioned distribution decides the region
+(sticky cookie → country-of-origin → default) and prepends `/{region}` when the
+path lacks one. Consequences:
 
-| Option | Behavior | Notes |
-|--------|----------|-------|
-| **A. Always `/use1`** (recommended for launch) | Every run.human destination gets `/use1/…` | Matches the app-wide default; `cac1` has no user-facing region selector today, so nobody is "supposed to" land on `/cac1`. Simplest, correct for the current product. |
-| **B. Per-code `region` field** | Admin sets the region on each `qr` code (default `use1`) | Gives explicit control without inventing a per-user signal; a few codes could point at `/cac1` deliberately. Cheap to add. |
-| **C. CloudFront geo header** | Derive region from `CloudFront-Viewer-Country` | Approximates "nearest region" but conflates *geography* with the app's *deploy regions*; a CA visitor isn't guaranteed a `cac1` account. Fragile. |
+1. **The resolver is now region-LESS.** It emits **bare** `run.defcon.run/…` URLs
+   (and a bare `run.defcon.run/ctf/claim?…`); the destination's own distribution
+   prefixes the region on arrival. `resolveRegion`, the `x-qr-region` header, and
+   all path-injection were **removed** from `lib/respond.mjs` / `resolve.mjs`. The
+   log line keeps `geo` (country) for analytics but no longer carries `region`.
+2. **New module `infra/terraform/modules/cloudfront-region-prefix/v1.0.0/`** — the
+   reusable prefixer (viewer-request rewrite + viewer-response sticky cookie).
+   - **Single- vs multi-region switch (per KPH):** the geo/cookie lookup only turns
+     on when `served_regions > 1`. On a single-region deploy it drops to a cheap
+     **static default prefix** (no cookie fn created), or can be disabled entirely
+     (`enabled=false`) to override. Today = single-region (`["use1"]`) → everything
+     `/use1/…`; the geo path is dormant until cac1/apse1 un-skip.
+   - The `country_region_map` (`{ CA="cac1", SG="apse1", … }`) is the geo seam,
+     default `{}`. Requires forwarding `CloudFront-Viewer-Country` (not enabled today).
+   - Rewrite logic exercised against 12 mock CloudFront events (single + multi region,
+     cookie override, country routing, idempotent passthrough, lookalike-segment safety).
 
-**Recommendation: Option A now, with the resolver's region value factored into a
-single `resolveRegion()` seam** so upgrading to B (per-code field) later is a
-one-function change. Implemented that way in `lib/respond.mjs`. Default is
-`use1`; unknown/absent → `use1`.
+**Coupling note:** region-less resolver + the prefixer must ship together — until a
+prefixer exists on run.defcon.run, a bare redirect would hit today's 404. Deploying
+the prefixer *also fixes* the existing bare-root 404. Neither is applied in this PR.
 
 ---
 
 ## What this PR contains (built + tested, NOT deployed)
 
 - `apps/run.qr/lambda/resolver/` — path parser, rule engine (time/param/`*`/fallback),
-  enrichment (query-preserve + UTM + param append), region-aware response builder
-  (Decision 2 = A behind a seam), structured log-line emitter (with the log-hygiene
-  test: CTF handoff line never contains the submitted value), `qr`/`ctf`/`qrstat`
-  ElectroDB entities, and a handler that glues them. Full vitest suite.
+  enrichment (query-preserve + UTM + param append), **region-less** response builder
+  (bare run.defcon.run URLs; region is the edge's job — Decision 2), structured
+  log-line emitter (log-hygiene test: CTF line never carries the submitted value),
+  `qr`/`ctf`/`qrstat` ElectroDB entities, and a handler that glues them. Full vitest
+  suite (97 tests).
+- `infra/terraform/modules/cloudfront-region-prefix/v1.0.0/` — the reusable region
+  prefixer (Decision 2), `terraform validate` clean, rendered JS syntax- and
+  behavior-checked. Not wired to a live unit.
 - `apps/run.qr/lambda/rollup/` — Logs Insights query builder (since-watermark) +
   log-line → `qrstat` aggregation (`total` / `day#` / `param#` / `ctf#`). Full vitest suite.
 - `infra/terraform/modules/qr-resolver/v1.0.0/` — **scaffold** for Decision 1 = A,
