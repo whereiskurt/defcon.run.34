@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 const dangerBtn = "text-[13px] font-semibold rounded-md px-3 py-1.5 border transition disabled:opacity-50";
 
-export function LockAction({ userId, locked }: { userId: string; locked: boolean }) {
+export function LockAction({ userId, locked, onComplete }: { userId: string; locked: boolean; onComplete?: () => void }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -16,7 +16,7 @@ export function LockAction({ userId, locked }: { userId: string; locked: boolean
       body: JSON.stringify({ locked: !locked }),
     });
     setBusy(false);
-    if (res.ok) router.refresh(); else setFailed(true);
+    if (res.ok) { router.refresh(); onComplete?.(); } else setFailed(true);
   }
   return (
     <button onClick={go} disabled={busy}
@@ -26,7 +26,7 @@ export function LockAction({ userId, locked }: { userId: string; locked: boolean
   );
 }
 
-export function UnlinkAction({ userId, provider, providerAccountId }: { userId: string; provider: string; providerAccountId: string }) {
+export function UnlinkAction({ userId, provider, providerAccountId, onComplete }: { userId: string; provider: string; providerAccountId: string; onComplete?: () => void }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -38,7 +38,7 @@ export function UnlinkAction({ userId, provider, providerAccountId }: { userId: 
       body: JSON.stringify({ provider, providerAccountId }),
     });
     setBusy(false);
-    if (res.ok) router.refresh(); else setFailed(true);
+    if (res.ok) { router.refresh(); onComplete?.(); } else setFailed(true);
   }
   return (
     <button onClick={go} disabled={busy}
@@ -48,7 +48,7 @@ export function UnlinkAction({ userId, provider, providerAccountId }: { userId: 
   );
 }
 
-export function DeleteIdentityAction({ userId, displayName }: { userId: string; displayName: string }) {
+export function DeleteIdentityAction({ userId, displayName, onComplete }: { userId: string; displayName: string; onComplete?: () => void }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
@@ -58,7 +58,7 @@ export function DeleteIdentityAction({ userId, displayName }: { userId: string; 
     setBusy(true); setFailed(false);
     const res = await fetch(`/api/admin/identities/${encodeURIComponent(userId)}`, { method: "DELETE" });
     setBusy(false);
-    if (res.ok) { setOpen(false); router.refresh(); } else setFailed(true);
+    if (res.ok) { setOpen(false); router.refresh(); onComplete?.(); } else setFailed(true);
   }
   if (!open) {
     return <button onClick={() => setOpen(true)} className={dangerBtn + " border-danger text-danger"}>Hard delete…</button>;
@@ -69,7 +69,7 @@ export function DeleteIdentityAction({ userId, displayName }: { userId: string; 
       <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
         className="w-full rounded-md border border-default-300 bg-content1 px-2 py-1 text-sm" placeholder={displayName} />
       <div className="flex gap-2">
-        <button disabled={busy || confirmText !== displayName} onClick={go}
+        <button disabled={busy || !displayName || confirmText !== displayName} onClick={go}
           className={dangerBtn + " border-danger text-danger"}>{busy ? "Deleting…" : "Delete permanently"}</button>
         <button onClick={() => { setOpen(false); setConfirmText(""); }} className={dangerBtn + " border-default-300 text-default-500"}>Cancel</button>
       </div>

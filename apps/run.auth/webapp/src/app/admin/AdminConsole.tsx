@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { IdentityRow, IdentitySort, SummaryTiles, ProviderKey } from "@/lib/identity-report";
 import { LockAction, UnlinkAction, DeleteIdentityAction } from "./AdminActions";
 
@@ -32,7 +33,9 @@ const ALL_PROVIDERS: ProviderKey[] = ["github", "discord", "linkedin", "strava",
 export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   initialRows: Row[]; tiles: SummaryTiles; adminEmail: string | null;
 }) {
-  const [rows] = useState<Row[]>(initialRows);
+  const router = useRouter();
+  const [rows, setRows] = useState<Row[]>(initialRows);
+  useEffect(() => { setRows(initialRows); }, [initialRows]);
   const [q, setQ] = useState("");
   const [matchedIds, setMatchedIds] = useState<Set<string> | null>(null);
   const [sort, setSort] = useState<IdentitySort>("created");
@@ -42,15 +45,17 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   const [refs, setRefs] = useState<Record<string, RunHumanRef>>({});
   const [drawer, setDrawer] = useState<Detail | null>(null);
   const [drawerLoading, setDrawerLoading] = useState(false);
+  const searchSeq = useRef(0);
 
   // Server-side email search (debounced). Returns userIds only.
   useEffect(() => {
-    if (!q.trim()) { setMatchedIds(null); return; }
+    if (!q.trim()) { searchSeq.current += 1; setMatchedIds(null); return; }
+    const seq = ++searchSeq.current;
     const t = setTimeout(async () => {
       const res = await fetch(`/api/admin/identities?q=${encodeURIComponent(q)}`, { cache: "no-store" });
       if (!res.ok) return;
       const data = (await res.json()) as { rows: Row[] };
-      setMatchedIds(new Set(data.rows.map((r) => r.userId)));
+      if (seq === searchSeq.current) setMatchedIds(new Set(data.rows.map((r) => r.userId)));
     }, 220);
     return () => clearTimeout(t);
   }, [q]);
@@ -197,7 +202,8 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                   {drawer.accounts.map((a) => (
                     <div key={`${a.provider}#${a.providerAccountId}`} className="mb-2 flex items-center justify-between rounded-md border border-divider p-2 text-sm">
                       <span>{a.provider} · <code className="font-mono text-xs">{a.providerAccountId}</code></span>
-                      <UnlinkAction userId={drawer.identity.userId} provider={a.provider} providerAccountId={a.providerAccountId} />
+                      <UnlinkAction userId={drawer.identity.userId} provider={a.provider} providerAccountId={a.providerAccountId}
+                        onComplete={() => openDrawer(drawer.identity.userId)} />
                     </div>
                   ))}
                 </div>
@@ -211,8 +217,10 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                 </div>
 
                 <div className="space-y-3 border-t border-divider pt-3">
-                  <LockAction userId={drawer.identity.userId} locked={drawer.identity.lockedOut} />
-                  <DeleteIdentityAction userId={drawer.identity.userId} displayName={drawer.identity.displayName} />
+                  <LockAction userId={drawer.identity.userId} locked={drawer.identity.lockedOut}
+                    onComplete={() => openDrawer(drawer.identity.userId)} />
+                  <DeleteIdentityAction userId={drawer.identity.userId} displayName={drawer.identity.displayName}
+                    onComplete={() => setDrawer(null)} />
                 </div>
               </div>
             )}
