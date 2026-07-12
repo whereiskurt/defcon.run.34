@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  /* Strava club logo: simple squared neon bunny. 1000x1000, shown as a
+     rounded-square avatar -> keep a small margin so the ears don't clip. */
+  html,body { width:1000px; height:1000px; overflow:hidden; }
+  :root{ --cy:#2fe3c6; --ice:#eafff9; }
+  body { background:#050d14; position:relative; }
+
+  /* clean dark ground with one soft teal glow behind the bunny */
+  .bg { position:absolute; inset:0;
+    background:radial-gradient(48% 48% at 50% 46%, #0c2230 0%, #071620 55%, #050b12 100%); }
+  .vig { position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(78% 78% at 50% 50%, transparent 62%, rgba(0,0,0,.6)); }
+
+  /* sharp neon wireframe bunny via luminance mask (no black box, crisp lines) */
+  .bunny { position:absolute; top:50%; left:50%; width:788px; height:880px;
+    transform:translate(-50%,-51%);
+    -webkit-mask:url(bunny-head.png) center/contain no-repeat;
+            mask:url(bunny-head.png) center/contain no-repeat;
+    -webkit-mask-mode:luminance; mask-mode:luminance;
+    background:linear-gradient(180deg,#5cf3dc 0%,var(--cy) 48%,#12c1a2 100%);
+    /* tight glow = sharp core, minimal bloom */
+    filter: drop-shadow(0 0 2px var(--ice)) drop-shadow(0 0 6px rgba(47,227,198,.95))
+            drop-shadow(0 0 16px rgba(47,227,198,.55)); }
+</style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="bunny"></div>
+  <div class="vig"></div>
+</body>
+</html>
