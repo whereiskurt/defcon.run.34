@@ -63,6 +63,7 @@ export default async function AdminUsersPage() {
     gpxUploads: r.gpxUploads,
     photoUploads: r.photoUploads,
     uploads: r.uploads,
+    runnerType: r.runnerType,
     services: r.services,
   }));
 

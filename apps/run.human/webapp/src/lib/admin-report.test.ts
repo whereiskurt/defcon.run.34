@@ -39,6 +39,7 @@ function row(over: Partial<UserReportRow>): UserReportRow {
     gpxUploads: 0,
     photoUploads: 0,
     uploads: 0,
+    runnerType: null,
     services: [],
     ...over,
   };
