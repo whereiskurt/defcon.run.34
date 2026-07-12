@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const basePath =
   process.env.NODE_ENV === 'production'
     ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || 'use1'}`
     : '';
 
-export default function ChallengePage() {
-  const [oidc, setOidc] = useState<string | null>(null);
+function ChallengeForm() {
+  const searchParams = useSearchParams();
+  const oidc = searchParams?.get('oidc') ?? null;
   const [solved, setSolved] = useState(0);
   const [required, setRequired] = useState(1);
   const [widgetKey, setWidgetKey] = useState(0); // bump to remount the widget for the next solve
@@ -17,8 +19,6 @@ export default function ChallengePage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setOidc(params.get('oidc'));
     import('altcha').catch(console.error); // registers <altcha-widget>
   }, []);
 
@@ -67,15 +67,15 @@ export default function ChallengePage() {
   );
 
   return (
-    <div style={{ maxWidth: 420, margin: '10vh auto', padding: 24, textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>One more step</h1>
-      <p style={{ color: '#666', marginBottom: 20 }}>
+    <div className="max-w-md mx-auto mt-[10vh] p-6 text-center">
+      <h1 className="text-xl font-bold text-foreground mb-2">One more step</h1>
+      <p className="text-default-500 mb-5">
         Complete the verification to finish signing in.
         {required > 1 && ` (${Math.min(solved, required)} of ${required} solved)`}
       </p>
 
       {done ? (
-        <p style={{ color: '#16a34a', fontWeight: 600 }}>Verified — completing sign-in…</p>
+        <p className="text-success font-semibold">Verified — completing sign-in…</p>
       ) : (
         // `key` on the wrapper (not the custom element itself — AltchaWidgetReact's
         // type doesn't declare `key`) forces a full remount of the widget subtree
@@ -90,13 +90,28 @@ export default function ChallengePage() {
         </div>
       )}
 
-      {busy && <p style={{ color: '#666', marginTop: 12 }}>Checking…</p>}
-      {error && <p style={{ color: '#dc2626', marginTop: 12 }}>{error}</p>}
+      {busy && <p className="text-default-500 mt-3">Checking…</p>}
+      {error && <p className="text-danger mt-3">{error}</p>}
       {!oidc && !done && (
-        <p style={{ color: '#dc2626', marginTop: 12, fontSize: 13 }}>
+        <p className="text-danger mt-3 text-sm">
           Missing login context — please restart your login.
         </p>
       )}
     </div>
+  );
+}
+
+export default function ChallengePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="max-w-md mx-auto mt-[10vh] p-6 text-center">
+          <div className="h-6 w-40 mx-auto rounded bg-content2 animate-pulse mb-3" />
+          <div className="h-4 w-64 mx-auto rounded bg-content2 animate-pulse" />
+        </div>
+      }
+    >
+      <ChallengeForm />
+    </Suspense>
   );
 }
