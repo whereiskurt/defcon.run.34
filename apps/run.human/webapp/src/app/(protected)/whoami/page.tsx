@@ -16,6 +16,13 @@ import { apiUrl } from '@/lib/api';
 
 const homeUrl = '/';
 const isDev = process.env.NODE_ENV !== 'production';
+
+// Default social group URLs (the DEF CON run Strava club + Signal group). These
+// are a code-level FLOOR only — the CMS copy keys `socials.strava_group_url` /
+// `socials.signal_group_url` override them at runtime with no redeploy (see the
+// `asUrl(...) || DEFAULT` reads below). Empty a default to hide that tile.
+const DEFAULT_STRAVA_GROUP_URL = 'https://www.strava.com/clubs/1071823';
+const DEFAULT_SIGNAL_GROUP_URL = 'https://signal.group/#CjQKIPWdGurSgpzV8xcut1PWo_at1L6hUEFJtHhxLnlAxErEEhB5h5oWXv68P7cgGAGVZ26I';
 const siteDomain = process.env.NEXT_PUBLIC_SITE_DOMAIN || 'defcon.run';
 const LOCAL_AUTH_PORT = process.env.NEXT_PUBLIC_LOCAL_AUTH_PORT || '3002';
 const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
@@ -124,8 +131,8 @@ export default function WhoAmIPage() {
     const v = t(key);
     return v.startsWith('http') ? v : '';
   };
-  const stravaGroupUrl = asUrl('socials.strava_group_url');
-  const signalGroupUrl = asUrl('socials.signal_group_url');
+  const stravaGroupUrl = asUrl('socials.strava_group_url') || DEFAULT_STRAVA_GROUP_URL;
+  const signalGroupUrl = asUrl('socials.signal_group_url') || DEFAULT_SIGNAL_GROUP_URL;
 
   useEffect(() => { setMounted(true); }, []);
 
