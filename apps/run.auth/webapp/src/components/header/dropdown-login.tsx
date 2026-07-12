@@ -9,7 +9,7 @@ import {
   DropdownTrigger,
 } from '@heroui/react';
 import { signIn } from 'next-auth/react';
-import { FaDiscord, FaGithub } from 'react-icons/fa';
+import { FaDiscord, FaGithub, FaLinkedin } from 'react-icons/fa';
 import { FiLogIn } from 'react-icons/fi';
 import { MdOutlineMailLock } from 'react-icons/md';
 
@@ -87,6 +87,13 @@ const LoginDropDown = () => {
             onPress={() => signIn('github', { callbackUrl })}
           >
             Github
+          </DropdownItem>
+          <DropdownItem
+            key="c1"
+            startContent={<FaLinkedin size={24} className={iconClasses} />}
+            onPress={() => signIn('linkedin', { callbackUrl })}
+          >
+            LinkedIn
           </DropdownItem>
         </DropdownSection>
       </DropdownMenu>

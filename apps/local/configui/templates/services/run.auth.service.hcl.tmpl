@@ -207,6 +207,14 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/discord/client_secret"
           },
           {
+            name      = "AUTH_LINKEDIN_CLIENT_ID"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/linkedin/client_id"
+          },
+          {
+            name      = "AUTH_LINKEDIN_CLIENT_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/linkedin/client_secret"
+          },
+          {
             name      = "OIDC_COOKIE_KEYS"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/oidc/cookie_keys"
           },

@@ -23,6 +23,7 @@ function generateDisplayName(): string {
  * - Discord: id, username, globalName, avatarUrl, discriminator
  * - GitHub: id, login, name, avatarUrl, email
  * - Strava: id, username, firstName, lastName, profileMedium
+ * - LinkedIn: id (sub), name, givenName, familyName, picture, email
  * - Email: just the email address (no profile data)
  */
 export const AuthProfile = new Entity(
@@ -104,6 +105,19 @@ export const AuthProfile = new Entity(
           linkedAt: { type: "number" },
         },
       },
+      // LinkedIn profile data (Sign In with LinkedIn using OpenID Connect)
+      linkedin: {
+        type: "map",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          givenName: { type: "string" },
+          familyName: { type: "string" },
+          picture: { type: "string" },
+          email: { type: "string" },
+          linkedAt: { type: "number" },
+        },
+      },
       // Raw profile data from OAuth providers (stored for later use)
       // These contain the complete profile response from each provider
       discordProfile: {
@@ -113,6 +127,9 @@ export const AuthProfile = new Entity(
         type: "any",
       },
       stravaProfile: {
+        type: "any",
+      },
+      linkedinProfile: {
         type: "any",
       },
       // Authorized services for this user
@@ -214,21 +231,32 @@ export type StravaProfile = {
   country?: string;
 };
 
+export type LinkedInProfile = {
+  id: string;
+  name?: string;
+  givenName?: string;
+  familyName?: string;
+  picture?: string;
+  email?: string;
+};
+
 /**
  * Create or update an AuthProfile from provider data
  */
 export async function upsertAuthProfile(
   userId: string,
-  provider: "discord" | "github" | "strava" | "email",
+  provider: "discord" | "github" | "strava" | "linkedin" | "email",
   data: {
     email?: string;
     discord?: DiscordProfile;
     github?: GithubProfile;
     strava?: StravaProfile;
+    linkedin?: LinkedInProfile;
     // Raw profile objects from OAuth providers (stored as-is for later use)
     discordProfile?: Record<string, unknown>;
     githubProfile?: Record<string, unknown>;
     stravaProfile?: Record<string, unknown>;
+    linkedinProfile?: Record<string, unknown>;
   }
 ): Promise<void> {
   // First try to get existing profile
@@ -249,6 +277,12 @@ export async function upsertAuthProfile(
       ? `${data.strava.firstName} ${data.strava.lastName || ""}`.trim()
       : data.strava.username;
     picture = data.strava.profileMedium;
+  } else if (provider === "linkedin" && data.linkedin) {
+    name = data.linkedin.name
+      || (data.linkedin.givenName
+        ? `${data.linkedin.givenName} ${data.linkedin.familyName || ""}`.trim()
+        : undefined);
+    picture = data.linkedin.picture;
   }
 
   // Use existing values if new ones aren't available
@@ -282,6 +316,9 @@ export async function upsertAuthProfile(
   if (data.strava) {
     payload.strava = { ...data.strava, linkedAt: now };
   }
+  if (data.linkedin) {
+    payload.linkedin = { ...data.linkedin, linkedAt: now };
+  }
 
   // Store raw profile data for later use
   if (data.discordProfile) {
@@ -292,6 +329,9 @@ export async function upsertAuthProfile(
   }
   if (data.stravaProfile) {
     payload.stravaProfile = data.stravaProfile;
+  }
+  if (data.linkedinProfile) {
+    payload.linkedinProfile = data.linkedinProfile;
   }
 
   await AuthProfile.upsert(payload).go();

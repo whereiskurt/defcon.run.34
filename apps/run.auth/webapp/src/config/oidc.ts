@@ -367,12 +367,14 @@ const configuration: Configuration = {
               || profile.github?.login
               || (profile.strava?.firstName
                 ? `${profile.strava.firstName} ${profile.strava.lastName || ""}`.trim()
-                : profile.strava?.username);
+                : profile.strava?.username)
+              || profile.linkedin?.name;
 
             result.picture = profile.picture
               || profile.discord?.avatarUrl
               || profile.github?.avatarUrl
-              || profile.strava?.profileMedium;
+              || profile.strava?.profileMedium
+              || profile.linkedin?.picture;
 
             if (profile.updatedAt) {
               result.updated_at = Math.floor(profile.updatedAt / 1000);
@@ -383,7 +385,8 @@ const configuration: Configuration = {
           if (scope.includes("email")) {
             result.email = profile.email
               || profile.discord?.email
-              || profile.github?.email;
+              || profile.github?.email
+              || profile.linkedin?.email;
             result.email_verified = profile.emailVerified ?? (!!result.email);
           }
 
@@ -395,6 +398,7 @@ const configuration: Configuration = {
             if (profile.discord?.id) linkedProviders.push("discord");
             if (profile.github?.id) linkedProviders.push("github");
             if (profile.strava?.id) linkedProviders.push("strava");
+            if (profile.linkedin?.id) linkedProviders.push("linkedin");
             result.linked_providers = linkedProviders;
 
             // Mapbox public token for GPX Studio (user's personal token if set)
