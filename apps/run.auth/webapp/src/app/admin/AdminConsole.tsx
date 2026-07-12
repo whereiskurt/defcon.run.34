@@ -105,7 +105,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
   const [sort, setSort] = useState<IdentitySort>("created");
   const [pill, setPill] = useState<null | "multi" | "locked" | "new24h" | "notRunHuman">(null);
   const [page, setPage] = useState(0);
-  const [perPage, setPerPage] = useState(25);
+  const [perPage, setPerPage] = useState(200);
   const [refs, setRefs] = useState<Record<string, RunHumanRef>>({});
   const [drawer, setDrawer] = useState<Detail | null>(null);
   const [drawerLoading, setDrawerLoading] = useState(false);
@@ -322,7 +322,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
           <button disabled={(page + 1) * perPage >= filtered.length} onClick={() => setPage((p) => p + 1)} className="disabled:opacity-40">next →</button>
           <select value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(0); }}
             className="ml-auto rounded-md border border-divider bg-content2 px-2 py-1">
-            {[25, 50, 100].map((n) => <option key={n} value={n}>{n}/page</option>)}
+            {[50, 100, 200, 500].map((n) => <option key={n} value={n}>{n}/page</option>)}
           </select>
         </div>
       </div>
