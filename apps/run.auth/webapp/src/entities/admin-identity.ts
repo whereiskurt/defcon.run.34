@@ -98,22 +98,33 @@ export async function deleteAccountRow(userId: string, provider: string, provide
  * run.human/bib (cascade is a separate phase).
  */
 export async function deleteIdentity(userId: string): Promise<{ deletedAccounts: number; deletedOidc: number }> {
-  // 1. accounts
-  const accounts = await getAccountsForUser(userId);
-  for (const a of accounts) {
-    await deleteAccountRow(userId, a.provider, a.providerAccountId);
+  console.log("[admin] deleteIdentity start", { userId });
+  let deletedAccounts = 0;
+  let deletedOidc = 0;
+  try {
+    // 1. accounts
+    const accounts = await getAccountsForUser(userId);
+    for (const a of accounts) {
+      await deleteAccountRow(userId, a.provider, a.providerAccountId);
+      deletedAccounts++;
+    }
+    // 2. USER# row
+    await dynamodbClient.delete({
+      TableName: DYNAMODB_TABLE,
+      Key: { pk: `USER#${userId}`, sk: `USER#${userId}` },
+    });
+    // 3. OIDC sessions for this accountId
+    const sessions = await getOidcSessionsForUser(userId);
+    for (const s of sessions) {
+      await OIDCModel.delete({ modelName: "Session", id: s.id }).go();
+      deletedOidc++;
+    }
+    // 4. AuthProfile
+    await AuthProfile.delete({ userId }).go();
+    console.log("[admin] deleteIdentity done", { userId, deletedAccounts, deletedOidc });
+    return { deletedAccounts, deletedOidc };
+  } catch (err) {
+    console.error("[admin] deleteIdentity FAILED", { userId, deletedAccounts, deletedOidc, err });
+    throw err;
   }
-  // 2. USER# row
-  await dynamodbClient.delete({
-    TableName: DYNAMODB_TABLE,
-    Key: { pk: `USER#${userId}`, sk: `USER#${userId}` },
-  });
-  // 3. OIDC sessions for this accountId
-  const sessions = await getOidcSessionsForUser(userId);
-  for (const s of sessions) {
-    await OIDCModel.delete({ modelName: "Session", id: s.id }).go();
-  }
-  // 4. AuthProfile
-  await AuthProfile.delete({ userId }).go();
-  return { deletedAccounts: accounts.length, deletedOidc: sessions.length };
 }
