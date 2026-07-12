@@ -324,7 +324,6 @@ export default function WhoAmIPage() {
             <SocialQRRow
               stravaUrl={stravaGroupUrl}
               signalUrl={signalGroupUrl}
-              runnerQr={userData?.eqr}
             />
           </div>
           {session.expires && (
@@ -335,21 +334,7 @@ export default function WhoAmIPage() {
         </CardBody>
       </Card>
 
-      {/* Check-in History (Check-in Pin nested inside) */}
-      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference}>
-        <CheckInPinCard />
-      </CheckInHistory>
-
-      {/* Meshtastic Radios */}
-      <MeshtasticRadios
-        radios={userData?.meshtasticRadios}
-        quotas={userData?.quotas}
-        mqttUsername={userData?.mqttUsername}
-        mqttPassword={userData?.mqttPassword}
-        onUpdate={fetchUserData}
-      />
-
-      {/* QR Code (collapsed by default) */}
+      {/* Your Social QR (collapsed by default) — sits directly under the header */}
       {userData?.eqr && (
         <Card className="glass-card overflow-hidden">
           <CardBody className="px-5 py-3">
@@ -363,6 +348,9 @@ export default function WhoAmIPage() {
                 <ChevronRight className="w-3.5 h-3.5 text-default-400" />
               )}
               <span className="font-museo text-base font-bold text-foreground">Your Social QR</span>
+              {userData?.runnerCode && (
+                <span className="font-mono text-xs text-primary">🎽 {userData.runnerCode.toUpperCase()}</span>
+              )}
             </button>
             {isQROpen && (
               <div className="flex flex-col items-center mt-3 space-y-3">
@@ -381,6 +369,20 @@ export default function WhoAmIPage() {
           </CardBody>
         </Card>
       )}
+
+      {/* Check-in History (Check-in Pin nested inside) */}
+      <CheckInHistory checkInCount={userData?.checkInCount ?? 0} checkinPreference={userData?.preferences?.checkinPreference}>
+        <CheckInPinCard />
+      </CheckInHistory>
+
+      {/* Meshtastic Radios */}
+      <MeshtasticRadios
+        radios={userData?.meshtasticRadios}
+        quotas={userData?.quotas}
+        mqttUsername={userData?.mqttUsername}
+        mqttPassword={userData?.mqttPassword}
+        onUpdate={fetchUserData}
+      />
 
       {/* Quotas */}
       {userData?.quotas && (
