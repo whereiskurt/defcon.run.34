@@ -182,6 +182,28 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
     if (res.ok) setDrawer((await res.json()) as Detail);
   }
 
+  // Esc closes the drawer; j/k step to the next/prev identity in the current
+  // filtered+sorted view while the drawer is open (skipped when typing in a
+  // field), matching run.human's admin. Jumps the page so the row stays visible.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setDrawer(null); setDrawerLoading(false); return; }
+      if (!drawer || (e.key !== "j" && e.key !== "k")) return;
+      const el = document.activeElement;
+      if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+      const idx = filtered.findIndex((r) => r.userId === drawer.identity.userId);
+      if (idx < 0) return;
+      const next = Math.min(filtered.length - 1, Math.max(0, idx + (e.key === "j" ? 1 : -1)));
+      if (next === idx) return;
+      e.preventDefault();
+      setPage(Math.floor(next / perPage));
+      openDrawer(filtered[next].userId);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawer, filtered, perPage]);
+
   const csvHref = `${BASE}/api/admin/identities?format=csv&sort=${sort}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
 
   const heroes: { key: string; label: string; value: number; tint: string; Icon: Ico; note?: string; spark?: boolean }[] = [
@@ -341,7 +363,10 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                     <h2 className="text-[17px] font-bold">{drawer.identity.displayName}</h2>
                     {drawer.identity.lockedOut && <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[9.5px] font-extrabold text-warning">LOCKED</span>}
                   </div>
-                  <button onClick={() => setDrawer(null)} className="text-default-400 hover:text-foreground">✕</button>
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-mono text-[10px] text-default-300">j/k · esc</span>
+                    <button onClick={() => setDrawer(null)} className="text-default-400 hover:text-foreground">✕</button>
+                  </div>
                 </div>
 
                 <div className="space-y-2 text-[13px]">
@@ -377,13 +402,25 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                   })}
                 </div>
 
-                <div>
-                  <h3 className="mb-2 text-[11px] uppercase tracking-wide text-default-400">live SSO sessions</h3>
-                  {drawer.oidcSessions.length === 0 && <p className="text-sm text-default-400">none</p>}
-                  {drawer.oidcSessions.map((s) => (
-                    <div key={s.id} className="font-mono text-[11.5px] text-default-500">…{s.id.slice(-8)} · expires {s.expiresAt ? new Date(s.expiresAt).toLocaleString() : "—"}</div>
-                  ))}
-                </div>
+                {(() => {
+                  // OIDC expiresAt is epoch SECONDS (oidc-adapter) — ×1000 for Date.
+                  // "Live" = not yet expired; count the expired (TTL will purge them).
+                  const now = Date.now();
+                  const live = drawer.oidcSessions.filter((s) => s.expiresAt != null && s.expiresAt * 1000 > now);
+                  const expired = drawer.oidcSessions.length - live.length;
+                  return (
+                    <div>
+                      <h3 className="mb-2 text-[11px] uppercase tracking-wide text-default-400">
+                        live SSO sessions{live.length > 0 && <span className="ml-1.5 normal-case tracking-normal text-default-500">({live.length})</span>}
+                      </h3>
+                      {live.length === 0 && <p className="text-sm text-default-400">none active</p>}
+                      {live.map((s) => (
+                        <div key={s.id} className="font-mono text-[11.5px] text-default-500">…{s.id.slice(-8)} · expires {new Date((s.expiresAt as number) * 1000).toLocaleString()}</div>
+                      ))}
+                      {expired > 0 && <p className="mt-1 text-[11px] text-default-300">+{expired} expired (auto-purged by TTL)</p>}
+                    </div>
+                  );
+                })()}
 
                 <div className="flex flex-col gap-3 border-t border-divider pt-4">
                   <LockAction userId={drawer.identity.userId} locked={drawer.identity.lockedOut}
