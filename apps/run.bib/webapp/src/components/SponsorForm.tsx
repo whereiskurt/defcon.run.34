@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { StripeMark, VenmoMark } from "./payment-icons";
-import { RunnerCodeBadge } from "./RunnerCodeBadge";
+import { DonateCard } from "./DonateCard";
 import { useCopy } from "@/components/CopyProvider";
 import { flushPendingBibName } from "@/lib/pending-bib-save";
 
@@ -248,7 +247,7 @@ export function SponsorForm({
 
   const minCents = variant === "bib" ? BIB_MIN_CENTS : GENERAL_MIN_CENTS;
   // Clamp into [variant minimum, $2000], snapping to whole cents. Delegates to
-  // the shared clampForVariant so the slider/input and the checkout flow agree.
+  // the shared clampForVariant so the picker and the checkout flow agree.
   const clampRange = useCallback(
     (raw: number) => clampForVariant(raw, variant),
     [variant]
@@ -257,328 +256,84 @@ export function SponsorForm({
   const [amountCents, setAmountCents] = useState<number>(() =>
     clampRange(defaultAmountCents ?? minCents)
   );
-  // The custom box is a free-text field (Kurt 2026-07-04) so typing "55"
-  // isn't hijacked by the min-clamp on the first keystroke. It tracks the
-  // raw string; the $10 minimum is only enforced on blur / submit.
-  const [customText, setCustomText] = useState<string>(() =>
-    (clampRange(defaultAmountCents ?? minCents) / 100).toString()
-  );
   const [provider, setProvider] = useState<SponsorProvider>("stripe");
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
 
-  const displayAmount = useMemo(
-    () => formatCentsUsd(amountCents),
-    [amountCents]
-  );
-
-  // Both bib + general offer Stripe / Venmo (Kurt 2026-07-03).
-  // Venmo doesn't reconcile instantly — it surfaces for the runner
-  // only after an admin approves the match.
+  // Both bib + general offer Stripe / Venmo (Kurt 2026-07-03). Venmo doesn't
+  // reconcile instantly — it surfaces once an admin approves the match.
   const offerNonStripe = true;
 
-  const onCustomChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      // Free-form dollar input — strip anything but digits + one dot, keep
-      // the raw string so the field never fights the user mid-keystroke.
-      const raw = event.target.value.replace(/[^0-9.]/g, "");
-      setCustomText(raw);
-      const dollars = Number.parseFloat(raw);
-      if (!Number.isFinite(dollars)) return; // "" / "." — wait for more input
-      // Reflect the typed value on the slider + CTA immediately, capping only
-      // the MAX. The variant minimum ($10 / $20) is applied on blur / submit.
-      const capped = Math.min(
-        AMOUNT_MAX_CENTS,
-        Math.max(0, Math.round(dollars * 100))
-      );
-      setAmountCents(capped);
-    },
-    []
-  );
-
-  const onCustomBlur = useCallback(() => {
-    // Now enforce the variant minimum (e.g. anything under $10 becomes $10)
-    // and re-sync the text box to the clamped value.
-    const clamped = clampRange(amountCents);
-    setAmountCents(clamped);
-    setCustomText((clamped / 100).toString());
-  }, [amountCents, clampRange]);
-
-  const onSliderChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const next = clampRange(Number(event.target.value));
-      setAmountCents(next);
-      setCustomText((next / 100).toString());
-    },
+  // Amount comes back from DonateCard already $5-snapped; re-run the variant
+  // clamp so the floor ($10/$20) + $2000 ceiling still hold before checkout.
+  const onAmount = useCallback(
+    (cents: number) => setAmountCents(clampRange(cents)),
     [clampRange]
   );
 
-  const onSubmit = useCallback(
-    async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault();
-      // performSponsorCheckout commits any unsaved bib name (awaited) BEFORE
-      // any checkout side-effect, for both variants (Kurt 2026-07-04, SC34.6).
-      await performSponsorCheckout(
-        { variant, provider, amountCents, offerNonStripe },
-        {
-          flush: flushPendingBibName,
-          fetchImpl: (input, init) => fetch(input, init),
-          navigate: (url) => router.push(url),
-          redirect: (url) => {
-            window.location.href = url;
-          },
-          onSubmitting: () => setSubmit({ kind: "submitting" }),
-          onIdle: () => setSubmit({ kind: "idle" }),
-          onError: (detail) => setSubmit({ kind: "error", detail }),
-        }
-      );
-    },
-    [amountCents, provider, offerNonStripe, variant, router]
-  );
+  // performSponsorCheckout commits any unsaved bib name (awaited) BEFORE any
+  // checkout side-effect, for both variants (Kurt 2026-07-04, SC34.6).
+  const runCheckout = useCallback(async () => {
+    await performSponsorCheckout(
+      { variant, provider, amountCents, offerNonStripe },
+      {
+        flush: flushPendingBibName,
+        fetchImpl: (input, init) => fetch(input, init),
+        navigate: (url) => router.push(url),
+        redirect: (url) => {
+          window.location.href = url;
+        },
+        onSubmitting: () => setSubmit({ kind: "submitting" }),
+        onIdle: () => setSubmit({ kind: "idle" }),
+        onError: (detail) => setSubmit({ kind: "error", detail }),
+      }
+    );
+  }, [amountCents, provider, offerNonStripe, variant, router]);
 
-  const disabled = forceDisabled || submit.kind === "submitting";
   const resolvedCtaLabel =
     ctaLabel ??
     (variant === "bib"
       ? t("bib.contribution.sponsorVerb")
       : t("bib.contribution.donateVerb"));
 
+  // Rendered bare — the orderform Sponsor tile already provides the card + the
+  // title/art, so DonateCard drops its own chrome + title here.
   return (
-    <form
-      onSubmit={onSubmit}
-      aria-label={
-        variant === "bib" ? "Sponsor a bib" : "Make a general donation"
+    <DonateCard
+      bare
+      amountCents={amountCents}
+      minCents={minCents}
+      maxCents={AMOUNT_MAX_CENTS}
+      onAmount={onAmount}
+      provider={provider === "cashapp" ? "stripe" : provider}
+      onProvider={setProvider}
+      offerVenmo={offerNonStripe}
+      runnerCode={runnerCode}
+      submitting={submit.kind === "submitting"}
+      disabled={forceDisabled}
+      error={
+        submit.kind === "error"
+          ? t("bib.checkout.error", { detail: submit.detail ?? "" })
+          : null
       }
-      style={{
-        // A6 (Kurt 2026-07-03): no nested card — this form renders INSIDE a
-        // Tile which already provides the card, so keep it transparent and
-        // full-width to stop the inner box bleeding past the parent border.
-        display: "flex",
-        flexDirection: "column",
-        gap: 14,
-        width: "100%",
-        boxSizing: "border-box",
+      onSubmit={runCheckout}
+      copy={{
+        supportLabel: "Your support",
+        title: "",
+        subhead: "",
+        stepHint: variant === "bib" ? "per bib · $5 steps" : "$5 steps",
+        payWith: t("bib.checkout.paymentMethod"),
+        card: t("bib.checkout.providerCard"),
+        venmo: t("bib.checkout.providerVenmo"),
+        venmoNote: t("bib.checkout.providerNote"),
+        runnerLabel: "Runner",
+        copyLabel: "Copy",
+        copiedLabel: "Copied",
+        payNow: resolvedCtaLabel,
+        payShort: resolvedCtaLabel,
+        roundUp: "round up +$5",
+        redirecting: t("bib.checkout.redirecting"),
       }}
-    >
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: "var(--bib-faint)",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-        }}
-      >
-        {variant === "bib"
-          ? t("bib.sponsor.amountLabel")
-          : t("bib.donate.amountLabel")}
-      </span>
-
-      {/* A7 (Kurt 2026-07-03): slider + an editable amount box at its right
-        * end. Dragging the slider updates the box; typing any value (up to
-        * $1000) into the box repositions the slider. */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <input
-          type="range"
-          min={minCents}
-          max={SLIDER_MAX_CENTS}
-          step={SLIDER_STEP_CENTS}
-          value={Math.min(amountCents, SLIDER_MAX_CENTS)}
-          onChange={onSliderChange}
-          disabled={disabled}
-          aria-label={variant === "bib" ? "Sponsor amount" : "Donation amount"}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            accentColor: "#6CCDB8",
-            cursor: disabled ? "not-allowed" : "pointer",
-          }}
-        />
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "8px 12px",
-            backgroundColor: "var(--bib-raise)",
-            border: "1px solid #2a2a34",
-            borderRadius: 8,
-            flex: "0 0 auto",
-            width: 118,
-          }}
-        >
-          <span style={{ color: "var(--bib-faint)", fontWeight: 700 }}>$</span>
-          <input
-            id={`sponsor-amount-custom-${variant}`}
-            type="text"
-            inputMode="decimal"
-            autoComplete="off"
-            value={customText}
-            onChange={onCustomChange}
-            onBlur={onCustomBlur}
-            disabled={disabled}
-            aria-label="Amount in US dollars"
-            style={{
-              width: "100%",
-              minWidth: 0,
-              padding: 0,
-              fontSize: 20,
-              fontWeight: 800,
-              color: "#6CCDB8",
-              backgroundColor: "transparent",
-              border: "none",
-              outline: "none",
-              fontFamily:
-                "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-            }}
-          />
-        </div>
-      </div>
-      <span style={{ fontSize: 12, color: "var(--bib-faint)" }}>
-        {t("bib.checkout.sliderHelper", {
-          min: minCents / 100,
-          max: AMOUNT_MAX_CENTS / 100,
-        })}
-      </span>
-
-      {offerNonStripe && (
-        <div>
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--bib-faint)",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            {t("bib.checkout.paymentMethod")}
-          </span>
-          {/* One-line row of provider pills with little brand icons. */}
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <ProviderPill
-              value="stripe"
-              label={t("bib.checkout.providerCard")}
-              icon={<StripeMark />}
-              selected={provider}
-              onSelect={setProvider}
-              disabled={disabled}
-            />
-            <ProviderPill
-              value="venmo"
-              label={t("bib.checkout.providerVenmo")}
-              icon={<VenmoMark />}
-              selected={provider}
-              onSelect={setProvider}
-              disabled={disabled}
-            />
-          </div>
-          {provider === "venmo" && (
-            <p style={{ fontSize: 12, color: "var(--bib-muted)", margin: "8px 0 0" }}>
-              {t("bib.checkout.providerNote")}
-            </p>
-          )}
-        </div>
-      )}
-
-      {runnerCode && <RunnerCodeBadge code={runnerCode} />}
-
-      <button
-        type="submit"
-        disabled={disabled}
-        style={{
-          padding: "14px 20px",
-          fontSize: 16,
-          fontWeight: 700,
-          color: "#0a0a0a",
-          backgroundColor: disabled ? "var(--bib-faint)" : "#6CCDB8",
-          border: "none",
-          borderRadius: 6,
-          cursor:
-            submit.kind === "submitting"
-              ? "wait"
-              : disabled
-                ? "not-allowed"
-                : "pointer",
-          letterSpacing: "0.02em",
-        }}
-      >
-        {/* "Redirecting…" is only true mid-checkout. When the form is merely
-          * force-disabled (runner pledged to pay in person) keep the normal
-          * label so the button doesn't read as an in-flight redirect. */}
-        {submit.kind === "submitting"
-          ? t("bib.checkout.redirecting")
-          : t("bib.checkout.cta", {
-              label: resolvedCtaLabel,
-              amount: displayAmount,
-            })}
-      </button>
-
-      {submit.kind === "error" && (
-        <div
-          role="alert"
-          style={{
-            fontSize: 13,
-            color: "#ff8a8a",
-          }}
-        >
-          {t("bib.checkout.error", { detail: submit.detail ?? "" })}
-        </div>
-      )}
-    </form>
-  );
-}
-
-/** One-line selectable payment-method pill (icon + label). */
-function ProviderPill({
-  value,
-  label,
-  icon,
-  selected,
-  onSelect,
-  disabled,
-}: {
-  value: SponsorProvider;
-  label: string;
-  icon: React.ReactNode;
-  selected: SponsorProvider;
-  onSelect: (p: SponsorProvider) => void;
-  disabled: boolean;
-}) {
-  const isSelected = selected === value;
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(value)}
-      disabled={disabled}
-      aria-pressed={isSelected}
-      style={{
-        flex: "1 1 0",
-        minWidth: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 6,
-        padding: "8px 10px",
-        borderRadius: 8,
-        backgroundColor: isSelected ? "var(--bib-raise)" : "transparent",
-        border: `1px solid ${isSelected ? "#6CCDB8" : "var(--bib-border-2)"}`,
-        color: disabled ? "var(--bib-faint)" : "var(--bib-ink)",
-        cursor: disabled ? "not-allowed" : "pointer",
-        fontSize: 14,
-        fontWeight: 600,
-      }}
-    >
-      {icon}
-      <span
-        style={{
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {label}
-      </span>
-    </button>
+    />
   );
 }
 
