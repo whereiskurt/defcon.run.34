@@ -164,7 +164,7 @@ export default function QrForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const previewCode = code.trim().toUpperCase();
+  const previewCode = code.trim().toLowerCase();
 
   function updateRule(id: string, patch: Partial<RuleRow>) {
     setRules((rs) => rs.map((r) => (r._id === id ? { ...r, ...patch } : r)));
@@ -252,9 +252,9 @@ export default function QrForm({
           className={`${cls.input} ${isEdit ? "opacity-60" : ""}`}
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          placeholder="BUNNY"
+          placeholder="bunny"
           disabled={isEdit}
-          autoCapitalize="characters"
+          autoCapitalize="none"
         />
         <p className="text-[12.5px] text-default-500 mt-2">
           Scans to{" "}

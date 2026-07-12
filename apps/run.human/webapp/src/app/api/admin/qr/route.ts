@@ -62,7 +62,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       case "qr_delete": {
         if (!body.code) return bad("code is required");
         await deleteQr(body.code);
-        return ok(`Deleted code ${body.code.toUpperCase()}.`);
+        return ok(`Deleted code ${body.code.toLowerCase()}.`);
       }
       case "ctf_upsert": {
         if (!body.ctf) return bad("ctf payload is required");
