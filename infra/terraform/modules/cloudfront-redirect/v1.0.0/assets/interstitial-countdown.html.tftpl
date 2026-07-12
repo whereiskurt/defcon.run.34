@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${og_title}</title>
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="defcon.run">
+<meta property="og:url" content="${page_url}">
+<meta property="og:title" content="${og_title}">
+<meta property="og:description" content="${og_description}">
+<meta property="og:image" content="${og_image}">
+<meta property="og:image:secure_url" content="${og_image}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${og_title}">
+<meta name="twitter:description" content="${og_description}">
+<meta name="twitter:image" content="${og_image}">
+
+<!-- Electronic boot splash with a visible 5s countdown, then navigate (so the tab
+     title reads the og_title, not the destination). meta-refresh is the no-JS
+     fallback, set to 7s — longer than the 5s countdown so it never preempts it. -->
+<meta http-equiv="refresh" content="7;url=${target_url}">
+<link rel="canonical" href="${target_url}">
+<style>
+  :root{ --mask:#0a2a1a; --cop:#f4d27a; --mesh:#3ecf6e; --silk:#e9f5ec; --dim:#9dc7ac; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(120% 90% at 20% 0%, #0d3826, transparent 55%),
+      radial-gradient(120% 120% at 100% 100%, #072116, transparent 60%),
+      var(--mask);
+    color:var(--silk); overflow:hidden;
+    font-family:"Courier New",ui-monospace,monospace;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .scan{position:fixed;inset:0;pointer-events:none;mix-blend-mode:multiply;
+    background:repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 3px)}
+  .wrap{position:relative;z-index:2;padding:24px;max-width:720px}
+  .kick{font-size:13px;letter-spacing:.30em;color:var(--dim);font-weight:700}
+  .title{font-family:"Arial Black",Impact,sans-serif;font-size:clamp(64px,19vw,150px);
+    letter-spacing:.08em;color:var(--cop);line-height:.9;margin-top:8px;
+    text-shadow:0 2px 0 #7a5410, 0 0 26px rgba(244,210,122,.5)}
+  .sub{margin-top:8px;font-size:clamp(13px,3.6vw,17px);letter-spacing:.16em;color:var(--silk)}
+  .term{margin-top:20px;font-size:clamp(12px,3.4vw,15px);color:var(--mesh);
+    text-shadow:0 0 8px rgba(62,207,110,.5);min-height:1.4em}
+  .term .cursor{display:inline-block;width:.6em;background:var(--mesh);animation:blink 1s steps(1) infinite}
+  @keyframes blink{50%%{opacity:0}}
+  .count{margin-top:18px;font-family:"Arial Black",sans-serif;font-size:20px;letter-spacing:.10em;color:var(--silk)}
+  .count b{color:var(--cop);font-size:26px}
+  .bar{margin:12px auto 0;width:min(380px,82vw);height:9px;border:1px solid rgba(244,210,122,.5);
+    border-radius:6px;overflow:hidden;background:rgba(10,40,26,.6)}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mesh),var(--cop));
+    box-shadow:0 0 14px rgba(244,210,122,.7);animation:fill 5s linear forwards}
+  @keyframes fill{to{width:100%}}
+  .foot{margin-top:20px;font-size:12px;letter-spacing:.14em;color:var(--dim)}
+  .foot a{color:var(--cop);text-decoration:none}
+  @media (prefers-reduced-motion:reduce){.bar>i{animation:none;width:100%}.term .cursor{animation:none}}
+</style>
+</head>
+<body>
+  <div class="scan"></div>
+  <div class="wrap">
+    <div class="kick">DC34-SAO-01 &middot; SIMPLE ADD-ON &middot; v1.69bis</div>
+    <div class="title">SAO</div>
+    <div class="sub">&#9642; MOUNTING SIMPLE ADD-ON</div>
+    <div class="term" id="term">i2c: probing 0x69<span class="cursor">&nbsp;</span></div>
+    <div class="count">INITIALIZING &middot; <b id="n">5</b></div>
+    <div class="bar"><i></i></div>
+    <div class="foot"><a href="${target_url}">skip &rsaquo;</a> &nbsp;&middot;&nbsp; sao.defcon.run</div>
+  </div>
+<script>
+  var TARGET = ${target_url_json};
+  var lines = ["i2c: probing 0x69 ... device found", "meshtastic: pairing node ...", "mounting add-on ..."];
+  var term = document.getElementById("term"), nEl = document.getElementById("n");
+  var i = 0;
+  var lt = setInterval(function(){
+    i++;
+    if (i < lines.length) { term.innerHTML = lines[i] + '<span class="cursor">&nbsp;</span>'; }
+  }, 1300);
+  var n = 5;
+  var ct = setInterval(function(){
+    n--;
+    if (n <= 0) { clearInterval(ct); clearInterval(lt); location.replace(TARGET); }
+    else { nEl.textContent = n; }
+  }, 1000);
+</script>
+</body>
+</html>

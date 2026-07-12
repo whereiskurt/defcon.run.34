@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1200px; height:630px; overflow:hidden; }
+  :root{
+    --mask:#0a2a1a; --mask2:#0d3826;
+    --silk:#e9f5ec; --silk-dim:#9dc7ac;
+    --copper:#d9a441; --copper2:#f4d27a; --trace:#b8842f;
+    --mesh:#3ecf6e;
+  }
+  body{
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    background:
+      radial-gradient(120% 90% at 20% 0%, var(--mask2), transparent 55%),
+      radial-gradient(120% 120% at 100% 100%, #072116, transparent 60%),
+      var(--mask);
+    position:relative; color:var(--silk);
+  }
+  .weave{position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background:
+      repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 2px, transparent 2px 5px),
+      repeating-linear-gradient(0deg,  rgba(0,0,0,.10)     0 2px, transparent 2px 5px);}
+  .traces{position:absolute;inset:0;pointer-events:none;opacity:.9;}
+  .gloss{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(80% 60% at 35% 18%, rgba(255,255,255,.06), transparent 60%);}
+  .vig{position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(130% 130% at 50% 42%, transparent 55%, rgba(0,0,0,.55));}
+
+  .frame{position:absolute;inset:20px;border:2px solid rgba(233,245,236,.35);border-radius:8px;}
+  .fid{position:absolute;width:16px;height:16px;border-radius:50%;
+    border:2px solid var(--copper2);background:radial-gradient(circle,var(--copper2) 40%,transparent 42%);
+    box-shadow:0 0 8px rgba(244,210,122,.5);}
+  .fid.tl{top:30px;left:30px} .fid.tr{top:30px;right:30px}
+  .fid.bl{bottom:30px;left:30px} .fid.br{bottom:30px;right:30px}
+
+  .kick{position:absolute;top:40px;left:56px;font-family:"Courier New",monospace;
+    font-size:15px;letter-spacing:.30em;color:var(--silk-dim);font-weight:700;}
+  .partno{position:absolute;top:38px;right:56px;text-align:right;font-family:"Courier New",monospace;
+    font-size:14px;letter-spacing:.14em;color:var(--silk-dim);line-height:1.5;}
+  .partno b{color:var(--copper2);font-size:16px;letter-spacing:.10em}
+
+  .stage{position:absolute;left:56px;top:92px;width:600px;}
+  .title{font-family:"Arial Black",Impact,sans-serif;font-size:60px;line-height:.86;
+    letter-spacing:.005em;color:var(--silk);
+    text-shadow:0 1px 0 rgba(0,0,0,.5), 0 0 22px rgba(233,245,236,.25);}
+  .title .flip{display:inline-block;transform:rotate(180deg);}
+  .title .sao{display:block;font-size:112px;color:var(--copper2);letter-spacing:.05em;
+    text-shadow:0 2px 0 #7a5410, 0 0 26px rgba(244,210,122,.55);}
+  .rev{display:inline-block;margin-top:14px;padding:5px 12px;border:1.5px solid var(--copper2);
+    border-radius:6px;font-family:"Courier New",monospace;font-size:16px;font-weight:700;
+    color:var(--copper2);letter-spacing:.10em;}
+  .tag{margin-top:13px;font-family:"Courier New",monospace;font-weight:700;font-size:20px;
+    letter-spacing:.14em;color:var(--silk);}
+  .tag .r{font-size:11px;vertical-align:super;color:var(--silk-dim)}
+  .note{margin-top:11px;width:560px;font-family:"Courier New",monospace;font-size:12.5px;
+    line-height:1.5;letter-spacing:.02em;color:var(--silk-dim);}
+  .note s{color:#c98a8a;text-decoration-thickness:2px}
+  .note b{color:var(--copper2)}
+
+  .spec{position:absolute;right:52px;top:132px;width:404px;
+    border:1.5px solid rgba(233,245,236,.30);border-radius:8px;overflow:hidden;
+    background:linear-gradient(180deg, rgba(6,26,18,.55), rgba(6,26,18,.30));}
+  .spec .hd{font-family:"Courier New",monospace;font-size:13px;font-weight:700;letter-spacing:.20em;
+    color:var(--mask);background:var(--copper2);padding:7px 14px;}
+  .row{display:flex;justify-content:space-between;gap:14px;padding:8.5px 14px;
+    font-family:"Courier New",monospace;font-size:14.5px;border-top:1px solid rgba(233,245,236,.12);}
+  .row .k{color:var(--silk-dim);letter-spacing:.06em}
+  .row .v{color:var(--silk);text-align:right;font-weight:700}
+  .row .v b{color:var(--copper2)}
+
+  /* SAO 6-pin header footprint, bottom-right */
+  .hdr{position:absolute;right:66px;bottom:92px;text-align:center;}
+  .hdr .pads{display:grid;grid-template-columns:repeat(3,24px);grid-template-rows:repeat(2,24px);
+    gap:9px;padding:10px;border:1.5px solid rgba(233,245,236,.3);border-radius:8px;
+    background:rgba(6,26,18,.4);}
+  .pad{border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--copper2),var(--trace) 70%);
+    box-shadow:0 0 7px rgba(244,210,122,.5), inset 0 0 4px rgba(0,0,0,.4);}
+  .pad.sq{border-radius:5px}
+  .hdr .cap{margin-top:7px;font-family:"Courier New",monospace;font-size:11px;letter-spacing:.10em;color:var(--silk-dim)}
+  .hdr .cap b{color:var(--copper2)}
+
+  /* copper-etched bunny, bottom-left */
+  .bunny{position:absolute;left:42px;bottom:60px;height:158px;mix-blend-mode:screen;
+    filter:sepia(1) saturate(3) hue-rotate(-6deg) brightness(1.15)
+      drop-shadow(0 0 10px rgba(217,164,65,.55));opacity:.92;}
+
+  /* center emblem row: Meshtastic · DC34 · Jack */
+  .emb{position:absolute;left:238px;bottom:64px;display:flex;align-items:flex-start;gap:30px;}
+  .med{width:118px;text-align:center;}
+  .med .ic{position:relative;width:96px;height:96px;margin:0 auto;border:1.5px solid var(--copper2);
+    border-radius:14px;background:#e7f0e9;display:flex;align-items:center;justify-content:center;
+    overflow:hidden;box-shadow:0 0 12px rgba(244,210,122,.28), inset 0 0 10px rgba(0,0,0,.12);}
+  .med .ic img{max-width:74px;max-height:74px;object-fit:contain;display:block;position:relative;z-index:2;}
+  .med .ic img.mesh{max-width:82px;max-height:82px}
+  .med .ic .flame{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);z-index:1;
+    filter:drop-shadow(0 0 8px rgba(255,140,30,.7));}
+  .med .lbl{margin-top:8px;font-family:"Courier New",monospace;font-size:12px;font-weight:700;
+    letter-spacing:.10em;color:var(--silk-dim);white-space:nowrap;}
+  .med .lbl b{color:var(--copper2)}
+
+  .foot{position:absolute;left:0;right:0;bottom:30px;display:flex;align-items:center;
+    justify-content:center;gap:18px;font-family:"Courier New",monospace;font-size:13.5px;
+    letter-spacing:.07em;color:var(--silk-dim);}
+  .foot .u{color:var(--copper2);font-weight:700;letter-spacing:.04em}
+  .foot .d{color:rgba(233,245,236,.3)}
+</style>
+</head>
+<body>
+  <svg class="traces" viewBox="0 0 1200 630" preserveAspectRatio="none">
+    <g fill="none" stroke="#b8842f" stroke-width="3" opacity="0.5">
+      <path d="M70 290 H180 L220 250 H430"/>
+      <path d="M1130 200 H980 L940 240 H720"/>
+      <path d="M1130 470 H1010 L970 430 H860"/>
+      <path d="M300 120 V60 M600 40 V110 L560 150 V210"/>
+      <path d="M300 560 H470 M660 560 H820"/>
+    </g>
+    <g fill="#f4d27a" opacity="0.65">
+      <circle cx="430" cy="250" r="5"/><circle cx="720" cy="240" r="5"/>
+      <circle cx="860" cy="430" r="5"/><circle cx="560" cy="150" r="5"/>
+    </g>
+  </svg>
+  <div class="weave"></div>
+  <div class="gloss"></div>
+
+  <div class="kick">DEF&nbsp;CON&nbsp;34&nbsp;&nbsp;·&nbsp;&nbsp;BADGELIFE</div>
+  <div class="partno">PART&nbsp;<b>DC34-SAO-01</b><br>REV&nbsp;1.69bis&nbsp;·&nbsp;RoHS?</div>
+
+  <div class="stage">
+    <div class="title">Shi<span class="flip">tty</span><span class="sao">ADD-ON</span></div>
+    <div class="rev">SAO&nbsp;STANDARD&nbsp;v1.69bis</div>
+    <div class="tag">PAIRS&nbsp;WITH&nbsp;YOUR&nbsp;MESHTASTIC<span class="r">®</span>&nbsp;NODE</div>
+    <div class="note">S.A.O.&nbsp;=&nbsp;<b>Sh*tty</b>&nbsp;Add-On&nbsp;(2018)&nbsp;·&nbsp;<s>Simple</s>&nbsp;·&nbsp;<s>Standardized</s>&nbsp;·&nbsp;<s>Suitable</s><br>all&nbsp;four&nbsp;are&nbsp;official&nbsp;·&nbsp;nobody&nbsp;agrees&nbsp;·&nbsp;this&nbsp;year&nbsp;everyone&nbsp;got&nbsp;it&nbsp;wrong</div>
+  </div>
+
+  <div class="spec">
+    <div class="hd">▚&nbsp;DATASHEET&nbsp;/&nbsp;DC34-SAO-01</div>
+    <div class="row"><span class="k">INTERFACE</span><span class="v">I²C · SAO 6-pin</span></div>
+    <div class="row"><span class="k">CONNECTOR</span><span class="v">2×3 shrouded</span></div>
+    <div class="row"><span class="k">PWR DRAW</span><span class="v"><b>1.1</b> millihorsepower</span></div>
+    <div class="row"><span class="k">BUS ADDR</span><span class="v">0x69</span></div>
+    <div class="row"><span class="k">LEDs</span><span class="v">0 (reflective)</span></div>
+    <div class="row"><span class="k">INCLUDED</span><span class="v"><b>1</b> per DC34 run kit</span></div>
+  </div>
+
+  <img class="bunny" src="bunny-head.png" alt="">
+
+  <div class="emb">
+    <!-- Meshtastic (actual logo) -->
+    <div class="med">
+      <div class="ic"><img class="mesh" src="meshtastic.svg" alt="Meshtastic"></div>
+      <div class="lbl">U1 · <b>MESH</b></div>
+    </div>
+    <!-- DC34 (actual logo) -->
+    <div class="med">
+      <div class="ic"><img src="dc34.png" alt="DC34"></div>
+      <div class="lbl">U2 · <b>DC34</b></div>
+    </div>
+    <!-- DC Jack (actual logo, copper) — cooking on flames -->
+    <div class="med">
+      <div class="ic">
+        <svg class="flame" width="70" height="46" viewBox="0 0 70 46">
+          <path d="M20 46 q-9 -14 3 -26 q1 11 8 8 q-3 11 6 18 z" fill="#ff7a1a"/>
+          <path d="M50 46 q9 -14 -3 -26 q-1 11 -8 8 q3 11 -6 18 z" fill="#ff7a1a"/>
+          <path d="M35 46 q-9 -16 0 -30 q9 14 0 30 z" fill="#ffd23f"/>
+        </svg>
+        <img src="dcjack.svg" alt="DC Jack">
+      </div>
+      <div class="lbl">U3 · <b>JACK</b> 🔥</div>
+    </div>
+  </div>
+
+  <div class="hdr">
+    <div class="pads">
+      <div class="pad sq"></div><div class="pad"></div><div class="pad"></div>
+      <div class="pad"></div><div class="pad"></div><div class="pad"></div>
+    </div>
+    <div class="cap">SAO&nbsp;HEADER&nbsp;·&nbsp;J1<br>PIN&nbsp;1&nbsp;=&nbsp;<b>▢</b>&nbsp;(rev.B:&nbsp;◯)</div>
+  </div>
+
+  <div class="foot">
+    <span class="u">sao.defcon.run</span>
+    <span class="d">|</span>
+    <span>FCC&nbsp;ID:&nbsp;2ADC34-RUN</span>
+    <span class="d">|</span>
+    <span>LEAD-FREE&nbsp;·&nbsp;SWEAT-RESISTANT</span>
+  </div>
+
+  <div class="frame"></div>
+  <span class="fid tl"></span><span class="fid tr"></span><span class="fid bl"></span><span class="fid br"></span>
+  <div class="vig"></div>
+</body>
+</html>
