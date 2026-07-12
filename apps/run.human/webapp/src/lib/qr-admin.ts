@@ -27,17 +27,20 @@ export class QrValidationError extends Error {
 // Short-code grammar: 1–64 chars, starts alphanumeric, then alnum/_/- .
 const CODE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
-// Reserved: CTF/_FLUSH are resolver namespaces (a code there is unreachable);
-// NEW is the admin create-route sentinel (/admin/qr/new). Compared uppercase.
-const RESERVED_CODES = new Set(["CTF", "_FLUSH", "NEW"]);
+// Reserved: ctf/_flush are resolver namespaces (a code there is unreachable);
+// new is the admin create-route sentinel (/admin/qr/new). Compared lowercase.
+const RESERVED_CODES = new Set(["ctf", "_flush", "new"]);
 
 /**
- * Normalize + validate a QR code. Trims and UPPERCASES to match the resolver
- * (parse-path.mjs does `first.toUpperCase()` before Qr.get). Throws on a bad
- * shape or a reserved name.
+ * Normalize + validate a QR code. Trims and LOWERCASES for a clean, canonical
+ * short link (q.defcon.run/rick). Case is cosmetic for lookups: ElectroDB
+ * lowercases the pk composite on both write and the resolver's read, and the
+ * resolver uppercases the scanned path before Qr.get — so any case scans the
+ * same code. Lowercase is just the canonical stored/display form. Throws on a
+ * bad shape or a reserved name.
  */
 export function normalizeCode(raw: string): string {
-  const code = (raw ?? "").trim().toUpperCase();
+  const code = (raw ?? "").trim().toLowerCase();
   if (!CODE_RE.test(code)) {
     throw new QrValidationError(
       "Code must be 1–64 characters: start alphanumeric, then letters, digits, _ or -."
