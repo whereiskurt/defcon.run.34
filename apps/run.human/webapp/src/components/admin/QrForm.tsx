@@ -37,6 +37,93 @@ function rid(): string {
     : `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
 }
 
+// ── Time-rule datetime helpers ──────────────────────────────────────────────
+// The entity stores rule from/to as absolute ISO strings; the resolver compares
+// them with Date.parse against now (half-open [from, to)). A <input
+// type="datetime-local"> speaks LOCAL wall-clock "YYYY-MM-DDTHH:mm", so we
+// convert: the admin picks their browser-local time, and we persist UTC ISO
+// (unambiguous for the Lambda, which runs in UTC). Round-trips consistently.
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** Stored ISO → the local "YYYY-MM-DDTHH:mm" a datetime-local input wants. */
+function toLocalInput(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(
+    d.getHours()
+  )}:${pad2(d.getMinutes())}`;
+}
+
+/** datetime-local value (local wall-clock) → stored UTC ISO (or "" when empty). */
+function fromLocalInput(local: string): string {
+  if (!local) return "";
+  const d = new Date(local);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString();
+}
+
+const isoOf = (d: Date) => d.toISOString();
+/** Local midnight `offset` days from today. */
+function startOfDay(offset: number): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + offset);
+  return d;
+}
+
+/** Quick presets that populate a time rule's from/to (computed in local time). */
+const TIME_PRESETS: Array<{ label: string; range: () => { from: string; to: string } }> = [
+  {
+    label: "Next 24h",
+    range: () => {
+      const now = new Date();
+      return { from: isoOf(now), to: isoOf(new Date(now.getTime() + 24 * 3600e3)) };
+    },
+  },
+  {
+    label: "Rest of today",
+    range: () => {
+      const end = new Date();
+      end.setHours(23, 59, 0, 0);
+      return { from: isoOf(new Date()), to: isoOf(end) };
+    },
+  },
+  {
+    label: "Tomorrow",
+    range: () => ({ from: isoOf(startOfDay(1)), to: isoOf(startOfDay(2)) }),
+  },
+  {
+    label: "This weekend",
+    range: () => {
+      const base = new Date();
+      base.setHours(0, 0, 0, 0);
+      const day = base.getDay(); // 0 Sun … 6 Sat
+      const sat = new Date(base);
+      // Sunday → the weekend that started yesterday; otherwise the next Saturday.
+      sat.setDate(base.getDate() + (day === 0 ? -1 : (6 - day + 7) % 7));
+      const mon = new Date(sat);
+      mon.setDate(sat.getDate() + 2);
+      return { from: isoOf(sat), to: isoOf(mon) };
+    },
+  },
+  {
+    label: "Next 2 weeks",
+    range: () => {
+      const now = new Date();
+      return { from: isoOf(now), to: isoOf(new Date(now.getTime() + 14 * 86400e3)) };
+    },
+  },
+  {
+    // DEF CON 34 window (local). Editable after applying.
+    label: "DEF CON 34",
+    range: () => ({
+      from: isoOf(new Date(2026, 7, 6, 0, 0, 0)),
+      to: isoOf(new Date(2026, 7, 10, 0, 0, 0)),
+    }),
+  },
+];
+
 /**
  * Create/edit form for a QR code (the one interactive unit in /admin/qr).
  * Manages code + destination + rules + enrich locally and POSTs to
@@ -85,6 +172,28 @@ export default function QrForm({
 
   async function onSave() {
     setError(null);
+    // Fast client-side guard (server re-validates authoritatively): a rule with
+    // no https destination would 502 the resolver, so refuse to save one.
+    for (let i = 0; i < rules.length; i++) {
+      const r = rules[i];
+      const where = `Rule ${i + 1}`;
+      if (!(r.dest ?? "").trim()) {
+        setError(`${where} needs a destination.`);
+        return;
+      }
+      if (!/^https:\/\//i.test((r.dest ?? "").trim())) {
+        setError(`${where} destination must be an https:// URL.`);
+        return;
+      }
+      if (r.kind === "time" && (!r.from || !r.to)) {
+        setError(`${where} (time) needs a From and a To — use a preset or the pickers.`);
+        return;
+      }
+      if (r.kind === "param" && !(r.match ?? "").trim()) {
+        setError(`${where} (param) needs a match value (use * for any).`);
+        return;
+      }
+    }
     setBusy(true);
     try {
       const qr = {
@@ -237,22 +346,41 @@ export default function QrForm({
                   </div>
                 ) : (
                   <>
-                    <div className="flex-1 min-w-[140px]">
-                      <label className={cls.label}>From (ISO)</label>
+                    {/* Quick presets — populate both From and To. Forces its own
+                        line in the flex-wrap row via w-full. */}
+                    <div className="w-full flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-default-400 mr-1">Quick set:</span>
+                      {TIME_PRESETS.map((p) => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          className="text-[11px] px-2 py-1 rounded-full border border-divider text-default-500 hover:bg-content2 hover:text-foreground transition-colors"
+                          onClick={() => updateRule(r._id, p.range())}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex-1 min-w-[160px]">
+                      <label className={cls.label}>From</label>
                       <input
+                        type="datetime-local"
                         className={cls.input}
-                        value={r.from ?? ""}
-                        onChange={(e) => updateRule(r._id, { from: e.target.value })}
-                        placeholder="2026-08-08T00:00:00Z"
+                        value={toLocalInput(r.from)}
+                        onChange={(e) =>
+                          updateRule(r._id, { from: fromLocalInput(e.target.value) })
+                        }
                       />
                     </div>
-                    <div className="flex-1 min-w-[140px]">
-                      <label className={cls.label}>To (ISO)</label>
+                    <div className="flex-1 min-w-[160px]">
+                      <label className={cls.label}>To</label>
                       <input
+                        type="datetime-local"
                         className={cls.input}
-                        value={r.to ?? ""}
-                        onChange={(e) => updateRule(r._id, { to: e.target.value })}
-                        placeholder="2026-08-11T00:00:00Z"
+                        value={toLocalInput(r.to)}
+                        onChange={(e) =>
+                          updateRule(r._id, { to: fromLocalInput(e.target.value) })
+                        }
                       />
                     </div>
                   </>
