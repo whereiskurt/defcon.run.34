@@ -1,9 +1,11 @@
 /**
- * Styled DC34 runner QR ("B2"): square ink modules, rounded magenta finder
- * eyes with a white 34 in each pupil, magenta DC jack in a center knockout.
- * EC level H (~30% damage budget; knockout spends ~6%, pupils spend finder
- * pixels which have NO error correction — accepted trade-off, see spec).
- * Fallback if field scanning disappoints: pupil fill QR_INK + magenta text.
+ * Styled DC34 runner QR ("B2-stealth"): square ink modules, rounded magenta
+ * finder eyes with a "34" in each pupil, magenta DC jack in a center knockout.
+ * EC level H (~30% damage budget; the knockout spends ~6%).
+ * The 34 is drawn magenta-on-ink ("stealth"): both colors binarize dark, so
+ * scanners see a solid pupil. The white-on-magenta variant was verified to
+ * break jsQR (finder patterns have NO error correction) — to restore it
+ * anyway, swap the pupil fills below to QR_MAGENTA rect + white text.
  */
 import * as qr from 'qrcode';
 
@@ -19,8 +21,8 @@ function eye(x: number, y: number): string {
   return (
     `<rect x="${x}" y="${y}" width="7" height="7" rx="2.1" fill="${QR_MAGENTA}"/>` +
     `<rect x="${x + 1}" y="${y + 1}" width="5" height="5" rx="1.5" fill="${WHITE}"/>` +
-    `<rect x="${x + 2}" y="${y + 2}" width="3" height="3" rx="1" fill="${QR_MAGENTA}"/>` +
-    `<text x="${x + 3.5}" y="${y + 4.12}" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-weight="800" font-size="1.65" fill="${WHITE}">34</text>`
+    `<rect x="${x + 2}" y="${y + 2}" width="3" height="3" rx="1" fill="${QR_INK}"/>` +
+    `<text x="${x + 3.5}" y="${y + 4.12}" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-weight="800" font-size="1.65" fill="${QR_MAGENTA}">34</text>`
   );
 }
 

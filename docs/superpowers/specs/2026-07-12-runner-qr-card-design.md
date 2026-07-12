@@ -138,10 +138,14 @@ write, never re-seed existing keys, master write = cms.defcon.run/use1.
 ## Risks & fallbacks
 
 - **White "34" pupils damage the finder patterns** (finder zones carry no error
-  correction). Accepted knowingly; modern phone cameras tolerate it (validated
-  on the mockup screen). Fallback is a one-line change: pupil ink `#111118`
-  with magenta "34" (the "stealth" B1 variant, scanner-indistinguishable from
-  solid pupils).
+  correction). ~~Accepted knowingly~~ **RESOLVED 2026-07-12 during implementation:**
+  programmatic decode testing (jsQR over browser-rasterized output) showed the
+  white-pupil variant fails a mainstream decoder — bisect proved the pupils alone
+  were the cause (center jack fine). Shipped with the spec's named fallback:
+  stealth pupils (ink `#111118` + magenta "34"), which decode cleanly at 220px
+  and 640px and inside both card compositions, while the "34" stays clearly
+  visible to humans. To restore white pupils after real-device validation, swap
+  the two pupil fills in `renderStyledQr.ts` `eye()` (comment marks the spot).
 - **Payload drift** — if `buildQrPayload` ever disagrees with
   `run-user.ts:197`, scans route wrong. Locked by the byte-identical unit test.
 - **Center logo + pupils EC budget** — knockout ≈ 5–6% of modules, well inside
