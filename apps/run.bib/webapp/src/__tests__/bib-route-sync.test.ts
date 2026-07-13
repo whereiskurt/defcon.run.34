@@ -19,7 +19,11 @@ const mockConsumeQuota = vi.fn();
 const mockVerifyAltcha = vi.fn();
 const mockMaybeSync = vi.fn();
 
-vi.mock("@/config/auth", () => ({ auth: (...a: unknown[]) => mockAuth(...a) }));
+vi.mock("@/config/auth", () => ({
+  auth: (...a: unknown[]) => mockAuth(...a),
+  // The PATCH live-lockout guard lazily imports fetchFreshClaims; null → fail-open.
+  fetchFreshClaims: vi.fn().mockResolvedValue(null),
+}));
 vi.mock("@/entities/bib", () => ({
   createBib: vi.fn(),
   getBib: (...a: unknown[]) => mockGetBib(...a),

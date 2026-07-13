@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { resolveMapboxToken, validateMapboxToken } from "@/lib/mapbox-token";
 import { logEvent } from "@/lib/log-event";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 // Auth service URL for internal API calls
 const LOCAL_AUTH_PORT = process.env.LOCAL_AUTH_PORT || "3002";
@@ -65,6 +66,12 @@ export async function PUT(request: Request) {
   const services = (session.user as { services?: string[] }).services ?? [];
   if (!services.includes("gpxstudio")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   try {
@@ -142,6 +149,12 @@ export async function DELETE() {
   const services = (session.user as { services?: string[] }).services ?? [];
   if (!services.includes("gpxstudio")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   try {

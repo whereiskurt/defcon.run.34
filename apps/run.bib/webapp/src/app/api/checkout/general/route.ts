@@ -4,6 +4,7 @@ import { auth } from "@/config/auth";
 import { getStripeClient } from "@/lib/stripe";
 import { STRIPE_PRODUCT_GENERAL } from "@/config/stripe-products";
 import { checkQuota, type QuotaTier } from "@/lib/quota-client";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 /**
  * POST /api/checkout/general — create a Stripe Checkout Session for a
@@ -111,6 +112,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "unauthorized" },
       { status: 401, headers: cors }
+    );
+  }
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json(
+      { error: "Account locked out" },
+      { status: 403, headers: cors }
     );
   }
 

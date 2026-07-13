@@ -14,6 +14,7 @@ import { consumeQuota, type QuotaTier } from "@/lib/quota-client";
 import { generateUniqueRunnerCode } from "@/lib/runner-code";
 import { verifyBibSolution } from "@/lib/altcha";
 import { maybeSyncRabbitName } from "@/lib/rabbit-name-sync";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 /**
  * /api/bib — read / idempotent create / edit the signed-in user's bib.
@@ -110,6 +111,9 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
+  }
 
   // Reject non-empty bodies defensively — client should not be sending
   // anything on POST. An empty body / no content-type is fine.
@@ -170,6 +174,9 @@ export async function PATCH(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   let body: unknown;

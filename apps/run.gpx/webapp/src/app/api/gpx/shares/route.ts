@@ -4,6 +4,7 @@ import { GpxShare } from "@/entities/gpx-share";
 import { GpxFile } from "@/entities/gpx-file";
 import { nanoid } from "nanoid";
 import { consumeQuota, restoreQuota } from "@/lib/quota-client";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 /**
  * POST /api/gpx/shares - Create a new share link for a GPX file
@@ -23,6 +24,12 @@ export async function POST(request: Request) {
   const services = (session.user as { services?: string[] }).services ?? [];
   if (!services.includes("gpxstudio")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   try {

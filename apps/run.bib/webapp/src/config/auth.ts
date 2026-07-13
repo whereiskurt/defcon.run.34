@@ -56,7 +56,7 @@ type FreshClaimsResult = {
  * Fetch fresh claims from auth.defcon.run session validate endpoint
  * This allows us to detect revoked access, lockouts, and session invalidation
  */
-async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
+export async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
   const validateUrl = `${internalAuthServerUrl}/api/session/validate/user`;
   try {
     const response = await fetch(`${validateUrl}/${userId}`, {

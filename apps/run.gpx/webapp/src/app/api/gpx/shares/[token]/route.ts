@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { GpxShare } from "@/entities/gpx-share";
 import { GpxFile } from "@/entities/gpx-file";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -111,6 +112,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   const { token } = await params;

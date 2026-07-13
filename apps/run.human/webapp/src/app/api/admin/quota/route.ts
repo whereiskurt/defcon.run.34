@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/config/auth";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 import { config } from "@/config";
 import { cleanupStaleUploads } from "@/services/quota";
 import type { QuotaTier } from "@/lib/quota-client";
@@ -79,6 +80,14 @@ export async function POST(
     if (!isAdmin(session)) {
       return NextResponse.json(
         { success: false, message: "Forbidden: Admin access required" },
+        { status: 403 }
+      );
+    }
+    // isAdmin() reads the (stale) token services; add a live lock check so a
+    // just-locked admin can't keep mutating quota within the 5-min window.
+    if (await assertNotLockedLive(session.user.authUserId)) {
+      return NextResponse.json(
+        { success: false, message: "Account locked out" },
         { status: 403 }
       );
     }

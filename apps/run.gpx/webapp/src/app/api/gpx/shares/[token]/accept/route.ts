@@ -6,6 +6,7 @@ import { CopyObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, BUCKET, getUserPrefix } from "@/lib/s3-client";
 import { v4 as uuidv4 } from "uuid";
 import { logEvent } from "@/lib/log-event";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -35,6 +36,12 @@ export async function POST(request: Request, { params }: RouteParams) {
   const services = (session.user as { services?: string[] }).services ?? [];
   if (!services.includes("gpxstudio")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   const { token } = await params;
