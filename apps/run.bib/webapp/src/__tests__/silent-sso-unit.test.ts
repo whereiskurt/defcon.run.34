@@ -4,6 +4,7 @@ import {
   decideParentAction,
   resolveRegion,
   silentCallbackPath,
+  isLoginFlowPath,
   SILENT_SSO_MESSAGE_TYPE,
   SILENT_SSO_TIMEOUT_MS,
 } from "@/lib/silent-sso";
@@ -174,5 +175,18 @@ describe("silentCallbackPath() — always region-prefixed", () => {
     expect(silentCallbackPath("/use1/x", "")).toBe("/use1/silent-callback");
     expect(silentCallbackPath("/", "preferred-region=cac1")).toBe("/cac1/silent-callback");
     expect(silentCallbackPath("/", "")).toBe("/use1/silent-callback");
+  });
+});
+
+describe("isLoginFlowPath() — gates the probe off /signin & /access-denied", () => {
+  it("is true for login-flow pages, with or without region prefix or trailing slash", () => {
+    for (const p of ["/signin", "/use1/signin", "/cac1/signin", "/signin/", "/access-denied", "/use1/access-denied"]) {
+      expect(isLoginFlowPath(p)).toBe(true);
+    }
+  });
+  it("is false for the pages that SHOULD get a silent probe", () => {
+    for (const p of ["/orderform", "/use1/orderform", "/", "/use1", "/use1/sponsor"]) {
+      expect(isLoginFlowPath(p)).toBe(false);
+    }
   });
 });

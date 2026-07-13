@@ -7,6 +7,7 @@ import {
   SILENT_SSO_TIMEOUT_MS,
   decideParentAction,
   resolveRegion,
+  isLoginFlowPath,
 } from "@/lib/silent-sso";
 
 /**
@@ -35,6 +36,12 @@ export default function SilentSSO() {
   useEffect(() => {
     // Gate: only probe when definitively logged out; never when authenticated.
     if (status !== "unauthenticated") return;
+    // Never probe on the login-flow pages (/signin, /access-denied): they run
+    // their own interactive signIn(), and a concurrent prompt=none probe races
+    // it — when the run.auth SSO is also expired the probe returns
+    // login_required → error=Configuration and dead-ends the user on /signin
+    // instead of completing an interactive login. See isLoginFlowPath.
+    if (isLoginFlowPath(window.location.pathname)) return;
     if (startedRef.current) return;
     startedRef.current = true;
 

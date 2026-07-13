@@ -63,6 +63,22 @@ export function regionFromPath(pathname: string): string {
   return REGION_RE.test(first) ? first : "";
 }
 
+/**
+ * True for the login-flow pages (`/signin`, `/access-denied`), with or without a
+ * region prefix (`/use1/signin`) and an optional trailing slash.
+ *
+ * The app-wide SilentSSO probe must NOT run on these pages: they run their OWN
+ * interactive `signIn()`, and a concurrent `prompt=none` probe races it. When the
+ * run.auth SSO session is also expired, that probe returns `login_required` →
+ * Auth.js maps it to `error=Configuration` → the user dead-ends on
+ * `/signin?error=Configuration` instead of completing an interactive login
+ * (the "returning after a long gap" bug). Gating the probe off here lets the
+ * interactive login proceed cleanly.
+ */
+export function isLoginFlowPath(pathname: string): boolean {
+  return /\/(signin|access-denied)\/?$/.test(pathname);
+}
+
 /** Fallback region when neither the path nor the cookie carries a valid one. */
 const DEFAULT_REGION = "use1";
 /** Cookie the apex region-selector sets; read defensively for region resolution. */
