@@ -113,14 +113,16 @@ Change — parameterize by group list instead of widening the global list:
   `QR_ADMIN_GROUPS` for both the sync and live checks.
 - `app/api/admin/qr/route.ts`: same switch for its inlined checks.
 
-Scope semantics:
+Scope semantics (REVISED post-ship for firewall planning — qradmin must never
+need anything under `/admin/*`):
 
-- `qradmin` unlocks **all** of `/admin/qr` (list, code edit, ctf, sheet
-  designer, `/api/admin/qr`) — QR-only operators need the code catalog, not
-  just the printer.
-- `qradmin` does **not** unlock `/admin` root or any other admin surface, and
-  the `/admin` nav link (driven by `isAdmin`) stays hidden for qradmin-only
-  users — they reach `/admin/qr` by direct URL/bookmark.
+- `/admin/qr/**` and `/api/admin/qr` admit **admin | runadmin only**.
+- The designer also exists at **`/user/qr/sheet`** — an identical twin outside
+  the `/admin/*` path — gated by `QR_ADMIN_GROUPS` (admin | runadmin |
+  qradmin). This is the qradmin surface; edge/WAF rules can block `/admin/*`
+  without affecting them.
+- `/admin/qr/sheet` bounces a qradmin-only visitor (redirect, `?url=`
+  preserved) to `/user/qr/sheet`; all other `/admin/qr` pages 404 for them.
 - Non-disclosure contract preserved: every denial → 404, never 401/403.
 - The group itself is just data in run.auth's AuthProfile groups; assigning it
   happens through the existing run.auth admin console. No run.auth code change.
