@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties } from "react";
 import type { IdentityRow, IdentitySort, SummaryTiles, ProviderKey } from "@/lib/identity-report";
 import { LockAction, UnlinkAction, DeleteIdentityAction, JailAction } from "./AdminActions";
+import { BASE } from "./base";
 import { SiGithub, SiDiscord, SiStrava } from "react-icons/si";
 import { FaLinkedin } from "react-icons/fa";
 import { Mail, Users, UserPlus, Layers, Lock, ShieldAlert } from "lucide-react";
@@ -9,11 +10,8 @@ import { Mail, Users, UserPlus, Layers, Lock, ShieldAlert } from "lucide-react";
 // Loose icon type so react-icons (IconType) and lucide (LucideIcon) both fit.
 type Ico = ComponentType<{ size?: number; style?: CSSProperties }>;
 
-// In production the app is mounted at basePath /{region}; client fetches MUST
-// prefix it or they 404 (the routes live at /use1/api/..., not /api/...).
-const BASE = process.env.NODE_ENV === "production"
-  ? `/${process.env.NEXT_PUBLIC_REGION_SHORT || "use1"}`
-  : "";
+// BASE (region base-path for client fetches) now lives in ./base so this file
+// and AdminActions share one source of truth — see base.ts.
 
 // This panel is admin-only (non-disclosure 404 for everyone else) and seen by
 // ~2 trusted admins, so we ship the full email to the client for direct search
