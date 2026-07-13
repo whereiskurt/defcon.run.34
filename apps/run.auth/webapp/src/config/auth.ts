@@ -8,7 +8,8 @@ import { createTransport } from "nodemailer";
 
 import NextAuth, { type DefaultSession } from "next-auth";
 import { headers } from "next/headers";
-import { upsertAuthProfile, getAuthProfile } from "@/entities/auth-profile";
+import { upsertAuthProfile, getAuthProfile, getAuthProfileByEmail } from "@/entities/auth-profile";
+import { isLockedOut } from "@/lib/lock-enforce";
 import { logEvent } from "@/lib/log-event";
 import { config } from "@/config";
 
@@ -236,27 +237,44 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     verifyRequest: config.urls.verifyPage,
   },
   callbacks: {
-    signIn({ user, profile, account }) {
+    async signIn({ user, profile, account }) {
       const emails = config.auth.allowedEmails;
       const email = user?.email ?? profile?.email!;
       //Strava is not a login provider, but rather linking.
       //NOTE: Strava has no email by design.
-      if (
-        account?.provider === "strava" ||
-        !emails ||
-        emails[0] === "" ||
-        emails[0] === "all" ||
-        emails?.includes(email)
-      ) {
+      if (account?.provider === "strava") {
         return true;
       }
 
-      console.log(
-        `SECURITY: Blocked email address ${email!} from login ${JSON.stringify(
-          emails
-        )}.`
-      );
-      return false;
+      const emailAllowed =
+        !emails ||
+        emails[0] === "" ||
+        emails[0] === "all" ||
+        emails?.includes(email);
+      if (!emailAllowed) {
+        console.log(
+          `SECURITY: Blocked email address ${email!} from login ${JSON.stringify(
+            emails
+          )}.`
+        );
+        return false;
+      }
+
+      // Block re-login for admin-locked identities. Resolve by adapter user id,
+      // fall back to email (same-email collapses to one identity). Fail-OPEN on a
+      // lookup error so a DynamoDB hiccup can't lock everyone out.
+      try {
+        const uid = typeof user?.id === "string" ? user.id : undefined;
+        let lockProfile = uid ? await getAuthProfile(uid) : null;
+        if (!lockProfile && email) lockProfile = await getAuthProfileByEmail(email);
+        if (isLockedOut(lockProfile)) {
+          console.log(`SECURITY: Blocked locked-out identity ${uid ?? email} from login.`);
+          return false;
+        }
+      } catch (err) {
+        console.error("signIn lockedOut check failed (fail-open):", err);
+      }
+      return true;
     },
 
     async jwt({ token, account, profile, trigger, session, user }) {
@@ -411,6 +429,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (userId) {
         try {
           const profile = await getAuthProfile(userId);
+          // Self-enforce admin lock-out on run.auth's OWN session: piggybacks this
+          // existing per-refresh fetch (no extra read). Set from CURRENT lock state
+          // (not one-way) so an unlock clears it and the session recovers without a
+          // re-login. Flag → session callback throws → warm session invalidated.
+          token.invalidated = isLockedOut(profile);
           // Use profile services if available, otherwise keep existing token services or default to empty
           token.services = profile?.services ?? token.services ?? [];
           // Store the rabbit displayName in the token
@@ -432,6 +455,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     session({ session, token }) {
+      // Locked-out identity (flagged in jwt) → invalidate; useSession goes
+      // unauthenticated. Same mechanism run.human uses for downstream lockout.
+      if (token.invalidated) {
+        throw new Error("Session invalidated");
+      }
       session.user.id = (token.sub ?? token.userId) as string;
       session.user.email = token.email as string;
       session.user.displayName = token.displayName as string | undefined;
