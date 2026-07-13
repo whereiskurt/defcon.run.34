@@ -23,6 +23,13 @@ describe("resolveRunHuman", () => {
     const f = vi.fn(async () => { throw new Error("boom"); }) as unknown as typeof fetch;
     expect(await resolveRunHuman("subX", f)).toEqual({ found: false, runUserId: null, displayName: null });
   });
+  it("targets run.human's region-prefixed internal route (not a naked /api/internal that 404s)", async () => {
+    const seen: string[] = [];
+    const f = vi.fn(async (url: string) => { seen.push(url); return { ok: true, status: 200, json: async () => ({ found: true }) }; }) as unknown as typeof fetch;
+    await resolveRunHuman("sub1", f);
+    // Must hit /{region}/api/internal/... — regression guard for the missing-basePath 404.
+    expect(seen[0]).toMatch(/\/use1\/api\/internal\/user\/sub1\?summary=1$/);
+  });
 });
 
 describe("resolveRunHumanMany", () => {
