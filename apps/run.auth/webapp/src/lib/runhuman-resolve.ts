@@ -13,7 +13,14 @@
 export type RunHumanRef = { found: boolean; runUserId: string | null; displayName: string | null };
 
 const NONE: RunHumanRef = { found: false, runUserId: null, displayName: null };
-const BASE = process.env.RUN_HUMAN_INTERNAL_URL || "https://run.defcon.run";
+// run.human is mounted at Next basePath `/{region}` in prod, so its internal
+// route lives at `/{region}/api/internal/...`. A naked `https://run.defcon.run/
+// api/internal/...` 404s → the auth-admin run.human tie-back returned not-found
+// for EVERYONE (rabbit pseudonyms instead of real names). Default the base to the
+// region-prefixed public URL; an explicit RUN_HUMAN_INTERNAL_URL override must
+// itself include the correct prefix.
+const REGION = process.env.REGION_SHORT || "use1";
+const BASE = process.env.RUN_HUMAN_INTERNAL_URL || `https://run.defcon.run/${REGION}`;
 
 export async function resolveRunHuman(sub: string, fetchImpl: typeof fetch = fetch): Promise<RunHumanRef> {
   try {
