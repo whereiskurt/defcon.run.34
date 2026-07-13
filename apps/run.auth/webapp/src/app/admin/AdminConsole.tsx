@@ -382,6 +382,10 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                 const rh = refs[r.userId];
                 const days = r.createdAt != null ? Math.floor((Date.now() - r.createdAt) / 864e5) : null;
                 const recency = days == null ? "text-default-400" : days < 2 ? "text-primary" : days < 14 ? "text-warning" : "text-default-400";
+                // Prefer the user's run.human display name (e.g. "KPH") over the
+                // stable run.auth pseudonym — but only if it's a CUSTOM name, not
+                // another default rabbit_XXXX (run.human also defaults to rabbit_).
+                const humanName = rh?.found && rh.displayName && !/^rabbit_/i.test(rh.displayName) ? rh.displayName : null;
                 return (
                   <tr key={r.userId} className="cursor-pointer border-t border-divider hover:bg-content2" onClick={() => openDrawer(r.userId)}>
                     <td className="px-3 py-2.5">
@@ -390,7 +394,10 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                           style={{ background: avatarColor(r.userId) }}>
                           {r.displayName.replace(/^rabbit_/, "").slice(0, 2)}
                         </span>
-                        <span className="font-semibold">{r.displayName}</span>
+                        <span className="flex flex-col leading-tight">
+                          <span className="font-semibold">{humanName ?? r.displayName}</span>
+                          {humanName && <span className="font-mono text-[10px] text-default-400">{r.displayName}</span>}
+                        </span>
                         {r.lockedOut && <span className="rounded bg-warning/20 px-1.5 py-0.5 text-[9.5px] font-extrabold tracking-wide text-warning">LOCKED</span>}
                         {r.jailed && <span className="rounded bg-danger/20 px-1.5 py-0.5 text-[9.5px] font-extrabold tracking-wide text-danger">JAILED L{r.jailLevel ?? 1}</span>}
                       </span>
