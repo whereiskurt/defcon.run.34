@@ -31,16 +31,20 @@ locals {
     name         = "run-auth"
     regions      = ["us-east-1", "ca-central-1", "ap-southeast-1"]
     cluster_name = "app"
-    task_cpu     = 256
-    task_memory  = 512
+    # 0.5 vCPU / 1 GB (Fargate requires >=1 GB at 0.5 vCPU). Bumped from the
+    # 256/512 "minimum sizing" cost-cut: run.auth is the single auth chokepoint,
+    # was peaking ~98% CPU on the 0.25-vCPU task, and the bib /signin fix now
+    # routes more returning users through its login page. Headroom for con.
+    task_cpu     = 512
+    task_memory  = 1024
 
     containers = [
       {
         name               = "run-auth-nginx"
         image              = "run-auth-nginx:${local.versions.nginx}"
-        cpu                = 64
-        memory             = 128
-        memory_reservation = 64
+        cpu                = 128
+        memory             = 256
+        memory_reservation = 128
         essential          = true
         command            = ["nginx", "-g", "daemon off;"]
 
@@ -75,9 +79,9 @@ locals {
       {
         name               = "run-auth-app"
         image              = "run-auth-app:${local.versions.app}"
-        cpu                = 192
-        memory             = 384
-        memory_reservation = 192
+        cpu                = 384
+        memory             = 768
+        memory_reservation = 384
         essential          = true
         command            = ["node", "server.js"]
 
