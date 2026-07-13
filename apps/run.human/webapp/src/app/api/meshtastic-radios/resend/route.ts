@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@auth';
 import { getRunUser, updateMeshtasticRadios, sanitizeRadio, type MeshtasticRadio } from '@/entities/run-user';
+import { assertNotLockedLive } from '@/lib/live-lockout';
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +9,9 @@ export async function POST(req: NextRequest) {
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (await assertNotLockedLive(session.user.authUserId)) {
+      return NextResponse.json({ error: 'Account locked out' }, { status: 403 });
     }
 
     const user = await getRunUser(session.user.id);

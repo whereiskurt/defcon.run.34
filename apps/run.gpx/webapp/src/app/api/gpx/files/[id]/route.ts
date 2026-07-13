@@ -11,6 +11,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { s3Client, s3ClientForPresign, getUserPrefix, BUCKET } from "@/lib/s3-client";
 import { consumeQuota, restoreQuota } from "@/lib/quota-client";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 const MAX_VERSIONS = 50;
 
@@ -105,6 +106,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
   const { id } = await params;
   let quotaConsumed = false;
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
+  }
 
   try {
     const updates = await request.json();
@@ -274,6 +281,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
   const { id } = await params;
 
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
+  }
+
   try {
     // Try user file first
     let file = await GpxFile.get({
@@ -358,6 +371,12 @@ export async function POST(request: Request, { params }: RouteParams) {
   }
 
   const { id } = await params;
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
+  }
 
   try {
     const { versionedKey } = await request.json();

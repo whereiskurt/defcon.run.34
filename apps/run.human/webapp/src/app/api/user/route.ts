@@ -1,4 +1,5 @@
 import { auth } from "@auth";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
 import { getRunnerCode } from "@/entities/bib";
 import { pinIconById, canUsePinIcon, isValidPinColor } from "@/lib/pin-icons";
@@ -115,6 +116,9 @@ export async function PATCH(req: NextRequest) {
         { message: "401 Unauthorized" },
         { status: 401 }
       );
+    }
+    if (await assertNotLockedLive(session.user.authUserId)) {
+      return NextResponse.json({ message: "Account locked out" }, { status: 403 });
     }
 
     const body = await req.json();

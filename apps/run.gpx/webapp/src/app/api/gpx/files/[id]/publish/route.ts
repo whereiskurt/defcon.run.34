@@ -6,6 +6,7 @@ import { GpxFile } from "@/entities/gpx-file";
 import { GpxFolder } from "@/entities/gpx-folder";
 import { s3Client, BUCKET, getUserPrefix } from "@/lib/s3-client";
 import { logEvent } from "@/lib/log-event";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,6 +39,12 @@ export async function POST(request: Request, { params }: RouteParams) {
       { error: "Only admins can publish public maps" },
       { status: 403 }
     );
+  }
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   const { id } = await params;

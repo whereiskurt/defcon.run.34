@@ -1,5 +1,6 @@
 import { auth } from "@/config/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 const isDev = process.env.NODE_ENV !== "production";
 const RUN_HUMAN_INTERNAL_URL = process.env.RUN_HUMAN_INTERNAL_URL || (isDev ? "http://localhost:3001" : "");
@@ -17,6 +18,11 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Live lock-out check at the write boundary: a locked identity is blocked
+    // from mutating immediately, not after the ~5-min session re-validation.
+    if (await assertNotLockedLive(session.user.id)) {
+      return NextResponse.json({ error: "Account locked out" }, { status: 403 });
     }
 
     if (!RUN_HUMAN_INTERNAL_URL || !AUTH_INTERNAL_SECRET) {

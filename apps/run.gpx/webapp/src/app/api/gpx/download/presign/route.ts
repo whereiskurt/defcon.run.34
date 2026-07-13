@@ -4,6 +4,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3ClientForPresign } from "@/lib/s3-client";
 import { GpxFile } from "@/entities/gpx-file";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 /**
  * Build versioned S3 key from base key
@@ -35,6 +36,12 @@ export async function POST(request: Request) {
   const services = (session.user as { services?: string[] }).services ?? [];
   if (!services.includes("gpxstudio")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   try {

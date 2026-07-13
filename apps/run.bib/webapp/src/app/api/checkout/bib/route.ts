@@ -5,6 +5,7 @@ import { getBib } from "@/entities/bib";
 import { getStripeClient } from "@/lib/stripe";
 import { STRIPE_PRODUCT_BIB } from "@/config/stripe-products";
 import { checkQuota, type QuotaTier } from "@/lib/quota-client";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 /**
  * POST /api/checkout/bib — create a Stripe Checkout Session for a bib
@@ -60,6 +61,9 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   let body: unknown;

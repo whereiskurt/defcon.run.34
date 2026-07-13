@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { auth } from "@/config/auth";
 import { requireBibAdmin } from "@/lib/admin-gate";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 import { applyPayment, getBib } from "@/entities/bib";
 
 /**
@@ -31,13 +32,17 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: Request) {
-  const gate = requireBibAdmin(await auth());
+  const session = await auth();
+  const gate = requireBibAdmin(session);
   if (!gate.ok) {
     const status = gate.reason === "no_session" ? 401 : 403;
     return new Response(
       gate.reason === "no_session" ? "unauthorized" : "forbidden",
       { status }
     );
+  }
+  if (await assertNotLockedLive(session?.user?.id)) {
+    return Response.json({ error: "Account locked out" }, { status: 403 });
   }
 
   let raw: unknown;

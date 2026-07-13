@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { GpxFolder, FOLDER_LIMITS } from "@/entities/gpx-folder";
 import { GpxFile } from "@/entities/gpx-file";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -84,6 +85,12 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 
   const { id } = await params;
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
+  }
 
   try {
     const { folderName } = await request.json();
@@ -195,6 +202,12 @@ export async function DELETE(request: Request, { params }: RouteParams) {
   }
 
   const { id } = await params;
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
+  }
 
   try {
     // Try to find the folder (user or global)

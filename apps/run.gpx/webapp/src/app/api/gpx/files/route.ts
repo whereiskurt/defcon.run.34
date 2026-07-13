@@ -12,6 +12,7 @@ import {
   type QuotaTier,
 } from "@/lib/quota-client";
 import { logEvent } from "@/lib/log-event";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 /**
  * GET /api/gpx/files - List user's GPX files
@@ -83,6 +84,12 @@ export async function POST(request: Request) {
   const services = (session.user as { services?: string[] }).services ?? [];
   if (!services.includes("gpxstudio")) {
     return NextResponse.json({ error: "Access denied" }, { status: 403 });
+  }
+
+  // Live lock-out check at the write boundary: a locked identity is blocked
+  // from mutating immediately, not after the ~5-min session re-validation.
+  if (await assertNotLockedLive(session.user.id)) {
+    return NextResponse.json({ error: "Account locked out" }, { status: 403 });
   }
 
   try {

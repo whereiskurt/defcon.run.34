@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@auth';
+import { assertNotLockedLive } from '@/lib/live-lockout';
 import { getRunUser, updateMeshtasticRadios, sanitizeRadio, type MeshtasticRadio } from '@/entities/run-user';
 import { checkQuota, consumeQuota, restoreQuota } from '@/lib/quota-client';
 import { getUserTier } from '@/lib/quota-middleware';
@@ -87,6 +88,9 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (await assertNotLockedLive(session.user.authUserId)) {
+      return NextResponse.json({ error: 'Account locked out' }, { status: 403 });
+    }
 
     const user = await getRunUser(session.user.id);
 
@@ -172,6 +176,9 @@ export async function PATCH(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    if (await assertNotLockedLive(session.user.authUserId)) {
+      return NextResponse.json({ error: 'Account locked out' }, { status: 403 });
+    }
 
     const user = await getRunUser(session.user.id);
 
@@ -255,6 +262,9 @@ export async function DELETE(req: NextRequest) {
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (await assertNotLockedLive(session.user.authUserId)) {
+      return NextResponse.json({ error: 'Account locked out' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
