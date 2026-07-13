@@ -50,10 +50,11 @@ export type SessionLike =
 export const ADMIN_GROUPS = ["admin", "runadmin"] as const;
 
 /**
- * Groups that grant access to the /admin/qr surface ONLY. Superset of
- * ADMIN_GROUPS: `qradmin` members are QR operators — they get the whole
- * /admin/qr area (codes, ctf, sheet designer, /api/admin/qr) but NOT /admin
- * root or any other admin surface.
+ * Groups allowed to use the QR sheet designer. Superset of ADMIN_GROUPS:
+ * `qradmin` members are sheet-printing operators. Deliberately, qradmin does
+ * NOT open ANYTHING under /admin/* or /api/admin/* (edge/WAF rules may wall
+ * that whole area off) — this list gates the /user/qr/sheet twin, and
+ * /admin/qr/sheet uses it only to BOUNCE a qradmin-only visitor over there.
  */
 export const QR_ADMIN_GROUPS = [...ADMIN_GROUPS, "qradmin"] as const;
 

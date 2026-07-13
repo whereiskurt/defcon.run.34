@@ -1,12 +1,21 @@
 import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
 
 import QrSheetDesigner from "@/components/admin/QrSheetDesigner";
 import { cls } from "@/components/admin/qr-ui";
-import { gateAdminPage } from "../gate";
+import { auth } from "@/config/auth";
+import {
+  ADMIN_GROUPS,
+  QR_ADMIN_GROUPS,
+  requireGroups,
+  revalidateGroups,
+} from "@/lib/admin-gate";
 
 /**
- * /admin/qr/sheet — printable QR sheet designer (dc33 QRSheet port). Gated
- * like every /admin/qr surface (admin | runadmin | qradmin → else 404).
+ * /admin/qr/sheet — printable QR sheet designer (dc33 QRSheet port).
+ * admin | runadmin render here; a qradmin-ONLY visitor is bounced to the
+ * identical /user/qr/sheet twin (outside /admin/*, which edge/WAF rules may
+ * wall off) with the ?url= prefill preserved. Everyone else → 404.
  * ?url=… prefills the designer; only absolute http(s) URLs are accepted.
  */
 export const runtime = "nodejs";
@@ -17,10 +26,24 @@ export default async function QrSheetPage({
 }: {
   searchParams: Promise<{ url?: string | string[] }>;
 }) {
-  await gateAdminPage();
   const { url } = await searchParams;
   const raw = typeof url === "string" ? url : "";
   const initialUrl = /^https?:\/\/\S+$/.test(raw) ? raw : "";
+  const twin = `/user/qr/sheet${initialUrl ? `?url=${encodeURIComponent(initialUrl)}` : ""}`;
+
+  const session = await auth();
+  if (!requireGroups(session, ADMIN_GROUPS).ok) {
+    // qradmin without admin/runadmin: same tool, non-/admin path.
+    if (requireGroups(session, QR_ADMIN_GROUPS).ok) redirect(twin);
+    notFound();
+  }
+  const authUserId = session?.user?.authUserId;
+  if (!authUserId) notFound();
+  if (!(await revalidateGroups(authUserId, ADMIN_GROUPS))) {
+    // live claims lost admin/runadmin — still a live qradmin? bounce, else 404
+    if (await revalidateGroups(authUserId, QR_ADMIN_GROUPS)) redirect(twin);
+    notFound();
+  }
 
   return (
     <div className={cls.root}>
