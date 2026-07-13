@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { adminApi } from "./base";
 
 const dangerBtn = "text-[13px] font-semibold rounded-md px-3 py-1.5 border transition disabled:opacity-50";
 // Full-width, two-line action button: bold title + muted description line.
@@ -15,7 +16,7 @@ export function LockAction({ userId, locked, onComplete }: { userId: string; loc
       ? "Unlock this identity? They regain access immediately."
       : "Lock out this identity? All their SSO sessions are revoked immediately and the account is blocked.")) return;
     setBusy(true); setFailed(false);
-    const res = await fetch(`/api/admin/identities/${encodeURIComponent(userId)}/lock`, {
+    const res = await fetch(adminApi(`/api/admin/identities/${encodeURIComponent(userId)}/lock`), {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ locked: !locked }),
     });
@@ -48,7 +49,7 @@ export function JailAction({ userId, jailed, jailLevel, onComplete }: { userId: 
       if (!window.confirm(`Jail this identity at level ${level}? They'll face escalated Altcha friction on their next interactive login.`)) return;
     }
     setBusy(true); setFailed(false);
-    const res = await fetch(`/api/admin/identities/${encodeURIComponent(userId)}/jail`, {
+    const res = await fetch(adminApi(`/api/admin/identities/${encodeURIComponent(userId)}/jail`), {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(jailed ? { jailed: false } : { jailed: true, level }),
     });
@@ -93,7 +94,7 @@ export function UnlinkAction({ userId, provider, providerAccountId, onComplete }
   async function go() {
     if (!window.confirm(`Unlink the ${provider} account from this identity?`)) return;
     setBusy(true); setFailed(false);
-    const res = await fetch(`/api/admin/identities/${encodeURIComponent(userId)}/unlink`, {
+    const res = await fetch(adminApi(`/api/admin/identities/${encodeURIComponent(userId)}/unlink`), {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider, providerAccountId }),
     });
@@ -116,7 +117,7 @@ export function DeleteIdentityAction({ userId, displayName, onComplete }: { user
   const [failed, setFailed] = useState(false);
   async function go() {
     setBusy(true); setFailed(false);
-    const res = await fetch(`/api/admin/identities/${encodeURIComponent(userId)}`, { method: "DELETE" });
+    const res = await fetch(adminApi(`/api/admin/identities/${encodeURIComponent(userId)}`), { method: "DELETE" });
     setBusy(false);
     if (res.ok) { setOpen(false); router.refresh(); onComplete?.(); } else setFailed(true);
   }
