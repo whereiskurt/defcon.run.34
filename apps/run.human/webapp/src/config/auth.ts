@@ -58,7 +58,7 @@ type FreshClaimsResult = {
 /**
  * Fetch fresh claims from auth.defcon.run session validate endpoint
  */
-async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
+export async function fetchFreshClaims(userId: string): Promise<FreshClaimsResult> {
   const validateUrl = `${config.urls.privateAuthServer}/api/session/validate/user`;
   try {
     // Call the auth server's internal API to get fresh claims

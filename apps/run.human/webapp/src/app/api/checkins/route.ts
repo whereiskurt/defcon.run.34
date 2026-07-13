@@ -16,6 +16,7 @@ import {
 import { checkQuota } from "@/lib/quota-client";
 import { resolveCheckInPin } from "@/lib/pin-icons";
 import { logEvent } from "@/lib/log-event";
+import { assertNotLockedLive } from "@/lib/live-lockout";
 
 /**
  * Resolve a check-in by checkinId for the given user.
@@ -38,6 +39,11 @@ export async function POST(req: NextRequest) {
     const session = await auth();
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Live lock-out check at the write boundary: a locked identity is blocked
+    // from mutating immediately, not after the ~5-min session re-validation.
+    if (await assertNotLockedLive(session.user.authUserId)) {
+      return NextResponse.json({ error: "Account locked out" }, { status: 403 });
     }
 
     const body = await req.json();
