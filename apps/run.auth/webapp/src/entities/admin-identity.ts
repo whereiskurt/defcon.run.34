@@ -86,6 +86,27 @@ export async function getOidcSessionsForUser(accountId: string): Promise<OidcSes
     .map((r: { id: string; expiresAt?: number }) => ({ id: r.id, expiresAt: r.expiresAt ?? null }));
 }
 
+/**
+ * Delete all live OIDC Session rows for this accountId (sub). Returns the count
+ * deleted. Shared by hard-delete and admin lock-out so both actually evict the
+ * IdP SSO sessions (bumping sessionVersion alone does NOT — nothing re-checks it
+ * on a warm session). Best-effort per row: a single delete failure is logged and
+ * skipped so one bad row can't strand the rest.
+ */
+export async function revokeOidcSessions(accountId: string): Promise<number> {
+  const sessions = await getOidcSessionsForUser(accountId);
+  let deleted = 0;
+  for (const s of sessions) {
+    try {
+      await OIDCModel.delete({ modelName: "Session", id: s.id }).go();
+      deleted++;
+    } catch (err) {
+      console.error("[admin] revokeOidcSessions row FAILED", { accountId, id: s.id, err });
+    }
+  }
+  return deleted;
+}
+
 /** Delete a single ACCOUNT# row (unlink one provider). */
 export async function deleteAccountRow(userId: string, provider: string, providerAccountId: string): Promise<void> {
   await dynamodbClient.delete({
@@ -116,11 +137,7 @@ export async function deleteIdentity(userId: string): Promise<{ deletedAccounts:
       Key: { pk: `USER#${userId}`, sk: `USER#${userId}` },
     });
     // 3. OIDC sessions for this accountId
-    const sessions = await getOidcSessionsForUser(userId);
-    for (const s of sessions) {
-      await OIDCModel.delete({ modelName: "Session", id: s.id }).go();
-      deletedOidc++;
-    }
+    deletedOidc = await revokeOidcSessions(userId);
     // 4. AuthProfile
     await AuthProfile.delete({ userId }).go();
     console.log("[admin] deleteIdentity done", { userId, deletedAccounts, deletedOidc });

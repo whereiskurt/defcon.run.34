@@ -532,7 +532,7 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                           <button type="button" onClick={() => { runIpLookup(r.ip); setDrawer(null); }} className="cursor-pointer font-mono text-[11.5px] text-primary hover:underline" title="who else used this IP?">
                             {r.ip}
                           </button>
-                          <span className="text-default-500">{r.logins} logins · {r.agents} agents</span>
+                          <span className="text-default-500">{r.logins} login{r.logins === 1 ? "" : "s"} · {r.agents} browser{r.agents === 1 ? "" : "s"}</span>
                         </div>
                       ))}
                     </>
@@ -540,6 +540,23 @@ export default function AdminConsole({ initialRows, tiles, adminEmail }: {
                 </div>
 
                 <div className="flex flex-col gap-3 border-t border-divider pt-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10.5px] font-semibold uppercase tracking-wide text-default-400">Enforcement</span>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]">
+                      {drawer.identity.lockedOut ? (
+                        <span className="inline-flex items-center gap-1 text-danger">
+                          <span className="h-1.5 w-1.5 rounded-full bg-danger" />Locked out{drawer.identity.lockoutReason ? ` · ${drawer.identity.lockoutReason}` : ""}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-success">
+                          <span className="h-1.5 w-1.5 rounded-full bg-success" />Active
+                        </span>
+                      )}
+                      {drawer.identity.jailed && (
+                        <span className="inline-flex items-center gap-1 text-warning">⛓ Jailed · L{drawer.identity.jailLevel ?? 1}</span>
+                      )}
+                    </div>
+                  </div>
                   <LockAction userId={drawer.identity.userId} locked={drawer.identity.lockedOut}
                     onComplete={() => openDrawer(drawer.identity.userId)} />
                   <JailAction userId={drawer.identity.userId} jailed={drawer.identity.jailed} jailLevel={drawer.identity.jailLevel}
