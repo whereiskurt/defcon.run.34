@@ -306,7 +306,7 @@ Plans:
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
 | 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 3/3 | Built — 44/44 tests green | 2026-07-14 |
 | 45. Visible QR Claim Page | v2.1 | 2/2 | Built — 61/61 CTF tests green | 2026-07-14 |
-| 46. Covert CSS Channel + Park-and-Claim | v2.1 | 0/TBD | Planned | - |
+| 46. Covert CSS Channel + Park-and-Claim | v2.1 | 2/4 | In Progress|  |
 | 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 0/TBD | Planned | - |
 | 48. CloudFront + Integration Exposure | v2.1 | 0/TBD | Planned | - |
 
@@ -412,8 +412,9 @@ Plans:
   2. The `getComputedStyle` read fires the celebration on a genuine win only; an unauth win parks a nonce that credits on the next signed-in visit.
 
 **Plans:** 4 plans
-- [ ] 46-01-PLAN.md — Covert primitives: reversible+total flag codec + presence-only ≈equal-size CSS-ack builder (wave 1)
-- [ ] 46-02-PLAN.md — Covert `text/css` route at `/use1/assets/theme` (always-200, decoy/win, judge+park, no differential log) (wave 2)
+
+- [x] 46-01-PLAN.md — Covert primitives: reversible+total flag codec + presence-only ≈equal-size CSS-ack builder (wave 1)
+- [x] 46-02-PLAN.md — Covert `text/css` route at `/use1/assets/theme` (always-200, decoy/win, judge+park, no differential log) (wave 2)
 - [ ] 46-03-PLAN.md — DC33 CtfCelebration overlay (self-terminating, not reduced-motion-gated) (wave 1)
 - [ ] 46-04-PLAN.md — Egg client (encode → inject link → getComputedStyle read-back) + `!!!` trigger wired on run.defcon.run (wave 3)
 

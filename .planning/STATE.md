@@ -5,15 +5,15 @@ milestone_name: CTF Judge & Scoring
 current_phase_name: defining requirements
 status: planning
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-14T04:34:46.306Z"
+last_updated: "2026-07-14T05:52:08.281Z"
 last_activity: 2026-07-14
 last_activity_desc: Milestone v2.1 started
 progress:
   total_phases: 5
-  completed_phases: 0
-  total_plans: 3
-  completed_plans: 2
-  percent: 0
+  completed_phases: 2
+  total_plans: 9
+  completed_plans: 7
+  percent: 40
 ---
 
 # Project State
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-07-14 — Milestone v2.1 started
+Phase: 46 — Covert CSS Channel + Park-and-Claim
+Plan: 46-02 complete (covert text/css route handler) — 2/4 plans done
+Status: In Progress
+Last activity: 2026-07-14 — Completed 46-02-PLAN.md (covert /use1/assets/theme route, 11 route tests green)
 
 ## Deferred Items
 
@@ -102,6 +102,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 39-04: TransactionHistory async loadCopy+t; AdminActions useCopy() (module consts removed) — words byte-identical
 - [Phase ?]: 44-01: Ctf entity extended with scoring fields; legacy answer kept optional, plaintext->hash migration deferred to Phase 47
 - [Phase ?]: 44-01: CtfSolve.sk ctfsolve_1#user is the attribute_not_exists idempotency key; CtfPending/CtfAttempt run.human-only, keys pinned by test
+- [Phase ?]: Covert /use1/assets/theme route: always 200 text/css no-store across win/wrong/unauth; AWARD_PROP presence-only marker win-only; handler does zero logging
 
 ### Pending Todos
 
@@ -114,7 +115,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-14T04:34:40.823Z
+Last session: 2026-07-14T05:51:39.041Z
 Stopped at: Phase 39 context gathered
 Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
 
@@ -150,3 +151,4 @@ Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-C
 | Phase 39 P39-04 | ~10m | 2 tasks | 2 files |
 | Phase 39 P05 | 3min | 2 tasks | 4 files |
 | Phase 44 P01 | 8m | 3 tasks | 5 files |
+| Phase 46 P02 | 9 | 2 tasks | 2 files |
