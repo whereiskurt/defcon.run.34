@@ -307,7 +307,7 @@ Plans:
 | 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 3/3 | Built — 44/44 tests green | 2026-07-14 |
 | 45. Visible QR Claim Page | v2.1 | 2/2 | Built — 61/61 CTF tests green | 2026-07-14 |
 | 46. Covert CSS Channel + Park-and-Claim | v2.1 | 4/4 | Built — 96/96 CTF tests green | 2026-07-14 |
-| 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 0/3 | Planned | - |
+| 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 3/3 | Built — 164/164 CTF tests green | 2026-07-14 |
 | 48. CloudFront + Integration Exposure | v2.1 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
@@ -432,9 +432,9 @@ Plans:
 
 Plans:
 
-- [ ] 47-01-PLAN.md — CtfForm scoring fields (pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers via the QR datetime+preset editor) + hash-on-save in qr-admin (answerHash, no plaintext, no-clobber on blank edit) + vitest (CTF-10)
-- [ ] 47-02-PLAN.md — Idempotent plaintext→answerHash migration: pure `ctf-migration.ts` (reuses `hashAnswer`) + dry-run/`--confirm` `migrate-ctf-answerhash.mts` tsx script + idempotency/parity tests (CTF-10)
-- [ ] 47-03-PLAN.md — CTF-only leaderboard: `ctf-leaderboard.ts` (rank by ctfScore + CtfSolve drill + formula-guarded CSV) + gated `(protected)/admin/leaderboard` page + AdminConsole link + gated `/api/admin/ctf-leaderboard` CSV route (CTF-11)
+- [x] 47-01-PLAN.md — CtfForm scoring fields (pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers via the QR datetime+preset editor) + hash-on-save in qr-admin (answerHash, no plaintext, no-clobber on blank edit) + vitest (CTF-10)
+- [x] 47-02-PLAN.md — Idempotent plaintext→answerHash migration: pure `ctf-migration.ts` (reuses `hashAnswer`) + dry-run/`--confirm` `migrate-ctf-answerhash.mts` tsx script + idempotency/parity tests (CTF-10)
+- [x] 47-03-PLAN.md — CTF-only leaderboard: `ctf-leaderboard.ts` (rank by ctfScore + CtfSolve drill + formula-guarded CSV) + gated `(protected)/admin/leaderboard` page + AdminConsole link + gated `/api/admin/ctf-leaderboard` CSV route (CTF-11)
 
 ### Phase 48: CloudFront + Integration Exposure
 
