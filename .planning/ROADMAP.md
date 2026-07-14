@@ -308,7 +308,7 @@ Plans:
 | 45. Visible QR Claim Page | v2.1 | 2/2 | Built — 61/61 CTF tests green | 2026-07-14 |
 | 46. Covert CSS Channel + Park-and-Claim | v2.1 | 4/4 | Built — 96/96 CTF tests green | 2026-07-14 |
 | 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 3/3 | Built — 164/164 CTF tests green | 2026-07-14 |
-| 48. CloudFront + Integration Exposure | v2.1 | 0/TBD | Planned | - |
+| 48. CloudFront + Integration Exposure | v2.1 | 3/3 | Built (authored + terraform-validate; NOT applied — deploy-specs for human apply) | 2026-07-14 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -447,9 +447,9 @@ Plans:
   2. `q.defcon.run/admin/leaderboard` renders under the admin gate; the CTF signal is documented and queryable by the DC33 mapper.
 
 **Plans:** 3 plans (author + `terraform validate` only — NO apply/deploy; DEPLOY-SPECs where a blind production-distro edit is unsafe)
-- [ ] 48-01-PLAN.md — CTF-12: covert-path `/use1/assets/theme` → use1 ALB behavior on the run.defcon.run cloudfront module (authored edit + DEPLOY-SPEC)
-- [ ] 48-02-PLAN.md — CTF-13: inert `q /admin/*` → run.human behavior on the qr-resolver distro (authored, count-gated + DEPLOY-SPEC)
-- [ ] 48-03-PLAN.md — CTF-14: `docs/ctf-score-integration.md` documenting the `ctfScore`/`CtfSolve` read for the DC33 mapper
+- [x] 48-01-PLAN.md — CTF-12: covert-path `/use1/assets/theme` → use1 ALB behavior on the run.defcon.run cloudfront module (authored edit + DEPLOY-SPEC)
+- [x] 48-02-PLAN.md — CTF-13: inert `q /admin/*` → run.human behavior on the qr-resolver distro (authored, count-gated + DEPLOY-SPEC)
+- [x] 48-03-PLAN.md — CTF-14: `docs/ctf-score-integration.md` documenting the `ctfScore`/`CtfSolve` read for the DC33 mapper
 
 ---
 
