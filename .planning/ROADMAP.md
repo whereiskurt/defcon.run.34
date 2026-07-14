@@ -432,6 +432,13 @@ Plans:
   3. Expanding a row renders each run's `<canvas>` thumbnail from its stored polyline (OSM tile + route + start/end dots), with the current admin's own row highlighted.
   4. Rank/score/count chips match the API's `globalScore`/`globalRank`/counts, and runner-class emoji reflect `mqttUsertype`.
 
+**Plans:** 3 plans
+
+Plans:
+- [ ] 52-01-PLAN.md — PolylineRenderer client canvas + pure polyline-geometry seam (LDBR-09)
+- [ ] 52-02-PLAN.md — LeaderboardTable HeroUI accordion + pure leaderboard-ui helpers (LDBR-10)
+- [ ] 52-03-PLAN.md — Hidden admin `(protected)/leaderboard/page.tsx` gate + no-nav test (LDBR-11)
+
 ---
 
 <details>
