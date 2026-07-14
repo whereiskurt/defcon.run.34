@@ -146,12 +146,15 @@ jobs:
         working-directory: infra/terraform/live/site
         env:
           TG_PROVIDER_CACHE: "1"
+          # Read the target via env (NOT inline ${{ }}) so an address with quoted
+          # for_each keys like main["run"] survives the YAML->bash expansion intact.
+          INPUT_TARGET: ${{ inputs.target }}
         run: |
           REGION="${{ inputs.region }}"
           MODULES="${{ inputs.modules }}"
-          TARGET="${{ inputs.target }}"
-          TARGET_ARG=""
-          if [[ -n "$TARGET" ]]; then TARGET_ARG="-target=$TARGET"; fi
+          TARGET="$INPUT_TARGET"
+          TG_APPLY_EXTRA=()
+          if [[ -n "$TARGET" ]]; then TG_APPLY_EXTRA+=("-target=$TARGET"); fi
 
           # If modules are specified, apply each targeted unit directory.
           # A module entry may be a bare name (region-relative -> region/$REGION/$MODULE)
@@ -170,8 +173,8 @@ jobs:
                 echo "ERROR: bare module '$MODULE' needs a region; pass a path like global/$MODULE instead." >&2
                 exit 1
               fi
-              echo "=== Applying $DIR ${TARGET_ARG} ==="
-              (cd "$DIR" && terragrunt apply --no-color --non-interactive $TARGET_ARG -auto-approve) 2>&1 | tee -a apply_output.txt
+              echo "=== Applying $DIR ${TG_APPLY_EXTRA[*]} ==="
+              (cd "$DIR" && terragrunt apply --no-color --non-interactive "${TG_APPLY_EXTRA[@]}" -auto-approve) 2>&1 | tee -a apply_output.txt
             done
           # If only region specified, apply all in that region
           elif [[ -n "$REGION" ]]; then
