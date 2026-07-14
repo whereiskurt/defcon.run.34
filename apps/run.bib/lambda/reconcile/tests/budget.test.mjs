@@ -45,6 +45,9 @@ async function loadFixture(name) {
 // allowlist.test.mjs.
 process.env.BIB_ALLOWED_SENDERS =
   "venmo@venmo.com,cash@square.com,newsletter@example-marketing.com";
+// DMARC enforcement is exercised in dmarc-gate.test.mjs; disable it here so the
+// fixture emails (no SES Authentication-Results header) reach the logic under test.
+process.env.BIB_ENFORCE_DMARC = "false";
 
 function makeStubAnthropic(cannedInput) {
   return {

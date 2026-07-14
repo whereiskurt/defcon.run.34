@@ -76,6 +76,12 @@ variable "allowed_senders" {
   default     = ""
 }
 
+variable "enforce_dmarc" {
+  description = "Whether the receiver requires SES's dmarc=pass verdict on inbound receipts (defense-in-depth over the From allowlist, since From is spoofable). Surfaced as BIB_ENFORCE_DMARC; the Lambda enforces unless this is exactly \"false\". Kill switch for the live event — set TF_VAR_BIB_ENFORCE_DMARC=false + apply to disable without a code change."
+  type        = string
+  default     = "true"
+}
+
 variable "anthropic_api_key_ssm_arn" {
   description = "Full ARN of the SSM parameter that stores the Anthropic API key. When set, IAM scopes GetParameter narrowly to this ARN instead of the broader ssm_bib_prefix wildcard. Leave empty to fall back to the ssm_bib_prefix/anthropic/* pattern."
   type        = string

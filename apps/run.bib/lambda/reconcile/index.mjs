@@ -25,6 +25,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import { SYSTEM_PROMPT, RECORD_PAYMENT_TOOL } from "./prompt.js";
 import { isSenderAllowed } from "./lib/allowlist.mjs";
+import { isDmarcPass } from "./lib/email-auth.mjs";
 import { resolveAnthropicApiKey } from "./lib/ssm-key.mjs";
 import { parseReceiptEmail } from "./lib/parse-email.mjs";
 import { extractPaymentFromEmail } from "./lib/haiku.mjs";
@@ -119,29 +120,45 @@ export async function processS3Record(rec, ctx = {}) {
   const raw = await readObject(bucket, key);
   const parsed = await parseReceiptEmail(raw);
 
+  // Log-only, silent rejection shape (handler emits one structured line, NOT
+  // error=true; no admin email, no BibReconcile row).
+  const reject = (reason) => ({
+    bucket,
+    key,
+    messageId: parsed.messageId,
+    receivedAtMs: parsed.receivedAtMs,
+    from: parsed.from,
+    subject: parsed.subject,
+    extracted: null,
+    reconcile: null,
+    rejected: true,
+    rejectReason: reason,
+  });
+
   // -------------------------------------------------------------------
   // SENDER ALLOWLIST gate (trusted-forwarder model).
   //   Reject anything whose From is not an approved admin BEFORE any Haiku
   //   spend, budget check, DB write, or bib mutation. Fail-closed: an empty
-  //   BIB_ALLOWED_SENDERS rejects everyone. Rejection is log-only + silent —
-  //   the handler emits one structured line (NOT error=true); no admin email,
-  //   no BibReconcile row. The allowlist lives in config, never in source.
+  //   BIB_ALLOWED_SENDERS rejects everyone. The allowlist lives in config,
+  //   never in source.
   // -------------------------------------------------------------------
   const allowedSenders =
     ctx.allowedSenders ?? process.env.BIB_ALLOWED_SENDERS;
   if (!isSenderAllowed(parsed.from?.address, allowedSenders)) {
-    return {
-      bucket,
-      key,
-      messageId: parsed.messageId,
-      receivedAtMs: parsed.receivedAtMs,
-      from: parsed.from,
-      subject: parsed.subject,
-      extracted: null,
-      reconcile: null,
-      rejected: true,
-      rejectReason: "unauthorized_sender",
-    };
+    return reject("unauthorized_sender");
+  }
+
+  // -------------------------------------------------------------------
+  // DMARC gate (defense in depth). The From is allowlisted, but the From
+  // header is spoofable — require SES's dmarc=pass verdict so a forged
+  // allowlisted address (wrong IP / no valid DKIM) is rejected. Fail-closed:
+  // a missing/non-SES verdict rejects. Kill switch: BIB_ENFORCE_DMARC=false
+  // (or ctx.enforceDmarc=false) disables it without a code change.
+  // -------------------------------------------------------------------
+  const enforceDmarc =
+    ctx.enforceDmarc ?? process.env.BIB_ENFORCE_DMARC !== "false";
+  if (enforceDmarc && !isDmarcPass(raw)) {
+    return reject("dmarc_fail");
   }
 
   // Derive receiptId BEFORE any expensive work so the budget-cap

@@ -82,6 +82,10 @@ resource "aws_lambda_function" "reconcile" {
         # whose From is not on this list before any Haiku spend.
         BIB_ALLOWED_SENDERS = var.allowed_senders
 
+        # DMARC gate (defense in depth). "true" (default) => require SES's
+        # dmarc=pass; "false" => kill switch off. See variables.tf.
+        BIB_ENFORCE_DMARC = var.enforce_dmarc
+
         # Region label for structured logs / entity partitioning.
         REGION_LABEL = var.region.label
       },
