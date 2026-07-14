@@ -4,10 +4,10 @@ milestone: v2.1
 milestone_name: CTF Judge & Scoring
 current_phase_name: defining requirements
 status: planning
-stopped_at: Phase 39 context gathered
-last_updated: "2026-07-14T05:52:08.281Z"
+stopped_at: Completed 46-04-PLAN.md (covert-egg client + !!! trigger + deferred claim)
+last_updated: "2026-07-14T02:00:00.000Z"
 last_activity: 2026-07-14
-last_activity_desc: Milestone v2.1 started
+last_activity_desc: Executed Phase 46 Plan 04 — egg client, EggTrigger mounts, park-and-claim
 progress:
   total_phases: 5
   completed_phases: 2
