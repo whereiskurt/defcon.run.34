@@ -1,19 +1,21 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: CTF Judge & Scoring
-current_phase_name: defining requirements
-status: planning
-stopped_at: Completed 46-04-PLAN.md (covert-egg client + !!! trigger + deferred claim)
-last_updated: "2026-07-14T02:00:00.000Z"
+milestone: v2.2
+milestone_name: Leaderboard & Activity Table
+milestone_status: planning
+current_phase: 49
+current_phase_name: leaderboard-data-layer-accomplishment-entity-scoring
+status: phase_planned
+stopped_at: Phase 49 planned (4 plans, 3 waves) + plan-checker PASS; ready for /gsd-execute-phase 49
+last_updated: "2026-07-14T00:00:00Z"
 last_activity: 2026-07-14
-last_activity_desc: Executed Phase 46 Plan 04 — egg client, EggTrigger mounts, park-and-claim
+last_activity_desc: v2.2 registered (phases 49-52, avoiding CTF worktree's v2.1/44-48); Phase 49 data-layer planned + verified
 progress:
-  total_phases: 5
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 7
-  percent: 40
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -22,15 +24,16 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-07-05)
 
-**Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. This milestone lets organizers change static UI wording live from the CMS — no code change, no deploy.
-**Current focus:** Phase 39 — copy-migration-remaining-bib-shared-chrome
+**Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
+**Current focus:** Phase 49 — leaderboard data layer (Accomplishment entity + RunUser activityScore rollups + scoring). Planned + plan-checker PASS. Phases 50 (GPX integration), 51 (leaderboard API), 52 (UI) registered in ROADMAP, not yet planned.
 
 ## Current Position
 
-Phase: 46 — Covert CSS Channel + Park-and-Claim
-Plan: 46-02 complete (covert text/css route handler) — 2/4 plans done
-Status: In Progress
-Last activity: 2026-07-14 — Completed 46-02-PLAN.md (covert /use1/assets/theme route, 11 route tests green)
+Milestone v1.9 CMS-Driven UI Copy Catalog — ✅ SHIPPED & ARCHIVED 2026-07-06.
+All 5 phases (35-39, 21 plans) complete + verified. Archives:
+`.planning/milestones/v1.9-ROADMAP.md` + `v1.9-REQUIREMENTS.md`. ROADMAP.md collapsed;
+REQUIREMENTS.md removed (a fresh one comes with the next milestone).
+Next: run `/gsd-new-milestone` to define the next milestone.
 
 ## Deferred Items
 
@@ -100,9 +103,6 @@ Recent decisions affecting current work:
 - [Phase ?]: 39-01: common.header.donate re-homes the donate trigger; bib.donate.trigger left seeded until 39-04 re-points bib header/menu.
 - [Phase 39]: 39-02: run.human copy toolkit installed (ported verbatim from run.bib, D-05); snapshot floor carries byte-identical common.* union (D-07); CopyProvider mounted in both group layouts; zero human.* easy wins authored (D-06 bias-to-defer)
 - [Phase ?]: 39-04: TransactionHistory async loadCopy+t; AdminActions useCopy() (module consts removed) — words byte-identical
-- [Phase ?]: 44-01: Ctf entity extended with scoring fields; legacy answer kept optional, plaintext->hash migration deferred to Phase 47
-- [Phase ?]: 44-01: CtfSolve.sk ctfsolve_1#user is the attribute_not_exists idempotency key; CtfPending/CtfAttempt run.human-only, keys pinned by test
-- [Phase ?]: Covert /use1/assets/theme route: always 200 text/css no-store across win/wrong/unauth; AWARD_PROP presence-only marker win-only; handler does zero logging
 
 ### Pending Todos
 
@@ -115,7 +115,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-14T05:51:39.041Z
+Last session: 2026-07-06T16:43:51.279Z
 Stopped at: Phase 39 context gathered
 Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
 
@@ -150,5 +150,3 @@ Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-C
 | Phase 39 P39-03 | 8m | 2 tasks | 3 files |
 | Phase 39 P39-04 | ~10m | 2 tasks | 2 files |
 | Phase 39 P05 | 3min | 2 tasks | 4 files |
-| Phase 44 P01 | 8m | 3 tasks | 5 files |
-| Phase 46 P02 | 9 | 2 tasks | 2 files |
