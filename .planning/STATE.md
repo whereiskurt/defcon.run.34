@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Leaderboard & Activity Table
-status: phase_verified
-stopped_at: Phases 49+50+51 BUILT + VERIFIED (goal-backward PASS). Next autonomous step: plan+execute Phase 52 (UI — PolylineRenderer + LeaderboardTable + hidden admin page), then quality gates + local check + PR.
-last_updated: "2026-07-14T07:00:00Z"
+status: milestone_built
+stopped_at: v2.2 ALL 4 PHASES (49-52) BUILT + VERIFIED (code goal-backward PASS, ~104 tests). Next: npm run build gate + PR. LEFT for human: signed-in admin local-browser render of /leaderboard.
+last_updated: "2026-07-14T08:00:00Z"
 last_activity: 2026-07-14
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 16
-  completed_plans: 9
-  percent: 75
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 12
+  percent: 100
 current_phase: 52
 current_phase_name: leaderboard-ui-polylinerenderer-accordion-hidden-page
 ---
