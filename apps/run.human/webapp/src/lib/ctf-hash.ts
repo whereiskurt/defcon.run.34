@@ -41,14 +41,29 @@ export function hashAnswer(raw: string): string {
 }
 
 /**
- * Constant-time compare of hashAnswer(guess) against a stored answerHash.
- * Returns false (never throws) when answerHash is empty or a different length
- * than the computed digest. Never logs `guess`.
+ * Constant-time compare of an ALREADY-HASHED submission against a stored
+ * answerHash. This is the seam the park-and-claim path (Phase 45/46) uses: an
+ * anon scan stores only `submittedFlagHash = hashAnswer(guess)`, so the later
+ * claim validates the parked hash directly without ever holding the raw guess.
+ *
+ * Returns false (never throws) when either side is empty or the two differ in
+ * length (timingSafeEqual requires equal-length buffers). Never logs its inputs.
  */
-export function verifyAnswer(guess: string, answerHash: string): boolean {
-  if (!answerHash) return false;
-  const computed = Buffer.from(hashAnswer(guess), "utf8");
+export function verifyAnswerHash(submittedHash: string, answerHash: string): boolean {
+  if (!submittedHash || !answerHash) return false;
+  const computed = Buffer.from(submittedHash, "utf8");
   const stored = Buffer.from(answerHash, "utf8");
   if (computed.length !== stored.length) return false; // timingSafeEqual requires equal length
   return timingSafeEqual(computed, stored);
+}
+
+/**
+ * Constant-time compare of hashAnswer(guess) against a stored answerHash.
+ * Returns false (never throws) when answerHash is empty or a different length
+ * than the computed digest. Never logs `guess`. Delegates to verifyAnswerHash
+ * so the raw-guess and pre-hashed paths share one comparison — behavior is
+ * byte-identical to the prior inline compare.
+ */
+export function verifyAnswer(guess: string, answerHash: string): boolean {
+  return verifyAnswerHash(hashAnswer(guess), answerHash);
 }

@@ -7,7 +7,7 @@ import {
   type ScoringConfig,
   type TimeTier,
 } from "./ctf-scoring";
-import { verifyAnswer } from "./ctf-hash";
+import { verifyAnswer, verifyAnswerHash } from "./ctf-hash";
 import { ctfJudgeLog, emit } from "./ctf-log";
 
 /**
@@ -127,13 +127,19 @@ const NON_SOLVE: JudgeResult = {
  * `now`, and `log` via `deps` (defaults: `defaultStore`, `Date.now()`, `emit`).
  */
 export async function judgeSolve(
-  input: { user: string; challenge: string; guess: string; channel: Channel },
+  input: {
+    user: string;
+    challenge: string;
+    guess?: string;
+    guessHash?: string;
+    channel: Channel;
+  },
   deps: { store?: CtfStore; now?: number; log?: (o: unknown) => void } = {},
 ): Promise<JudgeResult> {
   const store = deps.store ?? defaultStore;
   const now = deps.now ?? Date.now();
   const log = deps.log ?? emit;
-  const { user, challenge, guess, channel } = input;
+  const { user, challenge, guess, guessHash, channel } = input;
 
   try {
     // (1) load Ctf; missing or disabled → non-solve (covert renders it as decoy).
@@ -157,8 +163,16 @@ export async function judgeSolve(
       return NON_SOLVE;
     }
 
-    // (3) validate the hashed answer. NEVER log `guess`.
-    if (!verifyAnswer(guess, ctf.answerHash)) {
+    // (3) validate the answer. NEVER log `guess` OR `guessHash`. Exactly one
+    // input is the validation source: a caller that already holds only the hash
+    // (the park-and-claim path) passes `guessHash` and we compare it directly;
+    // otherwise we hash the raw `guess`. Both routes converge on the same
+    // constant-time compare against `ctf.answerHash`.
+    const ok =
+      guessHash !== undefined
+        ? verifyAnswerHash(guessHash, ctf.answerHash)
+        : verifyAnswer(guess ?? "", ctf.answerHash);
+    if (!ok) {
       log(ctfJudgeLog({ challenge, result: "no-solve" }));
       return NON_SOLVE;
     }
