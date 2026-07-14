@@ -1,4 +1,5 @@
 import { Qr, Ctf, Qrstat } from "@/entities/qr";
+import { hashAnswer } from "@/lib/ctf-hash";
 
 /**
  * QR / CTF admin data + validation layer (run.human, Phase-4 admin CRUD).
@@ -122,8 +123,19 @@ export interface QrInput {
 
 export interface CtfInput {
   challenge: string;
+  // Plaintext answer as typed by the admin. It is HASHED on the write path (see
+  // ctfAttributes) and never persisted as plaintext. `answerHash` is deliberately
+  // NOT an input — the server owns hashing; the client never supplies a hash.
   answer?: string;
   points?: number;
+  // Scoring curve (Phase 44, CTF-01). Passed through numeric when provided.
+  pointMax?: number;
+  pointFloor?: number;
+  maxSolves?: number;
+  firstBloodBonus?: number;
+  // Active-window ceilings. Each tier { from, to, ceiling } is validated in
+  // ctfAttributes (from < to, numeric ceiling) before any DB write.
+  timeTiers?: Array<{ from?: string; to?: string; ceiling?: number }>;
   effect?: unknown;
   maxAttempts?: number;
   rateLimitWindow?: number;
@@ -278,11 +290,53 @@ export async function deleteQr(code: string): Promise<void> {
   await Qr.delete({ code: normalizeCode(code) }).go();
 }
 
-/** Build the validated attribute payload for a Ctf write. */
-function ctfAttributes(input: CtfInput) {
+/**
+ * Build the validated attribute payload for a Ctf write.
+ *
+ * No-plaintext invariant: the admin-typed answer is NEVER persisted verbatim.
+ * A non-empty answer is stored ONLY as its salted hash (answerHash via the
+ * hashAnswer seam); the write payload carries no plaintext answer key.
+ *
+ * No-clobber invariant: when the answer field is blank / whitespace / undefined
+ * the answerHash key is omitted ENTIRELY. Because upsertCtf edits via
+ * Ctf.patch().set(attrs), an omitted key leaves the stored hash untouched — so
+ * editing a challenge without re-typing the answer preserves the existing
+ * answerHash rather than erasing it.
+ *
+ * timeTiers are validated here (from < to, numeric ceiling) so a malformed tier
+ * throws QrValidationError BEFORE any DynamoDB call (mirrors the qrAttributes
+ * rule guard).
+ */
+export function ctfAttributes(input: CtfInput) {
+  const answer = (input.answer ?? "").trim();
+  const tiers = (input.timeTiers ?? []).map((t, i) => {
+    const where = `Time tier ${i + 1}`;
+    if (
+      !t.from ||
+      !t.to ||
+      Number.isNaN(Date.parse(t.from)) ||
+      Number.isNaN(Date.parse(t.to)) ||
+      Date.parse(t.from) >= Date.parse(t.to)
+    ) {
+      throw new QrValidationError(`${where} needs From < To.`);
+    }
+    if (!Number.isFinite(t.ceiling)) {
+      throw new QrValidationError(`${where} needs a numeric ceiling.`);
+    }
+    return { from: t.from, to: t.to, ceiling: t.ceiling as number };
+  });
   return {
-    answer: input.answer ?? "",
+    // Hash-on-save only when a real answer was entered; omit the key otherwise
+    // (no-clobber). See invariant above.
+    ...(answer !== "" ? { answerHash: hashAnswer(input.answer as string) } : {}),
     ...(input.points !== undefined ? { points: input.points } : {}),
+    ...(input.pointMax !== undefined ? { pointMax: input.pointMax } : {}),
+    ...(input.pointFloor !== undefined ? { pointFloor: input.pointFloor } : {}),
+    ...(input.maxSolves !== undefined ? { maxSolves: input.maxSolves } : {}),
+    ...(input.firstBloodBonus !== undefined
+      ? { firstBloodBonus: input.firstBloodBonus }
+      : {}),
+    ...(tiers.length ? { timeTiers: tiers } : {}),
     ...(input.effect !== undefined ? { effect: input.effect } : {}),
     ...(input.maxAttempts !== undefined ? { maxAttempts: input.maxAttempts } : {}),
     ...(input.rateLimitWindow !== undefined
