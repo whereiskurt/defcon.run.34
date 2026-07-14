@@ -9,6 +9,7 @@ import { Header } from "@header";
 import { Footer } from "@/components/footer";
 import { MapBackground } from "@/components/map-background";
 import { CopyProvider } from "@/components/CopyProvider";
+import { EggTrigger } from "@/components/EggTrigger";
 import { loadCopy } from "@/lib/copy";
 import { auth } from "@auth";
 
@@ -79,6 +80,11 @@ export default async function ProtectedRootLayout({
                 </main>
                 <Footer versionTooltip={APP_VERSION_TOOLTIP} />
               </div>
+              {/* PRIMARY covert-egg mount: this layout does NOT redirect and
+                  wraps every signed-in page, so the full !!! loop is reachable
+                  (trigger → covert → credit → computed-style marker → confetti)
+                  and any parked flag is claimed on mount. */}
+              <EggTrigger />
             </CopyProvider>
           </SessionProvider>
         </Providers>

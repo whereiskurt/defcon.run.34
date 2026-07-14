@@ -5,8 +5,10 @@ import {
   normalizeChallenge,
   validateDestination,
   upsertQr,
+  ctfAttributes,
   QrValidationError,
 } from "../qr-admin";
+import { hashAnswer } from "../ctf-hash";
 
 describe("validateDestination", () => {
   it("accepts an absolute https URL", () => {
@@ -123,5 +125,79 @@ describe("upsertQr validation ordering", () => {
         rules: [{ kind: "param", match: "", dest: "https://x.example" }],
       })
     ).rejects.toBeInstanceOf(QrValidationError);
+  });
+});
+
+describe("ctfAttributes hash-on-save", () => {
+  const T = { challenge: "sao" };
+
+  it("hashes a non-empty answer and never emits a plaintext answer key", () => {
+    const result = ctfAttributes({ ...T, answer: "Flag1" });
+    expect(result.answerHash).toBe(hashAnswer("Flag1"));
+    expect("answer" in result).toBe(false);
+  });
+
+  it.each([
+    ["empty string", ""],
+    ["whitespace", "   "],
+  ])("omits answerHash for a %s answer (no-clobber)", (_label, answer) => {
+    const result = ctfAttributes({ ...T, answer });
+    expect("answerHash" in result).toBe(false);
+  });
+
+  it("omits answerHash when answer is undefined (no-clobber)", () => {
+    const result = ctfAttributes({ ...T });
+    expect("answerHash" in result).toBe(false);
+  });
+
+  it("emits a valid time tier { from, to, ceiling }", () => {
+    const from = "2026-08-06T00:00:00.000Z";
+    const to = "2026-08-10T00:00:00.000Z";
+    const result = ctfAttributes({ ...T, timeTiers: [{ from, to, ceiling: 500 }] });
+    expect(result.timeTiers).toEqual([{ from, to, ceiling: 500 }]);
+  });
+
+  it.each([
+    ["from equal to to", "2026-08-06T00:00:00Z", "2026-08-06T00:00:00Z"],
+    ["from after to", "2026-08-10T00:00:00Z", "2026-08-06T00:00:00Z"],
+  ])("throws when %s", (_label, from, to) => {
+    expect(() =>
+      ctfAttributes({ ...T, timeTiers: [{ from, to, ceiling: 500 }] })
+    ).toThrow(QrValidationError);
+  });
+
+  it.each([
+    ["non-numeric ceiling", "x" as unknown as number],
+    ["NaN ceiling", Number.NaN],
+    ["missing ceiling", undefined],
+  ])("throws on a %s", (_label, ceiling) => {
+    expect(() =>
+      ctfAttributes({
+        ...T,
+        timeTiers: [{ from: "2026-08-06T00:00:00Z", to: "2026-08-10T00:00:00Z", ceiling }],
+      })
+    ).toThrow(QrValidationError);
+  });
+
+  it("passes scoring numbers through when provided", () => {
+    const result = ctfAttributes({
+      ...T,
+      pointMax: 500,
+      pointFloor: 50,
+      maxSolves: 100,
+      firstBloodBonus: 250,
+    });
+    expect(result.pointMax).toBe(500);
+    expect(result.pointFloor).toBe(50);
+    expect(result.maxSolves).toBe(100);
+    expect(result.firstBloodBonus).toBe(250);
+  });
+
+  it("omits scoring numbers when absent", () => {
+    const result = ctfAttributes({ ...T });
+    expect("pointMax" in result).toBe(false);
+    expect("pointFloor" in result).toBe(false);
+    expect("maxSolves" in result).toBe(false);
+    expect("firstBloodBonus" in result).toBe(false);
   });
 });

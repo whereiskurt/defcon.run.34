@@ -161,6 +161,18 @@ variable "zone_id" {
   default     = ""
 }
 
+variable "run_human_origin_domain" {
+  description = <<-EOT
+    The run.human public front door used as the CloudFront origin for the q
+    `/admin/*` behavior (CTF-13), so Host resolves to run.human naturally and the
+    Phase-47 admin CTF leaderboard renders under run.human's ADMIN_GROUPS gate.
+    Only used when enable_transport = true. The exact Host/basePath routing is a
+    runtime-verified concern captured in DEPLOY-SPEC-ctf-admin.md.
+  EOT
+  type        = string
+  default     = "run.defcon.run"
+}
+
 variable "tags" {
   description = "Extra tags merged onto the CloudFront distribution."
   type        = map(string)

@@ -150,3 +150,70 @@ html.dark .leaflet-popup-close-button {
 html.dark .leaflet-popup-close-button:hover {
   color: #ccc;
 }
+
+/* ============================================================================
+   CtfCelebration — the DC33-style award payoff for a covert CTF win.
+   A pointer-events:none overlay of DC34-palette confetti that bursts on mount
+   and falls once; the component caps the whole thing to a bounded duration and
+   then unmounts, so nothing animates forever.
+   ============================================================================ */
+.ctf-celebration {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 9999;
+  transform-origin: center;
+  /* One-shot "pop": the already-full confetti layer bursts outward on mount. */
+  animation: ctf-burst 0.5s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+@keyframes ctf-burst {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.4;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.ctf-confetti {
+  position: absolute;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  will-change: transform, opacity;
+  user-select: none;
+  /* One fall per piece (no `infinite`) — the burst settles, then the component
+     clears the pieces when its bounded timer elapses. */
+  animation: ctf-confetti-fall var(--dur, 2.6s) linear var(--delay, 0s) both;
+}
+
+@keyframes ctf-confetti-fall {
+  0% {
+    transform: translateY(-120px) rotate(var(--r0, 0deg));
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--fall, 800px)) rotate(var(--r1, 0deg));
+    opacity: 0;
+  }
+}
+
+/* NB: this celebration is deliberately NOT placed under a reduced-motion
+   suppression rule. It is an explicit user-INITIATED effect (it fires only on
+   a genuine covert win the player triggered), not ambient/auto-playing
+   motion — which is the only thing the OS "Reduce Motion" setting is meant to
+   suppress. Suppressing it would silently hide the payoff for anyone with
+   Reduce Motion on (the documented prod cash-rain regression). The burst +
+   fall stay on for everyone. */

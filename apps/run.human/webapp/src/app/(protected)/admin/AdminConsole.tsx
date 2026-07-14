@@ -324,6 +324,12 @@ export function AdminConsole({
           >
             QR / CTF →
           </Link>
+          <Link
+            href="/admin/leaderboard"
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-divider bg-content1 text-foreground text-[13px] font-semibold hover:bg-content2 transition-colors"
+          >
+            CTF Leaderboard →
+          </Link>
           <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-primary">
             <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_0_3px_rgba(0,212,170,0.18)]" />
             live

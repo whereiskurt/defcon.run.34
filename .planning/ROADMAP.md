@@ -13,6 +13,7 @@
 - [ ] **v1.7 GPX Routes — Private Collection, Public Overlay & Strava Sync** - Phases 28-32 (autonomous build authorized 2026-07-02; workstream `v1-7-gpx-routes`, parallel-safe)
 - [x] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (shipped 2026-07-06; edit UI copy live from Strapi, no deploy — SC-3 de-dup proven live)
 - [ ] **v2.0 Admin & Reporting** - Phase 43 (planned 2026-07-11; read-only run.human /admin dashboard — users, activity, gpx usage)
+- [ ] **v2.1 CTF Judge & Scoring** - Phases 44-48 (**BUILT autonomously 2026-07-14, PR open — NOT merged/deployed**; greenfield Phase-5 CTF judge + composed scoring + covert CSS submission channel — design `docs/superpowers/specs/2026-07-13-ctf-judge-and-covert-channel-design.md`; ~122 CTF unit tests + `next build` pass; Phase-48 CloudFront/Terraform authored + validate-clean but NOT applied, deploy-specs accompany; integration-bounded against the DC33 total-score work in the `leaderboard` worktree)
 
 ## Phases
 
@@ -303,6 +304,11 @@ Plans:
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
+| 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 3/3 | Built — 44/44 tests green | 2026-07-14 |
+| 45. Visible QR Claim Page | v2.1 | 2/2 | Built — 61/61 CTF tests green | 2026-07-14 |
+| 46. Covert CSS Channel + Park-and-Claim | v2.1 | 4/4 | Built — 96/96 CTF tests green | 2026-07-14 |
+| 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 3/3 | Built — 164/164 CTF tests green | 2026-07-14 |
+| 48. CloudFront + Integration Exposure | v2.1 | 3/3 | Built (authored + terraform-validate; NOT applied — deploy-specs for human apply) | 2026-07-14 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -351,6 +357,99 @@ Plans:
 **Mid-build fix (not in original plans):** exposed `session.user.authUserId` (OIDC sub) in `config/auth.ts` — the gate must revalidate with the OIDC sub, not the adapter `session.user.id`, or it fails closed for real admins (known auth ID namespace mismatch).
 
 **Known v1 gap:** the `services` column renders empty — `buildUserReport` sets `services: []` (services live on the Auth.js session / run.auth AuthProfile, not on any bulk read helper). Follow-up: add a run.auth bulk-services read (mirror the gpx bulk endpoint) to populate it.
+
+---
+
+### v2.1 CTF Judge & Scoring (Planned)
+
+Greenfield build of the Phase-5 CTF judge. Today q.defcon.run only *forwards* `/ctf/<challenge>/<value>` → `run.defcon.run/use1/ctf/claim` (which 404s); nothing validates, scores, or tracks solves. This milestone builds the judge, a composed scoring model, per-user solve tracking, a covert always-`200 text/css` submission channel, and a CTF-only admin leaderboard. Design spec: `docs/superpowers/specs/2026-07-13-ctf-judge-and-covert-channel-design.md`.
+
+**Waves:** 1 = {44} · 2 = {45, 46, 47} parallel · 3 = {48}.
+**Integration boundary:** expose `ctfScore`/`CtfSolve` for the separate DC33 total-score migration (`leaderboard` worktree); do NOT build the global leaderboard here.
+
+### Phase 44: CTF Judge Core + Scoring Engine + Data Model
+
+**Goal:** The greenfield judge foundation everything else depends on — data model, scoring math, and the `judgeSolve` core — all attributed to the signed-in `RunUser` (`session.user.authUserId`), on the shared `run-human-electro` table, idempotent and cap-safe under concurrency.
+**Depends on:** existing run.human `electroClient` + the resolver's `Ctf` entity mirror pattern (no prior phase dependency).
+**Requirements:** CTF-01 (`Ctf` extended: `answerHash`, `pointMax`, `pointFloor`, `maxSolves`, `firstBloodBonus`, `timeTiers[]`, `solveCount`; new `CtfSolve` (pk `$run#challenge_<c>` / sk `$ctfsolve_1#user_<sub>`, gsi1 by user) + `CtfPending` (nonce, TTL) entities; `RunUser.ctfScore`/`ctfSolves`; ElectroDB key-parity with resolver mirror), CTF-02 (`computePoints(n, ctf)`: active time-tier ceiling sets the max; linear per-solve decline from ceiling→floor across `N`; `+firstBloodBonus` when `n==1`; `n>N`→0), CTF-03 (`judgeSolve`: attempt-cap/rate-limit → hashed-answer validate → conditional-put `CtfSolve` [idempotent claim] → atomic `ADD solveCount` ordinal → score → `ADD RunUser.ctfScore/ctfSolves`), CTF-04 (hygiene: answers stored salted-hashed; raw guess NEVER logged — extend the resolver's `ctfHandoffLog` no-value invariant to the judge).
+**Success Criteria:**
+
+  1. `computePoints` is correct across tier boundaries, first-blood (`n==1`), cap edges (`n==N`, `n==N+1`, `N==1`), and floor/ceiling.
+  2. Concurrency/idempotency proven by test: same-user double-submit scores once (still returns prior points), distinct concurrent users get distinct gap-free ordinals, replay never double-scores.
+  3. No plaintext answer and no raw guess is ever persisted or logged.
+
+**Plans:** 3 plans (waves: 1={44-01 entities, 44-02 scoring+hashing} parallel, 2={44-03 judge})
+
+Plans:
+
+- [x] 44-01-PLAN.md — Data model: extend `Ctf` (answerHash/pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers/solveCount, keep legacy `answer`) + new `CtfSolve`/`CtfPending`/`CtfAttempt` entities + `RunUser.ctfScore`/`ctfSolves` + key-parity tests (CTF-01)
+- [x] 44-02-PLAN.md — Pure primitives: `computePoints`/`activeTierCeiling` scoring engine (injectable clock) + `hashAnswer`/`verifyAnswer` salted-hash seam + boundary tests (CTF-02, CTF-04)
+- [x] 44-03-PLAN.md — `judgeSolve` core (injectable `CtfStore` seam, locked 7-step claim-then-allocate flow, never-throw) + `ctfJudgeLog` no-value hygiene builder + concurrency/idempotency/hygiene tests (CTF-03, CTF-04)
+
+### Phase 45: Visible QR Claim Page
+
+**Goal:** Build `run.defcon.run/use1/ctf/claim` (currently 404) — the honest, visible front door for physical QR scans that q.defcon.run 302-forwards to.
+**Depends on:** Phase 44 (`judgeSolve`, data model).
+**Requirements:** CTF-05 (`/use1/ctf/claim` route: read session → `judgeSolve` → render visible solved / points / first-blood result), CTF-06 (unauth claim parks the flag against a nonce + prompts sign-in; on the next signed-in visit the parked nonce is claimed and credited exactly once).
+**Success Criteria:**
+
+  1. Signed-in + correct flag → visible award (points, first-blood when applicable); wrong/disabled → graceful non-award page.
+  2. Unauth scan → parks the flag + prompts sign-in; the later signed-in claim credits exactly once (never double).
+
+**Plans:** 2 plans
+
+- [x] 45-01-PLAN.md — Park-and-claim helpers (`ctf-pending.ts` createPending/claimPending) + judge pre-hashed-guess seam (wave 1, tdd)
+- [x] 45-02-PLAN.md — Visible `/use1/ctf/claim` route + own silent-SSO-free `(ctf)` layout + result card / nonce keeper (wave 2)
+
+### Phase 46: Covert CSS Channel + Park-and-Claim
+
+**Goal:** The clandestine in-page submission path — an always-`200 text/css` asset on run.defcon.run whose response is indistinguishable in the network tab, carrying the award ack inside the CSS body, wired to the `!!!` easter-egg trigger and a DC33-style celebration.
+**Depends on:** Phase 44 (`judgeSolve`, `CtfPending`).
+**Requirements:** CTF-07 (always-`200 text/css` endpoint; `v=` param decodes a reversible, build-date-plausible numeric flag; unknown/wrong/unauth → plain decoy sheet), CTF-08 (award ack = an innocuous CSS custom property; identical HTTP status, `Content-Type`, and ≈body-size across win/wrong/unauth; no differential logging — invisibility invariants), CTF-09 (egg-side client: `!!!` trigger injects the `<link>`, reads the marker via `getComputedStyle` → DC33 celebration [rain + effects] on win only; unauth path parks a nonce for later credit).
+**Success Criteria:**
+
+  1. Covert curl matrix (signed-in-win / signed-in-wrong / unauth) is indistinguishable except for the value buried in the CSS body; no auth/win/flag tell in status, headers, size, or logs.
+  2. The `getComputedStyle` read fires the celebration on a genuine win only; an unauth win parks a nonce that credits on the next signed-in visit.
+
+**Plans:** 4 plans
+
+- [x] 46-01-PLAN.md — Covert primitives: reversible+total flag codec + presence-only ≈equal-size CSS-ack builder (wave 1)
+- [x] 46-02-PLAN.md — Covert `text/css` route at `/use1/assets/theme` (always-200, decoy/win, judge+park, no differential log) (wave 2)
+- [x] 46-03-PLAN.md — DC33 CtfCelebration overlay (self-terminating, not reduced-motion-gated) (wave 1)
+- [x] 46-04-PLAN.md — Egg client (encode → inject link → getComputedStyle read-back) + `!!!` trigger wired on run.defcon.run (wave 3)
+
+### Phase 47: Admin CTF CRUD Fields + CTF Leaderboard
+
+**Goal:** Extend the existing `/admin/qr` CTF CRUD with the new scoring fields (hash-on-save) and build the CTF-only leaderboard reachable at `q.defcon.run/admin/leaderboard`.
+**Depends on:** Phase 44 (data model). Parallel-safe with 45/46.
+**Requirements:** CTF-10 (`CtfForm` extended: `pointMax`/`pointFloor`, `maxSolves`, `firstBloodBonus`, `timeTiers[]` via the existing datetime-local + preset-chip picker; answer hashes on save — plaintext never persisted; one-time migration of existing `Ctf.answer` plaintext → `answerHash`), CTF-11 (CTF-only leaderboard: rank users by `RunUser.ctfScore`, drill into a challenge's `CtfSolve` rows [user, ordinal, points, first-blood, channel, time]; admin-gated; optional CSV with the OWASP formula-injection guard).
+**Success Criteria:**
+
+  1. CTF CRUD round-trips all new fields; existing `Ctf` rows are migrated to `answerHash` with no plaintext left.
+  2. The leaderboard ranks by `ctfScore` and drills into `CtfSolve` under the existing `ADMIN_GROUPS` gate.
+
+**Plans:** 3 plans (all wave 1, parallel — zero file overlap).
+
+Plans:
+
+- [x] 47-01-PLAN.md — CtfForm scoring fields (pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers via the QR datetime+preset editor) + hash-on-save in qr-admin (answerHash, no plaintext, no-clobber on blank edit) + vitest (CTF-10)
+- [x] 47-02-PLAN.md — Idempotent plaintext→answerHash migration: pure `ctf-migration.ts` (reuses `hashAnswer`) + dry-run/`--confirm` `migrate-ctf-answerhash.mts` tsx script + idempotency/parity tests (CTF-10)
+- [x] 47-03-PLAN.md — CTF-only leaderboard: `ctf-leaderboard.ts` (rank by ctfScore + CtfSolve drill + formula-guarded CSV) + gated `(protected)/admin/leaderboard` page + AdminConsole link + gated `/api/admin/ctf-leaderboard` CSV route (CTF-11)
+
+### Phase 48: CloudFront + Integration Exposure
+
+**Goal:** Wire the mixed-origin CloudFront so the covert path and the q-hosted admin leaderboard actually resolve correctly and uncached, and expose the CTF signal the DC33 total-score mapper consumes.
+**Depends on:** Phases 46 (covert path) + 47 (admin route/leaderboard).
+**Requirements:** CTF-12 (CloudFront covert-path behavior: routes to the app/ALB origin [not an S3/`*.css` static behavior], `CachingDisabled`, forwards the session cookie; verify no higher-precedence extension behavior intercepts), CTF-13 (`q.defcon.run/admin/*` → run.human ALB origin behavior [cookie-forward, no-cache] so `q.defcon.run/admin/leaderboard` renders under run.human's `ADMIN_GROUPS` gate without turning the resolver into an app server), CTF-14 (document + expose the `ctfScore`/`CtfSolve` read for the DC33 total-score migration; do NOT build the global board).
+**Success Criteria:**
+
+  1. Live curl matrix: the covert path hits the app origin, is uncached, forwards the cookie, and differs only in the CSS body across signed-in-vs-not / right-vs-wrong.
+  2. `q.defcon.run/admin/leaderboard` renders under the admin gate; the CTF signal is documented and queryable by the DC33 mapper.
+
+**Plans:** 3 plans (author + `terraform validate` only — NO apply/deploy; DEPLOY-SPECs where a blind production-distro edit is unsafe)
+- [x] 48-01-PLAN.md — CTF-12: covert-path `/use1/assets/theme` → use1 ALB behavior on the run.defcon.run cloudfront module (authored edit + DEPLOY-SPEC)
+- [x] 48-02-PLAN.md — CTF-13: inert `q /admin/*` → run.human behavior on the qr-resolver distro (authored, count-gated + DEPLOY-SPEC)
+- [x] 48-03-PLAN.md — CTF-14: `docs/ctf-score-integration.md` documenting the `ctfScore`/`CtfSolve` read for the DC33 mapper
 
 ---
 

@@ -335,6 +335,34 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
+  # CTF-12 covert-channel behavior (run.defcon.run only).
+  # The extension-less path /use1/assets/theme is a covert CSS channel: it must be
+  # served by the run.human APP (alb-use1), NOT the S3 static assets bucket, so the
+  # app can render per-request, auth-state-bearing CSS (the award marker) uncached.
+  # ORDERING IS LOAD-BEARING: this exact-path behavior MUST be authored BEFORE the
+  # /{region}/assets/* S3 wildcard below. CloudFront selects the FIRST matching
+  # behavior in list order; if the wildcard preceded this, /use1/assets/theme would
+  # be grabbed by S3 (wrong origin, cached, no cookie) and the covert channel dies.
+  # CachingDisabled => every hit reaches the app so per-request auth state renders;
+  # AllViewerExceptHostHeader => forwards the .defcon.run session cookie + query
+  # while rewriting Host to the ALB, exactly as the app behaviors do.
+  # use1-only per Phase 46's chosen covert path; a per-region /{region}/assets/theme
+  # variant is deliberately out of scope this phase.
+  dynamic "ordered_cache_behavior" {
+    for_each = each.key == "run" ? toset(["theme"]) : toset([])
+    content {
+      path_pattern           = "/use1/assets/theme"
+      target_origin_id       = "alb-use1"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+      origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewerExceptHostHeader
+    }
+  }
+
   # Ordered cache behaviors for regional S3 asset routing
   # IMPORTANT: This must come BEFORE the ALB wildcard patterns
   # Pattern: /{region_label}/assets/* routes to S3 for this domain

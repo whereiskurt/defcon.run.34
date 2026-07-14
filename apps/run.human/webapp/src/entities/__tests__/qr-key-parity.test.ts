@@ -32,6 +32,30 @@ describe("Ctf mirror key parity", () => {
     const key = Ctf.get({ challenge: "sao" }).params({ table }).Key;
     expect(key).toEqual({ pk: "$run#challenge_sao", sk: "$ctf_1" });
   });
+
+  it("accepts the Phase-44 scoring attributes without moving the key", () => {
+    // The attribute extension (44-01) must not disturb the parity-locked key,
+    // and the entity must accept the new scoring shape. .params() encodes
+    // offline (no network I/O).
+    const params = Ctf.put({
+      challenge: "sao",
+      answerHash: "sha256:deadbeef",
+      pointMax: 500,
+      pointFloor: 50,
+      maxSolves: 100,
+      firstBloodBonus: 100,
+      solveCount: 0,
+      timeTiers: [
+        { from: "2026-08-01T00:00:00Z", to: "2026-08-02T00:00:00Z", ceiling: 750 },
+      ],
+    }).params({ table });
+    expect(params.Item.pk).toBe("$run#challenge_sao");
+    expect(params.Item.sk).toBe("$ctf_1");
+    expect(params.Item.answerHash).toBe("sha256:deadbeef");
+    expect(params.Item.timeTiers).toEqual([
+      { from: "2026-08-01T00:00:00Z", to: "2026-08-02T00:00:00Z", ceiling: 750 },
+    ]);
+  });
 });
 
 describe("Qrstat mirror key parity", () => {
