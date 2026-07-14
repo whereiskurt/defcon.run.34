@@ -40,6 +40,10 @@ on:
         description: 'Modules to apply (comma-separated, e.g., ecs-task,ecs-service)'
         type: string
         default: ''
+      target:
+        description: 'Optional terraform -target=<addr> to scope the apply to a single resource (only honored with a single module).'
+        type: string
+        default: ''
       ref:
         description: 'Git ref to checkout (default: workflow trigger ref)'
         type: string
@@ -141,6 +145,9 @@ jobs:
         run: |
           REGION="${{ inputs.region }}"
           MODULES="${{ inputs.modules }}"
+          TARGET="${{ inputs.target }}"
+          TARGET_ARG=""
+          if [[ -n "$TARGET" ]]; then TARGET_ARG="-target=$TARGET"; fi
 
           # If modules are specified, apply each targeted unit directory.
           # A module entry may be a bare name (region-relative -> region/$REGION/$MODULE)
@@ -159,8 +166,8 @@ jobs:
                 echo "ERROR: bare module '$MODULE' needs a region; pass a path like global/$MODULE instead." >&2
                 exit 1
               fi
-              echo "=== Applying $DIR ==="
-              (cd "$DIR" && terragrunt apply --no-color --non-interactive -auto-approve) 2>&1 | tee -a apply_output.txt
+              echo "=== Applying $DIR ${TARGET_ARG} ==="
+              (cd "$DIR" && terragrunt apply --no-color --non-interactive $TARGET_ARG -auto-approve) 2>&1 | tee -a apply_output.txt
             done
           # If only region specified, apply all in that region
           elif [[ -n "$REGION" ]]; then
