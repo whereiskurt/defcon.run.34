@@ -40,6 +40,17 @@ include "providers" {
 
 terraform {
   source = "${include.module.locals.module_path}/v1.0.0"
+
+  # Install runtime deps into the Lambda source dir BEFORE terraform zips it
+  # (data.archive_file.reconcile). Without this the archive omits node_modules
+  # and the Lambda dies on cold start with ERR_MODULE_NOT_FOUND (@anthropic-ai
+  # /sdk). Runs on plan too so the planned source_code_hash matches apply.
+  # Mirrors the qr-resolver unit's npm_ci hooks.
+  before_hook "npm_ci_reconcile" {
+    commands    = ["init", "plan", "apply"]
+    execute     = ["npm", "ci", "--omit=dev"]
+    working_dir = "${get_repo_root()}/apps/run.bib/lambda/reconcile"
+  }
 }
 
 # Depend on the regional email module for the SES inbox bucket name+ARN.
