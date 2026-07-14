@@ -1,6 +1,13 @@
 import { Entity, type EntityItem } from "electrodb";
 import { electroClient, ELECTRO_TABLE } from "./client";
 import { RunUser } from "./run-user";
+import {
+  createAccomplishment,
+  deleteAccomplishment,
+  accomplishmentIdFor,
+  type CreateAccomplishmentInput,
+} from "./accomplishment";
+import { POINTS } from "../lib/leaderboard-scoring";
 import * as crypto from "crypto";
 
 /**
@@ -199,9 +206,59 @@ export const CheckIn = new Entity(
 export type CheckInItem = EntityItem<typeof CheckIn>;
 
 /**
+ * The check-in facts a leaderboard accomplishment is derived from (LDBR-04).
+ * Deliberately narrow + pure-friendly: everything `buildCheckinAccomplishmentInput`
+ * needs and nothing tied to DynamoDB, so the wiring is unit-testable without a
+ * live table. `isPrivate` is the ALREADY-RESOLVED value persisted on the CheckIn
+ * row (the caller applies the `?? true` default) — the builder carries it
+ * verbatim so the future privacy filter reads the same value the check-in stored.
+ */
+export interface CheckinAccomplishmentSeed {
+  userId: string;
+  /** The check-in's own source label (e.g. "Web GPS") — becomes the name. */
+  source: string;
+  /** The check-in timestamp (epoch ms) — becomes `completedAt`. */
+  timestamp: number;
+  /** The resolved isPrivate persisted on the CheckIn row, carried verbatim. */
+  isPrivate: boolean;
+  /** The check-in id — makes the accomplishment deterministic/idempotent. */
+  checkInId: string;
+}
+
+/**
+ * PURE seam (LDBR-04): map a check-in to the exact `createAccomplishment` input.
+ *
+ * Fixes `source: "checkin"`, `type: "activity"`, and `points: POINTS.checkin`,
+ * and threads `isPrivate` through UNCHANGED (true stays true, false stays false —
+ * the caller owns the default). Because it embeds `checkInId`, and
+ * `accomplishmentIdFor("checkin", checkInId)` is deterministic, a replayed
+ * build for the same check-in targets the SAME accomplishment row — the
+ * idempotency contract create and delete both rely on (T-49-08).
+ */
+export function buildCheckinAccomplishmentInput(
+  seed: CheckinAccomplishmentSeed
+): CreateAccomplishmentInput {
+  return {
+    userId: seed.userId,
+    source: "checkin",
+    type: "activity",
+    name: `Check-in: ${seed.source}`,
+    completedAt: seed.timestamp,
+    isPrivate: seed.isPrivate,
+    points: POINTS.checkin,
+    checkInId: seed.checkInId,
+  };
+}
+
+/**
  * Create a new check-in for a user.
  * Computes average coordinates, best accuracy, duration, and point count from samples.
  * Updates RunUser's checkInCount (atomic increment) and lastCheckInAt as side effects.
+ *
+ * Also raises the leaderboard (LDBR-04): after the RunUser rollup, writes the
+ * matching `activity` Accomplishment (source "checkin"), which bumps
+ * `activityScore`/`activityCounts.checkin`. Idempotent — a replayed create for
+ * the same checkInId is a no-op (deterministic accomplishment id).
  *
  * Note: Quota enforcement is NOT done here -- it's handled by quota-middleware in API routes (Phase 11).
  */
@@ -257,6 +314,19 @@ export async function createCheckIn(userId: string, data: CheckInData) {
     .set({ lastCheckInAt: timestamp })
     .add({ checkInCount: 1 } as any)
     .go();
+
+  // Leaderboard side effect (LDBR-04): raise the matching activity accomplishment,
+  // which bumps activityScore/activityCounts.checkin. Carries the SAME isPrivate
+  // persisted on the CheckIn row above and the checkInId for idempotency.
+  await createAccomplishment(
+    buildCheckinAccomplishmentInput({
+      userId,
+      source: source || "Web GPS",
+      timestamp,
+      isPrivate: isPrivate ?? true,
+      checkInId,
+    })
+  );
 
   return result.data;
 }
@@ -345,6 +415,11 @@ export async function deleteCheckIn(
   await RunUser.patch({ userId })
     .subtract({ checkInCount: 1 } as any)
     .go();
+
+  // Leaderboard side effect (LDBR-04): reverse the matching activity
+  // accomplishment (and its activityScore/activityCounts.checkin contribution).
+  // Idempotent — a no-op if the accomplishment is already gone.
+  await deleteAccomplishment(userId, accomplishmentIdFor("checkin", checkInId));
 }
 
 /**
