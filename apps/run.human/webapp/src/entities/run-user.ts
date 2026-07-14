@@ -118,6 +118,30 @@ export const RunUser = new Entity(
         default: () => 0,
       },
 
+      // Leaderboard activity rollups (Phase 49, LDBR-02). Denormalized so the
+      // leaderboard is a cheap scanAllRunUsers() sorted by activityScore, never
+      // an accomplishment-wide scan. Written ONLY by updateRunUserActivityCounts
+      // (below), called ONLY from createAccomplishment/deleteAccomplishment
+      // (Plan 49-03). Default-zero / optional so pre-existing rows read cleanly.
+      // NOTE: intentionally NOT `totalPoints` — the displayed total is
+      // activityScore + ctfScore, and ctfScore/ctfSolves are owned by the CTF
+      // judge worktree, which adds them to this SAME entity additively.
+      activityScore: {
+        type: "number",
+        default: () => 0,
+      },
+      activityCounts: {
+        type: "map",
+        properties: {
+          checkin: { type: "number", default: () => 0 },
+          gpx: { type: "number", default: () => 0 },
+        },
+        default: () => ({ checkin: 0, gpx: 0 }),
+      },
+      latestActivityAt: {
+        type: "number",
+      },
+
       // User preferences
       preferences: {
         type: "map",
@@ -374,8 +398,13 @@ export type RunUserItem = {
   meshtasticRadios?: MeshtasticRadio[];
   lastCheckInAt?: number;
   checkInCount?: number;
+  // CTF rollups (Phase 44, CTF-03) — owned by the CTF judge worktree.
   ctfScore?: number;
   ctfSolves?: number;
+  // Leaderboard activity rollups (Phase 49, LDBR-02) — default-zero / optional.
+  activityScore?: number;
+  activityCounts?: { checkin?: number; gpx?: number };
+  latestActivityAt?: number;
   preferences?: {
     theme?: string;
     units?: string;
