@@ -2,14 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: CTF Judge & Scoring
+current_phase_name: defining requirements
 status: planning
-last_updated: "2026-07-14T04:27:03.825Z"
+stopped_at: Phase 39 context gathered
+last_updated: "2026-07-14T04:34:46.306Z"
 last_activity: 2026-07-14
+last_activity_desc: Milestone v2.1 started
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 2
   percent: 0
 ---
 
@@ -97,6 +100,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 39-01: common.header.donate re-homes the donate trigger; bib.donate.trigger left seeded until 39-04 re-points bib header/menu.
 - [Phase 39]: 39-02: run.human copy toolkit installed (ported verbatim from run.bib, D-05); snapshot floor carries byte-identical common.* union (D-07); CopyProvider mounted in both group layouts; zero human.* easy wins authored (D-06 bias-to-defer)
 - [Phase ?]: 39-04: TransactionHistory async loadCopy+t; AdminActions useCopy() (module consts removed) — words byte-identical
+- [Phase ?]: 44-01: Ctf entity extended with scoring fields; legacy answer kept optional, plaintext->hash migration deferred to Phase 47
+- [Phase ?]: 44-01: CtfSolve.sk ctfsolve_1#user is the attribute_not_exists idempotency key; CtfPending/CtfAttempt run.human-only, keys pinned by test
 
 ### Pending Todos
 
@@ -109,7 +114,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T16:43:51.279Z
+Last session: 2026-07-14T04:34:40.823Z
 Stopped at: Phase 39 context gathered
 Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
 
@@ -144,3 +149,4 @@ Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-C
 | Phase 39 P39-03 | 8m | 2 tasks | 3 files |
 | Phase 39 P39-04 | ~10m | 2 tasks | 2 files |
 | Phase 39 P05 | 3min | 2 tasks | 4 files |
+| Phase 44 P01 | 8m | 3 tasks | 5 files |

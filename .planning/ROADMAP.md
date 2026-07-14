@@ -304,7 +304,7 @@ Plans:
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
-| 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 0/3 | Planned | - |
+| 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 2/3 | In Progress|  |
 | 45. Visible QR Claim Page | v2.1 | 0/TBD | Planned | - |
 | 46. Covert CSS Channel + Park-and-Claim | v2.1 | 0/TBD | Planned | - |
 | 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 0/TBD | Planned | - |
@@ -373,15 +373,17 @@ Greenfield build of the Phase-5 CTF judge. Today q.defcon.run only *forwards* `/
 **Depends on:** existing run.human `electroClient` + the resolver's `Ctf` entity mirror pattern (no prior phase dependency).
 **Requirements:** CTF-01 (`Ctf` extended: `answerHash`, `pointMax`, `pointFloor`, `maxSolves`, `firstBloodBonus`, `timeTiers[]`, `solveCount`; new `CtfSolve` (pk `$run#challenge_<c>` / sk `$ctfsolve_1#user_<sub>`, gsi1 by user) + `CtfPending` (nonce, TTL) entities; `RunUser.ctfScore`/`ctfSolves`; ElectroDB key-parity with resolver mirror), CTF-02 (`computePoints(n, ctf)`: active time-tier ceiling sets the max; linear per-solve decline from ceiling→floor across `N`; `+firstBloodBonus` when `n==1`; `n>N`→0), CTF-03 (`judgeSolve`: attempt-cap/rate-limit → hashed-answer validate → conditional-put `CtfSolve` [idempotent claim] → atomic `ADD solveCount` ordinal → score → `ADD RunUser.ctfScore/ctfSolves`), CTF-04 (hygiene: answers stored salted-hashed; raw guess NEVER logged — extend the resolver's `ctfHandoffLog` no-value invariant to the judge).
 **Success Criteria:**
+
   1. `computePoints` is correct across tier boundaries, first-blood (`n==1`), cap edges (`n==N`, `n==N+1`, `N==1`), and floor/ceiling.
   2. Concurrency/idempotency proven by test: same-user double-submit scores once (still returns prior points), distinct concurrent users get distinct gap-free ordinals, replay never double-scores.
   3. No plaintext answer and no raw guess is ever persisted or logged.
+
 **Plans:** 3 plans (waves: 1={44-01 entities, 44-02 scoring+hashing} parallel, 2={44-03 judge})
 
 Plans:
 
-- [ ] 44-01-PLAN.md — Data model: extend `Ctf` (answerHash/pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers/solveCount, keep legacy `answer`) + new `CtfSolve`/`CtfPending`/`CtfAttempt` entities + `RunUser.ctfScore`/`ctfSolves` + key-parity tests (CTF-01)
-- [ ] 44-02-PLAN.md — Pure primitives: `computePoints`/`activeTierCeiling` scoring engine (injectable clock) + `hashAnswer`/`verifyAnswer` salted-hash seam + boundary tests (CTF-02, CTF-04)
+- [x] 44-01-PLAN.md — Data model: extend `Ctf` (answerHash/pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers/solveCount, keep legacy `answer`) + new `CtfSolve`/`CtfPending`/`CtfAttempt` entities + `RunUser.ctfScore`/`ctfSolves` + key-parity tests (CTF-01)
+- [x] 44-02-PLAN.md — Pure primitives: `computePoints`/`activeTierCeiling` scoring engine (injectable clock) + `hashAnswer`/`verifyAnswer` salted-hash seam + boundary tests (CTF-02, CTF-04)
 - [ ] 44-03-PLAN.md — `judgeSolve` core (injectable `CtfStore` seam, locked 7-step claim-then-allocate flow, never-throw) + `ctfJudgeLog` no-value hygiene builder + concurrency/idempotency/hygiene tests (CTF-03, CTF-04)
 
 ### Phase 45: Visible QR Claim Page
@@ -390,8 +392,10 @@ Plans:
 **Depends on:** Phase 44 (`judgeSolve`, data model).
 **Requirements:** CTF-05 (`/use1/ctf/claim` route: read session → `judgeSolve` → render visible solved / points / first-blood result), CTF-06 (unauth claim parks the flag against a nonce + prompts sign-in; on the next signed-in visit the parked nonce is claimed and credited exactly once).
 **Success Criteria:**
+
   1. Signed-in + correct flag → visible award (points, first-blood when applicable); wrong/disabled → graceful non-award page.
   2. Unauth scan → parks the flag + prompts sign-in; the later signed-in claim credits exactly once (never double).
+
 **Plans:** TBD.
 
 ### Phase 46: Covert CSS Channel + Park-and-Claim
@@ -400,8 +404,10 @@ Plans:
 **Depends on:** Phase 44 (`judgeSolve`, `CtfPending`).
 **Requirements:** CTF-07 (always-`200 text/css` endpoint; `v=` param decodes a reversible, build-date-plausible numeric flag; unknown/wrong/unauth → plain decoy sheet), CTF-08 (award ack = an innocuous CSS custom property; identical HTTP status, `Content-Type`, and ≈body-size across win/wrong/unauth; no differential logging — invisibility invariants), CTF-09 (egg-side client: `!!!` trigger injects the `<link>`, reads the marker via `getComputedStyle` → DC33 celebration [rain + effects] on win only; unauth path parks a nonce for later credit).
 **Success Criteria:**
+
   1. Covert curl matrix (signed-in-win / signed-in-wrong / unauth) is indistinguishable except for the value buried in the CSS body; no auth/win/flag tell in status, headers, size, or logs.
   2. The `getComputedStyle` read fires the celebration on a genuine win only; an unauth win parks a nonce that credits on the next signed-in visit.
+
 **Plans:** TBD.
 
 ### Phase 47: Admin CTF CRUD Fields + CTF Leaderboard
@@ -410,8 +416,10 @@ Plans:
 **Depends on:** Phase 44 (data model). Parallel-safe with 45/46.
 **Requirements:** CTF-10 (`CtfForm` extended: `pointMax`/`pointFloor`, `maxSolves`, `firstBloodBonus`, `timeTiers[]` via the existing datetime-local + preset-chip picker; answer hashes on save — plaintext never persisted; one-time migration of existing `Ctf.answer` plaintext → `answerHash`), CTF-11 (CTF-only leaderboard: rank users by `RunUser.ctfScore`, drill into a challenge's `CtfSolve` rows [user, ordinal, points, first-blood, channel, time]; admin-gated; optional CSV with the OWASP formula-injection guard).
 **Success Criteria:**
+
   1. CTF CRUD round-trips all new fields; existing `Ctf` rows are migrated to `answerHash` with no plaintext left.
   2. The leaderboard ranks by `ctfScore` and drills into `CtfSolve` under the existing `ADMIN_GROUPS` gate.
+
 **Plans:** TBD.
 
 ### Phase 48: CloudFront + Integration Exposure
@@ -420,8 +428,10 @@ Plans:
 **Depends on:** Phases 46 (covert path) + 47 (admin route/leaderboard).
 **Requirements:** CTF-12 (CloudFront covert-path behavior: routes to the app/ALB origin [not an S3/`*.css` static behavior], `CachingDisabled`, forwards the session cookie; verify no higher-precedence extension behavior intercepts), CTF-13 (`q.defcon.run/admin/*` → run.human ALB origin behavior [cookie-forward, no-cache] so `q.defcon.run/admin/leaderboard` renders under run.human's `ADMIN_GROUPS` gate without turning the resolver into an app server), CTF-14 (document + expose the `ctfScore`/`CtfSolve` read for the DC33 total-score migration; do NOT build the global board).
 **Success Criteria:**
+
   1. Live curl matrix: the covert path hits the app origin, is uncached, forwards the cookie, and differs only in the CSS body across signed-in-vs-not / right-vs-wrong.
   2. `q.defcon.run/admin/leaderboard` renders under the admin gate; the CTF signal is documented and queryable by the DC33 mapper.
+
 **Plans:** TBD (terraform + live verification).
 
 ---
