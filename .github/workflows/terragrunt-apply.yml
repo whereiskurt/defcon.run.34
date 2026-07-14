@@ -88,6 +88,12 @@ jobs:
       # admin_reports.alert_email = get_env("TF_VAR_ADMIN_EMAIL", "admin@example.com")
       # (site.hcl). Without this mapping the SNS tripwire subscribes the placeholder.
       TF_VAR_ADMIN_EMAIL: ${{ vars.TF_VAR_ADMIN_EMAIL }}
+      # email fwd_rules send_to = get_env("TF_VAR_FWD_EMAIL_TO_ADDRESS", "admin@example.com")
+      # (site.hcl + region email.hcl). Without it the forwarder Lambda reverts every
+      # forwarding target to placeholders AND the catch-all receipt rule (match =
+      # zonename) is dropped from the for_each -> aws_ses_receipt_rule.forwarding
+      # ["defcon.run"] destroy. Live target is whereiskurt+defcon.run@gmail.com.
+      TF_VAR_FWD_EMAIL_TO_ADDRESS: ${{ vars.TF_VAR_FWD_EMAIL_TO_ADDRESS }}
 
     steps:
       - name: Checkout

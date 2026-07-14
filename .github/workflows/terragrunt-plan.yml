@@ -63,6 +63,14 @@ jobs:
       # how to resolve these locally and print the `gh variable set` commands.
       TF_VAR_SOPS_KMS_KEY_ID: ${{ vars.TF_VAR_SOPS_KMS_KEY_ID }}
       TF_VAR_SSM_KMS_KEY_ARNS: ${{ vars.TF_VAR_SSM_KMS_KEY_ARNS }}
+      # Mirror the apply workflow's email env so plans reflect reality instead of
+      # false-alarming placeholder reverts. Without TF_VAR_ADMIN_EMAIL the plan
+      # shows admin-reports tripwire email reverting to admin@example.com; without
+      # TF_VAR_FWD_EMAIL_TO_ADDRESS it shows the forwarder Lambda reverting to
+      # placeholders + the catch-all SES receipt rule being destroyed. See
+      # terragrunt-apply.yml for the matching env block.
+      TF_VAR_ADMIN_EMAIL: ${{ vars.TF_VAR_ADMIN_EMAIL }}
+      TF_VAR_FWD_EMAIL_TO_ADDRESS: ${{ vars.TF_VAR_FWD_EMAIL_TO_ADDRESS }}
 
     steps:
       - name: Checkout
