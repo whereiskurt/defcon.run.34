@@ -396,7 +396,10 @@ Plans:
   1. Signed-in + correct flag → visible award (points, first-blood when applicable); wrong/disabled → graceful non-award page.
   2. Unauth scan → parks the flag + prompts sign-in; the later signed-in claim credits exactly once (never double).
 
-**Plans:** TBD.
+**Plans:** 2 plans
+
+- [ ] 45-01-PLAN.md — Park-and-claim helpers (`ctf-pending.ts` createPending/claimPending) + judge pre-hashed-guess seam (wave 1, tdd)
+- [ ] 45-02-PLAN.md — Visible `/use1/ctf/claim` route + own silent-SSO-free `(ctf)` layout + result card / nonce keeper (wave 2)
 
 ### Phase 46: Covert CSS Channel + Park-and-Claim
 
