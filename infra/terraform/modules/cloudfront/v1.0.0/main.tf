@@ -132,7 +132,9 @@ resource "aws_cloudfront_origin_access_control" "cms_media_oac" {
 # fetch is credential-less and the .gpx is parsed as text (never canvas-drawn),
 # so only Access-Control-Allow-Origin is required (T-02-08 accept).
 resource "aws_cloudfront_response_headers_policy" "cms_media_cors" {
-  name    = "cms-media-cors-${var.dns.zonename}"
+  # zonename contains dots (e.g. defcon.run); CloudFront policy names allow only
+  # alphanumerics/dashes/underscores, so sanitize dots -> dashes.
+  name    = "cms-media-cors-${replace(var.dns.zonename, ".", "-")}"
   comment = "CORS for CMS media so the gpx studio origin can fetch .gpx cross-origin"
 
   cors_config {
