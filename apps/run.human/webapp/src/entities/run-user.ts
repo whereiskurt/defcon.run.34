@@ -118,6 +118,30 @@ export const RunUser = new Entity(
         default: () => 0,
       },
 
+      // Leaderboard activity rollups (Phase 49, LDBR-02). Denormalized so the
+      // leaderboard is a cheap scanAllRunUsers() sorted by activityScore, never
+      // an accomplishment-wide scan. Written ONLY by updateRunUserActivityCounts
+      // (below), called ONLY from createAccomplishment/deleteAccomplishment
+      // (Plan 49-03). Default-zero / optional so pre-existing rows read cleanly.
+      // NOTE: intentionally NOT `totalPoints` — the displayed total is
+      // activityScore + ctfScore, and ctfScore/ctfSolves are owned by the CTF
+      // judge worktree, which adds them to this SAME entity additively.
+      activityScore: {
+        type: "number",
+        default: () => 0,
+      },
+      activityCounts: {
+        type: "map",
+        properties: {
+          checkin: { type: "number", default: () => 0 },
+          gpx: { type: "number", default: () => 0 },
+        },
+        default: () => ({ checkin: 0, gpx: 0 }),
+      },
+      latestActivityAt: {
+        type: "number",
+      },
+
       // User preferences
       preferences: {
         type: "map",
@@ -320,6 +344,95 @@ export async function updateMeshtasticRadios(
   await RunUser.patch({ userId }).set({ meshtasticRadios: radios }).go();
 }
 
+/**
+ * Pure delta helper for the leaderboard activity rollups (Phase 49, LDBR-02).
+ *
+ * Given an accomplishment source, its point value, and whether the accomplishment
+ * is being created (increment) or deleted (decrement), returns the signed deltas
+ * to apply to `activityScore` and the matching `activityCounts.<source>` entry.
+ *
+ * - `scoreDelta` is signed by `increment` and scaled by `pointsDelta`.
+ * - `countDelta` is +1 (create) or -1 (delete) — one accomplishment is one count,
+ *   regardless of how many points it is worth.
+ * - `countKey` is always the passed source; it is never crossed.
+ *
+ * Pure and side-effect-free so it can be unit-tested without DynamoDB
+ * (see run-user-activity.test.ts). The floor-at-0 clamp lives in the mutator
+ * below, not here, because it depends on the persisted current value.
+ */
+export function activityDelta(
+  source: "checkin" | "gpx",
+  pointsDelta: number,
+  increment: boolean
+): { scoreDelta: number; countKey: "checkin" | "gpx"; countDelta: number } {
+  const sign = increment ? 1 : -1;
+  return {
+    scoreDelta: sign * pointsDelta,
+    countKey: source,
+    countDelta: sign,
+  };
+}
+
+/**
+ * The SOLE writer of the leaderboard activity rollups (Phase 49, LDBR-02):
+ * `activityScore`, `activityCounts`, and `latestActivityAt`.
+ *
+ * Called ONLY from `createAccomplishment` / `deleteAccomplishment` (Plan 49-03)
+ * so the denormalized totals never drift from the Accomplishment table. Do NOT
+ * patch these three fields anywhere else — the whole leaderboard is a cheap
+ * `scanAllRunUsers()` sorted by `activityScore`, which is only trustworthy if
+ * this is the single mutation point.
+ *
+ * Uses read-modify-write (not an atomic `add`/`subtract`) because a decrement
+ * must never persist a negative score or count — DynamoDB atomic adds cannot
+ * clamp, so the floor (DC33 `Math.max(0, …)`) is enforced here over the read
+ * value, then written back in one patch.
+ *
+ * No caller is wired in this plan — the check-in / accomplishment write paths
+ * that call it land in Plans 49-03 / 49-04.
+ */
+export async function updateRunUserActivityCounts(
+  userId: string,
+  {
+    source,
+    pointsDelta,
+    completedAt,
+    increment = true,
+  }: {
+    source: "checkin" | "gpx";
+    pointsDelta: number;
+    completedAt: number;
+    increment?: boolean;
+  }
+): Promise<void> {
+  const { scoreDelta, countKey, countDelta } = activityDelta(
+    source,
+    pointsDelta,
+    increment
+  );
+
+  const existing = await getRunUser(userId);
+  const currentScore = existing?.activityScore ?? 0;
+  const currentCounts = existing?.activityCounts ?? {};
+
+  const nextScore = Math.max(0, currentScore + scoreDelta);
+  const nextCount = Math.max(0, (currentCounts[countKey] ?? 0) + countDelta);
+
+  const nextCounts = {
+    checkin: currentCounts.checkin ?? 0,
+    gpx: currentCounts.gpx ?? 0,
+    [countKey]: nextCount,
+  };
+
+  await RunUser.patch({ userId })
+    .set({
+      activityScore: nextScore,
+      activityCounts: nextCounts,
+      latestActivityAt: completedAt,
+    })
+    .go();
+}
+
 // Type definitions
 export type MeshtasticRadio = {
   id: string;
@@ -374,8 +487,13 @@ export type RunUserItem = {
   meshtasticRadios?: MeshtasticRadio[];
   lastCheckInAt?: number;
   checkInCount?: number;
+  // CTF rollups (Phase 44, CTF-03) — owned by the CTF judge worktree.
   ctfScore?: number;
   ctfSolves?: number;
+  // Leaderboard activity rollups (Phase 49, LDBR-02) — default-zero / optional.
+  activityScore?: number;
+  activityCounts?: { checkin?: number; gpx?: number };
+  latestActivityAt?: number;
   preferences?: {
     theme?: string;
     units?: string;

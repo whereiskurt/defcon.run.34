@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { GpxFile } from "@/entities/gpx-file";
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, BUCKET } from "@/lib/s3-client";
 import { validateGpxFile } from "@/lib/gpx-validator";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import {
+  parseTrack,
+  buildAccomplishmentPayload,
+  notifyAccomplishment,
+} from "@/lib/gpx-accomplishment";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -137,6 +142,39 @@ export async function POST(request: Request, { params }: RouteParams) {
     })
       .set({ status: "active" })
       .go({ response: "all_new" });
+
+    // LDBR-05: turn an individually-owned GPX activation into a leaderboard
+    // accomplishment on run.human. Best-effort / fire-and-forget — ANY failure
+    // here (S3 fetch, parse, POST) is swallowed so the confirm success response
+    // and the user's save always succeed (T-50-06). GLOBAL community files have
+    // no individual owner and must NOT score (T-50-07).
+    if (targetUserId !== "GLOBAL") {
+      try {
+        // Full body (no Range header) — the 1KB validator above is separate.
+        const obj = await s3Client.send(
+          new GetObjectCommand({ Bucket: BUCKET, Key: file.data.key })
+        );
+        const gpxText = (await obj.Body?.transformToString()) ?? "";
+        const { points, distance, elevation } = parseTrack(gpxText);
+        // run.gpx is pure JWT: GpxFile.userId IS the raw OIDC sub run.human wants.
+        const payload = buildAccomplishmentPayload({
+          oidcSub: file.data.userId,
+          gpxFileId: id,
+          name: file.data.fileName,
+          points,
+          distance,
+          elevation,
+          completedAt: Date.now(),
+        });
+        await notifyAccomplishment(payload);
+      } catch (err) {
+        // gpxFileId only — never the secret or payload (T-50-08).
+        console.log(
+          `[confirm] accomplishment notify skipped for ${id}:`,
+          err instanceof Error ? err.message : err
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,

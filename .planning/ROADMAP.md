@@ -14,6 +14,7 @@
 - [x] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (shipped 2026-07-06; edit UI copy live from Strapi, no deploy — SC-3 de-dup proven live)
 - [ ] **v2.0 Admin & Reporting** - Phase 43 (planned 2026-07-11; read-only run.human /admin dashboard — users, activity, gpx usage)
 - [ ] **v2.1 CTF Judge & Scoring** - Phases 44-48 (**BUILT autonomously 2026-07-14, PR open — NOT merged/deployed**; greenfield Phase-5 CTF judge + composed scoring + covert CSS submission channel — design `docs/superpowers/specs/2026-07-13-ctf-judge-and-covert-channel-design.md`; ~122 CTF unit tests + `next build` pass; Phase-48 CloudFront/Terraform authored + validate-clean but NOT applied, deploy-specs accompany; integration-bounded against the DC33 total-score work in the `leaderboard` worktree)
+- [ ] **v2.2 Leaderboard & Activity Table** - Phases 49-52 (**ALL 4 PHASES BUILT + VERIFIED 2026-07-14**, code goal-backward PASS; ships HIDDEN behind the admin group. Hidden, admin-gated DC33-style leaderboard that doubles as each runner's activity table in run.human — `Accomplishment` scoring, client-canvas GPX polyline thumbnails, consumes the CTF judge's `ctfScore`. ~104 tests. LEFT: 1 local-browser render checkpoint (signed-in admin) + `npm run build`. Spec: `docs/superpowers/specs/2026-07-13-leaderboard-activity-table-design.md`. NOTE: v2.1 / phases 44-48 are the CTF judge worktree `hiddenctfsub`.)
 
 ## Phases
 
@@ -309,6 +310,10 @@ Plans:
 | 46. Covert CSS Channel + Park-and-Claim | v2.1 | 4/4 | Built — 96/96 CTF tests green | 2026-07-14 |
 | 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 3/3 | Built — 164/164 CTF tests green | 2026-07-14 |
 | 48. CloudFront + Integration Exposure | v2.1 | 3/3 | Built (authored + terraform-validate; NOT applied — deploy-specs for human apply) | 2026-07-14 |
+| 49. Leaderboard Data Layer — Accomplishment Entity + Scoring | v2.2 | 4/4 | Verified (goal-backward PASS, 31 tests) | 2026-07-14 |
+| 50. GPX Integration — Polyline + Internal Accomplishment Endpoint | v2.2 | 2/2 | Verified (goal-backward PASS, 21 tests) | 2026-07-14 |
+| 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 3/3 | Verified (goal-backward PASS, 29 tests) | 2026-07-14 |
+| 52. Leaderboard UI — PolylineRenderer + Accordion + Hidden Page | v2.2 | 3/3 | Verified (code PASS; 1 local-browser checkpoint) | 2026-07-14 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -450,6 +455,87 @@ Plans:
 - [x] 48-01-PLAN.md — CTF-12: covert-path `/use1/assets/theme` → use1 ALB behavior on the run.defcon.run cloudfront module (authored edit + DEPLOY-SPEC)
 - [x] 48-02-PLAN.md — CTF-13: inert `q /admin/*` → run.human behavior on the qr-resolver distro (authored, count-gated + DEPLOY-SPEC)
 - [x] 48-03-PLAN.md — CTF-14: `docs/ctf-score-integration.md` documenting the `ctfScore`/`CtfSolve` read for the DC33 mapper
+### v2.2 Leaderboard & Activity Table (Planned)
+
+**Milestone Goal:** Bring back the DEF CON 33 leaderboard — which doubled as each runner's personal activity table — into run.human, shipping **HIDDEN behind the admin group** (no nav link) so it can be perfected before launch. A signed-in admin sees a ranked HeroUI accordion of runners; expanding a row reveals that runner's DEF CON runs, each with a client-side `<canvas>` map thumbnail drawn from a stored decimated GPX polyline (DC33 `PolylineRenderer` port — no S3/Lambda thumbnail pipeline). Scoring lives in a new `Accomplishment` ElectroDB entity (this board owns check-ins + GPX) rolled up onto `RunUser.activityScore`; the displayed global score sums in the CTF judge's `RunUser.ctfScore` **read-only** (no cross-write — respects the CTF design's §11 boundary). Spec: `docs/superpowers/specs/2026-07-13-leaderboard-activity-table-design.md`. Numbering: CTF judge worktree owns v2.1 / phases 44-48; this milestone is v2.2 / phases 49-52.
+
+### Phase 49: Leaderboard Data Layer — Accomplishment Entity + Scoring
+
+**Goal:** A new `Accomplishment` ElectroDB entity on `run-human-electro` becomes the leaderboard's source of truth for the runs this board owns (check-ins + GPX), with `byType`/`byYear` GSIs mirroring DC33. `RunUser` gains denormalized `activityScore` + `activityCounts{checkin,gpx}` + `latestActivityAt`, bumped atomically **only** via `createAccomplishment`/`deleteAccomplishment` so totals never drift. A pure, unit-tested scoring module defines point constants and the rank comparator, and computes the displayed `globalScore = activityScore + (ctfScore ?? 0)` — reading the CTF judge's rollup off the same `RunUser` row (defaults to 0 until CTF ships). `createCheckIn`/`deleteCheckIn` create/delete the matching `activity` accomplishment (carrying the check-in's `isPrivate`), idempotently.
+**Depends on:** none (first phase of v2.2; extends the existing run.human `RunUser` + `CheckIn` entities). Shares the `RunUser` entity edit with the CTF judge worktree — additive, non-conflicting (see spec §5.2).
+**Requirements:** LDBR-01 (`Accomplishment` entity: `pk=userId sk=accomplishmentId`, `type`/`source`/`isPrivate`/`metadata{points,polyline,distance,gpxFileId,checkInId}`, `byType`+`byYear` GSIs; `createAccomplishment` writes the row and atomically bumps RunUser rollups; duplicate-guard on `source`+external id), LDBR-02 (`RunUser` += `activityScore`/`activityCounts`/`latestActivityAt`, default-zero, updated only through create/delete helpers; additive-merge-safe with CTF `ctfScore`/`ctfSolves`), LDBR-03 (`lib/leaderboard-scoring.ts`: point constants `{checkin:1,gpx:1,strava:1}`, `globalScore = activityScore + (ctfScore??0)`, rank comparator globalScore→total-count→`latestActivityAt`→`createdAt`; pure + unit-tested), LDBR-04 (check-in hook: `createCheckIn`/`deleteCheckIn` create/delete the `activity` accomplishment carrying `isPrivate`, idempotent), LDBR-12 (CTF read-only: scoring reads `RunUser.ctfScore`/`ctfSolves`; NEVER writes CTF into `Accomplishment` — CTF §11 boundary)
+**Success Criteria** (what must be TRUE):
+
+  1. Creating a check-in writes exactly one `activity` `Accomplishment` (source `checkin`, carrying the check-in's `isPrivate`) and atomically raises `RunUser.activityScore` and `activityCounts.checkin`; deleting it reverses both, flooring at 0.
+  2. `globalScore` for any `RunUser` equals `activityScore + ctfScore` and degrades to `activityScore` when `ctfScore` is unset — proven by a unit test with and without a CTF rollup on the row.
+  3. The rank comparator orders by `globalScore` desc → total activity+ctf count desc → `latestActivityAt` desc → `createdAt` asc, unit-tested across tie cases.
+  4. No CTF write path exists in this phase's code — `Accomplishment.source` cannot be `ctf`/`qr`; CTF only enters via the read-time sum.
+
+**Plans:** 4 plans (waves: 1={01,02} parallel, 2={03}, 3={04}) — **BUILT + VERIFIED 2026-07-14** on `gsd/phase-49-leaderboard-data-layer-accomplishment-entity-scoring`. Goal-backward verification PASS (4/4 must-haves; all 4 SCs traced to shipped code). Gates: vitest 31/31, tsc clean (only 2 pre-existing out-of-scope errors, untouched). Landmines clean: additive RunUser edit (no reorder, no `ctfScore`/`ctfSolves`), single-writer rollup, no CTF write path. Accepted deviation: a `strava`-source accomplishment persists but does not bump the rollup (Strava reserved this milestone).
+
+Plans:
+- [x] 49-01-PLAN.md — RunUser rollups: `activityScore`/`activityCounts`/`latestActivityAt` + `updateRunUserActivityCounts` (LDBR-02) [wave 1] — vitest 4/4
+- [x] 49-02-PLAN.md — Pure scoring module `lib/leaderboard-scoring.ts`: POINTS, `globalScore`, rank comparator (LDBR-03, LDBR-12) [wave 1] — vitest 12/12
+- [x] 49-03-PLAN.md — `Accomplishment` entity + `createAccomplishment`/`getAccomplishmentsByUser`/`deleteAccomplishment` + dup-guard (LDBR-01, LDBR-12) [wave 2] — vitest 10/10
+- [x] 49-04-PLAN.md — Check-in hook: `createCheckIn`/`deleteCheckIn` create/delete the activity accomplishment, idempotent (LDBR-04) [wave 3] — vitest 5/5
+
+### Phase 50: GPX Integration — Polyline Extraction + Internal Accomplishment Endpoint
+
+**Goal:** GPX uploads (owned by the separate `run.gpx` service) become leaderboard accomplishments without coupling run.human to run.gpx's table. On GPX activation (`confirm/route.ts`, after the status flip, only when the file has an individual owner — skip `GLOBAL` community files), `run.gpx` fetches the full GPX body from S3, decimates the parsed track to a ~100-point `{lat,lng}` polyline (in-memory), and POSTs an accomplishment payload to a new secret-gated internal endpoint on run.human. That endpoint validates `AUTH_INTERNAL_SECRET`, resolves the caller's raw OIDC `sub` → run.human `RunUser.userId` via the `authjs` accounts GSI1 bridge, and calls the **already-built** `createAccomplishment` (source `gpx`, idempotent on `gpxFileId`, points `POINTS.gpx`). Notify failure is non-fatal to the upload. **Scope simplification (YAGNI, decided from the seam explore): the decimated polyline is computed in-memory and sent to run.human where it persists on the `Accomplishment.metadata.polyline` (already exists) — NO new `GpxFile.polyline` attribute / run.gpx schema change.**
+**Depends on:** Phase 49 (`Accomplishment` entity + `createAccomplishment` + `POINTS` — already gpx-ready: `source:"gpx"`, `metadata.polyline`, idempotency all present).
+**Requirements:** LDBR-05 (`run.gpx` confirm-route hook: fetch full GPX body from S3 + decimate to ~100-point `{lat,lng}` polyline in-memory + POST to run.human via `RUN_HUMAN_INTERNAL_URL` + `X-Internal-Secret`; skip `GLOBAL` files; non-fatal on failure; reuse the haversine/trkpt-regex from `seed-local-routes.ts` + write the new downsample step; NO `GpxFile` schema change), LDBR-06 (run.human `POST /api/internal/accomplishment`: `AUTH_INTERNAL_SECRET` gate, extract a shared exported `getAdapterUserIdBySub` from the private duplicate in `internal/user/[oidcSub]/route.ts`, idempotent on `gpxFileId` via existing `createAccomplishment`, drops with a log when no `RunUser` exists for the sub)
+**Success Criteria** (what must be TRUE):
+
+  1. Activating a non-`GLOBAL` GPX file produces exactly one `gpx` `Accomplishment` for the owning run.human `RunUser` (carrying a decimated `metadata.polyline` + distance/elevation), raising `activityScore` + `activityCounts.gpx`.
+  2. Re-sending the same `gpxFileId` is a no-op (no double-score) — idempotency proven by test.
+  3. The internal endpoint rejects a wrong/absent `AUTH_INTERNAL_SECRET` and correctly maps OIDC `sub` → adapter `userId`; a `sub` with no run.human `RunUser` is dropped with a log, not errored.
+  4. A GPX-notify failure (or a `GLOBAL` file) leaves the upload/save successful (best-effort, never blocks the user); `GLOBAL` files produce no accomplishment.
+
+**Plans:** 2 plans (waves: 1={01}, 2={02}) — endpoint contract first, then the run.gpx hook that POSTs to it. **BUILT + VERIFIED 2026-07-14.** Goal-backward PASS (4/4 must-haves; all 4 SCs traced end-to-end across both apps). Gates: run.human vitest 16/16 + tsc clean (only pre-existing out-of-scope errors), run.gpx vitest 5/5 + tsc fully clean. Boundaries: `source` server-fixed `gpx` (LDBR-12), no GpxFile schema change (YAGNI), shared `getAdapterUserIdBySub` (private duplicate removed), Phase-49 entity/scoring untouched.
+
+Plans:
+- [x] 50-01-PLAN.md — run.human `POST /api/internal/accomplishment` (secret gate + shared `getAdapterUserIdBySub` + pure payload builder → existing `createAccomplishment`) (LDBR-06) [wave 1] — vitest 16/16 (incl. 3-branch route test)
+- [x] 50-02-PLAN.md — run.gpx confirm-route hook: full S3 fetch + pure decimate-to-≤100-`{lat,lng}` + best-effort POST to run.human, skip `GLOBAL`, non-fatal (LDBR-05) [wave 2] — vitest 5/5
+
+### Phase 51: Leaderboard API — Scan/Rank/Cache + Admin-Gated Routes
+
+**Goal:** Two admin-gated read APIs back the board. `GET /api/leaderboard` scans `RunUser`, computes `globalScore` per row, assigns `globalRank` over the full sorted list (filter narrows display, not rank), paginates, and caches for 60s with stale-while-revalidate (DC33 parity). `GET /api/leaderboard/[userId]/accomplishments` lazily returns a runner's runs (incl. `polyline` metadata). Both use `requireAdmin` → 404 on denial; no privacy filter now (admin-only surface), with the filter hook point marked for launch.
+**Depends on:** Phase 49 (reads `RunUser` rollups). Soft on Phase 50 for GPX runs to appear, but ranks correctly without it.
+**Requirements:** LDBR-07 (`GET /api/leaderboard`: `scanAllRunUsers` → `globalScore` → `globalRank` over full sorted list → paginate; 60s cache + stale-while-revalidate; `requireAdmin`→404; count chips from `activityCounts`+`ctfSolves`), LDBR-08 (`GET /api/leaderboard/[userId]/accomplishments`: admin-gated, returns runs incl. polyline metadata; no privacy filter now with the filter hook point marked)
+**Success Criteria** (what must be TRUE):
+
+  1. A non-admin session receives 404 on both routes; an admin session gets JSON; entry revalidates fresh admin claims.
+  2. `globalRank` is assigned over the full sorted user set and is stable under a `filter` that narrows the returned page.
+  3. Repeated calls within 60s are served from cache; a stale entry is served while a refresh runs (no request blocks on the scan).
+  4. The per-user route returns a runner's accomplishments including `metadata.polyline` for GPX/check-in runs.
+
+**Plans:** 3 plans (waves: 1={01,03}, 2={02}) — **BUILT + VERIFIED 2026-07-14.** Goal-backward PASS (4/4 must-haves; all 4 SCs traced). Gates: vitest 29/29, tsc clean (only pre-existing out-of-scope errors). Boundaries: both routes deny → 404 never 403; rank over full set stable under filter; 60s stale-while-revalidate never blocks; REUSE-only (Phase 49/50 untouched); no PII in row DTO; marked no-op privacy hook for launch.
+
+Plans:
+- [x] 51-01-PLAN.md — Pure core `lib/leaderboard-data.ts`: `buildLeaderboard` (rank over full sorted set → filter → paginate) + `isStale`/`LEADERBOARD_CACHE_TTL_MS` + unit tests (LDBR-07) [wave 1] — vitest 15/15
+- [x] 51-02-PLAN.md — `lib/leaderboard-cache.ts` 60s stale-while-revalidate scan cache + `GET /api/leaderboard` (admin-gate→404 → cached scan → buildLeaderboard) + route test (LDBR-07) [wave 2] — vitest 10/10
+- [x] 51-03-PLAN.md — `GET /api/leaderboard/[userId]/accomplishments` (admin-gate→404, `getAccomplishmentsByUser`, marked no-op privacy hook) + route test (LDBR-08) [wave 1] — vitest 4/4
+
+### Phase 52: Leaderboard UI — PolylineRenderer + Accordion + Hidden Admin Page
+
+**Goal:** The DC33 look, ported. `PolylineRenderer` draws a client `<canvas>` — one OpenStreetMap tile + the decoded polyline + green-start/red-end dots + a dark-mode filter. `LeaderboardTable` is a HeroUI accordion: each row shows `globalRank` / `globalScore` 🥕 / display name / count chips, the current admin's own row highlighted, with search + fast-filter chips and pagination; expanding a row lazy-loads that runner's runs with thumbnails. Runner-class emoji derive from `RunUser.mqttUsertype`. The page lives at `(protected)/leaderboard/page.tsx`, gated `requireAdmin` → `notFound()` (+ `revalidateAdmin` on entry) and **linked from no navigation** — hidden until launch.
+**Depends on:** Phase 51 (consumes the leaderboard API).
+**Requirements:** LDBR-09 (`PolylineRenderer` client-canvas thumbnail: OSM tile + route + start/end dots + dark-mode; DC33 port), LDBR-10 (`LeaderboardTable` accordion: rank/`globalScore`/name/count chips, current-user highlight, search + filter chips, pagination, expand→runs with thumbnails; runner-class emoji from `mqttUsertype`), LDBR-11 (hidden admin page `(protected)/leaderboard/page.tsx`: `requireAdmin`→`notFound()` + `revalidateAdmin` on entry; NOT linked in any nav/header/dropdown)
+**Success Criteria** (what must be TRUE):
+
+  1. A non-admin visiting `/leaderboard` gets a 404 (page not advertised); an admin sees the ranked accordion.
+  2. The board renders no navigation entry anywhere — header, dropdown, or profile — grep-verifiable.
+  3. Expanding a row renders each run's `<canvas>` thumbnail from its stored polyline (OSM tile + route + start/end dots), with the current admin's own row highlighted.
+  4. Rank/score/count chips match the API's `globalScore`/`globalRank`/counts, and runner-class emoji reflect `mqttUsertype`.
+
+**Plans:** 3 plans
+
+Plans:
+- [x] 52-01-PLAN.md — PolylineRenderer client canvas + pure polyline-geometry seam (LDBR-09) — vitest 14/14
+- [x] 52-02-PLAN.md — LeaderboardTable HeroUI accordion + pure leaderboard-ui helpers (LDBR-10) — vitest 7/7
+- [x] 52-03-PLAN.md — Hidden admin `(protected)/leaderboard/page.tsx` gate + no-nav test (LDBR-11) — vitest 2/2
+
+**Verified 2026-07-14:** code goal-backward PASS (SC1 gate, SC2 no-nav, SC4 chips/emoji fully verified; SC3 canvas-draw + accordion-expand routed to the one remaining local-browser checkpoint — inherently browser-only). Gates: vitest 23/23 (phase-52) / 99/99 (full run.human leaderboard surface), tsc clean (only pre-existing out-of-scope errors). `git diff` = exactly the 8 planned UI files; Phases 49/50/51 untouched.
 
 ---
 
