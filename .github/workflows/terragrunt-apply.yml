@@ -24,6 +24,10 @@ on:
         description: 'Modules to apply (comma-separated, empty = all)'
         type: string
         default: ''
+      target:
+        description: 'Optional terraform -target=<addr> to scope a single-module apply to one resource.'
+        type: string
+        default: ''
 
   # Called by other workflows (e.g., deploy.yml)
   workflow_call:
