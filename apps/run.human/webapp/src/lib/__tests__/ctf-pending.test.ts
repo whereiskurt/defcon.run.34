@@ -7,7 +7,9 @@ import {
   type PendingRow,
 } from "../ctf-pending";
 import { hashAnswer } from "../ctf-hash";
-import type { JudgeResult } from "../ctf-judge";
+import type { JudgeResult, judgeSolve } from "../ctf-judge";
+
+type JudgeInput = Parameters<typeof judgeSolve>[0];
 
 /**
  * Park-and-claim helper proof (CTF-06) against an IN-MEMORY PendingStore and a
@@ -93,9 +95,7 @@ describe("claimPending — credits exactly once via judgeSolve (T-45-02)", () =>
       now,
       newNonce: () => "n1",
     });
-    const judge = vi.fn<[Parameters<typeof import("../ctf-judge").judgeSolve>[0]], Promise<JudgeResult>>(
-      async () => AWARD,
-    );
+    const judge = vi.fn(async (_input: JudgeInput): Promise<JudgeResult> => AWARD);
 
     const result = await claimPending(nonce, "user-42", { store, judge });
 
