@@ -307,7 +307,7 @@ Plans:
 | 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 3/3 | Built — 44/44 tests green | 2026-07-14 |
 | 45. Visible QR Claim Page | v2.1 | 2/2 | Built — 61/61 CTF tests green | 2026-07-14 |
 | 46. Covert CSS Channel + Park-and-Claim | v2.1 | 4/4 | Built — 96/96 CTF tests green | 2026-07-14 |
-| 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 0/TBD | Planned | - |
+| 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 0/3 | Planned | - |
 | 48. CloudFront + Integration Exposure | v2.1 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
@@ -428,7 +428,13 @@ Plans:
   1. CTF CRUD round-trips all new fields; existing `Ctf` rows are migrated to `answerHash` with no plaintext left.
   2. The leaderboard ranks by `ctfScore` and drills into `CtfSolve` under the existing `ADMIN_GROUPS` gate.
 
-**Plans:** TBD.
+**Plans:** 3 plans (all wave 1, parallel — zero file overlap).
+
+Plans:
+
+- [ ] 47-01-PLAN.md — CtfForm scoring fields (pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers via the QR datetime+preset editor) + hash-on-save in qr-admin (answerHash, no plaintext, no-clobber on blank edit) + vitest (CTF-10)
+- [ ] 47-02-PLAN.md — Idempotent plaintext→answerHash migration: pure `ctf-migration.ts` (reuses `hashAnswer`) + dry-run/`--confirm` `migrate-ctf-answerhash.mts` tsx script + idempotency/parity tests (CTF-10)
+- [ ] 47-03-PLAN.md — CTF-only leaderboard: `ctf-leaderboard.ts` (rank by ctfScore + CtfSolve drill + formula-guarded CSV) + gated `(protected)/admin/leaderboard` page + AdminConsole link + gated `/api/admin/ctf-leaderboard` CSV route (CTF-11)
 
 ### Phase 48: CloudFront + Integration Exposure
 
