@@ -12,6 +12,8 @@ import { useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { ChevronRight } from "lucide-react";
 
+import { EggTrigger } from "@/components/EggTrigger";
+
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
 // Region-prefixed URL for the next-auth signIn callback (a post-login redirect,
@@ -114,19 +116,27 @@ export default function PublicPage() {
     setMounted(true);
   }, []);
 
+  let content: React.ReactNode;
   if (!mounted || status === "loading") {
-    return (
+    content = (
       <div className="flex flex-col items-center gap-6 py-16">
         <div className="h-8 w-48 rounded bg-content2 animate-pulse" />
         <div className="h-4 w-64 rounded bg-content2 animate-pulse" />
       </div>
     );
-  }
-
-  if (session?.user) {
+  } else if (session?.user) {
     const userName = session.user.displayName || session.user.name?.split(' ')[0] || 'Runner';
-    return <WelcomeContent userName={userName} />;
+    content = <WelcomeContent userName={userName} />;
+  } else {
+    content = <LoginContent />;
   }
 
-  return <LoginContent />;
+  // SECONDARY anon covert-egg mount: anon visitors are NOT silent-SSO-redirected
+  // here, so an unauth `!!!` fire parks its v for claim on the next signed-in load.
+  return (
+    <>
+      {content}
+      <EggTrigger />
+    </>
+  );
 }
