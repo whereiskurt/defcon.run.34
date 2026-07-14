@@ -25,6 +25,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 import { SYSTEM_PROMPT, RECORD_PAYMENT_TOOL } from "./prompt.js";
 import { isSenderAllowed } from "./lib/allowlist.mjs";
+import { resolveAnthropicApiKey } from "./lib/ssm-key.mjs";
 import { parseReceiptEmail } from "./lib/parse-email.mjs";
 import { extractPaymentFromEmail } from "./lib/haiku.mjs";
 import { deriveReceiptId } from "./lib/receipt-id.mjs";
@@ -56,16 +57,19 @@ function getS3Client() {
 }
 
 /**
- * Cached Anthropic client. Constructed once per cold start — the API key
- * comes from ANTHROPIC_API_KEY env var (SSM-loader in production; direct
- * env in local test).
+ * Cached Anthropic client. Constructed once per cold start. The API key is
+ * resolved from ANTHROPIC_API_KEY when set (local dev / test), otherwise
+ * fetched (decrypted) from the SSM parameter at ANTHROPIC_API_KEY_SSM_PATH —
+ * production wires only the path, not the key. Async because the SSM fetch is;
+ * the client singleton means SSM is hit at most once per cold start.
  * @type {Anthropic|null}
  */
 let anthropicClient = null;
-function getAnthropicClient() {
+async function getAnthropicClient() {
   if (!anthropicClient) {
+    const apiKey = await resolveAnthropicApiKey({ env: process.env });
     anthropicClient = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      apiKey,
       timeout: 25000,
     });
   }
@@ -206,7 +210,7 @@ export async function processS3Record(rec, ctx = {}) {
   const extracted = await extractPaymentFromEmail({
     bodyText: parsed.bodyText,
     subject: parsed.subject ?? undefined,
-    client: ctx.anthropicClient || getAnthropicClient(),
+    client: ctx.anthropicClient || (await getAnthropicClient()),
   });
 
   // Increment AFTER a successful Haiku call so failed extractions don't
