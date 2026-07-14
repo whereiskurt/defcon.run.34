@@ -173,6 +173,19 @@ variable "run_human_origin_domain" {
   default     = "run.defcon.run"
 }
 
+variable "enable_admin_proxy" {
+  description = <<-EOT
+    When true (and enable_transport = true), adds the q `/admin/*` -> run.human
+    origin behavior (CTF-13). DEFAULT false: the behavior ships INERT until its
+    `/use1` basePath rewrite is apply-verified (see DEPLOY-SPEC-ctf-admin.md), so
+    a plan/apply of this module adds nothing to the live q.defcon.run distro. The
+    admin CTF leaderboard is reachable meanwhile at
+    run.defcon.run/use1/admin/leaderboard.
+  EOT
+  type        = bool
+  default     = false
+}
+
 variable "tags" {
   description = "Extra tags merged onto the CloudFront distribution."
   type        = map(string)

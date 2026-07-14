@@ -103,20 +103,27 @@ resource "aws_cloudfront_distribution" "resolver" {
   # CTF-13 — run.human origin for the q `/admin/*` behavior below. Mirrors the
   # alb-resolver origin config exactly (https-only + X-Origin-Region) but points
   # at the run.human public front door so Host resolves to run.human naturally.
-  origin {
-    domain_name = var.run_human_origin_domain
-    origin_id   = "alb-run-human"
+  # Gated behind enable_admin_proxy (DEFAULT false): the `/admin/*` proxy ships
+  # INERT until its `/use1` basePath rewrite is apply-verified (see
+  # DEPLOY-SPEC-ctf-admin.md). The leaderboard is reachable meanwhile at
+  # run.defcon.run/use1/admin/leaderboard.
+  dynamic "origin" {
+    for_each = var.enable_admin_proxy ? [1] : []
+    content {
+      domain_name = var.run_human_origin_domain
+      origin_id   = "alb-run-human"
 
-    custom_origin_config {
-      http_port              = 80
-      https_port             = 443
-      origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2"]
-    }
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
 
-    custom_header {
-      name  = "X-Origin-Region"
-      value = var.region.label
+      custom_header {
+        name  = "X-Origin-Region"
+        value = var.region.label
+      }
     }
   }
 
@@ -133,18 +140,21 @@ resource "aws_cloudfront_distribution" "resolver" {
   # `/use1/admin/*`) is a runtime-verified concern documented in
   # DEPLOY-SPEC-ctf-admin.md — no rewrite function is added here; its necessity
   # and shape are apply-tested, not guessed into live-critical HCL.
-  ordered_cache_behavior {
-    path_pattern           = "/admin/*"
-    target_origin_id       = "alb-run-human"
-    viewer_protocol_policy = "redirect-to-https"
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
+  dynamic "ordered_cache_behavior" {
+    for_each = var.enable_admin_proxy ? [1] : []
+    content {
+      path_pattern           = "/admin/*"
+      target_origin_id       = "alb-run-human"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+      cached_methods         = ["GET", "HEAD"]
 
-    # Managed-CachingDisabled — the gated admin page must never be cached.
-    cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
-    # Managed-AllViewerExceptHostHeader — forward the `.defcon.run` session
-    # cookie for the ADMIN_GROUPS gate while CloudFront rewrites Host to run.human.
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+      # Managed-CachingDisabled — the gated admin page must never be cached.
+      cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+      # Managed-AllViewerExceptHostHeader — forward the `.defcon.run` session
+      # cookie for the ADMIN_GROUPS gate while CloudFront rewrites Host to run.human.
+      origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+    }
   }
 
   default_cache_behavior {
