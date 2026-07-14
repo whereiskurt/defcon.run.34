@@ -446,7 +446,10 @@ Plans:
   1. Live curl matrix: the covert path hits the app origin, is uncached, forwards the cookie, and differs only in the CSS body across signed-in-vs-not / right-vs-wrong.
   2. `q.defcon.run/admin/leaderboard` renders under the admin gate; the CTF signal is documented and queryable by the DC33 mapper.
 
-**Plans:** TBD (terraform + live verification).
+**Plans:** 3 plans (author + `terraform validate` only — NO apply/deploy; DEPLOY-SPECs where a blind production-distro edit is unsafe)
+- [ ] 48-01-PLAN.md — CTF-12: covert-path `/use1/assets/theme` → use1 ALB behavior on the run.defcon.run cloudfront module (authored edit + DEPLOY-SPEC)
+- [ ] 48-02-PLAN.md — CTF-13: inert `q /admin/*` → run.human behavior on the qr-resolver distro (authored, count-gated + DEPLOY-SPEC)
+- [ ] 48-03-PLAN.md — CTF-14: `docs/ctf-score-integration.md` documenting the `ctfScore`/`CtfSolve` read for the DC33 mapper
 
 ---
 
