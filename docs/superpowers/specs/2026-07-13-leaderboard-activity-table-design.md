@@ -312,17 +312,24 @@ filter in the accomplishments route, add the nav link + profile rank widget.
 - `app/api/gpx/files/[id]/confirm/route.ts` (decimate + notify)
 - `lib/` helper for polyline decimation (extracted from seed script)
 
-## 11. GSD wave (4 phases)
+## 11. GSD wave — milestone v2.2, phases 49–52
 
-1. **Data layer (run.human only)** — `Accomplishment` entity, RunUser
-   `activityScore`/counts, scoring constants (incl. the `+ ctfScore` read-time
-   sum), check-in hook, tests. The board accrues score data even before any UI
-   exists.
-2. **GPX integration** — `GpxFile.polyline`, decimation helper, run.gpx notify on
-   activation, run.human internal accomplishment route + identity bridge, tests.
-3. **Leaderboard API** — scan/rank/cache core + both admin-gated routes, tests.
-4. **UI** — `PolylineRenderer` + `LeaderboardTable` + admin-gated page. Verify
-   signed-in as admin.
+> Phase numbering: the CTF judge worktree (`hiddenctfsub`) owns milestone **v2.1,
+> phases 44–48**. This leaderboard wave is milestone **v2.2, phases 49–52** — the
+> next free block above CTF. (Both add fields to the shared `RunUser` entity; see
+> §5.2 merge note.)
+
+- **Phase 49 — Data layer (run.human only):** `Accomplishment` entity, RunUser
+  `activityScore`/counts, scoring constants (incl. the `+ ctfScore` read-time
+  sum), check-in hook, tests. The board accrues score data even before any UI
+  exists.
+- **Phase 50 — GPX integration:** `GpxFile.polyline`, decimation helper, run.gpx
+  notify on activation, run.human internal accomplishment route + identity
+  bridge, tests.
+- **Phase 51 — Leaderboard API:** scan/rank/cache core + both admin-gated routes,
+  tests.
+- **Phase 52 — UI:** `PolylineRenderer` + `LeaderboardTable` + admin-gated page.
+  Verify signed-in as admin.
 
 ## 12. Point-value defaults (tunable)
 
