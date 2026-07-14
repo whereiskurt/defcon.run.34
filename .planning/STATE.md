@@ -1,22 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.9
-milestone_name: CMS-Driven UI Copy Catalog
-milestone_status: shipped
-milestone_shipped: 2026-07-06
-current_phase: 39
-current_phase_name: copy-migration-remaining-bib-shared-chrome
-status: milestone_complete
-stopped_at: v1.9 archived — all 5 phases shipped + verified; next milestone TBD
-last_updated: "2026-07-07T00:15:00Z"
-last_activity: 2026-07-06
-last_activity_desc: v1.9 milestone completed and archived (SC-3 proven live; PR #458 merged)
+milestone: v2.1
+milestone_name: CTF Judge & Scoring
+status: planning
+last_updated: "2026-07-14T04:27:03.825Z"
+last_activity: 2026-07-14
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 21
-  completed_plans: 21
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -30,11 +24,10 @@ See: .planning/PROJECT.md (updated 2026-07-05)
 
 ## Current Position
 
-Milestone v1.9 CMS-Driven UI Copy Catalog — ✅ SHIPPED & ARCHIVED 2026-07-06.
-All 5 phases (35-39, 21 plans) complete + verified. Archives:
-`.planning/milestones/v1.9-ROADMAP.md` + `v1.9-REQUIREMENTS.md`. ROADMAP.md collapsed;
-REQUIREMENTS.md removed (a fresh one comes with the next milestone).
-Next: run `/gsd-new-milestone` to define the next milestone.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-14 — Milestone v2.1 started
 
 ## Deferred Items
 
