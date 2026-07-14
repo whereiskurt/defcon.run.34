@@ -305,7 +305,7 @@ Plans:
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
 | 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 3/3 | Built — 44/44 tests green | 2026-07-14 |
-| 45. Visible QR Claim Page | v2.1 | 0/TBD | Planned | - |
+| 45. Visible QR Claim Page | v2.1 | 2/2 | Built — 61/61 CTF tests green | 2026-07-14 |
 | 46. Covert CSS Channel + Park-and-Claim | v2.1 | 0/TBD | Planned | - |
 | 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 0/TBD | Planned | - |
 | 48. CloudFront + Integration Exposure | v2.1 | 0/TBD | Planned | - |
@@ -398,8 +398,8 @@ Plans:
 
 **Plans:** 2 plans
 
-- [ ] 45-01-PLAN.md — Park-and-claim helpers (`ctf-pending.ts` createPending/claimPending) + judge pre-hashed-guess seam (wave 1, tdd)
-- [ ] 45-02-PLAN.md — Visible `/use1/ctf/claim` route + own silent-SSO-free `(ctf)` layout + result card / nonce keeper (wave 2)
+- [x] 45-01-PLAN.md — Park-and-claim helpers (`ctf-pending.ts` createPending/claimPending) + judge pre-hashed-guess seam (wave 1, tdd)
+- [x] 45-02-PLAN.md — Visible `/use1/ctf/claim` route + own silent-SSO-free `(ctf)` layout + result card / nonce keeper (wave 2)
 
 ### Phase 46: Covert CSS Channel + Park-and-Claim
 
