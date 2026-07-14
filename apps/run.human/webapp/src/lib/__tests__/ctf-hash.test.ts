@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { hashAnswer, verifyAnswer } from "../ctf-hash";
+import { hashAnswer, verifyAnswer, verifyAnswerHash } from "../ctf-hash";
 
 describe("hashAnswer", () => {
   it("is deterministic (same input → same output)", () => {
@@ -51,5 +51,37 @@ describe("verifyAnswer", () => {
   it("false (no throw) on a short/malformed answerHash", () => {
     expect(() => verifyAnswer("flag", "deadbeef")).not.toThrow();
     expect(verifyAnswer("flag", "deadbeef")).toBe(false);
+  });
+});
+
+describe("verifyAnswerHash", () => {
+  it("true when the submitted hash equals the stored answerHash", () => {
+    const answerHash = hashAnswer("MyFlag");
+    expect(verifyAnswerHash(hashAnswer("MyFlag"), answerHash)).toBe(true);
+  });
+
+  it("false when the submitted hash does not match", () => {
+    expect(verifyAnswerHash(hashAnswer("wrong"), hashAnswer("right"))).toBe(false);
+  });
+
+  it("false (no throw) on an empty submitted hash", () => {
+    expect(() => verifyAnswerHash("", hashAnswer("flag"))).not.toThrow();
+    expect(verifyAnswerHash("", hashAnswer("flag"))).toBe(false);
+  });
+
+  it("false (no throw) on an empty answerHash", () => {
+    expect(() => verifyAnswerHash(hashAnswer("flag"), "")).not.toThrow();
+    expect(verifyAnswerHash(hashAnswer("flag"), "")).toBe(false);
+  });
+
+  it("false (no throw) on a wrong-length hash (timingSafeEqual guard)", () => {
+    expect(() => verifyAnswerHash("deadbeef", hashAnswer("flag"))).not.toThrow();
+    expect(verifyAnswerHash("deadbeef", hashAnswer("flag"))).toBe(false);
+  });
+
+  it("verifyAnswer(guess, h) is byte-identical to verifyAnswerHash(hashAnswer(guess), h)", () => {
+    const h = hashAnswer("secret");
+    expect(verifyAnswer("secret", h)).toBe(verifyAnswerHash(hashAnswer("secret"), h));
+    expect(verifyAnswer("nope", h)).toBe(verifyAnswerHash(hashAnswer("nope"), h));
   });
 });

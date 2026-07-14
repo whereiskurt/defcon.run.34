@@ -217,6 +217,67 @@ describe("judgeSolve — never throws, degrades to non-solve", () => {
   });
 });
 
+describe("judgeSolve — pre-hashed guess path (guessHash) parity", () => {
+  const NON_SOLVE = { solved: false, points: 0, ordinal: null, firstBlood: false, capped: false };
+
+  it("a correct guessHash solves + scores + is first-blood, identical to the raw path", async () => {
+    const ctf = fixtureCtf();
+    const { store: rawStore } = makeStore(ctf);
+    const raw = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, guess: FLAG, channel: "qr" },
+      { store: rawStore, now: 0, log: () => {} },
+    );
+
+    const { store: hashStore, ordinals, userScore } = makeStore(fixtureCtf());
+    const hashed = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, guessHash: hashAnswer(FLAG), channel: "qr" },
+      { store: hashStore, now: 0, log: () => {} },
+    );
+
+    expect(hashed).toEqual(raw); // byte-identical result shape
+    expect(hashed.solved).toBe(true);
+    expect(hashed.firstBlood).toBe(true);
+    expect(ordinals.get(CHALLENGE)).toBe(1);
+    expect(userScore.get("u1")?.solves).toBe(1);
+  });
+
+  it("a wrong guessHash returns the identical NON_SOLVE shape (no claim, no allocate)", async () => {
+    const { store, solves, ordinals } = makeStore(fixtureCtf());
+    const res = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, guessHash: hashAnswer(WRONG), channel: "qr" },
+      { store, now: 0, log: () => {} },
+    );
+    expect(res).toEqual(NON_SOLVE);
+    expect(solves.size).toBe(0);
+    expect(ordinals.get(CHALLENGE) ?? 0).toBe(0);
+  });
+
+  it("the hashed path is idempotent — a re-claim returns the prior award, never re-scores", async () => {
+    const { store, ordinals, userScore, state } = makeStore(fixtureCtf());
+    const call = () =>
+      judgeSolve(
+        { user: "solo", challenge: CHALLENGE, guessHash: hashAnswer(FLAG), channel: "qr" },
+        { store, now: 0, log: () => {} },
+      );
+    const first = await call();
+    const second = await call();
+    expect(second.ordinal).toBe(first.ordinal);
+    expect(second.points).toBe(first.points);
+    expect(ordinals.get(CHALLENGE)).toBe(1);
+    expect(state.allocateCalls).toBe(1);
+    expect(userScore.get("solo")?.solves).toBe(1);
+  });
+
+  it("guessHash takes precedence: a correct hash solves even with an empty/absent guess", async () => {
+    const { store } = makeStore(fixtureCtf());
+    const res = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, guessHash: hashAnswer(FLAG), channel: "qr" },
+      { store, now: 0, log: () => {} },
+    );
+    expect(res.solved).toBe(true);
+  });
+});
+
 describe("log hygiene — the raw guess is NEVER logged (SC-3)", () => {
   it("no captured log call contains the guess substring, on solve OR wrong guess", async () => {
     const log = vi.fn();
@@ -255,5 +316,19 @@ describe("log hygiene — the raw guess is NEVER logged (SC-3)", () => {
     const { store } = makeStore(fixtureCtf());
     await judgeSolve({ user: "u1", challenge: CHALLENGE, guess: FLAG, channel: "qr" }, { store, now: 0, log });
     expect(log.mock.calls.length).toBeLessThanOrEqual(1);
+  });
+
+  it("the hashed path leaks neither the raw guess NOR the submitted hash to any log line", async () => {
+    const log = vi.fn();
+    const { store } = makeStore(fixtureCtf());
+    const guessHash = hashAnswer(FLAG);
+    await judgeSolve({ user: "u1", challenge: CHALLENGE, guessHash, channel: "qr" }, { store, now: 0, log });
+    await judgeSolve(
+      { user: "u2", challenge: CHALLENGE, guessHash: hashAnswer("PLEASE-DO-NOT-LEAK-THE-HASH"), channel: "qr" },
+      { store, now: 0, log },
+    );
+    const dump = JSON.stringify(log.mock.calls);
+    expect(dump).not.toContain(FLAG); // raw guess never present
+    expect(dump).not.toContain(guessHash); // the submitted hash never present either
   });
 });
