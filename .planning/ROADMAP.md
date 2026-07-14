@@ -305,7 +305,7 @@ Plans:
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
 | 49. Leaderboard Data Layer — Accomplishment Entity + Scoring | v2.2 | 4/4 | Verified (goal-backward PASS, 31 tests) | 2026-07-14 |
-| 50. GPX Integration — Polyline + Internal Accomplishment Endpoint | v2.2 | 0/TBD | Planned | - |
+| 50. GPX Integration — Polyline + Internal Accomplishment Endpoint | v2.2 | 2/2 | Verified (goal-backward PASS, 21 tests) | 2026-07-14 |
 | 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 0/TBD | Planned | - |
 | 52. Leaderboard UI — PolylineRenderer + Accordion + Hidden Page | v2.2 | 0/TBD | Planned | - |
 
@@ -395,11 +395,11 @@ Plans:
   3. The internal endpoint rejects a wrong/absent `AUTH_INTERNAL_SECRET` and correctly maps OIDC `sub` → adapter `userId`; a `sub` with no run.human `RunUser` is dropped with a log, not errored.
   4. A GPX-notify failure (or a `GLOBAL` file) leaves the upload/save successful (best-effort, never blocks the user); `GLOBAL` files produce no accomplishment.
 
-**Plans:** 2 plans (waves: 1={01}, 2={02}) — endpoint contract first, then the run.gpx hook that POSTs to it.
+**Plans:** 2 plans (waves: 1={01}, 2={02}) — endpoint contract first, then the run.gpx hook that POSTs to it. **BUILT + VERIFIED 2026-07-14.** Goal-backward PASS (4/4 must-haves; all 4 SCs traced end-to-end across both apps). Gates: run.human vitest 16/16 + tsc clean (only pre-existing out-of-scope errors), run.gpx vitest 5/5 + tsc fully clean. Boundaries: `source` server-fixed `gpx` (LDBR-12), no GpxFile schema change (YAGNI), shared `getAdapterUserIdBySub` (private duplicate removed), Phase-49 entity/scoring untouched.
 
 Plans:
-- [ ] 50-01-PLAN.md — run.human `POST /api/internal/accomplishment` (secret gate + shared `getAdapterUserIdBySub` + pure payload builder → existing `createAccomplishment`) (LDBR-06) [wave 1]
-- [ ] 50-02-PLAN.md — run.gpx confirm-route hook: full S3 fetch + pure decimate-to-≤100-`{lat,lng}` + best-effort POST to run.human, skip `GLOBAL`, non-fatal (LDBR-05) [wave 2]
+- [x] 50-01-PLAN.md — run.human `POST /api/internal/accomplishment` (secret gate + shared `getAdapterUserIdBySub` + pure payload builder → existing `createAccomplishment`) (LDBR-06) [wave 1] — vitest 16/16 (incl. 3-branch route test)
+- [x] 50-02-PLAN.md — run.gpx confirm-route hook: full S3 fetch + pure decimate-to-≤100-`{lat,lng}` + best-effort POST to run.human, skip `GLOBAL`, non-fatal (LDBR-05) [wave 2] — vitest 5/5
 
 ### Phase 51: Leaderboard API — Scan/Rank/Cache + Admin-Gated Routes
 

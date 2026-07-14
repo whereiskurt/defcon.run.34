@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Leaderboard & Activity Table
 status: phase_verified
-stopped_at: Phase 49 BUILT + VERIFIED (goal-backward PASS, 31 tests). Next autonomous step: plan+execute Phase 50 (GPX integration).
-last_updated: "2026-07-14T05:00:00Z"
+stopped_at: Phases 49+50 BUILT + VERIFIED (goal-backward PASS). Next autonomous step: plan+execute Phase 51 (leaderboard read API + admin-gated routes).
+last_updated: "2026-07-14T06:00:00Z"
 last_activity: 2026-07-14
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 16
-  completed_plans: 4
-  percent: 25
-current_phase: 50
-current_phase_name: gpx-integration-polyline-internal-endpoint
+  completed_plans: 6
+  percent: 50
+current_phase: 51
+current_phase_name: leaderboard-api-scan-rank-cache-admin-routes
 ---
 
 # Project State
