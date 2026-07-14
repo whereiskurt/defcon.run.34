@@ -17,7 +17,7 @@
  *     concurrent invocations; APPEND appends to the list.
  */
 
-import { Bib, BibReconcile } from "./entities.mjs";
+import { Bib, BibReconcile, PendingContribution } from "./entities.mjs";
 import { reconcileExtractedPayment } from "./matcher.mjs";
 
 // ---------------------------------------------------------------------------
@@ -156,6 +156,32 @@ export async function updateReconcileStatus(receiptId, patch) {
   return result.data;
 }
 
+/**
+ * Clear a runner's open pending-intent(s) for a (bib, provider) bucket once a
+ * real payment reconciles — mirrors the webapp's `clearPendingForOwner`
+ * (apps/run.bib/webapp/src/entities/pending-contribution.ts) so an email-
+ * reconciled payment leaves the admin Outstanding list, exactly as the manual
+ * Approve action does. Kind is always "bib" here (the reconcile Lambda only
+ * matches bib payments). Best-effort by contract — the caller swallows errors
+ * so a cleanup miss never fails the (already-applied) payment.
+ *
+ * @param {string} ownerSub
+ * @param {"venmo"|"cashapp"} provider
+ */
+export async function clearPendingIntentsForOwner(ownerSub, provider) {
+  const result = await PendingContribution.scan
+    .where(({ ownerSub: attr }, { eq }) => eq(attr, ownerSub))
+    .go();
+  const targets = (result.data ?? []).filter(
+    (r) => r.kind === "bib" && r.provider === provider
+  );
+  await Promise.all(
+    targets.map((r) =>
+      PendingContribution.delete({ pendingId: r.pendingId }).go()
+    )
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Orchestrator
 // ---------------------------------------------------------------------------
@@ -212,6 +238,8 @@ export async function reconcile({
   const _applyPaymentToBib = deps.applyPaymentToBib ?? applyPaymentToBib;
   const _updateReconcileStatus =
     deps.updateReconcileStatus ?? updateReconcileStatus;
+  const _clearPendingIntents =
+    deps.clearPendingIntents ?? clearPendingIntentsForOwner;
 
   // Provider "unknown" is the extractor's way of saying "not a payment".
   // Don't burn a BibReconcile row on it — the notifier path (22-04-03)
@@ -268,6 +296,13 @@ export async function reconcile({
       status: "matched",
       matchedOwnerSub: match.matchedOwnerSub,
     });
+    // Drop the matching pending-intent(s) so this reconciled payment leaves
+    // the admin Outstanding list (and no stale Approve button can double-pay
+    // it). Best-effort: a cleanup miss is cosmetic and must never fail the
+    // already-applied payment.
+    await _clearPendingIntents(match.matchedOwnerSub, extracted.provider).catch(
+      () => {}
+    );
     return {
       receiptId,
       alreadyProcessed: false,

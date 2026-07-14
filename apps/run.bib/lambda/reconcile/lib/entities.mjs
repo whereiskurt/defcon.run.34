@@ -167,3 +167,43 @@ export const BibReconcile = new Entity(
   },
   { client: ddbClient, table: ELECTRO_TABLE }
 );
+
+// ---------------------------------------------------------------------------
+// PendingContribution
+// ---------------------------------------------------------------------------
+
+/**
+ * PendingContribution entity — MIRRORS
+ * `apps/run.bib/webapp/src/entities/pending-contribution.ts` exactly (model
+ * entity/version/service + pk/sk composite) so the PK the Lambda deletes
+ * matches the row the webapp handoff wrote. The Lambda only CLEARS these on a
+ * matched reconcile (mirroring the admin Approve path's clearPendingForOwner);
+ * it never creates them.
+ */
+export const PendingContribution = new Entity(
+  {
+    model: {
+      entity: "PendingContribution",
+      version: "1",
+      service: "run",
+    },
+    attributes: {
+      pendingId: { type: "string", required: true },
+      ownerSub: { type: "string", required: true },
+      kind: { type: ["bib", "donation"], required: true },
+      provider: { type: ["venmo", "cashapp"], required: true },
+      amountCents: { type: "number", required: true },
+      runnerCode: { type: "string" },
+      createdAt: { type: "string", required: true },
+      deniedAt: { type: "string" },
+      deniedBy: { type: "string" },
+    },
+    indexes: {
+      primary: {
+        pk: { field: "pk", composite: ["pendingId"] },
+        sk: { field: "sk", composite: [] },
+      },
+    },
+  },
+  { client: ddbClient, table: ELECTRO_TABLE }
+);

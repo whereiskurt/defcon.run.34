@@ -86,8 +86,10 @@ resource "aws_iam_role_policy" "reconcile" {
 
       # DynamoDB — read Bib by runnerCode (GSI query), the bounded name-
       # fallback scan (matcher's listAllBibs -> Bib.scan), read/write
-      # BibReconcile ledger + BudgetCounter increment, and idempotent Bib
-      # payment updates. Scope: shared electro table + its GSIs.
+      # BibReconcile ledger + BudgetCounter increment, idempotent Bib payment
+      # updates, and clearing a matched payment's pending-intent(s)
+      # (PendingContribution.delete, mirroring the admin Approve path). Scope:
+      # shared electro table + its GSIs.
       {
         Sid    = "ElectroTableAccess"
         Effect = "Allow"
@@ -95,6 +97,7 @@ resource "aws_iam_role_policy" "reconcile" {
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
           "dynamodb:Query",
           "dynamodb:Scan",
           "dynamodb:BatchGetItem",
