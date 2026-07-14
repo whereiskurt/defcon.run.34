@@ -147,5 +147,9 @@ inputs = merge(
     # authorized forwarder addresses never live in source. Fail-closed: if the
     # env var is unset/empty the Lambda rejects every inbound receipt.
     allowed_senders = get_env("TF_VAR_BIB_ALLOWED_SENDERS", "")
+
+    # DMARC gate kill switch. Defaults on; set TF_VAR_BIB_ENFORCE_DMARC=false
+    # + apply to disable fast during the event if a legit forward false-rejects.
+    enforce_dmarc = get_env("TF_VAR_BIB_ENFORCE_DMARC", "true")
   },
 )

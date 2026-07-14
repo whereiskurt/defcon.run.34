@@ -34,6 +34,9 @@ import { HAIKU_MODEL_ID, RECORD_PAYMENT_TOOL, SYSTEM_PROMPT } from "../prompt.js
 // allowlist.test.mjs.
 process.env.BIB_ALLOWED_SENDERS =
   "venmo@venmo.com,cash@square.com,newsletter@example-marketing.com";
+// DMARC enforcement is exercised in dmarc-gate.test.mjs; disable it here so the
+// fixture emails (no SES Authentication-Results header) reach the logic under test.
+process.env.BIB_ENFORCE_DMARC = "false";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(__dirname, "fixtures");

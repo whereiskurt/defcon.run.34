@@ -99,6 +99,9 @@ jobs:
       # BIB_ALLOWED_SENDERS env — the trusted-forwarder allowlist. Fail-closed:
       # if unset the Lambda rejects every inbound bib-payment receipt.
       TF_VAR_BIB_ALLOWED_SENDERS: ${{ vars.TF_VAR_BIB_ALLOWED_SENDERS }}
+      # bib-reconcile DMARC gate kill switch (default "true"). Set the repo var
+      # to "false" + apply to disable the dmarc=pass requirement fast.
+      TF_VAR_BIB_ENFORCE_DMARC: ${{ vars.TF_VAR_BIB_ENFORCE_DMARC }}
 
     steps:
       - name: Checkout

@@ -74,6 +74,7 @@ jobs:
       # bib-reconcile allowlist — mirror of apply so plans reflect the real
       # BIB_ALLOWED_SENDERS the Lambda ships with (else plans false-alarm it).
       TF_VAR_BIB_ALLOWED_SENDERS: ${{ vars.TF_VAR_BIB_ALLOWED_SENDERS }}
+      TF_VAR_BIB_ENFORCE_DMARC: ${{ vars.TF_VAR_BIB_ENFORCE_DMARC }}
 
     steps:
       - name: Checkout

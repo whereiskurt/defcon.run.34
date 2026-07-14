@@ -15,6 +15,11 @@ import { describe, it, expect } from "vitest";
 import { isSenderAllowed } from "../lib/allowlist.mjs";
 import { processS3Record } from "../index.mjs";
 
+// DMARC enforcement is exercised in dmarc-gate.test.mjs; disable it here so the
+// inline test emails (no SES Authentication-Results header) exercise the
+// allowlist gate without also tripping the DMARC gate.
+process.env.BIB_ENFORCE_DMARC = "false";
+
 const nullReconcileDeps = {
   createLedgerEntry: async () => ({ alreadyExists: false, item: {} }),
   getBibByRunnerCode: async () => null,
