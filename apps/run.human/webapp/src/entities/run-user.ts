@@ -106,6 +106,18 @@ export const RunUser = new Entity(
         default: () => 0,
       },
 
+      // CTF rollups (Phase 44, CTF-03). Atomic-`ADD` counters owned by the judge
+      // (44-03); CtfSolve rows are the auditable source of truth (ctfScore can be
+      // recomputed as sum(points)). Patterned on the checkInCount default-0 counter.
+      ctfScore: {
+        type: "number",
+        default: () => 0,
+      },
+      ctfSolves: {
+        type: "number",
+        default: () => 0,
+      },
+
       // User preferences
       preferences: {
         type: "map",
@@ -362,6 +374,8 @@ export type RunUserItem = {
   meshtasticRadios?: MeshtasticRadio[];
   lastCheckInAt?: number;
   checkInCount?: number;
+  ctfScore?: number;
+  ctfSolves?: number;
   preferences?: {
     theme?: string;
     units?: string;

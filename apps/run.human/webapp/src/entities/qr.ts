@@ -115,8 +115,32 @@ export const Ctf = new Entity(
     },
     attributes: {
       challenge: { type: "string", required: true },
+      // `answerHash` supersedes the plaintext `answer` as the stored secret; the
+      // Phase-44 judge validates a salted hash against it. `answer` is kept as an
+      // optional legacy attribute so existing rows still load — the
+      // plaintext→answerHash migration lands in Phase 47 (NOT here).
       answer: { type: "string" },
+      answerHash: { type: "string" },
       points: { type: "number" },
+      // Scoring curve (Phase 44, CTF-01). See CONTEXT §Scoring / computePoints.
+      pointMax: { type: "number" }, // curve ceiling when no time tier is active
+      pointFloor: { type: "number" }, // curve floor
+      maxSolves: { type: "number" }, // cap AND curve denominator (N)
+      firstBloodBonus: { type: "number" }, // flat bonus for n == 1
+      // Active window's `ceiling` overrides `pointMax` (UTC-ISO from/to strings).
+      timeTiers: {
+        type: "list",
+        items: {
+          type: "map",
+          properties: {
+            from: { type: "string" },
+            to: { type: "string" },
+            ceiling: { type: "number" },
+          },
+        },
+      },
+      // Internal atomic ordinal allocator (ADD solveCount 1 → n). Default 0.
+      solveCount: { type: "number", default: () => 0 },
       // Permissive: effect payload shape varies per challenge.
       effect: { type: "any" },
       maxAttempts: { type: "number" },
