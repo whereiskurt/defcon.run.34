@@ -1,5 +1,6 @@
 import { Entity, type EntityItem } from "electrodb";
 import { electroClient, ELECTRO_TABLE } from "./client";
+import { updateRunUserActivityCounts } from "./run-user";
 
 /**
  * Accomplishment ElectroDB Entity (Phase 49, LDBR-01)
@@ -213,4 +214,180 @@ export function findDuplicate(
   return existing.find(
     (a) => a.source === source && a.metadata?.[field] === externalId
   );
+}
+
+/**
+ * Input to createAccomplishment. `points` is supplied by the caller (the
+ * check-in hook / GPX endpoint pass POINTS.<source> from leaderboard-scoring.ts)
+ * so the point value has a single source of truth outside this data module.
+ * Exactly one of checkInId / gpxFileId / stravaActivityId must be present — the
+ * one that matches `source`.
+ */
+export interface CreateAccomplishmentInput {
+  userId: string;
+  source: AccomplishmentSource;
+  type?: "activity";
+  name: string;
+  description?: string;
+  completedAt: number;
+  year?: number;
+  isPrivate?: boolean;
+  points: number;
+  checkInId?: string;
+  gpxFileId?: string;
+  stravaActivityId?: string;
+  polyline?: { lat: number; lng: number }[];
+  distance?: number;
+  elevation?: number;
+}
+
+/**
+ * Resolve the external id that matches `source` (the id the dup-guard/minter key
+ * on). Returns undefined when the caller forgot the source's own id field.
+ */
+function externalIdFor(
+  source: AccomplishmentSource,
+  input: Pick<
+    CreateAccomplishmentInput,
+    "checkInId" | "gpxFileId" | "stravaActivityId"
+  >
+): string | undefined {
+  if (source === "checkin") return input.checkInId;
+  if (source === "gpx") return input.gpxFileId;
+  return input.stravaActivityId;
+}
+
+/**
+ * Create an accomplishment row AND atomically bump the RunUser rollup (LDBR-01).
+ *
+ * IDEMPOTENT (T-49-05): the id is deterministic (`accomplishmentIdFor`), so a
+ * replayed create lands on the same primary sk. We `get` that id first; if the
+ * row already exists we return it WITHOUT a second write or a second rollup
+ * bump — no double-scoring. Only a genuinely new row bumps
+ * `RunUser.activityScore` / `activityCounts.<source>` via
+ * updateRunUserActivityCounts (the sole rollup writer, increment:true).
+ *
+ * NOTE: the rollup mutator owns `checkin`/`gpx` only. `strava` is reserved in
+ * this milestone (no Strava write path is wired yet) and has no activityCounts
+ * slot, so a strava accomplishment persists its row but does not yet contribute
+ * to activityScore. This keeps the create-bumps-once invariant type-safe; wiring
+ * Strava into the rollup is a later-phase concern.
+ *
+ * SERVER-ONLY — do not import into a client component.
+ */
+export async function createAccomplishment(input: CreateAccomplishmentInput) {
+  const {
+    userId,
+    source,
+    type = "activity",
+    name,
+    description,
+    completedAt,
+    isPrivate,
+    points,
+    checkInId,
+    gpxFileId,
+    stravaActivityId,
+    polyline,
+    distance,
+    elevation,
+  } = input;
+
+  const year = input.year ?? new Date(completedAt).getUTCFullYear();
+
+  const externalId = externalIdFor(source, input);
+  if (!externalId) {
+    throw new Error(
+      `createAccomplishment: missing external id for source "${source}" ` +
+        `(expected ${EXTERNAL_ID_FIELD[source]})`
+    );
+  }
+
+  const accomplishmentId = accomplishmentIdFor(source, externalId);
+
+  // Idempotency short-circuit: deterministic sk collision means a replay is a
+  // no-op. Return the existing row without writing or bumping the rollup.
+  const existing = await Accomplishment.get({ userId, accomplishmentId }).go();
+  if (existing.data) {
+    return existing.data;
+  }
+
+  const metadata = {
+    points,
+    ...(polyline !== undefined ? { polyline } : {}),
+    ...(distance !== undefined ? { distance } : {}),
+    ...(elevation !== undefined ? { elevation } : {}),
+    ...(checkInId !== undefined ? { checkInId } : {}),
+    ...(gpxFileId !== undefined ? { gpxFileId } : {}),
+    ...(stravaActivityId !== undefined ? { stravaActivityId } : {}),
+  };
+
+  const result = await Accomplishment.create({
+    userId,
+    accomplishmentId,
+    type,
+    source,
+    name,
+    description,
+    completedAt,
+    year,
+    isPrivate: isPrivate ?? false,
+    metadata,
+  }).go();
+
+  // Bump the rollup exactly once, only for a genuinely new row.
+  if (source === "checkin" || source === "gpx") {
+    await updateRunUserActivityCounts(userId, {
+      source,
+      pointsDelta: points,
+      completedAt,
+      increment: true,
+    });
+  }
+
+  return result.data;
+}
+
+/**
+ * All accomplishments for a user (primary index, all pages). Server-only.
+ */
+export async function getAccomplishmentsByUser(userId: string) {
+  const result = await Accomplishment.query
+    .primary({ userId })
+    .go({ pages: "all" });
+  return result.data;
+}
+
+/**
+ * Delete an accomplishment row and reverse its rollup contribution (LDBR-01).
+ *
+ * IDEMPOTENT (T-49-07): gets the row first; if it is already gone this is a
+ * no-op with NO decrement — so deleting a missing/foreign row can never drift
+ * the rollup negative. Otherwise it deletes the row and decrements the rollup
+ * exactly once (updateRunUserActivityCounts, increment:false — floored at 0 by
+ * the mutator). Strava rows are skipped on the rollup side for the same reason
+ * as create (no activityCounts slot yet).
+ *
+ * SERVER-ONLY — do not import into a client component.
+ */
+export async function deleteAccomplishment(
+  userId: string,
+  accomplishmentId: string
+) {
+  const existing = await Accomplishment.get({ userId, accomplishmentId }).go();
+  if (!existing.data) {
+    return; // idempotent no-op — nothing to delete, nothing to decrement
+  }
+  const row = existing.data;
+
+  await Accomplishment.delete({ userId, accomplishmentId }).go();
+
+  if (row.source === "checkin" || row.source === "gpx") {
+    await updateRunUserActivityCounts(userId, {
+      source: row.source,
+      pointsDelta: row.metadata?.points ?? 0,
+      completedAt: row.completedAt,
+      increment: false,
+    });
+  }
 }
