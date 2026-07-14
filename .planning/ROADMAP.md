@@ -304,7 +304,7 @@ Plans:
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
-| 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 0/TBD | Planned | - |
+| 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 0/3 | Planned | - |
 | 45. Visible QR Claim Page | v2.1 | 0/TBD | Planned | - |
 | 46. Covert CSS Channel + Park-and-Claim | v2.1 | 0/TBD | Planned | - |
 | 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 0/TBD | Planned | - |
@@ -376,7 +376,13 @@ Greenfield build of the Phase-5 CTF judge. Today q.defcon.run only *forwards* `/
   1. `computePoints` is correct across tier boundaries, first-blood (`n==1`), cap edges (`n==N`, `n==N+1`, `N==1`), and floor/ceiling.
   2. Concurrency/idempotency proven by test: same-user double-submit scores once (still returns prior points), distinct concurrent users get distinct gap-free ordinals, replay never double-scores.
   3. No plaintext answer and no raw guess is ever persisted or logged.
-**Plans:** TBD (single wave — data layer + scoring + judge + unit tests).
+**Plans:** 3 plans (waves: 1={44-01 entities, 44-02 scoring+hashing} parallel, 2={44-03 judge})
+
+Plans:
+
+- [ ] 44-01-PLAN.md — Data model: extend `Ctf` (answerHash/pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers/solveCount, keep legacy `answer`) + new `CtfSolve`/`CtfPending`/`CtfAttempt` entities + `RunUser.ctfScore`/`ctfSolves` + key-parity tests (CTF-01)
+- [ ] 44-02-PLAN.md — Pure primitives: `computePoints`/`activeTierCeiling` scoring engine (injectable clock) + `hashAnswer`/`verifyAnswer` salted-hash seam + boundary tests (CTF-02, CTF-04)
+- [ ] 44-03-PLAN.md — `judgeSolve` core (injectable `CtfStore` seam, locked 7-step claim-then-allocate flow, never-throw) + `ctfJudgeLog` no-value hygiene builder + concurrency/idempotency/hygiene tests (CTF-03, CTF-04)
 
 ### Phase 45: Visible QR Claim Page
 
