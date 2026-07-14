@@ -411,7 +411,11 @@ Plans:
   1. Covert curl matrix (signed-in-win / signed-in-wrong / unauth) is indistinguishable except for the value buried in the CSS body; no auth/win/flag tell in status, headers, size, or logs.
   2. The `getComputedStyle` read fires the celebration on a genuine win only; an unauth win parks a nonce that credits on the next signed-in visit.
 
-**Plans:** TBD.
+**Plans:** 4 plans
+- [ ] 46-01-PLAN.md — Covert primitives: reversible+total flag codec + presence-only ≈equal-size CSS-ack builder (wave 1)
+- [ ] 46-02-PLAN.md — Covert `text/css` route at `/use1/assets/theme` (always-200, decoy/win, judge+park, no differential log) (wave 2)
+- [ ] 46-03-PLAN.md — DC33 CtfCelebration overlay (self-terminating, not reduced-motion-gated) (wave 1)
+- [ ] 46-04-PLAN.md — Egg client (encode → inject link → getComputedStyle read-back) + `!!!` trigger wired on run.defcon.run (wave 3)
 
 ### Phase 47: Admin CTF CRUD Fields + CTF Leaderboard
 
