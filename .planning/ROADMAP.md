@@ -306,7 +306,7 @@ Plans:
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
 | 49. Leaderboard Data Layer — Accomplishment Entity + Scoring | v2.2 | 4/4 | Verified (goal-backward PASS, 31 tests) | 2026-07-14 |
 | 50. GPX Integration — Polyline + Internal Accomplishment Endpoint | v2.2 | 2/2 | Verified (goal-backward PASS, 21 tests) | 2026-07-14 |
-| 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 0/TBD | Planned | - |
+| 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 0/3 | Planned | - |
 | 52. Leaderboard UI — PolylineRenderer + Accordion + Hidden Page | v2.2 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
@@ -412,6 +412,13 @@ Plans:
   2. `globalRank` is assigned over the full sorted user set and is stable under a `filter` that narrows the returned page.
   3. Repeated calls within 60s are served from cache; a stale entry is served while a refresh runs (no request blocks on the scan).
   4. The per-user route returns a runner's accomplishments including `metadata.polyline` for GPX/check-in runs.
+
+**Plans:** 3 plans (waves: 1={01,03} parallel, 2={02})
+
+Plans:
+- [ ] 51-01-PLAN.md — Pure core `lib/leaderboard-data.ts`: `buildLeaderboard` (rank over full sorted set → filter → paginate) + `isStale`/`LEADERBOARD_CACHE_TTL_MS` + unit tests (LDBR-07) [wave 1]
+- [ ] 51-02-PLAN.md — `lib/leaderboard-cache.ts` 60s stale-while-revalidate scan cache + `GET /api/leaderboard` (admin-gate→404 → cached scan → buildLeaderboard) + route test (LDBR-07) [wave 2]
+- [ ] 51-03-PLAN.md — `GET /api/leaderboard/[userId]/accomplishments` (admin-gate→404, `getAccomplishmentsByUser`, marked no-op privacy hook) + route test (LDBR-08) [wave 1]
 
 ### Phase 52: Leaderboard UI — PolylineRenderer + Accordion + Hidden Admin Page
 
