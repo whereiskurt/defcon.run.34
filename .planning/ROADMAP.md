@@ -304,7 +304,7 @@ Plans:
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
-| 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 2/3 | In Progress|  |
+| 44. CTF Judge Core + Scoring Engine + Data Model | v2.1 | 3/3 | Built — 44/44 tests green | 2026-07-14 |
 | 45. Visible QR Claim Page | v2.1 | 0/TBD | Planned | - |
 | 46. Covert CSS Channel + Park-and-Claim | v2.1 | 0/TBD | Planned | - |
 | 47. Admin CTF CRUD Fields + CTF Leaderboard | v2.1 | 0/TBD | Planned | - |
@@ -384,7 +384,7 @@ Plans:
 
 - [x] 44-01-PLAN.md — Data model: extend `Ctf` (answerHash/pointMax/pointFloor/maxSolves/firstBloodBonus/timeTiers/solveCount, keep legacy `answer`) + new `CtfSolve`/`CtfPending`/`CtfAttempt` entities + `RunUser.ctfScore`/`ctfSolves` + key-parity tests (CTF-01)
 - [x] 44-02-PLAN.md — Pure primitives: `computePoints`/`activeTierCeiling` scoring engine (injectable clock) + `hashAnswer`/`verifyAnswer` salted-hash seam + boundary tests (CTF-02, CTF-04)
-- [ ] 44-03-PLAN.md — `judgeSolve` core (injectable `CtfStore` seam, locked 7-step claim-then-allocate flow, never-throw) + `ctfJudgeLog` no-value hygiene builder + concurrency/idempotency/hygiene tests (CTF-03, CTF-04)
+- [x] 44-03-PLAN.md — `judgeSolve` core (injectable `CtfStore` seam, locked 7-step claim-then-allocate flow, never-throw) + `ctfJudgeLog` no-value hygiene builder + concurrency/idempotency/hygiene tests (CTF-03, CTF-04)
 
 ### Phase 45: Visible QR Claim Page
 
