@@ -3,17 +3,17 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Leaderboard & Activity Table
 status: phase_verified
-stopped_at: Phases 49+50 BUILT + VERIFIED (goal-backward PASS). Next autonomous step: plan+execute Phase 51 (leaderboard read API + admin-gated routes).
-last_updated: "2026-07-14T06:00:00Z"
+stopped_at: Phases 49+50+51 BUILT + VERIFIED (goal-backward PASS). Next autonomous step: plan+execute Phase 52 (UI — PolylineRenderer + LeaderboardTable + hidden admin page), then quality gates + local check + PR.
+last_updated: "2026-07-14T07:00:00Z"
 last_activity: 2026-07-14
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 16
-  completed_plans: 6
-  percent: 50
-current_phase: 51
-current_phase_name: leaderboard-api-scan-rank-cache-admin-routes
+  completed_plans: 9
+  percent: 75
+current_phase: 52
+current_phase_name: leaderboard-ui-polylinerenderer-accordion-hidden-page
 ---
 
 # Project State

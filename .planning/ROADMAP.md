@@ -306,7 +306,7 @@ Plans:
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
 | 49. Leaderboard Data Layer — Accomplishment Entity + Scoring | v2.2 | 4/4 | Verified (goal-backward PASS, 31 tests) | 2026-07-14 |
 | 50. GPX Integration — Polyline + Internal Accomplishment Endpoint | v2.2 | 2/2 | Verified (goal-backward PASS, 21 tests) | 2026-07-14 |
-| 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 0/3 | Planned | - |
+| 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 3/3 | Verified (goal-backward PASS, 29 tests) | 2026-07-14 |
 | 52. Leaderboard UI — PolylineRenderer + Accordion + Hidden Page | v2.2 | 0/TBD | Planned | - |
 
 ### Phase 33: OIDC Silent SSO
@@ -413,12 +413,12 @@ Plans:
   3. Repeated calls within 60s are served from cache; a stale entry is served while a refresh runs (no request blocks on the scan).
   4. The per-user route returns a runner's accomplishments including `metadata.polyline` for GPX/check-in runs.
 
-**Plans:** 3 plans (waves: 1={01,03} parallel, 2={02})
+**Plans:** 3 plans (waves: 1={01,03}, 2={02}) — **BUILT + VERIFIED 2026-07-14.** Goal-backward PASS (4/4 must-haves; all 4 SCs traced). Gates: vitest 29/29, tsc clean (only pre-existing out-of-scope errors). Boundaries: both routes deny → 404 never 403; rank over full set stable under filter; 60s stale-while-revalidate never blocks; REUSE-only (Phase 49/50 untouched); no PII in row DTO; marked no-op privacy hook for launch.
 
 Plans:
-- [ ] 51-01-PLAN.md — Pure core `lib/leaderboard-data.ts`: `buildLeaderboard` (rank over full sorted set → filter → paginate) + `isStale`/`LEADERBOARD_CACHE_TTL_MS` + unit tests (LDBR-07) [wave 1]
-- [ ] 51-02-PLAN.md — `lib/leaderboard-cache.ts` 60s stale-while-revalidate scan cache + `GET /api/leaderboard` (admin-gate→404 → cached scan → buildLeaderboard) + route test (LDBR-07) [wave 2]
-- [ ] 51-03-PLAN.md — `GET /api/leaderboard/[userId]/accomplishments` (admin-gate→404, `getAccomplishmentsByUser`, marked no-op privacy hook) + route test (LDBR-08) [wave 1]
+- [x] 51-01-PLAN.md — Pure core `lib/leaderboard-data.ts`: `buildLeaderboard` (rank over full sorted set → filter → paginate) + `isStale`/`LEADERBOARD_CACHE_TTL_MS` + unit tests (LDBR-07) [wave 1] — vitest 15/15
+- [x] 51-02-PLAN.md — `lib/leaderboard-cache.ts` 60s stale-while-revalidate scan cache + `GET /api/leaderboard` (admin-gate→404 → cached scan → buildLeaderboard) + route test (LDBR-07) [wave 2] — vitest 10/10
+- [x] 51-03-PLAN.md — `GET /api/leaderboard/[userId]/accomplishments` (admin-gate→404, `getAccomplishmentsByUser`, marked no-op privacy hook) + route test (LDBR-08) [wave 1] — vitest 4/4
 
 ### Phase 52: Leaderboard UI — PolylineRenderer + Accordion + Hidden Admin Page
 
