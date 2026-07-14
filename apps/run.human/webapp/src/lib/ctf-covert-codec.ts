@@ -19,21 +19,28 @@
  *
  * decode rejects (→ null) anything not /^[0-9]+$/, any checksum mismatch, and
  * any structural/bounds failure. Pure module: no I/O, no logging.
+ *
+ * (BigInt() constructor form, not `0n` literals — target is ES2017.)
  */
 
 const MARKER = 1;
+const B8 = BigInt(8);
+const BFF = BigInt(0xff);
+const B97 = BigInt(97);
+const B100 = BigInt(100);
+const B0 = BigInt(0);
 
 function bytesToBigint(bytes: Uint8Array): bigint {
-  let n = 0n;
-  for (const b of bytes) n = (n << 8n) | BigInt(b);
+  let n = B0;
+  for (const b of bytes) n = (n << B8) | BigInt(b);
   return n;
 }
 
 function bigintToBytes(n: bigint): Uint8Array {
   const out: number[] = [];
-  while (n > 0n) {
-    out.unshift(Number(n & 0xffn));
-    n >>= 8n;
+  while (n > B0) {
+    out.unshift(Number(n & BFF));
+    n >>= B8;
   }
   return Uint8Array.from(out);
 }
@@ -49,17 +56,17 @@ export function encodeFlag(challenge: string, guess: string): string {
     ...gb,
   ]);
   const n = bytesToBigint(buf);
-  const check = n % 97n;
-  return (n * 100n + check).toString();
+  const check = n % B97;
+  return (n * B100 + check).toString();
 }
 
 export function decodeFlag(v: string): { challenge: string; guess: string } | null {
   if (typeof v !== "string" || !/^[0-9]+$/.test(v)) return null;
   try {
     const value = BigInt(v);
-    const check = value % 100n;
-    const n = value / 100n;
-    if (n % 97n !== check) return null;
+    const check = value % B100;
+    const n = value / B100;
+    if (n % B97 !== check) return null;
     const bytes = bigintToBytes(n);
     if (bytes.length < 3 || bytes[0] !== MARKER) return null;
     const cLen = (bytes[1] << 8) | bytes[2];
