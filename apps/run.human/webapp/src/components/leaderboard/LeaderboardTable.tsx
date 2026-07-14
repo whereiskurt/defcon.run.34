@@ -109,6 +109,8 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [filter, setFilter] = useState('');
+  // "Named only" — hide runners still on the default rabbit_ name. ON by default.
+  const [namedOnly, setNamedOnly] = useState(true);
   const [searchInput, setSearchInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -127,6 +129,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
           page: String(page),
           limit: String(PAGE_SIZE),
           ...(filter ? { filter } : {}),
+          ...(namedOnly ? { named: '1' } : {}),
         });
         const res = await fetch(`${apiBase}/api/leaderboard?${params}`, { cache: 'no-store' });
         if (!res.ok) throw new Error(String(res.status));
@@ -146,7 +149,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
     return () => {
       cancelled = true;
     };
-  }, [apiBase, page, filter]);
+  }, [apiBase, page, filter, namedOnly]);
 
   // ── Lazy per-runner accomplishments fetch (cache once by userId) ─────────────
   const fetchUserAccomplishments = useCallback(
@@ -238,6 +241,23 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
               </Button>
             </div>
             <div className="flex justify-start gap-2 flex-wrap">
+              <Chip
+                size="sm"
+                variant={namedOnly ? 'solid' : 'bordered'}
+                color="primary"
+                className="cursor-pointer"
+                onClick={() => {
+                  setNamedOnly((v) => !v);
+                  setPage(1);
+                }}
+                title={
+                  namedOnly
+                    ? 'Showing only runners who set a name — click to include default rabbit_ names'
+                    : 'Showing everyone — click to hide default rabbit_ names'
+                }
+              >
+                🏷️ Named{namedOnly ? ' ✓' : ''}
+              </Chip>
               {currentUserName && (
                 <Chip
                   size="sm"

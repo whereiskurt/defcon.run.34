@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildLeaderboard,
+  hasCustomName,
   isStale,
   LEADERBOARD_CACHE_TTL_MS,
   type LeaderboardUser,
@@ -175,6 +176,52 @@ describe("buildLeaderboard — row DTO leanness (no PII, T-51-01)", () => {
     ];
     buildLeaderboard(users);
     expect(users.map((u) => u.userId)).toEqual(["a", "b"]);
+  });
+});
+
+describe("hasCustomName — default rabbit_ detection", () => {
+  it("is false for the auto-generated rabbit_ default (any case)", () => {
+    expect(hasCustomName("rabbit_1a2b")).toBe(false);
+    expect(hasCustomName("RABBIT_9zzz")).toBe(false);
+  });
+  it("is true for a set name (incl. names that merely contain 'rabbit')", () => {
+    expect(hasCustomName("Kurt")).toBe(true);
+    expect(hasCustomName("rabbitfoot")).toBe(true); // no underscore → not the default
+  });
+  it("is false for empty / blank / undefined", () => {
+    expect(hasCustomName("")).toBe(false);
+    expect(hasCustomName("   ")).toBe(false);
+    expect(hasCustomName(undefined)).toBe(false);
+  });
+});
+
+describe("buildLeaderboard — namedOnly filter", () => {
+  const users = [
+    row({ userId: "a", displayName: "Alpha", activityScore: 30 }),
+    row({ userId: "r", displayName: "rabbit_00ff", activityScore: 20 }),
+    row({ userId: "c", displayName: "Charlie", activityScore: 10 }),
+  ];
+
+  it("drops rabbit_ defaults but keeps GLOBAL rank of named runners", () => {
+    const { rows, total } = buildLeaderboard(users, { namedOnly: true });
+    // Alpha rank 1, Charlie rank 3 (the filtered-out rabbit still occupied rank 2).
+    expect(rows.map((r) => [r.userId, r.globalRank])).toEqual([
+      ["a", 1],
+      ["c", 3],
+    ]);
+    expect(total).toBe(2);
+  });
+
+  it("is a no-op when namedOnly is false/absent (all rows returned)", () => {
+    expect(buildLeaderboard(users, { namedOnly: false }).total).toBe(3);
+    expect(buildLeaderboard(users).total).toBe(3);
+  });
+
+  it("composes (AND) with the text filter", () => {
+    // namedOnly + text 'a' → named rows whose name contains 'a' (Alpha, Charlie),
+    // never the rabbit_ default even though it also contains 'a'.
+    const { rows } = buildLeaderboard(users, { namedOnly: true, filter: "a" });
+    expect(rows.map((r) => r.userId)).toEqual(["a", "c"]);
   });
 });
 

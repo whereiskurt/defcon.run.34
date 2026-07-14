@@ -64,12 +64,16 @@ export async function GET(request: Request) {
       DEFAULT_LIMIT
   );
   const filter = url.searchParams.get("filter") ?? "";
+  // "named only" — keep runners who have set a name (not the rabbit_ default).
+  // Neutral (off) by default at the API; the board turns it ON by default.
+  const namedParam = url.searchParams.get("named");
+  const namedOnly = namedParam === "1" || namedParam === "true";
 
   // ── Cached scan → rank/paginate → JSON ─────────────────────────────────────
   // RunUserItem[] is assignable to LeaderboardUser[] (CTF fields optional), so
   // the scan rows pass straight into buildLeaderboard with no cast.
   const users = await getCachedScan(scanAllRunUsers);
-  const result = buildLeaderboard(users, { page, limit, filter });
+  const result = buildLeaderboard(users, { page, limit, filter, namedOnly });
 
   return Response.json(result, { headers: { "Cache-Control": "no-store" } });
 }
