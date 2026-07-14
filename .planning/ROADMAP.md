@@ -304,7 +304,7 @@ Plans:
 | 38. Custom Copy Admin Plugin | v1.9 | 3/3 | Complete   | 2026-07-06 |
 | 39. Copy Migration — Remaining Bib + Shared Chrome | v1.9 | 6/6 | Complete   | 2026-07-06 |
 | 43. run.human Admin Reporting Dashboard | v2.0 | 5/5 | Built — live-smoke verified | - |
-| 49. Leaderboard Data Layer — Accomplishment Entity + Scoring | v2.2 | 0/TBD | Planned | - |
+| 49. Leaderboard Data Layer — Accomplishment Entity + Scoring | v2.2 | 4/4 | Verified (goal-backward PASS, 31 tests) | 2026-07-14 |
 | 50. GPX Integration — Polyline + Internal Accomplishment Endpoint | v2.2 | 0/TBD | Planned | - |
 | 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 0/TBD | Planned | - |
 | 52. Leaderboard UI — PolylineRenderer + Accordion + Hidden Page | v2.2 | 0/TBD | Planned | - |
@@ -375,13 +375,13 @@ Plans:
   3. The rank comparator orders by `globalScore` desc → total activity+ctf count desc → `latestActivityAt` desc → `createdAt` asc, unit-tested across tie cases.
   4. No CTF write path exists in this phase's code — `Accomplishment.source` cannot be `ctf`/`qr`; CTF only enters via the read-time sum.
 
-**Plans:** 4 plans
+**Plans:** 4 plans (waves: 1={01,02} parallel, 2={03}, 3={04}) — **BUILT + VERIFIED 2026-07-14** on `gsd/phase-49-leaderboard-data-layer-accomplishment-entity-scoring`. Goal-backward verification PASS (4/4 must-haves; all 4 SCs traced to shipped code). Gates: vitest 31/31, tsc clean (only 2 pre-existing out-of-scope errors, untouched). Landmines clean: additive RunUser edit (no reorder, no `ctfScore`/`ctfSolves`), single-writer rollup, no CTF write path. Accepted deviation: a `strava`-source accomplishment persists but does not bump the rollup (Strava reserved this milestone).
 
 Plans:
-- [ ] 49-01-PLAN.md — RunUser rollups: `activityScore`/`activityCounts`/`latestActivityAt` + `updateRunUserActivityCounts` (LDBR-02) [wave 1]
-- [ ] 49-02-PLAN.md — Pure scoring module `lib/leaderboard-scoring.ts`: POINTS, `globalScore`, rank comparator (LDBR-03, LDBR-12) [wave 1]
-- [ ] 49-03-PLAN.md — `Accomplishment` entity + `createAccomplishment`/`getAccomplishmentsByUser`/`deleteAccomplishment` + dup-guard (LDBR-01, LDBR-12) [wave 2]
-- [ ] 49-04-PLAN.md — Check-in hook: `createCheckIn`/`deleteCheckIn` create/delete the activity accomplishment, idempotent (LDBR-04) [wave 3]
+- [x] 49-01-PLAN.md — RunUser rollups: `activityScore`/`activityCounts`/`latestActivityAt` + `updateRunUserActivityCounts` (LDBR-02) [wave 1] — vitest 4/4
+- [x] 49-02-PLAN.md — Pure scoring module `lib/leaderboard-scoring.ts`: POINTS, `globalScore`, rank comparator (LDBR-03, LDBR-12) [wave 1] — vitest 12/12
+- [x] 49-03-PLAN.md — `Accomplishment` entity + `createAccomplishment`/`getAccomplishmentsByUser`/`deleteAccomplishment` + dup-guard (LDBR-01, LDBR-12) [wave 2] — vitest 10/10
+- [x] 49-04-PLAN.md — Check-in hook: `createCheckIn`/`deleteCheckIn` create/delete the activity accomplishment, idempotent (LDBR-04) [wave 3] — vitest 5/5
 
 ### Phase 50: GPX Integration — Polyline Extraction + Internal Accomplishment Endpoint
 

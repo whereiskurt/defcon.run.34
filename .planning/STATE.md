@@ -2,20 +2,18 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Leaderboard & Activity Table
-milestone_status: planning
-current_phase: 49
-current_phase_name: leaderboard-data-layer-accomplishment-entity-scoring
-status: phase_planned
-stopped_at: Phase 49 planned (4 plans, 3 waves) + plan-checker PASS; ready for /gsd-execute-phase 49
-last_updated: "2026-07-14T00:00:00Z"
+status: phase_verified
+stopped_at: Phase 49 BUILT + VERIFIED (goal-backward PASS, 31 tests). Next autonomous step: plan+execute Phase 50 (GPX integration).
+last_updated: "2026-07-14T05:00:00Z"
 last_activity: 2026-07-14
-last_activity_desc: v2.2 registered (phases 49-52, avoiding CTF worktree's v2.1/44-48); Phase 49 data-layer planned + verified
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 4
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 16
+  completed_plans: 4
+  percent: 25
+current_phase: 50
+current_phase_name: gpx-integration-polyline-internal-endpoint
 ---
 
 # Project State
@@ -25,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 49 — leaderboard data layer (Accomplishment entity + RunUser activityScore rollups + scoring). Planned + plan-checker PASS. Phases 50 (GPX integration), 51 (leaderboard API), 52 (UI) registered in ROADMAP, not yet planned.
+**Current focus:** Phase 49 — leaderboard-data-layer-accomplishment-entity-scoring
 
 ## Current Position
 
@@ -53,7 +51,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-06 — v1.9 completed and archived
+Last activity: 2026-07-14
 
 ## Roadmap Summary (v1.9)
 
