@@ -4,16 +4,17 @@ locals {
   # (still region-scoped via var.region.label substitution above).
   anthropic_ssm_arn = var.anthropic_api_key_ssm_arn != "" ? var.anthropic_api_key_ssm_arn : "arn:aws:ssm:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_bib_prefix}/anthropic/*"
 
-  # KMS key ARN cannot be inferred from the alias in a data source without
-  # an aws_kms_alias lookup — we allow-list the alias-arn pattern to keep
-  # the module standalone. Callers can override extra_environment /
-  # extra_kms_key_arns via a v1.1.0 if they need explicit ARN scoping.
-  ssm_kms_alias_arn = "arn:aws:kms:${data.aws_region.current.id}:${data.aws_caller_identity.current.account_id}:${local.ssm_kms_key_alias}"
-
   # Table + index-GSI ARN (runnerCode-index is defined at the shared
   # electro table in run.human/service.hcl). Query IAM must include the
   # index-scoped ARN, not just the table ARN.
   electro_index_arn = "${var.electro_table_arn}/index/*"
+}
+
+# Resolve the SSM SecureString KMS alias to its target key ARN. kms:Decrypt
+# identity-based policies match on the KEY arn, NOT the alias arn — scoping to
+# the alias silently denies at runtime (AccessDeniedException on key/<uuid>).
+data "aws_kms_alias" "ssm" {
+  name = local.ssm_kms_key_alias
 }
 
 resource "aws_iam_role" "reconcile" {
@@ -115,15 +116,17 @@ resource "aws_iam_role_policy" "reconcile" {
         Resource = local.anthropic_ssm_arn
       },
 
-      # KMS decrypt for the SSM SecureString above. Alias-arn pattern
-      # matches how run.human/task role reads its SSM SecureStrings.
+      # KMS decrypt for the SSM SecureString above. Scoped to the alias's
+      # target KEY arn (not the alias arn — the alias arn does not satisfy a
+      # kms:Decrypt resource match), further constrained to this parameter's
+      # encryption context.
       {
         Sid    = "KMSDecryptForSSM"
         Effect = "Allow"
         Action = [
           "kms:Decrypt",
         ]
-        Resource = local.ssm_kms_alias_arn
+        Resource = data.aws_kms_alias.ssm.target_key_arn
         Condition = {
           StringEquals = {
             "kms:EncryptionContext:PARAMETER_ARN" = local.anthropic_ssm_arn
