@@ -39,6 +39,13 @@ async function loadFixture(name) {
   return readFile(join(FIXTURES, name));
 }
 
+// The processS3Record tests below drive the pipeline with raw provider-From
+// fixtures (Venmo). Satisfy the sender-allowlist gate so they reach the
+// budget/notification logic under test. The gate itself is covered in
+// allowlist.test.mjs.
+process.env.BIB_ALLOWED_SENDERS =
+  "venmo@venmo.com,cash@square.com,newsletter@example-marketing.com";
+
 function makeStubAnthropic(cannedInput) {
   return {
     messages: {

@@ -71,6 +71,9 @@ jobs:
       # terragrunt-apply.yml for the matching env block.
       TF_VAR_ADMIN_EMAIL: ${{ vars.TF_VAR_ADMIN_EMAIL }}
       TF_VAR_FWD_EMAIL_TO_ADDRESS: ${{ vars.TF_VAR_FWD_EMAIL_TO_ADDRESS }}
+      # bib-reconcile allowlist — mirror of apply so plans reflect the real
+      # BIB_ALLOWED_SENDERS the Lambda ships with (else plans false-alarm it).
+      TF_VAR_BIB_ALLOWED_SENDERS: ${{ vars.TF_VAR_BIB_ALLOWED_SENDERS }}
 
     steps:
       - name: Checkout

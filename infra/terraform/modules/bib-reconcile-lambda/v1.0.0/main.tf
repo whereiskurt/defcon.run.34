@@ -77,6 +77,11 @@ resource "aws_lambda_function" "reconcile" {
         SES_FROM_ADDRESS    = var.ses_from_address
         SES_ADMIN_RECIPIENT = var.ses_admin_recipient
 
+        # Sender-allowlist security gate (trusted-forwarder model). Comma-
+        # separated; fail-closed when empty. The handler rejects any inbound
+        # whose From is not on this list before any Haiku spend.
+        BIB_ALLOWED_SENDERS = var.allowed_senders
+
         # Region label for structured logs / entity partitioning.
         REGION_LABEL = var.region.label
       },
@@ -114,11 +119,11 @@ resource "aws_cloudwatch_log_group" "reconcile" {
 # Allow S3 to invoke the Lambda. Scoped to the SES inbox bucket ARN so a
 # stray bucket policy cannot cause unrelated buckets to fire this Lambda.
 resource "aws_lambda_permission" "allow_s3" {
-  statement_id  = "AllowExecutionFromSESInboxS3"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.reconcile.function_name
-  principal     = "s3.amazonaws.com"
-  source_arn    = var.ses_inbox_bucket_arn
+  statement_id   = "AllowExecutionFromSESInboxS3"
+  action         = "lambda:InvokeFunction"
+  function_name  = aws_lambda_function.reconcile.function_name
+  principal      = "s3.amazonaws.com"
+  source_arn     = var.ses_inbox_bucket_arn
   source_account = data.aws_caller_identity.current.account_id
 }
 

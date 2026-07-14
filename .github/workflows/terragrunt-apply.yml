@@ -94,6 +94,11 @@ jobs:
       # zonename) is dropped from the for_each -> aws_ses_receipt_rule.forwarding
       # ["defcon.run"] destroy. Live target is whereiskurt+defcon.run@gmail.com.
       TF_VAR_FWD_EMAIL_TO_ADDRESS: ${{ vars.TF_VAR_FWD_EMAIL_TO_ADDRESS }}
+      # bib-reconcile allowed_senders = get_env("TF_VAR_BIB_ALLOWED_SENDERS", "")
+      # (region/us-east-1/bib-reconcile). Baked into the reconcile Lambda's
+      # BIB_ALLOWED_SENDERS env — the trusted-forwarder allowlist. Fail-closed:
+      # if unset the Lambda rejects every inbound bib-payment receipt.
+      TF_VAR_BIB_ALLOWED_SENDERS: ${{ vars.TF_VAR_BIB_ALLOWED_SENDERS }}
 
     steps:
       - name: Checkout
