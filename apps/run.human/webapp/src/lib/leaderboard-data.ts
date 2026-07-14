@@ -68,9 +68,23 @@ export type BuildLeaderboardOptions = {
   page?: number;
   limit?: number;
   filter?: string;
+  /** When true, drop runners still on the auto-generated `rabbit_XXXX` default
+   *  name (i.e. keep only those who have SET a name). Applied after ranking. */
+  namedOnly?: boolean;
 };
 
 const DEFAULT_LIMIT = 25;
+
+/**
+ * True iff a runner has SET a custom display name — i.e. it is NOT the
+ * auto-generated default `rabbit_XXXX` assigned at signup (see run-user.ts
+ * `upsertRunUser`). Empty/blank names count as NOT custom. Backs the
+ * "named only" board filter.
+ */
+export function hasCustomName(displayName?: string): boolean {
+  const name = displayName?.trim() ?? "";
+  return name.length > 0 && !name.toLowerCase().startsWith("rabbit_");
+}
 
 /**
  * Assemble the leaderboard from scanned rows.
@@ -101,11 +115,14 @@ export function buildLeaderboard(
       ctfSolves: u.ctfSolves ?? 0,
     }));
 
-  // 3. Filter AFTER ranking so globalRank stays global (T-51-02).
+  // 3. Filter AFTER ranking so globalRank stays global (T-51-02). "namedOnly"
+  //    and the text filter compose (AND); both narrow the page, not the rank.
   const filter = opts.filter?.trim().toLowerCase();
-  const filtered = filter
-    ? ranked.filter((r) => (r.displayName ?? "").toLowerCase().includes(filter))
-    : ranked;
+  const filtered = ranked.filter((r) => {
+    if (opts.namedOnly && !hasCustomName(r.displayName)) return false;
+    if (filter && !(r.displayName ?? "").toLowerCase().includes(filter)) return false;
+    return true;
+  });
 
   // 4. Paginate.
   const page = Math.max(1, opts.page ?? 1);
