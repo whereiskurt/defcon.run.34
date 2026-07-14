@@ -375,6 +375,14 @@ Plans:
   3. The rank comparator orders by `globalScore` desc → total activity+ctf count desc → `latestActivityAt` desc → `createdAt` asc, unit-tested across tie cases.
   4. No CTF write path exists in this phase's code — `Accomplishment.source` cannot be `ctf`/`qr`; CTF only enters via the read-time sum.
 
+**Plans:** 4 plans
+
+Plans:
+- [ ] 49-01-PLAN.md — RunUser rollups: `activityScore`/`activityCounts`/`latestActivityAt` + `updateRunUserActivityCounts` (LDBR-02) [wave 1]
+- [ ] 49-02-PLAN.md — Pure scoring module `lib/leaderboard-scoring.ts`: POINTS, `globalScore`, rank comparator (LDBR-03, LDBR-12) [wave 1]
+- [ ] 49-03-PLAN.md — `Accomplishment` entity + `createAccomplishment`/`getAccomplishmentsByUser`/`deleteAccomplishment` + dup-guard (LDBR-01, LDBR-12) [wave 2]
+- [ ] 49-04-PLAN.md — Check-in hook: `createCheckIn`/`deleteCheckIn` create/delete the activity accomplishment, idempotent (LDBR-04) [wave 3]
+
 ### Phase 50: GPX Integration — Polyline Extraction + Internal Accomplishment Endpoint
 
 **Goal:** GPX uploads (owned by the separate `run.gpx` service) become leaderboard accomplishments without coupling run.human to run.gpx's table. On GPX activation, `run.gpx` decimates the parsed track to a ~100-point polyline, stores it on a new `GpxFile.polyline` attribute, and POSTs an accomplishment payload to a new secret-gated internal endpoint on run.human. That endpoint validates `AUTH_INTERNAL_SECRET`, resolves the caller's raw OIDC `sub` → run.human `RunUser.userId` via the existing `authjs` accounts bridge, and calls `createAccomplishment` (source `gpx`, idempotent on `gpxFileId`). Notify failure is non-fatal to the upload.
