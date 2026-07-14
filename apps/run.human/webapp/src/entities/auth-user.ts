@@ -86,6 +86,34 @@ export async function getAuthUserEmails(
  * with a `userId` attribute (adapter id) and `providerAccountId` attribute (sub).
  * Server-only read; does not alter any schema.
  */
+/**
+ * Resolve an OIDC subject to its Auth.js adapter userId via the accounts GSI1
+ * (LDBR-06). Returns null when no account maps to the subject.
+ *
+ * Query shape (the canonical sub -> adapter-userId bridge): authjs table,
+ * IndexName "GSI1", GSI1PK = `ACCOUNT#${OIDC_PROVIDER}`, GSI1SK =
+ * `ACCOUNT#${sub}` -> `Items[0].userId`. This is the single home for that query:
+ * the internal user route (GET + PATCH) and the internal accomplishment route
+ * both call this helper instead of re-declaring it. Server-only (dynamodbClient);
+ * never import into a client component.
+ */
+export async function getAdapterUserIdBySub(
+  sub: string
+): Promise<string | null> {
+  const accountResult = await dynamodbClient.query({
+    TableName: DYNAMODB_TABLE,
+    IndexName: "GSI1",
+    KeyConditionExpression: "#gsi1pk = :gsi1pk AND #gsi1sk = :gsi1sk",
+    ExpressionAttributeNames: { "#gsi1pk": "GSI1PK", "#gsi1sk": "GSI1SK" },
+    ExpressionAttributeValues: {
+      ":gsi1pk": `ACCOUNT#${OIDC_PROVIDER}`,
+      ":gsi1sk": `ACCOUNT#${sub}`,
+    },
+  });
+  const adapterUserId = accountResult.Items?.[0]?.userId as string | undefined;
+  return adapterUserId ?? null;
+}
+
 export async function scanAccountSubs(): Promise<Record<string, string>> {
   const map: Record<string, string> = {};
   let lastKey: Record<string, unknown> | undefined;

@@ -1,33 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dynamodbClient, DYNAMODB_TABLE } from "@/entities/client";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
+import { getAdapterUserIdBySub } from "@/entities/auth-user";
 import {
   isDisplayNameLocked,
   normalizeSyncedName,
 } from "@/lib/rabbit-name-sync";
 import { config } from "@/config";
-
-const OIDC_PROVIDER = "run.defcon.run";
-
-/**
- * Resolve an OIDC subject to its Auth.js adapter userId via the accounts GSI1.
- * Returns null when no account maps to the subject.
- */
-async function resolveAdapterUserId(oidcSub: string): Promise<string | null> {
-  const accountResult = await dynamodbClient.query({
-    TableName: DYNAMODB_TABLE,
-    IndexName: "GSI1",
-    KeyConditionExpression: "#gsi1pk = :gsi1pk AND #gsi1sk = :gsi1sk",
-    ExpressionAttributeNames: { "#gsi1pk": "GSI1PK", "#gsi1sk": "GSI1SK" },
-    ExpressionAttributeValues: {
-      ":gsi1pk": `ACCOUNT#${OIDC_PROVIDER}`,
-      ":gsi1sk": `ACCOUNT#${oidcSub}`,
-    },
-  });
-  const account = accountResult.Items?.[0];
-  const adapterUserId = account?.userId as string | undefined;
-  return adapterUserId ?? null;
-}
 
 /**
  * Internal API: Get RunUser profile by OIDC subject.
@@ -55,7 +34,7 @@ export async function GET(
 
   try {
     // Resolve the OIDC subject to its Auth.js adapter userId.
-    const adapterUserId = await resolveAdapterUserId(oidcSub);
+    const adapterUserId = await getAdapterUserIdBySub(oidcSub);
     if (!adapterUserId) {
       return NextResponse.json(
         { error: "No account found for OIDC subject" },
@@ -157,7 +136,7 @@ export async function PATCH(
   }
 
   try {
-    const adapterUserId = await resolveAdapterUserId(oidcSub);
+    const adapterUserId = await getAdapterUserIdBySub(oidcSub);
     if (!adapterUserId) {
       return NextResponse.json(
         { error: "No account found for OIDC subject" },
