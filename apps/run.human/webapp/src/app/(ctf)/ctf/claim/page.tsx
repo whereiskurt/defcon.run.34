@@ -22,9 +22,14 @@ export const dynamic = "force-dynamic";
  * is intentionally no logging call whatsoever in this file.
  *
  * ATTRIBUTION (T-45-06/07): credit is keyed to the server-resolved
- * `session.user.authUserId` ONLY — never `session.user.id` (namespace mismatch),
- * never an id from the query/cookie. A missing/empty authUserId falls through to
- * the anonymous park-and-claim path (never passes `undefined` to judgeSolve).
+ * `session.user.id` (the Auth.js adapter uuid) ONLY — never the OIDC sub
+ * `session.user.authUserId`, never an id from the query/cookie. This is the
+ * key space `RunUser.userId` lives in: scoring writes `RunUser.ctfScore` via
+ * `RunUser.patch({ userId: user })` and the CTF leaderboard joins on that same
+ * RunUser row, so the player id MUST be `session.user.id` to accrue and rank
+ * (using the OIDC sub here patches a nonexistent row → the score is lost). A
+ * missing/empty id falls through to the anonymous park-and-claim path (never
+ * passes `undefined` to judgeSolve).
  */
 function safeNormalize(raw: unknown): string | null {
   if (typeof raw !== "string" || !raw) return null;
@@ -43,11 +48,12 @@ export default async function ClaimPage({
   const { c, v } = await searchParams;
   const session = await auth();
 
-  // Player key: the OIDC sub, and ONLY when it is a non-empty string. Anything
-  // else (no session, undefined authUserId) is treated as anonymous.
-  const authUserId = session?.user?.authUserId;
+  // Player key: the Auth.js adapter uuid (`RunUser.userId` space), and ONLY when
+  // it is a non-empty string. Anything else (no session, undefined id) is treated
+  // as anonymous.
+  const userId = session?.user?.id;
   const player =
-    typeof authUserId === "string" && authUserId.length > 0 ? authUserId : null;
+    typeof userId === "string" && userId.length > 0 ? userId : null;
 
   const challenge = safeNormalize(c);
   const guess = typeof v === "string" && v.length > 0 ? v : null;

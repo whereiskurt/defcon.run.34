@@ -114,11 +114,13 @@ function makeDeps(opts: {
   store: CtfStore;
   pendingStore: PendingStore;
   log: (o: unknown) => void;
-  authUserId: string | null;
+  userId: string | null;
 }): Deps {
   return {
     getSession: async () =>
-      opts.authUserId ? { user: { authUserId: opts.authUserId } } : null,
+      // Mock the session shape the route now reads: the Auth.js adapter uuid at
+      // `session.user.id` (the `RunUser.userId` space), NOT the OIDC sub.
+      opts.userId ? { user: { id: opts.userId } } : null,
     judge: (input) => judgeSolve(input, { store: opts.store, now: 0, log: opts.log }),
     park: (challenge, guess) =>
       createPending(challenge, guess, { store: opts.pendingStore, now: 0 }),
@@ -133,7 +135,7 @@ function themeReq(v: string | null): Request {
 
 async function run(opts: {
   v: string | null;
-  authUserId: string | null;
+  userId: string | null;
   ctf?: JudgeCtf | null;
   log?: (o: unknown) => void;
   ctxOverride?: ReturnType<typeof makeCtfStore>;
@@ -143,7 +145,7 @@ async function run(opts: {
   const log = opts.log ?? (() => {});
   const res = await handleCovert(
     themeReq(opts.v),
-    makeDeps({ store: ctx.store, pendingStore: pending.store, log, authUserId: opts.authUserId }),
+    makeDeps({ store: ctx.store, pendingStore: pending.store, log, userId: opts.userId }),
   );
   const body = await res.text();
   return { res, body, ctx, pending };
@@ -154,14 +156,14 @@ const wrongV = () => encodeFlag(CHALLENGE, WRONG);
 
 describe("covert route — outcome bodies (CTF-07/08/09)", () => {
   it("signed-in + correct → win sheet carrying the award property", async () => {
-    const { res, body, ctx } = await run({ v: winV(), authUserId: "u1" });
+    const { res, body, ctx } = await run({ v: winV(), userId: "u1" });
     expect(res.status).toBe(200);
     expect(body).toContain(AWARD_PROP);
     expect(ctx.userScore.get("u1")?.solves).toBe(1);
   });
 
   it("signed-in + wrong → decoy sheet, no award property", async () => {
-    const { res, body, ctx } = await run({ v: wrongV(), authUserId: "u1" });
+    const { res, body, ctx } = await run({ v: wrongV(), userId: "u1" });
     expect(res.status).toBe(200);
     expect(body).toBe(buildDecoySheet());
     expect(body).not.toContain(AWARD_PROP);
@@ -169,7 +171,7 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
   });
 
   it("unauth + any v → decoy, and parks the hash-only via createPending", async () => {
-    const { res, body, pending, ctx } = await run({ v: winV(), authUserId: null });
+    const { res, body, pending, ctx } = await run({ v: winV(), userId: null });
     expect(res.status).toBe(200);
     expect(body).toBe(buildDecoySheet());
     expect(body).not.toContain(AWARD_PROP);
@@ -183,13 +185,13 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
   });
 
   it("garbage / missing v → decoy, no judge, no park, no throw", async () => {
-    const garbage = await run({ v: "not-a-number!!", authUserId: "u1" });
+    const garbage = await run({ v: "not-a-number!!", userId: "u1" });
     expect(garbage.res.status).toBe(200);
     expect(garbage.body).toBe(buildDecoySheet());
     expect(garbage.ctx.state.allocateCalls).toBe(0);
     expect(garbage.pending.rows).toHaveLength(0);
 
-    const missing = await run({ v: null, authUserId: null });
+    const missing = await run({ v: null, userId: null });
     expect(missing.res.status).toBe(200);
     expect(missing.body).toBe(buildDecoySheet());
     expect(missing.pending.rows).toHaveLength(0);
@@ -198,7 +200,7 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
   it("capped win (points 0) renders the decoy, not the award", async () => {
     const { res, body } = await run({
       v: winV(),
-      authUserId: "u1",
+      userId: "u1",
       ctf: fixtureCtf({ maxSolves: 0 }), // ordinal 1 > maxSolves → points 0
     });
     expect(res.status).toBe(200);
@@ -208,8 +210,8 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
 
   it("idempotent re-fire: second win returns the prior award and never double-scores", async () => {
     const ctx = makeCtfStore(fixtureCtf());
-    const first = await run({ v: winV(), authUserId: "u1", ctxOverride: ctx });
-    const second = await run({ v: winV(), authUserId: "u1", ctxOverride: ctx });
+    const first = await run({ v: winV(), userId: "u1", ctxOverride: ctx });
+    const second = await run({ v: winV(), userId: "u1", ctxOverride: ctx });
     expect(first.body).toContain(AWARD_PROP);
     expect(second.body).toContain(AWARD_PROP);
     expect(second.body).toBe(first.body); // same award value re-rendered
@@ -221,10 +223,10 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
 describe("covert route — invisibility matrix (CTF-08)", () => {
   it("identical status / content-type / cache-control across win / wrong / unauth / garbage", async () => {
     const outcomes = await Promise.all([
-      run({ v: winV(), authUserId: "u1" }),
-      run({ v: wrongV(), authUserId: "u1" }),
-      run({ v: winV(), authUserId: null }),
-      run({ v: "garbage", authUserId: "u1" }),
+      run({ v: winV(), userId: "u1" }),
+      run({ v: wrongV(), userId: "u1" }),
+      run({ v: winV(), userId: null }),
+      run({ v: "garbage", userId: "u1" }),
     ]);
     for (const { res } of outcomes) {
       expect(res.status).toBe(200);
@@ -234,15 +236,15 @@ describe("covert route — invisibility matrix (CTF-08)", () => {
   });
 
   it("win and decoy bodies are ≈equal size (within SIZE_TOLERANCE)", async () => {
-    const win = await run({ v: winV(), authUserId: "u1" });
-    const decoy = await run({ v: wrongV(), authUserId: "u1" });
+    const win = await run({ v: winV(), userId: "u1" });
+    const decoy = await run({ v: wrongV(), userId: "u1" });
     expect(Math.abs(win.body.length - decoy.body.length)).toBeLessThanOrEqual(SIZE_TOLERANCE);
   });
 
   it("the award property appears in the win body ONLY", async () => {
-    const win = await run({ v: winV(), authUserId: "u1" });
-    const wrong = await run({ v: wrongV(), authUserId: "u1" });
-    const unauth = await run({ v: winV(), authUserId: null });
+    const win = await run({ v: winV(), userId: "u1" });
+    const wrong = await run({ v: wrongV(), userId: "u1" });
+    const unauth = await run({ v: winV(), userId: null });
     expect(win.body).toContain(AWARD_PROP);
     expect(wrong.body).not.toContain(AWARD_PROP);
     expect(unauth.body).not.toContain(AWARD_PROP);
@@ -253,9 +255,9 @@ describe("covert route — log hygiene (CTF-08, T-46-05)", () => {
   it("no log line carries the raw guess or the AWARD value; only coarse markers emit", async () => {
     const log = vi.fn();
 
-    const win = await run({ v: winV(), authUserId: "u1", log });
+    const win = await run({ v: winV(), userId: "u1", log });
     const awardValue = String(win.body.match(/--accent-ramp:\s*(\d+)/)?.[1] ?? "");
-    await run({ v: wrongV(), authUserId: "u1", log });
+    await run({ v: wrongV(), userId: "u1", log });
 
     expect(log).toHaveBeenCalled();
     const dump = JSON.stringify(log.mock.calls);
@@ -273,11 +275,11 @@ describe("covert route — log hygiene (CTF-08, T-46-05)", () => {
 
   it("the handler itself emits ZERO logs on the unauth and garbage paths (judge never runs)", async () => {
     const unauthLog = vi.fn();
-    await run({ v: winV(), authUserId: null, log: unauthLog });
+    await run({ v: winV(), userId: null, log: unauthLog });
     expect(unauthLog).not.toHaveBeenCalled();
 
     const garbageLog = vi.fn();
-    await run({ v: "garbage", authUserId: "u1", log: garbageLog });
+    await run({ v: "garbage", userId: "u1", log: garbageLog });
     expect(garbageLog).not.toHaveBeenCalled();
   });
 });

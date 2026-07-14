@@ -50,7 +50,7 @@ function safeNormalize(raw: string): string | null {
   }
 }
 
-type CovertSession = { user?: { authUserId?: string } } | null;
+type CovertSession = { user?: { id?: string } } | null;
 
 export interface CovertDeps {
   getSession?: () => Promise<CovertSession>;
@@ -81,9 +81,12 @@ export async function handleCovert(req: Request, deps: CovertDeps = {}): Promise
 
     const getSession = deps.getSession ?? defaultGetSession;
     const session = await getSession();
-    const authUserId = session?.user?.authUserId;
+    // Player key = the Auth.js adapter uuid (`RunUser.userId` space), never the
+    // OIDC sub: judgeSolve accrues `RunUser.ctfScore` on this row and the CTF
+    // leaderboard joins on it, so the covert credit MUST key on `session.user.id`.
+    const userId = session?.user?.id;
     const player =
-      typeof authUserId === "string" && authUserId.length > 0 ? authUserId : null;
+      typeof userId === "string" && userId.length > 0 ? userId : null;
 
     // Signed-in: judge the covert solve. A credited (points > 0) solve — first
     // hit OR idempotent replay of a prior award — renders the win sheet; every
