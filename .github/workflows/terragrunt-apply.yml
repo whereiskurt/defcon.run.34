@@ -142,14 +142,25 @@ jobs:
           REGION="${{ inputs.region }}"
           MODULES="${{ inputs.modules }}"
 
-          # If specific region and modules, apply to each module directory
-          if [[ -n "$REGION" && -n "$MODULES" ]]; then
-            echo "Applying modules [$MODULES] in region [$REGION]..."
+          # If modules are specified, apply each targeted unit directory.
+          # A module entry may be a bare name (region-relative -> region/$REGION/$MODULE)
+          # OR a path containing "/" (relative to live/site, e.g. "global/cloudfront")
+          # which lets a single global unit be applied in isolation without a region.
+          if [[ -n "$MODULES" ]]; then
+            echo "Applying modules [$MODULES]${REGION:+ in region [$REGION]}..."
             IFS=',' read -ra MODULE_LIST <<< "$MODULES"
             for MODULE in "${MODULE_LIST[@]}"; do
               MODULE=$(echo "$MODULE" | xargs)  # trim whitespace
-              echo "=== Applying $MODULE in $REGION ==="
-              (cd "region/$REGION/$MODULE" && terragrunt apply --no-color --non-interactive -auto-approve) 2>&1 | tee -a apply_output.txt
+              if [[ "$MODULE" == */* ]]; then
+                DIR="$MODULE"                    # path relative to live/site (e.g. global/cloudfront)
+              elif [[ -n "$REGION" ]]; then
+                DIR="region/$REGION/$MODULE"     # region-relative bare name
+              else
+                echo "ERROR: bare module '$MODULE' needs a region; pass a path like global/$MODULE instead." >&2
+                exit 1
+              fi
+              echo "=== Applying $DIR ==="
+              (cd "$DIR" && terragrunt apply --no-color --non-interactive -auto-approve) 2>&1 | tee -a apply_output.txt
             done
           # If only region specified, apply all in that region
           elif [[ -n "$REGION" ]]; then
