@@ -13,7 +13,7 @@
 - [ ] **v1.7 GPX Routes — Private Collection, Public Overlay & Strava Sync** - Phases 28-32 (autonomous build authorized 2026-07-02; workstream `v1-7-gpx-routes`, parallel-safe)
 - [x] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (shipped 2026-07-06; edit UI copy live from Strapi, no deploy — SC-3 de-dup proven live)
 - [ ] **v2.0 Admin & Reporting** - Phase 43 (planned 2026-07-11; read-only run.human /admin dashboard — users, activity, gpx usage)
-- [ ] **v2.1 CTF Judge & Scoring** - Phases 44-48 (planned 2026-07-14; greenfield Phase-5 CTF judge + composed scoring + covert CSS submission channel — design `docs/superpowers/specs/2026-07-13-ctf-judge-and-covert-channel-design.md`; integration-bounded against the DC33 total-score work in the `leaderboard` worktree)
+- [ ] **v2.1 CTF Judge & Scoring** - Phases 44-48 (**BUILT autonomously 2026-07-14, PR open — NOT merged/deployed**; greenfield Phase-5 CTF judge + composed scoring + covert CSS submission channel — design `docs/superpowers/specs/2026-07-13-ctf-judge-and-covert-channel-design.md`; ~122 CTF unit tests + `next build` pass; Phase-48 CloudFront/Terraform authored + validate-clean but NOT applied, deploy-specs accompany; integration-bounded against the DC33 total-score work in the `leaderboard` worktree)
 
 ## Phases
 
