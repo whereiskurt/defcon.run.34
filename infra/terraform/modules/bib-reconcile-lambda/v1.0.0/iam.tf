@@ -84,7 +84,8 @@ resource "aws_iam_role_policy" "reconcile" {
         Resource = "${var.ses_inbox_bucket_arn}/${var.object_key_prefix}*"
       },
 
-      # DynamoDB — read Bib by runnerCode (GSI query), read/write
+      # DynamoDB — read Bib by runnerCode (GSI query), the bounded name-
+      # fallback scan (matcher's listAllBibs -> Bib.scan), read/write
       # BibReconcile ledger + BudgetCounter increment, and idempotent Bib
       # payment updates. Scope: shared electro table + its GSIs.
       {
@@ -95,6 +96,7 @@ resource "aws_iam_role_policy" "reconcile" {
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
           "dynamodb:Query",
+          "dynamodb:Scan",
           "dynamodb:BatchGetItem",
           "dynamodb:ConditionCheckItem",
         ]
