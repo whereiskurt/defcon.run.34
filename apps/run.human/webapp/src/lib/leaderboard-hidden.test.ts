@@ -35,9 +35,13 @@ const srcRoot = resolve(testDir, ".."); // …/src
 /** The route segment for the hidden page, assembled so the literal path never
  *  appears as a constant in THIS file (which would self-trip the assertion). */
 const SEGMENT = "leaderboard";
-/** Matches the route ONLY at a path boundary: "/leaderboard" not continued by a
- *  word char, "-", or "/". Flags a nav link; ignores lib/component import paths. */
-const ROUTE_PATTERN = new RegExp("/" + SEGMENT + "(?![A-Za-z0-9_/-])");
+/** Matches this feature's TOP-LEVEL route ONLY, at a path boundary on BOTH sides:
+ *  "/leaderboard" preceded by a non-path-segment char and not continued by a word
+ *  char, "-", or "/". Flags a nav link (href="/leaderboard"); ignores lib/component
+ *  import paths ("@/lib/leaderboard-scoring") AND the sibling CTF route
+ *  "/admin/leaderboard" (a DIFFERENT page — its "/leaderboard" is preceded by
+ *  "admin", so the leading boundary excludes it). */
+const ROUTE_PATTERN = new RegExp("(?<![A-Za-z0-9_-])/" + SEGMENT + "(?![A-Za-z0-9_/-])");
 
 /** Roots whose UI/nav source must never link the hidden route. */
 const SCAN_ROOTS = ["components", "app"].map((d) => join(srcRoot, d));

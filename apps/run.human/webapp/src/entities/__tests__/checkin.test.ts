@@ -50,6 +50,17 @@ vi.mock("../run-user", () => ({
   },
 }));
 
+// The leaderboard check-in hook (Phase 49, LDBR-04) makes createCheckIn/
+// deleteCheckIn also write/reverse an `activity` Accomplishment. This legacy
+// suite isolates the check-in mechanics, so mock that side-effect at the module
+// boundary — the accomplishment wiring itself is covered by checkin-hook.test.ts.
+vi.mock("../accomplishment", () => ({
+  createAccomplishment: vi.fn().mockResolvedValue(undefined),
+  deleteAccomplishment: vi.fn().mockResolvedValue(undefined),
+  accomplishmentIdFor: (source: string, externalId: string) =>
+    `${source}#${externalId}`,
+}));
+
 // Mock crypto.randomUUID
 vi.mock("crypto", async () => {
   const actual = await vi.importActual<typeof import("crypto")>("crypto");
