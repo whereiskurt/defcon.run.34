@@ -395,6 +395,12 @@ Plans:
   3. The internal endpoint rejects a wrong/absent `AUTH_INTERNAL_SECRET` and correctly maps OIDC `sub` → adapter `userId`; a `sub` with no run.human `RunUser` is dropped with a log, not errored.
   4. A GPX-notify failure (or a `GLOBAL` file) leaves the upload/save successful (best-effort, never blocks the user); `GLOBAL` files produce no accomplishment.
 
+**Plans:** 2 plans (waves: 1={01}, 2={02}) — endpoint contract first, then the run.gpx hook that POSTs to it.
+
+Plans:
+- [ ] 50-01-PLAN.md — run.human `POST /api/internal/accomplishment` (secret gate + shared `getAdapterUserIdBySub` + pure payload builder → existing `createAccomplishment`) (LDBR-06) [wave 1]
+- [ ] 50-02-PLAN.md — run.gpx confirm-route hook: full S3 fetch + pure decimate-to-≤100-`{lat,lng}` + best-effort POST to run.human, skip `GLOBAL`, non-fatal (LDBR-05) [wave 2]
+
 ### Phase 51: Leaderboard API — Scan/Rank/Cache + Admin-Gated Routes
 
 **Goal:** Two admin-gated read APIs back the board. `GET /api/leaderboard` scans `RunUser`, computes `globalScore` per row, assigns `globalRank` over the full sorted list (filter narrows display, not rank), paginates, and caches for 60s with stale-while-revalidate (DC33 parity). `GET /api/leaderboard/[userId]/accomplishments` lazily returns a runner's runs (incl. `polyline` metadata). Both use `requireAdmin` → 404 on denial; no privacy filter now (admin-only surface), with the filter hook point marked for launch.
