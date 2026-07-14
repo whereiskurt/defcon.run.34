@@ -70,6 +70,12 @@ variable "ses_admin_recipient" {
   default     = "defcon.run@gmail.com"
 }
 
+variable "allowed_senders" {
+  description = "Comma-separated allowlist of From addresses authorized to submit bib-payment receipts (trusted-forwarder model). Surfaced to the Lambda as BIB_ALLOWED_SENDERS. Fail-closed: empty = reject every inbound. Sourced from TF_VAR_BIB_ALLOWED_SENDERS so the addresses never live in source."
+  type        = string
+  default     = ""
+}
+
 variable "anthropic_api_key_ssm_arn" {
   description = "Full ARN of the SSM parameter that stores the Anthropic API key. When set, IAM scopes GetParameter narrowly to this ARN instead of the broader ssm_bib_prefix wildcard. Leave empty to fall back to the ssm_bib_prefix/anthropic/* pattern."
   type        = string

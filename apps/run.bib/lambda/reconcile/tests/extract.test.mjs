@@ -28,6 +28,13 @@ import { extractPaymentFromEmail } from "../lib/haiku.mjs";
 import { processS3Record } from "../index.mjs";
 import { HAIKU_MODEL_ID, RECORD_PAYMENT_TOOL, SYSTEM_PROMPT } from "../prompt.js";
 
+// The processS3Record tests below drive the pipeline with raw provider-From
+// fixtures (Venmo/CashApp/junk). Satisfy the sender-allowlist gate so they
+// reach the extraction logic under test. The gate itself is covered in
+// allowlist.test.mjs.
+process.env.BIB_ALLOWED_SENDERS =
+  "venmo@venmo.com,cash@square.com,newsletter@example-marketing.com";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(__dirname, "fixtures");
 

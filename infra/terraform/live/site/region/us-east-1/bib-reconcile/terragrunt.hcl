@@ -131,5 +131,10 @@ inputs = merge(
     # Verified sender identity from the Phase 20 email module.
     ses_from_address    = "bibpayment@run.${local.site_vars.locals.dns.zonename}"
     ses_admin_recipient = "defcon.run@gmail.com"
+
+    # Sender-allowlist security gate. Sourced from the repo variable so the
+    # authorized forwarder addresses never live in source. Fail-closed: if the
+    # env var is unset/empty the Lambda rejects every inbound receipt.
+    allowed_senders = get_env("TF_VAR_BIB_ALLOWED_SENDERS", "")
   },
 )

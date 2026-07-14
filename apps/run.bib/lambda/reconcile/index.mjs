@@ -24,6 +24,7 @@ import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import Anthropic from "@anthropic-ai/sdk";
 
 import { SYSTEM_PROMPT, RECORD_PAYMENT_TOOL } from "./prompt.js";
+import { isSenderAllowed } from "./lib/allowlist.mjs";
 import { parseReceiptEmail } from "./lib/parse-email.mjs";
 import { extractPaymentFromEmail } from "./lib/haiku.mjs";
 import { deriveReceiptId } from "./lib/receipt-id.mjs";
@@ -113,6 +114,31 @@ export async function processS3Record(rec, ctx = {}) {
   const readObject = ctx.readObject || s3GetObjectBuffer;
   const raw = await readObject(bucket, key);
   const parsed = await parseReceiptEmail(raw);
+
+  // -------------------------------------------------------------------
+  // SENDER ALLOWLIST gate (trusted-forwarder model).
+  //   Reject anything whose From is not an approved admin BEFORE any Haiku
+  //   spend, budget check, DB write, or bib mutation. Fail-closed: an empty
+  //   BIB_ALLOWED_SENDERS rejects everyone. Rejection is log-only + silent —
+  //   the handler emits one structured line (NOT error=true); no admin email,
+  //   no BibReconcile row. The allowlist lives in config, never in source.
+  // -------------------------------------------------------------------
+  const allowedSenders =
+    ctx.allowedSenders ?? process.env.BIB_ALLOWED_SENDERS;
+  if (!isSenderAllowed(parsed.from?.address, allowedSenders)) {
+    return {
+      bucket,
+      key,
+      messageId: parsed.messageId,
+      receivedAtMs: parsed.receivedAtMs,
+      from: parsed.from,
+      subject: parsed.subject,
+      extracted: null,
+      reconcile: null,
+      rejected: true,
+      rejectReason: "unauthorized_sender",
+    };
+  }
 
   // Derive receiptId BEFORE any expensive work so the budget-cap
   // short-circuit path can still write a BibReconcile row for
@@ -248,6 +274,23 @@ export async function handler(event, context) {
     try {
       const s3rec = r?.s3;
       const outcome = await processS3Record(s3rec);
+      if (outcome.rejected) {
+        // Silent, log-only rejection (unauthorized sender). Expected, NOT an
+        // alarm — no error=true so it doesn't trip the error alarm.
+        console.warn(
+          JSON.stringify({
+            msg: "bib-reconcile rejected",
+            requestId: context?.awsRequestId ?? null,
+            reason: outcome.rejectReason,
+            from: outcome.from?.address ?? null,
+            bucket: outcome.bucket,
+            key: outcome.key,
+            messageId: outcome.messageId,
+          })
+        );
+        results.push({ ok: true, outcome });
+        continue;
+      }
       console.log(
         JSON.stringify({
           msg: "bib-reconcile processed",
@@ -255,9 +298,9 @@ export async function handler(event, context) {
           bucket: outcome.bucket,
           key: outcome.key,
           messageId: outcome.messageId,
-          provider: outcome.extracted.provider,
-          amountCents: outcome.extracted.amount_cents,
-          confidence: outcome.extracted.confidence,
+          provider: outcome.extracted?.provider ?? null,
+          amountCents: outcome.extracted?.amount_cents ?? null,
+          confidence: outcome.extracted?.confidence ?? null,
           reconcileStatus: outcome.reconcile?.status,
           matchStrategy: outcome.reconcile?.matchStrategy,
           matchedOwnerSub: outcome.reconcile?.matchedOwnerSub ?? null,
