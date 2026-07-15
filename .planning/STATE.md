@@ -1,19 +1,19 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: Leaderboard & Activity Table
-status: milestone_built
-stopped_at: v2.2 ALL 4 PHASES (49-52) BUILT + VERIFIED (code goal-backward PASS, ~104 tests). Next: npm run build gate + PR. LEFT for human: signed-in admin local-browser render of /leaderboard.
-last_updated: "2026-07-14T08:00:00Z"
-last_activity: 2026-07-14
+milestone: v2.3
+milestone_name: CTF Flag Types & Form Redesign
+status: phase_planned
+stopped_at: "Phase 53 (CTF flag-types Slice 1a backend) PLANNED — 4 plans (waves 1={53-01,53-02},2={53-03},3={53-04}), gsd-plan-checker VERIFICATION PASSED (0 blockers, 1 non-blocking perPlayerMax-atomicity advisory). Ready to execute: /gsd-execute-phase 53. OVERRIDE: decision-coverage-plan gate reported 3/8 via a lexical text-overlap false-negative — D-01/D-03/D-05/D-06/D-08 map 1:1 to CTFT-01/02/04/05 + judge hygiene, all independently traced covered by the plan-checker and the requirements gate (6/6 CTFT). Carry-over (prior milestone): v2.2 (49-52) BUILT+VERIFIED, LEFT for human: signed-in admin local-browser render of /leaderboard + npm run build + PR."
+last_updated: "2026-07-15T02:08:03.740Z"
+last_activity: 2026-07-15
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
-current_phase: 52
-current_phase_name: leaderboard-ui-polylinerenderer-accordion-hidden-page
+  total_phases: 1
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 0
+  percent: 0
+current_phase: 53
+current_phase_name: ctf-flag-types-slice-1a-backend
 ---
 
 # Project State
@@ -51,7 +51,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-14
+Last activity: 2026-07-15
 
 ## Roadmap Summary (v1.9)
 

@@ -38,12 +38,12 @@ answer types, repeatable scoring, chaining, and reward-effect return.
 <decisions>
 ## Implementation Decisions
 
-### D-01 — Answer-type framework (CTFT-01)
+- **D-01 — Answer-type framework (CTFT-01)**
 - Add optional `Ctf.answerType: "static" | "otp"`. **Absent ⇒ `static`** (backward compat).
 - `wordlist` is Slice 3 — do NOT include it in the union yet (or include as an unused literal only if
   it costs nothing; the planner decides, but no `wordlist` judge path in 1a).
 
-### D-02 — New optional `Ctf` fields (CTFT-01), all additive
+- **D-02 — New optional `Ctf` fields (CTFT-01), all additive**
 - `otp`: map `{ secret (base32), digits, period: 120, algorithm: "SHA1", skew }` — the shared TOTP
   secret (stored so the judge can verify). **Period default is 120s** (meshtk convention), NOT 30.
 - `unlockAfter`: string — prerequisite challenge **name** (mutable — renaming the prereq silently breaks
@@ -54,7 +54,7 @@ answer types, repeatable scoring, chaining, and reward-effect return.
   ⚠️ **Distinct from `maxSolves`** (the scoring-curve denominator) — comment BOTH loudly.
 - `effect`: already exists on the entity (`type: "any"`) but is **never read today** — 1a adds the read path.
 
-### D-03 — TOTP core `src/lib/ctf-otp.ts` (CTFT-02)
+- **D-03 — TOTP core `src/lib/ctf-otp.ts` (CTFT-02)**
 - Port the ~120-line RFC 6238/4226 core from **`~/working/meshtk/pkg/otp/totp.go`** (upstream repo;
   the in-repo `apps/run.mqtt/meshtk` has NO OTP code). Use Node `crypto` (`createHmac("sha1")`).
 - **Node has no built-in base32** — write a small decoder (uppercase-normalize + `=`-pad to 8, matching the Go).
@@ -68,7 +68,7 @@ answer types, repeatable scoring, chaining, and reward-effect return.
 - Test against RFC 6238 vectors (**parameterized** — RFC vectors are 30s/8-digit); optionally cross-check
   one code against a meshtk Go harness at period 120.
 
-### D-04 — Repeatable ledger `CtfScoreEvent` (CTFT-03)
+- **D-04 — Repeatable ledger `CtfScoreEvent` (CTFT-03)**
 - New entity: `pk = challenge`, `sk = user#<bucket>`; GSI `byUser`. Attrs: `challenge`, `user`, `points`,
   `channel`, `scoredAt`, `tierCeiling`.
 - A flag is **repeatable** when `answerType === "otp"` OR `perPlayerMax > 1` OR `perPlayerIntervalHours`
@@ -79,7 +79,7 @@ answer types, repeatable scoring, chaining, and reward-effect return.
   `CtfSolve`'s `attribute_not_exists`. No read-then-write race.
 - Accrual (`RunUser.ctfScore`/`ctfSolves` via `accrue`) is per scoring event, exactly as today.
 
-### D-05 — Judge gates on `judgeSolve` (CTFT-04), ordered; every failure = indistinguishable non-solve
+- **D-05 — Judge gates on `judgeSolve` (CTFT-04), ordered; every failure = indistinguishable non-solve**
 1. Load + enabled (exists).
 2. **Unlock gate**: if `unlockAfter` set and the player has no score for it → non-solve.
 3. *(Scoring-window gate is Slice 2 — SKIP.)*
@@ -92,20 +92,20 @@ answer types, repeatable scoring, chaining, and reward-effect return.
    `allocateOrdinal` ordinal (`n > globalMax` ⇒ award 0 / no accrue — **never** a partition query).
 7. Score + accrue: `computePoints` → `recordScore` + `accrue` (unchanged).
 
-### D-06 — Effect-return plumbing (CTFT-05)
+- **D-06 — Effect-return plumbing (CTFT-05)**
 - `judgeSolve` currently neither loads nor returns `effect`. 1a adds `effect` to the loaded `Ctf`
   (`narrowCtf`), to `JudgeResult`, and surfaces it on the **non-covert solve response ONLY**.
 - New recognized `effect` kind: `{ kind: "otp-enroll", otpauth, nextFlag? }`. (The renderer is Slice 1b —
   1a only carries the payload out.)
 - The covert CSS path (`covert-egg.ts`) stays **byte-identical** and carries NO reward payload.
 
-### D-07 — Edit-semantics guard (CTFT-06)
+- **D-07 — Edit-semantics guard (CTFT-06)**
 - **Disallow flipping `answerType` static↔repeatable once solves exist** (history would split across
   `CtfSolve` + `CtfScoreEvent`). This is the spec's chosen resolution to the open item. Enforce at the
   write/validation boundary appropriate for this backend slice (the planner decides the exact seam;
   a data-layer guard is acceptable since the form is Slice 1b).
 
-### D-08 — Security hygiene (carry v2.1 invariants)
+- **D-08 — Security hygiene (carry v2.1 invariants)**
 - Never log the raw guess or the OTP secret. TOTP secret at rest is inherent to verification (documented;
   same trust level as meshtk — not a regression).
 - OTP replay within a period is bounded by `perPlayerIntervalHours`.

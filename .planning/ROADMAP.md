@@ -453,9 +453,11 @@ Plans:
   2. `q.defcon.run/admin/leaderboard` renders under the admin gate; the CTF signal is documented and queryable by the DC33 mapper.
 
 **Plans:** 3 plans (author + `terraform validate` only — NO apply/deploy; DEPLOY-SPECs where a blind production-distro edit is unsafe)
+
 - [x] 48-01-PLAN.md — CTF-12: covert-path `/use1/assets/theme` → use1 ALB behavior on the run.defcon.run cloudfront module (authored edit + DEPLOY-SPEC)
 - [x] 48-02-PLAN.md — CTF-13: inert `q /admin/*` → run.human behavior on the qr-resolver distro (authored, count-gated + DEPLOY-SPEC)
 - [x] 48-03-PLAN.md — CTF-14: `docs/ctf-score-integration.md` documenting the `ctfScore`/`CtfSolve` read for the DC33 mapper
+
 ### v2.2 Leaderboard & Activity Table (Planned)
 
 **Milestone Goal:** Bring back the DEF CON 33 leaderboard — which doubled as each runner's personal activity table — into run.human, shipping **HIDDEN behind the admin group** (no nav link) so it can be perfected before launch. A signed-in admin sees a ranked HeroUI accordion of runners; expanding a row reveals that runner's DEF CON runs, each with a client-side `<canvas>` map thumbnail drawn from a stored decimated GPX polyline (DC33 `PolylineRenderer` port — no S3/Lambda thumbnail pipeline). Scoring lives in a new `Accomplishment` ElectroDB entity (this board owns check-ins + GPX) rolled up onto `RunUser.activityScore`; the displayed global score sums in the CTF judge's `RunUser.ctfScore` **read-only** (no cross-write — respects the CTF design's §11 boundary). Spec: `docs/superpowers/specs/2026-07-13-leaderboard-activity-table-design.md`. Numbering: CTF judge worktree owns v2.1 / phases 44-48; this milestone is v2.2 / phases 49-52.
@@ -475,6 +477,7 @@ Plans:
 **Plans:** 4 plans (waves: 1={01,02} parallel, 2={03}, 3={04}) — **BUILT + VERIFIED 2026-07-14** on `gsd/phase-49-leaderboard-data-layer-accomplishment-entity-scoring`. Goal-backward verification PASS (4/4 must-haves; all 4 SCs traced to shipped code). Gates: vitest 31/31, tsc clean (only 2 pre-existing out-of-scope errors, untouched). Landmines clean: additive RunUser edit (no reorder, no `ctfScore`/`ctfSolves`), single-writer rollup, no CTF write path. Accepted deviation: a `strava`-source accomplishment persists but does not bump the rollup (Strava reserved this milestone).
 
 Plans:
+
 - [x] 49-01-PLAN.md — RunUser rollups: `activityScore`/`activityCounts`/`latestActivityAt` + `updateRunUserActivityCounts` (LDBR-02) [wave 1] — vitest 4/4
 - [x] 49-02-PLAN.md — Pure scoring module `lib/leaderboard-scoring.ts`: POINTS, `globalScore`, rank comparator (LDBR-03, LDBR-12) [wave 1] — vitest 12/12
 - [x] 49-03-PLAN.md — `Accomplishment` entity + `createAccomplishment`/`getAccomplishmentsByUser`/`deleteAccomplishment` + dup-guard (LDBR-01, LDBR-12) [wave 2] — vitest 10/10
@@ -495,6 +498,7 @@ Plans:
 **Plans:** 2 plans (waves: 1={01}, 2={02}) — endpoint contract first, then the run.gpx hook that POSTs to it. **BUILT + VERIFIED 2026-07-14.** Goal-backward PASS (4/4 must-haves; all 4 SCs traced end-to-end across both apps). Gates: run.human vitest 16/16 + tsc clean (only pre-existing out-of-scope errors), run.gpx vitest 5/5 + tsc fully clean. Boundaries: `source` server-fixed `gpx` (LDBR-12), no GpxFile schema change (YAGNI), shared `getAdapterUserIdBySub` (private duplicate removed), Phase-49 entity/scoring untouched.
 
 Plans:
+
 - [x] 50-01-PLAN.md — run.human `POST /api/internal/accomplishment` (secret gate + shared `getAdapterUserIdBySub` + pure payload builder → existing `createAccomplishment`) (LDBR-06) [wave 1] — vitest 16/16 (incl. 3-branch route test)
 - [x] 50-02-PLAN.md — run.gpx confirm-route hook: full S3 fetch + pure decimate-to-≤100-`{lat,lng}` + best-effort POST to run.human, skip `GLOBAL`, non-fatal (LDBR-05) [wave 2] — vitest 5/5
 
@@ -513,6 +517,7 @@ Plans:
 **Plans:** 3 plans (waves: 1={01,03}, 2={02}) — **BUILT + VERIFIED 2026-07-14.** Goal-backward PASS (4/4 must-haves; all 4 SCs traced). Gates: vitest 29/29, tsc clean (only pre-existing out-of-scope errors). Boundaries: both routes deny → 404 never 403; rank over full set stable under filter; 60s stale-while-revalidate never blocks; REUSE-only (Phase 49/50 untouched); no PII in row DTO; marked no-op privacy hook for launch.
 
 Plans:
+
 - [x] 51-01-PLAN.md — Pure core `lib/leaderboard-data.ts`: `buildLeaderboard` (rank over full sorted set → filter → paginate) + `isStale`/`LEADERBOARD_CACHE_TTL_MS` + unit tests (LDBR-07) [wave 1] — vitest 15/15
 - [x] 51-02-PLAN.md — `lib/leaderboard-cache.ts` 60s stale-while-revalidate scan cache + `GET /api/leaderboard` (admin-gate→404 → cached scan → buildLeaderboard) + route test (LDBR-07) [wave 2] — vitest 10/10
 - [x] 51-03-PLAN.md — `GET /api/leaderboard/[userId]/accomplishments` (admin-gate→404, `getAccomplishmentsByUser`, marked no-op privacy hook) + route test (LDBR-08) [wave 1] — vitest 4/4
@@ -532,6 +537,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
+
 - [x] 52-01-PLAN.md — PolylineRenderer client canvas + pure polyline-geometry seam (LDBR-09) — vitest 14/14
 - [x] 52-02-PLAN.md — LeaderboardTable HeroUI accordion + pure leaderboard-ui helpers (LDBR-10) — vitest 7/7
 - [x] 52-03-PLAN.md — Hidden admin `(protected)/leaderboard/page.tsx` gate + no-nav test (LDBR-11) — vitest 2/2
@@ -553,9 +559,17 @@ Plans:
   6. `CtfScoreEvent` accrual sums into `RunUser.ctfScore`/`ctfSolves` exactly as the shipped `accrue`; static one-award flags still write `CtfSolve` and are untouched.
 
 **Plans:** 4 plans
+**Wave 1**
+
 - [ ] 53-01-PLAN.md — Data model: additive `Ctf` fields + `CtfScoreEvent` ledger + pure flag-type helpers + edit-semantics guard (CTFT-01, CTFT-03, CTFT-06) [wave 1]
 - [ ] 53-02-PLAN.md — `ctf-otp.ts` TOTP core (port + new verify/skew, RFC vectors) (CTFT-02) [wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 53-03-PLAN.md — Judge gates + atomic repeatable ledger writes into `judgeSolve` (CTFT-03, CTFT-04) [wave 2]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 53-04-PLAN.md — `effect`-return plumbing (non-covert only) + covert byte-identical invariant (CTFT-05) [wave 3]
 
 ---
