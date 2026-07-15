@@ -738,6 +738,80 @@
       }
       requestAnimationFrame(draw);
     })();
+
+    // ---------- CTF covert egg (dc34-egg / "!!!") ----------
+    // The "!!!" gesture ALSO fires the covert CTF flag at run.defcon.run — additive
+    // to the CANCELLED troll above (which is the perfect loud cover). A SIGNED-IN
+    // player is credited by the SAME judge and gets a confetti burst; an anonymous
+    // visitor gets nothing extra (silent — no visible failure). defcon.run and
+    // run.defcon.run are same-site, so the shared .defcon.run SSO cookie rides the
+    // request; the award is read back via getComputedStyle, never the response body.
+    // COVERT_V + AWARD_PROP are pinned by
+    // apps/run.human/webapp/src/lib/__tests__/ctf-covert-codec.test.ts — if that
+    // test fails after a codec change, update the two constants below to match.
+    (function () {
+      var COVERT_V = '2028500684477102817202729393385721'; // encodeFlag('dc34-egg','!!!')
+      var AWARD_PROP = '--accent-ramp';
+      var ENDPOINT = 'https://run.defcon.run/use1/assets/theme';
+      var TIMEOUT_MS = 1500, cbSeq = 0;
+
+      function celebrate() {
+        var EMO = ['🎉', '🚩', '🩸', '🟩', '✨'];
+        for (var i = 0; i < 30; i++) (function () {
+          var s = document.createElement('span');
+          s.textContent = EMO[(Math.random() * EMO.length) | 0];
+          s.style.cssText = 'position:fixed;left:50%;top:44%;z-index:99999;pointer-events:none;user-select:none;font-size:' + (18 + Math.random() * 24) + 'px';
+          document.body.appendChild(s);
+          var ang = Math.random() * Math.PI * 2, dist = 140 + Math.random() * 280;
+          var dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist - 140;
+          var anim = s.animate([
+            { transform: 'translate(-50%,-50%) translate(0px,0px) rotate(0deg)', opacity: 1 },
+            { transform: 'translate(-50%,-50%) translate(' + dx + 'px,' + dy + 'px) rotate(' + ((Math.random() * 720) - 360) + 'deg)', opacity: 0 }
+          ], { duration: 1100 + Math.random() * 800, easing: 'cubic-bezier(.15,.7,.3,1)' });
+          anim.onfinish = function () { s.remove(); };
+        })();
+      }
+
+      function fireCtf() {
+        var done = false, timer = null;
+        var link = document.createElement('link');
+        function finish() {
+          if (done) return; done = true;
+          if (timer) clearTimeout(timer);
+          var award = '';
+          try { award = getComputedStyle(document.documentElement).getPropertyValue(AWARD_PROP).trim(); } catch (e) {}
+          try { link.remove(); } catch (e) {}
+          var n = Number(award);
+          if (award !== '' && isFinite(n) && n > 0) celebrate(); // signed-in win → confetti; else silent
+        }
+        link.rel = 'stylesheet';
+        // Unique cache-buster per fire so a repeat "!!!" always re-hits the judge
+        // (a deterministic URL would be served from the browser cache — see #624).
+        link.href = ENDPOINT + '?v=' + COVERT_V + '&_=' + Date.now().toString(36) + (cbSeq++).toString(36);
+        link.addEventListener('load', finish);
+        link.addEventListener('error', finish);
+        timer = setTimeout(finish, TIMEOUT_MS);
+        document.head.appendChild(link);
+      }
+
+      // Desktop: "!!!" (3x within 1200ms). Independent of the troll's own listener.
+      var seq = [];
+      window.addEventListener('keydown', function (e) {
+        if (e.key !== '!') { seq = []; return; }
+        var now = Date.now();
+        seq.push(now);
+        seq = seq.filter(function (t) { return now - t < 1200; });
+        if (seq.length >= 3) { seq = []; fireCtf(); }
+      });
+      // Mobile: 5x fast tap on the theme toggle (matches the troll's mobile trigger).
+      var taps = [], tt = document.getElementById('themeToggle');
+      if (tt) tt.addEventListener('click', function () {
+        var now = Date.now();
+        taps.push(now);
+        taps = taps.filter(function (t) { return now - t < 2000; });
+        if (taps.length >= 5) { taps = []; fireCtf(); }
+      });
+    })();
   </script>
 </body>
 </html>
