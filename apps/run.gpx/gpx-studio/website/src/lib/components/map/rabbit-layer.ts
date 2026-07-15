@@ -51,7 +51,7 @@ export class RabbitLayer {
         for (const f of fc.features) {
             const p = (f.properties ?? {}) as { pinIcon?: string; pinColor?: string };
             const icon = pinIconById(p.pinIcon) ?? pinIconById(DEFAULT_PIN_ICON)!;
-            const color = icon.fixedColor ?? p.pinColor ?? DEFAULT_PIN_COLOR;
+            const color = icon.fixedColor ?? (p.pinColor || DEFAULT_PIN_COLOR);
             const iconId = `rabbit-${icon.id}-${color}`;
             this.loadSvgImage(iconId, pinSvg(icon, color));
             (f.properties as Record<string, unknown>).iconId = iconId;
