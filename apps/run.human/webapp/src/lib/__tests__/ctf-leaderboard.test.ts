@@ -6,11 +6,27 @@ import {
   joinSolveNames,
   guardFormula,
   leaderboardCsv,
+  aggregateSolvesByUser,
+  enrichRows,
+  summarize,
+  challengeStatus,
 } from "../ctf-leaderboard";
+import type { EnrichedRow } from "../ctf-leaderboard-ui";
 import type { RunUserItem } from "@/entities/run-user";
 import type { CtfSolveItem } from "@/entities/ctf";
 
 const user = (o: Partial<RunUserItem> & { userId: string }): RunUserItem => o;
+
+/** Enriched-row fixture (leaderboardCsv now takes the badge-carrying shape). */
+const erow = (o: Partial<EnrichedRow> & { userId: string }): EnrichedRow => ({
+  displayName: "",
+  ctfScore: 0,
+  ctfSolves: 0,
+  firstBloods: 0,
+  qr: 0,
+  covert: 0,
+  ...o,
+});
 
 describe("rankByScore", () => {
   it("filters out zero / undefined ctfScore and keeps only scorers", () => {
@@ -108,31 +124,118 @@ describe("guardFormula (OWASP formula-injection guard)", () => {
 
 describe("leaderboardCsv", () => {
   it("neutralizes a formula-injection displayName and RFC-4180 quotes when needed", () => {
-    const csv = leaderboardCsv([
-      { userId: "u1", displayName: "=1+1", ctfScore: 100, ctfSolves: 2 },
-    ]);
+    const csv = leaderboardCsv([erow({ userId: "u1", displayName: "=1+1", ctfScore: 100, ctfSolves: 2 })]);
     const lines = csv.split("\n");
-    expect(lines[0]).toBe("Rank,Runner,User ID,Score,Solves");
+    expect(lines[0]).toBe("Rank,Runner,User ID,Score,Solves,First bloods,QR solves,Covert solves");
     // The malicious cell is apostrophe-prefixed (not a raw leading '=').
     expect(lines[1]).toContain("'=1+1");
     expect(lines[1]).not.toMatch(/,=1\+1,/);
   });
 
   it("quotes a cell containing a comma while still guarding formulas", () => {
-    const csv = leaderboardCsv([
-      { userId: "u1", displayName: "=cmd(),evil", ctfScore: 10, ctfSolves: 1 },
-    ]);
+    const csv = leaderboardCsv([erow({ userId: "u1", displayName: "=cmd(),evil", ctfScore: 10, ctfSolves: 1 })]);
     // guardFormula prefixes ' then csvCell quotes because of the comma.
     expect(csv).toContain(`"'=cmd(),evil"`);
   });
 
-  it("emits a rank column counting from 1 and leaves benign rows unquoted", () => {
+  it("emits a rank column from 1 plus the first-blood + channel columns", () => {
     const csv = leaderboardCsv([
-      { userId: "a", displayName: "Neo", ctfScore: 100, ctfSolves: 3 },
-      { userId: "b", displayName: "Trinity", ctfScore: 50, ctfSolves: 2 },
+      erow({ userId: "a", displayName: "Neo", ctfScore: 100, ctfSolves: 3, firstBloods: 2, qr: 1, covert: 2 }),
+      erow({ userId: "b", displayName: "Trinity", ctfScore: 50, ctfSolves: 2, qr: 2 }),
     ]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("1,Neo,a,100,3");
-    expect(lines[2]).toBe("2,Trinity,b,50,2");
+    expect(lines[1]).toBe("1,Neo,a,100,3,2,1,2");
+    expect(lines[2]).toBe("2,Trinity,b,50,2,0,2,0");
+  });
+});
+
+describe("aggregateSolvesByUser", () => {
+  const solves: CtfSolveItem[] = [
+    { challenge: "c1", user: "u1", points: 100, firstBlood: true, channel: "qr" },
+    { challenge: "c2", user: "u1", points: 50, channel: "covert" },
+    { challenge: "c1", user: "u2", points: 90, channel: "qr" },
+  ];
+
+  it("folds solves into per-user first-blood + channel + points tallies", () => {
+    const agg = aggregateSolvesByUser(solves);
+    expect(agg.u1).toEqual({ firstBloods: 1, qr: 1, covert: 1, solves: 2, points: 150 });
+    expect(agg.u2).toEqual({ firstBloods: 0, qr: 1, covert: 0, solves: 1, points: 90 });
+  });
+
+  it("tolerates missing points/channel/firstBlood", () => {
+    const agg = aggregateSolvesByUser([{ challenge: "c", user: "x" }]);
+    expect(agg.x).toEqual({ firstBloods: 0, qr: 0, covert: 0, solves: 1, points: 0 });
+  });
+});
+
+describe("enrichRows", () => {
+  it("joins the aggregate onto ranked rows, 0-filling a namespace miss", () => {
+    const rows = rankByScore([
+      user({ userId: "u1", displayName: "Neo", ctfScore: 20, ctfSolves: 2 }),
+      user({ userId: "ghost", ctfScore: 5 }),
+    ]);
+    const enriched = enrichRows(rows, {
+      u1: { firstBloods: 1, qr: 1, covert: 1, solves: 2, points: 20 },
+    });
+    expect(enriched[0]).toMatchObject({ userId: "u1", firstBloods: 1, qr: 1, covert: 1 });
+    expect(enriched[1]).toMatchObject({ userId: "ghost", firstBloods: 0, qr: 0, covert: 0 });
+    // rank order preserved
+    expect(enriched.map((r) => r.userId)).toEqual(["u1", "ghost"]);
+  });
+});
+
+describe("summarize", () => {
+  it("rolls rollups + raw solves + challenges into the tiles", () => {
+    const rows = rankByScore([
+      user({ userId: "u1", ctfScore: 100 }),
+      user({ userId: "u2", ctfScore: 50 }),
+    ]);
+    const solves: CtfSolveItem[] = [
+      { challenge: "c1", user: "u1", firstBlood: true, channel: "qr" },
+      { challenge: "c2", user: "u1", channel: "covert" },
+      { challenge: "c1", user: "u2", channel: "qr" },
+    ];
+    const challenges = [
+      { challenge: "c1", enabled: true },
+      { challenge: "c2", enabled: false },
+    ];
+    expect(summarize(rows, solves, challenges)).toEqual({
+      solvers: 2,
+      solves: 3,
+      points: 150,
+      firstBloods: 1,
+      challenges: 2,
+      liveChallenges: 1,
+      qr: 2,
+      covert: 1,
+    });
+  });
+});
+
+describe("challengeStatus", () => {
+  it("computes cap state, defaults, and sorts by challenge name", () => {
+    const rows = challengeStatus([
+      { challenge: "beta", solveCount: 5, maxSolves: 5, points: 100 },
+      { challenge: "alpha", solveCount: 2, maxSolves: 10, enabled: false },
+      { challenge: "gamma" }, // no maxSolves → uncapped
+    ]);
+    expect(rows.map((r) => r.challenge)).toEqual(["alpha", "beta", "gamma"]);
+    expect(rows[0]).toEqual({
+      challenge: "alpha",
+      enabled: false,
+      solveCount: 2,
+      maxSolves: 10,
+      capReached: false,
+      points: null,
+    });
+    expect(rows[1].capReached).toBe(true); // 5/5
+    expect(rows[2]).toEqual({
+      challenge: "gamma",
+      enabled: true,
+      solveCount: 0,
+      maxSolves: null,
+      capReached: false,
+      points: null,
+    });
   });
 });

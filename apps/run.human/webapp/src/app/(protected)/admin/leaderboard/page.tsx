@@ -1,29 +1,34 @@
 import Link from "next/link";
 
 import { cls } from "@/components/admin/qr-ui";
+import CtfStandings from "@/components/admin/CtfStandings";
 import { listCtf } from "@/lib/qr-admin";
 import { scanAllRunUsers } from "@/entities/run-user";
 import {
-  buildLeaderboard,
-  listCtfSolvesByChallenge,
+  rankByScore,
+  scanAllCtfSolves,
+  aggregateSolvesByUser,
+  enrichRows,
+  summarize,
+  challengeStatus,
   nameMapFromUsers,
   joinSolveNames,
   type NamedSolve,
 } from "@/lib/ctf-leaderboard";
+import { hasCustomName, shortId } from "@/lib/ctf-leaderboard-ui";
 import { gateAdminPage } from "../qr/gate";
 
 /**
- * /admin/leaderboard — CTF-only standings (Phase 47, CTF-11). Lives in the
- * (protected) route group so it renders inside the real run.human chrome,
- * matching AdminConsole / the QR admin. Gated identically to /admin/qr
- * (gateAdminPage → 404 on denial; non-disclosure). force-dynamic: always a live
- * read of the shared table.
+ * /admin/leaderboard — CTF-only standings + drills (Phase 47, CTF-11; enhanced).
+ * Lives in the (protected) route group so it renders inside the real run.human
+ * chrome. Gated identically to /admin/qr (gateAdminPage → 404 on denial). One
+ * live read fans out into every panel: summary tiles, the client standings
+ * table (search / sort / named filter / first-blood + channel badges), the
+ * challenge-status board, and the two drills (per-runner via `?runner=`,
+ * per-challenge via `?challenge=`), both sliced in-memory from the SINGLE
+ * CtfSolve scan below — no per-drill query.
  *
- * Reachability at q.defcon.run/admin/leaderboard is Phase 48 — this page renders
- * under run.human's normal /use1 basePath and is linked from AdminConsole.
- *
- * All rendered strings (displayName, challenge, solve name) flow through React
- * text nodes, which escape by default — no manual HTML escaping needed.
+ * All rendered strings flow through React text nodes (escaped by default).
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,34 +38,62 @@ function fmtSolvedAt(iso?: string): string {
   return iso.slice(0, 16).replace("T", " ");
 }
 
+function Tile({ label, value }: { label: string; value: number }) {
+  return (
+    <div className={`${cls.card} px-4 py-3 flex flex-col gap-0.5`}>
+      <span className="text-2xl font-bold tabular-nums leading-none">{value}</span>
+      <span className="text-[11px] uppercase tracking-wide text-default-400">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ challenge?: string }>;
+  searchParams: Promise<{ challenge?: string; runner?: string }>;
 }) {
   const { email } = await gateAdminPage();
-  const { challenge } = await searchParams;
+  const { challenge, runner } = await searchParams;
   const selected = (challenge ?? "").trim().toLowerCase() || null;
+  const selectedRunner = (runner ?? "").trim() || null;
 
-  // Ranking + challenge list concurrently. The drill (per-challenge solves +
-  // the name map for the join) only fires when a challenge is selected.
-  const [ranking, challenges] = await Promise.all([
-    buildLeaderboard(),
+  // ONE fan-out: users (rank + name join), challenges (status), all solves
+  // (standings badges, summary, both drills).
+  const [users, challenges, solves] = await Promise.all([
+    scanAllRunUsers(),
     listCtf(),
+    scanAllCtfSolves(),
   ]);
 
+  const rows = rankByScore(users);
+  const agg = aggregateSolvesByUser(solves);
+  const enriched = enrichRows(rows, agg);
+  const summary = summarize(rows, solves, challenges);
+  const statuses = challengeStatus(challenges);
+  const nameByUser = nameMapFromUsers(users);
+
+  // Per-challenge drill — sliced from the single scan, sorted by solve order.
   let drill: NamedSolve[] | null = null;
   if (selected) {
-    const [users, solves] = await Promise.all([
-      scanAllRunUsers(),
-      listCtfSolvesByChallenge(selected),
-    ]);
-    drill = joinSolveNames(solves, nameMapFromUsers(users));
+    const cs = solves
+      .filter((s) => s.challenge === selected)
+      .sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
+    drill = joinSolveNames(cs, nameByUser);
   }
 
-  const sortedChallenges = [...challenges].sort((a, b) =>
-    a.challenge.localeCompare(b.challenge)
-  );
+  // Per-runner drill — that runner's solves across every challenge.
+  let runnerSolves: NamedSolve[] | null = null;
+  let runnerLabel = "";
+  if (selectedRunner) {
+    const rs = solves
+      .filter((s) => s.user === selectedRunner)
+      .sort((a, b) => a.challenge.localeCompare(b.challenge));
+    runnerSolves = joinSolveNames(rs, nameByUser);
+    const name = nameByUser[selectedRunner];
+    runnerLabel = hasCustomName(name) ? name! : shortId(selectedRunner);
+  }
 
   return (
     <div className={cls.root}>
@@ -88,98 +121,105 @@ export default async function LeaderboardPage({
         </div>
       </div>
 
-      {/* Ranking */}
-      <section className="flex flex-col gap-2.5">
-        <h2 className={cls.h2}>Standings ({ranking.length})</h2>
-        <div className={`${cls.card} overflow-hidden`}>
-          <div className="overflow-x-auto">
-            <table className={`${cls.table} min-w-[420px]`}>
-              <thead className={cls.thead}>
-                <tr>
-                  {["#", "Runner", "Score", "Solves"].map((c) => (
-                    <th key={c} className={cls.th}>
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {ranking.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="p-6 text-center text-default-400 text-sm"
-                    >
-                      No scores yet. Solvers appear here once the judge awards points.
-                    </td>
-                  </tr>
-                ) : (
-                  ranking.map((r, i) => (
-                    <tr key={r.userId} className={cls.tr}>
-                      <td className={`${cls.td} tabular-nums text-default-500`}>
-                        {i + 1}
-                      </td>
-                      <td className={cls.td}>{r.displayName || r.userId}</td>
-                      <td className={`${cls.td} tabular-nums text-primary`}>
-                        {r.ctfScore}
-                      </td>
-                      <td className={`${cls.td} tabular-nums`}>{r.ctfSolves}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {/* Summary tiles */}
+      <section className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+        <Tile label="Solvers" value={summary.solvers} />
+        <Tile label="Solves" value={summary.solves} />
+        <Tile label="Points" value={summary.points} />
+        <Tile label="🩸 First bloods" value={summary.firstBloods} />
+        <Tile label="Live chals" value={summary.liveChallenges} />
+        <Tile label="QR" value={summary.qr} />
+        <Tile label="Covert" value={summary.covert} />
       </section>
 
-      {/* Per-challenge drill selector */}
-      <section className="flex flex-col gap-2.5">
-        <h2 className={cls.h2}>Challenges ({sortedChallenges.length})</h2>
-        {sortedChallenges.length === 0 ? (
-          <p className="text-[12.5px] text-default-400">No challenges yet.</p>
-        ) : (
-          <div className="flex gap-2 flex-wrap">
-            {sortedChallenges.map((c) => {
-              const active = c.challenge === selected;
-              return (
-                <Link
-                  key={c.challenge}
-                  href={`/admin/leaderboard?challenge=${encodeURIComponent(c.challenge)}`}
-                  className={`font-mono text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                    active
-                      ? "border-primary text-primary bg-primary/10"
-                      : "border-divider text-default-500 hover:text-foreground"
-                  }`}
-                >
-                  {c.challenge}
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </section>
+      {/* Standings (client: search / sort / named filter / badges) */}
+      <CtfStandings rows={enriched} />
 
-      {/* Drill: solves for the selected challenge */}
-      {selected ? (
+      {/* Per-runner drill */}
+      {selectedRunner ? (
         <section className="flex flex-col gap-2.5">
-          <h2 className={cls.h2}>
-            Solves · <span className="text-primary font-mono">{selected}</span>{" "}
-            ({drill?.length ?? 0})
-          </h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className={cls.h2}>
+              Runner ·{" "}
+              <span className="text-primary">{runnerLabel}</span>{" "}
+              ({runnerSolves?.length ?? 0} solve
+              {runnerSolves?.length === 1 ? "" : "s"})
+            </h2>
+            <Link href="/admin/leaderboard" className={cls.btn}>
+              ✕ Clear
+            </Link>
+          </div>
           <div className={`${cls.card} overflow-hidden`}>
             <div className="overflow-x-auto">
               <table className={`${cls.table} min-w-[640px]`}>
                 <thead className={cls.thead}>
                   <tr>
-                    {[
-                      "Ordinal",
-                      "Runner",
-                      "Points",
-                      "First blood",
-                      "Channel",
-                      "Solved at",
-                    ].map((c) => (
+                    {["Challenge", "Points", "Ordinal", "First blood", "Channel", "Solved at"].map(
+                      (c) => (
+                        <th key={c} className={cls.th}>
+                          {c}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {!runnerSolves || runnerSolves.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-6 text-center text-default-400 text-sm">
+                        No solves recorded for this runner.
+                      </td>
+                    </tr>
+                  ) : (
+                    runnerSolves.map((s) => (
+                      <tr key={s.challenge} className={cls.tr}>
+                        <td className={cls.td}>
+                          <Link
+                            href={`/admin/leaderboard?challenge=${encodeURIComponent(s.challenge)}`}
+                            className="hover:text-primary transition-colors"
+                          >
+                            {s.challenge}
+                          </Link>
+                        </td>
+                        <td className={`${cls.td} tabular-nums text-primary`}>
+                          {s.points ?? "—"}
+                        </td>
+                        <td className={`${cls.td} tabular-nums text-default-500`}>
+                          {s.ordinal ?? "—"}
+                        </td>
+                        <td className={cls.td}>
+                          {s.firstBlood ? (
+                            <span className="text-warning">🩸 first</span>
+                          ) : (
+                            <span className="text-default-400">—</span>
+                          )}
+                        </td>
+                        <td className={cls.td}>{s.channel ?? "—"}</td>
+                        <td className={`${cls.td} text-default-500`}>
+                          {fmtSolvedAt(s.solvedAt)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Challenge status board */}
+      <section className="flex flex-col gap-2.5">
+        <h2 className={cls.h2}>Challenges ({statuses.length})</h2>
+        {statuses.length === 0 ? (
+          <p className="text-[12.5px] text-default-400">No challenges yet.</p>
+        ) : (
+          <div className={`${cls.card} overflow-hidden`}>
+            <div className="overflow-x-auto">
+              <table className={`${cls.table} min-w-[520px]`}>
+                <thead className={cls.thead}>
+                  <tr>
+                    {["Challenge", "Status", "Solves / Cap", "Points", ""].map((c) => (
                       <th key={c} className={cls.th}>
                         {c}
                       </th>
@@ -187,12 +227,86 @@ export default async function LeaderboardPage({
                   </tr>
                 </thead>
                 <tbody>
+                  {statuses.map((c) => {
+                    const active = c.challenge === selected;
+                    return (
+                      <tr
+                        key={c.challenge}
+                        className={`${cls.tr} ${active ? "bg-primary/5" : ""}`}
+                      >
+                        <td className={cls.td}>{c.challenge}</td>
+                        <td className={cls.td}>
+                          {c.enabled ? (
+                            <span className="text-success">● enabled</span>
+                          ) : (
+                            <span className="text-default-400">○ disabled</span>
+                          )}
+                        </td>
+                        <td className={`${cls.td} tabular-nums`}>
+                          <span className={c.capReached ? "text-warning font-semibold" : ""}>
+                            {c.solveCount}
+                          </span>
+                          <span className="text-default-400">
+                            {" "}
+                            / {c.maxSolves ?? "∞"}
+                          </span>
+                          {c.capReached ? (
+                            <span className="text-warning"> · full</span>
+                          ) : null}
+                        </td>
+                        <td className={`${cls.td} tabular-nums text-default-500`}>
+                          {c.points ?? "—"}
+                        </td>
+                        <td className={cls.td}>
+                          <Link
+                            href={`/admin/leaderboard?challenge=${encodeURIComponent(c.challenge)}`}
+                            className={`text-xs ${
+                              active ? "text-primary" : "text-default-500 hover:text-foreground"
+                            }`}
+                          >
+                            solves →
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* Drill: solves for the selected challenge */}
+      {selected ? (
+        <section className="flex flex-col gap-2.5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h2 className={cls.h2}>
+              Solves · <span className="text-primary font-mono">{selected}</span>{" "}
+              ({drill?.length ?? 0})
+            </h2>
+            <Link href="/admin/leaderboard" className={cls.btn}>
+              ✕ Clear
+            </Link>
+          </div>
+          <div className={`${cls.card} overflow-hidden`}>
+            <div className="overflow-x-auto">
+              <table className={`${cls.table} min-w-[640px]`}>
+                <thead className={cls.thead}>
+                  <tr>
+                    {["Ordinal", "Runner", "Points", "First blood", "Channel", "Solved at"].map(
+                      (c) => (
+                        <th key={c} className={cls.th}>
+                          {c}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
                   {!drill || drill.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={6}
-                        className="p-6 text-center text-default-400 text-sm"
-                      >
+                      <td colSpan={6} className="p-6 text-center text-default-400 text-sm">
                         No solves recorded for this challenge yet.
                       </td>
                     </tr>
@@ -202,13 +316,20 @@ export default async function LeaderboardPage({
                         <td className={`${cls.td} tabular-nums text-default-500`}>
                           {s.ordinal ?? "—"}
                         </td>
-                        <td className={cls.td}>{s.name}</td>
+                        <td className={cls.td}>
+                          <Link
+                            href={`/admin/leaderboard?runner=${encodeURIComponent(s.user)}`}
+                            className="hover:text-primary transition-colors"
+                          >
+                            {s.name}
+                          </Link>
+                        </td>
                         <td className={`${cls.td} tabular-nums text-primary`}>
                           {s.points ?? "—"}
                         </td>
                         <td className={cls.td}>
                           {s.firstBlood ? (
-                            <span className="text-warning">★ first</span>
+                            <span className="text-warning">🩸 first</span>
                           ) : (
                             <span className="text-default-400">—</span>
                           )}
@@ -228,9 +349,10 @@ export default async function LeaderboardPage({
       ) : null}
 
       <p className="text-[11.5px] text-default-400">
-        Standings scan RunUser rollups (ctfScore / ctfSolves); the per-challenge
-        drill reads CtfSolve rows. CSV export is formula-injection-guarded. The
-        q.defcon.run/admin/leaderboard host is wired in Phase 48.
+        Standings scan RunUser rollups (ctfScore / ctfSolves); badges, summary and
+        both drills read the CtfSolve rows (one scan, sliced in memory). CSV export
+        is formula-injection-guarded. The q.defcon.run/admin/leaderboard host is
+        wired in Phase 48.
       </p>
     </div>
   );
