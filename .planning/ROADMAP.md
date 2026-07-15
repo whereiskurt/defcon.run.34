@@ -585,11 +585,20 @@ Plans:
   4. On a non-covert solve whose response carries `effect.kind==="otp-enroll"`, the new renderer draws a scannable QR of the `otpauth://` string, shows the correct current code with a live countdown and adjacent codes, exposes an "Add to Authenticator" deep link, and names `effect.nextFlag` when present.
   5. The covert CSS solve path (`covert-egg.ts`) and its byte-identical response are untouched; no new runtime dependency is added (QR uses the existing `qrcode@^1.5.4`); phase-scoped tests cover preset→Advanced mapping, preview-vs-`computePoints`, masked-secret non-prefill, and `otp-enroll` render.
 
-**Plans:** 0 plans
+**Plans:** 4 plans
 
-Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 54 to break down)
+- [ ] 54-01-PLAN.md — Pure form model: presetToAdvanced map, previewPoints (binds computePoints), edit-mode inference, redactCtfSecrets (CTFT-07) [wave 1]
+- [ ] 54-02-PLAN.md — Browser-safe OTP core split + adjacentCodesAsync (Web Crypto, no new dep; Phase-53 contract preserved) (CTFT-08) [wave 1]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 54-03-PLAN.md — otp-enroll reward renderer (CtfOtpEnroll: QR + rolling code + deep link + next flag) wired into non-covert ClaimClient + covert-invariant test (CTFT-08) [wave 2]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 54-04-PLAN.md — CtfForm design-A redesign: sections, segmented presets, limits, unlock, Advanced drawer, live preview, remove Points, reward configurator + reveal preview (CTFT-07) [wave 3]
 
 ### Phase 55: CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set)
 
