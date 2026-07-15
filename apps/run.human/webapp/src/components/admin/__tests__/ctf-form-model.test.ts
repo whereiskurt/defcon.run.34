@@ -7,7 +7,9 @@ import {
   previewPoints,
   inferAnswerType,
   inferChallengeType,
+  redactCtfSecrets,
   type ChallengeTypePreset,
+  type LoadedCtfRecord,
 } from "../ctf-form-model";
 
 // A clock fixed INSIDE the tier window below, for deterministic active-tier parity.
@@ -152,5 +154,91 @@ describe("inferChallengeType — edit-mode challenge-type recovery", () => {
 
   it('defaults to "custom" for an empty record', () => {
     expect(inferChallengeType({})).toBe("custom");
+  });
+});
+
+describe("redactCtfSecrets — write-only-secret boundary (SC-2 / T-54-01-01)", () => {
+  function fullRecord(): LoadedCtfRecord {
+    return {
+      challenge: "sao",
+      pointMax: 1000,
+      pointFloor: 100,
+      maxSolves: 5,
+      firstBloodBonus: 500,
+      maxAttempts: 3,
+      rateLimitWindow: 60,
+      enabled: true,
+      answerType: "otp",
+      unlockAfter: "prologue",
+      perPlayerIntervalHours: 24,
+      perPlayerMax: 3,
+      globalMax: 100,
+      answerHash: "deadbeef",
+      otp: { secret: "JBSWY3DPEHPK3PXP", digits: 6, period: 120, algorithm: "SHA1" },
+      effect: { kind: "otp-enroll", otpauth: "otpauth://totp/x", nextFlag: "day2" },
+    };
+  }
+
+  it("strips otp.secret and the entire effect, preserves the OTP summary fields", () => {
+    const out = redactCtfSecrets(fullRecord());
+    // secret is gone; the read-only OTP summary survives
+    expect(out.otp).toBeDefined();
+    expect((out.otp as Record<string, unknown>).secret).toBeUndefined();
+    expect(out.otp?.digits).toBe(6);
+    expect(out.otp?.period).toBe(120);
+    expect(out.otp?.algorithm).toBe("SHA1");
+    // effect never round-trips to the client
+    expect((out as Record<string, unknown>).effect).toBeUndefined();
+    // presence booleans surface what the form needs to render its hints
+    expect(out.hasOtpSecret).toBe(true);
+    expect(out.hasEffect).toBe(true);
+  });
+
+  it("does NOT mutate the input record (secret + effect still present after the call)", () => {
+    const input = fullRecord();
+    redactCtfSecrets(input);
+    expect(input.otp?.secret).toBe("JBSWY3DPEHPK3PXP");
+    expect(input.effect).toBeDefined();
+  });
+
+  it("keeps the non-secret scoring + limit fields intact", () => {
+    const out = redactCtfSecrets(fullRecord());
+    expect(out.pointMax).toBe(1000);
+    expect(out.pointFloor).toBe(100);
+    expect(out.maxSolves).toBe(5);
+    expect(out.firstBloodBonus).toBe(500);
+    expect(out.maxAttempts).toBe(3);
+    expect(out.rateLimitWindow).toBe(60);
+    expect(out.answerType).toBe("otp");
+    expect(out.unlockAfter).toBe("prologue");
+    expect(out.perPlayerIntervalHours).toBe(24);
+    expect(out.perPlayerMax).toBe(3);
+    expect(out.globalMax).toBe(100);
+    expect(out.answerHash).toBe("deadbeef");
+    expect(out.enabled).toBe(true);
+  });
+
+  it("a plain static record (no otp / no effect) yields both booleans false", () => {
+    const out = redactCtfSecrets({
+      challenge: "plain",
+      pointMax: 500,
+      maxSolves: 10,
+      answerType: "static",
+    });
+    expect(out.hasOtpSecret).toBe(false);
+    expect(out.hasEffect).toBe(false);
+    expect(out.otp).toBeUndefined();
+    expect(out.pointMax).toBe(500);
+    expect(out.maxSolves).toBe(10);
+  });
+
+  it("treats an empty-string otp.secret as absent (hasOtpSecret false)", () => {
+    const out = redactCtfSecrets({
+      challenge: "empty-secret",
+      otp: { secret: "", digits: 6, period: 30, algorithm: "SHA1" },
+    });
+    expect(out.hasOtpSecret).toBe(false);
+    // the summary fields still round-trip even when the secret is blank
+    expect(out.otp?.digits).toBe(6);
   });
 });
