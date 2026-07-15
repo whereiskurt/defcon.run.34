@@ -4,17 +4,17 @@ milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-15T11:00:00.000Z"
+last_updated: "2026-07-15T07:08:00.000Z"
 last_activity: 2026-07-15
-last_activity_desc: Phase 54 Plan 04 complete (CtfForm design-A redesign + Static reward OTP-enrollment configurator + edit-page secret redaction; Points field removed) — Phase 54 DONE (4/4)
+last_activity_desc: Phase 55 Plan 01 complete (ctf-score-window foundation — pure DST-correct isWithinScoreWindow + DEFCON_RUN_HOURS/TZ_OPTIONS, additive Ctf.scoreWindow, ctf-form-model bridge + redaction round-trip; CTFT-09)
 progress:
   total_phases: 25
   completed_phases: 13
   total_plans: 53
-  completed_plans: 50
+  completed_plans: 51
   percent: 50
-current_phase: 54
-current_phase_name: ctf-flag-types-slice-1b-frontend-admin-form-redesign-otp-enr
+current_phase: 55
+current_phase_name: ctf-flag-types-slice-2-scoring-windows-day-time-tz-gating-de
 ---
 
 # Project State

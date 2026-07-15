@@ -618,7 +618,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 55-01-PLAN.md — Foundation: pure DST-correct `isWithinScoreWindow` + `DEFCON_RUN_HOURS`/`TZ_OPTIONS` in `ctf-score-window.ts`, additive `Ctf.scoreWindow` attribute, form-model bridge helpers + redaction round-trip (CTFT-09) [wave 1]
+- [x] 55-01-PLAN.md — Foundation: pure DST-correct `isWithinScoreWindow` + `DEFCON_RUN_HOURS`/`TZ_OPTIONS` in `ctf-score-window.ts`, additive `Ctf.scoreWindow` attribute, form-model bridge helpers + redaction round-trip (CTFT-09) [wave 1]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
