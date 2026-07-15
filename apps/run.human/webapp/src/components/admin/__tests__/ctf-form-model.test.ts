@@ -188,7 +188,7 @@ describe("redactCtfSecrets — write-only-secret boundary (SC-2 / T-54-01-01)", 
     expect(out.otp?.period).toBe(120);
     expect(out.otp?.algorithm).toBe("SHA1");
     // effect never round-trips to the client
-    expect((out as Record<string, unknown>).effect).toBeUndefined();
+    expect((out as unknown as Record<string, unknown>).effect).toBeUndefined();
     // presence booleans surface what the form needs to render its hints
     expect(out.hasOtpSecret).toBe(true);
     expect(out.hasEffect).toBe(true);

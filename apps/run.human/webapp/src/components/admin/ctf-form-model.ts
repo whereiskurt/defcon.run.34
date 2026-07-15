@@ -198,3 +198,113 @@ export function inferChallengeType(record: InferSource): ChallengeTypePreset {
   }
   return "custom";
 }
+
+// ---------------------------------------------------------------------------
+// Write-only-secret boundary (SC-2 / T-54-01-01)
+// ---------------------------------------------------------------------------
+//
+// ⚠️ SECURITY BOUNDARY. A loaded `Ctf` row (server) is about to be serialized as
+// a prop to the "use client" CtfForm — everything on it crosses to the browser.
+// `redactCtfSecrets` is the ONE place that strips the write-only secrets before a
+// record can become a client prop, so the design's "secrets are never
+// round-tripped to the client" invariant holds. It runs on the SERVER (the edit
+// page) but is pure and node-free, so it lives here and is unit-tested here.
+// 54-04 wires the edit page through it.
+
+/** The raw loaded fields this boundary reads (a structural subset of the Ctf row). */
+export interface LoadedCtfRecord {
+  challenge: string;
+  points?: number;
+  pointMax?: number;
+  pointFloor?: number;
+  maxSolves?: number;
+  firstBloodBonus?: number;
+  timeTiers?: Array<{ from?: string; to?: string; ceiling?: number }>;
+  maxAttempts?: number;
+  rateLimitWindow?: number;
+  enabled?: boolean;
+  answerType?: "static" | "otp";
+  unlockAfter?: string;
+  perPlayerIntervalHours?: number;
+  perPlayerMax?: number;
+  globalMax?: number;
+  // Presence-only hint driver; carries no plaintext, so it is left as-is.
+  answerHash?: string;
+  // ⚠️ `secret` is write-only and MUST NOT survive redaction.
+  otp?: { secret?: string; digits?: number; period?: number; algorithm?: string; skew?: number };
+  // ⚠️ `effect` may carry an otpauth reward payload; dropped entirely.
+  effect?: unknown;
+}
+
+/** What the client form actually receives — every secret field removed. */
+export interface RedactedCtfRecord {
+  challenge: string;
+  points?: number;
+  pointMax?: number;
+  pointFloor?: number;
+  maxSolves?: number;
+  firstBloodBonus?: number;
+  timeTiers?: Array<{ from?: string; to?: string; ceiling?: number }>;
+  maxAttempts?: number;
+  rateLimitWindow?: number;
+  enabled?: boolean;
+  answerType?: "static" | "otp";
+  unlockAfter?: string;
+  perPlayerIntervalHours?: number;
+  perPlayerMax?: number;
+  globalMax?: number;
+  answerHash?: string;
+  /** OTP summary for the read-only display — NEVER the secret. */
+  otp?: { digits?: number; period?: number; algorithm?: string };
+  /** true iff the loaded record had a non-empty otp.secret. */
+  hasOtpSecret: boolean;
+  /** true iff the loaded record had a defined effect. */
+  hasEffect: boolean;
+}
+
+/**
+ * Return a shallow clone of `record` with every write-only secret stripped:
+ *   - `otp.secret` removed (digits/period/algorithm kept for the read-only summary),
+ *   - `effect` removed entirely,
+ * plus two derived booleans (`hasOtpSecret`, `hasEffect`) the form uses to render
+ * its "already set — leave blank to keep" hints. Non-mutating: the input object
+ * is never touched. `answerHash` is preserved (it drives only the keep-hint and
+ * carries no plaintext).
+ */
+export function redactCtfSecrets(record: LoadedCtfRecord): RedactedCtfRecord {
+  const hasOtpSecret = Boolean(record.otp?.secret);
+  const hasEffect = record.effect !== undefined;
+
+  const redacted: RedactedCtfRecord = {
+    challenge: record.challenge,
+    points: record.points,
+    pointMax: record.pointMax,
+    pointFloor: record.pointFloor,
+    maxSolves: record.maxSolves,
+    firstBloodBonus: record.firstBloodBonus,
+    timeTiers: record.timeTiers,
+    maxAttempts: record.maxAttempts,
+    rateLimitWindow: record.rateLimitWindow,
+    enabled: record.enabled,
+    answerType: record.answerType,
+    unlockAfter: record.unlockAfter,
+    perPlayerIntervalHours: record.perPlayerIntervalHours,
+    perPlayerMax: record.perPlayerMax,
+    globalMax: record.globalMax,
+    answerHash: record.answerHash,
+    hasOtpSecret,
+    hasEffect,
+  };
+
+  // Rebuild the OTP summary from ONLY the non-secret fields — never copy `secret`.
+  if (record.otp) {
+    redacted.otp = {
+      digits: record.otp.digits,
+      period: record.otp.period,
+      algorithm: record.otp.algorithm,
+    };
+  }
+
+  // `effect` is intentionally never copied.
+  return redacted;
+}
