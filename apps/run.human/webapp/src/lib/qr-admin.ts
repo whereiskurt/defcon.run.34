@@ -1,5 +1,12 @@
 import { Qr, Ctf, Qrstat } from "@/entities/qr";
+import { CtfSolve, CtfScoreEvent } from "@/entities/ctf";
 import { hashAnswer } from "@/lib/ctf-hash";
+import { QrValidationError } from "@/lib/qr-errors";
+import { assertAnswerTypeTransition } from "@/lib/ctf-flag-types";
+
+// Re-export so existing `import { QrValidationError } from "@/lib/qr-admin"`
+// call sites (route.ts, tests) keep working after the extraction to qr-errors.ts.
+export { QrValidationError };
 
 /**
  * QR / CTF admin data + validation layer (run.human, Phase-4 admin CRUD).
@@ -15,15 +22,8 @@ import { hashAnswer } from "@/lib/ctf-hash";
  * and the DB never sees a bad value.
  *
  * See src/entities/qr.ts for the load-bearing casing/parity contract.
+ * (QrValidationError now lives in ./qr-errors and is re-exported above.)
  */
-
-/** Thrown for any user-correctable bad input. Route maps it to HTTP 400. */
-export class QrValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "QrValidationError";
-  }
-}
 
 // Short-code grammar: 1–64 chars, starts alphanumeric, then alnum/_/- .
 const CODE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
@@ -380,11 +380,30 @@ export async function upsertCtf(input: CtfInput): Promise<string> {
   const attrs = ctfAttributes(input);
   const existing = await Ctf.get({ challenge }).go();
   if (existing.data) {
+    // CTFT-06 (D-07): reject a static <-> repeatable flip once any scoring
+    // history exists (it would split across CtfSolve + CtfScoreEvent). Bounded
+    // existence read — a single-item query on each entity's challenge partition;
+    // the pure repeatable-ness comparison lives in ctf-flag-types.
+    const hasSolves = await challengeHasSolves(challenge);
+    assertAnswerTypeTransition(existing.data, input, hasSolves);
     await Ctf.patch({ challenge }).set(attrs).go();
   } else {
     await Ctf.create({ challenge, ...attrs }).go();
   }
   return challenge;
+}
+
+/**
+ * Bounded existence check: does ANY scoring history exist for this challenge
+ * across either ledger (CtfSolve for static one-award flags, CtfScoreEvent for
+ * repeatable flags)? Uses a limit-1 query on each entity's challenge partition —
+ * no full scan — and short-circuits on the first hit.
+ */
+async function challengeHasSolves(challenge: string): Promise<boolean> {
+  const solve = await CtfSolve.query.primary({ challenge }).go({ limit: 1 });
+  if (solve.data.length > 0) return true;
+  const event = await CtfScoreEvent.query.primary({ challenge }).go({ limit: 1 });
+  return event.data.length > 0;
 }
 
 /** Delete a CTF challenge by (normalized) challenge. Idempotent. */
