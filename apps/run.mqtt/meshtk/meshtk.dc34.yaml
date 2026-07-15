@@ -90,7 +90,7 @@ Fleet:
     LongNameTmpl: "dc34-ghost-{{.fleetNum}}{{.nodeId}}-{{.shortseed}}"
     NodesPerRampInterval: [4]
     RampUpSecs: 300
-    RampSteadySecs: 12000
+    RampSteadySecs: 2419200
     RampDownSecs: 15
     NodesPerSteadyInterval: [1, 1, 1, 1]
     Distribution: "uniform"
