@@ -1,7 +1,7 @@
 ---
 phase: 57
 slug: ctf-form-qr-polish-dc33-seed-data
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-07-15
