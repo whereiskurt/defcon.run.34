@@ -11,7 +11,7 @@
     "verifier": true,
     "nyquist_validation": false,
     "_auto_chain_active": false,
-    "skip_discuss": true
+    "skip_discuss": false
   },
   "parallelization": true,
   "brave_search": false,
