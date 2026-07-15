@@ -4,14 +4,14 @@ milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: phase_planned
 stopped_at: "Phase 53 (CTF flag-types Slice 1a backend) PLANNED — 4 plans (waves 1={53-01,53-02},2={53-03},3={53-04}), gsd-plan-checker VERIFICATION PASSED (0 blockers, 1 non-blocking perPlayerMax-atomicity advisory). Ready to execute: /gsd-execute-phase 53. OVERRIDE: decision-coverage-plan gate reported 3/8 via a lexical text-overlap false-negative — D-01/D-03/D-05/D-06/D-08 map 1:1 to CTFT-01/02/04/05 + judge hygiene, all independently traced covered by the plan-checker and the requirements gate (6/6 CTFT). Carry-over (prior milestone): v2.2 (49-52) BUILT+VERIFIED, LEFT for human: signed-in admin local-browser render of /leaderboard + npm run build + PR."
-last_updated: "2026-07-15T02:08:03.740Z"
+last_updated: "2026-07-15T03:34:30.284Z"
 last_activity: 2026-07-15
 progress:
-  total_phases: 1
-  completed_phases: 0
-  total_plans: 4
-  completed_plans: 0
-  percent: 0
+  total_phases: 22
+  completed_phases: 11
+  total_plans: 49
+  completed_plans: 42
+  percent: 50
 current_phase: 53
 current_phase_name: ctf-flag-types-slice-1a-backend
 ---
@@ -23,7 +23,7 @@ current_phase_name: ctf-flag-types-slice-1a-backend
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 49 — leaderboard-data-layer-accomplishment-entity-scoring
+**Current focus:** Phase 53 — ctf-flag-types-slice-1a-backend-answer-type-framework-rotati
 
 ## Current Position
 
@@ -101,6 +101,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 39-01: common.header.donate re-homes the donate trigger; bib.donate.trigger left seeded until 39-04 re-points bib header/menu.
 - [Phase 39]: 39-02: run.human copy toolkit installed (ported verbatim from run.bib, D-05); snapshot floor carries byte-identical common.* union (D-07); CopyProvider mounted in both group layouts; zero human.* easy wins authored (D-06 bias-to-defer)
 - [Phase ?]: 39-04: TransactionHistory async loadCopy+t; AdminActions useCopy() (module consts removed) — words byte-identical
+- [Phase ?]: 53-01: bucket-in-sk atomic ledger + QrValidationError extracted to dependency-free qr-errors.ts for pure helpers
 
 ### Pending Todos
 
@@ -113,7 +114,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T16:43:51.279Z
+Last session: 2026-07-15T03:34:19.684Z
 Stopped at: Phase 39 context gathered
 Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
 
