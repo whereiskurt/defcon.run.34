@@ -5,6 +5,7 @@
     import { OverpassLayer } from './overpass-layer';
     import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
     import { GhostLayer } from '$lib/components/map/ghost-layer';
+    import { RabbitLayer } from '$lib/components/map/rabbit-layer';
     import { ghostMode } from '$lib/stores/ghost';
     import { Separator } from '$lib/components/ui/separator';
     import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
@@ -28,6 +29,7 @@
     let overpassLayer: OverpassLayer;
     let publicOverlaysLayer: PublicOverlaysLayer | undefined = $state();
     let ghostLayer: GhostLayer | undefined;
+    let rabbitLayer: RabbitLayer | undefined;
 
     const {
         currentBasemap,
@@ -215,6 +217,10 @@
         ghostMode.subscribe((on) => {
             void ghostLayer?.setVisible(on);
         });
+        if (rabbitLayer) rabbitLayer.remove();
+        rabbitLayer = new RabbitLayer(_map);
+        // Rabbit Layer is default-ON: only opted-in (verified && showOnMap) users appear.
+        void rabbitLayer.setVisible(true);
         let first = true;
         _map.on('style.import.load', () => {
             if (!first) return;
