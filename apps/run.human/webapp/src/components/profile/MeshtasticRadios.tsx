@@ -34,6 +34,7 @@ interface MeshtasticRadio {
   privateKey: string;
   publicKey?: string;
   impersonate: boolean;
+  showOnMap?: boolean;
   verificationCode?: string;
   verified: boolean;
   createdAt: number;
@@ -83,6 +84,9 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
 
   // Impersonate toggle state
   const [togglingImpersonateId, setTogglingImpersonateId] = useState<string | null>(null);
+
+  // Show on map toggle state
+  const [togglingShowOnMapId, setTogglingShowOnMapId] = useState<string | null>(null);
 
   // Private key visibility state
   const [visiblePrivateKeys, setVisiblePrivateKeys] = useState<Record<string, boolean>>({});
@@ -333,6 +337,40 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
       console.error(err);
     } finally {
       setTogglingImpersonateId(null);
+    }
+  };
+
+  const handleToggleShowOnMap = async (radioId: string, currentValue: boolean) => {
+    setTogglingShowOnMapId(radioId);
+
+    try {
+      const response = await fetch(apiUrl('/api/meshtastic-radios'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          radioId,
+          showOnMap: !currentValue,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Failed to update radio');
+        return;
+      }
+
+      // Update radio in list
+      setRadios(prev => prev.map(r =>
+        r.id === radioId ? { ...r, showOnMap: !currentValue } : r
+      ));
+
+      onUpdate?.();
+    } catch (err) {
+      setError('Failed to update radio');
+      console.error(err);
+    } finally {
+      setTogglingShowOnMapId(null);
     }
   };
 
@@ -610,6 +648,18 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                               thumbIcon={radio.impersonate ? <UserCheck className="h-3 w-3" /> : <UserX className="h-3 w-3" />}
                             />
                             <span className="text-xs text-default-500">Impersonate</span>
+                          </div>
+                        )}
+                        {radio.verified && radio.privateKey && (
+                          <div className="flex items-center gap-1">
+                            <Switch
+                              size="sm"
+                              color="success"
+                              isSelected={radio.showOnMap ?? false}
+                              isDisabled={togglingShowOnMapId === radio.id}
+                              onValueChange={() => handleToggleShowOnMap(radio.id, radio.showOnMap ?? false)}
+                            />
+                            <span className="text-xs text-default-500">Show me on the map</span>
                           </div>
                         )}
                       </div>
