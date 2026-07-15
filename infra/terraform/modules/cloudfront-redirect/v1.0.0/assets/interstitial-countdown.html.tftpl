@@ -109,10 +109,11 @@
         document.body.appendChild(s);
         var ang = Math.random() * Math.PI * 2, dist = 140 + Math.random() * 280;
         var dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist - 140;
-        document.body && s.animate([
+        var anim = s.animate([
           { transform: "translate(-50%,-50%) translate(0,0) rotate(0deg)", opacity: 1 },
           { transform: "translate(-50%,-50%) translate(" + dx + "px," + dy + "px) rotate(" + ((Math.random() * 720) - 360) + "deg)", opacity: 0 }
-        ], { duration: 1100 + Math.random() * 800, easing: "cubic-bezier(.15,.7,.3,1)" }).onfinish = function () { s.remove(); };
+        ], { duration: 1100 + Math.random() * 800, easing: "cubic-bezier(.15,.7,.3,1)" });
+        anim.onfinish = function () { s.remove(); };
       })();
     }
     var done = false, timer = null, link = document.createElement("link");
