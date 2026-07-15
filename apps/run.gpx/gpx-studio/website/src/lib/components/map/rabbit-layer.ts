@@ -1,5 +1,6 @@
 import mapboxgl from 'mapbox-gl';
 import { pinSvg, pinIconById, DEFAULT_PIN_ICON, DEFAULT_PIN_COLOR } from '$lib/dc34-pins';
+import { escapeHtml } from './escape-html';
 
 const SOURCE = 'dc34-rabbits';
 const LAYER = 'dc34-rabbits-pins';
@@ -82,7 +83,7 @@ export class RabbitLayer {
                 const p = (f.properties ?? {}) as { displayName?: string; userType?: string };
                 this.popup
                     .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
-                    .setHTML(`<div class="dc34-rabbit-reveal"><strong>${p.displayName ?? 'a rabbit'}</strong>${p.userType ? `<br><span>${p.userType}</span>` : ''}</div>`)
+                    .setHTML(`<div class="dc34-rabbit-reveal"><strong>${escapeHtml(p.displayName ?? 'a rabbit')}</strong>${p.userType ? `<br><span>${escapeHtml(p.userType)}</span>` : ''}</div>`)
                     .addTo(this.map);
             };
             this.map.on('click', LAYER, this.clickFn);

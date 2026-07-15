@@ -1,4 +1,5 @@
 import mapboxgl from 'mapbox-gl';
+import { escapeHtml } from './escape-html';
 
 const SOURCE = 'dc34-ghosts';
 const LAYER = 'dc34-ghosts-pins';
@@ -67,7 +68,7 @@ export class GhostLayer {
                 const p = (f.properties ?? {}) as { who?: string; shortName?: string };
                 this.popup
                     .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
-                    .setHTML(`<div class="dc34-ghost-reveal"><strong>${p.who ?? 'a ghost'}</strong><br><span>${p.shortName ?? ''}</span></div>`)
+                    .setHTML(`<div class="dc34-ghost-reveal"><strong>${escapeHtml(p.who ?? 'a ghost')}</strong><br><span>${escapeHtml(p.shortName ?? '')}</span></div>`)
                     .addTo(this.map);
             };
             this.map.on('click', LAYER, this.clickFn);
