@@ -21,6 +21,39 @@
  */
 
 import { computePoints, type ScoringConfig, type TimeTier } from "@/lib/ctf-scoring";
+import { parseOtpauth } from "@/lib/ctf-otp-core";
+
+// ---------------------------------------------------------------------------
+// Rotating-OTP answer field (CR-01)
+// ---------------------------------------------------------------------------
+
+/** The OTP answer payload the server stores — the base32 secret + its params. */
+export interface OtpAnswerField {
+  secret: string;
+  digits: number;
+  period: number;
+}
+
+/**
+ * Parse the admin-entered `otpauth://totp/...` URL for a Rotating-OTP answer into
+ * the payload the server persists: the extracted base32 `secret` plus `digits`
+ * and `period`.
+ *
+ * WHY (CR-01): the Rotating-OTP field asks the admin to paste a full `otpauth://`
+ * URL, but the judge runs `base32Decode(otp.secret)` on whatever is stored — an
+ * `otpauth://` string contains `:` and `/`, which base32Decode rejects, so a flag
+ * saved with the raw URL could NEVER be solved. Parsing here extracts the same
+ * base32 secret the reward side (`asOtpEnrollEffect` / `CtfOtpEnroll`) enrolls, so
+ * a seed pasted as the OTP answer decodes to the same secret the reward hands out.
+ * It also preserves the URL's digits/period instead of silently defaulting them.
+ *
+ * Throws on non-otpauth or otherwise unparseable input (via `parseOtpauth`) so the
+ * form can surface an inline error rather than persist an unsolvable flag.
+ */
+export function buildOtpAnswerField(input: string): OtpAnswerField {
+  const cfg = parseOtpauth(input);
+  return { secret: cfg.secret, digits: cfg.digits, period: cfg.period };
+}
 
 // ---------------------------------------------------------------------------
 // Challenge-type presets

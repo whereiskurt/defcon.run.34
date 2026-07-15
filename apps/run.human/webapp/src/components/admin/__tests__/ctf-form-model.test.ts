@@ -8,9 +8,11 @@ import {
   inferAnswerType,
   inferChallengeType,
   redactCtfSecrets,
+  buildOtpAnswerField,
   type ChallengeTypePreset,
   type LoadedCtfRecord,
 } from "../ctf-form-model";
+import { base32Decode } from "@/lib/ctf-otp-core";
 
 // A clock fixed INSIDE the tier window below, for deterministic active-tier parity.
 const IN_TIER = Date.parse("2026-08-07T12:00:00Z");
@@ -240,5 +242,56 @@ describe("redactCtfSecrets — write-only-secret boundary (SC-2 / T-54-01-01)", 
     expect(out.hasOtpSecret).toBe(false);
     // the summary fields still round-trip even when the secret is blank
     expect(out.otp?.digits).toBe(6);
+  });
+});
+
+describe("buildOtpAnswerField — Rotating-OTP answer parse (CR-01)", () => {
+  // The whole point of CR-01: the stored secret must be a base32 string the
+  // judge's base32Decode can consume, NOT the raw otpauth:// URL.
+  it("extracts a base32 secret (decodable, no ':' or '/') from an otpauth:// URL", () => {
+    const url = "otpauth://totp/Defcon.run:runner?secret=JBSWY3DPEHPK3PXP&issuer=Defcon.run";
+    const field = buildOtpAnswerField(url);
+    expect(field.secret).toBe("JBSWY3DPEHPK3PXP");
+    // The regression guard: the old code stored the raw URL, which base32Decode
+    // throws on. The parsed secret must decode without throwing.
+    expect(() => base32Decode(field.secret)).not.toThrow();
+    expect(field.secret).not.toContain(":");
+    expect(field.secret).not.toContain("/");
+  });
+
+  it("carries the URL's digits/period through instead of silently defaulting", () => {
+    const url =
+      "otpauth://totp/Defcon.run:runner?secret=JBSWY3DPEHPK3PXP&digits=8&period=30";
+    const field = buildOtpAnswerField(url);
+    expect(field.digits).toBe(8);
+    expect(field.period).toBe(30);
+  });
+
+  it("applies the meshtk defaults (6 digits / 120s) when the URL omits them", () => {
+    const field = buildOtpAnswerField(
+      "otpauth://totp/Defcon.run:runner?secret=JBSWY3DPEHPK3PXP",
+    );
+    expect(field.digits).toBe(6);
+    expect(field.period).toBe(120);
+  });
+
+  it("the parsed secret equals the same base32 the reward side enrolls (chained flow)", () => {
+    // A reward hands out this exact otpauth:// URL; the downstream Rotating-OTP
+    // flag must verify codes from the SAME base32 secret — proving the two sides
+    // agree (the CR-01 chained-flow invariant).
+    const seed = "otpauth://totp/Defcon.run:day2?secret=GEZDGNBVGY3TQOJQ&period=120";
+    expect(buildOtpAnswerField(seed).secret).toBe("GEZDGNBVGY3TQOJQ");
+  });
+
+  it("throws on a bare base32 secret (not an otpauth:// URL)", () => {
+    expect(() => buildOtpAnswerField("JBSWY3DPEHPK3PXP")).toThrow();
+  });
+
+  it("throws on a non-otpauth URL", () => {
+    expect(() => buildOtpAnswerField("https://example.com/?secret=JBSWY3DPEHPK3PXP")).toThrow();
+  });
+
+  it("throws on an otpauth URL missing the secret", () => {
+    expect(() => buildOtpAnswerField("otpauth://totp/Defcon.run:x")).toThrow();
   });
 });
