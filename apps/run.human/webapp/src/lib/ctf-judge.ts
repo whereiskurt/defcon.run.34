@@ -40,12 +40,43 @@ import { ctfJudgeLog, emit } from "./ctf-log";
 
 export type Channel = "qr" | "covert";
 
+/**
+ * A reward `effect` the judge carries OUT of a credited solve onto the NON-COVERT
+ * claim response only (D-06 / CTFT-05). The judge does NOT interpret it — the shape
+ * is authored per-challenge on `Ctf.effect` (typed `any` on the entity) and rendered
+ * downstream (the `otp-enroll` renderer is Slice 1b). It is `unknown` on the result
+ * so a caller must narrow before use.
+ *
+ * The ONE recognized/documented kind in Slice 1a is `otp-enroll`: it hands the
+ * solver an `otpauth://` enrollment URL (the seed for a chained rotating-OTP flag)
+ * plus an optional `nextFlag` name. It is a CARRIED PAYLOAD — the judge never reads
+ * `otpauth`/`nextFlag`; the Slice-1b reveal UI does.
+ *
+ * ⚠️ INVARIANT (T-53-04-01): `effect` surfaces on `JudgeResult` for the visible,
+ * authenticated non-covert solve ONLY. The covert CSS channel reads `solved` +
+ * `points` and MUST NEVER carry a reward payload — see the covert-egg invariant tests.
+ */
+export interface OtpEnrollEffect {
+  kind: "otp-enroll";
+  /** The `otpauth://totp/...` enrollment URL (the chained OTP flag's seed). */
+  otpauth: string;
+  /** Optional NAME of the flag this enrollment unlocks (chaining hint for the UI). */
+  nextFlag?: string;
+}
+
 export interface JudgeResult {
   solved: boolean;
   points: number;
   ordinal: number | null;
   firstBlood: boolean;
   capped: boolean;
+  /**
+   * The reward payload for a CREDITED (points > 0) solve, surfaced on the
+   * non-covert claim response only. Absent/undefined on every NON_SOLVE, gate
+   * failure, and non-award (capped ⇒ points 0) result — and on rows with no
+   * `effect`. NEVER read by the covert path. See `OtpEnrollEffect`.
+   */
+  effect?: unknown;
 }
 
 /**
@@ -84,6 +115,12 @@ export interface JudgeCtf extends ScoringConfig {
   perPlayerMax?: number;
   /** Hard GLOBAL scoring cutoff across ALL players (0/absent = unlimited). */
   globalMax?: number;
+  /**
+   * The authored reward payload (D-06 / CTFT-05). Stored on `Ctf.effect` (`any`);
+   * carried through untyped and returned VERBATIM on a credited solve — the judge
+   * never interprets it. See `OtpEnrollEffect` for the recognized `otp-enroll` shape.
+   */
+  effect?: unknown;
 }
 
 /** The prior award returned when a claim loses the race (already solved). */
@@ -331,7 +368,9 @@ export async function judgeSolve(
       }
       await store.accrue({ user, points });
       log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
-      return { solved: true, points, ordinal: n, firstBlood, capped };
+      // Carry the reward `effect` ONLY on a credited (points > 0) solve — a capped
+      // (points 0) award is a non-award and stays effect-free (T-53-04-01 / SC-5).
+      return { solved: true, points, ordinal: n, firstBlood, capped, effect: points > 0 ? ctf.effect : undefined };
     }
 
     // (4) claim — conditional put BEFORE ordinal allocation. A failed claim means
@@ -341,13 +380,16 @@ export async function judgeSolve(
     const claim = await store.claimSolve({ challenge, user, channel, solvedAt });
     if (!claim.claimed) {
       const prior = claim.existing;
+      const priorPoints = prior?.points ?? 0;
       log(ctfJudgeLog({ challenge, result: "replay" }));
       return {
         solved: true,
-        points: prior?.points ?? 0,
+        points: priorPoints,
         ordinal: prior?.ordinal ?? null,
         firstBlood: prior?.firstBlood ?? false,
-        capped: (prior?.points ?? 0) === 0,
+        capped: priorPoints === 0,
+        // Re-surface the reward on an idempotent replay of a CREDITED award only.
+        effect: priorPoints > 0 ? ctf.effect : undefined,
       };
     }
 
@@ -371,9 +413,9 @@ export async function judgeSolve(
     });
     await store.accrue({ user, points });
 
-    // (7) return.
+    // (7) return. Carry the reward `effect` ONLY on a credited (points > 0) solve.
     log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
-    return { solved: true, points, ordinal: n, firstBlood, capped };
+    return { solved: true, points, ordinal: n, firstBlood, capped, effect: points > 0 ? ctf.effect : undefined };
   } catch {
     // Never throw: any store/validation error degrades to a non-solve. Guard the
     // log too so a broken logger can't escape the contract.
@@ -414,6 +456,7 @@ function narrowCtf(row: {
   perPlayerIntervalHours?: number;
   perPlayerMax?: number;
   globalMax?: number;
+  effect?: unknown;
 }): JudgeCtf {
   const timeTiers: TimeTier[] | undefined = Array.isArray(row.timeTiers)
     ? row.timeTiers.map((t) => ({
@@ -444,6 +487,9 @@ function narrowCtf(row: {
     perPlayerIntervalHours: row.perPlayerIntervalHours,
     perPlayerMax: row.perPlayerMax,
     globalMax: row.globalMax,
+    // The authored reward payload — passed through untyped (shape varies per
+    // challenge); the judge returns it verbatim on a credited solve (D-06).
+    effect: row.effect,
   };
 }
 
