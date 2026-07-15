@@ -572,6 +572,59 @@ Plans:
 
 - [x] 53-04-PLAN.md — `effect`-return plumbing (non-covert only) + covert byte-identical invariant (CTFT-05) [wave 3]
 
+### Phase 54: CTF Flag Types — Slice 1b Frontend (Admin Form Redesign + otp-enroll QR/Rolling-Code Reward Renderer)
+
+**Goal:** Ship the run.human UI half of the CTF flag-types milestone on top of Phase 53's backend — a shippable run.human PR with its own tests, no covert-CSS blast radius. Two deliverables: (1) a restructured `CtfForm.tsx` (design "A") that exposes the answer-type framework (Static / Rotating OTP), the Static→**Reward on solve → OTP enrollment** seed configurator with a reveal preview, per-24h + per-player-max + global-max limits, unlock/chaining, an always-editable Advanced drawer that presets pre-fill, and a live scoring preview mirroring `computePoints` — while **removing the dead `Points` field** and keeping answers/secrets write-only/masked; and (2) a **new client `otp-enroll` reward renderer** wired to the non-covert solve response (which 1a extended to carry `effect`) that draws a real QR of the `otpauth://` seed via the existing `qrcode@^1.5.4` dep, shows the rolling code (previous/current/next + countdown) via `adjacentCodes`, offers an "Add to Authenticator" deep link, and names the `effect.nextFlag` it unlocks. Delivers the full daily-chain vision *except* time-of-day windows (Slice 2). No infra changes, no data migration (all Phase-53 fields additive; existing rows read as `static`).
+**Depends on:** Phase 53 (Slice 1a backend — additive `Ctf` fields, `answerType` dispatch, `CtfScoreEvent` ledger, and the `effect`-return plumbing incl. `otp-enroll` on the non-covert solve response; all present in this worktree). Additive-only to the admin form and the solve-response client; must not touch the covert CSS path (`covert-egg.ts`) or the leaderboard rollup.
+**Requirements:** CTFT-07 (`CtfForm.tsx` redesign per design "A": **Name** + **challenge-type presets** [Flat points · First-blood race · Timed drop · Easter egg · Custom] that pre-fill scoring; **Answer type** section [Static / Rotating OTP] with per-type controls and, for Static, the **Reward → OTP enrollment** seed configurator + reveal preview; **Scoring window & limits** section surfacing per-24h + `perPlayerMax` + `globalMax`; **Unlock & chaining** section [hidden-until-`unlockAfter`]; always-editable **Advanced drawer** [raw curve/tier/anti-spam/effect knobs, presets pre-fill]; **live scoring preview** mirroring `computePoints`; **remove the dead `Points` field**; answers/secrets masked / write-only / never prefilled in edit mode; plain-language help copy for Ceiling, anti-spam, and the one-award/cadence note; edit-mode type + answer-type inference), CTFT-08 (client **`otp-enroll` reward renderer** — a NEW handler [none exists today; confetti is boolean-driven and `effect` never reaches the client] keyed on `effect.kind==="otp-enroll"` from the non-covert solve response: real `otpauth://` **QR via `qrcode@^1.5.4`** client-side [no new dep], **rolling code** [previous/current/next + `remainingSeconds` countdown] via `adjacentCodes`, an **"Add to Authenticator"** `otpauth://` deep-link action, and optional **next-flag** copy from `effect.nextFlag`; covert path unaffected).
+**Success Criteria** (what must be TRUE):
+
+  1. An admin can create/edit a **Static** and a **Rotating OTP** flag entirely through the redesigned `CtfForm.tsx`; a challenge-type preset pre-fills the Advanced drawer's scoring knobs, and the Advanced knobs remain editable after a preset is applied.
+  2. The Static **Reward → OTP enrollment** control configures the handed-out seed and shows a reveal preview; the dead `Points` field is gone; answers/secrets are masked and are **never** prefilled when editing an existing flag.
+  3. The live scoring preview matches `computePoints` for the current form state, and the per-24h / `perPlayerMax` / `globalMax` limits plus `unlockAfter` are all settable and round-trip through save/edit.
+  4. On a non-covert solve whose response carries `effect.kind==="otp-enroll"`, the new renderer draws a scannable QR of the `otpauth://` string, shows the correct current code with a live countdown and adjacent codes, exposes an "Add to Authenticator" deep link, and names `effect.nextFlag` when present.
+  5. The covert CSS solve path (`covert-egg.ts`) and its byte-identical response are untouched; no new runtime dependency is added (QR uses the existing `qrcode@^1.5.4`); phase-scoped tests cover preset→Advanced mapping, preview-vs-`computePoints`, masked-secret non-prefill, and `otp-enroll` render.
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 54 to break down)
+
+### Phase 55: CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set)
+
+**Goal:** Add time-of-day / day-of-week scoring windows to the CTF judge as a new ordered gate, additive to the `Ctf` entity and the redesigned admin form — a shippable run.human PR with its own tests, covert-CSS invariant preserved. Adds an optional `scoreWindow` config `{ days, startTime, endTime, tz }` where `tz` is an **IANA zone** (e.g. `America/Los_Angeles`); the judge evaluates `now` in `scoreWindow.tz` via `Intl.DateTimeFormat` (DST automatic) as gate **step 3** — if `scoreWindow` is set and `now` is outside the day/time window → **non-solve, indistinguishable from a wrong answer**. The admin form's **Scoring window & limits** section gains the day/time/tz picker (PT/ET/UTC → stored as IANA id) and the **"DEF CON run hours" quick set** (Thu–Sun 6–8 AM PT). Absent `scoreWindow` ⇒ always-open (every existing flag unchanged).
+**Depends on:** Phase 54 (redesigned `CtfForm.tsx` provides the Scoring window & limits section to extend) and Phase 53 (judge gate ordering + additive-`Ctf` pattern). Additive-only; must not touch the covert CSS path (`covert-egg.ts`) or the leaderboard rollup.
+**Requirements:** CTFT-09 (`Ctf` additive optional `scoreWindow` field `{ days:number[]|weekday-set, startTime, endTime, tz:IANA-id }`, backward-compatible: absent ⇒ always scorable; distinct from cadence/caps), CTFT-10 (judge **scoring-window gate** as ordered step 3 in `judgeSolve`: evaluate `now` in `scoreWindow.tz` via `Intl.DateTimeFormat`, DST-correct; outside window ⇒ non-solve indistinguishable from a wrong answer — covert invariant intact; never log the guess), CTFT-11 (admin form **day/time/tz picker** in the Scoring window & limits section: weekday multi-select + start/end time + tz selector [PT/ET/UTC → stored IANA id] + **"DEF CON run hours" quick set** chip = Thu–Sun 6–8 AM `America/Los_Angeles`; round-trips through save/edit; live preview reflects window state).
+**Success Criteria** (what must be TRUE):
+
+  1. A flag with `scoreWindow` set to Thu–Sun 6–8 AM PT scores **only** when `now` (evaluated in `America/Los_Angeles`) falls inside that window and is a **non-solve** (indistinguishable from wrong) otherwise; a flag with no `scoreWindow` is unaffected.
+  2. Window evaluation is **DST-correct** — "6–8 AM PT" resolves to PDT in August and PST off-season via `Intl.DateTimeFormat`, proven by a test crossing a DST boundary.
+  3. An admin can set the day/time/tz window through the form and apply the **"DEF CON run hours"** quick set in one click; the value round-trips through save→edit and the stored `tz` is an IANA id.
+  4. The covert CSS solve path (`covert-egg.ts`) stays byte-identical; the window gate fires before answer validation in the documented order and never logs the guess or secret.
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 55 to break down)
+
+### Phase 56: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
+
+**Goal:** Add a third answer type — `wordlist` — a pool of single-use codes consumed first-come, atomically. New `CtfCode` ElectroDB entity (`pk = challenge`, `sk = codeHash`; attrs `codeHash` [salted with the existing answer scheme], `claimedBy`, `claimedAt`); a claim is a conditional update `attribute_not_exists(claimedBy)` → exactly one winner under concurrency, no read-then-write race. Plaintext codes are **never stored** — the admin bulk-loads pre-hashed codes. The judge's answer-validation step gains a `wordlist` branch: hash the guess and conditional-claim a matching unclaimed `CtfCode`; a used or unknown code is a **non-solve indistinguishable from a wrong answer**. The admin form's Answer-type section gains the **Wordlist** option with bulk code entry. Shippable run.human PR with its own tests including the two-claimers-one-wins race; covert-CSS invariant preserved.
+**Depends on:** Phase 54 (Answer-type section of the redesigned form to add the Wordlist option) and Phase 53 (judge answer-type dispatch + `CtfScoreEvent`/one-award ledger to record the scoring event). Additive-only; must not touch the covert CSS path (`covert-egg.ts`) or the leaderboard rollup.
+**Requirements:** CTFT-12 (new `CtfCode` ElectroDB entity: `pk=challenge`, `sk=codeHash`, attrs `codeHash` [salted, same scheme as answers], `claimedBy`, `claimedAt`; plaintext never persisted), CTFT-13 (judge **`wordlist` answer-type branch** in `judgeSolve`: hash the guess and **atomic conditional-claim** a matching unclaimed `CtfCode` via `attribute_not_exists(claimedBy)` — exactly one concurrent claimer wins; used/unknown code ⇒ non-solve indistinguishable from a wrong answer; scoring event recorded through the existing ledger/accrue path; never log the guess), CTFT-14 (admin form **Wordlist** option in the Answer-type section: bulk-load codes [hashed client- or server-side before storage per the answer-salt scheme], write-only [plaintext never round-tripped to the client], with a loaded/remaining count surfaced).
+**Success Criteria** (what must be TRUE):
+
+  1. A `wordlist` flag admits each code exactly once: two concurrent submissions of the **same** unclaimed code result in **exactly one** scoring solve and one non-solve (atomic `attribute_not_exists(claimedBy)` conditional claim — proven by a race test).
+  2. A previously-claimed or unknown code is a **non-solve indistinguishable from a wrong answer** (covert-channel invariant intact); a valid unclaimed code scores through the existing accrue path and marks the `CtfCode` `claimedBy`/`claimedAt`.
+  3. Plaintext codes are **never stored** and never round-tripped to the client — only salted `codeHash` values persist; the admin can bulk-load codes and see a loaded/remaining count.
+  4. The covert CSS solve path (`covert-egg.ts`) stays byte-identical; existing static/otp flags are unaffected by the new answer-type branch; the guess is never logged.
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 56 to break down)
+
 ---
 
 <details>
