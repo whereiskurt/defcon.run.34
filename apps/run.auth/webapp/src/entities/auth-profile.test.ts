@@ -30,7 +30,7 @@ vi.mock("./client", () => ({
   ELECTRO_TABLE: "run-auth-electro-test",
 }));
 
-import { upsertAuthProfile } from "./auth-profile";
+import { upsertAuthProfile, buildStravaLink } from "./auth-profile";
 
 /** The Strava athlete payload for a user with no location set (Jesse's case). */
 function nullLocationAthlete() {
@@ -87,5 +87,78 @@ describe("upsertAuthProfile — Strava with null location", () => {
     expect(strava).not.toHaveProperty("city");
     expect(strava).not.toHaveProperty("state");
     expect(strava).not.toHaveProperty("country");
+  });
+});
+
+/**
+ * buildStravaLink() — the minimum-link contract.
+ *
+ * The athlete `id` is the ONLY required field; it is what run.human reads
+ * (strava.id → linked_providers claim → hasStrava). Every other field is
+ * best-effort enrichment: kept only when it is a real non-empty string, so a
+ * malformed/absent decorative field can never block recording the link.
+ * Input keys are the raw snake_case Strava /athlete shape.
+ */
+describe("buildStravaLink — minimum-link contract", () => {
+  it("keeps only the id when all optional fields are null (no-location athlete)", () => {
+    const link = buildStravaLink({
+      id: 12345678,
+      username: null,
+      firstname: null,
+      lastname: null,
+      profile_medium: null,
+      city: null,
+      state: null,
+      country: null,
+    });
+    expect(link).toEqual({ id: 12345678 });
+  });
+
+  it("coerces a numeric-string id to a number", () => {
+    expect(buildStravaLink({ id: "12345678" }).id).toBe(12345678);
+  });
+
+  it("drops non-string optional fields (e.g. city returned as a number/object)", () => {
+    const link = buildStravaLink({
+      id: 42,
+      city: 90210 as unknown as string,
+      state: {} as unknown as string,
+      country: "US",
+    });
+    expect(link).toEqual({ id: 42, country: "US" });
+  });
+
+  it("drops empty-string optional fields", () => {
+    const link = buildStravaLink({ id: 7, firstname: "", lastname: "Runner" });
+    expect(link).toEqual({ id: 7, lastName: "Runner" });
+  });
+
+  it("maps snake_case enrichment to the entity shape", () => {
+    const link = buildStravaLink({
+      id: 9,
+      username: "jesse",
+      firstname: "Jesse",
+      lastname: "Runner",
+      profile_medium: "https://ex/j.jpg",
+      city: "Vegas",
+      state: "NV",
+      country: "US",
+    });
+    expect(link).toEqual({
+      id: 9,
+      username: "jesse",
+      firstName: "Jesse",
+      lastName: "Runner",
+      profileMedium: "https://ex/j.jpg",
+      city: "Vegas",
+      state: "NV",
+      country: "US",
+    });
+  });
+
+  it("throws when the id is missing or unusable — cannot link without it", () => {
+    expect(() => buildStravaLink({ username: "noid" })).toThrow();
+    expect(() => buildStravaLink({ id: "not-a-number" })).toThrow();
+    expect(() => buildStravaLink({ id: null })).toThrow();
   });
 });

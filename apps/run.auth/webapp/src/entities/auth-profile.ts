@@ -273,6 +273,52 @@ export type StravaProfile = {
   country?: string;
 };
 
+/**
+ * Build the minimum-viable Strava link map from a raw Strava /athlete profile.
+ *
+ * The athlete `id` is the ONLY field required to record a link — it is what
+ * run.human reads (strava.id → linked_providers claim → hasStrava). It is
+ * coerced to a number and this THROWS if it is missing/unusable: we cannot
+ * record a link without it.
+ *
+ * Every other field is best-effort enrichment, included only when it is a real
+ * non-empty string. A null / numeric / object / empty decorative value is
+ * dropped rather than allowed to abort the link write (Strava returns null
+ * city/state/country for athletes with no location, and fields can be absent
+ * or oddly typed). Input keys are the raw snake_case Strava /athlete shape.
+ */
+export function buildStravaLink(raw: Record<string, unknown>): StravaProfile {
+  // Strava athlete ids are positive integers. Accept a number or a numeric
+  // string; reject anything else — including null/undefined/"" which JS would
+  // otherwise coerce to 0 (`Number(null) === 0`) and pass off as a valid id.
+  const rawId = raw?.id;
+  const id =
+    typeof rawId === "number"
+      ? rawId
+      : typeof rawId === "string"
+      ? Number(rawId)
+      : NaN;
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error(
+      `buildStravaLink: Strava athlete id missing or unusable (got ${JSON.stringify(
+        rawId
+      )})`
+    );
+  }
+  const str = (v: unknown): string | undefined =>
+    typeof v === "string" && v.length > 0 ? v : undefined;
+  return pruneNullish({
+    id,
+    username: str(raw.username),
+    firstName: str(raw.firstname),
+    lastName: str(raw.lastname),
+    profileMedium: str(raw.profile_medium),
+    city: str(raw.city),
+    state: str(raw.state),
+    country: str(raw.country),
+  }) as StravaProfile;
+}
+
 export type LinkedInProfile = {
   id: string;
   name?: string;
