@@ -2,7 +2,7 @@ import { auth } from "@/config/auth";
 import { cls, apiBase } from "@/components/admin/qr-ui";
 import { CtfCardArt } from "@/components/ctf/CtfCardArt";
 import { listCtf } from "@/lib/qr-admin";
-import { CtfSolve } from "@/entities/ctf";
+import { CtfSolve, CtfScoreEvent } from "@/entities/ctf";
 import { gateAdminPage } from "../../admin/qr/gate";
 
 /**
@@ -20,6 +20,11 @@ import { gateAdminPage } from "../../admin/qr/gate";
  *
  * Unlock join keys on session.user.id (= RunUser.userId = CtfSolve.user), NEVER
  * the OIDC sub — the CTF identity invariant. force-dynamic: always a live read.
+ *
+ * A challenge is unlocked if the viewer scored it on EITHER ledger: a CtfSolve
+ * row (static one-award flags) OR a CtfScoreEvent row (repeatable / OTP / wordlist
+ * flags, which the judge records with no CtfSolve row). Reading only CtfSolve
+ * would leave ledger-scored cards permanently locked.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,19 +38,32 @@ export default async function CtfCardsPage() {
   const viewerId = session?.user?.id ?? "";
   const base = apiBase();
 
-  // Enabled challenges + the viewer's own solves, concurrently.
-  const [allChallenges, solves] = await Promise.all([
+  // Enabled challenges + the viewer's own solves AND score-events, concurrently.
+  const [allChallenges, solves, events] = await Promise.all([
     listCtf(),
     viewerId
       ? CtfSolve.query.byUser({ user: viewerId }).go({ pages: "all" })
       : Promise.resolve({ data: [] as Array<{ challenge: string }> }),
+    viewerId
+      ? CtfScoreEvent.query.byUser({ user: viewerId }).go({ pages: "all" })
+      : Promise.resolve({ data: [] as Array<{ challenge: string }> }),
   ]);
 
+  // Static flags reveal a rich card (points / ordinal / 🩸) from their CtfSolve
+  // row. Repeatable/OTP/wordlist flags have no CtfSolve row — fold in each
+  // challenge from the score-event ledger (points summed across the viewer's
+  // events) so its card unlocks too. The two ledgers are disjoint per challenge
+  // (a flag is static XOR repeatable), so there is no double-count.
   const solved = new Map(
     (solves.data as Array<{ challenge: string; ordinal?: number; points?: number; firstBlood?: boolean }>).map(
       (s) => [s.challenge, s]
     )
   );
+  for (const e of events.data as Array<{ challenge: string; points?: number }>) {
+    const prev = solved.get(e.challenge);
+    if (prev) prev.points = (prev.points ?? 0) + (e.points ?? 0);
+    else solved.set(e.challenge, { challenge: e.challenge, points: e.points ?? 0 });
+  }
 
   const challenges = allChallenges
     .filter((c) => c.enabled !== false)

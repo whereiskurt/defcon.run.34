@@ -144,7 +144,9 @@ export interface CtfInput {
   maxAttempts?: number;
   rateLimitWindow?: number;
   // Collectible "CTF Cards" board art slug (→ /ctf-cards/<slug>.(webp|svg)).
-  cardImage?: string;
+  // `undefined` (absent) = no-clobber on partial edits; explicit `null` = clear
+  // the stored slug (applied as an attribute REMOVE in upsertCtf, like scoreWindow).
+  cardImage?: string | null;
   enabled?: boolean;
   // --- Flag-types framework (Slice 1a, CTFT-01) — additive optional passthrough --
   // All pass through numeric/string/map as provided (no hash/transform). An
@@ -549,9 +551,13 @@ export async function upsertCtf(input: CtfInput): Promise<string> {
     // place and keep the flag silently gated while the UI reads "Scorable any time."
     // Apply a real attribute REMOVE so toggling the window OFF actually re-opens it.
     const patch = Ctf.patch({ challenge }).set(attrs);
-    if (input.scoreWindow === null) {
-      patch.remove(["scoreWindow"]);
-    }
+    // Explicit `null` means "clear this attribute" — a plain `.set(attrs)` omits
+    // the key (no-clobber), so toggling a windowed/carded field OFF needs a real
+    // attribute REMOVE. `ctfAttributes` already omits both from the set payload.
+    const toRemove: Array<"scoreWindow" | "cardImage"> = [];
+    if (input.scoreWindow === null) toRemove.push("scoreWindow");
+    if (input.cardImage === null) toRemove.push("cardImage");
+    if (toRemove.length) patch.remove(toRemove);
     await patch.go();
   } else {
     await Ctf.create({ challenge, ...attrs }).go();

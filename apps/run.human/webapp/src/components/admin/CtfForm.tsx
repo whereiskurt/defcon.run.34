@@ -383,7 +383,9 @@ export default function CtfForm({
         perPlayerMax: numOrUndef(perPlayerMax),
         globalMax: numOrUndef(globalMax),
         ...(unlockAfter.trim() !== "" ? { unlockAfter: unlockAfter.trim() } : {}),
-        cardImage: cardImage.trim() || undefined,
+        // Empty ⇒ null so a previously-set slug is REMOVED (blank = generic
+        // placeholder, as the field help promises); a real value sets it.
+        cardImage: cardImage.trim() === "" ? null : cardImage.trim(),
         enabled,
         ...(timeTiers.length ? { timeTiers } : {}),
         ...(scoreWindow ? { scoreWindow } : clearWindow ? { scoreWindow: null } : {}),

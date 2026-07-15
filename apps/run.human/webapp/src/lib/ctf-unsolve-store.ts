@@ -65,11 +65,13 @@ async function solverCounts(challenges: string[]): Promise<Record<string, number
 async function deleteAttempts(userId: string, challenges: string[]): Promise<number> {
   let removed = 0;
   for (const challenge of challenges) {
-    const existing = await CtfAttempt.get({ challenge, user: userId }).go();
-    if (existing.data) {
-      await CtfAttempt.delete({ challenge, user: userId }).go();
-      removed++;
-    }
+    // Single round trip: delete is idempotent, and `all_old` tells us whether a
+    // row actually existed (so removedAttempts stays an honest count) without a
+    // separate get.
+    const res = await CtfAttempt.delete({ challenge, user: userId }).go({
+      response: "all_old",
+    });
+    if (res.data) removed++;
   }
   return removed;
 }
@@ -93,7 +95,12 @@ async function applyPlan(
   const { nextScore, nextSolves } = computeCounterUpdate({
     mode,
     removedPoints: sumPoints([...solves, ...scoreEvents]),
-    removedSolves: solves.length,
+    // The judge's accrue() does `.add({ ctfScore, ctfSolves: 1 })` for EACH
+    // scoring write — one per CtfSolve (static flags) AND one per CtfScoreEvent
+    // (repeatable/OTP/wordlist flags). So the ctfSolves decrement must count both
+    // ledgers, else a repeatable challenge (0 CtfSolve rows, N score events)
+    // leaves ctfSolves inflated by N after an unsolve.
+    removedSolves: solves.length + scoreEvents.length,
     currentScore: user?.ctfScore ?? 0,
     currentSolves: user?.ctfSolves ?? 0,
   });

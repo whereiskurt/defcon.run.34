@@ -78,7 +78,13 @@ export async function GET(): Promise<Response> {
  * Gated IDENTICALLY to GET above and to /api/admin/qr: sync requireGroups
  * (admin | runadmin) then a LIVE revalidateGroups keyed by the OIDC sub
  * (authUserId — NOT the adapter id). Every denial collapses to a BARE 404
- * (non-disclosure), never a 401/403. The action operates on a TARGET userId
+ * (non-disclosure), never a 401/403.
+ *
+ * DELIBERATELY ADMIN_GROUPS, not CTF_ADMIN_GROUPS: this is a DESTRUCTIVE,
+ * cross-user data mutation (peer: /api/admin/qr), so it takes the strongest gate
+ * with live revalidation — unlike the CTF re-submit override (isCtfAdmin), which
+ * only lets an operator re-score their OWN flag and so admits the looser
+ * `ctfadmin` group (which run.auth does not even issue today). The action operates on a TARGET userId
  * (the runner being zeroed), which is the CtfSolve.user / RunUser.userId space
  * (= session.user.id), distinct from the admin's authUserId used for the gate.
  *
