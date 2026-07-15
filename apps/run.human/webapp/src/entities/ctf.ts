@@ -4,12 +4,14 @@ import { electroClient, ELECTRO_TABLE } from "./client";
 /**
  * CTF judge entities (run.human-only — Phase 44, CTF-01).
  *
- * These three entities live on the SHARED `run-human-electro` table
+ * These entities live on the SHARED `run-human-electro` table
  * (`service: "run"`, `version: "1"`) alongside `Qr`/`Ctf`/`Qrstat` (see
  * `./qr.ts`) and `RunUser`. Unlike `Ctf`, the q.defcon.run resolver does NOT
  * read these rows, so there is NO `.mjs` mirror to keep byte-parity with — the
  * key shapes here are run.human-internal contracts, pinned by
- * `src/entities/__tests__/ctf-key-parity.test.ts`.
+ * `src/entities/__tests__/ctf-key-parity.test.ts`. (CtfScoreEvent, added in the
+ * flag-types Slice 1a, likewise has NO resolver `.mjs` mirror — the resolver
+ * never reads it; its keys are run.human-internal.)
  *
  * Schema only: no DB-mutating helpers live here. The judge (Phase 44-03) owns
  * the conditional-put / atomic-ADD orchestration behind its store seam.
@@ -67,6 +69,64 @@ export const CtfSolve = new Entity(
         index: "gsi1pk-gsi1sk-index",
         pk: { field: "gsi1pk", composite: ["user"] },
         sk: { field: "gsi1sk", composite: ["challenge"] },
+      },
+    },
+  },
+  { client: electroClient, table: ELECTRO_TABLE }
+);
+
+// ---------------------------------------------------------------------------
+// CtfScoreEvent — append-only ledger for REPEATABLE flags (flag-types Slice 1a)
+// ---------------------------------------------------------------------------
+//
+// One row per (challenge, user, bucket). `bucket` is the time-window token
+// (floor of scoredAt to perPlayerIntervalHours, or the OTP period for tighter
+// flags — see lib/ctf-flag-types.scoreBucket). Because the bucket lives in the
+// sk, the once-per-window claim is a single conditional put: two solves in the
+// same window collide on `attribute_not_exists(sk)` and the first writer wins
+// (NO read-then-write race) — exactly like CtfSolve's idempotent claim, but
+// per-window instead of once-ever. Static one-award flags keep using CtfSolve.
+// byUser resolves "all my scoring events" for the perPlayerMax count path.
+export const CtfScoreEvent = new Entity(
+  {
+    model: {
+      entity: "CtfScoreEvent",
+      version: "1",
+      service: "run",
+    },
+    attributes: {
+      challenge: { type: "string", required: true },
+      user: { type: "string", required: true },
+      // Time-window token; makes the sk once-per-window (see scoreBucket).
+      bucket: { type: "string", required: true },
+      points: { type: "number" },
+      channel: { type: ["qr", "covert"] as const },
+      scoredAt: { type: "string" }, // UTC-ISO
+      tierCeiling: { type: "number" }, // audit: ceiling in effect at score time
+      createdAt: {
+        type: "string",
+        default: () => new Date().toISOString(),
+        readOnly: true,
+      },
+      updatedAt: {
+        type: "string",
+        default: () => new Date().toISOString(),
+        watch: "*",
+        set: () => new Date().toISOString(),
+      },
+    },
+    indexes: {
+      // All scoring events for a challenge share a partition; each (user, bucket)
+      // is exactly one row (attribute_not_exists(sk) once-per-window claim).
+      primary: {
+        pk: { field: "pk", composite: ["challenge"] },
+        sk: { field: "sk", composite: ["user", "bucket"] },
+      },
+      // "all my scoring events" — the perPlayerMax count path.
+      byUser: {
+        index: "gsi1pk-gsi1sk-index",
+        pk: { field: "gsi1pk", composite: ["user"] },
+        sk: { field: "gsi1sk", composite: ["challenge", "bucket"] },
       },
     },
   },
@@ -147,6 +207,18 @@ export type CtfSolveItem = {
   tierCeiling?: number;
   channel?: "qr" | "covert";
   solvedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CtfScoreEventItem = {
+  challenge: string;
+  user: string;
+  bucket: string;
+  points?: number;
+  channel?: "qr" | "covert";
+  scoredAt?: string;
+  tierCeiling?: number;
   createdAt?: string;
   updatedAt?: string;
 };
