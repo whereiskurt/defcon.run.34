@@ -552,7 +552,11 @@ Plans:
   5. On a non-covert solve, `judgeSolve` loads and returns the flag's `effect` and the solve API surfaces it (incl. `otp-enroll`); the covert CSS path (`covert-egg.ts`) stays **byte-identical** and carries no reward payload — grep/test-verified.
   6. `CtfScoreEvent` accrual sums into `RunUser.ctfScore`/`ctfSolves` exactly as the shipped `accrue`; static one-award flags still write `CtfSolve` and are untouched.
 
-**Plans:** TBD (planning in progress)
+**Plans:** 4 plans
+- [ ] 53-01-PLAN.md — Data model: additive `Ctf` fields + `CtfScoreEvent` ledger + pure flag-type helpers + edit-semantics guard (CTFT-01, CTFT-03, CTFT-06) [wave 1]
+- [ ] 53-02-PLAN.md — `ctf-otp.ts` TOTP core (port + new verify/skew, RFC vectors) (CTFT-02) [wave 1]
+- [ ] 53-03-PLAN.md — Judge gates + atomic repeatable ledger writes into `judgeSolve` (CTFT-03, CTFT-04) [wave 2]
+- [ ] 53-04-PLAN.md — `effect`-return plumbing (non-covert only) + covert byte-identical invariant (CTFT-05) [wave 3]
 
 ---
 
