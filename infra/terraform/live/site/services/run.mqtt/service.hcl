@@ -342,10 +342,13 @@ locals {
     task_family   = "run-mqtt" # Must match task definition family from task above
     desired_count = 1
 
-    # MQTT uses NLB (not ALB), no service discovery needed
+    # MQTT uses NLB (not ALB) for device traffic. Service discovery is enabled
+    # for the nginx container so internal services (run-gpx ghost/rabbit proxies)
+    # can privately fetch nodes.json at run-mqtt.app-{region}-{site}.local/nodes.json
+    # without exposing the raw node DB publicly.
     service_discovery = {
       name           = "run-mqtt"
-      container_name = ""
+      container_name = "run-mqtt-nginx"
     }
 
     load_balancers = [

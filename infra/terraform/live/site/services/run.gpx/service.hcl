@@ -113,6 +113,14 @@ locals {
             value = "http://run-human.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
           },
           {
+            # meshtk nodes.json feed via run-mqtt nginx (service discovery, private).
+            # Read server-side by the ghost proxy (filters ghost/contest/operative
+            # nodes) and the rabbit proxy (intersects with run.human opted-in
+            # identities). Fail-soft to an empty FeatureCollection if unreachable.
+            name  = "GHOST_FEED_URL"
+            value = "http://run-mqtt.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local/nodes.json"
+          },
+          {
             name  = "GPX_PUBLIC_URL"
             value = "https://gpx.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },
