@@ -23,14 +23,20 @@ export interface FlagTypeShape {
 }
 
 /**
- * A flag is REPEATABLE (scores onto CtfScoreEvent, once-per-window) when it is an
- * OTP flag, OR allows more than one scoring solve per player, OR sets a per-player
- * cadence interval. A plain static one-award flag (none of these) is NOT
- * repeatable and keeps using CtfSolve.
+ * A flag is REPEATABLE (scores onto CtfScoreEvent, NOT the once-ever CtfSolve) when
+ * it is an OTP flag, a WORDLIST flag, OR allows more than one scoring solve per
+ * player, OR sets a per-player cadence interval. A plain static one-award flag
+ * (none of these) is NOT repeatable and keeps using CtfSolve.
+ *
+ * Wordlist (Slice 3, CTFT-13) is repeatable because a player may redeem multiple
+ * DISTINCT single-use codes — each writes its own CtfScoreEvent ledger row (keyed
+ * by the codeHash), never the once-ever CtfSolve. Marking it repeatable also makes
+ * the CTFT-06 flip guard treat static↔wordlist as a genuine repeatable-ness change.
  */
 export function isRepeatable(ctf: FlagTypeShape): boolean {
   return (
     ctf.answerType === "otp" ||
+    ctf.answerType === "wordlist" ||
     (ctf.perPlayerMax ?? 0) > 1 ||
     (ctf.perPlayerIntervalHours ?? 0) > 0
   );

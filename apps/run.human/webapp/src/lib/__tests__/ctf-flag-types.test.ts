@@ -24,6 +24,10 @@ describe("isRepeatable", () => {
     expect(isRepeatable({ answerType: "otp" })).toBe(true);
   });
 
+  it("is true when answerType is wordlist (Slice 3 — multiple distinct codes)", () => {
+    expect(isRepeatable({ answerType: "wordlist" })).toBe(true);
+  });
+
   it("is true when perPlayerMax > 1", () => {
     expect(isRepeatable({ perPlayerMax: 2 })).toBe(true);
   });

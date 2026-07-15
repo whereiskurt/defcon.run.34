@@ -105,8 +105,8 @@ export interface JudgeCtf extends ScoringConfig {
   enabled: boolean;
   maxAttempts?: number;
   rateLimitWindow?: number;
-  // --- Flag-types framework (Slice 1a) — all optional; absent answerType == static.
-  answerType?: "static" | "otp";
+  // --- Flag-types framework (Slice 1a/3) — all optional; absent answerType == static.
+  answerType?: "static" | "otp" | "wordlist";
   otp?: JudgeOtp;
   /** Prerequisite challenge NAME (unlock/chaining gate). See D-02 (name, not id). */
   unlockAfter?: string;
@@ -343,6 +343,13 @@ export async function judgeSolve(
     // already holds only the hash (park-and-claim) passes `guessHash` and we
     // compare it directly; otherwise we hash the raw `guess`. Both static routes
     // converge on the same constant-time compare against `ctf.answerHash`.
+    // For `wordlist` (CTFT-13) the validation IS the atomic single-use claim: hash
+    // the guess (or reuse a pre-hashed covert guessHash) to the codeHash — the same
+    // hashAnswer seam admin-loaded codes use — then conditional-claim a matching
+    // unclaimed CtfCode. Computed here so both the dispatch and the wordlist
+    // finalize (which keys the ledger row by codeHash) read one value.
+    const codeHash =
+      ctf.answerType === "wordlist" ? (guessHash ?? hashAnswer(guess ?? "")) : "";
     let ok: boolean;
     if (ctf.answerType === "otp") {
       const otp = ctf.otp ?? {};
@@ -352,6 +359,20 @@ export async function judgeSolve(
         period: otp.period,
         skew: otp.skew,
       });
+    } else if (ctf.answerType === "wordlist") {
+      // The atomic conditional claim IS the answer check: a used/unknown code OR an
+      // absent op ⇒ claimed:false ⇒ falls through the shared `if (!ok)` NON_SOLVE
+      // below (indistinguishable from a wrong answer). Never log codeHash/guess.
+      ok = store.claimCode
+        ? (
+            await store.claimCode({
+              challenge,
+              codeHash,
+              user,
+              claimedAt: new Date(now).toISOString(),
+            })
+          ).claimed
+        : false;
     } else {
       ok =
         guessHash !== undefined
@@ -364,6 +385,37 @@ export async function judgeSolve(
     }
 
     const scoredAt = new Date(now).toISOString();
+
+    // (W) WORDLIST finalize (CTFT-13). Placed BEFORE the generic isRepeatable block
+    // so wordlist NEVER calls claimScoreEvent — the CtfCode claim above already
+    // provided the atomic single-use guarantee (calling the once-per-window claim
+    // would wrongly block a player's second DISTINCT code in the same time bucket).
+    // Mirrors the repeatable finalize (R3/R4) EXCEPT the idempotency source: the
+    // code claim, not claimScoreEvent. The ledger row is keyed by `bucket: codeHash`
+    // — each globally single-use code maps to exactly one scoring event. NOTE:
+    // recordScoreEvent MUST create/upsert here (no claimScoreEvent pre-created a
+    // row); defaultStore.recordScoreEvent is an upsert for exactly this reason (its
+    // create-vs-patch semantics is not covered by the in-memory Map fake). No
+    // perPlayerMax gate: the finite code pool + per-code single-use is the natural
+    // bound, and a byUser count before recordScoreEvent would mis-order. Never pass
+    // guess/codeHash to the logger.
+    if (ctf.answerType === "wordlist") {
+      const n = await store.allocateOrdinal(challenge);
+      if ((ctf.globalMax ?? 0) > 0 && n > (ctf.globalMax as number)) {
+        log(ctfJudgeLog({ challenge, result: "capped" }));
+        return { solved: true, points: 0, ordinal: n, firstBlood: false, capped: true };
+      }
+      const points = computePoints(n, ctf, now);
+      const capped = points === 0;
+      const firstBlood = n === 1;
+      const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
+      if (store.recordScoreEvent) {
+        await store.recordScoreEvent({ challenge, user, bucket: codeHash, points, tierCeiling, channel });
+      }
+      await store.accrue({ user, points });
+      log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
+      return { solved: true, points, ordinal: n, firstBlood, capped, effect: points > 0 ? ctf.effect : undefined };
+    }
 
     // (R) REPEATABLE path (flag-types D-04/D-05). A flag that is otp, or allows
     // >1 solve per player, or sets a per-player cadence writes the append-only
@@ -514,8 +566,12 @@ function narrowCtf(row: {
     : undefined;
   // `answerType` narrows to the known union; anything unexpected (or absent)
   // reads as static — the backward-compatible default for every shipped row.
-  const answerType: "static" | "otp" =
-    row.answerType === "otp" ? "otp" : "static";
+  const answerType: "static" | "otp" | "wordlist" =
+    row.answerType === "otp"
+      ? "otp"
+      : row.answerType === "wordlist"
+        ? "wordlist"
+        : "static";
   return {
     challenge: row.challenge,
     answerHash: row.answerHash ?? "",

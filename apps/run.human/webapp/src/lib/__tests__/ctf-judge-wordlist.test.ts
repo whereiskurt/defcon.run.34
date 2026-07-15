@@ -1,6 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { judgeSolve, type CtfStore, type JudgeCtf } from "../ctf-judge";
+import { ctfJudgeLog } from "../ctf-log";
 import { hashAnswer } from "../ctf-hash";
 
 /**
@@ -172,5 +173,67 @@ describe("judgeSolve wordlist — used/unknown code ⇒ non-solve (SC2, claimCod
     expect(first.solved).toBe(true);
     expect(second.solved).toBe(false);
     expect(state.accrueCalls).toBe(1);
+  });
+});
+
+describe("judgeSolve wordlist — scoring, indistinguishability & covert (SC2/SC4)", () => {
+  it("a valid code scores points>0, writes ONE ledger row keyed by codeHash, and accrues once", async () => {
+    const { store, userScore, ledger, state } = makeWordlistStore(wordlistCtf(), [CODE]);
+    const r = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, guess: CODE, channel: "qr" },
+      { store, now: 0, log: () => {} },
+    );
+    expect(r.solved).toBe(true);
+    expect(r.points).toBeGreaterThan(0);
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0].bucket).toBe(hashAnswer(CODE)); // ledger row keyed by the codeHash
+    expect(state.accrueCalls).toBe(1);
+    expect(userScore.get("u1")?.solves).toBe(1);
+  });
+
+  it("a used/unknown code returns the EXACT NON_SOLVE a wrong static answer yields + the SAME no-solve log (no guess/codeHash leak)", async () => {
+    const { store } = makeWordlistStore(wordlistCtf(), [CODE]);
+    const log = vi.fn();
+    const guess = "totally-unknown-code";
+    const r = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, guess, channel: "qr" },
+      { store, now: 0, log },
+    );
+    // Byte-for-byte the shape a wrong static answer returns (no `effect` key).
+    expect(r).toEqual({ solved: false, points: 0, ordinal: null, firstBlood: false, capped: false });
+    // Same coarse no-solve payload the sibling gates emit — no extra fields.
+    expect(log).toHaveBeenCalledWith(ctfJudgeLog({ challenge: CHALLENGE, result: "no-solve" }));
+    // The guess and its hash NEVER appear in any log argument.
+    const logged = JSON.stringify(log.mock.calls);
+    expect(logged).not.toContain(guess);
+    expect(logged).not.toContain(hashAnswer(guess));
+  });
+
+  it("solves indistinguishably over the COVERT guessHash path (no raw guess)", async () => {
+    const { store, ledger } = makeWordlistStore(wordlistCtf(), [CODE]);
+    const r = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, guessHash: hashAnswer(CODE), channel: "covert" },
+      { store, now: 0, log: () => {} },
+    );
+    expect(r.solved).toBe(true);
+    expect(r.points).toBeGreaterThan(0);
+    expect(ledger).toHaveLength(1);
+    expect(ledger[0].bucket).toBe(hashAnswer(CODE)); // covert derives codeHash from guessHash
+  });
+
+  it("honors globalMax: a claim past the global cap is solved:true/points:0/capped with NO accrue", async () => {
+    const { store, state } = makeWordlistStore(wordlistCtf({ globalMax: 1 }), [CODE, CODE2]);
+    const first = await judgeSolve(
+      { user: "u1", challenge: CHALLENGE, guess: CODE, channel: "qr" },
+      { store, now: 0, log: () => {} },
+    );
+    const second = await judgeSolve(
+      { user: "u2", challenge: CHALLENGE, guess: CODE2, channel: "qr" },
+      { store, now: 0, log: () => {} },
+    );
+    expect(first.solved).toBe(true);
+    expect(first.points).toBeGreaterThan(0);
+    expect(second).toMatchObject({ solved: true, points: 0, capped: true });
+    expect(state.accrueCalls).toBe(1); // the capped claim did NOT accrue
   });
 });
