@@ -622,7 +622,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 55-02-PLAN.md — Judge scoring-window gate as ordered step 3 in `judgeSolve` (inside/outside/DST/backward-compat/covert-indistinguishable) (CTFT-10) [wave 2]
+- [x] 55-02-PLAN.md — Judge scoring-window gate as ordered step 3 in `judgeSolve` (inside/outside/DST/backward-compat/covert-indistinguishable) (CTFT-10) [wave 2]
 - [ ] 55-03-PLAN.md — Admin day/time/tz picker + DEF CON run-hours quick set in the Scoring window & limits section + `qr-admin` write passthrough (CTFT-11) [wave 2]
 
 ### Phase 56: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
