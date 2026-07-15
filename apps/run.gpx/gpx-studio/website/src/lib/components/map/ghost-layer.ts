@@ -100,6 +100,7 @@ export class GhostLayer {
     }
 
     remove() {
+        this.popup.remove();
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         if (this.clickFn) { this.map.off('click', LAYER, this.clickFn); this.clickFn = null; }
         if (this.map.getLayer(LAYER)) this.map.removeLayer(LAYER);
