@@ -110,7 +110,12 @@ export default function CtfStandings({ rows }: { rows: EnrichedRow[] }) {
                     </button>
                   </th>
                 ))}
-                <th className={cls.th}>Channels</th>
+                <th
+                  className={`${cls.th} cursor-help`}
+                  title="How each runner earned solves — QR = scanned a physical DEF CON code; covert = found the hidden !!! easter egg"
+                >
+                  Channels
+                </th>
               </tr>
             </thead>
             <tbody>
