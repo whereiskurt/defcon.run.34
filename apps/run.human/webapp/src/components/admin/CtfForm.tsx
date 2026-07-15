@@ -11,10 +11,13 @@ import {
   previewPoints,
   inferAnswerType,
   inferChallengeType,
+  buildOtpAnswerField,
   PRESET_IDS,
   type ChallengeTypePreset,
+  type OtpAnswerField,
   type RedactedCtfRecord,
 } from "./ctf-form-model";
+import { asOtpEnrollEffect } from "@/lib/ctf-otp-enroll";
 import CtfOtpEnroll from "@/components/ctf/CtfOtpEnroll";
 
 /**
@@ -223,11 +226,19 @@ export default function CtfForm({
     if (rewardActive) {
       // Compose the otp-enroll reward payload from the write-only otpauth. This
       // takes precedence over the raw Effect JSON when a reward is configured.
-      effect = {
+      const rewardEffect = {
         kind: "otp-enroll",
         otpauth: rewardOtpauth.trim(),
         ...(rewardNextFlag.trim() !== "" ? { nextFlag: rewardNextFlag.trim() } : {}),
       };
+      // WR-01: validate the reward otpauth BEFORE save. Without this a malformed
+      // URL persists silently and the player's reward card never renders (the
+      // downstream `asOtpEnrollEffect` gate drops it), with no admin feedback.
+      if (asOtpEnrollEffect(rewardEffect) === null) {
+        setError("Reward otpauth:// is not a valid enrollment URL.");
+        return;
+      }
+      effect = rewardEffect;
     } else if (effectText.trim() !== "") {
       try {
         effect = JSON.parse(effectText);
@@ -236,12 +247,28 @@ export default function CtfForm({
         return;
       }
     }
+
+    // CR-01: parse the Rotating-OTP answer's otpauth:// URL into { secret, digits,
+    // period } so the judge's base32Decode gets a decodable base32 secret. Sending
+    // the raw otpauth URL made every OTP-answer flag unsolvable. Reject unparseable
+    // input rather than persist an unsolvable flag. Blank on edit keeps the stored
+    // secret (no-clobber, T-54-04-03).
+    const otpSecretTrimmed = otpSecret.trim();
+    let otpField: OtpAnswerField | undefined;
+    if (answerType === "otp" && otpSecretTrimmed !== "") {
+      try {
+        otpField = buildOtpAnswerField(otpSecretTrimmed);
+      } catch {
+        setError("OTP secret must be a valid otpauth:// URL (otpauth://totp/...).");
+        return;
+      }
+    }
+
     setBusy(true);
     try {
       const timeTiers = tiers
         .filter((t) => (t.from ?? "").trim() !== "" || (t.to ?? "").trim() !== "")
         .map((t) => ({ from: t.from, to: t.to, ceiling: numOrUndef(t.ceiling ?? "") }));
-      const otpSecretTrimmed = otpSecret.trim();
       const ctf = {
         challenge,
         // Send plaintext answer; the server hashes it (the client never hashes). A
@@ -250,7 +277,7 @@ export default function CtfForm({
         answerType,
         // Only send the OTP secret when the admin typed a new one — blank keeps
         // the stored secret (no-clobber, T-54-04-03).
-        ...(otpSecretTrimmed !== "" ? { otp: { secret: otpSecretTrimmed } } : {}),
+        ...(otpField ? { otp: otpField } : {}),
         pointMax: numOrUndef(pointMax),
         pointFloor: numOrUndef(pointFloor),
         maxSolves: numOrUndef(maxSolves),
