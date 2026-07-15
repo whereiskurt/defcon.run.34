@@ -62,6 +62,29 @@ export function scoreBucket(
 }
 
 /**
+ * Overlay a partial edit's flag-type fields onto the stored row to produce the
+ * persisted next-state for the D-07 repeatable-ness decision. Mirrors
+ * `qr-admin.ctfAttributes`' no-clobber contract exactly: an omitted (nullish)
+ * field preserves the stored value (`??` — none of these fields clobber on a
+ * falsy value like `0`/`""`), so a partial edit that never touches
+ * `answerType`/`perPlayerMax`/`perPlayerIntervalHours` is NOT read as a flip. A
+ * genuine flip still sets one of these fields, so it is still caught. This is the
+ * correct `next` to hand `assertAnswerTypeTransition` — the raw partial `input`
+ * is NOT, because its omitted fields read as `undefined` (⇒ non-repeatable).
+ */
+export function mergeFlagTypeNextState(
+  existing: FlagTypeShape,
+  input: FlagTypeShape
+): FlagTypeShape {
+  return {
+    answerType: input.answerType ?? existing.answerType,
+    perPlayerMax: input.perPlayerMax ?? existing.perPlayerMax,
+    perPlayerIntervalHours:
+      input.perPlayerIntervalHours ?? existing.perPlayerIntervalHours,
+  };
+}
+
+/**
  * CTFT-06 (D-07) edit-semantics guard. Throws when a challenge's repeatable-ness
  * would flip (static <-> repeatable) AND scoring history already exists — because
  * history would then split across CtfSolve (static) and CtfScoreEvent (repeatable)

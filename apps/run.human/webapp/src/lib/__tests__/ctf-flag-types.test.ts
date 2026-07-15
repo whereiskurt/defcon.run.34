@@ -4,6 +4,7 @@ import {
   isRepeatable,
   scoreBucket,
   assertAnswerTypeTransition,
+  mergeFlagTypeNextState,
 } from "@/lib/ctf-flag-types";
 import { QrValidationError } from "@/lib/qr-errors";
 
@@ -118,5 +119,64 @@ describe("assertAnswerTypeTransition", () => {
         true
       )
     ).not.toThrow();
+  });
+});
+
+// CR-01 regression: upsertCtf must feed the guard the MERGED next-state (no-clobber
+// overlay of the partial edit onto the stored row), NOT the raw partial input. A
+// partial edit that omits the repeatable-defining fields must not be misread as a
+// static<->repeatable flip.
+describe("mergeFlagTypeNextState (CR-01 no-clobber merge)", () => {
+  it("preserves stored repeatable fields when the edit omits them", () => {
+    // Admin edits only `points` on a solved repeatable challenge — the partial
+    // input carries none of the flag-type fields.
+    const existing = { answerType: "static", perPlayerMax: 3 };
+    const merged = mergeFlagTypeNextState(existing, {});
+    expect(merged.perPlayerMax).toBe(3);
+    expect(isRepeatable(merged)).toBe(true);
+  });
+
+  it("does NOT trip the flip guard on a partial edit of a solved repeatable flag", () => {
+    // The exact CR-01 break: raw partial `{}` would read as non-repeatable and
+    // throw; the merged next-state stays repeatable and passes.
+    const existing = { perPlayerMax: 3 };
+    const merged = mergeFlagTypeNextState(existing, {});
+    expect(() =>
+      assertAnswerTypeTransition(existing, merged, true)
+    ).not.toThrow();
+  });
+
+  it("preserves a stored otp answerType across a partial edit", () => {
+    const existing = { answerType: "otp" };
+    const merged = mergeFlagTypeNextState(existing, { perPlayerMax: 2 });
+    expect(merged.answerType).toBe("otp");
+    expect(() =>
+      assertAnswerTypeTransition(existing, merged, true)
+    ).not.toThrow();
+  });
+
+  it("still surfaces a GENUINE flip — explicit perPlayerMax 3->1 on a solved repeatable flag throws", () => {
+    const existing = { perPlayerMax: 3 };
+    const merged = mergeFlagTypeNextState(existing, { perPlayerMax: 1 });
+    expect(isRepeatable(merged)).toBe(false);
+    expect(() =>
+      assertAnswerTypeTransition(existing, merged, true)
+    ).toThrow(QrValidationError);
+  });
+
+  it("still surfaces a GENUINE flip — static -> otp on a solved static flag throws", () => {
+    const existing = { answerType: "static" };
+    const merged = mergeFlagTypeNextState(existing, { answerType: "otp" });
+    expect(() =>
+      assertAnswerTypeTransition(existing, merged, true)
+    ).toThrow(QrValidationError);
+  });
+
+  it("overlays a provided falsy-but-defined field (perPlayerIntervalHours: 0) without clobbering to stored", () => {
+    // `0` is a real provided value under the `!== undefined` no-clobber contract;
+    // `??` keeps it (only null/undefined fall back).
+    const existing = { perPlayerIntervalHours: 24 };
+    const merged = mergeFlagTypeNextState(existing, { perPlayerIntervalHours: 0 });
+    expect(merged.perPlayerIntervalHours).toBe(0);
   });
 });

@@ -2,7 +2,10 @@ import { Qr, Ctf, Qrstat } from "@/entities/qr";
 import { CtfSolve, CtfScoreEvent } from "@/entities/ctf";
 import { hashAnswer } from "@/lib/ctf-hash";
 import { QrValidationError } from "@/lib/qr-errors";
-import { assertAnswerTypeTransition } from "@/lib/ctf-flag-types";
+import {
+  assertAnswerTypeTransition,
+  mergeFlagTypeNextState,
+} from "@/lib/ctf-flag-types";
 
 // Re-export so existing `import { QrValidationError } from "@/lib/qr-admin"`
 // call sites (route.ts, tests) keep working after the extraction to qr-errors.ts.
@@ -385,7 +388,15 @@ export async function upsertCtf(input: CtfInput): Promise<string> {
     // existence read — a single-item query on each entity's challenge partition;
     // the pure repeatable-ness comparison lives in ctf-flag-types.
     const hasSolves = await challengeHasSolves(challenge);
-    assertAnswerTypeTransition(existing.data, input, hasSolves);
+    // Compare against the MERGED next-state, not the raw partial `input`.
+    // `ctfAttributes` is no-clobber (an omitted flag-type field preserves the
+    // stored value), so a partial edit that never touches the repeatable-defining
+    // fields must NOT read as a flip. `mergeFlagTypeNextState` mirrors that
+    // no-clobber overlay; a genuine flip still sets one of the fields and is still
+    // rejected. (Passing raw `input` here is CR-01 — its omitted fields read as
+    // non-repeatable and wrongly reject partial edits of solved repeatable flags.)
+    const nextFlagType = mergeFlagTypeNextState(existing.data, input);
+    assertAnswerTypeTransition(existing.data, nextFlagType, hasSolves);
     await Ctf.patch({ challenge }).set(attrs).go();
   } else {
     await Ctf.create({ challenge, ...attrs }).go();
