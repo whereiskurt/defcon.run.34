@@ -19,7 +19,12 @@ import {
   type OtpAnswerField,
   type RedactedCtfRecord,
 } from "./ctf-form-model";
-import { TZ_OPTIONS, DEFCON_RUN_HOURS, validateScoreWindow } from "@/lib/ctf-score-window";
+import {
+  TZ_OPTIONS,
+  DEFCON_RUN_HOURS,
+  WEEKDAY_LABELS,
+  validateScoreWindow,
+} from "@/lib/ctf-score-window";
 import { asOtpEnrollEffect } from "@/lib/ctf-otp-enroll";
 import CtfOtpEnroll from "@/components/ctf/CtfOtpEnroll";
 
@@ -93,8 +98,8 @@ const PRESET_LABEL: Record<ChallengeTypePreset, string> = {
 
 type AnswerType = "static" | "otp";
 
-/** Weekday chip labels, index = getDay (0=Sun … 6=Sat) — the picker's day set. */
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+// Weekday chip labels (index = getDay, 0=Sun … 6=Sat) are imported from
+// ctf-score-window — the shared source of truth the predicate also uses (IN-02).
 
 /**
  * Create/edit form for a CTF challenge (design "A" — Slice 1b). NOTE: the live

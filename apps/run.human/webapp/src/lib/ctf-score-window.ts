@@ -59,18 +59,21 @@ export const DEFCON_RUN_HOURS: ScoreWindow = {
 };
 
 /**
- * Map a JS `Intl` `weekday: "short"` value ("Sun".."Sat") to its `getDay` index.
- * Fixed by the "en-US" locale we format with, so it is deterministic.
+ * Weekday chip labels, index = JS `getDay` (0=Sun … 6=Sat). The SINGLE source of
+ * truth for the `getDay` convention shared by the predicate below AND the admin
+ * picker (`CtfForm` imports this instead of keeping its own copy — IN-02), so the
+ * two can never drift. Also the "en-US" `Intl` `weekday:"short"` values, which is
+ * what makes `WEEKDAY_INDEX` (its inverse) deterministic.
  */
-const WEEKDAY_INDEX: Record<string, number> = {
-  Sun: 0,
-  Mon: 1,
-  Tue: 2,
-  Wed: 3,
-  Thu: 4,
-  Fri: 5,
-  Sat: 6,
-};
+export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+/**
+ * Map a JS `Intl` `weekday: "short"` value ("Sun".."Sat") to its `getDay` index —
+ * derived from `WEEKDAY_LABELS` so there is ONE weekday convention in the module.
+ */
+const WEEKDAY_INDEX: Record<string, number> = Object.fromEntries(
+  WEEKDAY_LABELS.map((label, index) => [label, index]),
+);
 
 /**
  * Is `nowMs` inside `window`?
