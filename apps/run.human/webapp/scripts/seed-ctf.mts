@@ -27,10 +27,18 @@
  *
  * SAFETY / hygiene:
  *   - DRY-RUN BY DEFAULT: composes + prints all six rows and writes nothing.
- *     Pass --confirm to `put` them, or --remove to `delete` them.
- *   - Idempotent by challenge NAME: --confirm rewrites the same six keys, never
- *     duplicates. --remove reverses the seeded set by the same keys.
- *   - Every seeded row is enabled:false — an admin must enable before it scores.
+ *     Pass --confirm to `put` them, or --remove to preview a delete (add
+ *     --confirm to actually delete — WR-02).
+ *   - Idempotent by challenge NAME, live-data-preserving (WR-01): --confirm
+ *     rewrites the same six keys and never duplicates, BUT a re-run over an
+ *     already-existing row PRESERVES that row's live `solveCount`, `createdAt`,
+ *     and `enabled` — it only refreshes the DEFINITION (answerHash, scoring
+ *     knobs, effect, otp, …). This is deliberate: the atomic ordinal allocator
+ *     (`ADD solveCount 1`) and any admin enable/first-blood history on a live
+ *     row must survive a definition re-seed. A brand-new row inserts with
+ *     solveCount:0, a fresh createdAt, and enabled:false.
+ *   - Every seeded row starts enabled:false — an admin must enable before it
+ *     scores (and a subsequent re-seed will NOT flip it back off — WR-01).
  *   - Standalone operator script: NOT imported by any app/request/build path.
  *   - Fails loud (non-zero exit) if the region env is missing BEFORE any scan.
  *
@@ -163,6 +171,17 @@ async function fetchOneCtfRow(): Promise<Row | null> {
   }
 }
 
+/** Fetch the existing item at a composed key, or null if absent / unreachable.
+ *  Used by the WRITE path to preserve live counters on re-seed (WR-01). */
+async function getExistingRow(Key: { pk: string; sk: string }): Promise<Row | null> {
+  try {
+    const r = await doc.get({ TableName: TABLE, Key });
+    return (r?.Item as Row) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function main() {
   console.log(
     `Table: ${TABLE}  Region: ${REGION}  Endpoint: ${
@@ -216,12 +235,28 @@ async function main() {
     return;
   }
 
-  // 4) WRITE: put each composed row (idempotent — same key overwrites).
+  // 4) WRITE: put each composed row. Idempotent by key AND live-data-preserving
+  //    (WR-01): if a row already exists, keep its `solveCount`, `createdAt`, and
+  //    `enabled` so a definition re-seed never resets the ordinal allocator or
+  //    flips off a starter an admin has enabled. Only the definition attributes
+  //    are refreshed.
   for (const it of items) {
-    await doc.put({ TableName: TABLE, Item: it });
-    console.log(`  put ${it.challenge} (pk=${it.pk})`);
+    const existing = await getExistingRow({ pk: it.pk, sk: it.sk });
+    const Item: Row = { ...it };
+    if (existing) {
+      Item.solveCount = existing.solveCount ?? it.solveCount;
+      Item.createdAt = existing.createdAt ?? it.createdAt;
+      // Preserve a live enable flip — never clobber it back to false.
+      if (existing.enabled !== undefined) Item.enabled = existing.enabled;
+    }
+    await doc.put({ TableName: TABLE, Item });
+    console.log(
+      existing
+        ? `  updated ${it.challenge} (pk=${it.pk}) — preserved solveCount=${Item.solveCount}, enabled=${Item.enabled}`
+        : `  inserted ${it.challenge} (pk=${it.pk}) — new row, enabled:false`
+    );
   }
-  console.log(`\nSeeded ${items.length} Ctf starter rows (all enabled:false).`);
+  console.log(`\nSeeded ${items.length} Ctf starter rows (new rows enabled:false; existing counters preserved).`);
 }
 
 main().catch((e) => {
