@@ -146,12 +146,20 @@ async function fetchOneCtfRow(): Promise<Row | null> {
     ExpressionAttributeValues: { ":e": ENTITY },
     Limit: 1,
   });
-  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000));
+  // IN-02: capture the timer id so we can clear it when the scan wins — an
+  // un-cleared setTimeout keeps the Node event loop alive and delays an
+  // offline DRY-RUN exit by up to ~5s.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), 5000);
+  });
   try {
     const r = (await Promise.race([scan, timeout])) as { Items?: Row[] } | null;
     return r?.Items?.[0] ?? null;
   } catch {
     return null;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
