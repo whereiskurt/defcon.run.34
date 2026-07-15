@@ -12,11 +12,14 @@ import {
   inferAnswerType,
   inferChallengeType,
   buildOtpAnswerField,
+  formStateToScoreWindow,
+  scoreWindowToFormState,
   PRESET_IDS,
   type ChallengeTypePreset,
   type OtpAnswerField,
   type RedactedCtfRecord,
 } from "./ctf-form-model";
+import { TZ_OPTIONS, DEFCON_RUN_HOURS } from "@/lib/ctf-score-window";
 import { asOtpEnrollEffect } from "@/lib/ctf-otp-enroll";
 import CtfOtpEnroll from "@/components/ctf/CtfOtpEnroll";
 
@@ -89,6 +92,9 @@ const PRESET_LABEL: Record<ChallengeTypePreset, string> = {
 };
 
 type AnswerType = "static" | "otp";
+
+/** Weekday chip labels, index = getDay (0=Sun … 6=Sat) — the picker's day set. */
+const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 /**
  * Create/edit form for a CTF challenge (design "A" — Slice 1b). NOTE: the live
@@ -169,6 +175,18 @@ export default function CtfForm({
     initial?.globalMax !== undefined ? String(initial.globalMax) : ""
   );
 
+  // ── Day/time/tz scoring window (Section 4, CTFT-11) ──
+  // Rehydrate the picker from the loaded record via the pure 55-01 bridge: an
+  // existing flag restores enabled + days + times + PT/ET/UTC label; a new flag
+  // starts disabled ("Scorable any time."). The stored value is the IANA id — the
+  // label↔IANA mapping lives ONLY in the bridge helpers (single source of truth).
+  const swInit = scoreWindowToFormState(initial?.scoreWindow);
+  const [windowEnabled, setWindowEnabled] = useState(swInit.enabled);
+  const [windowDays, setWindowDays] = useState<number[]>(swInit.days);
+  const [windowFrom, setWindowFrom] = useState(swInit.from);
+  const [windowTo, setWindowTo] = useState(swInit.to);
+  const [windowTzLabel, setWindowTzLabel] = useState(swInit.tzLabel);
+
   // ── Unlock & chaining (Section 5) ──
   const [unlockAfter, setUnlockAfter] = useState(initial?.unlockAfter ?? "");
 
@@ -215,6 +233,28 @@ export default function CtfForm({
     if (knobs.firstBloodBonus !== undefined) setFirstBloodBonus(String(knobs.firstBloodBonus));
     if (knobs.maxAttempts !== undefined) setMaxAttempts(String(knobs.maxAttempts));
     if (knobs.rateLimitWindow !== undefined) setRateLimitWindow(String(knobs.rateLimitWindow));
+  }
+
+  /** Toggle a weekday (0=Sun..6=Sat) in the scoring-window day set. */
+  function toggleWindowDay(day: number) {
+    setWindowDays((ds) =>
+      ds.includes(day) ? ds.filter((d) => d !== day) : [...ds, day].sort((a, b) => a - b)
+    );
+  }
+
+  /**
+   * "DEF CON run hours" quick set: fill the picker from `DEFCON_RUN_HOURS`
+   * (Thu–Sun 06:00–08:00 America/Los_Angeles). Presets PRE-FILL only — every field
+   * stays individually editable afterward (never locks), mirroring `applyPreset`.
+   * Maps the constant's IANA tz back to its PT/ET/UTC label via the pure bridge.
+   */
+  function applyDefconRunHours() {
+    const s = scoreWindowToFormState(DEFCON_RUN_HOURS);
+    setWindowEnabled(true);
+    setWindowDays(s.days);
+    setWindowFrom(s.from);
+    setWindowTo(s.to);
+    setWindowTzLabel(s.tzLabel);
   }
 
   const rewardActive =
@@ -269,6 +309,17 @@ export default function CtfForm({
       const timeTiers = tiers
         .filter((t) => (t.from ?? "").trim() !== "" || (t.to ?? "").trim() !== "")
         .map((t) => ({ from: t.from, to: t.to, ceiling: numOrUndef(t.ceiling ?? "") }));
+      // Day/time/tz scoring window (CTFT-11): the pure bridge resolves the PT/ET/UTC
+      // label to its IANA id, or returns undefined when the toggle is off. Off ⇒ no
+      // scoreWindow key ⇒ no-clobber (the stored window is left untouched; an operator
+      // who wants to CLEAR a window deletes + recreates, like the section's other fields).
+      const scoreWindow = formStateToScoreWindow({
+        enabled: windowEnabled,
+        days: windowDays,
+        from: windowFrom,
+        to: windowTo,
+        tzLabel: windowTzLabel,
+      });
       const ctf = {
         challenge,
         // Send plaintext answer; the server hashes it (the client never hashes). A
@@ -290,6 +341,7 @@ export default function CtfForm({
         ...(unlockAfter.trim() !== "" ? { unlockAfter: unlockAfter.trim() } : {}),
         enabled,
         ...(timeTiers.length ? { timeTiers } : {}),
+        ...(scoreWindow ? { scoreWindow } : {}),
         ...(effect !== undefined ? { effect } : {}),
       };
       await postQrAction({ action: "ctf_upsert", ctf });
@@ -569,9 +621,113 @@ export default function CtfForm({
           score once ever.
         </p>
 
-        <div className="mt-3 rounded-lg border border-divider bg-content2 px-3 py-2.5 text-[12.5px] text-default-500">
-          Day / time / timezone windows arrive in a later update. For now this flag
-          scores at any time within its limits.
+        {/* Day/time/tz scoring window (CTFT-11). Off ⇒ no scoreWindow persisted
+            (always-open). A closed window is enforced SILENTLY in the judge — there
+            is deliberately no player-facing "come back later" surface. */}
+        <div className="mt-3.5 rounded-lg border border-divider bg-content2 p-3">
+          <label className="flex gap-2 items-center text-sm">
+            <input
+              type="checkbox"
+              checked={windowEnabled}
+              onChange={(e) => setWindowEnabled(e.target.checked)}
+            />
+            <span className={windowEnabled ? "text-primary font-semibold" : ""}>
+              Restrict scoring to a time window
+            </span>
+          </label>
+          <p className="text-[12.5px] text-default-500 mt-2">
+            Only credit solves during this window. Outside it, a correct answer silently
+            doesn&apos;t score — players can&apos;t tell the window is closed.
+          </p>
+
+          {windowEnabled ? (
+            <div className="mt-3 flex flex-col gap-3.5">
+              {/* Quick set — DEF CON run hours (accent, presets stay editable) */}
+              <div>
+                <button
+                  type="button"
+                  className={cls.btnPrimary}
+                  onClick={applyDefconRunHours}
+                >
+                  DEF CON run hours
+                </button>
+                <p className="text-[12.5px] text-default-500 mt-1.5">Thu–Sun, 6–8 AM PT</p>
+              </div>
+
+              {/* Weekday multi-select (0=Sun..6=Sat) */}
+              <div>
+                <label className={cls.label}>Days</label>
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Scoring days">
+                  {WEEKDAY_LABELS.map((lbl, day) => {
+                    const active = windowDays.includes(day);
+                    return (
+                      <button
+                        key={lbl}
+                        type="button"
+                        role="switch"
+                        aria-checked={active}
+                        aria-label={lbl}
+                        className={`${cls.segment} ${active ? cls.segmentActive : cls.segmentIdle}`}
+                        onClick={() => toggleWindowDay(day)}
+                      >
+                        {lbl}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Opens / Closes wall-clock times + timezone */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className={cls.label} htmlFor="sw-opens">
+                    Opens
+                  </label>
+                  <input
+                    id="sw-opens"
+                    type="time"
+                    className={cls.input}
+                    value={windowFrom}
+                    onChange={(e) => setWindowFrom(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={cls.label} htmlFor="sw-closes">
+                    Closes
+                  </label>
+                  <input
+                    id="sw-closes"
+                    type="time"
+                    className={cls.input}
+                    value={windowTo}
+                    onChange={(e) => setWindowTo(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={cls.label} htmlFor="sw-tz">
+                    Timezone
+                  </label>
+                  <select
+                    id="sw-tz"
+                    className={cls.select}
+                    value={windowTzLabel}
+                    onChange={(e) => setWindowTzLabel(e.target.value)}
+                  >
+                    {TZ_OPTIONS.map((o) => (
+                      <option key={o.label} value={o.label}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-[12.5px] text-default-500 -mt-1">
+                Times use this timezone; daylight saving is handled automatically.
+              </p>
+            </div>
+          ) : (
+            <p className="text-[12.5px] text-default-500 mt-2 italic">Scorable any time.</p>
+          )}
         </div>
       </div>
 
@@ -795,6 +951,14 @@ export default function CtfForm({
         <p className="text-[12.5px] text-default-500 mb-3">
           Mirrors the judge&apos;s computePoints for the current form values.
         </p>
+        {windowEnabled ? (
+          <div className="mb-3 inline-flex items-center gap-1.5">
+            <span className={cls.chip}>window-gated</span>
+            <span className="text-[12px] text-default-500">
+              scores only inside the set window — the point value is unchanged
+            </span>
+          </div>
+        ) : null}
         {(() => {
           const previewConfig = {
             pointMax,
