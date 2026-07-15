@@ -638,11 +638,13 @@ Plans:
   3. Plaintext codes are **never stored** and never round-tripped to the client — only salted `codeHash` values persist; the admin can bulk-load codes and see a loaded/remaining count.
   4. The covert CSS solve path (`covert-egg.ts`) stays byte-identical; existing static/otp flags are unaffected by the new answer-type branch; the guess is never logged.
 
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 56 to break down)
+- [ ] 56-01-PLAN.md — CtfCode entity (pk=challenge, sk=codeHash; claimedBy/claimedAt) + key-parity test (CTFT-12)
+- [ ] 56-02-PLAN.md — judge wordlist branch: atomic claimCode (attribute_not_exists) + two-claimers-one-wins race + indistinguishable non-solve + covert grep gate (CTFT-13)
+- [ ] 56-03-PLAN.md — admin Wordlist option: bulk-load hashed codes (add-only) + loaded/unclaimed count line, plaintext never round-tripped (CTFT-14)
 
 ---
 
