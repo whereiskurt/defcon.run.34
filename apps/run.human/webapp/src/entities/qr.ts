@@ -125,8 +125,42 @@ export const Ctf = new Entity(
       // Scoring curve (Phase 44, CTF-01). See CONTEXT §Scoring / computePoints.
       pointMax: { type: "number" }, // curve ceiling when no time tier is active
       pointFloor: { type: "number" }, // curve floor
+      // ⚠️ DISTINCT from `globalMax` (below). `maxSolves` is the scoring-curve
+      // denominator N (the linear-decline divisor AND the per-solve cap on the
+      // CtfSolve/ordinal path); it shapes how points decay per solver. It is NOT
+      // the hard global scoring cutoff — that is `globalMax` (flag-types Slice 1a).
       maxSolves: { type: "number" }, // cap AND curve denominator (N)
       firstBloodBonus: { type: "number" }, // flat bonus for n == 1
+      // --- Flag-types framework (Slice 1a, CTFT-01) — ALL OPTIONAL/ADDITIVE ------
+      // A shipped row with NONE of these behaves exactly as a `static` flag today.
+      // `answerType` absent ⇒ the judge reads it as "static". `wordlist` is Slice 3
+      // and is deliberately NOT in the union yet.
+      answerType: { type: ["static", "otp"] as const },
+      // Shared TOTP secret the judge verifies against (CTFT-02). `period` default
+      // is 120s (meshtk convention), NOT the RFC-typical 30. `secret` is base32.
+      otp: {
+        type: "map",
+        properties: {
+          secret: { type: "string" }, // base32-encoded shared secret
+          digits: { type: "number" }, // code length (default 6)
+          period: { type: "number" }, // seconds per window (default 120 — meshtk)
+          algorithm: { type: "string" }, // HMAC hash (SHA1 now; SHA256/512 later)
+          skew: { type: "number" }, // ± windows accepted on verify
+        },
+      },
+      // Prerequisite challenge NAME (the unlock gate). ⚠️ This is the challenge
+      // NAME, not an id — renaming the prereq silently breaks the chain. Acceptable
+      // at DC scale; called out here so the mutability is not a surprise.
+      unlockAfter: { type: "string" },
+      // Min hours between a player's scoring solves (repeatable cadence gate).
+      perPlayerIntervalHours: { type: "number" },
+      // Max scoring solves per player (repeatable flags).
+      perPlayerMax: { type: "number" },
+      // ⚠️ DISTINCT from `maxSolves` (above). `globalMax` is the HARD GLOBAL
+      // scoring cutoff across ALL players (0/absent = unlimited); once the global
+      // ordinal exceeds it the flag awards nothing. It is NOT the curve denominator
+      // N — that is `maxSolves`.
+      globalMax: { type: "number" },
       // Active window's `ceiling` overrides `pointMax` (UTC-ISO from/to strings).
       timeTiers: {
         type: "list",

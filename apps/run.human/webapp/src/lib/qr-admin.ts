@@ -140,6 +140,21 @@ export interface CtfInput {
   maxAttempts?: number;
   rateLimitWindow?: number;
   enabled?: boolean;
+  // --- Flag-types framework (Slice 1a, CTFT-01) — additive optional passthrough --
+  // All pass through numeric/string/map as provided (no hash/transform). An
+  // omitted field never clobbers the stored value (see ctfAttributes no-clobber).
+  answerType?: "static" | "otp";
+  otp?: {
+    secret?: string;
+    digits?: number;
+    period?: number;
+    algorithm?: string;
+    skew?: number;
+  };
+  unlockAfter?: string;
+  perPlayerIntervalHours?: number;
+  perPlayerMax?: number;
+  globalMax?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -342,6 +357,16 @@ export function ctfAttributes(input: CtfInput) {
     ...(input.rateLimitWindow !== undefined
       ? { rateLimitWindow: input.rateLimitWindow }
       : {}),
+    // Flag-types passthrough (Slice 1a) — each emitted only when provided so an
+    // omitted field leaves the stored value untouched on patch (no-clobber).
+    ...(input.answerType !== undefined ? { answerType: input.answerType } : {}),
+    ...(input.otp !== undefined ? { otp: input.otp } : {}),
+    ...(input.unlockAfter !== undefined ? { unlockAfter: input.unlockAfter } : {}),
+    ...(input.perPlayerIntervalHours !== undefined
+      ? { perPlayerIntervalHours: input.perPlayerIntervalHours }
+      : {}),
+    ...(input.perPlayerMax !== undefined ? { perPlayerMax: input.perPlayerMax } : {}),
+    ...(input.globalMax !== undefined ? { globalMax: input.globalMax } : {}),
     enabled: input.enabled ?? true,
   };
 }
