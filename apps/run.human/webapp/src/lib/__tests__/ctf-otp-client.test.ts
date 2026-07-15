@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 // Client (browser-safe, Web Crypto) under test:
-import { adjacentCodesAsync } from "../ctf-otp-client";
+import { adjacentCodesAsync, isSupportedAlgorithm } from "../ctf-otp-client";
 // Server (node:crypto) reference — the async path must match it byte-for-behavior:
 import { adjacentCodes } from "../ctf-otp";
 
@@ -57,5 +57,76 @@ describe("adjacentCodesAsync — Web Crypto parity with the sync server path", (
     // RFC 6238 Appendix B SHA1 row. current bucket for t=59 at 30s === "94287082".
     const res = await adjacentCodesAsync(RFC_SECRET, 59, { period: 30, digits: 8 });
     expect(res.current).toBe("94287082");
+  });
+});
+
+/**
+ * WR-02: the client now honors the enrollment URL's `algorithm` instead of
+ * hard-coding SHA1 and silently no-op'ing a non-SHA1 URL. Anchored to the RFC 6238
+ * Appendix B SHA256/SHA512 vectors (each algorithm uses its own seed length:
+ * 20/32/64 bytes of the ASCII "1234567890…" pattern, base32-encoded below).
+ */
+describe("adjacentCodesAsync — algorithm threading (WR-02)", () => {
+  // ASCII "12345678901234567890123456789012" (32 bytes) → base32.
+  const SHA256_SECRET = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZA";
+  // ASCII "1234...1234" (64 bytes) → base32.
+  const SHA512_SECRET =
+    "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQGEZDGNA";
+
+  it("computes the RFC 6238 SHA256 vector (t=59, 30s, 8 digits → 46119246)", async () => {
+    const res = await adjacentCodesAsync(SHA256_SECRET, 59, {
+      period: 30,
+      digits: 8,
+      algorithm: "SHA256",
+    });
+    expect(res.current).toBe("46119246");
+  });
+
+  it("computes the RFC 6238 SHA512 vector (t=59, 30s, 8 digits → 90693936)", async () => {
+    const res = await adjacentCodesAsync(SHA512_SECRET, 59, {
+      period: 30,
+      digits: 8,
+      algorithm: "SHA512",
+    });
+    expect(res.current).toBe("90693936");
+  });
+
+  it("is case-insensitive on the algorithm name", async () => {
+    const upper = await adjacentCodesAsync(SHA256_SECRET, 59, {
+      period: 30,
+      digits: 8,
+      algorithm: "SHA256",
+    });
+    const lower = await adjacentCodesAsync(SHA256_SECRET, 59, {
+      period: 30,
+      digits: 8,
+      algorithm: "sha256",
+    });
+    expect(lower.current).toBe(upper.current);
+  });
+
+  it("defaults to SHA1 when no algorithm is given (unchanged behavior)", async () => {
+    const explicit = await adjacentCodesAsync(RFC_SECRET, 59, {
+      period: 30,
+      digits: 8,
+      algorithm: "SHA1",
+    });
+    const implicit = await adjacentCodesAsync(RFC_SECRET, 59, { period: 30, digits: 8 });
+    expect(explicit).toEqual(implicit);
+    expect(implicit.current).toBe("94287082");
+  });
+
+  it("throws (rather than silently no-ops) on a genuinely unsupported algorithm", async () => {
+    await expect(
+      adjacentCodesAsync(RFC_SECRET, 59, { algorithm: "SHA384" }),
+    ).rejects.toThrow(/unsupported algorithm/i);
+  });
+
+  it("isSupportedAlgorithm reports SHA1/256/512 supported, others not", () => {
+    expect(isSupportedAlgorithm("SHA1")).toBe(true);
+    expect(isSupportedAlgorithm("sha256")).toBe(true);
+    expect(isSupportedAlgorithm("SHA512")).toBe(true);
+    expect(isSupportedAlgorithm("SHA384")).toBe(false);
+    expect(isSupportedAlgorithm("MD5")).toBe(false);
   });
 });

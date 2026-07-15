@@ -28,7 +28,7 @@ import * as qr from "qrcode";
 import { cls } from "@/components/admin/qr-ui";
 import { parseOtpauth } from "@/lib/ctf-otp-core";
 import type { AdjacentCodes, OtpConfig } from "@/lib/ctf-otp-core";
-import { adjacentCodesAsync } from "@/lib/ctf-otp-client";
+import { adjacentCodesAsync, isSupportedAlgorithm } from "@/lib/ctf-otp-client";
 
 interface Props {
   /** The `otpauth://totp/...` enrollment URL (already narrowed by asOtpEnrollEffect). */
@@ -77,9 +77,14 @@ export default function CtfOtpEnroll({ otpauth, nextFlag }: Props) {
   // Rolling code + countdown. A single 1s interval recomputes the displayed
   // seconds every tick (self-correcting off Date.now, no drift) and re-fetches
   // the adjacent codes only when the period index rolls. Cleared on unmount.
+  // WR-02: honor the enrollment URL's algorithm. `adjacentCodesAsync` now supports
+  // SHA1/256/512; anything else can't be computed in-browser, so skip the interval
+  // and render an explicit note (below) instead of a permanent `······` placeholder.
+  const algoSupported = parsed ? isSupportedAlgorithm(parsed.algorithm) : false;
+
   useEffect(() => {
-    if (!parsed) return;
-    const { secret, digits, period } = parsed;
+    if (!parsed || !algoSupported) return;
+    const { secret, digits, period, algorithm } = parsed;
     let alive = true;
     let lastPeriodIndex = -1;
 
@@ -90,7 +95,7 @@ export default function CtfOtpEnroll({ otpauth, nextFlag }: Props) {
         const isFirst = lastPeriodIndex === -1;
         lastPeriodIndex = idx;
         try {
-          const next = await adjacentCodesAsync(secret, now, { digits, period });
+          const next = await adjacentCodesAsync(secret, now, { digits, period, algorithm });
           if (alive) setCodes(next);
         } catch {
           /* leave the last-known codes in place */
@@ -106,7 +111,7 @@ export default function CtfOtpEnroll({ otpauth, nextFlag }: Props) {
       alive = false;
       clearInterval(id);
     };
-  }, [parsed]);
+  }, [parsed, algoSupported]);
 
   // Unparseable seed → no-op (the standard solve-success card still shows).
   if (!parsed) return null;
@@ -143,33 +148,43 @@ export default function CtfOtpEnroll({ otpauth, nextFlag }: Props) {
       </div>
       <p className={cls.sub}>Scan with your authenticator app</p>
 
-      {/* Rolling previous / CURRENT / next code, current as the mono hero. */}
-      <div className="flex flex-col items-center gap-1">
-        <span className={cls.label}>Current code</span>
-        <div className="flex items-end justify-center gap-3">
-          <span className="font-mono text-[13px] text-default-400" aria-hidden="true">
-            {codes?.previous ?? "······"}
-          </span>
-          <span className="font-mono text-[28px] font-semibold tracking-wide text-primary">
-            {codes?.current ?? "······"}
-          </span>
-          <span className="font-mono text-[13px] text-default-400" aria-hidden="true">
-            {codes?.next ?? "······"}
+      {/* Rolling previous / CURRENT / next code, current as the mono hero. When the
+          enrollment URL declares an algorithm the browser can't compute (not
+          SHA1/256/512), show an explicit note instead of a stuck placeholder (WR-02). */}
+      {algoSupported ? (
+        <div className="flex flex-col items-center gap-1">
+          <span className={cls.label}>Current code</span>
+          <div className="flex items-end justify-center gap-3">
+            <span className="font-mono text-[13px] text-default-400" aria-hidden="true">
+              {codes?.previous ?? "······"}
+            </span>
+            <span className="font-mono text-[28px] font-semibold tracking-wide text-primary">
+              {codes?.current ?? "······"}
+            </span>
+            <span className="font-mono text-[13px] text-default-400" aria-hidden="true">
+              {codes?.next ?? "······"}
+            </span>
+          </div>
+          <div className="flex justify-between w-full px-1 text-[10px] uppercase tracking-wide text-default-400">
+            <span aria-hidden="true">Previous</span>
+            <span aria-hidden="true">Next</span>
+          </div>
+          <p className="text-[12.5px] text-default-500">
+            New code in{" "}
+            <span aria-hidden="true">{remaining ?? "—"}s</span>
+          </p>
+          {/* Announce only on period roll, not every second. */}
+          <span className="sr-only" aria-live="polite">
+            {announce}
           </span>
         </div>
-        <div className="flex justify-between w-full px-1 text-[10px] uppercase tracking-wide text-default-400">
-          <span aria-hidden="true">Previous</span>
-          <span aria-hidden="true">Next</span>
-        </div>
+      ) : (
         <p className="text-[12.5px] text-default-500">
-          New code in{" "}
-          <span aria-hidden="true">{remaining ?? "—"}s</span>
+          Rolling codes can&apos;t be shown here for{" "}
+          <span className="font-mono text-foreground">{parsed.algorithm}</span> — scan
+          the QR or use the setup link, and your authenticator will show the code.
         </p>
-        {/* Announce only on period roll, not every second. */}
-        <span className="sr-only" aria-live="polite">
-          {announce}
-        </span>
-      </div>
+      )}
 
       {/* Actions: primary deep link + copy affordance. */}
       <div className="flex flex-col items-center gap-2 w-full">

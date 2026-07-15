@@ -37,6 +37,15 @@ export interface OtpConfig {
 export interface TotpOptions {
   digits?: number;
   period?: number;
+  /**
+   * HMAC hash algorithm ("SHA1" | "SHA256" | "SHA512"). Defaults to SHA1. The
+   * browser client (`ctf-otp-client.ts`) honors this so a non-SHA1 enrollment URL
+   * still reveals codes (WR-02). The node server (`ctf-otp.ts`) currently ignores
+   * it and remains SHA1-only (deferred phase-53 WR-03); passing a non-SHA1
+   * algorithm to the client while the server stays SHA1 would break verification,
+   * so keep the two in step when the server gains multi-algorithm support.
+   */
+  algorithm?: string;
 }
 
 export interface VerifyOptions extends TotpOptions {

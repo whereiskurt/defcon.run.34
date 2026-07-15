@@ -27,10 +27,34 @@ import {
 import type { AdjacentCodes, TotpOptions } from "./ctf-otp-core";
 
 /**
+ * Map an otpauth `algorithm` (case-insensitive) to the Web Crypto SubtleCrypto
+ * hash name. Covers the three RFC-6238 algorithms; anything else is unsupported.
+ */
+const SUBTLE_HASH_BY_ALGORITHM: Record<string, string> = {
+  SHA1: "SHA-1",
+  SHA256: "SHA-256",
+  SHA512: "SHA-512",
+};
+
+/**
+ * Whether the browser TOTP path can compute codes for `algorithm` (SHA1/256/512).
+ * `CtfOtpEnroll` uses this to render an explicit "unsupported algorithm" note
+ * instead of a permanent `······` placeholder for an exotic enrollment URL (WR-02).
+ */
+export function isSupportedAlgorithm(algorithm: string): boolean {
+  return algorithm.toUpperCase() in SUBTLE_HASH_BY_ALGORITHM;
+}
+
+/**
  * Web Crypto TOTP for `secret` at absolute time `unixSeconds`. Mirrors the sync
- * `totpAt`: counter = floor(unixSeconds / period); HMAC-SHA1 over the big-endian
+ * `totpAt`: counter = floor(unixSeconds / period); HMAC over the big-endian
  * counter; RFC-4226 dynamic truncation; mod 10^digits; zero-padded. Async because
  * `crypto.subtle` is promise-based.
+ *
+ * Honors `opts.algorithm` (SHA1/256/512), defaulting to SHA1 (WR-02): a non-SHA1
+ * enrollment URL previously threw an "unsupported algorithm" error that the caller
+ * swallowed, leaving the rolling code stuck. Throws on a genuinely unsupported
+ * algorithm so the caller can surface it rather than no-op silently.
  */
 async function totpAtAsync(
   secret: string,
@@ -39,17 +63,11 @@ async function totpAtAsync(
 ): Promise<string> {
   const digits = opts.digits ?? DEFAULT_DIGITS;
   const period = opts.period ?? DEFAULT_PERIOD;
-  const algorithm = DEFAULT_ALGORITHM;
+  const algorithm = (opts.algorithm ?? DEFAULT_ALGORITHM).toUpperCase();
 
-  // Only SHA1 is wired today; matches the shipped server default. The branch is
-  // the documented seam for SHA256/512 (Web Crypto: "SHA-256" / "SHA-512").
-  let hash: string;
-  switch (algorithm) {
-    case "SHA1":
-      hash = "SHA-1";
-      break;
-    default:
-      throw new Error(`unsupported algorithm: ${algorithm}`);
+  const hash = SUBTLE_HASH_BY_ALGORITHM[algorithm];
+  if (hash === undefined) {
+    throw new Error(`unsupported algorithm: ${algorithm}`);
   }
 
   const keyBytes = base32Decode(secret);
