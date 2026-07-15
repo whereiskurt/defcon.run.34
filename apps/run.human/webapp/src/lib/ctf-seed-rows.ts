@@ -53,7 +53,11 @@ export interface CtfSeedRow {
   answer?: string; // NEVER set by the builder — hashes supersede plaintext
   answerHash?: string;
   answerType?: "static" | "otp" | "wordlist";
-  points?: number;
+  // NOTE: no legacy `points` field — the judge's scorer (narrowCtf →
+  // computePoints) IGNORES it entirely and reads only the four knobs below
+  // (+ optional timeTiers). Setting `points` alone awards 0 on solve (CR-01,
+  // 57-REVIEW). Every scoring row sets pointMax/pointFloor/maxSolves/
+  // firstBloodBonus explicitly.
   pointMax?: number;
   pointFloor?: number;
   maxSolves?: number;
@@ -88,12 +92,16 @@ const DEFCON_34_TIER: CtfSeedTimeTier = {
 export function buildSeedRows(): CtfSeedRow[] {
   return [
     // 1. static reward → chains into the rotating OTP flag via effect.nextFlag.
+    //    Flat award 100: pointMax == pointFloor (no decline), maxSolves huge so
+    //    the flat curve never caps, no first-blood bonus (design preset "flat").
     {
       challenge: "goldstein",
       answerType: "static",
       answerHash: hashAnswer("hackers4evr"),
-      points: 100,
       pointMax: 100,
+      pointFloor: 100,
+      maxSolves: 100000,
+      firstBloodBonus: 0,
       effect: {
         kind: "otp-enroll",
         otpauth:
@@ -105,13 +113,17 @@ export function buildSeedRows(): CtfSeedRow[] {
     },
     // 2. chained rotating OTP — verifies via the TOTP secret (no static answer).
     //    Unlocked only after `goldstein`; repeatable at most once per 24h.
+    //    Flat award 100, same flat-curve knobs as goldstein.
     {
       challenge: "goldstein-otp",
       answerType: "otp",
       otp: { secret: "GZRGQNKGKN4DINQ", digits: 6, period: 120, algorithm: "SHA1", skew: 1 },
       unlockAfter: "goldstein",
       perPlayerIntervalHours: 24,
-      points: 100,
+      pointMax: 100,
+      pointFloor: 100,
+      maxSolves: 100000,
+      firstBloodBonus: 0,
       enabled: false,
       ...ANTI_SPAM,
     },
@@ -126,15 +138,21 @@ export function buildSeedRows(): CtfSeedRow[] {
       enabled: false,
       ...ANTI_SPAM,
     },
-    // 4. flat award.
+    // 4. flat award 100.
     {
       challenge: "condor",
       answerHash: hashAnswer("fr33k3v1n"),
-      points: 100,
+      pointMax: 100,
+      pointFloor: 100,
+      maxSolves: 100000,
+      firstBloodBonus: 0,
       enabled: false,
       ...ANTI_SPAM,
     },
     // 5. timed drop — base 100/floor 1, DEF CON 34 tier ceiling 500 while active.
+    //    Outside the window a solve is worth up to 100; inside, the tier ceiling
+    //    (500) overrides pointMax so the ceiling is visible. maxSolves 100 gives
+    //    the declining curve room.
     //    D3 answer "d3bugth3sYstem" has an uppercase S; hashAnswer trim+lowercases,
     //    so the stored hash is over the normalized "d3bugth3system".
     {
@@ -142,15 +160,20 @@ export function buildSeedRows(): CtfSeedRow[] {
       answerHash: hashAnswer("d3bugth3sYstem"),
       pointMax: 100,
       pointFloor: 1,
+      maxSolves: 100,
+      firstBloodBonus: 0,
       timeTiers: [DEFCON_34_TIER],
       enabled: false,
       ...ANTI_SPAM,
     },
-    // 6. easter egg — small award + confetti effect.
+    // 6. easter egg — small flat award 10 + confetti effect.
     {
       challenge: "turing",
       answerHash: hashAnswer("3n1gim@"),
-      points: 10,
+      pointMax: 10,
+      pointFloor: 10,
+      maxSolves: 100000,
+      firstBloodBonus: 0,
       effect: { kind: "confetti", intensity: 11 },
       enabled: false,
       ...ANTI_SPAM,
