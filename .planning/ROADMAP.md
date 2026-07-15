@@ -614,11 +614,16 @@ Plans:
   3. An admin can set the day/time/tz window through the form and apply the **"DEF CON run hours"** quick set in one click; the value round-trips through save→edit and the stored `tz` is an IANA id.
   4. The covert CSS solve path (`covert-egg.ts`) stays byte-identical; the window gate fires before answer validation in the documented order and never logs the guess or secret.
 
-**Plans:** 0 plans
+**Plans:** 3 plans
 
-Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 55 to break down)
+- [ ] 55-01-PLAN.md — Foundation: pure DST-correct `isWithinScoreWindow` + `DEFCON_RUN_HOURS`/`TZ_OPTIONS` in `ctf-score-window.ts`, additive `Ctf.scoreWindow` attribute, form-model bridge helpers + redaction round-trip (CTFT-09) [wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 55-02-PLAN.md — Judge scoring-window gate as ordered step 3 in `judgeSolve` (inside/outside/DST/backward-compat/covert-indistinguishable) (CTFT-10) [wave 2]
+- [ ] 55-03-PLAN.md — Admin day/time/tz picker + DEF CON run-hours quick set in the Scoring window & limits section + `qr-admin` write passthrough (CTFT-11) [wave 2]
 
 ### Phase 56: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
 
