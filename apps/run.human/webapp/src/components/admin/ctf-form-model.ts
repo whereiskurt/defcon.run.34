@@ -250,19 +250,31 @@ export interface ScoreWindowFormState {
   days: number[];
   from: string;
   to: string;
-  /** A PT/ET/UTC label from TZ_OPTIONS (NOT the IANA id — that is derived on save). */
+  /**
+   * A PT/ET/UTC label from TZ_OPTIONS (NOT the IANA id — that is derived on save).
+   * Empty string `""` when the stored zone is OUTSIDE the three options (WR-02) —
+   * the raw id is then carried on `tz` and round-tripped unchanged.
+   */
   tzLabel: string;
+  /**
+   * The raw stored IANA id (WR-02). Preserved so a seeded/imported zone outside
+   * PT/ET/UTC survives an edit losslessly instead of being silently rewritten to
+   * UTC. On save it is used ONLY when `tzLabel` does not resolve to a known option.
+   */
+  tz?: string;
 }
 
 /**
  * Form state → the `ScoreWindow` the row persists, or `undefined` when the toggle
  * is off. Off ⇒ nothing persisted (matching the UI-SPEC's "toggling off clears the
  * payload"), which the judge reads as always-open. On ⇒ resolve `tzLabel` to its
- * IANA id via `TZ_OPTIONS` (unknown label falls back to UTC, the safe global zone).
+ * IANA id via `TZ_OPTIONS`; when the label does not resolve to a known option
+ * (WR-02: the stored zone was outside PT/ET/UTC) fall back to the carried raw
+ * `state.tz` so the original zone round-trips UNCHANGED, and only then to UTC.
  */
 export function formStateToScoreWindow(state: ScoreWindowFormState): ScoreWindow | undefined {
   if (!state.enabled) return undefined;
-  const tz = TZ_OPTIONS.find((o) => o.label === state.tzLabel)?.tz ?? "UTC";
+  const tz = TZ_OPTIONS.find((o) => o.label === state.tzLabel)?.tz ?? state.tz ?? "UTC";
   return { days: state.days, from: state.from, to: state.to, tz };
 }
 
@@ -270,13 +282,13 @@ export function formStateToScoreWindow(state: ScoreWindowFormState): ScoreWindow
  * Persisted `ScoreWindow` → the picker's form state. Absent window ⇒ the disabled
  * default (`enabled:false`, empty fields, PT label ready for a first edit). Present
  * ⇒ rehydrate enabled, mapping the stored IANA id BACK to its PT/ET/UTC label via
- * `TZ_OPTIONS`; an unknown/unmapped IANA id falls back to the "UTC" label
- * (documented) so the picker still renders a valid selection.
+ * `TZ_OPTIONS`; an unknown/unmapped IANA id keeps an EMPTY label but carries the raw
+ * id on `tz` (WR-02) so it round-trips losslessly instead of being coerced to UTC.
  */
 export function scoreWindowToFormState(w: ScoreWindow | undefined): ScoreWindowFormState {
   if (!w) return { enabled: false, days: [], from: "", to: "", tzLabel: "PT" };
-  const tzLabel = TZ_OPTIONS.find((o) => o.tz === w.tz)?.label ?? "UTC";
-  return { enabled: true, days: w.days, from: w.from, to: w.to, tzLabel };
+  const tzLabel = TZ_OPTIONS.find((o) => o.tz === w.tz)?.label ?? "";
+  return { enabled: true, days: w.days, from: w.from, to: w.to, tzLabel, tz: w.tz };
 }
 
 // ---------------------------------------------------------------------------

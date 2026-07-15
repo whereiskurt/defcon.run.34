@@ -16,7 +16,7 @@ import {
   type ScoreWindowFormState,
 } from "../ctf-form-model";
 import { base32Decode } from "@/lib/ctf-otp-core";
-import { DEFCON_RUN_HOURS } from "@/lib/ctf-score-window";
+import { DEFCON_RUN_HOURS, type ScoreWindow } from "@/lib/ctf-score-window";
 
 // A clock fixed INSIDE the tier window below, for deterministic active-tier parity.
 const IN_TIER = Date.parse("2026-08-07T12:00:00Z");
@@ -350,16 +350,30 @@ describe("scoreWindowToFormState — persisted ScoreWindow → form state", () =
     });
   });
 
-  it("rehydrates an enabled window, mapping the stored IANA id BACK to its label", () => {
+  it("rehydrates an enabled window, mapping the stored IANA id BACK to its label (raw tz carried too)", () => {
     expect(
       scoreWindowToFormState({ days: [4, 5], from: "06:00", to: "08:00", tz: "America/New_York" }),
-    ).toEqual({ enabled: true, days: [4, 5], from: "06:00", to: "08:00", tzLabel: "ET" });
+    ).toEqual({
+      enabled: true,
+      days: [4, 5],
+      from: "06:00",
+      to: "08:00",
+      tzLabel: "ET",
+      tz: "America/New_York",
+    });
   });
 
-  it("falls back to the UTC label for an unknown/unmapped IANA id", () => {
+  it("keeps an EMPTY label but PRESERVES an unknown/unmapped IANA id (WR-02, no UTC coercion)", () => {
     expect(
       scoreWindowToFormState({ days: [1], from: "09:00", to: "10:00", tz: "Antarctica/Troll" }),
-    ).toEqual({ enabled: true, days: [1], from: "09:00", to: "10:00", tzLabel: "UTC" });
+    ).toEqual({
+      enabled: true,
+      days: [1],
+      from: "09:00",
+      to: "10:00",
+      tzLabel: "",
+      tz: "Antarctica/Troll",
+    });
   });
 });
 
@@ -371,10 +385,33 @@ describe("round-trip — scoreWindowToFormState(formStateToScoreWindow(state)) (
       from: "06:00",
       to: "08:00",
       tzLabel: "PT",
+      tz: "America/Los_Angeles",
     };
     const persisted = formStateToScoreWindow(state);
     expect(persisted).toEqual({ ...DEFCON_RUN_HOURS });
     expect(scoreWindowToFormState(persisted)).toEqual(state);
+  });
+
+  it("round-trips an unrecognized IANA zone through the form UNCHANGED (WR-02 lossless tz)", () => {
+    // A seeded/imported row whose zone is outside PT/ET/UTC. Editing and saving it
+    // without touching the dropdown must NOT rewrite the zone to UTC.
+    const stored: ScoreWindow = { days: [2, 3], from: "08:00", to: "09:00", tz: "America/Chicago" };
+    const state = scoreWindowToFormState(stored);
+    expect(state.tz).toBe("America/Chicago");
+    expect(state.tzLabel).toBe(""); // no PT/ET/UTC label matches
+    expect(formStateToScoreWindow(state)).toEqual(stored);
+  });
+
+  it("a subsequent explicit PT/ET/UTC pick OVERRIDES the carried raw zone", () => {
+    // Start from an unknown zone, then the operator picks ET from the dropdown.
+    const state = scoreWindowToFormState({
+      days: [1],
+      from: "09:00",
+      to: "10:00",
+      tz: "America/Chicago",
+    });
+    const picked: ScoreWindowFormState = { ...state, tzLabel: "ET" };
+    expect(formStateToScoreWindow(picked)?.tz).toBe("America/New_York");
   });
 });
 

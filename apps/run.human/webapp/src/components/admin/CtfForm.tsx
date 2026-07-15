@@ -186,6 +186,9 @@ export default function CtfForm({
   const [windowFrom, setWindowFrom] = useState(swInit.from);
   const [windowTo, setWindowTo] = useState(swInit.to);
   const [windowTzLabel, setWindowTzLabel] = useState(swInit.tzLabel);
+  // WR-02: preserve the raw stored IANA id so a zone outside PT/ET/UTC round-trips
+  // unchanged instead of being silently rewritten to UTC on the first admin save.
+  const [windowTz, setWindowTz] = useState<string | undefined>(swInit.tz);
 
   // ── Unlock & chaining (Section 5) ──
   const [unlockAfter, setUnlockAfter] = useState(initial?.unlockAfter ?? "");
@@ -255,6 +258,7 @@ export default function CtfForm({
     setWindowFrom(s.from);
     setWindowTo(s.to);
     setWindowTzLabel(s.tzLabel);
+    setWindowTz(s.tz);
   }
 
   const rewardActive =
@@ -312,6 +316,7 @@ export default function CtfForm({
       from: windowFrom,
       to: windowTo,
       tzLabel: windowTzLabel,
+      tz: windowTz,
     });
     // WR-01: block a degenerate / never-scoring window with inline feedback BEFORE
     // the POST. The judge is fail-closed, so a window with no days, malformed times,
@@ -729,6 +734,13 @@ export default function CtfForm({
                     value={windowTzLabel}
                     onChange={(e) => setWindowTzLabel(e.target.value)}
                   >
+                    {/* WR-02: a stored zone outside PT/ET/UTC keeps an empty label —
+                        surface it as a transient option so the operator SEES the
+                        preserved zone (and can consciously switch) instead of it
+                        silently coercing to UTC. */}
+                    {windowTzLabel === "" && windowTz ? (
+                      <option value="">{windowTz} (stored)</option>
+                    ) : null}
                     {TZ_OPTIONS.map((o) => (
                       <option key={o.label} value={o.label}>
                         {o.label}
