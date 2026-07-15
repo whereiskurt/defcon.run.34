@@ -211,6 +211,41 @@ title-cased fallback. Shared shape with the ghost proxy's `who` field.
   the map" → appear on Rabbit Layer; toggle off → disappear within a poll. Fire `!!!` →
   ghosts appear, move on poll, click reveals identity.
 
+## `nodes.json` reference shape (fixture source)
+
+The mesh feed is a JSON **object keyed by numeric node id** (string), each value a
+Meshtastic node record. Real DC33-served example (`~/working/meshtk/nodes.japan.json`,
+also DC33 `apps/mqtt/nginx/meshmap/`; the live-empty seed is `{}`):
+
+```json
+{
+  "2503245760": {
+    "from": 2503245760, "fromStr": "!95347fc0",
+    "longName": "elkentaro-09", "shortName": "J09",
+    "latitude": 356303231, "longitude": 1397374428,
+    "lastMapReport": 1754357805,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357805 },
+    "privkey": "0x…", "pubkey": "0x…", "batteryLevel": 71, "…": "…"
+  }
+}
+```
+
+Transform rules used by both proxies:
+- **Key** = numeric `from` (matches the rabbit intersection key `parseInt(nodeId.slice(1),16)>>>0`).
+- **Position** = `latitude/1e7`, `longitude/1e7` → GeoJSON `[lon, lat]`.
+- **`lastSeen`** = `lastMapReport` (fallback: max of `seenBy` values).
+- **Strip** `privkey`, `pubkey`, `neighbors`, and all device/env metrics before emitting.
+- Assume any well-formed JSON collection of node descriptions in this shape; if the exact
+  live schema drifts, the transform is the only place to adjust.
+
+## Consumption / diff model (studio)
+GPX-studio consumes each proxy's GeoJSON `FeatureCollection` and pushes it into a Mapbox
+`geojson` source via `source.setData(fc)` on every poll. Mapbox re-renders the source
+wholesale — the "diff + update positions/nodes" is implicit (new/moved/removed nodes are
+reflected each tick). **Each feature carries `id` = numeric node id** so updates are stable
+per-node (clean removal of departed nodes; enables optional future position interpolation).
+No manual diffing needed; a stale frame between polls is acceptable.
+
 ## Build sequencing (single spec, staged to de-risk)
 1. **Ghost pipeline** (B2 + C2 + C3 + C4) — proves internal-feed → proxy → studio-layer →
    trigger end-to-end with zero privacy surface. Builds the shared studio-layer/poll base.
