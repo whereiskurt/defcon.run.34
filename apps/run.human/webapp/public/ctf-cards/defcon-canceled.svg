@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="300" height="400" role="img" aria-label="DEFINITELY CANCELED">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="80%">
+      <stop offset="0" stop-color="#3a0808"/>
+      <stop offset="0.55" stop-color="#1a0303"/>
+      <stop offset="1" stop-color="#050101"/>
+    </radialGradient>
+    <linearGradient id="bang" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5a4d"/>
+      <stop offset="1" stop-color="#c11a12"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- card body -->
+  <rect width="300" height="400" rx="18" fill="url(#bg)"/>
+  <rect x="7" y="7" width="286" height="386" rx="13" fill="none" stroke="#ff3b30" stroke-width="2" opacity="0.85"/>
+
+  <!-- CRT scanlines -->
+  <g stroke="#000000" stroke-width="1" opacity="0.18">
+    <line x1="0" y1="20" x2="300" y2="20"/><line x1="0" y1="40" x2="300" y2="40"/>
+    <line x1="0" y1="60" x2="300" y2="60"/><line x1="0" y1="80" x2="300" y2="80"/>
+    <line x1="0" y1="100" x2="300" y2="100"/><line x1="0" y1="120" x2="300" y2="120"/>
+    <line x1="0" y1="140" x2="300" y2="140"/><line x1="0" y1="160" x2="300" y2="160"/>
+    <line x1="0" y1="180" x2="300" y2="180"/><line x1="0" y1="200" x2="300" y2="200"/>
+    <line x1="0" y1="220" x2="300" y2="220"/><line x1="0" y1="240" x2="300" y2="240"/>
+    <line x1="0" y1="260" x2="300" y2="260"/><line x1="0" y1="280" x2="300" y2="280"/>
+    <line x1="0" y1="300" x2="300" y2="300"/><line x1="0" y1="320" x2="300" y2="320"/>
+    <line x1="0" y1="340" x2="300" y2="340"/><line x1="0" y1="360" x2="300" y2="360"/>
+  </g>
+
+  <!-- top klaxon label -->
+  <text x="150" y="52" text-anchor="middle" font-family="monospace" font-size="15" letter-spacing="6" fill="#ff8a80">&#9888; SYSTEM ALERT &#9888;</text>
+
+  <!-- glitch-shadowed giant !!! -->
+  <g filter="url(#glow)">
+    <text x="153" y="215" text-anchor="middle" font-family="monospace" font-size="150" font-weight="900" fill="#00e5ff" opacity="0.45">!!!</text>
+    <text x="147" y="211" text-anchor="middle" font-family="monospace" font-size="150" font-weight="900" fill="#ff00d4" opacity="0.45">!!!</text>
+    <text x="150" y="213" text-anchor="middle" font-family="monospace" font-size="150" font-weight="900" fill="url(#bang)">!!!</text>
+  </g>
+
+  <!-- headline -->
+  <text x="150" y="285" text-anchor="middle" font-family="monospace" font-size="27" font-weight="900" letter-spacing="1" fill="#ffffff">DEFINITELY</text>
+  <text x="150" y="318" text-anchor="middle" font-family="monospace" font-size="27" font-weight="900" letter-spacing="3" fill="#ff3b30">CANCELED</text>
+
+  <!-- footer meta -->
+  <line x1="30" y1="342" x2="270" y2="342" stroke="#ff3b30" stroke-width="1" opacity="0.5"/>
+  <text x="150" y="365" text-anchor="middle" font-family="monospace" font-size="12" letter-spacing="1" fill="#c98a86">dc34-egg &#183; covert &#183; 10 pts</text>
+  <text x="150" y="383" text-anchor="middle" font-family="monospace" font-size="10" letter-spacing="2" fill="#7a4b48">DEF CON 34 &#183; defcon.run</text>
+</svg>

@@ -186,6 +186,7 @@ export default function CtfForm({
       ceiling: t.ceiling !== undefined ? String(t.ceiling) : "",
     }))
   );
+  const [cardImage, setCardImage] = useState(initial?.cardImage ?? "");
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
   // Effect is write-only: never prefilled on edit (the redacted record carries no
   // `effect`; `hasEffect` only drives the keep-hint). Blank on save keeps stored.
@@ -401,6 +402,9 @@ export default function CtfForm({
         perPlayerMax: numOrUndef(perPlayerMax),
         globalMax: numOrUndef(globalMax),
         ...(unlockAfter.trim() !== "" ? { unlockAfter: unlockAfter.trim() } : {}),
+        // Empty ⇒ null so a previously-set slug is REMOVED (blank = generic
+        // placeholder, as the field help promises); a real value sets it.
+        cardImage: cardImage.trim() === "" ? null : cardImage.trim(),
         enabled,
         ...(timeTiers.length ? { timeTiers } : {}),
         ...(scoreWindow ? { scoreWindow } : clearWindow ? { scoreWindow: null } : {}),
@@ -882,6 +886,23 @@ export default function CtfForm({
         </button>
         {advancedOpen ? (
           <div className="bg-content2 border-t border-divider p-4 flex flex-col gap-4">
+      <div className={cls.cardPad}>
+        <label className={cls.label}>Card image</label>
+        <input
+          className={cls.input}
+          value={cardImage}
+          onChange={(e) => setCardImage(e.target.value)}
+          placeholder="defcon-canceled"
+        />
+        <p className="text-[12.5px] text-default-500 mt-2">
+          Optional. Slug of the collectible art on the{" "}
+          <code>/ctf/cards</code> board. Drop a file at{" "}
+          <code>public/ctf-cards/&lt;slug&gt;.webp</code> (or <code>.svg</code>)
+          and enter <code>{cardImage.trim() || "<slug>"}</code> here. Blank ⇒ a
+          generic solved-card placeholder.
+        </p>
+      </div>
+
       {/* Scoring curve */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Scoring</label>
