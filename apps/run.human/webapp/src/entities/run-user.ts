@@ -86,6 +86,7 @@ export const RunUser = new Entity(
             privateKey: { type: "string" },
             publicKey: { type: "string" },
             impersonate: { type: "boolean" },
+            showOnMap: { type: "boolean" },
             verificationCode: { type: "string" },
             verified: { type: "boolean" },
             createdAt: { type: "number" },
@@ -440,6 +441,7 @@ export type MeshtasticRadio = {
   privateKey: string;
   publicKey?: string;
   impersonate?: boolean;
+  showOnMap?: boolean;
   verificationCode: string;
   verified: boolean;
   createdAt: number;
@@ -462,6 +464,7 @@ export function sanitizeRadio(radio: MeshtasticRadio): MeshtasticRadio {
     privateKey: typeof radio.privateKey === 'string' ? radio.privateKey : '',
     publicKey: typeof radio.publicKey === 'string' ? radio.publicKey : '',
     impersonate: radio.impersonate ?? false,
+    showOnMap: radio.showOnMap ?? false,
     verificationCode: typeof radio.verificationCode === 'string' ? radio.verificationCode : '',
     verified: radio.verified ?? false,
     createdAt: radio.createdAt ?? Date.now(),
@@ -499,6 +502,8 @@ export type RunUserItem = {
     units?: string;
     privacyLevel?: string;
     checkinPreference?: string;
+    pinIcon?: string;
+    pinColor?: string;
   };
   createdAt?: number;
   updatedAt?: number;
