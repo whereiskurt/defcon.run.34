@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { auth } from "@/config/auth";
+import { isCtfAdmin } from "@/lib/admin-gate";
 import { normalizeChallenge } from "@/lib/qr-admin";
 import { judgeSolve } from "@/lib/ctf-judge";
 import { createPending, claimPending } from "@/lib/ctf-pending";
@@ -58,13 +59,16 @@ export default async function ClaimPage({
   const challenge = safeNormalize(c);
   const guess = typeof v === "string" && v.length > 0 ? v : null;
 
-  // (A) SIGNED-IN + params → judge the solve now.
+  // (A) SIGNED-IN + params → judge the solve now. A CTF-admin operator re-submit
+  // re-scores against the current config (idempotent) and bypasses the attempt
+  // cap — see judgeSolve `admin`. Non-admins are unaffected.
   if (player && challenge && guess) {
     const result = await judgeSolve({
       user: player,
       challenge,
       guess,
       channel: "qr",
+      admin: isCtfAdmin(session),
     });
     return <ClaimClient mode="result" result={result} />;
   }
