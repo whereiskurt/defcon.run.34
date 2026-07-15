@@ -14,7 +14,7 @@
 - [x] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (shipped 2026-07-06; edit UI copy live from Strapi, no deploy — SC-3 de-dup proven live)
 - [ ] **v2.0 Admin & Reporting** - Phase 43 (planned 2026-07-11; read-only run.human /admin dashboard — users, activity, gpx usage)
 - [ ] **v2.1 CTF Judge & Scoring** - Phases 44-48 (**BUILT autonomously 2026-07-14, PR open — NOT merged/deployed**; greenfield Phase-5 CTF judge + composed scoring + covert CSS submission channel — design `docs/superpowers/specs/2026-07-13-ctf-judge-and-covert-channel-design.md`; ~122 CTF unit tests + `next build` pass; Phase-48 CloudFront/Terraform authored + validate-clean but NOT applied, deploy-specs accompany; integration-bounded against the DC33 total-score work in the `leaderboard` worktree)
-- [ ] **v2.3 CTF Flag Types & Form Redesign** - Phase 53+ (planned 2026-07-14; extends the shipped CTF judge into multiple answer types — Static + Rotating OTP + repeatable ledger + reward-effect return — plus an admin form redesign. Slice 1a = Phase 53 [backend, no UI]; Slices 1b/2/3 become later phases. Design: `docs/superpowers/specs/2026-07-14-ctf-flag-types-and-form-redesign-design.md`)
+- [x] **v2.3 CTF Flag Types & Form Redesign** - Phase 53+ (planned 2026-07-14; extends the shipped CTF judge into multiple answer types — Static + Rotating OTP + repeatable ledger + reward-effect return — plus an admin form redesign. Slice 1a = Phase 53 [backend, no UI]; Slices 1b/2/3 become later phases. Design: `docs/superpowers/specs/2026-07-14-ctf-flag-types-and-form-redesign-design.md`) (completed 2026-07-15)
 - [ ] **v2.2 Leaderboard & Activity Table** - Phases 49-52 (**ALL 4 PHASES BUILT + VERIFIED 2026-07-14**, code goal-backward PASS; ships HIDDEN behind the admin group. Hidden, admin-gated DC33-style leaderboard that doubles as each runner's activity table in run.human — `Accomplishment` scoring, client-canvas GPX polyline thumbnails, consumes the CTF judge's `ctfScore`. ~104 tests. LEFT: 1 local-browser render checkpoint (signed-in admin) + `npm run build`. Spec: `docs/superpowers/specs/2026-07-13-leaderboard-activity-table-design.md`. NOTE: v2.1 / phases 44-48 are the CTF judge worktree `hiddenctfsub`.)
 
 ## Phases
@@ -558,7 +558,7 @@ Plans:
   5. On a non-covert solve, `judgeSolve` loads and returns the flag's `effect` and the solve API surfaces it (incl. `otp-enroll`); the covert CSS path (`covert-egg.ts`) stays **byte-identical** and carries no reward payload — grep/test-verified.
   6. `CtfScoreEvent` accrual sums into `RunUser.ctfScore`/`ctfSolves` exactly as the shipped `accrue`; static one-award flags still write `CtfSolve` and are untouched.
 
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 **Wave 1**
 
 - [x] 53-01-PLAN.md — Data model: additive `Ctf` fields + `CtfScoreEvent` ledger + pure flag-type helpers + edit-semantics guard (CTFT-01, CTFT-03, CTFT-06) [wave 1]

@@ -2,15 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
-status: phase_executed
-stopped_at: "Phase 53 (CTF flag-types Slice 1a backend) EXECUTED — all 4 plans complete (waves 1={53-01,53-02},2={53-03},3={53-04}). 53-04 wired the reward `effect` onto JudgeResult for credited (points>0) non-covert solves (incl. the new otp-enroll payload the judge carries verbatim) and PROVED the covert CSS path byte-identical + reward-free (byte-identity test + source-grep gate). Slice 1a backend framework is complete (answer types + repeatable ledger + chaining + caps + effect return) minus the Slice-2 time-of-day window and the Slice-1b reveal UI. Awaiting phase verification. NOTE: state.advance-plan is incompatible with this repo's custom STATE frontmatter, so 53-01..04 plan-count increments were applied manually here (45→49). Carry-over (prior milestone): v2.2 (49-52) BUILT+VERIFIED, LEFT for human: signed-in admin local-browser render of /leaderboard + npm run build + PR."
-last_updated: "2026-07-15T00:10:00.000Z"
+status: Milestone complete
+stopped_at: Phase 39 context gathered
+last_updated: "2026-07-15T04:20:46.984Z"
 last_activity: 2026-07-15
+last_activity_desc: Phase 53 complete
 progress:
   total_phases: 22
   completed_phases: 12
   total_plans: 49
-  completed_plans: 49
+  completed_plans: 45
   percent: 55
 current_phase: 53
 current_phase_name: ctf-flag-types-slice-1a-backend
@@ -51,7 +52,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-15
+Last activity: 2026-07-15 — Phase 53 complete
 
 ## Roadmap Summary (v1.9)
 
