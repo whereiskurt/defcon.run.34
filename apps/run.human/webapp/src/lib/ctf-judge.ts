@@ -220,6 +220,23 @@ export async function judgeSolve(
       return NON_SOLVE;
     }
 
+    // (1b) UNLOCK / chaining gate (flag-types D-05 step 2). When `unlockAfter` is
+    // set, the player must already hold a score for the prerequisite challenge
+    // (by NAME — see D-02) or this solve is withheld. A locked gate is
+    // INDISTINGUISHABLE from a wrong answer: it returns the same NON_SOLVE shape
+    // and logs the same "no-solve" (never reveal the reason — SC-4 / T-53-03-02).
+    // If the store cannot answer (method absent) we treat the gate as LOCKED so a
+    // misconfigured store never leaks a free solve.
+    if (ctf.unlockAfter) {
+      const unlocked = store.hasScoreFor
+        ? await store.hasScoreFor({ challenge: ctf.unlockAfter, user })
+        : false;
+      if (!unlocked) {
+        log(ctfJudgeLog({ challenge, result: "no-solve" }));
+        return NON_SOLVE;
+      }
+    }
+
     // (2) attempt-cap / rate-limit. Over-limit is INDISTINGUISHABLE from a wrong
     // guess (covert invisibility — do NOT reveal the reason).
     const over = await store.overAttemptLimit({
@@ -234,24 +251,93 @@ export async function judgeSolve(
       return NON_SOLVE;
     }
 
-    // (3) validate the answer. NEVER log `guess` OR `guessHash`. Exactly one
-    // input is the validation source: a caller that already holds only the hash
-    // (the park-and-claim path) passes `guessHash` and we compare it directly;
-    // otherwise we hash the raw `guess`. Both routes converge on the same
-    // constant-time compare against `ctf.answerHash`.
-    const ok =
-      guessHash !== undefined
-        ? verifyAnswerHash(guessHash, ctf.answerHash)
-        : verifyAnswer(guess ?? "", ctf.answerHash);
+    // (3) validate the answer BY answerType (flag-types D-05 step 5). NEVER log
+    // `guess` OR `guessHash`. For `otp` the raw rolling code is verified against
+    // the shared TOTP secret via verifyTotp (current period ± skew); verifyTotp
+    // NEVER throws, so a wrong/undecodable code is an indistinguishable non-match
+    // (there is no guessHash path for otp — it needs the raw code). For
+    // `static`/absent, exactly one input is the validation source: a caller that
+    // already holds only the hash (park-and-claim) passes `guessHash` and we
+    // compare it directly; otherwise we hash the raw `guess`. Both static routes
+    // converge on the same constant-time compare against `ctf.answerHash`.
+    let ok: boolean;
+    if (ctf.answerType === "otp") {
+      const otp = ctf.otp ?? {};
+      // judgeSolve's `now` is epoch MILLISECONDS; verifyTotp wants unix SECONDS.
+      ok = verifyTotp(otp.secret ?? "", guess ?? "", Math.floor(now / 1000), {
+        digits: otp.digits,
+        period: otp.period,
+        skew: otp.skew,
+      });
+    } else {
+      ok =
+        guessHash !== undefined
+          ? verifyAnswerHash(guessHash, ctf.answerHash)
+          : verifyAnswer(guess ?? "", ctf.answerHash);
+    }
     if (!ok) {
       log(ctfJudgeLog({ challenge, result: "no-solve" }));
       return NON_SOLVE;
     }
 
+    const scoredAt = new Date(now).toISOString();
+
+    // (R) REPEATABLE path (flag-types D-04/D-05). A flag that is otp, or allows
+    // >1 solve per player, or sets a per-player cadence writes the append-only
+    // CtfScoreEvent ledger instead of the once-ever CtfSolve. The once-per-window
+    // guarantee is an ATOMIC conditional put (bucket-in-sk), claimed BEFORE the
+    // ordinal is allocated so a losing double-submit never allocates
+    // (claim-before-allocate, mirroring the static CtfSolve invariant). Every
+    // gate failure returns the SAME NON_SOLVE shape (indistinguishable).
+    if (isRepeatable(ctf)) {
+      const bucket = scoreBucket(now, {
+        perPlayerIntervalHours: ctf.perPlayerIntervalHours,
+        otpPeriodSeconds: ctf.otp?.period,
+      });
+      // (R1) atomic once-per-window claim — collision ⇒ already scored this
+      // window ⇒ indistinguishable non-solve. Runs BEFORE allocateOrdinal.
+      const claimed = store.claimScoreEvent
+        ? await store.claimScoreEvent({ challenge, user, bucket, channel, scoredAt })
+        : { claimed: false };
+      if (!claimed.claimed) {
+        log(ctfJudgeLog({ challenge, result: "no-solve" }));
+        return NON_SOLVE;
+      }
+      // (R2) per-player cap — at/over perPlayerMax ⇒ indistinguishable non-solve.
+      const overMax = store.overPerPlayerMax
+        ? await store.overPerPlayerMax({ challenge, user, max: ctf.perPlayerMax })
+        : false;
+      if (overMax) {
+        log(ctfJudgeLog({ challenge, result: "no-solve" }));
+        return NON_SOLVE;
+      }
+      // (R3) allocate the GLOBAL ordinal atomically. globalMax is enforced off
+      // this ordinal (n > globalMax ⇒ award 0 / no accrue) — NEVER a partition
+      // query (T-53-03-03). A capped event is still solved:true/points:0, exactly
+      // like the static maxSolves cap, so the covert channel (points>0 only) stays
+      // dark for it.
+      const n = await store.allocateOrdinal(challenge);
+      if ((ctf.globalMax ?? 0) > 0 && n > (ctf.globalMax as number)) {
+        log(ctfJudgeLog({ challenge, result: "capped" }));
+        return { solved: true, points: 0, ordinal: n, firstBlood: false, capped: true };
+      }
+      // (R4) score + record the ledger row + accrue (exactly as CtfSolve accrues).
+      const points = computePoints(n, ctf, now);
+      const capped = points === 0;
+      const firstBlood = n === 1;
+      const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
+      if (store.recordScoreEvent) {
+        await store.recordScoreEvent({ challenge, user, bucket, points, tierCeiling, channel });
+      }
+      await store.accrue({ user, points });
+      log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
+      return { solved: true, points, ordinal: n, firstBlood, capped };
+    }
+
     // (4) claim — conditional put BEFORE ordinal allocation. A failed claim means
     // already-solved: celebrate the re-trigger but return the PRIOR award, never
-    // re-score.
-    const solvedAt = new Date(now).toISOString();
+    // re-score.  [STATIC one-award path — unchanged; only reached when NOT repeatable.]
+    const solvedAt = scoredAt;
     const claim = await store.claimSolve({ challenge, user, channel, solvedAt });
     if (!claim.claimed) {
       const prior = claim.existing;
