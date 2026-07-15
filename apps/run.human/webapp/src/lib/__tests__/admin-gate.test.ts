@@ -11,9 +11,11 @@ vi.mock("@/config/auth", () => ({
 import {
   ADMIN_GROUPS,
   QR_ADMIN_GROUPS,
+  CTF_ADMIN_GROUPS,
   isMemberOf,
   requireGroups,
   isAdmin,
+  isCtfAdmin,
   requireAdmin,
 } from "../admin-gate";
 
@@ -23,6 +25,27 @@ const sess = (services: string[] | null) =>
 describe("QR_ADMIN_GROUPS", () => {
   it("is ADMIN_GROUPS plus qradmin", () => {
     expect([...QR_ADMIN_GROUPS]).toEqual([...ADMIN_GROUPS, "qradmin"]);
+  });
+});
+
+describe("CTF_ADMIN_GROUPS / isCtfAdmin", () => {
+  it("is ADMIN_GROUPS plus ctfadmin", () => {
+    expect([...CTF_ADMIN_GROUPS]).toEqual([...ADMIN_GROUPS, "ctfadmin"]);
+  });
+
+  it("grants the CTF override to admin, runadmin, and ctfadmin", () => {
+    for (const g of ["admin", "runadmin", "ctfadmin"]) {
+      expect(isCtfAdmin(sess([g]))).toBe(true);
+    }
+  });
+
+  it("denies non-CTF-admin groups, empty services, and no session", () => {
+    expect(isCtfAdmin(sess(["qradmin"]))).toBe(false);
+    expect(isCtfAdmin(sess(["bibadmin"]))).toBe(false);
+    expect(isCtfAdmin(sess([]))).toBe(false);
+    expect(isCtfAdmin(sess(null))).toBe(false);
+    expect(isCtfAdmin(null)).toBe(false);
+    expect(isCtfAdmin(undefined)).toBe(false);
   });
 });
 

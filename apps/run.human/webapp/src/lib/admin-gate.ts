@@ -58,6 +58,17 @@ export const ADMIN_GROUPS = ["admin", "runadmin"] as const;
  */
 export const QR_ADMIN_GROUPS = [...ADMIN_GROUPS, "qradmin"] as const;
 
+/**
+ * Groups allowed to use the CTF operator override (re-submit an already-solved
+ * flag to test challenge setups — see judgeSolve `admin`). Superset of
+ * ADMIN_GROUPS with a dedicated `ctfadmin` slot. NOTE: `ctfadmin` is not a group
+ * that run.auth issues today; it is listed here so the override lights up
+ * automatically if/when that group is added — `admin`/`runadmin` are the
+ * effective gates now. This grants NO data access, only a re-submit of the
+ * operator's OWN flag, so the sync session check (no live revalidation) suffices.
+ */
+export const CTF_ADMIN_GROUPS = [...ADMIN_GROUPS, "ctfadmin"] as const;
+
 /** True iff the session carries ANY of `groups` on its services list. */
 export function isMemberOf(
   session: SessionLike,
@@ -73,6 +84,15 @@ export function isMemberOf(
  */
 export function isAdmin(session: SessionLike): boolean {
   return isMemberOf(session, ADMIN_GROUPS);
+}
+
+/**
+ * True iff the session may use the CTF operator override (CTF_ADMIN_GROUPS).
+ * Pure + sync — the CTF front doors call it to decide whether to pass
+ * `admin: true` into judgeSolve.
+ */
+export function isCtfAdmin(session: SessionLike): boolean {
+  return isMemberOf(session, CTF_ADMIN_GROUPS);
 }
 
 /**

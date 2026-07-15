@@ -93,6 +93,11 @@ function makeStore(
       s.solves += 1;
       userScore.set(user, s);
     },
+    async reaccrue({ user, delta }) {
+      const s = userScore.get(user) ?? { points: 0, solves: 0 };
+      s.points += delta; // net adjustment; solve count is NOT bumped
+      userScore.set(user, s);
+    },
   };
 
   return { store, solves, ordinals, userScore, attempts, state };
