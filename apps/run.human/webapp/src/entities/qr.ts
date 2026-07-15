@@ -133,9 +133,11 @@ export const Ctf = new Entity(
       firstBloodBonus: { type: "number" }, // flat bonus for n == 1
       // --- Flag-types framework (Slice 1a, CTFT-01) — ALL OPTIONAL/ADDITIVE ------
       // A shipped row with NONE of these behaves exactly as a `static` flag today.
-      // `answerType` absent ⇒ the judge reads it as "static". `wordlist` is Slice 3
-      // and is deliberately NOT in the union yet.
-      answerType: { type: ["static", "otp"] as const },
+      // `answerType` absent ⇒ the judge reads it as "static". `wordlist` (Slice 3,
+      // CTFT-14) is a pool of single-use codes claimed from the CtfCode entity —
+      // run.human-internal, so the resolver `.mjs` mirror (which omits answerType
+      // entirely) is unaffected.
+      answerType: { type: ["static", "otp", "wordlist"] as const },
       // Shared TOTP secret the judge verifies against (CTFT-02). `period` default
       // is 120s (meshtk convention), NOT the RFC-typical 30. `secret` is base32.
       otp: {

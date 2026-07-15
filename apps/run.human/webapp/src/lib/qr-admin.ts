@@ -1,5 +1,5 @@
 import { Qr, Ctf, Qrstat } from "@/entities/qr";
-import { CtfSolve, CtfScoreEvent } from "@/entities/ctf";
+import { CtfSolve, CtfScoreEvent, CtfCode } from "@/entities/ctf";
 import { hashAnswer } from "@/lib/ctf-hash";
 import { QrValidationError } from "@/lib/qr-errors";
 import {
@@ -147,7 +147,15 @@ export interface CtfInput {
   // --- Flag-types framework (Slice 1a, CTFT-01) — additive optional passthrough --
   // All pass through numeric/string/map as provided (no hash/transform). An
   // omitted field never clobbers the stored value (see ctfAttributes no-clobber).
-  answerType?: "static" | "otp";
+  answerType?: "static" | "otp" | "wordlist";
+  // Wordlist one-time codes (Slice 3, CTFT-14) — WRITE-ONLY plaintext lines the
+  // admin bulk-loads. They are HASHED (via the same hashAnswer seam answers use)
+  // and appended to the CtfCode pool on the write path (see upsertCtf/loadCtfCodes);
+  // plaintext is NEVER persisted and NEVER round-tripped back to the client. The
+  // load is ADD-ONLY: re-saving appends new hashes and skips duplicates, never
+  // overwriting a claim. Not part of the ctfAttributes .set() payload (it is a
+  // separate CtfCode write), so it never lands on the Ctf row.
+  codes?: string[];
   otp?: {
     secret?: string;
     digits?: number;
@@ -407,6 +415,84 @@ export function ctfAttributes(input: CtfInput) {
 }
 
 /**
+ * Pure bulk-hash of admin-pasted wordlist codes (Slice 3, CTFT-14).
+ *
+ * Trims each line, drops blanks, and hashes each surviving line with `hashAnswer`
+ * — the SAME salted seam the judge (56-02) claims a submitted guess against, so a
+ * loaded code and a later guess of that code hash IDENTICALLY. De-dups WITHIN the
+ * batch by codeHash (a repeated line counts toward `duplicates`, not `added`), so
+ * a paste with accidental repeats loads each distinct code exactly once.
+ *
+ * Returns the DISTINCT `codeHashes`, `added = codeHashes.length`, and
+ * `duplicates = survivingLines - added`. Plaintext never appears in the output —
+ * only salted hashes cross this boundary. PURE (no DB): the add-only write lives
+ * in `loadCtfCodes` / `upsertCtf`, keeping this unit-testable like `ctfAttributes`.
+ */
+export function hashCodeBatch(lines: string[]): {
+  codeHashes: string[];
+  added: number;
+  duplicates: number;
+} {
+  const seen = new Set<string>();
+  const codeHashes: string[] = [];
+  let surviving = 0;
+  for (const raw of lines) {
+    const line = (raw ?? "").trim();
+    if (line === "") continue; // drop blank lines
+    surviving++;
+    const codeHash = hashAnswer(line);
+    if (seen.has(codeHash)) continue; // in-batch de-dup (counts as a duplicate)
+    seen.add(codeHash);
+    codeHashes.push(codeHash);
+  }
+  return { codeHashes, added: codeHashes.length, duplicates: surviving - codeHashes.length };
+}
+
+/**
+ * Add-only bulk load of wordlist codes into the CtfCode pool (Slice 3, CTFT-14).
+ *
+ * Hashes the plaintext lines (via `hashCodeBatch`) and `CtfCode.create`s one row
+ * per distinct codeHash. The create is guarded so a codeHash ALREADY in the pool
+ * is a no-op — never a `.set()`/overwrite of an existing `claimedBy` (add-only,
+ * so a re-save can never un-claim or reveal a loaded code). NEVER logs the
+ * plaintext lines. Returns the batch stats for a non-blocking admin confirmation.
+ */
+async function loadCtfCodes(
+  challenge: string,
+  lines: string[]
+): Promise<{ added: number; duplicates: number }> {
+  const { codeHashes, added, duplicates } = hashCodeBatch(lines);
+  for (const codeHash of codeHashes) {
+    try {
+      await CtfCode.create({ challenge, codeHash }).go();
+    } catch {
+      // A codeHash already in the pool collides on the create's existence
+      // condition — swallow it (add-only no-op). Never re-throw; never log the
+      // plaintext. Any other transient error simply skips this one code.
+    }
+  }
+  return { added, duplicates };
+}
+
+/**
+ * Wordlist pool status for the admin edit view (Slice 3, CTFT-14). Read-only:
+ * counts the CtfCode rows for a challenge and how many remain unclaimed. Only
+ * aggregate counts leave the server — a plaintext code is NEVER read back (the
+ * entity has no plaintext attribute; `claimedBy` presence is the claimed flag).
+ */
+export async function getCtfCodeCounts(
+  challenge: string
+): Promise<{ loaded: number; unclaimed: number }> {
+  const c = normalizeChallenge(challenge);
+  const result = await CtfCode.query.primary({ challenge: c }).go({ pages: "all" });
+  const rows = result.data;
+  return {
+    loaded: rows.length,
+    unclaimed: rows.filter((r) => !r.claimedBy).length,
+  };
+}
+
+/**
  * Create or update a CTF challenge. Challenge name is lowercase-normalized.
  * Same create-or-patch semantics as upsertQr. Returns the normalized challenge.
  */
@@ -440,6 +526,13 @@ export async function upsertCtf(input: CtfInput): Promise<string> {
     await patch.go();
   } else {
     await Ctf.create({ challenge, ...attrs }).go();
+  }
+  // Wordlist bulk load (Slice 3, CTFT-14): after the Ctf row is written, append
+  // any pasted one-time codes to the CtfCode pool — ADD-ONLY (existing codes are
+  // never overwritten or un-claimed), hashed server-side, plaintext never stored.
+  // Runs for both create and edit; an omitted/empty `codes` is a no-op.
+  if (input.codes?.length) {
+    await loadCtfCodes(challenge, input.codes);
   }
   return challenge;
 }
