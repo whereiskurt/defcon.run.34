@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { CtfSolve, CtfScoreEvent, CtfPending, CtfAttempt } from "@/entities/ctf";
+import {
+  CtfSolve,
+  CtfScoreEvent,
+  CtfCode,
+  CtfPending,
+  CtfAttempt,
+} from "@/entities/ctf";
 
 /**
  * Key-parity lock for the Phase-44 CTF judge entities (CTF-01 SC-4).
@@ -57,6 +63,21 @@ describe("CtfScoreEvent key parity", () => {
       .params({ table });
     expect(params.IndexName).toBe("gsi1pk-gsi1sk-index");
     expect(params.ExpressionAttributeValues[":pk"]).toBe("$run#user_user-123");
+  });
+});
+
+describe("CtfCode key parity", () => {
+  it("encodes the primary (challenge, codeHash) single-use claim Key", () => {
+    // codeHash is a stand-in salted hash; the plaintext code is never stored.
+    const key = CtfCode.get({ challenge: "sao", codeHash: "deadbeef" }).params({
+      table,
+    }).Key;
+    // This exact sk is the `attribute_not_exists(claimedBy)` claim target the
+    // 56-02 judge conditional-updates against — pinned so it can never drift.
+    expect(key).toEqual({
+      pk: "$run#challenge_sao",
+      sk: "$ctfcode_1#codehash_deadbeef",
+    });
   });
 });
 
