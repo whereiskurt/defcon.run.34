@@ -5,7 +5,14 @@ import { useRouter } from "next/navigation";
 
 import { cls } from "./qr-ui";
 import { postQrAction } from "./qr-api";
-import type { RedactedCtfRecord } from "./ctf-form-model";
+import {
+  presetToAdvanced,
+  inferAnswerType,
+  inferChallengeType,
+  PRESET_IDS,
+  type ChallengeTypePreset,
+  type RedactedCtfRecord,
+} from "./ctf-form-model";
 
 /**
  * The shape the form receives on edit. This is EXACTLY the redacted record the
@@ -66,14 +73,24 @@ const TIER_PRESET = {
   }),
 };
 
+/** Display labels for the challenge-type segmented control (order = PRESET_IDS). */
+const PRESET_LABEL: Record<ChallengeTypePreset, string> = {
+  "flat-points": "Flat points",
+  "first-blood-race": "First-blood race",
+  "timed-drop": "Timed drop",
+  "easter-egg": "Easter egg",
+  custom: "Custom",
+};
+
+type AnswerType = "static" | "otp";
+
 /**
- * Create/edit form for a CTF challenge. NOTE: the live resolver forwards
- * /ctf/<challenge>/<value> verbatim and never reads this row — these records are
- * data-prep for the Phase-44 judge. Challenge names are lowercase-normalized
- * server-side. `effect` is a free-form JSON object. The answer is HASHED on the
- * server (ctf_upsert → ctfAttributes); the client never hashes and never
- * prefills a plaintext answer on edit — a blank answer field keeps the stored
- * hash untouched.
+ * Create/edit form for a CTF challenge (design "A" — Slice 1b). NOTE: the live
+ * resolver forwards /ctf/<challenge>/<value> verbatim and never reads this row —
+ * these records are data-prep for the Phase-44 judge. Challenge names are
+ * lowercase-normalized server-side. The answer + OTP secret + effect are HASHED
+ * / stored on the server (ctf_upsert → ctfAttributes); the client never hashes
+ * and never prefills a secret on edit — a blank field keeps the stored value.
  */
 export default function CtfForm({
   initial,
@@ -85,13 +102,23 @@ export default function CtfForm({
   const router = useRouter();
   const isEdit = mode === "edit";
   const hasStoredAnswer = Boolean(initial?.answerHash);
+  const hasOtpSecret = Boolean(initial?.hasOtpSecret);
 
   const [challenge, setChallenge] = useState(initial?.challenge ?? "");
-  // Never prefill the answer on edit — the row no longer carries plaintext.
-  const [answer, setAnswer] = useState("");
-  const [points, setPoints] = useState(
-    initial?.points !== undefined ? String(initial.points) : ""
+
+  // Segmented selections. In edit mode, recover them from the loaded record.
+  const [challengeType, setChallengeType] = useState<ChallengeTypePreset>(
+    initial ? inferChallengeType(initial) : "custom"
   );
+  const [answerType, setAnswerType] = useState<AnswerType>(
+    initial ? inferAnswerType(initial) : "static"
+  );
+
+  // Never prefill the answer/OTP secret on edit — the row carries no plaintext.
+  const [answer, setAnswer] = useState("");
+  const [otpSecret, setOtpSecret] = useState("");
+
+  // ── Advanced scoring knobs (presets pre-fill these; drawer UI in Task 3) ──
   const [pointMax, setPointMax] = useState(
     initial?.pointMax !== undefined ? String(initial.pointMax) : ""
   );
@@ -123,6 +150,22 @@ export default function CtfForm({
   // `effect`; `hasEffect` only drives the keep-hint). Blank on save keeps stored.
   const [effectText, setEffectText] = useState("");
 
+  // ── Scoring window & limits (Section 4) ──
+  const [perPlayerIntervalHours, setPerPlayerIntervalHours] = useState(
+    initial?.perPlayerIntervalHours !== undefined
+      ? String(initial.perPlayerIntervalHours)
+      : ""
+  );
+  const [perPlayerMax, setPerPlayerMax] = useState(
+    initial?.perPlayerMax !== undefined ? String(initial.perPlayerMax) : ""
+  );
+  const [globalMax, setGlobalMax] = useState(
+    initial?.globalMax !== undefined ? String(initial.globalMax) : ""
+  );
+
+  // ── Unlock & chaining (Section 5) ──
+  const [unlockAfter, setUnlockAfter] = useState(initial?.unlockAfter ?? "");
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -135,6 +178,23 @@ export default function CtfForm({
 
   function updateTier(id: string, patch: Partial<TierRow>) {
     setTiers((ts) => ts.map((t) => (t._id === id ? { ...t, ...patch } : t)));
+  }
+
+  /**
+   * Pick a challenge-type preset: record the selection AND pre-fill the Advanced
+   * scoring knobs from the pure `presetToAdvanced` map. The knobs stay fully
+   * editable afterward — a preset never locks them (T-54-04-02). `custom` is a
+   * no-op that leaves the admin's manual knobs untouched.
+   */
+  function applyPreset(id: ChallengeTypePreset) {
+    setChallengeType(id);
+    const knobs = presetToAdvanced(id);
+    if (knobs.pointMax !== undefined) setPointMax(String(knobs.pointMax));
+    if (knobs.pointFloor !== undefined) setPointFloor(String(knobs.pointFloor));
+    if (knobs.maxSolves !== undefined) setMaxSolves(String(knobs.maxSolves));
+    if (knobs.firstBloodBonus !== undefined) setFirstBloodBonus(String(knobs.firstBloodBonus));
+    if (knobs.maxAttempts !== undefined) setMaxAttempts(String(knobs.maxAttempts));
+    if (knobs.rateLimitWindow !== undefined) setRateLimitWindow(String(knobs.rateLimitWindow));
   }
 
   async function onSave() {
@@ -153,18 +213,26 @@ export default function CtfForm({
       const timeTiers = tiers
         .filter((t) => (t.from ?? "").trim() !== "" || (t.to ?? "").trim() !== "")
         .map((t) => ({ from: t.from, to: t.to, ceiling: numOrUndef(t.ceiling ?? "") }));
+      const otpSecretTrimmed = otpSecret.trim();
       const ctf = {
         challenge,
-        // Send plaintext; the server hashes it (the client never hashes). A
-        // blank field on edit tells the server to keep the existing answerHash.
+        // Send plaintext answer; the server hashes it (the client never hashes). A
+        // blank field on edit keeps the existing answerHash.
         answer,
-        points: numOrUndef(points),
+        answerType,
+        // Only send the OTP secret when the admin typed a new one — blank keeps
+        // the stored secret (no-clobber, T-54-04-03).
+        ...(otpSecretTrimmed !== "" ? { otp: { secret: otpSecretTrimmed } } : {}),
         pointMax: numOrUndef(pointMax),
         pointFloor: numOrUndef(pointFloor),
         maxSolves: numOrUndef(maxSolves),
         firstBloodBonus: numOrUndef(firstBloodBonus),
         maxAttempts: numOrUndef(maxAttempts),
         rateLimitWindow: numOrUndef(rateLimitWindow),
+        perPlayerIntervalHours: numOrUndef(perPlayerIntervalHours),
+        perPlayerMax: numOrUndef(perPlayerMax),
+        globalMax: numOrUndef(globalMax),
+        ...(unlockAfter.trim() !== "" ? { unlockAfter: unlockAfter.trim() } : {}),
         enabled,
         ...(timeTiers.length ? { timeTiers } : {}),
         ...(effect !== undefined ? { effect } : {}),
@@ -192,14 +260,17 @@ export default function CtfForm({
     }
   }
 
+  const otpSummary = initial?.otp;
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className={cls.root}>
       {error ? (
         <div className="rounded-lg border border-danger text-danger bg-danger/10 px-3.5 py-2.5 text-sm">
           {error}
         </div>
       ) : null}
 
+      {/* ── Section 1 — Name ─────────────────────────────────────────────── */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Challenge name</label>
         <input
@@ -218,21 +289,186 @@ export default function CtfForm({
         </p>
       </div>
 
+      {/* ── Section 2 — Challenge type (presets) ─────────────────────────── */}
       <div className={cls.cardPad}>
-        <label className={cls.label}>Answer</label>
-        <input
-          className={cls.input}
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder={isEdit && hasStoredAnswer ? "•••••• (leave blank to keep)" : ""}
-        />
+        <label className={cls.label}>Challenge type</label>
+        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Challenge type">
+          {PRESET_IDS.map((id) => {
+            const active = challengeType === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={`${cls.segment} ${active ? cls.segmentActive : cls.segmentIdle}`}
+                onClick={() => applyPreset(id)}
+              >
+                {PRESET_LABEL[id]}
+              </button>
+            );
+          })}
+        </div>
         <p className="text-[12.5px] text-default-500 mt-2">
-          {isEdit && hasStoredAnswer
-            ? "An answer is already set (stored hashed). Leave this blank to keep it; type a new answer only to replace it."
-            : "Hashed on save — the plaintext answer is never stored."}
+          Presets pre-fill the Advanced scoring knobs below. You can still edit every
+          knob after picking one.
         </p>
       </div>
 
+      {/* ── Section 3 — Answer type ──────────────────────────────────────── */}
+      <div className={cls.cardPad}>
+        <label className={cls.label}>Answer type</label>
+        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Answer type">
+          {(
+            [
+              ["static", "Static"],
+              ["otp", "Rotating OTP"],
+            ] as Array<[AnswerType, string]>
+          ).map(([id, lbl]) => {
+            const active = answerType === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                className={`${cls.segment} ${active ? cls.segmentActive : cls.segmentIdle}`}
+                onClick={() => setAnswerType(id)}
+              >
+                {lbl}
+              </button>
+            );
+          })}
+        </div>
+
+        {answerType === "static" ? (
+          /* Section 3a — Static */
+          <div className="mt-3.5">
+            <label className={cls.label}>Answer</label>
+            <input
+              className={cls.input}
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder={isEdit && hasStoredAnswer ? "•••••• (leave blank to keep)" : ""}
+            />
+            <p className="text-[12.5px] text-default-500 mt-2">
+              {isEdit && hasStoredAnswer
+                ? "An answer is already set (stored hashed). Leave blank to keep it; type a new answer only to replace it."
+                : "Hashed on save — the plaintext answer is never stored."}
+            </p>
+          </div>
+        ) : (
+          /* Section 3b — Rotating OTP */
+          <div className="mt-3.5">
+            <label className={cls.label}>OTP secret (otpauth://)</label>
+            <input
+              className={cls.input}
+              value={otpSecret}
+              onChange={(e) => setOtpSecret(e.target.value)}
+              placeholder={
+                isEdit && hasOtpSecret
+                  ? "•••••• (set — leave blank to keep)"
+                  : "otpauth://totp/..."
+              }
+            />
+            {otpSummary &&
+            (otpSummary.digits !== undefined ||
+              otpSummary.period !== undefined ||
+              otpSummary.algorithm !== undefined) ? (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {otpSummary.digits !== undefined ? (
+                  <span className={cls.chip}>{otpSummary.digits} digits</span>
+                ) : null}
+                {otpSummary.period !== undefined ? (
+                  <span className={cls.chip}>{otpSummary.period}s period</span>
+                ) : null}
+                {otpSummary.algorithm !== undefined ? (
+                  <span className={cls.chip}>{otpSummary.algorithm}</span>
+                ) : null}
+              </div>
+            ) : null}
+            <p className="text-[12.5px] text-default-500 mt-2">
+              The runner submits the current 6-digit code from their authenticator. The
+              shared secret is stored so the judge can verify it, and is never shown
+              again after you save.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 4 — Scoring window & limits ──────────────────────────── */}
+      <div className={cls.cardPad}>
+        <label className={cls.label}>Scoring window &amp; limits</label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label className={cls.label}>Interval (hours)</label>
+            <input
+              className={cls.input}
+              inputMode="numeric"
+              value={perPlayerIntervalHours}
+              onChange={(e) => setPerPlayerIntervalHours(e.target.value)}
+            />
+            <p className="text-[12.5px] text-default-500 mt-1.5">
+              Min hours between a player&apos;s scoring solves
+            </p>
+          </div>
+          <div>
+            <label className={cls.label}>Per-player max</label>
+            <input
+              className={cls.input}
+              inputMode="numeric"
+              value={perPlayerMax}
+              onChange={(e) => setPerPlayerMax(e.target.value)}
+            />
+            <p className="text-[12.5px] text-default-500 mt-1.5">
+              Max scoring solves per player
+            </p>
+          </div>
+          <div>
+            <label className={cls.label}>Global max</label>
+            <input
+              className={cls.input}
+              inputMode="numeric"
+              value={globalMax}
+              onChange={(e) => setGlobalMax(e.target.value)}
+            />
+            <p className="text-[12.5px] text-default-500 mt-1.5">
+              Hard global cutoff — flag stops scoring for everyone after this many
+              solves. Blank / 0 = unlimited. (Different from Max solves, which is the
+              scoring-curve denominator.)
+            </p>
+          </div>
+        </div>
+
+        <p className="text-[12.5px] text-default-500 mt-3">
+          This flag awards points once per scoring window. Repeatable flags (Rotating
+          OTP, or per-player max &gt; 1) score again after the interval; one-award flags
+          score once ever.
+        </p>
+
+        <div className="mt-3 rounded-lg border border-divider bg-content2 px-3 py-2.5 text-[12.5px] text-default-500">
+          Day / time / timezone windows arrive in a later update. For now this flag
+          scores at any time within its limits.
+        </div>
+      </div>
+
+      {/* ── Section 5 — Unlock & chaining ────────────────────────────────── */}
+      <div className={cls.cardPad}>
+        <label className={cls.label}>Unlock &amp; chaining</label>
+        <label className={cls.label}>Hidden until flag</label>
+        <input
+          className={cls.input}
+          value={unlockAfter}
+          onChange={(e) => setUnlockAfter(e.target.value)}
+          placeholder="another-flag-name"
+        />
+        <p className="text-[12.5px] text-default-500 mt-2">
+          This flag stays hidden and non-scoring until the player has scored the named
+          flag. Renaming that flag breaks the chain — update both together.
+        </p>
+      </div>
+
+      {/* ── ADVANCED KNOBS (folded into the Advanced drawer in Task 3) ───── */}
       {/* Scoring curve */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Scoring</label>
@@ -350,19 +586,13 @@ export default function CtfForm({
             ))}
           </div>
         )}
+        <p className="text-[12.5px] text-default-500 mt-2.5">
+          Most a solve is worth while this window is active — replaces Point max.
+        </p>
       </div>
 
       <div className={cls.cardPad}>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <div>
-            <label className={cls.label}>Points</label>
-            <input
-              className={cls.input}
-              inputMode="numeric"
-              value={points}
-              onChange={(e) => setPoints(e.target.value)}
-            />
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <div>
             <label className={cls.label}>Max attempts</label>
             <input
@@ -380,6 +610,9 @@ export default function CtfForm({
               value={rateLimitWindow}
               onChange={(e) => setRateLimitWindow(e.target.value)}
             />
+            <p className="text-[12.5px] text-default-500 mt-1.5">
+              N wrong guesses per X seconds — not a solve limit.
+            </p>
           </div>
         </div>
         <label className="flex gap-2 items-center text-sm mt-3">
@@ -394,10 +627,21 @@ export default function CtfForm({
           className={cls.textarea}
           value={effectText}
           onChange={(e) => setEffectText(e.target.value)}
-          placeholder={'{ "kind": "confetti", "intensity": 11 }'}
+          placeholder={
+            isEdit && initial?.hasEffect
+              ? "leave blank to keep the configured effect"
+              : '{ "kind": "confetti", "intensity": 11 }'
+          }
         />
+        {isEdit && initial?.hasEffect ? (
+          <p className="text-[12.5px] text-default-500 mt-2">
+            An effect is already configured. Leave blank to keep it; paste new JSON only
+            to replace it.
+          </p>
+        ) : null}
       </div>
 
+      {/* ── Actions ──────────────────────────────────────────────────────── */}
       <div className="flex gap-2.5 items-center">
         <button type="button" className={cls.btnPrimary} onClick={onSave} disabled={busy}>
           {busy ? "Saving…" : isEdit ? "Save changes" : "Create challenge"}
