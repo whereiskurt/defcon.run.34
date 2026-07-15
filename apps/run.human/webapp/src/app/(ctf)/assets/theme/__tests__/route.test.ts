@@ -232,6 +232,21 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     expect(body).not.toContain(AWARD_PROP);
   });
 
+  it("ignores an extra cache-bust query param (client appends &_= to defeat browser caching)", async () => {
+    // The covert client now cache-busts with `&_=<token>` so repeat fires re-hit
+    // the server; the route must still read `v` and credit the solve.
+    const ctx = makeCtfStore(fixtureCtf());
+    const pending = makePendingStore();
+    const url = `https://run.defcon.run/use1/assets/theme?v=${encodeURIComponent(winV())}&_=xk3f9`;
+    const res = await handleCovert(
+      new Request(url),
+      makeDeps({ store: ctx.store, pendingStore: pending.store, log: () => {}, userId: "u1" }),
+    );
+    const body = await res.text();
+    expect(body).toContain(AWARD_PROP); // credited despite the extra param
+    expect(ctx.userScore.get("u1")?.solves).toBe(1);
+  });
+
   it("idempotent re-fire: second win returns the prior award and never double-scores", async () => {
     const ctx = makeCtfStore(fixtureCtf());
     const first = await run({ v: winV(), userId: "u1", ctxOverride: ctx });

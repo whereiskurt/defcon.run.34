@@ -98,11 +98,39 @@ export function clearPending(v: string): void {
 }
 
 /**
+ * Monotonic per-page counter feeding the cache-buster below. Guarantees a
+ * distinct token for every fire within a page load (even two in the same ms).
+ */
+let _cbSeq = 0;
+
+/**
+ * A unique-per-fire token for the covert URL. The covert URL for a given
+ * (challenge, guess) is otherwise DETERMINISTIC, so a second `<link>` to the same
+ * href is served from the browser's in-memory cache WITHOUT a network request
+ * (memory cache reuses an identical in-page subresource even under `no-store`).
+ * That silently blocks every repeat `!!!` from re-hitting the judge — the score
+ * never changes. A time component (differs across page loads / any CDN) plus the
+ * monotonic counter (differs within a page load) makes each fire a real request.
+ * The server reads ONLY `v` and ignores this param.
+ */
+function defaultCacheBust(): string {
+  return `${Date.now().toString(36)}${(_cbSeq++).toString(36)}`;
+}
+
+/**
  * Inject the covert stylesheet for an already-encoded v, resolve on its load (or
  * a timeout fallback), read the award back via computed style, remove the link,
  * and report the win. The win decision derives SOLELY from `readAward()`.
+ *
+ * The href carries a unique `&_=` cache-buster (see defaultCacheBust) so a repeat
+ * fire of the SAME flag always re-hits the server instead of the browser cache —
+ * without it, re-tests / the admin re-score override never reach the judge.
  */
-export function fireCovert(v: string, onResult: (win: boolean) => void): void {
+export function fireCovert(
+  v: string,
+  onResult: (win: boolean) => void,
+  deps: { cacheBust?: () => string } = {},
+): void {
   if (typeof document === "undefined") {
     onResult(false);
     return;
@@ -127,8 +155,9 @@ export function fireCovert(v: string, onResult: (win: boolean) => void): void {
     }
     onResult(win);
   };
+  const bust = (deps.cacheBust ?? defaultCacheBust)();
   link.rel = "stylesheet";
-  link.href = buildCovertUrlFromV(v);
+  link.href = `${buildCovertUrlFromV(v)}&_=${bust}`;
   link.addEventListener("load", finish);
   link.addEventListener("error", finish);
   timer = setTimeout(finish, LOAD_TIMEOUT_MS);
