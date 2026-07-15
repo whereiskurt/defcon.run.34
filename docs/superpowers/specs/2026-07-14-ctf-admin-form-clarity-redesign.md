@@ -1,7 +1,11 @@
 # CTF Admin Form — Clarity Redesign
 
+> **SUPERSEDED by `2026-07-14-ctf-flag-types-and-form-redesign-design.md`.**
+> This clarity redesign ("A") is folded into that combined spec as Slice 1's form work.
+> Kept for history; build from the combined spec.
+
 **Date:** 2026-07-14
-**Status:** Approved (design)
+**Status:** Superseded (folded into the combined flag-types spec)
 **Scope:** Frontend-only redesign of the "New/Edit CTF challenge" admin form.
 **Author:** Kurt + Claude
 **Related:** `project_ctf_judge_v21` (v2.1 CTF judge), the `dc34-egg` easter egg seed.
