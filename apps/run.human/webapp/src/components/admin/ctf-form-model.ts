@@ -22,6 +22,7 @@
 
 import { computePoints, type ScoringConfig, type TimeTier } from "@/lib/ctf-scoring";
 import { parseOtpauth } from "@/lib/ctf-otp-core";
+import { TZ_OPTIONS, type ScoreWindow } from "@/lib/ctf-score-window";
 
 // ---------------------------------------------------------------------------
 // Rotating-OTP answer field (CR-01)
@@ -233,6 +234,52 @@ export function inferChallengeType(record: InferSource): ChallengeTypePreset {
 }
 
 // ---------------------------------------------------------------------------
+// Scoring-window form-state bridge (Slice 2, CTFT-09/11)
+// ---------------------------------------------------------------------------
+//
+// The picker's local state uses a PT/ET/UTC LABEL (what the admin sees); the row
+// persists the IANA `tz` id. These two pure helpers are the ONLY place that maps
+// between them, via the shared `TZ_OPTIONS` source of truth — so save (label→IANA)
+// and edit-mode rehydrate (IANA→label) can never drift. `ctf-score-window` gives us
+// only the type + the constant list — no judge, no electro — keeping this module
+// client-safe.
+
+/** The picker's local state: a toggle, the day set, wall-clock bounds, and a label. */
+export interface ScoreWindowFormState {
+  enabled: boolean;
+  days: number[];
+  from: string;
+  to: string;
+  /** A PT/ET/UTC label from TZ_OPTIONS (NOT the IANA id — that is derived on save). */
+  tzLabel: string;
+}
+
+/**
+ * Form state → the `ScoreWindow` the row persists, or `undefined` when the toggle
+ * is off. Off ⇒ nothing persisted (matching the UI-SPEC's "toggling off clears the
+ * payload"), which the judge reads as always-open. On ⇒ resolve `tzLabel` to its
+ * IANA id via `TZ_OPTIONS` (unknown label falls back to UTC, the safe global zone).
+ */
+export function formStateToScoreWindow(state: ScoreWindowFormState): ScoreWindow | undefined {
+  if (!state.enabled) return undefined;
+  const tz = TZ_OPTIONS.find((o) => o.label === state.tzLabel)?.tz ?? "UTC";
+  return { days: state.days, from: state.from, to: state.to, tz };
+}
+
+/**
+ * Persisted `ScoreWindow` → the picker's form state. Absent window ⇒ the disabled
+ * default (`enabled:false`, empty fields, PT label ready for a first edit). Present
+ * ⇒ rehydrate enabled, mapping the stored IANA id BACK to its PT/ET/UTC label via
+ * `TZ_OPTIONS`; an unknown/unmapped IANA id falls back to the "UTC" label
+ * (documented) so the picker still renders a valid selection.
+ */
+export function scoreWindowToFormState(w: ScoreWindow | undefined): ScoreWindowFormState {
+  if (!w) return { enabled: false, days: [], from: "", to: "", tzLabel: "PT" };
+  const tzLabel = TZ_OPTIONS.find((o) => o.tz === w.tz)?.label ?? "UTC";
+  return { enabled: true, days: w.days, from: w.from, to: w.to, tzLabel };
+}
+
+// ---------------------------------------------------------------------------
 // Write-only-secret boundary (SC-2 / T-54-01-01)
 // ---------------------------------------------------------------------------
 //
@@ -261,6 +308,9 @@ export interface LoadedCtfRecord {
   perPlayerIntervalHours?: number;
   perPlayerMax?: number;
   globalMax?: number;
+  // Additive day/time/tz scoring window (Slice 2). Carries no secret — preserved
+  // through redaction so the edit page can rehydrate the picker.
+  scoreWindow?: ScoreWindow;
   // Presence-only hint driver; carries no plaintext, so it is left as-is.
   answerHash?: string;
   // ⚠️ `secret` is write-only and MUST NOT survive redaction.
@@ -286,6 +336,8 @@ export interface RedactedCtfRecord {
   perPlayerIntervalHours?: number;
   perPlayerMax?: number;
   globalMax?: number;
+  /** Day/time/tz scoring window — non-secret, preserved so the picker rehydrates. */
+  scoreWindow?: ScoreWindow;
   answerHash?: string;
   /** OTP summary for the read-only display — NEVER the secret. */
   otp?: { digits?: number; period?: number; algorithm?: string };
@@ -324,6 +376,8 @@ export function redactCtfSecrets(record: LoadedCtfRecord): RedactedCtfRecord {
     perPlayerIntervalHours: record.perPlayerIntervalHours,
     perPlayerMax: record.perPlayerMax,
     globalMax: record.globalMax,
+    // Non-secret — preserved so the edit page can rehydrate the day/time/tz picker.
+    scoreWindow: record.scoreWindow,
     answerHash: record.answerHash,
     hasOtpSecret,
     hasEffect,
