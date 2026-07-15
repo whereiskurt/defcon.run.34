@@ -60,7 +60,7 @@ const RFC4648_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
  * `=`-pad to a multiple of 8, then decode. Throws on any character outside the
  * alphabet (callers that must never throw wrap this in try/catch).
  */
-export function base32Decode(input: string): Uint8Array {
+export function base32Decode(input: string): Uint8Array<ArrayBuffer> {
   let s = input.toUpperCase().replace(/\s+/g, "");
   // Pad with '=' to a multiple of 8 (matches the Go's manual padding).
   if (s.length % 8 !== 0) {
@@ -91,7 +91,7 @@ export function base32Decode(input: string): Uint8Array {
  * 8-byte big-endian counter → Uint8Array (matches Go's binary.BigEndian.PutUint64).
  * Uses DataView.setBigUint64 (browser-safe) instead of the node-only writer.
  */
-export function counterBytes(counter: number): Uint8Array {
+export function counterBytes(counter: number): Uint8Array<ArrayBuffer> {
   const buf = new Uint8Array(8);
   const view = new DataView(buf.buffer);
   // counter fits comfortably in a JS safe integer for any realistic unix time.
