@@ -13,6 +13,30 @@ function generateDisplayName(): string {
 }
 
 /**
+ * Drop keys whose value is null or undefined from a provider profile object.
+ *
+ * OAuth providers return `null` (not `undefined`) for optional fields the user
+ * hasn't set — Strava notably sends `city`/`state`/`country: null` for athletes
+ * with no location. The AuthProfile map attributes are typed as non-nullable
+ * `string`/`number`, so a single `null` makes ElectroDB reject the ENTIRE
+ * upsert (ElectroValidationError), silently dropping the whole provider link.
+ * Pruning nullish values lets the populated fields persist. Empty strings and
+ * falsy-but-valid values (0, "") are preserved intentionally.
+ */
+export function pruneNullish<T extends Record<string, unknown>>(
+  obj: T
+): Partial<T> {
+  const out: Partial<T> = {};
+  for (const key of Object.keys(obj) as (keyof T)[]) {
+    const value = obj[key];
+    if (value !== null && value !== undefined) {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+/**
  * AuthProfile Entity
  *
  * Stores cached user profile information from OAuth providers.
@@ -324,15 +348,18 @@ export async function upsertAuthProfile(
     ...(picture ? { picture } : {}),
   };
 
-  // Add provider-specific data with linkedAt timestamp
+  // Add provider-specific data with linkedAt timestamp.
+  // pruneNullish() strips null/undefined fields (e.g. Strava's null city/state/
+  // country) that would otherwise fail ElectroDB's non-nullable type validation
+  // and abort the whole upsert, leaving the provider link unrecorded.
   if (data.discord) {
-    payload.discord = { ...data.discord, linkedAt: now };
+    payload.discord = { ...pruneNullish(data.discord), linkedAt: now };
   }
   if (data.github) {
-    payload.github = { ...data.github, linkedAt: now };
+    payload.github = { ...pruneNullish(data.github), linkedAt: now };
   }
   if (data.strava) {
-    payload.strava = { ...data.strava, linkedAt: now };
+    payload.strava = { ...pruneNullish(data.strava), linkedAt: now };
   }
   if (data.linkedin) {
     payload.linkedin = { ...data.linkedin, linkedAt: now };
