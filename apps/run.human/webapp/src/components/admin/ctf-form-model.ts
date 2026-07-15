@@ -204,12 +204,14 @@ export interface InferSource {
 }
 
 /**
- * Recover the answer-type segment from a stored record. `otp` iff the record
- * explicitly stores it; everything else (including absent) ⇒ `static`, matching
- * the backend's narrowCtf default.
+ * Recover the answer-type segment from a stored record. `otp` / `wordlist` iff the
+ * record explicitly stores that value; everything else (including absent or an
+ * unknown value) ⇒ `static`, matching the backend's narrowCtf default.
  */
-export function inferAnswerType(record: InferSource): "static" | "otp" {
-  return record.answerType === "otp" ? "otp" : "static";
+export function inferAnswerType(record: InferSource): "static" | "otp" | "wordlist" {
+  if (record.answerType === "otp") return "otp";
+  if (record.answerType === "wordlist") return "wordlist";
+  return "static";
 }
 
 /**
@@ -315,7 +317,7 @@ export interface LoadedCtfRecord {
   maxAttempts?: number;
   rateLimitWindow?: number;
   enabled?: boolean;
-  answerType?: "static" | "otp";
+  answerType?: "static" | "otp" | "wordlist";
   unlockAfter?: string;
   perPlayerIntervalHours?: number;
   perPlayerMax?: number;
@@ -323,6 +325,11 @@ export interface LoadedCtfRecord {
   // Additive day/time/tz scoring window (Slice 2). Carries no secret — preserved
   // through redaction so the edit page can rehydrate the picker.
   scoreWindow?: ScoreWindow;
+  // Wordlist pool status (Slice 3, CTFT-14). NON-SECRET aggregate — the loaded /
+  // unclaimed counts, NEVER a plaintext code. Preserved through redaction so the
+  // edit page can render the "N codes loaded · M unclaimed" line. The edit page
+  // attaches it from getCtfCodeCounts; there is no plaintext code field anywhere.
+  codeCounts?: { loaded: number; unclaimed: number };
   // Presence-only hint driver; carries no plaintext, so it is left as-is.
   answerHash?: string;
   // ⚠️ `secret` is write-only and MUST NOT survive redaction.
@@ -343,13 +350,19 @@ export interface RedactedCtfRecord {
   maxAttempts?: number;
   rateLimitWindow?: number;
   enabled?: boolean;
-  answerType?: "static" | "otp";
+  answerType?: "static" | "otp" | "wordlist";
   unlockAfter?: string;
   perPlayerIntervalHours?: number;
   perPlayerMax?: number;
   globalMax?: number;
   /** Day/time/tz scoring window — non-secret, preserved so the picker rehydrates. */
   scoreWindow?: ScoreWindow;
+  /**
+   * Wordlist pool status (Slice 3, CTFT-14) — NON-SECRET aggregate loaded/unclaimed
+   * counts, never a plaintext code. Preserved through redaction so the form can
+   * render the count line without any code ever crossing to the client.
+   */
+  codeCounts?: { loaded: number; unclaimed: number };
   answerHash?: string;
   /** OTP summary for the read-only display — NEVER the secret. */
   otp?: { digits?: number; period?: number; algorithm?: string };
@@ -390,6 +403,9 @@ export function redactCtfSecrets(record: LoadedCtfRecord): RedactedCtfRecord {
     globalMax: record.globalMax,
     // Non-secret — preserved so the edit page can rehydrate the day/time/tz picker.
     scoreWindow: record.scoreWindow,
+    // Non-secret aggregate wordlist counts — carried verbatim (like scoreWindow).
+    // NEVER a plaintext code; drives only the "N loaded · M unclaimed" line.
+    codeCounts: record.codeCounts,
     answerHash: record.answerHash,
     hasOtpSecret,
     hasEffect,

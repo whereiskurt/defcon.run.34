@@ -136,6 +136,14 @@ describe("inferAnswerType — edit-mode answer-type recovery", () => {
   it('returns "static" for an explicit "static"', () => {
     expect(inferAnswerType({ answerType: "static" })).toBe("static");
   });
+
+  it('returns "wordlist" when the record stores answerType "wordlist" (Slice 3)', () => {
+    expect(inferAnswerType({ answerType: "wordlist" })).toBe("wordlist");
+  });
+
+  it('falls back to "static" for an unknown answerType value', () => {
+    expect(inferAnswerType({ answerType: "bogus" })).toBe("static");
+  });
 });
 
 describe("inferChallengeType — edit-mode challenge-type recovery", () => {
@@ -433,5 +441,34 @@ describe("redactCtfSecrets — scoreWindow survives redaction (not a secret)", (
   it("leaves scoreWindow undefined on a record that has none", () => {
     const redacted = redactCtfSecrets({ challenge: "day2" });
     expect(redacted.scoreWindow).toBeUndefined();
+  });
+});
+
+describe("redactCtfSecrets — codeCounts passthrough (Slice 3, wordlist SC3)", () => {
+  it("carries codeCounts through UNCHANGED while still stripping secrets", () => {
+    const codeCounts = { loaded: 12, unclaimed: 5 };
+    const record: LoadedCtfRecord = {
+      challenge: "codes",
+      answerType: "wordlist",
+      codeCounts,
+      // A secret alongside it: the boundary must still strip otp.secret + effect
+      // while the non-secret aggregate counts ride through to the client.
+      otp: { secret: "JBSWY3DPEHPK3PXP", digits: 6, period: 120 },
+      effect: { kind: "confetti" },
+    };
+    const redacted = redactCtfSecrets(record);
+    expect(redacted.codeCounts).toEqual(codeCounts);
+    expect(redacted.answerType).toBe("wordlist");
+    // Secrets still stripped — codeCounts is aggregate, never plaintext.
+    expect(redacted.hasOtpSecret).toBe(true);
+    expect((redacted as { otp?: { secret?: string } }).otp?.secret).toBeUndefined();
+    expect((redacted as unknown as Record<string, unknown>).effect).toBeUndefined();
+    // No plaintext code field is ever introduced onto the redacted record.
+    expect((redacted as unknown as Record<string, unknown>).codes).toBeUndefined();
+  });
+
+  it("leaves codeCounts undefined on a record that has none", () => {
+    const redacted = redactCtfSecrets({ challenge: "no-codes" });
+    expect(redacted.codeCounts).toBeUndefined();
   });
 });
