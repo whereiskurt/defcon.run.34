@@ -24,7 +24,7 @@ export const cls = {
   h1: "font-museo text-2xl font-bold tracking-tight",
   h2: "font-museo text-lg font-semibold",
   sub: "text-sm text-default-500",
-  label: "block text-[11px] uppercase tracking-wide text-default-400 mb-1.5",
+  label: "block font-mono text-[11px] uppercase tracking-wide text-default-400 mb-1.5",
   input:
     "w-full h-9 rounded-lg border border-divider bg-content1 text-foreground text-[13px] px-3 outline-none focus:border-primary",
   textarea:
@@ -49,7 +49,16 @@ export const cls = {
   // control rhythm. Reused by future slices 55/56 (D2).
   segment:
     "inline-flex items-center justify-center h-9 px-3.5 rounded-lg border border-divider text-[13px] font-semibold transition-colors disabled:opacity-50",
-  segmentActive: "bg-primary text-black border-primary",
+  // Stacked (two-line) segment: name over a one-line descriptor, left-aligned.
+  // Used by the challenge-type picker; composes with segmentActive/segmentIdle
+  // for the color state. Keeps the surface's px-3.5 control rhythm.
+  segmentStacked:
+    "flex flex-col items-start justify-center gap-0.5 min-h-[3.25rem] px-3.5 py-2 rounded-lg border border-divider text-left transition-colors disabled:opacity-50",
+  // Selected state (D1): accent border + soft inner glow — a theme-aware
+  // translation of the mockup's inset primary ring + primary-at-9% fill. Reads
+  // correctly in both light and dark app themes (no raw mockup darks).
+  segmentActive:
+    "bg-primary/10 text-foreground border-primary ring-1 ring-inset ring-primary/40",
   segmentIdle: "bg-content1 text-foreground hover:bg-content2",
   // Small status/label pill (e.g. the parsed OTP digits/period/algorithm summary).
   chip:
