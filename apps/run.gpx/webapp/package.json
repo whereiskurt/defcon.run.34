@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/geojson": "^7946.0.14",
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
