@@ -92,23 +92,34 @@ function ResultBody({ result }: { result: JudgeResult }) {
     const reward = asOtpEnrollEffect(result.effect);
     return (
       <>
-        <Trophy className="w-10 h-10 text-primary" />
-        <h2 className="font-museo text-2xl font-bold text-foreground">
-          Flag captured!
-        </h2>
-        {result.firstBlood && (
-          <Chip color="danger" variant="flat" className="font-semibold">
-            🩸 First blood
-          </Chip>
-        )}
-        <p className="font-museo text-4xl font-bold text-primary">
-          +{result.points}
-        </p>
-        <p className="text-sm text-default-500">
-          {result.ordinal ? `Solve #${result.ordinal}` : "points scored"}
-        </p>
+        {/* Celebration header — tightened into one cluster so it reads as a single
+            unit above the (self-contained dark) reward reveal it frames. */}
+        <div className="flex flex-col items-center gap-2">
+          <Trophy className="w-10 h-10 text-primary" />
+          <h2 className="font-museo text-2xl font-bold text-foreground">
+            Flag captured!
+          </h2>
+          {result.firstBlood && (
+            <Chip color="danger" variant="flat" className="font-semibold">
+              🩸 First blood
+            </Chip>
+          )}
+          <div className="flex flex-col items-center gap-0.5">
+            <p className="font-museo text-4xl font-bold text-primary leading-none">
+              +{result.points}
+            </p>
+            <p className="text-sm text-default-500">
+              {result.ordinal ? `Solve #${result.ordinal}` : "points scored"}
+            </p>
+          </div>
+        </div>
+        {/* JudgeResult carries no flag/challenge display name, so flagName is
+            intentionally omitted → CtfOtpEnroll falls back to "✓ Correct". The
+            reward card is self-contained bespoke-dark; center it under the header. */}
         {reward && (
-          <CtfOtpEnroll otpauth={reward.otpauth} nextFlag={reward.nextFlag} />
+          <div className="w-full flex justify-center pt-1">
+            <CtfOtpEnroll otpauth={reward.otpauth} nextFlag={reward.nextFlag} />
+          </div>
         )}
       </>
     );
