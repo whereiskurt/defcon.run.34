@@ -594,7 +594,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 54-03-PLAN.md — otp-enroll reward renderer (CtfOtpEnroll: QR + rolling code + deep link + next flag) wired into non-covert ClaimClient + covert-invariant test (CTFT-08) [wave 2]
+- [x] 54-03-PLAN.md — otp-enroll reward renderer (CtfOtpEnroll: QR + rolling code + deep link + next flag) wired into non-covert ClaimClient + covert-invariant test (CTFT-08) [wave 2]
 
 **Wave 3** *(blocked on Wave 2)*
 

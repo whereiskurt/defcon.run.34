@@ -4,15 +4,15 @@ milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-15T09:30:00.000Z"
+last_updated: "2026-07-15T10:00:00.000Z"
 last_activity: 2026-07-15
-last_activity_desc: Phase 54 Plan 02 complete (browser-safe OTP core split + adjacentCodesAsync)
+last_activity_desc: Phase 54 Plan 03 complete (otp-enroll reward renderer CtfOtpEnroll + ClaimClient dispatch + covert-invariant test)
 progress:
   total_phases: 25
   completed_phases: 12
   total_plans: 53
-  completed_plans: 48
-  percent: 48
+  completed_plans: 49
+  percent: 49
 current_phase: 54
 current_phase_name: ctf-flag-types-slice-1b-frontend-admin-form-redesign-otp-enr
 ---
@@ -114,6 +114,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 53-03: CtfStore flag-types ops OPTIONAL (static seam stays type-clean); absent op == locked/degraded non-solve; globalMax off atomic ordinal
 - [Phase 54]: 54-01: pure client-safe ctf-form-model seam — presetToAdvanced (5 distinct preset tuples so inferChallengeType round-trips), previewPoints delegates to computePoints (preview===judge parity, no duplicate curve), redactCtfSecrets strips otp.secret+effect before server→client prop (SC-2 boundary); imports ONLY @/lib/ctf-scoring, never the judge module. 19 tests, full suite 498 green.
 - [Phase 54]: 54-02: split ctf-otp into node-free ctf-otp-core.ts (shared base32Decode→Uint8Array, DataView counterBytes, RFC-4226 truncateHotp, parseOtpauth, DEFAULT_* + types) re-exported by node ctf-otp.ts (every Phase-53 signature intact, existing tests untouched); new browser ctf-otp-client.ts adjacentCodesAsync via globalThis.crypto.subtle HMAC-SHA1 — no node import, no server-module import, no new dependency — parity-tested vs sync adjacentCodes across a secret×time×period matrix + RFC-6238 anchor. Full suite 536 green.
+- [Phase 54]: 54-03: first client effect.kind handler — ctf-otp-enroll.ts asOtpEnrollEffect narrows unknown JudgeResult.effect → OtpEnrollEffect|null (kind+non-empty-otpauth+parseOtpauth in try/catch; never throws), new CtfOtpEnroll.tsx "use client" reward card (real QR via existing qrcode dep on a white quiet zone + rolling prev/CURRENT/next code + self-correcting 1s countdown via 54-02 adjacentCodesAsync + otpauth deep link + copy-setup-link + conditional next-flag), dispatched ONLY in ClaimClient's solved&&points>0 branch. Covert-invariant disk-read test (covert-egg/EggTrigger/CtfCelebration/ctf-covert-css/assets-theme carry no reward token) + git-diff-stat gate prove covert channel byte-untouched. 15 new tests. LANDMINE: an inadvertent `git stash` (prohibited — shared across worktrees) shelved the uncommitted ClaimClient edit; recovered via targeted `git stash apply stash@{0}` + drop, sibling stashes preserved, zero loss.
 
 ### Pending Todos
 
@@ -126,9 +127,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-15T09:30:00.000Z
-Stopped at: Completed 54-02-PLAN.md (browser-safe OTP core + adjacentCodesAsync)
-Resume file: .planning/phases/54-ctf-flag-types-slice-1b-frontend-admin-form-redesign-otp-enr/54-03-PLAN.md
+Last session: 2026-07-15T10:00:00.000Z
+Stopped at: Completed 54-03-PLAN.md (otp-enroll reward renderer CtfOtpEnroll + ClaimClient dispatch)
+Resume file: .planning/phases/54-ctf-flag-types-slice-1b-frontend-admin-form-redesign-otp-enr/54-04-PLAN.md
 
 ## Operator Next Steps
 
@@ -165,3 +166,4 @@ Resume file: .planning/phases/54-ctf-flag-types-slice-1b-frontend-admin-form-red
 | Phase 53 P03 | 8min | 2 tasks | 2 files |
 | Phase 54 P01 | ~10m | 2 tasks (TDD RED/GREEN) | 2 files |
 | Phase 54 P02 | ~15m | 2 tasks (refactor + TDD RED/GREEN) | 4 files |
+| Phase 54 P03 | ~20m | 3 tasks (TDD RED/GREEN + 2 feat) | 5 files |
