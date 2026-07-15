@@ -161,6 +161,21 @@ export const Ctf = new Entity(
       // ordinal exceeds it the flag awards nothing. It is NOT the curve denominator
       // N — that is `maxSolves`.
       globalMax: { type: "number" },
+      // Additive/optional (Slice 2, CTFT-09) day/time/tz scoring window. Absent ⇒
+      // always-scorable, so NO shipped row's behavior changes (no migration). The
+      // judge (Slice 2) evaluates `now` in `tz` via Intl (DST automatic); outside
+      // the window ⇒ non-solve indistinguishable from a wrong answer.
+      // ⚠️ `days` are 0=Sun..6=Sat; `from`/`to` are WALL-CLOCK "HH:MM" (DISTINCT
+      // from `timeTiers`' UTC-ISO from/to below); `tz` is an IANA zone id. No default.
+      scoreWindow: {
+        type: "map",
+        properties: {
+          days: { type: "list", items: { type: "number" } },
+          from: { type: "string" },
+          to: { type: "string" },
+          tz: { type: "string" },
+        },
+      },
       // Active window's `ceiling` overrides `pointMax` (UTC-ISO from/to strings).
       timeTiers: {
         type: "list",
