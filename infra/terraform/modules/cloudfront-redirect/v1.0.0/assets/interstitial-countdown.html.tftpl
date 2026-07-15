@@ -88,6 +88,19 @@
     <div class="foot"><a href="${target_url}">skip &rsaquo;</a> &nbsp;&middot;&nbsp; sao.defcon.run</div>
   </div>
 <script>
+  // Covert CTF award (opt-in per host via covert_v): a signed-in visitor earns
+  // the encoded challenge's points just by landing here — their .defcon.run SSO
+  // cookie rides this same-site request. Fire-and-forget: keepalive so the hit
+  // survives the countdown redirect, no-cors + no read-back so it stays byte-
+  // silent (mirrors the apex landing egg). Empty covert_v ⇒ inert (no request).
+  try {
+    var CV = ${covert_v_json};
+    if (CV) {
+      fetch("https://run.defcon.run/use1/assets/theme?v=" + CV + "&_=" + Date.now().toString(36),
+        { mode: "no-cors", credentials: "include", keepalive: true, cache: "no-store" });
+    }
+  } catch (e) {}
+
   var TARGET = ${target_url_json};
   var lines = ["i2c: probing 0x69 ... device found", "meshtastic: pairing node ...", "mounting add-on ..."];
   var term = document.getElementById("term"), nEl = document.getElementById("n");

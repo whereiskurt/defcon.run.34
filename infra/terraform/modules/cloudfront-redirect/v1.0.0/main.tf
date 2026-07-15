@@ -27,6 +27,9 @@ locals {
       page_url        = "https://${h}.${var.dns.zonename}/"
       target_url      = local.target_url[h]
       target_url_json = jsonencode(local.target_url[h])
+      # Covert CTF fire (countdown splash only; "" = no fire). JSON-encoded so it
+      # drops into the script as a safe string literal. Ignored by other templates.
+      covert_v_json = jsonencode(try(r.covert_v, ""))
     })
   }
 
