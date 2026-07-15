@@ -9,10 +9,14 @@ import {
   inferChallengeType,
   redactCtfSecrets,
   buildOtpAnswerField,
+  formStateToScoreWindow,
+  scoreWindowToFormState,
   type ChallengeTypePreset,
   type LoadedCtfRecord,
+  type ScoreWindowFormState,
 } from "../ctf-form-model";
 import { base32Decode } from "@/lib/ctf-otp-core";
+import { DEFCON_RUN_HOURS } from "@/lib/ctf-score-window";
 
 // A clock fixed INSIDE the tier window below, for deterministic active-tier parity.
 const IN_TIER = Date.parse("2026-08-07T12:00:00Z");
@@ -293,5 +297,104 @@ describe("buildOtpAnswerField — Rotating-OTP answer parse (CR-01)", () => {
 
   it("throws on an otpauth URL missing the secret", () => {
     expect(() => buildOtpAnswerField("otpauth://totp/Defcon.run:x")).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Scoring-window form-state bridge (Slice 2, CTFT-09/11)
+// ---------------------------------------------------------------------------
+
+describe("formStateToScoreWindow — form state → persisted ScoreWindow | undefined", () => {
+  it("returns undefined when the enable flag is off (nothing persisted ⇒ always-open)", () => {
+    const off: ScoreWindowFormState = {
+      enabled: false,
+      days: [0, 4, 5, 6],
+      from: "06:00",
+      to: "08:00",
+      tzLabel: "PT",
+    };
+    expect(formStateToScoreWindow(off)).toBeUndefined();
+  });
+
+  it("maps the PT/ET/UTC label to its IANA id and returns {days, from, to, tz}", () => {
+    const pt: ScoreWindowFormState = {
+      enabled: true,
+      days: [0, 4, 5, 6],
+      from: "06:00",
+      to: "08:00",
+      tzLabel: "PT",
+    };
+    expect(formStateToScoreWindow(pt)).toEqual({
+      days: [0, 4, 5, 6],
+      from: "06:00",
+      to: "08:00",
+      tz: "America/Los_Angeles",
+    });
+
+    const et: ScoreWindowFormState = { ...pt, tzLabel: "ET" };
+    expect(formStateToScoreWindow(et)?.tz).toBe("America/New_York");
+
+    const utc: ScoreWindowFormState = { ...pt, tzLabel: "UTC" };
+    expect(formStateToScoreWindow(utc)?.tz).toBe("UTC");
+  });
+});
+
+describe("scoreWindowToFormState — persisted ScoreWindow → form state", () => {
+  it("returns the disabled/empty default when the window is absent", () => {
+    expect(scoreWindowToFormState(undefined)).toEqual({
+      enabled: false,
+      days: [],
+      from: "",
+      to: "",
+      tzLabel: "PT",
+    });
+  });
+
+  it("rehydrates an enabled window, mapping the stored IANA id BACK to its label", () => {
+    expect(
+      scoreWindowToFormState({ days: [4, 5], from: "06:00", to: "08:00", tz: "America/New_York" }),
+    ).toEqual({ enabled: true, days: [4, 5], from: "06:00", to: "08:00", tzLabel: "ET" });
+  });
+
+  it("falls back to the UTC label for an unknown/unmapped IANA id", () => {
+    expect(
+      scoreWindowToFormState({ days: [1], from: "09:00", to: "10:00", tz: "Antarctica/Troll" }),
+    ).toEqual({ enabled: true, days: [1], from: "09:00", to: "10:00", tzLabel: "UTC" });
+  });
+});
+
+describe("round-trip — scoreWindowToFormState(formStateToScoreWindow(state)) (CTFT-11)", () => {
+  it("preserves days/from/to/tz for an enabled window (save→edit fidelity)", () => {
+    const state: ScoreWindowFormState = {
+      enabled: true,
+      days: [0, 4, 5, 6],
+      from: "06:00",
+      to: "08:00",
+      tzLabel: "PT",
+    };
+    const persisted = formStateToScoreWindow(state);
+    expect(persisted).toEqual({ ...DEFCON_RUN_HOURS });
+    expect(scoreWindowToFormState(persisted)).toEqual(state);
+  });
+});
+
+describe("redactCtfSecrets — scoreWindow survives redaction (not a secret)", () => {
+  it("carries scoreWindow through UNCHANGED onto the redacted record", () => {
+    const window = { days: [0, 4, 5, 6], from: "06:00", to: "08:00", tz: "America/Los_Angeles" };
+    const record: LoadedCtfRecord = {
+      challenge: "day1",
+      scoreWindow: window,
+      otp: { secret: "GEZDGNBVGY3TQOJQ", digits: 6, period: 120 },
+    };
+    const redacted = redactCtfSecrets(record);
+    expect(redacted.scoreWindow).toEqual(window);
+    // The secret is still stripped (boundary intact); the window rode alongside it.
+    expect(redacted.hasOtpSecret).toBe(true);
+    expect((redacted as { otp?: { secret?: string } }).otp?.secret).toBeUndefined();
+  });
+
+  it("leaves scoreWindow undefined on a record that has none", () => {
+    const redacted = redactCtfSecrets({ challenge: "day2" });
+    expect(redacted.scoreWindow).toBeUndefined();
   });
 });
