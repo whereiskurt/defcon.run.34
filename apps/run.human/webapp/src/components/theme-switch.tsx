@@ -118,7 +118,10 @@ export const ThemeSwitch: FC<ThemeSwitchProps> = ({
     <Component
       {...getBaseProps({
         className: clsx(
-          "px-px transition-opacity hover:opacity-80 cursor-pointer",
+          // touch-manipulation kills the mobile double-tap zoom so rapid theme
+          // flips (the no-keyboard "!!!" trigger) register cleanly; select-none
+          // stops the tap from selecting the icon.
+          "px-px transition-opacity hover:opacity-80 cursor-pointer touch-manipulation select-none",
           className,
           classNames?.base,
         ),

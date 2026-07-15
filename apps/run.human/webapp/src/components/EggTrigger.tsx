@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 
 import { CtfCelebration } from "@/components/CtfCelebration";
-import { fireEgg, claimStashed } from "@/lib/covert-egg";
+import { fireEgg, claimStashed, trimBurst } from "@/lib/covert-egg";
 
 /**
  * EggTrigger — the `!!!` easter-egg listener that wires the full covert loop
@@ -28,11 +29,24 @@ const DEMO_GUESS = "!!!";
 
 const GESTURE_WINDOW_MS = 1200; // rolling window for the 3 hits
 const CLEAR_MS = 5000; // auto-clear so a later trigger can re-fire
+// Mobile has no keyboard for "!!!" — 5 fast theme flips (dark/light/dark…) fire too.
+const THEME_FLIP_WINDOW_MS = 2000;
+const THEME_FLIP_COUNT = 5;
 
 export function EggTrigger() {
+  const { resolvedTheme } = useTheme();
   const [celebrating, setCelebrating] = useState(false);
   const keyHits = useRef<number[]>([]);
   const tapHits = useRef<number[]>([]);
+  const themeHits = useRef<number[]>([]);
+  const prevTheme = useRef<string | undefined>(undefined);
+
+  // Fire the covert egg + celebrate on a win. Shared by every trigger below.
+  const fire = useCallback(() => {
+    fireEgg(DEMO_CHALLENGE, DEMO_GUESS, (win) => {
+      if (win) setCelebrating(true);
+    });
+  }, []);
 
   // Redeem any flag parked while unauthenticated, on the next signed-in load.
   useEffect(() => {
@@ -47,14 +61,8 @@ export function EggTrigger() {
   }, [celebrating]);
 
   useEffect(() => {
-    const trigger = () =>
-      fireEgg(DEMO_CHALLENGE, DEMO_GUESS, (win) => {
-        if (win) setCelebrating(true);
-      });
-
     const record = (buf: React.MutableRefObject<number[]>): boolean => {
-      const now = Date.now();
-      buf.current = [...buf.current, now].filter((t) => now - t <= GESTURE_WINDOW_MS);
+      buf.current = trimBurst(buf.current, Date.now(), GESTURE_WINDOW_MS);
       if (buf.current.length >= 3) {
         buf.current = [];
         return true;
@@ -67,10 +75,10 @@ export function EggTrigger() {
         keyHits.current = [];
         return;
       }
-      if (record(keyHits)) trigger();
+      if (record(keyHits)) fire();
     };
     const onTouch = () => {
-      if (record(tapHits)) trigger();
+      if (record(tapHits)) fire();
     };
 
     window.addEventListener("keydown", onKey);
@@ -79,7 +87,24 @@ export function EggTrigger() {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("touchend", onTouch);
     };
-  }, []);
+  }, [fire]);
+
+  // Mobile trigger: 5 fast theme flips (dark/light/dark/light/dark). next-themes
+  // updates resolvedTheme on each toggle, so we count genuine changes in a window.
+  useEffect(() => {
+    if (resolvedTheme === undefined) return;
+    if (prevTheme.current === undefined) {
+      prevTheme.current = resolvedTheme; // the first resolved value is not a "flip"
+      return;
+    }
+    if (resolvedTheme === prevTheme.current) return; // not an actual change
+    prevTheme.current = resolvedTheme;
+    themeHits.current = trimBurst(themeHits.current, Date.now(), THEME_FLIP_WINDOW_MS);
+    if (themeHits.current.length >= THEME_FLIP_COUNT) {
+      themeHits.current = [];
+      fire();
+    }
+  }, [resolvedTheme, fire]);
 
   return <CtfCelebration active={celebrating} />;
 }
