@@ -96,7 +96,7 @@ const PRESET_LABEL: Record<ChallengeTypePreset, string> = {
   custom: "Custom",
 };
 
-type AnswerType = "static" | "otp";
+type AnswerType = "static" | "otp" | "wordlist";
 
 // Weekday chip labels (index = getDay, 0=Sun … 6=Sat) are imported from
 // ctf-score-window — the shared source of truth the predicate also uses (IN-02).
@@ -134,6 +134,11 @@ export default function CtfForm({
   // Never prefill the answer/OTP secret on edit — the row carries no plaintext.
   const [answer, setAnswer] = useState("");
   const [otpSecret, setOtpSecret] = useState("");
+  // Wordlist one-time codes (Slice 3, CTFT-14). WRITE-ONLY + add-only: NEVER
+  // prefilled on edit (only hashes exist server-side — the plaintext is
+  // unreadable). On save the non-blank lines are posted as `codes` for the server
+  // to hash + de-dup; the pool status shows via the read-only count line below.
+  const [codesText, setCodesText] = useState("");
 
   // ── Advanced scoring knobs (presets pre-fill these; drawer UI in Task 3) ──
   const [pointMax, setPointMax] = useState(
@@ -346,15 +351,27 @@ export default function CtfForm({
       const timeTiers = tiers
         .filter((t) => (t.from ?? "").trim() !== "" || (t.to ?? "").trim() !== "")
         .map((t) => ({ from: t.from, to: t.to, ceiling: numOrUndef(t.ceiling ?? "") }));
+      // Wordlist (Slice 3, CTFT-14): split the textarea into one code per line and
+      // post them as `codes` for the SERVER to hash + de-dup + append add-only (the
+      // client never hashes). A wordlist flag has no single static `answer`, so the
+      // Static answer field is left out of this branch entirely. An empty paste
+      // omits `codes` (a no-op edit that just keeps the existing pool).
+      const codes =
+        answerType === "wordlist"
+          ? codesText.split("\n").map((l) => l.trim()).filter((l) => l !== "")
+          : [];
       const ctf = {
         challenge,
         // Send plaintext answer; the server hashes it (the client never hashes). A
-        // blank field on edit keeps the existing answerHash.
-        answer,
+        // blank field on edit keeps the existing answerHash. Omitted for wordlist —
+        // a wordlist flag's answers live in the CtfCode pool, not a single answer.
+        ...(answerType !== "wordlist" ? { answer } : {}),
         answerType,
         // Only send the OTP secret when the admin typed a new one — blank keeps
         // the stored secret (no-clobber, T-54-04-03).
         ...(otpField ? { otp: otpField } : {}),
+        // Wordlist codes — server-hashed, add-only. Only sent when non-empty.
+        ...(codes.length ? { codes } : {}),
         pointMax: numOrUndef(pointMax),
         pointFloor: numOrUndef(pointFloor),
         maxSolves: numOrUndef(maxSolves),
@@ -456,6 +473,7 @@ export default function CtfForm({
             [
               ["static", "Static"],
               ["otp", "Rotating OTP"],
+              ["wordlist", "Wordlist"],
             ] as Array<[AnswerType, string]>
           ).map(([id, lbl]) => {
             const active = answerType === id;
@@ -558,7 +576,7 @@ export default function CtfForm({
               ) : null}
             </div>
           </div>
-        ) : (
+        ) : answerType === "otp" ? (
           /* Section 3b — Rotating OTP */
           <div className="mt-3.5">
             <label className={cls.label}>OTP secret (otpauth://)</label>
@@ -593,6 +611,42 @@ export default function CtfForm({
               shared secret is stored so the judge can verify it, and is never shown
               again after you save.
             </p>
+          </div>
+        ) : (
+          /* Section 3c — Wordlist (a pool of single-use codes, consumed first-come) */
+          <div className="mt-3.5">
+            <p className="text-[12.5px] text-default-500 mb-2.5">
+              A pool of single-use codes, consumed first-come.
+            </p>
+            <label className={cls.label}>One-time codes</label>
+            <textarea
+              className={cls.textarea}
+              value={codesText}
+              onChange={(e) => setCodesText(e.target.value)}
+              placeholder={"code-one\ncode-two\ncode-three"}
+            />
+            <p className="text-[12.5px] text-default-500 mt-2">
+              One code per line. Each code can be claimed once, first-come. Codes are
+              hashed on save — they are never stored or shown in plaintext.
+            </p>
+            {/* Read-only pool status (edit only) — aggregate counts, never a code.
+                On create there is no pool yet, so show the empty-state hint. */}
+            {initial?.codeCounts ? (
+              <p className="text-[13px] text-default-500 mt-2.5">
+                <span className="font-semibold text-foreground">
+                  {initial.codeCounts.loaded}
+                </span>{" "}
+                codes loaded ·{" "}
+                <span className="font-semibold text-foreground">
+                  {initial.codeCounts.unclaimed}
+                </span>{" "}
+                unclaimed.
+              </p>
+            ) : (
+              <p className="text-[12.5px] text-default-400 mt-2.5 italic">
+                Paste codes above — they&apos;ll be hashed and added when you save.
+              </p>
+            )}
           </div>
         )}
       </div>
