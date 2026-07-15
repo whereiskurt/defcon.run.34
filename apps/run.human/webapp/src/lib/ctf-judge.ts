@@ -1,5 +1,5 @@
 import { Ctf } from "@/entities/qr";
-import { CtfSolve, CtfAttempt, CtfScoreEvent } from "@/entities/ctf";
+import { CtfSolve, CtfAttempt, CtfScoreEvent, CtfCode } from "@/entities/ctf";
 import { RunUser } from "@/entities/run-user";
 import {
   computePoints,
@@ -7,7 +7,7 @@ import {
   type ScoringConfig,
   type TimeTier,
 } from "./ctf-scoring";
-import { verifyAnswer, verifyAnswerHash } from "./ctf-hash";
+import { verifyAnswer, verifyAnswerHash, hashAnswer } from "./ctf-hash";
 import { isRepeatable, scoreBucket } from "./ctf-flag-types";
 import { verifyTotp } from "./ctf-otp";
 import { isWithinScoreWindow, type ScoreWindow } from "./ctf-score-window";
@@ -223,6 +223,29 @@ export interface CtfStore {
     tierCeiling: number;
     channel: Channel;
   }): Promise<void>;
+
+  // --- Wordlist single-use codes (flag-types Slice 3, CTFT-13) — OPTIONAL. -----
+  /**
+   * The ATOMIC single-use claim for a `wordlist` code (CTFT-13). A conditional
+   * patch on the `CtfCode` row keyed (challenge, codeHash) that sets
+   * `claimedBy`/`claimedAt` IFF the row EXISTS and `claimedBy` is still UNSET
+   * (`attribute_not_exists(claimedBy)`). The FIRST concurrent claimer of a code
+   * wins (`claimed:true`); a USED code, an UNKNOWN code (no row), or an ABSENT op
+   * all read as `claimed:false` — the indistinguishable non-solve. This single
+   * conditional update IS both the wordlist answer validation AND the single-use
+   * idempotency guard, so the wordlist path never touches `claimScoreEvent`.
+   *
+   * Catch discipline mirrors `claimScoreEvent`: a claim collision / missing-row
+   * failure ⇒ `{claimed:false}`; any OTHER error rethrows so `judgeSolve` degrades
+   * to a non-solve rather than mis-report a win. NEVER log the codeHash or guess.
+   * Kept OPTIONAL so a store built only for the static/otp path stays type-clean.
+   */
+  claimCode?(args: {
+    challenge: string;
+    codeHash: string;
+    user: string;
+    claimedAt: string;
+  }): Promise<{ claimed: boolean }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -651,8 +674,42 @@ export const defaultStore: CtfStore = {
     tierCeiling,
     channel,
   }) {
-    await CtfScoreEvent.patch({ challenge, user, bucket })
+    // UPSERT (create-then-set), NOT patch. The normal repeatable path pre-creates
+    // this row via `claimScoreEvent`, but the WORDLIST path bypasses that claim
+    // (the CtfCode conditional IS its single-use guard) — so no row pre-exists
+    // when the wordlist finalize records the ledger. A `.patch()` here would raise
+    // ConditionalCheckFailed on the wordlist path → judge catch → NON_SOLVE, i.e.
+    // a valid first-time code would be marked claimed yet score NOTHING. Upsert is
+    // idempotent for the repeatable path too (the row is already present; set just
+    // fills the score fields). NOTE: the in-memory Map test fake cannot exercise
+    // this create-vs-patch distinction — it is confirmed here by reading the real
+    // ElectroDB call (see the <verification> note in 56-02-PLAN).
+    await CtfScoreEvent.upsert({ challenge, user, bucket })
       .set({ points, tierCeiling, channel })
       .go();
+  },
+
+  // --- Wordlist single-use claim (flag-types Slice 3, CTFT-13). ---------------
+  async claimCode({ challenge, codeHash, user, claimedAt }) {
+    try {
+      // Conditional update: set claimedBy/claimedAt IFF the row exists AND
+      // claimedBy is unset. Two concurrent claimers of the same code collide on
+      // `attribute_not_exists(claimedBy)` and EXACTLY one wins (no read-then-write
+      // race). Never log codeHash/guess.
+      await CtfCode.patch({ challenge, codeHash })
+        .set({ claimedBy: user, claimedAt })
+        .where((attr, op) => op.notExists(attr.claimedBy))
+        .go();
+      return { claimed: true };
+    } catch (err) {
+      // A condition failure means the code is already claimed OR the row does not
+      // exist (unknown code) — both are "not claimable" ⇒ the indistinguishable
+      // non-solve. If the row IS present AND still unclaimed, the failure was NOT a
+      // claim collision — rethrow so judgeSolve degrades to a non-solve rather than
+      // mis-report a win (mirrors claimSolve/claimScoreEvent catch discipline).
+      const existing = await CtfCode.get({ challenge, codeHash }).go();
+      if (existing.data && !existing.data.claimedBy) throw err;
+      return { claimed: false };
+    }
   },
 };
