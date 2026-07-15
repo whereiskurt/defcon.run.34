@@ -1,5 +1,5 @@
 import { Ctf } from "@/entities/qr";
-import { CtfSolve, CtfAttempt } from "@/entities/ctf";
+import { CtfSolve, CtfAttempt, CtfScoreEvent } from "@/entities/ctf";
 import { RunUser } from "@/entities/run-user";
 import {
   computePoints,
@@ -8,6 +8,8 @@ import {
   type TimeTier,
 } from "./ctf-scoring";
 import { verifyAnswer, verifyAnswerHash } from "./ctf-hash";
+import { isRepeatable, scoreBucket } from "./ctf-flag-types";
+import { verifyTotp } from "./ctf-otp";
 import { ctfJudgeLog, emit } from "./ctf-log";
 
 /**
@@ -52,12 +54,36 @@ export interface JudgeResult {
  * `number`. `CtfStore.getCtf` validates-on-load and coerces so `computePoints`
  * receives a well-typed config and `tsc` stays clean without `as any`.
  */
+/**
+ * The `otp` map the judge verifies against for `answerType === "otp"` (CTFT-02).
+ * Mirrors the `Ctf.otp` entity map; every field optional (verifyTotp applies the
+ * meshtk defaults: digits 6, period 120, SHA1, skew 1).
+ */
+export interface JudgeOtp {
+  secret?: string;
+  digits?: number;
+  period?: number;
+  algorithm?: string;
+  skew?: number;
+}
+
 export interface JudgeCtf extends ScoringConfig {
   challenge: string;
   answerHash: string;
   enabled: boolean;
   maxAttempts?: number;
   rateLimitWindow?: number;
+  // --- Flag-types framework (Slice 1a) — all optional; absent answerType == static.
+  answerType?: "static" | "otp";
+  otp?: JudgeOtp;
+  /** Prerequisite challenge NAME (unlock/chaining gate). See D-02 (name, not id). */
+  unlockAfter?: string;
+  /** Min hours between a player's scoring solves (repeatable cadence). */
+  perPlayerIntervalHours?: number;
+  /** Max scoring solves per player (repeatable flags). */
+  perPlayerMax?: number;
+  /** Hard GLOBAL scoring cutoff across ALL players (0/absent = unlimited). */
+  globalMax?: number;
 }
 
 /** The prior award returned when a claim loses the race (already solved). */
@@ -107,6 +133,51 @@ export interface CtfStore {
   }): Promise<void>;
   /** Atomic ADD RunUser.ctfScore points, ADD RunUser.ctfSolves 1. */
   accrue(args: { user: string; points: number }): Promise<void>;
+
+  // --- Flag-types framework (Slice 1a) — OPTIONAL/ADDITIVE store ops. --------
+  // These are only invoked for rows that use the new fields (unlockAfter set, or
+  // isRepeatable). A static one-award flag never calls them, so a store built
+  // for the shipped static path stays valid without implementing them.
+  /**
+   * Unlock prerequisite check: true iff the player has ANY score for `challenge`
+   * (a CtfSolve OR a CtfScoreEvent row). A bounded existence read — never a scan.
+   */
+  hasScoreFor?(args: { challenge: string; user: string }): Promise<boolean>;
+  /**
+   * Atomic once-per-window claim: an attribute_not_exists conditional put on
+   * CtfScoreEvent keyed (challenge, user, bucket). First writer in the window
+   * wins (`claimed:true`); a same-window collision returns `claimed:false`
+   * (already-scored-this-window). Any OTHER error rethrows so judgeSolve degrades
+   * to a non-solve — mirrors `claimSolve`'s catch discipline. Runs BEFORE
+   * allocateOrdinal so a losing double-submit never allocates.
+   */
+  claimScoreEvent?(args: {
+    challenge: string;
+    user: string;
+    bucket: string;
+    channel: Channel;
+    scoredAt: string;
+  }): Promise<{ claimed: boolean }>;
+  /**
+   * Per-player cap: true when the player is at/over `perPlayerMax` scoring solves
+   * for this challenge. `false` when max is absent/0/non-finite (no cap). A
+   * bounded per-(challenge,user) count via the byUser index — never a partition
+   * scan.
+   */
+  overPerPlayerMax?(args: {
+    challenge: string;
+    user: string;
+    max?: number;
+  }): Promise<boolean>;
+  /** Patch the freshly-claimed CtfScoreEvent row with its score/audit fields. */
+  recordScoreEvent?(args: {
+    challenge: string;
+    user: string;
+    bucket: string;
+    points: number;
+    tierCeiling: number;
+    channel: Channel;
+  }): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -245,6 +316,18 @@ function narrowCtf(row: {
   timeTiers?: Array<{ from?: string; to?: string; ceiling?: number }>;
   maxAttempts?: number;
   rateLimitWindow?: number;
+  answerType?: string;
+  otp?: {
+    secret?: string;
+    digits?: number;
+    period?: number;
+    algorithm?: string;
+    skew?: number;
+  };
+  unlockAfter?: string;
+  perPlayerIntervalHours?: number;
+  perPlayerMax?: number;
+  globalMax?: number;
 }): JudgeCtf {
   const timeTiers: TimeTier[] | undefined = Array.isArray(row.timeTiers)
     ? row.timeTiers.map((t) => ({
@@ -253,6 +336,10 @@ function narrowCtf(row: {
         ceiling: t.ceiling ?? 0,
       }))
     : undefined;
+  // `answerType` narrows to the known union; anything unexpected (or absent)
+  // reads as static — the backward-compatible default for every shipped row.
+  const answerType: "static" | "otp" =
+    row.answerType === "otp" ? "otp" : "static";
   return {
     challenge: row.challenge,
     answerHash: row.answerHash ?? "",
@@ -264,6 +351,13 @@ function narrowCtf(row: {
     timeTiers,
     maxAttempts: row.maxAttempts,
     rateLimitWindow: row.rateLimitWindow,
+    // Flag-types fields (all default-safe; absent ⇒ static one-award behavior).
+    answerType,
+    otp: row.otp,
+    unlockAfter: row.unlockAfter,
+    perPlayerIntervalHours: row.perPlayerIntervalHours,
+    perPlayerMax: row.perPlayerMax,
+    globalMax: row.globalMax,
   };
 }
 
@@ -332,6 +426,65 @@ export const defaultStore: CtfStore = {
   async accrue({ user, points }) {
     await RunUser.patch({ userId: user })
       .add({ ctfScore: points, ctfSolves: 1 })
+      .go();
+  },
+
+  // --- Flag-types framework (Slice 1a) — CtfScoreEvent ops. ------------------
+
+  async hasScoreFor({ challenge, user }) {
+    // Bounded existence read: a static solve OR any repeatable scoring event.
+    // Short-circuits on the first hit; the byUser query is scoped to this
+    // (user, challenge) via the gsi1 sk prefix — never a partition scan.
+    const solve = await CtfSolve.get({ challenge, user }).go();
+    if (solve.data) return true;
+    const events = await CtfScoreEvent.query
+      .byUser({ user, challenge })
+      .go({ limit: 1 });
+    return events.data.length > 0;
+  },
+
+  async claimScoreEvent({ challenge, user, bucket, channel, scoredAt }) {
+    try {
+      // ElectroDB create adds attribute_not_exists on the (user,bucket) sk →
+      // the once-per-window conditional put. First writer in the window wins.
+      await CtfScoreEvent.create({
+        challenge,
+        user,
+        bucket,
+        channel,
+        scoredAt,
+      }).go();
+      return { claimed: true };
+    } catch (err) {
+      // A condition failure means the (user,bucket) row already exists (already
+      // scored this window). If no row is present the failure was NOT a claim
+      // collision — rethrow so judgeSolve degrades to a non-solve rather than
+      // mis-report a win. Mirrors claimSolve's catch discipline.
+      const existing = await CtfScoreEvent.get({ challenge, user, bucket }).go();
+      if (!existing.data) throw err;
+      return { claimed: false };
+    }
+  },
+
+  async overPerPlayerMax({ challenge, user, max }) {
+    if (!max || !Number.isFinite(max) || max <= 0) return false; // no cap
+    // Bounded count of THIS player's scoring events for THIS challenge via the
+    // byUser index (sk prefixed by challenge) — never a partition scan. The
+    // just-claimed row is included, so an at-cap player reads count > max.
+    const events = await CtfScoreEvent.query.byUser({ user, challenge }).go();
+    return events.data.length > max;
+  },
+
+  async recordScoreEvent({
+    challenge,
+    user,
+    bucket,
+    points,
+    tierCeiling,
+    channel,
+  }) {
+    await CtfScoreEvent.patch({ challenge, user, bucket })
+      .set({ points, tierCeiling, channel })
       .go();
   },
 };
