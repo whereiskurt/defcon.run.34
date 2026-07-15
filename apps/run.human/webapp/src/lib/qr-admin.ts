@@ -456,19 +456,42 @@ export function hashCodeBatch(lines: string[]): {
  * is a no-op — never a `.set()`/overwrite of an existing `claimedBy` (add-only,
  * so a re-save can never un-claim or reveal a loaded code). NEVER logs the
  * plaintext lines. Returns the batch stats for a non-blocking admin confirmation.
+ *
+ * WR-01 accuracy contract: `added` counts ONLY the rows this call actually
+ * persisted (a successful `create`); it is NOT the pre-loop `hashCodeBatch.added`
+ * (which would over-count both cross-save duplicates and transient failures as
+ * "loaded"). A create collision on the key's `attribute_not_exists` existence
+ * condition means the codeHash is ALREADY in the pool ⇒ count it as a duplicate
+ * (add-only no-op). Any OTHER error (a genuine transient DynamoDB throttle /
+ * network fault) is RETHROWN so the admin never sees a code reported as loaded
+ * when it was silently dropped. We distinguish the two by re-reading the row —
+ * the SAME classification discipline `claimSolve` / `claimCode` use in
+ * ctf-judge.ts (collision ⇒ row is present; anything else ⇒ rethrow). Never logs
+ * the plaintext line or the codeHash. The `hashCodeBatch` within-batch duplicates
+ * are folded into the returned `duplicates`.
  */
-async function loadCtfCodes(
+export async function loadCtfCodes(
   challenge: string,
   lines: string[]
 ): Promise<{ added: number; duplicates: number }> {
-  const { codeHashes, added, duplicates } = hashCodeBatch(lines);
+  const { codeHashes, duplicates: batchDuplicates } = hashCodeBatch(lines);
+  let added = 0;
+  let duplicates = batchDuplicates;
   for (const codeHash of codeHashes) {
     try {
       await CtfCode.create({ challenge, codeHash }).go();
-    } catch {
-      // A codeHash already in the pool collides on the create's existence
-      // condition — swallow it (add-only no-op). Never re-throw; never log the
-      // plaintext. Any other transient error simply skips this one code.
+      added++;
+    } catch (err) {
+      // A create collision means the codeHash is ALREADY in the pool — the
+      // add-only no-op. Confirm by re-reading (mirrors claimSolve/claimCode in
+      // ctf-judge.ts): if the row IS present it was a genuine duplicate ⇒ count
+      // it as a duplicate. If NO row exists the create did NOT fail on the
+      // existence condition — it was a genuine transient error (throttle /
+      // network) ⇒ RETHROW so the admin never believes a code loaded when it did
+      // not. Never log the plaintext line or the codeHash.
+      const existing = await CtfCode.get({ challenge, codeHash }).go();
+      if (!existing.data) throw err;
+      duplicates++;
     }
   }
   return { added, duplicates };
