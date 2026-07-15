@@ -96,7 +96,26 @@ const PRESET_LABEL: Record<ChallengeTypePreset, string> = {
   custom: "Custom",
 };
 
+/**
+ * One-line descriptor rendered under each challenge-type name (Surface A, 57-01).
+ * Copy-only — does NOT alter PRESET_IDS / applyPreset / presetToAdvanced.
+ */
+const PRESET_DESC: Record<ChallengeTypePreset, string> = {
+  "flat-points": "Everyone earns the same",
+  "first-blood-race": "Early solvers earn more",
+  "timed-drop": "Value shifts over a window",
+  "easter-egg": "Small fixed reward + effect",
+  custom: "Tune every knob yourself",
+};
+
 type AnswerType = "static" | "otp" | "wordlist";
+
+/** Single-line helper descriptor for the currently-selected answer type. */
+const ANSWER_DESC: Record<AnswerType, string> = {
+  static: "One fixed code",
+  otp: "6-digit code from an authenticator",
+  wordlist: "Pool of single-use codes",
+};
 
 // Weekday chip labels (index = getDay, 0=Sun … 6=Sat) are imported from
 // ctf-score-window — the shared source of truth the predicate also uses (IN-02).
@@ -432,7 +451,7 @@ export default function CtfForm({
         />
         <p className="text-[12.5px] text-default-500 mt-2">
           Stored lowercase. Submitted via{" "}
-          <code>
+          <code className="font-mono text-[12px] rounded border border-divider bg-content2 px-1.5 py-0.5">
             q.defcon.run/ctf/{challenge.trim().toLowerCase() || "<name>"}/&lt;guess&gt;
           </code>
           {isEdit ? " · immutable (delete + recreate to rename)." : "."}
@@ -451,10 +470,15 @@ export default function CtfForm({
                 type="button"
                 role="radio"
                 aria-checked={active}
-                className={`${cls.segment} ${active ? cls.segmentActive : cls.segmentIdle}`}
+                className={`${cls.segmentStacked} ${active ? cls.segmentActive : cls.segmentIdle}`}
                 onClick={() => applyPreset(id)}
               >
-                {PRESET_LABEL[id]}
+                <span className="text-[13.5px] font-semibold leading-tight">
+                  {PRESET_LABEL[id]}
+                </span>
+                <span className="text-[11px] leading-tight text-default-400">
+                  {PRESET_DESC[id]}
+                </span>
               </button>
             );
           })}
@@ -491,6 +515,7 @@ export default function CtfForm({
             );
           })}
         </div>
+        <p className="text-[12.5px] text-default-400 mt-2">{ANSWER_DESC[answerType]}</p>
 
         {answerType === "static" ? (
           /* Section 3a — Static */
@@ -1039,9 +1064,9 @@ export default function CtfForm({
           Mirrors the judge&apos;s computePoints for the current form values.
         </p>
         {windowEnabled ? (
-          <div className="mb-3 inline-flex items-center gap-1.5">
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2">
             <span className={cls.chip}>window-gated</span>
-            <span className="text-[12px] text-default-500">
+            <span className="text-[12px] text-secondary">
               scores only inside the set window — the point value is unchanged
             </span>
           </div>
@@ -1062,21 +1087,27 @@ export default function CtfForm({
           const firstSolve = previewPoints(previewConfig, 1);
           const lastSolve = previewPoints(previewConfig, Math.max(nMax, 1));
           return (
-            <div className="flex flex-wrap gap-6">
-              <div>
-                <span className={cls.label}>First solve (n=1)</span>
-                <span className="block font-mono text-[28px] font-semibold tracking-wide text-primary">
-                  {firstSolve}
-                </span>
-              </div>
-              {nMax > 1 ? (
-                <div>
-                  <span className={cls.label}>Last solve (n={nMax})</span>
-                  <span className="block font-mono text-[28px] font-semibold tracking-wide text-primary">
-                    {lastSolve}
+            <div className="rounded-lg border border-divider bg-content2 p-3">
+              <div className="flex flex-wrap gap-2.5">
+                <div className="flex-1 min-w-[130px] rounded-lg border border-divider bg-content1 px-3 py-2.5">
+                  <span className="block font-mono text-[10.5px] uppercase tracking-wide text-default-400">
+                    First solve · n=1
+                  </span>
+                  <span className="block font-mono tabular-nums text-[20px] font-semibold text-primary leading-tight mt-0.5">
+                    {firstSolve}
                   </span>
                 </div>
-              ) : null}
+                {nMax > 1 ? (
+                  <div className="flex-1 min-w-[130px] rounded-lg border border-divider bg-content1 px-3 py-2.5">
+                    <span className="block font-mono text-[10.5px] uppercase tracking-wide text-default-400">
+                      Last solve · n={nMax}
+                    </span>
+                    <span className="block font-mono tabular-nums text-[20px] font-semibold text-primary leading-tight mt-0.5">
+                      {lastSolve}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             </div>
           );
         })()}
