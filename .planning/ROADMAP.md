@@ -663,11 +663,13 @@ Plans:
   4. `scripts/seed-ctf.mts --confirm` loads all six real DC33 starters (visible in `/admin/qr/ctf`, `enabled:false`), the goldstein→goldstein-otp chain and each flag type are present, answers verify against the judge under the prod salt, the run is idempotent, and each seeded flag is deletable via the existing admin Delete button; DRY-RUN writes nothing.
   5. No judge, scoring, `Ctf`/ledger entity, `/api/admin/qr`, or covert-CSS (`covert-egg.ts`) code changed — the diff is confined to form/reveal styling, the seed script, and its tests.
 
-**Plans:** 0 plans
+**Plans:** 3 plans (all Wave 1 — disjoint files, parallel-safe)
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 57 to break down)
+- [ ] 57-01-PLAN.md — Surface A: restyle admin `CtfForm` + `qr-ui.ts` `cls` tokens to the mockup within HeroUI, theme-aware (segment glow, two-line labels, stat-tile preview, amber note) — zero preset/payload/validation change (CTFP-01)
+- [ ] 57-02-PLAN.md — Surface B: restyle `CtfOtpEnroll` + `ClaimClient` solved-branch to bespoke-dark (rolling-code hero, gradient countdown, mint CTA, chain callout); QR `toDataURL` params unchanged, real-authenticator scan ship gate (CTFP-02, CTFP-03)
+- [ ] 57-03-PLAN.md — `scripts/seed-ctf.mts` (raw-SDK, DRY-RUN/`--confirm`/`--remove`) + pure unit-tested `buildSeedRows()` for the six DC33 starters, all `enabled:false` (CTFP-04)
 
 ---
 
