@@ -282,8 +282,8 @@ export async function judgeSolve(
       }
     }
 
-    // (3) SCORING-WINDOW gate (Slice 2, CTFT-10). Ordered AFTER the unlock gate
-    // (1b) and BEFORE the attempt-cap gate (2) — so a closed window short-circuits
+    // (2) SCORING-WINDOW gate (Slice 2, CTFT-10). Ordered AFTER the unlock gate
+    // (1b) and BEFORE the attempt-cap gate (3) — so a closed window short-circuits
     // BEFORE the state-mutating attempt-cap bump and before any answer validation.
     // When `scoreWindow` is set and `now` (epoch ms, evaluated in the flag's IANA
     // tz — DST automatic) is OUTSIDE the day/time window, this is INDISTINGUISHABLE
@@ -297,7 +297,7 @@ export async function judgeSolve(
       return NON_SOLVE;
     }
 
-    // (2) attempt-cap / rate-limit. Over-limit is INDISTINGUISHABLE from a wrong
+    // (3) attempt-cap / rate-limit. Over-limit is INDISTINGUISHABLE from a wrong
     // guess (covert invisibility — do NOT reveal the reason).
     const over = await store.overAttemptLimit({
       challenge,
@@ -311,7 +311,7 @@ export async function judgeSolve(
       return NON_SOLVE;
     }
 
-    // (3) validate the answer BY answerType (flag-types D-05 step 5). NEVER log
+    // (4) validate the answer BY answerType (flag-types D-05 step 5). NEVER log
     // `guess` OR `guessHash`. For `otp` the raw rolling code is verified against
     // the shared TOTP secret via verifyTotp (current period ± skew); verifyTotp
     // NEVER throws, so a wrong/undecodable code is an indistinguishable non-match
@@ -396,7 +396,7 @@ export async function judgeSolve(
       return { solved: true, points, ordinal: n, firstBlood, capped, effect: points > 0 ? ctf.effect : undefined };
     }
 
-    // (4) claim — conditional put BEFORE ordinal allocation. A failed claim means
+    // (5) claim — conditional put BEFORE ordinal allocation. A failed claim means
     // already-solved: celebrate the re-trigger but return the PRIOR award, never
     // re-score.  [STATIC one-award path — unchanged; only reached when NOT repeatable.]
     const solvedAt = scoredAt;
@@ -416,11 +416,11 @@ export async function judgeSolve(
       };
     }
 
-    // (5) allocate — atomic ADD solveCount 1. ONLY reached for genuinely-new
-    // solvers (step 4 gates), so the counter is gap-free.
+    // (6) allocate — atomic ADD solveCount 1. ONLY reached for genuinely-new
+    // solvers (step 5 gates), so the counter is gap-free.
     const n = await store.allocateOrdinal(challenge);
 
-    // (6) score, record, accrue.
+    // (7) score, record, accrue.
     const points = computePoints(n, ctf, now);
     const capped = points === 0; // n > maxSolves
     const firstBlood = n === 1;
@@ -436,7 +436,7 @@ export async function judgeSolve(
     });
     await store.accrue({ user, points });
 
-    // (7) return. Carry the reward `effect` ONLY on a credited (points > 0) solve.
+    // (8) return. Carry the reward `effect` ONLY on a credited (points > 0) solve.
     log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
     return { solved: true, points, ordinal: n, firstBlood, capped, effect: points > 0 ? ctf.effect : undefined };
   } catch {
