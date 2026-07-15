@@ -2,17 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown } from "lucide-react";
 
 import { cls } from "./qr-ui";
 import { postQrAction } from "./qr-api";
 import {
   presetToAdvanced,
+  previewPoints,
   inferAnswerType,
   inferChallengeType,
   PRESET_IDS,
   type ChallengeTypePreset,
   type RedactedCtfRecord,
 } from "./ctf-form-model";
+import CtfOtpEnroll from "@/components/ctf/CtfOtpEnroll";
 
 /**
  * The shape the form receives on edit. This is EXACTLY the redacted record the
@@ -166,6 +169,20 @@ export default function CtfForm({
   // ── Unlock & chaining (Section 5) ──
   const [unlockAfter, setUnlockAfter] = useState(initial?.unlockAfter ?? "");
 
+  // ── Static Reward → OTP enrollment (Section 3a) ──
+  // The reward otpauth is write-only, exactly like the raw effect: never
+  // prefilled on edit; blank on save keeps the stored effect (no-clobber).
+  const [rewardEnabled, setRewardEnabled] = useState(false);
+  const [rewardOtpauth, setRewardOtpauth] = useState("");
+  const [rewardNextFlag, setRewardNextFlag] = useState("");
+  const [revealPreview, setRevealPreview] = useState(false);
+
+  // Advanced drawer: collapsed by default; opened on edit when the record did not
+  // round-trip to a clean preset (the admin hand-tuned the knobs).
+  const [advancedOpen, setAdvancedOpen] = useState(
+    Boolean(initial) && inferChallengeType(initial!) === "custom"
+  );
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -197,10 +214,21 @@ export default function CtfForm({
     if (knobs.rateLimitWindow !== undefined) setRateLimitWindow(String(knobs.rateLimitWindow));
   }
 
+  const rewardActive =
+    answerType === "static" && rewardEnabled && rewardOtpauth.trim() !== "";
+
   async function onSave() {
     setError(null);
     let effect: unknown = undefined;
-    if (effectText.trim() !== "") {
+    if (rewardActive) {
+      // Compose the otp-enroll reward payload from the write-only otpauth. This
+      // takes precedence over the raw Effect JSON when a reward is configured.
+      effect = {
+        kind: "otp-enroll",
+        otpauth: rewardOtpauth.trim(),
+        ...(rewardNextFlag.trim() !== "" ? { nextFlag: rewardNextFlag.trim() } : {}),
+      };
+    } else if (effectText.trim() !== "") {
       try {
         effect = JSON.parse(effectText);
       } catch {
@@ -356,6 +384,74 @@ export default function CtfForm({
                 ? "An answer is already set (stored hashed). Leave blank to keep it; type a new answer only to replace it."
                 : "Hashed on save — the plaintext answer is never stored."}
             </p>
+
+            {/* Reward → OTP enrollment (Static only) */}
+            <div className="mt-3.5 rounded-lg border border-divider bg-content2 p-3">
+              <label className="flex gap-2 items-center text-sm">
+                <input
+                  type="checkbox"
+                  checked={rewardEnabled}
+                  onChange={(e) => {
+                    setRewardEnabled(e.target.checked);
+                    if (!e.target.checked) setRevealPreview(false);
+                  }}
+                />
+                <span className={rewardEnabled ? "text-primary font-semibold" : ""}>
+                  Reward on solve → OTP enrollment
+                </span>
+              </label>
+              <p className="text-[12.5px] text-default-500 mt-2">
+                On solve, hand the runner a QR + rolling code to add to their
+                authenticator. Paste the same otpauth:// secret you set on the chained
+                Rotating-OTP flag.
+              </p>
+
+              {rewardEnabled ? (
+                <div className="mt-3 flex flex-col gap-2.5">
+                  <div>
+                    <label className={cls.label}>Reward otpauth://</label>
+                    <input
+                      className={cls.input}
+                      value={rewardOtpauth}
+                      onChange={(e) => setRewardOtpauth(e.target.value)}
+                      placeholder={
+                        isEdit && initial?.hasEffect
+                          ? "•••••• (set — leave blank to keep)"
+                          : "otpauth://totp/..."
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className={cls.label}>Unlocks flag (optional)</label>
+                    <input
+                      className={cls.input}
+                      value={rewardNextFlag}
+                      onChange={(e) => setRewardNextFlag(e.target.value)}
+                      placeholder="chained-otp-flag-name"
+                    />
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      className={cls.btn}
+                      disabled={rewardOtpauth.trim() === ""}
+                      onClick={() => setRevealPreview((v) => !v)}
+                    >
+                      {revealPreview ? "Hide preview" : "Reveal preview"}
+                    </button>
+                  </div>
+                  {revealPreview && rewardOtpauth.trim() !== "" ? (
+                    <div className={`${cls.rewardCard} flex justify-center`}>
+                      {/* Exactly what the solver sees — reuses the 54-03 renderer. */}
+                      <CtfOtpEnroll
+                        otpauth={rewardOtpauth.trim()}
+                        nextFlag={rewardNextFlag.trim() || undefined}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : (
           /* Section 3b — Rotating OTP */
@@ -468,7 +564,29 @@ export default function CtfForm({
         </p>
       </div>
 
-      {/* ── ADVANCED KNOBS (folded into the Advanced drawer in Task 3) ───── */}
+      {/* ── Section 6 — Advanced (always editable, collapsible) ──────────── */}
+      <div className={cls.card}>
+        <button
+          type="button"
+          className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          aria-expanded={advancedOpen}
+        >
+          <span>
+            <span className={cls.h2}>Advanced</span>
+            <span className="block text-[12.5px] text-default-500 mt-0.5">
+              Raw scoring curve, tiers, anti-spam, and effect JSON. Presets pre-fill
+              these; edit freely.
+            </span>
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 shrink-0 transition-transform ${
+              advancedOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+        {advancedOpen ? (
+          <div className="bg-content2 border-t border-divider p-4 flex flex-col gap-4">
       {/* Scoring curve */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Scoring</label>
@@ -639,6 +757,51 @@ export default function CtfForm({
             to replace it.
           </p>
         ) : null}
+      </div>
+          </div>
+        ) : null}
+      </div>
+
+      {/* ── Section 7 — Live scoring preview ─────────────────────────────── */}
+      <div className={cls.cardPad}>
+        <label className={cls.label}>Live scoring preview</label>
+        <p className="text-[12.5px] text-default-500 mb-3">
+          Mirrors the judge&apos;s computePoints for the current form values.
+        </p>
+        {(() => {
+          const previewConfig = {
+            pointMax,
+            pointFloor,
+            maxSolves,
+            firstBloodBonus,
+            timeTiers: tiers.map((t) => ({
+              from: t.from,
+              to: t.to,
+              ceiling: t.ceiling,
+            })),
+          };
+          const nMax = numOrUndef(maxSolves) ?? 1;
+          const firstSolve = previewPoints(previewConfig, 1);
+          const lastSolve = previewPoints(previewConfig, Math.max(nMax, 1));
+          return (
+            <div className="flex flex-wrap gap-6">
+              <div>
+                <span className={cls.label}>First solve (n=1)</span>
+                <span className="block font-mono text-[28px] font-semibold tracking-wide text-primary">
+                  {firstSolve}
+                </span>
+              </div>
+              {nMax > 1 ? (
+                <div>
+                  <span className={cls.label}>Last solve (n={nMax})</span>
+                  <span className="block font-mono text-[28px] font-semibold tracking-wide text-primary">
+                    {lastSolve}
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── Actions ──────────────────────────────────────────────────────── */}
