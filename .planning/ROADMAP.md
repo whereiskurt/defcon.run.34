@@ -590,7 +590,7 @@ Plans:
 **Wave 1**
 
 - [x] 54-01-PLAN.md — Pure form model: presetToAdvanced map, previewPoints (binds computePoints), edit-mode inference, redactCtfSecrets (CTFT-07) [wave 1]
-- [ ] 54-02-PLAN.md — Browser-safe OTP core split + adjacentCodesAsync (Web Crypto, no new dep; Phase-53 contract preserved) (CTFT-08) [wave 1]
+- [x] 54-02-PLAN.md — Browser-safe OTP core split + adjacentCodesAsync (Web Crypto, no new dep; Phase-53 contract preserved) (CTFT-08) [wave 1]
 
 **Wave 2** *(blocked on Wave 1)*
 
