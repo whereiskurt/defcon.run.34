@@ -8,7 +8,7 @@ import { createTransport } from "nodemailer";
 
 import NextAuth, { type DefaultSession } from "next-auth";
 import { headers } from "next/headers";
-import { upsertAuthProfile, getAuthProfile, getAuthProfileByEmail } from "@/entities/auth-profile";
+import { upsertAuthProfile, getAuthProfile, getAuthProfileByEmail, buildStravaLink } from "@/entities/auth-profile";
 import { isLockedOut } from "@/lib/lock-enforce";
 import { logEvent } from "@/lib/log-event";
 import { config } from "@/config";
@@ -370,22 +370,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           token.picture = `${profile.profile_medium}`;
           token.stravaId = `${profile.id}`;
 
-          // Persist Strava profile to AuthProfile entity
+          // Persist Strava profile to AuthProfile entity.
+          // buildStravaLink() guarantees a minimal { id } link and drops any
+          // malformed enrichment; wrapped in try/catch so neither a build error
+          // (missing id) nor the async upsert can ever break the sign-in path.
           if (userId) {
-            upsertAuthProfile(userId, "strava", {
-              strava: {
-                id: Number(profile.id),
-                username: profile.username as string | undefined,
-                firstName: profile.firstname as string | undefined,
-                lastName: profile.lastname as string | undefined,
-                profileMedium: profile.profile_medium as string | undefined,
-                city: profile.city as string | undefined,
-                state: profile.state as string | undefined,
-                country: profile.country as string | undefined,
-              },
-              // Store the full raw profile for later use
-              stravaProfile: profile as Record<string, unknown>,
-            }).catch((err) => console.error("Failed to upsert Strava profile:", err));
+            try {
+              const strava = buildStravaLink(profile as Record<string, unknown>);
+              upsertAuthProfile(userId, "strava", {
+                strava,
+                // Store the full raw profile for later use
+                stravaProfile: profile as Record<string, unknown>,
+              }).catch((err) =>
+                console.error("Failed to upsert Strava profile:", err)
+              );
+            } catch (err) {
+              console.error("Failed to build Strava link:", err);
+            }
           }
         } else if (account.provider === "linkedin") {
           token.name = `${profile.name}`;
