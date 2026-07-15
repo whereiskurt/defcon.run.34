@@ -5,6 +5,8 @@ import { useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { Trophy, Flag, ScanLine } from "lucide-react";
 import type { JudgeResult } from "@/lib/ctf-judge";
+import { asOtpEnrollEffect } from "@/lib/ctf-otp-enroll";
+import CtfOtpEnroll from "@/components/ctf/CtfOtpEnroll";
 
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
@@ -84,6 +86,10 @@ export default function ClaimClient({ mode, result, nonce, clearNonce }: Props) 
 /** Maps a JudgeResult to a visible state. The judge already hides wrong-vs-disabled. */
 function ResultBody({ result }: { result: JudgeResult }) {
   if (result.solved && result.points > 0) {
+    // Narrow the carried reward payload (visible/non-covert path only). A
+    // non-otp-enroll or malformed effect narrows to null → no reward card,
+    // exactly as before.
+    const reward = asOtpEnrollEffect(result.effect);
     return (
       <>
         <Trophy className="w-10 h-10 text-primary" />
@@ -101,6 +107,9 @@ function ResultBody({ result }: { result: JudgeResult }) {
         <p className="text-sm text-default-500">
           {result.ordinal ? `Solve #${result.ordinal}` : "points scored"}
         </p>
+        {reward && (
+          <CtfOtpEnroll otpauth={reward.otpauth} nextFlag={reward.nextFlag} />
+        )}
       </>
     );
   }

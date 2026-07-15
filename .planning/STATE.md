@@ -1,19 +1,20 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: Leaderboard & Activity Table
-status: milestone_built
-stopped_at: v2.2 ALL 4 PHASES (49-52) BUILT + VERIFIED (code goal-backward PASS, ~104 tests). Next: npm run build gate + PR. LEFT for human: signed-in admin local-browser render of /leaderboard.
-last_updated: "2026-07-14T08:00:00Z"
-last_activity: 2026-07-14
+milestone: v2.3
+milestone_name: CTF Flag Types & Form Redesign
+status: Milestone complete
+stopped_at: Phase 39 context gathered
+last_updated: "2026-07-15T08:34:00.000Z"
+last_activity: 2026-07-15
+last_activity_desc: Phase 56 Plan 03 COMPLETE (3/3) — Phase 56 DONE, v2.3 milestone slices all built. Admin Wordlist option (CTFT-14) wired end to end. qr-admin: CtfInput.codes (write-only) + pure hashCodeBatch (trim/blank-drop/in-batch de-dup via the SAME hashAnswer seam the judge claims against — loaded code and guess hash identically) + add-only loadCtfCodes (CtfCode.create per hash, skip-dup, never overwrites claimedBy, never logs plaintext) + getCtfCodeCounts (aggregate loaded/unclaimed read, no plaintext leaves the server); upsertCtf appends codes after the Ctf row write (create + edit). ctf-form-model: inferAnswerType recognizes wordlist, answerType widened on Loaded/RedactedCtfRecord, non-secret codeCounts carried through redactCtfSecrets verbatim (like scoreWindow), no plaintext code field. CtfForm: Static · Rotating OTP · Wordlist segment + Section 3c write-only add-only "One-time codes" textarea (never prefills on edit) + read-only "N codes loaded · M unclaimed" line + empty-state; onSave posts codes (server-hashed), omits the static answer in the wordlist branch. Edit page fetches getCtfCodeCounts for wordlist flags and attaches codeCounts through redaction. DEVIATION (Rule 3): widened the Ctf entity answerType enum [static,otp]→[static,otp,wordlist] (Slice 1a deferred it) — resolver .mjs mirror omits answerType so zero byte-parity impact. Phase-53 no-flip-after-solve guard honored for free (ctf-flag-types already treats wordlist as repeatable). SC3 grep gate green (redacted record + form carry only codeCounts, no plaintext codes). 635 webapp tests green (+9), Node 23.6.0; touched files tsc-clean (2 pre-existing out-of-scope errors untouched). Commits bf90e823/82787016/39588467
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 12
-  completed_plans: 12
-  percent: 100
-current_phase: 52
-current_phase_name: leaderboard-ui-polylinerenderer-accordion-hidden-page
+  total_phases: 25
+  completed_phases: 15
+  total_plans: 56
+  completed_plans: 56
+  percent: 59
+current_phase: 56
+current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
 ---
 
 # Project State
@@ -23,7 +24,7 @@ current_phase_name: leaderboard-ui-polylinerenderer-accordion-hidden-page
 See: .planning/PROJECT.md (updated 2026-07-05)
 
 **Core value:** Participants and organizers have a seamless digital experience for DCR34 -- from device setup to event discovery to route navigation. Milestone v2.2 brings back the DC33 leaderboard-as-activity-table in run.human, shipped hidden behind the admin group until perfected.
-**Current focus:** Phase 49 — leaderboard-data-layer-accomplishment-entity-scoring
+**Current focus:** Phase 53 — ctf-flag-types-slice-1a-backend-answer-type-framework-rotati
 
 ## Current Position
 
@@ -51,7 +52,7 @@ only us-east-1 was deployed for the copy-migrated apps, so there was no second l
 observe against. The per-region mechanism (master → Litestream worker → revalidate) is
 identical and will hold when a 2nd region deploys. Not counted as debt.
 
-Last activity: 2026-07-14
+Last activity: 2026-07-15 — Phase 53 complete
 
 ## Roadmap Summary (v1.9)
 
@@ -66,6 +67,13 @@ Last activity: 2026-07-14
 Deferred to v2: MIGR-04 (flash/human/auth/gpx migration), I18N-01 (locale population + switcher).
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 54 added: CTF Flag Types — Slice 1b Frontend (Admin Form Redesign + otp-enroll QR/Rolling-Code Reward Renderer)
+- Phase 55 added: CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set)
+- Phase 56 added: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
+- v2.3 milestone now fully sliced into phases 53 (done) → 54 → 55 → 56; autonomous execution of 54–56 authorized 2026-07-15
 
 ### Decisions
 
@@ -101,6 +109,18 @@ Recent decisions affecting current work:
 - [Phase ?]: 39-01: common.header.donate re-homes the donate trigger; bib.donate.trigger left seeded until 39-04 re-points bib header/menu.
 - [Phase 39]: 39-02: run.human copy toolkit installed (ported verbatim from run.bib, D-05); snapshot floor carries byte-identical common.* union (D-07); CopyProvider mounted in both group layouts; zero human.* easy wins authored (D-06 bias-to-defer)
 - [Phase ?]: 39-04: TransactionHistory async loadCopy+t; AdminActions useCopy() (module consts removed) — words byte-identical
+- [Phase ?]: 53-01: bucket-in-sk atomic ledger + QrValidationError extracted to dependency-free qr-errors.ts for pure helpers
+- [Phase 53]: 53-02: verifyTotp built over totpAt across a +/- skew window with length-guarded crypto.timingSafeEqual (NEW; the meshtk Go had generation only); ctf-otp.ts is pure (node:crypto only), never logs secret/guess
+- [Phase ?]: 53-03: CtfStore flag-types ops OPTIONAL (static seam stays type-clean); absent op == locked/degraded non-solve; globalMax off atomic ordinal
+- [Phase 54]: 54-01: pure client-safe ctf-form-model seam — presetToAdvanced (5 distinct preset tuples so inferChallengeType round-trips), previewPoints delegates to computePoints (preview===judge parity, no duplicate curve), redactCtfSecrets strips otp.secret+effect before server→client prop (SC-2 boundary); imports ONLY @/lib/ctf-scoring, never the judge module. 19 tests, full suite 498 green.
+- [Phase 54]: 54-02: split ctf-otp into node-free ctf-otp-core.ts (shared base32Decode→Uint8Array, DataView counterBytes, RFC-4226 truncateHotp, parseOtpauth, DEFAULT_* + types) re-exported by node ctf-otp.ts (every Phase-53 signature intact, existing tests untouched); new browser ctf-otp-client.ts adjacentCodesAsync via globalThis.crypto.subtle HMAC-SHA1 — no node import, no server-module import, no new dependency — parity-tested vs sync adjacentCodes across a secret×time×period matrix + RFC-6238 anchor. Full suite 536 green.
+- [Phase 54]: 54-03: first client effect.kind handler — ctf-otp-enroll.ts asOtpEnrollEffect narrows unknown JudgeResult.effect → OtpEnrollEffect|null (kind+non-empty-otpauth+parseOtpauth in try/catch; never throws), new CtfOtpEnroll.tsx "use client" reward card (real QR via existing qrcode dep on a white quiet zone + rolling prev/CURRENT/next code + self-correcting 1s countdown via 54-02 adjacentCodesAsync + otpauth deep link + copy-setup-link + conditional next-flag), dispatched ONLY in ClaimClient's solved&&points>0 branch. Covert-invariant disk-read test (covert-egg/EggTrigger/CtfCelebration/ctf-covert-css/assets-theme carry no reward token) + git-diff-stat gate prove covert channel byte-untouched. 15 new tests. LANDMINE: an inadvertent `git stash` (prohibited — shared across worktrees) shelved the uncommitted ClaimClient edit; recovered via targeted `git stash apply stash@{0}` + drop, sibling stashes preserved, zero loss.
+- [Phase 56]: 56-03: admin Wordlist option (CTFT-14) — Phase 56 COMPLETE (3/3), v2.3 milestone slices all built. A third answer-type segment (Static · Rotating OTP · Wordlist) in CtfForm reveals a write-only, add-only "One-time codes" bulk textarea; on save the non-blank lines are hashed SERVER-side via the SAME hashAnswer salt seam the judge (56-02) claims against (a loaded code and a submitted guess hash identically) and appended add-only to the 56-01 CtfCode pool; editing a wordlist flag shows a read-only "N codes loaded · M unclaimed" line. qr-admin gains CtfInput.codes (write-only plaintext lines), pure hashCodeBatch (trim/blank-drop/in-batch de-dup ⇒ {codeHashes,added,duplicates}, DB-free = the unit-test surface), add-only loadCtfCodes (CtfCode.create per hash, swallow dup/existence collision — never overwrites claimedBy, never logs plaintext), and getCtfCodeCounts (query.primary pages:all → loaded/unclaimed aggregate only); upsertCtf appends codes after the Ctf row create/patch for both create and edit. ctf-form-model: inferAnswerType returns wordlist (unknown/absent ⇒ static), answerType union widened on Loaded/RedactedCtfRecord, non-secret codeCounts added to both contracts and carried through redactCtfSecrets verbatim (like scoreWindow) — no plaintext code field ever introduced. Edit page fetches getCtfCodeCounts for wordlist flags and spreads codeCounts into redactCtfSecrets so the count line rehydrates without any code crossing to the client (SC3). onSave omits the static answer in the wordlist branch (answers live in the pool). DEVIATION (Rule 3, blocking): widened the Ctf entity answerType enum [static,otp]→[static,otp,wordlist] (Slice 1a deliberately deferred it) to clear 2 NEW tsc errors on upsertCtf's .set/create — the run.qr resolver .mjs Ctf mirror omits answerType entirely, so ZERO byte-parity impact (key-parity 13 tests re-run green). Phase-53 no-flip-after-solve guard honored for free: ctf-flag-types.isRepeatable already treats wordlist as repeatable, so assertAnswerTypeTransition rejects a static↔wordlist flip on a solved flag with no code change. Native <textarea cls.textarea> (matches the Effect field) — zero new deps; covert path untouched. SC3 grep gate green (RedactedCtfRecord exposes only codeCounts; form reads initial.codeCounts, never initial.codes). Full webapp suite 635 green (+9: 5 hashCodeBatch + 4 form-model); touched files tsc-clean (2 pre-existing out-of-scope errors untouched). Commits bf90e823/82787016/39588467.
+- [Phase 56]: 56-02: judge wordlist branch (CTFT-13) — wired the `wordlist` answer type end-to-end behind the store seam. New OPTIONAL CtfStore.claimCode + defaultStore impl: `CtfCode.patch({challenge,codeHash}).set({claimedBy,claimedAt}).where((attr,op)=>op.notExists(attr.claimedBy))` — the atomic single-use claim is BOTH the wordlist answer validation AND the idempotency guard (used/unknown/absent-op ⇒ claimed:false; catch mirrors claimSolve — rethrows a present-and-unclaimed row so the judge degrades to non-solve). judgeSolve: dispatch computes codeHash = guessHash ?? hashAnswer(guess) then validates BY the claim; a DEDICATED wordlist finalize is placed BEFORE the isRepeatable block so wordlist NEVER calls claimScoreEvent (a player may redeem multiple DISTINCT codes) — allocate ordinal, honor globalMax (capped/points:0/no-accrue), computePoints, recordScoreEvent keyed bucket=codeHash, accrue, carry effect only on points>0. answerType union widened static|otp|wordlist (narrowCtf narrows wordlist); isRepeatable(wordlist)===true (CTFT-06 flip guard aware). **PLAN-CHECKER CORRECTION: recordScoreEvent patch→upsert** — the wordlist path has NO pre-existing CtfScoreEvent row (claimScoreEvent bypassed), so a `.patch()` would ConditionalCheckFailed → NON_SOLVE (a valid first-time code claimed but not scored); upsert (create-then-set) is idempotent for the repeatable path too. The in-memory Map fake can't catch create-vs-patch — confirmed by reading the ElectroDB call. Used/unknown ⇒ shared NON_SOLVE + identical ctfJudgeLog('no-solve'), guess/codeHash never in the log payload (asserted). Covert grep gate (ctf-wordlist-covert-invariant.test.ts) proves no wordlist/CtfCode/claimCode/codeHash token in the 5 covert modules; covert files byte-untouched since 56-01. Two-claimers-one-wins race proven at the store seam (Map fake, no await between check and set). Full webapp suite 626 green (+15); touched files tsc-clean (2 pre-existing out-of-scope errors untouched). Commits 5731a89d/d4894337/ba6fc94f.
+- [Phase 56]: 56-01: CtfCode single-use wordlist entity (CTFT-12) — new ElectroDB entity in entities/ctf.ts (pk=challenge, sk=codeHash; attrs codeHash [salted, same hashAnswer seam answers use], claimedBy?/claimedAt? absent-until-claimed, createdAt) mirroring the CtfScoreEvent block. DELIBERATELY no plaintext `code` attribute (T-56-01-01 mitigated at schema level — a table read never hands over redeemable codes) and NO updatedAt (a claim is a one-time set). primary index ONLY, no byUser GSI (claim is by the exact (challenge, codeHash) key; the sk=codeHash makes once-per-code single-use a single conditional update on attribute_not_exists(claimedBy) — two concurrent claimers collide, exactly one wins, no read-then-write race — the atomicity 56-02 relies on). CtfCodeItem hand-authored contract added. Key-parity test pins $run#challenge_sao / $ctfcode_1#codehash_deadbeef (encoder lowercases the codehash label + value) as the 56-02 claim target. Schema-only — the conditional-patch claim lands in 56-02 behind the judge store seam. Full webapp suite 611 green; touched files tsc-clean (2 pre-existing out-of-scope errors untouched).
+- [Phase 55]: 55-03: admin day/time/tz scoring-window picker (CTFT-11) — Phase 55 COMPLETE (3/3). Replaced the Phase-54 Slice-2 placeholder note in CtfForm §4 with the real picker: enable toggle ("Restrict scoring to a time window"), 7 Sun–Sat weekday chips (reusing cls.segment tokens, role=switch), Opens/Closes type="time" inputs, PT/ET/UTC `<select>` (stores the IANA id, resolved by the 55-01 bridge), and the accent "DEF CON run hours" quick-set chip (fills Thu–Sun 06:00–08:00 PT via scoreWindowToFormState(DEFCON_RUN_HOURS) then stays individually editable — presets pre-fill, never lock, mirroring applyPreset). Rehydrates on edit from initial.scoreWindow; onSave computes formStateToScoreWindow(...) and spreads `...(scoreWindow?{scoreWindow}:{})` so OFF ⇒ no key ⇒ no-clobber. Non-blocking "window-gated" chip on the live preview (window affects WHETHER it scores, not the value). NO player-facing window UI (covert-safe). qr-admin: scoreWindow added to CtfInput + ctfAttributes emits it verbatim only when provided (no-clobber), NOT part of the CTFT-06 flip guard — a window-only edit of a solved flag is never rejected (asserted by test: scoreWindow-only input emits no answerType/perPlayerMax/otp keys). Zero new deps; covert path untouched. Full webapp suite 591 green; touched files tsc-clean (2 pre-existing out-of-scope errors untouched).
+- [Phase 55]: 55-02: judge scoring-window gate (CTFT-10) inserted as step 3 in judgeSolve — AFTER unlock (1b), BEFORE attempt-cap (2) — so a closed window short-circuits before the state-mutating cap bump + answer validation. Reuses the shared NON_SOLVE + the identical ctfJudgeLog('no-solve') (structurally no guess param), so a closed/invalid-tz window is byte-identical to a wrong answer on BOTH channels (T-53-04-01 held with ZERO covert-file edit — grep-gated). Consumes 55-01's pure isWithinScoreWindow (DST/tz correctness in one seam). narrowCtf carries row.scoreWindow verbatim, fail-closed coerce. 7-case judge test (backward-compat/inside/outside+no-leak/DST/order/covert). Full suite 588 green; ctf-judge.ts tsc-clean.
+- [Phase 54]: 54-04: CtfForm design-A redesign (Phase 54 DONE, 4/4) — 7 ordered section cards (Name → challenge-type segmented presets → Answer type Static/Rotating-OTP → Scoring window & limits → Unlock & chaining → hand-rolled Advanced disclosure → live scoring preview). Dead standalone `Points` field REMOVED (grep-verified setPoints==0). Live preview binds previewPoints (54-01 adapter → computePoints; judge-parity, no duplicate scorer). Secrets write-only end-to-end: edit page routes getCtf row through redactCtfSecrets (raw `record as CtfRecord` cast GONE; no `secret` token on edit page); CtfForm's CtfRecord aliased to RedactedCtfRecord so the safe shape is the only accepted prop; answer/otp-secret/reward-otpauth/effect never prefilled, blank-on-save keeps stored (no-clobber). applyPreset pre-fills Advanced knobs via presetToAdvanced but never locks them. Static Reward → OTP enrollment configurator: write-only otpauth composes {kind:"otp-enroll",otpauth,nextFlag?} (precedence over raw Effect JSON), Reveal preview REUSES the 54-03 CtfOtpEnroll card. Wordlist NOT rendered; Slice-2 day/time/tz = placeholder note only (D5). New shared qr-ui tokens cls.segment/segmentActive/segmentIdle/chip/rewardCard (slices 55/56 inherit). Zero new deps. Full webapp suite 551 green; touched files tsc-clean (2 pre-existing out-of-scope errors in dropdown-user.tsx + checkin.test.ts untouched).
 
 ### Pending Todos
 
@@ -113,9 +133,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-06T16:43:51.279Z
-Stopped at: Phase 39 context gathered
-Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
+Last session: 2026-07-15T08:34:00.000Z
+Stopped at: Completed 56-03-PLAN.md (admin Wordlist option: bulk-load hashed codes add-only + loaded/unclaimed count line, plaintext never stored/round-tripped, CTFT-14) — Phase 56 Plan 03 of 3. Phase 56 COMPLETE; all v2.3 slices (53→54→55→56) built.
+Resume file: None — Phase 56 done. v2.3 milestone slices are all built. Next: run the milestone audit (`/gsd-audit-milestone` or `/gsd-complete-milestone`) then ship/deploy run.human (PR review + merge, then ECS release use1). Relaunch inside the ctf-form-clarity worktree for GSD skills if needed.
 
 ## Operator Next Steps
 
@@ -148,3 +168,15 @@ Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-C
 | Phase 39 P39-03 | 8m | 2 tasks | 3 files |
 | Phase 39 P39-04 | ~10m | 2 tasks | 2 files |
 | Phase 39 P05 | 3min | 2 tasks | 4 files |
+| Phase 53 P02 | 3min | 2 tasks (TDD RED/GREEN) | 2 files |
+| Phase 53 P03 | 8min | 2 tasks | 2 files |
+| Phase 54 P01 | ~10m | 2 tasks (TDD RED/GREEN) | 2 files |
+| Phase 54 P02 | ~15m | 2 tasks (refactor + TDD RED/GREEN) | 4 files |
+| Phase 54 P03 | ~20m | 3 tasks (TDD RED/GREEN + 2 feat) | 5 files |
+| Phase 54 P04 | ~20m | 3 tasks (feat) | 3 files |
+| Phase 55 P01 | 4min | 3 tasks | 5 files |
+| Phase 55 P02 | 4min | 2 tasks (TDD RED/GREEN) | 2 files |
+| Phase 55 P03 | 4min | 2 tasks (feat) | 3 files |
+| Phase 56 P01 | ~2min | 2 tasks (feat + test) | 2 files |
+| Phase 56 P02 | ~7min | 3 tasks (feat + feat + test) | 5 files |
+| Phase 56 P03 | ~8min | 3 tasks (TDD RED/GREEN + TDD + feat) | 7 files |

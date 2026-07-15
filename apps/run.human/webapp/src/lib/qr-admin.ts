@@ -1,5 +1,16 @@
 import { Qr, Ctf, Qrstat } from "@/entities/qr";
+import { CtfSolve, CtfScoreEvent, CtfCode } from "@/entities/ctf";
 import { hashAnswer } from "@/lib/ctf-hash";
+import { QrValidationError } from "@/lib/qr-errors";
+import {
+  assertAnswerTypeTransition,
+  mergeFlagTypeNextState,
+} from "@/lib/ctf-flag-types";
+import { validateScoreWindow } from "@/lib/ctf-score-window";
+
+// Re-export so existing `import { QrValidationError } from "@/lib/qr-admin"`
+// call sites (route.ts, tests) keep working after the extraction to qr-errors.ts.
+export { QrValidationError };
 
 /**
  * QR / CTF admin data + validation layer (run.human, Phase-4 admin CRUD).
@@ -15,15 +26,8 @@ import { hashAnswer } from "@/lib/ctf-hash";
  * and the DB never sees a bad value.
  *
  * See src/entities/qr.ts for the load-bearing casing/parity contract.
+ * (QrValidationError now lives in ./qr-errors and is re-exported above.)
  */
-
-/** Thrown for any user-correctable bad input. Route maps it to HTTP 400. */
-export class QrValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "QrValidationError";
-  }
-}
 
 // Short-code grammar: 1–64 chars, starts alphanumeric, then alnum/_/- .
 const CODE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
@@ -140,6 +144,39 @@ export interface CtfInput {
   maxAttempts?: number;
   rateLimitWindow?: number;
   enabled?: boolean;
+  // --- Flag-types framework (Slice 1a, CTFT-01) — additive optional passthrough --
+  // All pass through numeric/string/map as provided (no hash/transform). An
+  // omitted field never clobbers the stored value (see ctfAttributes no-clobber).
+  answerType?: "static" | "otp" | "wordlist";
+  // Wordlist one-time codes (Slice 3, CTFT-14) — WRITE-ONLY plaintext lines the
+  // admin bulk-loads. They are HASHED (via the same hashAnswer seam answers use)
+  // and appended to the CtfCode pool on the write path (see upsertCtf/loadCtfCodes);
+  // plaintext is NEVER persisted and NEVER round-tripped back to the client. The
+  // load is ADD-ONLY: re-saving appends new hashes and skips duplicates, never
+  // overwriting a claim. Not part of the ctfAttributes .set() payload (it is a
+  // separate CtfCode write), so it never lands on the Ctf row.
+  codes?: string[];
+  otp?: {
+    secret?: string;
+    digits?: number;
+    period?: number;
+    algorithm?: string;
+    skew?: number;
+  };
+  unlockAfter?: string;
+  perPlayerIntervalHours?: number;
+  perPlayerMax?: number;
+  globalMax?: number;
+  // Additive Slice-2 day/time/tz scoring window (CTFT-11). No transform; no-clobber
+  // (emitted only when provided). NOT a flag-type field — it does not participate in
+  // the CTFT-06 static↔repeatable flip guard, so a window-only edit of a solved flag
+  // is never rejected.
+  //
+  // Tri-state (CR-01): `undefined` ⇒ no-clobber (leave the stored window untouched);
+  // a value ⇒ set it; explicit `null` ⇒ CLEAR the stored window (an attribute REMOVE,
+  // so toggling the window OFF on edit makes the flag always-open again — an omitted
+  // key alone would silently preserve the old window and keep gating the flag).
+  scoreWindow?: { days?: number[]; from?: string; to?: string; tz?: string } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -325,6 +362,21 @@ export function ctfAttributes(input: CtfInput) {
     }
     return { from: t.from, to: t.to, ceiling: t.ceiling as number };
   });
+  // WR-01: reject a degenerate / never-scoring window at the write boundary (mirrors
+  // the timeTiers guard above). A window with no days, malformed HH:MM, or to<=from
+  // can never satisfy the half-open same-day predicate, so it would silently never
+  // score. Fail loudly with QrValidationError instead of persisting a dead flag. A
+  // `null` clear (CR-01) and an absent window skip validation.
+  if (input.scoreWindow != null) {
+    const sw = input.scoreWindow;
+    const err = validateScoreWindow({
+      days: sw.days ?? [],
+      from: sw.from ?? "",
+      to: sw.to ?? "",
+      tz: sw.tz ?? "",
+    });
+    if (err) throw new QrValidationError(err);
+  }
   return {
     // Hash-on-save only when a real answer was entered; omit the key otherwise
     // (no-clobber). See invariant above.
@@ -342,7 +394,124 @@ export function ctfAttributes(input: CtfInput) {
     ...(input.rateLimitWindow !== undefined
       ? { rateLimitWindow: input.rateLimitWindow }
       : {}),
+    // Flag-types passthrough (Slice 1a) — each emitted only when provided so an
+    // omitted field leaves the stored value untouched on patch (no-clobber).
+    ...(input.answerType !== undefined ? { answerType: input.answerType } : {}),
+    ...(input.otp !== undefined ? { otp: input.otp } : {}),
+    ...(input.unlockAfter !== undefined ? { unlockAfter: input.unlockAfter } : {}),
+    ...(input.perPlayerIntervalHours !== undefined
+      ? { perPlayerIntervalHours: input.perPlayerIntervalHours }
+      : {}),
+    ...(input.perPlayerMax !== undefined ? { perPlayerMax: input.perPlayerMax } : {}),
+    ...(input.globalMax !== undefined ? { globalMax: input.globalMax } : {}),
+    // Slice-2 day/time/tz window (CTFT-11) — additive passthrough, verbatim, no
+    // transform. Emitted only for a real value: `undefined` (no-clobber on partial
+    // edits) AND explicit `null` (CR-01 clear) both OMIT the key from the .set()
+    // payload — the null-clear is applied as an attribute REMOVE in upsertCtf, never
+    // as a `.set(null)`.
+    ...(input.scoreWindow != null ? { scoreWindow: input.scoreWindow } : {}),
     enabled: input.enabled ?? true,
+  };
+}
+
+/**
+ * Pure bulk-hash of admin-pasted wordlist codes (Slice 3, CTFT-14).
+ *
+ * Trims each line, drops blanks, and hashes each surviving line with `hashAnswer`
+ * — the SAME salted seam the judge (56-02) claims a submitted guess against, so a
+ * loaded code and a later guess of that code hash IDENTICALLY. De-dups WITHIN the
+ * batch by codeHash (a repeated line counts toward `duplicates`, not `added`), so
+ * a paste with accidental repeats loads each distinct code exactly once.
+ *
+ * Returns the DISTINCT `codeHashes`, `added = codeHashes.length`, and
+ * `duplicates = survivingLines - added`. Plaintext never appears in the output —
+ * only salted hashes cross this boundary. PURE (no DB): the add-only write lives
+ * in `loadCtfCodes` / `upsertCtf`, keeping this unit-testable like `ctfAttributes`.
+ */
+export function hashCodeBatch(lines: string[]): {
+  codeHashes: string[];
+  added: number;
+  duplicates: number;
+} {
+  const seen = new Set<string>();
+  const codeHashes: string[] = [];
+  let surviving = 0;
+  for (const raw of lines) {
+    const line = (raw ?? "").trim();
+    if (line === "") continue; // drop blank lines
+    surviving++;
+    const codeHash = hashAnswer(line);
+    if (seen.has(codeHash)) continue; // in-batch de-dup (counts as a duplicate)
+    seen.add(codeHash);
+    codeHashes.push(codeHash);
+  }
+  return { codeHashes, added: codeHashes.length, duplicates: surviving - codeHashes.length };
+}
+
+/**
+ * Add-only bulk load of wordlist codes into the CtfCode pool (Slice 3, CTFT-14).
+ *
+ * Hashes the plaintext lines (via `hashCodeBatch`) and `CtfCode.create`s one row
+ * per distinct codeHash. The create is guarded so a codeHash ALREADY in the pool
+ * is a no-op — never a `.set()`/overwrite of an existing `claimedBy` (add-only,
+ * so a re-save can never un-claim or reveal a loaded code). NEVER logs the
+ * plaintext lines. Returns the batch stats for a non-blocking admin confirmation.
+ *
+ * WR-01 accuracy contract: `added` counts ONLY the rows this call actually
+ * persisted (a successful `create`); it is NOT the pre-loop `hashCodeBatch.added`
+ * (which would over-count both cross-save duplicates and transient failures as
+ * "loaded"). A create collision on the key's `attribute_not_exists` existence
+ * condition means the codeHash is ALREADY in the pool ⇒ count it as a duplicate
+ * (add-only no-op). Any OTHER error (a genuine transient DynamoDB throttle /
+ * network fault) is RETHROWN so the admin never sees a code reported as loaded
+ * when it was silently dropped. We distinguish the two by re-reading the row —
+ * the SAME classification discipline `claimSolve` / `claimCode` use in
+ * ctf-judge.ts (collision ⇒ row is present; anything else ⇒ rethrow). Never logs
+ * the plaintext line or the codeHash. The `hashCodeBatch` within-batch duplicates
+ * are folded into the returned `duplicates`.
+ */
+export async function loadCtfCodes(
+  challenge: string,
+  lines: string[]
+): Promise<{ added: number; duplicates: number }> {
+  const { codeHashes, duplicates: batchDuplicates } = hashCodeBatch(lines);
+  let added = 0;
+  let duplicates = batchDuplicates;
+  for (const codeHash of codeHashes) {
+    try {
+      await CtfCode.create({ challenge, codeHash }).go();
+      added++;
+    } catch (err) {
+      // A create collision means the codeHash is ALREADY in the pool — the
+      // add-only no-op. Confirm by re-reading (mirrors claimSolve/claimCode in
+      // ctf-judge.ts): if the row IS present it was a genuine duplicate ⇒ count
+      // it as a duplicate. If NO row exists the create did NOT fail on the
+      // existence condition — it was a genuine transient error (throttle /
+      // network) ⇒ RETHROW so the admin never believes a code loaded when it did
+      // not. Never log the plaintext line or the codeHash.
+      const existing = await CtfCode.get({ challenge, codeHash }).go();
+      if (!existing.data) throw err;
+      duplicates++;
+    }
+  }
+  return { added, duplicates };
+}
+
+/**
+ * Wordlist pool status for the admin edit view (Slice 3, CTFT-14). Read-only:
+ * counts the CtfCode rows for a challenge and how many remain unclaimed. Only
+ * aggregate counts leave the server — a plaintext code is NEVER read back (the
+ * entity has no plaintext attribute; `claimedBy` presence is the claimed flag).
+ */
+export async function getCtfCodeCounts(
+  challenge: string
+): Promise<{ loaded: number; unclaimed: number }> {
+  const c = normalizeChallenge(challenge);
+  const result = await CtfCode.query.primary({ challenge: c }).go({ pages: "all" });
+  const rows = result.data;
+  return {
+    loaded: rows.length,
+    unclaimed: rows.filter((r) => !r.claimedBy).length,
   };
 }
 
@@ -355,11 +524,53 @@ export async function upsertCtf(input: CtfInput): Promise<string> {
   const attrs = ctfAttributes(input);
   const existing = await Ctf.get({ challenge }).go();
   if (existing.data) {
-    await Ctf.patch({ challenge }).set(attrs).go();
+    // CTFT-06 (D-07): reject a static <-> repeatable flip once any scoring
+    // history exists (it would split across CtfSolve + CtfScoreEvent). Bounded
+    // existence read — a single-item query on each entity's challenge partition;
+    // the pure repeatable-ness comparison lives in ctf-flag-types.
+    const hasSolves = await challengeHasSolves(challenge);
+    // Compare against the MERGED next-state, not the raw partial `input`.
+    // `ctfAttributes` is no-clobber (an omitted flag-type field preserves the
+    // stored value), so a partial edit that never touches the repeatable-defining
+    // fields must NOT read as a flip. `mergeFlagTypeNextState` mirrors that
+    // no-clobber overlay; a genuine flip still sets one of the fields and is still
+    // rejected. (Passing raw `input` here is CR-01 — its omitted fields read as
+    // non-repeatable and wrongly reject partial edits of solved repeatable flags.)
+    const nextFlagType = mergeFlagTypeNextState(existing.data, input);
+    assertAnswerTypeTransition(existing.data, nextFlagType, hasSolves);
+    // CR-01: an explicit `null` scoreWindow means "clear the stored window". A plain
+    // `.set(attrs)` omits the key (no-clobber), which would leave the old window in
+    // place and keep the flag silently gated while the UI reads "Scorable any time."
+    // Apply a real attribute REMOVE so toggling the window OFF actually re-opens it.
+    const patch = Ctf.patch({ challenge }).set(attrs);
+    if (input.scoreWindow === null) {
+      patch.remove(["scoreWindow"]);
+    }
+    await patch.go();
   } else {
     await Ctf.create({ challenge, ...attrs }).go();
   }
+  // Wordlist bulk load (Slice 3, CTFT-14): after the Ctf row is written, append
+  // any pasted one-time codes to the CtfCode pool — ADD-ONLY (existing codes are
+  // never overwritten or un-claimed), hashed server-side, plaintext never stored.
+  // Runs for both create and edit; an omitted/empty `codes` is a no-op.
+  if (input.codes?.length) {
+    await loadCtfCodes(challenge, input.codes);
+  }
   return challenge;
+}
+
+/**
+ * Bounded existence check: does ANY scoring history exist for this challenge
+ * across either ledger (CtfSolve for static one-award flags, CtfScoreEvent for
+ * repeatable flags)? Uses a limit-1 query on each entity's challenge partition —
+ * no full scan — and short-circuits on the first hit.
+ */
+async function challengeHasSolves(challenge: string): Promise<boolean> {
+  const solve = await CtfSolve.query.primary({ challenge }).go({ limit: 1 });
+  if (solve.data.length > 0) return true;
+  const event = await CtfScoreEvent.query.primary({ challenge }).go({ limit: 1 });
+  return event.data.length > 0;
 }
 
 /** Delete a CTF challenge by (normalized) challenge. Idempotent. */

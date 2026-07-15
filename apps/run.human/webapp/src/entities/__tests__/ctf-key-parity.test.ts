@@ -1,6 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { CtfSolve, CtfPending, CtfAttempt } from "@/entities/ctf";
+import {
+  CtfSolve,
+  CtfScoreEvent,
+  CtfCode,
+  CtfPending,
+  CtfAttempt,
+} from "@/entities/ctf";
 
 /**
  * Key-parity lock for the Phase-44 CTF judge entities (CTF-01 SC-4).
@@ -33,6 +39,45 @@ describe("CtfSolve key parity", () => {
     const params = CtfSolve.query.byUser({ user: "user-123" }).params({ table });
     expect(params.IndexName).toBe("gsi1pk-gsi1sk-index");
     expect(params.ExpressionAttributeValues[":pk"]).toBe("$run#user_user-123");
+  });
+});
+
+describe("CtfScoreEvent key parity", () => {
+  it("encodes the primary (challenge, user, bucket) once-per-window Key", () => {
+    const key = CtfScoreEvent.get({
+      challenge: "sao",
+      user: "user-123",
+      bucket: "b-42",
+    }).params({ table }).Key;
+    // sk carries user#bucket so the once-per-window claim is a conditional put:
+    // two solves in the same bucket collide on attribute_not_exists(sk).
+    expect(key).toEqual({
+      pk: "$run#challenge_sao",
+      sk: "$ctfscoreevent_1#user_user-123#bucket_b-42",
+    });
+  });
+
+  it("encodes the byUser 'all my scoring events' query", () => {
+    const params = CtfScoreEvent.query
+      .byUser({ user: "user-123" })
+      .params({ table });
+    expect(params.IndexName).toBe("gsi1pk-gsi1sk-index");
+    expect(params.ExpressionAttributeValues[":pk"]).toBe("$run#user_user-123");
+  });
+});
+
+describe("CtfCode key parity", () => {
+  it("encodes the primary (challenge, codeHash) single-use claim Key", () => {
+    // codeHash is a stand-in salted hash; the plaintext code is never stored.
+    const key = CtfCode.get({ challenge: "sao", codeHash: "deadbeef" }).params({
+      table,
+    }).Key;
+    // This exact sk is the `attribute_not_exists(claimedBy)` claim target the
+    // 56-02 judge conditional-updates against — pinned so it can never drift.
+    expect(key).toEqual({
+      pk: "$run#challenge_sao",
+      sk: "$ctfcode_1#codehash_deadbeef",
+    });
   });
 });
 

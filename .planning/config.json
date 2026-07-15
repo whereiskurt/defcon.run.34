@@ -10,7 +10,8 @@
     "plan_check": true,
     "verifier": true,
     "nyquist_validation": false,
-    "_auto_chain_active": false
+    "_auto_chain_active": false,
+    "skip_discuss": true
   },
   "parallelization": true,
   "brave_search": false,
@@ -21,6 +22,6 @@
   },
   "granularity": "standard",
   "git": {
-    "branching_strategy": "phase"
+    "branching_strategy": "none"
   }
 }

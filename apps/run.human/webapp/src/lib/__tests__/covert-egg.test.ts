@@ -1,5 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// This suite imports the covert route (handleCovert) to prove the reward-free
+// invariant. Since main #619, route.ts statically imports admin-gate (isCtfAdmin)
+// → @/config/auth → next-auth → next/server, which is unresolvable under vitest's
+// node env. The route injects its own session via deps, so stub the auth config
+// exactly as the route's own test (and admin-gate's test) does — the reward-free
+// tests never touch real auth. (vi.mock is hoisted above the route import below.)
+vi.mock("@/config/auth", () => ({
+  auth: vi.fn(),
+  revalidateAdmin: vi.fn(),
+  revalidateGroups: vi.fn(),
+}));
+
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
 import {
   buildCovertUrl,
   buildCovertUrlFromV,
@@ -14,6 +30,9 @@ import {
   PENDING_KEY,
 } from "../covert-egg";
 import { encodeFlag } from "../ctf-covert-codec";
+import { AWARD_PROP } from "../ctf-covert-css";
+import { handleCovert, type CovertDeps } from "../../app/(ctf)/assets/theme/route";
+import type { JudgeResult } from "../ctf-judge";
 
 /**
  * covert-egg runs in the vitest DEFAULT node env — there is NO jsdom/happy-dom
@@ -244,6 +263,97 @@ describe("fireCovert — invisibility guard", () => {
     links[0]._fire("load");
     expect(win).toBe(true);
     expect(links[0]._sheetReads).toBe(0);
+  });
+});
+
+/**
+ * COVERT REWARD-FREE INVARIANT (Slice 1a, CTFT-05 / SC-5 / T-53-04-01+03).
+ *
+ * 53-04 wires the reward `effect` onto `JudgeResult` for the NON-covert claim
+ * response. This block LOCKS the other half of the invariant: the covert CSS
+ * channel must NEVER carry a reward payload. It injects a fake judge into the
+ * real `handleCovert` and proves the covert win sheet is BYTE-IDENTICAL whether
+ * or not the (credited) result carries an `effect`, and that no reward substring
+ * reaches the response. A source-grep gate keeps the covert files from ever
+ * learning about rewards. No DynamoDB / auth (all deps injected).
+ */
+describe("covert channel stays reward-free (SC-5 / T-53-04-01)", () => {
+  const OTP_ENROLL = {
+    kind: "otp-enroll" as const,
+    otpauth:
+      "otpauth://totp/Defcon.run:goldstein-dawn?secret=JBSWY3DPEHPK3PXP&issuer=Defcon.run&period=120",
+    nextFlag: "goldstein-dawn",
+  };
+
+  // Same CREDITED (points > 0) solve, one carrying the reward effect, one not.
+  const CREDITED: JudgeResult = {
+    solved: true,
+    points: 7,
+    ordinal: 1,
+    firstBlood: true,
+    capped: false,
+  };
+  const CREDITED_WITH_EFFECT: JudgeResult = { ...CREDITED, effect: OTP_ENROLL };
+
+  function themeReq(v: string): Request {
+    return new Request(
+      `https://run.defcon.run/use1/assets/theme?v=${encodeURIComponent(v)}`,
+    );
+  }
+
+  // Signed-in session + a fake judge that returns a fixed result, so the ONLY
+  // variable across the two runs is whether the result carries an `effect`.
+  function deps(result: JudgeResult): CovertDeps {
+    return {
+      getSession: async () => ({ user: { id: "u1" } }),
+      judge: (async () => result) as CovertDeps["judge"],
+    };
+  }
+
+  it("(a/b) the covert win sheet is byte-identical WITH vs WITHOUT an effect on the result", async () => {
+    const v = encodeFlag("dc34-egg", "1337");
+    const withEffect = await handleCovert(themeReq(v), deps(CREDITED_WITH_EFFECT));
+    const withoutEffect = await handleCovert(themeReq(v), deps(CREDITED));
+
+    const bodyWith = await withEffect.text();
+    const bodyWithout = await withoutEffect.text();
+
+    // (a) same 200 text/css no-store envelope.
+    expect(withEffect.status).toBe(200);
+    expect(withEffect.headers.get("content-type")?.startsWith("text/css")).toBe(true);
+    expect(withEffect.headers.get("cache-control")).toBe("no-store");
+
+    // It IS the win sheet (not two decoys) — carries the award property...
+    expect(bodyWith).toContain(AWARD_PROP);
+    // (b) ...and is byte-for-byte identical whether or not an effect was present:
+    // the effect never reaches the covert body.
+    expect(bodyWith).toBe(bodyWithout);
+  });
+
+  it("(c) no reward payload substring ever appears in the covert response body", async () => {
+    const v = encodeFlag("dc34-egg", "1337");
+    const res = await handleCovert(themeReq(v), deps(CREDITED_WITH_EFFECT));
+    const body = await res.text();
+    expect(body).not.toContain("otpauth");
+    expect(body).not.toContain("otp-enroll");
+    expect(body).not.toContain("goldstein-dawn");
+    expect(body).not.toContain("JBSWY3DPEHPK3PXP");
+    expect(body).not.toContain(OTP_ENROLL.otpauth);
+  });
+
+  it("source-grep: the covert files never reference the reward vocabulary", () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const covertSources = [
+      "../../app/(ctf)/assets/theme/route.ts",
+      "../covert-egg.ts",
+      "../ctf-covert-css.ts",
+    ];
+    for (const rel of covertSources) {
+      const src = readFileSync(resolve(here, rel), "utf8");
+      expect(src).not.toMatch(/otpauth/i);
+      expect(src).not.toMatch(/otp-enroll/i);
+      expect(src).not.toMatch(/\beffect\b/i);
+    }
   });
 });
 

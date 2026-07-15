@@ -14,6 +14,7 @@
 - [x] **v1.9 CMS-Driven UI Copy Catalog** - Phases 35-39 (shipped 2026-07-06; edit UI copy live from Strapi, no deploy — SC-3 de-dup proven live)
 - [ ] **v2.0 Admin & Reporting** - Phase 43 (planned 2026-07-11; read-only run.human /admin dashboard — users, activity, gpx usage)
 - [ ] **v2.1 CTF Judge & Scoring** - Phases 44-48 (**BUILT autonomously 2026-07-14, PR open — NOT merged/deployed**; greenfield Phase-5 CTF judge + composed scoring + covert CSS submission channel — design `docs/superpowers/specs/2026-07-13-ctf-judge-and-covert-channel-design.md`; ~122 CTF unit tests + `next build` pass; Phase-48 CloudFront/Terraform authored + validate-clean but NOT applied, deploy-specs accompany; integration-bounded against the DC33 total-score work in the `leaderboard` worktree)
+- [x] **v2.3 CTF Flag Types & Form Redesign** - Phase 53+ (planned 2026-07-14; extends the shipped CTF judge into multiple answer types — Static + Rotating OTP + repeatable ledger + reward-effect return — plus an admin form redesign. Slice 1a = Phase 53 [backend, no UI]; Slices 1b/2/3 become later phases. Design: `docs/superpowers/specs/2026-07-14-ctf-flag-types-and-form-redesign-design.md`) (completed 2026-07-15)
 - [ ] **v2.2 Leaderboard & Activity Table** - Phases 49-52 (**ALL 4 PHASES BUILT + VERIFIED 2026-07-14**, code goal-backward PASS; ships HIDDEN behind the admin group. Hidden, admin-gated DC33-style leaderboard that doubles as each runner's activity table in run.human — `Accomplishment` scoring, client-canvas GPX polyline thumbnails, consumes the CTF judge's `ctfScore`. ~104 tests. LEFT: 1 local-browser render checkpoint (signed-in admin) + `npm run build`. Spec: `docs/superpowers/specs/2026-07-13-leaderboard-activity-table-design.md`. NOTE: v2.1 / phases 44-48 are the CTF judge worktree `hiddenctfsub`.)
 
 ## Phases
@@ -314,6 +315,10 @@ Plans:
 | 50. GPX Integration — Polyline + Internal Accomplishment Endpoint | v2.2 | 2/2 | Verified (goal-backward PASS, 21 tests) | 2026-07-14 |
 | 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 3/3 | Verified (goal-backward PASS, 29 tests) | 2026-07-14 |
 | 52. Leaderboard UI — PolylineRenderer + Accordion + Hidden Page | v2.2 | 3/3 | Verified (code PASS; 1 local-browser checkpoint) | 2026-07-14 |
+| 53. CTF Flag Types — Slice 1a Backend (Answer-Type Framework + Rotating OTP) | v2.3 | 4/4 | Built + code-reviewed | 2026-07-15 |
+| 54. CTF Flag Types — Slice 1b Frontend (Admin Form Redesign + otp-enroll Reward) | v2.3 | 4/4 | Complete   | 2026-07-15 |
+| 55. CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set) | v2.3 | 3/3 | Complete   | 2026-07-15 |
+| 56. CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim) | v2.3 | 3/3 | Complete   | 2026-07-15 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -452,9 +457,11 @@ Plans:
   2. `q.defcon.run/admin/leaderboard` renders under the admin gate; the CTF signal is documented and queryable by the DC33 mapper.
 
 **Plans:** 3 plans (author + `terraform validate` only — NO apply/deploy; DEPLOY-SPECs where a blind production-distro edit is unsafe)
+
 - [x] 48-01-PLAN.md — CTF-12: covert-path `/use1/assets/theme` → use1 ALB behavior on the run.defcon.run cloudfront module (authored edit + DEPLOY-SPEC)
 - [x] 48-02-PLAN.md — CTF-13: inert `q /admin/*` → run.human behavior on the qr-resolver distro (authored, count-gated + DEPLOY-SPEC)
 - [x] 48-03-PLAN.md — CTF-14: `docs/ctf-score-integration.md` documenting the `ctfScore`/`CtfSolve` read for the DC33 mapper
+
 ### v2.2 Leaderboard & Activity Table (Planned)
 
 **Milestone Goal:** Bring back the DEF CON 33 leaderboard — which doubled as each runner's personal activity table — into run.human, shipping **HIDDEN behind the admin group** (no nav link) so it can be perfected before launch. A signed-in admin sees a ranked HeroUI accordion of runners; expanding a row reveals that runner's DEF CON runs, each with a client-side `<canvas>` map thumbnail drawn from a stored decimated GPX polyline (DC33 `PolylineRenderer` port — no S3/Lambda thumbnail pipeline). Scoring lives in a new `Accomplishment` ElectroDB entity (this board owns check-ins + GPX) rolled up onto `RunUser.activityScore`; the displayed global score sums in the CTF judge's `RunUser.ctfScore` **read-only** (no cross-write — respects the CTF design's §11 boundary). Spec: `docs/superpowers/specs/2026-07-13-leaderboard-activity-table-design.md`. Numbering: CTF judge worktree owns v2.1 / phases 44-48; this milestone is v2.2 / phases 49-52.
@@ -474,6 +481,7 @@ Plans:
 **Plans:** 4 plans (waves: 1={01,02} parallel, 2={03}, 3={04}) — **BUILT + VERIFIED 2026-07-14** on `gsd/phase-49-leaderboard-data-layer-accomplishment-entity-scoring`. Goal-backward verification PASS (4/4 must-haves; all 4 SCs traced to shipped code). Gates: vitest 31/31, tsc clean (only 2 pre-existing out-of-scope errors, untouched). Landmines clean: additive RunUser edit (no reorder, no `ctfScore`/`ctfSolves`), single-writer rollup, no CTF write path. Accepted deviation: a `strava`-source accomplishment persists but does not bump the rollup (Strava reserved this milestone).
 
 Plans:
+
 - [x] 49-01-PLAN.md — RunUser rollups: `activityScore`/`activityCounts`/`latestActivityAt` + `updateRunUserActivityCounts` (LDBR-02) [wave 1] — vitest 4/4
 - [x] 49-02-PLAN.md — Pure scoring module `lib/leaderboard-scoring.ts`: POINTS, `globalScore`, rank comparator (LDBR-03, LDBR-12) [wave 1] — vitest 12/12
 - [x] 49-03-PLAN.md — `Accomplishment` entity + `createAccomplishment`/`getAccomplishmentsByUser`/`deleteAccomplishment` + dup-guard (LDBR-01, LDBR-12) [wave 2] — vitest 10/10
@@ -494,6 +502,7 @@ Plans:
 **Plans:** 2 plans (waves: 1={01}, 2={02}) — endpoint contract first, then the run.gpx hook that POSTs to it. **BUILT + VERIFIED 2026-07-14.** Goal-backward PASS (4/4 must-haves; all 4 SCs traced end-to-end across both apps). Gates: run.human vitest 16/16 + tsc clean (only pre-existing out-of-scope errors), run.gpx vitest 5/5 + tsc fully clean. Boundaries: `source` server-fixed `gpx` (LDBR-12), no GpxFile schema change (YAGNI), shared `getAdapterUserIdBySub` (private duplicate removed), Phase-49 entity/scoring untouched.
 
 Plans:
+
 - [x] 50-01-PLAN.md — run.human `POST /api/internal/accomplishment` (secret gate + shared `getAdapterUserIdBySub` + pure payload builder → existing `createAccomplishment`) (LDBR-06) [wave 1] — vitest 16/16 (incl. 3-branch route test)
 - [x] 50-02-PLAN.md — run.gpx confirm-route hook: full S3 fetch + pure decimate-to-≤100-`{lat,lng}` + best-effort POST to run.human, skip `GLOBAL`, non-fatal (LDBR-05) [wave 2] — vitest 5/5
 
@@ -512,6 +521,7 @@ Plans:
 **Plans:** 3 plans (waves: 1={01,03}, 2={02}) — **BUILT + VERIFIED 2026-07-14.** Goal-backward PASS (4/4 must-haves; all 4 SCs traced). Gates: vitest 29/29, tsc clean (only pre-existing out-of-scope errors). Boundaries: both routes deny → 404 never 403; rank over full set stable under filter; 60s stale-while-revalidate never blocks; REUSE-only (Phase 49/50 untouched); no PII in row DTO; marked no-op privacy hook for launch.
 
 Plans:
+
 - [x] 51-01-PLAN.md — Pure core `lib/leaderboard-data.ts`: `buildLeaderboard` (rank over full sorted set → filter → paginate) + `isStale`/`LEADERBOARD_CACHE_TTL_MS` + unit tests (LDBR-07) [wave 1] — vitest 15/15
 - [x] 51-02-PLAN.md — `lib/leaderboard-cache.ts` 60s stale-while-revalidate scan cache + `GET /api/leaderboard` (admin-gate→404 → cached scan → buildLeaderboard) + route test (LDBR-07) [wave 2] — vitest 10/10
 - [x] 51-03-PLAN.md — `GET /api/leaderboard/[userId]/accomplishments` (admin-gate→404, `getAccomplishmentsByUser`, marked no-op privacy hook) + route test (LDBR-08) [wave 1] — vitest 4/4
@@ -531,11 +541,111 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
+
 - [x] 52-01-PLAN.md — PolylineRenderer client canvas + pure polyline-geometry seam (LDBR-09) — vitest 14/14
 - [x] 52-02-PLAN.md — LeaderboardTable HeroUI accordion + pure leaderboard-ui helpers (LDBR-10) — vitest 7/7
 - [x] 52-03-PLAN.md — Hidden admin `(protected)/leaderboard/page.tsx` gate + no-nav test (LDBR-11) — vitest 2/2
 
 **Verified 2026-07-14:** code goal-backward PASS (SC1 gate, SC2 no-nav, SC4 chips/emoji fully verified; SC3 canvas-draw + accordion-expand routed to the one remaining local-browser checkpoint — inherently browser-only). Gates: vitest 23/23 (phase-52) / 99/99 (full run.human leaderboard surface), tsc clean (only pre-existing out-of-scope errors). `git diff` = exactly the 8 planned UI files; Phases 49/50/51 untouched.
+
+### Phase 53: CTF Flag Types — Slice 1a Backend (Answer-Type Framework + Rotating OTP + Repeatable Ledger + Effect Return)
+
+**Goal:** Extend the shipped CTF judge from a single static-answer model into a multi-answer-type backend — all additive to the `Ctf` entity, fully unit-testable, with **no UI blast radius** and the covert-CSS invariant preserved. Adds the `answerType` framework (`static` | `otp`; a row with no `answerType` reads as `static` so every shipped flag keeps working), a `ctf-otp.ts` TOTP core ported from the real `meshtk` Go (generation + new verify/skew logic, base32 decode, SHA1, **period-120 default**), a `CtfScoreEvent` append-only ledger for repeatable flags with **atomic once-per-window** idempotency (time-bucket sort key — no read-then-write race), judge gates for **unlock/chaining**, **answer-type dispatch**, and **per-24h / per-player-max / global-max** limits (all "fail = indistinguishable non-solve"), and the **`effect`-return plumbing** (`judgeSolve` loads + returns `effect`; the non-covert solve response surfaces it, incl. the new `otp-enroll` kind; the covert path stays byte-identical). Delivers the daily-chain vision *except* time-of-day windows (Slice 2).
+**Depends on:** Phase 44 (CTF judge core — `judgeSolve`, `Ctf`/`CtfSolve` entities, `computePoints`, `allocateOrdinal`, `accrue`, `narrowCtf`; all present in this worktree via v2.1 merge). Additive-only to `Ctf` and the judge; no changes to the covert CSS path (`covert-egg.ts`) or the leaderboard rollup.
+**Requirements:** CTFT-01 (`Ctf` entity additive fields, all optional, backward-compatible: `answerType:"static"|"otp"` [absent ⇒ `static`], `otp` map `{secret(base32),digits,period:120,algorithm:"SHA1",skew}`, `unlockAfter` [prerequisite challenge **name**], `perPlayerIntervalHours`, `perPlayerMax`, `globalMax` [0/absent ⇒ unlimited; distinct from the `maxSolves` scoring-curve denominator — comment both loudly]), CTFT-02 (`src/lib/ctf-otp.ts` TOTP core ported from `~/working/meshtk/pkg/otp/totp.go` via Node `crypto` + a base32 decoder: `parseOtpauth`, `totpAt`, `adjacentCodes`, `verifyTotp` — **verify/skew is NEW logic the Go lacks**, built over `totpAt`±skew with `crypto.timingSafeEqual`; SHA1 now with a switch left for SHA256/512; unit-tested against RFC 6238 vectors [parameterized — RFC vectors are 30s/8-digit]), CTFT-03 (`CtfScoreEvent` append-only ledger entity: `pk=challenge`, `sk=user#<bucket>`, `byUser` GSI, attrs `challenge`/`user`/`points`/`channel`/`scoredAt`/`tierCeiling`; repeatable flags [`answerType==="otp"` OR `perPlayerMax>1` OR `perPlayerIntervalHours` set] write `CtfScoreEvent`; static one-award flags keep `CtfSolve` unchanged; accrual sums into `RunUser.ctfScore`/`ctfSolves` via `accrue` exactly as today), CTFT-04 (judge gates on `judgeSolve`, ordered, every failure indistinguishable from a wrong answer: **unlock** [if `unlockAfter` set and player has no score for it → non-solve], **answer-type dispatch** [`static`→`verifyAnswerHash`; `otp`→`verifyTotp`], **cadence** [once-per-`perPlayerIntervalHours` via atomic conditional-put on `CtfScoreEvent` keyed `user#<bucket>` where bucket = floor of `scoredAt` to the interval], **per-player-max** [atomic per-`(challenge,user)` count/counter], **global-max** [reuse the atomic `allocateOrdinal`; if returned `n > globalMax` → award 0 / no accrue — never a partition query]), CTFT-05 (effect-return plumbing: `judgeSolve` adds `effect` to the loaded `Ctf` [`narrowCtf`], to `JudgeResult`, and surfaces it on the **non-covert** solve response **only**; new recognized `effect` kind `{kind:"otp-enroll", otpauth, nextFlag?}`; the covert CSS path stays byte-identical and carries no reward payload), CTFT-06 (edit-semantics guard: disallow flipping `answerType` static↔repeatable once solves exist [history would split across `CtfSolve` + `CtfScoreEvent`] — the spec's chosen resolution).
+**Success Criteria** (what must be TRUE):
+
+  1. A `Ctf` row with no `answerType` scores **identically to a static flag today** (backward compat proven by test); all new fields are optional and additive — no shipped row's behavior changes.
+  2. `verifyTotp` accepts a guess equal to the current-period code or any within `±skew`, rejects outside it, and compares constant-time; the TOTP core matches RFC 6238 test vectors (parameterized to the vectors' 30s/8-digit params) and generates the meshtk code at period 120.
+  3. A repeatable OTP flag scores **at most once per `perPlayerIntervalHours` window per player** — two concurrent submits of the same rolling code award **exactly once** (atomic bucket-sk conditional put, no read-then-write race); `perPlayerMax` caps a player's total scoring solves; `globalMax` stops scoring for everyone after N events (atomic ordinal; `n > globalMax` ⇒ award 0).
+  4. The **unlock gate** withholds scoring for a flag with `unlockAfter` until the player has scored the prerequisite, and a locked/failed gate is **indistinguishable** from a wrong answer (covert-channel invariant intact).
+  5. On a non-covert solve, `judgeSolve` loads and returns the flag's `effect` and the solve API surfaces it (incl. `otp-enroll`); the covert CSS path (`covert-egg.ts`) stays **byte-identical** and carries no reward payload — grep/test-verified.
+  6. `CtfScoreEvent` accrual sums into `RunUser.ctfScore`/`ctfSolves` exactly as the shipped `accrue`; static one-award flags still write `CtfSolve` and are untouched.
+
+**Plans:** 4/4 plans complete
+**Wave 1**
+
+- [x] 53-01-PLAN.md — Data model: additive `Ctf` fields + `CtfScoreEvent` ledger + pure flag-type helpers + edit-semantics guard (CTFT-01, CTFT-03, CTFT-06) [wave 1]
+- [x] 53-02-PLAN.md — `ctf-otp.ts` TOTP core (port + new verify/skew, RFC vectors) (CTFT-02) [wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 53-03-PLAN.md — Judge gates + atomic repeatable ledger writes into `judgeSolve` (CTFT-03, CTFT-04) [wave 2]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 53-04-PLAN.md — `effect`-return plumbing (non-covert only) + covert byte-identical invariant (CTFT-05) [wave 3]
+
+### Phase 54: CTF Flag Types — Slice 1b Frontend (Admin Form Redesign + otp-enroll QR/Rolling-Code Reward Renderer)
+
+**Goal:** Ship the run.human UI half of the CTF flag-types milestone on top of Phase 53's backend — a shippable run.human PR with its own tests, no covert-CSS blast radius. Two deliverables: (1) a restructured `CtfForm.tsx` (design "A") that exposes the answer-type framework (Static / Rotating OTP), the Static→**Reward on solve → OTP enrollment** seed configurator with a reveal preview, per-24h + per-player-max + global-max limits, unlock/chaining, an always-editable Advanced drawer that presets pre-fill, and a live scoring preview mirroring `computePoints` — while **removing the dead `Points` field** and keeping answers/secrets write-only/masked; and (2) a **new client `otp-enroll` reward renderer** wired to the non-covert solve response (which 1a extended to carry `effect`) that draws a real QR of the `otpauth://` seed via the existing `qrcode@^1.5.4` dep, shows the rolling code (previous/current/next + countdown) via `adjacentCodes`, offers an "Add to Authenticator" deep link, and names the `effect.nextFlag` it unlocks. Delivers the full daily-chain vision *except* time-of-day windows (Slice 2). No infra changes, no data migration (all Phase-53 fields additive; existing rows read as `static`).
+**Depends on:** Phase 53 (Slice 1a backend — additive `Ctf` fields, `answerType` dispatch, `CtfScoreEvent` ledger, and the `effect`-return plumbing incl. `otp-enroll` on the non-covert solve response; all present in this worktree). Additive-only to the admin form and the solve-response client; must not touch the covert CSS path (`covert-egg.ts`) or the leaderboard rollup.
+**Requirements:** CTFT-07 (`CtfForm.tsx` redesign per design "A": **Name** + **challenge-type presets** [Flat points · First-blood race · Timed drop · Easter egg · Custom] that pre-fill scoring; **Answer type** section [Static / Rotating OTP] with per-type controls and, for Static, the **Reward → OTP enrollment** seed configurator + reveal preview; **Scoring window & limits** section surfacing per-24h + `perPlayerMax` + `globalMax`; **Unlock & chaining** section [hidden-until-`unlockAfter`]; always-editable **Advanced drawer** [raw curve/tier/anti-spam/effect knobs, presets pre-fill]; **live scoring preview** mirroring `computePoints`; **remove the dead `Points` field**; answers/secrets masked / write-only / never prefilled in edit mode; plain-language help copy for Ceiling, anti-spam, and the one-award/cadence note; edit-mode type + answer-type inference), CTFT-08 (client **`otp-enroll` reward renderer** — a NEW handler [none exists today; confetti is boolean-driven and `effect` never reaches the client] keyed on `effect.kind==="otp-enroll"` from the non-covert solve response: real `otpauth://` **QR via `qrcode@^1.5.4`** client-side [no new dep], **rolling code** [previous/current/next + `remainingSeconds` countdown] via `adjacentCodes`, an **"Add to Authenticator"** `otpauth://` deep-link action, and optional **next-flag** copy from `effect.nextFlag`; covert path unaffected).
+**Success Criteria** (what must be TRUE):
+
+  1. An admin can create/edit a **Static** and a **Rotating OTP** flag entirely through the redesigned `CtfForm.tsx`; a challenge-type preset pre-fills the Advanced drawer's scoring knobs, and the Advanced knobs remain editable after a preset is applied.
+  2. The Static **Reward → OTP enrollment** control configures the handed-out seed and shows a reveal preview; the dead `Points` field is gone; answers/secrets are masked and are **never** prefilled when editing an existing flag.
+  3. The live scoring preview matches `computePoints` for the current form state, and the per-24h / `perPlayerMax` / `globalMax` limits plus `unlockAfter` are all settable and round-trip through save/edit.
+  4. On a non-covert solve whose response carries `effect.kind==="otp-enroll"`, the new renderer draws a scannable QR of the `otpauth://` string, shows the correct current code with a live countdown and adjacent codes, exposes an "Add to Authenticator" deep link, and names `effect.nextFlag` when present.
+  5. The covert CSS solve path (`covert-egg.ts`) and its byte-identical response are untouched; no new runtime dependency is added (QR uses the existing `qrcode@^1.5.4`); phase-scoped tests cover preset→Advanced mapping, preview-vs-`computePoints`, masked-secret non-prefill, and `otp-enroll` render.
+
+**Plans:** 4/4 plans complete
+
+**Wave 1**
+
+- [x] 54-01-PLAN.md — Pure form model: presetToAdvanced map, previewPoints (binds computePoints), edit-mode inference, redactCtfSecrets (CTFT-07) [wave 1]
+- [x] 54-02-PLAN.md — Browser-safe OTP core split + adjacentCodesAsync (Web Crypto, no new dep; Phase-53 contract preserved) (CTFT-08) [wave 1]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [x] 54-03-PLAN.md — otp-enroll reward renderer (CtfOtpEnroll: QR + rolling code + deep link + next flag) wired into non-covert ClaimClient + covert-invariant test (CTFT-08) [wave 2]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [x] 54-04-PLAN.md — CtfForm design-A redesign: sections, segmented presets, limits, unlock, Advanced drawer, live preview, remove Points, reward configurator + reveal preview (CTFT-07) [wave 3]
+
+### Phase 55: CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set)
+
+**Goal:** Add time-of-day / day-of-week scoring windows to the CTF judge as a new ordered gate, additive to the `Ctf` entity and the redesigned admin form — a shippable run.human PR with its own tests, covert-CSS invariant preserved. Adds an optional `scoreWindow` config `{ days, startTime, endTime, tz }` where `tz` is an **IANA zone** (e.g. `America/Los_Angeles`); the judge evaluates `now` in `scoreWindow.tz` via `Intl.DateTimeFormat` (DST automatic) as gate **step 3** — if `scoreWindow` is set and `now` is outside the day/time window → **non-solve, indistinguishable from a wrong answer**. The admin form's **Scoring window & limits** section gains the day/time/tz picker (PT/ET/UTC → stored as IANA id) and the **"DEF CON run hours" quick set** (Thu–Sun 6–8 AM PT). Absent `scoreWindow` ⇒ always-open (every existing flag unchanged).
+**Depends on:** Phase 54 (redesigned `CtfForm.tsx` provides the Scoring window & limits section to extend) and Phase 53 (judge gate ordering + additive-`Ctf` pattern). Additive-only; must not touch the covert CSS path (`covert-egg.ts`) or the leaderboard rollup.
+**Requirements:** CTFT-09 (`Ctf` additive optional `scoreWindow` field `{ days:number[]|weekday-set, startTime, endTime, tz:IANA-id }`, backward-compatible: absent ⇒ always scorable; distinct from cadence/caps), CTFT-10 (judge **scoring-window gate** as ordered step 3 in `judgeSolve`: evaluate `now` in `scoreWindow.tz` via `Intl.DateTimeFormat`, DST-correct; outside window ⇒ non-solve indistinguishable from a wrong answer — covert invariant intact; never log the guess), CTFT-11 (admin form **day/time/tz picker** in the Scoring window & limits section: weekday multi-select + start/end time + tz selector [PT/ET/UTC → stored IANA id] + **"DEF CON run hours" quick set** chip = Thu–Sun 6–8 AM `America/Los_Angeles`; round-trips through save/edit; live preview reflects window state).
+**Success Criteria** (what must be TRUE):
+
+  1. A flag with `scoreWindow` set to Thu–Sun 6–8 AM PT scores **only** when `now` (evaluated in `America/Los_Angeles`) falls inside that window and is a **non-solve** (indistinguishable from wrong) otherwise; a flag with no `scoreWindow` is unaffected.
+  2. Window evaluation is **DST-correct** — "6–8 AM PT" resolves to PDT in August and PST off-season via `Intl.DateTimeFormat`, proven by a test crossing a DST boundary.
+  3. An admin can set the day/time/tz window through the form and apply the **"DEF CON run hours"** quick set in one click; the value round-trips through save→edit and the stored `tz` is an IANA id.
+  4. The covert CSS solve path (`covert-egg.ts`) stays byte-identical; the window gate fires before answer validation in the documented order and never logs the guess or secret.
+
+**Plans:** 3 plans
+
+**Wave 1**
+
+- [x] 55-01-PLAN.md — Foundation: pure DST-correct `isWithinScoreWindow` + `DEFCON_RUN_HOURS`/`TZ_OPTIONS` in `ctf-score-window.ts`, additive `Ctf.scoreWindow` attribute, form-model bridge helpers + redaction round-trip (CTFT-09) [wave 1]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 55-02-PLAN.md — Judge scoring-window gate as ordered step 3 in `judgeSolve` (inside/outside/DST/backward-compat/covert-indistinguishable) (CTFT-10) [wave 2]
+- [x] 55-03-PLAN.md — Admin day/time/tz picker + DEF CON run-hours quick set in the Scoring window & limits section + `qr-admin` write passthrough (CTFT-11) [wave 2]
+
+### Phase 56: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
+
+**Goal:** Add a third answer type — `wordlist` — a pool of single-use codes consumed first-come, atomically. New `CtfCode` ElectroDB entity (`pk = challenge`, `sk = codeHash`; attrs `codeHash` [salted with the existing answer scheme], `claimedBy`, `claimedAt`); a claim is a conditional update `attribute_not_exists(claimedBy)` → exactly one winner under concurrency, no read-then-write race. Plaintext codes are **never stored** — the admin bulk-loads pre-hashed codes. The judge's answer-validation step gains a `wordlist` branch: hash the guess and conditional-claim a matching unclaimed `CtfCode`; a used or unknown code is a **non-solve indistinguishable from a wrong answer**. The admin form's Answer-type section gains the **Wordlist** option with bulk code entry. Shippable run.human PR with its own tests including the two-claimers-one-wins race; covert-CSS invariant preserved.
+**Depends on:** Phase 54 (Answer-type section of the redesigned form to add the Wordlist option) and Phase 53 (judge answer-type dispatch + `CtfScoreEvent`/one-award ledger to record the scoring event). Additive-only; must not touch the covert CSS path (`covert-egg.ts`) or the leaderboard rollup.
+**Requirements:** CTFT-12 (new `CtfCode` ElectroDB entity: `pk=challenge`, `sk=codeHash`, attrs `codeHash` [salted, same scheme as answers], `claimedBy`, `claimedAt`; plaintext never persisted), CTFT-13 (judge **`wordlist` answer-type branch** in `judgeSolve`: hash the guess and **atomic conditional-claim** a matching unclaimed `CtfCode` via `attribute_not_exists(claimedBy)` — exactly one concurrent claimer wins; used/unknown code ⇒ non-solve indistinguishable from a wrong answer; scoring event recorded through the existing ledger/accrue path; never log the guess), CTFT-14 (admin form **Wordlist** option in the Answer-type section: bulk-load codes [hashed client- or server-side before storage per the answer-salt scheme], write-only [plaintext never round-tripped to the client], with a loaded/remaining count surfaced).
+**Success Criteria** (what must be TRUE):
+
+  1. A `wordlist` flag admits each code exactly once: two concurrent submissions of the **same** unclaimed code result in **exactly one** scoring solve and one non-solve (atomic `attribute_not_exists(claimedBy)` conditional claim — proven by a race test).
+  2. A previously-claimed or unknown code is a **non-solve indistinguishable from a wrong answer** (covert-channel invariant intact); a valid unclaimed code scores through the existing accrue path and marks the `CtfCode` `claimedBy`/`claimedAt`.
+  3. Plaintext codes are **never stored** and never round-tripped to the client — only salted `codeHash` values persist; the admin can bulk-load codes and see a loaded/remaining count.
+  4. The covert CSS solve path (`covert-egg.ts`) stays byte-identical; existing static/otp flags are unaffected by the new answer-type branch; the guess is never logged.
+
+**Plans:** 3 plans
+
+Plans:
+
+- [x] 56-01-PLAN.md — CtfCode entity (pk=challenge, sk=codeHash; claimedBy/claimedAt) + key-parity test (CTFT-12)
+- [x] 56-02-PLAN.md — judge wordlist branch: atomic claimCode (attribute_not_exists) + two-claimers-one-wins race + indistinguishable non-solve + covert grep gate (CTFT-13)
+- [x] 56-03-PLAN.md — admin Wordlist option: bulk-load hashed codes (add-only) + loaded/unclaimed count line, plaintext never round-tripped (CTFT-14)
 
 ---
 
