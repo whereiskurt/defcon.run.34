@@ -1,6 +1,28 @@
 import { describe, it, expect } from "vitest";
 
 import { encodeFlag, decodeFlag } from "../ctf-covert-codec";
+import { AWARD_PROP } from "../ctf-covert-css";
+
+/**
+ * The apex defcon.run STATIC landing (apps/static/landing/template.html) hardcodes
+ * the covert payload for the dc34-egg `!!!` easter egg — it can't import this
+ * module. These golden values pin what the landing must embed; if the codec or
+ * award-prop ever changes, this fails and the landing string must be updated.
+ */
+const APEX_LANDING_COVERT_V = "2028500684477102817202729393385721";
+const APEX_LANDING_AWARD_PROP = "--accent-ramp";
+
+describe("apex landing covert payload (pinned — keep template.html in sync)", () => {
+  it("encodeFlag('dc34-egg','!!!') matches the value the landing hardcodes", () => {
+    expect(encodeFlag("dc34-egg", "!!!")).toBe(APEX_LANDING_COVERT_V);
+    // and it decodes back to the egg (sanity: the landing fires the real flag)
+    expect(decodeFlag(APEX_LANDING_COVERT_V)).toEqual({ challenge: "dc34-egg", guess: "!!!" });
+  });
+
+  it("AWARD_PROP matches the custom property the landing reads via getComputedStyle", () => {
+    expect(AWARD_PROP).toBe(APEX_LANDING_AWARD_PROP);
+  });
+});
 
 // Valid (challenge, guess) pairs spanning ascii, unicode, digits, spaces, empty.
 const PAIRS: Array<{ challenge: string; guess: string }> = [

@@ -38,9 +38,20 @@ function fmtSolvedAt(iso?: string): string {
   return iso.slice(0, 16).replace("T", " ");
 }
 
-function Tile({ label, value }: { label: string; value: number }) {
+function Tile({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: number;
+  hint?: string;
+}) {
   return (
-    <div className={`${cls.card} px-4 py-3 flex flex-col gap-0.5`}>
+    <div
+      className={`${cls.card} px-4 py-3 flex flex-col gap-0.5${hint ? " cursor-help" : ""}`}
+      title={hint}
+    >
       <span className="text-2xl font-bold tabular-nums leading-none">{value}</span>
       <span className="text-[11px] uppercase tracking-wide text-default-400">
         {label}
@@ -127,9 +138,21 @@ export default async function LeaderboardPage({
         <Tile label="Solves" value={summary.solves} />
         <Tile label="Points" value={summary.points} />
         <Tile label="🩸 First bloods" value={summary.firstBloods} />
-        <Tile label="Live chals" value={summary.liveChallenges} />
-        <Tile label="QR" value={summary.qr} />
-        <Tile label="Covert" value={summary.covert} />
+        <Tile
+          label="Live chals"
+          value={summary.liveChallenges}
+          hint="Challenges currently enabled (accepting solves)"
+        />
+        <Tile
+          label="QR"
+          value={summary.qr}
+          hint="Solves earned by scanning a physical DEF CON QR code (q.defcon.run → visible claim page)"
+        />
+        <Tile
+          label="Covert"
+          value={summary.covert}
+          hint="Solves earned via the hidden covert channel — the !!! easter egg (/assets/theme)"
+        />
       </section>
 
       {/* Standings (client: search / sort / named filter / badges) */}
