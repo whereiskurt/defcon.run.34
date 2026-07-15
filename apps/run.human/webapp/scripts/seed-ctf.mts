@@ -62,9 +62,12 @@
  *   # 2. write the six rows (idempotent):
  *   AWS_PROFILE=dc34-application RUN_DYNAMODB_REGION=us-east-1 CTF_ANSWER_SALT=<prod> \
  *     npx tsx scripts/seed-ctf.mts --confirm
- *   # 3. (optional) remove the seeded set by the same keys:
+ *   # 3. (optional) preview a removal of the seeded set (DRY-RUN — WR-02):
  *   AWS_PROFILE=dc34-application RUN_DYNAMODB_REGION=us-east-1 \
  *     npx tsx scripts/seed-ctf.mts --remove
+ *   #    then actually delete the same keys:
+ *   AWS_PROFILE=dc34-application RUN_DYNAMODB_REGION=us-east-1 \
+ *     npx tsx scripts/seed-ctf.mts --remove --confirm
  */
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
@@ -76,7 +79,9 @@ import { buildSeedRows, type CtfSeedRow } from "../src/lib/ctf-seed-rows";
 
 const CONFIRM = process.argv.includes("--confirm");
 const REMOVE = process.argv.includes("--remove");
-const MODE = REMOVE ? "REMOVE" : CONFIRM ? "WRITE" : "DRY-RUN";
+// WR-02: --remove honors the same DRY-RUN-by-default contract as the writer —
+// it only deletes when --confirm is ALSO passed; otherwise it previews.
+const MODE = REMOVE ? (CONFIRM ? "REMOVE" : "REMOVE (DRY-RUN)") : CONFIRM ? "WRITE" : "DRY-RUN";
 
 const TABLE = process.env.RUN_ELECTRO_DBNAME || "run-human-electro";
 const REGION = process.env.RUN_DYNAMODB_REGION;
@@ -220,18 +225,31 @@ async function main() {
       );
     }
     console.log(`\nDRY-RUN: composed ${items.length} rows, wrote nothing. ` +
-      `Re-run with --confirm to write, or --remove to delete the seeded set.`);
+      `Re-run with --confirm to write, or --remove to preview a delete ` +
+      `(--remove --confirm to delete).`);
     return;
   }
 
-  // 3) REMOVE: delete the six by composed key.
+  // 3) REMOVE: delete the six by composed key — but DRY-RUN by default (WR-02).
+  //    Without --confirm this only PREVIEWS the exact seeded names it would
+  //    delete; pass --remove --confirm to actually delete. Only the six seeded
+  //    challenge keys are ever targeted.
   if (REMOVE) {
     for (const row of rows) {
       const Key = keyOf(row);
-      await doc.delete({ TableName: TABLE, Key });
-      console.log(`  deleted ${row.challenge} (pk=${Key.pk})`);
+      if (CONFIRM) {
+        await doc.delete({ TableName: TABLE, Key });
+        console.log(`  deleted ${row.challenge} (pk=${Key.pk})`);
+      } else {
+        console.log(`  would delete ${row.challenge} (pk=${Key.pk})`);
+      }
     }
-    console.log(`\nRemoved ${rows.length} seeded Ctf rows.`);
+    console.log(
+      CONFIRM
+        ? `\nRemoved ${rows.length} seeded Ctf rows.`
+        : `\nDRY-RUN: would remove ${rows.length} seeded Ctf rows, deleted nothing. ` +
+            `Re-run with --remove --confirm to delete.`
+    );
     return;
   }
 
