@@ -647,6 +647,28 @@ Plans:
 - [x] 56-02-PLAN.md — judge wordlist branch: atomic claimCode (attribute_not_exists) + two-claimers-one-wins race + indistinguishable non-solve + covert grep gate (CTFT-13)
 - [x] 56-03-PLAN.md — admin Wordlist option: bulk-load hashed codes (add-only) + loaded/unclaimed count line, plaintext never round-tripped (CTFT-14)
 
+### Phase 57: CTF Form/QR Polish + DC33 Seed Data
+
+**Goal:** Close the visual gap between the shipped v2.3 CTF surfaces and Kurt's mockups, and give admins deletable DC33 starter flags — all additive polish/data with **no** judge, scoring, entity, API, or covert-channel changes. Three slices: (A) restyle the *existing* admin `CtfForm` structure (segmented type picker, live-preview tiles, framed QR) to the mockup **within HeroUI tokens** so it stays consistent with the rest of `/admin` — no field/payload/logic change; (B) restyle the player OTP reward reveal (`CtfOtpEnroll` + `ClaimClient` solved-branch) to the mockup's **full bespoke-dark** treatment — rolling-code hero, gradient progress-ring countdown, "Add to Authenticator" + chain callout — while **keeping the real QR dark-modules-on-light** (frame only, never recolor/invert pupils; a real Google Authenticator/Authy scan is the ship gate); (C) a `seed-ctf.mts` loader mirroring `reset-ctf-user.mts` (raw SDK, DRY-RUN default, `--confirm`, SSO-cred fallback, `hashAnswer` seam under prod `CTF_ANSWER_SALT`) that writes six REAL DC33 flags sourced from `~/working/meshtk/meshtk.bak.yaml` — goldstein (`hackers4evr`, static + OTP-enroll reward) → goldstein-otp (rotating OTP, chained), mudge (race), condor (flat), grace-hopper (timed drop), turing (easter egg) — all `enabled:false` and removable via the existing Delete button. Full design in the spec.
+
+**Requirements**: CTFP-01 (admin `CtfForm` restyled to the mockup within HeroUI tokens — segment selection glow, two-line type labels, stat-tile live-scoring preview, framed QR; zero change to presets/`previewPoints`/`ctf_upsert` payload/validation), CTFP-02 (player OTP reveal `CtfOtpEnroll` + `ClaimClient` solved-branch restyled full bespoke-dark — rolling-code hero, gradient progress-ring countdown, "Add to Authenticator"/copy/chain callout — preserving all existing logic: `parseOtpauth`, `adjacentCodesAsync`, algo-unsupported fallback, no-op on unparseable, `aria-live`), CTFP-03 (QR-scannability guard: the enrollment QR stays dark-on-white via `qr.toDataURL` unchanged; polish is framing only; verified scannable in a real authenticator app before ship), CTFP-04 (`scripts/seed-ctf.mts`: raw-SDK writer of six real DC33 `Ctf` rows covering every flag type incl. the goldstein→goldstein-otp chain and a timed-drop tier, DRY-RUN default + `--confirm` + `--remove`, answers hashed via `ctf-hash` under prod salt, idempotent by challenge name, all `enabled:false`; pure row-builder unit-tested).
+
+**Depends on:** Phase 56 (the shipped v2.3 flag-types form, `CtfOtpEnroll`, judge, `Ctf` entity, and `ctf-hash` seam this phase restyles/seeds over — additive only, none modified).
+
+**Success Criteria** (what must be TRUE):
+
+  1. The admin `CtfForm` visibly matches the mockup's polish (segment glow + two-line labels, stat-tile scoring preview, framed QR) while rendering correctly in both light and dark app themes; every preset, the live preview, the `ctf_upsert` payload, validation, and edit-mode inference behave exactly as before (existing unit tests green).
+  2. The player OTP reward reveal renders the full bespoke-dark card (rolling-code hero + prev/next, gradient progress-ring countdown, "Add to Authenticator"/copy, "This unlocks: {nextFlag}" chain line) with all prior behavior intact (rolling codes advance, algo-unsupported note shows, unparseable seed no-ops, a11y announcement fires).
+  3. The enrollment QR **scans successfully in a real authenticator app** (Google Authenticator / Authy) and enrolls a working rolling code — proving the restyle did not invert/degrade the QR.
+  4. `scripts/seed-ctf.mts --confirm` loads all six real DC33 starters (visible in `/admin/qr/ctf`, `enabled:false`), the goldstein→goldstein-otp chain and each flag type are present, answers verify against the judge under the prod salt, the run is idempotent, and each seeded flag is deletable via the existing admin Delete button; DRY-RUN writes nothing.
+  5. No judge, scoring, `Ctf`/ledger entity, `/api/admin/qr`, or covert-CSS (`covert-egg.ts`) code changed — the diff is confined to form/reveal styling, the seed script, and its tests.
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 57 to break down)
+
 ---
 
 <details>
