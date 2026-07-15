@@ -45,6 +45,16 @@ export function buildCovertUrl(challenge: string, guess: string): string {
   return buildCovertUrlFromV(encodeFlag(challenge, guess));
 }
 
+/**
+ * Rolling-window gesture accumulator (pure): append `now` to `times` and drop any
+ * stamp older than `windowMs`. The caller fires when the returned list reaches its
+ * threshold. Used for the mobile theme-flip trigger (dark/light/dark… since there
+ * is no `!!!` keyboard on phones) and reusable for the `!`/tap gestures.
+ */
+export function trimBurst(times: number[], now: number, windowMs: number): number[] {
+  return [...times, now].filter((t) => now - t <= windowMs);
+}
+
 /** Win gate: true iff the marker trims to a finite numeric value > 0. */
 export function shouldCelebrate(marker: string): boolean {
   if (typeof marker !== "string") return false;

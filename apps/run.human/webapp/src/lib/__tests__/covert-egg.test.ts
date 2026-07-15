@@ -27,6 +27,7 @@ import {
   fireEgg,
   fireCovert,
   claimStashed,
+  trimBurst,
   PENDING_KEY,
 } from "../covert-egg";
 import { encodeFlag } from "../ctf-covert-codec";
@@ -123,6 +124,34 @@ describe("buildCovertUrl / buildCovertUrlFromV", () => {
     const v = url.split("v=")[1];
     expect(v).toBe(encodeFlag("dc34-egg", "1337"));
     expect(buildCovertUrlFromV(v)).toBe(url);
+  });
+});
+
+describe("trimBurst — rolling gesture window (mobile theme-flip trigger)", () => {
+  it("appends now and keeps every stamp still within windowMs", () => {
+    // now=1000, window=1200: 100 (900ms old) and 500 (500ms old) both in, +1000.
+    expect(trimBurst([100, 500], 1000, 1200)).toEqual([100, 500, 1000]);
+  });
+
+  it("drops stamps older than the window", () => {
+    // window 1200ms, now 2000: 700 is 1300ms old → dropped; 900,1500 kept, +2000.
+    expect(trimBurst([700, 900, 1500], 2000, 1200)).toEqual([900, 1500, 2000]);
+  });
+
+  it("reaches the 5-flip threshold only within the window", () => {
+    let hits: number[] = [];
+    // Five flips 300ms apart (t=0,300,600,900,1200) inside a 2500ms window.
+    for (const t of [0, 300, 600, 900, 1200]) hits = trimBurst(hits, t, 2500);
+    expect(hits.length).toBe(5); // → fires
+
+    // Five flips spread across 4s in a 2500ms window never co-exist ≥5.
+    let slow: number[] = [];
+    let max = 0;
+    for (const t of [0, 1000, 2000, 3000, 4000]) {
+      slow = trimBurst(slow, t, 2500);
+      max = Math.max(max, slow.length);
+    }
+    expect(max).toBeLessThan(5); // → never fires
   });
 });
 
