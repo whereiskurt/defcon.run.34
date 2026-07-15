@@ -36,10 +36,11 @@ function json(fc: unknown) {
 export async function GET() {
   try {
     const [nodesRes, mapRes] = await Promise.all([
-      fetch(GHOST_FEED_URL, { cache: "no-store" }),
+      fetch(GHOST_FEED_URL, { cache: "no-store", signal: AbortSignal.timeout(3000) }),
       fetch(`${RUN_HUMAN_URL}/api/internal/mesh-map`, {
         cache: "no-store",
         headers: { "x-internal-secret": INTERNAL_SECRET },
+        signal: AbortSignal.timeout(3000),
       }),
     ]);
     if (!nodesRes.ok || !mapRes.ok) return json(EMPTY);

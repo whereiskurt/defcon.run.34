@@ -21,7 +21,7 @@ function json(fc: unknown) {
 
 export async function GET() {
   try {
-    const res = await fetch(GHOST_FEED_URL, { cache: "no-store" });
+    const res = await fetch(GHOST_FEED_URL, { cache: "no-store", signal: AbortSignal.timeout(3000) });
     if (!res.ok) return json(EMPTY);
     const db = (await res.json()) as NodeDb;
     return json(ghostFeatureCollection(db));
