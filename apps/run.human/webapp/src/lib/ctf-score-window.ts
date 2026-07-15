@@ -86,6 +86,34 @@ const WEEKDAY_INDEX: Record<string, number> = {
  * caught and returns `false` — a bad window DENIES rather than leaks the reason.
  * The predicate sees ONLY the window and the clock; it never reads a guess/secret.
  */
+/** Zero-padded 24h wall-clock "HH:MM", 00:00–23:59. */
+const HHMM_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * Validate an admin-authored window at the WRITE boundary (WR-01). Returns a
+ * human-readable error string for a DEGENERATE / never-scoring window, or `null`
+ * when the window is well-formed.
+ *
+ * `isWithinScoreWindow` is half-open (`[from, to)`) and SAME-DAY — overnight
+ * wrap-around is deliberately unsupported ("DEF CON run hours" are 6–8 AM). So any
+ * window with no days, malformed times, or `to <= from` (including `from === to`
+ * and empty times) can NEVER score at any instant. Rather than silently persist a
+ * dead flag, callers reject the save and surface this message; the predicate stays
+ * fail-closed as the runtime backstop.
+ */
+export function validateScoreWindow(window: ScoreWindow): string | null {
+  if (!Array.isArray(window.days) || window.days.length === 0) {
+    return "Pick at least one day for the scoring window.";
+  }
+  if (!HHMM_RE.test(window.from) || !HHMM_RE.test(window.to)) {
+    return "Scoring window needs valid open and close times (HH:MM).";
+  }
+  if (window.to <= window.from) {
+    return "Window close time must be after open time (overnight windows are not supported).";
+  }
+  return null;
+}
+
 export function isWithinScoreWindow(window: ScoreWindow, nowMs: number): boolean {
   try {
     const parts = new Intl.DateTimeFormat("en-US", {

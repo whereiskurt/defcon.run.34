@@ -19,7 +19,7 @@ import {
   type OtpAnswerField,
   type RedactedCtfRecord,
 } from "./ctf-form-model";
-import { TZ_OPTIONS, DEFCON_RUN_HOURS } from "@/lib/ctf-score-window";
+import { TZ_OPTIONS, DEFCON_RUN_HOURS, validateScoreWindow } from "@/lib/ctf-score-window";
 import { asOtpEnrollEffect } from "@/lib/ctf-otp-enroll";
 import CtfOtpEnroll from "@/components/ctf/CtfOtpEnroll";
 
@@ -304,26 +304,38 @@ export default function CtfForm({
       }
     }
 
+    // Day/time/tz scoring window (CTFT-11): the pure bridge resolves the PT/ET/UTC
+    // label to its IANA id, or returns undefined when the toggle is off.
+    const scoreWindow = formStateToScoreWindow({
+      enabled: windowEnabled,
+      days: windowDays,
+      from: windowFrom,
+      to: windowTo,
+      tzLabel: windowTzLabel,
+    });
+    // WR-01: block a degenerate / never-scoring window with inline feedback BEFORE
+    // the POST. The judge is fail-closed, so a window with no days, malformed times,
+    // or close <= open would silently never score — reject it here (the server
+    // re-validates at the write boundary as the authoritative backstop).
+    if (scoreWindow) {
+      const swErr = validateScoreWindow(scoreWindow);
+      if (swErr) {
+        setError(swErr);
+        return;
+      }
+    }
+    // CR-01: when editing an existing flag that HAS a stored window and the admin
+    // turns the toggle OFF, send an explicit `null` sentinel so the server CLEARS
+    // the stored window (attribute remove). Omitting the key is no-clobber — the
+    // old window would survive and keep gating the flag while the UI says "Scorable
+    // any time." A brand-new flag with no stored window just omits the key.
+    const clearWindow = isEdit && !windowEnabled && Boolean(initial?.scoreWindow);
+
     setBusy(true);
     try {
       const timeTiers = tiers
         .filter((t) => (t.from ?? "").trim() !== "" || (t.to ?? "").trim() !== "")
         .map((t) => ({ from: t.from, to: t.to, ceiling: numOrUndef(t.ceiling ?? "") }));
-      // Day/time/tz scoring window (CTFT-11): the pure bridge resolves the PT/ET/UTC
-      // label to its IANA id, or returns undefined when the toggle is off.
-      const scoreWindow = formStateToScoreWindow({
-        enabled: windowEnabled,
-        days: windowDays,
-        from: windowFrom,
-        to: windowTo,
-        tzLabel: windowTzLabel,
-      });
-      // CR-01: when editing an existing flag that HAS a stored window and the admin
-      // turns the toggle OFF, send an explicit `null` sentinel so the server CLEARS
-      // the stored window (attribute remove). Omitting the key is no-clobber — the
-      // old window would survive and keep gating the flag while the UI says "Scorable
-      // any time." A brand-new flag with no stored window just omits the key.
-      const clearWindow = isEdit && !windowEnabled && Boolean(initial?.scoreWindow);
       const ctf = {
         challenge,
         // Send plaintext answer; the server hashes it (the client never hashes). A

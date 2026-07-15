@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import {
   isWithinScoreWindow,
+  validateScoreWindow,
   DEFCON_RUN_HOURS,
   TZ_OPTIONS,
   type ScoreWindow,
@@ -72,6 +73,52 @@ describe("DEFCON_RUN_HOURS quick-set constant (SC3)", () => {
 
   it("is itself a live window at a Thu 06:30 PDT instant", () => {
     expect(isWithinScoreWindow(DEFCON_RUN_HOURS, Date.parse("2026-08-06T13:30:00Z"))).toBe(true);
+  });
+});
+
+describe("validateScoreWindow — reject degenerate / never-scoring windows (WR-01)", () => {
+  it("accepts a well-formed same-day window", () => {
+    expect(validateScoreWindow(PT_WINDOW)).toBeNull();
+    expect(validateScoreWindow(DEFCON_RUN_HOURS)).toBeNull();
+  });
+
+  it("rejects an empty day set", () => {
+    expect(
+      validateScoreWindow({ days: [], from: "06:00", to: "08:00", tz: "UTC" }),
+    ).toMatch(/at least one day/i);
+  });
+
+  it("rejects an overnight window (to <= from is unsatisfiable, no wrap-around)", () => {
+    // 22:00–02:00 would never score under the half-open same-day predicate.
+    expect(
+      validateScoreWindow({ days: [5], from: "22:00", to: "02:00", tz: "UTC" }),
+    ).toMatch(/after open time/i);
+  });
+
+  it("rejects a zero-length window (from === to)", () => {
+    expect(
+      validateScoreWindow({ days: [5], from: "08:00", to: "08:00", tz: "UTC" }),
+    ).toMatch(/after open time/i);
+  });
+
+  it("rejects empty / malformed times", () => {
+    expect(validateScoreWindow({ days: [5], from: "", to: "", tz: "UTC" })).toMatch(
+      /valid open and close times/i,
+    );
+    expect(
+      validateScoreWindow({ days: [5], from: "6:00", to: "08:00", tz: "UTC" }),
+    ).toMatch(/valid open and close times/i);
+    expect(
+      validateScoreWindow({ days: [5], from: "06:00", to: "24:00", tz: "UTC" }),
+    ).toMatch(/valid open and close times/i);
+  });
+
+  it("a rejected window is ALSO never-scoring under the runtime predicate (fail-closed backstop)", () => {
+    const overnight: ScoreWindow = { days: [4, 5], from: "22:00", to: "02:00", tz: "UTC" };
+    // Thu 23:00 UTC: day is selected, 23:00 >= "22:00" but NOT < "02:00" ⇒ denied.
+    expect(isWithinScoreWindow(overnight, Date.parse("2026-08-06T23:00:00Z"))).toBe(false);
+    // Fri 01:00 UTC: an instant a wrap-around WOULD credit is still denied on time.
+    expect(isWithinScoreWindow(overnight, Date.parse("2026-08-07T01:00:00Z"))).toBe(false);
   });
 });
 

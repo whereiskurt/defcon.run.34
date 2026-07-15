@@ -6,6 +6,7 @@ import {
   assertAnswerTypeTransition,
   mergeFlagTypeNextState,
 } from "@/lib/ctf-flag-types";
+import { validateScoreWindow } from "@/lib/ctf-score-window";
 
 // Re-export so existing `import { QrValidationError } from "@/lib/qr-admin"`
 // call sites (route.ts, tests) keep working after the extraction to qr-errors.ts.
@@ -353,6 +354,21 @@ export function ctfAttributes(input: CtfInput) {
     }
     return { from: t.from, to: t.to, ceiling: t.ceiling as number };
   });
+  // WR-01: reject a degenerate / never-scoring window at the write boundary (mirrors
+  // the timeTiers guard above). A window with no days, malformed HH:MM, or to<=from
+  // can never satisfy the half-open same-day predicate, so it would silently never
+  // score. Fail loudly with QrValidationError instead of persisting a dead flag. A
+  // `null` clear (CR-01) and an absent window skip validation.
+  if (input.scoreWindow != null) {
+    const sw = input.scoreWindow;
+    const err = validateScoreWindow({
+      days: sw.days ?? [],
+      from: sw.from ?? "",
+      to: sw.to ?? "",
+      tz: sw.tz ?? "",
+    });
+    if (err) throw new QrValidationError(err);
+  }
   return {
     // Hash-on-save only when a real answer was entered; omit the key otherwise
     // (no-clobber). See invariant above.

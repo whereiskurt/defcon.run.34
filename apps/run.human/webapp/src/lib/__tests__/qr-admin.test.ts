@@ -220,6 +220,22 @@ describe("ctfAttributes hash-on-save", () => {
     expect("scoreWindow" in result).toBe(false);
   });
 
+  // WR-01: reject a degenerate / never-scoring window at the write boundary.
+  it.each([
+    ["empty days", { days: [], from: "06:00", to: "08:00", tz: "UTC" }],
+    ["overnight (to < from)", { days: [5], from: "22:00", to: "02:00", tz: "UTC" }],
+    ["zero-length (from === to)", { days: [5], from: "08:00", to: "08:00", tz: "UTC" }],
+    ["blank times", { days: [5], from: "", to: "", tz: "UTC" }],
+    ["malformed time", { days: [5], from: "6:00", to: "08:00", tz: "UTC" }],
+  ])("throws on %s", (_label, scoreWindow) => {
+    expect(() => ctfAttributes({ ...T, scoreWindow })).toThrow(QrValidationError);
+  });
+
+  it("accepts a well-formed window", () => {
+    const scoreWindow = { days: [0, 4, 5, 6], from: "06:00", to: "08:00", tz: "America/Los_Angeles" };
+    expect(() => ctfAttributes({ ...T, scoreWindow })).not.toThrow();
+  });
+
   it("a scoreWindow-only edit emits no flag-type keys (not part of the flip guard)", () => {
     const result = ctfAttributes({
       ...T,
