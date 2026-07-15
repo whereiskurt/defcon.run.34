@@ -5,26 +5,17 @@ import { useRouter } from "next/navigation";
 
 import { cls } from "./qr-ui";
 import { postQrAction } from "./qr-api";
+import type { RedactedCtfRecord } from "./ctf-form-model";
 
-export interface CtfRecord {
-  challenge: string;
-  answer?: string;
-  points?: number;
-  // Scoring curve (Phase 44). Surfaced in the Scoring card below.
-  pointMax?: number;
-  pointFloor?: number;
-  maxSolves?: number;
-  firstBloodBonus?: number;
-  // Active-window ceilings, edited via the Time tiers card.
-  timeTiers?: Array<{ from?: string; to?: string; ceiling?: number }>;
-  // Presence ONLY drives the "leave blank to keep answer" edit hint. The row no
-  // longer carries plaintext; its value is never rendered.
-  answerHash?: string;
-  effect?: unknown;
-  maxAttempts?: number;
-  rateLimitWindow?: number;
-  enabled?: boolean;
-}
+/**
+ * The shape the form receives on edit. This is EXACTLY the redacted record the
+ * server edit page produces via `redactCtfSecrets` — the write-only secrets
+ * (answer plaintext, `otp.secret`, and `effect`) are never present. Only the
+ * non-secret OTP summary (`otp.digits/period/algorithm`) and the presence
+ * booleans (`hasOtpSecret`, `hasEffect`) survive to drive the "already set —
+ * leave blank to keep" hints (T-54-04-01).
+ */
+export type CtfRecord = RedactedCtfRecord;
 
 /** A local time-tier row; `_id` is a client-only key (never persisted). */
 interface TierRow {
@@ -128,9 +119,9 @@ export default function CtfForm({
     }))
   );
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
-  const [effectText, setEffectText] = useState(
-    initial?.effect !== undefined ? JSON.stringify(initial.effect, null, 2) : ""
-  );
+  // Effect is write-only: never prefilled on edit (the redacted record carries no
+  // `effect`; `hasEffect` only drives the keep-hint). Blank on save keeps stored.
+  const [effectText, setEffectText] = useState("");
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

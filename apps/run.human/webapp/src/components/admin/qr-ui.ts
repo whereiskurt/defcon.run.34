@@ -43,4 +43,17 @@ export const cls = {
   tr: "border-t border-divider hover:bg-content2",
   td: "px-4 py-2.5 text-[12.5px] font-mono whitespace-nowrap",
   mono: "font-mono",
+  // Segmented control (challenge-type presets + answer type). A row of these
+  // buttons; the selected one carries the `primary` accent, the rest stay
+  // neutral. Height + horizontal padding follow the surface's h-9 / px-3.5
+  // control rhythm. Reused by future slices 55/56 (D2).
+  segment:
+    "inline-flex items-center justify-center h-9 px-3.5 rounded-lg border border-divider text-[13px] font-semibold transition-colors disabled:opacity-50",
+  segmentActive: "bg-primary text-black border-primary",
+  segmentIdle: "bg-content1 text-foreground hover:bg-content2",
+  // Small status/label pill (e.g. the parsed OTP digits/period/algorithm summary).
+  chip:
+    "inline-flex items-center gap-1 h-7 px-2.5 rounded-full border border-divider bg-content1 text-[12px] text-default-500",
+  // Card for the reward reveal preview (holds the reused CtfOtpEnroll renderer).
+  rewardCard: "bg-content1 border border-divider rounded-xl p-4",
 } as const;

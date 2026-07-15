@@ -2,7 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getCtf } from "@/lib/qr-admin";
-import CtfForm, { type CtfRecord } from "@/components/admin/CtfForm";
+import CtfForm from "@/components/admin/CtfForm";
+import {
+  redactCtfSecrets,
+  type LoadedCtfRecord,
+} from "@/components/admin/ctf-form-model";
 import { cls } from "@/components/admin/qr-ui";
 import { gateAdminPage } from "../../gate";
 
@@ -35,7 +39,9 @@ export default async function CtfEditPage({
           <span className="text-primary font-mono">{record.challenge}</span>
         </h1>
       </div>
-      <CtfForm mode="edit" initial={record as CtfRecord} />
+      {/* Redact write-only fields (otp seed + effect payload) before the record
+          ever crosses to the "use client" form as a prop (T-54-04-01). */}
+      <CtfForm mode="edit" initial={redactCtfSecrets(record as LoadedCtfRecord)} />
     </div>
   );
 }
