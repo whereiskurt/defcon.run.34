@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 import { cls } from "@/components/admin/qr-ui";
+import CtfUnsolveButton from "@/components/admin/CtfUnsolveButton";
 import {
   type EnrichedRow,
   type SortKey,
@@ -116,12 +117,18 @@ export default function CtfStandings({ rows }: { rows: EnrichedRow[] }) {
                 >
                   Channels
                 </th>
+                <th
+                  className={`${cls.th} text-right cursor-help`}
+                  title="Danger zone — Zero deletes every CTF solve for this runner and resets their score to 0 (irreversible)"
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {view.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-default-400 text-sm">
+                  <td colSpan={7} className="p-6 text-center text-default-400 text-sm">
                     {rows.length === 0
                       ? "No scores yet. Solvers appear here once the judge awards points."
                       : "No runners match the current filter."}
@@ -168,6 +175,9 @@ export default function CtfStandings({ rows }: { rows: EnrichedRow[] }) {
                           color="bg-secondary/15 text-secondary"
                           title={`${r.covert} covert solve(s)`}
                         />
+                      </td>
+                      <td className={`${cls.td} text-right`}>
+                        <CtfUnsolveButton user={r.userId} kind="zero" />
                       </td>
                     </tr>
                   );

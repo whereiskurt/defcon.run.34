@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { cls } from "@/components/admin/qr-ui";
 import CtfStandings from "@/components/admin/CtfStandings";
+import CtfUnsolveButton from "@/components/admin/CtfUnsolveButton";
 import { listCtf } from "@/lib/qr-admin";
 import { scanAllRunUsers } from "@/entities/run-user";
 import {
@@ -177,9 +178,9 @@ export default async function LeaderboardPage({
               <table className={`${cls.table} min-w-[640px]`}>
                 <thead className={cls.thead}>
                   <tr>
-                    {["Challenge", "Points", "Ordinal", "First blood", "Channel", "Solved at"].map(
-                      (c) => (
-                        <th key={c} className={cls.th}>
+                    {["Challenge", "Points", "Ordinal", "First blood", "Channel", "Solved at", ""].map(
+                      (c, i) => (
+                        <th key={c || `act-${i}`} className={cls.th}>
                           {c}
                         </th>
                       )
@@ -189,7 +190,7 @@ export default async function LeaderboardPage({
                 <tbody>
                   {!runnerSolves || runnerSolves.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="p-6 text-center text-default-400 text-sm">
+                      <td colSpan={7} className="p-6 text-center text-default-400 text-sm">
                         No solves recorded for this runner.
                       </td>
                     </tr>
@@ -220,6 +221,13 @@ export default async function LeaderboardPage({
                         <td className={cls.td}>{s.channel ?? "—"}</td>
                         <td className={`${cls.td} text-default-500`}>
                           {fmtSolvedAt(s.solvedAt)}
+                        </td>
+                        <td className={`${cls.td} text-right`}>
+                          <CtfUnsolveButton
+                            user={selectedRunner}
+                            challenge={s.challenge}
+                            kind="unsolve"
+                          />
                         </td>
                       </tr>
                     ))

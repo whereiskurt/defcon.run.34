@@ -1,3 +1,5 @@
+import { NextResponse } from "next/server";
+
 import { auth } from "@/config/auth";
 import {
   ADMIN_GROUPS,
@@ -11,6 +13,7 @@ import {
   enrichRows,
   leaderboardCsv,
 } from "@/lib/ctf-leaderboard";
+import { unsolveUser, unsolveChallenge } from "@/lib/ctf-unsolve-store";
 
 /**
  * GET /api/admin/ctf-leaderboard — CTF standings CSV export (Phase 47, CTF-11).
@@ -65,4 +68,76 @@ export async function GET(): Promise<Response> {
       "Cache-Control": "no-store",
     },
   });
+}
+
+/**
+ * POST /api/admin/ctf-leaderboard — destructive operator actions on the CTF
+ * board: unsolve one challenge for a runner, or zero a runner entirely. A UI
+ * wrapper around scripts/reset-ctf-user.mts (see lib/ctf-unsolve-store).
+ *
+ * Gated IDENTICALLY to GET above and to /api/admin/qr: sync requireGroups
+ * (admin | runadmin) then a LIVE revalidateGroups keyed by the OIDC sub
+ * (authUserId — NOT the adapter id). Every denial collapses to a BARE 404
+ * (non-disclosure), never a 401/403. The action operates on a TARGET userId
+ * (the runner being zeroed), which is the CtfSolve.user / RunUser.userId space
+ * (= session.user.id), distinct from the admin's authUserId used for the gate.
+ *
+ * Actions:
+ *   - unsolve_user      { user }              zero the runner (full reset)
+ *   - unsolve_challenge { user, challenge }   unsolve one challenge for them
+ */
+interface AdminLeaderboardRequest {
+  action?: "unsolve_user" | "unsolve_challenge";
+  user?: string;
+  challenge?: string;
+}
+
+const bad = (message: string) =>
+  NextResponse.json({ success: false, message }, { status: 400 });
+
+export async function POST(request: Request): Promise<Response> {
+  // ── Gate (fail-closed; every denial → 404) ────────────────────────────────
+  const session = await auth();
+  if (!requireGroups(session, ADMIN_GROUPS).ok) return NOT_FOUND();
+  const authUserId = session?.user?.authUserId;
+  if (!authUserId || !(await revalidateGroups(authUserId, ADMIN_GROUPS)))
+    return NOT_FOUND();
+
+  try {
+    const body: AdminLeaderboardRequest = await request.json();
+    const user = (body.user ?? "").trim();
+    if (!user) return bad("user is required");
+
+    switch (body.action) {
+      case "unsolve_user": {
+        const r = await unsolveUser(user);
+        return NextResponse.json({
+          success: true,
+          message: `Zeroed ${r.removedSolves} solve(s) for the runner.`,
+          data: r,
+        });
+      }
+      case "unsolve_challenge": {
+        const challenge = (body.challenge ?? "").trim();
+        if (!challenge) return bad("challenge is required");
+        const r = await unsolveChallenge(user, challenge);
+        if (r.removedSolves === 0 && r.removedScoreEvents === 0) {
+          return bad(`No solve found for ${challenge}.`);
+        }
+        return NextResponse.json({
+          success: true,
+          message: `Unsolved ${r.challenge} for the runner.`,
+          data: r,
+        });
+      }
+      default:
+        return bad("Unknown action.");
+    }
+  } catch (error) {
+    console.error("[admin/ctf-leaderboard] Error:", error);
+    return NextResponse.json(
+      { success: false, message: "Internal server error" },
+      { status: 500 }
+    );
+  }
 }
