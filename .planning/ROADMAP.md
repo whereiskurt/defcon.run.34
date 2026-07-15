@@ -589,7 +589,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 54-01-PLAN.md — Pure form model: presetToAdvanced map, previewPoints (binds computePoints), edit-mode inference, redactCtfSecrets (CTFT-07) [wave 1]
+- [x] 54-01-PLAN.md — Pure form model: presetToAdvanced map, previewPoints (binds computePoints), edit-mode inference, redactCtfSecrets (CTFT-07) [wave 1]
 - [ ] 54-02-PLAN.md — Browser-safe OTP core split + adjacentCodesAsync (Web Crypto, no new dep; Phase-53 contract preserved) (CTFT-08) [wave 1]
 
 **Wave 2** *(blocked on Wave 1)*
@@ -611,6 +611,7 @@ Plans:
   2. Window evaluation is **DST-correct** — "6–8 AM PT" resolves to PDT in August and PST off-season via `Intl.DateTimeFormat`, proven by a test crossing a DST boundary.
   3. An admin can set the day/time/tz window through the form and apply the **"DEF CON run hours"** quick set in one click; the value round-trips through save→edit and the stored `tz` is an IANA id.
   4. The covert CSS solve path (`covert-egg.ts`) stays byte-identical; the window gate fires before answer validation in the documented order and never logs the guess or secret.
+
 **Plans:** 0 plans
 
 Plans:
@@ -628,6 +629,7 @@ Plans:
   2. A previously-claimed or unknown code is a **non-solve indistinguishable from a wrong answer** (covert-channel invariant intact); a valid unclaimed code scores through the existing accrue path and marks the `CtfCode` `claimedBy`/`claimedAt`.
   3. Plaintext codes are **never stored** and never round-tripped to the client — only salted `codeHash` values persist; the admin can bulk-load codes and see a loaded/remaining count.
   4. The covert CSS solve path (`covert-egg.ts`) stays byte-identical; existing static/otp flags are unaffected by the new answer-type branch; the guess is never logged.
+
 **Plans:** 0 plans
 
 Plans:

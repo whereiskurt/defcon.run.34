@@ -4,17 +4,17 @@ milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-15T04:20:46.984Z"
+last_updated: "2026-07-15T09:00:00.000Z"
 last_activity: 2026-07-15
-last_activity_desc: Phase 53 complete
+last_activity_desc: Phase 54 Plan 01 complete (ctf-form-model seam)
 progress:
-  total_phases: 22
+  total_phases: 25
   completed_phases: 12
-  total_plans: 49
-  completed_plans: 45
-  percent: 55
-current_phase: 53
-current_phase_name: ctf-flag-types-slice-1a-backend
+  total_plans: 53
+  completed_plans: 47
+  percent: 49
+current_phase: 54
+current_phase_name: ctf-flag-types-slice-1b-frontend-admin-form-redesign-otp-enr
 ---
 
 # Project State
@@ -112,6 +112,7 @@ Recent decisions affecting current work:
 - [Phase ?]: 53-01: bucket-in-sk atomic ledger + QrValidationError extracted to dependency-free qr-errors.ts for pure helpers
 - [Phase 53]: 53-02: verifyTotp built over totpAt across a +/- skew window with length-guarded crypto.timingSafeEqual (NEW; the meshtk Go had generation only); ctf-otp.ts is pure (node:crypto only), never logs secret/guess
 - [Phase ?]: 53-03: CtfStore flag-types ops OPTIONAL (static seam stays type-clean); absent op == locked/degraded non-solve; globalMax off atomic ordinal
+- [Phase 54]: 54-01: pure client-safe ctf-form-model seam — presetToAdvanced (5 distinct preset tuples so inferChallengeType round-trips), previewPoints delegates to computePoints (preview===judge parity, no duplicate curve), redactCtfSecrets strips otp.secret+effect before server→client prop (SC-2 boundary); imports ONLY @/lib/ctf-scoring, never the judge module. 19 tests, full suite 498 green.
 
 ### Pending Todos
 
@@ -124,9 +125,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-15T04:04:18.304Z
-Stopped at: Phase 39 context gathered
-Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-CONTEXT.md
+Last session: 2026-07-15T09:00:00.000Z
+Stopped at: Completed 54-01-PLAN.md (ctf-form-model seam)
+Resume file: .planning/phases/54-ctf-flag-types-slice-1b-frontend-admin-form-redesign-otp-enr/54-02-PLAN.md
 
 ## Operator Next Steps
 
@@ -161,3 +162,4 @@ Resume file: .planning/phases/39-copy-migration-remaining-bib-shared-chrome/39-C
 | Phase 39 P05 | 3min | 2 tasks | 4 files |
 | Phase 53 P02 | 3min | 2 tasks (TDD RED/GREEN) | 2 files |
 | Phase 53 P03 | 8min | 2 tasks | 2 files |
+| Phase 54 P01 | ~10m | 2 tasks (TDD RED/GREEN) | 2 files |
