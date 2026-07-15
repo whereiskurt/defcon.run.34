@@ -61,7 +61,7 @@ import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 import {
   isDisplayNameLocked,
   normalizeSyncedName,
-} from "../src/lib/rabbit-name-sync.ts";
+} from "../src/lib/rabbit-name-sync";
 
 const CONFIRM = process.argv.includes("--confirm");
 const OIDC_PROVIDER = "run.defcon.run";
