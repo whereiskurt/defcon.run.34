@@ -317,6 +317,7 @@ Plans:
 | 52. Leaderboard UI — PolylineRenderer + Accordion + Hidden Page | v2.2 | 3/3 | Verified (code PASS; 1 local-browser checkpoint) | 2026-07-14 |
 | 53. CTF Flag Types — Slice 1a Backend (Answer-Type Framework + Rotating OTP) | v2.3 | 4/4 | Built + code-reviewed | 2026-07-15 |
 | 54. CTF Flag Types — Slice 1b Frontend (Admin Form Redesign + otp-enroll Reward) | v2.3 | 4/4 | Complete   | 2026-07-15 |
+| 55. CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set) | v2.3 | 3/3 | Complete   | 2026-07-15 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -623,7 +624,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 55-02-PLAN.md — Judge scoring-window gate as ordered step 3 in `judgeSolve` (inside/outside/DST/backward-compat/covert-indistinguishable) (CTFT-10) [wave 2]
-- [ ] 55-03-PLAN.md — Admin day/time/tz picker + DEF CON run-hours quick set in the Scoring window & limits section + `qr-admin` write passthrough (CTFT-11) [wave 2]
+- [x] 55-03-PLAN.md — Admin day/time/tz picker + DEF CON run-hours quick set in the Scoring window & limits section + `qr-admin` write passthrough (CTFT-11) [wave 2]
 
 ### Phase 56: CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim)
 

@@ -4,15 +4,15 @@ milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-15T07:16:00.000Z"
+last_updated: "2026-07-15T07:22:00.000Z"
 last_activity: 2026-07-15
-last_activity_desc: Phase 55 Plan 02 complete (judge scoring-window gate — CTFT-10; judgeSolve step 3 after unlock, before attempt-cap; closed/invalid-tz window ⇒ shared NON_SOLVE covert-indistinguishable, never logs the guess; consumes 55-01 isWithinScoreWindow)
+last_activity_desc: Phase 55 COMPLETE (3/3) — Plan 03 admin day/time/tz scoring-window picker (CTFT-11); enable toggle + Sun–Sat chips + Opens/Closes + PT/ET/UTC select (stores IANA via TZ_OPTIONS) + DEF CON run-hours quick set (Thu–Sun 6–8 AM PT, stays editable); rehydrates from initial.scoreWindow via 55-01 bridge; scoreWindow rides the qr-admin no-clobber ctfAttributes passthrough (not a flip-guard field)
 progress:
   total_phases: 25
-  completed_phases: 13
+  completed_phases: 14
   total_plans: 53
-  completed_plans: 52
-  percent: 50
+  completed_plans: 53
+  percent: 56
 current_phase: 55
 current_phase_name: ctf-flag-types-slice-2-scoring-windows-day-time-tz-gating-de
 ---
@@ -115,6 +115,7 @@ Recent decisions affecting current work:
 - [Phase 54]: 54-01: pure client-safe ctf-form-model seam — presetToAdvanced (5 distinct preset tuples so inferChallengeType round-trips), previewPoints delegates to computePoints (preview===judge parity, no duplicate curve), redactCtfSecrets strips otp.secret+effect before server→client prop (SC-2 boundary); imports ONLY @/lib/ctf-scoring, never the judge module. 19 tests, full suite 498 green.
 - [Phase 54]: 54-02: split ctf-otp into node-free ctf-otp-core.ts (shared base32Decode→Uint8Array, DataView counterBytes, RFC-4226 truncateHotp, parseOtpauth, DEFAULT_* + types) re-exported by node ctf-otp.ts (every Phase-53 signature intact, existing tests untouched); new browser ctf-otp-client.ts adjacentCodesAsync via globalThis.crypto.subtle HMAC-SHA1 — no node import, no server-module import, no new dependency — parity-tested vs sync adjacentCodes across a secret×time×period matrix + RFC-6238 anchor. Full suite 536 green.
 - [Phase 54]: 54-03: first client effect.kind handler — ctf-otp-enroll.ts asOtpEnrollEffect narrows unknown JudgeResult.effect → OtpEnrollEffect|null (kind+non-empty-otpauth+parseOtpauth in try/catch; never throws), new CtfOtpEnroll.tsx "use client" reward card (real QR via existing qrcode dep on a white quiet zone + rolling prev/CURRENT/next code + self-correcting 1s countdown via 54-02 adjacentCodesAsync + otpauth deep link + copy-setup-link + conditional next-flag), dispatched ONLY in ClaimClient's solved&&points>0 branch. Covert-invariant disk-read test (covert-egg/EggTrigger/CtfCelebration/ctf-covert-css/assets-theme carry no reward token) + git-diff-stat gate prove covert channel byte-untouched. 15 new tests. LANDMINE: an inadvertent `git stash` (prohibited — shared across worktrees) shelved the uncommitted ClaimClient edit; recovered via targeted `git stash apply stash@{0}` + drop, sibling stashes preserved, zero loss.
+- [Phase 55]: 55-03: admin day/time/tz scoring-window picker (CTFT-11) — Phase 55 COMPLETE (3/3). Replaced the Phase-54 Slice-2 placeholder note in CtfForm §4 with the real picker: enable toggle ("Restrict scoring to a time window"), 7 Sun–Sat weekday chips (reusing cls.segment tokens, role=switch), Opens/Closes type="time" inputs, PT/ET/UTC `<select>` (stores the IANA id, resolved by the 55-01 bridge), and the accent "DEF CON run hours" quick-set chip (fills Thu–Sun 06:00–08:00 PT via scoreWindowToFormState(DEFCON_RUN_HOURS) then stays individually editable — presets pre-fill, never lock, mirroring applyPreset). Rehydrates on edit from initial.scoreWindow; onSave computes formStateToScoreWindow(...) and spreads `...(scoreWindow?{scoreWindow}:{})` so OFF ⇒ no key ⇒ no-clobber. Non-blocking "window-gated" chip on the live preview (window affects WHETHER it scores, not the value). NO player-facing window UI (covert-safe). qr-admin: scoreWindow added to CtfInput + ctfAttributes emits it verbatim only when provided (no-clobber), NOT part of the CTFT-06 flip guard — a window-only edit of a solved flag is never rejected (asserted by test: scoreWindow-only input emits no answerType/perPlayerMax/otp keys). Zero new deps; covert path untouched. Full webapp suite 591 green; touched files tsc-clean (2 pre-existing out-of-scope errors untouched).
 - [Phase 55]: 55-02: judge scoring-window gate (CTFT-10) inserted as step 3 in judgeSolve — AFTER unlock (1b), BEFORE attempt-cap (2) — so a closed window short-circuits before the state-mutating cap bump + answer validation. Reuses the shared NON_SOLVE + the identical ctfJudgeLog('no-solve') (structurally no guess param), so a closed/invalid-tz window is byte-identical to a wrong answer on BOTH channels (T-53-04-01 held with ZERO covert-file edit — grep-gated). Consumes 55-01's pure isWithinScoreWindow (DST/tz correctness in one seam). narrowCtf carries row.scoreWindow verbatim, fail-closed coerce. 7-case judge test (backward-compat/inside/outside+no-leak/DST/order/covert). Full suite 588 green; ctf-judge.ts tsc-clean.
 - [Phase 54]: 54-04: CtfForm design-A redesign (Phase 54 DONE, 4/4) — 7 ordered section cards (Name → challenge-type segmented presets → Answer type Static/Rotating-OTP → Scoring window & limits → Unlock & chaining → hand-rolled Advanced disclosure → live scoring preview). Dead standalone `Points` field REMOVED (grep-verified setPoints==0). Live preview binds previewPoints (54-01 adapter → computePoints; judge-parity, no duplicate scorer). Secrets write-only end-to-end: edit page routes getCtf row through redactCtfSecrets (raw `record as CtfRecord` cast GONE; no `secret` token on edit page); CtfForm's CtfRecord aliased to RedactedCtfRecord so the safe shape is the only accepted prop; answer/otp-secret/reward-otpauth/effect never prefilled, blank-on-save keeps stored (no-clobber). applyPreset pre-fills Advanced knobs via presetToAdvanced but never locks them. Static Reward → OTP enrollment configurator: write-only otpauth composes {kind:"otp-enroll",otpauth,nextFlag?} (precedence over raw Effect JSON), Reveal preview REUSES the 54-03 CtfOtpEnroll card. Wordlist NOT rendered; Slice-2 day/time/tz = placeholder note only (D5). New shared qr-ui tokens cls.segment/segmentActive/segmentIdle/chip/rewardCard (slices 55/56 inherit). Zero new deps. Full webapp suite 551 green; touched files tsc-clean (2 pre-existing out-of-scope errors in dropdown-user.tsx + checkin.test.ts untouched).
 
@@ -130,8 +131,8 @@ None.
 ## Session Continuity
 
 Last session: 2026-07-15T07:16:00.000Z
-Stopped at: Completed 55-02-PLAN.md (judge scoring-window gate, CTFT-10) — Phase 55 Wave 2 in progress (55-02 done, 55-03 remaining). Milestone v2.3.
-Resume file: None — next is 55-03 (admin day/time/tz picker + DEF CON run-hours quick set + qr-admin write passthrough, CTFT-11), which writes the scoreWindow this gate reads.
+Stopped at: Completed 55-03-PLAN.md (admin day/time/tz picker + DEF CON run-hours quick set + qr-admin write passthrough, CTFT-11) — Phase 55 COMPLETE (3/3). Milestone v2.3.
+Resume file: None — Phase 55 done. Next is Phase 56 (CTF Flag Types — Slice 3 Wordlist One-Time Codes); run /gsd-plan-phase 56 to break it down.
 
 ## Operator Next Steps
 
@@ -172,3 +173,4 @@ Resume file: None — next is 55-03 (admin day/time/tz picker + DEF CON run-hour
 | Phase 54 P04 | ~20m | 3 tasks (feat) | 3 files |
 | Phase 55 P01 | 4min | 3 tasks | 5 files |
 | Phase 55 P02 | 4min | 2 tasks (TDD RED/GREEN) | 2 files |
+| Phase 55 P03 | 4min | 2 tasks (feat) | 3 files |
