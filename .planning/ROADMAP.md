@@ -667,9 +667,9 @@ Plans:
 
 Plans:
 
-- [ ] 57-01-PLAN.md — Surface A: restyle admin `CtfForm` + `qr-ui.ts` `cls` tokens to the mockup within HeroUI, theme-aware (segment glow, two-line labels, stat-tile preview, amber note) — zero preset/payload/validation change (CTFP-01)
-- [ ] 57-02-PLAN.md — Surface B: restyle `CtfOtpEnroll` + `ClaimClient` solved-branch to bespoke-dark (rolling-code hero, gradient countdown, mint CTA, chain callout); QR `toDataURL` params unchanged, real-authenticator scan ship gate (CTFP-02, CTFP-03)
-- [ ] 57-03-PLAN.md — `scripts/seed-ctf.mts` (raw-SDK, DRY-RUN/`--confirm`/`--remove`) + pure unit-tested `buildSeedRows()` for the six DC33 starters, all `enabled:false` (CTFP-04)
+- [x] 57-01-PLAN.md — Surface A: restyle admin `CtfForm` + `qr-ui.ts` `cls` tokens to the mockup within HeroUI, theme-aware (segment glow, two-line labels, stat-tile preview, amber note) — zero preset/payload/validation change (CTFP-01)
+- [x] 57-02-PLAN.md — Surface B: restyle `CtfOtpEnroll` + `ClaimClient` solved-branch to bespoke-dark (rolling-code hero, gradient countdown, mint CTA, chain callout); QR `toDataURL` params unchanged, real-authenticator scan ship gate (CTFP-02, CTFP-03)
+- [x] 57-03-PLAN.md — `scripts/seed-ctf.mts` (raw-SDK, DRY-RUN/`--confirm`/`--remove`) + pure unit-tested `buildSeedRows()` for the six DC33 starters, all `enabled:false` (CTFP-04)
 
 ---
 
