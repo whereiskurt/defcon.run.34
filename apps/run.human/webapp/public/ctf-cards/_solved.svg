@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="300" height="400" role="img" aria-label="Solved challenge">
+  <defs>
+    <linearGradient id="s" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0f2e2a"/>
+      <stop offset="1" stop-color="#0a1512"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="400" rx="18" fill="url(#s)"/>
+  <rect x="8" y="8" width="284" height="384" rx="12" fill="none" stroke="#14b8a6" stroke-width="2" opacity="0.5"/>
+  <text x="150" y="205" text-anchor="middle" font-family="monospace" font-size="96" fill="#14b8a6">✓</text>
+  <text x="150" y="290" text-anchor="middle" font-family="monospace" font-size="15" letter-spacing="3" fill="#5eead4">SOLVED</text>
+  <text x="150" y="320" text-anchor="middle" font-family="monospace" font-size="11" letter-spacing="1" fill="#2c766c">card art pending</text>
+</svg>

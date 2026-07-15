@@ -330,6 +330,9 @@ export interface LoadedCtfRecord {
   // edit page can render the "N codes loaded · M unclaimed" line. The edit page
   // attaches it from getCtfCodeCounts; there is no plaintext code field anywhere.
   codeCounts?: { loaded: number; unclaimed: number };
+  // Collectible CTF Cards board art slug (→ /ctf-cards/<slug>.(webp|svg)).
+  // Non-secret — preserved through redaction so the edit form rehydrates it.
+  cardImage?: string;
   // Presence-only hint driver; carries no plaintext, so it is left as-is.
   answerHash?: string;
   // ⚠️ `secret` is write-only and MUST NOT survive redaction.
@@ -363,6 +366,8 @@ export interface RedactedCtfRecord {
    * render the count line without any code ever crossing to the client.
    */
   codeCounts?: { loaded: number; unclaimed: number };
+  /** CTF Cards board art slug — non-secret, preserved so the form rehydrates it. */
+  cardImage?: string;
   answerHash?: string;
   /** OTP summary for the read-only display — NEVER the secret. */
   otp?: { digits?: number; period?: number; algorithm?: string };
@@ -406,6 +411,7 @@ export function redactCtfSecrets(record: LoadedCtfRecord): RedactedCtfRecord {
     // Non-secret aggregate wordlist counts — carried verbatim (like scoreWindow).
     // NEVER a plaintext code; drives only the "N loaded · M unclaimed" line.
     codeCounts: record.codeCounts,
+    cardImage: record.cardImage,
     answerHash: record.answerHash,
     hasOtpSecret,
     hasEffect,

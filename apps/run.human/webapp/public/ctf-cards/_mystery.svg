@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="300" height="400" role="img" aria-label="Undiscovered challenge">
+  <defs>
+    <linearGradient id="m" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a2d33"/>
+      <stop offset="1" stop-color="#16181c"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="400" rx="18" fill="url(#m)"/>
+  <rect x="8" y="8" width="284" height="384" rx="12" fill="none" stroke="#3a3e45" stroke-width="2" stroke-dasharray="6 8"/>
+  <text x="150" y="215" text-anchor="middle" font-family="monospace" font-size="140" font-weight="900" fill="#4a4e57">?</text>
+  <text x="150" y="300" text-anchor="middle" font-family="monospace" font-size="15" letter-spacing="3" fill="#6b7079">UNDISCOVERED</text>
+</svg>

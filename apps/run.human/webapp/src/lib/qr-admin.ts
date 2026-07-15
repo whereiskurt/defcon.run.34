@@ -143,6 +143,8 @@ export interface CtfInput {
   effect?: unknown;
   maxAttempts?: number;
   rateLimitWindow?: number;
+  // Collectible "CTF Cards" board art slug (→ /ctf-cards/<slug>.(webp|svg)).
+  cardImage?: string;
   enabled?: boolean;
   // --- Flag-types framework (Slice 1a, CTFT-01) — additive optional passthrough --
   // All pass through numeric/string/map as provided (no hash/transform). An
@@ -410,6 +412,10 @@ export function ctfAttributes(input: CtfInput) {
     // payload — the null-clear is applied as an attribute REMOVE in upsertCtf, never
     // as a `.set(null)`.
     ...(input.scoreWindow != null ? { scoreWindow: input.scoreWindow } : {}),
+    // Card slug (cards board): trimmed; a blank field omits the key (no-clobber on edit).
+    ...((input.cardImage ?? "").trim() !== ""
+      ? { cardImage: (input.cardImage as string).trim() }
+      : {}),
     enabled: input.enabled ?? true,
   };
 }
