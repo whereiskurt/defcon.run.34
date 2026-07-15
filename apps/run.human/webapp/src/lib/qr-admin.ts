@@ -158,6 +158,11 @@ export interface CtfInput {
   perPlayerIntervalHours?: number;
   perPlayerMax?: number;
   globalMax?: number;
+  // Additive Slice-2 day/time/tz scoring window (CTFT-11). No transform; no-clobber
+  // (emitted only when provided). NOT a flag-type field — it does not participate in
+  // the CTFT-06 static↔repeatable flip guard, so a window-only edit of a solved flag
+  // is never rejected.
+  scoreWindow?: { days?: number[]; from?: string; to?: string; tz?: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -370,6 +375,9 @@ export function ctfAttributes(input: CtfInput) {
       : {}),
     ...(input.perPlayerMax !== undefined ? { perPlayerMax: input.perPlayerMax } : {}),
     ...(input.globalMax !== undefined ? { globalMax: input.globalMax } : {}),
+    // Slice-2 day/time/tz window (CTFT-11) — additive passthrough, verbatim, no
+    // transform; emitted only when provided (no-clobber on partial edits).
+    ...(input.scoreWindow !== undefined ? { scoreWindow: input.scoreWindow } : {}),
     enabled: input.enabled ?? true,
   };
 }

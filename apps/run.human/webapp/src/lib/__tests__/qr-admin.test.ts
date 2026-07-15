@@ -200,4 +200,27 @@ describe("ctfAttributes hash-on-save", () => {
     expect("maxSolves" in result).toBe(false);
     expect("firstBloodBonus" in result).toBe(false);
   });
+
+  // Slice-2 day/time/tz scoring window (CTFT-11) — additive no-clobber passthrough.
+  it("emits scoreWindow verbatim when provided", () => {
+    const scoreWindow = { days: [0, 4, 5, 6], from: "06:00", to: "08:00", tz: "America/Los_Angeles" };
+    const result = ctfAttributes({ ...T, scoreWindow });
+    expect(result.scoreWindow).toEqual(scoreWindow);
+  });
+
+  it("omits scoreWindow when absent (no-clobber preserves the stored window)", () => {
+    const result = ctfAttributes({ ...T });
+    expect("scoreWindow" in result).toBe(false);
+  });
+
+  it("a scoreWindow-only edit emits no flag-type keys (not part of the flip guard)", () => {
+    const result = ctfAttributes({
+      ...T,
+      scoreWindow: { days: [1], from: "09:00", to: "17:00", tz: "UTC" },
+    });
+    expect("answerType" in result).toBe(false);
+    expect("perPlayerMax" in result).toBe(false);
+    expect("perPlayerIntervalHours" in result).toBe(false);
+    expect("otp" in result).toBe(false);
+  });
 });
