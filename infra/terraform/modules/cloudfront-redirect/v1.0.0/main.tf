@@ -107,7 +107,12 @@ resource "aws_s3_object" "index" {
   content      = local.html[each.key]
   etag         = md5(local.html[each.key])
   content_type = "text/html; charset=utf-8"
-  provider     = aws.global-application
+  # Interstitials run JS (covert CTF fire, countdown) then redirect — they must
+  # never be served stale from a browser cache, or a repeat visitor keeps an old
+  # copy and (e.g.) never fires the covert hit. no-cache = revalidate every visit
+  # (ETag → cheap 304 when unchanged). CloudFront forwards this to the viewer.
+  cache_control = "no-cache"
+  provider      = aws.global-application
 }
 
 # Local card image per host at s3://bucket/<host>/<file> (e.g. r/hackers.png)
