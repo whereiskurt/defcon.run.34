@@ -23,9 +23,10 @@ describe("internal mesh-map", () => {
     (scanAllRunUsers as any).mockResolvedValue([
       {
         displayName: "rabbit_9f2a", mqttUsertype: "rabbit", hash: "abc",
+        mqttUsername: "MQTT_USER_LEAK", mqttPassword: "MQTT_PASS_LEAK",
         preferences: { pinIcon: "star", pinColor: "#00d4aa" },
         meshtasticRadios: [
-          { id: "1", nodeId: "!95347fc0", verified: true, showOnMap: true },
+          { id: "1", nodeId: "!95347fc0", verified: true, showOnMap: true, privateKey: "PRIV_LEAK", publicKey: "PUB_LEAK" },
           { id: "2", nodeId: "!deadbeef", verified: true, showOnMap: false }, // opted out
           { id: "3", nodeId: "!12345678", verified: false, showOnMap: true }, // unverified
         ],
@@ -39,5 +40,10 @@ describe("internal mesh-map", () => {
       nodeNum: 2503245760, displayName: "rabbit_9f2a", userType: "rabbit",
       pinIcon: "star", pinColor: "#00d4aa", hash: "abc",
     });
+    expect(body.entries[0]).not.toHaveProperty("privateKey");
+    expect(body.entries[0]).not.toHaveProperty("publicKey");
+    expect(body.entries[0]).not.toHaveProperty("mqttUsername");
+    expect(body.entries[0]).not.toHaveProperty("mqttPassword");
+    expect(JSON.stringify(body)).not.toMatch(/LEAK/);
   });
 });
