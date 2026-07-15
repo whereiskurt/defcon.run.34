@@ -11,7 +11,9 @@ import { electroClient, ELECTRO_TABLE } from "./client";
  * key shapes here are run.human-internal contracts, pinned by
  * `src/entities/__tests__/ctf-key-parity.test.ts`. (CtfScoreEvent, added in the
  * flag-types Slice 1a, likewise has NO resolver `.mjs` mirror — the resolver
- * never reads it; its keys are run.human-internal.)
+ * never reads it; its keys are run.human-internal. CtfCode, added in the
+ * flag-types Slice 3 wordlist work, likewise has NO resolver `.mjs` mirror — the
+ * resolver never reads it; its keys are run.human-internal.)
  *
  * Schema only: no DB-mutating helpers live here. The judge (Phase 44-03) owns
  * the conditional-put / atomic-ADD orchestration behind its store seam.
@@ -134,6 +136,61 @@ export const CtfScoreEvent = new Entity(
 );
 
 // ---------------------------------------------------------------------------
+// CtfCode — pool of single-use wordlist codes (flag-types Slice 3, CTFT-12)
+// ---------------------------------------------------------------------------
+//
+// One row per (challenge, codeHash). Only the SALTED codeHash persists — the
+// admin bulk-loads pre-hashed codes via the SAME salt scheme answers use
+// (lib/ctf-hash), so a table read never hands over a redeemable plaintext code
+// (there is deliberately NO `code`/plaintext attribute on this entity).
+//
+// Because the codeHash lives in the sk, a once-per-code single-use claim is a
+// single DynamoDB conditional update on `attribute_not_exists(claimedBy)`: two
+// concurrent claimers of the SAME code collide on that condition and EXACTLY one
+// wins (no read-then-write race) — mirroring CtfSolve's idempotent claim, but
+// keyed by the code rather than the user. The loser gets a non-solve
+// indistinguishable from a wrong answer. `claimedBy`/`claimedAt` are ABSENT
+// until the winning claim sets them (that absence IS the claim condition).
+//
+// Schema only: the atomic claim itself (the conditional patch) lands in the
+// judge (56-02) behind its store seam. No gsi1 byUser index — the claim is by
+// the exact (challenge, codeHash) key, so there is no per-user query path.
+export const CtfCode = new Entity(
+  {
+    model: {
+      entity: "CtfCode",
+      version: "1",
+      service: "run",
+    },
+    attributes: {
+      challenge: { type: "string", required: true },
+      // Salted SHA-256 hex of a code, produced by the SAME hashAnswer seam
+      // answers use (lib/ctf-hash). Plaintext is NEVER an attribute here.
+      codeHash: { type: "string", required: true },
+      // The authUserId that won the single-use claim. ABSENT until claimed —
+      // its absence is the `attribute_not_exists(claimedBy)` claim condition.
+      claimedBy: { type: "string" },
+      // UTC-ISO claim time. ABSENT until claimed.
+      claimedAt: { type: "string" },
+      createdAt: {
+        type: "string",
+        default: () => new Date().toISOString(),
+        readOnly: true,
+      },
+    },
+    indexes: {
+      // All codes for a challenge share a partition; each code is one row.
+      // The claim is a conditional update on attribute_not_exists(claimedBy).
+      primary: {
+        pk: { field: "pk", composite: ["challenge"] },
+        sk: { field: "sk", composite: ["codeHash"] },
+      },
+    },
+  },
+  { client: electroClient, table: ELECTRO_TABLE }
+);
+
+// ---------------------------------------------------------------------------
 // CtfPending — park-and-claim for unauth covert hits (Phase 46 consumes)
 // ---------------------------------------------------------------------------
 
@@ -221,6 +278,14 @@ export type CtfScoreEventItem = {
   tierCeiling?: number;
   createdAt?: string;
   updatedAt?: string;
+};
+
+export type CtfCodeItem = {
+  challenge: string;
+  codeHash: string;
+  claimedBy?: string;
+  claimedAt?: string;
+  createdAt?: string;
 };
 
 export type CtfPendingItem = {
