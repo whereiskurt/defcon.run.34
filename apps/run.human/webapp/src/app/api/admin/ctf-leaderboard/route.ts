@@ -4,7 +4,13 @@ import {
   requireGroups,
   revalidateGroups,
 } from "@/lib/admin-gate";
-import { buildLeaderboard, leaderboardCsv } from "@/lib/ctf-leaderboard";
+import {
+  buildLeaderboard,
+  scanAllCtfSolves,
+  aggregateSolvesByUser,
+  enrichRows,
+  leaderboardCsv,
+} from "@/lib/ctf-leaderboard";
 
 /**
  * GET /api/admin/ctf-leaderboard — CTF standings CSV export (Phase 47, CTF-11).
@@ -42,9 +48,13 @@ export async function GET(): Promise<Response> {
   if (!authUserId || !(await revalidateGroups(authUserId, ADMIN_GROUPS)))
     return NOT_FOUND();
 
-  // ── Build → serialize (formula-guarded) ───────────────────────────────────
-  const rows = await buildLeaderboard();
-  const csv = leaderboardCsv(rows);
+  // ── Build → enrich → serialize (formula-guarded) ──────────────────────────
+  const [rows, solves] = await Promise.all([
+    buildLeaderboard(),
+    scanAllCtfSolves(),
+  ]);
+  const enriched = enrichRows(rows, aggregateSolvesByUser(solves));
+  const csv = leaderboardCsv(enriched);
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
   return new Response(csv, {
