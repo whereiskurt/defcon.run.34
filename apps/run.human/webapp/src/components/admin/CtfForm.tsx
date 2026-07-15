@@ -451,7 +451,7 @@ export default function CtfForm({
         />
         <p className="text-[12.5px] text-default-500 mt-2">
           Stored lowercase. Submitted via{" "}
-          <code>
+          <code className="font-mono text-[12px] rounded border border-divider bg-content2 px-1.5 py-0.5">
             q.defcon.run/ctf/{challenge.trim().toLowerCase() || "<name>"}/&lt;guess&gt;
           </code>
           {isEdit ? " · immutable (delete + recreate to rename)." : "."}
@@ -1064,9 +1064,9 @@ export default function CtfForm({
           Mirrors the judge&apos;s computePoints for the current form values.
         </p>
         {windowEnabled ? (
-          <div className="mb-3 inline-flex items-center gap-1.5">
+          <div className="mb-3 flex items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2">
             <span className={cls.chip}>window-gated</span>
-            <span className="text-[12px] text-default-500">
+            <span className="text-[12px] text-secondary">
               scores only inside the set window — the point value is unchanged
             </span>
           </div>
@@ -1087,21 +1087,27 @@ export default function CtfForm({
           const firstSolve = previewPoints(previewConfig, 1);
           const lastSolve = previewPoints(previewConfig, Math.max(nMax, 1));
           return (
-            <div className="flex flex-wrap gap-6">
-              <div>
-                <span className={cls.label}>First solve (n=1)</span>
-                <span className="block font-mono text-[28px] font-semibold tracking-wide text-primary">
-                  {firstSolve}
-                </span>
-              </div>
-              {nMax > 1 ? (
-                <div>
-                  <span className={cls.label}>Last solve (n={nMax})</span>
-                  <span className="block font-mono text-[28px] font-semibold tracking-wide text-primary">
-                    {lastSolve}
+            <div className="rounded-lg border border-divider bg-content2 p-3">
+              <div className="flex flex-wrap gap-2.5">
+                <div className="flex-1 min-w-[130px] rounded-lg border border-divider bg-content1 px-3 py-2.5">
+                  <span className="block font-mono text-[10.5px] uppercase tracking-wide text-default-400">
+                    First solve · n=1
+                  </span>
+                  <span className="block font-mono tabular-nums text-[20px] font-semibold text-primary leading-tight mt-0.5">
+                    {firstSolve}
                   </span>
                 </div>
-              ) : null}
+                {nMax > 1 ? (
+                  <div className="flex-1 min-w-[130px] rounded-lg border border-divider bg-content1 px-3 py-2.5">
+                    <span className="block font-mono text-[10.5px] uppercase tracking-wide text-default-400">
+                      Last solve · n={nMax}
+                    </span>
+                    <span className="block font-mono tabular-nums text-[20px] font-semibold text-primary leading-tight mt-0.5">
+                      {lastSolve}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
             </div>
           );
         })()}
