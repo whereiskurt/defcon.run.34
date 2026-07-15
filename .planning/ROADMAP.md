@@ -315,6 +315,8 @@ Plans:
 | 50. GPX Integration — Polyline + Internal Accomplishment Endpoint | v2.2 | 2/2 | Verified (goal-backward PASS, 21 tests) | 2026-07-14 |
 | 51. Leaderboard API — Scan/Rank/Cache + Admin Routes | v2.2 | 3/3 | Verified (goal-backward PASS, 29 tests) | 2026-07-14 |
 | 52. Leaderboard UI — PolylineRenderer + Accordion + Hidden Page | v2.2 | 3/3 | Verified (code PASS; 1 local-browser checkpoint) | 2026-07-14 |
+| 53. CTF Flag Types — Slice 1a Backend (Answer-Type Framework + Rotating OTP) | v2.3 | 4/4 | Built + code-reviewed | 2026-07-15 |
+| 54. CTF Flag Types — Slice 1b Frontend (Admin Form Redesign + otp-enroll Reward) | v2.3 | 4/4 | Complete   | 2026-07-15 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -585,7 +587,7 @@ Plans:
   4. On a non-covert solve whose response carries `effect.kind==="otp-enroll"`, the new renderer draws a scannable QR of the `otpauth://` string, shows the correct current code with a live countdown and adjacent codes, exposes an "Add to Authenticator" deep link, and names `effect.nextFlag` when present.
   5. The covert CSS solve path (`covert-egg.ts`) and its byte-identical response are untouched; no new runtime dependency is added (QR uses the existing `qrcode@^1.5.4`); phase-scoped tests cover preset→Advanced mapping, preview-vs-`computePoints`, masked-secret non-prefill, and `otp-enroll` render.
 
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 **Wave 1**
 
@@ -598,7 +600,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 54-04-PLAN.md — CtfForm design-A redesign: sections, segmented presets, limits, unlock, Advanced drawer, live preview, remove Points, reward configurator + reveal preview (CTFT-07) [wave 3]
+- [x] 54-04-PLAN.md — CtfForm design-A redesign: sections, segmented presets, limits, unlock, Advanced drawer, live preview, remove Points, reward configurator + reveal preview (CTFT-07) [wave 3]
 
 ### Phase 55: CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set)
 
