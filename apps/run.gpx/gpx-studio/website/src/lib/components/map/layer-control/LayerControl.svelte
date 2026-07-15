@@ -4,6 +4,8 @@
     import PublicOverlays from './PublicOverlays.svelte';
     import { OverpassLayer } from './overpass-layer';
     import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
+    import { GhostLayer } from '$lib/components/map/ghost-layer';
+    import { ghostMode } from '$lib/stores/ghost';
     import { Separator } from '$lib/components/ui/separator';
     import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
     import { Layers } from '@lucide/svelte';
@@ -25,6 +27,7 @@
     let container: HTMLDivElement;
     let overpassLayer: OverpassLayer;
     let publicOverlaysLayer: PublicOverlaysLayer | undefined = $state();
+    let ghostLayer: GhostLayer | undefined;
 
     const {
         currentBasemap,
@@ -203,6 +206,15 @@
         }
         publicOverlaysLayer = new PublicOverlaysLayer(_map);
         publicOverlaysLayer.add();
+        if (ghostLayer) ghostLayer.remove();
+        ghostLayer = new GhostLayer(_map);
+        // Reveal/hide with the hidden ghostMode store (default off). map.onLoad
+        // callbacks fire exactly once per component lifetime (Map._onLoadCallbacks
+        // is drained after firing, and LayerControl is mounted once at app root),
+        // so this single subscription does not accumulate/leak.
+        ghostMode.subscribe((on) => {
+            void ghostLayer?.setVisible(on);
+        });
         let first = true;
         _map.on('style.import.load', () => {
             if (!first) return;
