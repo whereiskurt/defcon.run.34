@@ -186,7 +186,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const { radioId, verificationCode, privateKey, publicKey, impersonate } = await req.json();
+    const { radioId, verificationCode, privateKey, publicKey, impersonate, showOnMap } = await req.json();
 
     if (!radioId) {
       return NextResponse.json({ error: 'Radio ID is required' }, { status: 400 });
@@ -240,6 +240,10 @@ export async function PATCH(req: NextRequest) {
 
     if (impersonate !== undefined) {
       radio.impersonate = impersonate;
+    }
+
+    if (showOnMap !== undefined) {
+      radio.showOnMap = showOnMap;
     }
 
     currentRadios[radioIndex] = radio;
