@@ -146,6 +146,9 @@
   }
   .toggle {
     appearance: none; cursor: pointer;
+    /* Kill mobile double-tap zoom + text-select so rapid taps (the no-keyboard
+       CTF-egg trigger) register cleanly instead of zooming the page. */
+    touch-action: manipulation; -webkit-user-select: none; user-select: none;
     width: 40px; height: 40px; border-radius: 11px;
     border: 1px solid var(--card-line); background: var(--panel);
     color: var(--fg); font-size: 16px; line-height: 1;
