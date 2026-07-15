@@ -178,6 +178,13 @@ export interface CtfStore {
   }): Promise<void>;
   /** Atomic ADD RunUser.ctfScore points, ADD RunUser.ctfSolves 1. */
   accrue(args: { user: string; points: number }): Promise<void>;
+  /**
+   * Adjust RunUser.ctfScore by a (possibly negative) delta WITHOUT touching
+   * ctfSolves — used by the admin re-score override to keep the board idempotent
+   * (a re-submit reflects the current config as a single award, never additive).
+   * A zero delta is a no-op. (main #619 admin re-submit override.)
+   */
+  reaccrue(args: { user: string; delta: number }): Promise<void>;
 
   // --- Flag-types framework (Slice 1a) — OPTIONAL/ADDITIVE store ops. --------
   // These are only invoked for rows that use the new fields (unlockAfter set, or
@@ -272,13 +279,21 @@ export async function judgeSolve(
     guess?: string;
     guessHash?: string;
     channel: Channel;
+    /**
+     * CTF operator override (front-door-resolved from CTF_ADMIN_GROUPS). When
+     * true: the attempt cap is skipped AND an already-solved challenge is
+     * RE-SCORED against the current config (idempotent net-delta) rather than
+     * echoing the frozen prior award. Correctness is still required. Defaults
+     * false — the judge never reads identity/roles from the guess.
+     */
+    admin?: boolean;
   },
   deps: { store?: CtfStore; now?: number; log?: (o: unknown) => void } = {},
 ): Promise<JudgeResult> {
   const store = deps.store ?? defaultStore;
   const now = deps.now ?? Date.now();
   const log = deps.log ?? emit;
-  const { user, challenge, guess, guessHash, channel } = input;
+  const { user, challenge, guess, guessHash, channel, admin = false } = input;
 
   try {
     // (1) load Ctf; missing or disabled → non-solve (covert renders it as decoy).
@@ -321,17 +336,22 @@ export async function judgeSolve(
     }
 
     // (3) attempt-cap / rate-limit. Over-limit is INDISTINGUISHABLE from a wrong
-    // guess (covert invisibility — do NOT reveal the reason).
-    const over = await store.overAttemptLimit({
-      challenge,
-      user,
-      window: ctf.rateLimitWindow ?? 0,
-      max: ctf.maxAttempts ?? Number.POSITIVE_INFINITY,
-      now,
-    });
-    if (over) {
-      log(ctfJudgeLog({ challenge, result: "no-solve" }));
-      return NON_SOLVE;
+    // guess (covert invisibility — do NOT reveal the reason). Admins bypass the
+    // cap entirely so they can iterate on a challenge without self-locking out
+    // (main #619 — composes AFTER the unlock/window gates above, which still apply
+    // to admins: an admin re-submit is a correctness+config test, not a gate skip).
+    if (!admin) {
+      const over = await store.overAttemptLimit({
+        challenge,
+        user,
+        window: ctf.rateLimitWindow ?? 0,
+        max: ctf.maxAttempts ?? Number.POSITIVE_INFINITY,
+        now,
+      });
+      if (over) {
+        log(ctfJudgeLog({ challenge, result: "no-solve" }));
+        return NON_SOLVE;
+      }
     }
 
     // (4) validate the answer BY answerType (flag-types D-05 step 5). NEVER log
@@ -478,6 +498,34 @@ export async function judgeSolve(
     const claim = await store.claimSolve({ challenge, user, channel, solvedAt });
     if (!claim.claimed) {
       const prior = claim.existing;
+
+      // ADMIN OVERRIDE (main #619): re-score an already-solved challenge against the
+      // CURRENT config so operators can verify a changed setup by resubmitting. Reuse
+      // the existing ordinal (never bump Ctf.solveCount) and move ctfScore by the NET
+      // DELTA only (ctfSolves untouched) — the board stays idempotent (unchanged
+      // config → delta 0). Needs a usable prior ordinal; without one we cannot
+      // safely re-score, so fall through to the plain replay below. (This is the
+      // STATIC one-award path; repeatable/wordlist flags never reach here.)
+      if (admin && prior && prior.ordinal >= 1) {
+        const n = prior.ordinal;
+        const points = computePoints(n, ctf, now);
+        const capped = points === 0;
+        const firstBlood = n === 1;
+        const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
+        await store.recordScore({
+          challenge,
+          user,
+          ordinal: n,
+          points,
+          firstBlood,
+          tierCeiling,
+          channel,
+        });
+        await store.reaccrue({ user, delta: points - prior.points });
+        log(ctfJudgeLog({ challenge, result: "re-score" }));
+        return { solved: true, points, ordinal: n, firstBlood, capped };
+      }
+
       const priorPoints = prior?.points ?? 0;
       log(ctfJudgeLog({ challenge, result: "replay" }));
       return {
@@ -767,5 +815,13 @@ export const defaultStore: CtfStore = {
       if (existing.data && !existing.data.claimedBy) throw err;
       return { claimed: false };
     }
+  },
+
+  async reaccrue({ user, delta }) {
+    // Idempotent-friendly: a zero delta (unchanged config) writes nothing.
+    // DynamoDB ADD accepts a negative operand, so a lowered ceiling decrements.
+    // ctfSolves is deliberately left untouched — the solve count is unchanged.
+    if (delta === 0) return;
+    await RunUser.patch({ userId: user }).add({ ctfScore: delta }).go();
   },
 };

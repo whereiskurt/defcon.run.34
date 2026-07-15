@@ -104,6 +104,9 @@ function makeStore(ctf: JudgeCtf | null) {
     async accrue() {
       /* no-op — accrual parity is covered by the gate suite */
     },
+    async reaccrue() {
+      /* no-op — admin re-score path (main #619) not exercised by this suite */
+    },
   };
 
   return { store, solves, ordinals };

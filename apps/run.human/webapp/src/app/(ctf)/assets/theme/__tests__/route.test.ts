@@ -1,5 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 
+// route.ts now imports admin-gate (isCtfAdmin), which statically re-exports from
+// @/config/auth → next-auth → next/server (unresolvable under vitest). The route
+// injects its own session via deps, so stub the auth config like admin-gate's own
+// test does — the pure isCtfAdmin path needs none of it.
+vi.mock("@/config/auth", () => ({
+  auth: vi.fn(),
+  revalidateAdmin: vi.fn(),
+  revalidateGroups: vi.fn(),
+}));
+
 import { handleCovert } from "../route";
 import { judgeSolve, type CtfStore, type JudgeCtf, type PriorAward } from "@/lib/ctf-judge";
 import { createPending, type PendingStore, type PendingRow } from "@/lib/ctf-pending";
@@ -89,6 +99,11 @@ function makeCtfStore(ctf: JudgeCtf | null) {
       s.solves += 1;
       userScore.set(user, s);
     },
+    async reaccrue({ user, delta }) {
+      const s = userScore.get(user) ?? { points: 0, solves: 0 };
+      s.points += delta; // net adjustment; solve count is NOT bumped
+      userScore.set(user, s);
+    },
   };
 
   return { store, solves, ordinals, userScore, state };
@@ -115,12 +130,14 @@ function makeDeps(opts: {
   pendingStore: PendingStore;
   log: (o: unknown) => void;
   userId: string | null;
+  services?: string[];
 }): Deps {
   return {
     getSession: async () =>
       // Mock the session shape the route now reads: the Auth.js adapter uuid at
-      // `session.user.id` (the `RunUser.userId` space), NOT the OIDC sub.
-      opts.userId ? { user: { id: opts.userId } } : null,
+      // `session.user.id` (the `RunUser.userId` space), NOT the OIDC sub. Optional
+      // `services` drives the CTF-admin override gate (isCtfAdmin).
+      opts.userId ? { user: { id: opts.userId, services: opts.services } } : null,
     judge: (input) => judgeSolve(input, { store: opts.store, now: 0, log: opts.log }),
     park: (challenge, guess) =>
       createPending(challenge, guess, { store: opts.pendingStore, now: 0 }),
@@ -136,6 +153,7 @@ function themeReq(v: string | null): Request {
 async function run(opts: {
   v: string | null;
   userId: string | null;
+  services?: string[];
   ctf?: JudgeCtf | null;
   log?: (o: unknown) => void;
   ctxOverride?: ReturnType<typeof makeCtfStore>;
@@ -145,7 +163,13 @@ async function run(opts: {
   const log = opts.log ?? (() => {});
   const res = await handleCovert(
     themeReq(opts.v),
-    makeDeps({ store: ctx.store, pendingStore: pending.store, log, userId: opts.userId }),
+    makeDeps({
+      store: ctx.store,
+      pendingStore: pending.store,
+      log,
+      userId: opts.userId,
+      services: opts.services,
+    }),
   );
   const body = await res.text();
   return { res, body, ctx, pending };
@@ -208,6 +232,21 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     expect(body).not.toContain(AWARD_PROP);
   });
 
+  it("ignores an extra cache-bust query param (client appends &_= to defeat browser caching)", async () => {
+    // The covert client now cache-busts with `&_=<token>` so repeat fires re-hit
+    // the server; the route must still read `v` and credit the solve.
+    const ctx = makeCtfStore(fixtureCtf());
+    const pending = makePendingStore();
+    const url = `https://run.defcon.run/use1/assets/theme?v=${encodeURIComponent(winV())}&_=xk3f9`;
+    const res = await handleCovert(
+      new Request(url),
+      makeDeps({ store: ctx.store, pendingStore: pending.store, log: () => {}, userId: "u1" }),
+    );
+    const body = await res.text();
+    expect(body).toContain(AWARD_PROP); // credited despite the extra param
+    expect(ctx.userScore.get("u1")?.solves).toBe(1);
+  });
+
   it("idempotent re-fire: second win returns the prior award and never double-scores", async () => {
     const ctx = makeCtfStore(fixtureCtf());
     const first = await run({ v: winV(), userId: "u1", ctxOverride: ctx });
@@ -217,6 +256,46 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     expect(second.body).toBe(first.body); // same award value re-rendered
     expect(ctx.state.allocateCalls).toBe(1); // ordinal allocated once
     expect(ctx.userScore.get("u1")?.solves).toBe(1); // scored once
+  });
+});
+
+describe("covert route — CTF-admin operator override wiring", () => {
+  it("forwards admin from the session: an admin re-fires past a cap where a player gets the decoy", async () => {
+    // maxAttempts:0 → the FIRST judge call is over-limit for a non-admin. The
+    // ONLY difference between these two runs is the session's admin group, so a
+    // win-vs-decoy split proves the route threads `admin` through to judgeSolve.
+    const player = await run({ v: winV(), userId: "u1", ctf: fixtureCtf({ maxAttempts: 0 }) });
+    expect(player.body).toBe(buildDecoySheet());
+    expect(player.body).not.toContain(AWARD_PROP);
+
+    const admin = await run({
+      v: winV(),
+      userId: "u1",
+      services: ["ctfadmin"],
+      ctf: fixtureCtf({ maxAttempts: 0 }),
+    });
+    expect(admin.body).toContain(AWARD_PROP); // cap bypassed → credited win
+  });
+
+  it("an admin re-fire re-scores against the CURRENT config (idempotent) via the covert channel", async () => {
+    // A mutable-ctf store so the operator can lower the ceiling between fires.
+    const ref: { current: JudgeCtf } = { current: fixtureCtf({ pointMax: 500 }) };
+    const ctx = makeCtfStore(ref.current);
+    // Point the fake's getCtf at the mutable ref (makeCtfStore captured a copy).
+    ctx.store.getCtf = async () => ref.current;
+
+    const first = await run({ v: winV(), userId: "op", services: ["admin"], ctxOverride: ctx });
+    expect(first.body).toContain(AWARD_PROP);
+    const firstAward = first.body.match(/--accent-ramp:\s*(\d+)/)?.[1];
+
+    ref.current = fixtureCtf({ pointMax: 300 }); // operator lowers the ceiling
+    const second = await run({ v: winV(), userId: "op", services: ["admin"], ctxOverride: ctx });
+    const secondAward = second.body.match(/--accent-ramp:\s*(\d+)/)?.[1];
+
+    expect(second.body).toContain(AWARD_PROP); // still celebrates
+    expect(secondAward).not.toBe(firstAward); // re-scored to the live config
+    expect(ctx.state.allocateCalls).toBe(1); // ordinal reused; solveCount not bumped
+    expect(ctx.userScore.get("op")?.solves).toBe(1); // idempotent — one solve
   });
 });
 

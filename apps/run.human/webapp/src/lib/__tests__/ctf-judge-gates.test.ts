@@ -120,6 +120,11 @@ function makeStore(ctf: JudgeCtf | null) {
       s.solves += 1;
       userScore.set(user, s);
     },
+    async reaccrue({ user, delta }) {
+      const s = userScore.get(user) ?? { points: 0, solves: 0 };
+      s.points += delta; // net-delta re-score; ctfSolves untouched (main #619)
+      userScore.set(user, s);
+    },
 
     // --- flag-types ops ---
     async hasScoreFor({ challenge, user }) {

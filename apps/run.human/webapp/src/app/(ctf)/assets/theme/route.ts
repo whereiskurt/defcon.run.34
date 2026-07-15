@@ -1,5 +1,6 @@
 import { decodeFlag } from "@/lib/ctf-covert-codec";
 import { buildDecoySheet, buildWinSheet } from "@/lib/ctf-covert-css";
+import { isCtfAdmin } from "@/lib/admin-gate";
 import { normalizeChallenge } from "@/lib/qr-admin";
 import { judgeSolve } from "@/lib/ctf-judge";
 import { createPending } from "@/lib/ctf-pending";
@@ -50,7 +51,7 @@ function safeNormalize(raw: string): string | null {
   }
 }
 
-type CovertSession = { user?: { id?: string } } | null;
+type CovertSession = { user?: { id?: string; services?: string[] } } | null;
 
 export interface CovertDeps {
   getSession?: () => Promise<CovertSession>;
@@ -90,10 +91,12 @@ export async function handleCovert(req: Request, deps: CovertDeps = {}): Promise
 
     // Signed-in: judge the covert solve. A credited (points > 0) solve — first
     // hit OR idempotent replay of a prior award — renders the win sheet; every
-    // other result (wrong, disabled, capped-to-0) renders the decoy.
+    // other result (wrong, disabled, capped-to-0) renders the decoy. A CTF-admin
+    // operator re-fire re-scores against the current config and bypasses the
+    // attempt cap (see judgeSolve `admin`), so operators can test the egg loop.
     if (player) {
       const judge = deps.judge ?? judgeSolve;
-      const result = await judge({ user: player, challenge, guess, channel: "covert" });
+      const result = await judge({ user: player, challenge, guess, channel: "covert", admin: isCtfAdmin(session) });
       if (result.solved && result.points > 0) return cssResponse(buildWinSheet(result.points));
       return cssResponse(buildDecoySheet());
     }

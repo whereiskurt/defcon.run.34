@@ -83,6 +83,11 @@ export function makeWordlistStore(ctf: JudgeCtf | null, seededCodes: string[]) {
     async recordScore() {
       /* unused on wordlist path */
     },
+    async reaccrue({ user, delta }) {
+      const s = userScore.get(user) ?? { points: 0, solves: 0 };
+      s.points += delta; // net-delta re-score; ctfSolves untouched (main #619)
+      userScore.set(user, s);
+    },
     async accrue({ user, points }) {
       state.accrueCalls++;
       const s = userScore.get(user) ?? { points: 0, solves: 0 };

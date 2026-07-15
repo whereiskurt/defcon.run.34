@@ -1,4 +1,17 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// This suite imports the covert route (handleCovert) to prove the reward-free
+// invariant. Since main #619, route.ts statically imports admin-gate (isCtfAdmin)
+// → @/config/auth → next-auth → next/server, which is unresolvable under vitest's
+// node env. The route injects its own session via deps, so stub the auth config
+// exactly as the route's own test (and admin-gate's test) does — the reward-free
+// tests never touch real auth. (vi.mock is hoisted above the route import below.)
+vi.mock("@/config/auth", () => ({
+  auth: vi.fn(),
+  revalidateAdmin: vi.fn(),
+  revalidateGroups: vi.fn(),
+}));
+
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -166,7 +179,8 @@ describe("fireEgg — the signed-in loop (SC5)", () => {
     });
     expect(links.length).toBe(1);
     expect(links[0].rel).toBe("stylesheet");
-    expect(links[0].href).toMatch(/\/assets\/theme\?v=[0-9]+$/);
+    // v followed by a cache-bust param so a repeat fire re-hits the server.
+    expect(links[0].href).toMatch(/\/assets\/theme\?v=[0-9]+&_=[0-9a-z]+$/);
     // resolve on the stylesheet's load event → computed-style read → onResult(true)
     links[0]._fire("load");
     expect(result).toBe(true);
@@ -340,5 +354,32 @@ describe("covert channel stays reward-free (SC-5 / T-53-04-01)", () => {
       expect(src).not.toMatch(/otp-enroll/i);
       expect(src).not.toMatch(/\beffect\b/i);
     }
+  });
+});
+
+describe("fireCovert — cache-buster forces a fresh server hit on repeat fires", () => {
+  it("appends a cache-bust param AFTER v; v stays byte-identical to encodeFlag", () => {
+    const { links } = installDom("");
+    const v = encodeFlag("dc34-egg", "1337");
+    fireCovert(v, () => {}, { cacheBust: () => "ZZZ" });
+    // pure covert URL, then the cache-bust param the server ignores.
+    expect(links[0].href).toBe(`${buildCovertUrlFromV(v)}&_=ZZZ`);
+    // the v the server decodes is unchanged (extract it back out).
+    const parsedV = links[0].href.split("v=")[1].split("&")[0];
+    expect(parsedV).toBe(v);
+  });
+
+  it("produces a DISTINCT url on each fire so the browser never serves it from cache", () => {
+    const { links } = installDom("");
+    const v = encodeFlag("dc34-egg", "1337");
+    fireCovert(v, () => {});
+    fireCovert(v, () => {});
+    expect(links.length).toBe(2);
+    // Different cache-bust → the second fire is a real network request, not a
+    // memory-cache replay (the root cause of "score not changing on re-fire").
+    expect(links[0].href).not.toBe(links[1].href);
+    // both still carry the identical flag payload
+    expect(links[0].href.split("v=")[1].split("&")[0]).toBe(v);
+    expect(links[1].href.split("v=")[1].split("&")[0]).toBe(v);
   });
 });
