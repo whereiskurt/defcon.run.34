@@ -38,8 +38,11 @@ describe("internal mesh-map", () => {
     expect(body.entries).toHaveLength(1);
     expect(body.entries[0]).toMatchObject({
       nodeNum: 2503245760, displayName: "rabbit_9f2a", userType: "rabbit",
-      pinIcon: "star", pinColor: "#00d4aa", hash: "abc",
+      pinIcon: "star", pinColor: "#00d4aa",
     });
+    // hash (stable QR-lookup id) is present on the source user but must not
+    // reach the map feed — dropped as unused, trust-surface YAGNI.
+    expect(body.entries[0]).not.toHaveProperty("hash");
     expect(body.entries[0]).not.toHaveProperty("privateKey");
     expect(body.entries[0]).not.toHaveProperty("publicKey");
     expect(body.entries[0]).not.toHaveProperty("mqttUsername");

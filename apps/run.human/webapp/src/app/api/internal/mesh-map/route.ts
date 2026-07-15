@@ -30,7 +30,6 @@ export async function GET(req: NextRequest) {
       userType?: string;
       pinIcon?: string;
       pinColor?: string;
-      hash?: string;
     }> = [];
     for (const u of users) {
       for (const r of u.meshtasticRadios ?? []) {
@@ -41,7 +40,6 @@ export async function GET(req: NextRequest) {
           userType: u.mqttUsertype,
           pinIcon: u.preferences?.pinIcon,
           pinColor: u.preferences?.pinColor,
-          hash: u.hash,
         });
       }
     }

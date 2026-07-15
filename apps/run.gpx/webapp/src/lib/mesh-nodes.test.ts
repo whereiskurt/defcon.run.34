@@ -56,7 +56,7 @@ describe("mesh-nodes", () => {
   it("intersects rabbits by numeric node id and emits identity", () => {
     const db: NodeDb = { "2503245760": real as any, "2770627464": ghost as any };
     const fc = rabbitFeatureCollection(db, [
-      { nodeNum: 2503245760, displayName: "rabbit_9f2a", userType: "rabbit", pinIcon: "star", pinColor: "#00d4aa", hash: "abc" },
+      { nodeNum: 2503245760, displayName: "rabbit_9f2a", userType: "rabbit", pinIcon: "star", pinColor: "#00d4aa" },
     ]);
     expect(fc.features).toHaveLength(1);
     expect(fc.features[0].properties!.displayName).toBe("rabbit_9f2a");

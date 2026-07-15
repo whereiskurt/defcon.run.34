@@ -20,7 +20,6 @@ export type MeshMapEntry = {
   userType?: string;
   pinIcon?: string;
   pinColor?: string;
-  hash?: string;
 };
 
 const GHOST_RE = /ghost|contest|operative/i;
@@ -108,7 +107,6 @@ export function rabbitFeatureCollection(
         userType: id.userType ?? "",
         pinIcon: id.pinIcon ?? "",
         pinColor: id.pinColor ?? "",
-        hash: id.hash ?? "",
         lastSeen: lastSeen(n),
       },
     });
