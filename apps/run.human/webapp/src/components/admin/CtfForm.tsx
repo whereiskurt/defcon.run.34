@@ -96,7 +96,26 @@ const PRESET_LABEL: Record<ChallengeTypePreset, string> = {
   custom: "Custom",
 };
 
+/**
+ * One-line descriptor rendered under each challenge-type name (Surface A, 57-01).
+ * Copy-only — does NOT alter PRESET_IDS / applyPreset / presetToAdvanced.
+ */
+const PRESET_DESC: Record<ChallengeTypePreset, string> = {
+  "flat-points": "Everyone earns the same",
+  "first-blood-race": "Early solvers earn more",
+  "timed-drop": "Value shifts over a window",
+  "easter-egg": "Small fixed reward + effect",
+  custom: "Tune every knob yourself",
+};
+
 type AnswerType = "static" | "otp" | "wordlist";
+
+/** Single-line helper descriptor for the currently-selected answer type. */
+const ANSWER_DESC: Record<AnswerType, string> = {
+  static: "One fixed code",
+  otp: "6-digit code from an authenticator",
+  wordlist: "Pool of single-use codes",
+};
 
 // Weekday chip labels (index = getDay, 0=Sun … 6=Sat) are imported from
 // ctf-score-window — the shared source of truth the predicate also uses (IN-02).
@@ -451,10 +470,15 @@ export default function CtfForm({
                 type="button"
                 role="radio"
                 aria-checked={active}
-                className={`${cls.segment} ${active ? cls.segmentActive : cls.segmentIdle}`}
+                className={`${cls.segmentStacked} ${active ? cls.segmentActive : cls.segmentIdle}`}
                 onClick={() => applyPreset(id)}
               >
-                {PRESET_LABEL[id]}
+                <span className="text-[13.5px] font-semibold leading-tight">
+                  {PRESET_LABEL[id]}
+                </span>
+                <span className="text-[11px] leading-tight text-default-400">
+                  {PRESET_DESC[id]}
+                </span>
               </button>
             );
           })}
@@ -491,6 +515,7 @@ export default function CtfForm({
             );
           })}
         </div>
+        <p className="text-[12.5px] text-default-400 mt-2">{ANSWER_DESC[answerType]}</p>
 
         {answerType === "static" ? (
           /* Section 3a — Static */
