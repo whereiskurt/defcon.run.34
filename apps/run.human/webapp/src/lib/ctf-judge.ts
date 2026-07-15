@@ -10,6 +10,7 @@ import {
 import { verifyAnswer, verifyAnswerHash } from "./ctf-hash";
 import { isRepeatable, scoreBucket } from "./ctf-flag-types";
 import { verifyTotp } from "./ctf-otp";
+import { isWithinScoreWindow, type ScoreWindow } from "./ctf-score-window";
 import { ctfJudgeLog, emit } from "./ctf-log";
 
 /**
@@ -115,6 +116,13 @@ export interface JudgeCtf extends ScoringConfig {
   perPlayerMax?: number;
   /** Hard GLOBAL scoring cutoff across ALL players (0/absent = unlimited). */
   globalMax?: number;
+  /**
+   * Additive Slice-2 scoring-window gate input (CTFT-10). When set, the solve is
+   * withheld unless `now` — evaluated in `scoreWindow.tz` (an IANA zone, so DST is
+   * automatic via Intl) — falls inside the day/time window. ABSENT ⇒ always-open:
+   * the gate is a complete no-op and every shipped flag is unchanged.
+   */
+  scoreWindow?: ScoreWindow;
   /**
    * The authored reward payload (D-06 / CTFT-05). Stored on `Ctf.effect` (`any`);
    * carried through untyped and returned VERBATIM on a credited solve — the judge
@@ -272,6 +280,21 @@ export async function judgeSolve(
         log(ctfJudgeLog({ challenge, result: "no-solve" }));
         return NON_SOLVE;
       }
+    }
+
+    // (3) SCORING-WINDOW gate (Slice 2, CTFT-10). Ordered AFTER the unlock gate
+    // (1b) and BEFORE the attempt-cap gate (2) — so a closed window short-circuits
+    // BEFORE the state-mutating attempt-cap bump and before any answer validation.
+    // When `scoreWindow` is set and `now` (epoch ms, evaluated in the flag's IANA
+    // tz — DST automatic) is OUTSIDE the day/time window, this is INDISTINGUISHABLE
+    // from a wrong answer: it returns the same NON_SOLVE and logs the same
+    // "no-solve" the sibling gates emit (the guess/secret is NEVER passed to the
+    // logger — the covert CSS channel invariant T-53-04-01 stays intact). ABSENT
+    // `scoreWindow` ⇒ no-op (backward-compatible: every shipped flag unchanged).
+    // isWithinScoreWindow is fail-closed on a bad tz, so a broken window denies.
+    if (ctf.scoreWindow && !isWithinScoreWindow(ctf.scoreWindow, now)) {
+      log(ctfJudgeLog({ challenge, result: "no-solve" }));
+      return NON_SOLVE;
     }
 
     // (2) attempt-cap / rate-limit. Over-limit is INDISTINGUISHABLE from a wrong
@@ -456,6 +479,7 @@ function narrowCtf(row: {
   perPlayerIntervalHours?: number;
   perPlayerMax?: number;
   globalMax?: number;
+  scoreWindow?: { days?: number[]; from?: string; to?: string; tz?: string };
   effect?: unknown;
 }): JudgeCtf {
   const timeTiers: TimeTier[] | undefined = Array.isArray(row.timeTiers)
@@ -487,6 +511,18 @@ function narrowCtf(row: {
     perPlayerIntervalHours: row.perPlayerIntervalHours,
     perPlayerMax: row.perPlayerMax,
     globalMax: row.globalMax,
+    // Slice-2 scoring window — carried verbatim so the judge's step-3 gate sees it
+    // (mirrors `otp`/`unlockAfter`). Absent ⇒ omitted ⇒ always-open. The map's
+    // fields are optional on the loaded row; coerce to the required ScoreWindow
+    // shape (a malformed/empty tz fails-closed inside isWithinScoreWindow → deny).
+    scoreWindow: row.scoreWindow
+      ? {
+          days: row.scoreWindow.days ?? [],
+          from: row.scoreWindow.from ?? "",
+          to: row.scoreWindow.to ?? "",
+          tz: row.scoreWindow.tz ?? "",
+        }
+      : undefined,
     // The authored reward payload — passed through untyped (shape varies per
     // challenge); the judge returns it verbatim on a credited solve (D-06).
     effect: row.effect,
