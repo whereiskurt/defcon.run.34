@@ -162,7 +162,12 @@ export interface CtfInput {
   // (emitted only when provided). NOT a flag-type field — it does not participate in
   // the CTFT-06 static↔repeatable flip guard, so a window-only edit of a solved flag
   // is never rejected.
-  scoreWindow?: { days?: number[]; from?: string; to?: string; tz?: string };
+  //
+  // Tri-state (CR-01): `undefined` ⇒ no-clobber (leave the stored window untouched);
+  // a value ⇒ set it; explicit `null` ⇒ CLEAR the stored window (an attribute REMOVE,
+  // so toggling the window OFF on edit makes the flag always-open again — an omitted
+  // key alone would silently preserve the old window and keep gating the flag).
+  scoreWindow?: { days?: number[]; from?: string; to?: string; tz?: string } | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -376,8 +381,11 @@ export function ctfAttributes(input: CtfInput) {
     ...(input.perPlayerMax !== undefined ? { perPlayerMax: input.perPlayerMax } : {}),
     ...(input.globalMax !== undefined ? { globalMax: input.globalMax } : {}),
     // Slice-2 day/time/tz window (CTFT-11) — additive passthrough, verbatim, no
-    // transform; emitted only when provided (no-clobber on partial edits).
-    ...(input.scoreWindow !== undefined ? { scoreWindow: input.scoreWindow } : {}),
+    // transform. Emitted only for a real value: `undefined` (no-clobber on partial
+    // edits) AND explicit `null` (CR-01 clear) both OMIT the key from the .set()
+    // payload — the null-clear is applied as an attribute REMOVE in upsertCtf, never
+    // as a `.set(null)`.
+    ...(input.scoreWindow != null ? { scoreWindow: input.scoreWindow } : {}),
     enabled: input.enabled ?? true,
   };
 }
@@ -405,7 +413,15 @@ export async function upsertCtf(input: CtfInput): Promise<string> {
     // non-repeatable and wrongly reject partial edits of solved repeatable flags.)
     const nextFlagType = mergeFlagTypeNextState(existing.data, input);
     assertAnswerTypeTransition(existing.data, nextFlagType, hasSolves);
-    await Ctf.patch({ challenge }).set(attrs).go();
+    // CR-01: an explicit `null` scoreWindow means "clear the stored window". A plain
+    // `.set(attrs)` omits the key (no-clobber), which would leave the old window in
+    // place and keep the flag silently gated while the UI reads "Scorable any time."
+    // Apply a real attribute REMOVE so toggling the window OFF actually re-opens it.
+    const patch = Ctf.patch({ challenge }).set(attrs);
+    if (input.scoreWindow === null) {
+      patch.remove(["scoreWindow"]);
+    }
+    await patch.go();
   } else {
     await Ctf.create({ challenge, ...attrs }).go();
   }

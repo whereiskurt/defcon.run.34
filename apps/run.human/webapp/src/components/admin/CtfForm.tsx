@@ -310,9 +310,7 @@ export default function CtfForm({
         .filter((t) => (t.from ?? "").trim() !== "" || (t.to ?? "").trim() !== "")
         .map((t) => ({ from: t.from, to: t.to, ceiling: numOrUndef(t.ceiling ?? "") }));
       // Day/time/tz scoring window (CTFT-11): the pure bridge resolves the PT/ET/UTC
-      // label to its IANA id, or returns undefined when the toggle is off. Off ⇒ no
-      // scoreWindow key ⇒ no-clobber (the stored window is left untouched; an operator
-      // who wants to CLEAR a window deletes + recreates, like the section's other fields).
+      // label to its IANA id, or returns undefined when the toggle is off.
       const scoreWindow = formStateToScoreWindow({
         enabled: windowEnabled,
         days: windowDays,
@@ -320,6 +318,12 @@ export default function CtfForm({
         to: windowTo,
         tzLabel: windowTzLabel,
       });
+      // CR-01: when editing an existing flag that HAS a stored window and the admin
+      // turns the toggle OFF, send an explicit `null` sentinel so the server CLEARS
+      // the stored window (attribute remove). Omitting the key is no-clobber — the
+      // old window would survive and keep gating the flag while the UI says "Scorable
+      // any time." A brand-new flag with no stored window just omits the key.
+      const clearWindow = isEdit && !windowEnabled && Boolean(initial?.scoreWindow);
       const ctf = {
         challenge,
         // Send plaintext answer; the server hashes it (the client never hashes). A
@@ -341,7 +345,7 @@ export default function CtfForm({
         ...(unlockAfter.trim() !== "" ? { unlockAfter: unlockAfter.trim() } : {}),
         enabled,
         ...(timeTiers.length ? { timeTiers } : {}),
-        ...(scoreWindow ? { scoreWindow } : {}),
+        ...(scoreWindow ? { scoreWindow } : clearWindow ? { scoreWindow: null } : {}),
         ...(effect !== undefined ? { effect } : {}),
       };
       await postQrAction({ action: "ctf_upsert", ctf });

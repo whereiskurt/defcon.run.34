@@ -213,6 +213,13 @@ describe("ctfAttributes hash-on-save", () => {
     expect("scoreWindow" in result).toBe(false);
   });
 
+  // CR-01: an explicit `null` clear must NOT become a `.set(scoreWindow: null)` — it
+  // is applied as an attribute REMOVE in upsertCtf, so the .set() payload omits it.
+  it("omits scoreWindow from the set payload when the input is explicit null (CR-01 clear)", () => {
+    const result = ctfAttributes({ ...T, scoreWindow: null });
+    expect("scoreWindow" in result).toBe(false);
+  });
+
   it("a scoreWindow-only edit emits no flag-type keys (not part of the flip guard)", () => {
     const result = ctfAttributes({
       ...T,
