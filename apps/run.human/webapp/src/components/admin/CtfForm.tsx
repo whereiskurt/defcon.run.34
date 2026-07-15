@@ -23,6 +23,8 @@ export interface CtfRecord {
   effect?: unknown;
   maxAttempts?: number;
   rateLimitWindow?: number;
+  // Collectible CTF Cards board art slug (→ /ctf-cards/<slug>.(webp|svg)).
+  cardImage?: string;
   enabled?: boolean;
 }
 
@@ -127,6 +129,7 @@ export default function CtfForm({
       ceiling: t.ceiling !== undefined ? String(t.ceiling) : "",
     }))
   );
+  const [cardImage, setCardImage] = useState(initial?.cardImage ?? "");
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
   const [effectText, setEffectText] = useState(
     initial?.effect !== undefined ? JSON.stringify(initial.effect, null, 2) : ""
@@ -174,6 +177,7 @@ export default function CtfForm({
         firstBloodBonus: numOrUndef(firstBloodBonus),
         maxAttempts: numOrUndef(maxAttempts),
         rateLimitWindow: numOrUndef(rateLimitWindow),
+        cardImage: cardImage.trim() || undefined,
         enabled,
         ...(timeTiers.length ? { timeTiers } : {}),
         ...(effect !== undefined ? { effect } : {}),
@@ -239,6 +243,23 @@ export default function CtfForm({
           {isEdit && hasStoredAnswer
             ? "An answer is already set (stored hashed). Leave this blank to keep it; type a new answer only to replace it."
             : "Hashed on save — the plaintext answer is never stored."}
+        </p>
+      </div>
+
+      <div className={cls.cardPad}>
+        <label className={cls.label}>Card image</label>
+        <input
+          className={cls.input}
+          value={cardImage}
+          onChange={(e) => setCardImage(e.target.value)}
+          placeholder="defcon-canceled"
+        />
+        <p className="text-[12.5px] text-default-500 mt-2">
+          Optional. Slug of the collectible art on the{" "}
+          <code>/ctf/cards</code> board. Drop a file at{" "}
+          <code>public/ctf-cards/&lt;slug&gt;.webp</code> (or <code>.svg</code>)
+          and enter <code>{cardImage.trim() || "<slug>"}</code> here. Blank ⇒ a
+          generic solved-card placeholder.
         </p>
       </div>
 

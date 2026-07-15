@@ -168,6 +168,10 @@ export const Ctf = new Entity(
       effect: { type: "any" },
       maxAttempts: { type: "number" },
       rateLimitWindow: { type: "number" },
+      // Mirror of the webapp Ctf.cardImage attribute (CTF Cards board art slug).
+      // Data-only; the resolver never reads it — present here purely to keep the
+      // attribute set in parity with src/entities/qr.ts.
+      cardImage: { type: "string" },
       enabled: { type: "boolean", default: true },
       createdAt: {
         type: "string",

@@ -145,6 +145,11 @@ export const Ctf = new Entity(
       effect: { type: "any" },
       maxAttempts: { type: "number" },
       rateLimitWindow: { type: "number" },
+      // Collectible "CTF Cards" board art: a slug resolving to a static asset at
+      // /ctf-cards/<slug>.(webp|svg). Data-only — the resolver never reads it, so
+      // it is absent from the .mjs mirror's read path (kept in parity as a plain
+      // optional string). Unlocked tiles render it; locked tiles never receive it.
+      cardImage: { type: "string" },
       enabled: { type: "boolean", default: true },
       createdAt: {
         type: "string",
