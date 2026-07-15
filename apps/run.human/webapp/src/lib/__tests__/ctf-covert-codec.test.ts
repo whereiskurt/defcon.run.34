@@ -24,6 +24,22 @@ describe("apex landing covert payload (pinned — keep template.html in sync)", 
   });
 });
 
+/**
+ * The sao.defcon.run splash (infra cloudfront-redirect countdown template) bakes
+ * a covert `v` so a signed-in visitor earns the sao-egg challenge just by landing.
+ * That value is set as `covert_v` on the sao redirect in infra .../site.hcl and
+ * can't import this module — this golden pins it. If the codec changes, update
+ * BOTH the site.hcl covert_v and this constant (and re-apply the redirect unit).
+ */
+const SAO_SPLASH_COVERT_V = "7923716986449251596374660747179";
+
+describe("sao splash covert payload (pinned — keep infra site.hcl covert_v in sync)", () => {
+  it("encodeFlag('sao-egg','sao') matches the value baked into the sao splash", () => {
+    expect(encodeFlag("sao-egg", "sao")).toBe(SAO_SPLASH_COVERT_V);
+    expect(decodeFlag(SAO_SPLASH_COVERT_V)).toEqual({ challenge: "sao-egg", guess: "sao" });
+  });
+});
+
 // Valid (challenge, guess) pairs spanning ascii, unicode, digits, spaces, empty.
 const PAIRS: Array<{ challenge: string; guess: string }> = [
   { challenge: "dc34-egg", guess: "1337" },

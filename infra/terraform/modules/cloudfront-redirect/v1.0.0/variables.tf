@@ -47,6 +47,14 @@ variable "redirects" {
     splash_style selects the interstitial splash template: "hackers" (default) =
     the movie-marquee splash (interstitial.html.tftpl); "countdown" = an electronic
     boot splash with a visible 5s countdown (interstitial-countdown.html.tftpl).
+
+    covert_v (optional): when set, the countdown splash fires a fire-and-forget
+    CTF covert hit to run.human's /use1/assets/theme?v=<covert_v> on load, so a
+    signed-in visitor earns the encoded challenge's points just by landing here
+    (the .defcon.run SSO cookie rides along; logged-out visitors get nothing).
+    The value is the codec output of encodeFlag(challenge, answer) — non-secret,
+    baked in like the apex landing's covert constant. Empty = no covert fire.
+    Only the "countdown" template reads it; other splashes ignore it.
   EOT
   type = list(object({
     host         = string
@@ -56,6 +64,7 @@ variable "redirects" {
     status_code  = optional(string, "HTTP_302")
     priority     = optional(number)
     splash_style = optional(string, "hackers")
+    covert_v     = optional(string, "")
     og = object({
       title       = string
       description = string

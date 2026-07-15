@@ -551,6 +551,11 @@ locals {
         status_code  = "HTTP_302"
         priority     = 92
         splash_style = "countdown"
+        # CTF: a signed-in visitor earns the sao-egg challenge (1 pt) just by
+        # landing here. Value = encodeFlag("sao-egg", "sao") — pinned by
+        # ctf-covert-codec.test.ts (SAO_SPLASH_COVERT_V). The sao-egg Ctf row is
+        # admin-created in run.human (answer "sao"); see the covert-egg mechanism.
+        covert_v = "7923716986449251596374660747179"
         og = {
           title       = "DC34-SAO-01 — Sh*tty Add-On (v1.69bis)"
           description = "The DEF CON 34 SAO that pairs with your Meshtastic node. I²C, 6-pin, 1.1 millihorsepower. 1 per DC34 run kit."
