@@ -177,3 +177,23 @@
 .dc34-route-tip.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
     border-left-color: #14141c;
 }
+
+/* Rabbit layer popup — dark radio-config card (real + sim rabbits, identical). */
+.dc34-rabbit-popup.mapboxgl-popup .mapboxgl-popup-content {
+    background: #14141c;
+    color: #e4e4ef;
+    border: 1px solid #2a2a3a;
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
+.dc34-rabbit-popup.mapboxgl-popup .mapboxgl-popup-close-button { color: #e4e4ef; font-size: 16px; padding: 2px 6px; }
+.dc34-rabbit-popup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip { border-bottom-color: #14141c; }
+.dc34-rabbit-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #14141c; }
+.dc34-rabbit-popup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip { border-right-color: #14141c; }
+.dc34-rabbit-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip { border-left-color: #14141c; }
+.dc34-rabbit-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 13px; }
+.dc34-rabbit-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 6px currentColor; }
+.dc34-rabbit-grid { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 11px; }
+.dc34-rabbit-grid dt { color: #8a8aa0; }
+.dc34-rabbit-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
