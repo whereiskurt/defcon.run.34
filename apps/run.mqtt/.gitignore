@@ -6,3 +6,12 @@ meshtk/*
 !meshtk/meshtk.localdev.yaml
 !meshtk/nodes.ghost.*.json
 !meshtk/nodes.rabbit.*.json
+# Con embedded GPX (overlaid onto a fresh generic meshtk clone at build time)
+!meshtk/internal/
+!meshtk/internal/app/
+!meshtk/internal/app/server/*.go
+!meshtk/internal/embedded/
+!meshtk/internal/embedded/gpx/
+!meshtk/internal/embedded/gpx/embedded.go
+!meshtk/internal/embedded/gpx/*/
+!meshtk/internal/embedded/gpx/*/*.gpx
