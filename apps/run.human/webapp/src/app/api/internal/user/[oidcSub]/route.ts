@@ -87,6 +87,7 @@ export async function GET(
       mqttUsername: user.mqttUsername,
       mqttPassword: user.mqttPassword,
       mqttUsertype: user.mqttUsertype,
+      ringtone: user.ringtone,
       hash: user.hash,
       email,
     });
