@@ -1,9 +1,9 @@
 /**
  * Curate the "Rabbit Routes" GLOBAL overlay folder: the runners actually run the
- * New York (Manhattan) and Japan (Tokyo) city tracks, so show those and retire the
- * placeholder Vegas samples. PUT-only (run-gpx IAM user is PutItem-only) — the
- * placeholders are hidden via status:"inactive" (the public overlay serves only
- * status:"active"), the two city routes are put active.
+ * New York (Manhattan) and Japan (Tokyo) city tracks, so put those active. The 4
+ * placeholder Vegas samples (rabbit-routes-bigstar/east/frankie + Day 1) were
+ * removed out-of-band via DynamoDB DeleteItem + S3 rm (the run-gpx IAM user is
+ * PutItem-only; the "active/pending/failed" status enum has no hide value).
  *
  *   source scratch/gpx.env   # run-gpx DynamoDB/S3 creds from SSM
  *   npx tsx scripts/seed-rabbit-city-routes.ts
@@ -18,14 +18,6 @@ const FOLDER_ID = "seed-rabbit-routes";
 const NEW_ROUTES = [
   { fileId: "seed-rabbit-routes-newyork", name: "New York.gpx", file: "manhatten.gpx" },
   { fileId: "seed-rabbit-routes-japan", name: "Japan.gpx", file: "japan.gpx" },
-];
-
-// Placeholder samples currently in the folder — retire them.
-const PLACEHOLDERS = [
-  { fileId: "rabbit-routes-bigstar_391f53c473", fileName: "Bigstar.gpx" },
-  { fileId: "rabbit-routes-east_e3977557f2", fileName: "East.gpx" },
-  { fileId: "rabbit-routes-frankie_46f4770c5a", fileName: "Frankie.gpx" },
-  { fileId: "82198119-c9f1-453d-812d-dc5775d4a249", fileName: "Day 1.gpx" },
 ];
 
 function boundsOf(gpx: string) {
@@ -57,16 +49,7 @@ async function main() {
     }).go();
     console.log(`＋ added "${r.name}" to Rabbit Routes`);
   }
-
-  for (const p of PLACEHOLDERS) {
-    await GpxFile.put({
-      userId: "GLOBAL", fileId: p.fileId, fileName: p.fileName, bucket: BUCKET,
-      key: `${getUserPrefix("GLOBAL")}${p.fileId}.gpx`, fileSize: 1,
-      folderId: FOLDER_ID, uploadedBy: "rabbit-city-seed", status: "inactive",
-    }).go();
-    console.log(`－ retired placeholder "${p.fileName}"`);
-  }
-  console.log("Done curating Rabbit Routes → New York + Japan.");
+  console.log("Done: Rabbit Routes → New York + Japan (placeholders removed via DeleteItem).");
 }
 
 main().catch((err) => { console.error("seed failed:", err); process.exit(1); });
