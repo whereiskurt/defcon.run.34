@@ -1,5 +1,5 @@
 import { ghostWho } from "./ghost-identities";
-import { simRabbitSlug, simRabbit, isSimRabbit } from "./sim-rabbit-identities";
+import { simRabbitIdentity, isSimRabbit } from "./sim-rabbit-identities";
 
 /** Default rabbit pin tint — mirrors the studio's DEFAULT_PIN_COLOR so a real
  * rabbit with no chosen color is byte-identical to a sim in the feed. */
@@ -116,8 +116,7 @@ export function simRabbitFeatureCollection(db: NodeDb): GeoJSON.FeatureCollectio
   const features: GeoJSON.Feature[] = [];
   for (const [key, n] of Object.entries(db)) {
     if (!isSimRabbit(n.longName, n.shortName) || !hasValidPosition(n)) continue;
-    const slug = simRabbitSlug(n.longName as string);
-    const id = slug ? simRabbit(slug) : undefined;
+    const id = simRabbitIdentity(n.longName as string);
     if (!id) continue; // unknown slug → not part of the crowd
     features.push({
       type: "Feature",

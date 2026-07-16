@@ -36,3 +36,22 @@ export function simRabbitSlug(longName: string): string | null {
 export function simRabbit(slug: string): SimRabbit | undefined {
   return SIM_RABBITS[slug];
 }
+
+const PACK_PALETTE = ["#e6007a","#00d4aa","#7b61ff","#ff6b35","#00b4d8","#f15bb5","#ffd166","#06d6a0"];
+
+/** 16-bit FNV-1a over the full node name → stable, format-agnostic. */
+function hash16(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h ^ (h >>> 16)) & 0xffff;
+}
+
+/** Resolve a sim node's display identity from its full longName. */
+export function simRabbitIdentity(longName: string): SimRabbit | null {
+  if (/rabbit-sim-pack-/i.test(longName)) {
+    const h = hash16(longName.toLowerCase());
+    return { displayName: "rabbit_" + h.toString(16).padStart(4, "0"), pinColor: PACK_PALETTE[h % PACK_PALETTE.length] };
+  }
+  const slug = simRabbitSlug(longName);
+  return (slug && simRabbit(slug)) || null;
+}

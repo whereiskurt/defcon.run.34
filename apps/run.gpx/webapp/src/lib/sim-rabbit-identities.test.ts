@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SIM_RABBITS, simRabbit, simRabbitSlug, isSimRabbit } from "./sim-rabbit-identities";
+import { SIM_RABBITS, simRabbit, simRabbitSlug, isSimRabbit, simRabbitIdentity } from "./sim-rabbit-identities";
 
 describe("sim-rabbit-identities", () => {
   it("has 10-12 rabbits, all rabbit_#### names, no fixed/duplicate colors", () => {
@@ -29,5 +29,24 @@ describe("sim-rabbit-identities", () => {
     const first = Object.keys(SIM_RABBITS)[0];
     expect(simRabbit(first)).toEqual(SIM_RABBITS[first]);
     expect(simRabbit("nope")).toBeUndefined();
+  });
+});
+
+describe("simRabbitIdentity", () => {
+  it("resolves individuals via SIM_RABBITS", () => {
+    expect(simRabbitIdentity("rabbit-sim-swift-00")).toEqual(SIM_RABBITS.swift);
+  });
+  it("gives each pack node a distinct deterministic rabbit_#### + color", () => {
+    const a = simRabbitIdentity("rabbit-sim-pack-00");
+    const b = simRabbitIdentity("rabbit-sim-pack-01");
+    expect(a).toBeTruthy(); expect(b).toBeTruthy();
+    expect(a!.displayName).toMatch(/^rabbit_[0-9a-f]{4}$/);
+    expect(a!.pinColor).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(a!.displayName).not.toBe(b!.displayName);            // distinct
+    expect(simRabbitIdentity("rabbit-sim-pack-00")!.displayName).toBe(a!.displayName); // deterministic
+  });
+  it("returns null for unknown / non-sim names", () => {
+    expect(simRabbitIdentity("rabbit-sim-nope-00")).toBeNull();
+    expect(simRabbitIdentity("ghost-condor-00")).toBeNull();
   });
 });

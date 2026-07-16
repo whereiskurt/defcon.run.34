@@ -116,6 +116,22 @@ describe("simRabbitFeatureCollection", () => {
     };
     expect(simRabbitFeatureCollection(db as any).features).toHaveLength(0);
   });
+  it("gives a pack node a distinct rabbit_#### identity, no keys", () => {
+    const packNode = {
+      from: 222, fromStr: "!000000de", longName: "rabbit-sim-pack-03", shortName: "R03",
+      latitude: 360817149, longitude: -1151727650, lastMapReport: 1754357652,
+      hwModel: "TRACKER_T1000_E", role: "CLIENT_MUTE", region: "US", modemPreset: "MEDIUM_FAST",
+      fwVersion: "2.7.2", hasDefaultCh: true, batteryLevel: 55,
+      privkey: "0xSECRET", pubkey: "0xSECRET",
+    };
+    const fc = simRabbitFeatureCollection({ "222": packNode } as any);
+    expect(fc.features).toHaveLength(1);
+    const p = fc.features[0].properties as any;
+    expect(p.displayName).toMatch(/^rabbit_[0-9a-f]{4}$/);
+    expect(p.pinColor).toMatch(/^#[0-9a-fA-F]{6}$/);
+    expect(p.userType).toBe("rabbit");
+    expect(JSON.stringify(fc)).not.toContain("SECRET");
+  });
 });
 
 describe("rabbitFeatureCollection radio parity", () => {
