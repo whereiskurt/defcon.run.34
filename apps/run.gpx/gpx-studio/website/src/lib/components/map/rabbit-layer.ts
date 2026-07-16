@@ -1,5 +1,5 @@
 import mapboxgl from 'mapbox-gl';
-import { rabbitSvg } from './rabbit-svg';
+import { dcjackSvg } from './dcjack-svg';
 import { escapeHtml } from './escape-html';
 
 const DEFAULT_PIN_COLOR = '#e6007a';
@@ -52,8 +52,8 @@ export class RabbitLayer {
         for (const f of fc.features) {
             const p = (f.properties ?? {}) as { pinColor?: string };
             const color = p.pinColor || DEFAULT_PIN_COLOR; // || not ?? (empty-string coercion)
-            const iconId = `rabbit-${color}`;
-            this.loadSvgImage(iconId, rabbitSvg(color));
+            const iconId = `jack-${color}`;
+            this.loadSvgImage(iconId, dcjackSvg(color));
             (f.properties as Record<string, unknown>).iconId = iconId;
         }
         return fc;
@@ -69,12 +69,12 @@ export class RabbitLayer {
                 id: LAYER, type: 'symbol', source: SOURCE,
                 layout: {
                     visibility: 'none',
-                    'icon-image': ['get', 'iconId'], 'icon-size': 0.5,
-                    'icon-anchor': 'bottom', 'icon-allow-overlap': true,
+                    'icon-image': ['get', 'iconId'], 'icon-size': 0.32,
+                    'icon-anchor': 'center', 'icon-allow-overlap': true,
                     'text-field': ['get', 'displayName'], 'text-size': 10,
                     'text-offset': [0, 0.4], 'text-anchor': 'top',
                 },
-                paint: { 'text-color': '#e6007a', 'text-halo-color': '#101015', 'text-halo-width': 1 },
+                paint: { 'text-color': '#e6007a', 'text-halo-color': '#101015', 'text-halo-width': 1, 'icon-opacity': 0.5 },
             });
             this.clickFn = (e) => {
                 const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
