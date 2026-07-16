@@ -67,6 +67,29 @@ function handleApiError(response: Response, errorMessage: string): never {
   throw new Error(errorMessage);
 }
 
+/**
+ * Per-con-day usage for the signed-in runner (Phase 60). Mirrors the webapp
+ * ConDayUsage shape returned by GET /api/gpx/conday-usage. `date` is the value
+ * saved as a file's conDay; `selectable` is false for future con-days.
+ */
+export interface ConDayUsage {
+  key: string;
+  label: string;
+  date: string;
+  count: number;
+  remaining: number;
+  selectable: boolean;
+}
+
+/** Fetch per-con-day usage for the "Log a run" day picker. */
+export async function getConDayUsage(): Promise<ConDayUsage[]> {
+  const response = await fetch(`${getApiBase()}/conday-usage`, {
+    credentials: 'include',
+  });
+  if (!response.ok) handleApiError(response, 'Failed to load con-day usage');
+  return (await response.json()).usage as ConDayUsage[];
+}
+
 export interface CloudFile {
   fileId: string;
   fileName: string;
@@ -428,6 +451,10 @@ export async function saveToCloud(
     waypointCount?: number;
     totalDistance?: number;
     totalElevation?: number;
+    // Con-day tag (Phase 60): ISO date "YYYY-MM-DD", one of CON_DAYS. Spread into
+    // the create body; the server validates it (isConDay + not-future) and enforces
+    // the per-con-day cap.
+    conDay?: string;
   },
   folderId?: string | null
 ): Promise<string> {
@@ -764,6 +791,7 @@ export async function saveOrUpdateToCloud(
     waypointCount?: number;
     totalDistance?: number;
     totalElevation?: number;
+    conDay?: string;
   },
   folderId?: string | null
 ): Promise<{ fileId: string; wasUpdate: boolean }> {

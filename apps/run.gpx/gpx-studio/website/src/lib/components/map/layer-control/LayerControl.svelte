@@ -7,6 +7,8 @@
     import { GhostLayer } from '$lib/components/map/ghost-layer';
     import { RabbitLayer } from '$lib/components/map/rabbit-layer';
     import { ghostMode } from '$lib/stores/ghost';
+    import { quickStartAction } from '$lib/stores/quickstart';
+    import { get } from 'svelte/store';
     import { Separator } from '$lib/components/ui/separator';
     import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
     import { Layers } from '@lucide/svelte';
@@ -246,6 +248,25 @@
         open = false;
     }
     let cancelEvents = $state(false);
+
+    // Phase 60: react to the QuickStart card hub. 'routes' → show every DEF CON
+    // route group + open the panel; 'runners' → ensure the rabbit runner layer is
+    // on + open the panel. Ghost mode is NEVER touched here. Fires only on a user
+    // card click (well after map load), so the layer instances are set by then.
+    // LayerControl mounts once at app root, so this single subscription is safe.
+    quickStartAction.subscribe((action) => {
+        if (!action) return;
+        if (action === 'routes' && publicOverlaysLayer) {
+            for (const group of get(publicOverlayGroups)) {
+                publicOverlaysLayer.setGroupVisible(group.folderId, true);
+            }
+            open = true;
+        } else if (action === 'runners' && rabbitLayer) {
+            void rabbitLayer.setVisible(true);
+            open = true;
+        }
+        quickStartAction.set(null);
+    });
 </script>
 
 <CustomControl class="group min-w-[29px] min-h-[29px] overflow-hidden">

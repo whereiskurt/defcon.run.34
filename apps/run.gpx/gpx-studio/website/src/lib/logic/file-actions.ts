@@ -108,6 +108,44 @@ export async function createFile() {
     }
 }
 
+/**
+ * "Log a run" (Phase 60): load an uploaded GPX onto the map AND save it to the
+ * cloud tagged with a con-day, then register it for auto-save. Mirrors
+ * createFile's cloud handling but for a real uploaded file with an explicit
+ * conDay. loadFiles alone does NOT persist (only renders), so this is the single
+ * save — no double-create. The server validates conDay + enforces the per-con-day
+ * cap; a QuotaExceededError propagates to the caller to surface.
+ */
+export async function logRunFromFile(file: File, conDay: string): Promise<string | null> {
+    const gpx = await loadFile(file);
+    if (!gpx) return null;
+
+    const ids = fileActions.addMultiple([gpx]);
+    const localId = ids[0];
+    selection.selectFileWhenLoaded(localId);
+    boundsManager.fitBoundsOnLoad(ids);
+
+    const gpxContent = buildGPX(gpx, []);
+    const baseName = gpx.metadata?.name || file.name.replace(/\.gpx$/i, '') || 'Run';
+    const fileName = `${baseName}.gpx`;
+    const lastFolder = get(settings.lastSaveFolder);
+    const folderId = lastFolder === 'ROOT' ? null : lastFolder;
+
+    const cloudFileId = await saveToCloud(
+        gpxContent,
+        fileName,
+        {
+            trackCount: gpx.trk?.length || 0,
+            waypointCount: gpx.wpt?.length || 0,
+            conDay,
+        },
+        folderId
+    );
+
+    autoSaveManager.registerCloudLinkedFile(localId, cloudFileId, fileName, folderId, false);
+    return cloudFileId;
+}
+
 export function triggerFileInput() {
     const input = document.createElement('input');
     input.type = 'file';
