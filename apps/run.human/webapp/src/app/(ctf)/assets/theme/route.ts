@@ -3,7 +3,6 @@ import { buildDecoySheet, buildWinSheet } from "@/lib/ctf-covert-css";
 import { isCtfAdmin } from "@/lib/admin-gate";
 import { normalizeChallenge } from "@/lib/qr-admin";
 import { judgeSolve } from "@/lib/ctf-judge";
-import { createPending } from "@/lib/ctf-pending";
 
 /**
  * The COVERT text/css channel (CTF-07/08/09) at `/use1/assets/theme`.
@@ -18,13 +17,18 @@ import { createPending } from "@/lib/ctf-pending";
  *
  * Flow: decode `?v=` → null/disabled/wrong → decoy; signed-in + correct →
  * judgeSolve(channel "covert") → win sheet on a credited (points > 0) solve;
- * unauth → createPending (hash-only park) → decoy. It composes the committed
- * 46-01 primitives and the Phase-44/45 judge/park helpers — NO new scoring.
+ * unauth → decoy, FULL STOP. Awards go ONLY to a visitor with a live run.human
+ * session at fire time. A logged-out covert fire writes NOTHING: this channel
+ * deliberately does NOT park a pending flag, because its nonce is never handed
+ * back to a client (unlike the visible /ctf/claim QR page), so a parked row
+ * could never be redeemed — it would only be dead, orphaned DB litter. It
+ * composes the committed 46-01 primitives and the Phase-44 judge — NO new
+ * scoring, NO anonymous footprint.
  *
  * HYGIENE (T-46-05): this handler performs NO logging of its own — the only
  * structured line is judgeSolve's coarse `ctfJudgeLog`. The raw guess is handed
- * ONLY to judgeSolve/createPending, which hash it. There is intentionally no
- * logging call whatsoever in this file (enforced by a source grep gate).
+ * ONLY to judgeSolve, which hashes it. There is intentionally no logging call
+ * whatsoever in this file (enforced by a source grep gate).
  *
  * NEVER-THROW (T-46-07): a total guard wraps the whole body so any decode /
  * normalize / store error still returns the decoy 200 — never 302/401/JSON/5xx.
@@ -56,7 +60,6 @@ type CovertSession = { user?: { id?: string; services?: string[] } } | null;
 export interface CovertDeps {
   getSession?: () => Promise<CovertSession>;
   judge?: typeof judgeSolve;
-  park?: typeof createPending;
 }
 
 /** Lazy default so the test seam (and route import) never loads NextAuth. */
@@ -67,8 +70,8 @@ async function defaultGetSession(): Promise<CovertSession> {
 
 /**
  * The testable core. GET calls it with production defaults; the route test
- * injects fakes (a fake CtfStore behind `judge`, a fake PendingStore behind
- * `park`, a stub session behind `getSession`) so no DynamoDB/auth is touched.
+ * injects fakes (a fake CtfStore behind `judge` and a stub session behind
+ * `getSession`) so no DynamoDB/auth is touched.
  */
 export async function handleCovert(req: Request, deps: CovertDeps = {}): Promise<Response> {
   try {
@@ -101,9 +104,10 @@ export async function handleCovert(req: Request, deps: CovertDeps = {}): Promise
       return cssResponse(buildDecoySheet());
     }
 
-    // Unauth: park the flag (hash-only) for later signed-in claim, return decoy.
-    const park = deps.park ?? createPending;
-    await park(challenge, guess);
+    // Unauth: no session at fire time ⇒ no award and NO park. The covert channel
+    // credits only a live-signed-in visitor; a logged-out fire returns the plain
+    // decoy and leaves zero footprint (see the header note on why parking here
+    // would only orphan an unredeemable row).
     return cssResponse(buildDecoySheet());
   } catch {
     // Total guard: any unexpected error still answers the plain decoy 200.
