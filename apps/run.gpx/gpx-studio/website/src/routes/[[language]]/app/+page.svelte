@@ -10,6 +10,7 @@
     import LayerControl from '$lib/components/map/layer-control/LayerControl.svelte';
     import GhostTrigger from '$lib/components/GhostTrigger.svelte';
     import ProfileMenu from '$lib/components/ProfileMenu.svelte';
+    import QuickStartHub from '$lib/components/QuickStartHub.svelte';
     import CoordinatesPopup from '$lib/components/map/CoordinatesPopup.svelte';
     import Resizer from '$lib/components/Resizer.svelte';
     import { Toaster } from '$lib/components/ui/sonner';
@@ -131,6 +132,7 @@
             <LayerControl />
             <GhostTrigger />
             <ProfileMenu />
+            <QuickStartHub />
             <GPXLayers />
             <CoordinatesPopup />
             <Toaster richColors />
