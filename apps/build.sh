@@ -148,22 +148,23 @@ APP_DIR="${SCRIPT_DIR}/${APP}"
 resolve_meshtk() {
   local meshtk_dir="${APP_DIR}/meshtk"
   if [[ -n "$GITHUB_ACTIONS" ]]; then
-    # CI: always clone from GitHub (public repo, no auth needed)
+    # CI: clone a FRESH (generic) meshtk from GitHub, then OVERLAY all the
+    # con-specific config tracked in THIS repo (dc34 yaml, ghost/rabbit seeds,
+    # embedded GPX routes + embed.go, server patches) over it. The 34 repo is
+    # the single source of truth for con config; meshtk stays vanilla.
     if [[ ! -d "$meshtk_dir/.git" ]]; then
-      echo "[build] Cloning meshtk from GitHub..."
-      # Save repo-tracked files (Dockerfile, VERSION, dc34 config, ghost seeds) before clone
-      local tmp_save=$(mktemp -d)
-      for f in Dockerfile.meshtk VERSION meshtk.dc34.yaml; do
-        [[ -f "$meshtk_dir/$f" ]] && cp "$meshtk_dir/$f" "$tmp_save/$f"
-      done
-      # Ghost node seeds are tracked in this repo (gitignored in meshtk itself)
-      cp "$meshtk_dir"/nodes.ghost.*.json "$tmp_save/" 2>/dev/null || true
+      echo "[build] Cloning fresh meshtk from GitHub; overlaying repo con-config..."
+      local tmp_save; tmp_save=$(mktemp -d)
+      local repo_root; repo_root=$(git -C "$meshtk_dir" rev-parse --show-toplevel)
+      local rel="apps/run.mqtt/meshtk"
+      # Snapshot every repo-tracked file under meshtk/, preserving structure.
+      ( cd "$repo_root" && git ls-files "$rel" | sed "s#^${rel}/##" ) > "$tmp_save/files.txt"
+      tar -C "$meshtk_dir" -cf "$tmp_save/overlay.tar" -T "$tmp_save/files.txt"
       rm -rf "$meshtk_dir"
       git clone --depth 1 https://github.com/whereiskurt/meshtk.git "$meshtk_dir/"
-      # Restore repo-tracked files over cloned source
-      for f in "$tmp_save"/*; do
-        [[ -f "$f" ]] && cp "$f" "$meshtk_dir/"
-      done
+      # Overlay the con-config over the fresh clone (embed.go + GPX + seeds + yaml).
+      tar -C "$meshtk_dir" -xf "$tmp_save/overlay.tar"
+      echo "[build] Overlaid $(wc -l < "$tmp_save/files.txt" | tr -d ' ') con-config files onto meshtk."
       rm -rf "$tmp_save"
     fi
   elif [[ -L "$meshtk_dir" ]]; then
