@@ -79,7 +79,6 @@ Server:
       - "kph"
       - "ax"
       - "meshmap"
-      - "meshobserv"
 
 Fleet:
   - Id: "ghost.goldstein"

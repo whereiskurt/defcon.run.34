@@ -203,8 +203,12 @@ locals {
 
         environment = [
           {
+            # meshobserv connects DIRECTLY to the internal mosquitto broker (1884),
+            # NOT the internet-facing meshtk proxy (1883). This keeps the meshobserv
+            # service credential unusable from outside the task and avoids adding it
+            # to the proxy's passthrough allowlist.
             name  = "MESHTK_MQTT_BROKER_URI"
-            value = "tcp://localhost:1883"
+            value = "tcp://localhost:1884"
           },
           {
             name  = "MESHTK_NODEDB_PATH"
