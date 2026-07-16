@@ -200,7 +200,49 @@ Everything below stays and keeps working; the redesign only changes where the co
 - **"All Runners" aggregate opt-in** — `includeInAggregate`, `aggregate-optin` route, public heatmap. Unchanged; toggle stays in the overlays/settings area.
 - **Folders, versions, auto-save** — all retained. Folders can still exist; the default view groups by con-day.
 
-## 12. Strava "Sync my Strava" button — feasibility
+## 12. Sharing, submission & visibility model
+
+"Share" is currently one blurry verb. Split it into **three distinct actions with different trust models**, and make the runner→event path a reviewed queue rather than a link an admin must open.
+
+```
+  ① Share with a friend   →  a link (public, or private/email-gated)
+                             peer-to-peer. NEVER becomes an official overlay.
+  ② Submit to DEF CON run →  flags the file into an ADMIN REVIEW QUEUE.
+                             No URL is generated; nobody has to click anything.
+  ③ Admin: turn on for all →  promotes a queued route to a GLOBAL overlay.
+                             On = on for everybody (part of the official
+                             DEF CON Routes set, master-collapsible per §9).
+```
+
+**A runner's map has one visibility ladder:**
+
+- **Private** (default) — only me, in my folder.
+- **Shared via link** (①) — a peer link I generate to show a friend; does not make it official.
+- **Submitted to DEF CON** (②) — offered to the event; pending admin review; not visible to others yet.
+- **Promoted to global overlay** (③) — an admin turned it on for everyone; now an official route.
+- **Aggregate opt-in** — contributes anonymously to the "All Runners" heatmap (independent of the above).
+
+### Security posture (audited 2026-07-16 — currently safe by construction; keep it that way)
+
+The threat considered: an admin, logged in on the `.defcon.run` SSO cookie, opening a booby-trapped user GPX that exfiltrates the session. Audit findings and the rules that must hold:
+
+- **Admin review is a server-side, ID-based, metadata-only queue.** `admin/share-requests` returns filenames/distances/counts only — never the GPX body, never a URL. Approve/publish are pure server-side S3 copies. **An admin's authenticated browser never fetches or renders an attacker-controlled GPX.** This property is load-bearing — the review UI must keep rendering from server-provided metadata (and, if a route preview is ever shown, from server-sanitized geometry + CMS text only), never by opening a user share link.
+- **Submission is data, not a link.** "Submit to DEF CON run" only sets `shareRequested` on the runner's own file. No admin-clickable URL is minted.
+- **User GPX contributes geometry only; all displayed text is escaped.** Every GPX text field (`<name>`, `<desc>`, `<cmt>`, `<type>`, `<sym>`, waypoint names, `<extensions>`) is escaped (`escapeHtml`) or `sanitize-html`'d before touching the DOM, on every surface (editable popups, public overlays, ghost/rabbit/check-in layers, share-accept). No new sink may bypass this. Confirmed: no unescaped user-GPX → DOM sink exists today.
+- **Official-overlay labels come from CMS, not from GPX.** When a route is promoted (③), its title/description/attribution are **CMS-authored, server-sanitized** content (same enrichment path as today's GLOBAL overlays via `/api/gpx/public/maps`). This is both the attribution mechanism and a security guarantee: an official route's visible text can never be attacker-controlled GPX text.
+- **Session cookies are HttpOnly** (`sess_gpx` + auth cookies); JS cannot read the session. Residual note: the `.defcon.run` **wildcard cookie scope** means an XSS on any subdomain could make same-origin authed calls — reinforcing why the escape/geometry-only rules above are non-negotiable.
+
+### Attribution
+
+Resolved via the CMS-metadata path: at promote time (③) the admin authors the route's CMS entry, and **attribution is a CMS field** — credit the runner (e.g. rabbit/display name), keep it anonymous, or set a custom credit — decided per route. No separate visibility toggle is needed; the deeper metadata (title, description, credit) is fetched from CMS exactly like existing official overlays.
+
+### Hardening follow-ups (low severity, fold into implementation)
+
+- Verify the `/api/gpx/public/maps` manifest **server-side sanitizes** CMS rich-text (`descriptionHtml` is injected raw via `{@html}` — safe only if the manifest sanitizes).
+- Add `rel="noopener noreferrer"` to sanitized `<a target>` links in waypoint popups (reverse-tabnabbing).
+- Reconsider allowing `<img src>` in waypoint descriptions (silent tracking-pixel / IP-beacon vector).
+
+## 13. Strava "Sync my Strava" button — feasibility
 
 The full Strava→GPX pipeline already runs in production as a **batch, secret-guarded, all-users** job (`lib/strava-sync.ts`, `api/gpx/internal/strava-sync`): list activities → download streams → build GPX → S3 → `GpxFile` with dedupe. Token retrieval + OAuth refresh live in run.auth (`api/internal/strava-tokens`, `lib/strava-tokens.ts`). run.gpx already knows if the runner linked Strava via `session.user.linkedProviders`.
 
@@ -210,14 +252,16 @@ The full Strava→GPX pipeline already runs in production as a **batch, secret-g
 3. Add a `hasStrava` convenience boolean (trivial; array already present).
 4. Consume the per-con-day quota per imported activity + enforce the burst guard.
 
-## 13. Scope / non-goals
+## 14. Scope / non-goals
 
-- **In scope:** the one-concept mental model; the on-map dismissible Log-your-run card (Strava + upload doors); con-day tagging with GPX-timestamp auto-guess; bulk upload with per-file day assignment; unified My Maps; simplified File menu; overlays master collapse; per-con-day quota (10) wired into auth; the per-user Strava sync button.
-- **Out of scope (this milestone):** an official-run schedule / matching a GPX to a specific scheduled run (day is the unit); any change to how run.human accounts flags beyond receiving `conDay`; redesign of the drawing/editing tools; changes to the public overlay data pipeline.
+- **In scope:** the one-concept mental model; the on-map dismissible Log-your-run card (Strava + upload doors); con-day tagging with GPX-timestamp auto-guess; bulk upload with per-file day assignment; unified My Maps; simplified File menu; overlays master collapse; per-con-day quota (10) wired into auth; the per-user Strava sync button; the three-verb sharing model (friend link / submit-to-DEF-CON queue / admin turn-on-for-all) with a first-class admin review queue and CMS-authored attribution.
+- **Out of scope (this milestone):** an official-run schedule / matching a GPX to a specific scheduled run (day is the unit); any change to how run.human accounts flags beyond receiving `conDay`; redesign of the drawing/editing tools; changes to the public overlay data pipeline; a rebuild of the share/publish backend (reused as-is, only re-surfaced).
 
-## 14. Open items to confirm during planning
+## 15. Open items to confirm during planning
 
 - Exact `CON_DAYS` list & dates (incl. any pre-con day) vs the official DEF CON 34 schedule.
 - The `conDay` field's place in the accomplishment payload and how run.human consumes it for flags.
 - Whether the per-con-day count uses a new GSI on `GpxFile` or a filtered query.
 - Final placement of Auto-Save and the aggregate opt-in (File menu vs Settings).
+- Confirm `/api/gpx/public/maps` server-side sanitizes CMS rich-text (`descriptionHtml`); apply the `rel=noopener` and `<img>` waypoint-description hardening.
+- The admin promote/turn-on-for-all dialog: CMS entry authoring (title/description/attribution) and the "on for everybody" toggle surface.
