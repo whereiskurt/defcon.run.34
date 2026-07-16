@@ -131,3 +131,20 @@ describe("rabbitFeatureCollection radio parity", () => {
     expect(p.pinColor).toBe("#00d4aa");
   });
 });
+
+describe("rabbitFeatureCollection pinColor camouflage parity", () => {
+  it("resolves an empty pinColor to the default so it's never emitted as \"\"", () => {
+    const fc = rabbitFeatureCollection(
+      { "2503245760": realRadio } as any,
+      [{ nodeNum: 2503245760, displayName: "rabbit_9f2a", pinColor: "" }]
+    );
+    expect(fc.features[0].properties!.pinColor).toBe("#e6007a");
+  });
+  it("resolves a missing pinColor to the default so it's never emitted as \"\"", () => {
+    const fc = rabbitFeatureCollection(
+      { "2503245760": realRadio } as any,
+      [{ nodeNum: 2503245760, displayName: "rabbit_9f2a" }]
+    );
+    expect(fc.features[0].properties!.pinColor).toBe("#e6007a");
+  });
+});

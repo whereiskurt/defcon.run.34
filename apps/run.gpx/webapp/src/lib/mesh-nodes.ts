@@ -1,6 +1,10 @@
 import { ghostWho } from "./ghost-identities";
 import { simRabbitSlug, simRabbit, isSimRabbit } from "./sim-rabbit-identities";
 
+/** Default rabbit pin tint — mirrors the studio's DEFAULT_PIN_COLOR so a real
+ * rabbit with no chosen color is byte-identical to a sim in the feed. */
+const DEFAULT_PIN_COLOR = "#e6007a";
+
 export type MeshNode = {
   from?: number;
   fromStr?: string;
@@ -149,7 +153,7 @@ export function rabbitFeatureCollection(
       properties: {
         displayName: id.displayName || "a rabbit",
         userType: id.userType ?? "rabbit",
-        pinColor: id.pinColor ?? "",
+        pinColor: id.pinColor || DEFAULT_PIN_COLOR,
         ...radioFields(n),
         lastSeen: lastSeen(n),
       },

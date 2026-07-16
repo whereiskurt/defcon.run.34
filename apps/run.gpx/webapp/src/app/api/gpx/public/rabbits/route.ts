@@ -50,11 +50,16 @@ export async function GET() {
     // Sim rabbits need only the nodes feed (name-filtered) — always included.
     const sim = simRabbitFeatureCollection(db);
 
-    // Real rabbits need the internal opt-in feed; degrade to none if it failed.
+    // Real rabbits need the internal opt-in feed; degrade to none if it failed
+    // or returned a 200 with a body that fails to parse — sims must still ship.
     let realFeatures: GeoJSON.Feature[] = [];
     if (mapRes.status === "fulfilled" && mapRes.value.ok) {
-      const { entries } = (await mapRes.value.json()) as { entries: MeshMapEntry[] };
-      realFeatures = rabbitFeatureCollection(db, entries ?? []).features;
+      try {
+        const { entries } = (await mapRes.value.json()) as { entries: MeshMapEntry[] };
+        realFeatures = rabbitFeatureCollection(db, entries ?? []).features;
+      } catch (error) {
+        console.error("rabbit proxy: mesh-map body parse error:", error);
+      }
     }
     return json({ type: "FeatureCollection", features: [...realFeatures, ...sim.features] });
   } catch (error) {

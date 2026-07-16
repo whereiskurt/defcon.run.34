@@ -49,6 +49,26 @@ describe("rabbit proxy", () => {
     expect(body.features.map((f: any) => f.properties.displayName)).toEqual(["rabbit_4a1c"]);
   });
 
+  it("still returns sim rabbits when the mesh-map body is 200 but fails to parse as JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (String(url).includes("mesh-map")) {
+          return {
+            ok: true,
+            json: async () => {
+              throw new SyntaxError("bad json");
+            },
+          };
+        }
+        return { ok: true, json: async () => ({ "111": sim }) };
+      })
+    );
+    const { GET } = await import("./route");
+    const body = await (await GET()).json();
+    expect(body.features.map((f: any) => f.properties.displayName)).toEqual(["rabbit_4a1c"]);
+  });
+
   it("fails soft to empty when the nodes feed itself errors", async () => {
     vi.stubGlobal("fetch", vi.fn(async (url: string) =>
       String(url).includes("mesh-map")
