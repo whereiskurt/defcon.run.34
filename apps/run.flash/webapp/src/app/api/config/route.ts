@@ -1,5 +1,5 @@
 import { auth } from "@/config/auth";
-import { meshtasticConfig } from "@/config/meshtastic";
+import { meshtasticConfig, resolveRingtone } from "@/config/meshtastic";
 import { NextResponse } from "next/server";
 import type { DeviceConfigPayload } from "@/types/config";
 
@@ -49,7 +49,7 @@ export async function GET() {
     // In dev without run.human, use stub config
     if (!user && isDev) {
       console.warn("[run.flash] run.human not available in dev, using stub config");
-      user = { displayName: null, mqttUsername: "dev_user", mqttPassword: "dev_pass" };
+      user = { displayName: null, mqttUsername: "dev_user", mqttPassword: "dev_pass", mqttUsertype: "rabbit", ringtone: null };
     }
 
     // Identity: prefer RunUser.displayName, fall back to session name, then generated
@@ -71,6 +71,13 @@ export async function GET() {
       );
     }
 
+    // Ringtone: per-user override (RunUser.ringtone) or the class default keyed
+    // off mqttUsertype. Never empty; clamped to the firmware length cap.
+    const ringtone = resolveRingtone({
+      ringtone: user?.ringtone,
+      mqttUsertype: user?.mqttUsertype,
+    });
+
     const payload: DeviceConfigPayload = {
       mqtt: {
         server: meshtasticConfig.mqtt.server,
@@ -83,6 +90,7 @@ export async function GET() {
       channels: meshtasticConfig.channels,
       identity: { longName, shortName },
       radio: meshtasticConfig.radio,
+      ringtone,
     };
 
     return NextResponse.json(payload);

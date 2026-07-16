@@ -9,6 +9,7 @@ import type { DeviceConfigPayload } from "@/types/config";
 import { MeshDevice, Protobuf, Types } from "@meshtastic/core";
 import { TransportWebSerial } from "@meshtastic/transport-web-serial";
 import { create } from "@bufbuild/protobuf";
+import { buildRingtoneAdminMessageBytes } from "@/lib/ringtone-admin";
 
 /** Info captured during configure handshake for auto-registration */
 export type DeviceRegistrationInfo = {
@@ -325,6 +326,20 @@ export async function pushDeviceConfig(
   await device.setOwner(owner);
   console.log("[meshtastic] Identity applied");
   onStageComplete("identity", config.identity.longName);
+
+  // 4b. Ringtone (RTTTL) — set via AdminMessage on the ADMIN_APP port.
+  // @meshtastic/core has no setRingtone() helper; mirror its setCannedMessages
+  // pattern (AdminMessage → sendPacket to ADMIN_APP "self"). Sets the tune only;
+  // enabling the External Notification buzzer module is out of scope.
+  console.log("[meshtastic] Pushing ringtone...");
+  const ringtoneBytes = buildRingtoneAdminMessageBytes(config.ringtone);
+  await device.sendPacket(
+    ringtoneBytes,
+    Protobuf.Portnums.PortNum.ADMIN_APP,
+    "self"
+  );
+  console.log("[meshtastic] Ringtone applied");
+  onStageComplete("ringtone", "custom tune");
 
   // 5. Commit all changes atomically
   console.log("[meshtastic] Committing settings...");

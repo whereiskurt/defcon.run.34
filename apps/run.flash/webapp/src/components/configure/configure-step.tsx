@@ -103,6 +103,7 @@ export function ConfigureStep({
     progress.stage === "mqtt" ||
     progress.stage === "channels" ||
     progress.stage === "identity" ||
+    progress.stage === "ringtone" ||
     progress.stage === "radio" ||
     progress.stage === "committing";
 

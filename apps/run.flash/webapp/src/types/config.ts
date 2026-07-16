@@ -4,6 +4,7 @@ export interface DeviceConfigPayload {
   channels: ChannelConfig[];
   identity: IdentityConfig;
   radio: RadioConfig;
+  ringtone: string; // RTTTL tune (resolved: per-user override or class default)
 }
 
 export interface MqttConfig {
@@ -39,6 +40,7 @@ export type ConfigStage =
   | "mqtt" // Pushing MQTT config
   | "channels" // Pushing channel config
   | "identity" // Pushing identity config
+  | "ringtone" // Pushing RTTTL ringtone
   | "radio" // Pushing radio config
   | "committing" // commitEditSettings
   | "complete"
