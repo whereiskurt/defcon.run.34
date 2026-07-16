@@ -33,7 +33,7 @@ export class GhostLayer {
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
-        this.matrix = new MatrixRain(map.getContainer());
+        this.matrix = new MatrixRain(document.body);
     }
 
     private whenStyleReady(): Promise<void> {
