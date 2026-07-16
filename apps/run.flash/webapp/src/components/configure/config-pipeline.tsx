@@ -6,6 +6,7 @@ import {
   Hash,
   UserCircle2,
   Signal,
+  Bell,
   CheckCircle2,
   XCircle,
   Circle,
@@ -65,8 +66,17 @@ const DISPLAY_STAGES: DisplayStage[] = [
     label: "Identity",
     activeLabel: "Setting identity...",
     completeLabel: (s) => `Identity: ${s.identity ?? "configured"}`,
-    activeStages: ["identity", "committing"],
-    completeStages: ["identity", "committing"],
+    activeStages: ["identity"],
+    completeStages: ["identity"],
+  },
+  {
+    key: "ringtone",
+    icon: Bell,
+    label: "Ringtone",
+    activeLabel: "Setting ringtone...",
+    completeLabel: () => "Ringtone: set",
+    activeStages: ["ringtone", "committing"],
+    completeStages: ["ringtone", "committing"],
   },
 ];
 

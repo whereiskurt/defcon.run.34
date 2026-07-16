@@ -30,3 +30,45 @@ export const meshtasticConfig = Object.freeze({
     hopLimit: Number(process.env.LORA_HOP_LIMIT) || 3,
   },
 });
+
+/**
+ * Ringtone (RTTTL) assignment. Precedence: per-user RunUser.ringtone (set via
+ * the run.human admin console) -> class default keyed off mqttUsertype -> rabbit
+ * default. Result is never empty and is clamped to the firmware length cap.
+ *
+ * Placeholder tunes -- swap these strings to change the defaults (one PR).
+ */
+export const MAX_RINGTONE_LEN = 230;
+
+export const RINGTONES = Object.freeze({
+  rabbit: "dcrun:d=8,o=6,b=140:c,e,g,c7",
+  wildhare: "hare:d=16,o=6,b=200:c,e,g,c7,g,e,c,e,g,c7",
+  og: "og:d=8,o=5,b=110:g,p,g,p,e,p,c,2g",
+  admin: "admin:d=8,o=5,b=100:g,g,g,4d#",
+});
+
+export function ringtoneForClass(usertype?: string | null): string {
+  switch (usertype) {
+    case "wildhare":
+      return RINGTONES.wildhare;
+    case "og":
+      return RINGTONES.og;
+    case "admin":
+      return RINGTONES.admin;
+    case "rabbit":
+    default:
+      return RINGTONES.rabbit;
+  }
+}
+
+export function resolveRingtone(user?: {
+  ringtone?: string | null;
+  mqttUsertype?: string | null;
+}): string {
+  const personal = user?.ringtone?.trim();
+  const chosen =
+    personal && personal.length > 0
+      ? personal
+      : ringtoneForClass(user?.mqttUsertype);
+  return chosen.slice(0, MAX_RINGTONE_LEN);
+}

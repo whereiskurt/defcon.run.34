@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { SummaryTiles } from "@/lib/admin-report";
+import { validateRingtone, MAX_RINGTONE_LEN } from "@/lib/ringtone";
 
 /**
  * AdminConsole — the interactive user-management surface (Phase 43 UX rework).
@@ -51,6 +52,8 @@ type UserDetail = {
   email: string | null;
   quotaTier: string | null;
   quotas: QuotaDetail[];
+  ringtone: string | null;
+  mqttUsertype: "rabbit" | "admin" | "wildhare" | "og" | null;
 };
 
 const WEEK = 7 * 24 * 60 * 60 * 1000;
@@ -142,6 +145,9 @@ export function AdminConsole({
   const [detail, setDetail] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [revealEmail, setRevealEmail] = useState(false);
+  const [ringtoneDraft, setRingtoneDraft] = useState("");
+  const [ringtoneSaving, setRingtoneSaving] = useState(false);
+  const [ringtoneMsg, setRingtoneMsg] = useState<string | null>(null);
 
   // ── Server-side full-email search (privacy: bulk emails never reach us) ────
   const searchSeq = useRef(0);
@@ -242,13 +248,60 @@ export function AdminConsole({
     setDetail(null);
     setRevealEmail(false);
     setDetailLoading(true);
+    setRingtoneDraft("");
+    setRingtoneMsg(null);
     fetch(`${apiBase}/api/admin/users/${r.userId}`, { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-      .then((d: UserDetail) => setDetail(d))
-      .catch(() => setDetail({ email: null, quotaTier: null, quotas: [] }))
+      .then((d: UserDetail) => {
+        setDetail(d);
+        setRingtoneDraft(d.ringtone ?? "");
+      })
+      .catch(() =>
+        setDetail({
+          email: null,
+          quotaTier: null,
+          quotas: [],
+          ringtone: null,
+          mqttUsertype: null,
+        })
+      )
       .finally(() => setDetailLoading(false));
   };
   const closeDrawer = () => setSelected(null);
+
+  // Set or clear (null) a runner's ringtone via the admin PATCH. Reuses the
+  // shared RTTTL validator for pre-flight so bad input never hits the network.
+  const saveRingtone = async (value: string | null) => {
+    if (!selected) return;
+    const check = validateRingtone(value);
+    if (!check.ok) {
+      setRingtoneMsg(check.reason);
+      return;
+    }
+    setRingtoneSaving(true);
+    setRingtoneMsg(null);
+    try {
+      const res = await fetch(`${apiBase}/api/admin/users/${selected.userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ringtone: check.value }),
+      });
+      if (!res.ok) {
+        setRingtoneMsg(
+          res.status === 404 ? "not authorized" : `save failed (${res.status})`
+        );
+        return;
+      }
+      const data = (await res.json()) as { ringtone: string | null };
+      setRingtoneDraft(data.ringtone ?? "");
+      setDetail((d) => (d ? { ...d, ringtone: data.ringtone } : d));
+      setRingtoneMsg("saved");
+    } catch {
+      setRingtoneMsg("save failed");
+    } finally {
+      setRingtoneSaving(false);
+    }
+  };
   // Esc closes; j/k step to the next/prev user in the CURRENT filtered+sorted
   // view while the drawer is open (skipped when a form field has focus). Jumps
   // the page so the highlighted row stays visible.
@@ -616,6 +669,55 @@ export function AdminConsole({
                   ) : (
                     <span className="text-default-400 text-xs">none</span>
                   )}
+                </div>
+              </Section>
+
+              <Section title="Ringtone">
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    value={ringtoneDraft}
+                    onChange={(e) => setRingtoneDraft(e.target.value)}
+                    placeholder="RTTTL, e.g. og:d=8,o=5,b=110:g,p,g"
+                    maxLength={MAX_RINGTONE_LEN}
+                    className="w-full rounded-lg border border-divider bg-content2 px-2.5 py-1.5 font-mono text-[12px] focus:border-primary outline-none"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => saveRingtone(ringtoneDraft)}
+                      disabled={ringtoneSaving}
+                      className="rounded-lg bg-primary px-3 py-1 text-[12px] font-medium text-black disabled:opacity-50"
+                    >
+                      {ringtoneSaving ? "Saving…" : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => saveRingtone(null)}
+                      disabled={
+                        ringtoneSaving || (!ringtoneDraft && !detail?.ringtone)
+                      }
+                      className="rounded-lg border border-divider px-3 py-1 text-[12px] text-default-500 hover:text-primary hover:border-primary disabled:opacity-40"
+                    >
+                      Clear
+                    </button>
+                    {ringtoneMsg ? (
+                      <span
+                        className={`text-[11px] ${
+                          ringtoneMsg === "saved" ? "text-success" : "text-danger"
+                        }`}
+                      >
+                        {ringtoneMsg}
+                      </span>
+                    ) : null}
+                  </div>
+                  <span className="text-[11px] text-default-400">
+                    {detail?.ringtone
+                      ? "Personal override set."
+                      : `Empty → class default (${
+                          detail?.mqttUsertype ?? selected.runnerType ?? "rabbit"
+                        }).`}
+                  </span>
                 </div>
               </Section>
 

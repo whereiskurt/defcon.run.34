@@ -75,6 +75,14 @@ export const RunUser = new Entity(
         type: ["rabbit", "admin", "wildhare", "og"] as const,
       },
 
+      // Per-user Meshtastic ringtone (RTTTL). Optional override; when unset the
+      // flasher falls back to a class default keyed off mqttUsertype. Set by an
+      // admin from the run.human console; NOT a secret (device config, like
+      // mqttUsertype). See run.flash config/meshtastic.ts resolveRingtone().
+      ringtone: {
+        type: "string",
+      },
+
       // Meshtastic radio registrations
       meshtasticRadios: {
         type: "list",
@@ -324,6 +332,9 @@ export async function updateRunUserProfile(
     displayName?: string;
     displayNameManual?: boolean;
     bio?: string;
+    // Empty string clears the override (flasher then uses the class default);
+    // ElectroDB `.set` rejects null for a string attr, so callers pass "".
+    ringtone?: string;
     preferences?: {
       theme?: string;
       units?: string;
@@ -487,6 +498,7 @@ export type RunUserItem = {
   mqttUsername?: string;
   mqttPassword?: string;
   mqttUsertype?: "rabbit" | "admin" | "wildhare" | "og";
+  ringtone?: string;
   meshtasticRadios?: MeshtasticRadio[];
   lastCheckInAt?: number;
   checkInCount?: number;

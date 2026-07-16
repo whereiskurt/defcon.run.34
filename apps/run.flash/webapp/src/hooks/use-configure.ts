@@ -144,6 +144,7 @@ export function useConfigure(): UseConfigureReturn {
           "mqtt",
           "channels",
           "identity",
+          "ringtone",
           "committing",
         ];
         let currentStageIndex = 0;
