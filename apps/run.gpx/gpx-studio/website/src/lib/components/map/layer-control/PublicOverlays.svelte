@@ -8,6 +8,10 @@
         CHECKIN_USER_TYPES,
     } from '../public-overlays';
     import type { PublicOverlaysLayer, CheckinWindow } from '../public-overlays';
+    import { ChevronDown, ChevronRight } from '@lucide/svelte';
+
+    // Per-group collapse state (keyed by folderId), like the basemap/world tree.
+    let collapsed = $state<Record<string, boolean>>({});
 
     const CHECKIN_WINDOWS: { key: CheckinWindow; label: string }[] = [
         { key: 'hour', label: 'Hour' },
@@ -120,19 +124,34 @@
     <div class="flex flex-col gap-1 text-sm">
         {#each $publicOverlayGroups as group (group.folderId)}
             <div class="flex flex-col gap-0.5">
-                <!-- Group master toggle: the "DEF CON 34 maps on/off" control -->
-                <label class="flex flex-row items-center gap-2 font-semibold">
-                    <input
-                        type="checkbox"
-                        checked={group.visible}
-                        onchange={(e) =>
-                            layer?.setGroupVisible(group.folderId, e.currentTarget.checked)}
-                    />
-                    <!-- "Maps" -> "Routes" for consistent language (Kurt 2026-07-11);
-                         the underlying GLOBAL folder is still named "DEF CON 34 Maps". -->
-                    {group.folderName.replace(/\bMaps\b/, 'Routes')}
-                </label>
-                <!-- Per-route toggles -->
+                <!-- Group master toggle + collapse chevron (like basemaps/world). -->
+                <div class="flex flex-row items-center gap-1 font-semibold">
+                    <button
+                        type="button"
+                        class="shrink-0 opacity-70 hover:opacity-100"
+                        aria-label={collapsed[group.folderId] ? 'Expand' : 'Collapse'}
+                        onclick={() => (collapsed[group.folderId] = !collapsed[group.folderId])}
+                    >
+                        {#if collapsed[group.folderId]}
+                            <ChevronRight size="16" />
+                        {:else}
+                            <ChevronDown size="16" />
+                        {/if}
+                    </button>
+                    <label class="flex flex-row items-center gap-2 grow">
+                        <input
+                            type="checkbox"
+                            checked={group.visible}
+                            onchange={(e) =>
+                                layer?.setGroupVisible(group.folderId, e.currentTarget.checked)}
+                        />
+                        <!-- "Maps" -> "Routes" for consistent language (Kurt 2026-07-11);
+                             the underlying GLOBAL folder is still named "DEF CON 34 Maps". -->
+                        {group.folderName.replace(/\bMaps\b/, 'Routes')}
+                    </label>
+                </div>
+                <!-- Per-route toggles (collapsible) -->
+                {#if !collapsed[group.folderId]}
                 <div class="flex flex-col gap-0.5 pl-5">
                     {#each group.maps as m (m.fileId)}
                         <label class="flex flex-row items-center gap-2" title={m.shortDescription ?? ''}>
@@ -150,6 +169,7 @@
                         </label>
                     {/each}
                 </div>
+                {/if}
             </div>
         {/each}
     </div>

@@ -1,6 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { dcjackSvg } from './dcjack-svg';
 import { escapeHtml } from './escape-html';
+import { RefreshCue } from './refresh-cue';
 
 const DEFAULT_PIN_COLOR = '#e6007a';
 const SOURCE = 'dc34-rabbits';
@@ -28,6 +29,7 @@ export class RabbitLayer {
     private timer: ReturnType<typeof setInterval> | null = null;
     private clickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private built = false;
+    private cue: RefreshCue | null = null;
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
@@ -46,15 +48,12 @@ export class RabbitLayer {
         icon.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
     }
 
-    /** Register a tinted silhouette per color and stamp iconId onto each feature.
-     * Same shape for every rabbit; the runner's pinColor is the only distinguisher. */
+    /** Register the classic DEF CON jack (solid black circle + white face) once
+     * and stamp its id onto every rabbit. Uniform, high-contrast on any basemap. */
     private register(fc: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
+        this.loadSvgImage('dc34-jack', dcjackSvg());
         for (const f of fc.features) {
-            const p = (f.properties ?? {}) as { pinColor?: string };
-            const color = p.pinColor || DEFAULT_PIN_COLOR; // || not ?? (empty-string coercion)
-            const iconId = `jack-${color}`;
-            this.loadSvgImage(iconId, dcjackSvg(color));
-            (f.properties as Record<string, unknown>).iconId = iconId;
+            (f.properties as Record<string, unknown>).iconId = 'dc34-jack';
         }
         return fc;
     }
@@ -74,7 +73,7 @@ export class RabbitLayer {
                     'text-field': ['get', 'displayName'], 'text-size': 10,
                     'text-offset': [0, 0.4], 'text-anchor': 'top',
                 },
-                paint: { 'text-color': '#e6007a', 'text-halo-color': '#101015', 'text-halo-width': 1, 'icon-opacity': 0.5 },
+                paint: { 'text-color': '#ffffff', 'text-halo-color': '#101015', 'text-halo-width': 1.4 },
             });
             this.clickFn = (e) => {
                 const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
@@ -113,7 +112,7 @@ export class RabbitLayer {
             if (!res.ok) return;
             const fc = (await res.json()) as GeoJSON.FeatureCollection;
             const src = this.map.getSource(SOURCE) as mapboxgl.GeoJSONSource | undefined;
-            if (src) src.setData(this.register(fc));
+            if (src) { src.setData(this.register(fc)); this.cue?.reset(); }
         } catch {
             // keep last frame
         }
@@ -123,16 +122,19 @@ export class RabbitLayer {
         if (visible) {
             if (!this.built) await this.build();
             if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'visible');
+            if (!this.cue) { this.cue = new RefreshCue(this.map.getContainer(), POLL_MS); this.cue.start(); }
             await this.refresh();
             if (!this.timer) this.timer = setInterval(() => this.refresh(), POLL_MS);
         } else {
             if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'none');
             if (this.timer) { clearInterval(this.timer); this.timer = null; }
+            if (this.cue) { this.cue.stop(); this.cue = null; }
         }
     }
 
     remove() {
         this.popup.remove();
+        if (this.cue) { this.cue.stop(); this.cue = null; }
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         if (this.clickFn) { this.map.off('click', LAYER, this.clickFn); this.clickFn = null; }
         if (this.map.getLayer(LAYER)) this.map.removeLayer(LAYER);
