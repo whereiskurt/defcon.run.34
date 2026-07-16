@@ -107,14 +107,21 @@ describe("simRabbitFeatureCollection", () => {
     expect(p.battery).toBe(71);
     expect(JSON.stringify(fc)).not.toContain("SECRET");
   });
-  it("skips ghosts, real nodes, unknown slugs, and no-position sims", () => {
+  it("skips ghosts, real nodes, and no-position sims", () => {
     const db = {
       "1": { longName: "ghost-condor-00", latitude: 1, longitude: 1 },
       "2": { longName: "elkentaro-09", latitude: 356303231, longitude: 1397374428 },
-      "3": { longName: "rabbit-sim-unknownslug-00", latitude: 360817149, longitude: -1151727650 },
       "4": { longName: "rabbit-sim-swift-01", latitude: 0, longitude: 0 },
     };
     expect(simRabbitFeatureCollection(db as any).features).toHaveLength(0);
+  });
+  it("renders any positioned rabbit-sim group node (nyc/jpn/pack) as a hash-named rabbit", () => {
+    const db = {
+      "3": { longName: "rabbit-sim-nyc-02", latitude: 407000000, longitude: -740000000 },
+    };
+    const fc = simRabbitFeatureCollection(db as any);
+    expect(fc.features).toHaveLength(1);
+    expect((fc.features[0].properties as { displayName: string }).displayName).toMatch(/^rabbit_[0-9a-f]{4}$/);
   });
   it("gives a pack node a distinct rabbit_#### identity, no keys", () => {
     const packNode = {
