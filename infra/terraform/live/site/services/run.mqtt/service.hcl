@@ -211,7 +211,12 @@ locals {
             value = "tcp://localhost:1884"
           },
           {
-            name  = "MESHTK_NODEDB_PATH"
+            # NOTE: no underscore between NODEDB and PATH. meshtk binds env via
+            # viper (SetEnvKeyReplacer(".","_") + AutomaticEnv), so the config key
+            # `nodedbpath` maps to MESHTK_NODEDBPATH. MESHTK_NODEDB_PATH silently
+            # does NOT bind, leaving meshobserv on dc34.yaml's ./nodes.dc34.json
+            # (written to /nodes.dc34.json under cwd=/) so nginx 404s on nodes.json.
+            name  = "MESHTK_NODEDBPATH"
             value = "/var/www/html/nodes.json"
           },
           {
