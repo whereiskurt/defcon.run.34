@@ -44,7 +44,7 @@ The result is a nine-item File menu (New, Local Open, Open Remote…, Save As…
 Flags key off *"I logged a run on con-day X."* (Decision: **day is the unit** — no official-run schedule/matching in this milestone.)
 
 - New optional field `conDay` on `GpxFile` — an ISO date string (`YYYY-MM-DD`) constrained to the set of DEF CON run days.
-- Con days are **config-driven** (a `CON_DAYS` constant): DEF CON 34 main days are **Thu Aug 6 – Sun Aug 9, 2026** (exact list, and any pre-con day, to be confirmed against the official schedule during planning).
+- Con days are **config-driven** (a `CON_DAYS` constant): **Wed Aug 5 – Mon Aug 10, 2026** — six loggable days, pre-con Wednesday through Monday departure (decided; inclusive so early-arrival and departure-day runs have a valid day to log against).
 - **Picker rules:** defaults to **today** (the con-day matching the current date, if within the con); **future con-days are disabled** (can't log a run that hasn't happened); past con-days selectable (log yesterday's run).
 - **Auto-guess from the file:** on upload, parse the first trackpoint `<time>` in the GPX, take its calendar date, and match it to a con-day. Used as the default selection; always user-overridable. Files with no timestamp or a date outside the con are flagged and require a manual pick.
 - **Flag/scoring seam:** `conDay` travels with the accomplishment payload already sent from the confirm route (`lib/gpx-accomplishment.ts` → run.human `/api/internal/accomplishment`). run.human owns flag accounting; run.gpx is the producer. (Exact payload field addition confirmed in planning.)
@@ -289,9 +289,12 @@ The full Strava→GPX pipeline already runs in production as a **batch, secret-g
 - **In scope:** the one-concept mental model; the on-map dismissible quick-start card hub (three intent cards — Log a run / Check out the routes / Show me the runners); the log-a-run sub-flow (Strava + upload doors); con-day tagging with GPX-timestamp auto-guess; bulk upload with per-file day assignment; unified My Maps; simplified File menu; overlays master collapse; per-con-day quota (10) wired into auth; the per-user Strava sync button; the three-verb sharing model (friend link / submit-to-DEF-CON queue / admin turn-on-for-all) with a first-class admin review queue and CMS-authored attribution.
 - **Out of scope (this milestone):** an official-run schedule / matching a GPX to a specific scheduled run (day is the unit); any change to how run.human accounts flags beyond receiving `conDay`; redesign of the drawing/editing tools; changes to the public overlay data pipeline; a rebuild of the share/publish backend (reused as-is, only re-surfaced); **surfacing ghost mode** — the "Show me the runners" card exposes only the rabbit/live-runner layer; ghosts stay the hidden easter egg.
 
-## 15. Open items to confirm during planning
+## 15. Resolved decisions & open planning items
 
-- Exact `CON_DAYS` list & dates (incl. any pre-con day) vs the official DEF CON 34 schedule.
+**Resolved (2026-07-16):** `CON_DAYS` = Wed Aug 5 – Mon Aug 10, 2026 (6 days). The per-user **Strava sync button is in scope** (both doors at launch; needs the run.auth single-user token endpoint). The **admin review queue + turn-on-for-all dialog is in scope as its own phase** (CMS-authored attribution). run.human flag-scoring is **not** rebuilt — run.gpx sends `conDay`, run.human keys off it later.
+
+**Open planning items:**
+
 - The `conDay` field's place in the accomplishment payload and how run.human consumes it for flags.
 - Whether the per-con-day count uses a new GSI on `GpxFile` or a filtered query.
 - Final placement of Auto-Save and the aggregate opt-in (File menu vs Settings).
