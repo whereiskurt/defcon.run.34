@@ -231,6 +231,15 @@ export async function POST(request: Request) {
       }
     }
 
+    // Security: only admins can add files to GLOBAL shared folders.
+    if (isGlobalFolder && !services.includes("admin")) {
+      await restoreQuota(session.user.id, "gpx_upload", 1);
+      return NextResponse.json(
+        { error: "Only admins can add files to shared folders" },
+        { status: 403 }
+      );
+    }
+
     const fileId = uuidv4();
     const key = `${getUserPrefix(targetUserId)}${fileId}.gpx`;
 

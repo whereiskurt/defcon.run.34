@@ -200,13 +200,13 @@
 
 /* Ghost-mode matrix overlay — fixed over the map, under controls, non-interactive. */
 .dc34-matrix-canvas {
-    position: fixed; inset: 0; z-index: 5; pointer-events: none;
+    position: fixed; inset: 0; z-index: 2147483001; pointer-events: none;
     opacity: 0; transition: opacity 500ms ease;
 }
 .dc34-matrix-canvas.on { opacity: 0.55; }
 .dc34-matrix-tint {
-    position: fixed; inset: 0; z-index: 4; pointer-events: none;
-    background: radial-gradient(ellipse at center, rgba(0,40,10,0.10), rgba(0,20,6,0.42));
-    mix-blend-mode: screen; opacity: 0; transition: opacity 600ms ease;
+    position: fixed; inset: 0; z-index: 2147483000; pointer-events: none;
+    background: rgba(0, 70, 20, 0.55);
+    mix-blend-mode: multiply; opacity: 0; transition: opacity 600ms ease;
 }
 .dc34-matrix-tint.on { opacity: 1; }

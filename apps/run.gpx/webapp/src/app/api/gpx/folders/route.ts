@@ -37,9 +37,10 @@ export async function GET(request: Request) {
       .go();
     const userFolders = userResult.data;
 
-    // Optionally include global folders
+    // Optionally include global folders (admins only — non-admins should not
+    // browse or discover GLOBAL shared folders).
     let globalFolders: GpxFolderItem[] = [];
-    if (includeGlobal) {
+    if (includeGlobal && services.includes("admin")) {
       const globalResult = await GpxFolder.query
         .byParent({ userId: "GLOBAL", parentFolderId: targetParentId })
         .go();
@@ -48,7 +49,8 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       folders: userFolders,
-      globalFolders: includeGlobal ? globalFolders : undefined,
+      globalFolders:
+        includeGlobal && services.includes("admin") ? globalFolders : undefined,
     });
   } catch (error) {
     console.error("Error listing folders:", error);
