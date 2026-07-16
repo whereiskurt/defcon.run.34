@@ -491,8 +491,8 @@ Fleet:
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 600
     RampSteadySecs: 2419200
-    Seed: "aabbccdd-5421-1212-b383-4efdc4fb382b"
-    ShortNameTmpl: "GI{{.nodeId}}"
+    Seed: "d7d7d7d7-1dc3-4a11-b383-000000000010"
+    ShortNameTmpl: "DT{{.nodeId}}"
     LongNameTmpl: "ghost-dt-{{.nodeId}}"
     NodesPerRampInterval: [1]
     RampUpSecs: 2
