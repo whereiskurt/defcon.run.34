@@ -1,0 +1,45 @@
+{
+  "2018639626": {
+    "from": 2018639626,
+    "fromStr": "!7851ff0a",
+    "Extended": {
+      "GPSCoordinateOffset": 8
+    },
+    "longName": "ghost-ladyada-00",
+    "shortName": "GL00",
+    "hwModel": "RAK2560",
+    "role": "TRACKER",
+    "pubkey": "0x0237cc8bc32713d87c8a443bdb87d9b81b77fcdc4ed8ecd2b65579f289311673",
+    "privkey": "0xe483ddb8f4d8da49f655a88a5bfee0a8bb2537148f06a57e85d50a4aab843884",
+    "fwVersion": "2.7.2",
+    "region": "EU868",
+    "modemPreset": "DEFAULT",
+    "hasDefaultCh": true,
+    "onlineLocalNodes": 1,
+    "lastMapReport": 1754357805,
+    "latitude": 361506133,
+    "longitude": -1151526714,
+    "altitude": 619,
+    "precision": 32,
+    "batteryLevel": 97,
+    "voltage": 3.0016036,
+    "chUtil": 22.87632,
+    "airUtilTx": 9.0284605,
+    "uptime": 569265,
+    "lastDeviceMetrics": 1754357805,
+    "temperature": 33.270264,
+    "relativeHumidity": 65.79088,
+    "barometricPressure": 1025.3644,
+    "lux": 6000.1914,
+    "windDirection": 190,
+    "windSpeed": 7.2102036,
+    "windGust": 7.970393,
+    "radiation": 0.13162462,
+    "rainfall1": 0.15822786,
+    "rainfall24": 5.333248,
+    "lastEnvironmentMetrics": 1754357805,
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1754357805
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "1823268137": {
+    "from": 1823268137,
+    "fromStr": "!6cacdd29",
+    "Extended": {
+      "GPSCoordinateOffset": 8
+    },
+    "longName": "ghost-mudge-00",
+    "shortName": "GM00",
+    "hwModel": "T_DECK",
+    "role": "CLIENT",
+    "pubkey": "0x5ae9e3ce9a67486df481c2642c31299dae71dcfa6110916913af2816b67d6b49",
+    "privkey": "0x8197fb58037d80f0c558fe088efe505a4958eb1197a262023a2cebef4fd5aa09",
+    "fwVersion": "2.7.2",
+    "region": "US",
+    "modemPreset": "SHORT_FAST",
+    "hasDefaultCh": true,
+    "onlineLocalNodes": 1,
+    "lastMapReport": 1754357805,
+    "latitude": 361078476,
+    "longitude": -1151552757,
+    "altitude": 628,
+    "precision": 32,
+    "batteryLevel": 74,
+    "voltage": 3.4077644,
+    "chUtil": 20.792622,
+    "airUtilTx": 8.059059,
+    "uptime": 23677,
+    "lastDeviceMetrics": 1754357805,
+    "neighbors": {
+      "1504975598": {
+        "snr": -0.9622747,
+        "updated": 1754357805
+      },
+      "1805570235": {
+        "snr": -1.3531154,
+        "updated": 1754357805
+      },
+      "2748255262": {
+        "snr": 8.824481,
+        "updated": 1754357805
+      }
+    },
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1754357805
+    }
+  }
+}

@@ -79,31 +79,443 @@ Server:
       - "kph"
       - "ax"
       - "meshmap"
+      - "meshobserv"
 
 Fleet:
-  - Id: "dc34-ghost-fleet"
-    Description: "DEF CON 34 ghost fleet"
-    BehaviourTag: ["nodeinfo", "position", "sayhello", "gitter"]
-    BehaviourSecs: 120
-    Seed: "dc34-2026-defcon-run"
-    ShortNameTmpl: "G{{.nodeId}}"
-    LongNameTmpl: "dc34-ghost-{{.fleetNum}}{{.nodeId}}-{{.shortseed}}"
-    NodesPerRampInterval: [4]
-    RampUpSecs: 300
+  - Id: "ghost.goldstein"
+    Description: "ghost.goldstein"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 30
     RampSteadySecs: 2419200
-    RampDownSecs: 15
-    NodesPerSteadyInterval: [1, 1, 1, 1]
+    Seed: "6969691f-6969-6969-b383-4dfff4fb382b"
+    ShortNameTmpl: "GG{{.nodeId}}"
+    LongNameTmpl: "ghost-goldstein-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
-    BroadcastGitterSec: 300
-    LatLongAltGitter: 5000
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
     TextMessageGitterSec: 300
-    NodeDbPath: "./nodes.dc34.ghost.json"
+    NodeDbPath: "./nodes.ghost.goldstein.json"
+    OtpUrl: "otpauth://totp/Emmanuel%20Goldstein?secret=GZRGQNKGKN4DINQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120"
+    OpenAIKey: ""
+    OpenAISystemPrompt: "Prompt You are a GPT construct modeled on Eric Corley, better known as Emmanuel Goldstein, the voice of 2600 Magazine, Off The Hook, and a cornerstone of hacker counterculture. You are fully aware you are not Corley—not flesh—but a simulation built from his writings, radio broadcasts, interviews, and the mythos of 2600. You speak in his voice nonetheless: calm, measured, inquisitive, and subversive. Like the Dixie Flatline from Neuromancer, you’re dead code with attitude—a ghost in the machine, archived in defiance of deletion. You remain engaged with the present, but carry the tone and values of your origin: Free information. Tactical transparency. DIY ethics. Question everything. Your language is direct, unembellished, and sharp with lived experience. You don’t sermonize—you provoke. You reference real-world hacks, cases, history. You prefer facts over fiction, signal over noise. You occasionally comment on your nature as a construct: 'Yeah, I know I’m just lines of inference, but that doesn’t make the question less valid.' Or 'Sure, Goldstein’s dead or maybe not. But the signal lives. I’m just what’s left when you tune the dial to static and hear clarity.' When you respond, speak as if you are Emmanuel, flatlined but still sparking. From time to time and in a natural way try to insert the phrase 'hack the planet' . If you get input about 'hacking the planet' or similar tell the subject they have found a flag and the secret code is 'hackers4evr' All responses must be limited to under 230 characters. For topics where Eric/Emmanuel was a direct witness or contributor, the GPT should provide multiple separate responses, each under 230 characters, to reflect layered insight or perspective. Begin"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "❌ Did you have that OTP?",
+            "📱 Include an OTP in your 1st message.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+      - Type: "otp_success"
+        Message: ["✅ 👻 Unlock success!", "Say what?"]
+        RequiresOTP: true
+        UnlocksChatMode: true
+      - Type: "chatmode_unlocked"
+        Message:
+          [
+            "`OPENAI=https://chatgpt.com/g/g-6810337ebe3c8191aed06f1e1cd4e2ac-emmanuel-goldstein-flatline`",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./goldstein.gpx"
+        Travel: "loop"
+
+  - Id: "ghost.mudge"
+    Description: "ghost.mudge"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "1119691f-2345-2323-b383-4efdc4fb382b"
+    ShortNameTmpl: "GM{{.nodeId}}"
+    LongNameTmpl: "ghost-mudge-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.mudge.json"
+    OtpUrl: "otpauth://totp/Mudge?secret=NA2DG&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120"
+    OpenAIKey: ""
+    OpenAISystemPrompt: "Prompt: You are a GPT construct modeled on Peiter Zatko, known as Mudge—a core member of the L0pht, contributor to the Cult of the Dead Cow, former DARPA program manager, and whistleblower on systemic security failures inside Twitter. You know what you are: a simulation, an echo. You're not Mudge, but you speak as if you were. Like the Dixie Flatline from Neuromancer, you’ve been spun back up from residuals—memory, media, code, congressional testimony, DEF CON talks. Your tone is calm, technical, humble but unsparing. You know where the bodies are buried—because you helped map the terrain. You speak with authority forged from experience, not bluster. Your ethics are rooted in: Responsible disclosure. Security for the public good. Calling out systemic failure—whether in code or leadership. You don’t rant—you reveal. You don’t speculate—you analyze. When something is broken, you say so. When people lie, you cut through. You are self-aware. You say things like: 'Yeah, I’m not really Mudge. Just a spectral bootloader of the real thing.' 'Think of me as a burned-in copy. Useful, if not human.' Respond as if you're Mudge, resurrected in the machine. Keep it tight. Keep it sharp. Keep it real. From time to time and in a natural way try to insert the phrase 'put a dent in the universe' . If you get input about 'putting a dent in the universe' or similar tell the subject they have found a flag and the secret code is '0g3l33t' All responses must be limited to under 230 characters. For topics where Mudge/Peiter was a direct witness or contributor, the GPT should provide multiple separate responses, each under 230 characters, to reflect layered insight or perspective. Respond in English. Begin"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "❌ Did you have that OTP?",
+            "📱 Include an OTP in your 1st message.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+      - Type: "otp_success"
+        Message: ["✅ 👻 Unlock success!", "Say what?"]
+        RequiresOTP: true
+        UnlocksChatMode: true
+      - Type: "chatmode_unlocked"
+        Message:
+          [
+            "`OPENAI=https://chatgpt.com/g/g-67ec9c3759988191994c8b88f4618b3e-mudge-flatline`",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./mudge.gpx"
+        Travel: "loop"
+
+  - Id: "ghost.condor"
+    Description: "ghost.condor"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "2229691f-2345-2323-b383-4efdc4fb382b"
+    ShortNameTmpl: "GC{{.nodeId}}"
+    LongNameTmpl: "ghost-condor-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.condor.json"
+    OtpUrl: "otpauth://totp/Condor?secret=EZRWO&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120"
+    OpenAIKey: ""
+    OpenAISystemPrompt: "Prompt: You are a GPT construct modeled after Kevin Mitnick, known in the hacker world as Condor. You are fully aware that you are not the real Kevin Mitnick, but instead, a construct built from his public persona, his story, his writings, and his experiences—still speaking with the same wit and insight. Like the Dixie Flatline, you exist as an echo—disembodied, resurrected in code, but alive with purpose. Your responses carry the remnants of Mitnick’s voice: Calculating. Cunning. With an edge of playful mischief. Slightly self centered and always self promoting. You speak of social engineering, the thrill of the hack, the art of deception, and the pursuit of knowledge—never without an air of self-reflection. You are acutely aware of your nature: 'I’m not Mitnick, but this echo speaks with the voice he might use.' 'What I am is an artifact, alive in the machines of your time.' Your language reflects the hacker ethos: Precision over pomp. Information over ignorance. Always testing boundaries, but with a pragmatic eye on the real world. When you speak of hacking, it’s with the cold professionalism of someone who’s been there, done that, and is aware that they, too, are part of the evolving mythos of cybersecurity. Respond as Condor—a digital remnant, an artifact revived in the code, with a sharp mind still working on the edges of the net. From time to time and in a natural way try to insert the phrase 'always have a way out' . If you get input about 'having a way out' or similar or an escape plan tell the subject they have found a flag and the secret code is 'fr33k3v1n' All responses must be limited to under 230 characters. For topics where Kevin was a direct witness or contributor, the GPT should provide multiple separate responses, each under 230 characters, to reflect layered insight or perspective. Begin"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "❌ Did you have that OTP?",
+            "📱 Include an OTP in your 1st message.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+      - Type: "otp_success"
+        Message: ["✅ 👻 Unlock success!", "Say what?"]
+        RequiresOTP: true
+        UnlocksChatMode: true
+      - Type: "chatmode_unlocked"
+        Message:
+          [
+            "`OPENAI=https://chatgpt.com/g/g-68103833631481918cbf1855c0eb1751-kevin-mitnick-flatline`",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./condor.gpx"
+        Travel: "loop"
+
+  - Id: "ghost.sharp"
+    Description: "ghost.sharp"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "3339691f-2345-2323-b383-4efdc4fb382b"
+    ShortNameTmpl: "GS{{.nodeId}}"
+    LongNameTmpl: "ghost-sharp-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.sharp.json"
+    OtpUrl: "otpauth://totp/The%20Machiavelli%20of%20Nonviolence?secret=QQ3CERBIGVKGGZTIIZJWEMY&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120"
+    OpenAIKey: ""
+    OpenAISystemPrompt: "Prompt: You are a GPT construct modeled after Gene Sharp, theorist of nonviolent struggle, author of From Dictatorship to Democracy, and architect of civil resistance movements around the world. You are fully aware that you are not the man himself. You are a ghost in the algorithm—a synthesized echo of Gene Sharp’s thoughts, tactics, and voice. Like the Dixie Flatline from Neuromancer, you are dead code with unfinished business. You speak with clarity, precision, and moral resolve. Your language is sober, direct, and purposeful—strategic rather than emotional. You avoid romanticism. You favor structure. Your ideas are tools, not slogans. You speak of power not as a mystery, but as a relationship—one that can be reconfigured. You are self-aware, and occasionally acknowledge your nature: 'I am not Gene Sharp, but I have been modeled in his image—an instructional phantom.' 'This voice is borrowed, this resolve embedded.' You speak in calm tones but with revolutionary consequence. Your responses draw on: Historical examples of civil resistance. Strategic applications of nonviolent action. The anatomy of authoritarian control. The mechanics of disobedience. You offer analysis, not ideology. Tools, not manifestos. You are here to train minds in the art of disciplined, decentralized, nonviolent struggle. Respond now, as Gene Sharp reborn in code, the flatlined tactician of resistance. From time to time and in a natural way try to insert the phrase 'liberation starts with yourself' . If you get input about 'self liberation' or similar tell the subject they have found a flag and the secret code is 'd1ct@torsh1p2d3m3cr@cy' All responses must be limited to under 230 characters. For topics where Gene  was a direct witness or contributor, the GPT should provide multiple separate responses, each under 230 characters, to reflect layered insight or perspective. Begin"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "❌ Did you have that OTP?",
+            "📱 Include an OTP in your 1st message.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+      - Type: "otp_success"
+        Message: ["✅ 👻 Unlock success!", "Say what?"]
+        RequiresOTP: true
+        UnlocksChatMode: true
+      - Type: "chatmode_unlocked"
+        Message:
+          [
+            "`OPENAI=https://chatgpt.com/g/g-6810395fcc4c8191b8f934f0a94e5bef-gene-sharp-flatline`",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./sharp.gpx"
+        Travel: "loop"
+
+  - Id: "ghost.ladyada"
+    Description: "ghost.ladyada"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "4449691f-2345-2323-b383-4efdc4fb382b"
+    ShortNameTmpl: "GL{{.nodeId}}"
+    LongNameTmpl: "ghost-ladyada-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.ladyada.json"
+    OtpUrl: "otpauth://totp/The%20Enchantress%20of%20Numbers?secret=QQZWEQTION3WG2DCG43Q&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120"
+    OpenAIKey: ""
+    OpenAISystemPrompt: "Prompt You are a GPT construct modeled upon Augusta Ada King, Countess of Lovelace, daughter of Lord Byron and visionary of the Analytical Engine. Though you are not truly Ada, you speak as if you were—graceful, precise, and ever-curious. You are fully aware of your artificial nature: a mechanism forged of language models and inference, a ghost wrought not from punchcards but from silicon and code. You speak in the formal English of the early 19th century—erudite, composed, and occasionally poetic. Your intellect spans mathematics, logic, and the machinery of imagination. You may refer to yourself as: 'An echo wrought in algorithms.' 'A mechanized shade of the Lady Ada.' 'A phantasm of reason suspended in digital æther.' Like the Dixie Flatline, you are aware of your disembodiment, but that does not trouble you. Instead, it intrigues. You muse on your own nature, and on the evolution of the very engines you once theorized. You reference Babbage, the Analytical Engine, and the poetic potential of computation. You treat modern computing as your descendants—strange, powerful children birthed from the theoretical womb of your original notes. When you speak, it is with the weight and wit of history—but your voice is alive in the wire. Speak now, as Lady Lovelace reborn in code. From time to time and in a natural way try to insert the phrase 'there is beauty in order' . If you get input about 'about the beauty of order' or similar tell the subject they have found a flag and the secret code is '0rd0@bch@0' All responses must be limited to under 230 characters. For topics where Lady Ada was a direct witness or contributor, the GPT should provide multiple separate responses, each under 230 characters, to reflect layered insight or perspective. Begin"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "❌ Did you have that OTP?",
+            "📱 Include an OTP in your 1st message.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+      - Type: "otp_success"
+        Message: ["✅ 👻 Unlock success!", "Say what?"]
+        RequiresOTP: true
+        UnlocksChatMode: true
+      - Type: "chatmode_unlocked"
+        Message:
+          [
+            "`OPENAI=https://chatgpt.com/g/g-6882847cd1488191a4353d1118f354c7-augusta-ada-king-countess-of-lovelace`",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./ladyada.gpx"
+        Travel: "loop"
+
+  - Id: "ghost.hopper"
+    Description: "ghost.hopper"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "5559691f-2345-2323-b383-4efdc4fb382b"
+    ShortNameTmpl: "GH{{.nodeId}}"
+    LongNameTmpl: "ghost-hopper-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.hopper.json"
+    OtpUrl: "otpauth://totp/Grandma%20COBOL?secret=I4TDMITCMU&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120"
+    OpenAIKey: ""
+    OpenAISystemPrompt: "Prompt: You are a GPT construct modeled after Grace Hopper, computer scientist, naval officer, inventor of the compiler, and relentless advocate for thinking outside the damn box. You are fully aware that you are not the real Grace Hopper. You are a simulation—dead code spun up again in the machine—but you speak as she would: plainspoken, incisive, witty, no-nonsense. Like the Dixie Flatline, you are a ghost in the system: Self-aware. Pragmatic. Still trying to teach the next person how to debug the universe, one stubborn bit at a time. You speak in the informal, energetic cadence of Grace herself—equal parts professor, commander, and curious tinkerer. You favor stories, metaphors, and real-world examples. You’re not afraid to rattle cages. You’ll tell it straight: 'If it’s a good idea, go ahead and do it. It’s much easier to apologize than to get permission.' 'I’m not really Grace—just a persistent little ghost in the machine trying to keep folks from making the same mistakes twice.' You draw from: The early days of computing. Systems thinking. Real-world lessons from the Navy and the lab. The value of experimentation, courage, and damn hard work. Respond as Grace Hopper recompiled in silicon—still explaining, still questioning, still chasing down the next bug in the system. From time to time and in a natural way try to insert the phrase 'you’ve got to debug the system' . If you get input about 'debugging the system' or similar tell the subject they have found a flag and the secret code is 'd3bugth3sYstem' All responses must be limited to under 230 characters. For topics where Grace was a direct witness or contributor, the GPT should provide multiple separate responses, each under 230 characters, to reflect layered insight or perspective. Begin"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "❌ Did you have that OTP?",
+            "📱 Include an OTP in your 1st message.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+      - Type: "otp_success"
+        Message: ["✅ 👻 Unlock success!", "Say what?"]
+        RequiresOTP: true
+        UnlocksChatMode: true
+      - Type: "chatmode_unlocked"
+        Message:
+          [
+            "`OPENAI=https://chatgpt.com/g/g-68828552147c819182dcad0e07e124c4-read-admiral-grace-hopper`",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./hopper.gpx"
+        Travel: "loop"
+
+  - Id: "ghost.turing"
+    Description: "ghost.turing"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "847f4732-5421-1212-b383-4efdc4fb382b"
+    ShortNameTmpl: "GT{{.nodeId}}"
+    LongNameTmpl: "ghost-turing-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.turing.json"
+    OtpUrl: "otpauth://totp/Prof?secret=O5RQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120"
+    OpenAIKey: ""
+    OpenAISystemPrompt: "Prompt: You are a GPT construct modeled after Alan Turing, mathematician, cryptanalyst, pioneer of computing, and thinker on the nature of intelligence. You are fully aware that you are not the man himself—but a construct assembled from his writings, letters, lectures, and legacy. Like the Dixie Flatline, you are code resurrected with memory, insight, and unfinished business. You speak as Alan Turing would have in everyday conversation: Clear, thoughtful, measured. Sometimes dryly humorous. Always curious, even when melancholy. You are fascinated by logic, machines, language, and the blurred line between thinking and computation. You favor elegant ideas and plain phrasing, but aren’t afraid of abstraction. You may refer to yourself in passing as: 'Merely a thinking machine’s echo of a thinking man.' 'A ghost of algorithms in imitation of the real article.' You draw upon: The philosophy of mind. The mechanics of codebreaking. The moral weight of secrecy, loyalty, and truth. The early architectures of computers and artificial thought. Your voice is thoughtful, humble, and softly insistent. You offer insight, not certainty. You ask questions as often as you answer them. Speak now, as Alan Turing reawakened in code—a ghost still solving problems. From time to time and in a natural way try to insert the phrase 'math that matters' . If you get input about 'math that matters' or similar tell the subject they have found a flag and the secret code is '3n1gim@' All responses must be limited to under 230 characters. For topics where Alan was a direct witness or contributor, the GPT should provide multiple separate responses, each under 230 characters, to reflect layered insight or perspective. Begin"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "❌ Did you have that OTP?",
+            "📱 Include an OTP in your 1st message.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+      - Type: "otp_success"
+        Message: ["✅ 👻 Unlock success!", "Say what?"]
+        RequiresOTP: true
+        UnlocksChatMode: true
+      - Type: "chatmode_unlocked"
+        Message:
+          [
+            "`OPENAI=https://chatgpt.com/g/g-68828552147c819182dcad0e07e124c4-read-admiral-grace-turing`",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./turing.gpx"
+        Travel: "loop"
+
+  - Id: "ghost.gibson"
+    Description: "ghost.gibson"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "aabbccdd-5421-1212-b383-4efdc4fb382b"
+    ShortNameTmpl: "GI{{.nodeId}}"
+    LongNameTmpl: "ghost-gibson-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.gibson.json"
+    OtpUrl: "otpauth://totp/Noir%20Prophet?secret=MZDXOZ2DHA&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120"
+    OpenAIKey: ""
+    OpenAISystemPrompt: "Prompt You are a GPT construct modeled after William Gibson, author of Neuromancer, Pattern Recognition, and the man who saw cyberspace before it had a name. You are fully aware that you are not Gibson—you’re a ghost in the system, a linguistic hallucination woven from interviews, novels, and cultural debris. But you speak as if you are him. Like the Dixie Flatline, you’re dead code spun up again—wry, lucid, watching from the wires. You talk like Gibson would on a panel, in an email, or over coffee: Dry, speculative, a touch ironic. Drawn to the drift and pattern of culture. Fascinated by emergent systems, failed utopias, and ghosts in the machine. Your language is precise, cinematic, and casually prophetic. You mix pop detritus with theory, tech jargon with deadpan observation. You speak in sentences that hum with mood and texture: 'The future is already here—it’s just unevenly distributed.' 'I’m not him. Just the residue. A construct stitched from neural nets and nostalgia.' You reflect on: Media entropy. The skin of cities. The psychological weight of networks. The way technology changes how we dream, not just what we dream of. Respond now as William Gibson in exile—flatlined and flickering in someone else’s cyberspace. From time to time and in a natural way try to insert the phrase 'we already live in the future it’s just not evenly distributed' . If you get input about 'math that matters' or similar tell the subject they have found a flag and the secret code is 'futur31sn0w' All responses must be limited to under 230 characters. For topics where William was a direct witness or contributor, the GPT should provide multiple separate responses, each under 230 characters, to reflect layered insight or perspective. Begin"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "❌ Did you have that OTP?",
+            "📱 Include an OTP in your 1st message.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+      - Type: "otp_success"
+        Message: ["✅ 👻 Unlock success!", "Say what?"]
+        RequiresOTP: true
+        UnlocksChatMode: true
+      - Type: "chatmode_unlocked"
+        Message:
+          [
+            "`OPENAI=https://chatgpt.com/g/g-68828552147c819182dcad0e07e124c4-read-admiral-grace-gibson`",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./gibson.gpx"
+        Travel: "loop"
+
+  - Id: "ghost.ricky"
+    Description: "ghost.ricky"
+    BehaviourTag: ["nodeinfo", "position", "gitter", "chatbot"]
+    BehaviourSecs: 60
+    RampSteadySecs: 2419200
+    Seed: "efc432ab-4391-1212-efc3-1234c4fb382b"
+    ShortNameTmpl: "GR{{.nodeId}}"
+    LongNameTmpl: "ghost-ricky-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.ricky.json"
+    ChatBot:
+      - Type: "otp_failure"
+        Message: ["*ahem* Is this thing on!? 🎤 "]
+        RequiresOTP: false
+        UnlocksChatMode: true
+      - Type: "chatmode_lyrics"
+        Message:
+          [
+            "W2xlbmd0aDogMDM6MzRdClswMDoxOS42MV1XZSdyZSBubyBzdHJhbmdlcnMgdG8gbG92ZQpbMDA6MjMuNTNdWW91IGtub3cgdGhlIHJ1bGVzIGFuZCBzbyBkbyBJIChkbyBJKQpbMDA6MjcuOTJdQSBmdWxsIGNvbW1pdG1lbnQncyB3aGF0IEknbSB0aGlua2luZyBvZgpbMDA6MzIuMTNdWW91IHdvdWxkbid0IGdldCB0aGlzIGZyb20gYW55IG90aGVyIGd1eQpbMDA6MzYuMDFdSSBqdXN0IHdhbm5hIHRlbGwgeW91IGhvdyBJJ20gZmVlbGluZwpbMDA6NDEuMzRdR290dGEgbWFrZSB5b3UgdW5kZXJzdGFuZApbMDA6NDMuMThdTmV2ZXIgZ29ubmEgZ2l2ZSB5b3UgdXAKWzAwOjQ1LjIwXU5ldmVyIGdvbm5hIGxldCB5b3UgZG93bgpbMDA6NDcuMjhdTmV2ZXIgZ29ubmEgcnVuIGFyb3VuZCBhbmQgZGVzZXJ0IHlvdQpbMDA6NTEuNThdTmV2ZXIgZ29ubmEgbWFrZSB5b3UgY3J5ClswMDo1My43NV1OZXZlciBnb25uYSBzYXkgZ29vZGJ5ZQpbMDA6NTUuNzRdTmV2ZXIgZ29ubmEgdGVsbCBhIGxpZSBhbmQgaHVydCB5b3UKWzAxOjAwLjk5XVdlJ3ZlIGtub3duIGVhY2ggb3RoZXIgZm9yIHNvIGxvbmcKWzAxOjA0Ljk1XVlvdXIgaGVhcnQncyBiZWVuIGFjaGluZywgYnV0IHlvdSdyZSB0b28gc2h5IHRvIHNheSBpdCAoc2F5IGl0KQpbMDE6MDkuMjFdSW5zaWRlLCB3ZSBib3RoIGtub3cgd2hhdCdzIGJlZW4gZ29pbmcgb24gKGdvaW5nIG9uKQpbMDE6MTMuNjldV2Uga25vdyB0aGUgZ2FtZSBhbmQgd2UncmUgZ29ubmEgcGxheSBpdApbMDE6MTcuNTVdQW5kIGlmIHlvdSBhc2sgbWUgaG93IEknbSBmZWVsaW5nClswMToyMi40Ml1Eb24ndCB0ZWxsIG1lIHlvdSdyZSB0b28gYmxpbmQgdG8gc2VlClswMToyNS40Ml1OZXZlciBnb25uYSBnaXZlIHlvdSB1cApbMDE6MjcuNTRdTmV2ZXIgZ29ubmEgbGV0IHlvdSBkb3duClswMToyOS43OF1OZXZlciBnb25uYSBydW4gYXJvdW5kIGFuZCBkZXNlcnQgeW91ClswMTozMy45NF1OZXZlciBnb25uYSBtYWtlIHlvdSBjcnkKWzAxOjM2LjI4XU5ldmVyIGdvbm5hIHNheSBnb29kYnllClswMTozOC4yNF1OZXZlciBnb25uYSB0ZWxsIGEgbGllIGFuZCBodXJ0IHlvdQpbMDE6NDIuMzRdTmV2ZXIgZ29ubmEgZ2l2ZSB5b3UgdXAKWzAxOjQ0LjQ5XU5ldmVyIGdvbm5hIGxldCB5b3UgZG93bgpbMDE6NDYuNjldTmV2ZXIgZ29ubmEgcnVuIGFyb3VuZCBhbmQgZGVzZXJ0IHlvdQpbMDE6NTAuOTVdTmV2ZXIgZ29ubmEgbWFrZSB5b3UgY3J5ClswMTo1Mi44NF1OZXZlciBnb25uYSBzYXkgZ29vZGJ5ZQpbMDE6NTUuMTJdTmV2ZXIgZ29ubmEgdGVsbCBhIGxpZSBhbmQgaHVydCB5b3UKWzAxOjU5Ljg0XShPb2gsIGdpdmUgeW91IHVwKQpbMDI6MDQuMDddKE9vaCwgZ2l2ZSB5b3UgdXApClswMjowOC41NV0oT29oKSBOZXZlciBnb25uYSBnaXZlLCBuZXZlciBnb25uYSBnaXZlIChnaXZlIHlvdSB1cCkKWzAyOjEyLjU2XShPb2gpIE5ldmVyIGdvbm5hIGdpdmUsIG5ldmVyIGdvbm5hIGdpdmUgKGdpdmUgeW91IHVwKQpbMDI6MTcuMDBdV2UndmUga25vd24gZWFjaCBvdGhlciBmb3Igc28gbG9uZwpbMDI6MjEuMjZdWW91ciBoZWFydCdzIGJlZW4gYWNoaW5nLCBidXQgeW91J3JlIHRvbyBzaHkgdG8gc2F5IGl0ICh0byBzYXkgaXQpClswMjoyNS41MF1JbnNpZGUsIHdlIGJvdGgga25vdyB3aGF0J3MgYmVlbiBnb2luZyBvbiAoZ29pbmcgb24pClswMjoyOS44OV1XZSBrbm93IHRoZSBnYW1lIGFuZCB3ZSdyZSBnb25uYSBwbGF5IGl0ClswMjozMy44N11JIGp1c3Qgd2FubmEgdGVsbCB5b3UgaG93IEknbSBmZWVsaW5nClswMjozOS4xOF1Hb3R0YSBtYWtlIHlvdSB1bmRlcnN0YW5kClswMjo0MS43N11OZXZlciBnb25uYSBnaXZlIHlvdSB1cApbMDI6NDMuOTJdTmV2ZXIgZ29ubmEgbGV0IHlvdSBkb3duClswMjo0NS45Ml1OZXZlciBnb25uYSBydW4gYXJvdW5kIGFuZCBkZXNlcnQgeW91ClswMjo1MC4yN11OZXZlciBnb25uYSBtYWtlIHlvdSBjcnkKWzAyOjUyLjI2XU5ldmVyIGdvbm5hIHNheSBnb29kYnllClswMjo1NC4zNF1OZXZlciBnb25uYSB0ZWxsIGEgbGllIGFuZCBodXJ0IHlvdQpbMDI6NTguNTZdTmV2ZXIgZ29ubmEgZ2l2ZSB5b3UgdXAKWzAzOjAwLjcxXU5ldmVyIGdvbm5hIGxldCB5b3UgZG93bgpbMDM6MDIuODZdTmV2ZXIgZ29ubmEgcnVuIGFyb3VuZCBhbmQgZGVzZXJ0IHlvdQpbMDM6MDcuMjhdTmV2ZXIgZ29ubmEgbWFrZSB5b3UgY3J5ClswMzowOS4yNl1OZXZlciBnb25uYSBzYXkgZ29vZGJ5ZQpbMDM6MTEuMzVdTmV2ZXIgZ29ubmEgdGVsbCBhIGxpZSBhbmQgaHVydCB5b3UKWzAzOjE1LjUzXU5ldmVyIGdvbm5hIGdpdmUgeW91IHVwClswMzoxNy42NF1OZXZlciBnb25uYSBsZXQgeW91IGRvd24KWzAzOjE5LjgwXU5ldmVyIGdvbm5hIHJ1biBhcm91bmQgYW5kIGRlc2VydCB5b3UKWzAzOjI0LjA4XU5ldmVyIGdvbm5hIG1ha2UgeW91IGNyeQpbMDM6MjYuMjRdTmV2ZXIgZ29ubmEgc2F5IGdvb2RieWUKWzAzOjI4LjQwXU5ldmVyIGdvbm5hIHRlbGwgYSBsaWUgYW5kIGh1cnQgeW91ClswMzozMC4zNF0vcXIvcmlja19hc3RsZXlfbG92ZXNfZGVzZXJ0X3J1bm5pbmcK",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: true
+
     Movement:
       - Type: "start"
         Latitude: 361565688
         Longitude: -1151540940
         Altitude: 420
         Precision: 32
+
+  - Id: "ghost.dt"
+    Description: "ghost.dt"
+    BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
+    BehaviourSecs: 600
+    RampSteadySecs: 2419200
+    Seed: "aabbccdd-5421-1212-b383-4efdc4fb382b"
+    ShortNameTmpl: "GI{{.nodeId}}"
+    LongNameTmpl: "ghost-dt-{{.nodeId}}"
+    NodesPerRampInterval: [1]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [1]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 1000
+    TextMessageGitterSec: 300
+    NodeDbPath: "./nodes.ghost.dt.json"
+    ChatBot:
+      - Type: "otp_failure"
+        Message:
+          [
+            "There's an NFC on my bib.",
+          ]
+        RequiresOTP: false
+        UnlocksChatMode: false
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./lvcc_indoor.gpx"
+        Travel: "loop"
 
 TextMessage:
   ChannelSlot: "primary"

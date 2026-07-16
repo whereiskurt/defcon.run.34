@@ -19,6 +19,10 @@ COPY --from=builder /meshtk /usr/local/bin/meshtk
 
 WORKDIR /app
 COPY meshtk.dc34.yaml /app/meshtk.yaml
+# Ghost fleet node seeds (pinned DC33 identities/PKI/positions). Optional at
+# runtime — the fleet sim regenerates from Seed if absent — but shipping them
+# pins the named ghost-<persona>-00 nodes referenced by each Fleet NodeDbPath.
+COPY nodes.ghost.*.json /app/
 
 EXPOSE 1883
 
