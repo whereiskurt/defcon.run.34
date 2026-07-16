@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { rabbitFeatureCollection, type NodeDb, type MeshMapEntry } from "@/lib/mesh-nodes";
+import { rabbitFeatureCollection, simRabbitFeatureCollection, type NodeDb, type MeshMapEntry } from "@/lib/mesh-nodes";
 
 /**
  * GET /api/gpx/public/rabbits — the "rabbit proxy" (trust boundary).
@@ -35,7 +35,7 @@ function json(fc: unknown) {
 
 export async function GET() {
   try {
-    const [nodesRes, mapRes] = await Promise.all([
+    const [nodesRes, mapRes] = await Promise.allSettled([
       fetch(GHOST_FEED_URL, { cache: "no-store", signal: AbortSignal.timeout(3000) }),
       fetch(`${RUN_HUMAN_URL}/api/internal/mesh-map`, {
         cache: "no-store",
@@ -43,10 +43,25 @@ export async function GET() {
         signal: AbortSignal.timeout(3000),
       }),
     ]);
-    if (!nodesRes.ok || !mapRes.ok) return json(EMPTY);
-    const db = (await nodesRes.json()) as NodeDb;
-    const { entries } = (await mapRes.json()) as { entries: MeshMapEntry[] };
-    return json(rabbitFeatureCollection(db, entries ?? []));
+    // Nodes feed is the hard dependency — no nodes, nothing to draw.
+    if (nodesRes.status !== "fulfilled" || !nodesRes.value.ok) return json(EMPTY);
+    const db = (await nodesRes.value.json()) as NodeDb;
+
+    // Sim rabbits need only the nodes feed (name-filtered) — always included.
+    const sim = simRabbitFeatureCollection(db);
+
+    // Real rabbits need the internal opt-in feed; degrade to none if it failed
+    // or returned a 200 with a body that fails to parse — sims must still ship.
+    let realFeatures: GeoJSON.Feature[] = [];
+    if (mapRes.status === "fulfilled" && mapRes.value.ok) {
+      try {
+        const { entries } = (await mapRes.value.json()) as { entries: MeshMapEntry[] };
+        realFeatures = rabbitFeatureCollection(db, entries ?? []).features;
+      } catch (error) {
+        console.error("rabbit proxy: mesh-map body parse error:", error);
+      }
+    }
+    return json({ type: "FeatureCollection", features: [...realFeatures, ...sim.features] });
   } catch (error) {
     console.error("rabbit proxy error:", error);
     return json(EMPTY);

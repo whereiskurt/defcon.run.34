@@ -1,5 +1,6 @@
 import mapboxgl from 'mapbox-gl';
 import { escapeHtml } from './escape-html';
+import { MatrixRain } from './matrix-rain';
 
 const SOURCE = 'dc34-ghosts';
 const LAYER = 'dc34-ghosts-pins';
@@ -28,9 +29,11 @@ export class GhostLayer {
     private timer: ReturnType<typeof setInterval> | null = null;
     private clickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private built = false;
+    private matrix: MatrixRain;
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
+        this.matrix = new MatrixRain(map.getContainer());
     }
 
     private whenStyleReady(): Promise<void> {
@@ -94,13 +97,16 @@ export class GhostLayer {
             if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'visible');
             await this.refresh();
             if (!this.timer) this.timer = setInterval(() => this.refresh(), POLL_MS);
+            this.matrix.start();
         } else {
             if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'none');
             if (this.timer) { clearInterval(this.timer); this.timer = null; }
+            this.matrix.stop();
         }
     }
 
     remove() {
+        this.matrix.stop();
         this.popup.remove();
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         if (this.clickFn) { this.map.off('click', LAYER, this.clickFn); this.clickFn = null; }

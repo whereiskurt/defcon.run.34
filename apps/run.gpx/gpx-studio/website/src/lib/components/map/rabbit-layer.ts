@@ -1,7 +1,8 @@
 import mapboxgl from 'mapbox-gl';
-import { pinSvg, pinIconById, DEFAULT_PIN_ICON, DEFAULT_PIN_COLOR } from '$lib/dc34-pins';
+import { rabbitSvg } from './rabbit-svg';
 import { escapeHtml } from './escape-html';
 
+const DEFAULT_PIN_COLOR = '#e6007a';
 const SOURCE = 'dc34-rabbits';
 const LAYER = 'dc34-rabbits-pins';
 const POLL_MS = 45_000;
@@ -45,16 +46,14 @@ export class RabbitLayer {
         icon.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
     }
 
-    /** Register a branded pin per (icon,color) and stamp iconId onto each feature.
-     * Mirrors public-overlays.ts's resolvePin(): a fixedColor icon (e.g. goldstar)
-     * always renders in its own color regardless of the runner's pinColor pick. */
+    /** Register a tinted silhouette per color and stamp iconId onto each feature.
+     * Same shape for every rabbit; the runner's pinColor is the only distinguisher. */
     private register(fc: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
         for (const f of fc.features) {
-            const p = (f.properties ?? {}) as { pinIcon?: string; pinColor?: string };
-            const icon = pinIconById(p.pinIcon) ?? pinIconById(DEFAULT_PIN_ICON)!;
-            const color = icon.fixedColor ?? (p.pinColor || DEFAULT_PIN_COLOR);
-            const iconId = `rabbit-${icon.id}-${color}`;
-            this.loadSvgImage(iconId, pinSvg(icon, color));
+            const p = (f.properties ?? {}) as { pinColor?: string };
+            const color = p.pinColor || DEFAULT_PIN_COLOR; // || not ?? (empty-string coercion)
+            const iconId = `rabbit-${color}`;
+            this.loadSvgImage(iconId, rabbitSvg(color));
             (f.properties as Record<string, unknown>).iconId = iconId;
         }
         return fc;
@@ -80,10 +79,27 @@ export class RabbitLayer {
             this.clickFn = (e) => {
                 const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
                 if (!f) return;
-                const p = (f.properties ?? {}) as { displayName?: string; userType?: string };
+                const p = (f.properties ?? {}) as Record<string, unknown>;
+                const esc = (v: unknown) => escapeHtml(v == null || v === '' ? '—' : String(v));
+                const color = (p.pinColor as string) || DEFAULT_PIN_COLOR;
+                const batt = typeof p.battery === 'number' && p.battery >= 0 ? `${p.battery}%` : '—';
+                const rows: [string, string][] = [
+                    ['Model', esc(p.hwModel)],
+                    ['Role', esc(p.role)],
+                    ['Region', `${esc(p.region)} · ${esc(p.modemPreset)}`],
+                    ['Firmware', esc(p.fwVersion)],
+                    ['Channel', esc(p.channel)],
+                    ['Battery', batt],
+                ];
+                const grid = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
                 this.popup
                     .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
-                    .setHTML(`<div class="dc34-rabbit-reveal"><strong>${escapeHtml(p.displayName ?? 'a rabbit')}</strong>${p.userType ? `<br><span>${escapeHtml(p.userType)}</span>` : ''}</div>`)
+                    .setHTML(
+                        `<div class="dc34-rabbit-reveal">` +
+                        `<div class="dc34-rabbit-head"><span class="dc34-rabbit-dot" style="background:${escapeHtml(color)}"></span>` +
+                        `<strong>${esc(p.displayName)}</strong></div>` +
+                        `<dl class="dc34-rabbit-grid">${grid}</dl></div>`
+                    )
                     .addTo(this.map);
             };
             this.map.on('click', LAYER, this.clickFn);

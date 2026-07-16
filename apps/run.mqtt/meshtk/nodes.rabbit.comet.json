@@ -1,0 +1,27 @@
+{
+  "3010000003": {
+    "from": 3010000003,
+    "fromStr": "!b368f483",
+    "longName": "rabbit-sim-comet-00",
+    "shortName": "R02",
+    "hwModel": "RAK4631",
+    "role": "ROUTER",
+    "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000003",
+    "privkey": "0x0000000000000000000000000000000000000000000000000000000000000003",
+    "fwVersion": "2.7.0",
+    "region": "US",
+    "modemPreset": "SHORT_FAST",
+    "hasDefaultCh": false,
+    "lastMapReport": 1754357652,
+    "latitude": 360950000,
+    "longitude": -1152300000,
+    "altitude": 700,
+    "precision": 32,
+    "batteryLevel": 45,
+    "voltage": 3.51,
+    "chUtil": 21.3,
+    "airUtilTx": 2.4,
+    "uptime": 58200,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

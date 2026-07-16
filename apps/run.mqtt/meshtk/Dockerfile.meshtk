@@ -23,6 +23,9 @@ COPY meshtk.dc34.yaml /app/meshtk.yaml
 # runtime — the fleet sim regenerates from Seed if absent — but shipping them
 # pins the named ghost-<persona>-00 nodes referenced by each Fleet NodeDbPath.
 COPY nodes.ghost.*.json /app/
+# Sim-rabbit fleet node seeds (camouflage cover traffic; keys are test data,
+# stripped at the run.gpx trust boundary).
+COPY nodes.rabbit.*.json /app/
 
 EXPOSE 1883
 

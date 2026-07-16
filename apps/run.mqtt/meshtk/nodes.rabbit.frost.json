@@ -1,0 +1,27 @@
+{
+  "3010000012": {
+    "from": 3010000012,
+    "fromStr": "!b368f48c",
+    "longName": "rabbit-sim-frost-00",
+    "shortName": "R11",
+    "hwModel": "TBEAM",
+    "role": "CLIENT",
+    "pubkey": "0x000000000000000000000000000000000000000000000000000000000000000c",
+    "privkey": "0x000000000000000000000000000000000000000000000000000000000000000c",
+    "fwVersion": "2.7.4",
+    "region": "US",
+    "modemPreset": "LONG_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 360920000,
+    "longitude": -1151900000,
+    "altitude": 620,
+    "precision": 32,
+    "batteryLevel": 73,
+    "voltage": 3.86,
+    "chUtil": 14.2,
+    "airUtilTx": 1.5,
+    "uptime": 101400,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

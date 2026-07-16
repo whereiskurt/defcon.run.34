@@ -1,0 +1,27 @@
+{
+  "3010000010": {
+    "from": 3010000010,
+    "fromStr": "!b368f48a",
+    "longName": "rabbit-sim-scout-00",
+    "shortName": "R09",
+    "hwModel": "HELTEC_V3",
+    "role": "CLIENT",
+    "pubkey": "0x000000000000000000000000000000000000000000000000000000000000000a",
+    "privkey": "0x000000000000000000000000000000000000000000000000000000000000000a",
+    "fwVersion": "2.6.11",
+    "region": "US",
+    "modemPreset": "MEDIUM_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 360700000,
+    "longitude": -1151400000,
+    "altitude": 600,
+    "precision": 32,
+    "batteryLevel": 84,
+    "voltage": 4.0,
+    "chUtil": 11.5,
+    "airUtilTx": 1.2,
+    "uptime": 143700,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

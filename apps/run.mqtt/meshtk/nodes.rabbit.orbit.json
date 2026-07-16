@@ -1,0 +1,27 @@
+{
+  "3010000007": {
+    "from": 3010000007,
+    "fromStr": "!b368f487",
+    "longName": "rabbit-sim-orbit-00",
+    "shortName": "R06",
+    "hwModel": "HELTEC_MESH_NODE_T114",
+    "role": "TRACKER",
+    "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000007",
+    "privkey": "0x0000000000000000000000000000000000000000000000000000000000000007",
+    "fwVersion": "2.7.0",
+    "region": "US",
+    "modemPreset": "SHORT_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 360880000,
+    "longitude": -1151600000,
+    "altitude": 610,
+    "precision": 32,
+    "batteryLevel": 58,
+    "voltage": 3.66,
+    "chUtil": 17.2,
+    "airUtilTx": 1.9,
+    "uptime": 71200,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}
