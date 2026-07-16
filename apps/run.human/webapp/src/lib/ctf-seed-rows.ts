@@ -1,9 +1,10 @@
 /**
- * ctf-seed-rows.ts (CTFP-04, 57-03) — PURE builder for the curated set of six
- * REAL DC33 CTF starter flags, one per flag type. Consumed by the operator
- * script `scripts/seed-ctf.mts` (which adds DynamoDB key-composition) and by
- * its vitest. Sourced from 57-CONTEXT.md D3 (persona codes + OtpUrl seeds from
- * ~/working/meshtk/meshtk.bak.yaml).
+ * ctf-seed-rows.ts (CTFP-04, 57-03) — PURE builder for the curated set of ten
+ * REAL DC33 CTF starter flags: five personas, each an OTP CHAIN (a static
+ * flag whose solve reward reveals the enrollment QR, chained to a rotating-OTP
+ * flag). Consumed by the operator script `scripts/seed-ctf.mts` (which adds
+ * DynamoDB key-composition) and by its vitest. Sourced from the persona codes +
+ * real OtpUrl seeds in ~/working/meshtk/meshtk.bak.yaml.
  *
  * ── WHY this file is import-pure ─────────────────────────────────────────────
  * It imports ONLY `hashAnswer` from ctf-hash (crypto-only, no AWS/ESM). It does
@@ -75,108 +76,94 @@ export interface CtfSeedRow {
 // Anti-spam defaults on every starter (57-CONTEXT.md D3).
 const ANTI_SPAM = { maxAttempts: 5, rateLimitWindow: 60 } as const;
 
-// grace-hopper's timed-drop tier spans the DEF CON 34 window (2026). Inside the
-// window the tier ceiling (500) overrides the base pointMax (100). Wall-clock
-// UTC-ISO from/to per the Ctf.timeTiers contract.
-const DEFCON_34_TIER: CtfSeedTimeTier = {
-  from: "2026-08-06T00:00:00Z",
-  to: "2026-08-10T00:00:00Z",
-  ceiling: 500,
-};
+// Flat "award 100" scoring knobs shared by every seeded flag: pointMax ==
+// pointFloor (no decline), maxSolves huge so the flat curve never caps, no
+// first-blood bonus. The judge's scorer reads exactly these four knobs
+// (narrowCtf → computePoints); the legacy `points` field is ignored (CR-01).
+const FLAT_100 = { pointMax: 100, pointFloor: 100, maxSolves: 100000, firstBloodBonus: 0 } as const;
 
 /**
- * Build the six curated DC33 starter rows. Pure + deterministic (aside from the
- * salted hash, which is deterministic for a fixed CTF_ANSWER_SALT). Returns
- * plain attribute objects — no DynamoDB keys, no entity coupling.
+ * The five REAL DC33 personas. Each has a static flag code (embedded in its
+ * meshtk system prompt) AND a real `otpauth://` TOTP seed (from
+ * ~/working/meshtk/meshtk.bak.yaml). Every persona becomes an OTP CHAIN: a
+ * static-answer flag whose solve REWARD reveals the enrollment QR, chained to a
+ * rotating-OTP flag whose answer is the live TOTP code. All seeds are SHA1 /
+ * 6-digit / 120s period (meshtk convention). NOTE: some DC33 secrets are short
+ * (e.g. `O5RQ`) — weak but authentic; they still enroll + generate codes.
+ */
+const DC33_PERSONAS: ReadonlyArray<{
+  name: string;
+  answer: string;
+  otpauth: string;
+  secret: string;
+}> = [
+  {
+    name: "goldstein",
+    answer: "hackers4evr",
+    otpauth:
+      "otpauth://totp/Emmanuel%20Goldstein?secret=GZRGQNKGKN4DINQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    secret: "GZRGQNKGKN4DINQ",
+  },
+  {
+    name: "mudge",
+    answer: "0g3l33t",
+    otpauth: "otpauth://totp/Mudge?secret=NA2DG&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    secret: "NA2DG",
+  },
+  {
+    name: "condor",
+    answer: "fr33k3v1n",
+    otpauth: "otpauth://totp/Condor?secret=EZRWO&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    secret: "EZRWO",
+  },
+  {
+    name: "grace-hopper",
+    // D3 answer "d3bugth3sYstem" has an uppercase S; hashAnswer trim+lowercases,
+    // so the stored hash is over the normalized "d3bugth3system".
+    answer: "d3bugth3sYstem",
+    otpauth:
+      "otpauth://totp/Grandma%20COBOL?secret=I4TDMITCMU&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    secret: "I4TDMITCMU",
+  },
+  {
+    name: "turing",
+    answer: "3n1gim@",
+    otpauth: "otpauth://totp/Prof?secret=O5RQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    secret: "O5RQ",
+  },
+];
+
+/**
+ * Build the ten curated DC33 starter rows — a static+OTP-reward flag and its
+ * chained rotating-OTP flag for each of the five personas. Pure + deterministic
+ * (aside from the salted hash, deterministic for a fixed CTF_ANSWER_SALT).
+ * Returns plain attribute objects — no DynamoDB keys, no entity coupling.
  */
 export function buildSeedRows(): CtfSeedRow[] {
-  return [
-    // 1. static reward → chains into the rotating OTP flag via effect.nextFlag.
-    //    Flat award 100: pointMax == pointFloor (no decline), maxSolves huge so
-    //    the flat curve never caps, no first-blood bonus (design preset "flat").
+  return DC33_PERSONAS.flatMap(({ name, answer, otpauth, secret }): CtfSeedRow[] => [
+    // Static reward flag — solve reveals the enrollment QR (effect.otp-enroll)
+    // and chains into the rotating OTP flag via effect.nextFlag. Flat award 100.
     {
-      challenge: "goldstein",
+      challenge: name,
       answerType: "static",
-      answerHash: hashAnswer("hackers4evr"),
-      pointMax: 100,
-      pointFloor: 100,
-      maxSolves: 100000,
-      firstBloodBonus: 0,
-      effect: {
-        kind: "otp-enroll",
-        otpauth:
-          "otpauth://totp/Emmanuel%20Goldstein?secret=GZRGQNKGKN4DINQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
-        nextFlag: "goldstein-otp",
-      },
+      answerHash: hashAnswer(answer),
+      ...FLAT_100,
+      effect: { kind: "otp-enroll", otpauth, nextFlag: `${name}-otp` },
       enabled: false,
       ...ANTI_SPAM,
     },
-    // 2. chained rotating OTP — verifies via the TOTP secret (no static answer).
-    //    Unlocked only after `goldstein`; repeatable at most once per 24h.
-    //    Flat award 100, same flat-curve knobs as goldstein.
+    // Chained rotating OTP flag — verifies via the TOTP secret (no static
+    // answer). Unlocked only after the persona's static flag; repeatable at most
+    // once per 24h. Flat award 100.
     {
-      challenge: "goldstein-otp",
+      challenge: `${name}-otp`,
       answerType: "otp",
-      otp: { secret: "GZRGQNKGKN4DINQ", digits: 6, period: 120, algorithm: "SHA1", skew: 1 },
-      unlockAfter: "goldstein",
+      otp: { secret, digits: 6, period: 120, algorithm: "SHA1", skew: 1 },
+      unlockAfter: name,
       perPlayerIntervalHours: 24,
-      pointMax: 100,
-      pointFloor: 100,
-      maxSolves: 100000,
-      firstBloodBonus: 0,
+      ...FLAT_100,
       enabled: false,
       ...ANTI_SPAM,
     },
-    // 3. first-blood race — declining curve + flat bonus for ordinal #1.
-    {
-      challenge: "mudge",
-      answerHash: hashAnswer("0g3l33t"),
-      pointMax: 1000,
-      pointFloor: 100,
-      maxSolves: 100,
-      firstBloodBonus: 250,
-      enabled: false,
-      ...ANTI_SPAM,
-    },
-    // 4. flat award 100.
-    {
-      challenge: "condor",
-      answerHash: hashAnswer("fr33k3v1n"),
-      pointMax: 100,
-      pointFloor: 100,
-      maxSolves: 100000,
-      firstBloodBonus: 0,
-      enabled: false,
-      ...ANTI_SPAM,
-    },
-    // 5. timed drop — base 100/floor 1, DEF CON 34 tier ceiling 500 while active.
-    //    Outside the window a solve is worth up to 100; inside, the tier ceiling
-    //    (500) overrides pointMax so the ceiling is visible. maxSolves 100 gives
-    //    the declining curve room.
-    //    D3 answer "d3bugth3sYstem" has an uppercase S; hashAnswer trim+lowercases,
-    //    so the stored hash is over the normalized "d3bugth3system".
-    {
-      challenge: "grace-hopper",
-      answerHash: hashAnswer("d3bugth3sYstem"),
-      pointMax: 100,
-      pointFloor: 1,
-      maxSolves: 100,
-      firstBloodBonus: 0,
-      timeTiers: [DEFCON_34_TIER],
-      enabled: false,
-      ...ANTI_SPAM,
-    },
-    // 6. easter egg — small flat award 10 + confetti effect.
-    {
-      challenge: "turing",
-      answerHash: hashAnswer("3n1gim@"),
-      pointMax: 10,
-      pointFloor: 10,
-      maxSolves: 100000,
-      firstBloodBonus: 0,
-      effect: { kind: "confetti", intensity: 11 },
-      enabled: false,
-      ...ANTI_SPAM,
-    },
-  ];
+  ]);
 }
