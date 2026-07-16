@@ -48,10 +48,14 @@ function hash16(s: string): number {
 
 /** Resolve a sim node's display identity from its full longName. */
 export function simRabbitIdentity(longName: string): SimRabbit | null {
-  if (/rabbit-sim-pack-/i.test(longName)) {
-    const h = hash16(longName.toLowerCase());
-    return { displayName: "rabbit_" + h.toString(16).padStart(4, "0"), pinColor: PACK_PALETTE[h % PACK_PALETTE.length] };
-  }
+  if (!/rabbit-sim/i.test(longName)) return null;
+  // The 12 named individuals keep their fixed identity.
   const slug = simRabbitSlug(longName);
-  return (slug && simRabbit(slug)) || null;
+  const named = slug ? simRabbit(slug) : undefined;
+  if (named) return named;
+  // Any other rabbit-sim-* node (group "packs": pack / nyc / jpn / future
+  // city runs) → a distinct deterministic rabbit_#### + cycled color, so each
+  // node in a group is individually identifiable while staying camouflaged.
+  const h = hash16(longName.toLowerCase());
+  return { displayName: "rabbit_" + h.toString(16).padStart(4, "0"), pinColor: PACK_PALETTE[h % PACK_PALETTE.length] };
 }

@@ -45,8 +45,16 @@ describe("simRabbitIdentity", () => {
     expect(a!.displayName).not.toBe(b!.displayName);            // distinct
     expect(simRabbitIdentity("rabbit-sim-pack-00")!.displayName).toBe(a!.displayName); // deterministic
   });
-  it("returns null for unknown / non-sim names", () => {
-    expect(simRabbitIdentity("rabbit-sim-nope-00")).toBeNull();
+  it("resolves any rabbit-sim group (nyc/jpn/future cities) to a distinct hash identity", () => {
+    const nyc = simRabbitIdentity("rabbit-sim-nyc-03");
+    const jpn = simRabbitIdentity("rabbit-sim-jpn-03");
+    expect(nyc!.displayName).toMatch(/^rabbit_[0-9a-f]{4}$/);
+    expect(jpn!.displayName).toMatch(/^rabbit_[0-9a-f]{4}$/);
+    expect(nyc!.displayName).not.toBe(jpn!.displayName);        // different group families → distinct
+    expect(simRabbitIdentity("rabbit-sim-nyc-03")!.displayName).toBe(nyc!.displayName); // deterministic
+  });
+  it("returns null only for non-sim names", () => {
     expect(simRabbitIdentity("ghost-condor-00")).toBeNull();
+    expect(simRabbitIdentity("elkentaro-09")).toBeNull();
   });
 });

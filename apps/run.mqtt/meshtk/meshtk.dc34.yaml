@@ -801,6 +801,48 @@ Fleet:
         GPXFile: "./lvccindoor.gpx"
         Travel: "loop"
 
+  - Id: "rabbit.nyc"
+    Description: "rabbit.nyc (12-runner Manhattan group run)"
+    BehaviourTag: ["nodeinfo", "movement", "gitter"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "c0ffee02-2026-4dc3-9a11-000000000012"
+    ShortNameTmpl: "RN{{.nodeId}}"
+    LongNameTmpl: "rabbit-sim-nyc-{{.nodeId}}"
+    NodesPerRampInterval: [12]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [12]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 5000
+    TextMessageGitterSec: 300
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./manhatten.gpx"
+        Travel: "loop"
+
+  - Id: "rabbit.jpn"
+    Description: "rabbit.jpn (12-runner Tokyo group run)"
+    BehaviourTag: ["nodeinfo", "movement", "gitter"]
+    BehaviourSecs: 30
+    RampSteadySecs: 2419200
+    Seed: "c0ffee03-2026-4dc3-9a11-000000000012"
+    ShortNameTmpl: "RJ{{.nodeId}}"
+    LongNameTmpl: "rabbit-sim-jpn-{{.nodeId}}"
+    NodesPerRampInterval: [12]
+    RampUpSecs: 2
+    RampDownSecs: 2
+    NodesPerSteadyInterval: [12]
+    Distribution: "uniform"
+    BroadcastGitterSec: 600
+    LatLongAltGitter: 5000
+    TextMessageGitterSec: 300
+    Movement:
+      - Type: "gpx"
+        GPXFile: "./japan.gpx"
+        Travel: "loop"
+
 TextMessage:
   ChannelSlot: "primary"
   Topic: "msh/US/2/e/dc.run"
