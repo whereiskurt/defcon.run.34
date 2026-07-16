@@ -90,6 +90,11 @@ export function fuzzyMatchByName(senderDisplayName, bibs) {
  * @param {() => Promise<object[]>} [opts.listAllBibs]
  *   Async iterable of every Bib for the fallback scan. Only called when
  *   the primary lookup returns null. Optional — omit to disable fallback.
+ * @param {string} [opts.rawText]
+ *   Raw plain-text email body. Deterministic fallback source for the runner
+ *   code when Haiku's `comment_text` is empty/null — the LLM non-
+ *   deterministically drops the note even when the BIB-XXXX code is plainly
+ *   in the body, so we scan the body directly rather than trust extraction.
  * @returns {Promise<{
  *   status: "matched"|"unmatched",
  *   matchedOwnerSub?: string,
@@ -102,8 +107,13 @@ export async function reconcileExtractedPayment({
   extracted,
   getBibByRunnerCode,
   listAllBibs,
+  rawText,
 }) {
-  const runnerCode = extractRunnerCode(extracted?.comment_text);
+  // Prefer the Haiku-isolated note, but fall back to a deterministic scan of
+  // the raw email body — Haiku frequently returns comment_text=null even when
+  // the code is right there in the body (real prod misses: bib-kl4p, bib-l633).
+  const runnerCode =
+    extractRunnerCode(extracted?.comment_text) || extractRunnerCode(rawText);
 
   // Primary: exact runnerCode lookup.
   if (runnerCode) {
