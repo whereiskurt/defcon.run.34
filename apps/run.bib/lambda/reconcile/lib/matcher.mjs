@@ -22,15 +22,21 @@
 
 /**
  * Match a runnerCode reference out of a payment comment. Returns the
- * matched substring (e.g. "BIB-K7QM") or null.
+ * matched substring normalized to uppercase (e.g. "BIB-K7QM") or null.
+ *
+ * Case-insensitive: payers type the code into a free-text Venmo/CashApp note
+ * in whatever case they like (real prod miss: a $200 note read "bib-frcb").
+ * The stored runnerCode and the byRunnerCode GSI key are always uppercase and
+ * DynamoDB equality is case-sensitive, so we uppercase the match before
+ * returning it for the lookup.
  *
  * @param {string} commentText
  * @returns {string|null}
  */
 export function extractRunnerCode(commentText) {
   if (typeof commentText !== "string" || commentText.length === 0) return null;
-  const m = commentText.match(/BIB-[A-HJ-NP-Z2-9]{4}/);
-  return m ? m[0] : null;
+  const m = commentText.match(/BIB-[A-HJ-NP-Z2-9]{4}/i);
+  return m ? m[0].toUpperCase() : null;
 }
 
 /**

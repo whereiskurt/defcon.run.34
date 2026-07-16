@@ -46,6 +46,18 @@ describe("extractRunnerCode()", () => {
     expect(extractRunnerCode("just a random note, no bib here")).toBeNull();
   });
 
+  // Payers type the code into a free-text Venmo/CashApp note in whatever case
+  // they like. The stored runnerCode (and the byRunnerCode GSI key) is always
+  // uppercase, so the matcher must accept any case and normalize to uppercase.
+  it("matches a lowercase code and normalizes to uppercase", () => {
+    // Real prod miss: Benjamin Eason's $200 note was literally "bib-frcb".
+    expect(extractRunnerCode("bib-frcb")).toBe("BIB-FRCB");
+  });
+
+  it("matches a mixed-case code and normalizes to uppercase", () => {
+    expect(extractRunnerCode("Thanks! Bib-K7qm")).toBe("BIB-K7QM");
+  });
+
   it("returns null when code uses ambiguous chars (O/I/0/1)", () => {
     expect(extractRunnerCode("BIB-K0QM (typo!)")).toBeNull();
     expect(extractRunnerCode("BIB-K1QM")).toBeNull();
@@ -139,6 +151,47 @@ describe("reconcileExtractedPayment()", () => {
     expect(result.matchedOwnerSub).toBe("sub-K7QM");
     expect(result.matchStrategy).toBe("runner_code");
     expect(result.confidence).toBe("high");
+  });
+
+  it("lowercase code in note → primary runner_code match (GSI keyed uppercase)", async () => {
+    // Regression for the real prod miss: note "bib-frcb" must resolve to the
+    // uppercase GSI key BIB-FRCB and match via the primary strategy, NOT fall
+    // through to the (failing) name fallback.
+    let lookedUpWith = null;
+    const result = await reconcileExtractedPayment({
+      extracted: {
+        provider: "venmo",
+        amount_cents: 20000,
+        sender_display_name: "Benjamin Eason",
+        comment_text: "bib-frcb",
+        confidence: "high",
+      },
+      getBibByRunnerCode: async (code) => {
+        lookedUpWith = code;
+        return code === "BIB-K7QM" ? targetBib : null;
+      },
+    });
+    expect(lookedUpWith).toBe("BIB-FRCB"); // note "bib-frcb" uppercased for GSI
+    // No bib with that code here, so it correctly falls through to unmatched;
+    // the point is the lookup key was normalized. A resolving match is below.
+    expect(result.status).toBe("unmatched");
+  });
+
+  it("lowercase code that resolves → matched via runner_code", async () => {
+    const result = await reconcileExtractedPayment({
+      extracted: {
+        provider: "venmo",
+        amount_cents: 20000,
+        sender_display_name: "Benjamin Eason",
+        comment_text: "bib-k7qm",
+        confidence: "high",
+      },
+      getBibByRunnerCode: async (code) =>
+        code === "BIB-K7QM" ? targetBib : null,
+    });
+    expect(result.status).toBe("matched");
+    expect(result.matchedOwnerSub).toBe("sub-K7QM");
+    expect(result.matchStrategy).toBe("runner_code");
   });
 
   it("fallback match on sender name → confidence=medium, strategy=name_fallback", async () => {
