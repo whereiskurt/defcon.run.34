@@ -27,6 +27,12 @@ export interface AccomplishmentPayload {
   elevation: number;
   polyline: { lat: number; lng: number }[];
   completedAt: number;
+  /**
+   * Con-day tag (Phase 58): ISO date (YYYY-MM-DD) of the DEF CON run day this
+   * route was logged for. Present only when the GpxFile carries one; run.human
+   * keys flags off it. Omitted (not null) when absent so the contract stays lean.
+   */
+  conDay?: string;
 }
 
 const EARTH_RADIUS_M = 6371000;
@@ -114,6 +120,7 @@ export function buildAccomplishmentPayload(args: {
   distance: number;
   elevation: number;
   completedAt: number;
+  conDay?: string;
   max?: number;
 }): AccomplishmentPayload {
   return {
@@ -124,6 +131,9 @@ export function buildAccomplishmentPayload(args: {
     elevation: args.elevation,
     polyline: decimatePolyline(args.points, args.max ?? 100),
     completedAt: args.completedAt,
+    // Only include conDay when tagged — keeps the wire contract lean and lets
+    // run.human distinguish "untagged" from any sentinel.
+    ...(args.conDay ? { conDay: args.conDay } : {}),
   };
 }
 

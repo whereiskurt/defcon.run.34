@@ -13,6 +13,7 @@ import {
 } from "@/lib/quota-client";
 import { logEvent } from "@/lib/log-event";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { isConDay, isSelectableConDay } from "@/lib/con-days";
 
 /**
  * GET /api/gpx/files - List user's GPX files
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
       waypointCount,
       totalDistance,
       totalElevation,
+      conDay,
     } = await request.json();
 
     if (!fileName) {
@@ -108,6 +110,28 @@ export async function POST(request: Request) {
         { error: "fileName is required" },
         { status: 400 }
       );
+    }
+
+    // Con-day tag (Phase 58): optional, but when provided it must be a real con
+    // day and not in the future (you can't log a run that hasn't happened).
+    // Invalid/future values are rejected rather than silently dropped so the
+    // client can correct the picker.
+    if (conDay !== undefined && conDay !== null) {
+      if (typeof conDay !== "string" || !isConDay(conDay)) {
+        return NextResponse.json(
+          { error: "Invalid conDay", message: "conDay must be a DEF CON run day" },
+          { status: 400 }
+        );
+      }
+      if (!isSelectableConDay(conDay, Date.now())) {
+        return NextResponse.json(
+          {
+            error: "conDay in the future",
+            message: "You can't log a run for a day that hasn't happened yet",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     // Determine quota tier based on services (needed for tier-specific limits)
@@ -219,6 +243,8 @@ export async function POST(request: Request) {
         totalDistance: totalDistance || 0,
         totalElevation: totalElevation || 0,
         uploadedBy: isGlobalFolder ? session.user.id : undefined,
+        // Con-day tag (Phase 58). GLOBAL community files are not day-tagged.
+        conDay: !isGlobalFolder && conDay ? conDay : undefined,
         status: "pending", // Pending until confirmed
       }).go();
     } catch (dbError) {

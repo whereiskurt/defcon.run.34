@@ -174,6 +174,14 @@ export const GpxFile = new Entity(
         required: false,
         default: false,
       },
+      // Con-day tag (Phase 58): the ISO calendar date (YYYY-MM-DD) of the DEF CON
+      // run day this route was run on, always one of CON_DAYS[].date (see
+      // lib/con-days.ts). Flags key off this. Additive/optional — legacy files and
+      // GLOBAL community routes carry none.
+      conDay: {
+        type: "string",
+        required: false,
+      },
     },
     indexes: {
       primary: {
