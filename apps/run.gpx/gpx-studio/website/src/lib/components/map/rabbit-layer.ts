@@ -122,7 +122,7 @@ export class RabbitLayer {
         if (visible) {
             if (!this.built) await this.build();
             if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'visible');
-            if (!this.cue) { this.cue = new RefreshCue(this.map.getContainer(), POLL_MS); this.cue.start(); }
+            if (!this.cue) { this.cue = new RefreshCue(document.body, POLL_MS); this.cue.start(); }
             await this.refresh();
             if (!this.timer) this.timer = setInterval(() => this.refresh(), POLL_MS);
         } else {
