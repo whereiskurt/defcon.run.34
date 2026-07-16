@@ -165,6 +165,9 @@ export async function POST(request: Request, { params }: RouteParams) {
           distance,
           elevation,
           completedAt: Date.now(),
+          // Con-day tag (Phase 58) travels to run.human so flags can key off the
+          // day the run was logged for. Undefined for legacy/untagged files.
+          conDay: file.data.conDay,
         });
         await notifyAccomplishment(payload);
       } catch (err) {

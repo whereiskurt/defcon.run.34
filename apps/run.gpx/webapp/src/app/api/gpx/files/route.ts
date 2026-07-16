@@ -13,6 +13,9 @@ import {
 } from "@/lib/quota-client";
 import { logEvent } from "@/lib/log-event";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { isConDay, isSelectableConDay } from "@/lib/con-days";
+import { conDayLimit, conDayRemaining, isConDayCapped } from "@/lib/con-day-quota";
+import { countConDayRuns } from "@/lib/con-day-usage";
 
 /**
  * GET /api/gpx/files - List user's GPX files
@@ -101,6 +104,7 @@ export async function POST(request: Request) {
       waypointCount,
       totalDistance,
       totalElevation,
+      conDay,
     } = await request.json();
 
     if (!fileName) {
@@ -110,9 +114,55 @@ export async function POST(request: Request) {
       );
     }
 
+    // Con-day tag (Phase 58): optional, but when provided it must be a real con
+    // day and not in the future (you can't log a run that hasn't happened).
+    // Invalid/future values are rejected rather than silently dropped so the
+    // client can correct the picker.
+    if (conDay !== undefined && conDay !== null) {
+      if (typeof conDay !== "string" || !isConDay(conDay)) {
+        return NextResponse.json(
+          { error: "Invalid conDay", message: "conDay must be a DEF CON run day" },
+          { status: 400 }
+        );
+      }
+      if (!isSelectableConDay(conDay, Date.now())) {
+        return NextResponse.json(
+          {
+            error: "conDay in the future",
+            message: "You can't log a run for a day that hasn't happened yet",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     // Determine quota tier based on services (needed for tier-specific limits)
     const quotaTier: QuotaTier = services.includes("admin") ? "admin" : "upload";
     const maxFileSize = getMaxFileSize(quotaTier);
+
+    // Per-con-day cap (Phase 59): at most N runs tagged to a single con-day.
+    // Checked BEFORE the lifetime gpx_upload quota is consumed so a capped day
+    // never burns lifetime budget. Count-based (keyed on the con-day, not the
+    // upload date) so day-4 catch-up works. Best-effort read-then-check — the
+    // atomic gpx_upload quota below is the hard abuse wall.
+    let conDayCountBefore = 0;
+    if (conDay) {
+      conDayCountBefore = await countConDayRuns(session.user.id, conDay);
+      if (isConDayCapped(conDayCountBefore, quotaTier)) {
+        return NextResponse.json(
+          {
+            error: "Con-day limit reached",
+            message: `You've logged all ${conDayLimit(
+              quotaTier
+            )} runs for this day`,
+            conDay,
+            remaining: 0,
+            limit: conDayLimit(quotaTier),
+          },
+          { status: 429 }
+        );
+      }
+    }
 
     // Security: Validate file size against tier-specific limit
     if (fileSize && fileSize > maxFileSize) {
@@ -219,6 +269,8 @@ export async function POST(request: Request) {
         totalDistance: totalDistance || 0,
         totalElevation: totalElevation || 0,
         uploadedBy: isGlobalFolder ? session.user.id : undefined,
+        // Con-day tag (Phase 58). GLOBAL community files are not day-tagged.
+        conDay: !isGlobalFolder && conDay ? conDay : undefined,
         status: "pending", // Pending until confirmed
       }).go();
     } catch (dbError) {
@@ -240,6 +292,11 @@ export async function POST(request: Request) {
       fileId,
       key,
       quotaRemaining: quotaResult.remaining,
+      // Per-con-day budget left AFTER this run (Phase 59), so the card can show
+      // "N of 10 · Sat" without a second round-trip. Only when day-tagged.
+      ...(conDay
+        ? { conDayRemaining: conDayRemaining(conDayCountBefore + 1, quotaTier) }
+        : {}),
     });
   } catch (error) {
     console.error("Error creating GPX file:", error);

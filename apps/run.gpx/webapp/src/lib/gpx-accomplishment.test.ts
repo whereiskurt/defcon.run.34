@@ -84,6 +84,33 @@ describe("buildAccomplishmentPayload", () => {
     // The endpoint SERVER-FIXES source:"gpx" — the producer must NOT send one.
     expect("source" in payload).toBe(false);
   });
+
+  it("includes conDay when tagged (Phase 58)", () => {
+    const payload = buildAccomplishmentPayload({
+      oidcSub: "sub-1",
+      gpxFileId: "file-1",
+      name: "Sat run",
+      points: line(10),
+      distance: 1,
+      elevation: 1,
+      completedAt: 1,
+      conDay: "2026-08-08",
+    });
+    expect(payload.conDay).toBe("2026-08-08");
+  });
+
+  it("omits conDay entirely when untagged (lean contract, not null)", () => {
+    const payload = buildAccomplishmentPayload({
+      oidcSub: "sub-1",
+      gpxFileId: "file-1",
+      name: "untagged",
+      points: line(10),
+      distance: 1,
+      elevation: 1,
+      completedAt: 1,
+    });
+    expect("conDay" in payload).toBe(false);
+  });
 });
 
 describe("notifyAccomplishment", () => {
