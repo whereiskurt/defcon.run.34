@@ -1,4 +1,5 @@
 import { ghostWho } from "./ghost-identities";
+import { simRabbitSlug, simRabbit, isSimRabbit } from "./sim-rabbit-identities";
 
 export type MeshNode = {
   from?: number;
@@ -9,6 +10,12 @@ export type MeshNode = {
   longitude?: number;
   lastMapReport?: number;
   batteryLevel?: number;
+  hwModel?: string;
+  role?: string;
+  region?: string;
+  modemPreset?: string;
+  fwVersion?: string;
+  hasDefaultCh?: boolean;
   seenBy?: Record<string, number>;
   [k: string]: unknown;
 };
@@ -55,6 +62,20 @@ export function coord(n: MeshNode): [number, number] {
   return [(n.longitude as number) / 1e7, (n.latitude as number) / 1e7];
 }
 
+/** Allowlisted radio-config subset shown in rabbit popups. Never keys/creds. */
+export function radioFields(n: MeshNode) {
+  const s = (v: unknown) => (typeof v === "string" ? v : "");
+  return {
+    hwModel: s(n.hwModel),
+    role: s(n.role),
+    region: s(n.region),
+    modemPreset: s(n.modemPreset),
+    fwVersion: s(n.fwVersion),
+    channel: n.hasDefaultCh === true ? "dc.run" : "custom",
+    battery: typeof n.batteryLevel === "number" ? n.batteryLevel : -1,
+  };
+}
+
 /** Numeric uint32 key from stored hex "!4359d0cc" (never assumes zero-padding). */
 export function hexToNodeNum(nodeId: string): number {
   return parseInt(nodeId.replace(/^!/, ""), 16) >>> 0;
@@ -87,6 +108,29 @@ export function ghostFeatureCollection(db: NodeDb): GeoJSON.FeatureCollection {
   return { type: "FeatureCollection", features };
 }
 
+export function simRabbitFeatureCollection(db: NodeDb): GeoJSON.FeatureCollection {
+  const features: GeoJSON.Feature[] = [];
+  for (const [key, n] of Object.entries(db)) {
+    if (!isSimRabbit(n.longName, n.shortName) || !hasValidPosition(n)) continue;
+    const slug = simRabbitSlug(n.longName as string);
+    const id = slug ? simRabbit(slug) : undefined;
+    if (!id) continue; // unknown slug → not part of the crowd
+    features.push({
+      type: "Feature",
+      id: keyToNum(key, n),
+      geometry: { type: "Point", coordinates: coord(n) },
+      properties: {
+        displayName: id.displayName,
+        userType: "rabbit",
+        pinColor: id.pinColor,
+        ...radioFields(n),
+        lastSeen: lastSeen(n),
+      },
+    });
+  }
+  return { type: "FeatureCollection", features };
+}
+
 export function rabbitFeatureCollection(
   db: NodeDb,
   entries: MeshMapEntry[]
@@ -104,9 +148,9 @@ export function rabbitFeatureCollection(
       geometry: { type: "Point", coordinates: coord(n) },
       properties: {
         displayName: id.displayName || "a rabbit",
-        userType: id.userType ?? "",
-        pinIcon: id.pinIcon ?? "",
+        userType: id.userType ?? "rabbit",
         pinColor: id.pinColor ?? "",
+        ...radioFields(n),
         lastSeen: lastSeen(n),
       },
     });
