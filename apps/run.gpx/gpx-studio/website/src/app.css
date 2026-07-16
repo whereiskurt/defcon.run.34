@@ -197,3 +197,16 @@
 .dc34-rabbit-grid { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 11px; }
 .dc34-rabbit-grid dt { color: #8a8aa0; }
 .dc34-rabbit-grid dd { margin: 0; color: #e4e4ef; font-variant-numeric: tabular-nums; }
+
+/* Ghost-mode matrix overlay — fixed over the map, under controls, non-interactive. */
+.dc34-matrix-canvas {
+    position: fixed; inset: 0; z-index: 5; pointer-events: none;
+    opacity: 0; transition: opacity 500ms ease;
+}
+.dc34-matrix-canvas.on { opacity: 0.55; }
+.dc34-matrix-tint {
+    position: fixed; inset: 0; z-index: 4; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(0,40,10,0.10), rgba(0,20,6,0.42));
+    mix-blend-mode: screen; opacity: 0; transition: opacity 600ms ease;
+}
+.dc34-matrix-tint.on { opacity: 1; }
