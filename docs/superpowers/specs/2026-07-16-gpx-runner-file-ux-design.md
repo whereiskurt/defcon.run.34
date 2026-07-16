@@ -49,35 +49,67 @@ Flags key off *"I logged a run on con-day X."* (Decision: **day is the unit** �
 - **Auto-guess from the file:** on upload, parse the first trackpoint `<time>` in the GPX, take its calendar date, and match it to a con-day. Used as the default selection; always user-overridable. Files with no timestamp or a date outside the con are flagged and require a manual pick.
 - **Flag/scoring seam:** `conDay` travels with the accomplishment payload already sent from the confirm route (`lib/gpx-accomplishment.ts` → run.human `/api/internal/accomplishment`). run.human owns flag accounting; run.gpx is the producer. (Exact payload field addition confirmed in planning.)
 
-## 5. Hero flow — the "Log your run" card
+## 5. Hero flow — the quick-start card hub
 
-A **fun, dismissible card that floats over the map** — not a menu item buried in a dropdown, and not a hard full-screen modal after first use.
+Instead of one "save" dialog, the map greets the runner with a small **hub of intent cards** — one per real reason to be here. It floats over the map, is dismissible, and re-summonable. Each card is **explicit and does exactly what it says**, then gets out of the way.
+
+The three intents (mapped to §3's jobs and to existing map state):
 
 ```
-  FIRST LOAD (or click launcher)          DISMISSED STATE
-  ┌────────────────────────────────┐      ┌────────────────────────────┐
-  │  ~map lit up behind, dimmed~   │      │  ~map, full & clear~       │
-  │    ╭──────────────────────╮    │      │                            │
-  │    │  👟 Log your run       │    │      │                    ╭─────╮ │
-  │    │  Which day?           │    │      │                    │ 👟 + │ │ ← launcher
-  │    │  [Thu][Fri][Sat•][Sun]│    │      │                    │ Add  │ │   (corner FAB)
-  │    │  ⟳ From Strava        │    │      │                    ╰─────╯ │   click → card back
-  │    │  ⬆ Upload a file      │    │      │                            │
-  │    │  2 of 10 runs · Sat   │    │      │                            │
-  │    │                  [×]  │    │      │                            │
-  │    ╰──────────────────────╯    │      │                            │
-  └────────────────────────────────┘      └────────────────────────────┘
+  FIRST LOAD — quick-start hub (over a dimmed map)
+  ┌────────────────────────────────────────────────────────────┐
+  │   What do you want to do?                              [×]  │
+  │                                                            │
+  │   ╭──────────────────╮  ╭────────────────╮  ╭────────────╮ │
+  │   │ 👟 Log a run      │  │ 🗺 Check out    │  │ 🏃 Show     │ │
+  │   │    (upload/Strava)│  │    the routes  │  │    runners │ │
+  │   │                   │  │                │  │            │ │
+  │   │ get today's run   │  │ light up every │  │ live runner│ │
+  │   │ on the map        │  │ DEF CON route  │  │ positions  │ │
+  │   ╰──────────────────╯  ╰────────────────╯  ╰────────────╯ │
+  │        ▲ primary                                            │
+  └────────────────────────────────────────────────────────────┘
+
+  DISMISSED STATE                     what each card does
+  ┌────────────────────────────┐      👟 Log a run    → opens the log-a-run sub-flow
+  │  ~map, full & clear~       │                        (day picker + Strava/Upload doors)
+  │                    ╭─────╮ │      🗺 Check routes → turns the DEF CON Routes overlay
+  │                    │ 👟 ⚡ │ │ ←FAB                   MASTER ON, expands the panel, all
+  │                    ╰─────╯ │                        official routes checked (inverse of §9)
+  └────────────────────────────┘      🏃 Show runners → enables the Rabbit runner layer
+                                                        (live positions). NOT ghosts.
 ```
 
-- **First load:** card floats over a dimmed map. Invites the #1 action without blocking exploration (map is visible behind it).
-- **Dismiss `[×]`:** card slides to a small **"👟 + Add"** launcher pinned in a corner; map fully clear.
-- **Click launcher:** card returns. It is a summonable panel, not a takeover — it never fights the map (matters for "is my run actually on here?").
-- **Smart first-load:** pop the card on load **only if there is an action to take** — i.e., the runner has con-day quota remaining today. If they're already at cap for today / already logged, stay collapsed as the launcher. The card earns its interruption.
-- **Con-day picker sits at the top of the card**, answered once regardless of which door is used; defaults to today, so most people never touch it.
+- **First load:** the hub floats over a dimmed map — the map is still visible behind it, so it invites action without blocking exploration.
+- **Dismiss `[×]`:** collapses to a small corner **launcher FAB**; map fully clear. **Click launcher:** hub returns. It is a summonable panel, never a takeover.
+- **State cards act then step aside:** tapping *Check routes* or *Show runners* performs the toggle and collapses the hub to the launcher so the runner immediately sees the result on the map. Tapping *Log a run* opens its sub-flow (below).
+- **`Log a run` is the primary/most-prominent card** (the #1 job). The other two are one-tap map-state shortcuts.
 
-**Strava door** (linked only): pulls recent activities, shows those *not already in the folder* (dedupe by `stravaActivityId`), runner taps today's run → lands on map, saved to folder, tagged, scored.
+### 5a. "Log a run" sub-flow
 
-**Upload door:** drag/drop or pick a `.gpx` → same landing.
+```
+    👟 Log a run
+    ┌──────────────────────────╮
+    │  Which day?              │  ← defaults to TODAY; future con-days disabled
+    │  [Thu][Fri][Sat•][Sun]   │
+    │  ⟳ From Strava           │  ← shown only if Strava linked
+    │  ⬆ Upload a file         │  ← always
+    │  2 of 10 runs · Sat      │  ← per-con-day quota, shown before the click
+    ╰──────────────────────────╯
+```
+
+- **Smart first-load:** the hub still pops on load, but if the runner is already at their con-day cap / has already logged, the *Log a run* card reads as done ("✓ logged for Sat") rather than inviting another upload.
+- **Con-day picker sits at the top**, answered once regardless of door; defaults to today, so most people never touch it.
+- **Strava door** (linked only): pulls recent activities, shows those *not already in the folder* (dedupe by `stravaActivityId`); tap today's run → lands on map, saved to folder, tagged, scored.
+- **Upload door:** drag/drop or pick a `.gpx` → same landing.
+
+### 5b. "Check out the routes" card
+
+One tap = the friendly inverse of the §9 master-collapse: turn the **DEF CON Routes** overlay master **ON**, expand the overlay panel, and check every official route so the runner sees where there is to run. (The panel's own master toggle remains the manual control; this card just drives the same state.)
+
+### 5c. "Show me the runners" card
+
+One tap enables the existing **Rabbit runner layer** — live runner positions on the map — for the "who else is out here?" job. **Ghosts are intentionally NOT surfaced here**; ghost mode stays the hidden easter egg it is today. This card only ever exposes the rabbit/live-runner layer.
 
 ## 6. Bulk upload — "Upload many" with per-file day assignment
 
@@ -254,8 +286,8 @@ The full Strava→GPX pipeline already runs in production as a **batch, secret-g
 
 ## 14. Scope / non-goals
 
-- **In scope:** the one-concept mental model; the on-map dismissible Log-your-run card (Strava + upload doors); con-day tagging with GPX-timestamp auto-guess; bulk upload with per-file day assignment; unified My Maps; simplified File menu; overlays master collapse; per-con-day quota (10) wired into auth; the per-user Strava sync button; the three-verb sharing model (friend link / submit-to-DEF-CON queue / admin turn-on-for-all) with a first-class admin review queue and CMS-authored attribution.
-- **Out of scope (this milestone):** an official-run schedule / matching a GPX to a specific scheduled run (day is the unit); any change to how run.human accounts flags beyond receiving `conDay`; redesign of the drawing/editing tools; changes to the public overlay data pipeline; a rebuild of the share/publish backend (reused as-is, only re-surfaced).
+- **In scope:** the one-concept mental model; the on-map dismissible quick-start card hub (three intent cards — Log a run / Check out the routes / Show me the runners); the log-a-run sub-flow (Strava + upload doors); con-day tagging with GPX-timestamp auto-guess; bulk upload with per-file day assignment; unified My Maps; simplified File menu; overlays master collapse; per-con-day quota (10) wired into auth; the per-user Strava sync button; the three-verb sharing model (friend link / submit-to-DEF-CON queue / admin turn-on-for-all) with a first-class admin review queue and CMS-authored attribution.
+- **Out of scope (this milestone):** an official-run schedule / matching a GPX to a specific scheduled run (day is the unit); any change to how run.human accounts flags beyond receiving `conDay`; redesign of the drawing/editing tools; changes to the public overlay data pipeline; a rebuild of the share/publish backend (reused as-is, only re-surfaced); **surfacing ghost mode** — the "Show me the runners" card exposes only the rabbit/live-runner layer; ghosts stay the hidden easter egg.
 
 ## 15. Open items to confirm during planning
 
