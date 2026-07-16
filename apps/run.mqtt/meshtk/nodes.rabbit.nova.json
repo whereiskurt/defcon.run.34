@@ -1,0 +1,27 @@
+{
+  "3010000004": {
+    "from": 3010000004,
+    "fromStr": "!b368f484",
+    "longName": "rabbit-sim-nova-00",
+    "shortName": "R03",
+    "hwModel": "TBEAM",
+    "role": "CLIENT",
+    "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000004",
+    "privkey": "0x0000000000000000000000000000000000000000000000000000000000000004",
+    "fwVersion": "2.7.4",
+    "region": "US",
+    "modemPreset": "MEDIUM_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 361430000,
+    "longitude": -1151050000,
+    "altitude": 585,
+    "precision": 32,
+    "batteryLevel": 91,
+    "voltage": 4.09,
+    "chUtil": 10.1,
+    "airUtilTx": 1.3,
+    "uptime": 205300,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

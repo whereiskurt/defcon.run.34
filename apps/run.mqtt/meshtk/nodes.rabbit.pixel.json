@@ -1,0 +1,27 @@
+{
+  "3010000008": {
+    "from": 3010000008,
+    "fromStr": "!b368f488",
+    "longName": "rabbit-sim-pixel-00",
+    "shortName": "R07",
+    "hwModel": "RPI_PICO2",
+    "role": "CLIENT",
+    "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000008",
+    "privkey": "0x0000000000000000000000000000000000000000000000000000000000000008",
+    "fwVersion": "2.7.4",
+    "region": "US",
+    "modemPreset": "MEDIUM_FAST",
+    "hasDefaultCh": false,
+    "lastMapReport": 1754357652,
+    "latitude": 361100000,
+    "longitude": -1152500000,
+    "altitude": 690,
+    "precision": 32,
+    "batteryLevel": 99,
+    "voltage": 4.18,
+    "chUtil": 6.3,
+    "airUtilTx": 0.6,
+    "uptime": 12300,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

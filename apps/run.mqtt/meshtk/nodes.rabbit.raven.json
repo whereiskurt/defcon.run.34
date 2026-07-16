@@ -1,0 +1,27 @@
+{
+  "3010000009": {
+    "from": 3010000009,
+    "fromStr": "!b368f489",
+    "longName": "rabbit-sim-raven-00",
+    "shortName": "R08",
+    "hwModel": "TRACKER_T1000_E",
+    "role": "CLIENT",
+    "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000009",
+    "privkey": "0x0000000000000000000000000000000000000000000000000000000000000009",
+    "fwVersion": "2.7.2",
+    "region": "US",
+    "modemPreset": "LONG_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 361350000,
+    "longitude": -1151750000,
+    "altitude": 645,
+    "precision": 32,
+    "batteryLevel": 66,
+    "voltage": 3.75,
+    "chUtil": 13.8,
+    "airUtilTx": 1.4,
+    "uptime": 88900,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

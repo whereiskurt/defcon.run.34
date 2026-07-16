@@ -1,0 +1,27 @@
+{
+  "3010000006": {
+    "from": 3010000006,
+    "fromStr": "!b368f486",
+    "longName": "rabbit-sim-vega-00",
+    "shortName": "R05",
+    "hwModel": "T_ECHO",
+    "role": "CLIENT_MUTE",
+    "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000006",
+    "privkey": "0x0000000000000000000000000000000000000000000000000000000000000006",
+    "fwVersion": "2.6.11",
+    "region": "US",
+    "modemPreset": "MEDIUM_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 361780000,
+    "longitude": -1152050000,
+    "altitude": 655,
+    "precision": 32,
+    "batteryLevel": 77,
+    "voltage": 3.91,
+    "chUtil": 9.6,
+    "airUtilTx": 1.0,
+    "uptime": 162800,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

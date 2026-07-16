@@ -1,0 +1,27 @@
+{
+  "3010000001": {
+    "from": 3010000001,
+    "fromStr": "!b368f481",
+    "longName": "rabbit-sim-swift-00",
+    "shortName": "R00",
+    "hwModel": "TRACKER_T1000_E",
+    "role": "CLIENT",
+    "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "privkey": "0x0000000000000000000000000000000000000000000000000000000000000001",
+    "fwVersion": "2.7.2",
+    "region": "US",
+    "modemPreset": "MEDIUM_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 360817149,
+    "longitude": -1151727650,
+    "altitude": 640,
+    "precision": 32,
+    "batteryLevel": 88,
+    "voltage": 4.02,
+    "chUtil": 12.4,
+    "airUtilTx": 1.1,
+    "uptime": 120000,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

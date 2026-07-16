@@ -1,0 +1,27 @@
+{
+  "3010000005": {
+    "from": 3010000005,
+    "fromStr": "!b368f485",
+    "longName": "rabbit-sim-echo-00",
+    "shortName": "R04",
+    "hwModel": "STATION_G2",
+    "role": "CLIENT",
+    "pubkey": "0x0000000000000000000000000000000000000000000000000000000000000005",
+    "privkey": "0x0000000000000000000000000000000000000000000000000000000000000005",
+    "fwVersion": "2.7.2",
+    "region": "US",
+    "modemPreset": "LONG_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 360650000,
+    "longitude": -1151480000,
+    "altitude": 630,
+    "precision": 32,
+    "batteryLevel": 33,
+    "voltage": 3.42,
+    "chUtil": 15.7,
+    "airUtilTx": 1.6,
+    "uptime": 38700,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}

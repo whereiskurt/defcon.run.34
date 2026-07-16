@@ -5,3 +5,4 @@ meshtk/*
 !meshtk/meshtk.dc34.yaml
 !meshtk/meshtk.localdev.yaml
 !meshtk/nodes.ghost.*.json
+!meshtk/nodes.rabbit.*.json

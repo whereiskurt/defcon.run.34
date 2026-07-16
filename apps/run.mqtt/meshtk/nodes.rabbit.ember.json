@@ -1,0 +1,27 @@
+{
+  "3010000011": {
+    "from": 3010000011,
+    "fromStr": "!b368f48b",
+    "longName": "rabbit-sim-ember-00",
+    "shortName": "R10",
+    "hwModel": "RAK4631",
+    "role": "CLIENT_MUTE",
+    "pubkey": "0x000000000000000000000000000000000000000000000000000000000000000b",
+    "privkey": "0x000000000000000000000000000000000000000000000000000000000000000b",
+    "fwVersion": "2.7.0",
+    "region": "US",
+    "modemPreset": "SHORT_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 361500000,
+    "longitude": -1152200000,
+    "altitude": 670,
+    "precision": 32,
+    "batteryLevel": 51,
+    "voltage": 3.58,
+    "chUtil": 19.4,
+    "airUtilTx": 2.0,
+    "uptime": 49500,
+    "seenBy": { "msh/US/2/e/dc.run": 1754357652 }
+  }
+}
