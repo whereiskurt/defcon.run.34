@@ -332,7 +332,9 @@ export async function updateRunUserProfile(
     displayName?: string;
     displayNameManual?: boolean;
     bio?: string;
-    ringtone?: string | null;
+    // Empty string clears the override (flasher then uses the class default);
+    // ElectroDB `.set` rejects null for a string attr, so callers pass "".
+    ringtone?: string;
     preferences?: {
       theme?: string;
       units?: string;
