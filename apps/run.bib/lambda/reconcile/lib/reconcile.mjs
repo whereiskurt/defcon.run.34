@@ -230,6 +230,7 @@ export async function reconcile({
   receiptId,
   receivedAtMs,
   extracted,
+  rawText,
   deps = {},
 }) {
   const _createLedgerEntry = deps.createLedgerEntry ?? createLedgerEntry;
@@ -278,6 +279,7 @@ export async function reconcile({
     extracted,
     getBibByRunnerCode: _getBibByRunnerCode,
     listAllBibs: _listAllBibs,
+    rawText,
   });
 
   if (

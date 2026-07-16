@@ -239,6 +239,9 @@ export async function processS3Record(rec, ctx = {}) {
     receiptId,
     receivedAtMs: parsed.receivedAtMs,
     extracted,
+    // Deterministic fallback source for the runner code when Haiku drops the
+    // note (comment_text=null) — the code is still in the raw body.
+    rawText: parsed.bodyText,
     deps: ctx.reconcileDeps,
   });
 

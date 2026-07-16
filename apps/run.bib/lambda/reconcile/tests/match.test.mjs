@@ -153,6 +153,72 @@ describe("reconcileExtractedPayment()", () => {
     expect(result.confidence).toBe("high");
   });
 
+  // Haiku non-deterministically drops the note field (comment_text=null) even
+  // when the code is plainly in the email body. The runner code is a rigid,
+  // unambiguous token, so we scan the raw body as a deterministic fallback.
+  it("comment_text empty → falls back to scanning rawText for the code", async () => {
+    // Mirrors Eric Tam's real receipt: Haiku returned comment_text=null but the
+    // body clearly contained "bib-kl4p".
+    const rawText =
+      "Eric Tam paid you\n$\n20\n.\n00\n\nbib-kl4p\n\nSee transaction\nhttps://venmo.com/story/123";
+    let lookedUpWith = null;
+    const result = await reconcileExtractedPayment({
+      extracted: {
+        provider: "venmo",
+        amount_cents: 2000,
+        sender_display_name: "Eric Tam",
+        comment_text: null,
+        confidence: "high",
+      },
+      rawText,
+      getBibByRunnerCode: async (code) => {
+        lookedUpWith = code;
+        return code === "BIB-KL4P"
+          ? { ownerSub: "sub-kl4p", nameOnBib: "N@P_T1M3", runnerCode: "bib-kl4p" }
+          : null;
+      },
+    });
+    expect(lookedUpWith).toBe("BIB-KL4P"); // scanned from body, uppercased
+    expect(result.status).toBe("matched");
+    expect(result.matchedOwnerSub).toBe("sub-kl4p");
+    expect(result.matchStrategy).toBe("runner_code");
+  });
+
+  it("comment_text present wins over rawText (no unnecessary body scan)", async () => {
+    let calls = [];
+    await reconcileExtractedPayment({
+      extracted: {
+        provider: "venmo",
+        amount_cents: 2500,
+        sender_display_name: "Alice Johnson",
+        comment_text: "For BIB-K7QM",
+        confidence: "high",
+      },
+      rawText: "unrelated body mentioning BIB-FRCB somewhere",
+      getBibByRunnerCode: async (code) => {
+        calls.push(code);
+        return code === "BIB-K7QM" ? targetBib : null;
+      },
+    });
+    expect(calls).toEqual(["BIB-K7QM"]); // note used; body never consulted
+  });
+
+  it("no code in comment_text OR rawText → unmatched", async () => {
+    const result = await reconcileExtractedPayment({
+      extracted: {
+        provider: "venmo",
+        amount_cents: 2000,
+        sender_display_name: "Nobody Match",
+        comment_text: null,
+        confidence: "low",
+      },
+      rawText: "Someone paid you $20.00 — no code anywhere here",
+      getBibByRunnerCode: async () => null,
+    });
+    expect(result.status).toBe("unmatched");
+    expect(result.matchStrategy).toBe("none");
+  });
+
   it("lowercase code in note → primary runner_code match (GSI keyed uppercase)", async () => {
     // Regression for the real prod miss: note "bib-frcb" must resolve to the
     // uppercase GSI key BIB-FRCB and match via the primary strategy, NOT fall
@@ -409,6 +475,39 @@ describe("reconcile() orchestrator", () => {
       status: "matched",
       matchedOwnerSub: "sub-K7QM",
     });
+  });
+
+  it("rawText fallback → Haiku dropped the note but body code still matches + applies", async () => {
+    const mock = makeMockDeps({
+      bibsByRunnerCode: {
+        "BIB-KL4P": {
+          ownerSub: "sub-kl4p",
+          nameOnBib: "N@P_T1M3",
+          runnerCode: "bib-kl4p",
+        },
+      },
+    });
+
+    const result = await reconcile({
+      receiptId: "mid_ericlike",
+      receivedAtMs: 1783000000000,
+      extracted: {
+        provider: "venmo",
+        amount_cents: 2000,
+        currency: "usd",
+        sender_display_name: "Eric Tam",
+        comment_text: null, // Haiku miss
+        confidence: "high",
+      },
+      rawText:
+        "Eric Tam paid you\n$\n20\n.\n00\n\nbib-kl4p\n\nSee transaction",
+      deps: mock.deps,
+    });
+
+    expect(result.status).toBe("matched");
+    expect(result.matchStrategy).toBe("runner_code");
+    expect(mock.applied).toHaveLength(1);
+    expect(mock.applied[0].ownerSub).toBe("sub-kl4p");
   });
 
   it("name fallback → creates ledger, applies payment, updates status=matched", async () => {
