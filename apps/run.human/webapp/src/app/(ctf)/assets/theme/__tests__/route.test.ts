@@ -12,7 +12,6 @@ vi.mock("@/config/auth", () => ({
 
 import { handleCovert } from "../route";
 import { judgeSolve, type CtfStore, type JudgeCtf, type PriorAward } from "@/lib/ctf-judge";
-import { createPending, type PendingStore, type PendingRow } from "@/lib/ctf-pending";
 import { encodeFlag } from "@/lib/ctf-covert-codec";
 import { AWARD_PROP, SIZE_TOLERANCE, buildDecoySheet } from "@/lib/ctf-covert-css";
 import { hashAnswer } from "@/lib/ctf-hash";
@@ -109,25 +108,10 @@ function makeCtfStore(ctf: JudgeCtf | null) {
   return { store, solves, ordinals, userScore, state };
 }
 
-function makePendingStore() {
-  const rows: PendingRow[] = [];
-  const store: PendingStore = {
-    async putPending(row) {
-      rows.push(row);
-    },
-    async getPending() {
-      return null;
-    },
-    async deletePending() {},
-  };
-  return { store, rows };
-}
-
 type Deps = Parameters<typeof handleCovert>[1];
 
 function makeDeps(opts: {
   store: CtfStore;
-  pendingStore: PendingStore;
   log: (o: unknown) => void;
   userId: string | null;
   services?: string[];
@@ -139,8 +123,6 @@ function makeDeps(opts: {
       // `services` drives the CTF-admin override gate (isCtfAdmin).
       opts.userId ? { user: { id: opts.userId, services: opts.services } } : null,
     judge: (input) => judgeSolve(input, { store: opts.store, now: 0, log: opts.log }),
-    park: (challenge, guess) =>
-      createPending(challenge, guess, { store: opts.pendingStore, now: 0 }),
   };
 }
 
@@ -159,20 +141,18 @@ async function run(opts: {
   ctxOverride?: ReturnType<typeof makeCtfStore>;
 }) {
   const ctx = opts.ctxOverride ?? makeCtfStore(opts.ctf ?? fixtureCtf());
-  const pending = makePendingStore();
   const log = opts.log ?? (() => {});
   const res = await handleCovert(
     themeReq(opts.v),
     makeDeps({
       store: ctx.store,
-      pendingStore: pending.store,
       log,
       userId: opts.userId,
       services: opts.services,
     }),
   );
   const body = await res.text();
-  return { res, body, ctx, pending };
+  return { res, body, ctx };
 }
 
 const winV = () => encodeFlag(CHALLENGE, FLAG);
@@ -194,31 +174,27 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     expect(ctx.userScore.size).toBe(0);
   });
 
-  it("unauth + any v → decoy, and parks the hash-only via createPending", async () => {
-    const { res, body, pending, ctx } = await run({ v: winV(), userId: null });
+  it("unauth + any v → decoy, awards NOTHING and parks NOTHING (no anonymous footprint)", async () => {
+    const { res, body, ctx } = await run({ v: winV(), userId: null });
     expect(res.status).toBe(200);
     expect(body).toBe(buildDecoySheet());
     expect(body).not.toContain(AWARD_PROP);
-    // parked exactly once, submittedFlagHash only, never the raw guess.
-    expect(pending.rows).toHaveLength(1);
-    expect(pending.rows[0].submittedFlagHash).toBe(hashAnswer(FLAG));
-    expect(JSON.stringify(pending.rows)).not.toContain(FLAG);
-    // the judge was never invoked on the unauth path (no self-credit).
+    // A logged-out fire never reaches the judge and leaves no trace: no ordinal
+    // allocated, no score, no parked pending. The covert channel awards ONLY a
+    // live-signed-in visitor, so a logged-out visit is a pure no-op.
     expect(ctx.state.allocateCalls).toBe(0);
     expect(ctx.userScore.size).toBe(0);
   });
 
-  it("garbage / missing v → decoy, no judge, no park, no throw", async () => {
+  it("garbage / missing v → decoy, no judge, no throw", async () => {
     const garbage = await run({ v: "not-a-number!!", userId: "u1" });
     expect(garbage.res.status).toBe(200);
     expect(garbage.body).toBe(buildDecoySheet());
     expect(garbage.ctx.state.allocateCalls).toBe(0);
-    expect(garbage.pending.rows).toHaveLength(0);
 
     const missing = await run({ v: null, userId: null });
     expect(missing.res.status).toBe(200);
     expect(missing.body).toBe(buildDecoySheet());
-    expect(missing.pending.rows).toHaveLength(0);
   });
 
   it("capped win (points 0) renders the decoy, not the award", async () => {
@@ -236,11 +212,10 @@ describe("covert route — outcome bodies (CTF-07/08/09)", () => {
     // The covert client now cache-busts with `&_=<token>` so repeat fires re-hit
     // the server; the route must still read `v` and credit the solve.
     const ctx = makeCtfStore(fixtureCtf());
-    const pending = makePendingStore();
     const url = `https://run.defcon.run/use1/assets/theme?v=${encodeURIComponent(winV())}&_=xk3f9`;
     const res = await handleCovert(
       new Request(url),
-      makeDeps({ store: ctx.store, pendingStore: pending.store, log: () => {}, userId: "u1" }),
+      makeDeps({ store: ctx.store, log: () => {}, userId: "u1" }),
     );
     const body = await res.text();
     expect(body).toContain(AWARD_PROP); // credited despite the extra param
