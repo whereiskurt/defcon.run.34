@@ -151,11 +151,13 @@ resolve_meshtk() {
     # CI: always clone from GitHub (public repo, no auth needed)
     if [[ ! -d "$meshtk_dir/.git" ]]; then
       echo "[build] Cloning meshtk from GitHub..."
-      # Save repo-tracked files (Dockerfile, VERSION, dc34 config) before clone
+      # Save repo-tracked files (Dockerfile, VERSION, dc34 config, ghost seeds) before clone
       local tmp_save=$(mktemp -d)
       for f in Dockerfile.meshtk VERSION meshtk.dc34.yaml; do
         [[ -f "$meshtk_dir/$f" ]] && cp "$meshtk_dir/$f" "$tmp_save/$f"
       done
+      # Ghost node seeds are tracked in this repo (gitignored in meshtk itself)
+      cp "$meshtk_dir"/nodes.ghost.*.json "$tmp_save/" 2>/dev/null || true
       rm -rf "$meshtk_dir"
       git clone --depth 1 https://github.com/whereiskurt/meshtk.git "$meshtk_dir/"
       # Restore repo-tracked files over cloned source

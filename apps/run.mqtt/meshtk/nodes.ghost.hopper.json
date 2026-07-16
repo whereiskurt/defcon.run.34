@@ -1,0 +1,51 @@
+{
+  "2639521045": {
+    "from": 2639521045,
+    "fromStr": "!9d53e515",
+    "Extended": {
+      "GPSCoordinateOffset": 8
+    },
+    "longName": "ghost-hopper-00",
+    "shortName": "GH00",
+    "hwModel": "RAK2560",
+    "role": "TRACKER",
+    "pubkey": "0xe9a03a0a32f8b077877a9684fc8765be1662e1b540cc44258fa1765f078ac712",
+    "privkey": "0x4699d8f4987c50af545415ceb7abda1a632dc350c752cbe121feb794d8861937",
+    "fwVersion": "2.7.2",
+    "region": "EU868",
+    "modemPreset": "MEDIUM_SLOW",
+    "hasDefaultCh": true,
+    "onlineLocalNodes": 4,
+    "lastMapReport": 1754357805,
+    "latitude": 361255357,
+    "longitude": -1151360543,
+    "altitude": 605,
+    "precision": 32,
+    "batteryLevel": 42,
+    "voltage": 3.509656,
+    "chUtil": 10.528696,
+    "airUtilTx": 6.2409525,
+    "uptime": 314328,
+    "lastDeviceMetrics": 1754357805,
+    "temperature": 19.565187,
+    "relativeHumidity": 53.87298,
+    "barometricPressure": 998.9613,
+    "lux": 8296.488,
+    "windDirection": 31,
+    "windSpeed": 2.0767863,
+    "windGust": 6.5251274,
+    "radiation": 0.069331534,
+    "rainfall1": 1.2589499,
+    "rainfall24": 1.3472072,
+    "lastEnvironmentMetrics": 1754357805,
+    "neighbors": {
+      "3313103955": {
+        "snr": 3.3465242,
+        "updated": 1754357805
+      }
+    },
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1754357805
+    }
+  }
+}

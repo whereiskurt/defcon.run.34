@@ -1,0 +1,63 @@
+{
+  "1168388459": {
+    "from": 1168388459,
+    "fromStr": "!45a4316b",
+    "Extended": {
+      "GPSCoordinateOffset": 8
+    },
+    "longName": "ghost-sharp-00",
+    "shortName": "GS00",
+    "hwModel": "HELTEC_V3",
+    "role": "CLIENT",
+    "pubkey": "0x99eb2cebc9b5c296d0336fa530b69ddbc36543414d6ccaa820075f23983bbb1e",
+    "privkey": "0x035587da30574462997114fa23b8a9599558b382122e35aa7925ca242d7a9290",
+    "fwVersion": "2.7.2",
+    "region": "EU868",
+    "modemPreset": "SHORT_FAST",
+    "hasDefaultCh": true,
+    "onlineLocalNodes": 4,
+    "lastMapReport": 1754357652,
+    "latitude": 361597895,
+    "longitude": -1151525822,
+    "altitude": 619,
+    "precision": 32,
+    "batteryLevel": 34,
+    "voltage": 3.8941672,
+    "chUtil": 4.633135,
+    "airUtilTx": 0.52358544,
+    "uptime": 88938,
+    "lastDeviceMetrics": 1754357652,
+    "temperature": 21.213814,
+    "relativeHumidity": 59.75156,
+    "barometricPressure": 1017.67694,
+    "lux": 323.86563,
+    "windDirection": 357,
+    "windSpeed": 1.8783607,
+    "windGust": 5.292291,
+    "radiation": 0.10433092,
+    "rainfall1": 1.4012022,
+    "rainfall24": 6.396545,
+    "lastEnvironmentMetrics": 1754357652,
+    "neighbors": {
+      "2824195434": {
+        "snr": -4.778912,
+        "updated": 1754357652
+      },
+      "3359040901": {
+        "snr": -3.7407053,
+        "updated": 1754357652
+      },
+      "3610474785": {
+        "snr": -6.4004087,
+        "updated": 1754357652
+      },
+      "3803230405": {
+        "snr": -3.5108514,
+        "updated": 1754357652
+      }
+    },
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1754357652
+    }
+  }
+}

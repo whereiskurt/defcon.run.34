@@ -1,0 +1,40 @@
+{
+  "357953601": {
+    "from": 357953601,
+    "fromStr": "!1555f041",
+    "Extended": {
+      "GPSCoordinateOffset": 121
+    },
+    "longName": "ghost-goldstein-00",
+    "shortName": "GG00",
+    "hwModel": "RAK2560",
+    "role": "CLIENT_MUTE",
+    "pubkey": "0xbc6250e5f2847889c186c3c1b7a0e45216a4f1bcc4d05e834faa9c0076dba64d",
+    "privkey": "0x9e57234a2c68bfd389b67e6245898fb377c22c1be4d6ae27041c481754600f38",
+    "fwVersion": "2.7.2",
+    "region": "US",
+    "modemPreset": "SHORT_FAST",
+    "hasDefaultCh": true,
+    "onlineLocalNodes": 1,
+    "lastMapReport": 1753757283,
+    "latitude": 361431048,
+    "longitude": -1151579586,
+    "altitude": 623,
+    "precision": 32,
+    "batteryLevel": 39,
+    "voltage": 3.346391,
+    "chUtil": 2.574397,
+    "airUtilTx": 6.9656286,
+    "uptime": 289535,
+    "lastDeviceMetrics": 1753757283,
+    "neighbors": {
+      "2553214890": {
+        "snr": -7.3930893,
+        "updated": 1753757283
+      }
+    },
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1753757283
+    }
+  }
+}

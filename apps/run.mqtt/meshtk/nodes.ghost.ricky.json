@@ -1,0 +1,40 @@
+{
+  "2076591764": {
+    "from": 2076591764,
+    "fromStr": "!7bc64694",
+    "Extended": {
+      "GPSCoordinateOffset": 0
+    },
+    "longName": "ghost-ricky-00",
+    "shortName": "GR00",
+    "hwModel": "T_DECK",
+    "role": "CLIENT",
+    "pubkey": "0x0c1d0589b3a795c775a7b74bf303f915284e82bed6b27146cd293d5a74b17308",
+    "privkey": "0x77ddbaec0f86cdfee03790434024f164868709be8ab5e8db6f40730292e5cc16",
+    "fwVersion": "2.7.2",
+    "region": "EU868",
+    "modemPreset": "LONG_FAST",
+    "hasDefaultCh": true,
+    "onlineLocalNodes": 1,
+    "lastMapReport": 1754357652,
+    "latitude": 361565954,
+    "longitude": -1151540408,
+    "altitude": 144,
+    "precision": 32,
+    "batteryLevel": 81,
+    "voltage": 3.8789034,
+    "chUtil": 21.232586,
+    "airUtilTx": 0.62260276,
+    "uptime": 342570,
+    "lastDeviceMetrics": 1754357652,
+    "neighbors": {
+      "4288062582": {
+        "snr": 6.4223995,
+        "updated": 1754357652
+      }
+    },
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1754357652
+    }
+  }
+}

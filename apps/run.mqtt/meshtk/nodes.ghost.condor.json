@@ -1,0 +1,50 @@
+{
+  "2770627464": {
+    "from": 2770627464,
+    "fromStr": "!a5246b88",
+    "Extended": {
+      "GPSCoordinateOffset": 8
+    },
+    "longName": "ghost-condor-00",
+    "shortName": "GC00",
+    "hwModel": "TRACKER_T1000_E",
+    "role": "CLIENT_MUTE",
+    "pubkey": "0xb5fe19a29bac7b0cdcbb40d7208c4aeb7ac03a001a49494a97b7b234d35ba911",
+    "privkey": "0xc8b18752dce0e458d39b1697e493a0f72ac1c329936e21ba9727c4d348f5f7c3",
+    "fwVersion": "2.7.2",
+    "region": "US",
+    "modemPreset": "MEDIUM_FAST",
+    "hasDefaultCh": true,
+    "lastMapReport": 1754357652,
+    "latitude": 360817149,
+    "longitude": -1151727650,
+    "altitude": 662,
+    "precision": 32,
+    "batteryLevel": 71,
+    "voltage": 3.614811,
+    "chUtil": 18.779816,
+    "airUtilTx": 1.4776626,
+    "uptime": 447104,
+    "lastDeviceMetrics": 1754357652,
+    "temperature": 23.380846,
+    "relativeHumidity": 74.3062,
+    "barometricPressure": 1024.0321,
+    "lux": 391.7203,
+    "windDirection": 16,
+    "windSpeed": 2.454629,
+    "windGust": 5.5662713,
+    "radiation": 0.07613887,
+    "rainfall1": 0.078746825,
+    "rainfall24": 4.1608887,
+    "lastEnvironmentMetrics": 1754357652,
+    "neighbors": {
+      "2461497912": {
+        "snr": 8.275004,
+        "updated": 1754357652
+      }
+    },
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1754357652
+    }
+  }
+}

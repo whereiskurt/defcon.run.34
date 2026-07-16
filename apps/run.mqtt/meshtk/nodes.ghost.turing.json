@@ -1,0 +1,54 @@
+{
+  "794953058": {
+    "from": 794953058,
+    "fromStr": "!2f620562",
+    "Extended": {
+      "GPSCoordinateOffset": 8
+    },
+    "longName": "ghost-turing-00",
+    "shortName": "GT00",
+    "hwModel": "SEEED_XIAO_S3",
+    "role": "CLIENT_MUTE",
+    "pubkey": "0x5609db9a78a8983d4d2de6016895c9a7ad7efa45e2eb1a46bfc0b0d66b1dd53c",
+    "privkey": "0xe33e1749b40f058e96b764038c390c9dc8e71bba12b74bae9f61726d5e19b252",
+    "fwVersion": "2.7.2",
+    "region": "US",
+    "modemPreset": "LONG_FAST",
+    "onlineLocalNodes": 3,
+    "lastMapReport": 1754357805,
+    "latitude": 360981335,
+    "longitude": -1151732749,
+    "altitude": 652,
+    "precision": 32,
+    "batteryLevel": 57,
+    "voltage": 3.5591202,
+    "chUtil": 25.95322,
+    "airUtilTx": 7.2838836,
+    "uptime": 228232,
+    "lastDeviceMetrics": 1754357805,
+    "temperature": 28.892464,
+    "relativeHumidity": 79.13782,
+    "barometricPressure": 1014.52466,
+    "lux": 8950.394,
+    "windDirection": 120,
+    "windSpeed": 1.9929863,
+    "windGust": 4.030768,
+    "radiation": 0.0075440467,
+    "rainfall1": 1.6016998,
+    "rainfall24": 9.751967,
+    "lastEnvironmentMetrics": 1754357805,
+    "neighbors": {
+      "1768965975": {
+        "snr": -2.5934029,
+        "updated": 1754357805
+      },
+      "4102148414": {
+        "snr": 9.072742,
+        "updated": 1754357805
+      }
+    },
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1754357805
+    }
+  }
+}

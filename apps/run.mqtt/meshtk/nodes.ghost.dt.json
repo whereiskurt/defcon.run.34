@@ -1,0 +1,48 @@
+{
+  "3493666631": {
+    "from": 3493666631,
+    "fromStr": "!d03d1f47",
+    "Extended": {
+      "GPSCoordinateOffset": 1
+    },
+    "longName": "ghost-dt-00",
+    "shortName": "GI00",
+    "hwModel": "RAK2560",
+    "role": "TRACKER",
+    "pubkey": "0xeb761673b6af845bc9d217980c01706b876d82f0f7e9b907ce75b04f278b3412",
+    "privkey": "0xa97b7a0abf4e41f188eb728e868c7aa645d6a1e0b15a935fc9a61b2d0b2c3ef3",
+    "fwVersion": "2.7.2",
+    "region": "US",
+    "modemPreset": "DEFAULT",
+    "hasDefaultCh": true,
+    "onlineLocalNodes": 4,
+    "lastMapReport": 1754357805,
+    "latitude": 361331663,
+    "longitude": -1151543335,
+    "altitude": 623,
+    "precision": 32,
+    "batteryLevel": 36,
+    "voltage": 3.513341,
+    "chUtil": 24.333996,
+    "airUtilTx": 4.348888,
+    "uptime": 385048,
+    "lastDeviceMetrics": 1754357805,
+    "neighbors": {
+      "3520181868": {
+        "snr": -4.629216,
+        "updated": 1754357805
+      },
+      "4178914228": {
+        "snr": -2.7612205,
+        "updated": 1754357805
+      },
+      "652592145": {
+        "snr": -0.89890003,
+        "updated": 1754357805
+      }
+    },
+    "seenBy": {
+      "msh/US/2/e/dc.run": 1754357805
+    }
+  }
+}
