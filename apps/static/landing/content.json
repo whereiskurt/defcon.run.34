@@ -80,7 +80,7 @@
       "title": "Chip In",
       "blurb": "Love the run? THANK YOU! Every dollar is helpful to keep DEF CON run fun and free.",
       "cta": "Donate",
-      "url": "https://run.defcon.run/api/auth/auto-signin?callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate",
+      "url": "https://run.defcon.run/use1/api/auth/auto-signin?callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate",
       "image": "https://defcon.run/landing-donate.svg",
       "fit": "emblem"
     }
