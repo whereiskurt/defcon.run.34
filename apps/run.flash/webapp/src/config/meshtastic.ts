@@ -4,6 +4,7 @@
  * Secrets (PSK, MQTT creds) come from this config + RunUser entity,
  * assembled in /api/config and served via authenticated API.
  */
+import { isValidRtttl } from "@/lib/rtttl";
 
 export const meshtasticConfig = Object.freeze({
   mqtt: {
@@ -57,11 +58,16 @@ export const meshtasticConfig = Object.freeze({
 /**
  * Ringtone (RTTTL) assignment. Precedence: per-user RunUser.ringtone (set via
  * the run.human admin console) -> class default keyed off mqttUsertype -> rabbit
- * default. Result is never empty and is clamped to the firmware length cap.
+ * default. The result is ALWAYS a valid, well-formed RTTTL (a class default when
+ * the personal tune is missing/blank/malformed/over-length) -- never empty, and
+ * never truncated mid-note. Writing a malformed/empty ringtone to a device has
+ * been implicated in post-config boot failures, so we fall back rather than
+ * emit anything a device can choke on.
  *
  * Placeholder tunes -- swap these strings to change the defaults (one PR).
+ * Keep every RINGTONES entry a valid RTTTL within MAX_RINGTONE_LEN.
  */
-export const MAX_RINGTONE_LEN = 230;
+export { MAX_RINGTONE_LEN } from "@/lib/rtttl";
 
 export const RINGTONES = Object.freeze({
   rabbit: "dcrun:d=8,o=6,b=140:c,e,g,c7",
@@ -89,9 +95,11 @@ export function resolveRingtone(user?: {
   mqttUsertype?: string | null;
 }): string {
   const personal = user?.ringtone?.trim();
-  const chosen =
-    personal && personal.length > 0
-      ? personal
-      : ringtoneForClass(user?.mqttUsertype);
-  return chosen.slice(0, MAX_RINGTONE_LEN);
+  // Use the personal tune only when it is a VALID RTTTL within the length cap.
+  // Otherwise fall back to the class default, which is always known-good. Never
+  // slice to fit -- a truncated RTTTL can be malformed.
+  if (personal && isValidRtttl(personal)) {
+    return personal;
+  }
+  return ringtoneForClass(user?.mqttUsertype);
 }

@@ -10,6 +10,7 @@ import { MeshDevice, Protobuf, Types } from "@meshtastic/core";
 import { TransportWebSerial } from "@meshtastic/transport-web-serial";
 import { create } from "@bufbuild/protobuf";
 import { buildRingtoneAdminMessageBytes } from "@/lib/ringtone-admin";
+import { isValidRtttl } from "@/lib/rtttl";
 
 /** Info captured during configure handshake for auto-registration */
 export type DeviceRegistrationInfo = {
@@ -379,15 +380,29 @@ export async function pushDeviceConfig(
   // @meshtastic/core has no setRingtone() helper; mirror its setCannedMessages
   // pattern (AdminMessage → sendPacket to ADMIN_APP "self"). Sets the tune only;
   // enabling the External Notification buzzer module is out of scope.
-  console.log("[meshtastic] Pushing ringtone...");
-  const ringtoneBytes = buildRingtoneAdminMessageBytes(config.ringtone);
-  await device.sendPacket(
-    ringtoneBytes,
-    Protobuf.Portnums.PortNum.ADMIN_APP,
-    "self"
-  );
-  console.log("[meshtastic] Ringtone applied");
-  onStageComplete("ringtone", "custom tune");
+  //
+  // SAFETY: only ever write a VALID, non-empty RTTTL. resolveRingtone() already
+  // guarantees a well-formed tune, but we re-check at this hardware boundary and
+  // SKIP the push entirely rather than risk committing an empty/malformed tune
+  // to the device ("valid value, or nothing" — a bad ringtone written here has
+  // been implicated in post-config boot failures). The stage still completes so
+  // the pipeline index stays in step with use-configure's `stages` array.
+  if (isValidRtttl(config.ringtone)) {
+    console.log("[meshtastic] Pushing ringtone...");
+    const ringtoneBytes = buildRingtoneAdminMessageBytes(config.ringtone);
+    await device.sendPacket(
+      ringtoneBytes,
+      Protobuf.Portnums.PortNum.ADMIN_APP,
+      "self"
+    );
+    console.log("[meshtastic] Ringtone applied");
+    onStageComplete("ringtone", "custom tune");
+  } else {
+    console.warn(
+      `[meshtastic] Skipping ringtone — not a valid RTTTL: ${JSON.stringify(config.ringtone)}`
+    );
+    onStageComplete("ringtone", "skipped (no valid tune)");
+  }
 
   // 5. Commit all changes atomically
   console.log("[meshtastic] Committing settings...");
