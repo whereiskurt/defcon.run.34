@@ -66,7 +66,10 @@
         position: fixed;
         right: 12px;
         bottom: 34px;
-        z-index: 100000;
+        /* Above the ghost-mode matrix overlay (canvas 2147483001 / tint
+           2147483000) — else the ghosts cue, which only shows in ghost mode,
+           is always buried, and the rabbits cue vanishes whenever ghost is on. */
+        z-index: 2147483002;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
