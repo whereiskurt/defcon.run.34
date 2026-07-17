@@ -512,7 +512,7 @@
              the map corner; auth-gated like the hub itself. -->
         {#if $isAuthenticated && $hasGpxStudioAccess}
             <button
-                class="flex items-center gap-1.5 text-primary font-semibold"
+                class="add-run-glow flex items-center gap-1.5 rounded-full font-semibold"
                 onclick={() => quickStartOpen.set(true)}
                 aria-label="Add run"
             >
@@ -695,5 +695,33 @@
         @apply hover:bg-accent;
         @apply px-3;
         @apply py-0.5;
+    }
+
+    /* "Add run" — the primary call-to-action: a bright, softly-glowing pill
+       so runners immediately see where to log a run. */
+    .add-run-glow {
+        color: hsl(var(--primary-foreground));
+        background: hsl(var(--primary));
+        animation: add-run-pulse 2.2s ease-in-out infinite;
+    }
+    /* win over the generic `div button:hover { bg-accent }` above */
+    .add-run-glow:hover {
+        background: hsl(var(--primary));
+        filter: brightness(1.12);
+    }
+    @keyframes add-run-pulse {
+        0%,
+        100% {
+            box-shadow: 0 0 5px 1px hsl(var(--primary) / 0.55);
+        }
+        50% {
+            box-shadow: 0 0 16px 4px hsl(var(--primary) / 0.9);
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .add-run-glow {
+            animation: none;
+            box-shadow: 0 0 8px 2px hsl(var(--primary) / 0.7);
+        }
     }
 </style>

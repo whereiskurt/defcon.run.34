@@ -103,6 +103,13 @@ export interface CloudFile {
   uploadedBy?: string;
   version?: number;
   versionCount?: number;
+  // Con-day tag (Phase 60): ISO date "YYYY-MM-DD", one of CON_DAYS. Used to group
+  // "My runs" by con-day in the My Maps dialog.
+  conDay?: string;
+  // Submission flag (Phase 64, verb ②): true once the runner has submitted this
+  // route to the DEF CON run admin review queue via POST /files/{id}/request-share.
+  // Data only — it is NOT a shareable link. Returned by the files list GET.
+  shareRequested?: boolean;
   createdAt: number;
   updatedAt: number;
 }

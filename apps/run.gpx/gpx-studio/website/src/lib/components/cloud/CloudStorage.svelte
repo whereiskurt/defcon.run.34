@@ -22,6 +22,7 @@
         ChevronRight,
         Globe,
         Share2,
+        Send,
         History,
         Download,
         Footprints,
@@ -94,19 +95,19 @@
     interface FileGroup {
         key: string;
         label: string;
-        files: (CloudFile & { conDay?: string })[];
+        files: CloudFile[];
     }
 
     // Group the current folder's files by con-day so "My runs" reads like a con
     // timeline. Con-days come first in usage order (Wed→Mon), then any leftover
     // dates sorted, then an "Other maps" bucket for files with no con-day tag.
     function groupByConDay(
-        files: (CloudFile & { conDay?: string })[],
+        files: CloudFile[],
         order: string[],
         labels: Record<string, string>
     ): FileGroup[] {
-        const byDate = new Map<string, (CloudFile & { conDay?: string })[]>();
-        const other: (CloudFile & { conDay?: string })[] = [];
+        const byDate = new Map<string, CloudFile[]>();
+        const other: CloudFile[] = [];
         for (const f of files) {
             if (f.conDay) {
                 if (!byDate.has(f.conDay)) byDate.set(f.conDay, []);
@@ -130,11 +131,7 @@
         return groups;
     }
 
-    $: fileGroups = groupByConDay(
-        $cloudFiles as (CloudFile & { conDay?: string })[],
-        condayOrder,
-        condayLabels
-    );
+    $: fileGroups = groupByConDay($cloudFiles, condayOrder, condayLabels);
 
     $: isEmpty =
         $globalFolders.length === 0 &&
@@ -750,8 +747,18 @@
                                     >
                                         <MapIcon class="h-4 w-4 text-primary flex-shrink-0" />
                                         <div class="min-w-0 flex-1">
-                                            <div class="font-medium text-sm truncate" title={file.fileName}>
-                                                {file.fileName}
+                                            <div class="font-medium text-sm flex items-center gap-1.5" title={file.fileName}>
+                                                <span class="truncate min-w-0">{file.fileName}</span>
+                                                {#if file.shareRequested}
+                                                    <!-- Verb ②: at-a-glance "submitted to DEF CON run" state.
+                                                         Data-only flag (no link); pending admin review. -->
+                                                    <span
+                                                        class="inline-flex flex-shrink-0 text-emerald-600"
+                                                        title="Submitted to DEF CON run — pending review"
+                                                    >
+                                                        <Send class="h-3.5 w-3.5" />
+                                                    </span>
+                                                {/if}
                                             </div>
                                             <div class="text-xs text-muted-foreground flex gap-2">
                                                 <span>v{file.version || 1}</span>
@@ -873,4 +880,4 @@
     </Dialog.Content>
 </Dialog.Root>
 
-<ShareDialog bind:open={shareDialogOpen} file={fileToShare} />
+<ShareDialog bind:open={shareDialogOpen} file={fileToShare} onSubmitChange={refreshFiles} />
