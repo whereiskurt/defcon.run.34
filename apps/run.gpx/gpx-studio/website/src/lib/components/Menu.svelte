@@ -33,7 +33,6 @@
         Scissors,
         ClipboardPaste,
         PaintBucket,
-        FolderOpen,
         FileStack,
         FileX,
         ChartArea,
@@ -41,6 +40,7 @@
         Cloud,
         RefreshCw,
         Footprints,
+        Upload,
     } from '@lucide/svelte';
     import RefreshCueOverlay from '$lib/components/map/RefreshCueOverlay.svelte';
     import { quickStartOpen } from '$lib/stores/quickstart';
@@ -55,8 +55,9 @@
     import { ListFileItem, ListTrackItem } from '$lib/components/file-list/file-list';
     import Export from '$lib/components/export/Export.svelte';
     import { CloudStorage } from '$lib/components/cloud';
+    import BulkUpload from '$lib/components/cloud/BulkUpload.svelte';
     import ShareAcceptDialog from '$lib/components/cloud/ShareAcceptDialog.svelte';
-    import { cloudStorageOpen, openCloudStorageSave, openCloudStorageOpen, openCloudStorageBrowse, quickSaveToCloud } from '$lib/components/cloud/utils.svelte';
+    import { openMyMaps } from '$lib/components/cloud/utils.svelte';
     import { autoSaveManager } from '$lib/auto-save';
     import { mode, setMode } from 'mode-watcher';
     import { i18n } from '$lib/i18n.svelte';
@@ -68,7 +69,6 @@
         fileActions,
         loadFiles,
         pasteSelection,
-        triggerFileInput,
     } from '$lib/logic/file-actions';
     import { fileStateCollection } from '$lib/logic/file-state';
     import { fileActionManager } from '$lib/logic/file-action-manager';
@@ -111,6 +111,7 @@
     }
 
     let layerSettingsOpen = $state(false);
+    let bulkUploadOpen = $state(false);
 </script>
 
 <div class="absolute md:top-2 left-0 right-0 z-20 flex flex-row justify-center pointer-events-none">
@@ -129,31 +130,38 @@
                 <Menubar.Content class="border-none">
                     <Menubar.Item onclick={createFile}>
                         <Plus size="16" />
-                        {i18n._('menu.new')}
+                        New route
                         <Shortcut key="+" ctrl={true} />
                     </Menubar.Item>
-                    <Menubar.Separator />
-                    <Menubar.Item onclick={triggerFileInput}>
-                        <FolderOpen size="16" />
-                        Local Open
+                    <Menubar.Item onclick={openMyMaps}>
+                        <Cloud size="16" />
+                        My Maps...
                         <Shortcut key="O" ctrl={true} />
                     </Menubar.Item>
-                    <Menubar.Item onclick={openCloudStorageOpen}>
-                        <Cloud size="16" />
-                        Open Remote...
-                        <Shortcut key="O" ctrl={true} shift={true} />
+                    <Menubar.Item onclick={() => quickStartOpen.set(true)}>
+                        <Footprints size="16" />
+                        Add run...
                     </Menubar.Item>
                     <Menubar.Separator />
-                    <Menubar.Item onclick={openCloudStorageSave} disabled={fileStateCollection.size == 0}>
-                        <Cloud size="16" />
-                        Save As...
-                        <Shortcut key="K" ctrl={true} shift={true} />
-                    </Menubar.Item>
-                    <Menubar.Item onclick={quickSaveToCloud} disabled={fileStateCollection.size == 0}>
-                        <Cloud size="16" />
-                        Save All
-                        <Shortcut key="S" ctrl={true} shift={true} />
-                    </Menubar.Item>
+                    <Menubar.Sub>
+                        <Menubar.SubTrigger>
+                            <FileStack size="16" class="mr-2" />
+                            Bulk
+                        </Menubar.SubTrigger>
+                        <Menubar.SubContent>
+                            <Menubar.Item onclick={() => (bulkUploadOpen = true)}>
+                                <Upload size="16" />
+                                Upload many...
+                            </Menubar.Item>
+                            <Menubar.Item
+                                onclick={() => exportAllFiles([])}
+                                disabled={fileStateCollection.size == 0}
+                            >
+                                <Download size="16" />
+                                Export all...
+                            </Menubar.Item>
+                        </Menubar.SubContent>
+                    </Menubar.Sub>
                     <Menubar.Separator />
                     <Menubar.CheckboxItem bind:checked={$autoSaveEnabled}>
                         <RefreshCw size="16" />
@@ -175,14 +183,6 @@
                         <FileX size="16" />
                         Close All
                         <Shortcut key="⌫" ctrl={true} shift={true} />
-                    </Menubar.Item>
-                    <Menubar.Separator />
-                    <Menubar.Item
-                        onclick={() => exportAllFiles([])}
-                        disabled={fileStateCollection.size == 0}
-                    >
-                        <Download size="16" />
-                        Export All...
                     </Menubar.Item>
                 </Menubar.Content>
             </Menubar.Menu>
@@ -353,11 +353,6 @@
                     <span class="hidden md:block">{i18n._('menu.view')}</span>
                 </Menubar.Trigger>
                 <Menubar.Content class="border-none">
-                    <Menubar.Item onclick={openCloudStorageBrowse}>
-                        <Cloud size="16" />
-                        Cloud Storage
-                    </Menubar.Item>
-                    <Menubar.Separator />
                     <Menubar.CheckboxItem bind:checked={$elevationProfile}>
                         <ChartArea size="16" />
                         {i18n._('menu.elevation_profile')}
@@ -561,6 +556,7 @@
 
 <Export />
 <CloudStorage />
+<BulkUpload bind:open={bulkUploadOpen} />
 <ShareAcceptDialog />
 <LayerControlSettings bind:open={layerSettingsOpen} />
 
@@ -583,8 +579,9 @@
         if (e.key === '+' && (e.metaKey || e.ctrlKey)) {
             createFile();
             e.preventDefault();
-        } else if (e.key === 'o' && (e.metaKey || e.ctrlKey)) {
-            triggerFileInput();
+        } else if (e.key === 'o' && (e.metaKey || e.ctrlKey) && !e.shiftKey) {
+            // Ctrl/Cmd+O: open My Maps (the unified cloud folder view)
+            openMyMaps();
             e.preventDefault();
         } else if (e.key === 'd' && (e.metaKey || e.ctrlKey)) {
             fileActions.duplicateSelection();
@@ -604,22 +601,6 @@
                 pasteSelection();
                 e.preventDefault();
             }
-        } else if ((e.key === 's' || e.key == 'S') && (e.metaKey || e.ctrlKey) && e.shiftKey) {
-            // Ctrl+Shift+S: Save All (quick save to cloud)
-            if (fileStateCollection.size > 0) {
-                quickSaveToCloud();
-            }
-            e.preventDefault();
-        } else if (e.key === 'k' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
-            // Ctrl+Shift+K: Save As... (opens Cloud Storage in save mode)
-            if (fileStateCollection.size > 0) {
-                openCloudStorageSave();
-            }
-            e.preventDefault();
-        } else if (e.key === 'o' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
-            // Ctrl+Shift+O: Open Remote... (opens Cloud Storage in open mode)
-            openCloudStorageOpen();
-            e.preventDefault();
         } else if ((e.key === 'z' || e.key == 'Z') && (e.metaKey || e.ctrlKey)) {
             if (e.shiftKey) {
                 fileActionManager.redo();
