@@ -62,39 +62,34 @@
 {/if}
 
 <style>
+    /* Inline in the top menu bar (far left). Flows with the bar, wraps its pills
+       when there's no room, and carries no z-index so the menu dropdowns sit
+       above it. Colors inherit the bar's foreground so it blends in. */
     .dc34-refresh-cues {
-        position: fixed;
-        right: 12px;
-        /* Bottom-right — a clear corner (no controls/search there). The matrix
-           overlay is now scoped to the map + sits under the app UI, so a normal
-           z-index shows the cue above it without a max-z hack or overlaps. */
-        bottom: 34px;
-        z-index: 40;
         display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 6px;
+        flex-flow: row wrap;
+        align-items: center;
+        gap: 4px 10px;
         pointer-events: none;
+        color: inherit;
     }
     .dc34-refresh-cue {
         display: flex;
         align-items: center;
-        gap: 6px;
-        background: rgba(10, 10, 16, 0.72);
-        color: #fff;
-        padding: 3px 9px 3px 3px;
-        border-radius: 999px;
+        gap: 5px;
+        color: inherit;
+        padding: 0 2px;
         font: 11px/1 system-ui, -apple-system, sans-serif;
-        box-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
     }
     .dc34-refresh-cue svg {
-        width: 22px;
-        height: 22px;
+        width: 20px;
+        height: 20px;
         transform: rotate(-90deg);
     }
     .dc34-refresh-cue .track {
         fill: none;
-        stroke: rgba(255, 255, 255, 0.2);
+        stroke: currentColor;
+        stroke-opacity: 0.25;
         stroke-width: 3;
     }
     .dc34-refresh-cue .prog {

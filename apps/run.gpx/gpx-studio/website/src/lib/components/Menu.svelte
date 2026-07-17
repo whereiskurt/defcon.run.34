@@ -40,7 +40,11 @@
         Maximize,
         Cloud,
         RefreshCw,
+        Footprints,
     } from '@lucide/svelte';
+    import RefreshCueOverlay from '$lib/components/map/RefreshCueOverlay.svelte';
+    import { quickStartOpen } from '$lib/stores/quickstart';
+    import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
     import { map } from '$lib/components/map/map';
     import { editMetadata } from '$lib/components/file-list/metadata/utils.svelte';
     import { editStyle } from '$lib/components/file-list/style/utils.svelte';
@@ -111,8 +115,11 @@
 
 <div class="absolute md:top-2 left-0 right-0 z-20 flex flex-row justify-center pointer-events-none">
     <div
-        class="w-fit flex flex-row items-center justify-center p-1 bg-background rounded-b-md md:rounded-md pointer-events-auto shadow-md"
+        class="w-fit max-w-[calc(100vw-0.5rem)] flex flex-row flex-wrap items-center justify-center gap-1 p-1 bg-background rounded-b-md md:rounded-md pointer-events-auto shadow-md"
     >
+        <!-- Far left: layer refresh countdown pills. Inline in the bar, wraps when
+             tight, no z-index so the menu dropdowns render above it. -->
+        <RefreshCueOverlay />
         <Menubar.Root class="border-none shadow-none h-fit p-0">
             <Menubar.Menu>
                 <Menubar.Trigger aria-label={i18n._('gpx.file')}>
@@ -506,6 +513,38 @@
                 </Menubar.Content>
             </Menubar.Menu>
         </Menubar.Root>
+        <!-- Right: "Add run" (opens the QuickStart hub) — launcher moved here from
+             the map corner; auth-gated like the hub itself. -->
+        {#if $isAuthenticated && $hasGpxStudioAccess}
+            <button
+                class="flex items-center gap-1.5 text-primary font-semibold"
+                onclick={() => quickStartOpen.set(true)}
+                aria-label="Add run"
+            >
+                <Footprints size="18" />
+                <span class="hidden md:block">Add run</span>
+            </button>
+        {/if}
+        <!-- Meshtastic (official mark, icon only) → the DEF CON mesh flasher app. -->
+        <a
+            href="https://flash.defcon.run"
+            target="_blank"
+            rel="noopener"
+            class="flex items-center rounded px-2 py-0.5 text-green-500 hover:bg-accent hover:text-green-600"
+            title="Meshtastic — flash.defcon.run"
+            aria-label="Meshtastic (flash.defcon.run)"
+        >
+            <svg viewBox="0 0 100 55" fill="currentColor" style="height:18px;width:auto" aria-hidden="true">
+                <g transform="matrix(0.802386,0,0,0.460028,-421.748,-122.127)">
+                    <g transform="matrix(0.579082,0,0,1.01004,460.975,-39.6867)">
+                        <path d="M250.908,330.267L193.126,415.005L180.938,406.694L244.802,313.037C246.174,311.024 248.453,309.819 250.889,309.816C253.326,309.814 255.606,311.015 256.982,313.026L320.994,406.536L308.821,414.869L250.908,330.267Z"/>
+                    </g>
+                    <g transform="matrix(0.582378,0,0,1.01579,485.019,-211.182)">
+                        <path d="M87.642,581.398L154.757,482.977L142.638,474.713L75.523,573.134L87.642,581.398Z"/>
+                    </g>
+                </g>
+            </svg>
+        </a>
         <div class="flex items-center ml-2 gap-1">
             <a
                 href="https://gpx.studio"

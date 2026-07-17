@@ -12,3 +12,10 @@ import { writable } from 'svelte/store';
 export type QuickStartAction = 'routes' | 'runners';
 
 export const quickStartAction = writable<QuickStartAction | null>(null);
+
+/**
+ * One-shot request to open the QuickStart hub, fired by the "Add run" button
+ * that now lives in the top menu bar (the corner launcher was moved there).
+ * QuickStartHub opens its hub view and resets this to false.
+ */
+export const quickStartOpen = writable<boolean>(false);
