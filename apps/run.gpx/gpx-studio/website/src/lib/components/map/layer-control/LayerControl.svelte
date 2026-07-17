@@ -1,5 +1,6 @@
 <script lang="ts">
     import CustomControl from '$lib/components/map/custom-control/CustomControl.svelte';
+    import RefreshCueOverlay from '$lib/components/map/RefreshCueOverlay.svelte';
     import LayerTree from './LayerTree.svelte';
     import PublicOverlays from './PublicOverlays.svelte';
     import { OverpassLayer } from './overpass-layer';
@@ -335,6 +336,10 @@
         </div>
     </div>
 </CustomControl>
+
+<!-- On-map refresh countdown for the polling layers (rabbits/ghosts). Rendered
+     here so it lives in the studio's own DOM tree and reliably appears. -->
+<RefreshCueOverlay />
 
 <svelte:window
     on:click={(e: MouseEvent) => {

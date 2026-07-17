@@ -1,7 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { dcjackSvg } from './dcjack-svg';
 import { escapeHtml } from './escape-html';
-import { RefreshCue } from './refresh-cue';
+import { startCue, resetCue, stopCue } from '$lib/stores/refresh-cue';
 
 const DEFAULT_PIN_COLOR = '#e6007a';
 const SOURCE = 'dc34-rabbits';
@@ -32,7 +32,6 @@ export class RabbitLayer {
     private clickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private clusterClickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private built = false;
-    private cue: RefreshCue | null = null;
     private themeObserver: MutationObserver | null = null;
 
     constructor(map: mapboxgl.Map) {
@@ -168,7 +167,7 @@ export class RabbitLayer {
             if (!res.ok) return;
             const fc = (await res.json()) as GeoJSON.FeatureCollection;
             const src = this.map.getSource(SOURCE) as mapboxgl.GeoJSONSource | undefined;
-            if (src) { src.setData(this.register(fc)); this.cue?.reset(); }
+            if (src) { src.setData(this.register(fc)); resetCue('rabbits'); }
         } catch {
             // keep last frame
         }
@@ -182,9 +181,9 @@ export class RabbitLayer {
 
     async setVisible(visible: boolean) {
         if (visible) {
-            // Create the cue up front — independent of build()/style-ready, which
-            // can stall (e.g. a terrain source that never lets the map go idle).
-            if (!this.cue) { this.cue = new RefreshCue(document.body, POLL_MS); this.cue.start(); }
+            // Start the countdown cue up front — independent of build()/style-ready,
+            // which can stall (e.g. a terrain source that never lets the map go idle).
+            startCue('rabbits', POLL_MS);
             if (!this.built) await this.build();
             this.setLayersVisible('visible');
             await this.refresh();
@@ -192,14 +191,14 @@ export class RabbitLayer {
         } else {
             this.setLayersVisible('none');
             if (this.timer) { clearInterval(this.timer); this.timer = null; }
-            if (this.cue) { this.cue.stop(); this.cue = null; }
+            stopCue('rabbits');
         }
     }
 
     remove() {
         this.popup.remove();
         if (this.themeObserver) { this.themeObserver.disconnect(); this.themeObserver = null; }
-        if (this.cue) { this.cue.stop(); this.cue = null; }
+        stopCue('rabbits');
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         if (this.clickFn) { this.map.off('click', LAYER, this.clickFn); this.clickFn = null; }
         if (this.clusterClickFn) { this.map.off('click', CLUSTER_LAYER, this.clusterClickFn); this.clusterClickFn = null; }
