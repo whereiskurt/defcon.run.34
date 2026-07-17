@@ -37,6 +37,23 @@
     // The layer instance is created in LayerControl's map.onLoad; may be undefined
     // for the first frame before the map loads.
     let { layer }: { layer: PublicOverlaysLayer | undefined } = $props();
+
+    // §9 "master collapse / off": the group master toggle drives the collapse state, not
+    // just the checkbox click — so a programmatic setGroupVisible (e.g. the §5b "Check out
+    // the routes" hub card) collapses/expands exactly like a manual click does. We track each
+    // group's previous visible value (plain object, not $state — it's bookkeeping, not UI) and
+    // only re-derive `collapsed` on an actual ON/OFF transition. That keeps the manual chevron
+    // free to fold/unfold the list on its own afterwards without the effect fighting it on
+    // every unrelated re-render (visible unchanged → no rewrite of collapsed).
+    let prevGroupVisible: Record<string, boolean> = {};
+    $effect(() => {
+        for (const group of $publicOverlayGroups) {
+            if (prevGroupVisible[group.folderId] !== group.visible) {
+                prevGroupVisible[group.folderId] = group.visible;
+                collapsed[group.folderId] = !group.visible;
+            }
+        }
+    });
 </script>
 
 {#if $publicAggregate.available}

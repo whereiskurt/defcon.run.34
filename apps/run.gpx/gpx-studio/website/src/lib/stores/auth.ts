@@ -24,6 +24,9 @@ export interface User {
   image?: string;
   services?: string[];
   mapboxPublicToken?: string;
+  // True when the runner has linked Strava (Phase 61). Set server-side in the
+  // run.gpx session callback; gates the "Sync my Strava" door in the hub.
+  hasStrava?: boolean;
 }
 
 export interface AuthState {
@@ -31,6 +34,7 @@ export interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   hasGpxStudioAccess: boolean;
+  hasStrava: boolean;
   error: string | null;
   lastChecked: number | null;
 }
@@ -40,6 +44,7 @@ const initialState: AuthState = {
   isLoading: true,
   isAuthenticated: false,
   hasGpxStudioAccess: false,
+  hasStrava: false,
   error: null,
   lastChecked: null,
 };
@@ -82,6 +87,7 @@ function createAuthStore() {
           isLoading: false,
           isAuthenticated: true,
           hasGpxStudioAccess: hasAccess,
+          hasStrava: session.user.hasStrava === true,
           error: hasAccess ? null : 'Access denied - gpxstudio service required',
           lastChecked: Date.now(),
         };
@@ -95,6 +101,7 @@ function createAuthStore() {
           isLoading: false,
           isAuthenticated: false,
           hasGpxStudioAccess: false,
+          hasStrava: false,
           error: null,
           lastChecked: Date.now(),
         };
@@ -113,6 +120,7 @@ function createAuthStore() {
         isLoading: false,
         isAuthenticated: false,
         hasGpxStudioAccess: false,
+        hasStrava: false,
         error: 'Failed to check session',
         lastChecked: Date.now(),
       };
@@ -197,6 +205,8 @@ export const currentUser = derived(auth, $auth => $auth.user);
 export const isAuthenticated = derived(auth, $auth => $auth.isAuthenticated);
 export const isAuthLoading = derived(auth, $auth => $auth.isLoading);
 export const hasGpxStudioAccess = derived(auth, $auth => $auth.hasGpxStudioAccess);
+// True when the runner linked Strava — gates the "Sync my Strava" door (Phase 61).
+export const hasStrava = derived(auth, $auth => $auth.hasStrava);
 export const authError = derived(auth, $auth => $auth.error);
 
 // Get user's mapbox token (or undefined to use default)
