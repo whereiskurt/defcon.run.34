@@ -65,13 +65,11 @@
     .dc34-refresh-cues {
         position: fixed;
         right: 12px;
-        /* Top-right, tucked under the map controls + the 'Add run' launcher
-           (Kurt 2026-07-17). First-pass offset — nudge if it collides. */
-        top: 116px;
-        /* Above the ghost-mode matrix overlay (canvas 2147483001 / tint
-           2147483000) — else the ghosts cue, which only shows in ghost mode,
-           is always buried, and the rabbits cue vanishes whenever ghost is on. */
-        z-index: 2147483002;
+        /* Bottom-right — a clear corner (no controls/search there). The matrix
+           overlay is now scoped to the map + sits under the app UI, so a normal
+           z-index shows the cue above it without a max-z hack or overlaps. */
+        bottom: 34px;
+        z-index: 40;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
