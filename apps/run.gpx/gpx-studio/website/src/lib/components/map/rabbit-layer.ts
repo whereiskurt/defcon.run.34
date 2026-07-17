@@ -6,6 +6,8 @@ import { RefreshCue } from './refresh-cue';
 const DEFAULT_PIN_COLOR = '#e6007a';
 const SOURCE = 'dc34-rabbits';
 const LAYER = 'dc34-rabbits-pins';
+const CLUSTER_LAYER = 'dc34-rabbits-clusters';
+const CLUSTER_COUNT = 'dc34-rabbits-cluster-count';
 const POLL_MS = 45_000;
 
 /** Region prefix = path before '/studio' (mirrors public-overlays/ghost-layer regionPrefix). */
@@ -28,6 +30,7 @@ export class RabbitLayer {
     private popup = new mapboxgl.Popup({ closeButton: true, offset: 12, className: 'dc34-rabbit-popup' });
     private timer: ReturnType<typeof setInterval> | null = null;
     private clickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
+    private clusterClickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private built = false;
     private cue: RefreshCue | null = null;
 
@@ -61,11 +64,39 @@ export class RabbitLayer {
     private async build() {
         await this.whenStyleReady();
         if (!this.map.getSource(SOURCE)) {
-            this.map.addSource(SOURCE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            // Cluster nearby rabbits into a count bubble when zoomed out; they
+            // split into individual jacks past clusterMaxZoom.
+            this.map.addSource(SOURCE, {
+                type: 'geojson', data: { type: 'FeatureCollection', features: [] },
+                cluster: true, clusterMaxZoom: 14, clusterRadius: 46,
+            });
         }
         if (!this.map.getLayer(LAYER)) {
+            // Cluster bubble: black disc + white ring, sized by count (matches the jack).
+            this.map.addLayer({
+                id: CLUSTER_LAYER, type: 'circle', source: SOURCE,
+                filter: ['has', 'point_count'],
+                layout: { visibility: 'none' },
+                paint: {
+                    'circle-color': '#050505', 'circle-opacity': 0.92,
+                    'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2,
+                    'circle-radius': ['step', ['get', 'point_count'], 15, 5, 18, 15, 22],
+                },
+            });
+            this.map.addLayer({
+                id: CLUSTER_COUNT, type: 'symbol', source: SOURCE,
+                filter: ['has', 'point_count'],
+                layout: {
+                    visibility: 'none',
+                    'text-field': ['get', 'point_count_abbreviated'],
+                    'text-size': 13, 'text-allow-overlap': true,
+                },
+                paint: { 'text-color': '#ffffff' },
+            });
+            // Individual jacks (unclustered points only).
             this.map.addLayer({
                 id: LAYER, type: 'symbol', source: SOURCE,
+                filter: ['!', ['has', 'point_count']],
                 layout: {
                     visibility: 'none',
                     'icon-image': ['get', 'iconId'], 'icon-size': 0.32,
@@ -75,6 +106,18 @@ export class RabbitLayer {
                 },
                 paint: { 'text-color': '#ffffff', 'text-halo-color': '#101015', 'text-halo-width': 1.4 },
             });
+            // Click a cluster → zoom to expand it.
+            this.clusterClickFn = (e) => {
+                const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
+                const cid = f?.properties?.cluster_id;
+                if (cid == null) return;
+                const src = this.map.getSource(SOURCE) as mapboxgl.GeoJSONSource;
+                src.getClusterExpansionZoom(cid as number, (err, zoom) => {
+                    if (err || zoom == null) return;
+                    this.map.easeTo({ center: (f!.geometry as GeoJSON.Point).coordinates as [number, number], zoom });
+                });
+            };
+            this.map.on('click', CLUSTER_LAYER, this.clusterClickFn);
             this.clickFn = (e) => {
                 const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
                 if (!f) return;
@@ -118,15 +161,21 @@ export class RabbitLayer {
         }
     }
 
+    private setLayersVisible(v: 'visible' | 'none') {
+        for (const id of [CLUSTER_LAYER, CLUSTER_COUNT, LAYER]) {
+            if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', v);
+        }
+    }
+
     async setVisible(visible: boolean) {
         if (visible) {
             if (!this.built) await this.build();
-            if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'visible');
+            this.setLayersVisible('visible');
             if (!this.cue) { this.cue = new RefreshCue(document.body, POLL_MS); this.cue.start(); }
             await this.refresh();
             if (!this.timer) this.timer = setInterval(() => this.refresh(), POLL_MS);
         } else {
-            if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'none');
+            this.setLayersVisible('none');
             if (this.timer) { clearInterval(this.timer); this.timer = null; }
             if (this.cue) { this.cue.stop(); this.cue = null; }
         }
@@ -137,7 +186,10 @@ export class RabbitLayer {
         if (this.cue) { this.cue.stop(); this.cue = null; }
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         if (this.clickFn) { this.map.off('click', LAYER, this.clickFn); this.clickFn = null; }
-        if (this.map.getLayer(LAYER)) this.map.removeLayer(LAYER);
+        if (this.clusterClickFn) { this.map.off('click', CLUSTER_LAYER, this.clusterClickFn); this.clusterClickFn = null; }
+        for (const id of [CLUSTER_COUNT, CLUSTER_LAYER, LAYER]) {
+            if (this.map.getLayer(id)) this.map.removeLayer(id);
+        }
         if (this.map.getSource(SOURCE)) this.map.removeSource(SOURCE);
         this.built = false;
     }
