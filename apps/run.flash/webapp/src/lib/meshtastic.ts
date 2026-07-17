@@ -266,7 +266,34 @@ export async function pushDeviceConfig(
   });
   await device.setConfig(loraConfig);
   console.log("[meshtastic] Radio config applied");
-  onStageComplete("radio", `${config.radio.region} / ${config.radio.modemPreset}`);
+
+  // 1b. Position Config (device Config) — enable GPS + smart broadcast so the
+  // node actually emits position packets. Grouped into the radio stage: both are
+  // device Config messages and region (set above) must precede other config on a
+  // freshly flashed device. Per-channel positionPrecision (step 3) decides how
+  // exact those broadcast coordinates are. Devices with no GPS chip simply emit
+  // nothing here — harmless.
+  console.log("[meshtastic] Pushing position config...");
+  const positionConfig = create(Protobuf.Config.ConfigSchema, {
+    payloadVariant: {
+      case: "position" as const,
+      value: create(Protobuf.Config.Config_PositionConfigSchema, {
+        gpsMode: Protobuf.Config.Config_PositionConfig_GpsMode.ENABLED,
+        positionBroadcastSecs: config.position.broadcastSecs,
+        positionBroadcastSmartEnabled: config.position.smartEnabled,
+        positionFlags:
+          Protobuf.Config.Config_PositionConfig_PositionFlags.ALTITUDE |
+          Protobuf.Config.Config_PositionConfig_PositionFlags.SPEED |
+          Protobuf.Config.Config_PositionConfig_PositionFlags.HEADING,
+      }),
+    },
+  });
+  await device.setConfig(positionConfig);
+  console.log("[meshtastic] Position config applied");
+  onStageComplete(
+    "radio",
+    `${config.radio.region} / ${config.radio.modemPreset} · GPS on`
+  );
 
   // 2. MQTT Config (ModuleConfig)
   console.log("[meshtastic] Pushing MQTT config...");
@@ -283,7 +310,21 @@ export async function pushDeviceConfig(
         encryptionEnabled: true,
         jsonEnabled: false,
         proxyToClientEnabled: true,
-        mapReportingEnabled: true,
+        // Force-provision map reporting here so the operator never has to accept
+        // the in-app "share unencrypted node data via MQTT" consent gate — the
+        // flasher writes the device state directly (there is no separate consent
+        // field in firmware; the checkbox is purely an app-side UX gate).
+        mapReportingEnabled: config.mapReport.enabled,
+        mapReportSettings: create(
+          Protobuf.ModuleConfig.ModuleConfig_MapReportSettingsSchema,
+          {
+            publishIntervalSecs: config.mapReport.publishIntervalSecs,
+            positionPrecision: config.mapReport.positionPrecision,
+            // Only include location in the (unencrypted, public) map report when
+            // a non-zero precision is configured.
+            shouldReportLocation: config.mapReport.positionPrecision > 0,
+          }
+        ),
       }),
     },
   });
@@ -310,6 +351,13 @@ export async function pushDeviceConfig(
         psk: pskBytes,
         uplinkEnabled: true,
         downlinkEnabled: true,
+        // Per-channel position precision. 0 = position sharing off on this
+        // channel; 32 = exact GPS. dc.run (PRIMARY) is precise; the public
+        // LongFast bridge is 0. Position packets themselves are gated by the
+        // device Position module (step 1b).
+        moduleSettings: create(Protobuf.Channel.ModuleSettingsSchema, {
+          positionPrecision: ch.positionPrecision ?? 0,
+        }),
       }),
     });
     await device.setChannel(channel);

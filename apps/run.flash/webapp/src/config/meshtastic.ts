@@ -17,17 +17,40 @@ export const meshtasticConfig = Object.freeze({
       name: "dc.run",
       psk: process.env.DCR34_PRIMARY_PSK || "Wjt8kzHci9lqdS4tBzSF2VbQd86u6U3nhHaBl7V5TGE=",
       role: "PRIMARY" as const,
+      // Exact GPS shared on the PSK-encrypted event channel (32 = full precision;
+      // 0 = position off; ~13 = coarse grid). Only the dc.run PSK holders see it.
+      positionPrecision: Number(process.env.DCR34_PRIMARY_POS_PRECISION) || 32,
     },
     {
       name: "LongFast",
       psk: process.env.DCR34_BRIDGE_PSK || "AQ==",
       role: "SECONDARY" as const,
+      // Position sharing OFF on the public bridge channel (uses the default key,
+      // so exact coords here would be world-readable). 0 = no position packets.
+      positionPrecision: Number(process.env.DCR34_BRIDGE_POS_PRECISION) || 0,
     },
   ],
   radio: {
     region: process.env.LORA_REGION || "US",
     modemPreset: process.env.LORA_MODEM_PRESET || "LONG_FAST",
     hopLimit: Number(process.env.LORA_HOP_LIMIT) || 3,
+  },
+  // Device-level Position module: enable GPS + smart broadcast so the node
+  // actually emits position packets. Smart broadcast sends more often while
+  // moving and throttles when still; broadcastSecs is the interval cap.
+  // Per-channel positionPrecision (above) decides how exact those coords are.
+  position: {
+    broadcastSecs: Number(process.env.POSITION_BROADCAST_SECS) || 60,
+    smartEnabled: process.env.POSITION_SMART_ENABLED !== "false",
+  },
+  // Map reporting: force-provisioned by the flasher so the operator never has to
+  // accept the in-app "share unencrypted node data via MQTT" consent gate.
+  // WARNING: map reports are UNENCRYPTED and public — positionPrecision here
+  // exposes location on the public map (32 = exact). Set 0 / MAP_REPORTING_ENABLED=false to withhold.
+  mapReport: {
+    enabled: process.env.MAP_REPORTING_ENABLED !== "false",
+    positionPrecision: Number(process.env.MAP_REPORT_POS_PRECISION) || 32,
+    publishIntervalSecs: Number(process.env.MAP_REPORT_INTERVAL_SECS) || 3600,
   },
 });
 

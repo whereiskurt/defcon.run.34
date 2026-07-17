@@ -91,6 +91,8 @@ export async function GET() {
       identity: { longName, shortName },
       radio: meshtasticConfig.radio,
       ringtone,
+      position: meshtasticConfig.position,
+      mapReport: meshtasticConfig.mapReport,
     };
 
     return NextResponse.json(payload);
