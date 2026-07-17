@@ -218,6 +218,12 @@ export function buildReports(input: ReportInput): ReportBundle {
 
   // 2. Payments / revenue — reconciled bib payments + donations.
   const bibByRunner = new Map(bibs.map((b) => [b.runnerCode, b]));
+  // ownerSub → Bib. A donation stores only the donor's OIDC subject (ownerSub),
+  // which is exactly a Bib's PK, so we can resolve a logged-in donor back to
+  // their name + runner code (Kurt 2026-07-17) rather than showing a bare
+  // "(donation)". ownerSub is nullable (future anonymous flow) and a donor may
+  // have no bib row — both fall back to the anonymous placeholder below.
+  const bibByOwnerSub = new Map(bibs.map((b) => [b.ownerSub, b]));
   const bibPayments: PaymentRow[] = bibs.flatMap((b) =>
     ((b.paidStatusHistory ?? []) as Array<{
       provider?: string;
@@ -235,14 +241,19 @@ export function buildReports(input: ReportInput): ReportBundle {
       reconciledVia: p.reconciled_via,
     }))
   );
-  const donationPayments: PaymentRow[] = donations.map((d) => ({
-    kind: "donation" as const,
-    runnerCode: "—",
-    nameOnBib: "(donation)",
-    provider: d.provider ?? "stripe",
-    amountCents: d.amountCents ?? 0,
-    timestamp: d.createdAt ?? "",
-  }));
+  const donationPayments: PaymentRow[] = donations.map((d) => {
+    const donor = d.ownerSub ? bibByOwnerSub.get(d.ownerSub) : undefined;
+    const donorName = (donor?.nameOnBib ?? "").trim();
+    return {
+      kind: "donation" as const,
+      // Resolved donor identity when we have it; anonymous placeholder otherwise.
+      runnerCode: donor?.runnerCode ?? "—",
+      nameOnBib: donorName || "(donation)",
+      provider: d.provider ?? "stripe",
+      amountCents: d.amountCents ?? 0,
+      timestamp: d.createdAt ?? "",
+    };
+  });
   const paymentRows = [...bibPayments, ...donationPayments].sort(byTimestampDesc);
   const byProvider: Record<string, number> = {};
   let paymentsTotal = 0;
@@ -357,7 +368,8 @@ export type DashPoint = {
 
 export type DashEvent = {
   kind: "bib" | "donation";
-  /** Display name — bib name, or "a donor" for anonymous donations. */
+  /** Display name — bib name (bib payment or a resolved donor), or "a donor"
+   *  for donations we can't tie to a bib. */
   who: string;
   amountCents: number;
   provider: string;
@@ -424,7 +436,11 @@ export function buildDashboard(
       kind: r.kind,
       who:
         r.kind === "donation"
-          ? "a donor"
+          ? // A resolved donor carries their real name; unresolved donations
+            // keep the placeholder "(donation)" nameOnBib → stay "a donor".
+            r.nameOnBib && r.nameOnBib !== "(donation)"
+            ? r.nameOnBib
+            : "a donor"
           : (r.nameOnBib || "").trim() || r.runnerCode || "a runner",
       amountCents: r.amountCents,
       provider: r.provider,

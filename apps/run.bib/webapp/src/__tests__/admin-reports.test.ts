@@ -62,7 +62,8 @@ const baseInput = (): ReportInput => ({
     }),
   ],
   donations: [
-    { amountCents: 20000, provider: "stripe", ownerSub: "s", createdAt: "2026-07-03T09:00:00Z" },
+    // Non-matching ownerSub → stays anonymous "(donation)" (no bib for this sub).
+    { amountCents: 20000, provider: "stripe", ownerSub: "sub-anon", createdAt: "2026-07-03T09:00:00Z" },
   ],
   reconciles: [
     { status: "unmatched", provider: "venmo", extractedAmount: 1500, extractedSenderName: "DAVE", receiptId: "r1" },
@@ -102,6 +103,35 @@ describe("buildReports()", () => {
     expect(r.payments.rows).toHaveLength(2);
     expect(r.payments.totalCents).toBe(22000);
     expect(r.payments.byProvider.stripe).toBe(22000);
+  });
+
+  it("a donation with no matching bib stays anonymous", () => {
+    const don = r.payments.rows.find((x) => x.kind === "donation");
+    expect(don?.nameOnBib).toBe("(donation)");
+    expect(don?.runnerCode).toBe("—");
+  });
+
+  it("a donation resolves the donor's name + runner code by ownerSub", () => {
+    const input = baseInput();
+    input.bibs.push(
+      bib({
+        ownerSub: "sub-obiwan",
+        runnerCode: "bib-8q5g",
+        nameOnBib: "OBIWAN",
+        paidAmount: 2000,
+      })
+    );
+    input.donations.push({
+      amountCents: 3000,
+      provider: "stripe",
+      ownerSub: "sub-obiwan",
+      createdAt: "2026-07-06T09:00:00Z",
+    });
+    const don = buildReports(input).payments.rows.find(
+      (x) => x.kind === "donation" && x.amountCents === 3000
+    );
+    expect(don?.nameOnBib).toBe("OBIWAN");
+    expect(don?.runnerCode).toBe("bib-8q5g");
   });
 
   it("outstanding includes in-person pledge, pending intent, and unmatched reconcile only", () => {
@@ -232,8 +262,9 @@ describe("buildDashboard() — live-ops view-model (Kurt 2026-07-05)", () => {
       }),
     ],
     donations: [
-      { amountCents: 5000, provider: "stripe", ownerSub: "s", createdAt: "2026-07-05T09:00:00Z" }, // <24h
-      { amountCents: 20000, provider: "stripe", ownerSub: "s", createdAt: "2026-07-01T09:00:00Z" }, // >24h
+      // ownerSub with no bib → anonymous "a donor" in the ticker.
+      { amountCents: 5000, provider: "stripe", ownerSub: "sub-anon", createdAt: "2026-07-05T09:00:00Z" }, // <24h
+      { amountCents: 20000, provider: "stripe", ownerSub: "sub-anon", createdAt: "2026-07-01T09:00:00Z" }, // >24h
     ],
     reconciles: [],
     pendings: [],
@@ -261,6 +292,23 @@ describe("buildDashboard() — live-ops view-model (Kurt 2026-07-05)", () => {
   it("recent feed is newest-first with mapped labels", () => {
     expect(d.recent[0]).toMatchObject({ kind: "bib", who: "EVE", amountCents: 2000 });
     expect(d.recent[1]).toMatchObject({ kind: "donation", who: "a donor", amountCents: 5000 });
+  });
+
+  it("ticker shows a resolved donor's name instead of 'a donor'", () => {
+    const named = buildDashboard(
+      buildReports({
+        bibs: [
+          bib({ ownerSub: "sub-obiwan", runnerCode: "bib-8q5g", nameOnBib: "OBIWAN" }),
+        ],
+        donations: [
+          { amountCents: 3000, provider: "stripe", ownerSub: "sub-obiwan", createdAt: "2026-07-05T12:00:00Z" },
+        ],
+        reconciles: [],
+        pendings: [],
+      }),
+      NOW
+    );
+    expect(named.recent[0]).toMatchObject({ kind: "donation", who: "OBIWAN", amountCents: 3000 });
   });
 
   it("carries the last bib + donation timestamps", () => {
