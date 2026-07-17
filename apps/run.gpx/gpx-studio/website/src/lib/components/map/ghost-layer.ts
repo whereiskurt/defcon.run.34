@@ -34,7 +34,10 @@ export class GhostLayer {
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
-        this.matrix = new MatrixRain(document.body);
+        // Mount the matrix inside the map container (not document.body) so it
+        // covers only the map, layering under the app UI + controls instead of
+        // over everything at a max z-index.
+        this.matrix = new MatrixRain(map.getContainer());
     }
 
     private whenStyleReady(): Promise<void> {
