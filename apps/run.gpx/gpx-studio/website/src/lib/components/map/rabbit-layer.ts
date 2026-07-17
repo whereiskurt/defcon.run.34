@@ -33,6 +33,7 @@ export class RabbitLayer {
     private clusterClickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private built = false;
     private cue: RefreshCue | null = null;
+    private themeObserver: MutationObserver | null = null;
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
@@ -51,12 +52,19 @@ export class RabbitLayer {
         icon.src = 'data:image/svg+xml,' + encodeURIComponent(svg);
     }
 
-    /** Register the classic DEF CON jack (solid black circle + white face) once
-     * and stamp its id onto every rabbit. Uniform, high-contrast on any basemap. */
+    /** Light mode = no `dark` class on <html> (mode-watcher's convention). */
+    private isLight(): boolean {
+        return !document.documentElement.classList.contains('dark');
+    }
+
+    /** Register the classic DEF CON jack (both tones) and stamp the current-mode
+     * one onto every rabbit: black-circle/white-face on dark, inverted on light. */
     private register(fc: GeoJSON.FeatureCollection): GeoJSON.FeatureCollection {
-        this.loadSvgImage('dc34-jack', dcjackSvg());
+        this.loadSvgImage('dc34-jack-dark', dcjackSvg(false));
+        this.loadSvgImage('dc34-jack-light', dcjackSvg(true));
+        const id = this.isLight() ? 'dc34-jack-light' : 'dc34-jack-dark';
         for (const f of fc.features) {
-            (f.properties as Record<string, unknown>).iconId = 'dc34-jack';
+            (f.properties as Record<string, unknown>).iconId = id;
         }
         return fc;
     }
@@ -146,6 +154,11 @@ export class RabbitLayer {
             };
             this.map.on('click', LAYER, this.clickFn);
         }
+        // Re-stamp the jack tone when the user toggles light/dark.
+        if (!this.themeObserver && typeof MutationObserver !== 'undefined') {
+            this.themeObserver = new MutationObserver(() => { void this.refresh(); });
+            this.themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+        }
         this.built = true;
     }
 
@@ -169,9 +182,11 @@ export class RabbitLayer {
 
     async setVisible(visible: boolean) {
         if (visible) {
+            // Create the cue up front — independent of build()/style-ready, which
+            // can stall (e.g. a terrain source that never lets the map go idle).
+            if (!this.cue) { this.cue = new RefreshCue(document.body, POLL_MS); this.cue.start(); }
             if (!this.built) await this.build();
             this.setLayersVisible('visible');
-            if (!this.cue) { this.cue = new RefreshCue(document.body, POLL_MS); this.cue.start(); }
             await this.refresh();
             if (!this.timer) this.timer = setInterval(() => this.refresh(), POLL_MS);
         } else {
@@ -183,6 +198,7 @@ export class RabbitLayer {
 
     remove() {
         this.popup.remove();
+        if (this.themeObserver) { this.themeObserver.disconnect(); this.themeObserver = null; }
         if (this.cue) { this.cue.stop(); this.cue = null; }
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         if (this.clickFn) { this.map.off('click', LAYER, this.clickFn); this.clickFn = null; }
