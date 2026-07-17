@@ -1,6 +1,7 @@
 import mapboxgl from 'mapbox-gl';
 import { escapeHtml } from './escape-html';
 import { MatrixRain } from './matrix-rain';
+import { startCue, resetCue, stopCue } from '$lib/stores/refresh-cue';
 
 const SOURCE = 'dc34-ghosts';
 const LAYER = 'dc34-ghosts-pins';
@@ -85,7 +86,7 @@ export class GhostLayer {
             if (!res.ok) return;
             const fc = (await res.json()) as GeoJSON.FeatureCollection;
             const src = this.map.getSource(SOURCE) as mapboxgl.GeoJSONSource | undefined;
-            if (src) src.setData(fc);
+            if (src) { src.setData(fc); resetCue('ghosts'); }
         } catch {
             // keep last frame
         }
@@ -93,6 +94,7 @@ export class GhostLayer {
 
     async setVisible(visible: boolean) {
         if (visible) {
+            startCue('ghosts', POLL_MS);
             if (!this.built) await this.build();
             if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'visible');
             await this.refresh();
@@ -101,12 +103,14 @@ export class GhostLayer {
         } else {
             if (this.map.getLayer(LAYER)) this.map.setLayoutProperty(LAYER, 'visibility', 'none');
             if (this.timer) { clearInterval(this.timer); this.timer = null; }
+            stopCue('ghosts');
             this.matrix.stop();
         }
     }
 
     remove() {
         this.matrix.stop();
+        stopCue('ghosts');
         this.popup.remove();
         if (this.timer) { clearInterval(this.timer); this.timer = null; }
         if (this.clickFn) { this.map.off('click', LAYER, this.clickFn); this.clickFn = null; }
