@@ -343,8 +343,12 @@
 
 <svelte:window
     on:click={(e: MouseEvent) => {
-        const target = e.target as Node | null;
-        if (open && !cancelEvents && target && container && !container.contains(target)) {
+        // Use composedPath() (captured at dispatch) rather than container.contains(e.target):
+        // clicking a collapse chevron swaps its icon node, so by the time this handler
+        // runs the original target is detached and contains() would wrongly report the
+        // click as "outside", closing the panel on every expand/collapse.
+        if (!open || cancelEvents || !container) return;
+        if (!e.composedPath().includes(container)) {
             closeLayerControl();
         }
     }}

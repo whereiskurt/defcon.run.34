@@ -55,7 +55,7 @@
                         style="stroke:{c.color};stroke-dasharray:{CIRC};stroke-dashoffset:{CIRC * frac(c)}"
                     ></circle>
                 </svg>
-                <span class="lbl">{c.label} ↻ {remaining(c)}s</span>
+                <span class="lbl">{c.label} ↻ <span class="secs">{remaining(c)}</span>s</span>
             </div>
         {/each}
     </div>
@@ -65,7 +65,9 @@
     .dc34-refresh-cues {
         position: fixed;
         right: 12px;
-        bottom: 34px;
+        /* Top-right, tucked under the map controls + the 'Add run' launcher
+           (Kurt 2026-07-17). First-pass offset — nudge if it collides. */
+        top: 116px;
         /* Above the ghost-mode matrix overlay (canvas 2147483001 / tint
            2147483000) — else the ghosts cue, which only shows in ghost mode,
            is always buried, and the rabbits cue vanishes whenever ghost is on. */
@@ -106,5 +108,12 @@
     .dc34-refresh-cue .lbl {
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
+    }
+    /* Reserve width for up to two digits so the pill doesn't shift/jump when
+       the countdown drops from two digits to one (e.g. 10s → 9s). */
+    .dc34-refresh-cue .secs {
+        display: inline-block;
+        min-width: 2ch;
+        text-align: right;
     }
 </style>

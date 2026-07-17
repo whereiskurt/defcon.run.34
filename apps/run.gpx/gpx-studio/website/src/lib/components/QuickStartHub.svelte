@@ -116,7 +116,7 @@
 
     {#if view === 'collapsed'}
         <button
-            class="absolute bottom-6 right-4 z-30 flex items-center gap-2 rounded-full border bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition hover:brightness-110"
+            class="absolute top-16 right-4 z-30 flex items-center gap-2 rounded-full border bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition hover:brightness-110"
             onclick={() => (view = 'hub')}
         >
             <Footprints size={18} />
