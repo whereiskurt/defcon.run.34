@@ -14,7 +14,7 @@ with the donate panel already open, so a signed-in donation is one click from th
 
 ```
 [static defcon.run "Donate" card]
-  → https://run.defcon.run/api/auth/auto-signin?callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate
+  → https://run.defcon.run/use1/api/auth/auto-signin?callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate
   → OIDC login flow (silent if the .defcon.run SSO cookie is already set; full login otherwise)
   → redirects to /use1/whoami?open=donate
   → run.human header sees ?open=donate + a live session → opens the existing DonateModal
@@ -58,7 +58,7 @@ Mirrors the existing `?open=checkin|qr` convention in `dropdown-user.tsx`. Requi
     "title": "Chip In",
     "blurb": "Love the run? THANK YOU! Every dollar is helpful to keep DEF CON run fun and free.",
     "cta": "Donate",
-    "url": "https://run.defcon.run/api/auth/auto-signin?callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate",
+    "url": "https://run.defcon.run/use1/api/auth/auto-signin?callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate",
     "image": "https://defcon.run/landing-donate.svg",
     "fit": "emblem"
   }
@@ -73,7 +73,12 @@ Mirrors the existing `?open=checkin|qr` convention in `dropdown-user.tsx`. Requi
   pipeline, `sudo-management` profile). Ordering: ship run.human first so `?open=donate` works before
   the static tile goes live.
 - `callbackUrl` hard-codes `/use1/` (prod region), consistent with silent-SSO's callback construction
-  and the use1-only run ecosystem. Verify region handling during implementation.
+  and the use1-only run ecosystem.
+- **basePath gotcha:** the run.human app is served under the `/use1` basePath in prod, so the
+  auto-signin path itself must be `/use1/api/auth/auto-signin` — the naked `/api/auth/auto-signin`
+  404s. (Silent-SSO gets away with the naked path only because Next's `redirect()` auto-prepends the
+  basePath; a raw static href has no such help.) Verified live: the `/use1`-prefixed path 307s into
+  the OIDC flow.
 - Cards open in a new tab (`target="_blank"`), consistent with the four existing cards.
 
 ## Out of scope
