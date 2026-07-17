@@ -408,7 +408,94 @@ export async function pushDeviceConfig(
   console.log("[meshtastic] Committing settings...");
   await device.commitEditSettings();
   console.log("[meshtastic] Settings committed");
-  onStageComplete("committing", "Settings saved");
+
+  // 6. Verify the LoRa region actually persisted. The flasher already sends US
+  // correctly, but a device that silently DROPS the region on the post-commit
+  // reboot (firmware/flash) would publish to a region-less MQTT topic
+  // (msh/2/e/dc.run) invisible to the US fleet on msh/US/2/e/dc.run. Read it
+  // back and HARD-FAIL the flash on a CONFIRMED mismatch so a broken node never
+  // leaves the table. If the read-back is inconclusive (timeout/disconnect) we
+  // warn but do NOT block — we can't tell good from bad and must never halt
+  // flashing on an unread value.
+  const region = await verifyRegion(device, mapRegionCode(config.radio.region));
+  if (region.status === "mismatch") {
+    throw new Error(
+      `Radio region did not persist: device reports "${region.actualName}", expected "${config.radio.region}". ` +
+        `A wrong region publishes to an MQTT topic the fleet can't see. Please retry / re-flash this device.`
+    );
+  }
+  const regionSummary =
+    region.status === "verified"
+      ? `Settings saved · region ${config.radio.region} verified`
+      : `Settings saved · region unverified`;
+  onStageComplete("committing", regionSummary);
+}
+
+/** Result of reading the device's LoRa region back after commit. */
+type RegionVerifyResult =
+  | { status: "verified" }
+  | { status: "mismatch"; actualName: string }
+  | { status: "inconclusive" };
+
+/**
+ * Read the device's LoRa region back and compare it to what we pushed.
+ *
+ * Mirrors requestSecurityKeys(): subscribe to onConfigPacket, actively request
+ * LORA_CONFIG via getConfig(), and wait for the reply. Best-effort — a timeout
+ * or a failed request resolves "inconclusive" (never blocks). Only a positively
+ * read, non-matching region resolves "mismatch".
+ */
+async function verifyRegion(
+  device: MeshDevice,
+  expected: Protobuf.Config.Config_LoRaConfig_RegionCode
+): Promise<RegionVerifyResult> {
+  const TIMEOUT_MS = 10000;
+  const regionName = (code: number): string =>
+    Protobuf.Config.Config_LoRaConfig_RegionCode[code] ?? String(code);
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    const finish = (result: RegionVerifyResult) => {
+      if (resolved) return;
+      resolved = true;
+      clearTimeout(timeout);
+      unsub();
+      resolve(result);
+    };
+
+    const timeout = setTimeout(() => {
+      console.warn(
+        "[meshtastic] Region read-back timed out — leaving unverified (not blocking)"
+      );
+      finish({ status: "inconclusive" });
+    }, TIMEOUT_MS);
+
+    const unsub = device.events.onConfigPacket.subscribe(
+      (cfg: Protobuf.Config.Config) => {
+        if (cfg.payloadVariant.case !== "lora") return;
+        const actual = cfg.payloadVariant.value.region;
+        if (actual === expected) {
+          console.log(`[meshtastic] Region verified: ${regionName(actual)}`);
+          finish({ status: "verified" });
+        } else {
+          console.error(
+            `[meshtastic] Region MISMATCH: device reports ${regionName(actual)}, expected ${regionName(expected)}`
+          );
+          finish({ status: "mismatch", actualName: regionName(actual) });
+        }
+      }
+    );
+
+    device
+      .getConfig(Protobuf.Admin.AdminMessage_ConfigType.LORA_CONFIG)
+      .catch((err: unknown) => {
+        console.warn(
+          "[meshtastic] getConfig(LORA_CONFIG) failed — leaving unverified (not blocking):",
+          err
+        );
+        finish({ status: "inconclusive" });
+      });
+  });
 }
 
 /**
