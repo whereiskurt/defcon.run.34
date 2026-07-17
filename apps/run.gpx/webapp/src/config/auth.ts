@@ -262,6 +262,12 @@ export const authConfig: NextAuthConfig = {
         : [];
       (session.user as { mapboxPublicToken?: string }).mapboxPublicToken =
         token.mapboxPublicToken as string | undefined;
+      // Convenience boolean for the studio's "Sync my Strava" door (Phase 61):
+      // derived from the linkedProviders array already carried on the token, so
+      // the client never has to inspect the provider list itself.
+      const linkedProviders = token.linkedProviders as string[] | undefined;
+      (session.user as { hasStrava?: boolean }).hasStrava =
+        Array.isArray(linkedProviders) && linkedProviders.includes("strava");
       // Expose the avatar image so the studio shows the round profile picture.
       if (token.picture) {
         session.user.image = token.picture as string;

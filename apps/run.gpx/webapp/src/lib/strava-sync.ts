@@ -3,6 +3,13 @@ import { v4 as uuidv4 } from "uuid";
 import { GpxFile } from "@/entities/gpx-file";
 import { s3Client, BUCKET, getUserPrefix } from "@/lib/s3-client";
 import { logEvent } from "@/lib/log-event";
+import {
+  consumeQuota,
+  restoreQuota,
+  type QuotaTier,
+} from "@/lib/quota-client";
+import { conDayRemaining } from "@/lib/con-day-quota";
+import { countConDayRuns } from "@/lib/con-day-usage";
 
 /**
  * Strava date-banded ingestion worker (v1.7 Phase 31b).
@@ -117,19 +124,24 @@ async function existingStravaIds(userId: string): Promise<Set<string>> {
   );
 }
 
+/** A route created from a Strava activity — what the studio needs to render it. */
+export type ImportedFile = { fileId: string; fileName: string };
+
 async function importActivity(
   user: StravaUserToken,
-  activity: StravaActivity
-): Promise<boolean> {
+  activity: StravaActivity,
+  opts?: { conDay?: string }
+): Promise<ImportedFile | null> {
   const streams = await stravaGet<StreamSet>(
     `/activities/${activity.id}/streams?keys=latlng,altitude,time&key_by_type=true`,
     user.accessToken
   );
   const latlng = streams?.latlng?.data;
-  if (!latlng || latlng.length === 0) return false; // no GPS (e.g. treadmill)
+  if (!latlng || latlng.length === 0) return null; // no GPS (e.g. treadmill)
 
   const gpx = buildGpx(activity.name, latlng, streams?.altitude?.data, streams?.time?.data);
   const fileId = uuidv4();
+  const fileName = `${activity.name}.gpx`;
   const key = `${getUserPrefix(user.userId)}${fileId}.gpx`;
 
   await s3Client.send(
@@ -144,7 +156,7 @@ async function importActivity(
   await GpxFile.create({
     userId: user.userId,
     fileId,
-    fileName: `${activity.name}.gpx`,
+    fileName,
     bucket: BUCKET,
     key,
     fileSize: Buffer.byteLength(gpx),
@@ -156,10 +168,13 @@ async function importActivity(
     source: "strava",
     publicShareEligible: false, // raw import — must be Converted before public sharing
     stravaActivityId: String(activity.id),
+    // Con-day tag (Phase 61): the user-facing sync path tags each imported run to
+    // the chosen con-day; the batch worker leaves it undefined.
+    ...(opts?.conDay ? { conDay: opts.conDay } : {}),
     status: "active",
   }).go();
 
-  return true;
+  return { fileId, fileName };
 }
 
 async function syncUser(user: StravaUserToken): Promise<number> {
@@ -182,7 +197,7 @@ async function syncUser(user: StravaUserToken): Promise<number> {
     for (const activity of activities) {
       if (seen.has(String(activity.id))) continue;
       try {
-        if (await importActivity(user, activity)) imported++;
+        if (await importActivity(user, activity)) imported++; // null = no-GPS
       } catch (e) {
         console.error(`[strava-sync] import failed activity ${activity.id}`, e);
       }
@@ -216,4 +231,154 @@ export async function runStravaSync(): Promise<{ users: number; imported: number
     }
   }
   return { users: tokens.length, imported };
+}
+
+// ---------------------------------------------------------------------------
+// Per-user "Sync my Strava" button (Phase 61)
+//
+// The batch path above runs all users on a schedule inside a date band. The
+// pieces below power the SESSION-authenticated single-user button: fetch just
+// this runner's token, import their recent activities tagged to one con-day,
+// deduped by stravaActivityId, consuming both the per-con-day budget and the
+// lifetime gpx_upload quota. `importActivity`/`existingStravaIds`/`stravaGet`/
+// `buildGpx` are reused unchanged so the two paths can't diverge.
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch a single runner's fresh Strava token from run.auth's internal endpoint.
+ * The route only ever passes the SESSION user's own id; the internal secret guard
+ * keeps this a server-to-server call. Returns null when the runner has no usable
+ * Strava link.
+ */
+export async function fetchSingleUserStravaToken(
+  userId: string
+): Promise<StravaUserToken | null> {
+  const authUrl = process.env.AUTH_INTERNAL_URL;
+  const secret = process.env.INTERNAL_SYNC_SECRET;
+  if (!authUrl || !secret) {
+    throw new Error("AUTH_INTERNAL_URL and INTERNAL_SYNC_SECRET are required");
+  }
+
+  const res = await fetch(
+    `${authUrl}/api/internal/strava-tokens?userId=${encodeURIComponent(userId)}`,
+    { headers: { "x-internal-secret": secret } }
+  );
+  if (!res.ok) {
+    throw new Error(`token endpoint returned ${res.status}`);
+  }
+  const { tokens } = (await res.json()) as { tokens: StravaUserToken[] };
+  return tokens[0] ?? null;
+}
+
+/**
+ * Pure: split activities into fresh (not already imported) vs already-seen, keyed
+ * on stravaActivityId. Extracted so the dedupe rule — the core correctness guard
+ * shared by both doors (a Strava re-sync never double-imports) — is unit-testable
+ * without S3/Dynamo. Order is preserved (Strava returns most-recent-first).
+ */
+export function dedupeActivities<T extends { id: number }>(
+  activities: T[],
+  seen: Set<string>
+): { fresh: T[]; skipped: number } {
+  const fresh: T[] = [];
+  let skipped = 0;
+  for (const a of activities) {
+    if (seen.has(String(a.id))) skipped++;
+    else fresh.push(a);
+  }
+  return { fresh, skipped };
+}
+
+/** List a runner's most-recent activities (no date band; user-initiated). */
+async function listRecentActivities(
+  token: string,
+  maxPages = 2,
+  perPage = 50
+): Promise<StravaActivity[]> {
+  const all: StravaActivity[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const params = new URLSearchParams({
+      per_page: String(perPage),
+      page: String(page),
+    });
+    const activities = await stravaGet<StravaActivity[]>(
+      `/athlete/activities?${params.toString()}`,
+      token
+    );
+    if (!activities || activities.length === 0) break;
+    all.push(...activities);
+    if (activities.length < perPage) break;
+  }
+  return all;
+}
+
+export interface UserStravaSyncSummary {
+  /** Activities imported as new routes this call. */
+  imported: number;
+  /** Activities skipped: already in the folder (dedupe) or no GPS stream. */
+  skipped: number;
+  /** Per-con-day budget left AFTER this call (for the "N of 10" line). */
+  conDayRemaining: number;
+  /** Lifetime gpx_upload remaining after the last consume (null if none imported). */
+  quotaRemaining: number | null;
+  /** The created routes, so the studio can render them on the map. */
+  files: ImportedFile[];
+}
+
+/**
+ * Import THIS runner's recent Strava activities into their folder, tagged to
+ * `conDay`. Deduped by stravaActivityId; bounded by the remaining per-con-day
+ * budget (both doors share the same count, so switching can't bypass the cap);
+ * each imported activity also consumes one lifetime `gpx_upload` (the atomic hard
+ * ceiling), refunded when an activity turns out to have no GPS. Stops early when
+ * either budget is exhausted.
+ */
+export async function syncUserToConDay(
+  user: StravaUserToken,
+  conDay: string,
+  quotaTier: QuotaTier
+): Promise<UserStravaSyncSummary> {
+  const seen = await existingStravaIds(user.userId);
+  const countBefore = await countConDayRuns(user.userId, conDay);
+  let budget = conDayRemaining(countBefore, quotaTier);
+
+  const files: ImportedFile[] = [];
+  let quotaRemaining: number | null = null;
+
+  const activities = await listRecentActivities(user.accessToken);
+  const { fresh, skipped: dedupeSkipped } = dedupeActivities(activities, seen);
+  let skipped = dedupeSkipped;
+
+  for (const activity of fresh) {
+    if (budget <= 0) break; // per-con-day cap / burst bound
+
+    // Lifetime ceiling: consume the atomic gpx_upload before writing S3/Dynamo.
+    const q = await consumeQuota(user.userId, "gpx_upload", 1, quotaTier);
+    if (!q.success) break; // hard abuse wall hit — stop importing
+    quotaRemaining = q.remaining;
+
+    let created: ImportedFile | null = null;
+    try {
+      created = await importActivity(user, activity, { conDay });
+    } catch (e) {
+      console.error(`[strava-sync] import failed activity ${activity.id}`, e);
+    }
+
+    if (created) {
+      files.push(created);
+      budget--;
+    } else {
+      // No GPS or write error — refund the lifetime unit and count as skipped.
+      await restoreQuota(user.userId, "gpx_upload", 1);
+      skipped++;
+    }
+  }
+
+  return {
+    imported: files.length,
+    skipped,
+    conDayRemaining: conDayRemaining(countBefore + files.length, quotaTier),
+    quotaRemaining,
+    files,
+  };
 }
