@@ -8,7 +8,7 @@
     import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
     import { getConDayUsage, QuotaExceededError, type ConDayUsage } from '$lib/cloud-sync';
     import { logRunFromFile } from '$lib/logic/file-actions';
-    import { quickStartAction } from '$lib/stores/quickstart';
+    import { quickStartAction, quickStartOpen } from '$lib/stores/quickstart';
     import {
         Footprints,
         Map as MapIcon,
@@ -21,7 +21,16 @@
     } from '@lucide/svelte';
 
     type View = 'collapsed' | 'hub' | 'logrun';
-    let view = $state<View>('hub');
+    // Starts collapsed; the "Add run" button in the top menu bar opens the hub.
+    let view = $state<View>('collapsed');
+
+    // Open the hub when the menu-bar "Add run" button fires (one-shot).
+    quickStartOpen.subscribe((open) => {
+        if (open) {
+            view = 'hub';
+            quickStartOpen.set(false);
+        }
+    });
     let usage = $state<ConDayUsage[]>([]);
     let selectedDate = $state<string | null>(null);
     let loadingUsage = $state(false);
@@ -114,15 +123,7 @@
         onchange={onFilePicked}
     />
 
-    {#if view === 'collapsed'}
-        <button
-            class="absolute bottom-6 right-4 z-30 flex items-center gap-2 rounded-full border bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition hover:brightness-110"
-            onclick={() => (view = 'hub')}
-        >
-            <Footprints size={18} />
-            Add run
-        </button>
-    {:else}
+    {#if view !== 'collapsed'}
         <!-- Dimming backdrop: click anywhere off the card collapses to the launcher. -->
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
