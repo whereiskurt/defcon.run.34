@@ -11,8 +11,12 @@
         Loader2,
         AlertCircle,
         Check,
+        CheckCircle,
         Globe,
         Lock,
+        Users,
+        Send,
+        X,
     } from '@lucide/svelte';
     import { getApiBase, type CloudFile } from '$lib/cloud-sync';
 
@@ -30,12 +34,16 @@
     let {
         open = $bindable(false),
         file = null as CloudFile | null,
+        onSubmitChange = undefined as (() => void) | undefined,
     }: {
         open?: boolean;
         file: CloudFile | null;
+        // Called after a successful submit/withdraw (verb ②) so the parent (My Maps)
+        // can refresh the row's "submitted" indicator without a full reload.
+        onSubmitChange?: (() => void) | undefined;
     } = $props();
 
-    // State
+    // State — verb ① (friend link)
     let loading = $state(false);
     let error: string | null = $state(null);
     let accessMode: 'public' | 'private' = $state('public');
@@ -44,6 +52,11 @@
     let shares: Share[] = $state([]);
     let copied = $state(false);
     let copiedShareId: string | null = $state(null);
+
+    // State — verb ② (submit to DEF CON run review queue). Data-only: no URL.
+    let submitting = $state(false);
+    let submitError: string | null = $state(null);
+    let submitted = $state(false);
 
     // Load shares when dialog opens
     $effect(() => {
@@ -54,6 +67,9 @@
             emails = '';
             shareUrl = '';
             error = null;
+            // Seed verb ② state from the file's server-provided flag.
+            submitted = file.shareRequested ?? false;
+            submitError = null;
         }
     });
 
@@ -161,6 +177,39 @@
         }
     }
 
+    // Verb ② — submit/withdraw this route to the DEF CON run admin review queue.
+    // POST /files/{id}/request-share { requested } sets `shareRequested` server-side.
+    // No URL is minted; this is a data flag, not a shareable link (§12 security posture).
+    async function setSubmit(requested: boolean) {
+        if (!file) return;
+
+        submitting = true;
+        submitError = null;
+        try {
+            const response = await fetch(`${getApiBase()}/files/${file.fileId}/request-share`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ requested }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || 'Failed to update submission');
+            }
+
+            const data = await response.json();
+            submitted = data.file?.shareRequested ?? requested;
+
+            // Let the parent refresh the per-row submitted indicator.
+            onSubmitChange?.();
+        } catch (e) {
+            submitError = e instanceof Error ? e.message : 'Failed to update submission';
+        } finally {
+            submitting = false;
+        }
+    }
+
     function parseEmails(input: string): string[] {
         return input
             .split(/[,\n]/)
@@ -218,7 +267,21 @@
         </Dialog.Header>
 
         <div class="space-y-4">
-            <!-- Error message -->
+            <!-- ── Verb ①: Share with a friend ──
+                 A peer link (public or private/email-gated). Never becomes an
+                 official DEF CON route. Existing link machinery, unchanged. -->
+            <div class="space-y-1">
+                <h3 class="flex items-center gap-2 text-sm font-semibold">
+                    <Users class="h-4 w-4" />
+                    Share with a friend
+                </h3>
+                <p class="text-xs text-muted-foreground">
+                    Create a link to show someone your route. Peer-to-peer — this never
+                    makes it an official DEF CON route.
+                </p>
+            </div>
+
+            <!-- Error message (verb ①) -->
             {#if error}
                 <div class="bg-destructive/10 text-destructive px-4 py-2 rounded-md text-sm flex items-center gap-2">
                     <AlertCircle class="h-4 w-4 flex-shrink-0" />
@@ -377,6 +440,64 @@
                     <Loader2 class="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>
             {/if}
+
+            <!-- ── Verb ②: Submit to DEF CON run ──
+                 Flags the file into the admin review queue (sets shareRequested).
+                 Data only — NO url is minted and nobody sees it until approved.
+                 Deliberately no URL field here (§12 security posture). -->
+            <div class="space-y-3 pt-4 border-t">
+                <div class="space-y-1">
+                    <h3 class="flex items-center gap-2 text-sm font-semibold">
+                        <Send class="h-4 w-4" />
+                        Submit to DEF CON run
+                    </h3>
+                    <p class="text-xs text-muted-foreground">
+                        Offer this route to the DEF CON run event. An organizer reviews it —
+                        no link is created and nobody sees it until it's approved.
+                    </p>
+                </div>
+
+                <!-- Error message (verb ②) -->
+                {#if submitError}
+                    <div class="bg-destructive/10 text-destructive px-4 py-2 rounded-md text-sm flex items-center gap-2">
+                        <AlertCircle class="h-4 w-4 flex-shrink-0" />
+                        {submitError}
+                    </div>
+                {/if}
+
+                {#if submitted}
+                    <div class="flex items-center gap-2 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-md text-sm">
+                        <CheckCircle class="h-4 w-4 flex-shrink-0" />
+                        <span class="font-medium">Submitted — pending review</span>
+                    </div>
+                    <Button
+                        variant="outline"
+                        class="w-full"
+                        onclick={() => setSubmit(false)}
+                        disabled={submitting}
+                    >
+                        {#if submitting}
+                            <Loader2 class="h-4 w-4 mr-2 animate-spin" />
+                        {:else}
+                            <X class="h-4 w-4 mr-2" />
+                        {/if}
+                        Withdraw submission
+                    </Button>
+                {:else}
+                    <Button
+                        class="w-full"
+                        onclick={() => setSubmit(true)}
+                        disabled={submitting}
+                    >
+                        {#if submitting}
+                            <Loader2 class="h-4 w-4 mr-2 animate-spin" />
+                        {:else}
+                            <Send class="h-4 w-4 mr-2" />
+                        {/if}
+                        Submit to DEF CON run
+                    </Button>
+                {/if}
+            </div>
         </div>
     </Dialog.Content>
 </Dialog.Root>
