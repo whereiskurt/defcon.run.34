@@ -32,7 +32,16 @@ export const meshtasticConfig = Object.freeze({
     },
   ],
   radio: {
-    region: process.env.LORA_REGION || "US",
+    // Region is HARDCODED to US and intentionally NOT env-overridable. Every
+    // device is flashed on-site at DEF CON (Las Vegas), and a wrong/UNSET region
+    // makes the node publish to a region-less MQTT topic (msh/2/e/dc.run) that
+    // the US fleet (msh/US/2/e/dc.run) never sees. Locking it here removes any
+    // chance a deploy/env misconfig picks the wrong region.
+    //
+    // NOTE: this does NOT by itself fix a device that DROPS the region during
+    // the post-commit reboot (a firmware/flash concern) — the config push
+    // already sent US correctly. Detecting that needs a post-commit read-back.
+    region: "US",
     modemPreset: process.env.LORA_MODEM_PRESET || "LONG_FAST",
     hopLimit: Number(process.env.LORA_HOP_LIMIT) || 3,
   },
