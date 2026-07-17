@@ -32,10 +32,19 @@
             return '';
         }
         return sanitizeHtml(text, {
-            allowedTags: ['a', 'br', 'img'],
+            // <img> is intentionally NOT allowed: a waypoint <desc>/<cmt> is
+            // user-authored GPX text, and an <img src> is a silent tracking-pixel
+            // / IP-beacon vector (§12 hardening). Geometry only — no remote fetch.
+            allowedTags: ['a', 'br'],
             allowedAttributes: {
-                a: ['href', 'target'],
-                img: ['src'],
+                // `rel` is allow-listed so the transformTags-injected value survives
+                // sanitize-html's attribute filtering.
+                a: ['href', 'target', 'rel'],
+            },
+            // Force rel="noopener noreferrer" on every anchor so a target=_blank
+            // link in user GPX can't reverse-tabnab the opener window (§12).
+            transformTags: {
+                a: sanitizeHtml.simpleTransform('a', { rel: 'noopener noreferrer' }),
             },
         }).trim();
     }
@@ -45,7 +54,11 @@
     <Card.Header class="p-0 gap-0">
         <Card.Title class="text-md">
             {#if waypoint.item.link && waypoint.item.link.attributes && waypoint.item.link.attributes.href}
-                <a href={waypoint.item.link.attributes.href} target="_blank">
+                <a
+                    href={waypoint.item.link.attributes.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
                     {waypoint.item.name ?? waypoint.item.link.attributes.href}
                     <ExternalLink size="12" class="inline-block mb-1.5" />
                 </a>
