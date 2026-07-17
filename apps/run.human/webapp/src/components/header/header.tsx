@@ -10,8 +10,8 @@ import {
   Tooltip,
 } from '@heroui/react';
 import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { GrMapLocation } from 'react-icons/gr';
 import { MenuIcon } from './icon/menu';
 import { FaRadio } from 'react-icons/fa6';
@@ -67,8 +67,18 @@ export function Header(params: any) {
   const session = params.session;
   const hasSession = session !== null;
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [donateOpen, setDonateOpen] = useState(false);
   const { t } = useCopy();
+
+  // Deep-link auto-open: `?open=donate` pops the quick-give modal (e.g. the
+  // static defcon.run landing's Donate tile routes here via /api/auth/auto-signin
+  // so login completes first, then lands on /whoami?open=donate). Gated on a live
+  // session so the panel never flashes on a pre-login page — mirrors the
+  // `?open=checkin|qr` convention in dropdown-user.tsx.
+  useEffect(() => {
+    if (hasSession && searchParams?.get('open') === 'donate') setDonateOpen(true);
+  }, [hasSession, searchParams]);
 
   // Admin console link shows ONLY for admin/runadmin operators. This is a
   // convenience gate on the cached session claims; the /admin route itself
