@@ -119,7 +119,7 @@
   .card .host { display:block; font-family:var(--font-mono); font-size:.68rem; color:var(--faint); margin-top:6px; }
 
   /* ⚡ per-service perf probe — live latency (your device) + baked page weight */
-  .card .probe { margin-top:8px; display:flex; align-items:center; gap:8px; justify-content:flex-end; }
+  .card .probe { margin-top:8px; display:flex; align-items:flex-start; gap:8px; justify-content:flex-end; }
   .ptest {
     font-family:var(--font-mono); font-size:.6rem; letter-spacing:.14em; text-transform:uppercase;
     color:var(--brand); background:rgba(0,212,170,.10); border:1px solid var(--border);
@@ -127,7 +127,10 @@
   }
   .ptest:hover { border-color:var(--brand); box-shadow:0 0 12px #00d4aa22; }
   .ptest:focus-visible { outline:none; border-color:var(--brand); box-shadow:0 0 12px #00d4aa33; }
-  .presult { font-family:var(--font-mono); font-size:.66rem; color:var(--faint); white-space:nowrap; }
+  .presult { font-family:var(--font-mono); font-size:.66rem; color:var(--faint); white-space:nowrap; display:flex; flex-direction:column; align-items:flex-end; gap:1px; }
+  .pmain { white-space:nowrap; }
+  .pbreak { font-size:.56rem; color:var(--faint); opacity:.9; }
+  .pb-k { color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
   .presult .snappy { color:var(--live); }
   .presult .ok { color:var(--dev); }
   .presult .heavy { color:var(--down); }
@@ -399,13 +402,25 @@
   const PROBE = {};
   function fmtSize(kb){ if (kb == null) return ''; return kb >= 1024 ? (kb/1024).toFixed(1)+' MB' : Math.round(kb)+' KB'; }
   function latClass(ms){ return ms < 300 ? 'snappy' : ms < 800 ? 'ok' : 'heavy'; }
-  function probeCellHTML(s){
+  // baked per-type weight breakdown (img/js/font/css), sorted heaviest first
+  function breakdownHTML(s){
+    const by = s.size_by; if (!by) return '';
+    const parts = ['js','img','font','css']
+      .filter(k => by[k] > 0)
+      .sort((a,b) => by[b] - by[a])
+      .map(k => '<span class="pb-k">' + k + '</span> ' + by[k]);
+    return parts.length ? '<span class="pbreak">' + parts.join(' · ') + ' KB</span>' : '';
+  }
+  function probeMainHTML(s){
     const size = fmtSize(s.size_kb);
     const sfx = size ? ' · ' + size : '';
     const p = PROBE[s.id];
     if (p && p.err) return '<span class="err">unreachable</span>' + sfx;
     if (p && p.ms != null) return '<span class="' + latClass(p.ms) + '">' + p.ms + ' ms</span>' + sfx;
     return size ? '<span class="idle">' + size + '</span>' : '<span class="idle">—</span>';
+  }
+  function probeCellHTML(s){
+    return '<span class="pmain">' + probeMainHTML(s) + '</span>' + breakdownHTML(s);
   }
   function probeCell(id){ return document.querySelector('.presult[data-result="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]'); }
 
@@ -415,7 +430,7 @@
     const url = svc.link || (svc.host ? 'https://' + svc.host : null);
     if (!url) return;
     const cell = probeCell(id);
-    if (cell) cell.innerHTML = '<span class="busy">…</span>' + (svc.size_kb != null ? ' · ' + fmtSize(svc.size_kb) : '');
+    if (cell) cell.innerHTML = '<span class="pmain"><span class="busy">…</span>' + (svc.size_kb != null ? ' · ' + fmtSize(svc.size_kb) : '') + '</span>' + breakdownHTML(svc);
     const samples = [];
     for (let i = 0; i < 3; i++) {
       try {

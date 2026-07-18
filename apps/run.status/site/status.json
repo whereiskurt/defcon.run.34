@@ -24,9 +24,16 @@
       "version": "v0.0.22",
       "state": "dev",
       "note": "Authentication & sign-in",
-      "size_kb": 2063,
-      "req_count": 74,
-      "measured_at": "2026-07-18 12:27:07 UTC"
+      "size_kb": 1214,
+      "req_count": 73,
+      "measured_at": "2026-07-18 14:39:10 UTC",
+      "size_by": {
+        "img": 231,
+        "js": 633,
+        "css": 60,
+        "font": 266,
+        "other": 24
+      }
     },
     {
       "id": "human",
@@ -36,9 +43,16 @@
       "version": "v0.0.26",
       "state": "dev",
       "note": "Main run site",
-      "size_kb": 1013,
+      "size_kb": 595,
       "req_count": 37,
-      "measured_at": "2026-07-18 12:27:07 UTC"
+      "measured_at": "2026-07-18 14:39:10 UTC",
+      "size_by": {
+        "img": 115,
+        "js": 293,
+        "css": 30,
+        "font": 140,
+        "other": 16
+      }
     },
     {
       "id": "gpx",
@@ -48,9 +62,16 @@
       "version": "v0.0.23",
       "state": "dev",
       "note": "GPX editor & route overlays",
-      "size_kb": 1200,
-      "req_count": 57,
-      "measured_at": "2026-07-18 12:27:07 UTC"
+      "size_kb": 769,
+      "req_count": 56,
+      "measured_at": "2026-07-18 14:39:10 UTC",
+      "size_by": {
+        "img": 115,
+        "js": 481,
+        "css": 29,
+        "font": 126,
+        "other": 17
+      }
     },
     {
       "id": "flash",
@@ -60,9 +81,16 @@
       "version": "v0.0.20",
       "state": "dev",
       "note": "Radio flashing flow",
-      "size_kb": 1533,
-      "req_count": 81,
-      "measured_at": "2026-07-18 12:27:07 UTC"
+      "size_kb": 1101,
+      "req_count": 80,
+      "measured_at": "2026-07-18 14:39:10 UTC",
+      "size_by": {
+        "img": 115,
+        "js": 649,
+        "css": 58,
+        "font": 252,
+        "other": 27
+      }
     },
     {
       "id": "bib",
@@ -72,9 +100,16 @@
       "version": "v0.0.48",
       "state": "dev",
       "note": "Bib registration",
-      "size_kb": 2066,
-      "req_count": 68,
-      "measured_at": "2026-07-18 12:27:07 UTC"
+      "size_kb": 1218,
+      "req_count": 67,
+      "measured_at": "2026-07-18 14:39:10 UTC",
+      "size_by": {
+        "img": 231,
+        "js": 648,
+        "css": 59,
+        "font": 252,
+        "other": 28
+      }
     },
     {
       "id": "cms",
