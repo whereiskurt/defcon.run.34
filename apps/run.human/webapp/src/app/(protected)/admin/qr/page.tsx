@@ -89,7 +89,7 @@ export default async function QrAdminPage() {
                   sortedCodes.map((row) => (
                     <tr key={row.code} className={cls.tr}>
                       <td className={cls.td}>
-                        <Link href={`/admin/qr/${row.code}`} className="text-primary">
+                        <Link href={`/admin/qr/${encodeURIComponent(row.code)}`} className="text-primary">
                           {row.code}
                         </Link>
                       </td>
@@ -118,7 +118,7 @@ export default async function QrAdminPage() {
                         </Link>
                       </td>
                       <td className={cls.td}>
-                        <Link href={`/admin/qr/${row.code}`} className="text-default-400">
+                        <Link href={`/admin/qr/${encodeURIComponent(row.code)}`} className="text-default-400">
                           edit
                         </Link>
                       </td>
