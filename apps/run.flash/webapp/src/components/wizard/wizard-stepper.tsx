@@ -2,8 +2,18 @@
 
 import { Check } from "lucide-react";
 import clsx from "clsx";
-import { STEPS, STEP_LABELS } from "@/hooks/use-wizard";
+import { STEPS } from "@/hooks/use-wizard";
 import type { WizardStep } from "@/hooks/use-wizard";
+import { useCopy } from "@/components/CopyProvider";
+
+/** Wizard step → copy-catalog key (labels live in the CMS `flash` namespace). */
+const STEP_COPY_KEY: Record<WizardStep, string> = {
+  "pick-device": "flash.step.pickDevice",
+  connect: "flash.step.connect",
+  flash: "flash.step.flash",
+  configure: "flash.step.configure",
+  done: "flash.step.done",
+};
 
 interface WizardStepperProps {
   currentStep: WizardStep;
@@ -19,6 +29,7 @@ export function WizardStepper({
   onStepClick,
   steps = STEPS,
 }: WizardStepperProps) {
+  const { t } = useCopy();
   return (
     <div className="flex items-center w-full py-4 px-2">
       {steps.map((step, index) => {
@@ -67,7 +78,7 @@ export function WizardStepper({
                   isCurrent && "font-medium"
                 )}
               >
-                {STEP_LABELS[step]}
+                {t(STEP_COPY_KEY[step])}
               </span>
             </button>
 
