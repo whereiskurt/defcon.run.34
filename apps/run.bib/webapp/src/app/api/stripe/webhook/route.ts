@@ -7,6 +7,7 @@ import {
 } from "@/entities/general-donation";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe";
 import { consumeQuota } from "@/lib/quota-client";
+import { invalidateBib } from "@/lib/report-cache";
 
 /**
  * POST /api/stripe/webhook — verify signature + branch on donation_type.
@@ -105,6 +106,8 @@ async function handleBibDonation(
     await consumeQuota(ownerSub, "bib_purchase", 1, "upload").catch((e) =>
       console.warn(`[run.bib] bib_purchase quota consume failed: ${e}`)
     );
+    // Payment landed → drop admin aggregate + this owner's cache.
+    invalidateBib(ownerSub);
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
     // Bib not found — respond 200 so Stripe stops retrying (the bib
@@ -164,6 +167,9 @@ async function handleGeneralDonation(
         console.warn(`[run.bib] donation quota consume failed: ${e}`)
       );
     }
+    // Donation recorded → drop admin aggregate (+ owner cache when non-anon;
+    // invalidateBib skips the owner tag for a null sub).
+    invalidateBib(ownerSub);
     return NextResponse.json({ received: true }, { status: 200 });
   } catch (err) {
     console.error(
