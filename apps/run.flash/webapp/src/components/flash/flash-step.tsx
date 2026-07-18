@@ -18,6 +18,7 @@ import { FlashPipeline } from "@/components/flash/flash-pipeline";
 import { FlashConsole } from "@/components/flash/flash-console";
 import type { ESPLoader } from "esptool-js";
 import type { DfuDevice } from "@/lib/web-dfu";
+import { useCopy } from "@/components/CopyProvider";
 
 /**
  * Discriminated transport union — parallels ConnectStep's TransportState.
@@ -97,6 +98,7 @@ export function FlashStep({
   onContinue,
   onRetry,
 }: FlashStepProps) {
+  const { t } = useCopy();
   const { progress } = flashState;
   const isActive =
     progress.stage === "erasing" ||
@@ -148,10 +150,10 @@ export function FlashStep({
               <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0" />
               <div>
                 <p className="text-sm text-warning font-medium">
-                  This will erase all existing firmware and data on the device
+                  {t("flash.flash.eraseWarning")}
                 </p>
                 <p className="text-xs text-default-500">
-                  Keep your USB cable connected during the flash process
+                  {t("flash.flash.keepConnected")}
                 </p>
               </div>
             </div>
@@ -163,14 +165,14 @@ export function FlashStep({
               isDisabled={!transportReady}
               className="font-mono whitespace-nowrap"
             >
-              Flash Firmware
+              {t("flash.flash.button")}
             </Button>
           </div>
 
           {/* Device details panel */}
           <div className="glass-card rounded-xl p-5 space-y-3">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">Device</span>
+              <span className="text-default-500">{t("flash.flash.deviceLabel")}</span>
               <span className="font-mono text-foreground">
                 {device.displayName}
               </span>
@@ -184,10 +186,10 @@ export function FlashStep({
             </div>
             <div className="border-t border-default-200/10" />
             <div className="flex items-start justify-between text-sm">
-              <span className="text-default-500">Firmware</span>
+              <span className="text-default-500">{t("flash.flash.firmwareLabel")}</span>
               <div className="flex flex-col items-end text-right">
                 <span className="font-mono text-foreground">
-                  run.defcon.run firmware
+                  {t("flash.flash.firmwareName")}
                 </span>
                 <span className="font-mono text-default-500 text-xs">
                   Meshtastic {FIRMWARE_VERSION}
@@ -196,14 +198,14 @@ export function FlashStep({
             </div>
             <div className="border-t border-default-200/10" />
             <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">File</span>
+              <span className="text-default-500">{t("flash.flash.fileLabel")}</span>
               <span className="font-mono text-foreground text-xs">
                 {getFactoryFilename(device)}
               </span>
             </div>
             <div className="border-t border-default-200/10" />
             <div className="flex items-center justify-between text-sm">
-              <span className="text-default-500">Flash address</span>
+              <span className="text-default-500">{t("flash.flash.addressLabel")}</span>
               <span className="font-mono text-foreground">
                 0x0 (factory image)
               </span>
@@ -220,7 +222,7 @@ export function FlashStep({
           <FlashConsole logs={consoleLogs} />
 
           <p className="text-sm text-warning text-center font-mono">
-            Do not disconnect your device during flash
+            {t("flash.flash.doNotDisconnect")}
           </p>
         </>
       )}
@@ -235,10 +237,10 @@ export function FlashStep({
                 <CheckCircle2 className="w-8 h-8 text-primary flex-shrink-0" />
                 <div>
                   <h3 className="font-mono text-lg text-primary">
-                    Flash Complete!
+                    {t("flash.flash.complete")}
                   </h3>
                   <p className="text-sm text-default-400">
-                    Firmware written and verified.
+                    {t("flash.flash.completeBody")}
                   </p>
                 </div>
               </div>
@@ -281,7 +283,7 @@ export function FlashStep({
               onPress={onContinue}
               className="font-mono whitespace-nowrap cta-pulse"
             >
-              Continue to Configure
+              {t("flash.flash.continueToConfigure")}
             </Button>
           </div>
         </>
@@ -296,7 +298,7 @@ export function FlashStep({
           <div className="glass-card rounded-xl p-5 border-danger/30 bg-danger/5">
             <div className="flex flex-col items-center gap-4 text-center">
               <XCircle className="w-10 h-10 text-danger" />
-              <h3 className="font-mono text-lg text-danger">Flash Failed</h3>
+              <h3 className="font-mono text-lg text-danger">{t("flash.flash.failed")}</h3>
 
               {progress.error && (
                 <p className="text-sm text-danger/80 font-mono">
@@ -305,8 +307,8 @@ export function FlashStep({
               )}
 
               <ol className="list-decimal list-inside space-y-2 text-sm text-default-400 text-left max-w-sm">
-                <li>Don&apos;t panic &mdash; your device can be re-flashed</li>
-                <li>Reconnect the USB cable if it was disconnected</li>
+                <li>{t("flash.flash.recovery1")}</li>
+                <li>{t("flash.flash.recovery2")}</li>
                 {transport.family === "esp32" ? (
                   <li>
                     Put your device in bootloader mode (hold{" "}
@@ -324,7 +326,7 @@ export function FlashStep({
                     appears before retrying
                   </li>
                 )}
-                <li>Click Retry to start over with a fresh connection</li>
+                <li>{t("flash.flash.recovery4")}</li>
               </ol>
             </div>
           </div>
@@ -337,7 +339,7 @@ export function FlashStep({
               onPress={handleRetry}
               className="font-mono"
             >
-              Retry
+              {t("flash.flash.retry")}
             </Button>
           </div>
 

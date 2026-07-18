@@ -10,6 +10,7 @@ import { BootloaderHelp } from "@/components/connect/bootloader-help";
 import type { SerialConnectionState, ChipInfo, ConsoleEntry } from "@/types/serial";
 import type { DfuConnectionState } from "@/hooks/use-dfu";
 import type { DfuDevice } from "@/lib/web-dfu";
+import { useCopy } from "@/components/CopyProvider";
 
 /** Subset of UseSerialReturn that ConnectStep consumes */
 interface SerialState {
@@ -229,6 +230,7 @@ function Esp32ConnectView({
   skipFlash,
   onContinue,
 }: Esp32ConnectViewProps) {
+  const { t } = useCopy();
   const imagePath = device ? getDeviceImagePath(device) : null;
   const archLabel = device ? getArchLabel(device) : null;
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
@@ -264,10 +266,10 @@ function Esp32ConnectView({
             {(serial.connectionState === "disconnected" || isCancelled) && (
               <div className="space-y-1">
                 <p className="text-sm font-mono text-default-400">
-                  Ready to connect
+                  {t("flash.connect.ready")}
                 </p>
                 <p className="text-xs text-default-600">
-                  Plug in USB, then click Connect
+                  {t("flash.connect.readyHint")}
                 </p>
               </div>
             )}
@@ -276,7 +278,7 @@ function Esp32ConnectView({
               <div className="flex items-center gap-3">
                 <Spinner size="sm" color="primary" />
                 <p className="text-sm font-mono text-default-400">
-                  Connecting...
+                  {t("flash.connect.connecting")}
                 </p>
               </div>
             )}
@@ -342,7 +344,7 @@ function Esp32ConnectView({
             onPress={() => (isCancelled ? handleRetry() : serial.connect())}
             className="font-mono whitespace-nowrap"
           >
-            Connect Device
+            {t("flash.connect.button")}
           </Button>
         )}
 
@@ -353,7 +355,7 @@ function Esp32ConnectView({
             isDisabled
             className="font-mono whitespace-nowrap"
           >
-            Connecting...
+            {t("flash.connect.connecting")}
           </Button>
         )}
 
@@ -365,7 +367,7 @@ function Esp32ConnectView({
             onPress={onContinue}
             className="font-mono whitespace-nowrap cta-pulse"
           >
-            {skipFlash ? 'Continue to Configure' : 'Continue to Flash'}
+            {skipFlash ? t("flash.connect.continueToConfigure") : t("flash.connect.continueToFlash")}
           </Button>
         )}
 
@@ -377,7 +379,7 @@ function Esp32ConnectView({
             onPress={handleRetry}
             className="font-mono whitespace-nowrap"
           >
-            Try Again
+            {t("flash.connect.tryAgain")}
           </Button>
         )}
       </div>
@@ -413,6 +415,7 @@ function Nrf52ConnectView({
   skipFlash,
   onContinue,
 }: Nrf52ConnectViewProps) {
+  const { t } = useCopy();
   const imagePath = device ? getDeviceImagePath(device) : null;
   const archLabel = device ? getArchLabel(device) : null;
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
@@ -450,10 +453,10 @@ function Nrf52ConnectView({
             {(dfu.connectionState === "disconnected" || isCancelled) && (
               <div className="space-y-1">
                 <p className="text-sm font-mono text-default-400">
-                  Ready to connect (DFU)
+                  {t("flash.connect.readyDfu")}
                 </p>
                 <p className="text-xs text-default-600">
-                  Double-tap RESET on the device, then click Connect
+                  {t("flash.connect.readyHintDfu")}
                 </p>
               </div>
             )}
@@ -462,7 +465,7 @@ function Nrf52ConnectView({
               <div className="flex items-center gap-3">
                 <Spinner size="sm" color="primary" />
                 <p className="text-sm font-mono text-default-400">
-                  Claiming DFU interface...
+                  {t("flash.connect.claimingDfu")}
                 </p>
               </div>
             )}
@@ -475,17 +478,17 @@ function Nrf52ConnectView({
                 </div>
                 <div className="space-y-1 min-w-0">
                   <h3 className="font-mono text-lg text-primary">
-                    Connected (DFU)
+                    {t("flash.connect.connectedDfu")}
                   </h3>
                   <div className="space-y-0.5 text-sm">
                     <p>
-                      <span className="text-default-500">USB:</span>{" "}
+                      <span className="text-default-500">{t("flash.connect.usbLabel")}</span>{" "}
                       <span className="font-mono text-foreground">
                         {vidPid}
                       </span>
                     </p>
                     <p className="truncate">
-                      <span className="text-default-500">Interface:</span>{" "}
+                      <span className="text-default-500">{t("flash.connect.interfaceLabel")}</span>{" "}
                       <span className="font-mono text-foreground">
                         DFU 1.1 (class 0xFE / subclass 0x01)
                       </span>
@@ -541,7 +544,7 @@ function Nrf52ConnectView({
             onPress={() => (isCancelled ? handleRetry() : dfu.connect())}
             className="font-mono whitespace-nowrap"
           >
-            Connect Device
+            {t("flash.connect.button")}
           </Button>
         )}
 
@@ -552,7 +555,7 @@ function Nrf52ConnectView({
             isDisabled
             className="font-mono whitespace-nowrap"
           >
-            Connecting...
+            {t("flash.connect.connecting")}
           </Button>
         )}
 
@@ -564,7 +567,7 @@ function Nrf52ConnectView({
             onPress={onContinue}
             className="font-mono whitespace-nowrap cta-pulse"
           >
-            {skipFlash ? 'Continue to Configure' : 'Continue to Flash'}
+            {skipFlash ? t("flash.connect.continueToConfigure") : t("flash.connect.continueToFlash")}
           </Button>
         )}
 
@@ -576,7 +579,7 @@ function Nrf52ConnectView({
             onPress={handleRetry}
             className="font-mono whitespace-nowrap"
           >
-            Try Again
+            {t("flash.connect.tryAgain")}
           </Button>
         )}
       </div>
