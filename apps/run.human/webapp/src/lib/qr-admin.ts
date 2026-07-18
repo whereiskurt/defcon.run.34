@@ -167,6 +167,10 @@ export interface CtfInput {
     period?: number;
     algorithm?: string;
     skew?: number;
+    // First-come single-use (Phase 65, CTFT-18). Non-secret; carried verbatim by
+    // the existing whole-`otp`-map passthrough (no separate emit/transform) onto
+    // the Ctf row, where the judge (65-02) reads it. Absent/false ⇒ shared.
+    singleUse?: boolean;
   };
   unlockAfter?: string;
   perPlayerIntervalHours?: number;
