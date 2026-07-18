@@ -23,6 +23,15 @@ export const CUP_COLORS = {
     steam: '#FFFFFF'
 };
 
+/**
+ * Uniform size multiplier for the whole cup (footprint + height). The native
+ * geometry is ~35 m — invisible from above and impossible to spot when the map
+ * is flat, so the cup read as "not there" next to the km-scale rainbow arches
+ * (Kurt: "I see rainbows but no coffee"). ~3× makes it a genuine giant-mug
+ * landmark you can find from a few blocks out while still tilt-revealed.
+ */
+export const CUP_SCALE = 3;
+
 const EARTH_M_PER_DEG_LAT = 111320;
 
 function metresPerDegLng(lat: number): number {
@@ -42,6 +51,7 @@ export interface BuildCupOpts {
     radiusM?: number; // cup body radius
     bodyHeightM?: number; // cup body height
     segments?: number; // disc smoothness
+    scale?: number; // uniform size multiplier about the centre (default CUP_SCALE)
 }
 
 /**
@@ -131,6 +141,26 @@ export function buildCupFeatures(opts: BuildCupOpts = {}): GeoJSON.FeatureCollec
                     geometry: { type: 'Polygon', coordinates: [[A, B, D, E, A]] }
                 });
             }
+        }
+    }
+
+    // Blow the whole cup up about its centre so it reads as a giant landmark
+    // even flat/zoomed-out (native ~35 m was invisible from above). Uniform:
+    // scale the footprint (about `c`) AND the vertical extents together so the
+    // carefully-tuned proportions (handle, coffee inset, steam) are preserved.
+    const scale = opts.scale ?? CUP_SCALE;
+    if (scale !== 1) {
+        for (const f of features) {
+            const poly = f.geometry as GeoJSON.Polygon;
+            for (const ring of poly.coordinates) {
+                for (const p of ring) {
+                    p[0] = c[0] + (p[0] - c[0]) * scale;
+                    p[1] = c[1] + (p[1] - c[1]) * scale;
+                }
+            }
+            const pr = f.properties as { height?: number; base?: number };
+            if (typeof pr.height === 'number') pr.height *= scale;
+            if (typeof pr.base === 'number') pr.base *= scale;
         }
     }
 
