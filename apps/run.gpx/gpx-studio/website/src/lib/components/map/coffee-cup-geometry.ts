@@ -138,13 +138,16 @@ export function buildCupFeatures(opts: BuildCupOpts = {}): GeoJSON.FeatureCollec
 }
 
 /**
- * Pitch → layer opacity ramp. The cup is ALWAYS on, so it never drops to 0: a
- * faint `floor` shows overhead as a footprint, blooming as you tilt. Unlocking
- * (search) raises the ceiling so the cup reads more solid.
+ * Pitch → layer opacity ramp. The cup is ALWAYS on and meant to read as a
+ * landmark at PublicUs, so it stays clearly visible even flat/overhead (`floor`)
+ * and blooms toward solid as you tilt (`max`). Unlocking (searching publicus /
+ * coffee) lifts BOTH the floor and the ceiling — once you've found it, it shows
+ * plainly even without tilting. (Earlier 0.1 floor / 0.4 ceiling was so faint the
+ * cup was effectively invisible flat — Kurt "don't see it at all".)
  */
 export function cupOpacity(pitch: number, unlocked: boolean, start = 0, end = 60): number {
     const t = Math.max(0, Math.min(1, (pitch - start) / (end - start)));
-    const floor = 0.1;
-    const max = unlocked ? 0.6 : 0.4;
+    const floor = unlocked ? 0.5 : 0.35; // visible overhead; clearer once found
+    const max = unlocked ? 0.85 : 0.7; // near-solid when tilted
     return floor + t * (max - floor);
 }
