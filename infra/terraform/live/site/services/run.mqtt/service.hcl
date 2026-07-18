@@ -42,8 +42,8 @@ locals {
     name         = "run-mqtt"
     regions      = ["us-east-1", "ca-central-1"]
     cluster_name = "app"
-    task_cpu     = 256
-    task_memory  = 512
+    task_cpu     = 512
+    task_memory  = 1024
 
     containers = [
       # Container 1: run-mqtt-mosquitto (64 CPU / 128 MB, essential)
@@ -277,17 +277,21 @@ locals {
         ]
       },
 
-      # Container 4: run-mqtt-ghosts (32 CPU / 64 MB, NOT essential)
+      # Container 4: run-mqtt-ghosts (128 CPU / 256 MB, NOT essential)
       # Reuses run-mqtt-meshtk image with command override for fleet simulation
-      # Task continues running even if ghosts fails
+      # Task continues running even if ghosts fails. Sized up from 32/64: the
+      # fleet runs ~34 MQTT clients and the chatbot ghosts stay subscribed to
+      # receive DMs, which the original 0.03 vCPU / 64 MB could not service.
+      # `-v debug` tees the file-only logrus output to stdout/CloudWatch so the
+      # ghost receive→decrypt→reply chain is observable.
       {
         name               = "run-mqtt-ghosts"
         image              = "run-mqtt-meshtk:${local.versions.meshtk}"
-        cpu                = 32
-        memory             = 64
-        memory_reservation = 32
+        cpu                = 128
+        memory             = 256
+        memory_reservation = 128
         essential          = false
-        command            = ["meshtk", "fleet", "simulate"]
+        command            = ["meshtk", "fleet", "simulate", "-v", "debug"]
 
         readonly_root_filesystem = false
 
