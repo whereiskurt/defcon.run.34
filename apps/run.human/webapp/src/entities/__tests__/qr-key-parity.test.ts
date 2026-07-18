@@ -25,6 +25,21 @@ describe("Qr mirror key parity", () => {
     expect(params.IndexName).toBe("gsi1pk-gsi1sk-index");
     expect(params.ExpressionAttributeValues[":pk"]).toBe("$run#owner_kurt");
   });
+
+  it("accepts a schedule attribute without moving the key", () => {
+    const params = Qr.put({
+      code: "rickroll",
+      destination: "https://run.defcon.run/use1/welcome",
+      schedule: [
+        { startsAt: "2026-08-06T15:00:00.000Z", dest: "https://run.defcon.run/use1/welcome", label: "Welcome" },
+      ],
+    }).params({ table });
+    expect(params.Item.pk).toBe("$run#code_rickroll");
+    expect(params.Item.sk).toBe("$qr_1");
+    expect(params.Item.schedule).toEqual([
+      { startsAt: "2026-08-06T15:00:00.000Z", dest: "https://run.defcon.run/use1/welcome", label: "Welcome" },
+    ]);
+  });
 });
 
 describe("Ctf mirror key parity", () => {
