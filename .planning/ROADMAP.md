@@ -319,7 +319,7 @@ Plans:
 | 54. CTF Flag Types — Slice 1b Frontend (Admin Form Redesign + otp-enroll Reward) | v2.3 | 4/4 | Complete   | 2026-07-15 |
 | 55. CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set) | v2.3 | 3/3 | Complete   | 2026-07-15 |
 | 56. CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim) | v2.3 | 3/3 | Complete   | 2026-07-15 |
-| 65. CTF Single-Use OTP Flag Option (Judge-Enforced First-Come Claim) | v2.3.1 | 0/3 | Planned | - |
+| 65. CTF Single-Use OTP Flag Option (Judge-Enforced First-Come Claim) | v2.3.1 | 3/3 | Built — 451 CTF/admin tests green | 2026-07-18 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -666,9 +666,9 @@ Plans:
 
 Plans:
 
-- [ ] 65-01-PLAN.md — config flag on `Ctf.otp` + `CtfSeedOtp`; `CtfOtpClaim` create-if-absent entity (+ttl); runtime-pure `ctf-otp-claim` helper; pure identity/TTL/gate + key-parity + seed default-off tests (CTFT-15, CTFT-16) [wave 1]
-- [ ] 65-02-PLAN.md — judge single-use OTP path: `JudgeOtp.singleUse` + `narrowCtf` + `CtfStore.claimOtpCode` + finalize; race / cross-user / winner-resubmit-no-double-accrue / TTL / shared-OTP regression / indistinguishable-non-solve tests + covert & resolver-untouched grep gates (CTFT-15, CTFT-17) [wave 2]
-- [ ] 65-03-PLAN.md — admin `singleUse` toggle (Rotating-OTP section) + write/redaction passthrough; passthrough + redaction-preserved tests (CTFT-15, CTFT-18) [wave 2]
+- [x] 65-01-PLAN.md — config flag on `Ctf.otp` + `CtfSeedOtp`; `CtfOtpClaim` create-if-absent entity (+ttl); runtime-pure `ctf-otp-claim` helper; pure identity/TTL/gate + key-parity + seed default-off tests (CTFT-15, CTFT-16) [wave 1]
+- [x] 65-02-PLAN.md — judge single-use OTP path: `JudgeOtp.singleUse` + `narrowCtf` + `CtfStore.claimOtpCode` + finalize; race / cross-user / winner-resubmit-no-double-accrue / TTL / shared-OTP regression / indistinguishable-non-solve tests + covert & resolver-untouched grep gates (CTFT-15, CTFT-17) [wave 2]
+- [x] 65-03-PLAN.md — admin `singleUse` toggle (Rotating-OTP section) + write/redaction passthrough; passthrough + redaction-preserved tests (CTFT-15, CTFT-18) [wave 2]
 
 ---
 
