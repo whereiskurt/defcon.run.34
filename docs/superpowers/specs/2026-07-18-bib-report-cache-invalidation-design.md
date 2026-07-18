@@ -46,6 +46,10 @@ import { listPendingForOwner } from "@/entities/pending-contribution";
 const TTL = 30;
 const REPORTS_TAG = "bib:reports";
 const ownerTag = (sub: string) => `bib:owner:${sub}`;
+// Next 16 requires a profile arg on revalidateTag. `{ expire: 0 }` = immediate
+// hard expiry (next request recomputes → read-your-writes across requests).
+// SWR profiles ("max" etc.) would serve the stale pre-write value once more.
+const IMMEDIATE = { expire: 0 } as const;
 
 // Admin aggregate — tagged only REPORTS_TAG.
 export const getReportsCached = unstable_cache(
@@ -71,8 +75,8 @@ export function getPendingForOwnerCached(sub: string) {
 }
 
 // Invalidation — call ONLY from route handlers (never during render).
-export function invalidateReports() { revalidateTag(REPORTS_TAG); }
-export function invalidateOwner(sub?: string | null) { if (sub) revalidateTag(ownerTag(sub)); }
+export function invalidateReports() { revalidateTag(REPORTS_TAG, IMMEDIATE); }
+export function invalidateOwner(sub?: string | null) { if (sub) revalidateTag(ownerTag(sub), IMMEDIATE); }
 export function invalidateBib(sub?: string | null) { invalidateReports(); invalidateOwner(sub); }
 ```
 

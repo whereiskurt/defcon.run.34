@@ -18,6 +18,7 @@
 - TTL for every cached read: `30` seconds.
 - Tag names, exact: aggregate = `bib:reports`; per-owner = `bib:owner:${sub}`.
 - `revalidateTag` may be called ONLY from route handlers — never during render.
+- Next 16 requires a 2nd arg on `revalidateTag`: use `revalidateTag(tag, { expire: 0 })` for immediate hard expiry (read-your-writes across requests). The single-arg form is deprecated; the named SWR profiles (`"max"`) serve stale once more — do NOT use them here.
 - Vitest requires Node ≥ 22.12: run `nvm use 22.12.0` before any `npm test`.
 - `next build` gates every code task; the repo's ESLint config is broken in this environment (ignore lint).
 - Branch: continue on `perf/auth-timeout-orderform-parallel` (this builds on PR #782). All commits co-authored `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
@@ -137,6 +138,8 @@ import { listPendingForOwner } from "@/entities/pending-contribution";
 const TTL_SECONDS = 30;
 const REPORTS_TAG = "bib:reports";
 const ownerTag = (sub: string) => `bib:owner:${sub}`;
+// Next 16 requires a profile arg; { expire: 0 } = immediate hard expiry.
+const IMMEDIATE = { expire: 0 } as const;
 
 /** Cached admin report bundle. Tagged REPORTS_TAG only. */
 export const getReportsCached = unstable_cache(loadReports, ["bib:admin-reports"], {
@@ -162,12 +165,12 @@ export function getPendingForOwnerCached(sub: string) {
 
 /** Drop the admin aggregate cache. Call from route handlers only. */
 export function invalidateReports(): void {
-  revalidateTag(REPORTS_TAG);
+  revalidateTag(REPORTS_TAG, IMMEDIATE);
 }
 
 /** Drop one runner's per-user cache. No-op for a falsy sub. Route handlers only. */
 export function invalidateOwner(sub?: string | null): void {
-  if (sub) revalidateTag(ownerTag(sub));
+  if (sub) revalidateTag(ownerTag(sub), IMMEDIATE);
 }
 
 /**
