@@ -25,14 +25,15 @@ describe("loadVanityRedirects", () => {
   });
 
   it("builds targetUrl without a trailing ? when query is empty", () => {
-    // h. now routes through the resolver (q.defcon.run/H) so its destination is
+    // h. now routes through the resolver (q.defcon.run/h) so its destination is
     // dynamic/schedulable; the empty target_query must still yield no trailing "?".
-    expect(all.find((r) => r.host === "h")!.targetUrl).toBe("https://q.defcon.run/H");
+    // (Lowercase code path — the resolver uppercases on lookup, so /h hits code h.)
+    expect(all.find((r) => r.host === "h")!.targetUrl).toBe("https://q.defcon.run/h");
   });
 
   it("routes r. and h. through the resolver so they are schedulable", () => {
-    expect(all.find((r) => r.host === "r")!.targetUrl).toBe("https://q.defcon.run/R");
-    expect(all.find((r) => r.host === "h")!.targetUrl).toBe("https://q.defcon.run/H");
+    expect(all.find((r) => r.host === "r")!.targetUrl).toBe("https://q.defcon.run/r");
+    expect(all.find((r) => r.host === "h")!.targetUrl).toBe("https://q.defcon.run/h");
   });
 
   it("returns hosts sorted by priority", () => {
