@@ -1,9 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 
-const mockGetRunnerContact = vi.fn();
+const mockGetSocialQrHash = vi.fn();
+const mockGetRunnerEmail = vi.fn();
+
 vi.mock("@/lib/social-qr", () => ({
-  getRunnerContact: (sub: string) => mockGetRunnerContact(sub),
+  getSocialQrHash: (sub: string) => mockGetSocialQrHash(sub),
   buildSocialQrUrl: (hash: string) => `https://run.defcon.run/use1/r?h=${hash}`,
+}));
+vi.mock("@/lib/runner-email", () => ({
+  getRunnerEmail: (sub: string) => mockGetRunnerEmail(sub),
 }));
 
 import { mapWithConcurrency, enrichPrintNames } from "@/lib/admin-report-enrich";
@@ -36,25 +41,46 @@ describe("mapWithConcurrency()", () => {
 });
 
 describe("enrichPrintNames()", () => {
-  it("fills email + qrUrl from getRunnerContact", async () => {
-    mockGetRunnerContact.mockResolvedValue({ hash: "H1", email: "a@x.com" });
+  it("fills email from run.auth and qrUrl from run.human", async () => {
+    mockGetRunnerEmail.mockResolvedValue("a@x.com");
+    mockGetSocialQrHash.mockResolvedValue("H1");
     const [row] = await enrichPrintNames([{ ...baseRow }], 4);
     expect(row.email).toBe("a@x.com");
     expect(row.qrUrl).toBe("https://run.defcon.run/use1/r?h=H1");
   });
 
-  it("blanks email/qrUrl when the lookup returns nulls", async () => {
-    mockGetRunnerContact.mockResolvedValue({ hash: null, email: null });
+  it("keeps the run.auth email even when the run.human QR lookup misses", async () => {
+    // The whole point of the re-source: a run.human miss must NOT blank the email.
+    mockGetRunnerEmail.mockResolvedValue("a@x.com");
+    mockGetSocialQrHash.mockResolvedValue(null);
+    const [row] = await enrichPrintNames([{ ...baseRow }], 4);
+    expect(row.email).toBe("a@x.com");
+    expect(row.qrUrl).toBe("");
+  });
+
+  it("blanks email but keeps qrUrl when only run.auth misses", async () => {
+    mockGetRunnerEmail.mockResolvedValue(null);
+    mockGetSocialQrHash.mockResolvedValue("H1");
+    const [row] = await enrichPrintNames([{ ...baseRow }], 4);
+    expect(row.email).toBe("");
+    expect(row.qrUrl).toBe("https://run.defcon.run/use1/r?h=H1");
+  });
+
+  it("blanks both when both lookups miss", async () => {
+    mockGetRunnerEmail.mockResolvedValue(null);
+    mockGetSocialQrHash.mockResolvedValue(null);
     const [row] = await enrichPrintNames([{ ...baseRow }], 4);
     expect(row.email).toBe("");
     expect(row.qrUrl).toBe("");
   });
 
-  it("blanks a row whose ownerSub is empty without calling the client", async () => {
-    mockGetRunnerContact.mockReset();
+  it("blanks a row whose ownerSub is empty without calling either source", async () => {
+    mockGetRunnerEmail.mockReset();
+    mockGetSocialQrHash.mockReset();
     const [row] = await enrichPrintNames([{ ...baseRow, ownerSub: "" }], 4);
     expect(row.email).toBe("");
     expect(row.qrUrl).toBe("");
-    expect(mockGetRunnerContact).not.toHaveBeenCalled();
+    expect(mockGetRunnerEmail).not.toHaveBeenCalled();
+    expect(mockGetSocialQrHash).not.toHaveBeenCalled();
   });
 });

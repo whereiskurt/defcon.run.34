@@ -524,6 +524,10 @@ export function reportToCsv(bundle: ReportBundle, type: ReportType): string {
           { key: "paymentTypes", header: "paymentTypes" },
           { key: "email", header: "email" },
           { key: "qrUrl", header: "qrUrl" },
+          // Intentionally-blank spare columns for the print vendor to fill in
+          // (Kurt 2026-07-18). No row key → csvCell(undefined) renders empty.
+          { key: "qrCode1", header: "QRCode1" },
+          { key: "qrCode2", header: "QRCode2" },
         ],
         bundle.printNames.map((r) => ({
           ...r,
