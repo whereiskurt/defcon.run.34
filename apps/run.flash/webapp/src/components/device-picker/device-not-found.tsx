@@ -1,15 +1,18 @@
+"use client";
+
 import { Link } from "@heroui/react";
 import { ExternalLink } from "lucide-react";
+import { useCopy } from "@/components/CopyProvider";
 
 export function DeviceNotFound() {
+  const { t } = useCopy();
   return (
     <div className="terminal-block rounded-xl p-8 text-center space-y-3">
       <h3 className="text-lg font-semibold text-foreground">
-        No matching devices found
+        {t("flash.picker.notFoundTitle")}
       </h3>
       <p className="text-default-500 text-sm max-w-md mx-auto">
-        Can&apos;t find your device? It may not be ESP32-based or not supported
-        by Meshtastic.
+        {t("flash.picker.notFoundBody")}
       </p>
       <Link
         href="https://flasher.meshtastic.org"
@@ -19,7 +22,7 @@ export function DeviceNotFound() {
         color="primary"
         className="text-sm font-mono"
       >
-        Try the full Meshtastic flasher
+        {t("flash.picker.fullFlasherLink")}
       </Link>
     </div>
   );

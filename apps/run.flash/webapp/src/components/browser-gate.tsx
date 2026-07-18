@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@heroui/react";
 import { Monitor, ExternalLink } from "lucide-react";
+import { useCopy } from "@/components/CopyProvider";
 
 function LoadingSkeleton() {
   return (
@@ -17,6 +18,7 @@ function LoadingSkeleton() {
 }
 
 function UnsupportedBrowserMessage() {
+  const { t } = useCopy();
   return (
     <div className="flex items-center justify-center min-h-screen px-4">
       <div className="glass-card rounded-xl p-8 max-w-md w-full text-center space-y-6">
@@ -28,10 +30,10 @@ function UnsupportedBrowserMessage() {
 
         <div className="space-y-2">
           <h1 className="text-xl font-mono matrix-text">
-            Web Serial API Required
+            {t("flash.gate.title")}
           </h1>
           <p className="text-default-500 text-sm">
-            Flash your Meshtastic device using Chrome or Edge
+            {t("flash.gate.subtitle")}
           </p>
         </div>
 
@@ -46,7 +48,7 @@ function UnsupportedBrowserMessage() {
             size="lg"
             endContent={<ExternalLink className="w-4 h-4" />}
           >
-            Download Chrome
+            {t("flash.gate.downloadChrome")}
           </Button>
           <Button
             as="a"
@@ -58,12 +60,12 @@ function UnsupportedBrowserMessage() {
             size="lg"
             endContent={<ExternalLink className="w-4 h-4" />}
           >
-            Download Edge
+            {t("flash.gate.downloadEdge")}
           </Button>
         </div>
 
         <p className="text-default-400 text-xs font-mono">
-          Firefox and Safari do not support Web Serial
+          {t("flash.gate.caveat")}
         </p>
       </div>
     </div>
