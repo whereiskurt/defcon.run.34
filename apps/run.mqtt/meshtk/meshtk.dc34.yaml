@@ -90,7 +90,7 @@ Fleet:
     ShortNameTmpl: "GG{{.nodeId}}"
     LongNameTmpl: "ghost-goldstein-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -136,7 +136,7 @@ Fleet:
     ShortNameTmpl: "GM{{.nodeId}}"
     LongNameTmpl: "ghost-mudge-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -182,7 +182,7 @@ Fleet:
     ShortNameTmpl: "GC{{.nodeId}}"
     LongNameTmpl: "ghost-condor-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -228,7 +228,7 @@ Fleet:
     ShortNameTmpl: "GS{{.nodeId}}"
     LongNameTmpl: "ghost-sharp-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -274,7 +274,7 @@ Fleet:
     ShortNameTmpl: "GL{{.nodeId}}"
     LongNameTmpl: "ghost-ladyada-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -320,7 +320,7 @@ Fleet:
     ShortNameTmpl: "GH{{.nodeId}}"
     LongNameTmpl: "ghost-hopper-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -366,7 +366,7 @@ Fleet:
     ShortNameTmpl: "GT{{.nodeId}}"
     LongNameTmpl: "ghost-turing-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -412,7 +412,7 @@ Fleet:
     ShortNameTmpl: "GI{{.nodeId}}"
     LongNameTmpl: "ghost-gibson-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -452,13 +452,13 @@ Fleet:
   - Id: "ghost.ricky"
     Description: "ghost.ricky"
     BehaviourTag: ["nodeinfo", "position", "gitter", "chatbot"]
-    BehaviourSecs: 60
+    BehaviourSecs: 30
     RampSteadySecs: 2419200
     Seed: "efc432ab-4391-1212-efc3-1234c4fb382b"
     ShortNameTmpl: "GR{{.nodeId}}"
     LongNameTmpl: "ghost-ricky-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -489,13 +489,13 @@ Fleet:
   - Id: "ghost.dt"
     Description: "ghost.dt"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 600
+    BehaviourSecs: 30
     RampSteadySecs: 2419200
     Seed: "d7d7d7d7-1dc3-4a11-b383-000000000010"
     ShortNameTmpl: "DT{{.nodeId}}"
     LongNameTmpl: "ghost-dt-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -525,7 +525,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-swift-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -547,7 +547,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-dash-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -569,7 +569,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-comet-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -591,7 +591,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-nova-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -613,7 +613,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-echo-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -635,7 +635,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-vega-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -657,7 +657,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-orbit-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -679,7 +679,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-pixel-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -701,7 +701,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-raven-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -723,7 +723,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-scout-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -745,7 +745,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-ember-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -767,7 +767,7 @@ Fleet:
     ShortNameTmpl: "R{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-frost-{{.nodeId}}"
     NodesPerRampInterval: [1]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
     NodesPerSteadyInterval: [1]
     Distribution: "uniform"
@@ -783,15 +783,15 @@ Fleet:
   - Id: "rabbit.pack"
     Description: "rabbit.pack (25-runner LVCC Indoor group run)"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
-    BehaviourSecs: 30
+    BehaviourSecs: 2
     RampSteadySecs: 2419200
     Seed: "c0ffee01-2026-4dc3-9a11-000000000025"
     ShortNameTmpl: "RP{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-pack-{{.nodeId}}"
     NodesPerRampInterval: [25]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [25]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 5000
@@ -804,15 +804,15 @@ Fleet:
   - Id: "rabbit.nyc"
     Description: "rabbit.nyc (12-runner Manhattan group run)"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
-    BehaviourSecs: 30
+    BehaviourSecs: 3
     RampSteadySecs: 2419200
     Seed: "c0ffee02-2026-4dc3-9a11-000000000012"
     ShortNameTmpl: "RN{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-nyc-{{.nodeId}}"
     NodesPerRampInterval: [12]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [12]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 5000
@@ -825,15 +825,15 @@ Fleet:
   - Id: "rabbit.jpn"
     Description: "rabbit.jpn (12-runner Tokyo group run)"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
-    BehaviourSecs: 30
+    BehaviourSecs: 3
     RampSteadySecs: 2419200
     Seed: "c0ffee03-2026-4dc3-9a11-000000000012"
     ShortNameTmpl: "RJ{{.nodeId}}"
     LongNameTmpl: "rabbit-sim-jpn-{{.nodeId}}"
     NodesPerRampInterval: [12]
-    RampUpSecs: 2
+    RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [12]
+    NodesPerSteadyInterval: [1]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 5000
