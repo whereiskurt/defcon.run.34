@@ -118,6 +118,22 @@
   .s-down .badge { color:var(--down); background:rgba(239,68,68,.12); }
   .card .host { display:block; font-family:var(--font-mono); font-size:.68rem; color:var(--faint); margin-top:6px; }
 
+  /* ⚡ per-service perf probe — live latency (your device) + baked page weight */
+  .card .probe { margin-top:8px; display:flex; align-items:center; gap:8px; justify-content:flex-end; }
+  .ptest {
+    font-family:var(--font-mono); font-size:.6rem; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--brand); background:rgba(0,212,170,.10); border:1px solid var(--border);
+    border-radius:999px; padding:3px 9px; cursor:pointer; user-select:none; transition:.2s; white-space:nowrap;
+  }
+  .ptest:hover { border-color:var(--brand); box-shadow:0 0 12px #00d4aa22; }
+  .ptest:focus-visible { outline:none; border-color:var(--brand); box-shadow:0 0 12px #00d4aa33; }
+  .presult { font-family:var(--font-mono); font-size:.66rem; color:var(--faint); white-space:nowrap; }
+  .presult .snappy { color:var(--live); }
+  .presult .ok { color:var(--dev); }
+  .presult .heavy { color:var(--down); }
+  .presult .err { color:var(--down); }
+  .presult .busy { color:var(--muted); animation:blink 1s infinite; }
+
   .card.birthday { border-color:var(--party); box-shadow:0 0 30px rgba(168,85,247,.25); animation:slidein .5s ease-out; }
   @keyframes slidein { from{opacity:0;transform:translateY(-16px) scale(.97);} to{opacity:1;transform:none;} }
   .card.birthday .avatar { width:52px; height:52px; border-radius:12px; flex:none; object-fit:cover; border:2px solid var(--party); }
@@ -219,7 +235,11 @@
         '<div><div class="name">' + esc(s.name) + ' <span class="ver">' + esc(s.version || '') + '</span></div>' +
         '<div class="note">' + esc(s.note || '') + '</div></div>' +
         '<div class="meta"><span class="badge">' + (LABELS[s.state] || s.state) + '</span>' +
-        '<span class="host">' + esc(s.host || '') + '</span></div>';
+        '<span class="host">' + esc(s.host || '') + '</span>' +
+        '<span class="probe">' +
+          '<span class="ptest" role="button" tabindex="0" data-id="' + esc(s.id) + '">⚡ test</span>' +
+          '<span class="presult" data-result="' + esc(s.id) + '">' + probeCellHTML(s) + '</span>' +
+        '</span></div>';
       grid.appendChild(el);
     });
     document.getElementById('updated').textContent = 'updated ' + (DATA.updated || '—');
@@ -369,6 +389,66 @@
       const r = await fetch('./status.json', { cache:'no-store' });
       if (r.ok) { DATA = await r.json(); render(); }
     } catch(_) {}
+  }
+
+  // ---- ⚡ perf probe: LIVE latency (from the visitor's own connection) + BAKED page weight ----
+  // Size can't be read live cross-origin (transferSize zeroes without Timing-Allow-Origin),
+  // so size_kb is baked server-side by measure-size.mjs. Latency uses PerformanceResourceTiming
+  // `duration`, which IS exposed cross-origin without any header. Results are cached per id so
+  // the periodic status.json re-render doesn't wipe a number the visitor just saw.
+  const PROBE = {};
+  function fmtSize(kb){ if (kb == null) return ''; return kb >= 1024 ? (kb/1024).toFixed(1)+' MB' : Math.round(kb)+' KB'; }
+  function latClass(ms){ return ms < 300 ? 'snappy' : ms < 800 ? 'ok' : 'heavy'; }
+  function probeCellHTML(s){
+    const size = fmtSize(s.size_kb);
+    const sfx = size ? ' · ' + size : '';
+    const p = PROBE[s.id];
+    if (p && p.err) return '<span class="err">unreachable</span>' + sfx;
+    if (p && p.ms != null) return '<span class="' + latClass(p.ms) + '">' + p.ms + ' ms</span>' + sfx;
+    return size ? '<span class="idle">' + size + '</span>' : '<span class="idle">—</span>';
+  }
+  function probeCell(id){ return document.querySelector('.presult[data-result="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]'); }
+
+  async function runProbe(id){
+    const svc = (DATA.services || []).find(x => x.id === id);
+    if (!svc) return;
+    const url = svc.link || (svc.host ? 'https://' + svc.host : null);
+    if (!url) return;
+    const cell = probeCell(id);
+    if (cell) cell.innerHTML = '<span class="busy">…</span>' + (svc.size_kb != null ? ' · ' + fmtSize(svc.size_kb) : '');
+    const samples = [];
+    for (let i = 0; i < 3; i++) {
+      try {
+        performance.clearResourceTimings();
+        const t0 = performance.now();
+        await fetch(url, { mode:'no-cors', cache:'no-store' });
+        let dur = performance.now() - t0;
+        const es = performance.getEntriesByType('resource').filter(e => e.name.indexOf(url) === 0);
+        if (es.length && es[es.length-1].duration) dur = es[es.length-1].duration;
+        samples.push(dur);
+      } catch(_) {
+        PROBE[id] = { err:true };
+        const c = probeCell(id); if (c) c.innerHTML = probeCellHTML(svc);
+        return;
+      }
+    }
+    samples.sort((a,b) => a - b);
+    PROBE[id] = { ms: Math.round(samples[Math.floor(samples.length/2)]) };
+    const c = probeCell(id); if (c) c.innerHTML = probeCellHTML(svc);
+  }
+
+  // one delegated handler on the grid — survives the periodic re-render
+  function wireProbes(){
+    const grid = document.getElementById('grid');
+    const fire = (e) => {
+      const btn = e.target.closest('.ptest');
+      if (!btn) return;
+      if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault(); e.stopPropagation();
+      runProbe(btn.getAttribute('data-id'));
+    };
+    grid.addEventListener('click', fire);
+    grid.addEventListener('keydown', fire);
   }
   // ---- MATRIX RUN: the little runner living in the old marquee slot ----
   // Chrome-dino, Matrix-skinned. Neo auto-jogs; Space/tap jumps Agent Smith,
@@ -613,6 +693,7 @@
   (async function boot(){
     await fetchStatus();
     render();
+    wireProbes();
     remaining = DATA.poll_seconds || 300;
     tickRefresh();
     setInterval(tickRefresh, 1000);
