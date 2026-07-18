@@ -17,6 +17,7 @@ type RawRedirect = {
   status_code: string;
   priority?: number;
   splash_style?: string;
+  og?: { title?: string; description?: string; image?: string; image_file?: string };
 };
 
 /**

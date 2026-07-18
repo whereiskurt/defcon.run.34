@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { loadVanityRedirects } from "./vanity-redirects";
+import redirects from "@/data/redirects.json";
 
 describe("loadVanityRedirects", () => {
   const all = loadVanityRedirects();
@@ -32,6 +33,14 @@ describe("loadVanityRedirects", () => {
       expect(r.host).toBeTruthy();
       expect(r.fqdn).toContain(".defcon.run");
       expect(r.targetUrl.startsWith("https://")).toBe(true);
+    }
+  });
+
+  it("every record carries the og fields Terraform requires", () => {
+    for (const r of redirects as Array<{ og?: { title?: string; description?: string; image?: string } }>) {
+      expect(r.og?.title, `og.title on a record`).toBeTruthy();
+      expect(r.og?.description, `og.description`).toBeTruthy();
+      expect(r.og?.image, `og.image`).toBeTruthy();
     }
   });
 });
