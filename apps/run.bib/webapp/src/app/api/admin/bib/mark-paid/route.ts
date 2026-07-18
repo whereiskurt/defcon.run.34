@@ -2,6 +2,7 @@ import { z } from "zod";
 import { auth } from "@/config/auth";
 import { requireBibAdmin } from "@/lib/admin-gate";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { invalidateBib } from "@/lib/report-cache";
 import { applyPayment, getBib } from "@/entities/bib";
 
 /**
@@ -77,6 +78,7 @@ export async function POST(req: Request) {
       reconciled_via,
     });
 
+    invalidateBib(ownerSub);
     return Response.json({ ok: true, deduped }, { status: 200 });
   } catch (err) {
     console.error("[run.bib] /api/admin/bib/mark-paid:", err);

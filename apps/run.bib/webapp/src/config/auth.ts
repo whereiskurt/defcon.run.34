@@ -61,6 +61,11 @@ export async function fetchFreshClaims(userId: string): Promise<FreshClaimsResul
   try {
     const response = await fetch(`${validateUrl}/${userId}`, {
       method: "GET",
+      // Cap the internal claims-refresh so a slow/cold cross-container run.auth
+      // call can't block SSR render. On timeout fetch rejects → the catch below
+      // returns null → caller keeps the existing session (same fail-open path as
+      // any network error; a lockout propagates on the next refresh cycle).
+      signal: AbortSignal.timeout(2000),
       headers: {
         "Content-Type": "application/json",
         "X-Internal-Secret": INTERNAL_SECRET,

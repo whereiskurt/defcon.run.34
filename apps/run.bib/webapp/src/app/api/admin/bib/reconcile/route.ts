@@ -2,6 +2,7 @@ import { z } from "zod";
 import { auth } from "@/config/auth";
 import { requireBibAdmin } from "@/lib/admin-gate";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { invalidateBib } from "@/lib/report-cache";
 import { applyPayment, getBib } from "@/entities/bib";
 import { recordDonation, getDonation } from "@/entities/general-donation";
 import { clearPendingById } from "@/entities/pending-contribution";
@@ -118,6 +119,7 @@ export async function POST(req: Request) {
     // `deduped: true` means the marker already existed — the write was a no-op
     // and the amount was NOT changed. AdminActions surfaces this so an admin
     // correcting an amount knows the correction did not apply.
+    invalidateBib(ownerSub);
     return Response.json({ ok: true, deduped }, { status: 200 });
   } catch (err) {
     // Do NOT log the request body (payment intent details) or the internal

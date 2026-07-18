@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { auth } from "@/config/auth";
 import { requireBibAdmin } from "@/lib/admin-gate";
 import {
-  loadReports,
   buildDashboard,
   formatUsd,
   type ReportBundle,
@@ -11,6 +10,7 @@ import {
   type DashPoint,
   type DashEvent,
 } from "@/lib/admin-reports";
+import { getReportsCached } from "@/lib/report-cache";
 import {
   ReconcileAction,
   RejectAction,
@@ -57,7 +57,7 @@ export default async function AdminPage() {
     return <Forbidden />;
   }
 
-  const bundle = await loadReports();
+  const bundle = await getReportsCached();
   const base = apiBase();
   // Live-ops view-model (hero sparklines, revenue chart, 24h trends, ticker) —
   // derived from the same reconciled money. Date.now() is fine: force-dynamic.

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { auth } from "@/config/auth";
 import { requireBibAdmin } from "@/lib/admin-gate";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { invalidateBib, invalidateReports } from "@/lib/report-cache";
 import { denyPendingById } from "@/entities/pending-contribution";
 
 /**
@@ -48,6 +49,12 @@ export async function POST(req: Request) {
 
   try {
     await denyPendingById(parsed.data.pendingId, gate.email ?? "admin");
+    // pendingId = "pending:{ownerSub}:{kind}:{provider}:{amt}" — index [1] is
+    // the ownerSub. Invalidate that runner's cache too; fall back to the admin
+    // aggregate alone if the id doesn't parse.
+    const deniedOwnerSub = parsed.data.pendingId.split(":")[1];
+    if (deniedOwnerSub) invalidateBib(deniedOwnerSub);
+    else invalidateReports();
     return Response.json({ ok: true }, { status: 200 });
   } catch (err) {
     // Do not log the pending intent details — only the error.

@@ -1,10 +1,10 @@
 import { auth } from "@/config/auth";
 import { requireBibAdmin } from "@/lib/admin-gate";
 import {
-  loadReports,
   reportToCsv,
   type ReportType,
 } from "@/lib/admin-reports";
+import { getReportsCached } from "@/lib/report-cache";
 import { enrichPrintNames } from "@/lib/admin-report-enrich";
 
 /**
@@ -46,7 +46,7 @@ export async function GET(
   }
 
   try {
-    const bundle = await loadReports();
+    const bundle = await getReportsCached();
     // Only the vendor-facing print-names CSV pays the per-runner run.human
     // lookup cost (email + QR). Fail-open inside enrichPrintNames — blank cells,
     // never a failed download.

@@ -15,6 +15,7 @@ import { generateUniqueRunnerCode } from "@/lib/runner-code";
 import { verifyBibSolution } from "@/lib/altcha";
 import { maybeSyncRabbitName } from "@/lib/rabbit-name-sync";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { invalidateBib } from "@/lib/report-cache";
 
 /**
  * /api/bib — read / idempotent create / edit the signed-in user's bib.
@@ -147,6 +148,8 @@ export async function POST(req: NextRequest) {
   try {
     const runnerCode = await generateUniqueRunnerCode();
     const bib = await createBib(ownerSub, runnerCode);
+    // New bib row → drop the admin aggregate + this owner's cache.
+    invalidateBib(ownerSub);
     // createBib returns the pre-existing bib if a race lost the create call;
     // treat it as success either way.
     return NextResponse.json(
@@ -282,6 +285,8 @@ export async function PATCH(req: NextRequest) {
       // above, so a { burned: true } patch torches the bib on its own.
       bib = await updateBibBurned(session.user.id, parsed.data.burned);
     }
+    // Any of name / pledge / burn mutated this owner's bib → drop caches.
+    invalidateBib(session.user.id);
     return NextResponse.json(
       { bib, renamesRemaining, togglesRemaining },
       { status: 200 }

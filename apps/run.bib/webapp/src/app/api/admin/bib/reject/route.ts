@@ -2,6 +2,7 @@ import { z } from "zod";
 import { auth } from "@/config/auth";
 import { requireBibAdmin } from "@/lib/admin-gate";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { invalidateBib } from "@/lib/report-cache";
 import { Bib } from "@/entities/bib";
 import {
   clearPendingForOwner,
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
       console.warn("[run.bib] /api/admin/bib/reject: quota reset failed:", quotaErr);
     }
 
+    invalidateBib(ownerSub);
     return Response.json({ ok: true }, { status: 200 });
   } catch (err) {
     // Do NOT log the request body or the internal secret — only the error.
