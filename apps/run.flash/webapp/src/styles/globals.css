@@ -125,7 +125,14 @@ html.light .glass-nav {
 /* Flasher-specific: Matrix/hacker green terminal text */
 .matrix-text {
   color: #00ff41;
-  text-shadow: 0 0 8px #00ff4180, 0 0 16px #00ff4140;
+  text-shadow: 0 0 6px #00ff4166, 0 0 14px #00ff4133;
+}
+
+/* Light theme: neon green washes out on white — use a deep, high-contrast
+   green and drop the glow so the text stays legible (WCAG AA). */
+html.light .matrix-text {
+  color: #047a3c;
+  text-shadow: none;
 }
 
 /* CTA pulse: draws attention when step is ready to advance */

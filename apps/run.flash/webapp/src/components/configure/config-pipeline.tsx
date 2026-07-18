@@ -112,7 +112,7 @@ function getStageStatus(
 
 function StageIcon({ status }: { status: StageStatus }) {
   if (status === "complete")
-    return <CheckCircle2 className="w-5 h-5 text-teal-400" />;
+    return <CheckCircle2 className="w-5 h-5 text-primary" />;
   if (status === "error") return <XCircle className="w-5 h-5 text-danger" />;
   if (status === "active") return <Spinner size="sm" classNames={{ circle1: "border-b-teal-400", circle2: "border-b-teal-400" }} />;
   return <Circle className="w-5 h-5 text-default-600" />;
@@ -147,8 +147,8 @@ function PipelineStage({
         <Icon
           className={clsx(
             "w-5 h-5",
-            status === "complete" && "text-teal-400",
-            status === "active" && "text-teal-400",
+            status === "complete" && "text-primary",
+            status === "active" && "text-primary",
             status === "error" && "text-danger",
             status === "pending" && "text-default-600"
           )}
@@ -160,8 +160,8 @@ function PipelineStage({
         <span
           className={clsx(
             "text-sm font-mono inline-flex items-center gap-2",
-            status === "complete" && "text-teal-400",
-            status === "active" && "text-teal-400",
+            status === "complete" && "text-primary",
+            status === "active" && "text-primary",
             status === "error" && "text-danger",
             status === "pending" && "text-default-600"
           )}

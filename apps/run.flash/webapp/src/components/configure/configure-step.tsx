@@ -177,9 +177,9 @@ export function ConfigureStep({
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
               {/* Left: success info */}
               <div className="min-w-0 flex items-center gap-3">
-                <CheckCircle2 className="w-8 h-8 text-teal-400 flex-shrink-0" />
+                <CheckCircle2 className="w-8 h-8 text-primary flex-shrink-0" />
                 <div>
-                  <h3 className="font-mono text-lg text-teal-400">
+                  <h3 className="font-mono text-lg text-primary">
                     Configuration Complete!
                   </h3>
                   <p className="text-sm text-default-400">

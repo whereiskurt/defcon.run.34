@@ -95,16 +95,19 @@ module.exports = {
             content3: '#222230',
             content4: '#2a2a3a',
             divider: '#2a2a3a',
+            // Inverted ramp (low = dark surface, high = light text). 400–700
+            // lifted so muted body text clears WCAG AA (4.5:1) on the near-black
+            // background — the old 400 (#555570) was ~2.7:1 and unreadable.
             default: {
               50: '#111118',
               100: '#1a1a24',
               200: '#222230',
               300: '#2a2a3a',
-              400: '#555570',
-              500: '#8888a0',
-              600: '#9999b0',
-              700: '#aaaac0',
-              800: '#ccccdd',
+              400: '#7e7e98',
+              500: '#9090a8',
+              600: '#a6a6bc',
+              700: '#bcbcce',
+              800: '#d0d0de',
               900: '#e4e4ef',
               DEFAULT: '#2a2a3a',
               foreground: '#e4e4ef',
@@ -128,6 +131,23 @@ module.exports = {
             content3: '#eeeeee',
             content4: '#e0e0e0',
             divider: '#e0e0e0',
+            // Normal ramp (low = light surface, high = dark text). 400/500 are
+            // darkened from HeroUI's stock light scale so the same muted-text
+            // classes used in dark mode also clear AA on the white background.
+            default: {
+              50: '#fafafa',
+              100: '#f4f4f5',
+              200: '#e4e4e7',
+              300: '#d4d4d8',
+              400: '#6b6b76',
+              500: '#52525b',
+              600: '#3f3f46',
+              700: '#2e2e33',
+              800: '#1f1f24',
+              900: '#111114',
+              DEFAULT: '#d4d4d8',
+              foreground: '#18181b',
+            },
           },
         },
       },

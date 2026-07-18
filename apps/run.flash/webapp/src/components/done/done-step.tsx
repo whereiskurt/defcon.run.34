@@ -57,10 +57,10 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           {/* Left: celebration info */}
           <div className="min-w-0 flex items-center gap-3">
             <div className="animate-[scale-in_0.3s_ease-out]">
-              <CheckCircle2 className="w-12 h-12 text-teal-400 drop-shadow-[0_0_24px_rgba(20,184,166,0.4)] flex-shrink-0" />
+              <CheckCircle2 className="w-12 h-12 text-primary drop-shadow-[0_0_24px_rgba(20,184,166,0.4)] flex-shrink-0" />
             </div>
             <div>
-              <h2 className="font-mono text-2xl text-teal-400">Setup Complete!</h2>
+              <h2 className="font-mono text-2xl text-primary">Setup Complete!</h2>
               <p className="text-sm text-default-400 mt-1">
                 Your device is configured and ready for the DEF CON 34 mesh network.
               </p>
@@ -145,7 +145,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
       ) : (
         <div className="glass-card rounded-xl p-5">
           <div className="flex flex-col items-center gap-3 text-center">
-            <CheckCircle2 className="w-8 h-8 text-teal-400" />
+            <CheckCircle2 className="w-8 h-8 text-primary" />
             <p className="text-sm text-default-400">
               Your device has been successfully configured.
             </p>
@@ -169,9 +169,9 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
             </>
           ) : registrationStatus.state === "success" ? (
             <>
-              <Radio className="w-5 h-5 text-teal-400 flex-shrink-0" />
+              <Radio className="w-5 h-5 text-primary flex-shrink-0" />
               <div className="text-sm">
-                <span className="text-teal-400 font-mono">{registrationStatus.nodeId}</span>
+                <span className="text-primary font-mono">{registrationStatus.nodeId}</span>
                 <span className="text-default-400">
                   {registrationStatus.updated
                     ? " — keys updated on your profile"
@@ -219,8 +219,8 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
 
         <ol className="space-y-4">
           <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-400/10 flex items-center justify-center mt-0.5">
-              <span className="text-xs font-mono text-teal-400">1</span>
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+              <span className="text-xs font-mono text-primary">1</span>
             </div>
             <div>
               <a
@@ -239,8 +239,8 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           </li>
 
           <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-400/10 flex items-center justify-center mt-0.5">
-              <span className="text-xs font-mono text-teal-400">2</span>
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+              <span className="text-xs font-mono text-primary">2</span>
             </div>
             <div>
               <p className="text-sm text-foreground inline-flex items-center gap-1">
@@ -254,8 +254,8 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           </li>
 
           <li className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-teal-400/10 flex items-center justify-center mt-0.5">
-              <span className="text-xs font-mono text-teal-400">3</span>
+            <div className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mt-0.5">
+              <span className="text-xs font-mono text-primary">3</span>
             </div>
             <div>
               <p className="text-sm text-foreground inline-flex items-center gap-1">
