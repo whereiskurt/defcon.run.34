@@ -1,5 +1,6 @@
 import { Entity, type EntityItem } from "electrodb";
 import { electroClient, ELECTRO_TABLE } from "./client";
+import { ensureRunHumanProfile } from "@/lib/rabbit-name-sync";
 
 /**
  * GeneralDonation Entity (Phase 22-05, Kurt 2026-07-02 rescope).
@@ -163,6 +164,14 @@ export async function recordDonation(
     const result = await GeneralDonation.create(
       payload as Parameters<typeof GeneralDonation.create>[0]
     ).go();
+
+    // Every non-anonymous donor gets a run.human identity + social QR (Kurt
+    // 2026-07-18). Only on a FRESH create (retries hit the ConditionalCheckFailed
+    // path below, which returns without re-pinging). Fail-open + timeout-bounded.
+    if (input.ownerSub) {
+      await ensureRunHumanProfile(input.ownerSub);
+    }
+
     return result.data;
   } catch (err) {
     // ConditionalCheckFailed means the same donationId is already in

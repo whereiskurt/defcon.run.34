@@ -75,6 +75,25 @@ export async function syncRabbitName(
 }
 
 /**
+ * Ensure the runner has a run.human identity (profile + social QR), provisioning
+ * one if missing (Kurt 2026-07-18). Called at the money chokepoints (applyPayment,
+ * recordDonation) so EVERY bib purchaser and donor gets a run.human QR — not just
+ * runners who saved a bib name.
+ *
+ * Sends an empty displayName: the run.human PATCH provisions the identity when no
+ * account maps to the sub (idempotent — a no-op once it exists) and, with an empty
+ * name, sets no display name (the bib name syncs separately via maybeSyncRabbitName
+ * / sync-bib-names). Fail-open: never throws, so a provision miss can never fail or
+ * delay the payment/donation write beyond SYNC_TIMEOUT_MS.
+ */
+export async function ensureRunHumanProfile(ownerSub: string): Promise<void> {
+  if (!ownerSub) return;
+  // syncRabbitName PATCHes {displayName:""} and swallows all errors → identity
+  // provisioned-if-missing, name untouched. We ignore the boolean result.
+  await syncRabbitName(ownerSub, "");
+}
+
+/**
  * Normalize + guard + best-effort sync. Never throws.
  * - "skipped": name too short to be a valid rabbit name (nothing sent).
  * - "synced":  run.human accepted the write (2xx).
