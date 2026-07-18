@@ -1,5 +1,6 @@
 import mapboxgl from 'mapbox-gl';
 import { buildRainbowFeatures, isArchActiveNow, RAINBOW_ARCHES, pitchOpacity } from './rainbow-geometry';
+import { openEggModal } from './egg-modal';
 
 const SOURCE = 'dc34-rainbow';
 const LAYER = 'dc34-rainbow-arch';
@@ -24,6 +25,9 @@ export class RainbowArch {
     private built = false;
     private unlocked = false;
     private pitchFn: (() => void) | null = null;
+    private clickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
+    private enterFn: (() => void) | null = null;
+    private leaveFn: (() => void) | null = null;
     private timer: ReturnType<typeof setInterval> | null = null;
 
     constructor(map: mapboxgl.Map) {
@@ -64,6 +68,20 @@ export class RainbowArch {
             // Reveal ramps with pitch, live.
             this.pitchFn = () => this.applyOpacity();
             this.map.on('pitch', this.pitchFn);
+
+            // Click an arch → its route-style modal (keyed by the feature's archId).
+            this.clickFn = (e) => {
+                const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
+                const archId = f?.properties?.archId as string | undefined;
+                if (archId) void openEggModal(this.map, archId, e.lngLat);
+            };
+            this.map.on('click', LAYER, this.clickFn);
+
+            // Pointer affordance.
+            this.enterFn = () => (this.map.getCanvas().style.cursor = 'pointer');
+            this.leaveFn = () => (this.map.getCanvas().style.cursor = '');
+            this.map.on('mouseenter', LAYER, this.enterFn);
+            this.map.on('mouseleave', LAYER, this.leaveFn);
         }
         this.built = true;
     }
@@ -113,6 +131,10 @@ export class RainbowArch {
             this.map.off('pitch', this.pitchFn);
             this.pitchFn = null;
         }
+        if (this.clickFn) this.map.off('click', LAYER, this.clickFn);
+        if (this.enterFn) this.map.off('mouseenter', LAYER, this.enterFn);
+        if (this.leaveFn) this.map.off('mouseleave', LAYER, this.leaveFn);
+        this.clickFn = this.enterFn = this.leaveFn = null;
         if (this.map.getLayer(LAYER)) this.map.removeLayer(LAYER);
         if (this.map.getSource(SOURCE)) this.map.removeSource(SOURCE);
         this.built = false;
