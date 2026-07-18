@@ -7,17 +7,24 @@
      * LayerControl so it lives in the studio's own DOM tree (unlike the old
      * imperative cue, which never reliably appeared on the live map).
      */
-    import { refreshCues, type CueKey, type CueState } from '$lib/stores/refresh-cue';
+    import { refreshCues, type CueState } from '$lib/stores/refresh-cue';
 
     const R = 14;
     const CIRC = 2 * Math.PI * R;
-    const ORDER: CueKey[] = ['rabbits', 'ghosts'];
 
     function nowMs(): number {
         return typeof performance !== 'undefined' ? performance.now() : Date.now();
     }
 
-    let visible = $derived(ORDER.map((k) => $refreshCues[k]).filter((c) => c.active));
+    // Only ever show ONE cue: the ghost countdown replaces the rabbit one while
+    // ghost mode is active (ghosts take precedence), and the rabbit cue returns
+    // once ghosts switch off. Never both at once.
+    let visible = $derived.by(() => {
+        const { rabbits, ghosts } = $refreshCues;
+        if (ghosts.active) return [ghosts];
+        if (rabbits.active) return [rabbits];
+        return [];
+    });
 
     // Frame counter — reading it inside the frac/remaining helpers registers a
     // reactive dependency, so the template redraws every animation frame. The
