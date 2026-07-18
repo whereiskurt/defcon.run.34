@@ -539,19 +539,35 @@
             <Heart size="16" fill="currentColor" />
             <span class="font-semibold text-sm hidden md:block">gpx.studio</span>
         </a>
-        <!-- Right-most: "Add run" (opens the QuickStart hub) — auth-gated like the hub. -->
+        <!-- Right-most: "Add run" (opens the QuickStart hub) — auth-gated like the hub.
+             Desktop only: on mobile it lives as a map-corner FAB (below) so the bar
+             doesn't overflow to a 2nd row on narrow screens. -->
         {#if $isAuthenticated && $hasGpxStudioAccess}
             <button
-                class="add-run-glow flex items-center gap-1.5 rounded-full font-semibold ml-2"
+                class="add-run-glow hidden md:flex items-center gap-1.5 rounded-full font-semibold ml-2"
                 onclick={() => quickStartOpen.set(true)}
                 aria-label="Add run"
             >
                 <Footprints size="18" />
-                <span class="hidden md:block">Add run</span>
+                <span>Add run</span>
             </button>
         {/if}
     </div>
 </div>
+
+<!-- Mobile-only "Add run" FAB: floats at the map's bottom-right corner (its
+     pre-#701 home) so the top menu bar stays a single row on narrow screens.
+     Anchors to the `.grow.relative` map area, above the elevation profile. -->
+{#if $isAuthenticated && $hasGpxStudioAccess}
+    <button
+        class="add-run-fab add-run-glow md:hidden absolute bottom-6 right-4 z-30 flex items-center gap-1.5 rounded-full font-semibold px-4 py-2.5 shadow-lg pointer-events-auto"
+        onclick={() => quickStartOpen.set(true)}
+        aria-label="Add run"
+    >
+        <Footprints size="18" />
+        Add run
+    </button>
+{/if}
 
 <Export />
 <CloudStorage />
