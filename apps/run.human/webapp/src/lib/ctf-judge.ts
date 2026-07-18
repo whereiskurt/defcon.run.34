@@ -1,5 +1,5 @@
 import { Ctf } from "@/entities/qr";
-import { CtfSolve, CtfAttempt, CtfScoreEvent, CtfCode } from "@/entities/ctf";
+import { CtfSolve, CtfAttempt, CtfScoreEvent, CtfCode, CtfOtpClaim } from "@/entities/ctf";
 import { RunUser } from "@/entities/run-user";
 import {
   computePoints,
@@ -10,6 +10,7 @@ import {
 import { verifyAnswer, verifyAnswerHash, hashAnswer } from "./ctf-hash";
 import { isRepeatable, scoreBucket } from "./ctf-flag-types";
 import { verifyTotp } from "./ctf-otp";
+import { otpCodeHash, otpClaimTtlSeconds } from "./ctf-otp-claim";
 import { isWithinScoreWindow, type ScoreWindow } from "./ctf-score-window";
 import { ctfJudgeLog, emit } from "./ctf-log";
 
@@ -97,6 +98,13 @@ export interface JudgeOtp {
   period?: number;
   algorithm?: string;
   skew?: number;
+  /**
+   * First-come single-use (Phase 65, CTFT-17). When true, a given rolling code is
+   * consumed globally by the FIRST logged-in redeemer (the judge's single-use OTP
+   * finalize) — everyone else gets an indistinguishable NON_SOLVE. Absent/false ⇒
+   * the SHARED repeatable path (every valid code scores per player), UNCHANGED.
+   */
+  singleUse?: boolean;
 }
 
 export interface JudgeCtf extends ScoringConfig {
@@ -253,6 +261,34 @@ export interface CtfStore {
     user: string;
     claimedAt: string;
   }): Promise<{ claimed: boolean }>;
+
+  // --- Single-use OTP claim (Phase 65, CTFT-17) — OPTIONAL. --------------------
+  /**
+   * The ATOMIC single-use claim for a SINGLE-USE OTP code (`otp.singleUse`). A
+   * CREATE-IF-ABSENT conditional put of a `CtfOtpClaim` row keyed (challenge,
+   * codeHash): `attribute_not_exists` on the key means the FIRST concurrent
+   * claimer of a code wins (`claimed:true`); a code already consumed, the WINNER
+   * re-submitting (row exists), or an ABSENT op all read as `claimed:false` — the
+   * indistinguishable non-solve. `claimedBy` on a loss carries the winning user.
+   *
+   * Distinct from `claimCode` (Slice-3 wordlist), which is a PATCH-if-exists over a
+   * PRE-LOADED pool — single-use OTP has NO pool (the valid code is live-generated
+   * by TOTP), so the claim must CREATE the row. `ttl` is the DynamoDB TTL epoch
+   * seconds so the consumed-code marker auto-expires.
+   *
+   * Catch discipline mirrors `claimSolve`/`claimCode`: a claim collision (row
+   * present) ⇒ `{claimed:false, claimedBy}`; any OTHER error rethrows so
+   * `judgeSolve` degrades to a non-solve rather than mis-report a win. NEVER log
+   * the codeHash or guess. OPTIONAL so a store built only for the static/shared-otp
+   * path stays type-clean.
+   */
+  claimOtpCode?(args: {
+    challenge: string;
+    codeHash: string;
+    user: string;
+    claimedAt: string;
+    ttl: number;
+  }): Promise<{ claimed: boolean; claimedBy?: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -437,6 +473,50 @@ export async function judgeSolve(
       return { solved: true, points, ordinal: n, firstBlood, capped, effect: points > 0 ? ctf.effect : undefined };
     }
 
+    // (SU) SINGLE-USE OTP finalize (Phase 65, CTFT-17). Placed BEFORE the generic
+    // isRepeatable block (guards are mutually exclusive; order is immaterial) so a
+    // singleUse OTP flag NEVER falls into the per-player time-bucket path. Reached
+    // only AFTER the step-4 verifyTotp gate above, so `ok` is already true here —
+    // the code is a CURRENTLY-VALID TOTP and the claim only ever consumes a valid
+    // code. The atomic CtfOtpClaim create-if-absent IS the single-use guard (like
+    // the wordlist CtfCode claim), so this path NEVER calls claimScoreEvent, and
+    // recordScoreEvent MUST upsert (defaultStore.recordScoreEvent already does — no
+    // row pre-exists). No perPlayerMax gate: a globally single-use code is the
+    // natural bound (mirrors the wordlist finalize). A lost/consumed code, the
+    // WINNER re-submitting, or an absent op ALL return the SAME NON_SOLVE a wrong
+    // code yields (indistinguishable) — and NEVER re-accrue (no double-award). Never
+    // pass the guess/codeHash to the logger.
+    if (ctf.answerType === "otp" && ctf.otp?.singleUse === true) {
+      // OTP has no covert guessHash path (verifyTotp needs the raw code — see the
+      // step-4 comment), so the claim key is hashed from the raw guess. Never log it.
+      const otpHash = otpCodeHash(guess ?? "");
+      const ttl = otpClaimTtlSeconds(now, ctf.otp);
+      const claim = store.claimOtpCode
+        ? await store.claimOtpCode({ challenge, codeHash: otpHash, user, claimedAt: scoredAt, ttl })
+        : { claimed: false };
+      if (!claim.claimed) {
+        log(ctfJudgeLog({ challenge, result: "no-solve" }));
+        return NON_SOLVE;
+      }
+      // Winner: score through the EXISTING codeHash-keyed ledger + accrue path,
+      // mirroring the wordlist finalize R3/R4 verbatim.
+      const n = await store.allocateOrdinal(challenge);
+      if ((ctf.globalMax ?? 0) > 0 && n > (ctf.globalMax as number)) {
+        log(ctfJudgeLog({ challenge, result: "capped" }));
+        return { solved: true, points: 0, ordinal: n, firstBlood: false, capped: true };
+      }
+      const points = computePoints(n, ctf, now);
+      const capped = points === 0;
+      const firstBlood = n === 1;
+      const tierCeiling = activeTierCeiling(now, ctf.timeTiers) ?? ctf.pointMax;
+      if (store.recordScoreEvent) {
+        await store.recordScoreEvent({ challenge, user, bucket: otpHash, points, tierCeiling, channel });
+      }
+      await store.accrue({ user, points });
+      log(ctfJudgeLog({ challenge, result: capped ? "capped" : "solve" }));
+      return { solved: true, points, ordinal: n, firstBlood, capped, effect: points > 0 ? ctf.effect : undefined };
+    }
+
     // (R) REPEATABLE path (flag-types D-04/D-05). A flag that is otp, or allows
     // >1 solve per player, or sets a per-player cadence writes the append-only
     // CtfScoreEvent ledger instead of the once-ever CtfSolve. The once-per-window
@@ -597,6 +677,7 @@ function narrowCtf(row: {
     period?: number;
     algorithm?: string;
     skew?: number;
+    singleUse?: boolean;
   };
   unlockAfter?: string;
   perPlayerIntervalHours?: number;
@@ -814,6 +895,27 @@ export const defaultStore: CtfStore = {
       const existing = await CtfCode.get({ challenge, codeHash }).go();
       if (existing.data && !existing.data.claimedBy) throw err;
       return { claimed: false };
+    }
+  },
+
+  // --- Single-use OTP claim (Phase 65, CTFT-17). ------------------------------
+  async claimOtpCode({ challenge, codeHash, user, claimedAt, ttl }) {
+    try {
+      // ElectroDB create adds attribute_not_exists on the (challenge, codeHash)
+      // key → a conditional put. Two concurrent claimers of the SAME code collide
+      // and EXACTLY one wins (no read-then-write race). claimedBy is written by the
+      // winning create (there is no pre-loaded pool, unlike CtfCode). ttl is the
+      // DynamoDB TTL so the consumed-code marker auto-expires. Never log codeHash/guess.
+      await CtfOtpClaim.create({ challenge, codeHash, claimedBy: user, claimedAt, ttl }).go();
+      return { claimed: true };
+    } catch (err) {
+      // A condition failure means the row already exists (code already consumed, or
+      // the winner re-submitting). Read it to carry claimedBy. If NO row is present
+      // the failure was NOT a claim collision — rethrow so judgeSolve degrades to a
+      // non-solve rather than mis-report a win (mirrors claimSolve/claimCode).
+      const existing = await CtfOtpClaim.get({ challenge, codeHash }).go();
+      if (!existing.data) throw err;
+      return { claimed: false, claimedBy: existing.data.claimedBy };
     }
   },
 
