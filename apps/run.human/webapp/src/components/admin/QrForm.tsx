@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 
 import { cls, QR_ORIGIN } from "./qr-ui";
 import { postQrAction } from "./qr-api";
+import ScheduleEditor from "./ScheduleEditor";
+import {
+  ptWallClockToUtcIso,
+  utcToPtParts,
+  type ScheduleEntry,
+} from "@/lib/qr-schedule";
 
 /** Loose row shapes — mirror the entity's permissive rules/enrich maps. */
 interface RuleRow {
@@ -21,6 +27,7 @@ export interface QrRecord {
   type?: string;
   destination?: string;
   rules?: Array<{ kind?: string; from?: string; to?: string; match?: string; dest?: string }>;
+  schedule?: Array<{ startsAt?: string; dest?: string; label?: string }>;
   enrich?: {
     preserveQuery?: boolean;
     appendParam?: boolean;
@@ -155,6 +162,12 @@ export default function QrForm({
       dest: r.dest,
     }))
   );
+  const [schedule, setSchedule] = useState<ScheduleEntry[]>(
+    (initial?.schedule ?? [])
+      .filter((e): e is { startsAt: string; dest?: string; label?: string } => !!e?.startsAt)
+      .map((e) => ({ startsAt: e.startsAt, dest: e.dest ?? "", label: e.label }))
+  );
+  const hasSchedule = schedule.length > 0;
   const [preserveQuery, setPreserveQuery] = useState(initial?.enrich?.preserveQuery ?? false);
   const [appendParam, setAppendParam] = useState(initial?.enrich?.appendParam ?? false);
   const [utmSource, setUtmSource] = useState(initial?.enrich?.utm?.source ?? "");
@@ -170,55 +183,108 @@ export default function QrForm({
     setRules((rs) => rs.map((r) => (r._id === id ? { ...r, ...patch } : r)));
   }
 
-  async function onSave() {
-    setError(null);
-    // Fast client-side guard (server re-validates authoritatively): a rule with
-    // no https destination would 502 the resolver, so refuse to save one.
+  /**
+   * Build the qr_upsert payload. When a schedule exists it is the source of
+   * truth — the server compiles it into `rules` and IGNORES any raw rules — so
+   * we send the schedule and an empty raw-rules list to avoid two editors
+   * fighting. `scheduleArg` lets Publish-now save an appended schedule directly.
+   */
+  function buildQr(scheduleArg: ScheduleEntry[]) {
+    const scheduled = scheduleArg.length > 0;
+    return {
+      code,
+      type: "redirect",
+      destination,
+      enabled,
+      owner,
+      notes,
+      schedule: scheduleArg,
+      rules: scheduled
+        ? []
+        : rules.map((r) =>
+            r.kind === "time"
+              ? { kind: "time", from: r.from ?? "", to: r.to ?? "", dest: r.dest ?? "" }
+              : { kind: "param", match: r.match ?? "", dest: r.dest ?? "" }
+          ),
+      enrich: {
+        preserveQuery,
+        appendParam,
+        utm: { source: utmSource, medium: utmMedium, campaign: utmCampaign },
+      },
+    };
+  }
+
+  /** Fast client guard mirroring the server (which re-validates authoritatively). */
+  function validate(scheduleArg: ScheduleEntry[]): string | null {
+    if (scheduleArg.length > 0) {
+      for (let i = 0; i < scheduleArg.length; i++) {
+        const e = scheduleArg[i];
+        const where = `Switch-point ${i + 1}`;
+        if (!(e.dest ?? "").trim()) return `${where} needs a destination.`;
+        if (!/^https:\/\//i.test((e.dest ?? "").trim()))
+          return `${where} destination must be an https:// URL.`;
+        if (!e.startsAt || Number.isNaN(Date.parse(e.startsAt)))
+          return `${where} needs a valid time.`;
+      }
+      return null;
+    }
     for (let i = 0; i < rules.length; i++) {
       const r = rules[i];
       const where = `Rule ${i + 1}`;
-      if (!(r.dest ?? "").trim()) {
-        setError(`${where} needs a destination.`);
-        return;
-      }
-      if (!/^https:\/\//i.test((r.dest ?? "").trim())) {
-        setError(`${where} destination must be an https:// URL.`);
-        return;
-      }
-      if (r.kind === "time" && (!r.from || !r.to)) {
-        setError(`${where} (time) needs a From and a To — use a preset or the pickers.`);
-        return;
-      }
-      if (r.kind === "param" && !(r.match ?? "").trim()) {
-        setError(`${where} (param) needs a match value (use * for any).`);
-        return;
-      }
+      if (!(r.dest ?? "").trim()) return `${where} needs a destination.`;
+      if (!/^https:\/\//i.test((r.dest ?? "").trim()))
+        return `${where} destination must be an https:// URL.`;
+      if (r.kind === "time" && (!r.from || !r.to))
+        return `${where} (time) needs a From and a To — use a preset or the pickers.`;
+      if (r.kind === "param" && !(r.match ?? "").trim())
+        return `${where} (param) needs a match value (use * for any).`;
+    }
+    return null;
+  }
+
+  async function onSave() {
+    setError(null);
+    const problem = validate(schedule);
+    if (problem) {
+      setError(problem);
+      return;
     }
     setBusy(true);
     try {
-      const qr = {
-        code,
-        type: "redirect",
-        destination,
-        enabled,
-        owner,
-        notes,
-        rules: rules.map((r) =>
-          r.kind === "time"
-            ? { kind: "time", from: r.from ?? "", to: r.to ?? "", dest: r.dest ?? "" }
-            : { kind: "param", match: r.match ?? "", dest: r.dest ?? "" }
-        ),
-        enrich: {
-          preserveQuery,
-          appendParam,
-          utm: { source: utmSource, medium: utmMedium, campaign: utmCampaign },
-        },
-      };
-      await postQrAction({ action: "qr_upsert", qr });
+      await postQrAction({ action: "qr_upsert", qr: buildQr(schedule) });
       router.push("/admin/qr");
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed.");
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Publish now — append a switch-point at the current Vegas minute and save
+   * immediately, flipping where the code points live (within ~60s of resolver
+   * cache). Works on the code as currently entered.
+   */
+  async function onPublishNow() {
+    setError(null);
+    const dest = window.prompt("Publish now — destination URL (https://…):", "");
+    if (!dest) return;
+    const p = utcToPtParts(new Date().toISOString());
+    const startsAt = ptWallClockToUtcIso(p.y, p.mo1, p.d, p.h, p.mi);
+    const next: ScheduleEntry[] = [...schedule, { startsAt, dest: dest.trim() }];
+    const problem = validate(next);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    setSchedule(next);
+    setBusy(true);
+    try {
+      await postQrAction({ action: "qr_upsert", qr: buildQr(next) });
+      router.refresh();
+      setBusy(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Publish failed.");
       setBusy(false);
     }
   }
@@ -279,7 +345,27 @@ export default function QrForm({
         </p>
       </div>
 
-      {/* Rules */}
+      {/* Schedule (dynamic scheduled code) */}
+      <div className={cls.cardPad}>
+        <div className="flex justify-between items-center mb-2.5 gap-2 flex-wrap">
+          <label className={`${cls.label} mb-0`}>
+            Schedule — dynamic scheduled code (timeline of switch-points)
+          </label>
+          <button
+            type="button"
+            className={cls.btn}
+            onClick={onPublishNow}
+            disabled={busy}
+            title="Append a switch-point at the current Vegas minute and save now"
+          >
+            ⚡ Publish now
+          </button>
+        </div>
+        <ScheduleEditor value={schedule} onChange={setSchedule} />
+      </div>
+
+      {/* Rules — raw conditional rules. A schedule (above) compiles into these and
+          owns them, so the raw editor is disabled while a schedule exists. */}
       <div className={cls.cardPad}>
         <div className="flex justify-between items-center mb-2.5 gap-2 flex-wrap">
           <label className={`${cls.label} mb-0`}>
@@ -289,6 +375,7 @@ export default function QrForm({
             <button
               type="button"
               className={cls.btn}
+              disabled={hasSchedule}
               onClick={() =>
                 setRules((rs) => [...rs, { _id: rid(), kind: "param", match: "", dest: "" }])
               }
@@ -298,6 +385,7 @@ export default function QrForm({
             <button
               type="button"
               className={cls.btn}
+              disabled={hasSchedule}
               onClick={() =>
                 setRules((rs) => [
                   ...rs,
@@ -310,7 +398,14 @@ export default function QrForm({
           </div>
         </div>
 
-        {rules.length === 0 ? (
+        {hasSchedule ? (
+          <p className="text-[13px] text-warning">
+            Rules are generated from the schedule above. Clear the schedule to edit
+            raw rules directly.
+          </p>
+        ) : null}
+
+        {hasSchedule ? null : rules.length === 0 ? (
           <p className="text-[13px] text-default-400">
             No rules — every scan uses the default destination.
           </p>
