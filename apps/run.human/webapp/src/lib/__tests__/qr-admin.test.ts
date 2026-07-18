@@ -5,6 +5,7 @@ import {
   normalizeChallenge,
   validateDestination,
   upsertQr,
+  qrAttributes,
   ctfAttributes,
   hashCodeBatch,
   QrValidationError,
@@ -126,6 +127,52 @@ describe("upsertQr validation ordering", () => {
         rules: [{ kind: "param", match: "", dest: "https://x.example" }],
       })
     ).rejects.toBeInstanceOf(QrValidationError);
+  });
+});
+
+describe("qrAttributes schedule compilation", () => {
+  it("compiles switch-points into consecutive time rules (sorted, open-ended last)", () => {
+    const attrs = qrAttributes({
+      code: "rickroll",
+      destination: "https://run.defcon.run/use1/welcome",
+      schedule: [
+        { startsAt: "2026-08-06T18:00:00.000Z", dest: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+        { startsAt: "2026-08-06T15:00:00.000Z", dest: "https://run.defcon.run/use1/welcome" },
+      ],
+    });
+    expect(attrs.rules).toEqual([
+      { kind: "time", from: "2026-08-06T15:00:00.000Z", to: "2026-08-06T18:00:00.000Z", dest: "https://run.defcon.run/use1/welcome" },
+      { kind: "time", from: "2026-08-06T18:00:00.000Z", to: "2999-01-01T00:00:00.000Z", dest: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+    ]);
+    expect(attrs.schedule).toHaveLength(2);
+  });
+
+  it("persists an empty schedule + leaves raw rules in charge when schedule is absent", () => {
+    const attrs = qrAttributes({
+      code: "plain",
+      destination: "https://run.defcon.run",
+      rules: [{ kind: "param", match: "*", dest: "https://x.example/" }],
+    });
+    expect(attrs.schedule).toEqual([]);
+    expect(attrs.rules).toEqual([{ kind: "param", match: "*", dest: "https://x.example/" }]);
+  });
+
+  it("rejects a switch-point with a non-https dest", () => {
+    expect(() =>
+      qrAttributes({
+        code: "rickroll",
+        schedule: [{ startsAt: "2026-08-06T15:00:00.000Z", dest: "http://insecure.example/" }],
+      })
+    ).toThrow(QrValidationError);
+  });
+
+  it("rejects a switch-point with an invalid start time", () => {
+    expect(() =>
+      qrAttributes({
+        code: "rickroll",
+        schedule: [{ startsAt: "not-a-date", dest: "https://ok.example/" }],
+      })
+    ).toThrow(QrValidationError);
   });
 });
 
