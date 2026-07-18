@@ -418,6 +418,34 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
               </div>
             )}
 
+            {/* Auto-flash CTA — flashing a device registers it here automatically,
+                so most users never need the manual Node ID entry below. */}
+            <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-primary-50 border border-primary-200">
+              <div>
+                <p className="text-sm font-medium text-primary-700">Have a device to flash?</p>
+                <p className="text-xs text-primary-600">Flash it and it registers here automatically — no manual entry needed.</p>
+              </div>
+              <Button
+                color="primary"
+                size="sm"
+                as="a"
+                href={flashUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                startContent={<Zap className="h-4 w-4" />}
+                endContent={<ExternalLink className="h-3 w-3" />}
+                className="shrink-0"
+              >
+                Goto Flash
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-3 my-4">
+              <Divider className="flex-1" />
+              <span className="text-xs text-default-400">or add manually</span>
+              <Divider className="flex-1" />
+            </div>
+
             <div className="space-y-4">
               <Input
                 label="Node ID"
