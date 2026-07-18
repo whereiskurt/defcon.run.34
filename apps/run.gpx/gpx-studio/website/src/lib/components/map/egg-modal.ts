@@ -122,7 +122,11 @@ function popupFor(map: mapboxgl.Map): mapboxgl.Popup {
             closeOnClick: true,
             maxWidth: '280px',
             offset: 16,
-            className: 'dc34-egg-popup'
+            // Reuse the routes popup class: the studio globally forces
+            // `.mapboxgl-popup-content` transparent (Map.svelte), and ONLY
+            // `.dc34-route-popup` restores the dark card (app.css). Without it the
+            // near-white egg text renders straight onto the map — illegible.
+            className: 'dc34-route-popup dc34-egg-popup'
         });
         popups.set(map, p);
     }
