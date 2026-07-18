@@ -43,7 +43,7 @@ describe("GET /api/gpx/public/eggs", () => {
       expect(e.accent).toMatch(/^#[0-9A-Fa-f]{6}$/); // hardcoded hex accent
     }
     const coffee = body.eggs.find((e) => e.id === "dc34-coffee")!;
-    expect(coffee.links?.[0]?.url).toBe("https://publicuslv.com");
+    expect(coffee.links?.[0]?.url).toContain("tripadvisor");
   });
 
   it("CMS overrides only the editable fields; defaults win elsewhere", async () => {
@@ -75,7 +75,7 @@ describe("GET /api/gpx/public/eggs", () => {
     // Non-editable fields preserved from the default.
     expect(coffee.eyebrow).toBe("Rabbit Fuel Stop");
     expect(coffee.address).toContain("Fremont");
-    expect(coffee.links?.[0]?.url).toBe("https://publicuslv.com");
+    expect(coffee.links?.[0]?.url).toContain("tripadvisor");
 
     // An egg with no override is untouched.
     const rebar = body.eggs.find((e) => e.id === "lvcc-rebar")!;

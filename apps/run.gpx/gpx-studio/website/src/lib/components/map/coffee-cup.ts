@@ -27,7 +27,7 @@ function ensureStyle() {
     s.textContent = `
 .dc34-coffee-beacon{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;line-height:1;pointer-events:auto;}
 /* 3× emoji (Kurt). Sparkle/glow/bob sizes are em-relative so they scale with it. */
-.dc34-coffee-cup{position:relative;font-size:102px;animation:dc34cupbob 2.4s ease-in-out infinite;filter:drop-shadow(0 0 .2em rgba(255,193,94,.95)) drop-shadow(0 .06em .12em rgba(0,0,0,.5));}
+.dc34-coffee-cup{position:relative;font-size:64px;animation:dc34cupbob 2.4s ease-in-out infinite;filter:drop-shadow(0 0 .2em rgba(255,193,94,.95)) drop-shadow(0 .06em .12em rgba(0,0,0,.5));}
 /* radiating "aha" sparkle rays behind the cup */
 .dc34-coffee-cup::before{content:"";position:absolute;inset:-.34em;z-index:-1;border-radius:50%;
   background:repeating-conic-gradient(from 0deg, rgba(255,205,120,.65) 0 4deg, transparent 4deg 30deg);
