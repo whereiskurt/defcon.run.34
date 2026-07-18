@@ -68,21 +68,48 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const ownerSub = session.user.id;
 
-  // Fetch — server-side, no HTTP hop needed since we're in-process.
-  let bib: BibItem | null = await getBib(ownerSub);
+  // Bib-name-change tier is read straight off the session's service claims —
+  // no I/O — and gates the quota lookup below, so compute it before the fetch.
+  const services = (session.user as { services?: string[] }).services ?? [];
+  const tier = services.includes("admin") ? "admin" : "upload";
 
-  // Bootstrap: idempotent create on first visit. createBib swallows
-  // ConditionalCheckFailedException and returns the existing bib, so this
-  // is safe against tab-racing.
-  if (!bib) {
-    const runnerCode = await generateUniqueRunnerCode();
-    bib = await createBib(ownerSub, runnerCode);
-  }
+  // All first-paint reads run concurrently: they share only `ownerSub` and none
+  // depend on each other. These were previously six SEQUENTIAL awaits (bib GET,
+  // quota HTTP, two full-table scans, social-QR HTTP, copy) that serialized into
+  // ~2-4s; Promise.all collapses that to the slowest single round-trip. Each
+  // keeps its own fail-open fallback so one slow/failed dependency never 500s
+  // (or blocks) the page.
+  const [bib, params, renamesRemaining, donations, pending, socialQrHash, copy] =
+    await Promise.all([
+      // Bootstrap: idempotent create on first visit. createBib swallows
+      // ConditionalCheckFailedException and returns the existing bib, so this
+      // is safe against tab-racing. getBib is in-process (no HTTP hop).
+      (async (): Promise<BibItem> => {
+        const existing = await getBib(ownerSub);
+        if (existing) return existing;
+        const runnerCode = await generateUniqueRunnerCode();
+        return createBib(ownerSub, runnerCode);
+      })(),
+      // ?status=success|cancel that Stripe attaches on redirect-back after a
+      // Checkout Session. `searchParams` may be undefined in dev with no query.
+      Promise.resolve(searchParams).then((p) => p ?? {}),
+      // Remaining bib-name changes from the central quota service (run.auth).
+      // Fall back to the default limit if the service is briefly unavailable —
+      // a quota blip must not 500 the bib page; the server enforces on write.
+      checkQuota(ownerSub, "bibname_change", 1, tier)
+        .then((q) => (q.remaining >= 0 ? q.remaining : 30))
+        .catch(() => 30),
+      // Contribution history: reconciled bib payments + donations. Total spend
+      // drives the "amount contributed" shown even when the buy flow is hidden.
+      listDonationsForOwner(ownerSub).catch(() => []),
+      listPendingForOwner(ownerSub).catch(() => []),
+      // Social-QR (Plan 34-04, Slice C — C-T3): best-effort resolve the runner's
+      // real per-user social-QR hash from run.human. getSocialQrHash is null-safe
+      // (a miss / timeout never 500s the orderform — T-34-07).
+      getSocialQrHash(ownerSub),
+      loadCopy("default"),
+    ]);
 
-  // Read the ?status=success|cancel querystring that Stripe attaches on
-  // redirect-back after a Checkout Session. `searchParams` may be
-  // undefined in dev when the page renders without any query.
-  const params = (await searchParams) ?? {};
   const status = parseStatus(params.status);
 
   // Phase 22-05-06 sponsor charm accent — threaded through BibForm to
@@ -96,23 +123,6 @@ export default async function Home({ searchParams }: HomeProps) {
   // stays available.
   const isBurned = bib.burned === true;
 
-  // Remaining bib-name changes from the central quota service (run.auth).
-  // Fall back to the default limit if the service is briefly unavailable —
-  // a quota blip must not 500 the bib page; the server enforces on write.
-  const services = (session.user as { services?: string[] }).services ?? [];
-  const tier = services.includes("admin") ? "admin" : "upload";
-  let renamesRemaining = 30;
-  try {
-    const q = await checkQuota(ownerSub, "bibname_change", 1, tier);
-    if (q.remaining >= 0) renamesRemaining = q.remaining;
-  } catch {
-    // quota service unavailable — show the default
-  }
-
-  // Contribution history: reconciled bib payments + donations. Total spend
-  // drives the "amount contributed" shown even when the buy flow is hidden.
-  const donations = await listDonationsForOwner(ownerSub).catch(() => []);
-  const pending = await listPendingForOwner(ownerSub).catch(() => []);
   const donationTotal = donations.reduce(
     (s, d) => s + (d.amountCents ?? 0),
     0
@@ -158,15 +168,10 @@ export default async function Home({ searchParams }: HomeProps) {
     new Set(txns.map((t) => t.provider).filter(Boolean))
   );
 
-  // Social-QR (Plan 34-04, Slice C — C-T3): best-effort resolve the runner's
-  // real per-user social-QR hash from run.human and build the `/r?h=` URL to
-  // encode on the bib tear-off stubs. getSocialQrHash is null-safe (a miss /
-  // timeout never 500s the orderform — T-34-07), and BibPreview falls back to
-  // the runner-code QR when socialQrUrl is absent (never a blank stub — SC34.8).
-  const socialQrHash = await getSocialQrHash(ownerSub);
+  // socialQrHash (resolved above in the parallel fetch) → the `/r?h=` URL encoded
+  // on the bib tear-off stubs. BibPreview falls back to the runner-code QR when
+  // socialQrUrl is absent (never a blank stub — SC34.8).
   const socialQrUrl = socialQrHash ? buildSocialQrUrl(socialQrHash) : undefined;
-
-  const copy = await loadCopy("default");
 
   // hasTransacted = any money at all (bib payment OR donation). Kept ONLY for
   // the DRAFT stamp (a donation counts as "committed" — clears DRAFT). It does
