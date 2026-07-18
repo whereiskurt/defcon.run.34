@@ -5,6 +5,7 @@ import { settings } from '$lib/logic/settings';
 import { tick } from 'svelte';
 import { recordHit } from '$lib/stores/ghost';
 import { rainbowUnlocked } from '$lib/stores/rainbow';
+import { coffeeUnlocked } from '$lib/stores/coffee';
 
 const { treeFileView, elevationProfile, bottomPanelSize, rightPanelSize, distanceUnits } = settings;
 
@@ -92,8 +93,13 @@ export class MapboxGLMap {
                 language,
                 localGeocoder: () => [],
                 localGeocoderOnly: true,
-                externalGeocoder: (query: string) =>
-                    fetch(
+                externalGeocoder: (query: string) => {
+                    // Hidden unlock: searching PublicUs / coffee upgrades the
+                    // giant coffee cup egg (steam + more opaque). Works on mobile
+                    // and desktop, unlike a typed keyword. Searching still
+                    // geocodes normally below.
+                    if (/publicus|coffee/i.test(query)) coffeeUnlocked.set(true);
+                    return fetch(
                         `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5&accept-language=${language}`
                     )
                         .then((response) => response.json())
@@ -108,7 +114,8 @@ export class MapboxGLMap {
                                     place_name: result.display_name,
                                 };
                             });
-                        }),
+                        });
+                },
             });
             let onKeyDown = geocoder._onKeyDown;
             geocoder._onKeyDown = (e: KeyboardEvent) => {

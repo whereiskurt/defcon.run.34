@@ -8,8 +8,11 @@
     import { RabbitLayer } from '$lib/components/map/rabbit-layer';
     import { RainbowArch } from '$lib/components/map/rainbow-arch';
     import { fireRainbowEgg } from '$lib/components/map/rainbow-egg';
+    import { CoffeeCup } from '$lib/components/map/coffee-cup';
+    import { fireCoffeeEgg } from '$lib/components/map/coffee-egg';
     import { ghostMode } from '$lib/stores/ghost';
     import { rainbowUnlocked } from '$lib/stores/rainbow';
+    import { coffeeUnlocked } from '$lib/stores/coffee';
     import { quickStartAction } from '$lib/stores/quickstart';
     import { get } from 'svelte/store';
     import { Separator } from '$lib/components/ui/separator';
@@ -36,6 +39,7 @@
     let ghostLayer: GhostLayer | undefined;
     let rabbitLayer: RabbitLayer | undefined;
     let rainbowArch: RainbowArch | undefined;
+    let coffeeCup: CoffeeCup | undefined;
 
     const {
         currentBasemap,
@@ -236,6 +240,15 @@
         rainbowUnlocked.subscribe((on) => {
             void rainbowArch?.setUnlocked(on);
             if (on) fireRainbowEgg();
+        });
+        // Giant PublicUs coffee cup: always-on (tilt-revealed), upgraded by
+        // searching publicus/coffee (steam + opacity). Same single-subscription
+        // safety as above; unlock + click both fire the covert coffee-egg.
+        if (coffeeCup) coffeeCup.remove();
+        coffeeCup = new CoffeeCup(_map);
+        coffeeUnlocked.subscribe((on) => {
+            void coffeeCup?.setUnlocked(on);
+            if (on) fireCoffeeEgg();
         });
         let first = true;
         _map.on('style.import.load', () => {
