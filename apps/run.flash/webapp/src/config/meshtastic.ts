@@ -11,7 +11,13 @@ export const meshtasticConfig = Object.freeze({
     server: process.env.MQTT_SERVER || "mqtt.defcon.run",
     port: Number(process.env.MQTT_PORT) || 4433,
     tls: process.env.MQTT_TLS !== "false",
-    root: process.env.MQTT_ROOT || "msh",
+    // The US fleet lives on msh/US/2/e/dc.run. On our target firmware the LoRa
+    // region does NOT land in the MQTT topic (and devices drop region on the
+    // post-commit reboot), so relying on region=US left nodes region-less on
+    // msh/2/e/dc.run — invisible to the fleet's msh/+/2/# subscription. Put the
+    // region segment in the root topic directly. region=US is still pushed (for
+    // LoRa operation), it just doesn't drive the topic. See runbook.
+    root: process.env.MQTT_ROOT || "msh/US",
   },
   channels: [
     {
