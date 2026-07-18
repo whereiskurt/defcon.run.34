@@ -195,8 +195,8 @@ export default async function LeaderboardPage({
                       </td>
                     </tr>
                   ) : (
-                    runnerSolves.map((s) => (
-                      <tr key={s.challenge} className={cls.tr}>
+                    runnerSolves.map((s, i) => (
+                      <tr key={`${s.challenge}-${s.solvedAt ?? i}`} className={cls.tr}>
                         <td className={cls.td}>
                           <Link
                             href={`/admin/leaderboard?challenge=${encodeURIComponent(s.challenge)}`}
@@ -342,8 +342,8 @@ export default async function LeaderboardPage({
                       </td>
                     </tr>
                   ) : (
-                    drill.map((s) => (
-                      <tr key={s.user} className={cls.tr}>
+                    drill.map((s, i) => (
+                      <tr key={`${s.user}-${s.solvedAt ?? i}`} className={cls.tr}>
                         <td className={`${cls.td} tabular-nums text-default-500`}>
                           {s.ordinal ?? "—"}
                         </td>
@@ -381,7 +381,8 @@ export default async function LeaderboardPage({
 
       <p className="text-[11.5px] text-default-400">
         Standings scan RunUser rollups (ctfScore / ctfSolves); badges, summary and
-        both drills read the CtfSolve rows (one scan, sliced in memory). CSV export
+        both drills read the CtfSolve <em>and</em> CtfScoreEvent ledgers unioned
+        (one scan each, sliced in memory) so OTP/repeatable solves show. CSV export
         is formula-injection-guarded. The q.defcon.run/admin/leaderboard host is
         wired in Phase 48.
       </p>

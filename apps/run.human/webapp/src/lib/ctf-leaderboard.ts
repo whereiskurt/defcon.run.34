@@ -30,7 +30,8 @@
  */
 
 import { scanAllRunUsers, type RunUserItem } from "@/entities/run-user";
-import { CtfSolve, type CtfSolveItem } from "@/entities/ctf";
+import { CtfSolve, CtfScoreEvent, type CtfSolveItem } from "@/entities/ctf";
+import { mergeSolveLedgers } from "@/lib/ctf-solve-merge";
 import { toCsv } from "@/lib/admin-report";
 import type { EnrichedRow } from "@/lib/ctf-leaderboard-ui";
 
@@ -117,8 +118,16 @@ export async function buildLeaderboard(): Promise<LeaderboardRow[]> {
 export async function listCtfSolvesByChallenge(
   challenge: string
 ): Promise<CtfSolveItem[]> {
-  const result = await CtfSolve.query.primary({ challenge }).go({ pages: "all" });
-  return [...result.data].sort((a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0));
+  // Union BOTH ledgers: static solves live in CtfSolve, OTP/wordlist/repeatable
+  // solves in CtfScoreEvent (see ctf-solve-merge). Score events carry no ordinal
+  // (→ sort to the front as 0), which the drill renders as "—".
+  const [solves, events] = await Promise.all([
+    CtfSolve.query.primary({ challenge }).go({ pages: "all" }),
+    CtfScoreEvent.query.primary({ challenge }).go({ pages: "all" }),
+  ]);
+  return mergeSolveLedgers(solves.data, events.data).sort(
+    (a, b) => (a.ordinal ?? 0) - (b.ordinal ?? 0)
+  );
 }
 
 /** Pure: userId → displayName map from a scanned RunUser set (skips the nameless). */
@@ -143,10 +152,18 @@ export function joinSolveNames(
   return solves.map((s) => ({ ...s, name: nameByUser[s.user] ?? s.user }));
 }
 
-/** Every CtfSolve row (all challenges) — the source for per-runner aggregates. */
+/**
+ * Every solve across all challenges from BOTH ledgers (CtfSolve + CtfScoreEvent),
+ * unioned — the single source for the standings badges, summary tiles, and both
+ * drills. Without the CtfScoreEvent half, OTP/wordlist/repeatable solves are
+ * invisible everywhere the board slices this list.
+ */
 export async function scanAllCtfSolves(): Promise<CtfSolveItem[]> {
-  const result = await CtfSolve.scan.go({ pages: "all" });
-  return result.data;
+  const [solves, events] = await Promise.all([
+    CtfSolve.scan.go({ pages: "all" }),
+    CtfScoreEvent.scan.go({ pages: "all" }),
+  ]);
+  return mergeSolveLedgers(solves.data, events.data);
 }
 
 /**
@@ -156,8 +173,14 @@ export async function scanAllCtfSolves(): Promise<CtfSolveItem[]> {
 export async function listCtfSolvesByUser(
   user: string
 ): Promise<CtfSolveItem[]> {
-  const result = await CtfSolve.query.byUser({ user }).go({ pages: "all" });
-  return [...result.data].sort((a, b) =>
+  // Union BOTH ledgers (CtfSolve + CtfScoreEvent) so a runner whose only solves
+  // are OTP/wordlist/repeatable (CtfScoreEvent) still lists here — the KPH/
+  // didhtp1 "0 solves" regression. Each reads its own byUser partition.
+  const [solves, events] = await Promise.all([
+    CtfSolve.query.byUser({ user }).go({ pages: "all" }),
+    CtfScoreEvent.query.byUser({ user }).go({ pages: "all" }),
+  ]);
+  return mergeSolveLedgers(solves.data, events.data).sort((a, b) =>
     (a.solvedAt ?? "").localeCompare(b.solvedAt ?? "")
   );
 }
