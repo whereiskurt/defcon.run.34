@@ -9,6 +9,7 @@ import {
   FIRMWARE_BASE_PATH,
   getUf2Filename,
 } from "@/config/firmware";
+import { useCopy } from "@/components/CopyProvider";
 
 interface Nrf52FlashStepProps {
   device: DeviceHardware;
@@ -34,6 +35,7 @@ const T1000E_SLUG = "TRACKER_T1000_E";
  * device class (the Adafruit bootloader has no DFU 1.1 interface).
  */
 export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
+  const { t } = useCopy();
   const downloadName = getUf2Filename(device);
   const firmwareUrl = `${FIRMWARE_BASE_PATH}/${downloadName}`;
   const isT1000e = device.hwModelSlug === T1000E_SLUG;
@@ -48,7 +50,7 @@ export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
               <HardDriveDownload className="w-5 h-5 text-primary flex-shrink-0" />
               <div>
                 <h3 className="font-mono text-lg text-foreground">
-                  Flash firmware (drag &amp; drop)
+                  {t("flash.nrf52.title")}
                 </h3>
                 <p className="text-sm text-default-400">
                   {device.displayName} flashes by copying a firmware file onto
@@ -66,7 +68,7 @@ export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
               startContent={<Download className="w-5 h-5" />}
               className="font-mono whitespace-nowrap"
             >
-              Download firmware (.uf2)
+              {t("flash.nrf52.downloadButton")}
             </Button>
 
             <p className="text-xs text-default-500 font-mono">
@@ -161,7 +163,7 @@ export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
           onPress={onContinue}
           className="font-mono whitespace-nowrap cta-pulse"
         >
-          I&apos;ve flashed it — Continue to Configure
+          {t("flash.nrf52.continue")}
         </Button>
       </div>
     </div>

@@ -14,6 +14,7 @@ import type { DeviceConfigPayload } from "@/types/config";
 import type { DeviceHardware } from "@/types/device";
 import type { RegistrationStatus } from "@/hooks/use-configure";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
+import { useCopy } from "@/components/CopyProvider";
 
 const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success"> = {
   esp32: "primary",
@@ -47,6 +48,7 @@ interface DoneStepProps {
  * - "Flash Another Device" resets wizard for provisioning multiple boards
  */
 export function DoneStep({ device, configPayload, registrationStatus, onRetryRegistration, onFlashAnother }: DoneStepProps) {
+  const { t } = useCopy();
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
 
   return (
@@ -60,9 +62,9 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
               <CheckCircle2 className="w-12 h-12 text-primary drop-shadow-[0_0_24px_rgba(20,184,166,0.4)] flex-shrink-0" />
             </div>
             <div>
-              <h2 className="font-mono text-2xl text-primary">Setup Complete!</h2>
+              <h2 className="font-mono text-2xl text-primary">{t("flash.done.title")}</h2>
               <p className="text-sm text-default-400 mt-1">
-                Your device is configured and ready for the DEF CON 34 mesh network.
+                {t("flash.done.subtitle")}
               </p>
             </div>
           </div>
@@ -100,11 +102,11 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
       {configPayload ? (
         <div className="glass-card rounded-xl p-5 space-y-3">
           <h3 className="text-sm font-mono text-default-500 uppercase tracking-wider mb-4">
-            Device Configuration
+            {t("flash.done.configTitle")}
           </h3>
 
           <div className="flex items-center justify-between text-sm">
-            <span className="text-default-500">Long Name</span>
+            <span className="text-default-500">{t("flash.done.longName")}</span>
             <span className="font-mono text-foreground">
               {configPayload.identity.longName}
             </span>
@@ -112,7 +114,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           <div className="border-t border-default-200/10" />
 
           <div className="flex items-center justify-between text-sm">
-            <span className="text-default-500">Short Name</span>
+            <span className="text-default-500">{t("flash.done.shortName")}</span>
             <span className="font-mono text-foreground">
               {configPayload.identity.shortName}
             </span>
@@ -120,7 +122,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           <div className="border-t border-default-200/10" />
 
           <div className="flex items-center justify-between text-sm">
-            <span className="text-default-500">MQTT Server</span>
+            <span className="text-default-500">{t("flash.done.mqttServer")}</span>
             <span className="font-mono text-foreground">
               {configPayload.mqtt.server}
             </span>
@@ -128,7 +130,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           <div className="border-t border-default-200/10" />
 
           <div className="flex items-center justify-between text-sm">
-            <span className="text-default-500">Channels</span>
+            <span className="text-default-500">{t("flash.done.channels")}</span>
             <span className="font-mono text-foreground">
               {configPayload.channels.map((c) => c.name).join(", ")}
             </span>
@@ -136,7 +138,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           <div className="border-t border-default-200/10" />
 
           <div className="flex items-center justify-between text-sm">
-            <span className="text-default-500">Radio</span>
+            <span className="text-default-500">{t("flash.done.radio")}</span>
             <span className="font-mono text-foreground">
               {configPayload.radio.region} / {configPayload.radio.modemPreset}
             </span>
@@ -147,7 +149,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           <div className="flex flex-col items-center gap-3 text-center">
             <CheckCircle2 className="w-8 h-8 text-primary" />
             <p className="text-sm text-default-400">
-              Your device has been successfully configured.
+              {t("flash.done.configuredFallback")}
             </p>
           </div>
         </div>
@@ -165,7 +167,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           {registrationStatus.state === "pending" ? (
             <>
               <RotateCcw className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
-              <div className="text-sm text-default-400">Registering radio...</div>
+              <div className="text-sm text-default-400">{t("flash.done.registering")}</div>
             </>
           ) : registrationStatus.state === "success" ? (
             <>
@@ -174,8 +176,8 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
                 <span className="text-primary font-mono">{registrationStatus.nodeId}</span>
                 <span className="text-default-400">
                   {registrationStatus.updated
-                    ? " — keys updated on your profile"
-                    : " — registered to your profile"}
+                    ? t("flash.done.registeredUpdated")
+                    : t("flash.done.registered")}
                 </span>
               </div>
             </>
@@ -183,10 +185,10 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
             <>
               <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0" />
               <div className="text-sm flex-1">
-                <span className="text-warning">Radio registration failed: </span>
+                <span className="text-warning">{t("flash.done.regFailedPrefix")}</span>
                 <span className="text-default-400">{registrationStatus.error}</span>
                 <span className="text-default-500 block mt-0.5">
-                  You can manually add the radio on run.defcon.run
+                  {t("flash.done.regFailedHint")}
                 </span>
               </div>
               <Button
@@ -197,14 +199,14 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
                 onPress={onRetryRegistration}
                 className="flex-shrink-0 font-mono"
               >
-                Retry
+                {t("flash.configure.retry")}
               </Button>
             </>
           ) : (
             <>
               <AlertTriangle className="w-5 h-5 text-default-400 flex-shrink-0" />
               <div className="text-sm text-default-400">
-                Radio registration skipped: {registrationStatus.reason}
+                {t("flash.done.regSkipped", { reason: registrationStatus.reason })}
               </div>
             </>
           )}
@@ -214,7 +216,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
       {/* Next steps card */}
       <div className="glass-card rounded-xl p-5">
         <h3 className="text-sm font-mono text-default-500 uppercase tracking-wider mb-4">
-          Next Steps
+          {t("flash.done.nextTitle")}
         </h3>
 
         <ol className="space-y-4">
@@ -229,11 +231,11 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
                 rel="noopener noreferrer"
                 className="text-sm text-primary hover:underline inline-flex items-center gap-1"
               >
-                Register your radio on run.defcon.run
+                {t("flash.done.step1Link")}
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
               <p className="text-xs text-default-500 mt-0.5">
-                Link your device to your DEF CON 34 profile
+                {t("flash.done.step1Desc")}
               </p>
             </div>
           </li>
@@ -245,10 +247,10 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
             <div>
               <p className="text-sm text-foreground inline-flex items-center gap-1">
                 <Smartphone className="w-3.5 h-3.5 text-default-400" />
-                Download the Meshtastic app to monitor your device
+                {t("flash.done.step2")}
               </p>
               <p className="text-xs text-default-500 mt-0.5">
-                Available for iOS and Android
+                {t("flash.done.step2Desc")}
               </p>
             </div>
           </li>
@@ -260,10 +262,10 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
             <div>
               <p className="text-sm text-foreground inline-flex items-center gap-1">
                 <Unplug className="w-3.5 h-3.5 text-default-400" />
-                Disconnect USB &mdash; your device is ready!
+                {t("flash.done.step3")}
               </p>
               <p className="text-xs text-default-500 mt-0.5">
-                Your radio will automatically join the mesh network
+                {t("flash.done.step3Desc")}
               </p>
             </div>
           </li>
@@ -279,7 +281,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           onPress={onFlashAnother}
           className="font-mono cta-pulse"
         >
-          Flash Another Device
+          {t("flash.done.flashAnother")}
         </Button>
       </div>
     </div>
