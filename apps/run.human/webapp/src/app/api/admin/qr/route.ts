@@ -12,6 +12,7 @@ import {
   upsertCtf,
   deleteCtf,
   revealCtfOtp,
+  revealCtfEffect,
   QrValidationError,
   type QrInput,
   type CtfInput,
@@ -33,7 +34,8 @@ import {
  *   - qr_delete   { code: string }       delete a code
  *   - ctf_upsert     { ctf: CtfInput }      create/update a challenge
  *   - ctf_delete     { challenge: string }  delete a challenge
- *   - ctf_otp_reveal { challenge: string }  reveal an OTP flag's secret + enroll URL
+ *   - ctf_otp_reveal    { challenge: string }  reveal an OTP flag's secret + enroll URL
+ *   - ctf_effect_reveal { challenge: string }  reveal a challenge's stored effect payload
  *
  * QrValidationError → 400; anything else → 500 (logged, generic message).
  */
@@ -48,7 +50,8 @@ interface AdminQrRequest {
     | "qr_delete"
     | "ctf_upsert"
     | "ctf_delete"
-    | "ctf_otp_reveal";
+    | "ctf_otp_reveal"
+    | "ctf_effect_reveal";
   qr?: QrInput;
   ctf?: CtfInput;
   code?: string;
@@ -94,6 +97,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // No challenge / no OTP secret → 404 (non-disclosing, same as the gate).
         if (!revealed) return notFound();
         return ok("Revealed OTP secret.", revealed);
+      }
+      case "ctf_effect_reveal": {
+        if (!body.challenge) return bad("challenge is required");
+        const revealed = await revealCtfEffect(body.challenge);
+        // No challenge / no effect → 404 (non-disclosing, same as the gate).
+        if (!revealed) return notFound();
+        return ok("Revealed effect.", revealed);
       }
       default:
         return bad("Unknown action.");

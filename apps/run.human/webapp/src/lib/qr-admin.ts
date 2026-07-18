@@ -269,6 +269,21 @@ export async function revealCtfOtp(challenge: string): Promise<RevealedOtp | nul
 }
 
 /**
+ * Reveal a challenge's stored `effect` payload (admin read-only), or null when the
+ * challenge is missing or has no effect. The effect is the other recoverable
+ * secret-bearing field: a Static-answer reward stores an `otpauth://` enrollment
+ * here verbatim (same secret class as an OTP-answer secret). The raw payload is
+ * returned as-is; the client narrows it (a valid otpauth-enroll → QR, otherwise
+ * shown as JSON). Like {@link revealCtfOtp} this pierces `redactCtfSecrets`, so it
+ * MUST stay behind the /api/admin/qr admin gate.
+ */
+export async function revealCtfEffect(challenge: string): Promise<{ effect: unknown } | null> {
+  const row = await getCtf(challenge);
+  if (row?.effect === undefined) return null;
+  return { effect: row.effect };
+}
+
+/**
  * code → total-scans map for the admin list, from ONE Qrstat scan (the `total`
  * bucket rows). Avoids an N+1 per-code query when rendering the list. Skips the
  * reserved `_meta` watermark row.
