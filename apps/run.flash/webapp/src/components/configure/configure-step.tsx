@@ -13,6 +13,7 @@ import type { ConfigProgress, DeviceConfigPayload } from "@/types/config";
 import type { DeviceHardware, DeviceFamily } from "@/types/device";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
 import { ConfigPipeline } from "@/components/configure/config-pipeline";
+import { useCopy } from "@/components/CopyProvider";
 
 const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success"> = {
   esp32: "primary",
@@ -75,6 +76,7 @@ export function ConfigureStep({
   onContinue,
   onRetry,
 }: ConfigureStepProps) {
+  const { t } = useCopy();
   const { progress } = configureState;
   const startedRef = useRef(false);
 
@@ -114,13 +116,10 @@ export function ConfigureStep({
         <div className="glass-card rounded-xl p-6">
           <div className="flex flex-col items-center gap-4 text-center">
             <h3 className="font-mono text-lg text-foreground">
-              Connect to your device
+              {t("flash.configure.connectTitle")}
             </h3>
             <p className="text-sm text-default-400 max-w-md">
-              Your device should now be running Meshtastic after the firmware
-              copy. Click below and pick it from the browser&apos;s serial-port
-              prompt to configure it for the DEF CON 34 mesh and register it to
-              your account.
+              {t("flash.configure.connectBody")}
             </p>
             <Button
               color="primary"
@@ -129,7 +128,7 @@ export function ConfigureStep({
               onPress={startConfigure}
               className="font-mono whitespace-nowrap cta-pulse"
             >
-              Connect &amp; Configure
+              {t("flash.configure.connectButton")}
             </Button>
           </div>
         </div>
@@ -143,13 +142,13 @@ export function ConfigureStep({
             <div>
               <h3 className="font-mono text-lg text-foreground">
                 {family === "nrf52"
-                  ? "Select your device's serial port"
-                  : "Reconnecting to device..."}
+                  ? t("flash.configure.selectPortTitle")
+                  : t("flash.configure.reconnectingTitle")}
               </h3>
               <p className="text-sm text-default-400 mt-1">
                 {family === "nrf52"
-                  ? "A browser prompt will ask which serial port to use — pick your device (it appears as a USB serial port now that it's running Meshtastic)."
-                  : "Your device is rebooting after firmware flash. This may take a few seconds."}
+                  ? t("flash.configure.selectPortBody")
+                  : t("flash.configure.reconnectingBody")}
               </p>
             </div>
           </div>
@@ -162,7 +161,7 @@ export function ConfigureStep({
           <ConfigPipeline progress={progress} />
 
           <p className="text-sm text-warning text-center font-mono">
-            Do not disconnect your device during configuration
+            {t("flash.configure.doNotDisconnect")}
           </p>
         </>
       )}
@@ -180,10 +179,10 @@ export function ConfigureStep({
                 <CheckCircle2 className="w-8 h-8 text-primary flex-shrink-0" />
                 <div>
                   <h3 className="font-mono text-lg text-primary">
-                    Configuration Complete!
+                    {t("flash.configure.complete")}
                   </h3>
                   <p className="text-sm text-default-400">
-                    Your device has been configured for the DEF CON 34 mesh network.
+                    {t("flash.configure.completeBody")}
                   </p>
                 </div>
               </div>
@@ -226,7 +225,7 @@ export function ConfigureStep({
               onPress={onContinue}
               className="font-mono cta-pulse"
             >
-              Continue
+              {t("flash.configure.continue")}
             </Button>
           </div>
         </>
@@ -242,7 +241,7 @@ export function ConfigureStep({
             <div className="flex flex-col items-center gap-4 text-center">
               <XCircle className="w-10 h-10 text-danger" />
               <h3 className="font-mono text-lg text-danger">
-                Configuration Failed
+                {t("flash.configure.failed")}
               </h3>
 
               {progress.error && (
@@ -252,11 +251,9 @@ export function ConfigureStep({
               )}
 
               <ol className="list-decimal list-inside space-y-2 text-sm text-default-400 text-left max-w-sm">
-                <li>Don&apos;t panic &mdash; your firmware is still intact</li>
-                <li>Make sure your USB cable is still connected</li>
-                <li>
-                  Click Retry to reconnect and try configuration again
-                </li>
+                <li>{t("flash.configure.recovery1")}</li>
+                <li>{t("flash.configure.recovery2")}</li>
+                <li>{t("flash.configure.recovery3")}</li>
               </ol>
             </div>
           </div>
@@ -269,7 +266,7 @@ export function ConfigureStep({
               onPress={onRetry}
               className="font-mono"
             >
-              Retry
+              {t("flash.configure.retry")}
             </Button>
           </div>
         </>
