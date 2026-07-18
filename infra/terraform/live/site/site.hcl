@@ -508,62 +508,21 @@ locals {
 
   # Vanity host redirects (QR service Phase 1) — served as S3-hosted interstitial
   # pages behind per-host CloudFront distributions. Crawlers read the og.* tags
-  # (the unfurl card); humans are redirected client-side to target_*. Consumed by
-  # region/us-east-1/redirect-rules. Set enabled=false to ship dark.
+  # (the unfurl card); humans are redirected client-side to target_*.
   #
-  # og.image is an absolute URL. og.image_file (optional) uploads a local file
-  # from the cloudfront-redirect module's assets/ dir to the host's S3 prefix.
+  # The per-host RULES now live in the single source of truth
+  #   apps/run.human/webapp/src/data/redirects.json
+  # (also imported by run.human's read-only /admin/qr vanity panel). The
+  # redirect-rules unit loads it via jsondecode(). This `enabled` flag stays here
+  # as the Terraform kill switch — set false to ship the whole unit dark.
+  #
+  # og.image is an absolute URL (the unfurl card). og.image_file (optional) uploads
+  # a local file from the cloudfront-redirect module's assets/ dir to the host's S3
+  # prefix. sao's covert_v = encodeFlag("sao-egg","sao"), pinned by
+  # ctf-covert-codec.test.ts (SAO_SPLASH_COVERT_V); the sao-egg Ctf row is admin-
+  # created in run.human (answer "sao").
   redirects = {
     enabled = true
-    rules = [
-      {
-        host         = "r"
-        target_host  = "www.youtube.com"
-        target_path  = "/watch"
-        target_query = "v=dQw4w9WgXcQ"
-        status_code  = "HTTP_302"
-        priority     = 90
-        og = {
-          title       = "Run Hacker Run! — DEF CON 34 Remaster"
-          description = "Running was their real crime. Mess with the best, run like the rest. ▶ Watch the feature presentation now."
-          image       = "https://r.defcon.run/hackers.png"
-          image_file  = "hackers.png"
-        }
-      },
-      {
-        host         = "h"
-        target_host  = "run.defcon.run"
-        target_path  = "/"
-        target_query = ""
-        status_code  = "HTTP_301"
-        priority     = 91
-        og = {
-          title       = "defcon.run 34 — it's happening"
-          description = "defcon.run 34 is happening. Get your bib, check the maps, and flash your Meshtastic device. An official DEF CON 34 event in Las Vegas."
-          image       = "https://defcon.run/og.png"
-        }
-      },
-      {
-        host         = "sao"
-        target_host  = "bib.defcon.run"
-        target_path  = "/"
-        target_query = ""
-        status_code  = "HTTP_302"
-        priority     = 92
-        splash_style = "countdown"
-        # CTF: a signed-in visitor earns the sao-egg challenge (1 pt) just by
-        # landing here. Value = encodeFlag("sao-egg", "sao") — pinned by
-        # ctf-covert-codec.test.ts (SAO_SPLASH_COVERT_V). The sao-egg Ctf row is
-        # admin-created in run.human (answer "sao"); see the covert-egg mechanism.
-        covert_v = "7923716986449251596374660747179"
-        og = {
-          title       = "DC34-SAO-01 — Sh*tty Add-On (v1.69bis)"
-          description = "The DEF CON 34 SAO that pairs with your Meshtastic node. I²C, 6-pin, 1.1 millihorsepower. 1 per DC34 run kit."
-          image       = "https://sao.defcon.run/sao.png"
-          image_file  = "sao.png"
-        }
-      },
-    ]
   }
 
   # Extracted to avoid self-reference within github_oidc block

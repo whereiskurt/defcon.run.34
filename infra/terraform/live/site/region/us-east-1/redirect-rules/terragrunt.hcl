@@ -77,7 +77,7 @@ inputs = {
 
   cert_map  = dependency.certs.outputs.cert_map
   zone_map  = dependency.site.outputs.zone_map
-  redirects = local.site_vars.locals.redirects.rules
+  redirects = jsondecode(file("${dirname(find_in_parent_folders("AGENTS.md"))}/apps/run.human/webapp/src/data/redirects.json"))
 
   tags = {
     Site      = local.site_vars.locals.site.label
