@@ -43,7 +43,7 @@ export class RainbowArch {
                 paint: {
                     'fill-extrusion-color': ['get', 'color'],
                     'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': 0,
+                    'fill-extrusion-base': ['get', 'base'],
                     'fill-extrusion-opacity': 0,
                     'fill-extrusion-vertical-gradient': true
                 }

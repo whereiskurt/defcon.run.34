@@ -48,6 +48,7 @@ export interface BuildOpts {
     colors?: string[]; // colour bands, outer→inner
     bandWidthM?: number; // width of each colour ribbon, metres
     peakRatio?: number; // arch peak height as a fraction of span
+    thicknessM?: number; // vertical thickness of the floating ribbon, metres
 }
 
 const EARTH_M_PER_DEG_LAT = 111320;
@@ -73,10 +74,11 @@ export function buildRainbowFeatures(
     arches: RainbowArch[],
     opts: BuildOpts = {}
 ): GeoJSON.FeatureCollection {
-    const segments = opts.segments ?? 80;
+    const segments = opts.segments ?? 160; // finer → smoother, less "stepped"
     const colors = opts.colors ?? PRIDE_COLORS;
-    const bandWidthM = opts.bandWidthM ?? 26;
+    const bandWidthM = opts.bandWidthM ?? 22;
     const peakRatio = opts.peakRatio ?? 0.3;
+    const thicknessM = opts.thicknessM ?? 60; // ribbon rides at altitude, not the ground
 
     const features: GeoJSON.Feature[] = [];
 
@@ -117,6 +119,9 @@ export function buildRainbowFeatures(
                 const t1 = (i + 1) / segments;
                 const tm = (t0 + t1) / 2;
                 const height = Math.sin(Math.PI * tm) * peak;
+                // Float a thin ribbon at the arch altitude instead of a solid
+                // ground-to-curve wall — you see the map through the gap below it.
+                const base = Math.max(0, height - thicknessM);
 
                 const A = point(t0, left);
                 const B = point(t0, right);
@@ -126,7 +131,7 @@ export function buildRainbowFeatures(
                 features.push({
                     type: 'Feature',
                     geometry: { type: 'Polygon', coordinates: [[A, B, C, D, A]] },
-                    properties: { color: colors[k], height, archId: arch.id }
+                    properties: { color: colors[k], height, base, archId: arch.id }
                 });
             }
         }
@@ -139,7 +144,7 @@ export function buildRainbowFeatures(
  * Pitch → layer opacity ramp. Invisible below `start`°, linearly up to `max`
  * by `end`°. This is what makes the egg "only visible when you tilt it".
  */
-export function pitchOpacity(pitch: number, start = 15, end = 60, max = 0.85): number {
+export function pitchOpacity(pitch: number, start = 15, end = 60, max = 0.55): number {
     const t = (pitch - start) / (end - start);
     return Math.max(0, Math.min(1, t)) * max;
 }
