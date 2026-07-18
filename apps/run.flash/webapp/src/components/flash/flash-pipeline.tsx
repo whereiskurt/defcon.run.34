@@ -12,6 +12,7 @@ import {
 import clsx from "clsx";
 import type { FlashProgress, FlashStage } from "@/types/serial";
 import { formatBytes } from "@/config/firmware";
+import { useCopy } from "@/components/CopyProvider";
 
 interface FlashPipelineProps {
   progress: FlashProgress;
@@ -133,6 +134,7 @@ function PipelineStage({
  * Write stage shows detailed percentage bar with bytes transferred.
  */
 export function FlashPipeline({ progress }: FlashPipelineProps) {
+  const { t } = useCopy();
   const eraseStatus = getStageStatus("erasing", progress);
   const writeStatus = getStageStatus("writing", progress);
   const verifyStatus = getStageStatus("verifying", progress);
@@ -155,18 +157,18 @@ export function FlashPipeline({ progress }: FlashPipelineProps) {
         {/* Stage 1: Erase */}
         <PipelineStage
           icon={Eraser}
-          label="Erase flash"
-          activeLabel="Erasing flash..."
-          completeLabel="Flash erased"
+          label={t("flash.pipeline.erase")}
+          activeLabel={t("flash.pipeline.eraseActive")}
+          completeLabel={t("flash.pipeline.eraseComplete")}
           status={eraseStatus}
         />
 
         {/* Stage 2: Write */}
         <PipelineStage
           icon={HardDriveDownload}
-          label="Write firmware"
+          label={t("flash.pipeline.write")}
           activeLabel={`Writing firmware... ${progress.writePercent}% (${formatBytes(progress.writtenBytes)} / ${formatBytes(progress.totalBytes)})`}
-          completeLabel="Firmware written"
+          completeLabel={t("flash.pipeline.writeComplete")}
           status={writeStatus}
         >
           {writeStatus === "active" && (
@@ -183,9 +185,9 @@ export function FlashPipeline({ progress }: FlashPipelineProps) {
         {/* Stage 3: Verify */}
         <PipelineStage
           icon={ShieldCheck}
-          label="Verify firmware"
-          activeLabel="Verifying firmware..."
-          completeLabel="Firmware verified"
+          label={t("flash.pipeline.verify")}
+          activeLabel={t("flash.pipeline.verifyActive")}
+          completeLabel={t("flash.pipeline.verifyComplete")}
           status={verifyStatus}
         />
       </div>
