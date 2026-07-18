@@ -508,18 +508,6 @@
                 </Menubar.Content>
             </Menubar.Menu>
         </Menubar.Root>
-        <!-- Right: "Add run" (opens the QuickStart hub) — launcher moved here from
-             the map corner; auth-gated like the hub itself. -->
-        {#if $isAuthenticated && $hasGpxStudioAccess}
-            <button
-                class="add-run-glow flex items-center gap-1.5 rounded-full font-semibold"
-                onclick={() => quickStartOpen.set(true)}
-                aria-label="Add run"
-            >
-                <Footprints size="18" />
-                <span class="hidden md:block">Add run</span>
-            </button>
-        {/if}
         <!-- Meshtastic (official mark, icon only) → the DEF CON mesh flasher app. -->
         <a
             href="https://flash.defcon.run"
@@ -540,17 +528,28 @@
                 </g>
             </svg>
         </a>
-        <div class="flex items-center ml-2 gap-1">
-            <a
-                href="https://gpx.studio"
-                target="_blank"
-                class="text-green-500 hover:text-green-600"
-                title="Made with love by gpx.studio"
-            >
-                <Heart size="16" fill="currentColor" />
-            </a>
+        <!-- gpx.studio credit — the whole heart + wordmark is one link. -->
+        <a
+            href="https://gpx.studio"
+            target="_blank"
+            rel="noopener"
+            class="flex items-center gap-1 ml-2 text-green-500 hover:text-green-600"
+            title="Made with love by gpx.studio"
+        >
+            <Heart size="16" fill="currentColor" />
             <span class="font-semibold text-sm hidden md:block">gpx.studio</span>
-        </div>
+        </a>
+        <!-- Right-most: "Add run" (opens the QuickStart hub) — auth-gated like the hub. -->
+        {#if $isAuthenticated && $hasGpxStudioAccess}
+            <button
+                class="add-run-glow flex items-center gap-1.5 rounded-full font-semibold ml-2"
+                onclick={() => quickStartOpen.set(true)}
+                aria-label="Add run"
+            >
+                <Footprints size="18" />
+                <span class="hidden md:block">Add run</span>
+            </button>
+        {/if}
     </div>
 </div>
 
