@@ -244,9 +244,10 @@ export class MapboxGLMap {
             } else {
                 map.easeTo({ pitch: 0 });
             }
-            // Hidden "Rainbow Bridges" unlock: 3 rapid 3D flips within 2s.
-            // Monotonic for the session (set true, never re-locks).
-            const r = recordHit(this._flipBuf, Date.now(), 2000, 3);
+            // Hidden "Rainbow Bridges" unlock: 3 rapid 3D flips within 4s (the
+            // menu round-trip makes this slow by hand — typing "rainbow" is the
+            // reliable path, see GhostTrigger). Monotonic (set true, never re-locks).
+            const r = recordHit(this._flipBuf, Date.now(), 4000, 3);
             this._flipBuf = r.buf;
             if (r.hit) rainbowUnlocked.set(true);
         }
