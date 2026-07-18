@@ -8,6 +8,12 @@ import {
   mergeFlagTypeNextState,
 } from "@/lib/ctf-flag-types";
 import { validateScoreWindow } from "@/lib/ctf-score-window";
+import {
+  buildOtpauth,
+  DEFAULT_DIGITS,
+  DEFAULT_PERIOD,
+  DEFAULT_ALGORITHM,
+} from "@/lib/ctf-otp-core";
 
 // Re-export so existing `import { QrValidationError } from "@/lib/qr-admin"`
 // call sites (route.ts, tests) keep working after the extraction to qr-errors.ts.
@@ -225,6 +231,41 @@ export async function getQr(code: string) {
 export async function getCtf(challenge: string) {
   const result = await Ctf.get({ challenge: normalizeChallenge(challenge) }).go();
   return result.data ?? null;
+}
+
+/** The plaintext OTP secret + reconstructed enrollment URL for a challenge. */
+export interface RevealedOtp {
+  secret: string;
+  otpauth: string;
+  digits: number;
+  period: number;
+  algorithm: string;
+}
+
+/**
+ * Reveal an existing rotating-OTP flag's shared secret + a rebuilt `otpauth://`
+ * enrollment URL, for the admin "Reveal secret" affordance (read-only). Returns
+ * null when the challenge is missing or carries no OTP secret — the route maps
+ * that to a 404 so the surface stays non-disclosing. This deliberately pierces
+ * the `redactCtfSecrets` boundary, so it MUST only be reached behind the same
+ * admin gate as every other mutation on /api/admin/qr. The rebuilt URL uses the
+ * challenge name as the authenticator account label (the stored `otp` map carries
+ * no label/issuer) — cosmetic only; the codes depend solely on
+ * secret/digits/period/algorithm.
+ */
+export async function revealCtfOtp(challenge: string): Promise<RevealedOtp | null> {
+  const row = await getCtf(challenge);
+  if (!row?.otp?.secret) return null;
+  // Captured on the guard-narrowed path (the ElectroDB map re-widens `secret`
+  // to `string | undefined` once aliased, so read it here where it's `string`).
+  const secret = row.otp.secret;
+  const otp = row.otp;
+
+  const digits = otp.digits ?? DEFAULT_DIGITS;
+  const period = otp.period ?? DEFAULT_PERIOD;
+  const algorithm = otp.algorithm ?? DEFAULT_ALGORITHM;
+  const otpauth = buildOtpauth({ secret, digits, period, algorithm, label: row.challenge });
+  return { secret, otpauth, digits, period, algorithm };
 }
 
 /**

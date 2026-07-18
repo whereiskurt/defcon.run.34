@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown } from "lucide-react";
+import * as qr from "qrcode";
 
 import { cls } from "./qr-ui";
 import { postQrAction } from "./qr-api";
@@ -156,6 +157,15 @@ export default function CtfForm({
   // First-come single-use (Phase 65). Rehydrates from the redacted summary so an
   // existing single-use flag shows the toggle ON. Default OFF ⇒ shared.
   const [otpSingleUse, setOtpSingleUse] = useState(Boolean(initial?.otp?.singleUse));
+  // Reveal-on-demand of the stored OTP secret (edit mode only). Hidden by
+  // default so the secret is never in the page's initial render; a click makes a
+  // separately-gated `ctf_otp_reveal` round-trip that pierces redactCtfSecrets.
+  const [otpReveal, setOtpReveal] = useState<{ secret: string; otpauth: string } | null>(
+    null
+  );
+  const [otpRevealBusy, setOtpRevealBusy] = useState(false);
+  const [otpQrDataUrl, setOtpQrDataUrl] = useState<string | null>(null);
+  const [otpCopied, setOtpCopied] = useState<"secret" | "otpauth" | null>(null);
   // Wordlist one-time codes (Slice 3, CTFT-14). WRITE-ONLY + add-only: NEVER
   // prefilled on edit (only hashes exist server-side — the plaintext is
   // unreadable). On save the non-blank lines are posted as `codes` for the server
@@ -441,6 +451,69 @@ export default function CtfForm({
     }
   }
 
+  // Toggle the OTP secret reveal. First click fetches secret + otpauth from the
+  // gated server action; a second click hides them (and drops them from state).
+  async function onToggleOtpReveal() {
+    if (otpReveal) {
+      setOtpReveal(null);
+      setOtpQrDataUrl(null);
+      setOtpCopied(null);
+      return;
+    }
+    setError(null);
+    setOtpRevealBusy(true);
+    try {
+      const res = await postQrAction({
+        action: "ctf_otp_reveal",
+        challenge: initial?.challenge,
+      });
+      const secret = res.data?.secret;
+      const otpauth = res.data?.otpauth;
+      if (!secret || !otpauth) throw new Error("No OTP secret is set for this flag.");
+      setOtpReveal({ secret, otpauth });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reveal failed.");
+    } finally {
+      setOtpRevealBusy(false);
+    }
+  }
+
+  async function copyOtpField(which: "secret" | "otpauth") {
+    if (!otpReveal) return;
+    try {
+      await navigator.clipboard.writeText(otpReveal[which]);
+      setOtpCopied(which);
+      setTimeout(() => setOtpCopied((c) => (c === which ? null : c)), 1500);
+    } catch {
+      /* clipboard blocked — the value is still selectable on screen */
+    }
+  }
+
+  // Render the enrollment QR from the revealed otpauth URL. Frozen params match
+  // CtfOtpEnroll (dark modules on a white quiet-zone → high contrast either theme).
+  useEffect(() => {
+    if (!otpReveal) {
+      setOtpQrDataUrl(null);
+      return;
+    }
+    let alive = true;
+    qr.toDataURL(otpReveal.otpauth, {
+      width: 220,
+      margin: 2,
+      errorCorrectionLevel: "M",
+      color: { light: "#ffffff", dark: "#000000" },
+    })
+      .then((url) => {
+        if (alive) setOtpQrDataUrl(url);
+      })
+      .catch(() => {
+        /* QR render failed — the secret + copyable otpauth link remain usable. */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [otpReveal]);
+
   const otpSummary = initial?.otp;
 
   return (
@@ -645,8 +718,9 @@ export default function CtfForm({
             ) : null}
             <p className="text-[12.5px] text-default-500 mt-2">
               The runner submits the current 6-digit code from their authenticator. The
-              shared secret is stored so the judge can verify it, and is never shown
-              again after you save.
+              shared secret is stored so the judge can verify it, and stays hidden after
+              you save — use <span className="font-semibold">Reveal secret</span> below to
+              view or re-share the enrollment seed.
             </p>
             {/* First-come single-use (Phase 65). Off ⇒ shared: every player who
                 submits a valid code scores. On ⇒ only the FIRST redeemer of a code
@@ -670,6 +744,96 @@ export default function CtfForm({
                 scores). On an edit, re-enter the OTP secret above to change this.
               </p>
             </div>
+
+            {/* Reveal-on-demand (edit + an OTP secret already stored). Hidden by
+                default; the secret only crosses the wire on a deliberate click. */}
+            {isEdit && hasOtpSecret ? (
+              <div className="mt-3 rounded-lg border border-divider bg-content2 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold">Stored secret</span>
+                  <button
+                    type="button"
+                    className={cls.btn}
+                    disabled={otpRevealBusy}
+                    onClick={onToggleOtpReveal}
+                  >
+                    {otpReveal
+                      ? "Hide secret"
+                      : otpRevealBusy
+                        ? "Revealing…"
+                        : "Reveal secret"}
+                  </button>
+                </div>
+
+                {otpReveal ? (
+                  <div className="mt-3 flex flex-col gap-3">
+                    <div>
+                      <label className={cls.label}>Shared secret (base32)</label>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 font-mono text-[12.5px] break-all rounded-lg border border-divider bg-content1 px-3 py-2">
+                          {otpReveal.secret}
+                        </code>
+                        <button
+                          type="button"
+                          className={cls.btn}
+                          onClick={() => copyOtpField("secret")}
+                        >
+                          {otpCopied === "secret" ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={cls.label}>Enrollment URL (otpauth://)</label>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 font-mono text-[12px] break-all rounded-lg border border-divider bg-content1 px-3 py-2">
+                          {otpReveal.otpauth}
+                        </code>
+                        <button
+                          type="button"
+                          className={cls.btn}
+                          onClick={() => copyOtpField("otpauth")}
+                        >
+                          {otpCopied === "otpauth" ? "Copied" : "Copy"}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="rounded-lg bg-white p-2 flex items-center justify-center min-h-[180px] min-w-[180px]">
+                        {otpQrDataUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={otpQrDataUrl}
+                            alt="OTP enrollment QR code"
+                            width={180}
+                            height={180}
+                            className="h-[180px] w-[180px]"
+                          />
+                        ) : (
+                          <span className="text-[12px] text-default-400">Rendering…</span>
+                        )}
+                      </div>
+                      {(otpSummary?.period ?? 120) === 30 ? (
+                        <p className="text-[12px] text-default-500 text-center max-w-[300px]">
+                          Scan to enroll in any authenticator app (including Google
+                          Authenticator).
+                        </p>
+                      ) : (
+                        <p className="text-[12px] text-default-500 text-center max-w-[300px]">
+                          Scan to enroll.{" "}
+                          <span className="font-semibold">
+                            Google Authenticator ignores the period and assumes 30s
+                          </span>{" "}
+                          — for this flag&apos;s {otpSummary?.period ?? 120}s period use a
+                          period-aware app (Aegis, 2FAS, FreeOTP).
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : (
           /* Section 3c — Wordlist (a pool of single-use codes, consumed first-come) */

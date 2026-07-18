@@ -11,6 +11,7 @@ import {
   deleteQr,
   upsertCtf,
   deleteCtf,
+  revealCtfOtp,
   QrValidationError,
   type QrInput,
   type CtfInput,
@@ -30,8 +31,9 @@ import {
  * Actions:
  *   - qr_upsert   { qr: QrInput }        create/update a code (validates https)
  *   - qr_delete   { code: string }       delete a code
- *   - ctf_upsert  { ctf: CtfInput }      create/update a challenge
- *   - ctf_delete  { challenge: string }  delete a challenge
+ *   - ctf_upsert     { ctf: CtfInput }      create/update a challenge
+ *   - ctf_delete     { challenge: string }  delete a challenge
+ *   - ctf_otp_reveal { challenge: string }  reveal an OTP flag's secret + enroll URL
  *
  * QrValidationError → 400; anything else → 500 (logged, generic message).
  */
@@ -41,7 +43,12 @@ export const dynamic = "force-dynamic";
 const notFound = () => new NextResponse(null, { status: 404 });
 
 interface AdminQrRequest {
-  action: "qr_upsert" | "qr_delete" | "ctf_upsert" | "ctf_delete";
+  action:
+    | "qr_upsert"
+    | "qr_delete"
+    | "ctf_upsert"
+    | "ctf_delete"
+    | "ctf_otp_reveal";
   qr?: QrInput;
   ctf?: CtfInput;
   code?: string;
@@ -80,6 +87,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         if (!body.challenge) return bad("challenge is required");
         await deleteCtf(body.challenge);
         return ok(`Deleted challenge ${body.challenge.toLowerCase()}.`);
+      }
+      case "ctf_otp_reveal": {
+        if (!body.challenge) return bad("challenge is required");
+        const revealed = await revealCtfOtp(body.challenge);
+        // No challenge / no OTP secret → 404 (non-disclosing, same as the gate).
+        if (!revealed) return notFound();
+        return ok("Revealed OTP secret.", revealed);
       }
       default:
         return bad("Unknown action.");

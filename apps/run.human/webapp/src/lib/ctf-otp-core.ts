@@ -167,3 +167,49 @@ export function parseOtpauth(otpUrl: string): OtpConfig {
 
   return { secret, digits, period, algorithm, label, issuer };
 }
+
+/**
+ * Build an `otpauth://totp/<issuer>:<account>?secret=…` enrollment URL — the
+ * inverse of {@link parseOtpauth}. Applies the same meshtk defaults (digits 6,
+ * period 120, SHA1, issuer "Defcon.run") when a field is omitted, uppercases the
+ * algorithm (matching parse), and percent-encodes the issuer/account label
+ * segments so the URL survives a round-trip. The base32 `secret` needs no
+ * escaping (RFC 4648 alphabet only). Node-free (uses only URLSearchParams +
+ * encodeURIComponent), so it bundles into the client.
+ *
+ * `label` is the authenticator ACCOUNT name (defaults to the issuer). Only
+ * secret/digits/period/algorithm affect the generated codes — label/issuer are
+ * cosmetic, so a URL rebuilt from a stored secret enrolls identically to the
+ * admin's original paste even though the label may differ.
+ */
+export function buildOtpauth(config: {
+  secret: string;
+  digits?: number;
+  period?: number;
+  algorithm?: string;
+  label?: string;
+  issuer?: string;
+}): string {
+  const { secret } = config;
+  if (!secret) {
+    throw new Error("secret is required");
+  }
+  const digits = config.digits ?? DEFAULT_DIGITS;
+  const period = config.period ?? DEFAULT_PERIOD;
+  const algorithm = (config.algorithm ?? DEFAULT_ALGORITHM).toUpperCase();
+  const issuer = config.issuer ?? DEFAULT_ISSUER;
+  const account = config.label ?? issuer;
+
+  // Canonical "<issuer>:<account>" label with a LITERAL colon; each side is
+  // percent-encoded independently so spaces/reserved chars can't break parsing.
+  const labelPath = `${encodeURIComponent(issuer)}:${encodeURIComponent(account)}`;
+
+  const params = new URLSearchParams();
+  params.set("secret", secret);
+  params.set("issuer", issuer);
+  params.set("algorithm", algorithm);
+  params.set("digits", String(digits));
+  params.set("period", String(period));
+
+  return `otpauth://totp/${labelPath}?${params.toString()}`;
+}
