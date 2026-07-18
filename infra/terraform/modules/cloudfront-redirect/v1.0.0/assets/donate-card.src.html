@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    background: radial-gradient(120% 120% at 15% 0%, #0d1512 0%, #060908 60%, #030504 100%);
+    color: #e7fff5; font-family: "Helvetica Neue", Arial, sans-serif;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 64px 72px; position: relative; overflow: hidden;
+  }
+  .wordmark { font-size: 40px; font-weight: 700; letter-spacing: -0.5px; color: #e7fff5; }
+  .wordmark .dot { color: #2dd4bf; }
+  .tag {
+    display: inline-block; font-family: "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 22px; letter-spacing: 4px; color: #2dd4bf;
+    border: 1px solid rgba(45,212,191,0.4); border-radius: 999px; padding: 8px 20px;
+  }
+  .center { display: flex; align-items: center; gap: 40px; }
+  .heart { font-size: 168px; line-height: 1; color: #2dd4bf; filter: drop-shadow(0 0 40px rgba(45,212,191,0.45)); }
+  .headline { font-size: 132px; font-weight: 800; letter-spacing: -3px; line-height: 0.92; }
+  .headline .give { color: #2dd4bf; }
+  .sub { font-size: 30px; color: #9fdccb; letter-spacing: 0.5px; }
+  .foot { display: flex; align-items: center; justify-content: space-between; }
+  .url { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 26px; color: #2dd4bf; }
+</style>
+</head>
+<body>
+  <div class="wordmark">defcon<span class="dot">.</span>run <span style="opacity:.5">34</span></div>
+  <div class="center">
+    <div class="heart">&#9829;</div>
+    <div>
+      <div class="headline">CHIP <span class="give">IN</span></div>
+      <div class="sub" style="margin-top:16px">Support defcon.run — an official DEF CON 34 event</div>
+    </div>
+  </div>
+  <div class="foot">
+    <span class="tag">05 &middot; GIVE</span>
+    <span class="url">donate.defcon.run</span>
+  </div>
+</body>
+</html>
