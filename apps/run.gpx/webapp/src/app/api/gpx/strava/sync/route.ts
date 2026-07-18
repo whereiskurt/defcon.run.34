@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { assertNotLockedLive } from "@/lib/live-lockout";
-import { isConDay, isSelectableConDay } from "@/lib/con-days";
+import { isConDay, isSelectableConDay, isValidDateString } from "@/lib/con-days";
 import { countConDayRuns } from "@/lib/con-day-usage";
 import { conDayLimit, isConDayCapped } from "@/lib/con-day-quota";
 import {
@@ -61,23 +61,41 @@ export async function POST(request: Request) {
   }
 
   // Con-day must be a real DEF CON run day and not in the future.
-  if (typeof conDay !== "string" || !isConDay(conDay)) {
+  // ADMIN OVERRIDE: admins may sync into ANY valid calendar date (bypass the
+  // con-day set + no-future gate) so they can test Strava import outside the con.
+  const isAdmin = services.includes("admin");
+  if (typeof conDay !== "string") {
     return NextResponse.json(
-      { error: "Invalid conDay", message: "conDay must be a DEF CON run day" },
+      { error: "Invalid conDay", message: "conDay must be a date string" },
       { status: 400 }
     );
   }
-  if (!isSelectableConDay(conDay, Date.now())) {
-    return NextResponse.json(
-      {
-        error: "conDay in the future",
-        message: "You can't log a run for a day that hasn't happened yet",
-      },
-      { status: 400 }
-    );
+  if (isAdmin) {
+    if (!isValidDateString(conDay)) {
+      return NextResponse.json(
+        { error: "Invalid conDay", message: "conDay must be a valid YYYY-MM-DD date" },
+        { status: 400 }
+      );
+    }
+  } else {
+    if (!isConDay(conDay)) {
+      return NextResponse.json(
+        { error: "Invalid conDay", message: "conDay must be a DEF CON run day" },
+        { status: 400 }
+      );
+    }
+    if (!isSelectableConDay(conDay, Date.now())) {
+      return NextResponse.json(
+        {
+          error: "conDay in the future",
+          message: "You can't log a run for a day that hasn't happened yet",
+        },
+        { status: 400 }
+      );
+    }
   }
 
-  const quotaTier: QuotaTier = services.includes("admin") ? "admin" : "upload";
+  const quotaTier: QuotaTier = isAdmin ? "admin" : "upload";
 
   // Fast fail if the con-day is already full — don't burn the burst guard.
   const conDayCountBefore = await countConDayRuns(session.user.id, conDay);

@@ -207,6 +207,8 @@ export const isAuthLoading = derived(auth, $auth => $auth.isLoading);
 export const hasGpxStudioAccess = derived(auth, $auth => $auth.hasGpxStudioAccess);
 // True when the runner linked Strava — gates the "Sync my Strava" door (Phase 61).
 export const hasStrava = derived(auth, $auth => $auth.hasStrava);
+/** Admin can override the con-day picker with any calendar date (log/test any day). */
+export const isAdmin = derived(auth, $auth => ($auth.user?.services ?? []).includes('admin'));
 export const authError = derived(auth, $auth => $auth.error);
 
 // Get user's mapbox token (or undefined to use default)

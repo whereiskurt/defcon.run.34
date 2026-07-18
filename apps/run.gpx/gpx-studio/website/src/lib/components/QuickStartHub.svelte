@@ -5,7 +5,8 @@
     // (rabbit runner layer). Dismissible → corner launcher → re-summonable.
     // Ghost mode is intentionally NOT exposed here.
     import { onMount } from 'svelte';
-    import { isAuthenticated, hasGpxStudioAccess, hasStrava } from '$lib/stores/auth';
+    import { get } from 'svelte/store';
+    import { isAuthenticated, hasGpxStudioAccess, hasStrava, isAdmin } from '$lib/stores/auth';
     import { getConDayUsage, QuotaExceededError, type ConDayUsage } from '$lib/cloud-sync';
     import { logRunFromFile } from '$lib/logic/file-actions';
     import { logRunFromStrava, StravaSyncError } from '$lib/logic/strava-import';
@@ -52,10 +53,14 @@
         error = null;
         try {
             usage = await getConDayUsage();
-            // Default to the latest selectable day (today); keep a valid prior pick.
-            if (!selectedDate || !usage.find((u) => u.date === selectedDate && u.selectable)) {
-                const sel = usage.filter((u) => u.selectable);
-                selectedDate = sel.length ? sel[sel.length - 1].date : null;
+            // Non-admins: default to the latest selectable con-day (today), keeping a
+            // valid prior pick. Admins choose any date via the date input, so never
+            // clobber their selection here.
+            if (!get(isAdmin)) {
+                if (!selectedDate || !usage.find((u) => u.date === selectedDate && u.selectable)) {
+                    const sel = usage.filter((u) => u.selectable);
+                    selectedDate = sel.length ? sel[sel.length - 1].date : null;
+                }
             }
         } catch (e) {
             error = e instanceof Error ? e.message : 'Could not load your con-days';
@@ -68,10 +73,17 @@
         if (canShow) void refreshUsage();
     });
 
+    /** Local YYYY-MM-DD (en-CA formats as ISO date). For the admin any-date default. */
+    function todayStr(): string {
+        return new Date().toLocaleDateString('en-CA');
+    }
+
     function openLogRun() {
         message = null;
         error = null;
         view = 'logrun';
+        // Admins pick any date via a date input; seed it to today so it's ready.
+        if (get(isAdmin) && !selectedDate) selectedDate = todayStr();
         void refreshUsage();
     }
     function checkRoutes() {
@@ -249,27 +261,43 @@
                         <div class="flex items-center gap-2 py-6 text-sm text-muted-foreground">
                             <LoaderCircle size={16} class="animate-spin" /> Loading your days…
                         </div>
-                    {:else if selectableDays.length === 0}
+                    {:else if selectableDays.length === 0 && !$isAdmin}
                         <p class="py-4 text-sm text-muted-foreground">
                             Con-day logging isn't open yet. Come back during the con (Aug 5–10).
                         </p>
                     {:else}
-                        <p class="mb-2 mt-3 text-xs font-medium text-muted-foreground">Which day?</p>
-                        <div class="flex flex-wrap gap-1.5">
-                            {#each selectableDays as day (day.date)}
-                                <button
-                                    class="rounded-full border px-3 py-1 text-sm transition {selectedDate ===
-                                    day.date
-                                        ? 'border-primary bg-primary text-primary-foreground'
-                                        : 'hover:bg-accent'} {day.remaining <= 0
-                                        ? 'opacity-40'
-                                        : ''}"
-                                    onclick={() => (selectedDate = day.date)}
-                                >
-                                    {day.label.slice(0, 3)}
-                                </button>
-                            {/each}
-                        </div>
+                        {#if $isAdmin}
+                            <!-- Admin override: log/test a run for ANY date. -->
+                            <label
+                                class="mb-2 mt-3 block text-xs font-medium text-muted-foreground"
+                                for="qs-admin-date"
+                            >
+                                Which day? <span class="opacity-70">(admin — any date)</span>
+                            </label>
+                            <input
+                                id="qs-admin-date"
+                                type="date"
+                                class="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                                bind:value={selectedDate}
+                            />
+                        {:else}
+                            <p class="mb-2 mt-3 text-xs font-medium text-muted-foreground">Which day?</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                {#each selectableDays as day (day.date)}
+                                    <button
+                                        class="rounded-full border px-3 py-1 text-sm transition {selectedDate ===
+                                        day.date
+                                            ? 'border-primary bg-primary text-primary-foreground'
+                                            : 'hover:bg-accent'} {day.remaining <= 0
+                                            ? 'opacity-40'
+                                            : ''}"
+                                        onclick={() => (selectedDate = day.date)}
+                                    >
+                                        {day.label.slice(0, 3)}
+                                    </button>
+                                {/each}
+                            </div>
+                        {/if}
 
                         {#if selectedUsage}
                             <p class="mt-3 text-xs text-muted-foreground">

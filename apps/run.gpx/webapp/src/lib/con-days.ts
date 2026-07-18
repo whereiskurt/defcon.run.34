@@ -44,6 +44,20 @@ export function conDayLabel(date: string | null | undefined): string | null {
 }
 
 /**
+ * True if `s` is a syntactically valid ISO calendar date (YYYY-MM-DD) — a real
+ * day (rejects e.g. 2026-02-31). Used ONLY for the admin any-date override, which
+ * lets admins log/test a run for any day of the year, bypassing the con-day set
+ * and the no-future gate. Non-admins are still held to isConDay + isSelectableConDay.
+ */
+export function isValidDateString(s: string | null | undefined): boolean {
+  if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  const t = Date.parse(`${s}T00:00:00Z`);
+  if (Number.isNaN(t)) return false;
+  // Round-trip guard: rejects impossible dates that Date.parse would roll over.
+  return new Date(t).toISOString().slice(0, 10) === s;
+}
+
+/**
  * Convert an epoch-ms instant to its YYYY-MM-DD calendar date in the con's local
  * timezone. Shifting the instant by the fixed offset and reading UTC fields gives
  * the con-local date without pulling in Intl/timezone data.
