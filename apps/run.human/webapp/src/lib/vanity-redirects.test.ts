@@ -5,11 +5,16 @@ import redirects from "@/data/redirects.json";
 describe("loadVanityRedirects", () => {
   const all = loadVanityRedirects();
 
-  it("includes donate mapped to the whoami donate flow", () => {
+  it("routes donate through auto-signin so logged-out visitors get the login flow", () => {
     const donate = all.find((r) => r.host === "donate");
     expect(donate).toBeDefined();
     expect(donate!.fqdn).toBe("donate.defcon.run");
-    expect(donate!.targetUrl).toBe("https://run.defcon.run/use1/whoami?open=donate");
+    // Must go through /api/auth/auto-signin (login flow) with an encoded
+    // callbackUrl back to /use1/whoami?open=donate — NOT bare whoami, which
+    // spins forever when logged out. Mirrors the static Donate tile.
+    expect(donate!.targetUrl).toBe(
+      "https://run.defcon.run/use1/api/auth/auto-signin?callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate"
+    );
     expect(donate!.splash).toBe("hackers");
     expect(donate!.statusCode).toBe("HTTP_302");
   });
