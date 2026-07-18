@@ -7,6 +7,7 @@ import {
   todayConDay,
   isSelectableConDay,
   guessConDayFromGpx,
+  isValidDateString,
 } from "./con-days";
 
 const ms = (iso: string) => Date.parse(iso);
@@ -87,6 +88,25 @@ describe("isSelectableConDay (no future days)", () => {
   it("rejects non-con dates", () => {
     expect(isSelectableConDay("2026-08-04", nowSat)).toBe(false);
     expect(isSelectableConDay(null, nowSat)).toBe(false);
+  });
+});
+
+describe("isValidDateString (admin any-date override)", () => {
+  it("accepts real YYYY-MM-DD dates, incl. non-con days", () => {
+    expect(isValidDateString("2026-08-08")).toBe(true); // a con day
+    expect(isValidDateString("2026-07-17")).toBe(true); // off-con, today-ish
+    expect(isValidDateString("2025-01-01")).toBe(true); // any year
+    expect(isValidDateString("2028-02-29")).toBe(true); // real leap day
+  });
+  it("rejects impossible or malformed dates", () => {
+    expect(isValidDateString("2026-02-31")).toBe(false); // rolls over
+    expect(isValidDateString("2026-13-01")).toBe(false);
+    expect(isValidDateString("2026-8-8")).toBe(false); // not zero-padded
+    expect(isValidDateString("08/08/2026")).toBe(false);
+    expect(isValidDateString("2026-08-08T00:00")).toBe(false);
+    expect(isValidDateString("")).toBe(false);
+    expect(isValidDateString(null)).toBe(false);
+    expect(isValidDateString(undefined)).toBe(false);
   });
 });
 

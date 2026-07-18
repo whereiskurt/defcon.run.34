@@ -18,7 +18,7 @@
         Trash2,
         Zap,
     } from '@lucide/svelte';
-    import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
+    import { isAuthenticated, hasGpxStudioAccess, isAdmin } from '$lib/stores/auth';
     import { getConDayUsage, QuotaExceededError, type ConDayUsage } from '$lib/cloud-sync';
     import { logRunFromFile } from '$lib/logic/file-actions';
     import { guessDateFromGpxText, readGpxText } from '$lib/logic/bulk-upload';
@@ -47,7 +47,11 @@
     const selectableDates = $derived(new Set(selectableDays.map((d) => d.date)));
 
     function isValid(r: Row): boolean {
-        return r.assignedDate !== '' && selectableDates.has(r.assignedDate);
+        if (r.assignedDate === '') return false;
+        // Admin override: any valid calendar date is loggable (bypass the con-day
+        // set + no-future gate). Non-admins are held to selectable con-days.
+        if ($isAdmin) return /^\d{4}-\d{2}-\d{2}$/.test(r.assignedDate);
+        return selectableDates.has(r.assignedDate);
     }
 
     const pendingRows = $derived(rows.filter((r) => r.status !== 'imported'));
@@ -110,8 +114,10 @@
             } catch {
                 guessedDate = null;
             }
-            const assignedDate =
-                guessedDate && selectableDates.has(guessedDate) ? guessedDate : '';
+            // Admins accept any guessed date; non-admins only a selectable con-day.
+            const assignedDate = guessedDate
+                ? ($isAdmin || selectableDates.has(guessedDate) ? guessedDate : '')
+                : '';
             added.push({ file, name: file.name, guessedDate, assignedDate, status: 'pending' });
         }
         rows = [...rows, ...added];
@@ -121,7 +127,7 @@
     function autoGuess() {
         rows = rows.map((r) => {
             if (r.status === 'imported') return r;
-            if (r.guessedDate && selectableDates.has(r.guessedDate)) {
+            if (r.guessedDate && ($isAdmin || selectableDates.has(r.guessedDate))) {
                 return { ...r, assignedDate: r.guessedDate };
             }
             return r;
@@ -248,18 +254,28 @@
                                     </div>
                                 </div>
 
-                                <!-- Day dropdown -->
-                                <select
-                                    class="rounded-md border bg-background px-2 py-1 text-sm disabled:opacity-50"
-                                    value={row.assignedDate}
-                                    disabled={importing || row.status === 'imported'}
-                                    onchange={(e) => setDay(i, (e.currentTarget as HTMLSelectElement).value)}
-                                >
-                                    <option value="">pick…</option>
-                                    {#each selectableDays as day (day.date)}
-                                        <option value={day.date}>{day.label.slice(0, 3)}</option>
-                                    {/each}
-                                </select>
+                                <!-- Day picker: admins get any-date input; others a con-day dropdown -->
+                                {#if $isAdmin}
+                                    <input
+                                        type="date"
+                                        class="rounded-md border bg-background px-2 py-1 text-sm disabled:opacity-50"
+                                        value={row.assignedDate}
+                                        disabled={importing || row.status === 'imported'}
+                                        onchange={(e) => setDay(i, (e.currentTarget as HTMLInputElement).value)}
+                                    />
+                                {:else}
+                                    <select
+                                        class="rounded-md border bg-background px-2 py-1 text-sm disabled:opacity-50"
+                                        value={row.assignedDate}
+                                        disabled={importing || row.status === 'imported'}
+                                        onchange={(e) => setDay(i, (e.currentTarget as HTMLSelectElement).value)}
+                                    >
+                                        <option value="">pick…</option>
+                                        {#each selectableDays as day (day.date)}
+                                            <option value={day.date}>{day.label.slice(0, 3)}</option>
+                                        {/each}
+                                    </select>
+                                {/if}
 
                                 <!-- Status -->
                                 <div class="w-6 text-center">

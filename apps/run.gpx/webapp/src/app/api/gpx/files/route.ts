@@ -13,7 +13,7 @@ import {
 } from "@/lib/quota-client";
 import { logEvent } from "@/lib/log-event";
 import { assertNotLockedLive } from "@/lib/live-lockout";
-import { isConDay, isSelectableConDay } from "@/lib/con-days";
+import { isConDay, isSelectableConDay, isValidDateString } from "@/lib/con-days";
 import { conDayLimit, conDayRemaining, isConDayCapped } from "@/lib/con-day-quota";
 import { countConDayRuns } from "@/lib/con-day-usage";
 
@@ -116,23 +116,40 @@ export async function POST(request: Request) {
 
     // Con-day tag (Phase 58): optional, but when provided it must be a real con
     // day and not in the future (you can't log a run that hasn't happened).
-    // Invalid/future values are rejected rather than silently dropped so the
-    // client can correct the picker.
+    // ADMIN OVERRIDE: admins may tag ANY valid calendar date (any day of the
+    // year), bypassing the con-day set + no-future gate — needed to test/log
+    // outside the con window. Non-admins keep the strict con-day rules.
+    const isAdmin = services.includes("admin");
     if (conDay !== undefined && conDay !== null) {
-      if (typeof conDay !== "string" || !isConDay(conDay)) {
+      if (typeof conDay !== "string") {
         return NextResponse.json(
-          { error: "Invalid conDay", message: "conDay must be a DEF CON run day" },
+          { error: "Invalid conDay", message: "conDay must be a date string" },
           { status: 400 }
         );
       }
-      if (!isSelectableConDay(conDay, Date.now())) {
-        return NextResponse.json(
-          {
-            error: "conDay in the future",
-            message: "You can't log a run for a day that hasn't happened yet",
-          },
-          { status: 400 }
-        );
+      if (isAdmin) {
+        if (!isValidDateString(conDay)) {
+          return NextResponse.json(
+            { error: "Invalid conDay", message: "conDay must be a valid YYYY-MM-DD date" },
+            { status: 400 }
+          );
+        }
+      } else {
+        if (!isConDay(conDay)) {
+          return NextResponse.json(
+            { error: "Invalid conDay", message: "conDay must be a DEF CON run day" },
+            { status: 400 }
+          );
+        }
+        if (!isSelectableConDay(conDay, Date.now())) {
+          return NextResponse.json(
+            {
+              error: "conDay in the future",
+              message: "You can't log a run for a day that hasn't happened yet",
+            },
+            { status: 400 }
+          );
+        }
       }
     }
 
