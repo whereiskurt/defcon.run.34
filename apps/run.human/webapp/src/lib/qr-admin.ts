@@ -2,6 +2,7 @@ import { Qr, Ctf, Qrstat } from "@/entities/qr";
 import { CtfSolve, CtfScoreEvent, CtfCode } from "@/entities/ctf";
 import { hashAnswer } from "@/lib/ctf-hash";
 import { QrValidationError } from "@/lib/qr-errors";
+import { normalizeCodeKey } from "@/lib/qr-code-normalize";
 import {
   assertAnswerTypeTransition,
   mergeFlagTypeNextState,
@@ -199,9 +200,14 @@ export async function listCtf() {
   return result.data;
 }
 
-/** One QR code by (normalized) code, or null. */
+/**
+ * One QR code by code, or null. Uses the LENIENT key (trim+lowercase, no
+ * CODE_RE throw) so rows created outside upsertQr — e.g. emoji/percent-encoded
+ * codes — load instead of crashing the edit page. Strict validation is a
+ * write-time concern (see upsertQr / normalizeCode).
+ */
 export async function getQr(code: string) {
-  const result = await Qr.get({ code: normalizeCode(code) }).go();
+  const result = await Qr.get({ code: normalizeCodeKey(code) }).go();
   return result.data ?? null;
 }
 
@@ -240,7 +246,7 @@ export interface QrStatsView {
  * rollup Lambda owns the writes; this only reads. Days are returned newest-first.
  */
 export async function getQrStats(code: string): Promise<QrStatsView> {
-  const c = normalizeCode(code);
+  const c = normalizeCodeKey(code);
   const result = await Qrstat.query.primary({ code: c }).go({ pages: "all" });
   const view: QrStatsView = { total: 0, days: [], params: [], ctf: [] };
   for (const row of result.data) {
@@ -326,9 +332,10 @@ export async function upsertQr(input: QrInput): Promise<string> {
   return code;
 }
 
-/** Delete a QR code by (normalized) code. Idempotent. */
+/** Delete a QR code by code (LENIENT key). Idempotent. Lets the admin remove
+ * rows created outside upsertQr — e.g. emoji/percent-encoded codes. */
 export async function deleteQr(code: string): Promise<void> {
-  await Qr.delete({ code: normalizeCode(code) }).go();
+  await Qr.delete({ code: normalizeCodeKey(code) }).go();
 }
 
 /**
