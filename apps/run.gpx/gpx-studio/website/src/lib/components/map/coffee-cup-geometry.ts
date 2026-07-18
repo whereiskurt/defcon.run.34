@@ -1,0 +1,150 @@
+/**
+ * Pure geometry for the giant PublicUs coffee cup — no Mapbox / DOM imports, so
+ * it can be reasoned about and sanity-checked standalone.
+ *
+ * The cup is a set of fill-extrusion footprints (each a 2D polygon extruded
+ * vertically from `base` to `height` metres), same tech as the rainbow arches:
+ *   - body:   a translucent cylinder (disc extruded ground → H)
+ *   - coffee: a smaller brown disc near the rim
+ *   - handle: a curved thin wall on one side (a handle silhouette)
+ *   - steam:  swaying columns above the rim — ONLY when unlocked
+ * Flat/overhead it reads as a faint disc; tilted, it rises into a cartoon mug.
+ */
+
+export type LngLat = [number, number];
+
+/** PublicUs coffee, 1126 Fremont St, Las Vegas (Fremont East). */
+export const COFFEE_LOCATION: LngLat = [-115.1378, 36.1591];
+
+/** Cartoon palette: cream ceramic body, brown coffee, white steam. */
+export const CUP_COLORS = {
+    body: '#F5F0E6',
+    coffee: '#5C3A21',
+    steam: '#FFFFFF'
+};
+
+const EARTH_M_PER_DEG_LAT = 111320;
+
+function metresPerDegLng(lat: number): number {
+    return EARTH_M_PER_DEG_LAT * Math.cos((lat * Math.PI) / 180);
+}
+
+/** Metre offset (east, north) from a centre → [lng, lat]. */
+function offset(center: LngLat, dxM: number, dyM: number): LngLat {
+    return [
+        center[0] + dxM / metresPerDegLng(center[1]),
+        center[1] + dyM / EARTH_M_PER_DEG_LAT
+    ];
+}
+
+export interface BuildCupOpts {
+    unlocked?: boolean; // add steam when true
+    radiusM?: number; // cup body radius
+    bodyHeightM?: number; // cup body height
+    segments?: number; // disc smoothness
+}
+
+/**
+ * Build the cup as a GeoJSON FeatureCollection. Each feature carries `color`
+ * (fill-extrusion-color), `height` + `base` (metres) and `part`
+ * (body|coffee|handle|steam).
+ */
+export function buildCupFeatures(opts: BuildCupOpts = {}): GeoJSON.FeatureCollection {
+    const R = opts.radiusM ?? 35;
+    const H = opts.bodyHeightM ?? 80;
+    const seg = opts.segments ?? 40;
+    const c = COFFEE_LOCATION;
+    const features: GeoJSON.Feature[] = [];
+
+    // Closed ring of `n` points at a given radius (metres) about the centre.
+    const ring = (radius: number, n: number): LngLat[] => {
+        const pts: LngLat[] = [];
+        for (let i = 0; i <= n; i++) {
+            const a = (2 * Math.PI * i) / n;
+            pts.push(offset(c, Math.cos(a) * radius, Math.sin(a) * radius));
+        }
+        return pts;
+    };
+
+    // Body — translucent cylinder (disc extruded ground → H).
+    features.push({
+        type: 'Feature',
+        properties: { part: 'body', color: CUP_COLORS.body, height: H, base: 0 },
+        geometry: { type: 'Polygon', coordinates: [ring(R, seg)] }
+    });
+
+    // Coffee surface — thin brown disc set just below the rim.
+    features.push({
+        type: 'Feature',
+        properties: { part: 'coffee', color: CUP_COLORS.coffee, height: H, base: H - 4 },
+        geometry: { type: 'Polygon', coordinates: [ring(R * 0.86, seg)] }
+    });
+
+    // Handle — a curved thin wall (±60° arc on +x), extruded mid-height.
+    const h0 = H * 0.25;
+    const h1 = H * 0.75;
+    const handleR = R + 14; // sticks out from the body
+    const wallW = 8; // radial thickness
+    const aStart = -Math.PI / 3;
+    const aEnd = Math.PI / 3;
+    const hSeg = 16;
+    for (let i = 0; i < hSeg; i++) {
+        const a0 = aStart + (aEnd - aStart) * (i / hSeg);
+        const a1 = aStart + (aEnd - aStart) * ((i + 1) / hSeg);
+        const p0i = offset(c, Math.cos(a0) * (handleR - wallW / 2), Math.sin(a0) * (handleR - wallW / 2));
+        const p0o = offset(c, Math.cos(a0) * (handleR + wallW / 2), Math.sin(a0) * (handleR + wallW / 2));
+        const p1o = offset(c, Math.cos(a1) * (handleR + wallW / 2), Math.sin(a1) * (handleR + wallW / 2));
+        const p1i = offset(c, Math.cos(a1) * (handleR - wallW / 2), Math.sin(a1) * (handleR - wallW / 2));
+        features.push({
+            type: 'Feature',
+            properties: { part: 'handle', color: CUP_COLORS.body, height: h1, base: h0 },
+            geometry: { type: 'Polygon', coordinates: [[p0i, p0o, p1o, p1i, p0i]] }
+        });
+    }
+
+    // Steam — 3 swaying translucent columns above the rim, unlocked only.
+    if (opts.unlocked) {
+        const steamBase = H;
+        const steamTop = H + 70;
+        const steamSeg = 18;
+        const colW = 6; // footprint square side, metres
+        const cols = [
+            { x: -12, phase: 0 },
+            { x: 0, phase: 1.5 },
+            { x: 12, phase: 3.0 }
+        ];
+        for (const col of cols) {
+            for (let i = 0; i < steamSeg; i++) {
+                const t0 = i / steamSeg;
+                const t1 = (i + 1) / steamSeg;
+                const tm = (t0 + t1) / 2;
+                const z0 = steamBase + (steamTop - steamBase) * t0;
+                const z1 = steamBase + (steamTop - steamBase) * t1;
+                const xm = col.x + Math.sin(tm * Math.PI * 2 + col.phase) * 10; // sway
+                const A = offset(c, xm - colW / 2, -colW / 2);
+                const B = offset(c, xm + colW / 2, -colW / 2);
+                const D = offset(c, xm + colW / 2, colW / 2);
+                const E = offset(c, xm - colW / 2, colW / 2);
+                features.push({
+                    type: 'Feature',
+                    properties: { part: 'steam', color: CUP_COLORS.steam, height: z1, base: z0 },
+                    geometry: { type: 'Polygon', coordinates: [[A, B, D, E, A]] }
+                });
+            }
+        }
+    }
+
+    return { type: 'FeatureCollection', features };
+}
+
+/**
+ * Pitch → layer opacity ramp. The cup is ALWAYS on, so it never drops to 0: a
+ * faint `floor` shows overhead as a footprint, blooming as you tilt. Unlocking
+ * (search) raises the ceiling so the cup reads more solid.
+ */
+export function cupOpacity(pitch: number, unlocked: boolean, start = 0, end = 60): number {
+    const t = Math.max(0, Math.min(1, (pitch - start) / (end - start)));
+    const floor = 0.1;
+    const max = unlocked ? 0.6 : 0.4;
+    return floor + t * (max - floor);
+}
