@@ -41,5 +41,19 @@
       "image": "https://sao.defcon.run/sao.png",
       "image_file": "sao.png"
     }
+  },
+  {
+    "host": "donate",
+    "target_host": "run.defcon.run",
+    "target_path": "/use1/whoami",
+    "target_query": "open=donate",
+    "status_code": "HTTP_302",
+    "priority": 93,
+    "og": {
+      "title": "Chip In — DEF CON 34",
+      "description": "Support defcon.run — an official DEF CON 34 event in Las Vegas. Every bit helps us put on the run.",
+      "image": "https://donate.defcon.run/donate-card.png",
+      "image_file": "donate-card.png"
+    }
   }
 ]
