@@ -3,6 +3,8 @@ import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 import { get, writable, type Writable } from 'svelte/store';
 import { settings } from '$lib/logic/settings';
 import { tick } from 'svelte';
+import { recordHit } from '$lib/stores/ghost';
+import { rainbowUnlocked } from '$lib/stores/rainbow';
 
 const { treeFileView, elevationProfile, bottomPanelSize, rightPanelSize, distanceUnits } = settings;
 
@@ -16,6 +18,8 @@ export class MapboxGLMap {
     private _map: Writable<mapboxgl.Map | null> = writable(null);
     private _onLoadCallbacks: ((map: mapboxgl.Map) => void)[] = [];
     private _unsubscribes: (() => void)[] = [];
+    // Rolling buffer of 3D-toggle timestamps for the hidden rainbow unlock.
+    private _flipBuf: number[] = [];
 
     subscribe(run: (value: mapboxgl.Map | null) => void, invalidate?: () => void) {
         return this._map.subscribe(run, invalidate);
@@ -240,6 +244,11 @@ export class MapboxGLMap {
             } else {
                 map.easeTo({ pitch: 0 });
             }
+            // Hidden "Rainbow Bridges" unlock: 3 rapid 3D flips within 2s.
+            // Monotonic for the session (set true, never re-locks).
+            const r = recordHit(this._flipBuf, Date.now(), 2000, 3);
+            this._flipBuf = r.buf;
+            if (r.hit) rainbowUnlocked.set(true);
         }
     }
 }

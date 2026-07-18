@@ -6,7 +6,10 @@
     import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
     import { GhostLayer } from '$lib/components/map/ghost-layer';
     import { RabbitLayer } from '$lib/components/map/rabbit-layer';
+    import { RainbowArch } from '$lib/components/map/rainbow-arch';
+    import { fireRainbowEgg } from '$lib/components/map/rainbow-egg';
     import { ghostMode } from '$lib/stores/ghost';
+    import { rainbowUnlocked } from '$lib/stores/rainbow';
     import { quickStartAction } from '$lib/stores/quickstart';
     import { get } from 'svelte/store';
     import { Separator } from '$lib/components/ui/separator';
@@ -32,6 +35,7 @@
     let publicOverlaysLayer: PublicOverlaysLayer | undefined = $state();
     let ghostLayer: GhostLayer | undefined;
     let rabbitLayer: RabbitLayer | undefined;
+    let rainbowArch: RainbowArch | undefined;
 
     const {
         currentBasemap,
@@ -223,6 +227,16 @@
         rabbitLayer = new RabbitLayer(_map);
         // Rabbit Layer is default-ON: only opted-in (verified && showOnMap) users appear.
         void rabbitLayer.setVisible(true);
+        // Hidden "Rainbow Bridges" easter egg: default-locked, revealed by the
+        // rapid-3D-flip gesture (map.toggle3D) then pitch-gated. On unlock we also
+        // fire the covert CTF award (rainbow-egg), once — same single-subscription
+        // safety as ghostMode above.
+        if (rainbowArch) rainbowArch.remove();
+        rainbowArch = new RainbowArch(_map);
+        rainbowUnlocked.subscribe((on) => {
+            void rainbowArch?.setUnlocked(on);
+            if (on) fireRainbowEgg();
+        });
         let first = true;
         _map.on('style.import.load', () => {
             if (!first) return;
