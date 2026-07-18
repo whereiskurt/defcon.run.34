@@ -86,7 +86,12 @@ const DEFAULT_EGGS: EggModal[] = [
       "favourite fuel stop.</p>",
     address: "1126 Fremont St, Las Vegas",
     accent: "#5C3A21",
-    links: [{ label: "publicuslv.com", url: "https://publicuslv.com" }],
+    links: [
+      {
+        label: "PublicUs on Tripadvisor",
+        url: "https://www.tripadvisor.ca/Restaurant_Review-g45963-d7827155-Reviews-PublicUs-Las_Vegas_Nevada.html",
+      },
+    ],
   },
 ];
 
