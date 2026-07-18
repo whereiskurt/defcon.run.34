@@ -40,6 +40,13 @@ vi.mock("@/entities/client", () => ({
   ELECTRO_TABLE: "run-human-electro-mock",
 }));
 
+// recordDonation provisions a run.human identity for a non-anonymous donor
+// (fail-open network side-effect) — mock it so the unit test stays offline.
+const { mockEnsure } = vi.hoisted(() => ({ mockEnsure: vi.fn() }));
+vi.mock("@/lib/rabbit-name-sync", () => ({
+  ensureRunHumanProfile: (...a: unknown[]) => mockEnsure(...a),
+}));
+
 import {
   getDonation,
   listDonationsForOwner,
@@ -64,6 +71,7 @@ describe("recordDonation()", () => {
     mockCreate.mockReset();
     mockGet.mockReset();
     mockScan.mockReset();
+    mockEnsure.mockReset();
   });
 
   it("creates a new donation row on first write and returns it", async () => {
@@ -98,6 +106,22 @@ describe("recordDonation()", () => {
       stripeSessionId: "cs_test_A",
       reconciledVia: "stripe_webhook_cs_test_A",
     });
+    // The donor is provisioned a run.human identity on this fresh donation.
+    expect(mockEnsure).toHaveBeenCalledWith("user-1");
+  });
+
+  it("does NOT provision on an anonymous donation (ownerSub null)", async () => {
+    mockCreate.mockResolvedValue({
+      data: { donationId: "stripe:cs_anon", amountCents: 1000, provider: "stripe" },
+    });
+    await recordDonation({
+      donationId: "stripe:cs_anon",
+      ownerSub: null,
+      amountCents: 1000,
+      provider: "stripe",
+      reconciledVia: "stripe_webhook_cs_anon",
+    });
+    expect(mockEnsure).not.toHaveBeenCalled();
   });
 
   it("is idempotent: same stripeSessionId → returns existing row, no new write", async () => {
@@ -130,6 +154,8 @@ describe("recordDonation()", () => {
     expect(mockCreate).toHaveBeenCalledTimes(1);
     // getDonation() re-reads the row on the dedup path.
     expect(mockGet).toHaveBeenCalledTimes(1);
+    // Retry (ConditionalCheckFailed) → no re-provision.
+    expect(mockEnsure).not.toHaveBeenCalled();
   });
 
   it("clamps negative amount to 0", async () => {

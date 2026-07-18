@@ -3,6 +3,7 @@ import {
   normalizeSyncedName,
   syncRabbitName,
   maybeSyncRabbitName,
+  ensureRunHumanProfile,
 } from "@/lib/rabbit-name-sync";
 
 describe("normalizeSyncedName", () => {
@@ -78,5 +79,33 @@ describe("maybeSyncRabbitName", () => {
   it("returns 'failed' (never throws) when the sync errors", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("boom")));
     await expect(maybeSyncRabbitName("sub-1", "OGRE")).resolves.toBe("failed");
+  });
+});
+
+describe("ensureRunHumanProfile", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("PATCHes with an empty displayName (provision-if-missing, no name)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal("fetch", fetchMock);
+    await ensureRunHumanProfile("sub-pay");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain("/api/internal/user/sub-pay");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(init.body)).toEqual({ displayName: "" });
+  });
+
+  it("does nothing for an empty ownerSub", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await ensureRunHumanProfile("");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("never throws when the provision call fails", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+    await expect(ensureRunHumanProfile("sub-pay")).resolves.toBeUndefined();
   });
 });

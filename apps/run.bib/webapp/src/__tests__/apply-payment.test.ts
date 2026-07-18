@@ -63,6 +63,13 @@ vi.mock("@/entities/client", () => ({
   ELECTRO_TABLE: "run-human-electro-mock",
 }));
 
+// applyPayment provisions a run.human identity for the payer (fail-open network
+// side-effect) — mock it so the unit test stays offline + can assert the hook.
+const { mockEnsure } = vi.hoisted(() => ({ mockEnsure: vi.fn() }));
+vi.mock("@/lib/rabbit-name-sync", () => ({
+  ensureRunHumanProfile: (...a: unknown[]) => mockEnsure(...a),
+}));
+
 // Import after mocks are registered.
 import { applyPayment } from "@/entities/bib";
 
@@ -70,6 +77,7 @@ describe("applyPayment()", () => {
   beforeEach(() => {
     mockGet.mockReset();
     mockPatch.mockReset();
+    mockEnsure.mockReset();
   });
 
   it("throws when the bib does not exist for the owner", async () => {
@@ -82,6 +90,7 @@ describe("applyPayment()", () => {
       })
     ).rejects.toThrow(/No bib found for ownerSub=nobody/);
     expect(mockPatch).not.toHaveBeenCalled();
+    expect(mockEnsure).not.toHaveBeenCalled();
   });
 
   it("appends the history row + ADDs paidAmount on first application", async () => {
@@ -118,6 +127,8 @@ describe("applyPayment()", () => {
 
     expect(result.paidAmount).toBe(2500);
     expect(mockPatch).toHaveBeenCalledTimes(1);
+    // The payer is provisioned a run.human identity on this fresh application.
+    expect(mockEnsure).toHaveBeenCalledWith("user-1");
     const [key, chain, opts] = mockPatch.mock.calls[0] as unknown as [
       { ownerSub: string },
       { addPayload: Record<string, unknown>; appendPayload: Record<string, unknown> },
@@ -165,6 +176,8 @@ describe("applyPayment()", () => {
 
     expect(result).toBe(bibWithHistory);
     expect(mockPatch).not.toHaveBeenCalled();
+    // Idempotent short-circuit → no re-provision on webhook retries.
+    expect(mockEnsure).not.toHaveBeenCalled();
   });
 
   it("truncates fractional cents to whole cents (Stripe amount_total is int)", async () => {

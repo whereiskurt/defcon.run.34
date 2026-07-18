@@ -1,6 +1,7 @@
 import { Entity, type EntityItem } from "electrodb";
 import { electroClient, ELECTRO_TABLE } from "./client";
 import { clearPendingForOwner } from "./pending-contribution";
+import { ensureRunHumanProfile } from "@/lib/rabbit-name-sync";
 
 /**
  * Bib Entity
@@ -331,6 +332,13 @@ export async function applyPayment(
       console.warn(`[run.bib] applyPayment: clearPending failed: ${e}`)
     );
   }
+
+  // Every bib purchaser gets a run.human identity + social QR (Kurt 2026-07-18).
+  // Runs only on a FRESH application (the idempotent short-circuit above returned
+  // early), so webhook retries don't re-ping. Fail-open + timeout-bounded — a
+  // provision miss must never fail the payment.
+  await ensureRunHumanProfile(ownerSub);
+
   return result.data as BibItem;
 }
 
