@@ -318,3 +318,81 @@ export async function fetchRouteMeta(): Promise<{
   }
   return { byGpxKey, cmsRoutes };
 }
+
+/**
+ * Curated CMS override for one map "easter-egg" modal, keyed by the egg id. All
+ * optional — only the fields a CMS editor can override; the rest of the modal
+ * (eyebrow, address, links, accent) always comes from the endpoint's hardcoded
+ * defaults.
+ */
+export interface EggMeta {
+  title?: string;
+  descriptionHtml?: string; // Route.description (blocks) → safe HTML
+  coverImageUrl?: string;
+  coverImageDisplayUrl?: string;
+}
+
+/**
+ * Fetch CMS overrides for the map easter-egg modals — REUSING the existing
+ * `route` content type, keyed by `gpxFileId` (Kurt 2026-07-18). An editor
+ * overrides an egg by publishing a `Route` whose `gpxFileId` is the egg id (e.g.
+ * `dc34-coffee`); such a row carries no GPX asset, so it stays invisible to the
+ * public `/maps` manifest (standalone emission needs `gpxUrl`, enrichment needs a
+ * matching DynamoDB fileId).
+ *
+ * Best-effort, mirroring `fetchRouteMeta`: on any failure (unconfigured,
+ * unreachable, slow, non-200) it returns an empty map and the endpoint ships its
+ * hardcoded defaults — the eggs must never break because the CMS is down.
+ */
+export async function fetchEggMeta(ids: string[]): Promise<Map<string, EggMeta>> {
+  const out = new Map<string, EggMeta>();
+  if (!BASE_URL || !API_TOKEN || ids.length === 0) return out;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 2500);
+  try {
+    const url = new URL(`${BASE_URL}/api/routes`);
+    ids.forEach((id, i) => url.searchParams.set(`filters[gpxFileId][$in][${i}]`, id));
+    ["gpxFileId", "name", "description"].forEach((f, i) =>
+      url.searchParams.set(`fields[${i}]`, f)
+    );
+    url.searchParams.set("populate[coverImage][fields][0]", "url");
+    url.searchParams.set("populate[coverImage][fields][1]", "formats");
+    url.searchParams.set("pagination[pageSize]", "50");
+    url.searchParams.set("status", "published");
+
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${API_TOKEN}` },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      console.warn(`[run.gpx strapi] egg meta fetch: HTTP ${res.status}`);
+      return out;
+    }
+
+    const json = (await res.json()) as { data?: Array<Record<string, unknown>> };
+    for (const r of json.data ?? []) {
+      const id = (r.gpxFileId as string) || undefined;
+      if (!id) continue;
+      const ci = r.coverImage as
+        | { url?: string; formats?: Record<string, { url?: string }> }
+        | null
+        | undefined;
+      const fmts = ci?.formats ?? {};
+      out.set(id, {
+        title: (r.name as string) || undefined,
+        descriptionHtml: blocksToHtml(r.description),
+        coverImageUrl: ci?.url || undefined,
+        coverImageDisplayUrl:
+          fmts.small?.url || fmts.medium?.url || fmts.thumbnail?.url || ci?.url || undefined,
+      });
+    }
+  } catch (err) {
+    console.warn("[run.gpx strapi] egg meta fetch failed:", err);
+    return new Map();
+  } finally {
+    clearTimeout(timer);
+  }
+  return out;
+}

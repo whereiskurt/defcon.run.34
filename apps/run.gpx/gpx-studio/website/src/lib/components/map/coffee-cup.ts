@@ -1,6 +1,9 @@
 import mapboxgl from 'mapbox-gl';
 import { buildCupFeatures, cupOpacity, COFFEE_LOCATION } from './coffee-cup-geometry';
 import { fireCoffeeEgg } from './coffee-egg';
+import { openEggModal } from './egg-modal';
+
+const EGG_ID = 'dc34-coffee';
 
 const SOURCE = 'dc34-coffee';
 const LAYER = 'dc34-coffee-cup';
@@ -21,7 +24,6 @@ export class CoffeeCup {
     private clickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private enterFn: (() => void) | null = null;
     private leaveFn: (() => void) | null = null;
-    private popup = new mapboxgl.Popup({ closeButton: true, offset: 16, className: 'dc34-coffee-popup' });
 
     constructor(map: mapboxgl.Map) {
         this.map = map;
@@ -31,16 +33,6 @@ export class CoffeeCup {
     private whenStyleReady(): Promise<void> {
         if (this.map.isStyleLoaded()) return Promise.resolve();
         return new Promise((resolve) => this.map.once('idle', () => resolve()));
-    }
-
-    private cardHtml(): string {
-        // Static content only (no user input) — safe inline HTML.
-        return `<div class="dc34-coffee-card" style="font:13px/1.4 system-ui,sans-serif;max-width:200px">
-            <div style="font-weight:700;font-size:15px;margin-bottom:2px">☕ PublicUs</div>
-            <div>Rabbit fuel stop — grab a coffee on Fremont East.</div>
-            <div style="opacity:.7;margin-top:4px">1126 Fremont St, Las Vegas</div>
-            <a href="https://publicuslv.com" target="_blank" rel="noopener noreferrer">publicuslv.com</a>
-        </div>`;
     }
 
     private async build() {
@@ -67,9 +59,9 @@ export class CoffeeCup {
             this.pitchFn = () => this.applyOpacity();
             this.map.on('pitch', this.pitchFn);
 
-            // Click the cup → PublicUs popup + covert CTF award.
+            // Click the cup → route-style PublicUs modal + covert CTF award.
             this.clickFn = (e) => {
-                this.popup.setLngLat(e.lngLat).setHTML(this.cardHtml()).addTo(this.map);
+                void openEggModal(this.map, EGG_ID, e.lngLat);
                 fireCoffeeEgg();
             };
             this.map.on('click', LAYER, this.clickFn);
@@ -107,7 +99,6 @@ export class CoffeeCup {
         if (this.enterFn) this.map.off('mouseenter', LAYER, this.enterFn);
         if (this.leaveFn) this.map.off('mouseleave', LAYER, this.leaveFn);
         this.pitchFn = this.clickFn = this.enterFn = this.leaveFn = null;
-        this.popup.remove();
         if (this.map.getLayer(LAYER)) this.map.removeLayer(LAYER);
         if (this.map.getSource(SOURCE)) this.map.removeSource(SOURCE);
         this.built = false;
