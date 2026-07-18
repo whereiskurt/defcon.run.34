@@ -8,9 +8,13 @@ WORKDIR /firmware
 # fallback — API unreachable + no build-arg = build fails.
 ARG FIRMWARE_VERSION=""
 
+# --retry rides out transient upstream failures (e.g. api.meshtastic.org 502s,
+# which have failed whole releases before). --retry-all-errors makes `-f` 5xx
+# responses retryable; curl backs off exponentially between attempts.
 RUN FW_VER="${FIRMWARE_VERSION}"; \
     if [ -z "$FW_VER" ]; then \
-      FW_VER=$(curl -fsSL https://api.meshtastic.org/github/firmware/list \
+      FW_VER=$(curl -fsSL --retry 5 --retry-all-errors --retry-connrefused \
+        https://api.meshtastic.org/github/firmware/list \
         | jq -r '.releases.stable[0].id' \
         | sed 's/^v//'); \
     fi; \
@@ -23,7 +27,8 @@ RUN FW_VER="${FIRMWARE_VERSION}"; \
     for ARCH in esp32 esp32s3 esp32c3 esp32c6 nrf52840; do \
       ZIP="firmware-${ARCH}-${FW_VER}.zip"; \
       echo "Downloading ${ZIP}..." && \
-      curl -fL -o "/tmp/${ZIP}" "${BASE_URL}/${ZIP}" || { echo "Warning: ${ZIP} not found"; continue; }; \
+      curl -fL --retry 3 --retry-all-errors --retry-connrefused \
+        -o "/tmp/${ZIP}" "${BASE_URL}/${ZIP}" || { echo "Warning: ${ZIP} not found"; continue; }; \
       unzip -q -o "/tmp/${ZIP}" "firmware-*.factory.bin" -d /firmware/ 2>/dev/null || true; \
       unzip -q -o "/tmp/${ZIP}" "firmware-*.uf2" -d /firmware/ 2>/dev/null || true; \
       rm -f "/tmp/${ZIP}"; \
@@ -35,7 +40,8 @@ RUN FW_VER="${FIRMWARE_VERSION}"; \
 # Regenerate ESP32-only device hardware list (DEVC-06). Overwrites the tracked
 # public/data/hardware-list.json snapshot when copied into Stage 2.
 RUN mkdir -p /hardware && \
-    curl -fsSL https://api.meshtastic.org/resource/deviceHardware \
+    curl -fsSL --retry 5 --retry-all-errors --retry-connrefused \
+      https://api.meshtastic.org/resource/deviceHardware \
       | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6" or .architecture == "nrf52840")]' \
       > /hardware/hardware-list.json && \
     jq -e 'length > 0' /hardware/hardware-list.json
