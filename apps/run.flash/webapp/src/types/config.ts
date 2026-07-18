@@ -5,6 +5,8 @@ export interface DeviceConfigPayload {
   identity: IdentityConfig;
   radio: RadioConfig;
   ringtone: string; // RTTTL tune (resolved: per-user override or class default)
+  position: PositionConfig;
+  mapReport: MapReportConfig;
 }
 
 export interface MqttConfig {
@@ -20,6 +22,21 @@ export interface ChannelConfig {
   name: string;
   psk: string; // Base64-encoded PSK (16 or 32 bytes)
   role: "PRIMARY" | "SECONDARY";
+  /** Channel position precision: 0 = position off, 32 = exact, ~13 = coarse grid */
+  positionPrecision?: number;
+}
+
+/** Device-level Position module config */
+export interface PositionConfig {
+  broadcastSecs: number; // position broadcast interval cap (smart broadcast uses this as the max)
+  smartEnabled: boolean; // send more frequently while moving, throttle when still
+}
+
+/** MQTT map-report config -- unencrypted, public map beacon */
+export interface MapReportConfig {
+  enabled: boolean;
+  positionPrecision: number; // precision of location in the public map report (32 = exact, 0 = withhold)
+  publishIntervalSecs: number;
 }
 
 export interface IdentityConfig {
