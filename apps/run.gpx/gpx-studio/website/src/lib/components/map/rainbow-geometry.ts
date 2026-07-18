@@ -141,10 +141,17 @@ export function buildRainbowFeatures(
 }
 
 /**
- * Pitch → layer opacity ramp. Invisible below `start`°, linearly up to `max`
- * by `end`°. This is what makes the egg "only visible when you tilt it".
+ * Pitch → layer opacity ramp (applied only while unlocked; locked = hidden).
+ * Once unlocked it shows a faint `floor` immediately — even flat/overhead — as a
+ * "you found it" hint, then blooms up to `max` as you tilt toward `end`°.
  */
-export function pitchOpacity(pitch: number, start = 15, end = 60, max = 0.55): number {
-    const t = (pitch - start) / (end - start);
-    return Math.max(0, Math.min(1, t)) * max;
+export function pitchOpacity(
+    pitch: number,
+    start = 0,
+    end = 60,
+    max = 0.55,
+    floor = 0.12
+): number {
+    const t = Math.max(0, Math.min(1, (pitch - start) / (end - start)));
+    return floor + t * (max - floor);
 }
