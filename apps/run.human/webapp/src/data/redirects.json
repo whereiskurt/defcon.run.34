@@ -2,7 +2,7 @@
   {
     "host": "r",
     "target_host": "q.defcon.run",
-    "target_path": "/R",
+    "target_path": "/r",
     "target_query": "",
     "status_code": "HTTP_302",
     "priority": 90,
@@ -16,7 +16,7 @@
   {
     "host": "h",
     "target_host": "q.defcon.run",
-    "target_path": "/H",
+    "target_path": "/h",
     "target_query": "",
     "status_code": "HTTP_302",
     "priority": 91,
