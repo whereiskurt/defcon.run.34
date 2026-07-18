@@ -55,20 +55,35 @@ later SSO links to it, no duplicate, no orphaned RunUser. `OIDC_PROVIDER =
   the name. → every FUTURE bib runner self-provisions on their first bib save
   (ask #2). Existing users unchanged (`provisioned: false`). A too-short name
   still provisions the identity (only the name write is skipped).
-- `run.human scripts/backfill-bib-run-human-identities.mts` (ask #1) — scans bibs
-  + existing authjs accounts (raw SDK, per the sync-bib-names.mts precedent —
-  entities can't be imported in a standalone run), then **replays the deployed
-  PATCH** for each bib-only runner. Reuses the exact same provisioning path (no
-  forging). Dry-run by default, `--confirm` to write, `--sub` to test-drive one.
-  The prod internal endpoint is publicly reachable + secret-gated (403 on bad
-  secret; middleware excludes `api`), so a laptop run with the secret works.
+- `run.human scripts/backfill-run-human-identities-offline.test.mts` (ask #1) —
+  **fully-offline** operator backfill, gated (`describe.skipIf(!BACKFILL_MODE)`)
+  so the suite/CI never runs it. Scans bibs (run-human-electro) + accounts
+  (run-human-authjs) + emails (run-auth-electro) via SSO, then provisions each
+  named bib-only runner reusing the REAL code pointed at prod: the Auth.js adapter
+  constructed on an SSO client + the real `upsertRunUser`/`RunUser` entity
+  re-pointed with ElectroDB `setClient()`. No deployed endpoint, no record forging.
+
+  Runner note: **only vitest resolves both** the adapter's ESM `exports` map AND
+  the app's extensionless imports (`tsx` fails the former, `node` the latter).
+  Creds note: prod uses IAM roles — there are **no static prod keys**; the local
+  `.env` points at `localhost:8888` dev DynamoDB (a first run wrote 10 harmless
+  users THERE before this was caught). So writes go through the SSO profile, not
+  `entities/client.ts` (which is hardcoded to static keys). `creationSeed` resolves
+  to the `"default-seed"` fallback — verified prod uses it (an existing RunUser's
+  mqttUsername matches the default-seed derivation), so creds/hash are byte-identical.
+
+  Names: the backfill provisions the identity; the existing `sync-bib-names.mts`
+  (run against prod via SSO, no `--env-file`) then overwrites each `rabbit_XXXX`
+  with the bib name, respecting the lock policy.
 
 ## Delivery / order
-1. Merge PR → main.
-2. buildpub run.bib + run.human → use1 (Part A + Part B code live). **run.human
-   MUST be deployed before the backfill** (backfill hits the live endpoint).
-3. Backfill: dry-run → `--sub` test-drive one → `--confirm` full sweep. Needs
-   Kurt's go (creates real prod accounts).
+- **Backfill: DONE 2026-07-18** — 10 named bib-only runners provisioned in prod
+  (offline via SSO), then 13 rabbit names synced (10 new + 3 pre-existing). Verified:
+  0 candidates remain; sample (OGRE) resolves account→RunUser→hash and shows the bib name.
+- **PR (Part A + Part B code): NOT deployed.** Merge + buildpub run.bib + run.human →
+  use1 when ready. This activates: the qrUrl runnerCode fallback (Part A) and the
+  PATCH auto-provision so FUTURE bib runners self-provision (Part B, ask #2 — dormant
+  until deployed). The offline backfill needs no deploy.
 
 ## Consent note
 This creates run.human accounts for people who only signed up for a bib. Kurt's
