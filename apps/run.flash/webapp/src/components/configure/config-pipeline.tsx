@@ -13,17 +13,26 @@ import {
 } from "lucide-react";
 import clsx from "clsx";
 import type { ConfigProgress, ConfigStage } from "@/types/config";
+import { useCopy } from "@/components/CopyProvider";
 
 type StageStatus = "pending" | "active" | "complete" | "error";
+
+/** Bound copy lookup from useCopy — threaded into DISPLAY_STAGES (module-level
+ *  const, no hook) so each stage's labels resolve from the CMS catalog. */
+type CopyFn = (key: string, vars?: Record<string, string | number>) => string;
 
 /** The four user-visible config stages (connecting/committing are internal) */
 interface DisplayStage {
   key: string;
   icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  activeLabel: string;
-  /** Build the complete label from stage summaries */
-  completeLabel: (summaries: ConfigProgress["stageSummaries"]) => string;
+  /** CMS key for the pending/idle label (e.g. "Radio"). */
+  labelKey: string;
+  /** CMS key for the in-progress label (e.g. "Configuring radio..."). */
+  activeKey: string;
+  /** Build the complete label from CMS copy + stage summaries. The summary
+   *  value (e.g. the configured region) is dynamic hardware state, injected
+   *  into the CMS template via a {summary} interpolation var. */
+  completeLabel: (t: CopyFn, summaries: ConfigProgress["stageSummaries"]) => string;
   /** Which ConfigStage values map to "active" for this display stage */
   activeStages: ConfigStage[];
   /** Which ConfigStage values must be in completedStages for "complete" */
@@ -36,45 +45,57 @@ const DISPLAY_STAGES: DisplayStage[] = [
   {
     key: "radio",
     icon: Signal,
-    label: "Radio",
-    activeLabel: "Configuring radio...",
-    completeLabel: (s) => `Radio: ${s.radio ?? "configured"}`,
+    labelKey: "flash.configStage.radio.label",
+    activeKey: "flash.configStage.radio.active",
+    completeLabel: (t, s) =>
+      t("flash.configStage.radio.complete", {
+        summary: s.radio ?? t("flash.configStage.configuredFallback"),
+      }),
     activeStages: ["radio"],
     completeStages: ["radio"],
   },
   {
     key: "mqtt",
     icon: Radio,
-    label: "MQTT",
-    activeLabel: "Configuring MQTT...",
-    completeLabel: (s) => `MQTT: ${s.mqtt ?? "configured"}`,
+    labelKey: "flash.configStage.mqtt.label",
+    activeKey: "flash.configStage.mqtt.active",
+    completeLabel: (t, s) =>
+      t("flash.configStage.mqtt.complete", {
+        summary: s.mqtt ?? t("flash.configStage.configuredFallback"),
+      }),
     activeStages: ["mqtt"],
     completeStages: ["mqtt"],
   },
   {
     key: "channels",
     icon: Hash,
-    label: "Channels",
-    activeLabel: "Configuring channels...",
-    completeLabel: (s) => `Channels: ${s.channels ?? "configured"}`,
+    labelKey: "flash.configStage.channels.label",
+    activeKey: "flash.configStage.channels.active",
+    completeLabel: (t, s) =>
+      t("flash.configStage.channels.complete", {
+        summary: s.channels ?? t("flash.configStage.configuredFallback"),
+      }),
     activeStages: ["channels"],
     completeStages: ["channels"],
   },
   {
     key: "identity",
     icon: UserCircle2,
-    label: "Identity",
-    activeLabel: "Setting identity...",
-    completeLabel: (s) => `Identity: ${s.identity ?? "configured"}`,
+    labelKey: "flash.configStage.identity.label",
+    activeKey: "flash.configStage.identity.active",
+    completeLabel: (t, s) =>
+      t("flash.configStage.identity.complete", {
+        summary: s.identity ?? t("flash.configStage.configuredFallback"),
+      }),
     activeStages: ["identity"],
     completeStages: ["identity"],
   },
   {
     key: "ringtone",
     icon: Bell,
-    label: "Ringtone",
-    activeLabel: "Setting ringtone...",
-    completeLabel: () => "Ringtone: set",
+    labelKey: "flash.configStage.ringtone.label",
+    activeKey: "flash.configStage.ringtone.active",
+    completeLabel: (t) => t("flash.configStage.ringtone.complete"),
     activeStages: ["ringtone", "committing"],
     completeStages: ["ringtone", "committing"],
   },
@@ -185,6 +206,7 @@ interface ConfigPipelineProps {
  * Matches FlashPipeline visual language: glass-card, teal-400, font-mono.
  */
 export function ConfigPipeline({ progress }: ConfigPipelineProps) {
+  const { t } = useCopy();
   return (
     <div className="glass-card rounded-xl p-5">
       <div className="relative">
@@ -206,9 +228,10 @@ export function ConfigPipeline({ progress }: ConfigPipelineProps) {
             <PipelineStage
               key={displayStage.key}
               icon={displayStage.icon}
-              label={displayStage.label}
-              activeLabel={displayStage.activeLabel}
+              label={t(displayStage.labelKey)}
+              activeLabel={t(displayStage.activeKey)}
               completeLabel={displayStage.completeLabel(
+                t,
                 progress.stageSummaries
               )}
               status={status}
