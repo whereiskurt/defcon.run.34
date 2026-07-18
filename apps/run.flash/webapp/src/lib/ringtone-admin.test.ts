@@ -12,4 +12,11 @@ describe("buildRingtoneAdminMessageBytes", () => {
     expect(decoded.payloadVariant.case).toBe("setRingtoneMessage");
     expect(decoded.payloadVariant.value).toBe(tune);
   });
+
+  it("refuses to serialize an empty or malformed RTTTL", () => {
+    expect(() => buildRingtoneAdminMessageBytes("")).toThrow(/invalid RTTTL/i);
+    expect(() => buildRingtoneAdminMessageBytes("not a ringtone")).toThrow(
+      /invalid RTTTL/i
+    );
+  });
 });

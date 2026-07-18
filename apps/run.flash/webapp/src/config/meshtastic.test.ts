@@ -5,6 +5,7 @@ import {
   RINGTONES,
   MAX_RINGTONE_LEN,
 } from "./meshtastic";
+import { isValidRtttl } from "@/lib/rtttl";
 
 describe("ringtoneForClass", () => {
   it("maps each class to its tune", () => {
@@ -41,10 +42,27 @@ describe("resolveRingtone", () => {
     expect(resolveRingtone(undefined)).toBe(RINGTONES.rabbit);
     expect(resolveRingtone({})).toBe(RINGTONES.rabbit);
   });
-  it("clamps to the length cap", () => {
+  it("falls back to the class default (never truncates) when the personal tune exceeds the cap", () => {
     const long = "x:d=8:" + "c,".repeat(300);
-    expect(resolveRingtone({ ringtone: long }).length).toBeLessThanOrEqual(
-      MAX_RINGTONE_LEN
+    const resolved = resolveRingtone({ ringtone: long, mqttUsertype: "wildhare" });
+    // Must NOT be a mid-note truncation of the personal tune -- it is the valid
+    // class default instead.
+    expect(resolved).toBe(RINGTONES.wildhare);
+    expect(resolved.length).toBeLessThanOrEqual(MAX_RINGTONE_LEN);
+  });
+
+  it("falls back to the class default when the personal tune is malformed", () => {
+    expect(resolveRingtone({ ringtone: "not a ringtone", mqttUsertype: "og" })).toBe(
+      RINGTONES.og
+    );
+    expect(resolveRingtone({ ringtone: "name:d=8:zzz" })).toBe(RINGTONES.rabbit);
+  });
+
+  it("always resolves to a valid RTTTL", () => {
+    expect(isValidRtttl(resolveRingtone(undefined))).toBe(true);
+    expect(isValidRtttl(resolveRingtone({}))).toBe(true);
+    expect(isValidRtttl(resolveRingtone({ ringtone: "", mqttUsertype: "admin" }))).toBe(
+      true
     );
   });
 });
