@@ -6,6 +6,8 @@ import {
   isDisplayNameLocked,
   normalizeSyncedName,
 } from "@/lib/rabbit-name-sync";
+import { ensureRunHumanIdentity } from "@/lib/ensure-identity";
+import { getAuthEmailBySub } from "@/lib/auth-email";
 import { config } from "@/config";
 
 /**
@@ -101,12 +103,22 @@ export async function GET(
 }
 
 /**
- * Internal API: overwrite a runner's rabbit name (displayName) from run.bib.
+ * Internal API: overwrite a runner's rabbit name (displayName) from run.bib, and
+ * provision a run.human identity for a bib-only runner who has none yet.
  *
  * Secret-gated, server-to-server only. Fires when the runner saves their bib
  * name. Refuses to overwrite a manually-claimed name (see isDisplayNameLocked)
  * and never consumes the displayname_change quota — this is an internal sync,
  * not a user-initiated change. Idempotent and safe to call on every bib save.
+ *
+ * Provisioning (Kurt 2026-07-18): a runner who only ever used bib.defcon.run has
+ * no run.human Auth.js account/RunUser, so previously this 404'd and they had no
+ * social QR. Now, when no account is found, we mint one via the SAME Auth.js
+ * adapter run.human's sign-in uses (ensure-identity.ts) — email pulled from
+ * run.auth — so they get a real rabbit profile + QR, and a later real SSO
+ * sign-in links to this exact account (no duplicate). This makes every future
+ * bib runner self-provision on their first bib save; the one-off backfill script
+ * replays this same endpoint for existing bibs.
  */
 export async function PATCH(
   req: NextRequest,
@@ -130,19 +142,35 @@ export async function PATCH(
   }
 
   const rawName = typeof body.displayName === "string" ? body.displayName : "";
+  // May be null for a too-short/empty name — we still ensure the IDENTITY below
+  // (so a bib runner always gets a profile + QR); only the name write is skipped.
   const name = normalizeSyncedName(rawName);
-  if (!name) {
-    // Too short / empty — nothing to sync, leave the rabbit name as-is.
-    return NextResponse.json({ synced: false, reason: "too_short" });
-  }
 
   try {
-    const adapterUserId = await getAdapterUserIdBySub(oidcSub);
+    let adapterUserId = await getAdapterUserIdBySub(oidcSub);
+    let provisioned = false;
+
     if (!adapterUserId) {
-      return NextResponse.json(
-        { error: "No account found for OIDC subject" },
-        { status: 404 }
-      );
+      // Bib-only runner — never signed into run.human. Mint the identity so they
+      // get a rabbit profile + social QR. Email is authoritative from run.auth;
+      // without it we can't create the Auth.js user, so skip (the backfill or the
+      // next bib save retries) rather than fail the caller's bib save.
+      const email = await getAuthEmailBySub(oidcSub);
+      if (!email) {
+        return NextResponse.json({
+          synced: false,
+          reason: "no_identity_no_email",
+        });
+      }
+      const { userId } = await ensureRunHumanIdentity(oidcSub, email, name);
+      adapterUserId = userId;
+      provisioned = true;
+    }
+
+    if (!name) {
+      // Identity is ensured (freshly provisioned or pre-existing); a too-short /
+      // empty name has nothing to sync — leave the rabbit name as-is.
+      return NextResponse.json({ synced: false, reason: "too_short", provisioned });
     }
 
     const user = await getRunUser(adapterUserId);
@@ -153,7 +181,7 @@ export async function PATCH(
     if (
       isDisplayNameLocked(user.displayName, user.displayNameManual, adapterUserId)
     ) {
-      return NextResponse.json({ synced: false, reason: "manual" });
+      return NextResponse.json({ synced: false, reason: "manual", provisioned });
     }
 
     // Accepted TOCTOU: the read above and the write below are not atomic, so a
@@ -165,7 +193,7 @@ export async function PATCH(
       displayName: name,
       displayNameManual: false,
     });
-    return NextResponse.json({ synced: true, displayName: name });
+    return NextResponse.json({ synced: true, displayName: name, provisioned });
   } catch (error) {
     console.error("[run.human] PATCH /api/internal/user error:", error);
     return NextResponse.json(
