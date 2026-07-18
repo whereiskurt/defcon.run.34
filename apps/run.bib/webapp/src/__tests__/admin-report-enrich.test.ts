@@ -49,16 +49,17 @@ describe("enrichPrintNames()", () => {
     expect(row.qrUrl).toBe("https://run.defcon.run/use1/r?h=H1");
   });
 
-  it("keeps the run.auth email even when the run.human QR lookup misses", async () => {
-    // The whole point of the re-source: a run.human miss must NOT blank the email.
+  it("keeps the run.auth email and falls qrUrl back to runnerCode when the QR lookup misses", async () => {
+    // A run.human miss must NOT blank the email, and qrUrl falls back to the
+    // runner-code QR (mirrors the physical bib — never a blank stub, SC34.8).
     mockGetRunnerEmail.mockResolvedValue("a@x.com");
     mockGetSocialQrHash.mockResolvedValue(null);
     const [row] = await enrichPrintNames([{ ...baseRow }], 4);
     expect(row.email).toBe("a@x.com");
-    expect(row.qrUrl).toBe("");
+    expect(row.qrUrl).toBe("BIB-1"); // runnerCode fallback
   });
 
-  it("blanks email but keeps qrUrl when only run.auth misses", async () => {
+  it("blanks email but keeps the social qrUrl when only run.auth misses", async () => {
     mockGetRunnerEmail.mockResolvedValue(null);
     mockGetSocialQrHash.mockResolvedValue("H1");
     const [row] = await enrichPrintNames([{ ...baseRow }], 4);
@@ -66,20 +67,20 @@ describe("enrichPrintNames()", () => {
     expect(row.qrUrl).toBe("https://run.defcon.run/use1/r?h=H1");
   });
 
-  it("blanks both when both lookups miss", async () => {
+  it("blanks email and falls qrUrl back to runnerCode when both lookups miss", async () => {
     mockGetRunnerEmail.mockResolvedValue(null);
     mockGetSocialQrHash.mockResolvedValue(null);
     const [row] = await enrichPrintNames([{ ...baseRow }], 4);
     expect(row.email).toBe("");
-    expect(row.qrUrl).toBe("");
+    expect(row.qrUrl).toBe("BIB-1"); // runnerCode fallback, never blank
   });
 
-  it("blanks a row whose ownerSub is empty without calling either source", async () => {
+  it("empty ownerSub → blank email but qrUrl still falls back to runnerCode, no lookups", async () => {
     mockGetRunnerEmail.mockReset();
     mockGetSocialQrHash.mockReset();
     const [row] = await enrichPrintNames([{ ...baseRow, ownerSub: "" }], 4);
     expect(row.email).toBe("");
-    expect(row.qrUrl).toBe("");
+    expect(row.qrUrl).toBe("BIB-1"); // runner-code QR even with no ownerSub
     expect(mockGetRunnerEmail).not.toHaveBeenCalled();
     expect(mockGetSocialQrHash).not.toHaveBeenCalled();
   });
