@@ -46,10 +46,10 @@ export function FlashConsole({ logs, defaultExpanded = false }: FlashConsoleProp
           className="bg-black rounded-lg p-3 max-h-64 overflow-y-auto font-mono text-xs"
         >
           {logs.length === 0 ? (
-            <span className="text-default-600">Waiting for output...</span>
+            <span className="text-zinc-400">Waiting for output...</span>
           ) : (
             logs.map((entry, i) => (
-              <span key={i} className="text-teal-400/70 whitespace-pre-wrap">
+              <span key={i} className="text-teal-300 whitespace-pre-wrap">
                 {entry.text}
               </span>
             ))

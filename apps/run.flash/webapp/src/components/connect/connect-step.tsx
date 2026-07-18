@@ -470,23 +470,23 @@ function Nrf52ConnectView({
             {isConnected && vidPid && (
               <div className="flex items-center gap-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 relative">
-                  <CheckCircle2 className="w-8 h-8 text-teal-400" />
-                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-teal-400 animate-pulse" />
+                  <CheckCircle2 className="w-8 h-8 text-primary" />
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary animate-pulse" />
                 </div>
                 <div className="space-y-1 min-w-0">
-                  <h3 className="font-mono text-lg text-teal-400">
+                  <h3 className="font-mono text-lg text-primary">
                     Connected (DFU)
                   </h3>
                   <div className="space-y-0.5 text-sm">
                     <p>
-                      <span className="text-default-400">USB:</span>{" "}
-                      <span className="font-mono text-default-300">
+                      <span className="text-default-500">USB:</span>{" "}
+                      <span className="font-mono text-foreground">
                         {vidPid}
                       </span>
                     </p>
                     <p className="truncate">
-                      <span className="text-default-400">Interface:</span>{" "}
-                      <span className="font-mono text-default-300">
+                      <span className="text-default-500">Interface:</span>{" "}
+                      <span className="font-mono text-foreground">
                         DFU 1.1 (class 0xFE / subclass 0x01)
                       </span>
                     </p>

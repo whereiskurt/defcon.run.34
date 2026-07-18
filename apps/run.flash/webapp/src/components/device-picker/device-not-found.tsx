@@ -4,7 +4,7 @@ import { ExternalLink } from "lucide-react";
 export function DeviceNotFound() {
   return (
     <div className="terminal-block rounded-xl p-8 text-center space-y-3">
-      <h3 className="font-mono text-lg text-default-300">
+      <h3 className="text-lg font-semibold text-foreground">
         No matching devices found
       </h3>
       <p className="text-default-500 text-sm max-w-md mx-auto">

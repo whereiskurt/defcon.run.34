@@ -232,9 +232,9 @@ export function FlashStep({
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-6">
               {/* Left: success info */}
               <div className="min-w-0 flex items-center gap-3">
-                <CheckCircle2 className="w-8 h-8 text-teal-400 flex-shrink-0" />
+                <CheckCircle2 className="w-8 h-8 text-primary flex-shrink-0" />
                 <div>
-                  <h3 className="font-mono text-lg text-teal-400">
+                  <h3 className="font-mono text-lg text-primary">
                     Flash Complete!
                   </h3>
                   <p className="text-sm text-default-400">
@@ -310,14 +310,14 @@ export function FlashStep({
                 {transport.family === "esp32" ? (
                   <li>
                     Put your device in bootloader mode (hold{" "}
-                    <span className="font-mono text-default-200">BOOT</span>,
+                    <span className="font-mono text-foreground">BOOT</span>,
                     press{" "}
-                    <span className="font-mono text-default-200">RESET</span>)
+                    <span className="font-mono text-foreground">RESET</span>)
                   </li>
                 ) : (
                   <li>
                     Put your device in bootloader mode (
-                    <span className="font-mono text-default-200">
+                    <span className="font-mono text-foreground">
                       double-tap RESET
                     </span>
                     ) &mdash; confirm the Adafruit UF2 mass-storage volume

@@ -103,16 +103,16 @@ export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
             On your {device.displayName}
           </span>
         </div>
-        <ol className="list-decimal list-inside space-y-3 text-sm text-default-300">
+        <ol className="list-decimal list-inside space-y-3 text-sm text-default-500">
           <li>
-            Connect the device to <span className="font-mono text-default-100">this</span>{" "}
+            Connect the device to <span className="font-mono text-foreground">this</span>{" "}
             computer with a data-capable USB cable.
           </li>
 
           {isT1000e ? (
             <li>
               Enter bootloader mode:{" "}
-              <span className="text-default-100">
+              <span className="text-foreground">
                 press and hold the device&apos;s button, and while holding it,
                 connect the USB / magnetic charge cable twice in quick
                 succession
@@ -123,7 +123,7 @@ export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
           ) : (
             <li>
               Enter bootloader mode:{" "}
-              <span className="text-default-100">double-tap the RESET button</span>{" "}
+              <span className="text-foreground">double-tap the RESET button</span>{" "}
               (press RST twice, quickly). Do <span className="font-mono">not</span>{" "}
               hold BOOT.
             </li>
@@ -131,13 +131,13 @@ export function Nrf52FlashStep({ device, onContinue }: Nrf52FlashStepProps) {
 
           <li>
             A USB drive appears in your file manager named like{" "}
-            <span className="font-mono text-default-100">
+            <span className="font-mono text-foreground">
               {isT1000e ? "T1000-E" : "FTHR840BOOT"}
             </span>{" "}
             (the Adafruit UF2 bootloader).
           </li>
           <li>
-            <span className="text-default-100">
+            <span className="text-foreground">
               Drag the downloaded <span className="font-mono">.uf2</span> file
               onto that drive
             </span>{" "}

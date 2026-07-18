@@ -52,12 +52,12 @@ export function ChipMismatchWarning({
         {isNrf52Surface ? (
           <p className="text-sm text-default-400 max-w-md">
             The connected USB device reports VID/PID{" "}
-            <span className="font-mono text-default-200">
+            <span className="font-mono text-foreground">
               {detectedVidPid}
             </span>
             , but the picker says you selected{" "}
-            <span className="font-mono text-default-200">{deviceName}</span> (
-            <span className="font-mono text-default-200">
+            <span className="font-mono text-foreground">{deviceName}</span> (
+            <span className="font-mono text-foreground">
               {expectedArchitecture}
             </span>
             ) &mdash; flashing this firmware to the wrong USB device family
@@ -66,20 +66,20 @@ export function ChipMismatchWarning({
         ) : (
           <p className="text-sm text-default-400 max-w-md">
             The connected chip is a{" "}
-            <span className="font-mono text-default-200">{detectedChipName}</span>{" "}
+            <span className="font-mono text-foreground">{detectedChipName}</span>{" "}
             but the picker says you selected{" "}
-            <span className="font-mono text-default-200">{deviceName}</span> (
-            <span className="font-mono text-default-200">
+            <span className="font-mono text-foreground">{deviceName}</span> (
+            <span className="font-mono text-foreground">
               {expectedArchitecture}
             </span>
             ) &mdash; flashing this firmware to the wrong chip could brick the
             device.
           </p>
         )}
-        <p className="text-sm text-default-300 max-w-md">
+        <p className="text-sm text-default-500 max-w-md">
           Return to the device picker and select the correct device &mdash; or
           disconnect this board and connect the one that matches{" "}
-          <span className="font-mono text-default-200">{deviceName}</span>.
+          <span className="font-mono text-foreground">{deviceName}</span>.
         </p>
       </CardBody>
     </Card>

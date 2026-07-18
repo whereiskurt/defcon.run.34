@@ -62,7 +62,7 @@ function Esp32HelpBody() {
       </p>
       <ol className="list-decimal list-inside space-y-2 text-default-400">
         <li>
-          Confirm the device is plugged into <span className="font-mono text-default-200">this</span>{" "}
+          Confirm the device is plugged into <span className="font-mono text-foreground">this</span>{" "}
           computer with a data-capable USB cable (charge-only cables are a
           common cause &mdash; they enumerate power but not serial).
         </li>
@@ -79,9 +79,9 @@ function Esp32HelpBody() {
         </li>
         <li>
           Manual bootloader mode (fallback): hold{" "}
-          <span className="font-mono text-default-200">BOOT</span>, tap{" "}
-          <span className="font-mono text-default-200">RESET</span>, then
-          release <span className="font-mono text-default-200">BOOT</span>,
+          <span className="font-mono text-foreground">BOOT</span>, tap{" "}
+          <span className="font-mono text-foreground">RESET</span>, then
+          release <span className="font-mono text-foreground">BOOT</span>,
           then click Connect.
         </li>
         <li>
@@ -121,7 +121,7 @@ function Nrf52HelpBody() {
       </p>
       <ol className="list-decimal list-inside space-y-2 text-default-400">
         <li>
-          Confirm the device is plugged into <span className="font-mono text-default-200">this</span>{" "}
+          Confirm the device is plugged into <span className="font-mono text-foreground">this</span>{" "}
           computer with a data-capable USB cable (charge-only cables enumerate
           power but not USB data &mdash; DFU can&apos;t claim them).
         </li>
@@ -132,9 +132,9 @@ function Nrf52HelpBody() {
         </li>
         <li>
           Put the device in bootloader mode:{" "}
-          <span className="font-mono text-default-200">double-tap RESET</span>
+          <span className="font-mono text-foreground">double-tap RESET</span>
           {" "}(press RST twice in quick succession). Do{" "}
-          <span className="font-mono text-default-200">not</span> hold BOOT
+          <span className="font-mono text-foreground">not</span> hold BOOT
           &mdash; the T-1000E uses the Adafruit UF2 bootloader, which
           triggers on the double-tap only.
         </li>
@@ -145,11 +145,11 @@ function Nrf52HelpBody() {
             <li>
               A mass-storage volume appears (Finder / File Explorer / mount
               point) with a name like{" "}
-              <span className="font-mono text-default-200">
+              <span className="font-mono text-foreground">
                 T1000-E
               </span>{" "}
               or{" "}
-              <span className="font-mono text-default-200">
+              <span className="font-mono text-foreground">
                 FTHR840BOOT
               </span>{" "}
               (Adafruit UF2 bootloader).
