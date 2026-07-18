@@ -12,13 +12,24 @@
     import { onMount } from 'svelte';
     import { mode } from 'mode-watcher';
     import { ghostMode, recordHit } from '$lib/stores/ghost';
+    import { rainbowUnlocked } from '$lib/stores/rainbow';
 
     let keyBuf: number[] = [];
     let themeBuf: number[] = [];
+    let typed = '';
     let firstMode = true;
 
     onMount(() => {
         const onKey = (e: KeyboardEvent) => {
+            // Rainbow Bridges unlock: type "rainbow" anywhere (the reliable path;
+            // the 3-rapid-3D-flip gesture is a bonus but hard to do by hand).
+            if (e.key.length === 1) {
+                typed = (typed + e.key.toLowerCase()).slice(-7);
+                if (typed === 'rainbow') {
+                    rainbowUnlocked.set(true);
+                    typed = '';
+                }
+            }
             if (e.key !== '!') {
                 keyBuf = [];
                 return;
