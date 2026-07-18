@@ -191,6 +191,65 @@ export const CtfCode = new Entity(
 );
 
 // ---------------------------------------------------------------------------
+// CtfOtpClaim — global single-use claim for a SINGLE-USE OTP flag (Phase 65)
+// ---------------------------------------------------------------------------
+//
+// One row per (challenge, codeHash). Used ONLY when an OTP flag sets
+// `otp.singleUse` (first-come-first-served): the FIRST logged-in player to redeem
+// a given rolling code wins globally; everyone else gets a non-solve.
+//
+// Unlike `CtfCode` (a PRE-LOADED pool claimed via patch-if-exists on
+// `attribute_not_exists(claimedBy)`), there is NO pool here — the valid code is
+// generated live by TOTP. So the claim is a CREATE-IF-ABSENT conditional put:
+// `CtfOtpClaim.create({challenge, codeHash, claimedBy, ...})` adds
+// `attribute_not_exists` on the key, so two concurrent claimers of the SAME code
+// collide and EXACTLY one wins (no read-then-write race). `claimedBy` is therefore
+// written by the WINNING create, not a later patch.
+//
+// `ttl` is a DynamoDB TTL (epoch seconds) so the consumed-code marker auto-expires
+// just past the code's own validity window (verifyTotp rejects it by then anyway) —
+// no cleanup job, no storage creep. The salted `codeHash` is the only code trace;
+// plaintext is NEVER stored. Like CtfSolve/CtfScoreEvent/CtfCode this entity has NO
+// resolver `.mjs` mirror — the resolver never reads it; single-use is judge-only.
+// No gsi: the claim is by the exact (challenge, codeHash) key.
+export const CtfOtpClaim = new Entity(
+  {
+    model: {
+      entity: "CtfOtpClaim",
+      version: "1",
+      service: "run",
+    },
+    attributes: {
+      challenge: { type: "string", required: true },
+      // Salted SHA-256 hex of the rolling code (same hashAnswer seam answers use).
+      // Plaintext is NEVER an attribute here.
+      codeHash: { type: "string", required: true },
+      // The authUserId that won the single-use claim — written by the winning
+      // create-if-absent (its presence is what a later claimer's create collides on).
+      claimedBy: { type: "string" },
+      // UTC-ISO claim time.
+      claimedAt: { type: "string" },
+      // DynamoDB TTL epoch seconds (= now + period·(skew+2)); auto-expires the marker.
+      ttl: { type: "number" },
+      createdAt: {
+        type: "string",
+        default: () => new Date().toISOString(),
+        readOnly: true,
+      },
+    },
+    indexes: {
+      // All claims for a challenge share a partition; each code is one row.
+      // The claim is a create-if-absent conditional put on the (challenge, codeHash) key.
+      primary: {
+        pk: { field: "pk", composite: ["challenge"] },
+        sk: { field: "sk", composite: ["codeHash"] },
+      },
+    },
+  },
+  { client: electroClient, table: ELECTRO_TABLE }
+);
+
+// ---------------------------------------------------------------------------
 // CtfPending — park-and-claim for unauth covert hits (Phase 46 consumes)
 // ---------------------------------------------------------------------------
 
@@ -285,6 +344,15 @@ export type CtfCodeItem = {
   codeHash: string;
   claimedBy?: string;
   claimedAt?: string;
+  createdAt?: string;
+};
+
+export type CtfOtpClaimItem = {
+  challenge: string;
+  codeHash: string;
+  claimedBy?: string;
+  claimedAt?: string;
+  ttl?: number;
   createdAt?: string;
 };
 

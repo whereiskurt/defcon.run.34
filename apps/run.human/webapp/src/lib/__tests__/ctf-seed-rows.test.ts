@@ -119,6 +119,9 @@ describe("buildSeedRows() — DC33 persona OTP-chain starter set", () => {
       const o = byName(`${name}-otp`);
       expect(o.answerType).toBe("otp");
       expect(o.otp).toEqual({ secret, digits: 6, period: 120, algorithm: "SHA1", skew: 1 });
+      // Default-off invariant (Phase 65, SC2): the seeded DC33 OTP chains stay
+      // SHARED — no shipped/seeded flag becomes single-use by the new option.
+      expect(o.otp?.singleUse).toBeUndefined();
       expect(o.unlockAfter).toBe(name);
       expect(o.perPlayerIntervalHours).toBe(24);
       // OTP flag verifies via TOTP secret — it holds no static answer/hash + no reward effect.

@@ -148,6 +148,11 @@ export const Ctf = new Entity(
           period: { type: "number" }, // seconds per window (default 120 — meshtk)
           algorithm: { type: "string" }, // HMAC hash (SHA1 now; SHA256/512 later)
           skew: { type: "number" }, // ± windows accepted on verify
+          // First-come single-use (Phase 65). Absent/false ⇒ SHARED: every player
+          // who submits a valid code scores (unchanged — no migration). True ⇒ the
+          // judge's first-come single-use path (CtfOtpClaim). Judge-only — it does
+          // NOT appear in the resolver `.mjs` mirror.
+          singleUse: { type: "boolean" },
         },
       },
       // Prerequisite challenge NAME (the unlock gate). ⚠️ This is the challenge
