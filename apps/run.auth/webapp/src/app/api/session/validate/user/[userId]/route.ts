@@ -38,6 +38,11 @@ export type InternalValidateResponse =
         linkedProviders: string[];
         sessionVersion: number;
         lockedOut: boolean;
+        // The runner's primary login email (AuthProfile.email). null when the
+        // profile has none. Additive field consumed by the run.bib admin
+        // print-names CSV enrichment (bib has no email of its own — run.auth is
+        // the authoritative source keyed by the OIDC subject).
+        email: string | null;
       };
     }
   | {
@@ -100,6 +105,7 @@ export async function GET(
         linkedProviders,
         sessionVersion,
         lockedOut,
+        email: profile.email ?? null,
       },
     } as InternalValidateResponse);
   } catch (error) {

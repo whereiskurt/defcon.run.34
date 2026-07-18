@@ -397,9 +397,21 @@ describe("CSV helpers", () => {
     const csv = reportToCsv(buildReports(baseInput()), "print-names");
     const lines = csv.trim().split("\n");
     expect(lines[0]).toBe(
-      "name,runnerCode,paidUsd,printEligible,nameLocked,paymentTypes,email,qrUrl"
+      "name,runnerCode,paidUsd,printEligible,nameLocked,paymentTypes,email,qrUrl,QRCode1,QRCode2"
     );
     expect(lines).toHaveLength(1 + 3); // header + 3 named bibs
+  });
+
+  it("reportToCsv print-names leaves QRCode1/QRCode2 blank (spare vendor columns)", () => {
+    const csv = reportToCsv(buildReports(baseInput()), "print-names");
+    const lines = csv.trim().split("\n");
+    // email + qrUrl are unpopulated by the pure builder too, so every data row
+    // ends with the four trailing empties: email,qrUrl,QRCode1,QRCode2.
+    for (const row of lines.slice(1)) {
+      expect(row.endsWith(",,,")).toBe(true);
+      // exactly 10 columns → 9 commas.
+      expect(row.split(",")).toHaveLength(10);
+    }
   });
 });
 
@@ -483,10 +495,12 @@ describe("reportToCsv print-names columns", () => {
     bundle.printNames[0].qrUrl = "https://run.defcon.run/use1/r?h=H1";
     const csv = reportToCsv(bundle, "print-names");
     const [header, firstRow] = csv.split("\n");
-    expect(header).toBe("name,runnerCode,paidUsd,printEligible,nameLocked,paymentTypes,email,qrUrl");
+    expect(header).toBe("name,runnerCode,paidUsd,printEligible,nameLocked,paymentTypes,email,qrUrl,QRCode1,QRCode2");
     expect(firstRow).toContain("stripe");
     expect(firstRow).toContain("ada@x.com");
     expect(firstRow).toContain("https://run.defcon.run/use1/r?h=H1");
+    // Spare vendor columns are blank → the row ends with two empty trailing cells.
+    expect(firstRow.endsWith(",,")).toBe(true);
   });
 });
 
