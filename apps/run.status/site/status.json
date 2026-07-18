@@ -23,7 +23,10 @@
       "link": "https://auth.defcon.run",
       "version": "v0.0.22",
       "state": "dev",
-      "note": "Authentication & sign-in"
+      "note": "Authentication & sign-in",
+      "size_kb": 2063,
+      "req_count": 74,
+      "measured_at": "2026-07-18 12:27:07 UTC"
     },
     {
       "id": "human",
@@ -32,7 +35,10 @@
       "link": "https://run.defcon.run",
       "version": "v0.0.26",
       "state": "dev",
-      "note": "Main run site"
+      "note": "Main run site",
+      "size_kb": 1013,
+      "req_count": 37,
+      "measured_at": "2026-07-18 12:27:07 UTC"
     },
     {
       "id": "gpx",
@@ -41,7 +47,10 @@
       "link": "https://gpx.defcon.run",
       "version": "v0.0.23",
       "state": "dev",
-      "note": "GPX editor & route overlays"
+      "note": "GPX editor & route overlays",
+      "size_kb": 1200,
+      "req_count": 57,
+      "measured_at": "2026-07-18 12:27:07 UTC"
     },
     {
       "id": "flash",
@@ -50,7 +59,10 @@
       "link": "https://flash.defcon.run",
       "version": "v0.0.20",
       "state": "dev",
-      "note": "Radio flashing flow"
+      "note": "Radio flashing flow",
+      "size_kb": 1533,
+      "req_count": 81,
+      "measured_at": "2026-07-18 12:27:07 UTC"
     },
     {
       "id": "bib",
@@ -59,7 +71,10 @@
       "link": "https://bib.defcon.run",
       "version": "v0.0.48",
       "state": "dev",
-      "note": "Bib registration"
+      "note": "Bib registration",
+      "size_kb": 2066,
+      "req_count": 68,
+      "measured_at": "2026-07-18 12:27:07 UTC"
     },
     {
       "id": "cms",
