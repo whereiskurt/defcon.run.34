@@ -86,14 +86,15 @@ Append one object to `redirects.json`:
   "status_code": 302,
   "og": {
     "title": "Chip In — DEF CON 34",
-    "description": "Support defcon.run"
+    "description": "Support defcon.run",
+    "image_file": "donate-card.png"
   }
 }
 ```
 
 - `target_path` includes the `/use1` basePath (matches the static-donate-tile landmine: hrefs into run.human need `/use1` or they 404).
 - `splash_style` omitted → default `"hackers"` interstitial (OG unfurl card + ~1.6s themed splash → client-side redirect).
-- `og.image` omitted initially; **follow-up:** reuse the static "Donate" tile art via `og.image_file` (a PNG in the module `assets/` dir) for a branded unfurl card.
+- **Branded OG art (in scope):** ship a `donate-card.png` in the module `assets/` dir (`infra/terraform/modules/cloudfront-redirect/v1.0.0/assets/`), referenced via `og.image_file`. The module's `aws_s3_object.image` uploads it per-host and the interstitial template wires it into the OG/Twitter card meta. Source the art from the existing static "Donate" tile / `DonateCard` (Chip In · 05·GIVE · heart emblem) — export/crop to a card-ratio PNG. Exact export path is an implementation detail for the plan; the requirement is a committed `donate-card.png` matching the donate-tile visual identity.
 
 **Result:** `donate.defcon.run` → themed splash / unfurl card → `https://run.defcon.run/use1/whoami?open=donate` → login → donate modal auto-opens (reuses the exact flow the static "Donate" tile already drives).
 
@@ -145,7 +146,12 @@ The two can ship in either order (the panel just renders whatever is in `redirec
 - **Panel render:** unit test that the `VanityRedirects` component lists all hosts from a fixture and renders `<host>.defcon.run` + target correctly; no `edit` links present (read-only invariant).
 - **Manual UAT:** after apply, hit `https://donate.defcon.run` → confirm splash → lands on `run.defcon.run/use1/whoami?open=donate` → donate modal opens. Confirm `/admin/qr` panel shows `r`/`h`/`sao`/`donate`.
 
+## Resolved decisions
+
+- **OG card art:** in scope — ship `donate-card.png` (module `assets/`, `og.image_file`), sourced from the static "Donate" tile / `DonateCard` visual identity. (See Piece 1.)
+- **Panel status column:** render a static `live` chip (matches the QR table's visual rhythm).
+
 ## Open questions / follow-ups
 
-- **OG card art for `donate`** — reuse the static "Donate" tile art as `og.image_file` (branded unfurl). Deferred; ships with default splash first.
 - **Exact Terragrunt path helper** — `get_repo_root()` vs. a relative `${get_terragrunt_dir()}/...` — resolved during planning against how `site.hcl` locals are loaded.
+- **`donate-card.png` art export** — exact source (static-landing asset vs. re-render of `DonateCard`) and crop ratio resolved during planning; requirement is a committed PNG matching the donate-tile identity.
