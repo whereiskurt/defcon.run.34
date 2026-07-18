@@ -33,6 +33,9 @@ export interface OtpAnswerField {
   secret: string;
   digits: number;
   period: number;
+  // First-come single-use (Phase 65, CTFT-18). Non-secret; merged from the form
+  // toggle and carried verbatim onto the persisted otp map. Absent ⇒ shared.
+  singleUse?: boolean;
 }
 
 /**
@@ -336,7 +339,7 @@ export interface LoadedCtfRecord {
   // Presence-only hint driver; carries no plaintext, so it is left as-is.
   answerHash?: string;
   // ⚠️ `secret` is write-only and MUST NOT survive redaction.
-  otp?: { secret?: string; digits?: number; period?: number; algorithm?: string; skew?: number };
+  otp?: { secret?: string; digits?: number; period?: number; algorithm?: string; skew?: number; singleUse?: boolean };
   // ⚠️ `effect` may carry an otpauth reward payload; dropped entirely.
   effect?: unknown;
 }
@@ -369,8 +372,9 @@ export interface RedactedCtfRecord {
   /** CTF Cards board art slug — non-secret, preserved so the form rehydrates it. */
   cardImage?: string;
   answerHash?: string;
-  /** OTP summary for the read-only display — NEVER the secret. */
-  otp?: { digits?: number; period?: number; algorithm?: string };
+  /** OTP summary for the read-only display — NEVER the secret. `singleUse` is
+   * non-secret and preserved so the edit form rehydrates the toggle. */
+  otp?: { digits?: number; period?: number; algorithm?: string; singleUse?: boolean };
   /** true iff the loaded record had a non-empty otp.secret. */
   hasOtpSecret: boolean;
   /** true iff the loaded record had a defined effect. */
@@ -418,11 +422,14 @@ export function redactCtfSecrets(record: LoadedCtfRecord): RedactedCtfRecord {
   };
 
   // Rebuild the OTP summary from ONLY the non-secret fields — never copy `secret`.
+  // `singleUse` is non-secret (like digits/period), so it is preserved so the edit
+  // form rehydrates the single-use toggle's current state.
   if (record.otp) {
     redacted.otp = {
       digits: record.otp.digits,
       period: record.otp.period,
       algorithm: record.otp.algorithm,
+      singleUse: record.otp.singleUse,
     };
   }
 

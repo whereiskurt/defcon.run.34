@@ -153,6 +153,9 @@ export default function CtfForm({
   // Never prefill the answer/OTP secret on edit — the row carries no plaintext.
   const [answer, setAnswer] = useState("");
   const [otpSecret, setOtpSecret] = useState("");
+  // First-come single-use (Phase 65). Rehydrates from the redacted summary so an
+  // existing single-use flag shows the toggle ON. Default OFF ⇒ shared.
+  const [otpSingleUse, setOtpSingleUse] = useState(Boolean(initial?.otp?.singleUse));
   // Wordlist one-time codes (Slice 3, CTFT-14). WRITE-ONLY + add-only: NEVER
   // prefilled on edit (only hashes exist server-side — the plaintext is
   // unreadable). On save the non-blank lines are posted as `codes` for the server
@@ -331,7 +334,12 @@ export default function CtfForm({
     let otpField: OtpAnswerField | undefined;
     if (answerType === "otp" && otpSecretTrimmed !== "") {
       try {
-        otpField = buildOtpAnswerField(otpSecretTrimmed);
+        // Merge the single-use toggle into the whole otp map (Phase 65). The map is
+        // sent WHOLE and only when a new secret is (re)entered (no-clobber), so
+        // changing singleUse on an EDIT requires re-entering the OTP secret — the
+        // SAME rule the secret itself already follows. A server-side partial otp-map
+        // merge is deliberately out of scope (it would require reading the stored map).
+        otpField = { ...buildOtpAnswerField(otpSecretTrimmed), singleUse: otpSingleUse };
       } catch {
         setError("OTP secret must be a valid otpauth:// URL (otpauth://totp/...).");
         return;
@@ -640,6 +648,28 @@ export default function CtfForm({
               shared secret is stored so the judge can verify it, and is never shown
               again after you save.
             </p>
+            {/* First-come single-use (Phase 65). Off ⇒ shared: every player who
+                submits a valid code scores. On ⇒ only the FIRST redeemer of a code
+                wins globally; everyone else silently gets no credit (enforced in the
+                judge). Note: on an edit, changing this requires re-entering the OTP
+                secret (the whole otp map is replaced only when a new secret is typed). */}
+            <div className="mt-3 rounded-lg border border-divider bg-content2 p-3">
+              <label className="flex gap-2 items-center text-sm">
+                <input
+                  type="checkbox"
+                  checked={otpSingleUse}
+                  onChange={(e) => setOtpSingleUse(e.target.checked)}
+                />
+                <span className={otpSingleUse ? "text-primary font-semibold" : ""}>
+                  Single-use (first-come)
+                </span>
+              </label>
+              <p className="text-[12.5px] text-default-500 mt-2">
+                Only the first player to redeem a code wins; everyone else gets no
+                credit. Default off ⇒ shared (every player who submits a valid code
+                scores). On an edit, re-enter the OTP secret above to change this.
+              </p>
+            </div>
           </div>
         ) : (
           /* Section 3c — Wordlist (a pool of single-use codes, consumed first-come) */

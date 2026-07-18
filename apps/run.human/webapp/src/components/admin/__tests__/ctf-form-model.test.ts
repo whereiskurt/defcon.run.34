@@ -188,7 +188,7 @@ describe("redactCtfSecrets — write-only-secret boundary (SC-2 / T-54-01-01)", 
       perPlayerMax: 3,
       globalMax: 100,
       answerHash: "deadbeef",
-      otp: { secret: "JBSWY3DPEHPK3PXP", digits: 6, period: 120, algorithm: "SHA1" },
+      otp: { secret: "JBSWY3DPEHPK3PXP", digits: 6, period: 120, algorithm: "SHA1", singleUse: true },
       effect: { kind: "otp-enroll", otpauth: "otpauth://totp/x", nextFlag: "day2" },
     };
   }
@@ -201,11 +201,22 @@ describe("redactCtfSecrets — write-only-secret boundary (SC-2 / T-54-01-01)", 
     expect(out.otp?.digits).toBe(6);
     expect(out.otp?.period).toBe(120);
     expect(out.otp?.algorithm).toBe("SHA1");
+    // singleUse is non-secret — preserved so the edit form rehydrates the toggle (Phase 65)
+    expect(out.otp?.singleUse).toBe(true);
     // effect never round-trips to the client
     expect((out as unknown as Record<string, unknown>).effect).toBeUndefined();
     // presence booleans surface what the form needs to render its hints
     expect(out.hasOtpSecret).toBe(true);
     expect(out.hasEffect).toBe(true);
+  });
+
+  it("preserves otp.singleUse === undefined (default-off) through redaction", () => {
+    const rec = fullRecord();
+    rec.otp = { secret: "JBSWY3DPEHPK3PXP", digits: 6, period: 120, algorithm: "SHA1" };
+    const out = redactCtfSecrets(rec);
+    expect(out.otp?.singleUse).toBeUndefined();
+    expect((out.otp as Record<string, unknown>).secret).toBeUndefined();
+    expect(out.hasOtpSecret).toBe(true);
   });
 
   it("does NOT mutate the input record (secret + effect still present after the call)", () => {

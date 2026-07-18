@@ -247,6 +247,21 @@ describe("ctfAttributes hash-on-save", () => {
     expect("perPlayerIntervalHours" in result).toBe(false);
     expect("otp" in result).toBe(false);
   });
+
+  it("carries otp.singleUse verbatim onto the row (Phase 65 — no transform)", () => {
+    const result = ctfAttributes({
+      ...T,
+      answerType: "otp",
+      otp: { secret: "JBSWY3DPEHPK3PXP", digits: 6, period: 120, singleUse: true },
+    }) as { otp?: { secret?: string; singleUse?: boolean } };
+    // The whole otp map round-trips unmodified, INCLUDING the single-use flag.
+    expect(result.otp).toEqual({ secret: "JBSWY3DPEHPK3PXP", digits: 6, period: 120, singleUse: true });
+  });
+
+  it("omits otp entirely when no otp is posted (no-clobber unchanged)", () => {
+    const result = ctfAttributes({ ...T });
+    expect("otp" in result).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------

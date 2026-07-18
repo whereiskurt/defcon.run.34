@@ -4,6 +4,7 @@ import {
   CtfSolve,
   CtfScoreEvent,
   CtfCode,
+  CtfOtpClaim,
   CtfPending,
   CtfAttempt,
 } from "@/entities/ctf";
@@ -77,6 +78,23 @@ describe("CtfCode key parity", () => {
     expect(key).toEqual({
       pk: "$run#challenge_sao",
       sk: "$ctfcode_1#codehash_deadbeef",
+    });
+  });
+});
+
+describe("CtfOtpClaim key parity", () => {
+  it("encodes the primary (challenge, codeHash) single-use claim Key", () => {
+    // codeHash is a stand-in salted hash; the plaintext rolling code is never stored.
+    const key = CtfOtpClaim.get({
+      challenge: "sao",
+      codeHash: "deadbeef",
+    }).params({ table }).Key;
+    // This exact sk is the `attribute_not_exists`-on-key claim target the 65-02
+    // judge conditional-CREATES against (create-if-absent, no pre-loaded pool) —
+    // pinned so it can never drift.
+    expect(key).toEqual({
+      pk: "$run#challenge_sao",
+      sk: "$ctfotpclaim_1#codehash_deadbeef",
     });
   });
 });

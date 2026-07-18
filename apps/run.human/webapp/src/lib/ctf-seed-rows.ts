@@ -35,6 +35,10 @@ export interface CtfSeedOtp {
   period: number; // seconds per window (120 — meshtk convention, NOT RFC 30)
   algorithm: string;
   skew: number; // ± windows accepted on verify
+  // First-come single-use (Phase 65). Absent ⇒ SHARED (default). A seeded
+  // single-use flag is an operator choice, deliberately NOT applied to the DC33
+  // chained personas below (they stay shared — the default-off invariant).
+  singleUse?: boolean;
 }
 
 /** A single time tier (mirror of Ctf.timeTiers[] — UTC-ISO from/to). */

@@ -319,6 +319,7 @@ Plans:
 | 54. CTF Flag Types — Slice 1b Frontend (Admin Form Redesign + otp-enroll Reward) | v2.3 | 4/4 | Complete   | 2026-07-15 |
 | 55. CTF Flag Types — Slice 2 Scoring Windows (Day/Time/TZ Gating + DEF CON Run-Hours Quick Set) | v2.3 | 3/3 | Complete   | 2026-07-15 |
 | 56. CTF Flag Types — Slice 3 Wordlist One-Time Codes (CtfCode Entity + Atomic Single-Use Claim) | v2.3 | 3/3 | Complete   | 2026-07-15 |
+| 65. CTF Single-Use OTP Flag Option (Judge-Enforced First-Come Claim) | v2.3.1 | 3/3 | Built — 451 CTF/admin tests green | 2026-07-18 |
 
 ### Phase 33: OIDC Silent SSO
 
@@ -646,6 +647,28 @@ Plans:
 - [x] 56-01-PLAN.md — CtfCode entity (pk=challenge, sk=codeHash; claimedBy/claimedAt) + key-parity test (CTFT-12)
 - [x] 56-02-PLAN.md — judge wordlist branch: atomic claimCode (attribute_not_exists) + two-claimers-one-wins race + indistinguishable non-solve + covert grep gate (CTFT-13)
 - [x] 56-03-PLAN.md — admin Wordlist option: bulk-load hashed codes (add-only) + loaded/unclaimed count line, plaintext never round-tripped (CTFT-14)
+
+---
+
+### Phase 65: CTF Single-Use OTP Flag Option (Judge-Enforced First-Come Claim)
+
+**Goal:** Add a per-flag `otp.singleUse` toggle so a rotating-OTP CTF flag can be **first-come-first-served** — the FIRST logged-in player to redeem a given code wins globally; everyone else gets a NON_SOLVE indistinguishable from a wrong answer. Default `false`/absent = today's **shared** behavior (every player who submits the same code scores), so no migration and no shipped-flag change. Single-use is enforced **only in the judge** (`run.human` `/ctf/claim` → `judgeSolve`, post-login); the public `q.defcon.run` resolver Lambda is **never** touched — anonymous traffic must never trigger a DynamoDB write. Shippable run.human PR with its own tests including the two-claimers-one-wins race and the shared-behavior regression; covert-CSS invariant preserved.
+**Depends on:** Phase 53 (judge answer-type dispatch + `CtfScoreEvent` ledger + OTP `verifyTotp` branch) and Phase 56 (the code-hash-keyed atomic single-use claim pattern — `CtfCode`/`claimCode` is the closest analog). Additive-only; must not touch the covert CSS path (`covert-egg.ts`), the resolver Lambda, or the leaderboard rollup.
+**Requirements:** CTFT-15 (config flag: add `singleUse?: boolean` to the `otp` map — `Ctf.otp` entity in `qr.ts`, `JudgeOtp` in `ctf-judge.ts`, `CtfSeedOtp` in `ctf-seed-rows.ts`, and the admin form model — default `false` ⇒ shared behavior, no migration), CTFT-16 (new lightweight `CtfOtpClaim` ElectroDB entity `pk=challenge`, `sk=codeHash`, attrs `claimedBy`, `claimedAt`, `ttl` [DynamoDB TTL]; the single-use claim is a **create-if-absent** conditional put `attribute_not_exists(pk)` — exactly one concurrent claimer wins, no read-then-write race; plus a runtime-pure claim/identity helper module with type-only entity imports, mirroring `ctf-solve-merge.ts`), CTFT-17 (judge single-use OTP path in `judgeSolve`: when `otp.singleUse` and `verifyTotp` passes, compute `codeHash = hashAnswer(guess)`, perform the global atomic claim, award the winner through the existing `recordScoreEvent`/`accrue` path keyed `bucket=codeHash`, and set the claim-row TTL to `now + period·(skew+2)`; a lost/consumed code ⇒ NON_SOLVE indistinguishable from a wrong answer; **judge-only**, never the resolver; never log the guess/codeHash), CTFT-18 (admin form toggle for `singleUse` in the Rotating-OTP section — default off; shared vs single-use is an operator choice per flag).
+**Success Criteria** (what must be TRUE):
+
+  1. A `singleUse` OTP flag admits each code **once globally**: two concurrent submissions of the **same valid** code by two different logged-in players result in **exactly one** scoring solve and one NON_SOLVE (atomic create-if-absent `attribute_not_exists(pk)` claim — proven by a race test).
+  2. `otp.singleUse` absent/`false` preserves today's **shared** behavior exactly: multiple distinct players submitting the same valid code each score (regression test); no migration, no shipped-flag change.
+  3. Single-use enforcement lives **only** in `judgeSolve`; the resolver Lambda / `q.defcon.run` routing is unchanged (no DynamoDB write from public traffic). The claim row carries a **DynamoDB TTL** (auto-expiring consumed-code marker); the same physical code is one claim across skew offsets (keyed by `codeHash`, not a time bucket).
+  4. A used/unknown code returns the SAME NON_SOLVE a wrong answer yields (covert-channel invariant T-53-04-01 intact); the covert CSS path (`covert-egg.ts`) stays byte-identical; existing static/otp/wordlist flags are unaffected; the guess/codeHash is never logged.
+
+**Plans:** 3 plans
+
+Plans:
+
+- [x] 65-01-PLAN.md — config flag on `Ctf.otp` + `CtfSeedOtp`; `CtfOtpClaim` create-if-absent entity (+ttl); runtime-pure `ctf-otp-claim` helper; pure identity/TTL/gate + key-parity + seed default-off tests (CTFT-15, CTFT-16) [wave 1]
+- [x] 65-02-PLAN.md — judge single-use OTP path: `JudgeOtp.singleUse` + `narrowCtf` + `CtfStore.claimOtpCode` + finalize; race / cross-user / winner-resubmit-no-double-accrue / TTL / shared-OTP regression / indistinguishable-non-solve tests + covert & resolver-untouched grep gates (CTFT-15, CTFT-17) [wave 2]
+- [x] 65-03-PLAN.md — admin `singleUse` toggle (Rotating-OTP section) + write/redaction passthrough; passthrough + redaction-preserved tests (CTFT-15, CTFT-18) [wave 2]
 
 ---
 
