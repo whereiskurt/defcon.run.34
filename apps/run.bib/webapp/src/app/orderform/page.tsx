@@ -7,8 +7,10 @@ import { ContributionChoice } from "@/components/ContributionChoice";
 import { PledgeTagline } from "@/components/PledgeTagline";
 import { StripeStatusBanner } from "@/components/StripeStatusBanner";
 import { createBib, getBib, type BibItem } from "@/entities/bib";
-import { listDonationsForOwner } from "@/entities/general-donation";
-import { listPendingForOwner } from "@/entities/pending-contribution";
+import {
+  getDonationsForOwnerCached,
+  getPendingForOwnerCached,
+} from "@/lib/report-cache";
 import { checkQuota } from "@/lib/quota-client";
 import { type Txn } from "@/components/TransactionHistory";
 import { ContributionChip } from "@/components/ContributionChip";
@@ -101,8 +103,10 @@ export default async function Home({ searchParams }: HomeProps) {
         .catch(() => 30),
       // Contribution history: reconciled bib payments + donations. Total spend
       // drives the "amount contributed" shown even when the buy flow is hidden.
-      listDonationsForOwner(ownerSub).catch(() => []),
-      listPendingForOwner(ownerSub).catch(() => []),
+      // Cached (report-cache, 30s TTL); the .catch keeps a transient scan
+      // failure from being cached and falls back to [].
+      getDonationsForOwnerCached(ownerSub).catch(() => []),
+      getPendingForOwnerCached(ownerSub).catch(() => []),
       // Social-QR (Plan 34-04, Slice C — C-T3): best-effort resolve the runner's
       // real per-user social-QR hash from run.human. getSocialQrHash is null-safe
       // (a miss / timeout never 500s the orderform — T-34-07).
