@@ -13,25 +13,27 @@
 
 export type LngLat = [number, number];
 
+/**
+ * Optional visibility window for an arch. Days are `Date.getDay()` numbers
+ * (0=Sun … 6=Sat) evaluated *in `tz`*, and the window is `[startHour, endHour)`
+ * on the hour, also in `tz`. Fixing the timezone means every viewer sees the
+ * arch appear at the same absolute moment regardless of their own locale.
+ */
+export interface ArchSchedule {
+    days: number[]; // getDay() values, in tz
+    startHour: number; // inclusive, 0–23
+    endHour: number; // exclusive, 0–24
+    tz: string; // IANA zone, e.g. 'America/Los_Angeles'
+}
+
 export interface RainbowArch {
     id: string;
     from: LngLat; // [lng, lat]
     to: LngLat;
+    colors?: string[]; // per-arch palette, outer→inner; defaults to PRIDE_COLORS
+    requiresUnlock?: boolean; // default true — the doubly-hidden egg arches
+    schedule?: ArchSchedule; // optional public window (see isArchActiveNow)
 }
-
-/**
- * The bridges. v1 ships one; add another rainbow by appending an entry.
- * Coordinates are approximate landmark centres and are safe to nudge — the
- * arch is decorative.
- */
-export const RAINBOW_ARCHES: RainbowArch[] = [
-    {
-        // LVCC (DEF CON HQ / the con) ↔ ReBar (Arts District, 1225 S Main St).
-        id: 'lvcc-rebar',
-        from: [-115.1512, 36.1316], // Las Vegas Convention Center
-        to: [-115.1553, 36.1555] // ReBar
-    }
-];
 
 /** Six-stripe pride flag, outer→inner. */
 export const PRIDE_COLORS = [
@@ -41,6 +43,47 @@ export const PRIDE_COLORS = [
     '#008026', // green
     '#004DFF', // blue
     '#750787' // violet
+];
+
+/** Six-band "weed" green gradient, dark→light (outer→inner). */
+export const WEED_COLORS = [
+    '#0A2E0A', // deep forest
+    '#14591A',
+    '#1E7D22',
+    '#3AA53A',
+    '#66C266',
+    '#A6E5A6' // pale bud
+];
+
+/**
+ * The bridges. Add another rainbow by appending an entry — per-arch `colors`,
+ * `requiresUnlock`, and `schedule` are all optional. Coordinates are approximate
+ * landmark centres and are safe to nudge — the arches are decorative.
+ */
+export const RAINBOW_ARCHES: RainbowArch[] = [
+    {
+        // LVCC (DEF CON HQ / the con) ↔ ReBar (Arts District, 1225 S Main St).
+        id: 'lvcc-rebar',
+        from: [-115.1512, 36.1316], // Las Vegas Convention Center
+        to: [-115.1553, 36.1555] // ReBar
+    },
+    {
+        // Green "weed" arch → NuWu Cannabis Marketplace drive-thru (Paiute land).
+        // Unlock-gated, revealed together with the pride arch.
+        id: 'lvcc-nuwu',
+        from: [-115.1512, 36.1316], // Las Vegas Convention Center
+        to: [-115.1466, 36.1789], // NuWu Cannabis Marketplace
+        colors: WEED_COLORS
+    },
+    {
+        // Timed pride arch → "Welcome to Fabulous Las Vegas" sign. Publicly
+        // visible only Thu–Sun 06:00–08:00 Vegas time, and any time once unlocked.
+        id: 'lvcc-lvsign',
+        from: [-115.1512, 36.1316], // Las Vegas Convention Center
+        to: [-115.1728, 36.0821], // Welcome to Las Vegas sign
+        requiresUnlock: false,
+        schedule: { days: [4, 5, 6, 0], startHour: 6, endHour: 8, tz: 'America/Los_Angeles' }
+    }
 ];
 
 export interface BuildOpts {
@@ -75,7 +118,6 @@ export function buildRainbowFeatures(
     opts: BuildOpts = {}
 ): GeoJSON.FeatureCollection {
     const segments = opts.segments ?? 160; // finer → smoother, less "stepped"
-    const colors = opts.colors ?? PRIDE_COLORS;
     const bandWidthM = opts.bandWidthM ?? 22;
     const peakRatio = opts.peakRatio ?? 0.3;
     const thicknessM = opts.thicknessM ?? 60; // ribbon rides at altitude, not the ground
@@ -84,6 +126,7 @@ export function buildRainbowFeatures(
 
     for (const arch of arches) {
         const { from, to } = arch;
+        const colors = arch.colors ?? opts.colors ?? PRIDE_COLORS;
         const midLat = (from[1] + to[1]) / 2;
         const mPerLng = metresPerDegLng(midLat);
         const span = spanMetres(from, to);
@@ -154,4 +197,53 @@ export function pitchOpacity(
 ): number {
     const t = Math.max(0, Math.min(1, (pitch - start) / (end - start)));
     return floor + t * (max - floor);
+}
+
+/**
+ * Is `now` inside the schedule's window, evaluated in the schedule's timezone?
+ * Pure given `now` — reads the weekday + hour *in `schedule.tz`* via Intl so the
+ * answer is the same for every viewer regardless of their own locale. Window is
+ * `[startHour, endHour)` on the matched days.
+ */
+export function isWithinSchedule(schedule: ArchSchedule, now: Date): boolean {
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: schedule.tz,
+        weekday: 'short',
+        hour: 'numeric',
+        hour12: false
+    }).formatToParts(now);
+
+    const wk = parts.find((p) => p.type === 'weekday')?.value ?? '';
+    const hourStr = parts.find((p) => p.type === 'hour')?.value ?? '0';
+    // Intl can emit '24' for midnight in hour12:false; fold it back to 0.
+    const hour = parseInt(hourStr, 10) % 24;
+
+    const dayMap: Record<string, number> = {
+        Sun: 0,
+        Mon: 1,
+        Tue: 2,
+        Wed: 3,
+        Thu: 4,
+        Fri: 5,
+        Sat: 6
+    };
+    const day = dayMap[wk];
+    if (day === undefined || !schedule.days.includes(day)) return false;
+    return hour >= schedule.startHour && hour < schedule.endHour;
+}
+
+/**
+ * Should this arch render right now? Unlock is a master reveal — it shows every
+ * arch regardless of clock. When locked, an arch falls back to its public rule:
+ * unlock-gated arches (the default) stay hidden; scheduled arches show only
+ * inside their window; a public arch with no schedule is always visible.
+ */
+export function isArchActiveNow(
+    arch: RainbowArch,
+    { unlocked, now }: { unlocked: boolean; now: Date }
+): boolean {
+    if (unlocked) return true;
+    if (arch.requiresUnlock ?? true) return false;
+    if (arch.schedule) return isWithinSchedule(arch.schedule, now);
+    return true;
 }
