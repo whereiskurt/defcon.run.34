@@ -7,6 +7,7 @@ import {
   verifyTotp,
   _constantTimeEqual,
 } from "../ctf-otp";
+import { buildOtpauth } from "../ctf-otp-core";
 
 /**
  * RFC 6238 test secret: ASCII "12345678901234567890" encoded as base32.
@@ -188,5 +189,22 @@ describe("parseOtpauth", () => {
   it("round-trips: totpAt(parseOtpauth(url).secret, ...) matches the pinned code", () => {
     const cfg = parseOtpauth(`otpauth://totp/x?secret=${RFC_SECRET}&period=120&digits=6`);
     expect(totpAt(cfg.secret, FIXED_TS, { digits: cfg.digits, period: cfg.period })).toBe("943734");
+  });
+});
+
+describe("buildOtpauth ↔ judge — an enrolled authenticator submits accepted codes", () => {
+  // The admin "Reveal secret" QR is built by buildOtpauth from the STORED secret.
+  // An authenticator that scans it must produce the exact code the judge computes
+  // from that same stored secret — otherwise a re-shared enrollment would fail.
+  it("build → parse → totpAt equals totpAt on the raw stored secret", () => {
+    const url = buildOtpauth({ secret: RFC_SECRET, label: "goldstein-otp" });
+    const cfg = parseOtpauth(url);
+    const enrolled = totpAt(cfg.secret, FIXED_TS, {
+      digits: cfg.digits,
+      period: cfg.period,
+    });
+    const judgeSide = totpAt(RFC_SECRET, FIXED_TS, { digits: 6, period: 120 });
+    expect(enrolled).toBe(judgeSide);
+    expect(enrolled).toBe("943734");
   });
 });

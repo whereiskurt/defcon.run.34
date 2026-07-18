@@ -8,7 +8,16 @@ import { apiBase } from "./qr-ui";
 export interface AdminQrResult {
   success: boolean;
   message?: string;
-  data?: { code?: string; challenge?: string };
+  data?: {
+    code?: string;
+    challenge?: string;
+    // ctf_otp_reveal payload (present only on that action).
+    secret?: string;
+    otpauth?: string;
+    digits?: number;
+    period?: number;
+    algorithm?: string;
+  };
 }
 
 export async function postQrAction(body: unknown): Promise<AdminQrResult> {
