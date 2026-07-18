@@ -151,31 +151,31 @@ function classifyConnectError(err: string | null): ConnectErrorCategory {
   return "generic";
 }
 
+/**
+ * Resolve a classified error category into the user-facing message, sourced from
+ * the CMS copy catalog (`flash.error.<category>.<family>`). `t` is threaded in
+ * from the caller's `useCopy()` because this is a module-level pure function (no
+ * hook). The 'generic' branch still prefers the RAW browser/DFU error string when
+ * present — that text is dynamic diagnostic detail, not translatable copy — and
+ * falls back to the catalog only when there is no raw string.
+ */
 function categoryMessage(
   category: ConnectErrorCategory,
   raw: string | null,
-  family: "esp32" | "nrf52" = "esp32"
+  family: "esp32" | "nrf52",
+  t: (key: string, vars?: Record<string, string | number>) => string
 ): string | null {
   switch (category) {
     case "cancelled":
       // Silent — Connect step reverts to "ready" UI.
       return null;
     case "in-use":
-      return family === "nrf52"
-        ? "The DFU interface is in use by another program (nrfutil, uf2conv, or another browser tab running the flasher). Close it and try again."
-        : "The serial port is in use by another program (Arduino IDE, PlatformIO, or another browser tab running the flasher). Close it and try again.";
+      return t(`flash.error.inUse.${family}`);
     case "no-response":
-      return family === "nrf52"
-        ? "Couldn't reach the device. Try a different data USB cable (some are charge-only), or put the device in bootloader mode (double-tap RESET) using the steps below."
-        : "Couldn't reach the device. Try a different data USB cable (some are charge-only), or put the device in bootloader mode using the steps below.";
+      return t(`flash.error.noResponse.${family}`);
     case "generic":
     default:
-      return (
-        raw ??
-        (family === "nrf52"
-          ? "DFU connection failed. Try the troubleshooting steps below."
-          : "Serial connection failed. Try the troubleshooting steps below.")
-      );
+      return raw ?? t(`flash.error.generic.${family}`);
   }
 }
 
@@ -250,7 +250,7 @@ function Esp32ConnectView({
   const isCancelled = errorCategory === "cancelled";
   const displayError =
     errorCategory && !isCancelled
-      ? categoryMessage(errorCategory, serial.error)
+      ? categoryMessage(errorCategory, serial.error, "esp32", t)
       : null;
   // Treat cancellation as "ready to reconnect" — hook already routes real
   // browser-picker cancels to "disconnected"; this handles the string-fallback path.
@@ -434,7 +434,7 @@ function Nrf52ConnectView({
   const isCancelled = errorCategory === "cancelled";
   const displayError =
     errorCategory && !isCancelled
-      ? categoryMessage(errorCategory, dfu.error, "nrf52")
+      ? categoryMessage(errorCategory, dfu.error, "nrf52", t)
       : null;
   const showErrorPanel = dfu.connectionState === "error" && !isCancelled;
 

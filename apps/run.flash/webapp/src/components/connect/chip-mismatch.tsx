@@ -2,6 +2,8 @@
 
 import { Card, CardBody } from "@heroui/react";
 import { AlertTriangle } from "lucide-react";
+import { useCopy } from "@/components/CopyProvider";
+import { renderMono } from "@/lib/copy-mono";
 
 interface ChipMismatchWarningProps {
   /** Chip name reported by esptool (ESP32 path). Optional so the nRF52 path
@@ -29,8 +31,12 @@ interface ChipMismatchWarningProps {
  *   - ESP32 path (`detectedChipName` present) → "connected chip is …"
  *   - nRF52 path (`detectedVidPid` present)   → "connected USB device
  *     reports VID/PID …"
- * The ESP32 branch is byte-identical to pre-Phase-25 copy (regression
- * guard for SC5).
+ *
+ * Copy is sourced from the CMS catalog (`flash.mismatch.*`). The detected/
+ * expected hardware identifiers (chip name, VID:PID, device name, arch) are
+ * `{token}` placeholders rendered back into `font-mono text-foreground` spans
+ * via renderMono — the same on-device emphasis the #722 readability pass set,
+ * but now editor-editable.
  */
 export function ChipMismatchWarning({
   detectedChipName,
@@ -38,6 +44,7 @@ export function ChipMismatchWarning({
   expectedArchitecture,
   deviceName,
 }: ChipMismatchWarningProps) {
+  const { t } = useCopy();
   const isNrf52Surface = !!detectedVidPid && !detectedChipName;
 
   return (
@@ -46,40 +53,28 @@ export function ChipMismatchWarning({
         <AlertTriangle className="w-10 h-10 text-warning" />
         <h3 className="text-lg font-bold text-warning">
           {isNrf52Surface
-            ? "USB Device Family Mismatch"
-            : "Chip Mismatch Detected"}
+            ? t("flash.mismatch.nrf52.title")
+            : t("flash.mismatch.esp32.title")}
         </h3>
         {isNrf52Surface ? (
           <p className="text-sm text-default-400 max-w-md">
-            The connected USB device reports VID/PID{" "}
-            <span className="font-mono text-foreground">
-              {detectedVidPid}
-            </span>
-            , but the picker says you selected{" "}
-            <span className="font-mono text-foreground">{deviceName}</span> (
-            <span className="font-mono text-foreground">
-              {expectedArchitecture}
-            </span>
-            ) &mdash; flashing this firmware to the wrong USB device family
-            could brick the device.
+            {renderMono(t("flash.mismatch.nrf52.body"), {
+              vidpid: detectedVidPid ?? "",
+              device: deviceName,
+              arch: expectedArchitecture,
+            })}
           </p>
         ) : (
           <p className="text-sm text-default-400 max-w-md">
-            The connected chip is a{" "}
-            <span className="font-mono text-foreground">{detectedChipName}</span>{" "}
-            but the picker says you selected{" "}
-            <span className="font-mono text-foreground">{deviceName}</span> (
-            <span className="font-mono text-foreground">
-              {expectedArchitecture}
-            </span>
-            ) &mdash; flashing this firmware to the wrong chip could brick the
-            device.
+            {renderMono(t("flash.mismatch.esp32.body"), {
+              chip: detectedChipName ?? "",
+              device: deviceName,
+              arch: expectedArchitecture,
+            })}
           </p>
         )}
         <p className="text-sm text-default-500 max-w-md">
-          Return to the device picker and select the correct device &mdash; or
-          disconnect this board and connect the one that matches{" "}
-          <span className="font-mono text-foreground">{deviceName}</span>.
+          {renderMono(t("flash.mismatch.action"), { device: deviceName })}
         </p>
       </CardBody>
     </Card>
