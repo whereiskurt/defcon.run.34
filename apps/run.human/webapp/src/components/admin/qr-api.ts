@@ -17,6 +17,8 @@ export interface AdminQrResult {
     digits?: number;
     period?: number;
     algorithm?: string;
+    // ctf_effect_reveal payload (present only on that action).
+    effect?: unknown;
   };
 }
 

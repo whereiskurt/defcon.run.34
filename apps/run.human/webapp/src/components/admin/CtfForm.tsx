@@ -27,6 +27,7 @@ import {
   validateScoreWindow,
 } from "@/lib/ctf-score-window";
 import { asOtpEnrollEffect } from "@/lib/ctf-otp-enroll";
+import { parseOtpauth } from "@/lib/ctf-otp-core";
 import CtfOtpEnroll from "@/components/ctf/CtfOtpEnroll";
 
 /**
@@ -243,6 +244,12 @@ export default function CtfForm({
   const [rewardOtpauth, setRewardOtpauth] = useState("");
   const [rewardNextFlag, setRewardNextFlag] = useState("");
   const [revealPreview, setRevealPreview] = useState(false);
+  // Reveal-on-demand of the stored `effect` payload (edit mode only) — the other
+  // recoverable secret-bearing field. Same reveal-on-demand posture as the OTP
+  // secret: absent from the initial render, fetched only on a gated click.
+  const [effectReveal, setEffectReveal] = useState<unknown | null>(null);
+  const [effectRevealBusy, setEffectRevealBusy] = useState(false);
+  const [effectCopied, setEffectCopied] = useState<"otpauth" | "json" | null>(null);
 
   // Advanced drawer: collapsed by default; opened on edit when the record did not
   // round-trip to a clean preset (the admin hand-tuned the knobs).
@@ -489,6 +496,42 @@ export default function CtfForm({
     }
   }
 
+  // Toggle the stored-effect reveal (edit only). Symmetric to the OTP reveal: the
+  // raw effect crosses the wire only on a deliberate click to the gated action.
+  async function onToggleEffectReveal() {
+    if (effectReveal !== null) {
+      setEffectReveal(null);
+      setEffectCopied(null);
+      return;
+    }
+    setError(null);
+    setEffectRevealBusy(true);
+    try {
+      const res = await postQrAction({
+        action: "ctf_effect_reveal",
+        challenge: initial?.challenge,
+      });
+      if (res.data?.effect === undefined) {
+        throw new Error("No effect is configured for this flag.");
+      }
+      setEffectReveal(res.data.effect);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Reveal failed.");
+    } finally {
+      setEffectRevealBusy(false);
+    }
+  }
+
+  async function copyEffectText(text: string, which: "otpauth" | "json") {
+    try {
+      await navigator.clipboard.writeText(text);
+      setEffectCopied(which);
+      setTimeout(() => setEffectCopied((c) => (c === which ? null : c)), 1500);
+    } catch {
+      /* clipboard blocked — the value is still selectable on screen */
+    }
+  }
+
   // Render the enrollment QR from the revealed otpauth URL. Frozen params match
   // CtfOtpEnroll (dark modules on a white quiet-zone → high contrast either theme).
   useEffect(() => {
@@ -515,6 +558,19 @@ export default function CtfForm({
   }, [otpReveal]);
 
   const otpSummary = initial?.otp;
+
+  // Narrow a revealed effect to an otpauth enrollment (→ QR) vs opaque JSON, and
+  // pull its period for the Google-Authenticator caveat. Computed in render so it
+  // tracks the reveal state; both are cheap and no-throw.
+  const revealedEnroll = effectReveal !== null ? asOtpEnrollEffect(effectReveal) : null;
+  let revealedEnrollPeriod = 120;
+  if (revealedEnroll) {
+    try {
+      revealedEnrollPeriod = parseOtpauth(revealedEnroll.otpauth).period;
+    } catch {
+      /* keep the 120 default for the caveat copy */
+    }
+  }
 
   return (
     <div className={cls.root}>
@@ -850,7 +906,8 @@ export default function CtfForm({
             />
             <p className="text-[12.5px] text-default-500 mt-2">
               One code per line. Each code can be claimed once, first-come. Codes are
-              hashed on save — they are never stored or shown in plaintext.
+              hashed on save — they are never stored in plaintext, so there is no
+              &ldquo;Reveal secret&rdquo; here: keep your own copy of the pool.
             </p>
             {/* Read-only pool status (edit only) — aggregate counts, never a code.
                 On create there is no pool yet, so show the empty-state hint. */}
@@ -1266,6 +1323,83 @@ export default function CtfForm({
             An effect is already configured. Leave blank to keep it; paste new JSON only
             to replace it.
           </p>
+        ) : null}
+
+        {/* Reveal-on-demand of the stored effect (edit + an effect present). An
+            otpauth-enroll reward renders its QR + enrollment URL; any other effect
+            is shown as read-only JSON. Fetched only on click (gated action). */}
+        {isEdit && initial?.hasEffect ? (
+          <div className="mt-3 rounded-lg border border-divider bg-content2 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold">Stored effect</span>
+              <button
+                type="button"
+                className={cls.btn}
+                disabled={effectRevealBusy}
+                onClick={onToggleEffectReveal}
+              >
+                {effectReveal !== null
+                  ? "Hide secret"
+                  : effectRevealBusy
+                    ? "Revealing…"
+                    : "Reveal secret"}
+              </button>
+            </div>
+
+            {effectReveal !== null && revealedEnroll ? (
+              <div className="mt-3 flex flex-col gap-3">
+                <div>
+                  <label className={cls.label}>Enrollment URL (otpauth://)</label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 font-mono text-[12px] break-all rounded-lg border border-divider bg-content1 px-3 py-2">
+                      {revealedEnroll.otpauth}
+                    </code>
+                    <button
+                      type="button"
+                      className={cls.btn}
+                      onClick={() => copyEffectText(revealedEnroll.otpauth, "otpauth")}
+                    >
+                      {effectCopied === "otpauth" ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                </div>
+                <div className={`${cls.rewardCard} flex justify-center`}>
+                  {/* Exactly what the solver sees — reuses the 54-03 renderer. */}
+                  <CtfOtpEnroll
+                    otpauth={revealedEnroll.otpauth}
+                    nextFlag={revealedEnroll.nextFlag}
+                  />
+                </div>
+                {revealedEnrollPeriod !== 30 ? (
+                  <p className="text-[12px] text-default-500 text-center max-w-[320px] mx-auto">
+                    <span className="font-semibold">
+                      Google Authenticator ignores the period and assumes 30s
+                    </span>{" "}
+                    — for this {revealedEnrollPeriod}s enrollment use a period-aware app
+                    (Aegis, 2FAS, FreeOTP).
+                  </p>
+                ) : null}
+              </div>
+            ) : effectReveal !== null ? (
+              <div className="mt-3">
+                <label className={cls.label}>Configured effect (JSON)</label>
+                <div className="flex items-start gap-2">
+                  <pre className="flex-1 overflow-x-auto font-mono text-[12px] rounded-lg border border-divider bg-content1 px-3 py-2">
+                    {JSON.stringify(effectReveal, null, 2)}
+                  </pre>
+                  <button
+                    type="button"
+                    className={cls.btn}
+                    onClick={() =>
+                      copyEffectText(JSON.stringify(effectReveal, null, 2), "json")
+                    }
+                  >
+                    {effectCopied === "json" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </div>
           </div>
