@@ -7,6 +7,8 @@ import { fontSans, fontMono, fontMuseo, fontAtkinson } from "@/config/fonts";
 import { SessionProvider } from "next-auth/react";
 import { Header } from "@/components/header/header";
 import SilentSSO from "@/components/SilentSSO";
+import { loadCopy } from "@/lib/copy";
+import { CopyProvider } from "@/components/CopyProvider";
 
 const isDev = process.env.NODE_ENV !== "production";
 const REGION_SHORT = process.env.REGION_SHORT || "use1";
@@ -30,11 +32,17 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Resolve the merged copy map ONCE server-side (cached, 300s revalidate).
+  // The CMS token / URL are read inside loadCopy and never cross to the client —
+  // only the resolved map is handed to <CopyProvider>. Absent CMS env → the app
+  // floors to the committed copy-snapshot.json.
+  const copy = await loadCopy("default");
+
   return (
     <html suppressHydrationWarning lang="en">
       <body
@@ -50,12 +58,14 @@ export default function RootLayout({
           <SessionProvider basePath={authBasePath}>
             {/* App-wide hidden-iframe silent-SSO probe (self-gates on unauthenticated). */}
             <SilentSSO />
-            <div className="relative flex flex-col min-h-dvh noise-overlay">
-              <Header />
-              <main className="container mx-auto max-w-6xl px-6 pt-4 flex-grow relative z-10">
-                {children}
-              </main>
-            </div>
+            <CopyProvider value={copy}>
+              <div className="relative flex flex-col min-h-dvh noise-overlay">
+                <Header />
+                <main className="container mx-auto max-w-6xl px-6 pt-4 flex-grow relative z-10">
+                  {children}
+                </main>
+              </div>
+            </CopyProvider>
           </SessionProvider>
         </Providers>
       </body>
