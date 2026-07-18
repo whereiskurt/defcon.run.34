@@ -218,3 +218,21 @@
 .mapboxgl-ctrl-top-right,
 .mapboxgl-ctrl-bottom-left,
 .mapboxgl-ctrl-bottom-right { z-index: 7; }
+
+/* Right control column: vertically centred on the right edge (mirrors the
+   centred left toolbar) instead of top-aligned. `height: fit-content` is
+   essential — mapbox makes this corner a flex column which otherwise stretches
+   to full map height and defeats the translate-centring. The profile pair
+   (avatar + theme — a custom control, see ProfileMenu.svelte) is pulled to the
+   top via flex `order`, so the column reads:
+   avatar → theme → zoom(+/−) → compass → search → geolocate → layers. */
+.mapboxgl-ctrl-top-right {
+    top: 50% !important;
+    bottom: auto !important;
+    height: fit-content !important;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.mapboxgl-ctrl-top-right .profile-control { order: -1; }
