@@ -859,61 +859,51 @@ Expected: green (or only pre-existing unrelated failures — note any).
 
 ---
 
-## Task 8 (Part B — infra, staged): Re-point `r.` / `h.` through the resolver
+## Task 8 (Part B — infra): Point `r.` / `h.` at the resolver (redirect-target approach)
 
-> ⚠️ This part re-points **live production domains** (`r.defcon.run` currently rickrolls; `h.defcon.run` → run.defcon.run). It requires a human-run `terragrunt apply` and DNS/distribution cutover — do NOT apply autonomously. Prepare the code and plan the cutover; Kurt runs the apply.
+> Chosen over the heavier "move the domains onto the resolver distro" option (rejected — see
+> spec §5). This touches **live production domains** but is low-risk and reversible: it only
+> changes where the existing vanity interstitials redirect TO. Still requires valid AWS creds
+> (`aws sso login`) and a `terragrunt apply`; seed the codes BEFORE applying.
 
 **Files:**
-- Modify: `apps/run.human/webapp/src/data/redirects.json` — remove the `r` and `h` records.
-- Modify: `infra/terraform/modules/qr-resolver/v1.0.0/` — parameterize/enable `enable_transport`; add per-host CloudFront distros (`r.`, `h.`) with the resolver ALB as origin and a **viewer-request CloudFront Function** that rewrites `event.request.uri` to `"/R"` (resp. `"/H"`).
-- Modify: `infra/terraform/live/site/region/us-east-1/qr-resolver/terragrunt.hcl` — set the inputs; wire ACM certs + Route53 records for `r.`/`h.` to the new distros.
-- Modify: `infra/terraform/live/site/region/us-east-1/redirect-rules/terragrunt.hcl` — confirm `r`/`h` drop out cleanly (state continuity note in the module).
+- Modify: `apps/run.human/webapp/src/data/redirects.json` — `r`/`h` `target_host` →
+  `q.defcon.run`, `target_path` → `/R` / `/H`, `target_query` → `""`, both `HTTP_302`. Keep
+  the `og` blocks (unfurl cards preserved).
+- Modify: `apps/run.human/webapp/src/lib/vanity-redirects.test.ts` — update the expected `h`
+  targetUrl; add an assertion that `r`/`h` route through `q.defcon.run`.
+- No module or other infra file changes.
 
-- [ ] **Step 1: Read the current transport + redirect modules.** `infra/terraform/modules/qr-resolver/v1.0.0/transport.tf`, `.../main.tf`, and `infra/terraform/modules/cloudfront-redirect/v1.0.0/main.tf`. Confirm how `enable_transport` gates the ALB listener rule and where the CloudFront origin is defined.
+- [ ] **Step 1 (done): edit `redirects.json` + test.** Validated JSON; `vanity-redirects`
+  suite green.
 
-- [ ] **Step 2: Seed the codes FIRST (behavior-preserving).** Before any cutover, create `Qr` rows via the admin UI (Task 5) so today's behavior is preserved the instant traffic moves:
-  - `r` → base `destination` = current rickroll URL (copy from the removed `redirects.json` `r` record's target).
-  - `h` → base `destination` = `https://run.defcon.run/` (or the exact current `h` target).
-  Confirm `q.defcon.run/R` and `q.defcon.run/H` resolve correctly (curl) while the static edge redirect is still live.
+- [ ] **Step 2: Seed the codes FIRST (behavior-preserving), needs prod creds.** Create `Qr`
+  rows via the admin UI (`/use1/admin/qr/new`, requires Part A deployed) OR a raw-doc seed
+  script:
+  - `r` → base `destination` = `https://www.youtube.com/watch?v=dQw4w9WgXcQ` (today's rickroll).
+  - `h` → base `destination` = `https://run.defcon.run/` (resolver splices `/use1`).
+  Confirm `curl -sI https://q.defcon.run/R` and `/H` 302 to the seeded bases BEFORE applying
+  redirects.json (else `r.`/`h.` would redirect to a 404).
 
-- [ ] **Step 3: Write the path-rewrite CloudFront Function.** A per-host `cloudfront-js-2.0` viewer-request function:
-
-```js
-function handler(event) {
-  var request = event.request;
-  request.uri = "/R"; // "/H" in the h. function
-  return request;
-}
-```
-
-Add `aws_cloudfront_function` + a CloudFront distribution per host (origin = resolver ALB, Host header forwarded, cache disabled) mirroring the existing `q.defcon.run` transport distro.
-
-- [ ] **Step 4: Plan, review, cut over (human-run).**
+- [ ] **Step 3: Apply the redirect-rules unit (needs terraform creds).**
 
 ```bash
-cd infra/terraform/live/site/region/us-east-1/qr-resolver
-terragrunt plan
-# review: new distros + functions for r./h.; enable_transport true
-terragrunt apply   # Kurt runs this
+cd infra/terraform/live/site/region/us-east-1/redirect-rules
+terragrunt plan   # expect: 2 aws_s3_object.index updates (r,h) + 2 unassociated function updates. NO distro/DNS/ALB/cert change.
+terragrunt apply
 ```
 
-Then in `redirect-rules`, apply the removal of `r`/`h`. Verify DNS points `r.`/`h.` at the new distros.
-
-- [ ] **Step 5: Verify end to end.**
+- [ ] **Step 4: Verify end to end.**
 
 ```bash
-curl -sI https://r.defcon.run/ | grep -i location   # → current rickroll base, then honors schedule
-curl -sI https://h.defcon.run/ | grep -i location   # → run.defcon.run base
+curl -sI https://q.defcon.run/R | grep -i location   # seeded rickroll base
+curl -sL -o /dev/null -w '%{url_effective}\n' https://r.defcon.run/   # interstitial → q/R → youtube
 ```
 
-Add a near-future switch-point to `r` via the UI and re-curl after ~60s to confirm the flip.
+Then in the admin UI add a near-future switch-point to code `r`, wait ~60s, re-check that
+`q.defcon.run/R` flips. Confirm the `r.` unfurl card still renders (paste in a chat / view-source).
 
-- [ ] **Step 6: Commit**
-
-```bash
-git add apps/run.human/webapp/src/data/redirects.json infra/terraform/
-git commit -m "feat(qr): route r./h. short domains through the resolver (dynamic)"
-```
+- [ ] **Step 5: Commit** (redirects.json + test committed on the PR branch with Part A).
 
 ---
 

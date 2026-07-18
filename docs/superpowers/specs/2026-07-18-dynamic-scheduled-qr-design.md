@@ -115,24 +115,35 @@ Location: extend `apps/run.human/webapp/src/app/(protected)/admin/qr/`. Reuse `a
 - When a `schedule` exists, it **owns** `rules`; the legacy raw-rules editor is shown
   read-only (or hidden) for that code to avoid two editors fighting over `rules`.
 
-### 5. Short domains `r.` / `h.` become dynamic (v1)
+### 5. Short domains `r.` / `h.` become dynamic (v1) — redirect-target approach
 
-Re-point `r.defcon.run` and `h.defcon.run` onto the resolver **without changing the
-resolver**:
+**Chosen approach (2026-07-18): point the existing vanity redirects AT the resolver, don't
+move the domains onto it.** This is far lower-risk than re-homing the CloudFront distros.
 
-- Stand up a CloudFront distribution per host with the **resolver ALB as origin** (Host
-  forwarded), gated by enabling the resolver transport wiring (`enable_transport`, currently
-  `false`).
-- A **trivial viewer-request CloudFront Function** rewrites the request path to a fixed
-  code: `r.defcon.run/*` → `/R`, `h.defcon.run/*` → `/H`. The resolver then treats it as an
-  ordinary code lookup — no resolver code change.
-- Seed `Qr` rows `R` (base `destination` → current rickroll target) and `H` (base → 
-  `run.defcon.run`) so **today's behavior is preserved** before any schedule is added.
-- Remove the `r` and `h` entries from `redirects.json` and the `cloudfront-redirect`
-  static-redirect module (they are superseded by the resolver-routing distros).
-- DNS/ACM for `r.`/`h.` already exist and are re-pointed to the new distros.
+The `r.`/`h.` vanity domains already work via the `cloudfront-redirect` module: a per-host
+CloudFront distribution serves a private-S3 **interstitial** (`<host>/index.html`) that
+renders OG unfurl tags for crawlers and does a client redirect to a `target_url` built from
+the record's `target_host`/`target_path`/`target_query` in `redirects.json`.
 
-Net effect: `r.defcon.run` is a short, bib-friendly URL backed by the full scheduling UI.
+So we simply change where they point:
+
+- `redirects.json` `r` → `target_host: q.defcon.run`, `target_path: /R` (302).
+- `redirects.json` `h` → `target_host: q.defcon.run`, `target_path: /H` (302).
+- Seed `Qr` rows `R` (base `destination` = current rickroll `https://www.youtube.com/watch?v=dQw4w9WgXcQ`)
+  and `H` (base = `https://run.defcon.run/`) so today's behavior is preserved before any
+  schedule is added. Seed **before** applying so `q.defcon.run/R|H` never 404s.
+- Apply the `redirect-rules` Terragrunt unit — this only re-renders the two S3 interstitial
+  objects (and the unassociated legacy edge functions). **No** CloudFront distribution,
+  Route53, ACM, or ALB change; **no** downtime; fully reversible (revert `redirects.json`).
+
+Net effect: `r.defcon.run` still shows its "Run Hacker Run!" unfurl card, then routes
+through `q.defcon.run/R` where the schedule decides the destination. Cost: one extra ~302
+hop (the interstitial was already in the path — only its target changed). The resolver is
+**not** changed. The heavier "add `r.`/`h.` as aliases on the resolver distro" option was
+rejected: it needs a module rewrite (multi-host aliases + ALB host rule + a Host→path
+CloudFront Function), a destroy/recreate of live distros (CloudFront `CNAMEAlreadyExists`
+sequencing), a cross-state Route53 move with a downtime window, and it loses the unfurl
+cards.
 
 ### 6. Testing
 

@@ -25,7 +25,14 @@ describe("loadVanityRedirects", () => {
   });
 
   it("builds targetUrl without a trailing ? when query is empty", () => {
-    expect(all.find((r) => r.host === "h")!.targetUrl).toBe("https://run.defcon.run/");
+    // h. now routes through the resolver (q.defcon.run/H) so its destination is
+    // dynamic/schedulable; the empty target_query must still yield no trailing "?".
+    expect(all.find((r) => r.host === "h")!.targetUrl).toBe("https://q.defcon.run/H");
+  });
+
+  it("routes r. and h. through the resolver so they are schedulable", () => {
+    expect(all.find((r) => r.host === "r")!.targetUrl).toBe("https://q.defcon.run/R");
+    expect(all.find((r) => r.host === "h")!.targetUrl).toBe("https://q.defcon.run/H");
   });
 
   it("returns hosts sorted by priority", () => {
