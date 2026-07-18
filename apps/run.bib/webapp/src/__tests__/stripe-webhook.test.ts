@@ -50,6 +50,14 @@ vi.mock("@/entities/general-donation", () => ({
   stripeSessionDonationId: (sessionId: string) => `stripe:${sessionId}`,
 }));
 
+// Cache invalidation is an orthogonal side effect that needs Next's request
+// store (absent when the handler is invoked directly here). No-op it.
+vi.mock("@/lib/report-cache", () => ({
+  invalidateBib: vi.fn(),
+  invalidateReports: vi.fn(),
+  invalidateOwner: vi.fn(),
+}));
+
 // Import SUT after mocks.
 import { POST } from "@/app/api/stripe/webhook/route";
 

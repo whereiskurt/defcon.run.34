@@ -44,6 +44,14 @@ vi.mock("@/lib/rabbit-name-sync", () => ({
   maybeSyncRabbitName: (...a: unknown[]) => mockMaybeSync(...a),
 }));
 
+// Cache invalidation is an orthogonal side effect that needs Next's request
+// store (absent when the handler is invoked directly here). No-op it.
+vi.mock("@/lib/report-cache", () => ({
+  invalidateBib: vi.fn(),
+  invalidateReports: vi.fn(),
+  invalidateOwner: vi.fn(),
+}));
+
 import { PATCH } from "../app/api/bib/route";
 import type { NextRequest } from "next/server";
 
