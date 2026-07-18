@@ -3,7 +3,6 @@ import {
   Inter as FontSans,
   MuseoModerno as FontMuseo,
   Atkinson_Hyperlegible as FontAtkinson,
-  Lato as FontLato,
 } from "next/font/google";
 
 export const fontSans = FontSans({
@@ -26,9 +25,4 @@ export const fontAtkinson = FontAtkinson({
   subsets: ["latin"],
   weight: "400",
   variable: "--font-atkinson",
-});
-
-export const fontLato = FontLato({
-  subsets: ["latin"],
-  weight: "400",
 });

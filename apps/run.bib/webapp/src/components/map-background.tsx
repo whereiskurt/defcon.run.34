@@ -16,7 +16,7 @@ import { Settings2 } from "lucide-react";
  * cursor via requestAnimationFrame. A gear popover (bottom-right) tunes zoom /
  * opacity / parallax, persisted to localStorage.
  *
- * Assets live in `public/bg/vegas-z{9..12}.png`; served under the app basePath
+ * Assets live in `public/bg/vegas-z{9..12}.webp`; served under the app basePath
  * (`/{region}` in prod, none in dev).
  */
 const ZOOM_LEVELS = [
@@ -97,7 +97,7 @@ export function MapBackground() {
         ref={bgRef}
         className="map-bg-layer fixed inset-0 z-0 pointer-events-none transition-transform duration-300 ease-out"
         style={{
-          backgroundImage: `url(${assetBase}/bg/vegas-z${prefs.zoom}.png)`,
+          backgroundImage: `url(${assetBase}/bg/vegas-z${prefs.zoom}.webp)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",

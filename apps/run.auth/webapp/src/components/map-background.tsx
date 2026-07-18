@@ -100,7 +100,7 @@ export function MapBackground() {
         ref={bgRef}
         className="map-bg-layer fixed inset-0 z-0 pointer-events-none transition-transform duration-300 ease-out"
         style={{
-          backgroundImage: `url(${basePath}/bg/vegas-z${prefs.zoom}.png)`,
+          backgroundImage: `url(${basePath}/bg/vegas-z${prefs.zoom}.webp)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
