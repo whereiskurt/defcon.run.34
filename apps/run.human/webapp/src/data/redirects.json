@@ -45,8 +45,8 @@
   {
     "host": "donate",
     "target_host": "run.defcon.run",
-    "target_path": "/use1/whoami",
-    "target_query": "open=donate",
+    "target_path": "/use1/api/auth/auto-signin",
+    "target_query": "callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate",
     "status_code": "HTTP_302",
     "priority": 93,
     "og": {
