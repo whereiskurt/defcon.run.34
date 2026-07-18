@@ -4,6 +4,8 @@ const mockQuery = vi.fn();
 const mockGet = vi.fn();
 const mockGetRunUser = vi.fn();
 const mockUpdate = vi.fn();
+const mockEnsure = vi.fn();
+const mockGetAuthEmail = vi.fn();
 
 vi.mock("@/entities/client", () => ({
   dynamodbClient: {
@@ -15,6 +17,12 @@ vi.mock("@/entities/client", () => ({
 vi.mock("@/entities/run-user", () => ({
   getRunUser: (...a: unknown[]) => mockGetRunUser(...a),
   updateRunUserProfile: (...a: unknown[]) => mockUpdate(...a),
+}));
+vi.mock("@/lib/ensure-identity", () => ({
+  ensureRunHumanIdentity: (...a: unknown[]) => mockEnsure(...a),
+}));
+vi.mock("@/lib/auth-email", () => ({
+  getAuthEmailBySub: (...a: unknown[]) => mockGetAuthEmail(...a),
 }));
 vi.mock("@/config", () => ({
   config: { auth: { internalSecret: "s3cret" } },
@@ -42,6 +50,8 @@ beforeEach(() => {
   mockGet.mockReset();
   mockGetRunUser.mockReset();
   mockUpdate.mockReset();
+  mockEnsure.mockReset();
+  mockGetAuthEmail.mockReset();
   // Default: account lookup resolves to adapter user "adapter-abcd1234".
   mockQuery.mockResolvedValue({ Items: [{ userId: "adapter-abcd1234" }] });
 });
@@ -54,20 +64,68 @@ describe("PATCH /api/internal/user/[oidcSub]", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("404s when no account maps to the OIDC sub", async () => {
-    mockQuery.mockResolvedValueOnce({ Items: [] });
+  // --- Provisioning (bib-only runner with no run.human account) --------------
+
+  it("provisions a missing identity (email from run.auth) then syncs the name", async () => {
+    mockQuery.mockResolvedValueOnce({ Items: [] }); // no account maps to the sub
+    mockGetAuthEmail.mockResolvedValue("a@x.com");
+    mockEnsure.mockResolvedValue({ userId: "new-uid", created: true });
+    mockGetRunUser.mockResolvedValue({
+      userId: "new-uid",
+      displayName: "rabbit_newu",
+      displayNameManual: false, // explicitly unlocked → sync proceeds
+    });
+
     const { request, params } = req("s3cret", { displayName: "OGRE" });
     const res = await PATCH(request, { params });
-    expect(res.status).toBe(404);
+    const body = await res.json();
+
+    expect(mockEnsure).toHaveBeenCalledWith("oidc-1", "a@x.com", "OGRE");
+    expect(mockUpdate).toHaveBeenCalledWith("new-uid", {
+      displayName: "OGRE",
+      displayNameManual: false,
+    });
+    expect(body).toEqual({ synced: true, displayName: "OGRE", provisioned: true });
+  });
+
+  it("skips (no_identity_no_email) when the sub has no account and run.auth has no email", async () => {
+    mockQuery.mockResolvedValueOnce({ Items: [] });
+    mockGetAuthEmail.mockResolvedValue(null);
+
+    const { request, params } = req("s3cret", { displayName: "OGRE" });
+    const res = await PATCH(request, { params });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({ synced: false, reason: "no_identity_no_email" });
+    expect(mockEnsure).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("skips (synced:false) a too-short name without touching the user", async () => {
+  it("still provisions the identity when the name is too short to sync", async () => {
+    mockQuery.mockResolvedValueOnce({ Items: [] });
+    mockGetAuthEmail.mockResolvedValue("a@x.com");
+    mockEnsure.mockResolvedValue({ userId: "new-uid", created: true });
+
+    const { request, params } = req("s3cret", { displayName: "ab" });
+    const res = await PATCH(request, { params });
+    const body = await res.json();
+
+    expect(mockEnsure).toHaveBeenCalled();
+    expect(body).toEqual({ synced: false, reason: "too_short", provisioned: true });
+    expect(mockGetRunUser).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  // --- Existing-account name sync (unchanged behavior + provisioned:false) ----
+
+  it("skips (synced:false) a too-short name without provisioning or touching the user", async () => {
     const { request, params } = req("s3cret", { displayName: "ab" });
     const res = await PATCH(request, { params });
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body).toEqual({ synced: false, reason: "too_short" });
+    expect(body).toEqual({ synced: false, reason: "too_short", provisioned: false });
+    expect(mockEnsure).not.toHaveBeenCalled();
     expect(mockGetRunUser).not.toHaveBeenCalled();
     expect(mockUpdate).not.toHaveBeenCalled();
   });
@@ -81,7 +139,7 @@ describe("PATCH /api/internal/user/[oidcSub]", () => {
     const { request, params } = req("s3cret", { displayName: "OGRE" });
     const res = await PATCH(request, { params });
     const body = await res.json();
-    expect(body).toEqual({ synced: false, reason: "manual" });
+    expect(body).toEqual({ synced: false, reason: "manual", provisioned: false });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
@@ -93,7 +151,7 @@ describe("PATCH /api/internal/user/[oidcSub]", () => {
     const { request, params } = req("s3cret", { displayName: "OGRE" });
     const res = await PATCH(request, { params });
     const body = await res.json();
-    expect(body).toEqual({ synced: false, reason: "manual" });
+    expect(body).toEqual({ synced: false, reason: "manual", provisioned: false });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
@@ -106,7 +164,7 @@ describe("PATCH /api/internal/user/[oidcSub]", () => {
     const { request, params } = req("s3cret", { displayName: "  OGRE  " });
     const res = await PATCH(request, { params });
     const body = await res.json();
-    expect(body).toEqual({ synced: true, displayName: "OGRE" });
+    expect(body).toEqual({ synced: true, displayName: "OGRE", provisioned: false });
     expect(mockUpdate).toHaveBeenCalledWith("adapter-abcd1234", {
       displayName: "OGRE",
       displayNameManual: false,

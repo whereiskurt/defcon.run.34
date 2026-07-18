@@ -46,15 +46,23 @@ export async function mapWithConcurrency<T, R>(
 
 /**
  * Enrich print-name rows with `email` (from run.auth) + `qrUrl` (from run.human).
- * Returns NEW row objects (does not mutate input). A row with no ownerSub, or any
- * lookup failure, gets a blank ("") value for that field independently.
+ * Returns NEW row objects (does not mutate input).
+ *
+ * qrUrl fallback (Kurt 2026-07-18): a runner who only ever used bib.defcon.run
+ * has no run.human RunUser, so no social-QR hash — but the PHYSICAL bib is never
+ * blank: `BibPreview.stubQrValue = socialQrUrl || runnerCode` (SC34.8). We mirror
+ * that here so the CSV matches what actually prints — qrUrl falls back to the
+ * bare runnerCode (the value the tear-off QR encodes) instead of going blank.
+ * email is independent (run.auth) and blank only on a genuine lookup miss.
  */
 export async function enrichPrintNames(
   rows: PrintNameRow[],
   limit = 8
 ): Promise<PrintNameRow[]> {
   return mapWithConcurrency(rows, limit, async (row) => {
-    if (!row.ownerSub) return { ...row, email: "", qrUrl: "" };
+    // No ownerSub → no email lookup possible; qrUrl still falls back to runnerCode
+    // (matches the physical bib, which always has a runner-code QR).
+    if (!row.ownerSub) return { ...row, email: "", qrUrl: row.runnerCode };
     // Independent, concurrent: email from run.auth, QR hash from run.human. One
     // being down/blank must not blank the other.
     const [email, hash] = await Promise.all([
@@ -64,7 +72,8 @@ export async function enrichPrintNames(
     return {
       ...row,
       email: email ?? "",
-      qrUrl: hash ? buildSocialQrUrl(hash) : "",
+      // Real social QR when we have the hash, else the runner-code QR (never blank).
+      qrUrl: hash ? buildSocialQrUrl(hash) : row.runnerCode,
     };
   });
 }
