@@ -1,9 +1,9 @@
 [
   {
     "host": "r",
-    "target_host": "www.youtube.com",
-    "target_path": "/watch",
-    "target_query": "v=dQw4w9WgXcQ",
+    "target_host": "q.defcon.run",
+    "target_path": "/R",
+    "target_query": "",
     "status_code": "HTTP_302",
     "priority": 90,
     "og": {
@@ -15,10 +15,10 @@
   },
   {
     "host": "h",
-    "target_host": "run.defcon.run",
-    "target_path": "/",
+    "target_host": "q.defcon.run",
+    "target_path": "/H",
     "target_query": "",
-    "status_code": "HTTP_301",
+    "status_code": "HTTP_302",
     "priority": 91,
     "og": {
       "title": "defcon.run 34 — it's happening",

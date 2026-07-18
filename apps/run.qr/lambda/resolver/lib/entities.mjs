@@ -97,6 +97,20 @@ export const Qr = new Entity(
           },
         },
       },
+      // Admin-side authoring source (dynamic scheduled QR). The resolver does NOT
+      // read this — it reads compiled `rules`. Declared here only for entity
+      // parity with the run.human TS mirror (src/entities/qr.ts).
+      schedule: {
+        type: "list",
+        items: {
+          type: "map",
+          properties: {
+            startsAt: { type: "string" },
+            dest: { type: "string" },
+            label: { type: "string" },
+          },
+        },
+      },
       enrich: {
         type: "map",
         properties: {

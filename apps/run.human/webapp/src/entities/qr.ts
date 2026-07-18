@@ -57,6 +57,21 @@ export const Qr = new Entity(
           },
         },
       },
+      // Authoring source of truth for a dynamic scheduled code (dynamic scheduled
+      // QR). Ordered switch-points; on save qr-admin compiles these into `rules`
+      // time-windows (compileScheduleToRules). The resolver reads only `rules`;
+      // `schedule` is admin-side, mirrored on the resolver entity for parity.
+      schedule: {
+        type: "list",
+        items: {
+          type: "map",
+          properties: {
+            startsAt: { type: "string" },
+            dest: { type: "string" },
+            label: { type: "string" },
+          },
+        },
+      },
       enrich: {
         type: "map",
         properties: {

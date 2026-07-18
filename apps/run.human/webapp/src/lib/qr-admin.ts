@@ -14,6 +14,7 @@ import {
   DEFAULT_PERIOD,
   DEFAULT_ALGORITHM,
 } from "@/lib/ctf-otp-core";
+import { compileScheduleToRules } from "@/lib/qr-schedule";
 
 // Re-export so existing `import { QrValidationError } from "@/lib/qr-admin"`
 // call sites (route.ts, tests) keep working after the extraction to qr-errors.ts.
@@ -121,11 +122,27 @@ export interface QrEnrichInput {
   utm?: { source?: string; medium?: string; campaign?: string };
 }
 
+/**
+ * One switch-point of a dynamic scheduled code: from `startsAt` (UTC ISO) the
+ * code redirects to `dest` until the next switch-point. See lib/qr-schedule.ts.
+ */
+export interface QrScheduleEntryInput {
+  startsAt: string;
+  dest: string;
+  label?: string;
+}
+
 export interface QrInput {
   code: string;
   type?: string;
   destination?: string;
   rules?: QrRuleInput[];
+  /**
+   * Dynamic scheduled code: ordered switch-points. When present and non-empty
+   * this is the source of truth and OVERRIDES `rules` — the schedule is compiled
+   * into time-rules on save (see qrAttributes / compileScheduleToRules).
+   */
+  schedule?: QrScheduleEntryInput[];
   enrich?: QrEnrichInput;
   enabled?: boolean;
   owner?: string;
@@ -345,8 +362,29 @@ export async function getQrStats(code: string): Promise<QrStatsView> {
  * with no Location, which the ALB turns into a 502 (the RICK incident). We
  * reject such rules here so the bad shape can never reach the table.
  */
-function qrAttributes(input: QrInput) {
+export function qrAttributes(input: QrInput) {
   if (input.destination) validateDestination(input.destination);
+  // A dynamic schedule is the source of truth: validate each switch-point (https
+  // dest + parseable start) and compile into time-rules, ignoring any raw `rules`
+  // for this write. A blank/empty schedule leaves the raw-rules path in charge.
+  const hasSchedule = Array.isArray(input.schedule) && input.schedule.length > 0;
+  const scheduleEntries = hasSchedule
+    ? input.schedule!.map((e, i) => {
+        const where = `Switch-point ${i + 1}`;
+        if (!e.dest || e.dest.trim() === "") {
+          throw new QrValidationError(`${where} needs a destination.`);
+        }
+        validateDestination(e.dest); // absolute https only
+        if (!e.startsAt || Number.isNaN(Date.parse(e.startsAt))) {
+          throw new QrValidationError(`${where} has an invalid start time.`);
+        }
+        return {
+          startsAt: e.startsAt,
+          dest: e.dest,
+          ...(e.label ? { label: e.label } : {}),
+        };
+      })
+    : [];
   const rules = (input.rules ?? []).map((r, i) => {
     const where = `Rule ${i + 1}`;
     if (!r.dest || r.dest.trim() === "") {
@@ -373,10 +411,15 @@ function qrAttributes(input: QrInput) {
       dest: r.dest,
     };
   });
+  // When a schedule is present it OWNS `rules` (compiled from switch-points);
+  // otherwise the raw-rules path above applies. `schedule` is persisted as the
+  // authoring source of truth (empty list clears any prior schedule on patch).
+  const derivedRules = hasSchedule ? compileScheduleToRules(scheduleEntries) : rules;
   return {
     type: input.type || "redirect",
     destination: input.destination ?? "",
-    rules,
+    rules: derivedRules,
+    schedule: scheduleEntries,
     enrich: input.enrich ?? {},
     enabled: input.enabled ?? true,
     owner: input.owner ?? "",

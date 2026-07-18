@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { listQrCodes, listCtf, listQrTotals } from "@/lib/qr-admin";
 import { loadVanityRedirects } from "@/lib/vanity-redirects";
+import { activeScheduleEntry } from "@/lib/qr-schedule";
 import { cls, QR_ORIGIN } from "@/components/admin/qr-ui";
 import { gateAdminPage } from "./gate";
 
@@ -17,6 +18,22 @@ export const dynamic = "force-dynamic";
 function fmtDate(iso?: string): string {
   if (!iso) return "—";
   return iso.slice(0, 16).replace("T", " ");
+}
+
+/**
+ * The destination a scheduled code resolves to RIGHT NOW: the active switch-point
+ * or, before the first one, the base destination. Returns null for a code with no
+ * schedule (a static code — nothing dynamic to show).
+ */
+function liveNow(row: {
+  schedule?: Array<{ startsAt?: string; dest?: string }>;
+  destination?: string;
+}): string | null {
+  if (!row.schedule?.length) return null;
+  const entries = row.schedule
+    .filter((e) => e?.startsAt && e?.dest)
+    .map((e) => ({ startsAt: e.startsAt as string, dest: e.dest as string }));
+  return activeScheduleEntry(entries, Date.now())?.dest ?? row.destination ?? "—";
 }
 
 export default async function QrAdminPage() {
@@ -69,7 +86,7 @@ export default async function QrAdminPage() {
             <table className={`${cls.table} min-w-[720px]`}>
               <thead className={cls.thead}>
                 <tr>
-                  {["Code", "Destination", "Rules", "Enabled", "Scans", "Updated", "", ""].map(
+                  {["Code", "Destination", "Rules", "LIVE now", "Enabled", "Scans", "Updated", "", ""].map(
                     (c, i) => (
                       <th key={c || i} className={cls.th}>
                         {c}
@@ -81,7 +98,7 @@ export default async function QrAdminPage() {
               <tbody>
                 {sortedCodes.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="p-6 text-center text-default-400 text-sm">
+                    <td colSpan={9} className="p-6 text-center text-default-400 text-sm">
                       No codes yet. Create one to make a live q.defcon.run short link.
                     </td>
                   </tr>
@@ -100,6 +117,16 @@ export default async function QrAdminPage() {
                         {row.destination || "—"}
                       </td>
                       <td className={cls.td}>{row.rules?.length ?? 0}</td>
+                      <td
+                        className={`${cls.td} max-w-[240px] truncate`}
+                        title={liveNow(row) ?? ""}
+                      >
+                        {liveNow(row) ? (
+                          <span className="text-primary">{liveNow(row)}</span>
+                        ) : (
+                          <span className="text-default-400">—</span>
+                        )}
+                      </td>
                       <td className={cls.td}>
                         {row.enabled ? (
                           <span className="text-primary">live</span>
