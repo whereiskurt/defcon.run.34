@@ -561,7 +561,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -587,7 +590,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -613,7 +619,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -639,7 +648,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -665,7 +677,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -691,7 +706,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -717,7 +735,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -743,7 +764,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -769,7 +793,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -795,7 +822,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -821,7 +851,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -847,7 +880,10 @@ Fleet:
     NodesPerRampInterval: [1]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 1000
@@ -873,7 +909,10 @@ Fleet:
     NodesPerRampInterval: [5]
     RampUpSecs: 30
     RampDownSecs: 2
-    NodesPerSteadyInterval: [1]
+    # EXPERIMENT (reliable-delivery test): rabbit cover-traffic sims parked
+    # so the channel is quiet enough to tell whether DM loss is volume or
+    # the BLE link. Restore to the previous value to bring the crowd back.
+    NodesPerSteadyInterval: [0]
     Distribution: "uniform"
     BroadcastGitterSec: 600
     LatLongAltGitter: 5000
