@@ -4,15 +4,15 @@ milestone: v2.3
 milestone_name: CTF Flag Types & Form Redesign
 status: Milestone complete
 stopped_at: Phase 39 context gathered
-last_updated: "2026-07-15T08:34:00.000Z"
+last_updated: "2026-07-19T04:08:16.514Z"
 last_activity: 2026-07-15
-last_activity_desc: Phase 56 Plan 03 COMPLETE (3/3) — Phase 56 DONE, v2.3 milestone slices all built. Admin Wordlist option (CTFT-14) wired end to end. qr-admin: CtfInput.codes (write-only) + pure hashCodeBatch (trim/blank-drop/in-batch de-dup via the SAME hashAnswer seam the judge claims against — loaded code and guess hash identically) + add-only loadCtfCodes (CtfCode.create per hash, skip-dup, never overwrites claimedBy, never logs plaintext) + getCtfCodeCounts (aggregate loaded/unclaimed read, no plaintext leaves the server); upsertCtf appends codes after the Ctf row write (create + edit). ctf-form-model: inferAnswerType recognizes wordlist, answerType widened on Loaded/RedactedCtfRecord, non-secret codeCounts carried through redactCtfSecrets verbatim (like scoreWindow), no plaintext code field. CtfForm: Static · Rotating OTP · Wordlist segment + Section 3c write-only add-only "One-time codes" textarea (never prefills on edit) + read-only "N codes loaded · M unclaimed" line + empty-state; onSave posts codes (server-hashed), omits the static answer in the wordlist branch. Edit page fetches getCtfCodeCounts for wordlist flags and attaches codeCounts through redaction. DEVIATION (Rule 3): widened the Ctf entity answerType enum [static,otp]→[static,otp,wordlist] (Slice 1a deferred it) — resolver .mjs mirror omits answerType so zero byte-parity impact. Phase-53 no-flip-after-solve guard honored for free (ctf-flag-types already treats wordlist as repeatable). SC3 grep gate green (redacted record + form carry only codeCounts, no plaintext codes). 635 webapp tests green (+9), Node 23.6.0; touched files tsc-clean (2 pre-existing out-of-scope errors untouched). Commits bf90e823/82787016/39588467
+last_activity_desc: Phase 53 complete
 progress:
-  total_phases: 25
-  completed_phases: 15
-  total_plans: 56
-  completed_plans: 56
-  percent: 59
+  total_phases: 27
+  completed_phases: 17
+  total_plans: 69
+  completed_plans: 65
+  percent: 63
 current_phase: 56
 current_phase_name: ctf-flag-types-slice-3-wordlist-one-time-codes-ctfcode-entit
 ---
@@ -133,9 +133,9 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-07-15T08:34:00.000Z
-Stopped at: Completed 56-03-PLAN.md (admin Wordlist option: bulk-load hashed codes add-only + loaded/unclaimed count line, plaintext never stored/round-tripped, CTFT-14) — Phase 56 Plan 03 of 3. Phase 56 COMPLETE; all v2.3 slices (53→54→55→56) built.
-Resume file: None — Phase 56 done. v2.3 milestone slices are all built. Next: run the milestone audit (`/gsd-audit-milestone` or `/gsd-complete-milestone`) then ship/deploy run.human (PR review + merge, then ECS release use1). Relaunch inside the ctf-form-clarity worktree for GSD skills if needed.
+Last session: 2026-07-19T04:08:07.028Z
+Stopped at: Completed 66-02-PLAN.md (register-radio MeshRadio write: pure canonicalization/base64→0x-hex lib + internal-route upsert, MRAD-02) — Phase 66 Plan 02, wave 2. Executed in the flashsettings worktree on branch feat/authoritative-pubkey-ddb. Builds on 66-01 (MeshRadio entity). Embedded-list dual-write intentionally retained (plan 66-03 retires it).
+Resume file: None — 66-02 done. Phase 66 remaining: 66-03 (reader hard-switch), 66-04 (backfill), 66-05 (flash Sync keys), 66-07 (meshtk decryptPKI swap). Do NOT deploy; monorepo = one PR on feat/authoritative-pubkey-ddb.
 
 ## Operator Next Steps
 
@@ -180,3 +180,5 @@ Resume file: None — Phase 56 done. v2.3 milestone slices are all built. Next: 
 | Phase 56 P01 | ~2min | 2 tasks (feat + test) | 2 files |
 | Phase 56 P02 | ~7min | 3 tasks (feat + feat + test) | 5 files |
 | Phase 56 P03 | ~8min | 3 tasks (TDD RED/GREEN + TDD + feat) | 7 files |
+| Phase 66 P02 | ~7min | 3 tasks (feat + test + feat) | 3 files |
+| Phase 66 P04 | 20 | 2 tasks | 2 files |

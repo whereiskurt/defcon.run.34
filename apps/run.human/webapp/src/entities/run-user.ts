@@ -83,28 +83,9 @@ export const RunUser = new Entity(
         type: "string",
       },
 
-      // Meshtastic radio registrations
-      meshtasticRadios: {
-        type: "list",
-        items: {
-          type: "map",
-          properties: {
-            id: { type: "string" },
-            nodeId: { type: "string" },
-            privateKey: { type: "string" },
-            publicKey: { type: "string" },
-            impersonate: { type: "boolean" },
-            showOnMap: { type: "boolean" },
-            verificationCode: { type: "string" },
-            verified: { type: "boolean" },
-            createdAt: { type: "number" },
-            verifiedAt: { type: "number" },
-            verificationAttempts: { type: "number" },
-            resendAttempts: { type: "number" },
-          },
-        },
-        default: () => [],
-      },
+      // Meshtastic radios are now a first-class MeshRadio entity keyed by nodeId
+      // (Phase 66 hard-switch, MRAD-04) — the embedded list attribute is retired.
+      // See src/entities/mesh-radio.ts.
 
       // Denormalized check-in fields (actual check-ins stored in CheckIn entity)
       lastCheckInAt: {
@@ -299,9 +280,6 @@ export async function getRunUser(userId: string) {
  */
 export async function scanAllRunUsers(): Promise<RunUserItem[]> {
   const result = await RunUser.scan.go({ pages: "all" });
-  // ElectroDB infers meshtasticRadios map subfields as optional, whereas the
-  // hand-authored RunUserItem marks them required; the rows are the same entity,
-  // so reconcile to the declared external contract.
   return result.data as RunUserItem[];
 }
 
@@ -344,16 +322,6 @@ export async function updateRunUserProfile(
   }
 ): Promise<void> {
   await RunUser.patch({ userId }).set(data).go();
-}
-
-/**
- * Update user's meshtastic radios
- */
-export async function updateMeshtasticRadios(
-  userId: string,
-  radios: MeshtasticRadio[]
-): Promise<void> {
-  await RunUser.patch({ userId }).set({ meshtasticRadios: radios }).go();
 }
 
 /**
@@ -446,45 +414,6 @@ export async function updateRunUserActivityCounts(
 }
 
 // Type definitions
-export type MeshtasticRadio = {
-  id: string;
-  nodeId: string;
-  privateKey: string;
-  publicKey?: string;
-  impersonate?: boolean;
-  showOnMap?: boolean;
-  verificationCode: string;
-  verified: boolean;
-  createdAt: number;
-  verifiedAt?: number;
-  verificationAttempts?: number;
-  resendAttempts?: number;
-};
-
-/**
- * Sanitize radio data read from DynamoDB.
- *
- * DynamoDB with `convertEmptyValues: true` stores empty strings as NULL.
- * On read-back these become objects/null instead of strings, which causes
- * ElectroDB validation errors when the array is written back.
- */
-export function sanitizeRadio(radio: MeshtasticRadio): MeshtasticRadio {
-  return {
-    id: radio.id || '',
-    nodeId: radio.nodeId || '',
-    privateKey: typeof radio.privateKey === 'string' ? radio.privateKey : '',
-    publicKey: typeof radio.publicKey === 'string' ? radio.publicKey : '',
-    impersonate: radio.impersonate ?? false,
-    showOnMap: radio.showOnMap ?? false,
-    verificationCode: typeof radio.verificationCode === 'string' ? radio.verificationCode : '',
-    verified: radio.verified ?? false,
-    createdAt: radio.createdAt ?? Date.now(),
-    verifiedAt: radio.verifiedAt,
-    verificationAttempts: radio.verificationAttempts ?? 0,
-    resendAttempts: radio.resendAttempts ?? 0,
-  };
-}
-
 export type RunUserItem = {
   userId: string;
   displayName?: string;
@@ -499,7 +428,6 @@ export type RunUserItem = {
   mqttPassword?: string;
   mqttUsertype?: "rabbit" | "admin" | "wildhare" | "og";
   ringtone?: string;
-  meshtasticRadios?: MeshtasticRadio[];
   lastCheckInAt?: number;
   checkInCount?: number;
   // CTF rollups (Phase 44, CTF-03) — owned by the CTF judge worktree.

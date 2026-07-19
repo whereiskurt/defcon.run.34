@@ -161,6 +161,10 @@
     "flash.done.step3": "Disconnect USB — your device is ready!",
     "flash.done.step3Desc": "Your radio will automatically join the mesh network",
     "flash.done.flashAnother": "Flash Another Device",
+    "flash.done.syncTitle": "Already flashed, or re-keyed your radio?",
+    "flash.done.syncDesc": "Sync keys re-reads the device over USB and updates your registration — no re-flash.",
+    "flash.done.syncButton": "Sync keys",
+    "flash.done.syncing": "Syncing keys...",
 
     "common.nav.maps": "Maps",
     "common.nav.meshtastic": "Meshtastic",

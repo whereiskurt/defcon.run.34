@@ -189,6 +189,7 @@ export function WizardContainer() {
               configPayload={configureState.configPayload}
               registrationStatus={configureState.registrationStatus}
               onRetryRegistration={configureState.retryRegistration}
+              onSyncKeys={configureState.syncKeys}
               onFlashAnother={resetWizard}
             />
           )}

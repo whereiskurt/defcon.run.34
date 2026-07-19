@@ -56,6 +56,20 @@ interface UseConfigureReturn {
   ) => Promise<void>;
   /** Retry radio registration (only available after a failed registration) */
   retryRegistration: () => Promise<void>;
+  /**
+   * Sync keys for an already-flashed / re-keyed device.
+   *
+   * One-shot: connect over Web Serial, read back the device's real on-device
+   * X25519 keypair from SECURITY_CONFIG (+ nodeId from myNodeInfo), and POST it
+   * to /api/register-radio — nothing else. NO config push, NO flash, NO region
+   * write (spec §4.3 "no full re-provision"). Handles the reflash-regenerates-keys
+   * case: after a reflash the user runs Sync keys and DDB gets the new device
+   * pubkey within one keycache TTL. Disconnects the device when done.
+   *
+   * @param family - Device family; selects the connect strategy, mirroring
+   *   configure(). Defaults to "esp32".
+   */
+  syncKeys: (family?: DeviceFamily) => Promise<void>;
   /** Reset config state to idle (for retry) */
   reset: () => void;
 }
@@ -278,6 +292,89 @@ export function useConfigure(): UseConfigureReturn {
     }
   }, []);
 
+  const syncKeys = useCallback(
+    async (family: DeviceFamily = "esp32") => {
+      if (isConfiguringRef.current) return;
+      isConfiguringRef.current = true;
+
+      setRegistrationStatus({ state: "pending" });
+
+      let device: MeshDevice | null = null;
+      try {
+        // Connect via the same read-back path the wizard uses. This performs a
+        // config-dump handshake that populates myNodeInfo (nodeId) and captures
+        // the device's SECURITY_CONFIG keys — a FRESH read-back, not cached
+        // registration info. NO config push / flash / region write happens here.
+        const { device: connected, registrationInfo } =
+          family === "nrf52"
+            ? await connectMeshtasticDeviceNrf52()
+            : await connectMeshtasticDevice();
+        device = connected;
+        deviceRef.current = device;
+
+        // Belt-and-suspenders: if the handshake didn't surface the keys (device
+        // may not have re-emitted SECURITY_CONFIG), request them explicitly —
+        // same fallback as configure().
+        let { privateKey, publicKey } = registrationInfo;
+        if (!privateKey && device) {
+          console.log("[syncKeys] Keys missing from handshake, requesting security config...");
+          const keys = await requestSecurityKeys(device);
+          privateKey = keys.privateKey;
+          publicKey = keys.publicKey;
+        }
+
+        if (!registrationInfo.nodeId) {
+          setRegistrationStatus({ state: "skipped", reason: "Node ID not captured from device" });
+          return;
+        }
+
+        // Cache for retryRegistration and POST to the same register-radio route
+        // (identical body to configure/retryRegistration). The route's existing
+        // session + assertNotLockedLive gate covers this write for free.
+        registrationInfoRef.current = {
+          nodeId: registrationInfo.nodeId,
+          privateKey: privateKey || "",
+          publicKey: publicKey || "",
+        };
+
+        const regResponse = await fetch(`${basePath}/api/register-radio`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nodeId: registrationInfo.nodeId,
+            privateKey,
+            publicKey,
+          }),
+        });
+        const regData = await regResponse.json().catch(() => ({}));
+        if (regResponse.ok) {
+          setRegistrationStatus({
+            state: "success",
+            nodeId: registrationInfo.nodeId,
+            updated: regData.updated === true,
+          });
+        } else {
+          const reason = regData.error || `HTTP ${regResponse.status}`;
+          console.warn(`[syncKeys] Radio registration failed: ${reason}`);
+          setRegistrationStatus({ state: "failed", error: reason });
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Sync keys failed";
+        console.warn("[syncKeys] Failed:", message);
+        setRegistrationStatus({ state: "failed", error: message });
+      } finally {
+        // Standalone one-shot: always disconnect (unlike configure(), which keeps
+        // the connection alive for the Done transition).
+        if (device) {
+          await disconnectMeshtasticDevice(device).catch(() => {});
+        }
+        deviceRef.current = null;
+        isConfiguringRef.current = false;
+      }
+    },
+    []
+  );
+
   const reset = useCallback(() => {
     setProgress(INITIAL_CONFIG_PROGRESS);
     setConfigPayload(null);
@@ -312,6 +409,7 @@ export function useConfigure(): UseConfigureReturn {
     registrationStatus,
     configure,
     retryRegistration,
+    syncKeys,
     reset,
   };
 }

@@ -672,6 +672,44 @@ Plans:
 
 ---
 
+### Phase 66: Authoritative Meshtastic Pubkeys in DynamoDB (meshtk decrypt firewall)
+
+**Goal:** Point meshtk's decrypt path at the authoritative X25519 pubkey run.flash already captures, instead of the unauthenticated broadcast `nodes.json` feed — closing two failure modes with one root (staleness: a re-keyed radio serves a wrong key forever; poisoning: any MQTT publisher can assert any node's pubkey). Three pieces: (1) run.human promotes radios to a first-class `MeshRadio` ElectroDB entity keyed by `nodeId` (+ `nodeNum`, `byUser` GSI) with a one-off backfill from every `RunUser.meshtasticRadios[]`; `register-radio` writes the entity converting device base64 pubkey → `0x` hex. (2) run.flash adds a "Sync keys" action reusing ONLY the existing SECURITY_CONFIG read-back + `register-radio` POST (reflash/re-key path). (3) meshtk (separate repo `~/working/meshtk` on `main`) gains a new `internal/keycache` — ONE process-wide shared cache, cache-first, singleflight + negative caching + circuit breaker, plain 1–2 min TTL expiry, direct `GetItem` by `nodeId`/`nodeNum` (never `Scan`) — replacing `decryptPKI`'s `nodes.json` key source, behind a `nodes.json` fallback flag for bring-up.
+**OVERRIDING CONSTRAINT:** keep DDB load minimal — the in-memory keycache is the primary path; DDB is read at most ~once per node per TTL, shared process-wide across the whole ~34-client ghost fleet (never per-packet, never per-client). Up-to-TTL key staleness is acceptable. Every design choice is subordinate to this.
+**Depends on:** the existing run.flash → `POST /api/register-radio` → `POST /api/internal/meshtastic-radios` write path and `RunUser.meshtasticRadios[]` model; meshtk `internal/credcache/` (`CacheAuthenticator`) as the pattern analog and `Server.CredCache.{TableName,TableRegion,DynamoDBEndpoint}` config wiring. Additive to the ghost PKI decrypt saga (commits `cbce8c8`/`da99ecd`/`9bf200c`). Spans two repos: monorepo (run.human + run.flash + terraform) = one PR; meshtk = its own branch/PR (built into run.mqtt image).
+**Out of scope:** Layer 2 cred↔node ACL binding (traffic spoofing defense — deferred, spec §9); retiring/generating `nodes.json` from DDB (PR #806). This spec only removes meshtk's *decrypt-key* dependency on `nodes.json`.
+**Requirements:**
+
+  - **MRAD-01** — `MeshRadio` ElectroDB entity on the shared `ELECTRO_TABLE`: pk `nodeId` (`!hex`, direct `GetItem`), attrs `nodeNum` (uint32), `userId`, `publicKey` (`0x` hex), `privateKey`, `verified`/`verificationCode`/`verifiedAt`/`verificationAttempts`/`resendAttempts`, `impersonate`, `showOnMap`, `source` (`flash`|`sync`|`manual`), `createdAt`/`updatedAt`; `byUser` GSI (pk `userId`) for listing/admin/deferred Layer-2 join. meshtk hot path is a direct key `get` — no GSI on the hot path.
+  - **MRAD-02** — `register-radio` write: `POST /api/internal/meshtastic-radios` upserts the `MeshRadio` entity (keyed `nodeId`, `userId` from resolved RunUser), converting the device base64 pubkey → `0x` hex once at the write boundary.
+  - **MRAD-03** — one-off, idempotent, re-runnable backfill script creating a `MeshRadio` item from every existing `RunUser.meshtasticRadios[]` entry (base64→hex where needed).
+  - **MRAD-04** — enumerate EVERY reader/writer of `RunUser.meshtasticRadios[]` (spec §8a main risk); **planning decides** (spec §11 open question) between full reader-migration to `MeshRadio` + retire embedded list, vs. dual-write keeping the embedded list as the user-facing denormalized copy — chosen by enumerated reader count/risk. No user-facing regression either way.
+  - **MRAD-05** — run.flash "Sync keys" action running ONLY the existing `requestSecurityKeys`/`onConfigPacket` security read-back + `register-radio` POST (no full re-provision); handles reflash-regenerates-keys.
+  - **MRAD-06** — meshtk `internal/keycache`: ONE process-wide shared cache (mirror `credcache` `CacheAuthenticator`), cache-first, singleflight dedup, negative caching, circuit breaker, plain 1–2 min TTL expiry, direct `GetItem` `MeshRadio` by `nodeNum`/`nodeId` (never `Scan`) — fleet-wide ≤ ~one DDB read per node per TTL, independent of packet/client volume.
+  - **MRAD-07** — meshtk `decryptPKI` resolves the sender pubkey from `keycache` (DDB authoritative) instead of `FetchPublicKeyFromDefcon` (nodes.json); fallback flag `fallback=nodes.json` (bring-up) | `fallback=none` (miss → NACK, closes poisoning); every fallback logged for enrollment-coverage measurement.
+  - **MRAD-08** — terraform `byUser` GSI on the shared `ELECTRO_TABLE` if the table's GSIs are terraform-managed (else document ElectroDB app-managed); meshtk keycache config wiring parallels `Server.CredCache.{TableName,TableRegion,DynamoDBEndpoint}`.
+
+**Success Criteria** (what must be TRUE):
+
+  1. A radio's real on-device X25519 pubkey lands in `MeshRadio` as `0x` hex via `register-radio`, and a ghost/meshtk decrypts that radio's DM using the DDB key with `nodes.json` ignored (`fallback=none`) — the live-incident verification (KPH's real key ⇒ ricky decrypts a KPH DM).
+  2. DDB read load is bounded by design: fleet-wide ≤ ~one `GetItem` per node per 1–2 min TTL, no per-packet/per-client reads, unknown senders negative-cached, concurrent misses collapsed by singleflight — proven by keycache unit tests (hit/miss/negative/singleflight/circuit-breaker, ported from credcache).
+  3. Security regression: a NODEINFO injected on the broker with a bogus pubkey (the exact hotfix exploit) does NOT change decrypt behavior when `fallback=none` (poisoning closed). A re-flash → **Sync keys** re-registers the device and meshtk decrypts against the new key within one TTL. Unverified radios (`verified=false`) still resolve a key (decrypt ≠ authorization).
+  4. No user-facing regression in run.human radio management; backfill is idempotent/re-runnable; the live NODEINFO-injection stopgap is superseded. Scope excludes Layer 2 ACL binding and nodes.json-from-DDB (#806). Monorepo work is ONE PR; meshtk is its own PR; nothing deployed until approval.
+
+**Plans:** 7 plans (2 PRs — monorepo + meshtk)
+
+Plans:
+
+- [x] 66-01-PLAN.md — MeshRadio ElectroDB entity (pk nodeId, byUser GSI) + CRUD helpers + TS key-parity test + MRAD-08 no-terraform doc (MRAD-01, MRAD-08) [wave 1]
+- [x] 66-02-PLAN.md — register-radio writes MeshRadio: pure canonicalization/base64→0x-hex lib + internal route upsert (MRAD-02) [wave 2]
+- [x] 66-03-PLAN.md — hard-switch: migrate EVERY meshtasticRadios[] reader/writer onto MeshRadio + retire embedded list/type/helpers (MRAD-04) [wave 3]
+- [x] 66-04-PLAN.md — idempotent re-runnable backfill script (embedded list → MeshRadio, base64→hex, pad-8 nodeId) (MRAD-03) [wave 3]
+- [x] 66-05-PLAN.md — run.flash "Sync keys" (read-back + register only, no re-provision) (MRAD-05) [wave 1]
+- [x] 66-06-PLAN.md — [meshtk repo] internal/keycache: cache-first GetItem resolver + singleflight/negative/circuit-breaker + ported table-tests + Go key-parity (MRAD-06) [wave 1]
+- [x] 66-07-PLAN.md — [meshtk repo] decryptPKI + reply-encrypt swap to keycache behind fallback flag + KeyCacheConfig wiring + security-regression test (MRAD-07, MRAD-08) [wave 2]
+
+---
+
 <details>
 <summary>v1.9 CMS-Driven UI Copy Catalog (Phases 35-39) - SHIPPED 2026-07-06</summary>
 
