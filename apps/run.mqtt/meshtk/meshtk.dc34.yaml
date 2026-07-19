@@ -85,6 +85,10 @@ Fleet:
     Description: "ghost.goldstein"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "6969691f-6969-6969-b383-4dfff4fb382b"
     ShortNameTmpl: "GG{{.nodeId}}"
@@ -131,6 +135,10 @@ Fleet:
     Description: "ghost.mudge"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "1119691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GM{{.nodeId}}"
@@ -177,6 +185,10 @@ Fleet:
     Description: "ghost.condor"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "2229691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GC{{.nodeId}}"
@@ -223,6 +235,10 @@ Fleet:
     Description: "ghost.sharp"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "3339691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GS{{.nodeId}}"
@@ -269,6 +285,10 @@ Fleet:
     Description: "ghost.ladyada"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "4449691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GL{{.nodeId}}"
@@ -315,6 +335,10 @@ Fleet:
     Description: "ghost.hopper"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "5559691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GH{{.nodeId}}"
@@ -361,6 +385,10 @@ Fleet:
     Description: "ghost.turing"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "847f4732-5421-1212-b383-4efdc4fb382b"
     ShortNameTmpl: "GT{{.nodeId}}"
@@ -407,6 +435,10 @@ Fleet:
     Description: "ghost.gibson"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "aabbccdd-5421-1212-b383-4efdc4fb382b"
     ShortNameTmpl: "GI{{.nodeId}}"
@@ -453,6 +485,10 @@ Fleet:
     Description: "ghost.ricky"
     BehaviourTag: ["nodeinfo", "position", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "efc432ab-4391-1212-efc3-1234c4fb382b"
     ShortNameTmpl: "GR{{.nodeId}}"
@@ -490,6 +526,10 @@ Fleet:
     Description: "ghost.dt"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "d7d7d7d7-1dc3-4a11-b383-000000000010"
     ShortNameTmpl: "DT{{.nodeId}}"
@@ -520,6 +560,10 @@ Fleet:
     Description: "rabbit.swift"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "90077e2c-7349-4fe5-bc34-fc72d19a7137"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -542,6 +586,10 @@ Fleet:
     Description: "rabbit.dash"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "c7ce3f20-1c1a-43ee-a80f-8f4537fdcc72"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -564,6 +612,10 @@ Fleet:
     Description: "rabbit.comet"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "360ee985-9dce-4966-9ffa-aa83ede6c27a"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -586,6 +638,10 @@ Fleet:
     Description: "rabbit.nova"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "abad0165-553e-4e5b-b441-637f8b545c74"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -608,6 +664,10 @@ Fleet:
     Description: "rabbit.echo"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "1722aeba-f167-4bab-a41e-399232aba2bc"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -630,6 +690,10 @@ Fleet:
     Description: "rabbit.vega"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "2c7af001-4290-4b1a-8418-b13474248683"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -652,6 +716,10 @@ Fleet:
     Description: "rabbit.orbit"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "d9aa2c2a-634a-4258-812e-4c08bc38dd31"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -674,6 +742,10 @@ Fleet:
     Description: "rabbit.pixel"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "30db81b0-e1bd-46cf-8db0-e1c4b78485b6"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -696,6 +768,10 @@ Fleet:
     Description: "rabbit.raven"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "bfefb01c-3df2-46ce-a9e6-291efaac53a0"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -718,6 +794,10 @@ Fleet:
     Description: "rabbit.scout"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "d175d0d8-b039-44c2-976e-6305d73e20ff"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -740,6 +820,10 @@ Fleet:
     Description: "rabbit.ember"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "2ae69fd0-f642-47b0-aa4f-693506803d9c"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -762,6 +846,10 @@ Fleet:
     Description: "rabbit.frost"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "e527e701-8a1c-40e5-b0e2-ca2964027556"
     ShortNameTmpl: "R{{.nodeId}}"
@@ -784,6 +872,10 @@ Fleet:
     Description: "rabbit.pack (5-runner LVCC Indoor group run — scaled down to reduce channel load on real radios)"
     BehaviourTag: ["nodeinfo", "movement", "gitter"]
     BehaviourSecs: 30
+    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
+    # positions were half of all channel packets and are the least useful
+    # half for a BLE-proxied radio trying to learn the fleet.
+    MovementEveryTics: 3
     RampSteadySecs: 2419200
     Seed: "c0ffee01-2026-4dc3-9a11-000000000025"
     ShortNameTmpl: "RP{{.nodeId}}"
