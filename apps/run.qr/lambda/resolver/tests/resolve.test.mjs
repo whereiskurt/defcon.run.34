@@ -297,6 +297,113 @@ describe("resolve — ctf hand-off", () => {
   });
 });
 
+describe("resolve — unfurl (opt-in social card)", () => {
+  const SLACK = "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)";
+  const HUMAN =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15";
+
+  it("serves the OG card to a crawler when the code opted into a theme", async () => {
+    const item = {
+      destination: "https://run.defcon.run/ctf/claim",
+      enabled: true,
+      unfurl: "cherries",
+      enrich: { preserveQuery: true },
+    };
+    const getQr = vi.fn(async () => item);
+    const { lines, log } = captureLog();
+
+    const res = await resolve(
+      { path: "/C?v=SECRET123", headers: { "user-agent": SLACK }, nowMs: NOW },
+      { getQr, log }
+    );
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["Content-Type"]).toBe("text/html; charset=utf-8");
+    expect(res.body).toContain('property="og:image"');
+    expect(res.body).toContain("https://q.defcon.run/_og/cherries.png");
+    // Secret-safe: the shared code never appears in the crawler-facing HTML,
+    // and the forward URL is the region-prefixed BASE (no query).
+    expect(res.body).not.toContain("SECRET123");
+    expect(res.body).toContain("https://run.defcon.run/use1/ctf/claim");
+    // Crawler prefetch is not a scan.
+    expect(lines).toHaveLength(0);
+  });
+
+  it("gives a HUMAN the normal 302 WITH the code (unchanged behavior)", async () => {
+    const item = {
+      destination: "https://run.defcon.run/ctf/claim",
+      enabled: true,
+      unfurl: "cherries",
+      enrich: { preserveQuery: true },
+    };
+    const getQr = vi.fn(async () => item);
+    const { lines, log } = captureLog();
+
+    const res = await resolve(
+      { path: "/C?v=SECRET123", headers: { "user-agent": HUMAN }, nowMs: NOW },
+      { getQr, log }
+    );
+
+    expect(res.statusCode).toBe(302);
+    expect(res.headers.Location).toContain("v=SECRET123");
+    expect(res.headers.Location).toContain("run.defcon.run/use1/ctf/claim");
+    expect(lines).toHaveLength(1); // a real scan IS logged
+  });
+
+  it("ignores the theme for a crawler if the code did NOT opt in (plain 302)", async () => {
+    const item = { destination: "https://example.com/", enabled: true };
+    const getQr = vi.fn(async () => item);
+    const { log } = captureLog();
+
+    const res = await resolve(
+      { path: "/PLAIN", headers: { "user-agent": SLACK }, nowMs: NOW },
+      { getQr, log }
+    );
+
+    expect(res.statusCode).toBe(302);
+  });
+
+  it("404s a crawler-unfurl only via the same guards (unknown code still 404s)", async () => {
+    const getQr = vi.fn(async () => null);
+    const { log } = captureLog();
+    const res = await resolve(
+      { path: "/C?v=X", headers: { "user-agent": SLACK }, nowMs: NOW },
+      { getQr, log }
+    );
+    expect(res.statusCode).toBe(404);
+  });
+});
+
+describe("resolve — ogimage", () => {
+  it("serves the bundled PNG for a known theme", async () => {
+    const getQr = vi.fn();
+    const { log } = captureLog();
+
+    const res = await resolve(
+      { path: "/_og/cherries.png", headers: {}, nowMs: NOW },
+      { getQr, log }
+    );
+
+    expect(getQr).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["Content-Type"]).toBe("image/png");
+    expect(res.isBase64Encoded).toBe(true);
+    expect(res.body.startsWith("iVBOR")).toBe(true); // PNG magic
+    expect(res.headers["Cache-Control"]).toContain("max-age");
+  });
+
+  it("404s an unknown theme", async () => {
+    const getQr = vi.fn();
+    const { log } = captureLog();
+    const res = await resolve(
+      { path: "/_og/nope.png", headers: {}, nowMs: NOW },
+      { getQr, log }
+    );
+    expect(res.statusCode).toBe(404);
+    expect(getQr).not.toHaveBeenCalled();
+  });
+});
+
 describe("resolve — empty / flush", () => {
   it("404s the bare root", async () => {
     const getQr = vi.fn();

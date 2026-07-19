@@ -51,6 +51,28 @@ describe("parsePath — flush (reserved)", () => {
   });
 });
 
+describe("parsePath — ogimage (reserved)", () => {
+  it("classifies /_og/<theme>.png as ogimage with the theme (suffix stripped)", () => {
+    expect(parsePath("/_og/cherries.png")).toEqual({
+      kind: "ogimage",
+      theme: "cherries",
+      query: "",
+    });
+  });
+
+  it("lowercases the theme and strips only a trailing .png", () => {
+    expect(parsePath("/_og/CHERRIES.PNG").theme).toBe("cherries");
+  });
+
+  it("degrades to a blank theme when none is given (resolver 404s it)", () => {
+    expect(parsePath("/_og")).toEqual({ kind: "ogimage", theme: "", query: "" });
+  });
+
+  it("never returns _og as a redirect code", () => {
+    expect(parsePath("/_og/cherries.png").kind).not.toBe("redirect");
+  });
+});
+
 describe("parsePath — ctf (reserved)", () => {
   it("parses challenge and single-segment value", () => {
     expect(parsePath("/ctf/crypto/abc123")).toEqual({

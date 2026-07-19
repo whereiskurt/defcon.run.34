@@ -129,6 +129,10 @@ export const Qr = new Entity(
       enabled: { type: "boolean", default: true },
       owner: { type: "string" },
       notes: { type: "string" },
+      // Opt-in social-preview theme (e.g. "cherries"). Empty/unset → the code is
+      // a plain 302; a known theme makes the resolver serve an Open-Graph unfurl
+      // card to link crawlers only. Theme names resolve in lib/unfurl.mjs.
+      unfurl: { type: "string" },
       createdAt: {
         type: "string",
         default: () => new Date().toISOString(),
