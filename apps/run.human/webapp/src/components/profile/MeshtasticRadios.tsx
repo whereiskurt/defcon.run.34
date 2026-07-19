@@ -91,6 +91,9 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
   // Private key visibility state
   const [visiblePrivateKeys, setVisiblePrivateKeys] = useState<Record<string, boolean>>({});
 
+  // Public key visibility state
+  const [visiblePublicKeys, setVisiblePublicKeys] = useState<Record<string, boolean>>({});
+
   // MQTT credential visibility
   const [mqttVisible, setMqttVisible] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -376,6 +379,13 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
 
   const togglePrivateKeyVisibility = (radioId: string) => {
     setVisiblePrivateKeys(prev => ({
+      ...prev,
+      [radioId]: !prev[radioId]
+    }));
+  };
+
+  const togglePublicKeyVisibility = (radioId: string) => {
+    setVisiblePublicKeys(prev => ({
       ...prev,
       [radioId]: !prev[radioId]
     }));
@@ -755,7 +765,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                         </div>
                         {radio.privateKey && (
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-default-500">Private Key:</span>
+                            <span className="text-xs text-default-500 w-16 shrink-0">Private Key:</span>
                             <code className="text-xs font-mono bg-default-100 px-2 py-1 rounded flex-1 overflow-hidden">
                               {visiblePrivateKeys[radio.id]
                                 ? radio.privateKey
@@ -768,6 +778,28 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                               onPress={() => togglePrivateKeyVisibility(radio.id)}
                             >
                               {visiblePrivateKeys[radio.id] ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        )}
+                        {radio.publicKey && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-default-500 w-16 shrink-0">Public Key:</span>
+                            <code className="text-xs font-mono bg-default-100 px-2 py-1 rounded flex-1 overflow-hidden">
+                              {visiblePublicKeys[radio.id]
+                                ? radio.publicKey
+                                : '••••••••••••••••••••••••'}
+                            </code>
+                            <Button
+                              isIconOnly
+                              variant="light"
+                              size="sm"
+                              onPress={() => togglePublicKeyVisibility(radio.id)}
+                            >
+                              {visiblePublicKeys[radio.id] ? (
                                 <EyeOff className="h-4 w-4" />
                               ) : (
                                 <Eye className="h-4 w-4" />
