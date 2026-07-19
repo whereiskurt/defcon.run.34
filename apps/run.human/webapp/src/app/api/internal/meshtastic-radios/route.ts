@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dynamodbClient, DYNAMODB_TABLE } from "@/entities/client";
 import { getRunUser, updateMeshtasticRadios, sanitizeRadio, type MeshtasticRadio } from "@/entities/run-user";
+import { upsertMeshRadio } from "@/entities/mesh-radio";
+import {
+  normalizeNodeId,
+  nodeNumFromNodeId,
+  publicKeyBase64ToHex,
+} from "@/lib/mesh-radio-canonical";
 import { checkQuota, consumeQuota } from "@/lib/quota-client";
 import { getUserTier } from "@/lib/quota-middleware";
 import { config } from "@/config";
@@ -79,6 +85,30 @@ export async function POST(req: NextRequest) {
     const currentRadios = ((user.meshtasticRadios || []) as MeshtasticRadio[]).map(sanitizeRadio);
     const formattedNodeId = nodeId.toLowerCase();
 
+    // ── MeshRadio authoritative write prep (Phase 66, MRAD-02) ───────────────
+    // Canonicalize nodeId to pad-8 lowercase (L2) and derive the explicit uint32
+    // nodeNum, so meshtk composes fmt.Sprintf("!%08x", nodeNum) → a byte-identical
+    // DynamoDB pk. The embedded-list write below still uses `formattedNodeId`.
+    const canonicalNodeId = normalizeNodeId(nodeId);
+    const canonicalNodeNum = nodeNumFromNodeId(canonicalNodeId);
+
+    // ⚠️ base64 → 0x hex CONVERSION BOUNDARY (MRAD-02, L3). The device's X25519
+    // pubkey arrives base64 but meshtk's ParseHexKey needs 0x hex — convert ONCE
+    // here. Absent pubkey → skip the hex field (stay resilient); a present key
+    // that does not decode to exactly 32 bytes → 400 (V5 input validation).
+    // NEVER log the key value.
+    let publicKeyHex: string | undefined;
+    if (publicKey) {
+      try {
+        publicKeyHex = publicKeyBase64ToHex(publicKey);
+      } catch {
+        return NextResponse.json(
+          { error: "publicKey must decode to exactly 32 bytes" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Check for existing radio with same nodeId
     const existingIndex = currentRadios.findIndex(
       (r) => r.nodeId === formattedNodeId
@@ -91,6 +121,21 @@ export async function POST(req: NextRequest) {
       updatedRadios[existingIndex] = updated;
 
       await updateMeshtasticRadios(adapterUserId, updatedRadios);
+
+      // Mirror the re-flash onto the authoritative MeshRadio row (Phase 66,
+      // MRAD-02). Transitional dual-write — the embedded list retires in plan
+      // 66-03, so keeping both here is intentional. Never log key material.
+      await upsertMeshRadio({
+        nodeId: canonicalNodeId,
+        nodeNum: canonicalNodeNum,
+        userId: adapterUserId,
+        ...(publicKeyHex ? { publicKey: publicKeyHex } : {}),
+        privateKey,
+        verified: true,
+        source: "flash",
+        impersonate: currentRadios[existingIndex].impersonate ?? true,
+      });
+
       console.log(`[run.human] Updated radio ${formattedNodeId} for user ${adapterUserId}`);
 
       return NextResponse.json({ radio: updated, updated: true }, { status: 200 });
@@ -123,6 +168,21 @@ export async function POST(req: NextRequest) {
 
     const updatedRadios = [...currentRadios, newRadio];
     await updateMeshtasticRadios(adapterUserId, updatedRadios);
+
+    // Create the authoritative MeshRadio row (Phase 66, MRAD-02). New flash
+    // radios are auto-verified + impersonating. Transitional dual-write — the
+    // embedded list retires in plan 66-03. Never log key material.
+    await upsertMeshRadio({
+      nodeId: canonicalNodeId,
+      nodeNum: canonicalNodeNum,
+      userId: adapterUserId,
+      ...(publicKeyHex ? { publicKey: publicKeyHex } : {}),
+      privateKey: privateKey || "",
+      verified: true,
+      source: "flash",
+      impersonate: true,
+    });
+
     console.log(`[run.human] Registered new radio ${formattedNodeId} for user ${adapterUserId}`);
 
     return NextResponse.json({ radio: newRadio, updated: false }, { status: 201 });
