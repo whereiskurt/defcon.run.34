@@ -194,11 +194,57 @@ export async function upsertMeshRadio(input: UpsertMeshRadioInput) {
 }
 
 /**
+ * Fields patchMeshRadio may mutate in place. Excludes the identity keys
+ * (nodeId/nodeNum/userId) and the create-only `source`/`createdAt` — those are
+ * set once at upsert time. Used by the user-facing PATCH (verify/keys/
+ * impersonate/showOnMap) and resend flows (plan 66-03).
+ */
+export interface PatchMeshRadioInput {
+  publicKey?: string;
+  privateKey?: string;
+  verified?: boolean;
+  verificationCode?: string;
+  verifiedAt?: number;
+  verificationAttempts?: number;
+  resendAttempts?: number;
+  impersonate?: boolean;
+  showOnMap?: boolean;
+}
+
+/**
+ * Partially update an existing radio row by its canonical nodeId (SERVER-ONLY).
+ *
+ * Uses ElectroDB `patch` (a true partial update) rather than `upsertMeshRadio`'s
+ * `put`, so `createdAt` / `nodeNum` / `source` and any un-touched field are
+ * preserved — a full-item `put` would reset the readOnly `createdAt` default.
+ * Re-reads and returns the full row so callers can surface it to the client.
+ * The pk/sk composition still funnels through the same entity, so the meshtk
+ * contract is unaffected.
+ */
+export async function patchMeshRadio(nodeId: string, fields: PatchMeshRadioInput) {
+  await MeshRadio.patch({ nodeId }).set(fields).go();
+  return getMeshRadio(nodeId);
+}
+
+/**
  * Delete a radio row by its canonical nodeId (SERVER-ONLY — L10).
  * Idempotent at the DynamoDB level: deleting a missing key is a no-op.
  */
 export async function deleteMeshRadio(nodeId: string) {
   await MeshRadio.delete({ nodeId }).go();
+}
+
+/**
+ * Scan every MeshRadio row (SERVER-ONLY, low-frequency).
+ *
+ * Backs the internal mesh-map feed, which enumerates verified+showOnMap radios
+ * across all users. ElectroDB auto-scopes the scan to the MeshRadio entity. The
+ * meshtk no-Scan constraint applies ONLY to meshtk's decrypt hot path (a direct
+ * GetItem by nodeId), NOT this low-frequency app feed (CONTEXT / plan 66-03).
+ */
+export async function scanAllMeshRadios() {
+  const result = await MeshRadio.scan.go({ pages: "all" });
+  return result.data;
 }
 
 /**
