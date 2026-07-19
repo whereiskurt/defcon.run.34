@@ -12,7 +12,7 @@ import { config } from "@/config";
  * intersects these against meshtk's nodes.json. Opt-in only; default off.
  *
  * Source of truth is the first-class MeshRadio entity (Phase 66 hard-switch),
- * not the retired RunUser.meshtasticRadios[] list. nodeNum is read straight off
+ * not the retired embedded RunUser radios list. nodeNum is read straight off
  * the stored MeshRadio row (no hex reversal). A single low-frequency entity scan
  * is fine here — the meshtk no-Scan rule applies ONLY to meshtk's decrypt hot
  * path, not this app feed.

@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { dynamodbClient, DYNAMODB_TABLE } from "@/entities/client";
-import { getRunUser, updateMeshtasticRadios, sanitizeRadio, type MeshtasticRadio } from "@/entities/run-user";
-import { upsertMeshRadio } from "@/entities/mesh-radio";
+import { getRunUser } from "@/entities/run-user";
+import {
+  getMeshRadio,
+  upsertMeshRadio,
+  patchMeshRadio,
+  type MeshRadioItem,
+} from "@/entities/mesh-radio";
 import {
   normalizeNodeId,
   nodeNumFromNodeId,
   publicKeyBase64ToHex,
 } from "@/lib/mesh-radio-canonical";
-import { checkQuota, consumeQuota } from "@/lib/quota-client";
+import { consumeQuota } from "@/lib/quota-client";
 import { getUserTier } from "@/lib/quota-middleware";
 import { config } from "@/config";
-import crypto from "crypto";
 
 const OIDC_PROVIDER = "run.defcon.run";
 
@@ -82,13 +86,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const currentRadios = ((user.meshtasticRadios || []) as MeshtasticRadio[]).map(sanitizeRadio);
-    const formattedNodeId = nodeId.toLowerCase();
-
-    // ── MeshRadio authoritative write prep (Phase 66, MRAD-02) ───────────────
+    // ── MeshRadio authoritative write prep (Phase 66, MRAD-02 / MRAD-04) ─────
     // Canonicalize nodeId to pad-8 lowercase (L2) and derive the explicit uint32
     // nodeNum, so meshtk composes fmt.Sprintf("!%08x", nodeNum) → a byte-identical
-    // DynamoDB pk. The embedded-list write below still uses `formattedNodeId`.
+    // DynamoDB pk. MeshRadio is now the SINGLE source of truth — the embedded
+    // RunUser radios list is retired (hard-switch, plan 66-03).
     const canonicalNodeId = normalizeNodeId(nodeId);
     const canonicalNodeNum = nodeNumFromNodeId(canonicalNodeId);
 
@@ -109,36 +111,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Check for existing radio with same nodeId
-    const existingIndex = currentRadios.findIndex(
-      (r) => r.nodeId === formattedNodeId
-    );
+    // Strip the verificationCode secret from any radio row we echo back.
+    const safeRadio = (radio: MeshRadioItem) => {
+      const { verificationCode, ...rest } = radio;
+      return rest;
+    };
 
-    if (existingIndex !== -1) {
-      // UPDATE: Re-flash -- update keys, keep everything else
-      const updated = { ...currentRadios[existingIndex], privateKey, publicKey: publicKey || "" };
-      const updatedRadios = [...currentRadios];
-      updatedRadios[existingIndex] = updated;
+    // Check for an existing authoritative MeshRadio row with this nodeId.
+    const existing = await getMeshRadio(canonicalNodeId);
 
-      await updateMeshtasticRadios(adapterUserId, updatedRadios);
-
-      // Mirror the re-flash onto the authoritative MeshRadio row (Phase 66,
-      // MRAD-02). Transitional dual-write — the embedded list retires in plan
-      // 66-03, so keeping both here is intentional. Never log key material.
-      await upsertMeshRadio({
-        nodeId: canonicalNodeId,
-        nodeNum: canonicalNodeNum,
-        userId: adapterUserId,
+    if (existing) {
+      // UPDATE: Re-flash -- update keys, keep verified; preserve createdAt /
+      // showOnMap / impersonate via a partial patch (not a full-item replace).
+      const updated = await patchMeshRadio(canonicalNodeId, {
         ...(publicKeyHex ? { publicKey: publicKeyHex } : {}),
         privateKey,
         verified: true,
-        source: "flash",
-        impersonate: currentRadios[existingIndex].impersonate ?? true,
       });
 
-      console.log(`[run.human] Updated radio ${formattedNodeId} for user ${adapterUserId}`);
+      console.log(`[run.human] Updated radio ${canonicalNodeId} for user ${adapterUserId}`);
 
-      return NextResponse.json({ radio: updated, updated: true }, { status: 200 });
+      return NextResponse.json(
+        { radio: updated ? safeRadio(updated) : undefined, updated: true },
+        { status: 200 }
+      );
     }
 
     // CREATE: New radio -- consume quota (auto-initializes on first use)
@@ -152,40 +148,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newRadio: MeshtasticRadio = {
-      id: crypto.randomUUID(),
-      nodeId: formattedNodeId,
-      privateKey: privateKey || "",
-      publicKey: publicKey || "",
-      impersonate: true,
-      verificationCode: "", // Not needed -- auto-verified from flash
-      verified: true,
-      createdAt: Date.now(),
-      verifiedAt: Date.now(),
-      verificationAttempts: 0,
-      resendAttempts: 0,
-    };
-
-    const updatedRadios = [...currentRadios, newRadio];
-    await updateMeshtasticRadios(adapterUserId, updatedRadios);
-
     // Create the authoritative MeshRadio row (Phase 66, MRAD-02). New flash
-    // radios are auto-verified + impersonating. Transitional dual-write — the
-    // embedded list retires in plan 66-03. Never log key material.
-    await upsertMeshRadio({
+    // radios are auto-verified + impersonating. Never log key material.
+    const created = await upsertMeshRadio({
       nodeId: canonicalNodeId,
       nodeNum: canonicalNodeNum,
       userId: adapterUserId,
       ...(publicKeyHex ? { publicKey: publicKeyHex } : {}),
       privateKey: privateKey || "",
       verified: true,
+      verifiedAt: Date.now(),
       source: "flash",
       impersonate: true,
     });
 
-    console.log(`[run.human] Registered new radio ${formattedNodeId} for user ${adapterUserId}`);
+    console.log(`[run.human] Registered new radio ${canonicalNodeId} for user ${adapterUserId}`);
 
-    return NextResponse.json({ radio: newRadio, updated: false }, { status: 201 });
+    return NextResponse.json(
+      { radio: safeRadio(created as MeshRadioItem), updated: false },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("[run.human] /api/internal/meshtastic-radios error:", error);
     return NextResponse.json(

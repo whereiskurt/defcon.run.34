@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
   // Get all quotas from the central quota service (+ the runner's bib code, if
   // they've claimed one over on the bib service — read-only, same shared table),
   // and the runner's radios from the authoritative MeshRadio entity (Phase 66
-  // hard-switch — the embedded RunUser.meshtasticRadios[] list is retired).
+  // hard-switch — the embedded RunUser radios list is retired).
   const [userQuotasResponse, definitions, runnerCode, meshRadios] = await Promise.all([
     getUserQuotas(session.user.id),
     getQuotaDefinitions(),

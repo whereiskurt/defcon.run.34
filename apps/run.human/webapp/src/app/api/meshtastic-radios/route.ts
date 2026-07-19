@@ -24,7 +24,7 @@ import crypto from 'crypto';
  * User-facing Meshtastic radio CRUD (Phase 66, MRAD-04 — LOCKED hard-switch).
  *
  * Every reader/writer here targets the first-class `MeshRadio` entity — the
- * single source of truth — NOT the retired `RunUser.meshtasticRadios[]` list.
+ * single source of truth — NOT the retired embedded RunUser radios list.
  * The client keys each radio on its canonical `nodeId` (not the old uuid `id`),
  * PATCH/DELETE/resend send `nodeId`, and every write funnels through the
  * upsert/patch/delete helpers so the pk/sk contract lives in one place.
