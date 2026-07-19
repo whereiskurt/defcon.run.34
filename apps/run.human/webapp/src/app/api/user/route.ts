@@ -1,6 +1,7 @@
 import { auth } from "@auth";
 import { assertNotLockedLive } from "@/lib/live-lockout";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
+import { getMeshRadiosByUser } from "@/entities/mesh-radio";
 import { getRunnerCode } from "@/entities/bib";
 import { pinIconById, canUsePinIcon, isValidPinColor } from "@/lib/pin-icons";
 import {
@@ -44,11 +45,14 @@ export async function GET(req: NextRequest) {
   }
 
   // Get all quotas from the central quota service (+ the runner's bib code, if
-  // they've claimed one over on the bib service — read-only, same shared table).
-  const [userQuotasResponse, definitions, runnerCode] = await Promise.all([
+  // they've claimed one over on the bib service — read-only, same shared table),
+  // and the runner's radios from the authoritative MeshRadio entity (Phase 66
+  // hard-switch — the embedded RunUser.meshtasticRadios[] list is retired).
+  const [userQuotasResponse, definitions, runnerCode, meshRadios] = await Promise.all([
     getUserQuotas(session.user.id),
     getQuotaDefinitions(),
     getRunnerCode(session.user.id).catch(() => null),
+    getMeshRadiosByUser(session.user.id).catch(() => []),
   ]);
 
   // Determine user's tier from the quota response (default to "upload")
@@ -85,6 +89,12 @@ export async function GET(req: NextRequest) {
     ...safeUserData
   } = user;
 
+  // Runner's Meshtastic radios sourced from MeshRadio (byUser), presentation-
+  // safe: drop the verificationCode secret. The user's own privateKey is kept —
+  // the profile UI displays it (masked) and gates the impersonate/showOnMap
+  // toggles on its presence. Never leaks another user's radio (byUser-scoped).
+  const radios = meshRadios.map(({ verificationCode, ...safe }) => safe);
+
   // Transform to match dropdown-user.tsx expected format
   const responseUser = {
     ...safeUserData,
@@ -94,6 +104,8 @@ export async function GET(req: NextRequest) {
     checkin_preference: safeUserData.preferences?.checkinPreference || "public",
     // Runner's bib code (BIB-XXXX) if they've claimed one; null otherwise
     runnerCode,
+    // Authoritative radios (MeshRadio) — replaces the retired embedded list.
+    radios,
     // Include quotas
     quotas,
   };

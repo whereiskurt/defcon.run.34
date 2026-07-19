@@ -43,7 +43,7 @@ interface UserData {
   mqttUsername?: string;
   mqttPassword?: string;
   mqttUsertype?: string;
-  meshtasticRadios?: any[];
+  radios?: any[];
   checkIns?: any[];
   checkInCount?: number;
   runnerCode?: string | null;
@@ -417,7 +417,7 @@ export default function WhoAmIPage() {
 
       {/* Meshtastic Radios */}
       <MeshtasticRadios
-        radios={userData?.meshtasticRadios}
+        radios={userData?.radios}
         quotas={userData?.quotas}
         mqttUsername={userData?.mqttUsername}
         mqttPassword={userData?.mqttPassword}

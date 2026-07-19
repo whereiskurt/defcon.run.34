@@ -29,7 +29,8 @@ const REGION_SHORT = process.env.NEXT_PUBLIC_REGION_SHORT || 'use1';
 const flashUrl = isDev ? 'http://localhost:3004' : `https://flash.${siteDomain}/${REGION_SHORT}/`;
 
 interface MeshtasticRadio {
-  id: string;
+  // nodeId is the stable identity (Phase 66 hard-switch — the retired embedded
+  // list's uuid `id` is gone; MeshRadio is keyed by nodeId).
   nodeId: string;
   privateKey: string;
   publicKey?: string;
@@ -188,20 +189,20 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
     }
   };
 
-  const handleVerifyRadio = async (radioId: string) => {
-    const code = verificationCodes[radioId];
+  const handleVerifyRadio = async (nodeId: string) => {
+    const code = verificationCodes[nodeId];
     if (!code || code.length !== 6) {
       return;
     }
 
-    setVerifyingRadioId(radioId);
+    setVerifyingRadioId(nodeId);
 
     try {
       const response = await fetch(apiUrl('/api/meshtastic-radios'), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          radioId,
+          nodeId,
           verificationCode: code,
         }),
       });
@@ -212,7 +213,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
         // Update the radio to show failed attempt
         if (data.attemptsRemaining !== undefined) {
           setRadios(prev => prev.map(r =>
-            r.id === radioId
+            r.nodeId === nodeId
               ? { ...r, verificationAttempts: 5 - data.attemptsRemaining }
               : r
           ));
@@ -223,13 +224,13 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
 
       // Update radio in list
       setRadios(prev => prev.map(r =>
-        r.id === radioId ? { ...r, ...data.radio, verified: true } : r
+        r.nodeId === nodeId ? { ...r, ...data.radio, verified: true } : r
       ));
 
       // Clear verification code input
       setVerificationCodes(prev => {
         const updated = { ...prev };
-        delete updated[radioId];
+        delete updated[nodeId];
         return updated;
       });
 
@@ -242,14 +243,14 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
     }
   };
 
-  const handleResendCode = async (radioId: string) => {
-    setResendingRadioId(radioId);
+  const handleResendCode = async (nodeId: string) => {
+    setResendingRadioId(nodeId);
 
     try {
       const response = await fetch(apiUrl('/api/meshtastic-radios/resend'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ radioId }),
+        body: JSON.stringify({ nodeId }),
       });
 
       const data = await response.json();
@@ -261,7 +262,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
 
       // Update resend attempts in local state
       setRadios(prev => prev.map(r =>
-        r.id === radioId
+        r.nodeId === nodeId
           ? { ...r, resendAttempts: 3 - (data.resendsRemaining || 0) }
           : r
       ));
@@ -281,11 +282,11 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
   const handleDeleteRadio = async () => {
     if (!radioToDelete) return;
 
-    const radioId = radioToDelete.id;
-    setDeletingRadioId(radioId);
+    const nodeId = radioToDelete.nodeId;
+    setDeletingRadioId(nodeId);
 
     try {
-      const response = await fetch(apiUrl(`/api/meshtastic-radios?radioId=${radioId}`), {
+      const response = await fetch(apiUrl(`/api/meshtastic-radios?nodeId=${encodeURIComponent(nodeId)}`), {
         method: 'DELETE',
       });
 
@@ -296,7 +297,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
       }
 
       // Remove radio from list (quota is NOT restored - lifetime limit)
-      setRadios(prev => prev.filter(r => r.id !== radioId));
+      setRadios(prev => prev.filter(r => r.nodeId !== nodeId));
 
       onUpdate?.();
       closeDelete();
@@ -309,15 +310,15 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
     }
   };
 
-  const handleToggleImpersonate = async (radioId: string, currentValue: boolean) => {
-    setTogglingImpersonateId(radioId);
+  const handleToggleImpersonate = async (nodeId: string, currentValue: boolean) => {
+    setTogglingImpersonateId(nodeId);
 
     try {
       const response = await fetch(apiUrl('/api/meshtastic-radios'), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          radioId,
+          nodeId,
           impersonate: !currentValue,
         }),
       });
@@ -331,7 +332,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
 
       // Update radio in list
       setRadios(prev => prev.map(r =>
-        r.id === radioId ? { ...r, impersonate: !currentValue } : r
+        r.nodeId === nodeId ? { ...r, impersonate: !currentValue } : r
       ));
 
       onUpdate?.();
@@ -343,15 +344,15 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
     }
   };
 
-  const handleToggleShowOnMap = async (radioId: string, currentValue: boolean) => {
-    setTogglingShowOnMapId(radioId);
+  const handleToggleShowOnMap = async (nodeId: string, currentValue: boolean) => {
+    setTogglingShowOnMapId(nodeId);
 
     try {
       const response = await fetch(apiUrl('/api/meshtastic-radios'), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          radioId,
+          nodeId,
           showOnMap: !currentValue,
         }),
       });
@@ -365,7 +366,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
 
       // Update radio in list
       setRadios(prev => prev.map(r =>
-        r.id === radioId ? { ...r, showOnMap: !currentValue } : r
+        r.nodeId === nodeId ? { ...r, showOnMap: !currentValue } : r
       ));
 
       onUpdate?.();
@@ -661,7 +662,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                 </div>
               ) : (
                 radios.map((radio) => (
-                  <div key={radio.id} className="border border-default-200 rounded-lg p-3 space-y-2">
+                  <div key={radio.nodeId} className="border border-default-200 rounded-lg p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Radio className="h-5 w-5 text-default-500" />
@@ -681,8 +682,8 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                               size="sm"
                               color="secondary"
                               isSelected={radio.impersonate}
-                              isDisabled={togglingImpersonateId === radio.id}
-                              onValueChange={() => handleToggleImpersonate(radio.id, radio.impersonate)}
+                              isDisabled={togglingImpersonateId === radio.nodeId}
+                              onValueChange={() => handleToggleImpersonate(radio.nodeId, radio.impersonate)}
                               thumbIcon={radio.impersonate ? <UserCheck className="h-3 w-3" /> : <UserX className="h-3 w-3" />}
                             />
                             <span className="text-xs text-default-500">Impersonate</span>
@@ -694,8 +695,8 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                               size="sm"
                               color="success"
                               isSelected={radio.showOnMap ?? false}
-                              isDisabled={togglingShowOnMapId === radio.id}
-                              onValueChange={() => handleToggleShowOnMap(radio.id, radio.showOnMap ?? false)}
+                              isDisabled={togglingShowOnMapId === radio.nodeId}
+                              onValueChange={() => handleToggleShowOnMap(radio.nodeId, radio.showOnMap ?? false)}
                             />
                             <span className="text-xs text-default-500">Show me on the map</span>
                           </div>
@@ -706,7 +707,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                         variant="light"
                         color="danger"
                         size="sm"
-                        isLoading={deletingRadioId === radio.id}
+                        isLoading={deletingRadioId === radio.nodeId}
                         onPress={() => confirmDeleteRadio(radio)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -724,29 +725,29 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                           )}
                         </p>
                         <VerificationCodeInput
-                          value={verificationCodes[radio.id] || ''}
+                          value={verificationCodes[radio.nodeId] || ''}
                           onChange={(value) => setVerificationCodes(prev => ({
                             ...prev,
-                            [radio.id]: value
+                            [radio.nodeId]: value
                           }))}
-                          isDisabled={verifyingRadioId === radio.id}
+                          isDisabled={verifyingRadioId === radio.nodeId}
                         />
                         <div className="flex gap-2 justify-center">
                           <Button
                             size="sm"
                             color="primary"
-                            isLoading={verifyingRadioId === radio.id}
-                            isDisabled={(verificationCodes[radio.id]?.length || 0) !== 6}
-                            onPress={() => handleVerifyRadio(radio.id)}
+                            isLoading={verifyingRadioId === radio.nodeId}
+                            isDisabled={(verificationCodes[radio.nodeId]?.length || 0) !== 6}
+                            onPress={() => handleVerifyRadio(radio.nodeId)}
                           >
                             Verify
                           </Button>
                           <Button
                             size="sm"
                             variant="flat"
-                            isLoading={resendingRadioId === radio.id}
+                            isLoading={resendingRadioId === radio.nodeId}
                             isDisabled={(radio.resendAttempts || 0) >= 3}
-                            onPress={() => handleResendCode(radio.id)}
+                            onPress={() => handleResendCode(radio.nodeId)}
                             startContent={<RefreshCw className="h-3 w-3" />}
                           >
                             Resend
@@ -767,7 +768,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-default-500 w-16 shrink-0">Private Key:</span>
                             <code className="text-xs font-mono bg-default-100 px-2 py-1 rounded flex-1 overflow-hidden">
-                              {visiblePrivateKeys[radio.id]
+                              {visiblePrivateKeys[radio.nodeId]
                                 ? radio.privateKey
                                 : '••••••••••••••••••••••••'}
                             </code>
@@ -775,9 +776,9 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                               isIconOnly
                               variant="light"
                               size="sm"
-                              onPress={() => togglePrivateKeyVisibility(radio.id)}
+                              onPress={() => togglePrivateKeyVisibility(radio.nodeId)}
                             >
-                              {visiblePrivateKeys[radio.id] ? (
+                              {visiblePrivateKeys[radio.nodeId] ? (
                                 <EyeOff className="h-4 w-4" />
                               ) : (
                                 <Eye className="h-4 w-4" />
@@ -789,7 +790,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                           <div className="flex items-center gap-2">
                             <span className="text-xs text-default-500 w-16 shrink-0">Public Key:</span>
                             <code className="text-xs font-mono bg-default-100 px-2 py-1 rounded flex-1 overflow-hidden">
-                              {visiblePublicKeys[radio.id]
+                              {visiblePublicKeys[radio.nodeId]
                                 ? radio.publicKey
                                 : '••••••••••••••••••••••••'}
                             </code>
@@ -797,9 +798,9 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
                               isIconOnly
                               variant="light"
                               size="sm"
-                              onPress={() => togglePublicKeyVisibility(radio.id)}
+                              onPress={() => togglePublicKeyVisibility(radio.nodeId)}
                             >
-                              {visiblePublicKeys[radio.id] ? (
+                              {visiblePublicKeys[radio.nodeId] ? (
                                 <EyeOff className="h-4 w-4" />
                               ) : (
                                 <Eye className="h-4 w-4" />
