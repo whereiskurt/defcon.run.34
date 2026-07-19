@@ -5,16 +5,18 @@ import redirects from "@/data/redirects.json";
 describe("loadVanityRedirects", () => {
   const all = loadVanityRedirects();
 
-  it("routes donate through auto-signin so logged-out visitors get the login flow", () => {
+  it("routes donate through the resolver so its target stays editable", () => {
     const donate = all.find((r) => r.host === "donate");
     expect(donate).toBeDefined();
     expect(donate!.fqdn).toBe("donate.defcon.run");
-    // Must go through /api/auth/auto-signin (login flow) with an encoded
-    // callbackUrl back to /use1/whoami?open=donate — NOT bare whoami, which
-    // spins forever when logged out. Mirrors the static Donate tile.
-    expect(donate!.targetUrl).toBe(
-      "https://run.defcon.run/use1/api/auth/auto-signin?callbackUrl=%2Fuse1%2Fwhoami%3Fopen%3Ddonate"
-    );
+    // donate. used to hardcode the auto-signin URL here, which meant retargeting
+    // it needed a terraform apply. It now goes through the resolver like r/h/b/f,
+    // so the destination lives on the `donate` Qr row and is editable from
+    // /admin/qr. The auto-signin requirement did NOT go away — it moved to that
+    // row (see scripts/repoint-donate-qr.mts): the destination must stay
+    // /use1/api/auth/auto-signin?callbackUrl=…whoami%3Fopen%3Ddonate, because
+    // bare /whoami spins forever for logged-out visitors.
+    expect(donate!.targetUrl).toBe("https://q.defcon.run/donate");
     expect(donate!.splash).toBe("hackers");
     expect(donate!.statusCode).toBe("HTTP_302");
   });
