@@ -219,3 +219,25 @@ export async function getMeshRadiosByUser(userId: string) {
   const result = await MeshRadio.query.byUser({ userId }).go({ pages: "all" });
   return result.data;
 }
+
+/**
+ * The ONE programmatic source of MeshRadio's canonical primary key (PURE, offline).
+ *
+ * Returns the parity-locked { pk, sk } for a given `nodeId` by asking ElectroDB to
+ * compose the key (no network I/O). meshtk (plan 66-07) reproduces these exact
+ * strings in Go by hand — this helper exists so nothing on the TS side ever
+ * hand-guesses the format, and so callers/tests always read the key from the same
+ * source of truth as the entity itself.
+ *
+ *   pk = "$run#nodeid_" + <lowercased nodeId>   e.g. "$run#nodeid_!433d1cec"
+ *   sk = "$meshradio_1"
+ *
+ * The byUser GSI partition (not returned here) is "$run#userid_" + userId.
+ */
+export function meshRadioKeyFor(nodeId: string): { pk: string; sk: string } {
+  const key = MeshRadio.get({ nodeId }).params().Key as {
+    pk: string;
+    sk: string;
+  };
+  return { pk: key.pk, sk: key.sk };
+}

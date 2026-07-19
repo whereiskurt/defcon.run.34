@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { MeshRadio } from "../mesh-radio";
+import { MeshRadio, meshRadioKeyFor } from "../mesh-radio";
 
 /**
  * pk/sk PARITY LOCK — the biggest landmine of Phase 66 (RESEARCH L1).
@@ -28,6 +28,15 @@ describe("MeshRadio primary key parity", () => {
   it("encodes the exact GetItem Key meshtk composes by hand", () => {
     const key = MeshRadio.get({ nodeId: "!433d1cec" }).params({ table }).Key;
     expect(key).toEqual({ pk: "$run#nodeid_!433d1cec", sk: "$meshradio_1" });
+  });
+});
+
+describe("meshRadioKeyFor helper parity", () => {
+  it("is the single programmatic source of the parity-locked key", () => {
+    expect(meshRadioKeyFor("!433d1cec")).toEqual({
+      pk: "$run#nodeid_!433d1cec",
+      sk: "$meshradio_1",
+    });
   });
 });
 
