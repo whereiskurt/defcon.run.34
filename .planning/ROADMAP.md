@@ -679,6 +679,7 @@ Plans:
 **Depends on:** the existing run.flash → `POST /api/register-radio` → `POST /api/internal/meshtastic-radios` write path and `RunUser.meshtasticRadios[]` model; meshtk `internal/credcache/` (`CacheAuthenticator`) as the pattern analog and `Server.CredCache.{TableName,TableRegion,DynamoDBEndpoint}` config wiring. Additive to the ghost PKI decrypt saga (commits `cbce8c8`/`da99ecd`/`9bf200c`). Spans two repos: monorepo (run.human + run.flash + terraform) = one PR; meshtk = its own branch/PR (built into run.mqtt image).
 **Out of scope:** Layer 2 cred↔node ACL binding (traffic spoofing defense — deferred, spec §9); retiring/generating `nodes.json` from DDB (PR #806). This spec only removes meshtk's *decrypt-key* dependency on `nodes.json`.
 **Requirements:**
+
   - **MRAD-01** — `MeshRadio` ElectroDB entity on the shared `ELECTRO_TABLE`: pk `nodeId` (`!hex`, direct `GetItem`), attrs `nodeNum` (uint32), `userId`, `publicKey` (`0x` hex), `privateKey`, `verified`/`verificationCode`/`verifiedAt`/`verificationAttempts`/`resendAttempts`, `impersonate`, `showOnMap`, `source` (`flash`|`sync`|`manual`), `createdAt`/`updatedAt`; `byUser` GSI (pk `userId`) for listing/admin/deferred Layer-2 join. meshtk hot path is a direct key `get` — no GSI on the hot path.
   - **MRAD-02** — `register-radio` write: `POST /api/internal/meshtastic-radios` upserts the `MeshRadio` entity (keyed `nodeId`, `userId` from resolved RunUser), converting the device base64 pubkey → `0x` hex once at the write boundary.
   - **MRAD-03** — one-off, idempotent, re-runnable backfill script creating a `MeshRadio` item from every existing `RunUser.meshtasticRadios[]` entry (base64→hex where needed).
@@ -687,6 +688,7 @@ Plans:
   - **MRAD-06** — meshtk `internal/keycache`: ONE process-wide shared cache (mirror `credcache` `CacheAuthenticator`), cache-first, singleflight dedup, negative caching, circuit breaker, plain 1–2 min TTL expiry, direct `GetItem` `MeshRadio` by `nodeNum`/`nodeId` (never `Scan`) — fleet-wide ≤ ~one DDB read per node per TTL, independent of packet/client volume.
   - **MRAD-07** — meshtk `decryptPKI` resolves the sender pubkey from `keycache` (DDB authoritative) instead of `FetchPublicKeyFromDefcon` (nodes.json); fallback flag `fallback=nodes.json` (bring-up) | `fallback=none` (miss → NACK, closes poisoning); every fallback logged for enrollment-coverage measurement.
   - **MRAD-08** — terraform `byUser` GSI on the shared `ELECTRO_TABLE` if the table's GSIs are terraform-managed (else document ElectroDB app-managed); meshtk keycache config wiring parallels `Server.CredCache.{TableName,TableRegion,DynamoDBEndpoint}`.
+
 **Success Criteria** (what must be TRUE):
 
   1. A radio's real on-device X25519 pubkey lands in `MeshRadio` as `0x` hex via `register-radio`, and a ghost/meshtk decrypts that radio's DM using the DDB key with `nodes.json` ignored (`fallback=none`) — the live-incident verification (KPH's real key ⇒ ricky decrypts a KPH DM).
@@ -697,12 +699,13 @@ Plans:
 **Plans:** 7 plans (2 PRs — monorepo + meshtk)
 
 Plans:
-- [ ] 66-01-PLAN.md — MeshRadio ElectroDB entity (pk nodeId, byUser GSI) + CRUD helpers + TS key-parity test + MRAD-08 no-terraform doc (MRAD-01, MRAD-08) [wave 1]
-- [ ] 66-02-PLAN.md — register-radio writes MeshRadio: pure canonicalization/base64→0x-hex lib + internal route upsert (MRAD-02) [wave 2]
+
+- [x] 66-01-PLAN.md — MeshRadio ElectroDB entity (pk nodeId, byUser GSI) + CRUD helpers + TS key-parity test + MRAD-08 no-terraform doc (MRAD-01, MRAD-08) [wave 1]
+- [x] 66-02-PLAN.md — register-radio writes MeshRadio: pure canonicalization/base64→0x-hex lib + internal route upsert (MRAD-02) [wave 2]
 - [ ] 66-03-PLAN.md — hard-switch: migrate EVERY meshtasticRadios[] reader/writer onto MeshRadio + retire embedded list/type/helpers (MRAD-04) [wave 3]
 - [ ] 66-04-PLAN.md — idempotent re-runnable backfill script (embedded list → MeshRadio, base64→hex, pad-8 nodeId) (MRAD-03) [wave 3]
 - [ ] 66-05-PLAN.md — run.flash "Sync keys" (read-back + register only, no re-provision) (MRAD-05) [wave 1]
-- [ ] 66-06-PLAN.md — [meshtk repo] internal/keycache: cache-first GetItem resolver + singleflight/negative/circuit-breaker + ported table-tests + Go key-parity (MRAD-06) [wave 1]
+- [x] 66-06-PLAN.md — [meshtk repo] internal/keycache: cache-first GetItem resolver + singleflight/negative/circuit-breaker + ported table-tests + Go key-parity (MRAD-06) [wave 1]
 - [ ] 66-07-PLAN.md — [meshtk repo] decryptPKI + reply-encrypt swap to keycache behind fallback flag + KeyCacheConfig wiring + security-regression test (MRAD-07, MRAD-08) [wave 2]
 
 ---
