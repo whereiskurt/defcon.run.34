@@ -70,5 +70,20 @@
       "image": "https://b.defcon.run/bib-card.png",
       "image_file": "bib-card.png"
     }
+  },
+  {
+    "host": "f",
+    "target_host": "q.defcon.run",
+    "target_path": "/f",
+    "target_query": "",
+    "status_code": "HTTP_302",
+    "priority": 95,
+    "splash_style": "flash",
+    "og": {
+      "title": "Flash Your Radio — DEF CON 34",
+      "description": "Flash your Meshtastic device onto the DEF CON 34 mesh network. Plug in over USB in Chrome or Edge — erase, write, verify, done.",
+      "image": "https://f.defcon.run/flash-card.png",
+      "image_file": "flash-card.png"
+    }
   }
 ]
