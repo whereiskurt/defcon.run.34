@@ -703,7 +703,7 @@ Plans:
 - [x] 66-01-PLAN.md — MeshRadio ElectroDB entity (pk nodeId, byUser GSI) + CRUD helpers + TS key-parity test + MRAD-08 no-terraform doc (MRAD-01, MRAD-08) [wave 1]
 - [x] 66-02-PLAN.md — register-radio writes MeshRadio: pure canonicalization/base64→0x-hex lib + internal route upsert (MRAD-02) [wave 2]
 - [x] 66-03-PLAN.md — hard-switch: migrate EVERY meshtasticRadios[] reader/writer onto MeshRadio + retire embedded list/type/helpers (MRAD-04) [wave 3]
-- [ ] 66-04-PLAN.md — idempotent re-runnable backfill script (embedded list → MeshRadio, base64→hex, pad-8 nodeId) (MRAD-03) [wave 3]
+- [x] 66-04-PLAN.md — idempotent re-runnable backfill script (embedded list → MeshRadio, base64→hex, pad-8 nodeId) (MRAD-03) [wave 3]
 - [x] 66-05-PLAN.md — run.flash "Sync keys" (read-back + register only, no re-provision) (MRAD-05) [wave 1]
 - [x] 66-06-PLAN.md — [meshtk repo] internal/keycache: cache-first GetItem resolver + singleflight/negative/circuit-breaker + ported table-tests + Go key-parity (MRAD-06) [wave 1]
 - [x] 66-07-PLAN.md — [meshtk repo] decryptPKI + reply-encrypt swap to keycache behind fallback flag + KeyCacheConfig wiring + security-regression test (MRAD-07, MRAD-08) [wave 2]
