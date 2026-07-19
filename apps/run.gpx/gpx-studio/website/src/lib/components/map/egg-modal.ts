@@ -20,6 +20,7 @@ export type EggModal = {
     id: string;
     eyebrow: string;
     title: string;
+    titleUrl?: string; // when set, the title renders as a link (hardcoded-only)
     descriptionHtml: string;
     address?: string;
     coverImageUrl?: string;
@@ -104,7 +105,12 @@ function eggPopupHtml(egg: EggModal): string {
         <div style="min-width:200px;max-width:280px;padding:10px 12px;border-left:4px solid ${accent};
                     font-family:system-ui,sans-serif;color:#e4e4ef">
             <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">${escapeHtml(egg.eyebrow)}</div>
-            <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(egg.title)}</div>
+            <div style="font-size:15px;font-weight:600;margin-top:2px">${
+                egg.titleUrl
+                    ? `<a href="${escapeHtml(egg.titleUrl)}" target="_blank" rel="noopener noreferrer"
+                          style="color:${accent};text-decoration:none">${escapeHtml(egg.title)}</a>`
+                    : escapeHtml(egg.title)
+            }</div>
             ${address}
             ${cover}
             ${desc}

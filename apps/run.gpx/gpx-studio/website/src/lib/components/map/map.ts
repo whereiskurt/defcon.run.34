@@ -4,7 +4,7 @@ import { get, writable, type Writable } from 'svelte/store';
 import { settings } from '$lib/logic/settings';
 import { tick } from 'svelte';
 import { recordHit } from '$lib/stores/ghost';
-import { rainbowUnlocked } from '$lib/stores/rainbow';
+import { rainbowUnlocked, weedShown } from '$lib/stores/rainbow';
 import { coffeeUnlocked } from '$lib/stores/coffee';
 
 const { treeFileView, elevationProfile, bottomPanelSize, rightPanelSize, distanceUnits } = settings;
@@ -99,6 +99,8 @@ export class MapboxGLMap {
                     // and desktop, unlike a typed keyword. Searching still
                     // geocodes normally below.
                     if (/publicus|coffee/i.test(query)) coffeeUnlocked.set(true);
+                    // Searching `weed` *toggles* the green NuWu arch on/off.
+                    if (/\bweed\b/i.test(query)) weedShown.update((v) => !v);
                     return fetch(
                         `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5&accept-language=${language}`
                     )
