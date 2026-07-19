@@ -17,6 +17,7 @@ locals {
     hackers   = "interstitial.html.tftpl"
     countdown = "interstitial-countdown.html.tftpl"
     bib       = "interstitial-bib.html.tftpl"
+    flash     = "interstitial-flash.html.tftpl"
   }
   splash_tpl = {
     for h, r in local.redirect_map :

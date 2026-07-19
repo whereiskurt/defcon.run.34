@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${og_title}</title>
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="defcon.run">
+<meta property="og:url" content="${page_url}">
+<meta property="og:title" content="${og_title}">
+<meta property="og:description" content="${og_description}">
+<meta property="og:image" content="${og_image}">
+<meta property="og:image:secure_url" content="${og_image}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${og_title}">
+<meta name="twitter:description" content="${og_description}">
+<meta name="twitter:image" content="${og_image}">
+
+<!-- Flash splash: a radio silhouette whose screen fills like a firmware write,
+     with an esptool-ish log line, then we go. Same ~1.6s beat as the other
+     splashes (so the tab title reads the og_title, not the destination).
+     meta-refresh is the no-JS fallback, long enough to never preempt the JS.
+     NOTE (terraform templatefile): a percent sign immediately followed by an
+     open brace is read as a control directive, so CSS percent keyframe
+     selectors must double the percent sign. This splash uses from/to keyframes
+     to sidestep it entirely — including in this comment, which is also parsed. -->
+<meta http-equiv="refresh" content="4;url=${target_url}">
+<link rel="canonical" href="${target_url}">
+<style>
+  :root{ --bg:#0a0a0f; --ink:#e4e4ef; --muted:#a4a4b8; --teal:#00d4aa; --mint:#6ccdb8;
+         --amber:#f59e0b; --matrix:#00ff41; --border:#2a2a3a; --surface:#111118; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .glow{position:fixed;inset:0;background:
+    radial-gradient(55% 60% at 12% 4%,rgba(0,212,170,.16),transparent 62%),
+    radial-gradient(60% 70% at 94% 98%,rgba(245,158,11,.10),transparent 60%);}
+  .noise{position:fixed;inset:0;opacity:.03;background-size:256px 256px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .wrap{position:relative;z-index:2;padding:24px;max-width:560px;width:100%}
+
+  .mark{font-size:clamp(22px,6vw,30px);font-weight:800;letter-spacing:-.02em}
+  .mark .dot{color:var(--teal)}
+  .kick{margin-top:6px;font-size:clamp(10px,2.8vw,12px);font-weight:800;
+    letter-spacing:.30em;color:var(--teal)}
+
+  /* a radio: body, antenna, and a screen that fills as the "write" proceeds */
+  /* margin-top clears the 30px antenna + its glowing tip above the body */
+  .radio{margin:60px auto 0;width:min(184px,46vw);position:relative}
+  .ant{position:absolute;left:50%;top:-30px;width:3px;height:30px;
+    background:linear-gradient(180deg,transparent,var(--teal));transform:translateX(-50%)}
+  .ant::before{content:"";position:absolute;left:50%;top:-7px;width:11px;height:11px;
+    margin-left:-5.5px;border-radius:50%;background:var(--teal);
+    box-shadow:0 0 12px var(--teal);animation:pulse 1s ease-in-out infinite}
+  @keyframes pulse{from{opacity:.35}to{opacity:1}}
+  .body{background:var(--surface);border:2px solid var(--border);border-radius:14px;
+    padding:14px 14px 18px;box-shadow:0 18px 38px rgba(0,0,0,.6),0 0 40px rgba(0,212,170,.12)}
+  .screen{position:relative;height:96px;border-radius:8px;background:#05060a;
+    border:1px solid #1d2a2a;overflow:hidden;display:flex;align-items:center;justify-content:center}
+  .screen>i{position:absolute;left:0;bottom:0;width:100%;height:0;
+    background:linear-gradient(180deg,rgba(0,212,170,.55),rgba(0,212,170,.16));
+    animation:rise 1.5s ease-out forwards}
+  @keyframes rise{to{height:100%}}
+  .pct{position:relative;z-index:2;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+    font-size:30px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;
+    text-shadow:0 0 14px rgba(0,212,170,.7)}
+  .pins{display:flex;gap:5px;justify-content:center;margin-top:12px}
+  .pins i{width:14px;height:5px;border-radius:2px;background:#2a2a3a}
+  .pins i.on{background:var(--amber);box-shadow:0 0 10px rgba(245,158,11,.6)}
+
+  .log{margin-top:18px;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+    font-size:clamp(10px,2.9vw,12px);color:var(--matrix);letter-spacing:.02em;
+    text-shadow:0 0 6px #00ff4166,0 0 14px #00ff4133;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .load{margin-top:12px;font-size:clamp(12px,3.4vw,14px);letter-spacing:.18em;color:var(--muted)}
+  .bar{margin:12px auto 0;width:min(340px,80vw);height:8px;border:1px solid var(--border);
+    border-radius:6px;overflow:hidden;background:rgba(17,17,24,.9)}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--amber));
+    box-shadow:0 0 14px rgba(0,212,170,.6);animation:fill 1.5s ease-out forwards}
+  @keyframes fill{to{width:100%}}
+  .foot{margin-top:18px;font-size:12px;letter-spacing:.12em;color:#8f8fa8}
+  .foot a{color:var(--teal);text-decoration:none}
+  @media (prefers-reduced-motion:reduce){
+    .bar>i,.screen>i{animation:none;width:100%;height:100%}
+    .ant::before{animation:none;opacity:1}
+  }
+</style>
+</head>
+<body>
+  <div class="glow"></div><div class="noise"></div>
+  <div class="wrap">
+    <div class="mark">defcon<span class="dot">.</span>run</div>
+    <div class="kick">DEF CON 34 &middot; MESHTASTIC</div>
+
+    <div class="radio">
+      <i class="ant"></i>
+      <div class="body">
+        <div class="screen"><i></i><span class="pct" id="p">0%</span></div>
+        <div class="pins"><i></i><i></i><i class="on"></i><i></i><i class="on"></i><i></i></div>
+      </div>
+    </div>
+
+    <div class="log" id="l">esptool: connecting&hellip;</div>
+    <div class="load">FLASHING YOUR RADIO&hellip;</div>
+    <div class="bar"><i></i></div>
+    <div class="foot"><a href="${target_url}">skip &rsaquo;</a> &nbsp;&middot;&nbsp; flash.defcon.run</div>
+  </div>
+<script>
+  // Count the write up to 100% over the splash beat, then go.
+  var TARGET = ${target_url_json};
+  var p = document.getElementById("p"), l = document.getElementById("l"), t0 = Date.now();
+  var LOG = [
+    "esptool: chip is ESP32-S3",
+    "esptool: erasing flash…",
+    "esptool: writing at 0x00010000",
+    "esptool: verifying hash…"
+  ];
+  var tick = setInterval(function () {
+    var f = Math.min(1, (Date.now() - t0) / 1500);
+    p.textContent = Math.round(f * 100) + "%";
+    l.textContent = LOG[Math.min(LOG.length - 1, Math.floor(f * LOG.length))];
+    if (f >= 1) clearInterval(tick);
+  }, 50);
+  setTimeout(function () { location.replace(TARGET); }, 1600);
+</script>
+</body>
+</html>

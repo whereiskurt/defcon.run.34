@@ -1,0 +1,156 @@
+<!doctype html>
+<!--
+  flash-card.src.html — source for flash-card.png, the f.defcon.run unfurl card.
+
+  1200x630. Same approach as bib-card.src.html: rebuild the product's own
+  surface rather than draw a poster. run.flash shares run.bib's base palette
+  (#0a0a0f + teal #00d4aa + MuseoModerno wordmark) but adds two signatures of
+  its own — Fira Code monospace for nearly every label, and matrix-green
+  #00ff41 (.matrix-text) — plus the two things you actually recognize: the
+  5-step wizard stepper (Pick Device / Connect / Flash / Configure / Done) and
+  the 3-stage flash pipeline (Erase -> Write -> Verify).
+
+  flash-device.svg is run.flash's own heltec-v3 art, copied verbatim from
+  apps/run.flash/webapp/public/img/devices/heltec-v3.svg (69 such SVGs ship
+  with the app). The "70+ devices" chip is grounded in hardware-list.json:
+  88 entries, 72 activelySupported — so 70+ holds either way.
+
+  Render (--force-device-scale-factor=1 is REQUIRED or you get 2400x1260):
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1200,630 --screenshot=flash-card.png "file://$PWD/flash-card.src.html"
+    sips -g pixelWidth -g pixelHeight flash-card.png   # must read 1200 x 630
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Flash Your Radio — DEF CON 34</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700&family=Inter:wght@400;600;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0f; --ink:#e4e4ef; --muted:#a4a4b8; --faint:#8f8fa8;
+    --teal:#00d4aa; --matrix:#00ff41; --amber:#f59e0b;
+    --border:#2a2a3a; --surface:#111118; --raised:#1a1a24;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;position:relative}
+
+  /* run.flash's noise-overlay film grain (globals.css, 3%) */
+  .noise{position:absolute;inset:0;opacity:.03;background-size:256px 256px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .glow{position:absolute;inset:0;background:
+    radial-gradient(52% 60% at 6% 4%,rgba(0,212,170,.18),transparent 62%),
+    radial-gradient(58% 68% at 98% 92%,rgba(0,255,65,.08),transparent 60%)}
+
+  .stage{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;
+         padding:44px 56px 30px}
+  .cols{flex:1;display:flex;align-items:center;gap:40px}
+
+  .left{width:560px;display:flex;flex-direction:column;gap:16px}
+  .wordmark{font-family:MuseoModerno,Inter,sans-serif;font-weight:700;font-size:36px;
+            letter-spacing:-.02em;line-height:1}
+  .wordmark .dot{color:var(--teal)}
+  .kick{font-family:"Fira Code",monospace;font-size:13px;font-weight:600;
+        letter-spacing:.26em;color:var(--teal)}
+  h1{font-size:72px;font-weight:800;line-height:.94;letter-spacing:-.03em}
+  h1 em{font-style:normal;color:var(--teal)}
+  .sub{font-size:21px;line-height:1.4;color:var(--muted);max-width:510px}
+  .chips{display:flex;gap:9px;flex-wrap:wrap;margin-top:2px}
+  .chip{font-family:"Fira Code",monospace;border:1px solid var(--border);
+        background:rgba(17,17,24,.8);border-radius:999px;padding:7px 14px;
+        font-size:13px;font-weight:500;color:var(--ink)}
+  .chip.on{border-color:rgba(0,212,170,.55);color:var(--teal);box-shadow:0 0 24px rgba(0,212,170,.10)}
+  .host{margin-top:4px;font-family:"Fira Code",monospace;font-size:16px;color:var(--faint)}
+  .host b{color:var(--matrix);font-weight:500;text-shadow:0 0 6px #00ff4166,0 0 14px #00ff4133}
+
+  /* run.flash's .glass-card, holding the device art + the flash pipeline */
+  .right{flex:1;display:flex;justify-content:center}
+  .panel{width:100%;max-width:470px;background:rgba(17,17,24,.8);
+         border:1px solid rgba(0,212,170,.30);border-radius:16px;padding:20px 22px 18px;
+         box-shadow:0 0 26px rgba(0,212,170,.12),0 22px 44px rgba(0,0,0,.6)}
+  .dev{height:186px;display:flex;align-items:center;justify-content:center}
+  .dev img{max-height:100%;max-width:100%;object-fit:contain;
+           filter:drop-shadow(0 0 10px rgba(255,255,255,.10))}
+  .devname{font-family:"Fira Code",monospace;font-size:13px;color:var(--muted);
+           text-align:center;margin-top:2px}
+
+  .pipe{margin-top:16px;border-top:1px solid var(--border);padding-top:14px;
+        display:flex;flex-direction:column;gap:10px}
+  .row{display:flex;align-items:center;gap:11px;font-family:"Fira Code",monospace;font-size:15px}
+  .tick{width:19px;height:19px;border-radius:50%;background:var(--teal);color:#0a0a0f;
+        font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;
+        box-shadow:0 0 12px rgba(0,212,170,.45);flex:none}
+  .row.done span{color:var(--teal)}
+  .row.now .tick{background:transparent;border:2px solid var(--teal);color:var(--teal)}
+  .row.now span{color:var(--ink)}
+  .bar{margin-left:30px;height:6px;border-radius:4px;background:#0a0a0f;
+       border:1px solid var(--border);overflow:hidden}
+  .bar>i{display:block;height:100%;width:68%;
+         background:linear-gradient(90deg,var(--teal),var(--amber))}
+
+  /* the 5-step wizard stepper, the thing you recognize the app by */
+  .stepper{display:flex;align-items:center;gap:12px;padding-top:22px;
+           border-top:1px solid var(--border)}
+  .step{display:flex;align-items:center;gap:9px;font-family:"Fira Code",monospace;font-size:14px}
+  .num{width:27px;height:27px;border-radius:50%;display:flex;align-items:center;
+       justify-content:center;font-size:13px;border:1px solid var(--border);
+       color:#7e7e98;flex:none}
+  .step.done .num{background:var(--teal);border-color:var(--teal);color:#0a0a0f}
+  .step.done span{color:var(--ink)}
+  .step.cur .num{border-color:var(--teal);color:var(--teal);background:rgba(0,212,170,.10);
+                 box-shadow:0 0 12px #00d4aa30}
+  .step.cur span{color:var(--teal);font-weight:600}
+  .step span{color:#7e7e98}
+  .link{flex:1;height:1px;background:var(--border)}
+  .link.done{background:var(--teal);opacity:.7}
+</style>
+</head>
+<body>
+  <div class="noise"></div><div class="glow"></div>
+
+  <div class="stage">
+    <div class="cols">
+      <div class="left">
+        <div class="wordmark">defcon<span class="dot">.</span>run</div>
+        <div class="kick">DEF CON 34 · MESHTASTIC</div>
+        <h1>FLASH YOUR<br><em>RADIO</em></h1>
+        <div class="sub">Plug in over USB and flash your Meshtastic<br>device onto the DEF CON 34 mesh.</div>
+        <div class="chips">
+          <span class="chip on">70+ devices</span>
+          <span class="chip">Chrome or Edge</span>
+          <span class="chip">~1 minute</span>
+        </div>
+        <div class="host">→ <b>f.defcon.run</b></div>
+      </div>
+
+      <div class="right">
+        <div class="panel">
+          <div class="dev"><img src="flash-device.svg" alt="Heltec V3 Meshtastic radio"></div>
+          <div class="devname">Heltec V3 · esp32-s3</div>
+          <div class="pipe">
+            <div class="row done"><i class="tick">✓</i><span>Erase flash</span></div>
+            <div class="row done"><i class="tick">✓</i><span>Write firmware</span></div>
+            <div class="bar"><i></i></div>
+            <div class="row now"><i class="tick">3</i><span>Verify firmware</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stepper">
+      <div class="step done"><i class="num">✓</i><span>Pick Device</span></div>
+      <i class="link done"></i>
+      <div class="step done"><i class="num">✓</i><span>Connect</span></div>
+      <i class="link done"></i>
+      <div class="step cur"><i class="num">3</i><span>Flash</span></div>
+      <i class="link"></i>
+      <div class="step"><i class="num">4</i><span>Configure</span></div>
+      <i class="link"></i>
+      <div class="step"><i class="num">5</i><span>Done</span></div>
+    </div>
+  </div>
+</body>
+</html>
