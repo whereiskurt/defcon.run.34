@@ -85,10 +85,9 @@ Fleet:
     Description: "ghost.goldstein"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "6969691f-6969-6969-b383-4dfff4fb382b"
     ShortNameTmpl: "GG{{.nodeId}}"
@@ -135,10 +134,9 @@ Fleet:
     Description: "ghost.mudge"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "1119691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GM{{.nodeId}}"
@@ -185,10 +183,9 @@ Fleet:
     Description: "ghost.condor"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "2229691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GC{{.nodeId}}"
@@ -235,10 +232,9 @@ Fleet:
     Description: "ghost.sharp"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "3339691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GS{{.nodeId}}"
@@ -285,10 +281,9 @@ Fleet:
     Description: "ghost.ladyada"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "4449691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GL{{.nodeId}}"
@@ -335,10 +330,9 @@ Fleet:
     Description: "ghost.hopper"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "5559691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GH{{.nodeId}}"
@@ -385,10 +379,9 @@ Fleet:
     Description: "ghost.turing"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "847f4732-5421-1212-b383-4efdc4fb382b"
     ShortNameTmpl: "GT{{.nodeId}}"
@@ -435,10 +428,9 @@ Fleet:
     Description: "ghost.gibson"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "aabbccdd-5421-1212-b383-4efdc4fb382b"
     ShortNameTmpl: "GI{{.nodeId}}"
@@ -485,10 +477,9 @@ Fleet:
     Description: "ghost.ricky"
     BehaviourTag: ["nodeinfo", "position", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "efc432ab-4391-1212-efc3-1234c4fb382b"
     ShortNameTmpl: "GR{{.nodeId}}"
@@ -526,10 +517,9 @@ Fleet:
     Description: "ghost.dt"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
     BehaviourSecs: 30
-    # Position every 3rd tic (90s) while NodeInfo stays every tic (30s):
-    # positions were half of all channel packets and are the least useful
-    # half for a BLE-proxied radio trying to learn the fleet.
-    MovementEveryTics: 3
+    # Chatbot ghosts keep positions every tic (30s) so they show on the map
+    # reliably; only the rabbit cover-traffic sims are thinned to 90s.
+    MovementEveryTics: 1
     RampSteadySecs: 2419200
     Seed: "d7d7d7d7-1dc3-4a11-b383-000000000010"
     ShortNameTmpl: "DT{{.nodeId}}"
