@@ -72,7 +72,7 @@ export const RAINBOW_ARCHES: RainbowArch[] = [
         // Unlock-gated, revealed together with the pride arch.
         id: 'lvcc-nuwu',
         from: [-115.1512, 36.1316], // Las Vegas Convention Center
-        to: [-115.1466, 36.1789], // NuWu Cannabis Marketplace
+        to: [-115.1398, 36.1836], // NuWu Cannabis Marketplace
         colors: WEED_COLORS
     },
     {

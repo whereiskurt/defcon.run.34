@@ -5,6 +5,7 @@ import { openEggModal } from './egg-modal';
 const SOURCE = 'dc34-rainbow';
 const LAYER = 'dc34-rainbow-arch';
 const TICK_MS = 60_000; // re-evaluate schedule windows once a minute
+const NUWU_ID = 'lvcc-nuwu'; // the green "weed" arch, toggled by the `weed` search
 
 /**
  * The hidden "Rainbow Bridges" easter egg — pride- and weed-coloured
@@ -24,6 +25,7 @@ export class RainbowArch {
     map: mapboxgl.Map;
     private built = false;
     private unlocked = false;
+    private weedOn = false;
     private pitchFn: (() => void) | null = null;
     private clickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private enterFn: (() => void) | null = null;
@@ -86,12 +88,16 @@ export class RainbowArch {
         this.built = true;
     }
 
-    /** Which arch ids should render right now (unlock + schedule). */
+    /** Which arch ids should render right now (unlock + schedule + weed toggle). */
     private activeArchIds(): string[] {
         const now = new Date();
-        return RAINBOW_ARCHES.filter((a) => isArchActiveNow(a, { unlocked: this.unlocked, now })).map(
-            (a) => a.id
-        );
+        const ids = RAINBOW_ARCHES.filter((a) =>
+            isArchActiveNow(a, { unlocked: this.unlocked, now })
+        ).map((a) => a.id);
+        // The `weed` search force-shows just the NuWu arch, independent of the
+        // master unlock; it's still pitch-revealed like every other arch.
+        if (this.weedOn && !ids.includes(NUWU_ID)) ids.push(NUWU_ID);
+        return ids;
     }
 
     private applyOpacity() {
@@ -119,6 +125,12 @@ export class RainbowArch {
     /** Flip with the hidden rainbowUnlocked store. */
     async setUnlocked(on: boolean) {
         this.unlocked = on;
+        await this.applyState();
+    }
+
+    /** Flip with the weedShown store — show/hide just the NuWu arch. */
+    async setWeed(on: boolean) {
+        this.weedOn = on;
         await this.applyState();
     }
 

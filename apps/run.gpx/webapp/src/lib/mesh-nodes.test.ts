@@ -52,6 +52,9 @@ describe("mesh-nodes", () => {
     expect(f.geometry).toEqual({ type: "Point", coordinates: [-115.172765, 36.0817149] });
     expect(f.properties!.slug).toBe("condor");
     expect(f.properties!.who).toBe("Kevin Mitnick");
+    expect(f.properties!.alias).toBe("Condor");
+    expect(f.properties!.blurb).toMatch(/social-engineering/i);
+    expect(f.properties!.battery).toBe(71); // allowlisted radio subset comes through
     expect(JSON.stringify(f)).not.toMatch(/SECRET|privkey|pubkey/);
   });
   it("intersects rabbits by numeric node id and emits identity", () => {

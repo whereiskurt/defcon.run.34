@@ -1,4 +1,4 @@
-import { ghostWho } from "./ghost-identities";
+import { ghostWho, ghostDossier } from "./ghost-identities";
 import { simRabbitIdentity, isSimRabbit } from "./sim-rabbit-identities";
 
 /** Default rabbit pin tint — mirrors the studio's DEFAULT_PIN_COLOR so a real
@@ -96,6 +96,7 @@ export function ghostFeatureCollection(db: NodeDb): GeoJSON.FeatureCollection {
   for (const [key, n] of Object.entries(db)) {
     if (!isGhost(n) || !hasValidPosition(n)) continue;
     const slug = ghostSlug(n.longName as string);
+    const d = ghostDossier(slug);
     features.push({
       type: "Feature",
       id: keyToNum(key, n),
@@ -103,9 +104,13 @@ export function ghostFeatureCollection(db: NodeDb): GeoJSON.FeatureCollection {
       properties: {
         slug,
         who: ghostWho(slug),
+        alias: d?.alias ?? "",
+        blurb: d?.blurb ?? "",
+        link: d?.link ?? "",
         shortName: n.shortName ?? "",
+        // Same allowlisted radio subset the rabbit popups show — never keys.
+        ...radioFields(n),
         lastSeen: lastSeen(n),
-        battery: typeof n.batteryLevel === "number" ? n.batteryLevel : -1,
       },
     });
   }

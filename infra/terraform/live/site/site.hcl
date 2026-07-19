@@ -19,9 +19,9 @@ locals {
   )
 
   dns = {
-    zonename         = "defcon.run"
-    subdomains       = ["email", "run", "auth", "cms", "gpx", "flash", "mqtt", "bib"]
-    ttl              = 300
+    zonename   = "defcon.run"
+    subdomains = ["email", "run", "auth", "cms", "gpx", "flash", "mqtt", "bib"]
+    ttl        = 300
   }
 
   # URL configuration for services
@@ -31,20 +31,20 @@ locals {
     # Service subdomains (combined with dns.zonename to form full domains)
     # e.g., "auth" + "defcon.run" = "auth.defcon.run"
     subdomains = {
-      "auth" = "auth"
-      "cms" = "cms"
+      "auth"  = "auth"
+      "cms"   = "cms"
       "flash" = "flash"
-      "gpx" = "gpx"
-      "run" = "run"
+      "gpx"   = "gpx"
+      "run"   = "run"
     }
 
     # Local development ports (for .env.local files and development defaults)
     local_ports = {
-      auth = 3002
-      cms = 1337
+      auth  = 3002
+      cms   = 1337
       flash = 3004
-      gpx = 3003
-      run = 3001
+      gpx   = 3003
+      run   = 3001
     }
 
     # Service discovery namespace pattern (used for internal container communication)
@@ -269,17 +269,17 @@ locals {
   }
 
   waffaw = {
-    enabled         = false
-    ec2_count       = 0
-    ec2_max_count   = 10
+    enabled           = false
+    ec2_count         = 0
+    ec2_max_count     = 10
     ec2_instance_type = "t3.medium"
-    ec2_use_spot    = true
-    ec2_multi_eni   = false
+    ec2_use_spot      = true
+    ec2_multi_eni     = false
     ecs_desired_count = 0
-    ecs_use_spot    = true
-    ecs_task_cpu    = 1024
-    ecs_task_memory = 2048
-    image_uri       = "dc34-waffaw:1.0.26"
+    ecs_use_spot      = true
+    ecs_task_cpu      = 1024
+    ecs_task_memory   = 2048
+    image_uri         = "dc34-waffaw:1.0.26"
   }
 
   # Cross-regional secrets (OAuth/OIDC providers, JWT secrets, etc.)
@@ -365,7 +365,7 @@ locals {
       }
       mqtt = {
         description = "MQTT broker and meshtk secrets"
-        keys        = ["meshtk-proxy-password", "meshobserv-password", "ghosts-password", "max-connections", "s3-log-interval", "channel-psk", "ghost-start-delay"]
+        keys        = ["meshtk-proxy-password", "meshobserv-password", "ghosts-password", "max-connections", "s3-log-interval", "channel-psk", "ghost-start-delay", "ghost-key-secret"]
       }
     }
   }
@@ -1165,9 +1165,9 @@ locals {
                   }
                 },
                 {
-                  Sid    = "IAMPassRole"
-                  Effect = "Allow"
-                  Action = "iam:PassRole"
+                  Sid      = "IAMPassRole"
+                  Effect   = "Allow"
+                  Action   = "iam:PassRole"
                   Resource = "arn:aws:iam::*:role/*github-runner*"
                 }
               ]

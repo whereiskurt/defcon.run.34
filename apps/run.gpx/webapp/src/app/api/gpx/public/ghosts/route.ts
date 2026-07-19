@@ -4,8 +4,10 @@ import { ghostFeatureCollection, type NodeDb } from "@/lib/mesh-nodes";
 /**
  * GET /api/gpx/public/ghosts — the "ghost proxy" (trust boundary).
  * Server-side fetches meshtk's INTERNAL nodes.json, filters to ghost/contest/
- * operative nodes, strips all keys/metrics, and emits a ready GeoJSON
- * FeatureCollection. Hidden ghost-mode layer polls this. Fail-soft: any error → [].
+ * operative nodes, and emits a ready GeoJSON FeatureCollection carrying only a
+ * persona dossier + an allowlisted radio subset (model/role/region/preset/fw/
+ * battery — same as the rabbit feed; never keys or private telemetry). Hidden
+ * ghost-mode layer polls this. Fail-soft: any error → [].
  */
 const GHOST_FEED_URL = process.env.GHOST_FEED_URL || "http://localhost:3005/nodes.json";
 const CACHE_SECONDS = 60;

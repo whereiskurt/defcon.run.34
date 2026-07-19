@@ -11,7 +11,7 @@
     import { CoffeeCup } from '$lib/components/map/coffee-cup';
     import { fireCoffeeEgg } from '$lib/components/map/coffee-egg';
     import { ghostMode } from '$lib/stores/ghost';
-    import { rainbowUnlocked } from '$lib/stores/rainbow';
+    import { rainbowUnlocked, weedShown } from '$lib/stores/rainbow';
     import { coffeeUnlocked } from '$lib/stores/coffee';
     import { quickStartAction } from '$lib/stores/quickstart';
     import { get } from 'svelte/store';
@@ -241,6 +241,8 @@
             void rainbowArch?.setUnlocked(on);
             if (on) fireRainbowEgg();
         });
+        // Searching `weed` toggles just the green NuWu arch (see map.ts geocoder).
+        weedShown.subscribe((on) => void rainbowArch?.setWeed(on));
         // Giant PublicUs coffee cup: always-on (tilt-revealed), upgraded by
         // searching publicus/coffee (steam + opacity). Same single-subscription
         // safety as above; unlock + click both fire the covert coffee-egg.
