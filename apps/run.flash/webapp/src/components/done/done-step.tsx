@@ -4,6 +4,7 @@ import { Button, Chip } from "@heroui/react";
 import {
   CheckCircle2,
   RotateCcw,
+  RefreshCw,
   ExternalLink,
   Smartphone,
   Unplug,
@@ -32,6 +33,8 @@ interface DoneStepProps {
   registrationStatus: RegistrationStatus;
   /** Retry radio registration after failure */
   onRetryRegistration: () => Promise<void>;
+  /** Sync keys: re-read the device over USB and re-register (no re-flash) */
+  onSyncKeys: () => Promise<void>;
   /** Reset entire wizard to pick-device step */
   onFlashAnother: () => void;
 }
@@ -47,9 +50,10 @@ interface DoneStepProps {
  * - Next steps: register radio, download app, disconnect USB
  * - "Flash Another Device" resets wizard for provisioning multiple boards
  */
-export function DoneStep({ device, configPayload, registrationStatus, onRetryRegistration, onFlashAnother }: DoneStepProps) {
+export function DoneStep({ device, configPayload, registrationStatus, onRetryRegistration, onSyncKeys, onFlashAnother }: DoneStepProps) {
   const { t } = useCopy();
   const archColor = device ? (ARCH_COLORS[device.architecture] || "primary") : "primary";
+  const isSyncing = registrationStatus.state === "pending";
 
   return (
     <div className="space-y-4">
@@ -212,6 +216,28 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           )}
         </div>
       )}
+
+      {/* Sync keys card — for an already-flashed / re-keyed device. Re-reads the
+          device over USB and re-registers (no re-flash). Reflects registrationStatus
+          via the shared block above (pending/success/failed). */}
+      <div className="glass-card rounded-xl p-4 flex items-center gap-3">
+        <RefreshCw className={`w-5 h-5 text-default-400 flex-shrink-0 ${isSyncing ? "animate-spin" : ""}`} />
+        <div className="text-sm flex-1 min-w-0">
+          <div className="text-foreground">{t("flash.done.syncTitle")}</div>
+          <div className="text-xs text-default-500 mt-0.5">{t("flash.done.syncDesc")}</div>
+        </div>
+        <Button
+          size="sm"
+          variant="flat"
+          color="primary"
+          isDisabled={isSyncing}
+          startContent={<RefreshCw className="w-3.5 h-3.5" />}
+          onPress={onSyncKeys}
+          className="flex-shrink-0 font-mono"
+        >
+          {isSyncing ? t("flash.done.syncing") : t("flash.done.syncButton")}
+        </Button>
+      </div>
 
       {/* Next steps card */}
       <div className="glass-card rounded-xl p-5">
