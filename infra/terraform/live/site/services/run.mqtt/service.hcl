@@ -183,7 +183,7 @@ locals {
         depends_on = [
           {
             container_name = "run-mqtt-mosquitto"
-            condition     = "HEALTHY"
+            condition      = "HEALTHY"
           }
         ]
       },
@@ -330,6 +330,10 @@ locals {
           {
             name      = "MESHTK_GHOST_START_DELAY"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/ghost-start-delay"
+          },
+          {
+            name      = "MESHTK_GHOST_KEY_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/ghost-key-secret"
           }
         ]
 
