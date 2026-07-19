@@ -12,9 +12,15 @@ locals {
   status_desc = { HTTP_301 = "Moved Permanently", HTTP_302 = "Found" }
 
   # Splash template per host, selected by splash_style (default "hackers").
+  # Unknown values fall back to the hackers splash.
+  splash_tpl_by_style = {
+    hackers   = "interstitial.html.tftpl"
+    countdown = "interstitial-countdown.html.tftpl"
+    bib       = "interstitial-bib.html.tftpl"
+  }
   splash_tpl = {
     for h, r in local.redirect_map :
-    h => r.splash_style == "countdown" ? "interstitial-countdown.html.tftpl" : "interstitial.html.tftpl"
+    h => lookup(local.splash_tpl_by_style, r.splash_style, "interstitial.html.tftpl")
   }
 
   # Rendered interstitial HTML per host: OG tags for crawlers + client redirect for humans.
