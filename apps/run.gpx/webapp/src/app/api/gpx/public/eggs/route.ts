@@ -22,6 +22,7 @@ export type EggModal = {
   id: string;
   eyebrow: string;
   title: string;
+  titleUrl?: string; // when set, the title renders as a link (hardcoded-only, never from CMS)
   descriptionHtml: string; // server-safe HTML (hardcoded here, or blocksToHtml from CMS)
   address?: string;
   coverImageUrl?: string;
@@ -57,13 +58,14 @@ const DEFAULT_EGGS: EggModal[] = [
     id: "lvcc-nuwu",
     eyebrow: "Rainbow Bridge",
     title: "NuWu Cannabis Marketplace",
+    titleUrl: "https://www.nuwumain.com/",
     descriptionHtml:
       "<p>The green bridge runs north to <strong>NuWu</strong> — the 24-hour dispensary " +
       "with the country's first cannabis drive-thru, on Las Vegas Paiute land above " +
       "downtown.</p>",
     address: "1235 Paiute Cir, Las Vegas",
     accent: "#1E7D22",
-    links: [mapLink(36.1789, -115.1466)],
+    links: [mapLink(36.1836, -115.1398)],
   },
   {
     id: "lvcc-lvsign",

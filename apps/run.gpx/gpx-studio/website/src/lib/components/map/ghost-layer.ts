@@ -1,7 +1,18 @@
 import mapboxgl from 'mapbox-gl';
 import { escapeHtml } from './escape-html';
 import { MatrixRain } from './matrix-rain';
+import { decryptReveal } from './ghost-decrypt';
 import { startCue, resetCue, stopCue } from '$lib/stores/refresh-cue';
+
+/** "1753757283" (unix secs) → short "2m" / "3h" / "5d" / "just now" label. */
+function sinceLabel(sec: unknown): string {
+    if (typeof sec !== 'number' || sec <= 0) return '—';
+    const s = Math.max(0, Math.floor(Date.now() / 1000 - sec));
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+}
 
 const SOURCE = 'dc34-ghosts';
 const LAYER = 'dc34-ghosts-pins';
@@ -72,11 +83,36 @@ export class GhostLayer {
             this.clickFn = (e) => {
                 const f = (e as unknown as { features?: GeoJSON.Feature[] }).features?.[0];
                 if (!f) return;
-                const p = (f.properties ?? {}) as { who?: string; shortName?: string };
+                const p = (f.properties ?? {}) as Record<string, unknown>;
+                const esc = (v: unknown) => escapeHtml(v == null || v === '' ? '—' : String(v));
+                const who = escapeHtml((p.who as string) || 'Unknown ghost');
+                const alias = p.alias ? `<span class="dc34-ghost-alias">${escapeHtml(String(p.alias))}</span>` : '';
+                const blurb = p.blurb ? `<p class="dc34-ghost-blurb">${escapeHtml(String(p.blurb))}</p>` : '';
+                const batt = typeof p.battery === 'number' && p.battery >= 0 ? `${p.battery}%` : '—';
+                const rows: [string, string][] = [
+                    ['Handle', esc(p.shortName)],
+                    ['Model', esc(p.hwModel)],
+                    ['Region', `${esc(p.region)} · ${esc(p.modemPreset)}`],
+                    ['Firmware', esc(p.fwVersion)],
+                    ['Last seen', sinceLabel(p.lastSeen)],
+                    ['Battery', batt]
+                ];
+                const grid = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
+                const link = p.link
+                    ? `<a class="dc34-ghost-link" href="${escapeHtml(String(p.link))}" target="_blank" rel="noopener noreferrer">↗ dossier</a>`
+                    : '';
                 this.popup
                     .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
-                    .setHTML(`<div class="dc34-ghost-reveal"><strong>${escapeHtml(p.who ?? 'a ghost')}</strong><br><span>${escapeHtml(p.shortName ?? '')}</span></div>`)
+                    .setHTML(
+                        `<div class="dc34-ghost-reveal">` +
+                        `<div class="dc34-ghost-head"><span class="dc34-ghost-glyph">${GHOST_SVG}</span>` +
+                        `<span class="dc34-ghost-id"><strong class="dc34-ghost-name" data-decrypt>${who}</strong>${alias}</span></div>` +
+                        `${blurb}<dl class="dc34-ghost-grid">${grid}</dl>${link}</div>`
+                    )
                     .addTo(this.map);
+                // "Decrypt" the name on open — on-theme for ghost mode.
+                const root = this.popup.getElement();
+                if (root) root.querySelectorAll<HTMLElement>('[data-decrypt]').forEach((el) => decryptReveal(el));
             };
             this.map.on('click', LAYER, this.clickFn);
         }
