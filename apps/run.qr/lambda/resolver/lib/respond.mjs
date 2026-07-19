@@ -48,7 +48,7 @@ const REGION_SEGMENTS = ["use1", "cac1", "apse1"];
  * @param {string} destination
  * @returns {string}
  */
-function withRegion(destination) {
+export function withRegion(destination) {
   let url;
   try {
     url = new URL(destination);
@@ -105,6 +105,50 @@ export function buildCtfHandoff({ challenge, value }) {
       Location: location,
       "Cache-Control": "no-store",
     },
+  };
+}
+
+/**
+ * Build the crawler-facing unfurl response: a 200 HTML card. `no-store` because
+ * the embedded forward destination is rule-driven and must not be pinned. The
+ * HTML is pre-rendered by `unfurl.mjs` (this builder stays pure — no templating,
+ * no fs). Only recognized crawlers ever reach this; humans get `buildRedirect`.
+ *
+ * @param {{ html: string }} args
+ * @returns {object} ALB response
+ */
+export function buildUnfurl({ html }) {
+  return {
+    statusCode: 200,
+    statusDescription: "200 OK",
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+    },
+    body: html,
+  };
+}
+
+/**
+ * Build the unfurl `og:image` response: a 200 PNG served from the Lambda bundle.
+ * The body is already base64 (loaded by `unfurl.mjs`), flagged with
+ * `isBase64Encoded` so the ALB integration returns raw bytes. Unlike redirects
+ * this IS cacheable — the art is static per theme — so a day-long `max-age`
+ * spares the Lambda repeated crawler fetches.
+ *
+ * @param {{ base64: string }} args
+ * @returns {object} ALB response
+ */
+export function buildOgImage({ base64 }) {
+  return {
+    statusCode: 200,
+    statusDescription: "200 OK",
+    headers: {
+      "Content-Type": "image/png",
+      "Cache-Control": "public, max-age=86400",
+    },
+    body: base64,
+    isBase64Encoded: true,
   };
 }
 

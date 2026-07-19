@@ -36,6 +36,7 @@ export interface QrRecord {
   enabled?: boolean;
   owner?: string;
   notes?: string;
+  unfurl?: string;
 }
 
 function rid(): string {
@@ -152,6 +153,7 @@ export default function QrForm({
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
   const [owner, setOwner] = useState(initial?.owner ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [unfurl, setUnfurl] = useState(initial?.unfurl ?? "");
   const [rules, setRules] = useState<RuleRow[]>(
     (initial?.rules ?? []).map((r) => ({
       _id: rid(),
@@ -198,6 +200,7 @@ export default function QrForm({
       enabled,
       owner,
       notes,
+      unfurl,
       schedule: scheduleArg,
       rules: scheduled
         ? []
@@ -577,6 +580,22 @@ export default function QrForm({
         <div className="mt-2.5">
           <label className={cls.label}>Notes (optional)</label>
           <input className={cls.input} value={notes} onChange={(e) => setNotes(e.target.value)} />
+        </div>
+        <div className="mt-2.5">
+          <label className={cls.label}>Unfurl preview (optional)</label>
+          <select
+            className={cls.input}
+            value={unfurl}
+            onChange={(e) => setUnfurl(e.target.value)}
+          >
+            <option value="">None — plain redirect</option>
+            <option value="cherries">🍒 Cherries (CTF jackpot card)</option>
+          </select>
+          <p className="mt-1 text-xs text-default-400">
+            Shows a social-media preview card when this link is shared (e.g. a CTF
+            flag-award link). Only affects link-preview crawlers; people still
+            redirect instantly.
+          </p>
         </div>
       </div>
 

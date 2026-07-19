@@ -8,8 +8,11 @@
  *
  *   parsePath ─▶ classify ─▶
  *     empty / flush     → notFound()          (nothing to serve here)
+ *     ogimage           → buildOgImage         (bundled unfurl preview PNG)
  *     ctf               → buildCtfHandoff      (forward the guess, never score)
- *     redirect          → getQr → rules → enrich → buildRedirect
+ *     redirect          → getQr → rules → enrich →
+ *         crawler + item.unfurl → buildUnfurl  (OG card, code-free)
+ *         otherwise             → buildRedirect
  *
  * Two properties are load-bearing:
  *
@@ -38,7 +41,20 @@
 import { parsePath } from "./parse-path.mjs";
 import { resolveDestination } from "./rules.mjs";
 import { enrichDestination } from "./enrich.mjs";
-import { buildRedirect, buildCtfHandoff, notFound } from "./respond.mjs";
+import {
+  buildRedirect,
+  buildCtfHandoff,
+  buildUnfurl,
+  buildOgImage,
+  withRegion,
+  notFound,
+} from "./respond.mjs";
+import {
+  resolveTheme,
+  isCrawler,
+  renderUnfurlHtml,
+  loadThemeImageBase64,
+} from "./unfurl.mjs";
 import { redirectLog, ctfHandoffLog, emit } from "./logline.mjs";
 
 /**
@@ -79,6 +95,17 @@ export async function resolve({ path, headers = {}, nowMs }, deps) {
       case "empty":
       case "flush":
         return notFound();
+
+      // Unfurl preview image (`/_og/<theme>.png`): serve the bundled PNG for a
+      // known theme, else 404. Not a scan — never logged. Any load failure
+      // degrades to 404 via the null guard.
+      case "ogimage": {
+        const theme = resolveTheme(parsed.theme);
+        if (!theme) return notFound();
+        const base64 = loadThemeImageBase64(theme);
+        if (!base64) return notFound();
+        return buildOgImage({ base64 });
+      }
 
       // CTF submission: forward the challenge + guess to run.defcon.run, which
       // owns scoring. We NEVER inspect or log the submitted value — the log
@@ -121,6 +148,21 @@ export async function resolve({ path, headers = {}, nowMs }, deps) {
         const destHost = destHostOf(finalDest);
         if (!destHost) {
           return notFound();
+        }
+
+        // Unfurl: a code that opted into a theme (`item.unfurl`) serves an Open-
+        // Graph card — but ONLY to a recognized link-preview crawler. A human
+        // still gets the 302 below, so the shared secret (`v=<CODE>`) can never
+        // leak: the crawler card forwards to the destination BASE (pre-enrich,
+        // region-prefixed, query STRIPPED) and its og:image is a static PNG.
+        // Crawler prefetches are not scans → NOT logged.
+        const theme = item.unfurl ? resolveTheme(item.unfurl) : null;
+        if (theme && isCrawler(headers["user-agent"] || "")) {
+          const html = renderUnfurlHtml({
+            theme,
+            forwardUrl: withRegion(destination),
+          });
+          return buildUnfurl({ html });
         }
 
         log(

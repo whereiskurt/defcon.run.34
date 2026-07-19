@@ -147,6 +147,8 @@ export interface QrInput {
   enabled?: boolean;
   owner?: string;
   notes?: string;
+  /** Opt-in social-preview theme (e.g. "cherries"); empty → plain 302. */
+  unfurl?: string;
 }
 
 export interface CtfInput {
@@ -424,6 +426,7 @@ export function qrAttributes(input: QrInput) {
     enabled: input.enabled ?? true,
     owner: input.owner ?? "",
     notes: input.notes ?? "",
+    unfurl: (input.unfurl ?? "").trim().toLowerCase(),
   };
 }
 
