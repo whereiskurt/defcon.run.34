@@ -1,0 +1,130 @@
+<!doctype html>
+<!--
+  bib-card.src.html — source for bib-card.png, the b.defcon.run unfurl card.
+
+  1200x630. Deliberately a screenshot-of-the-product card: the same surface the
+  bib site draws (dark #0a0a0f, teal #00d4aa, MuseoModerno wordmark, Vegas map
+  wash + fractal noise) with a BLANK bib — the exact empty state run.bib shows
+  before you type a name — the 1337 placeholder, no name, no QR. The bib SVG
+  is a faithful copy of apps/run.bib/webapp/src/components/BibPreview.tsx
+  (viewBox 0 0 960 700, same coordinates); bib-dc34-logo.png / bib-smiley.png
+  are that component's DC34_LOGO_DATA_URI / DC34_SMILEY_DATA_URI decoded to
+  files, and bib-vegas.webp is run.bib's public/bg/vegas-z10.webp.
+
+  Render (see project_donate_vanity_subdomain memory — --force-device-scale-factor=1
+  is REQUIRED or you get a 2400x1260 retina image):
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1200,630 --screenshot=bib-card.png "file://$PWD/bib-card.src.html"
+    sips -g pixelWidth -g pixelHeight bib-card.png   # must read 1200 x 630
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Get Your Bib — DEF CON 34</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0a0f; --ink:#e4e4ef; --muted:#a4a4b8; --faint:#8f8fa8;
+    --teal:#00d4aa; --mint:#6ccdb8; --border:#2a2a3a; --surface:#111118;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;position:relative}
+
+  /* run.bib's parallax Vegas map wash (MapBackground defaults: z10, 15%) */
+  .map{position:absolute;inset:0;background:url(bib-vegas.webp) center/cover no-repeat;
+       opacity:.10;filter:brightness(1.35) contrast(1.15) saturate(.7);transform:scale(1.15)}
+  /* scrim: keeps the map a texture, not a legible street map behind the copy */
+  .scrim{position:absolute;inset:0;background:
+    linear-gradient(90deg,rgba(10,10,15,.94) 0%,rgba(10,10,15,.72) 46%,rgba(10,10,15,.55) 100%)}
+  /* run.bib's fractal-noise overlay (globals.css) */
+  .noise{position:absolute;inset:0;opacity:.03;background-size:256px 256px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .glow{position:absolute;inset:0;background:
+    radial-gradient(52% 62% at 8% 6%,rgba(0,212,170,.16),transparent 62%),
+    radial-gradient(60% 70% at 96% 96%,rgba(0,212,170,.10),transparent 60%)}
+
+  .stage{position:relative;z-index:2;height:100%;display:flex;align-items:center;
+         gap:36px;padding:52px 56px}
+
+  .left{width:566px;display:flex;flex-direction:column;gap:18px}
+  .wordmark{font-family:MuseoModerno,Inter,sans-serif;font-weight:700;font-size:38px;
+            letter-spacing:-.02em;line-height:1}
+  .wordmark .dot{color:var(--teal)}
+  .kick{font-size:14px;font-weight:800;letter-spacing:.30em;color:var(--teal)}
+  h1{font-size:78px;font-weight:800;line-height:.94;letter-spacing:-.03em}
+  h1 em{font-style:normal;color:var(--teal)}
+  .sub{font-size:23px;line-height:1.4;color:var(--muted);max-width:520px}
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:2px}
+  .chip{border:1px solid var(--border);background:rgba(17,17,24,.8);border-radius:999px;
+        padding:9px 16px;font-size:15px;font-weight:600;color:var(--ink)}
+  .chip.on{border-color:rgba(0,212,170,.55);color:var(--teal);box-shadow:0 0 24px rgba(0,212,170,.10)}
+  .host{margin-top:6px;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+        font-size:17px;letter-spacing:.06em;color:var(--faint)}
+  .host b{color:var(--mint);font-weight:600}
+
+  .right{flex:1;display:flex;align-items:center;justify-content:center}
+  .bib{width:520px;filter:drop-shadow(0 22px 44px rgba(0,0,0,.65))
+       drop-shadow(0 0 44px rgba(0,212,170,.16));transform:rotate(-2.2deg)}
+</style>
+</head>
+<body>
+  <div class="map"></div><div class="scrim"></div><div class="noise"></div><div class="glow"></div>
+
+  <div class="stage">
+    <div class="left">
+      <div class="wordmark">defcon<span class="dot">.</span>run</div>
+      <div class="kick">DEF CON 34 · LAS VEGAS</div>
+      <h1>GET YOUR<br><em>BIB</em></h1>
+      <div class="sub">Pick your number. Print your name.<br>Pin it on and run Vegas.</div>
+      <div class="chips">
+        <span class="chip on">FREE daily event</span>
+        <span class="chip">Chip in if you can</span>
+      </div>
+      <div class="host">→ <b>b.defcon.run</b></div>
+    </div>
+
+    <div class="right">
+      <!-- Faithful copy of BibPreview.tsx in its blank state (no name, no
+           stub QR, no rubber stamp — those only appear once you save). -->
+      <svg class="bib" viewBox="0 0 960 700"
+           font-family="'Arial Black','Arial Narrow',Helvetica,Arial,sans-serif"
+           role="img" aria-label="Blank DEF CON 34 race bib">
+        <rect x="4" y="4" width="952" height="692" rx="16" fill="#fff" stroke="#c8ccd4" stroke-width="3"/>
+
+        <image href="bib-dc34-logo.png" x="80" y="14" width="800" height="112"
+               preserveAspectRatio="xMidYMid meet"/>
+
+        <circle cx="70"  cy="72" r="9" fill="#fff" stroke="#000" stroke-width="2.5"/>
+        <circle cx="890" cy="72" r="9" fill="#fff" stroke="#000" stroke-width="2.5"/>
+
+        <rect x="52" y="140" width="856" height="336" rx="6" fill="#000"/>
+        <image href="bib-smiley.png" x="76"  y="160" width="70" height="70"/>
+        <image href="bib-smiley.png" x="814" y="386" width="70" height="70"/>
+
+        <!-- blank state: the 1337 placeholder, no name typed yet -->
+        <text x="480" y="308" text-anchor="middle" dominant-baseline="middle"
+              font-size="248" font-weight="900" letter-spacing="-6" fill="#fff">1337</text>
+
+        <circle cx="70"  cy="508" r="9" fill="#fff" stroke="#000" stroke-width="2.5"/>
+        <circle cx="890" cy="508" r="9" fill="#fff" stroke="#000" stroke-width="2.5"/>
+
+        <line x1="24" y1="578" x2="936" y2="578" stroke="#000" stroke-width="1.5" stroke-dasharray="7 7"/>
+        <line x1="480" y1="582" x2="480" y2="688" stroke="#000" stroke-width="1.5" stroke-dasharray="7 7"/>
+
+        <image href="bib-smiley.png" x="44" y="598" width="72" height="72"/>
+        <rect x="360" y="612" width="96" height="48" rx="6" fill="#000"/>
+        <text x="408" y="646" text-anchor="middle" font-size="34" font-weight="900" fill="#fff">1337</text>
+
+        <image href="bib-smiley.png" x="504" y="598" width="72" height="72"/>
+        <rect x="820" y="612" width="96" height="48" rx="6" fill="#000"/>
+        <text x="868" y="646" text-anchor="middle" font-size="34" font-weight="900" fill="#fff">1337</text>
+
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

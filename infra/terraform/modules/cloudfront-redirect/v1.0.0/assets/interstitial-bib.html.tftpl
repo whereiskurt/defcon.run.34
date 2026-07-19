@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${og_title}</title>
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="defcon.run">
+<meta property="og:url" content="${page_url}">
+<meta property="og:title" content="${og_title}">
+<meta property="og:description" content="${og_description}">
+<meta property="og:image" content="${og_image}">
+<meta property="og:image:secure_url" content="${og_image}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${og_title}">
+<meta name="twitter:description" content="${og_description}">
+<meta name="twitter:image" content="${og_image}">
+
+<!-- Bib splash: a blank race bib whose number spins up to 1337, then we go.
+     Same deliberate ~1.6s beat as the other splashes (so the tab title reads
+     the og_title, not the destination). meta-refresh is the no-JS fallback,
+     set long enough that it never preempts the JS navigation.
+     NOTE (terraform templatefile): a percent sign immediately followed by an
+     open brace is read as a control directive, so CSS percent keyframe
+     selectors must double the percent sign. This splash uses
+     from/to keyframes to sidestep it entirely — including in this comment,
+     which terraform also parses. -->
+<meta http-equiv="refresh" content="4;url=${target_url}">
+<link rel="canonical" href="${target_url}">
+<style>
+  :root{ --bg:#0a0a0f; --ink:#e4e4ef; --muted:#a4a4b8; --teal:#00d4aa; --mint:#6ccdb8; --border:#2a2a3a; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    background:var(--bg); color:var(--ink); overflow:hidden;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; align-items:center; justify-content:center; text-align:center;
+  }
+  .glow{position:fixed;inset:0;background:
+    radial-gradient(55% 60% at 12% 4%,rgba(0,212,170,.16),transparent 62%),
+    radial-gradient(60% 70% at 94% 98%,rgba(0,212,170,.10),transparent 60%);}
+  .noise{position:fixed;inset:0;opacity:.03;background-size:256px 256px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .wrap{position:relative;z-index:2;padding:24px;max-width:560px;width:100%}
+
+  .mark{font-size:clamp(22px,6vw,30px);font-weight:800;letter-spacing:-.02em}
+  .mark .dot{color:var(--teal)}
+  .kick{margin-top:6px;font-size:clamp(10px,2.8vw,12px);font-weight:800;
+    letter-spacing:.30em;color:var(--teal)}
+
+  /* blank race bib, same proportions as the real one (960x700 art board) */
+  .bib{margin:22px auto 0;width:min(360px,86vw);aspect-ratio:960/700;background:#fff;
+    border:3px solid #c8ccd4;border-radius:16px;position:relative;
+    box-shadow:0 20px 40px rgba(0,0,0,.6),0 0 44px rgba(0,212,170,.14);
+    transform:rotate(-2deg)}
+  .hole{position:absolute;width:5.5%;aspect-ratio:1;border:2px solid #000;border-radius:50%;background:#fff}
+  .h1{left:5%;top:7%} .h2{right:5%;top:7%} .h3{left:5%;top:69%} .h4{right:5%;top:69%}
+  .num{position:absolute;left:5.4%;right:5.4%;top:20%;height:48%;background:#000;border-radius:6px;
+    display:flex;align-items:center;justify-content:center}
+  .num span{font-family:"Arial Black",Impact,sans-serif;font-weight:900;color:#fff;
+    font-size:min(20vw,84px);letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+  .perf{position:absolute;left:2.5%;right:2.5%;top:82.5%;border-top:2px dashed #000}
+  .perf2{position:absolute;left:50%;top:83%;bottom:2%;border-left:2px dashed #000}
+  .stub{position:absolute;top:87.5%;width:10%;height:7%;background:#000;border-radius:4px}
+  .s1{left:37.5%} .s2{left:85.4%}
+
+  .load{margin-top:20px;font-size:clamp(12px,3.4vw,14px);letter-spacing:.18em;color:var(--muted)}
+  .bar{margin:12px auto 0;width:min(340px,80vw);height:8px;border:1px solid var(--border);
+    border-radius:6px;overflow:hidden;background:rgba(17,17,24,.9)}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--teal),var(--mint));
+    box-shadow:0 0 14px rgba(0,212,170,.6);animation:fill 1.5s ease-out forwards}
+  @keyframes fill{to{width:100%}}
+  .foot{margin-top:18px;font-size:12px;letter-spacing:.12em;color:#8f8fa8}
+  .foot a{color:var(--teal);text-decoration:none}
+  @media (prefers-reduced-motion:reduce){.bar>i{animation:none;width:100%}}
+</style>
+</head>
+<body>
+  <div class="glow"></div><div class="noise"></div>
+  <div class="wrap">
+    <div class="mark">defcon<span class="dot">.</span>run</div>
+    <div class="kick">DEF CON 34 &middot; LAS VEGAS</div>
+
+    <div class="bib">
+      <i class="hole h1"></i><i class="hole h2"></i><i class="hole h3"></i><i class="hole h4"></i>
+      <div class="num"><span id="n">0000</span></div>
+      <div class="perf"></div><div class="perf2"></div>
+      <i class="stub s1"></i><i class="stub s2"></i>
+    </div>
+
+    <div class="load">ASSIGNING YOUR BIB&hellip;</div>
+    <div class="bar"><i></i></div>
+    <div class="foot"><a href="${target_url}">skip &rsaquo;</a> &nbsp;&middot;&nbsp; bib.defcon.run</div>
+  </div>
+<script>
+  // Spin the number up to the 1337 placeholder over the splash beat, then go.
+  var TARGET = ${target_url_json};
+  var el = document.getElementById("n");
+  var t0 = Date.now();
+  var spin = setInterval(function () {
+    var p = Math.min(1, (Date.now() - t0) / 1300);
+    el.textContent = p < 1
+      ? String(Math.floor(Math.random() * 9000) + 1000)
+      : "1337";
+    if (p >= 1) clearInterval(spin);
+  }, 60);
+  setTimeout(function () { location.replace(TARGET); }, 1600);
+</script>
+</body>
+</html>

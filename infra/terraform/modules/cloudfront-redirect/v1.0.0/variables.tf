@@ -46,7 +46,9 @@ variable "redirects" {
 
     splash_style selects the interstitial splash template: "hackers" (default) =
     the movie-marquee splash (interstitial.html.tftpl); "countdown" = an electronic
-    boot splash with a visible 5s countdown (interstitial-countdown.html.tftpl).
+    boot splash with a visible 5s countdown (interstitial-countdown.html.tftpl);
+    "bib" = the race-bib splash used by b.defcon.run (interstitial-bib.html.tftpl).
+    Unknown values fall back to the hackers splash.
 
     covert_v (optional): when set, the countdown splash fires a fire-and-forget
     CTF covert hit to run.human's /use1/assets/theme?v=<covert_v> on load, so a

@@ -55,5 +55,20 @@
       "image": "https://donate.defcon.run/donate-card.png",
       "image_file": "donate-card.png"
     }
+  },
+  {
+    "host": "b",
+    "target_host": "q.defcon.run",
+    "target_path": "/b",
+    "target_query": "",
+    "status_code": "HTTP_302",
+    "priority": 94,
+    "splash_style": "bib",
+    "og": {
+      "title": "Get Your Bib — DEF CON 34",
+      "description": "Claim your race bib for defcon.run 34. Pick your number, print your name, run Las Vegas. An official DEF CON 34 event.",
+      "image": "https://b.defcon.run/bib-card.png",
+      "image_file": "bib-card.png"
+    }
   }
 ]
