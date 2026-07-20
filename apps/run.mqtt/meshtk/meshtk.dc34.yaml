@@ -1,10 +1,10 @@
 NodeDbPath: "./nodes.dc34.json"
 LogFolder: "logs/"
 
-# A/B experiment (2026-07-19): "off" = fleets send NO acks for PKI DMs, so the
-# radio exhausts retransmissions. Tests whether our acks confuse the device.
-# Flip to "faithful" (firmware-shaped acks) once the experiment concludes.
-AckMode: "off"
+# A/B result (2026-07-20): AckMode=off changed nothing device-side -- acks
+# exonerated. "faithful" = firmware-exact ack shape (hop_start set, no
+# fabricated rx metadata, no sender-stamped via_mqtt).
+AckMode: "faithful"
 
 Mqtt:
   BrokerUri: "tcp://localhost:1884"
