@@ -1,39 +1,105 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useCopy } from "@/components/CopyProvider";
+
+// Loop guard. /signin auto-redirects to the IdP, and next-auth routes any
+// interactive auth error back to /signin?error=… (and the silent bridge, on a
+// top-level error, bounces here with the error preserved). Without a guard the
+// auto-redirect re-fires immediately → authorize → error → /signin → … which
+// the browser reports as "too many redirects, clear your cookies". So: ONE
+// automatic attempt, then — if we just errored or already tried moments ago —
+// stop and let the user retry by hand instead of looping.
+const ATTEMPT_KEY = "dc_signin_attempt";
+const ATTEMPT_WINDOW_MS = 15000;
 
 export default function SignInPage() {
   const { t } = useCopy();
-  useEffect(() => {
-    // Get region from URL path (e.g., /use1/signin -> use1)
-    // In production, the path is /{region}/signin, so pathParts[0] is the region
-    // In local dev, the path is just /signin, so there's no region prefix
-    const pathParts = window.location.pathname.split('/').filter(Boolean);
+  const [needsManual, setNeedsManual] = useState(false);
 
-    // Check if first segment looks like a region (use1, cac1, etc.) vs a route (signin)
-    const firstSegment = pathParts[0] || '';
+  const buildCallbackUrl = () => {
+    // Get region from URL path (e.g., /use1/signin -> use1). In production the
+    // path is /{region}/signin; in local dev it is just /signin (no prefix).
+    const pathParts = window.location.pathname.split("/").filter(Boolean);
+    const firstSegment = pathParts[0] || "";
     const isRegion = /^(use1|cac1|usw2|euw1|apse1)$/.test(firstSegment);
-    const region = isRegion ? firstSegment : '';
+    const region = isRegion ? firstSegment : "";
+    return region ? `/${region}/orderform` : "/orderform";
+  };
 
-    // Build callback URL with region prefix
-    // In production: /use1/, in dev: /
-    const callbackUrl = region ? `/${region}/orderform` : "/orderform";
+  const startSignIn = () => {
+    try {
+      sessionStorage.setItem(ATTEMPT_KEY, String(Date.now()));
+    } catch {
+      // sessionStorage can throw (Safari private mode); the error param is still
+      // a hard stop, so a missing marker only costs the "recently tried" arm.
+    }
+    signIn("run.defcon.run", { callbackUrl: buildCallbackUrl() });
+  };
 
-    // Auto-redirect to OIDC provider
-    signIn("run.defcon.run", { callbackUrl });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hasError = params.has("error");
+
+    let lastAttempt = 0;
+    try {
+      lastAttempt = Number(sessionStorage.getItem(ATTEMPT_KEY) || 0);
+    } catch {
+      lastAttempt = 0;
+    }
+    const recentlyAttempted = Date.now() - lastAttempt < ATTEMPT_WINDOW_MS;
+
+    // Bounced back from an error, or already auto-tried within the window ->
+    // break the loop and show a manual retry instead of redirecting again.
+    if (hasError || recentlyAttempted) {
+      setNeedsManual(true);
+      return;
+    }
+
+    startSignIn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const wrapStyle = {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "100vh",
+    backgroundColor: "#1a1a1a",
+    color: "#fff",
+  } as const;
+
+  if (needsManual) {
+    return (
+      <div style={wrapStyle}>
+        <div style={{ textAlign: "center", maxWidth: 320, padding: 16 }}>
+          <p style={{ marginBottom: 16 }}>
+            We couldn&apos;t complete sign-in automatically.
+          </p>
+          <button
+            onClick={() => {
+              setNeedsManual(false);
+              startSignIn();
+            }}
+            style={{
+              padding: "10px 20px",
+              borderRadius: 8,
+              border: "1px solid #555",
+              background: "#2a2a2a",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Sign in
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      height: "100vh",
-      backgroundColor: "#1a1a1a",
-      color: "#fff"
-    }}>
+    <div style={wrapStyle}>
       <p>{t("bib.signin.redirecting")}</p>
     </div>
   );
