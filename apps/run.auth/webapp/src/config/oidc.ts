@@ -98,9 +98,17 @@ const clients: ClientMetadata[] = [
       `https://gpx.${siteDomain}/api/auth/callback/run.${siteDomain}`,
       `https://gpx.${siteDomain}/use1/api/auth/callback/run.${siteDomain}`,
       `https://gpx.${siteDomain}/cac1/api/auth/callback/run.${siteDomain}`,
+      // Silent-SSO instance callbacks — the prompt=none hidden-iframe probe runs
+      // as a SECOND Auth.js instance under /api/silent-auth with its own
+      // (namespaced) state/pkce/nonce cookies so it can never clobber the
+      // interactive flow's transaction cookies (see run.gpx/webapp/src/config/auth.ts).
+      `https://gpx.${siteDomain}/api/silent-auth/callback/run.${siteDomain}`,
+      `https://gpx.${siteDomain}/use1/api/silent-auth/callback/run.${siteDomain}`,
+      `https://gpx.${siteDomain}/cac1/api/silent-auth/callback/run.${siteDomain}`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
         `http://localhost:${LOCAL_GPX_PORT}/api/auth/callback/run.${siteDomain}`,
+        `http://localhost:${LOCAL_GPX_PORT}/api/silent-auth/callback/run.${siteDomain}`,
       ] : []),
     ],
     post_logout_redirect_uris: [
@@ -128,9 +136,16 @@ const clients: ClientMetadata[] = [
       `https://flash.${siteDomain}/use1/api/auth/callback/run.${siteDomain}`,
       `https://flash.${siteDomain}/cac1/api/auth/callback/run.${siteDomain}`,
       `https://flash.${siteDomain}/apse1/api/auth/callback/run.${siteDomain}`,
+      // Silent-SSO instance callbacks — isolated /api/silent-auth transaction
+      // cookies (see run.flash/webapp/src/config/auth.ts).
+      `https://flash.${siteDomain}/api/silent-auth/callback/run.${siteDomain}`,
+      `https://flash.${siteDomain}/use1/api/silent-auth/callback/run.${siteDomain}`,
+      `https://flash.${siteDomain}/cac1/api/silent-auth/callback/run.${siteDomain}`,
+      `https://flash.${siteDomain}/apse1/api/silent-auth/callback/run.${siteDomain}`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
         `http://localhost:${LOCAL_FLASH_PORT}/api/auth/callback/run.${siteDomain}`,
+        `http://localhost:${LOCAL_FLASH_PORT}/api/silent-auth/callback/run.${siteDomain}`,
       ] : []),
     ],
     post_logout_redirect_uris: [
@@ -159,9 +174,16 @@ const clients: ClientMetadata[] = [
       `https://bib.${siteDomain}/use1/api/auth/callback/run.${siteDomain}`,
       `https://bib.${siteDomain}/cac1/api/auth/callback/run.${siteDomain}`,
       `https://bib.${siteDomain}/apse1/api/auth/callback/run.${siteDomain}`,
+      // Silent-SSO instance callbacks — isolated /api/silent-auth transaction
+      // cookies (see run.bib/webapp/src/config/auth.ts).
+      `https://bib.${siteDomain}/api/silent-auth/callback/run.${siteDomain}`,
+      `https://bib.${siteDomain}/use1/api/silent-auth/callback/run.${siteDomain}`,
+      `https://bib.${siteDomain}/cac1/api/silent-auth/callback/run.${siteDomain}`,
+      `https://bib.${siteDomain}/apse1/api/silent-auth/callback/run.${siteDomain}`,
       // Local development (only in dev mode)
       ...(config.isDev ? [
         `http://localhost:${LOCAL_BIB_PORT}/api/auth/callback/run.${siteDomain}`,
+        `http://localhost:${LOCAL_BIB_PORT}/api/silent-auth/callback/run.${siteDomain}`,
       ] : []),
     ],
     post_logout_redirect_uris: [

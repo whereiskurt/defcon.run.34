@@ -126,10 +126,13 @@ export const authConfig: NextAuthConfig = {
   // Must include region prefix in production since Auth.js doesn't know about Next.js basePath
   pages: {
     signIn: isDev ? "/signin" : `/${region}/signin`,
-    // Route NextAuth's default callback-error redirect to the silent-callback
-    // bridge so a prompt=none negative is captured in-frame; the bridge falls
-    // through to normal sign-in when loaded top-level.
-    error: isDev ? "/silent-callback" : `/${region}/silent-callback`,
+    // Interactive-flow errors land on the loop-guarded /signin page. Routing
+    // them through /silent-callback (as before) caused the top-level
+    // /silent-callback -> /signin -> authorize -> error -> /silent-callback
+    // redirect loop ("too many redirects") on slow/mobile. The SILENT instance
+    // (below) keeps error -> /silent-callback for its framed prompt=none
+    // negatives, where the bridge posts login_required to the parent instead.
+    error: isDev ? "/signin" : `/${region}/signin`,
   },
 
   providers: [
@@ -326,5 +329,76 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   redirectProxyUrl,
   // Secret for JWT encryption - uses AUTH_JWT_SECRET env var (supports rotation via comma-separated list)
+  secret: process.env.AUTH_JWT_SECRET?.split(","),
+});
+
+// ---------------------------------------------------------------------------
+// Silent-SSO instance — isolated transaction cookies (anti-clobber).
+//
+// The hidden-iframe prompt=none probe (see components/SilentSSO.tsx +
+// app/api/auth/silent-signin) runs a SECOND, fully separate Auth.js OAuth
+// transaction against the SAME IdP client. Auth.js keys its transaction cookies
+// (state / pkce / nonce / callback-url) by fixed names, so when the silent
+// probe overlaps an interactive sign-in — routine on slow mobile, where the
+// 4.5s iframe outlives the top-level flow — the two transactions clobber each
+// other's state/pkce cookie. The loser's callback then fails its state check,
+// Auth.js emits an error, and the error feeds the redirect loop. Giving the
+// silent flow its OWN cookie namespace (…_silent) AND its own basePath +
+// callback route means the two transactions can never share a cookie, so they
+// can never clobber — regardless of timing or concurrent tabs.
+//
+// It shares the SAME session cookie (sess_bib), secret, providers, and
+// callbacks as the interactive instance, so a silent success mints an
+// identical, interchangeable session. Its callback URI is registered on the
+// IdP alongside the interactive one (apps/run.auth/webapp/src/config/oidc.ts).
+// ---------------------------------------------------------------------------
+const SILENT_BASE_PATH = "/api/silent-auth";
+const silentRedirectProxyUrl = redirectProxyUrl.replace(
+  /\/api\/auth$/,
+  SILENT_BASE_PATH
+);
+
+const silentTxnCookie = (name: string, maxAge?: number) => ({
+  name,
+  options: {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    path: "/",
+    secure: !isDev,
+    ...(maxAge ? { maxAge } : {}),
+  },
+});
+
+const silentAuthConfig: NextAuthConfig = {
+  ...authConfig,
+  basePath: SILENT_BASE_PATH,
+  redirectProxyUrl: silentRedirectProxyUrl,
+  pages: {
+    signIn: isDev ? "/signin" : `/${region}/signin`,
+    // Silent failures stay in-frame: the bridge posts login_required to the
+    // parent. Only the interactive instance routes errors to /signin.
+    error: isDev ? "/silent-callback" : `/${region}/silent-callback`,
+  },
+  providers: [
+    {
+      ...(authConfig.providers[0] as unknown as Record<string, unknown>),
+      redirectProxyUrl: silentRedirectProxyUrl,
+    },
+  ] as NextAuthConfig["providers"],
+  cookies: {
+    // SAME session cookie -> a silent success is an interactive session.
+    sessionToken: authConfig.cookies!.sessionToken,
+    // Namespaced transaction cookies -> can never clobber the interactive flow.
+    csrfToken: silentTxnCookie("csrf_bib_silent"),
+    callbackUrl: silentTxnCookie("callback_bib_silent"),
+    state: silentTxnCookie("state_bib_silent", 900),
+    pkceCodeVerifier: silentTxnCookie("pkce_bib_silent", 900),
+    nonce: silentTxnCookie("nonce_bib_silent", 900),
+  },
+};
+
+export const { handlers: silentHandlers, signIn: silentSignIn } = NextAuth({
+  ...silentAuthConfig,
+  redirectProxyUrl: silentRedirectProxyUrl,
   secret: process.env.AUTH_JWT_SECRET?.split(","),
 });

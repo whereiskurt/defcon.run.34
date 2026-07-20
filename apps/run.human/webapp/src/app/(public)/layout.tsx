@@ -81,14 +81,24 @@ export default async function PublicLayout({
 }) {
   const session = await auth();
 
-  // Authenticated users can stay on / (welcome page) — no redirect needed
-
   const headersList = await headers();
   const fullUrl = headersList.get("x-url") || headersList.get("referer") || "";
   const isAutoLoginFlow = fullUrl.includes("autoLogin=true");
   const isAutoSigninRoute = fullUrl.includes("/api/auth/auto-signin");
 
-  if (!isAutoLoginFlow && !isAutoSigninRoute) {
+  // Silent-SSO bootstrap: if the browser carries a valid auth.defcon.run session
+  // (sess_auth) but this app has NOT yet minted its own run.human session, kick
+  // the (invisible) OIDC flow once to establish sess_run.
+  //
+  // CRITICAL: gate on `!session`. The redirect MUST NOT fire when the user is
+  // already authenticated here — the previous code keyed only on the sess_auth
+  // cookie and ignored `session`, so every visit to `/` by a logged-in user was
+  // bounced through a full OIDC round-trip (redundant latency, and — if the
+  // freshly-set sess_run failed to persist, e.g. a slow-mobile cookie race — a
+  // `/` -> auto-signin -> OIDC -> `/` redirect loop). Honouring `session` makes
+  // authenticated users stay on `/` (matching the intended "authenticated users
+  // can stay on the welcome page" behaviour) and closes the loop.
+  if (!session && !isAutoLoginFlow && !isAutoSigninRoute) {
     const hasAuth = await hasAuthSession();
     if (hasAuth) {
       console.log("[Silent SSO] Valid auth session found, redirecting to OIDC flow");

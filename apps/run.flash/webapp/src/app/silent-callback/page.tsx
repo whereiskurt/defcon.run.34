@@ -33,8 +33,17 @@ export default function SilentCallbackPage() {
     // Top-level load (e.g. pages.error reached outside the iframe): behave normally
     // by continuing to the sign-in page. resolveRegion is never empty, so this is
     // always region-prefixed — never a region-less /signin (which misroutes).
+    //
+    // Preserve any next-auth `error` param so /signin knows this was a FAILED
+    // attempt and must NOT auto-retry signIn() (which would re-error and bounce
+    // straight back here — the /silent-callback <-> /signin "too many redirects"
+    // loop). /signin's loop guard renders a manual retry instead.
     const region = resolveRegion(window.location.pathname, document.cookie);
-    window.location.replace(`/${region}/signin`);
+    const error = params.get("error");
+    const target = error
+      ? `/${region}/signin?error=${encodeURIComponent(error)}`
+      : `/${region}/signin`;
+    window.location.replace(target);
   }, []);
 
   return (
