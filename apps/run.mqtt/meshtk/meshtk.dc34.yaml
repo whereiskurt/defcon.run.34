@@ -89,10 +89,10 @@ Fleet:
   - Id: "ghost.goldstein"
     Description: "ghost.goldstein"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "6969691f-6969-6969-b383-4dfff4fb382b"
     ShortNameTmpl: "GG{{.nodeId}}"
@@ -138,10 +138,10 @@ Fleet:
   - Id: "ghost.mudge"
     Description: "ghost.mudge"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "1119691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GM{{.nodeId}}"
@@ -187,10 +187,10 @@ Fleet:
   - Id: "ghost.condor"
     Description: "ghost.condor"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "2229691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GC{{.nodeId}}"
@@ -236,10 +236,10 @@ Fleet:
   - Id: "ghost.sharp"
     Description: "ghost.sharp"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "3339691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GS{{.nodeId}}"
@@ -285,10 +285,10 @@ Fleet:
   - Id: "ghost.ladyada"
     Description: "ghost.ladyada"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "4449691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GL{{.nodeId}}"
@@ -334,10 +334,10 @@ Fleet:
   - Id: "ghost.hopper"
     Description: "ghost.hopper"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "5559691f-2345-2323-b383-4efdc4fb382b"
     ShortNameTmpl: "GH{{.nodeId}}"
@@ -383,10 +383,10 @@ Fleet:
   - Id: "ghost.turing"
     Description: "ghost.turing"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "847f4732-5421-1212-b383-4efdc4fb382b"
     ShortNameTmpl: "GT{{.nodeId}}"
@@ -432,10 +432,10 @@ Fleet:
   - Id: "ghost.gibson"
     Description: "ghost.gibson"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "aabbccdd-5421-1212-b383-4efdc4fb382b"
     ShortNameTmpl: "GI{{.nodeId}}"
@@ -481,10 +481,10 @@ Fleet:
   - Id: "ghost.ricky"
     Description: "ghost.ricky"
     BehaviourTag: ["nodeinfo", "position", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "efc432ab-4391-1212-efc3-1234c4fb382b"
     ShortNameTmpl: "GR{{.nodeId}}"
@@ -521,10 +521,10 @@ Fleet:
   - Id: "ghost.dt"
     Description: "ghost.dt"
     BehaviourTag: ["nodeinfo", "movement", "gitter", "chatbot"]
-    BehaviourSecs: 30
+    BehaviourSecs: 15
     # Chatbot ghosts keep positions every tic (30s) so they show on the map
     # reliably; only the rabbit cover-traffic sims are thinned to 90s.
-    MovementEveryTics: 1
+    MovementEveryTics: 2
     RampSteadySecs: 2419200
     Seed: "d7d7d7d7-1dc3-4a11-b383-000000000010"
     ShortNameTmpl: "DT{{.nodeId}}"
