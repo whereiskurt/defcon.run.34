@@ -10,7 +10,9 @@ import { auth } from "@/config/auth";
  *
  * Whitelist:
  *   /signin, /access-denied           — needed to run the login flow itself
- *   /api/auth/*                       — Auth.js internal handlers
+ *   /silent-callback                  — silent-SSO iframe bridge (posts outcome to parent)
+ *   /api/auth/*                       — Auth.js internal handlers (interactive instance)
+ *   /api/silent-auth/*                — Auth.js silent-SSO instance (its callback mints the session)
  *   /api/health                       — load balancer / ALB health checks
  *   /api/stripe/webhook               — Stripe callbacks (no session cookie; HMAC-verified via whsec_*)
  *
@@ -46,7 +48,8 @@ export default auth((req) => {
   // src/app/api/auth/[...nextauth]/route.ts serves both URLs).
   if (
     REGION_BASEPATH &&
-    pathname.startsWith("/api/auth/") &&
+    (pathname.startsWith("/api/auth/") ||
+      pathname.startsWith("/api/silent-auth/")) &&
     !pathname.startsWith(REGION_BASEPATH)
   ) {
     const rewriteUrl = req.nextUrl.clone();
@@ -66,8 +69,17 @@ export default auth((req) => {
   const isWhitelisted =
     relPath === "/signin" ||
     relPath === "/access-denied" ||
+    // Bridge page: the prompt=none iframe lands here to postMessage its
+    // outcome. On login_required the request is unauthenticated by
+    // definition — gating it starves the parent of the message and forces
+    // every silent probe into the 4.5s timeout fallback.
+    relPath === "/silent-callback" ||
     relPath.startsWith("/api/auth/") ||
     relPath === "/api/auth" ||
+    // Isolated silent-SSO Auth.js instance (config/auth.ts). Its OAuth
+    // callback mints the session, so it can never carry one on the way in.
+    relPath.startsWith("/api/silent-auth/") ||
+    relPath === "/api/silent-auth" ||
     relPath === "/api/health" ||
     relPath === "/api/stripe/webhook";
 
