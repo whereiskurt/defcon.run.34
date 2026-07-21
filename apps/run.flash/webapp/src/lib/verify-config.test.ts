@@ -2,9 +2,31 @@ import { describe, it, expect } from "vitest";
 import {
   compareMqttConfig,
   verifyMqttConfig,
+  formatMqttAddress,
   type MqttVerifyExpectation,
   type MqttReadbackDevice,
 } from "./verify-config";
+
+describe("formatMqttAddress", () => {
+  it("appends the explicit port to a bare hostname", () => {
+    expect(formatMqttAddress("mqtt.defcon.run", 4433)).toBe(
+      "mqtt.defcon.run:4433"
+    );
+  });
+
+  it("leaves an address that already carries a port untouched", () => {
+    expect(formatMqttAddress("mqtt.defcon.run:8883", 4433)).toBe(
+      "mqtt.defcon.run:8883"
+    );
+  });
+
+  it("returns the bare server when the port is missing or invalid", () => {
+    expect(formatMqttAddress("mqtt.defcon.run", 0)).toBe("mqtt.defcon.run");
+    expect(formatMqttAddress("mqtt.defcon.run", NaN)).toBe("mqtt.defcon.run");
+    expect(formatMqttAddress("mqtt.defcon.run", -1)).toBe("mqtt.defcon.run");
+    expect(formatMqttAddress("mqtt.defcon.run", 4433.5)).toBe("mqtt.defcon.run");
+  });
+});
 
 const expected: MqttVerifyExpectation = {
   username: "49c83c904836",

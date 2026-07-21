@@ -128,7 +128,7 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           <div className="flex items-center justify-between text-sm">
             <span className="text-default-500">{t("flash.done.mqttServer")}</span>
             <span className="font-mono text-foreground">
-              {configPayload.mqtt.server}
+              {configPayload.mqtt.server}:{configPayload.mqtt.port}
             </span>
           </div>
           <div className="border-t border-default-200/10" />

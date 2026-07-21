@@ -12,7 +12,7 @@ import { create } from "@bufbuild/protobuf";
 import { buildRingtoneAdminMessageBytes } from "@/lib/ringtone-admin";
 import { isValidRtttl } from "@/lib/rtttl";
 import { buildShortName, clampLongName } from "@/lib/identity";
-import { verifyMqttConfig } from "@/lib/verify-config";
+import { formatMqttAddress, verifyMqttConfig } from "@/lib/verify-config";
 
 /** Info captured during configure handshake for auto-registration */
 export type DeviceRegistrationInfo = {
@@ -303,12 +303,16 @@ export async function pushDeviceConfig(
 
   // 2. MQTT Config (ModuleConfig)
   console.log("[meshtastic] Pushing MQTT config...");
+  // Explicit host:port — firmware and each phone app's client proxy fall back
+  // to different implicit defaults on a bare hostname; writing the port (4433,
+  // the firmware TLS default, which the NLB listens on) removes the ambiguity.
+  const mqttAddress = formatMqttAddress(config.mqtt.server, config.mqtt.port);
   const mqttConfig = create(Protobuf.ModuleConfig.ModuleConfigSchema, {
     payloadVariant: {
       case: "mqtt" as const,
       value: create(Protobuf.ModuleConfig.ModuleConfig_MQTTConfigSchema, {
         enabled: true,
-        address: config.mqtt.server,
+        address: mqttAddress,
         username: config.mqtt.username,
         password: config.mqtt.password,
         tlsEnabled: config.mqtt.tls,
@@ -336,7 +340,7 @@ export async function pushDeviceConfig(
   });
   await device.setModuleConfig(mqttConfig);
   console.log("[meshtastic] MQTT config applied");
-  onStageComplete("mqtt", config.mqtt.server);
+  onStageComplete("mqtt", mqttAddress);
 
   // 3. Channel Config
   console.log("[meshtastic] Pushing channel config...");
@@ -451,7 +455,7 @@ export async function pushDeviceConfig(
   // region: hard-fail only on a positively read mismatch.
   const mqtt = await verifyMqttConfig(device, {
     username: config.mqtt.username,
-    address: config.mqtt.server,
+    address: mqttAddress,
     root: config.mqtt.root,
     enabled: true,
   });

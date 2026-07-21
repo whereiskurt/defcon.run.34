@@ -44,6 +44,21 @@ export interface MqttReadbackDevice {
   getModuleConfig(moduleConfigType: number): Promise<number>;
 }
 
+/**
+ * Build the MQTT address string the device stores: "host:port".
+ *
+ * The firmware and each phone app's client proxy fall back to DIFFERENT
+ * implicit defaults when the address carries no port — writing it explicitly
+ * (4433, the Meshtastic firmware TLS default, which the NLB listens on)
+ * removes that ambiguity. A server that already carries a port is passed
+ * through; a missing/invalid port yields the bare server.
+ */
+export function formatMqttAddress(server: string, port: number): string {
+  if (server.includes(":")) return server;
+  if (!Number.isInteger(port) || port <= 0) return server;
+  return `${server}:${port}`;
+}
+
 export type MqttVerifyResult =
   | { status: "verified" }
   | { status: "mismatch"; mismatches: string[] }
