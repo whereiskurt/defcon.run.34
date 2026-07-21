@@ -3,9 +3,13 @@
  *
  * fetchStravaActivities() lists the runner's last-7-days activities for the
  * bottom strip; importStravaActivity() imports ONE tapped activity tagged to a
- * con day and lands it on the map exactly the way the Upload door does. The
- * old all-at-once logRunFromStrava() is retired — the QuickStart hub button now
- * just opens the strip.
+ * con day. Since UAT round 3 fix B, the client no longer lands it as a second,
+ * editable gpx-studio file — the strip presents the import via the My DEF CON
+ * Runs layer instead (`revealConRun`/`myConRunsReveal`). landCloudFileOnMap()
+ * below is kept exported (no current callers) for any future My Maps
+ * open-file flow that needs the same landing chain the Upload door used.
+ * The old all-at-once logRunFromStrava() is retired — the QuickStart hub
+ * button now just opens the strip.
  */
 
 import { parseGPX } from 'gpx';
@@ -87,7 +91,11 @@ export async function landCloudFileOnMap(descriptor: {
     boundsManager.fitBoundsOnLoad(ids);
 }
 
-/** Import ONE tapped activity into `conDay`, then render it on the map. */
+/** Import ONE tapped activity into `conDay`. The server creates the cloud file
+ * (unchanged); the client no longer lands it as a second, editable gpx-studio
+ * file (UAT round 3 fix B) — the caller (StravaStrip) presents it via the My
+ * DEF CON Runs layer instead (`revealConRun`/`myConRunsReveal`), so a
+ * con-day-tagged import shows exactly one representation on the map, not two. */
 export async function importStravaActivity(
     activityId: number,
     conDay: string
@@ -103,7 +111,6 @@ export async function importStravaActivity(
         file: { fileId: string; fileName: string };
         conDayRemaining: number;
     };
-    await landCloudFileOnMap(data.file);
     return { ...data.file, conDayRemaining: data.conDayRemaining };
 }
 
