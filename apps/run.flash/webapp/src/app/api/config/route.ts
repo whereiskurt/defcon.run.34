@@ -1,5 +1,6 @@
 import { auth } from "@/config/auth";
 import { meshtasticConfig, resolveRingtone } from "@/config/meshtastic";
+import { buildIdentity } from "@/lib/identity";
 import { NextResponse } from "next/server";
 import type { DeviceConfigPayload } from "@/types/config";
 
@@ -52,12 +53,16 @@ export async function GET() {
       user = { displayName: null, mqttUsername: "dev_user", mqttPassword: "dev_pass", mqttUsertype: "rabbit", ringtone: null };
     }
 
-    // Identity: prefer RunUser.displayName, fall back to session name, then generated
-    const longName =
-      user?.displayName ||
-      session.user.name ||
-      `DCR34_${session.user.id.slice(0, 4)}`;
-    const shortName = longName.slice(0, 4).toUpperCase();
+    // Identity: prefer RunUser.displayName, fall back to session name, then
+    // generated. buildIdentity clamps to the firmware BYTE limits (39/4) on
+    // code-point boundaries — an over-long long_name fails nanopb decode on
+    // the device (silently dropping the whole owner write), and a byte-split
+    // shortName renders as garbage.
+    const { longName, shortName } = buildIdentity({
+      displayName: user?.displayName,
+      sessionName: session.user.name,
+      userId: session.user.id,
+    });
 
     // MQTT credentials from RunUser profile
     const mqttUsername = user?.mqttUsername || "";

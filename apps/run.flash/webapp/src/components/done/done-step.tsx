@@ -128,7 +128,19 @@ export function DoneStep({ device, configPayload, registrationStatus, onRetryReg
           <div className="flex items-center justify-between text-sm">
             <span className="text-default-500">{t("flash.done.mqttServer")}</span>
             <span className="font-mono text-foreground">
-              {configPayload.mqtt.server}
+              {configPayload.mqtt.server}:{configPayload.mqtt.port}
+            </span>
+          </div>
+          <div className="border-t border-default-200/10" />
+
+          {/* The one field a runner can cross-check in the Meshtastic phone app
+              (MQTT module settings) to catch a radio that kept stale creds. */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-default-500" title={t("flash.done.mqttUserHint")}>
+              {t("flash.done.mqttUser")}
+            </span>
+            <span className="font-mono text-foreground">
+              {configPayload.mqtt.username}
             </span>
           </div>
           <div className="border-t border-default-200/10" />
