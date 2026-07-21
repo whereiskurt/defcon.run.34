@@ -29,6 +29,10 @@ export interface StripActivity {
     movingTimeSeconds: number;
     summaryPolyline: string;
     imported: boolean;
+    // Present only when `imported` — `conDay` is a date string once tagged, or
+    // null for an untagged import (server: fileId?: string; conDay?: string | null).
+    fileId?: string;
+    conDay?: string | null;
 }
 
 /** A call that failed with a user-presentable message (quota, cap, not-linked…). */
@@ -101,4 +105,27 @@ export async function importStravaActivity(
     };
     await landCloudFileOnMap(data.file);
     return { ...data.file, conDayRemaining: data.conDayRemaining };
+}
+
+/**
+ * Header "Sync now" action — imports the runner's last 7 days UNTAGGED,
+ * capped at 2/day (see /api/gpx/strava/sync-now). A 429 at the cap surfaces
+ * its `.message` via the shared throwFromResponse idiom.
+ */
+export async function syncNowStrava(): Promise<{
+    imported: number;
+    skipped: number;
+    remainingToday: number;
+}> {
+    const response = await fetch(`${getApiBase()}/strava/sync-now`, {
+        method: 'POST',
+        credentials: 'include',
+    });
+    if (!response.ok) await throwFromResponse(response, 'Strava sync failed');
+    const data = (await response.json()) as {
+        imported: number;
+        skipped: number;
+        remainingToday: number;
+    };
+    return data;
 }
