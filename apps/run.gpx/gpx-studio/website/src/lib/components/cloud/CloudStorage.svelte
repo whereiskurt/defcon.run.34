@@ -27,8 +27,10 @@
         Download,
         Footprints,
         Map as MapIcon,
+        CalendarCheck,
     } from '@lucide/svelte';
     import ShareDialog from './ShareDialog.svelte';
+    import ConDaySaveDialog from './ConDaySaveDialog.svelte';
     import {
         cloudFiles,
         cloudFolders,
@@ -71,6 +73,9 @@
     // Share dialog state
     let shareDialogOpen = false;
     let fileToShare: CloudFile | null = null;
+
+    // Con-day save dialog state (Task 10)
+    let conDayDialogFile: CloudFile | null = null;
 
     // Version history state
     let fileVersions: FileVersion[] = [];
@@ -792,6 +797,17 @@
                                             >
                                                 <Share2 class="h-3.5 w-3.5" />
                                             </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                class="h-7 w-7"
+                                                onclick={() => (conDayDialogFile = file)}
+                                                disabled={loading}
+                                                title="Save as defcon.run Activity"
+                                                aria-label="Save as defcon.run Activity"
+                                            >
+                                                <CalendarCheck class="h-3.5 w-3.5" />
+                                            </Button>
                                             {#if (file.versionCount || 1) > 1}
                                                 <DropdownMenu.Root onOpenChange={(isOpen) => { if (isOpen) fetchVersionHistory(file); }}>
                                                     <DropdownMenu.Trigger
@@ -881,3 +897,15 @@
 </Dialog.Root>
 
 <ShareDialog bind:open={shareDialogOpen} file={fileToShare} onSubmitChange={refreshFiles} />
+
+{#if conDayDialogFile}
+    <ConDaySaveDialog
+        file={conDayDialogFile}
+        open={true}
+        onClose={() => (conDayDialogFile = null)}
+        onSaved={() => {
+            conDayDialogFile = null;
+            void refreshFiles();
+        }}
+    />
+{/if}
