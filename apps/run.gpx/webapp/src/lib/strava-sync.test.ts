@@ -1,5 +1,13 @@
-import { describe, it, expect } from "vitest";
-import { dedupeActivities } from "./strava-sync";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import {
+  dedupeActivities,
+  listActivitiesSince,
+  toStripActivities,
+  type StravaActivity,
+} from "./strava-sync";
+
+// logEvent is fire-and-forget telemetry; silence it so fetch mocks stay clean.
+vi.mock("./log-event", () => ({ logEvent: vi.fn() }));
 
 /**
  * Unit coverage for the dedupe seam of the per-user Strava sync (Phase 61).
@@ -51,5 +59,84 @@ describe("dedupeActivities", () => {
     const { fresh, skipped } = dedupeActivities([], new Set(["1"]));
     expect(fresh).toEqual([]);
     expect(skipped).toBe(0);
+  });
+});
+
+function stravaResponse(body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "X-RateLimit-Usage": "1,10",
+      "X-RateLimit-Limit": "200,2000",
+    },
+  });
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("listActivitiesSince", () => {
+  it("passes the after param and paginates until a short page", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        calls.push(String(url));
+        // First page full (50), second page short (1) → stop after 2 calls.
+        const page = calls.length === 1 ? Array.from({ length: 50 }, (_, i) => ({ id: i })) : [{ id: 999 }];
+        return stravaResponse(page);
+      })
+    );
+
+    const out = await listActivitiesSince("tok", 1_754_000_000);
+
+    expect(out).toHaveLength(51);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toContain("after=1754000000");
+    expect(calls[0]).toContain("per_page=50");
+  });
+
+  it("returns [] when Strava rate-limits (429)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 429, headers: { "X-RateLimit-Usage": "999,999" } }))
+    );
+    expect(await listActivitiesSince("tok", 0)).toEqual([]);
+  });
+});
+
+describe("toStripActivities", () => {
+  const base: StravaActivity = {
+    id: 1,
+    name: "Morning Run",
+    type: "Run",
+    sport_type: "Run",
+    distance: 5400,
+    total_elevation_gain: 12,
+    start_date_local: "2026-08-07T06:31:00Z",
+    moving_time: 1890,
+    map: { summary_polyline: "abc" },
+  };
+
+  it("maps fields, flags imported, and drops GPS-less activities", () => {
+    const acts = [
+      base,
+      { ...base, id: 2, map: { summary_polyline: "" } }, // treadmill → dropped
+      { ...base, id: 3, map: undefined }, // no map → dropped
+      { ...base, id: 4 },
+    ];
+    const out = toStripActivities(acts, new Set(["4"]));
+    expect(out.map((a) => a.id)).toEqual([1, 4]);
+    expect(out[0]).toEqual({
+      id: 1,
+      name: "Morning Run",
+      type: "Run",
+      startDateLocal: "2026-08-07T06:31:00Z",
+      distanceMeters: 5400,
+      movingTimeSeconds: 1890,
+      summaryPolyline: "abc",
+      imported: false,
+    });
+    expect(out[1].imported).toBe(true);
   });
 });

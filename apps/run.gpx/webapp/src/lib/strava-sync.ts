@@ -22,14 +22,18 @@ import { countConDayRuns } from "@/lib/con-day-usage";
  * Invoked only by the secret-guarded internal route, on an EventBridge schedule.
  */
 
-type StravaUserToken = { userId: string; athleteId: string; accessToken: string };
-type StravaActivity = {
+export type StravaUserToken = { userId: string; athleteId: string; accessToken: string };
+export type StravaActivity = {
   id: number;
   name: string;
   type: string;
   sport_type: string;
   distance: number;
   total_elevation_gain: number;
+  /** Local wall-clock start, e.g. "2026-08-07T06:31:00Z" (Strava quirk: Z-suffixed local time). */
+  start_date_local: string;
+  moving_time: number;
+  map?: { summary_polyline?: string | null };
 };
 type StreamSet = {
   latlng?: { data: [number, number][] };
@@ -115,7 +119,7 @@ function bounds(latlng: [number, number][]) {
   };
 }
 
-async function existingStravaIds(userId: string): Promise<Set<string>> {
+export async function getExistingStravaIds(userId: string): Promise<Set<string>> {
   const res = await GpxFile.query.byCreatedAt({ userId }).go({ pages: "all" });
   return new Set(
     res.data
@@ -179,7 +183,7 @@ async function importActivity(
 
 async function syncUser(user: StravaUserToken): Promise<number> {
   const { after, before } = bandBounds();
-  const seen = await existingStravaIds(user.userId);
+  const seen = await getExistingStravaIds(user.userId);
   let imported = 0;
   let page = 1;
 
@@ -240,7 +244,7 @@ export async function runStravaSync(): Promise<{ users: number; imported: number
 // pieces below power the SESSION-authenticated single-user button: fetch just
 // this runner's token, import their recent activities tagged to one con-day,
 // deduped by stravaActivityId, consuming both the per-con-day budget and the
-// lifetime gpx_upload quota. `importActivity`/`existingStravaIds`/`stravaGet`/
+// lifetime gpx_upload quota. `importActivity`/`getExistingStravaIds`/`stravaGet`/
 // `buildGpx` are reused unchanged so the two paths can't diverge.
 // ---------------------------------------------------------------------------
 
@@ -312,6 +316,83 @@ async function listRecentActivities(
   return all;
 }
 
+/**
+ * List a runner's activities started after `afterUnixSeconds` (the strip's
+ * rolling last-7-days window). Same pagination discipline as
+ * listRecentActivities; 3 pages × 50 is far beyond any real 7-day volume.
+ */
+export async function listActivitiesSince(
+  token: string,
+  afterUnixSeconds: number,
+  maxPages = 3,
+  perPage = 50
+): Promise<StravaActivity[]> {
+  const all: StravaActivity[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const params = new URLSearchParams({
+      per_page: String(perPage),
+      page: String(page),
+      after: String(afterUnixSeconds),
+    });
+    const activities = await stravaGet<StravaActivity[]>(
+      `/athlete/activities?${params.toString()}`,
+      token
+    );
+    if (!activities || activities.length === 0) break;
+    all.push(...activities);
+    if (activities.length < perPage) break;
+  }
+  return all;
+}
+
+/** What the strip renders per activity — summary polyline included. */
+export type StripActivity = {
+  id: number;
+  name: string;
+  type: string;
+  startDateLocal: string;
+  distanceMeters: number;
+  movingTimeSeconds: number;
+  summaryPolyline: string;
+  imported: boolean;
+};
+
+/** Pure: shape Strava activities for the strip, dropping GPS-less ones. */
+export function toStripActivities(
+  activities: StravaActivity[],
+  imported: Set<string>
+): StripActivity[] {
+  return activities
+    .filter((a) => !!a.map?.summary_polyline)
+    .map((a) => ({
+      id: a.id,
+      name: a.name,
+      type: a.type,
+      startDateLocal: a.start_date_local,
+      distanceMeters: a.distance,
+      movingTimeSeconds: a.moving_time,
+      summaryPolyline: a.map!.summary_polyline as string,
+      imported: imported.has(String(a.id)),
+    }));
+}
+
+/** Fetch one activity's detail (authoritative metadata for a single import). */
+export async function fetchActivityById(
+  token: string,
+  id: number
+): Promise<StravaActivity | null> {
+  return stravaGet<StravaActivity>(`/activities/${id}`, token);
+}
+
+/** Import exactly one activity tagged to a con-day (the strip's tap-to-import). */
+export async function importActivityForConDay(
+  user: StravaUserToken,
+  activity: StravaActivity,
+  conDay: string
+): Promise<ImportedFile | null> {
+  return importActivity(user, activity, { conDay });
+}
+
 export interface UserStravaSyncSummary {
   /** Activities imported as new routes this call. */
   imported: number;
@@ -338,7 +419,7 @@ export async function syncUserToConDay(
   conDay: string,
   quotaTier: QuotaTier
 ): Promise<UserStravaSyncSummary> {
-  const seen = await existingStravaIds(user.userId);
+  const seen = await getExistingStravaIds(user.userId);
   const countBefore = await countConDayRuns(user.userId, conDay);
   let budget = conDayRemaining(countBefore, quotaTier);
 
