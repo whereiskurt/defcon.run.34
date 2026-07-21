@@ -1,0 +1,365 @@
+import { writable } from 'svelte/store';
+import { parseGPX } from 'gpx';
+import mapboxgl from 'mapbox-gl';
+import { routeColor } from '$lib/dc34-palette';
+import { getApiBase } from '$lib/cloud-sync';
+import { prettyRouteName } from './public-overlays';
+
+/**
+ * "My DEF CON Runs" — the signed-in runner's own con-day-tagged files, rendered
+ * as a READ-ONLY glow+core line layer grouped and colored per con day (task 11,
+ * 2026-07-21 spec).
+ *
+ * Structurally this follows `public-overlays.ts` (whenStyleReady gating, glow+core
+ * line pair, listener tracking, routeBounds cache + fitToRoutes union), but is the
+ * SMALL version: no POIs, no hover tooltips, no CMS enrichment — just lines, a
+ * simple click popup (fileName + day label + distance), and toggles.
+ *
+ * Never breaks the studio: an unauthenticated/empty/failed manifest fetch just
+ * leaves the store empty and returns silently.
+ */
+
+const SOURCE_PREFIX = 'my-con-run-';
+const CORE_WIDTH = 4;
+const GLOW_BLUR = 6;
+
+/** Server manifest entry — GET `${getApiBase()}/files/con-runs` (Task 5). */
+type RunManifestEntry = {
+    fileId: string;
+    fileName: string;
+    conDay: string;
+    totalDistance?: number;
+    bounds?: { minLat: number; maxLat: number; minLon: number; maxLon: number };
+    downloadUrl: string;
+};
+
+export type MyConRunGroup = {
+    conDay: string;
+    label: string;
+    visible: boolean;
+    runs: { fileId: string; fileName: string; visible: boolean }[];
+};
+
+// UI-facing state: the layer control renders a group toggle (per con day) plus
+// per-run toggles from this. Groups are ordered ascending by conDay.
+export const myConRunGroups = writable<MyConRunGroup[]>([]);
+
+function coreLayerId(fileId: string): string {
+    return `${SOURCE_PREFIX}${fileId}`;
+}
+function glowLayerId(fileId: string): string {
+    return `${SOURCE_PREFIX}${fileId}-glow`;
+}
+
+/** Weekday label for a con day, matching the CON_DAYS labels without duplicating the list. */
+function dayLabel(conDay: string): string {
+    return new Date(conDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long' });
+}
+
+function formatDistance(meters?: number): string | undefined {
+    if (!meters || meters <= 0) return undefined;
+    return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+}
+
+function escapeHtml(s: string): string {
+    return s.replace(/[&<>"']/g, (c) =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
+    );
+}
+
+/** Derive a `[[minLon,minLat],[maxLon,maxLat]]` bounding box from a parsed GPX
+ * FeatureCollection when the manifest carries no precomputed bounds. Returns
+ * null when there are no usable coordinates so a degenerate/NaN box is never cached. */
+function boundsFromGeoJSON(
+    fc: GeoJSON.FeatureCollection
+): [[number, number], [number, number]] | null {
+    let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+    const visit = (lon: number, lat: number) => {
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+        if (lon < minLon) minLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lon > maxLon) maxLon = lon;
+        if (lat > maxLat) maxLat = lat;
+    };
+    for (const f of fc.features ?? []) {
+        const g = f.geometry;
+        if (!g) continue;
+        if (g.type === 'LineString') {
+            for (const c of g.coordinates) visit(c[0], c[1]);
+        } else if (g.type === 'MultiLineString') {
+            for (const line of g.coordinates) for (const c of line) visit(c[0], c[1]);
+        } else if (g.type === 'Point') {
+            visit(g.coordinates[0], g.coordinates[1]);
+        }
+    }
+    if (minLon === Infinity) return null;
+    return [[minLon, minLat], [maxLon, maxLat]];
+}
+
+/** Build the click-popup HTML: fileName + day label + distance. */
+function popupHtml(fileName: string, label: string, color: string, totalDistance?: number): string {
+    const distStr = formatDistance(totalDistance);
+    return `
+        <div style="min-width:180px;max-width:260px;padding:10px 12px;border-left:4px solid ${color};
+                    font-family:system-ui,sans-serif;color:#e4e4ef">
+            <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">${escapeHtml(label)}</div>
+            <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(prettyRouteName(fileName))}</div>
+            ${distStr ? `<div style="font-size:12px;opacity:.85;margin-top:6px">📏 ${distStr}</div>` : ''}
+        </div>`;
+}
+
+export class MyConRunsLayer {
+    map: mapboxgl.Map;
+    loaded = false;
+    private popup: mapboxgl.Popup;
+    // Track per-layer listeners so we can detach them on remove().
+    private listeners: { id: string; type: 'click' | 'mouseenter' | 'mouseleave'; fn: any }[] = [];
+    // fileId -> [[minLon,minLat],[maxLon,maxLat]] for fit-on-toggle.
+    private routeBounds = new Map<string, [[number, number], [number, number]]>();
+    // conDay -> fixed color (all runs of one day share a hue).
+    private dayColor = new Map<string, string>();
+
+    constructor(map: mapboxgl.Map) {
+        this.map = map;
+        this.popup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: true,
+            maxWidth: '280px',
+            offset: 12,
+            className: 'dc34-route-popup',
+        });
+    }
+
+    /** Resolve once the style (incl. the async basemap import) can accept sources/layers. */
+    private whenStyleReady(): Promise<void> {
+        if (this.map.isStyleLoaded()) return Promise.resolve();
+        return new Promise((resolve) => this.map.once('idle', () => resolve()));
+    }
+
+    /** Fetch the signed-in runner's con-day manifest and render every run (hidden by default). */
+    async load(): Promise<void> {
+        if (this.loaded) return;
+        let manifest: RunManifestEntry[];
+        try {
+            const res = await fetch(`${getApiBase()}/files/con-runs`, { credentials: 'include' });
+            if (!res.ok) {
+                // 401/403 (not signed in / no gpxstudio access) → no layer, studio unaffected.
+                myConRunGroups.set([]);
+                return;
+            }
+            const body = (await res.json()) as { runs: RunManifestEntry[] };
+            manifest = body.runs ?? [];
+            if (manifest.length === 0) {
+                myConRunGroups.set([]);
+                return;
+            }
+        } catch {
+            myConRunGroups.set([]);
+            return; // manifest unavailable → no layer, studio unaffected
+        }
+
+        await this.whenStyleReady();
+
+        // Distinct con days, sorted ascending — index drives the fixed per-day color.
+        const days = Array.from(new Set(manifest.map((r) => r.conDay))).sort();
+        this.dayColor.clear();
+        days.forEach((d, i) => this.dayColor.set(d, routeColor(i)));
+
+        const groups: MyConRunGroup[] = days.map((conDay) => ({
+            conDay,
+            label: dayLabel(conDay),
+            visible: false,
+            runs: manifest
+                .filter((r) => r.conDay === conDay)
+                .map((r) => ({ fileId: r.fileId, fileName: r.fileName, visible: false })),
+        }));
+
+        // Fetch + parse each run's GPX, add a read-only glow+core line layer (initially hidden).
+        await Promise.all(
+            manifest.map(async (r) => {
+                try {
+                    const gpxRes = await fetch(r.downloadUrl);
+                    if (!gpxRes.ok) return;
+                    const file = parseGPX(await gpxRes.text());
+                    const geojson = file.toGeoJSON();
+                    this.addRouteLayer(r);
+                    this.setRouteData(r.fileId, geojson);
+                    if (r.bounds) {
+                        this.routeBounds.set(r.fileId, [
+                            [r.bounds.minLon, r.bounds.minLat],
+                            [r.bounds.maxLon, r.bounds.maxLat],
+                        ]);
+                    } else {
+                        const box = boundsFromGeoJSON(geojson);
+                        if (box) this.routeBounds.set(r.fileId, box);
+                    }
+                } catch (err) {
+                    // skip a run that fails to fetch/parse; others still render
+                    console.warn(`[my-con-runs] failed to load ${r.fileId}:`, err);
+                }
+            })
+        );
+
+        this.loaded = true;
+        myConRunGroups.set(groups);
+    }
+
+    /** `remove()` then `load()` — idempotent re-fetch (e.g. after a fresh import/re-tag). */
+    async reload(): Promise<void> {
+        this.remove();
+        await this.load();
+    }
+
+    /** Add the glow + core line layers for a run, plus its click handler. */
+    private addRouteLayer(r: RunManifestEntry) {
+        const core = coreLayerId(r.fileId);
+        const glow = glowLayerId(r.fileId);
+        const color = this.dayColor.get(r.conDay) ?? routeColor(0);
+        const label = dayLabel(r.conDay);
+        try {
+            if (!this.map.getSource(core)) {
+                this.map.addSource(core, {
+                    type: 'geojson',
+                    data: { type: 'FeatureCollection', features: [] },
+                });
+            }
+            // Wide, blurred glow beneath — the DEF CON neon look.
+            if (!this.map.getLayer(glow)) {
+                this.map.addLayer({
+                    id: glow,
+                    type: 'line',
+                    source: core,
+                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                    paint: {
+                        'line-color': color,
+                        'line-width': CORE_WIDTH * 2,
+                        'line-blur': GLOW_BLUR,
+                        'line-opacity': 0.35,
+                    },
+                });
+            }
+            // Crisp core line on top.
+            if (!this.map.getLayer(core)) {
+                this.map.addLayer({
+                    id: core,
+                    type: 'line',
+                    source: core,
+                    layout: { 'line-join': 'round', 'line-cap': 'round', visibility: 'none' },
+                    paint: {
+                        'line-color': color,
+                        'line-width': CORE_WIDTH,
+                        'line-opacity': 0.95,
+                    },
+                });
+
+                const onClick = (e: mapboxgl.MapMouseEvent) => {
+                    this.popup
+                        .setLngLat(e.lngLat)
+                        .setHTML(popupHtml(r.fileName, label, color, r.totalDistance))
+                        .addTo(this.map);
+                };
+                const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
+                const onLeave = () => (this.map.getCanvas().style.cursor = '');
+                this.map.on('click', core, onClick);
+                this.map.on('mouseenter', core, onEnter);
+                this.map.on('mouseleave', core, onLeave);
+                this.listeners.push(
+                    { id: core, type: 'click', fn: onClick },
+                    { id: core, type: 'mouseenter', fn: onEnter },
+                    { id: core, type: 'mouseleave', fn: onLeave }
+                );
+            }
+        } catch (err) {
+            // Should not happen now that load() gates on whenStyleReady(); warn instead of
+            // silently dropping the run so any regression is visible in the console.
+            console.warn(`[my-con-runs] failed to add layer for ${r.fileId}:`, err);
+        }
+    }
+
+    private setRouteData(fileId: string, geojson: GeoJSON.FeatureCollection) {
+        const source = this.map.getSource(coreLayerId(fileId)) as mapboxgl.GeoJSONSource | undefined;
+        if (source) source.setData(geojson);
+    }
+
+    private setLayerPairVisible(fileId: string, visible: boolean) {
+        const vis = visible ? 'visible' : 'none';
+        for (const id of [glowLayerId(fileId), coreLayerId(fileId)]) {
+            if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', vis);
+        }
+    }
+
+    /** Recenter/zoom so the given runs are in view when toggled on. Unions the
+     * cached per-run bounds. */
+    private fitToRoutes(fileIds: string[]) {
+        let box: [[number, number], [number, number]] | null = null;
+        for (const id of fileIds) {
+            const b = this.routeBounds.get(id);
+            if (!b) continue;
+            if (!box) {
+                box = [[b[0][0], b[0][1]], [b[1][0], b[1][1]]];
+            } else {
+                box[0][0] = Math.min(box[0][0], b[0][0]);
+                box[0][1] = Math.min(box[0][1], b[0][1]);
+                box[1][0] = Math.max(box[1][0], b[1][0]);
+                box[1][1] = Math.max(box[1][1], b[1][1]);
+            }
+        }
+        if (box) this.map.fitBounds(box, { padding: 80, maxZoom: 15, duration: 700 });
+    }
+
+    /** Master toggle: show/hide every run tagged with a given con day. */
+    setDayVisible(conDay: string, visible: boolean) {
+        const fitIds: string[] = [];
+        myConRunGroups.update((groups) =>
+            groups.map((g) => {
+                if (g.conDay !== conDay) return g;
+                for (const r of g.runs) {
+                    this.setLayerPairVisible(r.fileId, visible);
+                    fitIds.push(r.fileId);
+                }
+                return { ...g, visible, runs: g.runs.map((r) => ({ ...r, visible })) };
+            })
+        );
+        if (visible) this.fitToRoutes(fitIds);
+    }
+
+    /** Toggle a single run (glow + core together). */
+    setRunVisible(fileId: string, visible: boolean) {
+        this.setLayerPairVisible(fileId, visible);
+        if (visible) this.fitToRoutes([fileId]);
+        myConRunGroups.update((groups) =>
+            groups.map((g) => {
+                const runs = g.runs.map((r) => (r.fileId === fileId ? { ...r, visible } : r));
+                return { ...g, runs, visible: runs.every((r) => r.visible) };
+            })
+        );
+    }
+
+    remove() {
+        try {
+            for (const l of this.listeners) this.map.off(l.type, l.id, l.fn);
+            this.listeners = [];
+            this.popup.remove();
+            for (const group of getGroupsSnapshot()) {
+                for (const r of group.runs) {
+                    for (const id of [coreLayerId(r.fileId), glowLayerId(r.fileId)]) {
+                        if (this.map.getLayer(id)) this.map.removeLayer(id);
+                    }
+                    if (this.map.getSource(coreLayerId(r.fileId))) this.map.removeSource(coreLayerId(r.fileId));
+                }
+            }
+        } catch {
+            // map not ready
+        }
+        this.loaded = false;
+        this.dayColor.clear();
+        this.routeBounds.clear();
+        myConRunGroups.set([]);
+    }
+}
+
+let _snapshot: MyConRunGroup[] = [];
+myConRunGroups.subscribe((g) => (_snapshot = g));
+function getGroupsSnapshot(): MyConRunGroup[] {
+    return _snapshot;
+}

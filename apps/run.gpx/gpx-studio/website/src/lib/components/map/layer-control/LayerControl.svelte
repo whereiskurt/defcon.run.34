@@ -2,8 +2,12 @@
     import CustomControl from '$lib/components/map/custom-control/CustomControl.svelte';
     import LayerTree from './LayerTree.svelte';
     import PublicOverlays from './PublicOverlays.svelte';
+    import MyConRuns from './MyConRuns.svelte';
     import { OverpassLayer } from './overpass-layer';
     import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
+    import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
+    import { myConRunsRefresh } from '$lib/stores/my-con-runs';
+    import { isAuthenticated } from '$lib/stores/auth';
     import { GhostLayer } from '$lib/components/map/ghost-layer';
     import { RabbitLayer } from '$lib/components/map/rabbit-layer';
     import { RainbowArch } from '$lib/components/map/rainbow-arch';
@@ -36,6 +40,7 @@
     let container: HTMLDivElement;
     let overpassLayer: OverpassLayer;
     let publicOverlaysLayer: PublicOverlaysLayer | undefined = $state();
+    let myConRunsLayer: MyConRunsLayer | undefined = $state();
     let ghostLayer: GhostLayer | undefined;
     let rabbitLayer: RabbitLayer | undefined;
     let rainbowArch: RainbowArch | undefined;
@@ -218,6 +223,9 @@
         }
         publicOverlaysLayer = new PublicOverlaysLayer(_map);
         publicOverlaysLayer.add();
+        if (myConRunsLayer) myConRunsLayer.remove();
+        myConRunsLayer = new MyConRunsLayer(_map);
+        if (get(isAuthenticated)) void myConRunsLayer.load();
         if (ghostLayer) ghostLayer.remove();
         ghostLayer = new GhostLayer(_map);
         // Reveal/hide with the hidden ghostMode store (default off). map.onLoad
@@ -296,6 +304,14 @@
         }
         quickStartAction.set(null);
     });
+
+    // Task 11: bump myConRunsRefresh (e.g. after a fresh import/re-tag) to re-fetch
+    // the "My DEF CON Runs" manifest. n starts at 0, so `n > 0` already guards the
+    // initial fire. LayerControl mounts once at app root, so this single
+    // subscription is safe (same convention as ghostMode/quickStartAction above).
+    myConRunsRefresh.subscribe((n) => {
+        if (n > 0 && myConRunsLayer) void myConRunsLayer.reload();
+    });
 </script>
 
 <CustomControl class="group min-w-[29px] min-h-[29px] overflow-hidden">
@@ -356,6 +372,15 @@
                         <Separator class="w-full" />
                         <div class="p-2 ml-1">
                             <PublicOverlays layer={publicOverlaysLayer} />
+                        </div>
+                    {/if}
+                    {#if $myConRunGroups.length > 0}
+                        <Separator class="w-full" />
+                        <div class="p-2 ml-1">
+                            <div class="mb-1 text-xs font-semibold uppercase tracking-wide opacity-60">
+                                My DEF CON Runs
+                            </div>
+                            <MyConRuns layer={myConRunsLayer} />
                         </div>
                     {/if}
                     <!-- POI/Overpass section removed for DEF CON -->
