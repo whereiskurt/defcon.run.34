@@ -1,5 +1,5 @@
 {
-  "updated": "2026-07-05 23:54:14 UTC",
+  "updated": "2026-07-21 03:50:09 UTC",
   "poll_seconds": 300,
   "regions": [
     {
@@ -22,7 +22,7 @@
       "host": "auth.defcon.run",
       "link": "https://auth.defcon.run",
       "version": "v0.0.22",
-      "state": "dev",
+      "state": "live",
       "note": "Authentication & sign-in",
       "size_kb": 1214,
       "req_count": 73,
@@ -41,7 +41,7 @@
       "host": "run.defcon.run",
       "link": "https://run.defcon.run",
       "version": "v0.0.26",
-      "state": "dev",
+      "state": "live",
       "note": "Main run site",
       "size_kb": 595,
       "req_count": 37,
@@ -60,7 +60,7 @@
       "host": "gpx.defcon.run",
       "link": "https://gpx.defcon.run",
       "version": "v0.0.23",
-      "state": "dev",
+      "state": "live",
       "note": "GPX editor & route overlays",
       "size_kb": 769,
       "req_count": 56,
@@ -79,7 +79,7 @@
       "host": "flash.defcon.run",
       "link": "https://flash.defcon.run",
       "version": "v0.0.20",
-      "state": "dev",
+      "state": "live",
       "note": "Radio flashing flow",
       "size_kb": 1101,
       "req_count": 80,
@@ -98,7 +98,7 @@
       "host": "bib.defcon.run",
       "link": "https://bib.defcon.run",
       "version": "v0.0.48",
-      "state": "dev",
+      "state": "live",
       "note": "Bib registration",
       "size_kb": 1218,
       "req_count": 67,
@@ -116,8 +116,16 @@
       "name": "run.cms",
       "host": "cms.defcon.run",
       "version": "v0.0.22",
-      "state": "dev",
+      "state": "live",
       "note": "Content & routes (admin only)"
+    },
+    {
+      "id": "mesh",
+      "name": "run.mqtt",
+      "host": "mqtt.defcon.run",
+      "version": "v0.0.55",
+      "state": "live",
+      "note": "Meshtastic MQTT broker"
     }
   ]
 }
