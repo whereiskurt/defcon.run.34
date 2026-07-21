@@ -4,6 +4,7 @@ import {
   polylineToSvgPath,
   guessConDay,
   formatKm,
+  isUnlimitedQuota,
 } from "../../../gpx-studio/website/src/lib/logic/strava-strip-pure";
 
 describe("decodePolyline", () => {
@@ -58,5 +59,21 @@ describe("formatKm", () => {
   it("formats", () => {
     expect(formatKm(5400)).toBe("5.4 km");
     expect(formatKm(850)).toBe("850 m");
+  });
+});
+
+describe("isUnlimitedQuota", () => {
+  it("is false for real (non-admin) quota numbers", () => {
+    expect(isUnlimitedQuota(2, 1)).toBe(false);
+    expect(isUnlimitedQuota(0, 3)).toBe(false);
+  });
+  it("is true when remaining alone crosses the threshold (admin tier)", () => {
+    expect(isUnlimitedQuota(Number.MAX_SAFE_INTEGER)).toBe(true);
+  });
+  it("is true when count + remaining crosses the threshold", () => {
+    expect(isUnlimitedQuota(50_000, 60_000)).toBe(true);
+  });
+  it("is false right at a realistic boundary", () => {
+    expect(isUnlimitedQuota(10, 5)).toBe(false);
   });
 });

@@ -101,3 +101,18 @@ export function formatKm(meters: number): string {
     ? `${(Math.round(meters / 100) / 10).toFixed(1)} km`
     : `${Math.round(meters)} m`;
 }
+
+/**
+ * The admin con-day tier reports `remaining` as `Number.MAX_SAFE_INTEGER`
+ * (see webapp con-day-quota.ts `conDayLimit("admin")`), which renders as
+ * "9007199254940991 of 9007199254940991 left" — meaningless to a human.
+ * Anything past this threshold is "no real cap" rather than an actual count
+ * a runner could hit, so callers should show "Unlimited" instead of the
+ * raw numbers.
+ */
+export const UNLIMITED_QUOTA_THRESHOLD = 100_000;
+
+/** True when a con-day's quota is the "no real cap" admin tier rather than a real limit. */
+export function isUnlimitedQuota(remaining: number, count = 0): boolean {
+  return remaining > UNLIMITED_QUOTA_THRESHOLD || count + remaining > UNLIMITED_QUOTA_THRESHOLD;
+}

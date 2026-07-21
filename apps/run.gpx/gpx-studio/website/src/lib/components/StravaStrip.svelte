@@ -4,6 +4,9 @@
     // in-strip con-day popover; importing lands the run on the map exactly like the
     // Upload door and bumps the My DEF CON Runs layer to re-fetch.
     import { tick, onDestroy } from 'svelte';
+    import { get } from 'svelte/store';
+    import mapboxgl from 'mapbox-gl';
+    import { map } from '$lib/components/map/map';
     import { isAuthenticated, hasGpxStudioAccess, hasStrava, isAdmin } from '$lib/stores/auth';
     import { getConDayUsage, updateCloudFile, type ConDayUsage } from '$lib/cloud-sync';
     import {
@@ -18,10 +21,38 @@
         polylineToSvgPath,
         guessConDay,
         formatKm,
+        isUnlimitedQuota,
     } from '$lib/logic/strava-strip-pure';
     import { stravaStripExpanded, stravaStripHidden, stravaStripPulse } from '$lib/stores/strava-strip';
     import { refreshMyConRuns } from '$lib/stores/my-con-runs';
     import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, LoaderCircle, Check, X, Zap } from '@lucide/svelte';
+
+    // Escape user-controlled text (Strava activity name) before it lands in a
+    // mapboxgl popup's setHTML() — that's raw HTML insertion, same risk as
+    // {@html} in the Svelte template. Mirrors map/my-con-runs.ts's helper.
+    function escapeHtml(s: string): string {
+        return s.replace(
+            /[&<>"']/g,
+            (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
+        );
+    }
+
+    /** Small mapbox popup for a just-imported/tagged Strava run, styled like the
+     * existing route popups (map/my-con-runs.ts, map/public-overlays.ts): a
+     * border-left color bar, an eyebrow, the name, then a meta row. */
+    function trackPopupHtml(a: StripActivity, dayLabel: string | null): string {
+        return `
+            <div style="min-width:180px;max-width:260px;padding:10px 12px;border-left:4px solid #fc4c02;
+                        font-family:system-ui,sans-serif;color:#e4e4ef">
+                <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Strava import</div>
+                <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(a.name)}</div>
+                <div style="font-size:12px;opacity:.85;margin-top:6px;line-height:1.6">
+                    📅 ${escapeHtml(formatCardDate(a.startDateLocal))}<br>
+                    📏 ${escapeHtml(formatKm(a.distanceMeters))}<br>
+                    🏁 ${dayLabel ? escapeHtml(dayLabel) : 'No day assigned'}
+                </div>
+            </div>`;
+    }
 
     // The studio is served under the region basePath (e.g. /use1/studio/app) but
     // auth.defcon.run needs the region prefix too — derive it the same way
@@ -164,6 +195,36 @@
         popoverError = null;
     }
 
+    // The imported/tagged run lands on the map as an editable gpx-studio file
+    // (fix 3, 2026-07-21 UAT). Wiring a click-popup into that file's own map
+    // click handler (GPXLayer.layerOnClick in map/gpx-layer/gpx-layer.ts) would
+    // mean bridging fileId → cloudFileId → CloudFile.conDay (no such lookup
+    // exists today — only auto-save.ts's per-file CloudLinkedFile, which has no
+    // conDay) inside that handler's already-dense tool/selection branching —
+    // genuinely invasive for a UAT fix. Fallback (per spec): show the popup
+    // once, right when the import/assign action completes, anchored to the
+    // activity's own polyline (already decoded for the card's SVG preview, so
+    // no dependency on the map's rendered layer at all).
+    let trackPopup: mapboxgl.Popup | null = null;
+
+    function showImportedTrackPopup(a: StripActivity, dayLabel: string | null) {
+        const mapInstance = get(map);
+        const points = decodePolyline(a.summaryPolyline);
+        if (!mapInstance || points.length === 0) return;
+        const [lat, lng] = points[Math.floor(points.length / 2)];
+        trackPopup?.remove();
+        trackPopup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: true,
+            maxWidth: '280px',
+            offset: 12,
+            className: 'dc34-route-popup',
+        })
+            .setLngLat([lng, lat])
+            .setHTML(trackPopupHtml(a, dayLabel))
+            .addTo(mapInstance);
+    }
+
     async function confirmPopover() {
         const a = openActivity;
         if (!a || !selectedDay) return;
@@ -186,6 +247,7 @@
             usage = usage.map((u) => (u.date === day ? { ...u, remaining: u.remaining - 1 } : u));
             openActivityId = null;
             refreshMyConRuns();
+            showImportedTrackPopup(a, label);
             successMessage =
                 popoverMode === 'assign'
                     ? `Tagged for ${label}.`
@@ -259,6 +321,7 @@
         unsubscribePulse();
         clearTimeout(pulseTimeout);
         clearTimeout(successTimeout);
+        trackPopup?.remove();
     });
 </script>
 
@@ -271,10 +334,18 @@
     >
         <div class="flex items-center gap-2 px-3 py-2">
             <button
-                class="shrink-0 rounded-md p-1 text-muted-foreground transition hover:bg-accent"
+                type="button"
+                class="shrink-0 rounded-md p-2 text-muted-foreground transition hover:bg-accent"
                 aria-label="Hide Strava strip"
                 title="Hide — reopen via Add run → From Strava"
-                onclick={() => stravaStripHidden.set(true)}
+                onclick={(event) => {
+                    // Defensive: this sits in a tightly packed header row next to
+                    // the logo/title/badge — stop the click here so it can never
+                    // bubble into some future ancestor handler (e.g. a strip-wide
+                    // click-to-expand) and undo the hide.
+                    event.stopPropagation();
+                    stravaStripHidden.set(true);
+                }}
             >
                 <X size={14} />
             </button>
@@ -295,6 +366,7 @@
             <div class="ml-auto flex items-center gap-1">
                 {#if $hasStrava}
                     <button
+                        type="button"
                         class="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                         aria-label="Sync now"
                         disabled={syncingNow}
@@ -310,6 +382,7 @@
                 {/if}
                 {#if $stravaStripExpanded && $hasStrava}
                     <button
+                        type="button"
                         class="rounded-md p-1 text-muted-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                         aria-label="Refresh"
                         disabled={loading}
@@ -319,6 +392,7 @@
                     </button>
                 {/if}
                 <button
+                    type="button"
                     class="rounded-md p-1 text-muted-foreground transition hover:bg-accent"
                     aria-label={$stravaStripExpanded ? 'Collapse' : 'Expand'}
                     onclick={toggleExpanded}
@@ -396,9 +470,13 @@
                                     </p>
                                 </div>
                                 <button
-                                    class="rounded-md p-1 text-muted-foreground transition hover:bg-accent"
+                                    type="button"
+                                    class="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent"
                                     aria-label="Cancel"
-                                    onclick={closePopover}
+                                    onclick={(event) => {
+                                        event.stopPropagation();
+                                        closePopover();
+                                    }}
                                 >
                                     <X size={16} />
                                 </button>
@@ -442,8 +520,12 @@
 
                             {#if selectedUsage}
                                 <p class="mt-2 text-xs text-muted-foreground">
-                                    {selectedUsage.remaining} of {selectedUsage.count +
-                                        selectedUsage.remaining} left · {selectedUsage.label}
+                                    {#if isUnlimitedQuota(selectedUsage.remaining, selectedUsage.count)}
+                                        Unlimited · {selectedUsage.label}
+                                    {:else}
+                                        {selectedUsage.remaining} of {selectedUsage.count +
+                                            selectedUsage.remaining} left · {selectedUsage.label}
+                                    {/if}
                                 </p>
                             {/if}
 
@@ -453,17 +535,25 @@
 
                             <div class="mt-3 flex justify-end gap-2">
                                 <button
+                                    type="button"
                                     class="rounded-md border px-3 py-1.5 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                                     disabled={confirming}
-                                    onclick={closePopover}
+                                    onclick={(event) => {
+                                        event.stopPropagation();
+                                        closePopover();
+                                    }}
                                 >
                                     Cancel
                                 </button>
                                 <button
+                                    type="button"
                                     class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                                     style="background:#fc4c02"
                                     disabled={confirming || !selectedDay || capped}
-                                    onclick={() => void confirmPopover()}
+                                    onclick={(event) => {
+                                        event.stopPropagation();
+                                        void confirmPopover();
+                                    }}
                                 >
                                     {#if confirming}
                                         <LoaderCircle size={14} class="animate-spin" />
