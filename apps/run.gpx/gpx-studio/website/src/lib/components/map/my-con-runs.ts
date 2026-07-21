@@ -124,19 +124,23 @@ export class MyConRunsLayer {
         try {
             const res = await fetch(`${getApiBase()}/files/con-runs`, { credentials: 'include' });
             if (!res.ok) {
-                // 401/403 (not signed in / no gpxstudio access) → no layer, studio unaffected.
-                myConRunGroups.set([]);
+                // 401/403 (not signed in / no gpxstudio access) → genuinely no
+                // layer. Any OTHER failure (5xx flake right after an import
+                // triggered a reload) must NOT collapse the panel — keep
+                // whatever groups are currently shown (UAT round 3 fix A).
+                if (res.status === 401 || res.status === 403) myConRunGroups.set([]);
                 return;
             }
             const body = (await res.json()) as { runs: RunManifestEntry[] };
             manifest = body.runs ?? [];
             if (manifest.length === 0) {
+                // A real, authoritative empty answer — clearing is correct.
                 myConRunGroups.set([]);
                 return;
             }
         } catch {
-            myConRunGroups.set([]);
-            return; // manifest unavailable → no layer, studio unaffected
+            // Transient network failure — keep the current groups on screen.
+            return;
         }
 
         await this.whenStyleReady();
@@ -310,8 +314,10 @@ export class MyConRunsLayer {
         if (box) this.map.fitBounds(box, { padding: 80, maxZoom: 15, duration: 700 });
     }
 
-    /** Master toggle: show/hide every run tagged with a given con day. */
-    setDayVisible(conDay: string, visible: boolean) {
+    /** Master toggle: show/hide every run tagged with a given con day.
+     * `fit` lets revealConRun suppress the day-wide fitBounds so its own
+     * single-run fit is the only camera move (no double animation). */
+    setDayVisible(conDay: string, visible: boolean, fit = true) {
         const fitIds: string[] = [];
         myConRunGroups.update((groups) =>
             groups.map((g) => {
@@ -323,7 +329,7 @@ export class MyConRunsLayer {
                 return { ...g, visible, runs: g.runs.map((r) => ({ ...r, visible })) };
             })
         );
-        if (visible) this.fitToRoutes(fitIds);
+        if (visible && fit) this.fitToRoutes(fitIds);
     }
 
     /** Toggle a single run (glow + core together). */
@@ -362,7 +368,7 @@ export class MyConRunsLayer {
     revealConRun(fileId: string) {
         const group = getGroupsSnapshot().find((g) => g.runs.some((r) => r.fileId === fileId));
         if (!group) return;
-        this.setDayVisible(group.conDay, true);
+        this.setDayVisible(group.conDay, true, false);
         this.fitToRoutes([fileId]);
         this.showRunPopup(fileId);
     }

@@ -329,20 +329,24 @@
     // the "My DEF CON Runs" manifest. n starts at 0, so `n > 0` already guards the
     // initial fire. LayerControl mounts once at app root, so this single
     // subscription is safe (same convention as ghostMode/quickStartAction above).
-    // UAT round 3 fix B: reload() is async, so the one-shot myConRunsReveal
-    // command (set by the caller BEFORE bumping myConRunsRefresh) is only
-    // consumed once reload() resolves — revealing the run before its manifest
-    // entry exists would silently no-op.
+    // UAT round 3 fix B: reload() is async. The one-shot myConRunsReveal
+    // command (set by the caller BEFORE bumping myConRunsRefresh) is captured
+    // and cleared SYNCHRONOUSLY here — store subscribers run synchronously on
+    // set(), so this ties each reveal to its own triggering bump. Consuming it
+    // inside .then() instead would let overlapping reloads (multi-card imports,
+    // ConDaySaveDialog, sync-now — none of which set a reveal) steal or drop a
+    // pending reveal and jump the camera to an unrelated run.
     myConRunsRefresh.subscribe((n) => {
         if (n > 0 && myConRunsLayer) {
             const layer = myConRunsLayer;
-            void layer.reload().then(() => {
-                const reveal = get(myConRunsReveal);
-                if (reveal) {
-                    layer.revealConRun(reveal.fileId);
-                    myConRunsReveal.set(null);
-                }
-            });
+            const reveal = get(myConRunsReveal);
+            myConRunsReveal.set(null);
+            void layer
+                .reload()
+                .then(() => {
+                    if (reveal) layer.revealConRun(reveal.fileId);
+                })
+                .catch((e) => console.warn('[my-con-runs] reload failed', e));
         }
     });
 </script>
