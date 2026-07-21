@@ -659,7 +659,7 @@ export async function deleteFromCloud(fileId: string): Promise<void> {
  */
 export async function updateCloudFile(
   fileId: string,
-  updates: { fileName?: string; folderId?: string | null }
+  updates: { fileName?: string; folderId?: string | null; conDay?: string | null }
 ): Promise<void> {
   cloudSyncStatus.set('syncing');
   cloudSyncError.set(null);

@@ -12,6 +12,10 @@ import {
 import { s3Client, s3ClientForPresign, getUserPrefix, BUCKET } from "@/lib/s3-client";
 import { consumeQuota, restoreQuota } from "@/lib/quota-client";
 import { assertNotLockedLive } from "@/lib/live-lockout";
+import { isConDay, isValidDateString } from "@/lib/con-days";
+import { conDayLimit, conDayRemaining, isConDayCapped } from "@/lib/con-day-quota";
+import { countConDayRuns } from "@/lib/con-day-usage";
+import type { QuotaTier } from "@/lib/quota-client";
 
 const MAX_VERSIONS = 50;
 
@@ -171,6 +175,56 @@ export async function PUT(request: Request, { params }: RouteParams) {
       }
     }
 
+    // "Save as defcon.run Activity" (2026-07-21 spec): (re)assign the con-day
+    // tag on the runner's own file. ANY con day is choosable at any time (the
+    // no-future gate deliberately does not apply here); admins may use any
+    // valid date. Moving to a DIFFERENT day requires budget on the target day.
+    let conDayRemainingAfter: number | undefined;
+    let clearConDay = false;
+    if (updates.conDay !== undefined) {
+      if (targetUserId === "GLOBAL") {
+        return NextResponse.json(
+          { error: "Community files aren't day-tagged" },
+          { status: 400 }
+        );
+      }
+      const isAdmin = services.includes("admin");
+      const tier: QuotaTier = isAdmin ? "admin" : "upload";
+      if (updates.conDay === null) {
+        clearConDay = true;
+      } else if (typeof updates.conDay !== "string") {
+        return NextResponse.json(
+          { error: "Invalid conDay", message: "conDay must be a date string or null" },
+          { status: 400 }
+        );
+      } else if (isAdmin ? !isValidDateString(updates.conDay) : !isConDay(updates.conDay)) {
+        return NextResponse.json(
+          { error: "Invalid conDay", message: "conDay must be a DEF CON run day" },
+          { status: 400 }
+        );
+      } else {
+        if (updates.conDay !== file.data.conDay) {
+          const targetCount = await countConDayRuns(session.user.id, updates.conDay);
+          if (isConDayCapped(targetCount, tier)) {
+            return NextResponse.json(
+              {
+                error: "Con-day limit reached",
+                message: `You've logged all ${conDayLimit(tier)} runs for that day`,
+                conDay: updates.conDay,
+                remaining: 0,
+                limit: conDayLimit(tier),
+              },
+              { status: 429 }
+            );
+          }
+          conDayRemainingAfter = conDayRemaining(targetCount + 1, tier);
+        } else {
+          conDayRemainingAfter = undefined; // same-day re-save: nothing changes
+        }
+        filteredUpdates.conDay = updates.conDay;
+      }
+    }
+
     // If updateContent is requested, generate presigned upload URL for a new version
     let uploadUrl: string | undefined;
     let newVersion: number | undefined;
@@ -229,6 +283,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
       });
     }
 
+    if (clearConDay) {
+      await GpxFile.update({
+        userId: targetUserId,
+        fileId: id,
+      })
+        .remove(["conDay"])
+        .go();
+    }
+
     const result = await GpxFile.update({
       userId: targetUserId,
       fileId: id,
@@ -241,6 +304,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       uploadUrl?: string;
       version?: number;
       versionedKey?: string;
+      conDayRemaining?: number;
     } = {
       file: result.data,
     };
@@ -248,6 +312,9 @@ export async function PUT(request: Request, { params }: RouteParams) {
       response.uploadUrl = uploadUrl;
       response.version = newVersion;
       response.versionedKey = versionedKey;
+    }
+    if (conDayRemainingAfter !== undefined) {
+      response.conDayRemaining = conDayRemainingAfter;
     }
 
     return NextResponse.json(response);

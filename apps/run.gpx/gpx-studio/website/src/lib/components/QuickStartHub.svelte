@@ -9,7 +9,7 @@
     import { isAuthenticated, hasGpxStudioAccess, hasStrava, isAdmin } from '$lib/stores/auth';
     import { getConDayUsage, QuotaExceededError, type ConDayUsage } from '$lib/cloud-sync';
     import { logRunFromFile } from '$lib/logic/file-actions';
-    import { logRunFromStrava, StravaSyncError } from '$lib/logic/strava-import';
+    import { openStravaStrip } from '$lib/stores/strava-strip';
     import { quickStartAction, quickStartOpen } from '$lib/stores/quickstart';
     import {
         Footprints,
@@ -38,7 +38,6 @@
     let selectedDate = $state<string | null>(null);
     let loadingUsage = $state(false);
     let uploading = $state(false);
-    let syncing = $state(false);
     let message = $state<string | null>(null);
     let error = $state<string | null>(null);
     let fileInput = $state<HTMLInputElement>();
@@ -125,40 +124,6 @@
             await refreshUsage();
         } finally {
             uploading = false;
-        }
-    }
-
-    // "Sync my Strava" door (Phase 61): pull the runner's recent Strava activities
-    // into the selected con-day. Same landing as the upload door; the server does
-    // dedupe + per-con-day cap + quota + burst guard, so we just surface the result.
-    async function syncStrava() {
-        if (!selectedDate) {
-            error = 'Pick a day first';
-            return;
-        }
-        syncing = true;
-        error = null;
-        message = null;
-        try {
-            const res = await logRunFromStrava(selectedDate);
-            if (res.imported === 0) {
-                message =
-                    res.skipped > 0
-                        ? `Already up to date — nothing new for ${selectedUsage?.label ?? 'that day'}.`
-                        : `No recent Strava runs to log for ${selectedUsage?.label ?? 'that day'}.`;
-            } else {
-                message = `Logged ${res.imported} ${res.imported === 1 ? 'run' : 'runs'} from Strava for ${selectedUsage?.label ?? 'that day'}!`;
-            }
-            await refreshUsage();
-        } catch (e) {
-            if (e instanceof StravaSyncError) {
-                error = e.message;
-            } else {
-                error = e instanceof Error ? e.message : 'Strava sync failed';
-            }
-            await refreshUsage();
-        } finally {
-            syncing = false;
         }
     }
 </script>
@@ -308,21 +273,19 @@
 
                         {#if $hasStrava}
                             <button
-                                class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
-                                disabled={uploading || syncing || capped || !selectedDate}
-                                onclick={syncStrava}
+                                class="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/10"
+                                onclick={() => {
+                                    view = 'collapsed';
+                                    openStravaStrip();
+                                }}
                             >
-                                {#if syncing}
-                                    <LoaderCircle size={16} class="animate-spin" /> Syncing from Strava…
-                                {:else}
-                                    <RefreshCw size={16} /> From Strava
-                                {/if}
+                                <RefreshCw size={16} /> From Strava
                             </button>
                         {/if}
 
                         <button
                             class="{$hasStrava ? 'mt-2' : 'mt-4'} flex w-full items-center justify-center gap-2 rounded-lg border bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                            disabled={uploading || syncing || capped || !selectedDate}
+                            disabled={uploading || capped || !selectedDate}
                             onclick={pickFile}
                         >
                             {#if uploading}
