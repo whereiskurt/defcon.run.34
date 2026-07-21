@@ -3,7 +3,7 @@ import { parseGPX } from 'gpx';
 import mapboxgl from 'mapbox-gl';
 import { routeColor } from '$lib/dc34-palette';
 import { getApiBase } from '$lib/cloud-sync';
-import { prettyRouteName } from './public-overlays';
+import { conRunDayColors, conRunMetaByFileId, runPopupHtml } from './run-popup';
 
 /**
  * "My DEF CON Runs" — the signed-in runner's own con-day-tagged files, rendered
@@ -51,20 +51,13 @@ function glowLayerId(fileId: string): string {
     return `${SOURCE_PREFIX}${fileId}-glow`;
 }
 
-/** Weekday label for a con day, matching the CON_DAYS labels without duplicating the list. */
+/** Group/eyebrow label for a con day: weekday + short date, e.g. "Saturday · Aug 8" —
+ * distinguishes the two DEF CON days that happen to share a weekday. */
 function dayLabel(conDay: string): string {
-    return new Date(conDay + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long' });
-}
-
-function formatDistance(meters?: number): string | undefined {
-    if (!meters || meters <= 0) return undefined;
-    return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
-}
-
-function escapeHtml(s: string): string {
-    return s.replace(/[&<>"']/g, (c) =>
-        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
-    );
+    const d = new Date(conDay + 'T12:00:00');
+    const weekday = d.toLocaleDateString(undefined, { weekday: 'long' });
+    const monthDay = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return `${weekday} · ${monthDay}`;
 }
 
 /** Derive a `[[minLon,minLat],[maxLon,maxLat]]` bounding box from a parsed GPX
@@ -94,18 +87,6 @@ function boundsFromGeoJSON(
     }
     if (minLon === Infinity) return null;
     return [[minLon, minLat], [maxLon, maxLat]];
-}
-
-/** Build the click-popup HTML: fileName + day label + distance. */
-function popupHtml(fileName: string, label: string, color: string, totalDistance?: number): string {
-    const distStr = formatDistance(totalDistance);
-    return `
-        <div style="min-width:180px;max-width:260px;padding:10px 12px;border-left:4px solid ${color};
-                    font-family:system-ui,sans-serif;color:#e4e4ef">
-            <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">${escapeHtml(label)}</div>
-            <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(prettyRouteName(fileName))}</div>
-            ${distStr ? `<div style="font-size:12px;opacity:.85;margin-top:6px">📏 ${distStr}</div>` : ''}
-        </div>`;
 }
 
 export class MyConRunsLayer {
@@ -165,6 +146,19 @@ export class MyConRunsLayer {
         this.dayColor.clear();
         days.forEach((d, i) => this.dayColor.set(d, routeColor(i)));
 
+        // Refresh the cross-layer bridges (gpx-layer.ts reads these for its own
+        // editable-file-track click popup — UAT round 2 fix B).
+        conRunDayColors.clear();
+        this.dayColor.forEach((color, day) => conRunDayColors.set(day, color));
+        conRunMetaByFileId.clear();
+        manifest.forEach((r) =>
+            conRunMetaByFileId.set(r.fileId, {
+                conDay: r.conDay,
+                fileName: r.fileName,
+                totalDistance: r.totalDistance,
+            })
+        );
+
         const groups: MyConRunGroup[] = days.map((conDay) => ({
             conDay,
             label: dayLabel(conDay),
@@ -215,7 +209,6 @@ export class MyConRunsLayer {
         const core = coreLayerId(r.fileId);
         const glow = glowLayerId(r.fileId);
         const color = this.dayColor.get(r.conDay) ?? routeColor(0);
-        const label = dayLabel(r.conDay);
         try {
             if (!this.map.getSource(core)) {
                 this.map.addSource(core, {
@@ -255,7 +248,7 @@ export class MyConRunsLayer {
                 const onClick = (e: mapboxgl.MapMouseEvent) => {
                     this.popup
                         .setLngLat(e.lngLat)
-                        .setHTML(popupHtml(r.fileName, label, color, r.totalDistance))
+                        .setHTML(runPopupHtml(r.fileName, r.conDay, color, r.totalDistance))
                         .addTo(this.map);
                 };
                 const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
@@ -354,6 +347,8 @@ export class MyConRunsLayer {
         this.loaded = false;
         this.dayColor.clear();
         this.routeBounds.clear();
+        conRunDayColors.clear();
+        conRunMetaByFileId.clear();
         myConRunGroups.set([]);
     }
 }
