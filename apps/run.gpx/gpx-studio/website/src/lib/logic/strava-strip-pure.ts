@@ -105,7 +105,7 @@ export function formatKm(meters: number): string {
 /**
  * The admin con-day tier reports `remaining` as `Number.MAX_SAFE_INTEGER`
  * (see webapp con-day-quota.ts `conDayLimit("admin")`), which renders as
- * "9007199254940991 of 9007199254940991 left" — meaningless to a human.
+ * "9007199254740991 of 9007199254740991 left" — meaningless to a human.
  * Anything past this threshold is "no real cap" rather than an actual count
  * a runner could hit, so callers should show "Unlimited" instead of the
  * raw numbers.

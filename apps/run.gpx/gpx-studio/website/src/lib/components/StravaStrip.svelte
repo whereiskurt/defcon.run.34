@@ -233,7 +233,12 @@
         const day = selectedDay;
         try {
             if (popoverMode === 'assign') {
-                if (!a.fileId) return;
+                if (!a.fileId) {
+                    // Server contract says imported cards always carry fileId;
+                    // if it's ever missing, tell the runner instead of no-oping.
+                    popoverError = 'Missing file id — refresh the strip and try again';
+                    return;
+                }
                 // Purely the PUT — no strip re-fetch, no Strava quota touched.
                 await updateCloudFile(a.fileId, { conDay: day });
                 activities = activities.map((act) => (act.id === a.id ? { ...act, conDay: day } : act));
@@ -338,14 +343,7 @@
                 class="shrink-0 rounded-md p-2 text-muted-foreground transition hover:bg-accent"
                 aria-label="Hide Strava strip"
                 title="Hide — reopen via Add run → From Strava"
-                onclick={(event) => {
-                    // Defensive: this sits in a tightly packed header row next to
-                    // the logo/title/badge — stop the click here so it can never
-                    // bubble into some future ancestor handler (e.g. a strip-wide
-                    // click-to-expand) and undo the hide.
-                    event.stopPropagation();
-                    stravaStripHidden.set(true);
-                }}
+                onclick={() => stravaStripHidden.set(true)}
             >
                 <X size={14} />
             </button>
@@ -473,10 +471,7 @@
                                     type="button"
                                     class="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent"
                                     aria-label="Cancel"
-                                    onclick={(event) => {
-                                        event.stopPropagation();
-                                        closePopover();
-                                    }}
+                                    onclick={closePopover}
                                 >
                                     <X size={16} />
                                 </button>
@@ -538,10 +533,7 @@
                                     type="button"
                                     class="rounded-md border px-3 py-1.5 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                                     disabled={confirming}
-                                    onclick={(event) => {
-                                        event.stopPropagation();
-                                        closePopover();
-                                    }}
+                                    onclick={closePopover}
                                 >
                                     Cancel
                                 </button>
@@ -550,10 +542,7 @@
                                     class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                                     style="background:#fc4c02"
                                     disabled={confirming || !selectedDay || capped}
-                                    onclick={(event) => {
-                                        event.stopPropagation();
-                                        void confirmPopover();
-                                    }}
+                                    onclick={() => void confirmPopover()}
                                 >
                                     {#if confirming}
                                         <LoaderCircle size={14} class="animate-spin" />
