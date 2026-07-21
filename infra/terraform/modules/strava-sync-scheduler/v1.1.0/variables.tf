@@ -14,7 +14,7 @@ variable "site" {
 }
 
 variable "sync_url" {
-  description = "run.gpx internal sync endpoint, e.g. https://gpx.<domain>/<region>/api/gpx/internal/strava-sync"
+  description = "run.gpx internal sync endpoint. Must resolve to the VPC-private AWS Cloud Map / ECS service-discovery DNS name, e.g. http://run-gpx.app-use1-dc34.local:3000/use1/api/gpx/internal/strava-sync — the public gpx.<domain> host must NEVER be used here (the public ALB is CloudFront-only and a Lambda cannot reach it directly; see the live unit's header comment)."
   type        = string
 }
 
@@ -26,6 +26,12 @@ variable "internal_sync_secret_ssm_path" {
 variable "internal_sync_secret_ssm_arn" {
   description = "SSM parameter ARN of the shared internal secret (for IAM scoping)."
   type        = string
+}
+
+variable "ssm_kms_key_alias" {
+  description = "KMS key alias used to encrypt SSM SecureString parameters for the site (needed for kms:Decrypt on ssm:GetParameter with WithDecryption=true). Supports the {region_label} placeholder, substituted with var.region.label."
+  type        = string
+  default     = "alias/dc34-ssm-{region_label}"
 }
 
 variable "schedules" {

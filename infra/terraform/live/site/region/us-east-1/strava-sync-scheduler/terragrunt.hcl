@@ -102,8 +102,11 @@ inputs = merge(include.module.locals.merged_inputs, {
   internal_sync_secret_ssm_path = local.internal_secret_ssm_path
   internal_sync_secret_ssm_arn  = "arn:aws:ssm:${local.region_full}:${get_aws_account_id()}:parameter${local.internal_secret_ssm_path}"
 
-  vpc_subnet_ids         = dependency.network.outputs.private_subnet_ids
-  vpc_security_group_ids = [dependency.network.outputs.security_groups.http_only]
+  vpc_subnet_ids = dependency.network.outputs.private_subnet_ids
+  vpc_security_group_ids = [
+    dependency.network.outputs.security_groups.http_only, # ingress: membership → gpx:3000 self-rule
+    dependency.network.outputs.security_groups.sshhttps,  # egress: allow-all (same as ECS tasks)
+  ]
 
   schedules = {
     morning = "cron(0 10 * * ? *)"
@@ -111,4 +114,9 @@ inputs = merge(include.module.locals.merged_inputs, {
   }
   schedule_expression_timezone = "America/Los_Angeles"
   schedule_enabled             = true
+
+  # gpx route's maxDuration is 300s; lambda_timeout must be >= that or the
+  # Lambda times out mid-flight while the scheduler retry overlaps the next
+  # sync (I1 finding).
+  lambda_timeout = 300
 })

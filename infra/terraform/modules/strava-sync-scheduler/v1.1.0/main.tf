@@ -13,6 +13,15 @@ data "aws_region" "current" {}
 
 locals {
   function_name = "strava-sync-${var.region.label}"
+
+  # Substitute the {region_label} placeholder so callers can share a single
+  # shape across regions without a per-region unit (mirrors
+  # bib-reconcile-lambda's local.ssm_kms_key_alias).
+  ssm_kms_key_alias = replace(
+    var.ssm_kms_key_alias,
+    "{region_label}",
+    var.region.label,
+  )
 }
 
 data "archive_file" "sync" {

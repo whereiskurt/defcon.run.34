@@ -1,5 +1,12 @@
 # IAM for the strava-sync-scheduler v1.1.0.
 
+# Resolve the SSM SecureString KMS alias to its target key ARN. kms:Decrypt
+# identity-based policies match on the KEY arn, NOT the alias arn — scoping to
+# the alias silently denies at runtime (AccessDeniedException on key/<uuid>).
+data "aws_kms_alias" "ssm" {
+  name = local.ssm_kms_key_alias
+}
+
 # --- Lambda execution role ---
 data "aws_iam_policy_document" "sync_assume" {
   statement {
@@ -31,6 +38,19 @@ data "aws_iam_policy_document" "sync" {
   statement {
     actions   = ["ssm:GetParameter"]
     resources = [var.internal_sync_secret_ssm_arn]
+  }
+  # KMS decrypt for the SSM SecureString above. Scoped to the alias's target
+  # KEY arn (not the alias arn — the alias arn does not satisfy a
+  # kms:Decrypt resource match), further constrained to this parameter's
+  # encryption context.
+  statement {
+    actions   = ["kms:Decrypt"]
+    resources = [data.aws_kms_alias.ssm.target_key_arn]
+    condition {
+      test     = "StringEquals"
+      variable = "kms:EncryptionContext:PARAMETER_ARN"
+      values   = [var.internal_sync_secret_ssm_arn]
+    }
   }
 }
 
