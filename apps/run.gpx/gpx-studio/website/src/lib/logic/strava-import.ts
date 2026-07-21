@@ -1,19 +1,14 @@
 /**
- * "Sync my Strava" door (Phase 61).
+ * Strava strip client (2026-07-21 spec; supersedes the Phase 61 bulk door).
  *
- * Client helper for the log-a-run sub-flow's Strava button. Calls the
- * session-authenticated POST /api/gpx/strava/sync, which imports the signed-in
- * runner's recent Strava activities into their cloud folder tagged to the chosen
- * con-day (server-side: dedupe + per-con-day cap + lifetime quota + burst guard).
- * The route returns the created file descriptors; here we fetch each one back,
- * render it on the map, and register it for auto-save — mirroring how the Upload
- * door lands files (see logRunFromFile in logic/file-actions.ts).
- *
- * This lives in a NEW file (not file-actions.ts) to respect Phase 61's file
- * boundaries; it imports the shared fileActions/boundsManager/selection helpers.
+ * fetchStravaActivities() lists the runner's last-7-days activities for the
+ * bottom strip; importStravaActivity() imports ONE tapped activity tagged to a
+ * con day and lands it on the map exactly the way the Upload door does. The
+ * old all-at-once logRunFromStrava() is retired — the QuickStart hub button now
+ * just opens the strip.
  */
 
-import { parseGPX, type GPXFile } from 'gpx';
+import { parseGPX } from 'gpx';
 import { fileActions } from '$lib/logic/file-actions';
 import { boundsManager } from '$lib/logic/bounds';
 import { selection } from '$lib/logic/selection';
@@ -25,14 +20,18 @@ import {
     redirectToLogin,
 } from '$lib/cloud-sync';
 
-/** Summary shown to the runner after a sync. */
-export interface StravaSyncResult {
-    imported: number;
-    skipped: number;
-    conDayRemaining: number;
+export interface StripActivity {
+    id: number;
+    name: string;
+    type: string;
+    startDateLocal: string;
+    distanceMeters: number;
+    movingTimeSeconds: number;
+    summaryPolyline: string;
+    imported: boolean;
 }
 
-/** A sync that failed with a user-presentable message (quota, cap, not-linked…). */
+/** A call that failed with a user-presentable message (quota, cap, not-linked…). */
 export class StravaSyncError extends Error {
     constructor(message: string) {
         super(message);
@@ -40,78 +39,59 @@ export class StravaSyncError extends Error {
     }
 }
 
-/**
- * Sync the signed-in runner's recent Strava activities into `conDay`, then land the
- * newly-imported routes on the map. Returns a summary for the card; throws
- * StravaSyncError with a friendly message on a handled failure, or
- * AuthenticationError (after redirecting) on an expired session.
- */
-export async function logRunFromStrava(conDay: string): Promise<StravaSyncResult> {
-    const response = await fetch(`${getApiBase()}/strava/sync`, {
+async function throwFromResponse(response: Response, fallback: string): Promise<never> {
+    if (response.status === 401) {
+        redirectToLogin();
+        throw new AuthenticationError('Session expired. Redirecting to login...');
+    }
+    const data = await response.json().catch(() => ({}));
+    throw new StravaSyncError(data.message || data.error || fallback);
+}
+
+/** List the runner's last-7-days Strava activities for the strip. */
+export async function fetchStravaActivities(): Promise<StripActivity[]> {
+    const response = await fetch(`${getApiBase()}/strava/activities`, {
+        credentials: 'include',
+    });
+    if (!response.ok) await throwFromResponse(response, 'Could not load Strava activities');
+    const data = (await response.json()) as { activities: StripActivity[] };
+    return data.activities ?? [];
+}
+
+/** Land one freshly-created cloud file on the map (Upload-door landing chain). */
+export async function landCloudFileOnMap(descriptor: {
+    fileId: string;
+    fileName: string;
+}): Promise<void> {
+    const { content, fileName } = await loadFromCloud(descriptor.fileId);
+    const gpx = parseGPX(content);
+    if (gpx.metadata === undefined) gpx.metadata = {};
+    if (gpx.metadata.name === undefined || gpx.metadata.name.trim() === '') {
+        gpx.metadata.name = fileName.replace(/\.gpx$/i, '');
+    }
+    const ids = fileActions.addMultiple([gpx]);
+    // Strava imports save to the root folder server-side (folderId null).
+    autoSaveManager.registerCloudLinkedFile(ids[0], descriptor.fileId, fileName, null, false);
+    selection.selectFileWhenLoaded(ids[0]);
+    boundsManager.fitBoundsOnLoad(ids);
+}
+
+/** Import ONE tapped activity into `conDay`, then render it on the map. */
+export async function importStravaActivity(
+    activityId: number,
+    conDay: string
+): Promise<{ fileId: string; fileName: string; conDayRemaining: number }> {
+    const response = await fetch(`${getApiBase()}/strava/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ conDay }),
+        body: JSON.stringify({ activityId, conDay }),
     });
-
-    if (!response.ok) {
-        if (response.status === 401) {
-            redirectToLogin();
-            throw new AuthenticationError('Session expired. Redirecting to login...');
-        }
-        const data = await response.json().catch(() => ({}));
-        throw new StravaSyncError(data.message || data.error || 'Strava sync failed');
-    }
-
+    if (!response.ok) await throwFromResponse(response, 'Strava import failed');
     const data = (await response.json()) as {
-        imported: number;
-        skipped: number;
+        file: { fileId: string; fileName: string };
         conDayRemaining: number;
-        files: { fileId: string; fileName: string }[];
     };
-
-    // Fetch each freshly-created route back from the cloud and render it. The
-    // server already persisted them, so this is load-and-register only (no re-save).
-    const gpxFiles: GPXFile[] = [];
-    const descriptors: { fileId: string; fileName: string }[] = [];
-    for (const f of data.files ?? []) {
-        try {
-            const { content, fileName } = await loadFromCloud(f.fileId);
-            const gpx = parseGPX(content);
-            if (gpx.metadata === undefined) {
-                gpx.metadata = {};
-            }
-            if (gpx.metadata.name === undefined || gpx.metadata.name.trim() === '') {
-                gpx.metadata.name = fileName.replace(/\.gpx$/i, '');
-            }
-            gpxFiles.push(gpx);
-            descriptors.push({ fileId: f.fileId, fileName });
-        } catch (e) {
-            // A single load failure shouldn't abort the whole batch — it's already
-            // saved and visible in My Maps; just skip rendering this one.
-            console.warn('Failed to load imported Strava route', f.fileId, e);
-        }
-    }
-
-    if (gpxFiles.length > 0) {
-        const ids = fileActions.addMultiple(gpxFiles);
-        ids.forEach((localId, i) => {
-            // Strava imports save to the root folder server-side (folderId null).
-            autoSaveManager.registerCloudLinkedFile(
-                localId,
-                descriptors[i].fileId,
-                descriptors[i].fileName,
-                null,
-                false
-            );
-        });
-        selection.selectFileWhenLoaded(ids[0]);
-        boundsManager.fitBoundsOnLoad(ids);
-    }
-
-    return {
-        imported: data.imported,
-        skipped: data.skipped,
-        conDayRemaining: data.conDayRemaining,
-    };
+    await landCloudFileOnMap(data.file);
+    return { ...data.file, conDayRemaining: data.conDayRemaining };
 }
