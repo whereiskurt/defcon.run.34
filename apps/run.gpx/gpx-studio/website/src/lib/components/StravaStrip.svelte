@@ -1,12 +1,10 @@
 <script lang="ts">
     // Strava strip (2026-07-21 spec) — bottom-docked, collapsible carousel of the
     // runner's last-7-days Strava activities. Tapping an unimported card opens an
-    // in-strip con-day popover; importing lands the run on the map exactly like the
-    // Upload door and bumps the My DEF CON Runs layer to re-fetch.
+    // in-strip con-day popover; importing/tagging bumps the My DEF CON Runs layer
+    // to re-fetch, then reveals the run there (UAT round 3 fix B — the run
+    // presents as a My DEF CON Runs layer entry, not a second editable file).
     import { tick, onDestroy } from 'svelte';
-    import { get } from 'svelte/store';
-    import mapboxgl from 'mapbox-gl';
-    import { map } from '$lib/components/map/map';
     import { isAuthenticated, hasGpxStudioAccess, hasStrava, isAdmin } from '$lib/stores/auth';
     import { getConDayUsage, updateCloudFile, type ConDayUsage } from '$lib/cloud-sync';
     import {
@@ -24,35 +22,8 @@
         isUnlimitedQuota,
     } from '$lib/logic/strava-strip-pure';
     import { stravaStripExpanded, stravaStripHidden, stravaStripPulse } from '$lib/stores/strava-strip';
-    import { refreshMyConRuns } from '$lib/stores/my-con-runs';
+    import { refreshMyConRuns, requestConRunReveal } from '$lib/stores/my-con-runs';
     import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, LoaderCircle, Check, X, Zap } from '@lucide/svelte';
-
-    // Escape user-controlled text (Strava activity name) before it lands in a
-    // mapboxgl popup's setHTML() — that's raw HTML insertion, same risk as
-    // {@html} in the Svelte template. Mirrors map/my-con-runs.ts's helper.
-    function escapeHtml(s: string): string {
-        return s.replace(
-            /[&<>"']/g,
-            (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string
-        );
-    }
-
-    /** Small mapbox popup for a just-imported/tagged Strava run, styled like the
-     * existing route popups (map/my-con-runs.ts, map/public-overlays.ts): a
-     * border-left color bar, an eyebrow, the name, then a meta row. */
-    function trackPopupHtml(a: StripActivity, dayLabel: string | null): string {
-        return `
-            <div style="min-width:180px;max-width:260px;padding:10px 12px;border-left:4px solid #fc4c02;
-                        font-family:system-ui,sans-serif;color:#e4e4ef">
-                <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">Strava import</div>
-                <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(a.name)}</div>
-                <div style="font-size:12px;opacity:.85;margin-top:6px;line-height:1.6">
-                    📅 ${escapeHtml(formatCardDate(a.startDateLocal))}<br>
-                    📏 ${escapeHtml(formatKm(a.distanceMeters))}<br>
-                    🏁 ${dayLabel ? escapeHtml(dayLabel) : 'No day assigned'}
-                </div>
-            </div>`;
-    }
 
     // The studio is served under the region basePath (e.g. /use1/studio/app) but
     // auth.defcon.run needs the region prefix too — derive it the same way
@@ -195,36 +166,6 @@
         popoverError = null;
     }
 
-    // The imported/tagged run lands on the map as an editable gpx-studio file
-    // (fix 3, 2026-07-21 UAT). Wiring a click-popup into that file's own map
-    // click handler (GPXLayer.layerOnClick in map/gpx-layer/gpx-layer.ts) would
-    // mean bridging fileId → cloudFileId → CloudFile.conDay (no such lookup
-    // exists today — only auto-save.ts's per-file CloudLinkedFile, which has no
-    // conDay) inside that handler's already-dense tool/selection branching —
-    // genuinely invasive for a UAT fix. Fallback (per spec): show the popup
-    // once, right when the import/assign action completes, anchored to the
-    // activity's own polyline (already decoded for the card's SVG preview, so
-    // no dependency on the map's rendered layer at all).
-    let trackPopup: mapboxgl.Popup | null = null;
-
-    function showImportedTrackPopup(a: StripActivity, dayLabel: string | null) {
-        const mapInstance = get(map);
-        const points = decodePolyline(a.summaryPolyline);
-        if (!mapInstance || points.length === 0) return;
-        const [lat, lng] = points[Math.floor(points.length / 2)];
-        trackPopup?.remove();
-        trackPopup = new mapboxgl.Popup({
-            closeButton: true,
-            closeOnClick: true,
-            maxWidth: '280px',
-            offset: 12,
-            className: 'dc34-route-popup',
-        })
-            .setLngLat([lng, lat])
-            .setHTML(trackPopupHtml(a, dayLabel))
-            .addTo(mapInstance);
-    }
-
     async function confirmPopover() {
         const a = openActivity;
         if (!a || !selectedDay) return;
@@ -232,6 +173,7 @@
         popoverError = null;
         const day = selectedDay;
         try {
+            let revealFileId: string;
             if (popoverMode === 'assign') {
                 if (!a.fileId) {
                     // Server contract says imported cards always carry fileId;
@@ -242,17 +184,24 @@
                 // Purely the PUT — no strip re-fetch, no Strava quota touched.
                 await updateCloudFile(a.fileId, { conDay: day });
                 activities = activities.map((act) => (act.id === a.id ? { ...act, conDay: day } : act));
+                revealFileId = a.fileId;
             } else {
-                await importStravaActivity(a.id, day);
+                const imported = await importStravaActivity(a.id, day);
                 activities = activities.map((act) =>
                     act.id === a.id ? { ...act, imported: true, conDay: day } : act
                 );
+                revealFileId = imported.fileId;
             }
             const label = usage.find((u) => u.date === day)?.label ?? 'that day';
             usage = usage.map((u) => (u.date === day ? { ...u, remaining: u.remaining - 1 } : u));
             openActivityId = null;
+            // Set the one-shot reveal command BEFORE bumping the refresh counter —
+            // LayerControl consumes it once its reload() (triggered by the bump)
+            // resolves, revealing this run's day group + fitting bounds + showing
+            // its click-popup (UAT round 3 fix B: the run presents as a My DEF CON
+            // Runs layer entry, not a second editable file — see strava-import.ts).
+            requestConRunReveal(revealFileId);
             refreshMyConRuns();
-            showImportedTrackPopup(a, label);
             successMessage =
                 popoverMode === 'assign'
                     ? `Tagged for ${label}.`
@@ -326,7 +275,6 @@
         unsubscribePulse();
         clearTimeout(pulseTimeout);
         clearTimeout(successTimeout);
-        trackPopup?.remove();
     });
 </script>
 

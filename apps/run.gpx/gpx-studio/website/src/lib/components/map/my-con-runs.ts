@@ -124,19 +124,23 @@ export class MyConRunsLayer {
         try {
             const res = await fetch(`${getApiBase()}/files/con-runs`, { credentials: 'include' });
             if (!res.ok) {
-                // 401/403 (not signed in / no gpxstudio access) → no layer, studio unaffected.
-                myConRunGroups.set([]);
+                // 401/403 (not signed in / no gpxstudio access) → genuinely no
+                // layer. Any OTHER failure (5xx flake right after an import
+                // triggered a reload) must NOT collapse the panel — keep
+                // whatever groups are currently shown (UAT round 3 fix A).
+                if (res.status === 401 || res.status === 403) myConRunGroups.set([]);
                 return;
             }
             const body = (await res.json()) as { runs: RunManifestEntry[] };
             manifest = body.runs ?? [];
             if (manifest.length === 0) {
+                // A real, authoritative empty answer — clearing is correct.
                 myConRunGroups.set([]);
                 return;
             }
         } catch {
-            myConRunGroups.set([]);
-            return; // manifest unavailable → no layer, studio unaffected
+            // Transient network failure — keep the current groups on screen.
+            return;
         }
 
         await this.whenStyleReady();
@@ -198,9 +202,19 @@ export class MyConRunsLayer {
         myConRunGroups.set(groups);
     }
 
-    /** `remove()` then `load()` — idempotent re-fetch (e.g. after a fresh import/re-tag). */
+    /** Idempotent re-fetch (e.g. after a fresh import/re-tag). Tears the old map
+     * layers down but deliberately does NOT clear `myConRunGroups` first — the
+     * old `remove()`-then-`load()` sequence flashed the "My DEF CON Runs" panel
+     * section to empty for the length of the refetch (a network round trip +
+     * per-run GPX fetches), and if the layer-control panel happened to be open
+     * under the pointer at that moment, the sudden height drop (then regrowth
+     * once `load()` finished) shifted the panel out from under the cursor and
+     * produced the hover open/close oscillation seen in UAT round 3. `load()`
+     * still only commits `myConRunGroups` ONCE, atomically, when the fresh data
+     * is ready, so the panel's stale content just stays put in the meantime. */
     async reload(): Promise<void> {
-        this.remove();
+        this.teardownMapLayers();
+        this.loaded = false;
         await this.load();
     }
 
@@ -300,8 +314,10 @@ export class MyConRunsLayer {
         if (box) this.map.fitBounds(box, { padding: 80, maxZoom: 15, duration: 700 });
     }
 
-    /** Master toggle: show/hide every run tagged with a given con day. */
-    setDayVisible(conDay: string, visible: boolean) {
+    /** Master toggle: show/hide every run tagged with a given con day.
+     * `fit` lets revealConRun suppress the day-wide fitBounds so its own
+     * single-run fit is the only camera move (no double animation). */
+    setDayVisible(conDay: string, visible: boolean, fit = true) {
         const fitIds: string[] = [];
         myConRunGroups.update((groups) =>
             groups.map((g) => {
@@ -313,7 +329,7 @@ export class MyConRunsLayer {
                 return { ...g, visible, runs: g.runs.map((r) => ({ ...r, visible })) };
             })
         );
-        if (visible) this.fitToRoutes(fitIds);
+        if (visible && fit) this.fitToRoutes(fitIds);
     }
 
     /** Toggle a single run (glow + core together). */
@@ -328,7 +344,40 @@ export class MyConRunsLayer {
         );
     }
 
-    remove() {
+    /** Show the same click-popup a runner would get from clicking this run's
+     * line, anchored at the center of its cached bounds. No-ops silently if the
+     * run isn't (yet) known to this layer — e.g. `reload()` hasn't finished. */
+    private showRunPopup(fileId: string) {
+        const meta = conRunMetaByFileId.get(fileId);
+        const box = this.routeBounds.get(fileId);
+        if (!meta || !box) return;
+        const lngLat: [number, number] = [(box[0][0] + box[1][0]) / 2, (box[0][1] + box[1][1]) / 2];
+        const color = this.dayColor.get(meta.conDay) ?? routeColor(0);
+        this.popup
+            .setLngLat(lngLat)
+            .setHTML(runPopupHtml(meta.fileName, meta.conDay, color, meta.totalDistance))
+            .addTo(this.map);
+    }
+
+    /** Reveal one run right after an import/tag completes: make its day group
+     * visible, fit the map to just this run, and show its click-popup — the
+     * "lands as a My DEF CON Runs layer entry" presentation from UAT round 3
+     * fix B (the strip no longer lands the run as a second, editable file).
+     * No-ops silently if `fileId` isn't in the just-reloaded manifest (e.g. the
+     * reload failed or the server rejected the import). */
+    revealConRun(fileId: string) {
+        const group = getGroupsSnapshot().find((g) => g.runs.some((r) => r.fileId === fileId));
+        if (!group) return;
+        this.setDayVisible(group.conDay, true, false);
+        this.fitToRoutes([fileId]);
+        this.showRunPopup(fileId);
+    }
+
+    /** Detach listeners/popup and remove every current run's map layers+sources,
+     * plus the derived caches (dayColor/routeBounds/cross-layer bridges). Shared
+     * by `remove()` (full teardown) and `reload()` (teardown-then-rebuild,
+     * which intentionally leaves `myConRunGroups` alone — see reload() above). */
+    private teardownMapLayers() {
         try {
             for (const l of this.listeners) this.map.off(l.type, l.id, l.fn);
             this.listeners = [];
@@ -344,11 +393,15 @@ export class MyConRunsLayer {
         } catch {
             // map not ready
         }
-        this.loaded = false;
         this.dayColor.clear();
         this.routeBounds.clear();
         conRunDayColors.clear();
         conRunMetaByFileId.clear();
+    }
+
+    remove() {
+        this.teardownMapLayers();
+        this.loaded = false;
         myConRunGroups.set([]);
     }
 }
