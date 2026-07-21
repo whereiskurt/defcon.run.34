@@ -3,7 +3,7 @@
     // runner's last-7-days Strava activities. Tapping an unimported card opens an
     // in-strip con-day popover; importing lands the run on the map exactly like the
     // Upload door and bumps the My DEF CON Runs layer to re-fetch.
-    import { tick } from 'svelte';
+    import { tick, onDestroy } from 'svelte';
     import { isAuthenticated, hasGpxStudioAccess, hasStrava, isAdmin } from '$lib/stores/auth';
     import { getConDayUsage, type ConDayUsage } from '$lib/cloud-sync';
     import {
@@ -153,7 +153,8 @@
             openActivityId = null;
             refreshMyConRuns();
             successMessage = `Imported! It's on the map for ${label}.`;
-            setTimeout(() => {
+            clearTimeout(successTimeout);
+            successTimeout = setTimeout(() => {
                 successMessage = null;
             }, 4000);
         } catch (e) {
@@ -165,17 +166,27 @@
         }
     }
 
+    let successTimeout: ReturnType<typeof setTimeout> | undefined;
+    let pulseTimeout: ReturnType<typeof setTimeout> | undefined;
+
     // One-shot attention pulse from the QuickStart hub's "From Strava" hand-off:
     // scroll the strip into view and flash a brief Strava-orange ring.
     let lastPulse = 0;
-    stravaStripPulse.subscribe((n) => {
+    const unsubscribePulse = stravaStripPulse.subscribe((n) => {
         if (n === lastPulse) return;
         lastPulse = n;
         queueMicrotask(() => rootEl?.scrollIntoView({ block: 'nearest' }));
         pulsing = true;
-        setTimeout(() => {
+        clearTimeout(pulseTimeout);
+        pulseTimeout = setTimeout(() => {
             pulsing = false;
         }, 1200);
+    });
+
+    onDestroy(() => {
+        unsubscribePulse();
+        clearTimeout(pulseTimeout);
+        clearTimeout(successTimeout);
     });
 </script>
 
