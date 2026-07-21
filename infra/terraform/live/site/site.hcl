@@ -629,6 +629,14 @@ locals {
                   Resource = "*"
                 },
                 {
+                  # EventBridge Scheduler (first used by strava-sync-scheduler,
+                  # 2026-07-21) — same broad style as the sibling services here.
+                  Sid      = "EventBridgeScheduler"
+                  Effect   = "Allow"
+                  Action   = ["scheduler:*"]
+                  Resource = "*"
+                },
+                {
                   Sid      = "AutoScaling"
                   Effect   = "Allow"
                   Action   = ["application-autoscaling:*"]
