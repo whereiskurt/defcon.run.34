@@ -41,6 +41,11 @@
     let overpassLayer: OverpassLayer;
     let publicOverlaysLayer: PublicOverlaysLayer | undefined = $state();
     let myConRunsLayer: MyConRunsLayer | undefined = $state();
+    // Task 11 fix: isAuthenticated resolves async (session fetch), so a one-shot
+    // check at map.onLoad time raced it on a normal page load. These back the
+    // subscription below that loads the layer the FIRST time auth resolves true.
+    let myConRunsAuthUnsubscribe: (() => void) | undefined;
+    let myConRunsLoadAttempted = false;
     let ghostLayer: GhostLayer | undefined;
     let rabbitLayer: RabbitLayer | undefined;
     let rainbowArch: RainbowArch | undefined;
@@ -224,8 +229,23 @@
         publicOverlaysLayer = new PublicOverlaysLayer(_map);
         publicOverlaysLayer.add();
         if (myConRunsLayer) myConRunsLayer.remove();
+        if (myConRunsAuthUnsubscribe) {
+            myConRunsAuthUnsubscribe();
+            myConRunsAuthUnsubscribe = undefined;
+        }
         myConRunsLayer = new MyConRunsLayer(_map);
-        if (get(isAuthenticated)) void myConRunsLayer.load();
+        // Subscribe rather than one-shot check: isAuthenticated flips true only
+        // once the async session fetch resolves, well after this callback runs
+        // on a normal page load. Load on the FIRST true; loadAttempted stops a
+        // second load if the store flips again (MyConRunsLayer.load() also
+        // guards internally via `loaded`, so this composes safely with reload()).
+        myConRunsLoadAttempted = false;
+        myConRunsAuthUnsubscribe = isAuthenticated.subscribe((authed) => {
+            if (authed && !myConRunsLoadAttempted && myConRunsLayer) {
+                myConRunsLoadAttempted = true;
+                void myConRunsLayer.load();
+            }
+        });
         if (ghostLayer) ghostLayer.remove();
         ghostLayer = new GhostLayer(_map);
         // Reveal/hide with the hidden ghostMode store (default off). map.onLoad
