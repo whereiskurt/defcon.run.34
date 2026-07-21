@@ -677,7 +677,10 @@ export async function updateCloudFile(
         redirectToLogin();
         throw new AuthenticationError('Session expired. Redirecting to login...');
       }
-      throw new Error('Failed to update file');
+      // Surface the server's specific message (e.g. the 429 "you've logged all
+      // N runs for that day" from a conDay move) instead of a generic error.
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.message || data.error || 'Failed to update file');
     }
 
     cloudSyncStatus.set('idle');

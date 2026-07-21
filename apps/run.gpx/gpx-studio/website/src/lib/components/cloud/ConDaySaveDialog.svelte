@@ -6,7 +6,7 @@
     // a chip, and re-saving the file's own current day is always allowed even
     // when that day is full.
     import { getConDayUsage, updateCloudFile, type CloudFile, type ConDayUsage } from '$lib/cloud-sync';
-    import { guessConDay } from '$lib/logic/strava-strip-pure';
+    import { guessConDay, isUnlimitedQuota } from '$lib/logic/strava-strip-pure';
     import { refreshMyConRuns } from '$lib/stores/my-con-runs';
     import { isAdmin } from '$lib/stores/auth';
     import { CalendarCheck } from '@lucide/svelte';
@@ -149,8 +149,12 @@
 
                 {#if selectedUsage}
                     <p class="mt-2 text-xs text-muted-foreground">
-                        {selectedUsage.count} of {selectedUsage.count +
-                            selectedUsage.remaining} runs · {selectedUsage.label}
+                        {#if isUnlimitedQuota(selectedUsage.remaining, selectedUsage.count)}
+                            Unlimited · {selectedUsage.label}
+                        {:else}
+                            {selectedUsage.count} of {selectedUsage.count +
+                                selectedUsage.remaining} runs · {selectedUsage.label}
+                        {/if}
                     </p>
                 {/if}
 
