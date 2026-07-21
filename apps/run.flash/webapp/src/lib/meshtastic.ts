@@ -11,6 +11,8 @@ import { TransportWebSerial } from "@meshtastic/transport-web-serial";
 import { create } from "@bufbuild/protobuf";
 import { buildRingtoneAdminMessageBytes } from "@/lib/ringtone-admin";
 import { isValidRtttl } from "@/lib/rtttl";
+import { buildShortName, clampLongName } from "@/lib/identity";
+import { verifyMqttConfig } from "@/lib/verify-config";
 
 /** Info captured during configure handshake for auto-registration */
 export type DeviceRegistrationInfo = {
@@ -42,6 +44,9 @@ const MAX_CONFIGURE_RETRIES = 3;
 /** Timeout for waiting for DeviceConfigured status (ms) -- needs to be long enough
  * for the device to finish dumping its entire config back to us */
 const CONFIGURE_TIMEOUT_MS = 60000;
+
+/** Settle delay between commitEditSettings and the post-commit read-backs (ms) */
+const COMMIT_SETTLE_MS = 1500;
 
 /**
  * Connect to a Meshtastic device over Web Serial after flash reboot.
@@ -368,9 +373,14 @@ export async function pushDeviceConfig(
 
   // 4. Identity Config
   console.log("[meshtastic] Pushing identity config...");
+  // Byte-guard at the hardware boundary (server already clamps, but a stale or
+  // hand-crafted payload must not reach the radio over-length): long_name over
+  // 39 UTF-8 bytes fails nanopb decode on the device — the whole owner write is
+  // silently dropped — and a shortName sliced by UTF-16 code units can exceed
+  // the 4-byte limit and render as garbage.
   const owner = create(Protobuf.Mesh.UserSchema, {
-    longName: config.identity.longName,
-    shortName: config.identity.shortName.slice(0, 4).toUpperCase(),
+    longName: clampLongName(config.identity.longName),
+    shortName: buildShortName(config.identity.shortName),
   });
   await device.setOwner(owner);
   console.log("[meshtastic] Identity applied");
@@ -409,6 +419,14 @@ export async function pushDeviceConfig(
   await device.commitEditSettings();
   console.log("[meshtastic] Settings committed");
 
+  // 5b. Let the commit settle before reading anything back. Config can stage
+  // without persisting (the orphaned-cred landmine), and some commits trigger
+  // a reboot — reading back instantly can return staged RAM values that never
+  // survive. A short settle makes the read-back more likely to reflect what
+  // was actually persisted; if the device does reboot and drops serial, the
+  // verifies below resolve inconclusive (fail-open) rather than hanging.
+  await new Promise((resolve) => setTimeout(resolve, COMMIT_SETTLE_MS));
+
   // 6. Verify the LoRa region actually persisted. The flasher already sends US
   // correctly, but a device that silently DROPS the region on the post-commit
   // reboot (firmware/flash) would publish to a region-less MQTT topic
@@ -424,11 +442,33 @@ export async function pushDeviceConfig(
         `A wrong region publishes to an MQTT topic the fleet can't see. Please retry / re-flash this device.`
     );
   }
-  const regionSummary =
-    region.status === "verified"
-      ? `Settings saved · region ${config.radio.region} verified`
-      : `Settings saved · region unverified`;
-  onStageComplete("committing", regionSummary);
+
+  // 7. Verify the MQTT module config actually persisted — the guard for the
+  // orphaned-cred failure: a radio whose MQTT push staged but never committed
+  // keeps creds from an earlier provisioning and gets AUTH_REJECTed forever
+  // (the phone app's client proxy presents whatever the RADIO stores, so this
+  // is invisible until the broker denies it). Same fail-open contract as
+  // region: hard-fail only on a positively read mismatch.
+  const mqtt = await verifyMqttConfig(device, {
+    username: config.mqtt.username,
+    address: config.mqtt.server,
+    root: config.mqtt.root,
+    enabled: true,
+  });
+  if (mqtt.status === "mismatch") {
+    console.error("[meshtastic] MQTT config MISMATCH:", mqtt.mismatches);
+    throw new Error(
+      `MQTT config did not persist (${mqtt.mismatches.join("; ")}). ` +
+        `The radio would keep stale credentials and be rejected by the broker. Please retry configuration.`
+    );
+  }
+  console.log(`[meshtastic] MQTT config ${mqtt.status}`);
+
+  const verifiedParts = [
+    region.status === "verified" ? `region ${config.radio.region} verified` : "region unverified",
+    mqtt.status === "verified" ? "MQTT verified" : "MQTT unverified",
+  ];
+  onStageComplete("committing", `Settings saved · ${verifiedParts.join(" · ")}`);
 }
 
 /** Result of reading the device's LoRa region back after commit. */

@@ -144,6 +144,8 @@
     "flash.done.longName": "Long Name",
     "flash.done.shortName": "Short Name",
     "flash.done.mqttServer": "MQTT Server",
+    "flash.done.mqttUser": "MQTT Username",
+    "flash.done.mqttUserHint": "Should match the MQTT username shown in your Meshtastic phone app",
     "flash.done.channels": "Channels",
     "flash.done.radio": "Radio",
     "flash.done.configuredFallback": "Your device has been successfully configured.",
