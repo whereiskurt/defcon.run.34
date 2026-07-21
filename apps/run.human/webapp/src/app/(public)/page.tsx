@@ -16,9 +16,12 @@ import { EggTrigger } from "@/components/EggTrigger";
 
 const isDev = process.env.NODE_ENV !== "production";
 const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
-// Region-prefixed URL for the next-auth signIn callback (a post-login redirect,
-// not a HeroUI/router navigation, so it needs the explicit region prefix).
+// Region-prefixed URLs. Needed anywhere the href bypasses the HeroUI router
+// integration: the next-auth signIn callback (a post-login redirect) and
+// Button `as="a"` (raw DOM anchor — HeroUIProvider's useHref/basePath does
+// NOT apply, unlike Link/DropdownItem).
 const whoamiUrl = isDev ? "/whoami" : `/${region}/whoami`;
+const routesUrl = isDev ? "/routes" : `/${region}/routes`;
 
 function LoginContent() {
   const [mounted, setMounted] = useState(false);
@@ -87,7 +90,7 @@ function WelcomeContent({ userName }: { userName: string }) {
           color="primary"
           className="font-semibold w-full"
           size="lg"
-          href="/whoami"
+          href={whoamiUrl}
           as="a"
           endContent={<ChevronRight className="w-4 h-4" />}
         >
@@ -97,7 +100,7 @@ function WelcomeContent({ userName }: { userName: string }) {
           variant="flat"
           color="default"
           className="w-full"
-          href="/routes"
+          href={routesUrl}
           as="a"
           endContent={<ChevronRight className="w-4 h-4" />}
         >
