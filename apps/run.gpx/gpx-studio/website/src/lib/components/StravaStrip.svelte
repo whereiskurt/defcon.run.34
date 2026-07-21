@@ -34,6 +34,7 @@
     const canShow = $derived($isAuthenticated && $hasGpxStudioAccess);
 
     let activities = $state<StripActivity[]>([]);
+    let weeks = $state(1);
     let usage = $state<ConDayUsage[]>([]);
     let loading = $state(false);
     let loadedOnce = $state(false);
@@ -61,8 +62,9 @@
         loading = true;
         error = null;
         try {
-            const [acts, u] = await Promise.all([fetchStravaActivities(), getConDayUsage()]);
-            activities = acts;
+            const [res, u] = await Promise.all([fetchStravaActivities(), getConDayUsage()]);
+            activities = res.activities;
+            weeks = res.weeks;
             usage = u;
         } catch (e) {
             error = e instanceof Error ? e.message : 'Could not load Strava activities';
@@ -76,7 +78,7 @@
     // ever happen from explicit user intent — never from an $effect reacting to
     // canShow/expanded/hasStrava. The three triggers are: (1) the chevron below,
     // on the transition to expanded; (2) the hub pulse handler further down; and
-    // (3) the "Show my last 7 days" fallback button in the body for runners whose
+    // (3) the "Show my recent activity" fallback button in the body for runners whose
     // persisted state is already expanded.
     function toggleExpanded() {
         const next = !$stravaStripExpanded;
@@ -219,7 +221,9 @@
                     d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066M13.828 10.172L11.769 6.02l-4.14 8.1H4.564L11.769 0l3.939 7.856h3.066"
                 />
             </svg>
-            <span class="text-sm font-semibold">From Strava · last 7 days</span>
+            <span class="text-sm font-semibold"
+                >From Strava · {loadedOnce && weeks > 1 ? `last ${weeks} weeks` : 'last 7 days'}</span
+            >
             {#if loadedOnce && !error}
                 <span class="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground"
                     >{activities.length}</span
@@ -254,7 +258,7 @@
                 {#if !$hasStrava}
                     <div class="rounded-lg border border-dashed p-4 text-center">
                         <p class="text-sm text-muted-foreground">
-                            Link your Strava account to import your last 7 days of activity onto the
+                            Link your Strava account to import your recent activity onto the
                             map.
                         </p>
                         <button
@@ -272,19 +276,19 @@
                     </div>
                 {:else if loading && !loadedOnce}
                     <div class="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-                        <LoaderCircle size={16} class="animate-spin" /> Loading your last 7 days…
+                        <LoaderCircle size={16} class="animate-spin" /> Loading your recent activity…
                     </div>
                 {:else if !loadedOnce && !loading && !error}
                     <div class="rounded-lg border border-dashed p-4 text-center">
                         <p class="text-sm text-muted-foreground">
-                            Load your last 7 days of Strava activity onto the map.
+                            Load your recent Strava activity onto the map.
                         </p>
                         <button
                             class="mt-3 inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110"
                             style="background:#fc4c02"
                             onclick={() => void loadStrip()}
                         >
-                            Show my last 7 days
+                            Show my recent activity
                         </button>
                     </div>
                 {:else if error}
@@ -301,7 +305,7 @@
                     </div>
                 {:else if activities.length === 0}
                     <p class="py-4 text-center text-sm text-muted-foreground">
-                        No activities in the last 7 days.
+                        No activities in the last {weeks > 1 ? `${weeks} weeks` : '7 days'}.
                     </p>
                 {:else}
                     {#if openActivity}

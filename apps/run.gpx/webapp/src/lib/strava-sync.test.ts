@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   dedupeActivities,
   listActivitiesSince,
+  listStripActivitiesBackfill,
   toStripActivities,
   type StravaActivity,
 } from "./strava-sync";
@@ -138,5 +139,77 @@ describe("toStripActivities", () => {
       imported: false,
     });
     expect(out[1].imported).toBe(true);
+  });
+});
+
+describe("listStripActivitiesBackfill", () => {
+  const NOW = 1_760_000_000;
+  const WEEK = 7 * 24 * 3600;
+
+  function act(id: number, polyline: string | null): StravaActivity {
+    return {
+      id,
+      name: `a${id}`,
+      type: "Run",
+      sport_type: "Run",
+      distance: 1000,
+      total_elevation_gain: 0,
+      start_date_local: "2026-07-20T06:00:00Z",
+      moving_time: 300,
+      map: { summary_polyline: polyline },
+    };
+  }
+
+  /** Stub fetch to serve one fixed batch per successive week call. */
+  function stubWeeks(batches: StravaActivity[][]): string[] {
+    const urls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        urls.push(String(url));
+        return stravaResponse(batches[urls.length - 1] ?? []);
+      })
+    );
+    return urls;
+  }
+
+  it("stops after one week when the threshold is already met", async () => {
+    const urls = stubWeeks([[act(1, "p"), act(2, "p"), act(3, "p"), act(4, "p")]]);
+    const out = await listStripActivitiesBackfill("tok", NOW);
+    expect(out.weeks).toBe(1);
+    expect(out.activities).toHaveLength(4);
+    expect(urls).toHaveLength(1);
+    expect(urls[0]).toContain(`after=${NOW - WEEK}`);
+    expect(urls[0]).toContain(`before=${NOW}`);
+  });
+
+  it("extends week by week and keeps the WHOLE crossing week (3 + 7 = 10)", async () => {
+    const week1 = [act(1, "p"), act(2, "p"), act(3, "p")];
+    const week2 = Array.from({ length: 7 }, (_, i) => act(10 + i, "p"));
+    const urls = stubWeeks([week1, week2]);
+    const out = await listStripActivitiesBackfill("tok", NOW);
+    expect(out.weeks).toBe(2);
+    expect(out.activities).toHaveLength(10);
+    expect(urls).toHaveLength(2);
+    // Second call is the band [now-2w, now-1w) — no overlap with the first.
+    expect(urls[1]).toContain(`after=${NOW - 2 * WEEK}`);
+    expect(urls[1]).toContain(`before=${NOW - WEEK}`);
+  });
+
+  it("does not count GPS-less activities toward the threshold", async () => {
+    const week1 = [act(1, "p"), act(2, "p"), act(3, "p"), act(4, "")];
+    const week2 = [act(5, "p")];
+    const urls = stubWeeks([week1, week2]);
+    const out = await listStripActivitiesBackfill("tok", NOW);
+    expect(out.weeks).toBe(2);
+    expect(urls).toHaveLength(2);
+  });
+
+  it("caps the look-back at maxWeeks when history is empty", async () => {
+    const urls = stubWeeks([]);
+    const out = await listStripActivitiesBackfill("tok", NOW, 4, 8);
+    expect(out.weeks).toBe(8);
+    expect(out.activities).toEqual([]);
+    expect(urls).toHaveLength(8);
   });
 });

@@ -7,8 +7,14 @@ const mocks = vi.hoisted(() => ({
   consumeQuota: vi.fn(async () => ({ success: true, remaining: 15 })),
   restoreQuota: vi.fn(async () => ({})),
   fetchSingleUserStravaToken: vi.fn(),
-  listActivitiesSince: vi.fn(
-    async (_token: string, _after: number): Promise<StravaActivity[]> => []
+  listStripActivitiesBackfill: vi.fn(
+    async (
+      _token: string,
+      _now: number
+    ): Promise<{ activities: StravaActivity[]; weeks: number }> => ({
+      activities: [],
+      weeks: 1,
+    })
   ),
   getExistingStravaIds: vi.fn(async () => new Set<string>()),
   logEvent: vi.fn(),
@@ -23,7 +29,7 @@ vi.mock("@/lib/quota-client", () => ({
 vi.mock("@/lib/strava-sync", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchSingleUserStravaToken: mocks.fetchSingleUserStravaToken,
-  listActivitiesSince: mocks.listActivitiesSince,
+  listStripActivitiesBackfill: mocks.listStripActivitiesBackfill,
   getExistingStravaIds: mocks.getExistingStravaIds,
 }));
 vi.mock("@/lib/log-event", () => ({ logEvent: mocks.logEvent }));
@@ -63,13 +69,16 @@ describe("GET /api/gpx/strava/activities", () => {
     expect((await GET(req())).status).toBe(400);
   });
 
-  it("lists the last 7 days with imported flags", async () => {
+  it("lists backfilled activities with imported flags and the weeks spanned", async () => {
     mocks.getExistingStravaIds.mockResolvedValue(new Set(["2"]));
-    mocks.listActivitiesSince.mockResolvedValue([
-      { id: 1, name: "A", type: "Run", sport_type: "Run", distance: 1000, total_elevation_gain: 0, start_date_local: "2026-07-20T06:00:00Z", moving_time: 300, map: { summary_polyline: "p1" } },
-      { id: 2, name: "B", type: "Walk", sport_type: "Walk", distance: 2000, total_elevation_gain: 0, start_date_local: "2026-07-19T06:00:00Z", moving_time: 600, map: { summary_polyline: "p2" } },
-      { id: 3, name: "Treadmill", type: "Run", sport_type: "Run", distance: 3000, total_elevation_gain: 0, start_date_local: "2026-07-18T06:00:00Z", moving_time: 900, map: { summary_polyline: "" } },
-    ]);
+    mocks.listStripActivitiesBackfill.mockResolvedValue({
+      activities: [
+        { id: 1, name: "A", type: "Run", sport_type: "Run", distance: 1000, total_elevation_gain: 0, start_date_local: "2026-07-20T06:00:00Z", moving_time: 300, map: { summary_polyline: "p1" } },
+        { id: 2, name: "B", type: "Walk", sport_type: "Walk", distance: 2000, total_elevation_gain: 0, start_date_local: "2026-07-19T06:00:00Z", moving_time: 600, map: { summary_polyline: "p2" } },
+        { id: 3, name: "Treadmill", type: "Run", sport_type: "Run", distance: 3000, total_elevation_gain: 0, start_date_local: "2026-07-18T06:00:00Z", moving_time: 900, map: { summary_polyline: "" } },
+      ],
+      weeks: 2,
+    });
 
     const res = await GET(req());
     const body = await res.json();
@@ -77,17 +86,18 @@ describe("GET /api/gpx/strava/activities", () => {
     expect(res.status).toBe(200);
     expect(body.activities.map((a: { id: number }) => a.id)).toEqual([1, 2]);
     expect(body.activities[1].imported).toBe(true);
-    // Window: after ≈ now − 7d (unix seconds).
-    const after = mocks.listActivitiesSince.mock.calls[0][1] as number;
-    expect(after).toBeGreaterThan(Date.now() / 1000 - 7 * 86400 - 60);
-    expect(after).toBeLessThanOrEqual(Date.now() / 1000 - 7 * 86400 + 60);
+    expect(body.weeks).toBe(2);
+    // The route passes "now" (unix seconds); the window itself is a server-side
+    // constant inside listStripActivitiesBackfill — nothing client-supplied.
+    const nowArg = mocks.listStripActivitiesBackfill.mock.calls[0][1] as number;
+    expect(Math.abs(nowArg - Date.now() / 1000)).toBeLessThan(60);
     expect(mocks.consumeQuota).toHaveBeenCalledWith("u1", "strava_sync", 1, "upload");
   });
 
   it("429s and does not call Strava when the burst quota is exhausted", async () => {
     mocks.consumeQuota.mockResolvedValue({ success: false, remaining: 0 });
     expect((await GET(req())).status).toBe(429);
-    expect(mocks.listActivitiesSince).not.toHaveBeenCalled();
+    expect(mocks.listStripActivitiesBackfill).not.toHaveBeenCalled();
   });
 
   it("refunds the burst unit when the token is missing", async () => {

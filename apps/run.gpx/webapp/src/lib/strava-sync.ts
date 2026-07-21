@@ -335,7 +335,8 @@ export async function listActivitiesSince(
   token: string,
   afterUnixSeconds: number,
   maxPages = 3,
-  perPage = 50
+  perPage = 50,
+  beforeUnixSeconds?: number
 ): Promise<StravaActivity[]> {
   const all: StravaActivity[] = [];
   for (let page = 1; page <= maxPages; page++) {
@@ -344,6 +345,9 @@ export async function listActivitiesSince(
       page: String(page),
       after: String(afterUnixSeconds),
     });
+    if (beforeUnixSeconds !== undefined) {
+      params.set("before", String(beforeUnixSeconds));
+    }
     const activities = await stravaGet<StravaActivity[]>(
       `/athlete/activities?${params.toString()}`,
       token
@@ -353,6 +357,43 @@ export async function listActivitiesSince(
     if (activities.length < perPage) break;
   }
   return all;
+}
+
+/**
+ * Week-by-week backfill for the strip (Kurt 2026-07-21): start with the last
+ * 7 days; while the ribbon holds fewer than `minCount` GPS-having activities,
+ * extend the look-back one WHOLE week at a time — the week that crosses the
+ * threshold is always included in full ("3 in week one + 7 in week two →
+ * show all 10"). Bounds: each week is exactly one banded Strava call (after +
+ * before, no overlap, one page), capped at `maxWeeks`, so the worst case is
+ * maxWeeks requests for a runner with an empty recent history. All knobs are
+ * SERVER-side constants — the client cannot influence the window.
+ */
+export const STRIP_MIN_ACTIVITIES = 4;
+export const STRIP_MAX_LOOKBACK_WEEKS = 8;
+const WEEK_SECONDS = 7 * 24 * 3600;
+
+export async function listStripActivitiesBackfill(
+  token: string,
+  nowUnixSeconds: number,
+  minCount = STRIP_MIN_ACTIVITIES,
+  maxWeeks = STRIP_MAX_LOOKBACK_WEEKS
+): Promise<{ activities: StravaActivity[]; weeks: number }> {
+  const all: StravaActivity[] = [];
+  let withGps = 0;
+  let weeks = 0;
+  for (let w = 1; w <= maxWeeks; w++) {
+    const after = nowUnixSeconds - w * WEEK_SECONDS;
+    const before = nowUnixSeconds - (w - 1) * WEEK_SECONDS;
+    // One page of 50 per week-band is far beyond any real weekly volume, and
+    // keeps the per-week cost to a single Strava request.
+    const batch = await listActivitiesSince(token, after, 1, 50, before);
+    all.push(...batch);
+    withGps += batch.filter((a) => !!a.map?.summary_polyline).length;
+    weeks = w;
+    if (withGps >= minCount) break;
+  }
+  return { activities: all, weeks };
 }
 
 /** What the strip renders per activity — summary polyline included. */
