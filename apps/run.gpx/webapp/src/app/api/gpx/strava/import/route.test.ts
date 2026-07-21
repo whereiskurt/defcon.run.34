@@ -96,9 +96,24 @@ describe("POST /api/gpx/strava/import", () => {
     expect((await POST(req({ activityId: 7, conDay: "2026-08-07" }))).status).toBe(429);
   });
 
-  it("422s and refunds when the activity has no GPS streams", async () => {
+  it("422s WITHOUT refunding when the activity has no GPS streams", async () => {
     mocks.importActivityForConDay.mockResolvedValue(null);
-    expect((await POST(req({ activityId: 7, conDay: "2026-08-07" }))).status).toBe(422);
+    const res = await POST(req({ activityId: 7, conDay: "2026-08-07" }));
+    const body = await res.json();
+    expect(res.status).toBe(422);
+    expect(body.message).toMatch(/no GPS track/i);
+    expect(mocks.restoreQuota).not.toHaveBeenCalledWith("u1", "gpx_upload", 1);
+  });
+
+  it("404s WITHOUT refunding when Strava doesn't return the activity", async () => {
+    mocks.fetchActivityById.mockResolvedValue(null);
+    expect((await POST(req({ activityId: 7, conDay: "2026-08-07" }))).status).toBe(404);
+    expect(mocks.restoreQuota).not.toHaveBeenCalledWith("u1", "gpx_upload", 1);
+  });
+
+  it("409s and refunds when the Strava token is missing", async () => {
+    mocks.fetchSingleUserStravaToken.mockResolvedValue(null);
+    expect((await POST(req({ activityId: 7, conDay: "2026-08-07" }))).status).toBe(409);
     expect(mocks.restoreQuota).toHaveBeenCalledWith("u1", "gpx_upload", 1);
   });
 });

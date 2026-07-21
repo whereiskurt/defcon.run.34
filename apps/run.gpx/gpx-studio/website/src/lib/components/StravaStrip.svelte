@@ -72,16 +72,18 @@
         }
     }
 
-    // First expand (whether from a manual toggle, the persisted-expanded default,
-    // or a pulse force-expand) triggers the initial load.
-    $effect(() => {
-        if (canShow && $stravaStripExpanded && $hasStrava && !loadedOnce && !loading) {
+    // Fetching costs a unit of the lifetime strava_sync quota, so it must only
+    // ever happen from explicit user intent — never from an $effect reacting to
+    // canShow/expanded/hasStrava. The three triggers are: (1) the chevron below,
+    // on the transition to expanded; (2) the hub pulse handler further down; and
+    // (3) the "Show my last 7 days" fallback button in the body for runners whose
+    // persisted state is already expanded.
+    function toggleExpanded() {
+        const next = !$stravaStripExpanded;
+        stravaStripExpanded.set(next);
+        if (next && $hasStrava && !loadedOnce && !loading) {
             void loadStrip();
         }
-    });
-
-    function toggleExpanded() {
-        stravaStripExpanded.update((v) => !v);
     }
 
     // Re-measure the carousel scroll state whenever its content (or mount state) changes.
@@ -181,6 +183,11 @@
         pulseTimeout = setTimeout(() => {
             pulsing = false;
         }, 1200);
+        // openStravaStrip() already force-expanded the strip before bumping this
+        // pulse — fetch now, once, if we haven't already.
+        if (canShow && $hasStrava && !loadedOnce && !loading) {
+            void loadStrip();
+        }
     });
 
     onDestroy(() => {
@@ -258,6 +265,19 @@
                 {:else if loading && !loadedOnce}
                     <div class="flex items-center gap-2 py-4 text-sm text-muted-foreground">
                         <LoaderCircle size={16} class="animate-spin" /> Loading your last 7 days…
+                    </div>
+                {:else if !loadedOnce && !loading && !error}
+                    <div class="rounded-lg border border-dashed p-4 text-center">
+                        <p class="text-sm text-muted-foreground">
+                            Load your last 7 days of Strava activity onto the map.
+                        </p>
+                        <button
+                            class="mt-3 inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+                            style="background:#fc4c02"
+                            onclick={() => void loadStrip()}
+                        >
+                            Show my last 7 days
+                        </button>
                     </div>
                 {:else if error}
                     <div

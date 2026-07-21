@@ -24,8 +24,16 @@ import { logEvent } from "@/lib/log-event";
  * Unlike /strava/sync (all fresh activities), this imports EXACTLY ONE chosen
  * activity. Con-day rule: any of the six CON_DAYS is accepted at any time (the
  * no-future isSelectableConDay gate is deliberately NOT applied — decision
- * 2026-07-21); admins may use any valid date. Costs one lifetime gpx_upload
- * (refunded on failure); bounded by the shared per-con-day cap.
+ * 2026-07-21); admins may use any valid date. Costs one lifetime gpx_upload.
+ *
+ * Refund policy (2026-07-21): the gpx_upload unit is refunded ONLY when the
+ * failure spent no Strava API traffic — i.e. the 409 "no Strava token" case,
+ * and the generic 500 on an unexpected throw. It is deliberately NOT refunded
+ * for the two user-caused failures that already called out to Strava
+ * (activity-not-found 404, no-GPS 422): what's actually being protected there
+ * is Strava's app-wide rate limit, not the runner's quota bookkeeping. If
+ * those calls were free to replay, a bad/blocked activityId could be retried
+ * indefinitely against Strava's API for zero cost.
  */
 export async function POST(request: Request) {
   const session = await auth();
@@ -131,7 +139,8 @@ export async function POST(request: Request) {
 
       const activity = await fetchActivityById(token.accessToken, activityId);
       if (!activity) {
-        await restoreQuota(session.user.id, "gpx_upload", 1);
+        // Already spent a Strava API call — the unit stays consumed (see
+        // refund-policy note above).
         return NextResponse.json(
           { error: "Activity not found", message: "Strava did not return this activity" },
           { status: 404 }
@@ -140,10 +149,13 @@ export async function POST(request: Request) {
 
       const file = await importActivityForConDay(token, activity, conDay);
       if (!file) {
-        // No GPS streams (e.g. treadmill) — refund the lifetime unit.
-        await restoreQuota(session.user.id, "gpx_upload", 1);
+        // No GPS streams (e.g. treadmill) — already spent a Strava API call,
+        // so the unit stays consumed (see refund-policy note above).
         return NextResponse.json(
-          { error: "No GPS", message: "This activity has no GPS track to import" },
+          {
+            error: "No GPS",
+            message: "This activity has no GPS track to import — the unit still counts against your Strava import quota",
+          },
           { status: 422 }
         );
       }

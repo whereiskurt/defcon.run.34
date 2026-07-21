@@ -47,7 +47,11 @@ export function conDayLabel(date: string | null | undefined): string | null {
  * True if `s` is a syntactically valid ISO calendar date (YYYY-MM-DD) — a real
  * day (rejects e.g. 2026-02-31). Used ONLY for the admin any-date override, which
  * lets admins log/test a run for any day of the year, bypassing the con-day set
- * and the no-future gate. Non-admins are still held to isConDay + isSelectableConDay.
+ * and the no-future gate. Non-admins are still held to isConDay + isSelectableConDay
+ * on most paths — EXCEPT (decision 2026-07-21): the Strava strip's tap-to-import,
+ * conDay file updates, and the save-as dialog, which deliberately accept ANY con
+ * day (isConDay only, no future gate) so a runner can back-tag a run to an earlier
+ * day of the con. The older upload/sync paths still apply isSelectableConDay.
  */
 export function isValidDateString(s: string | null | undefined): boolean {
   if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
