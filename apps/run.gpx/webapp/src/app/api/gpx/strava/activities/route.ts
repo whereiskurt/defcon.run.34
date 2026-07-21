@@ -10,7 +10,7 @@ import {
   fetchSingleUserStravaToken,
   listStripActivitiesBackfill,
   toStripActivities,
-  getExistingStravaIds,
+  getStravaFileIndex,
 } from "@/lib/strava-sync";
 import { logEvent } from "@/lib/log-event";
 
@@ -74,12 +74,12 @@ export async function GET(request: Request) {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const [{ activities, weeks }, imported] = await Promise.all([
+    const [{ activities, weeks }, fileIndex] = await Promise.all([
       listStripActivitiesBackfill(token.accessToken, now),
-      getExistingStravaIds(session.user.id),
+      getStravaFileIndex(session.user.id),
     ]);
 
-    const strip = toStripActivities(activities, imported);
+    const strip = toStripActivities(activities, fileIndex);
 
     logEvent("gpx.strava.list", {
       headers: request.headers,

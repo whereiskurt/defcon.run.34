@@ -6,6 +6,8 @@ import {
   toStripActivities,
   runStravaSync,
   syncUserUntagged,
+  getExistingStravaIds,
+  getStravaFileIndex,
   type StravaActivity,
   type StravaUserToken,
 } from "./strava-sync";
@@ -13,7 +15,14 @@ import {
 const mocks = vi.hoisted(() => ({
   s3Send: vi.fn(async () => ({})),
   fileCreate: vi.fn(async (_attrs: Record<string, unknown>) => ({})),
-  fileQuery: vi.fn(async () => ({ data: [] as { stravaActivityId?: string }[] })),
+  fileQuery: vi.fn(async () => ({
+    data: [] as {
+      fileId?: string;
+      stravaActivityId?: string;
+      conDay?: string;
+      status?: string;
+    }[],
+  })),
 }));
 
 // logEvent is fire-and-forget telemetry; silence it so fetch mocks stay clean.
@@ -154,7 +163,10 @@ describe("toStripActivities", () => {
       { ...base, id: 3, map: undefined }, // no map → dropped
       { ...base, id: 4 },
     ];
-    const out = toStripActivities(acts, new Set(["4"]));
+    const out = toStripActivities(
+      acts,
+      new Map([["4", { fileId: "file-4", conDay: "2026-08-07" }]])
+    );
     expect(out.map((a) => a.id)).toEqual([1, 4]);
     expect(out[0]).toEqual({
       id: 1,
@@ -167,6 +179,62 @@ describe("toStripActivities", () => {
       imported: false,
     });
     expect(out[1].imported).toBe(true);
+    expect(out[1].fileId).toBe("file-4");
+    expect(out[1].conDay).toBe("2026-08-07");
+  });
+
+  it("sets conDay to null (not undefined) for an imported activity with no tag", () => {
+    const out = toStripActivities(
+      [{ ...base, id: 5 }],
+      new Map([["5", { fileId: "file-5" }]])
+    );
+    expect(out[0].imported).toBe(true);
+    expect(out[0].fileId).toBe("file-5");
+    expect(out[0].conDay).toBeNull();
+  });
+
+  it("omits fileId/conDay entirely for an unimported activity", () => {
+    const out = toStripActivities([{ ...base, id: 6 }], new Map());
+    expect(out[0].imported).toBe(false);
+    expect(out[0]).not.toHaveProperty("fileId");
+    expect(out[0]).not.toHaveProperty("conDay");
+  });
+});
+
+describe("getStravaFileIndex / getExistingStravaIds", () => {
+  beforeEach(() => {
+    mocks.fileQuery.mockReset();
+  });
+
+  it("indexes non-failed files with a stravaActivityId, carrying fileId + conDay", async () => {
+    mocks.fileQuery.mockResolvedValue({
+      data: [
+        { fileId: "f1", stravaActivityId: "1", conDay: "2026-08-07", status: "active" },
+        { fileId: "f2", stravaActivityId: "2", status: "active" }, // untagged
+        { fileId: "f3", stravaActivityId: "3", status: "failed" }, // excluded
+        { fileId: "f4" }, // no stravaActivityId → excluded
+      ],
+    });
+
+    const index = await getStravaFileIndex("u1");
+
+    expect(Array.from(index.keys()).sort()).toEqual(["1", "2"]);
+    expect(index.get("1")).toEqual({ fileId: "f1", conDay: "2026-08-07" });
+    expect(index.get("2")).toEqual({ fileId: "f2" });
+    expect(index.has("3")).toBe(false);
+  });
+
+  it("getExistingStravaIds is the key set of getStravaFileIndex (one query, no behavior change)", async () => {
+    mocks.fileQuery.mockResolvedValue({
+      data: [
+        { fileId: "f1", stravaActivityId: "1", status: "active" },
+        { fileId: "f2", stravaActivityId: "2", status: "failed" },
+      ],
+    });
+
+    const ids = await getExistingStravaIds("u1");
+
+    expect(ids).toEqual(new Set(["1"]));
   });
 });
 

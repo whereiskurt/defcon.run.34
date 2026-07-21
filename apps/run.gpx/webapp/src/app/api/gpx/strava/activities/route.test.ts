@@ -16,7 +16,9 @@ const mocks = vi.hoisted(() => ({
       weeks: 1,
     })
   ),
-  getExistingStravaIds: vi.fn(async () => new Set<string>()),
+  getStravaFileIndex: vi.fn(
+    async () => new Map<string, { fileId: string; conDay?: string }>()
+  ),
   logEvent: vi.fn(),
 }));
 
@@ -30,7 +32,7 @@ vi.mock("@/lib/strava-sync", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   fetchSingleUserStravaToken: mocks.fetchSingleUserStravaToken,
   listStripActivitiesBackfill: mocks.listStripActivitiesBackfill,
-  getExistingStravaIds: mocks.getExistingStravaIds,
+  getStravaFileIndex: mocks.getStravaFileIndex,
 }));
 vi.mock("@/lib/log-event", () => ({ logEvent: mocks.logEvent }));
 
@@ -70,7 +72,9 @@ describe("GET /api/gpx/strava/activities", () => {
   });
 
   it("lists backfilled activities with imported flags and the weeks spanned", async () => {
-    mocks.getExistingStravaIds.mockResolvedValue(new Set(["2"]));
+    mocks.getStravaFileIndex.mockResolvedValue(
+      new Map([["2", { fileId: "file-2", conDay: "2026-08-07" }]])
+    );
     mocks.listStripActivitiesBackfill.mockResolvedValue({
       activities: [
         { id: 1, name: "A", type: "Run", sport_type: "Run", distance: 1000, total_elevation_gain: 0, start_date_local: "2026-07-20T06:00:00Z", moving_time: 300, map: { summary_polyline: "p1" } },
@@ -86,12 +90,36 @@ describe("GET /api/gpx/strava/activities", () => {
     expect(res.status).toBe(200);
     expect(body.activities.map((a: { id: number }) => a.id)).toEqual([1, 2]);
     expect(body.activities[1].imported).toBe(true);
+    expect(body.activities[1].fileId).toBe("file-2");
+    expect(body.activities[1].conDay).toBe("2026-08-07");
+    expect(body.activities[0].imported).toBe(false);
+    expect(body.activities[0].fileId).toBeUndefined();
+    expect(body.activities[0].conDay).toBeUndefined();
     expect(body.weeks).toBe(2);
     // The route passes "now" (unix seconds); the window itself is a server-side
     // constant inside listStripActivitiesBackfill — nothing client-supplied.
     const nowArg = mocks.listStripActivitiesBackfill.mock.calls[0][1] as number;
     expect(Math.abs(nowArg - Date.now() / 1000)).toBeLessThan(60);
     expect(mocks.consumeQuota).toHaveBeenCalledWith("u1", "strava_sync", 1, "upload");
+  });
+
+  it("returns conDay: null for an imported activity that has not been tagged", async () => {
+    mocks.getStravaFileIndex.mockResolvedValue(
+      new Map([["1", { fileId: "file-1" }]])
+    );
+    mocks.listStripActivitiesBackfill.mockResolvedValue({
+      activities: [
+        { id: 1, name: "A", type: "Run", sport_type: "Run", distance: 1000, total_elevation_gain: 0, start_date_local: "2026-07-20T06:00:00Z", moving_time: 300, map: { summary_polyline: "p1" } },
+      ],
+      weeks: 1,
+    });
+
+    const res = await GET(req());
+    const body = await res.json();
+
+    expect(body.activities[0].imported).toBe(true);
+    expect(body.activities[0].fileId).toBe("file-1");
+    expect(body.activities[0].conDay).toBeNull();
   });
 
   it("429s and does not call Strava when the burst quota is exhausted", async () => {

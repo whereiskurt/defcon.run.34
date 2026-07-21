@@ -129,13 +129,32 @@ function bounds(latlng: [number, number][]) {
   };
 }
 
-export async function getExistingStravaIds(userId: string): Promise<Set<string>> {
+/**
+ * Index of this user's imported Strava activities, keyed by stravaActivityId,
+ * carrying the fileId + conDay (undefined when untagged) so callers that need
+ * more than "was this imported" (the strip, Task 3) can join without a second
+ * query. Non-failed files only — a "failed" upload never counts as imported.
+ */
+export async function getStravaFileIndex(
+  userId: string
+): Promise<Map<string, { fileId: string; conDay?: string }>> {
   const res = await GpxFile.query.byCreatedAt({ userId }).go({ pages: "all" });
-  return new Set(
-    res.data
-      .map((f) => f.stravaActivityId)
-      .filter((id): id is string => typeof id === "string")
-  );
+  const index = new Map<string, { fileId: string; conDay?: string }>();
+  for (const f of res.data) {
+    if (typeof f.stravaActivityId !== "string") continue;
+    if (f.status === "failed") continue;
+    index.set(f.stravaActivityId, {
+      fileId: f.fileId,
+      ...(f.conDay ? { conDay: f.conDay } : {}),
+    });
+  }
+  return index;
+}
+
+/** Dedupe-only view over `getStravaFileIndex` — same single query, no behavior change. */
+export async function getExistingStravaIds(userId: string): Promise<Set<string>> {
+  const index = await getStravaFileIndex(userId);
+  return new Set(index.keys());
 }
 
 /** A route created from a Strava activity — what the studio needs to render it. */
@@ -473,7 +492,13 @@ export async function listStripActivitiesBackfill(
   return { activities: all, weeks };
 }
 
-/** What the strip renders per activity — summary polyline included. */
+/**
+ * What the strip renders per activity — summary polyline included. For an
+ * imported activity, `fileId` identifies the route and `conDay` distinguishes
+ * "tagged to a con day" (string) from "imported but untagged" (null) — the
+ * client uses that split to offer tag-a-day only on untagged imports.
+ * Unimported activities carry neither field.
+ */
 export type StripActivity = {
   id: number;
   name: string;
@@ -483,25 +508,31 @@ export type StripActivity = {
   movingTimeSeconds: number;
   summaryPolyline: string;
   imported: boolean;
+  fileId?: string;
+  conDay?: string | null;
 };
 
 /** Pure: shape Strava activities for the strip, dropping GPS-less ones. */
 export function toStripActivities(
   activities: StravaActivity[],
-  imported: Set<string>
+  index: Map<string, { fileId: string; conDay?: string }>
 ): StripActivity[] {
   return activities
     .filter((a) => !!a.map?.summary_polyline)
-    .map((a) => ({
-      id: a.id,
-      name: a.name,
-      type: a.type,
-      startDateLocal: a.start_date_local,
-      distanceMeters: a.distance,
-      movingTimeSeconds: a.moving_time,
-      summaryPolyline: a.map!.summary_polyline as string,
-      imported: imported.has(String(a.id)),
-    }));
+    .map((a) => {
+      const entry = index.get(String(a.id));
+      return {
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        startDateLocal: a.start_date_local,
+        distanceMeters: a.distance,
+        movingTimeSeconds: a.moving_time,
+        summaryPolyline: a.map!.summary_polyline as string,
+        imported: index.has(String(a.id)),
+        ...(entry ? { fileId: entry.fileId, conDay: entry.conDay ?? null } : {}),
+      };
+    });
 }
 
 /** Fetch one activity's detail (authoritative metadata for a single import). */
