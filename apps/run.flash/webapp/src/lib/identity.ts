@@ -12,7 +12,11 @@
  * web-serial transport) so this stays pure + unit-testable in Node.
  */
 
-export const LONG_NAME_MAX_BYTES = 39;
+/**
+ * Policy cap (KPH 2026-07-21), deliberately below the firmware's 39-byte
+ * nanopb limit: device long names carry no whitespace and at most 30 bytes.
+ */
+export const LONG_NAME_MAX_BYTES = 30;
 export const SHORT_NAME_MAX_BYTES = 4;
 
 /** Used when no character of the name fits the short-name byte budget. */
@@ -24,12 +28,16 @@ export function utf8ByteLength(s: string): number {
   return encoder.encode(s).length;
 }
 
-/** Trim and cap at LONG_NAME_MAX_BYTES, never splitting a code point. */
+/**
+ * Strip ALL whitespace (spaces, tabs, newlines, non-breaking spaces — any
+ * Unicode \s) and keep the first LONG_NAME_MAX_BYTES bytes, never splitting
+ * a code point.
+ */
 export function clampLongName(name: string): string {
-  const trimmed = name.trim();
-  if (utf8ByteLength(trimmed) <= LONG_NAME_MAX_BYTES) return trimmed;
+  const stripped = name.replace(/\s+/gu, "");
+  if (utf8ByteLength(stripped) <= LONG_NAME_MAX_BYTES) return stripped;
   let out = "";
-  for (const cp of trimmed) {
+  for (const cp of stripped) {
     if (utf8ByteLength(out + cp) > LONG_NAME_MAX_BYTES) break;
     out += cp;
   }

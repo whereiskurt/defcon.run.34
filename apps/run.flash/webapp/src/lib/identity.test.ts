@@ -17,22 +17,32 @@ describe("utf8ByteLength", () => {
 });
 
 describe("clampLongName", () => {
-  it("passes through short ASCII names with interior spaces", () => {
-    expect(clampLongName("Agent X")).toBe("Agent X");
+  it("removes interior spaces", () => {
+    expect(clampLongName("Agent X")).toBe("AgentX");
   });
 
-  it("trims surrounding whitespace", () => {
-    expect(clampLongName("  Agent X  ")).toBe("Agent X");
+  it("removes ALL whitespace, including tabs and non-breaking spaces", () => {
+    expect(clampLongName("  Agent\tX  ")).toBe("AgentX");
+    expect(clampLongName("Agent X")).toBe("AgentX");
+    expect(clampLongName("Agent\nX")).toBe("AgentX");
   });
 
-  it("caps at the firmware byte limit", () => {
+  it("caps at the 30-byte limit", () => {
+    expect(LONG_NAME_MAX_BYTES).toBe(30);
     const long = "x".repeat(LONG_NAME_MAX_BYTES + 10);
     const clamped = clampLongName(long);
     expect(utf8ByteLength(clamped)).toBe(LONG_NAME_MAX_BYTES);
   });
 
+  it("caps AFTER whitespace removal, not before", () => {
+    // 15 chars + space + 20 chars = 36 chars, but only 35 bytes of non-space:
+    // the space is stripped first, then the first 30 bytes are kept.
+    const clamped = clampLongName("x".repeat(15) + " " + "y".repeat(20));
+    expect(clamped).toBe("x".repeat(15) + "y".repeat(15));
+  });
+
   it("never splits a code point at the cap", () => {
-    // 38 ASCII bytes then a 4-byte emoji straddling the 39-byte boundary:
+    // 29 ASCII bytes then a 4-byte emoji straddling the 30-byte boundary:
     // the emoji must be dropped whole, not byte-sliced into invalid UTF-8.
     const name = "x".repeat(LONG_NAME_MAX_BYTES - 1) + "🐰";
     const clamped = clampLongName(name);
@@ -83,13 +93,13 @@ describe("buildShortName", () => {
 });
 
 describe("buildIdentity", () => {
-  it("prefers displayName over session name", () => {
+  it("prefers displayName over session name, with whitespace stripped", () => {
     const id = buildIdentity({
       displayName: "Agent X",
       sessionName: "Kurt H",
       userId: "abcd1234",
     });
-    expect(id.longName).toBe("Agent X");
+    expect(id.longName).toBe("AgentX");
     expect(id.shortName).toBe("AGEN");
   });
 
@@ -97,11 +107,11 @@ describe("buildIdentity", () => {
     expect(
       buildIdentity({ displayName: null, sessionName: "Kurt H", userId: "abcd1234" })
         .longName
-    ).toBe("Kurt H");
+    ).toBe("KurtH");
     expect(
       buildIdentity({ displayName: "   ", sessionName: "Kurt H", userId: "abcd1234" })
         .longName
-    ).toBe("Kurt H");
+    ).toBe("KurtH");
   });
 
   it("falls back to a generated DCR34 name from the userId", () => {
