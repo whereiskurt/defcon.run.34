@@ -41,9 +41,19 @@ type StreamSet = {
   time?: { data: number[] };
 };
 
-function bandBounds(): { after?: number; before?: number } {
+/**
+ * Date band for the batch sync. `STRAVA_SYNC_AFTER`/`BEFORE` env overrides still
+ * win when set (ops override for a manual backfill/replay); when NEITHER is set,
+ * this is a rolling window of the last `afterDaysDefault` days ending now — so the
+ * scheduled sync always covers "since last run" instead of the fixed epoch it used
+ * to fall back to (2026-07-21).
+ */
+function bandBounds(afterDaysDefault = 7): { after?: number; before?: number } {
   const after = process.env.STRAVA_SYNC_AFTER;
   const before = process.env.STRAVA_SYNC_BEFORE;
+  if (!after && !before) {
+    return { after: Math.floor(Date.now() / 1000) - afterDaysDefault * 86400 };
+  }
   return {
     after: after ? parseInt(after, 10) : undefined,
     before: before ? parseInt(before, 10) : undefined,
@@ -181,8 +191,8 @@ async function importActivity(
   return { fileId, fileName };
 }
 
-async function syncUser(user: StravaUserToken): Promise<number> {
-  const { after, before } = bandBounds();
+async function syncUser(user: StravaUserToken, afterDays?: number): Promise<number> {
+  const { after, before } = bandBounds(afterDays);
   const seen = await getExistingStravaIds(user.userId);
   let imported = 0;
   let page = 1;
@@ -210,8 +220,15 @@ async function syncUser(user: StravaUserToken): Promise<number> {
   return imported;
 }
 
-/** Orchestrator: fetch tokens from run.auth, sync each user within the date band. */
-export async function runStravaSync(): Promise<{ users: number; imported: number }> {
+/**
+ * Orchestrator: fetch tokens from run.auth, sync each user within the date band.
+ * `afterDays` (optional) overrides the rolling window's look-back in days — plumbed
+ * from the internal route's request body; absent/undefined falls back to
+ * `bandBounds`'s own default (7).
+ */
+export async function runStravaSync(
+  afterDays?: number
+): Promise<{ users: number; imported: number }> {
   const authUrl = process.env.AUTH_INTERNAL_URL;
   // The deployed tasks carry the shared AUTH_INTERNAL_SECRET (same secret the
   // quota/profile internal endpoints use); INTERNAL_SYNC_SECRET remains as an
@@ -234,12 +251,72 @@ export async function runStravaSync(): Promise<{ users: number; imported: number
   let imported = 0;
   for (const user of tokens) {
     try {
-      imported += await syncUser(user);
+      imported += await syncUser(user, afterDays);
     } catch (e) {
       console.error(`[strava-sync] user ${user.userId} failed`, e);
     }
   }
   return { users: tokens.length, imported };
+}
+
+/**
+ * Hard sanity cap on imports per `syncUserUntagged` call — a runaway Strava
+ * history (or a mistakenly wide `afterDays`) can't turn one scheduled tick into
+ * an unbounded S3/Dynamo write burst. Overflow activities are counted as skipped.
+ */
+const UNTAGGED_IMPORT_CAP = 30;
+
+/**
+ * Single-user version of the batch `syncUser`, for the on-demand scheduled-sync
+ * function (Task 1): bands one runner's activity list on `afterUnixSeconds`,
+ * dedupes via `getExistingStravaIds`, and imports each fresh activity UNTAGGED —
+ * `importActivity(user, activity)` with no `opts`, so (unlike `syncUserToConDay`)
+ * these imports consume no per-con-day budget and no lifetime `gpx_upload` quota,
+ * exactly like the batch path above. Bounded by `UNTAGGED_IMPORT_CAP`.
+ */
+export async function syncUserUntagged(
+  user: StravaUserToken,
+  afterUnixSeconds: number
+): Promise<{ imported: number; skipped: number }> {
+  const seen = await getExistingStravaIds(user.userId);
+  let imported = 0;
+  let skipped = 0;
+
+  // Banded activity list: per_page 100, capped at 3 pages (far beyond any
+  // realistic rolling-window volume for a single runner).
+  for (let page = 1; page <= 3; page++) {
+    const params = new URLSearchParams({
+      per_page: "100",
+      page: String(page),
+      after: String(afterUnixSeconds),
+    });
+    const activities = await stravaGet<StravaActivity[]>(
+      `/athlete/activities?${params.toString()}`,
+      user.accessToken
+    );
+    if (!activities || activities.length === 0) break;
+
+    for (const activity of activities) {
+      if (seen.has(String(activity.id))) {
+        skipped++;
+        continue;
+      }
+      if (imported >= UNTAGGED_IMPORT_CAP) {
+        skipped++; // over the sanity cap — count as skipped, don't call Strava again
+        continue;
+      }
+      try {
+        const created = await importActivity(user, activity);
+        if (created) imported++;
+        else skipped++; // no GPS
+      } catch (e) {
+        console.error(`[strava-sync] import failed activity ${activity.id}`, e);
+        skipped++;
+      }
+    }
+  }
+
+  return { imported, skipped };
 }
 
 // ---------------------------------------------------------------------------
