@@ -11,6 +11,7 @@
     import GhostTrigger from '$lib/components/GhostTrigger.svelte';
     import ProfileMenu from '$lib/components/ProfileMenu.svelte';
     import QuickStartHub from '$lib/components/QuickStartHub.svelte';
+    import StravaStrip from '$lib/components/StravaStrip.svelte';
     import CoordinatesPopup from '$lib/components/map/CoordinatesPopup.svelte';
     import Resizer from '$lib/components/Resizer.svelte';
     import { Toaster } from '$lib/components/ui/sonner';
@@ -133,6 +134,7 @@
             <GhostTrigger />
             <ProfileMenu />
             <QuickStartHub />
+            <StravaStrip />
             <GPXLayers />
             <CoordinatesPopup />
             <Toaster richColors />
