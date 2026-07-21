@@ -15,6 +15,7 @@ import { auth } from "@/config/auth";
  *   /api/silent-auth/*                — Auth.js silent-SSO instance (its callback mints the session)
  *   /api/health                       — load balancer / ALB health checks
  *   /api/stripe/webhook               — Stripe callbacks (no session cookie; HMAC-verified via whsec_*)
+ *   /api/checkout/general             — cross-origin donate modal (run/flash); route self-gates (CORS origin allowlist + own 401)
  *
  * Everything else redirects unauthenticated requests to /signin with a
  * callbackUrl pointing back at the requested URL.
@@ -81,7 +82,14 @@ export default auth((req) => {
     relPath.startsWith("/api/silent-auth/") ||
     relPath === "/api/silent-auth" ||
     relPath === "/api/health" ||
-    relPath === "/api/stripe/webhook";
+    relPath === "/api/stripe/webhook" ||
+    // Cross-origin donate (DonateModal in run.human/run.flash). The CORS
+    // preflight OPTIONS carries no cookies BY SPEC, so gating it here 307s
+    // the preflight → browsers reject redirected preflights → the modal
+    // dies with "Failed to fetch" before the POST is ever sent. The route
+    // enforces its own origin allowlist (OPTIONS) and session check
+    // (POST → 401 + CORS headers), so it is safe to pass through.
+    relPath === "/api/checkout/general";
 
   if (isWhitelisted) {
     return NextResponse.next();
