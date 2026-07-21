@@ -23,10 +23,28 @@ stravaStripExpanded.subscribe((v) => {
     if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, v ? '1' : '0');
 });
 
+/**
+ * Fully hidden (the header X, Kurt 2026-07-21): the strip disappears from the
+ * map entirely, persisted per browser. The way back is the QuickStart hub's
+ * "From Strava" button — openStravaStrip() always un-hides.
+ */
+const HIDDEN_KEY = 'stravaStripHidden';
+
+function initialHidden(): boolean {
+    if (typeof localStorage === 'undefined') return false;
+    return localStorage.getItem(HIDDEN_KEY) === '1';
+}
+
+export const stravaStripHidden = writable<boolean>(initialHidden());
+stravaStripHidden.subscribe((v) => {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(HIDDEN_KEY, v ? '1' : '0');
+});
+
 /** One-shot attention pulse fired when the hub button opens the strip. */
 export const stravaStripPulse = writable<number>(0);
 
 export function openStravaStrip(): void {
+    stravaStripHidden.set(false);
     stravaStripExpanded.set(true);
     stravaStripPulse.update((n) => n + 1);
 }
