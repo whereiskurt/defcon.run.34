@@ -48,14 +48,21 @@ async function throwFromResponse(response: Response, fallback: string): Promise<
     throw new StravaSyncError(data.message || data.error || fallback);
 }
 
-/** List the runner's last-7-days Strava activities for the strip. */
-export async function fetchStravaActivities(): Promise<StripActivity[]> {
+/**
+ * List the runner's recent Strava activities for the strip. The server starts
+ * at the last 7 days and backfills whole weeks until the ribbon has enough
+ * activities (server-controlled); `weeks` reports how far back it looked.
+ */
+export async function fetchStravaActivities(): Promise<{
+    activities: StripActivity[];
+    weeks: number;
+}> {
     const response = await fetch(`${getApiBase()}/strava/activities`, {
         credentials: 'include',
     });
     if (!response.ok) await throwFromResponse(response, 'Could not load Strava activities');
-    const data = (await response.json()) as { activities: StripActivity[] };
-    return data.activities ?? [];
+    const data = (await response.json()) as { activities: StripActivity[]; weeks?: number };
+    return { activities: data.activities ?? [], weeks: data.weeks ?? 1 };
 }
 
 /** Land one freshly-created cloud file on the map (Upload-door landing chain). */

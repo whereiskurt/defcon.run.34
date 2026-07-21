@@ -8,23 +8,22 @@ import {
 } from "@/lib/quota-client";
 import {
   fetchSingleUserStravaToken,
-  listActivitiesSince,
+  listStripActivitiesBackfill,
   toStripActivities,
   getExistingStravaIds,
 } from "@/lib/strava-sync";
 import { logEvent } from "@/lib/log-event";
 
-/** Rolling window the strip shows: the runner's last 7 days of activities. */
-const WINDOW_SECONDS = 7 * 24 * 3600;
-
 /**
  * GET /api/gpx/strava/activities — the Strava strip's list call (2026-07-21 spec).
  *
- * SESSION-authenticated. Returns the signed-in runner's last-7-days Strava
+ * SESSION-authenticated. Returns the signed-in runner's recent Strava
  * activities (anything with GPS) with an `imported` flag per activity so the
- * strip can dim already-imported cards. Read-only against our stores; costs one
- * strava_sync burst unit per refresh (same wall the bulk sync uses) since it
- * hits the Strava API.
+ * strip can dim already-imported cards. The window starts at the last 7 days
+ * and backfills whole weeks server-side until the ribbon has enough activities
+ * (see listStripActivitiesBackfill — the client cannot influence the window).
+ * Costs one strava_sync burst unit per refresh (same wall the bulk sync uses)
+ * since it hits the Strava API.
  */
 export async function GET(request: Request) {
   const session = await auth();
@@ -74,9 +73,9 @@ export async function GET(request: Request) {
       );
     }
 
-    const after = Math.floor(Date.now() / 1000) - WINDOW_SECONDS;
-    const [activities, imported] = await Promise.all([
-      listActivitiesSince(token.accessToken, after),
+    const now = Math.floor(Date.now() / 1000);
+    const [{ activities, weeks }, imported] = await Promise.all([
+      listStripActivitiesBackfill(token.accessToken, now),
       getExistingStravaIds(session.user.id),
     ]);
 
@@ -86,10 +85,10 @@ export async function GET(request: Request) {
       headers: request.headers,
       userId: session.user.id,
       email: session.user.email ?? undefined,
-      meta: { count: strip.length },
+      meta: { count: strip.length, weeks },
     });
 
-    return NextResponse.json({ ok: true, activities: strip });
+    return NextResponse.json({ ok: true, activities: strip, weeks });
   } catch (error) {
     console.error("Strava activities list failed:", error);
     await restoreQuota(session.user.id, "strava_sync", 1);
