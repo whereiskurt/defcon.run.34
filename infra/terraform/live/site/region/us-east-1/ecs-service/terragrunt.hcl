@@ -6,7 +6,25 @@ include "skip" {
 
 # Read site config to check if ecs_services is enabled
 locals {
-  site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  site_vars   = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  impart_vars = read_terragrunt_config(find_in_parent_folders("impart.hcl"))
+
+  # CloudFront domain label -> ECS service name. Extend when onboarding more
+  # apps to Impart; lookup() without a default fails the plan loudly for a
+  # domain missing here rather than silently skipping enforcement.
+  impart_domain_to_service = {
+    gpx = "run-gpx"
+    run = "run-human"
+  }
+
+  # Enforce only when BOTH enforce_alb_header AND state == "on": in off/canary,
+  # most traffic reaches the ALB directly from CloudFront without the
+  # X-Impart-Edge header and enforcement would 403 the site.
+  impart_enforced_services = local.impart_vars.locals.impart.enabled ? [
+    for domain, o in local.impart_vars.locals.impart.origins :
+    lookup(local.impart_domain_to_service, domain)
+    if try(o.enforce_alb_header, false) && try(o.state, "off") == "on"
+  ] : []
 }
 
 # Exclude if ecs_services is disabled OR if region should be skipped (Terragrunt 0.96+)
@@ -113,5 +131,9 @@ inputs = merge(
 
     # Default certificate for NLB TLS listeners (mqtt.defcon.run cert covers MQTT service)
     nlb_default_certificate_arn = try(dependency.certs.outputs.cert_map["mqtt.${local.site_vars.locals.dns.zonename}"].arn, "")
+
+    # Impart X-Impart-Edge listener-rule enforcement (empty until post-cutover soak)
+    impart_header_enforced_services = local.impart_enforced_services
+    impart_edge_header_secret       = try(local.site_vars.locals.secret_values.impart_edge_header, "")
   }
 )

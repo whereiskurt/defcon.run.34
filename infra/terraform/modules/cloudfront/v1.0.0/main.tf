@@ -22,6 +22,22 @@ locals {
     if contains(var.site.skip_regions, r.full)
   ])
 
+  # Managed origin request policy IDs.
+  # AllViewer forwards ALL viewer headers INCLUDING Host — the ALB routes services
+  # by host header, so app-traffic behaviors must keep forwarding the viewer Host.
+  orp_all_viewer            = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewer
+  orp_all_viewer_cf_headers = "33f36d7e-f396-46d9-90e0-52428a34d9dc" # Managed-AllViewerAndCloudFrontHeaders-2022-06
+
+  # Managed cache policy ID used by all app-traffic behaviors
+  cache_policy_disabled = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+
+  # Impart Security gateway origins per domain (empty map when disabled)
+  impart_origins = var.impart.enabled ? var.impart.origins : {}
+
+  # Domains whose app traffic is fully routed via Impart / canary-only domains
+  impart_on_domains     = toset([for d, o in local.impart_origins : d if o.state == "on"])
+  impart_canary_domains = toset([for d, o in local.impart_origins : d if o.state == "canary"])
+
   # For each domain, determine the default origin to use
   # Prefer ALB if available (in region list order), fall back to S3 (in region list order)
   default_origin_per_domain = {
@@ -41,6 +57,17 @@ locals {
       ][0]}"
       # Otherwise, fall back to first S3 origin (in region list order)
       : "s3-${local.region_labels[0]}"
+    )
+  }
+
+  # Effective default origin: when a domain's Impart state is "on", an ALB default
+  # retargets to the Impart gateway. S3 defaults are never retargeted.
+  default_origin_effective = {
+    for domain in var.cloudfront.domains :
+    domain => (
+      contains(local.impart_on_domains, domain) && startswith(local.default_origin_per_domain[domain], "alb-")
+      ? "impart"
+      : local.default_origin_per_domain[domain]
     )
   }
 }
@@ -218,6 +245,41 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
+  # Impart Security gateway origin (one per domain, only when configured).
+  # Present in ALL states — inert in "off" (nothing targets it), so flipping
+  # canary/on later is a behavior retarget, not an origin add.
+  # The gateway presents a cert for our app hostname and forwards to the ALB
+  # with the viewer Host intact, so ALB host-header routing is unchanged.
+  dynamic "origin" {
+    for_each = contains(keys(local.impart_origins), each.key) ? { impart = local.impart_origins[each.key] } : {}
+    content {
+      domain_name = origin.value.dns_name
+      origin_id   = "impart"
+
+      custom_origin_config {
+        http_port              = 80
+        https_port             = 443
+        origin_protocol_policy = "https-only"
+        origin_ssl_protocols   = ["TLSv1.2"]
+      }
+
+      custom_header {
+        name  = "X-Origin-Region"
+        value = "use1"
+      }
+
+      # Origin-verify secret so Impart can drop traffic that bypassed CloudFront.
+      # Omitted entirely when the secret is unset — never send an empty header.
+      dynamic "custom_header" {
+        for_each = var.impart_origin_verify_secret != "" ? [1] : []
+        content {
+          name  = "X-Origin-Verify"
+          value = var.impart_origin_verify_secret
+        }
+      }
+    }
+  }
+
   # Dynamic origins for S3 buckets - use this domain's regional origins
   # Only create S3 origins where s3_bucket_regional_domain_name is not empty
   dynamic "origin" {
@@ -245,15 +307,17 @@ resource "aws_cloudfront_distribution" "main" {
   }
 
   # Default cache behavior - routes to first available origin (ALB preferred, S3 fallback)
+  # Retargets to the Impart gateway when this domain's Impart state is "on";
+  # Impart-targeted behaviors also get CloudFront-Viewer-Address + geo headers.
   default_cache_behavior {
-    target_origin_id       = local.default_origin_per_domain[each.key]
+    target_origin_id       = local.default_origin_effective[each.key]
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods         = ["GET", "HEAD"]
     compress               = true
 
-    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
-    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewerExceptHostHeader
+    cache_policy_id          = local.cache_policy_disabled
+    origin_request_policy_id = local.default_origin_effective[each.key] == "impart" ? local.orp_all_viewer_cf_headers : local.orp_all_viewer
 
     # CloudFront Function to redirect root path to default region
     function_association {
@@ -320,14 +384,14 @@ resource "aws_cloudfront_distribution" "main" {
     }
     content {
       path_pattern           = "/${ordered_cache_behavior.key}"
-      target_origin_id       = "alb-${ordered_cache_behavior.key}"
+      target_origin_id       = contains(local.impart_on_domains, each.key) ? "impart" : "alb-${ordered_cache_behavior.key}"
       viewer_protocol_policy = "redirect-to-https"
       allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
       cached_methods         = ["GET", "HEAD"]
       compress               = true
 
-      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
-      origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewerExceptHostHeader
+      cache_policy_id          = local.cache_policy_disabled
+      origin_request_policy_id = contains(local.impart_on_domains, each.key) ? local.orp_all_viewer_cf_headers : local.orp_all_viewer
 
       # Rewrite /use1 to /use1/ so Next.js receives the trailing slash
       function_association {
@@ -346,22 +410,24 @@ resource "aws_cloudfront_distribution" "main" {
   # behavior in list order; if the wildcard preceded this, /use1/assets/theme would
   # be grabbed by S3 (wrong origin, cached, no cookie) and the covert channel dies.
   # CachingDisabled => every hit reaches the app so per-request auth state renders;
-  # AllViewerExceptHostHeader => forwards the .defcon.run session cookie + query
-  # while rewriting Host to the ALB, exactly as the app behaviors do.
+  # AllViewer => forwards the .defcon.run session cookie + query + viewer Host,
+  # exactly as the app behaviors do.
   # use1-only per Phase 46's chosen covert path; a per-region /{region}/assets/theme
   # variant is deliberately out of scope this phase.
+  # Follows the Impart retarget when run's state is "on" so ALL app traffic takes
+  # one path — this behavior must not become a WAF-bypass side door.
   dynamic "ordered_cache_behavior" {
     for_each = each.key == "run" ? toset(["theme"]) : toset([])
     content {
       path_pattern           = "/use1/assets/theme"
-      target_origin_id       = "alb-use1"
+      target_origin_id       = contains(local.impart_on_domains, "run") ? "impart" : "alb-use1"
       viewer_protocol_policy = "redirect-to-https"
       allowed_methods        = ["GET", "HEAD", "OPTIONS"]
       cached_methods         = ["GET", "HEAD"]
       compress               = true
 
-      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
-      origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # Managed-AllViewerExceptHostHeader
+      cache_policy_id          = local.cache_policy_disabled
+      origin_request_policy_id = contains(local.impart_on_domains, "run") ? local.orp_all_viewer_cf_headers : local.orp_all_viewer
     }
   }
 
@@ -405,9 +471,30 @@ resource "aws_cloudfront_distribution" "main" {
     }
   }
 
+  # Impart canary behavior: routes exactly one low-risk path (default
+  # /use1/api/health) through the Impart gateway while ALL other traffic stays on
+  # the direct ALB path — proves the CF -> Impart -> ALB chain on the real distro.
+  # ORDERING IS LOAD-BEARING: this exact-path behavior MUST be authored BEFORE the
+  # /{region}/* ALB wildcard below; CloudFront picks the first matching behavior.
+  dynamic "ordered_cache_behavior" {
+    for_each = contains(local.impart_canary_domains, each.key) ? { impart = local.impart_origins[each.key] } : {}
+    content {
+      path_pattern           = ordered_cache_behavior.value.canary_path
+      target_origin_id       = "impart"
+      viewer_protocol_policy = "redirect-to-https"
+      allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods         = ["GET", "HEAD"]
+      compress               = true
+
+      cache_policy_id          = local.cache_policy_disabled
+      origin_request_policy_id = local.orp_all_viewer_cf_headers
+    }
+  }
+
   # Ordered cache behaviors for regional ALB routing
   # Pattern: /{region_label}/* routes to ALB for this domain
   # Only create ALB behaviors where alb_dns_name is not empty
+  # Retargets to the Impart gateway when this domain's Impart state is "on"
   dynamic "ordered_cache_behavior" {
     for_each = {
       for region_key, region_value in var.regional_origins_by_domain[each.key] :
@@ -416,14 +503,14 @@ resource "aws_cloudfront_distribution" "main" {
     }
     content {
       path_pattern           = "/${ordered_cache_behavior.key}/*"
-      target_origin_id       = "alb-${ordered_cache_behavior.key}"
+      target_origin_id       = contains(local.impart_on_domains, each.key) ? "impart" : "alb-${ordered_cache_behavior.key}"
       viewer_protocol_policy = "redirect-to-https"
       allowed_methods        = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
       cached_methods         = ["GET", "HEAD"]
       compress               = true
 
-      cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
-      origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3"
+      cache_policy_id          = local.cache_policy_disabled
+      origin_request_policy_id = contains(local.impart_on_domains, each.key) ? local.orp_all_viewer_cf_headers : local.orp_all_viewer
     }
   }
 

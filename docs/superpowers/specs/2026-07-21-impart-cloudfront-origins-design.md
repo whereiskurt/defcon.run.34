@@ -160,9 +160,13 @@ Failure-mode rules:
 
 Enforcement is only valid once that app's CloudFront state is `on` (in `off`/`canary`,
 most traffic reaches the ALB directly from CloudFront without the Impart header and would
-be 403'd). Rules are per-host, so gpx can enforce while run is still direct. Rolling an
-app's origin back to `off` requires flipping its `enforce_alb_header` off first (or in the
-same apply).
+be 403'd). Rules are per-host, so gpx can enforce while run is still direct.
+
+**Implementation note:** the live wiring gates enforcement on
+`enforce_alb_header && state == "on"` — enforcement never applies in `off`/`canary`
+regardless of the flag, and rolling an app's `state` back automatically drops
+enforcement in the same apply. This is documented behavior (commented in `impart.hcl`),
+not a silent skip; the loud-error rule above still applies to a missing secret.
 
 ### 4. Live terragrunt wiring
 
@@ -182,6 +186,18 @@ same apply).
 | CF → Impart | `X-Origin-Verify: <secret>` | CF origin custom header | header omitted; Impart-side rule (their console) left unconfigured until set |
 | Impart → ALB | `X-Impart-Edge: <secret>` | Impart gateway config (their side) | apps/logs just don't see it |
 | ALB | `http_header` condition on listener rule | `enforce_alb_header` toggle | not enforced; enforce=true with no secret is a plan-time error |
+
+## Compatibility with AWS WAF
+
+AWS WAF and Impart stack cleanly and are fully independent knobs. WAF attaches at the
+distribution level (`web_acl_id`) and CloudFront evaluates it at the edge **before** any
+behavior/origin logic: viewer → CloudFront edge → AWS WAF allow/block → behavior match →
+origin request → Impart → ALB. The existing `waf_web_acl_arns` plumbing
+(`site.hcl waf.enabled` + `cloudfront.waf_rulesets`) is untouched by this design; enabling
+WAF for gpx/run later is a `waf_rulesets` entry per domain. Caveats for that later work:
+the WAF module has never been applied anywhere (treat first enablement as its own
+project, separate PR), and gpx file uploads are a false-positive risk for AWS managed
+body-inspection rules — run new rules in count mode first.
 
 ## Rollout
 
