@@ -18,7 +18,7 @@
         guessConDay,
         formatKm,
     } from '$lib/logic/strava-strip-pure';
-    import { stravaStripExpanded, stravaStripPulse } from '$lib/stores/strava-strip';
+    import { stravaStripExpanded, stravaStripHidden, stravaStripPulse } from '$lib/stores/strava-strip';
     import { refreshMyConRuns } from '$lib/stores/my-con-runs';
     import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, LoaderCircle, Check, X } from '@lucide/svelte';
 
@@ -197,7 +197,7 @@
     });
 </script>
 
-{#if canShow}
+{#if canShow && !$stravaStripHidden}
     <div
         bind:this={rootEl}
         class="absolute bottom-2 left-2 right-2 z-30 rounded-xl border bg-background/90 backdrop-blur transition-shadow {pulsing
@@ -205,6 +205,14 @@
             : ''}"
     >
         <div class="flex items-center gap-2 px-3 py-2">
+            <button
+                class="shrink-0 rounded-md p-1 text-muted-foreground transition hover:bg-accent"
+                aria-label="Hide Strava strip"
+                title="Hide — reopen via Add run → From Strava"
+                onclick={() => stravaStripHidden.set(true)}
+            >
+                <X size={14} />
+            </button>
             <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" class="shrink-0">
                 <path
                     fill="#fc4c02"

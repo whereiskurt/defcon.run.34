@@ -15,7 +15,10 @@ import { listStravaUserTokens, getStravaUserToken } from "@/lib/strava-tokens";
  * returns 0 or 1), so the existing batch caller is unaffected.
  */
 export async function GET(request: Request) {
-  const secret = process.env.INTERNAL_SYNC_SECRET;
+  // INTERNAL_SYNC_SECRET when provisioned (batch scheduler), else the shared
+  // AUTH_INTERNAL_SECRET every other internal endpoint here already uses — the
+  // deployed tasks only carry the latter (2026-07-21 hotfix).
+  const secret = process.env.INTERNAL_SYNC_SECRET ?? process.env.AUTH_INTERNAL_SECRET;
   if (!secret || request.headers.get("x-internal-secret") !== secret) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

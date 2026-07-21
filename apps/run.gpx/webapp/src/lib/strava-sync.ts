@@ -213,9 +213,14 @@ async function syncUser(user: StravaUserToken): Promise<number> {
 /** Orchestrator: fetch tokens from run.auth, sync each user within the date band. */
 export async function runStravaSync(): Promise<{ users: number; imported: number }> {
   const authUrl = process.env.AUTH_INTERNAL_URL;
-  const secret = process.env.INTERNAL_SYNC_SECRET;
+  // The deployed tasks carry the shared AUTH_INTERNAL_SECRET (same secret the
+  // quota/profile internal endpoints use); INTERNAL_SYNC_SECRET remains as an
+  // override for the batch scheduler if it is ever provisioned separately.
+  const secret = process.env.INTERNAL_SYNC_SECRET ?? process.env.AUTH_INTERNAL_SECRET;
   if (!authUrl || !secret) {
-    throw new Error("AUTH_INTERNAL_URL and INTERNAL_SYNC_SECRET are required");
+    throw new Error(
+      "AUTH_INTERNAL_URL and INTERNAL_SYNC_SECRET (or AUTH_INTERNAL_SECRET) are required"
+    );
   }
 
   const res = await fetch(`${authUrl}/api/internal/strava-tokens`, {
@@ -258,9 +263,14 @@ export async function fetchSingleUserStravaToken(
   userId: string
 ): Promise<StravaUserToken | null> {
   const authUrl = process.env.AUTH_INTERNAL_URL;
-  const secret = process.env.INTERNAL_SYNC_SECRET;
+  // The deployed tasks carry the shared AUTH_INTERNAL_SECRET (same secret the
+  // quota/profile internal endpoints use); INTERNAL_SYNC_SECRET remains as an
+  // override for the batch scheduler if it is ever provisioned separately.
+  const secret = process.env.INTERNAL_SYNC_SECRET ?? process.env.AUTH_INTERNAL_SECRET;
   if (!authUrl || !secret) {
-    throw new Error("AUTH_INTERNAL_URL and INTERNAL_SYNC_SECRET are required");
+    throw new Error(
+      "AUTH_INTERNAL_URL and INTERNAL_SYNC_SECRET (or AUTH_INTERNAL_SECRET) are required"
+    );
   }
 
   const res = await fetch(
