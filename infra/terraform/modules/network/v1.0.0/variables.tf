@@ -36,13 +36,13 @@ variable "cert_map" {
 
 variable "vpc" {
   type = object({
-    cidr_block             = string
-    enable_dns_hostnames   = optional(bool, true)
-    enable_dns_support     = optional(bool, true)
-    public_subnets_cidr    = list(string)
-    private_subnets_cidr   = list(string)
+    cidr_block              = string
+    enable_dns_hostnames    = optional(bool, true)
+    enable_dns_support      = optional(bool, true)
+    public_subnets_cidr     = list(string)
+    private_subnets_cidr    = list(string)
     availability_zone_count = number
-    tags                   = optional(map(string), {})
+    tags                    = optional(map(string), {})
   })
   description = "VPC configuration including CIDR blocks and subnets. The availability_zone_count determines how many AZs to use (typically 2-4)."
 }
@@ -97,6 +97,12 @@ variable "alb" {
     ssl_policy                 = "ELBSecurityPolicy-TLS13-1-2-2021-06"
     logs_force_destroy         = true
   }
+}
+
+variable "impart_ingress_cidrs" {
+  type        = list(string)
+  description = "Impart Security gateway egress CIDRs allowed to reach the public ALB on 443, alongside the CloudFront prefix list. Empty = no additional rule."
+  default     = []
 }
 
 variable "nlb" {

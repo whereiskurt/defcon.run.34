@@ -37,6 +37,7 @@ locals {
   _site        = read_terragrunt_config(find_in_parent_folders("site.hcl"))
   _zone        = local._site.locals.dns.zonename
   network_vars = read_terragrunt_config("network.hcl")
+  impart_vars  = read_terragrunt_config(find_in_parent_folders("impart.hcl"))
 }
 
 inputs = merge(
@@ -44,5 +45,8 @@ inputs = merge(
   local.network_vars.locals.network,
   {
     cert_map = dependency.certs.outputs.cert_map
+
+    # Impart gateway egress IPs -> ALB 443 ingress (empty list = no rule)
+    impart_ingress_cidrs = local.impart_vars.locals.impart.enabled ? local.impart_vars.locals.impart.alb_ingress_cidrs : []
   }
 )

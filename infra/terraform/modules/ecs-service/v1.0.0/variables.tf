@@ -116,6 +116,24 @@ variable "ecs_services" {
   default     = []
 }
 
+variable "impart_header_enforced_services" {
+  type        = list(string)
+  description = "Service names (ecs_services[*].name) whose ALB listener rule additionally requires the X-Impart-Edge header. Only valid once ALL of that service's traffic flows via Impart (CloudFront state 'on') — otherwise direct CloudFront traffic gets 403'd."
+  default     = []
+
+  validation {
+    condition     = length(var.impart_header_enforced_services) == 0 || var.impart_edge_header_secret != ""
+    error_message = "impart_edge_header_secret must be set when impart_header_enforced_services is non-empty — silently not enforcing is not allowed."
+  }
+}
+
+variable "impart_edge_header_secret" {
+  type        = string
+  description = "Expected value of the X-Impart-Edge header that Impart gateways inject toward the ALB"
+  default     = ""
+  sensitive   = true
+}
+
 # Outputs from dependencies
 variable "task_definitions" {
   type        = map(string)

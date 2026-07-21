@@ -191,6 +191,20 @@ resource "aws_lb_listener_rule" "alb_rule" {
     }
   }
 
+  # Impart edge-header enforcement: ANDed with the host-header condition, so the
+  # rule only forwards traffic that came through the Impart gateway. Enforce only
+  # for services whose CloudFront Impart state is "on" — direct CloudFront traffic
+  # carries no X-Impart-Edge header and would fall through to the 403 default.
+  dynamic "condition" {
+    for_each = contains(var.impart_header_enforced_services, each.value.service_key) ? [1] : []
+    content {
+      http_header {
+        http_header_name = "X-Impart-Edge"
+        values           = [var.impart_edge_header_secret]
+      }
+    }
+  }
+
   dynamic "condition" {
     for_each = length(each.value.listener.path_patterns) > 0 ? [1] : []
     content {
@@ -224,7 +238,7 @@ resource "aws_lb_listener" "nlb_listener" {
   port              = each.value.listener.port
   protocol          = each.value.listener.protocol
 
-  ssl_policy      = contains(["TLS", "HTTPS"], each.value.listener.protocol) ? each.value.listener.ssl_policy : null
+  ssl_policy = contains(["TLS", "HTTPS"], each.value.listener.protocol) ? each.value.listener.ssl_policy : null
   certificate_arn = contains(["TLS", "HTTPS"], each.value.listener.protocol) ? (
     each.value.listener.certificate_arn != "" ? each.value.listener.certificate_arn : var.nlb_default_certificate_arn
   ) : null

@@ -1,9 +1,10 @@
 # Read site config to check if cloudfront is enabled
 locals {
-  site_vars = read_terragrunt_config(find_in_parent_folders("site.hcl"))
-  _zone     = local.site_vars.locals.dns.zonename
-  _subs     = local.site_vars.locals.dns.subdomains
-  _cf_doms  = local.site_vars.locals.cloudfront.domains
+  site_vars   = read_terragrunt_config(find_in_parent_folders("site.hcl"))
+  impart_vars = read_terragrunt_config(find_in_parent_folders("impart.hcl"))
+  _zone       = local.site_vars.locals.dns.zonename
+  _subs       = local.site_vars.locals.dns.subdomains
+  _cf_doms    = local.site_vars.locals.cloudfront.domains
 }
 
 # Exclude if cloudfront is disabled (Terragrunt 0.96+)
@@ -300,6 +301,22 @@ inputs = merge(
         ""
       )
     } : {}
+
+    # Impart Security gateway origins + rollout state (from impart.hcl).
+    # Project to exactly the module's contract — enforce_alb_header and
+    # alb_ingress_cidrs are consumed by other units, not this module.
+    impart = {
+      enabled = local.impart_vars.locals.impart.enabled
+      origins = {
+        for domain, o in local.impart_vars.locals.impart.origins :
+        domain => {
+          dns_name    = o.dns_name
+          state       = try(o.state, "off")
+          canary_path = try(o.canary_path, "/use1/api/health")
+        }
+      }
+    }
+    impart_origin_verify_secret = try(local.site_vars.locals.secret_values.impart_origin_verify, "")
 
     # CMS media bucket origins for /{region}/cms/* behavior
     # This maps the Strapi media uploads to CloudFront via OAC

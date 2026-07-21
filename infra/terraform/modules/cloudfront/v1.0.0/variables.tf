@@ -65,6 +65,31 @@ variable "waf_web_acl_arns" {
   default     = {}
 }
 
+variable "impart" {
+  description = "Impart Security gateway origins keyed by CloudFront domain label (e.g. 'gpx'). state: off = inert origin only; canary = canary_path routed via Impart; on = all app-traffic behaviors routed via Impart."
+  type = object({
+    enabled = optional(bool, false)
+    origins = optional(map(object({
+      dns_name    = string
+      state       = optional(string, "off")
+      canary_path = optional(string, "/use1/api/health")
+    })), {})
+  })
+  default = {}
+
+  validation {
+    condition     = alltrue([for o in values(var.impart.origins) : contains(["off", "canary", "on"], o.state)])
+    error_message = "impart.origins[*].state must be one of: off, canary, on."
+  }
+}
+
+variable "impart_origin_verify_secret" {
+  description = "Shared secret CloudFront injects as X-Origin-Verify toward Impart gateways so they can drop traffic that bypassed CloudFront. Empty = header omitted entirely."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "cms_media_origins" {
   description = "Map of CMS media bucket origins by region label for the 'cms' domain CloudFront behavior"
   type = map(object({
