@@ -102,6 +102,15 @@ export function DonateModal({
         body: JSON.stringify({ amount_cents: cents }),
       });
       if (!res.ok) {
+        if (res.status === 401) {
+          // No bib session (sess_bib is .defcon.run-scoped but only lives
+          // 24h and is only minted on bib itself). Bounce through a bib
+          // PAGE instead of erroring: bib's full-app auth gate + SSO sign
+          // the user in without a prompt, and the orderform carries this
+          // same donate tile, so the donation completes there.
+          window.location.href = `${providerBase}/orderform`;
+          return;
+        }
         setSubmit({ kind: "error", detail: `HTTP ${res.status}` });
         return;
       }
