@@ -22,6 +22,15 @@ import { fileActionManager } from '$lib/logic/file-action-manager';
 import { fileActions } from '$lib/logic/file-actions';
 import { splitAs } from '$lib/components/toolbar/tools/scissors/scissors';
 import { mapCursor, MapCursorState } from '$lib/logic/map-cursor';
+import { autoSaveManager } from '$lib/auto-save';
+import { cloudFiles } from '$lib/cloud-sync';
+import { conRunDayColors, conRunMetaByFileId, runPopupHtml } from '$lib/components/map/run-popup';
+
+/** Singleton popup for a clicked run track (UAT round 2 fix B) — shared across
+ * every GPXLayer instance, same convention as gpx-layer-popup.ts's
+ * waypointPopup/trackpointPopup. Removed before showing another, and on the
+ * next click of any kind. */
+let runTrackPopup: mapboxgl.Popup | null = null;
 
 const colors = [
     '#ff0000',
@@ -322,6 +331,11 @@ export class GPXLayer {
     }
 
     remove() {
+        // Dismiss any run-track popup — it may be anchored to this file's
+        // (now-removed) track. Harmless if it belonged to a different file.
+        runTrackPopup?.remove();
+        runTrackPopup = null;
+
         const _map = get(map);
         if (_map) {
             _map.off('click', this.fileId, this.layerOnClickBinded);
@@ -474,6 +488,53 @@ export class GPXLayer {
         } else {
             selection.selectItem(item);
         }
+
+        // UAT round 2 fix B: Kurt's imported run lands on the map as this
+        // editable gpx-studio file track (not the separate, default-hidden "My
+        // DEF CON Runs" overlay) and previously had no click popup at all. Show
+        // one here, but only when no editing tool is active — routing/scissors/
+        // waypoint etc. all set currentTool, and clicking mid-edit must not pop
+        // up a distracting card. Selection above still always happens.
+        if (get(currentTool) === null) {
+            this.maybeShowRunPopup(e.lngLat);
+        }
+    }
+
+    /** Show the run popup (see my-con-runs.ts's runPopupHtml) for this file's
+     * track when it's cloud-linked to a run the server knows about — either the
+     * con-day-tagged manifest (already warm from MyConRunsLayer.load(), no extra
+     * fetch) or, best-effort, whatever's already cached in the `cloudFiles`
+     * store from an earlier My Maps dialog open (covers a Strava import that
+     * hasn't been tagged with a con day yet). A file that's cloud-linked but
+     * matches neither — e.g. a hand-drawn/uploaded route — gets no popup. */
+    private maybeShowRunPopup(lngLat: mapboxgl.LngLat) {
+        const cloudInfo = autoSaveManager.getCloudInfo(this.fileId);
+        if (!cloudInfo) return;
+
+        const meta = conRunMetaByFileId.get(cloudInfo.cloudFileId);
+        const cached = get(cloudFiles).find((f) => f.fileId === cloudInfo.cloudFileId);
+        const isRunFile = !!meta || cached?.source === 'strava' || !!cached?.conDay;
+        if (!isRunFile) return;
+
+        const conDay = meta?.conDay ?? cached?.conDay ?? null;
+        const fileName = meta?.fileName ?? cached?.fileName ?? cloudInfo.fileName;
+        const totalDistance = meta?.totalDistance ?? cached?.totalDistance;
+        const color = (conDay && conRunDayColors.get(conDay)) || this.layerColor;
+
+        const _map = get(map);
+        if (!_map) return;
+
+        runTrackPopup?.remove();
+        runTrackPopup = new mapboxgl.Popup({
+            closeButton: true,
+            closeOnClick: true,
+            maxWidth: '280px',
+            offset: 12,
+            className: 'dc34-route-popup',
+        })
+            .setLngLat(lngLat)
+            .setHTML(runPopupHtml(fileName, conDay, color, totalDistance))
+            .addTo(_map);
     }
 
     layerOnContextMenu(e: any) {
