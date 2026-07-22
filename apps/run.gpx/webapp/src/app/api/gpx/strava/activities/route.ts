@@ -88,7 +88,7 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         error: "Strava sync limit reached",
-        message: "You've used all your Strava refreshes",
+        message: "You've used today's Strava refreshes — they reset at midnight UTC",
         remaining: burst.remaining,
         quotaId: "strava_sync",
       },
