@@ -38,7 +38,7 @@ locals {
     origins = {
       gpx = {
         dns_name = "gpx-defconrun-seoks0.impartcloud.net"
-        state    = "canary" # off | canary | on
+        state    = "on" # off | canary | on
         # canary_path = "/use1/api/health"   # default; override per app if needed
         # ALB-side X-Impart-Edge enforcement. Only takes effect when state = "on"
         # (in off/canary most traffic reaches the ALB directly, without the
