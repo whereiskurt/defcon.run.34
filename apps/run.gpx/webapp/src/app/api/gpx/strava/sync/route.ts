@@ -113,8 +113,9 @@ export async function POST(request: Request) {
   }
 
   // Burst guard (§8 layer ③): each sync-button press consumes one atomic
-  // strava_sync unit (16/user, 100/admin). Blocks a flood of syncs; the con-day
-  // cap + dedupe bound how much a single press can import.
+  // strava_sync unit (24/day user, 100/day admin — daily reset since
+  // 2026-07-22). Blocks a flood of syncs; the con-day cap + dedupe bound how
+  // much a single press can import.
   const burst = await consumeQuota(
     session.user.id,
     "strava_sync",
@@ -125,7 +126,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "Strava sync limit reached",
-        message: "You've used all your Strava syncs",
+        message: "You've used today's Strava syncs — they reset at midnight UTC",
         remaining: burst.remaining,
         quotaId: "strava_sync",
       },
