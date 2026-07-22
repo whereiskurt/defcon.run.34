@@ -32,3 +32,38 @@ resource "aws_route53_record" "cloudfront_alias" {
 
   provider = aws.global-application
 }
+
+# Stable origin alias records: origin-<region>.<zonename> -> that region's ALB.
+# External systems (Impart gateway upstreams) point at these instead of the raw
+# ALB DNS name, so an ALB rebuild (whose DNS suffix changes) requires no
+# external reconfiguration. Records live in the APEX zone, which is hosted in
+# the management account — hence the aws.global-management provider, the same
+# one the site module uses for its NS-forwarding records.
+# ALB info is identical across domains; read it from the first domain and skip
+# empty/mock placeholders (cac1/apse1 are mocks today).
+locals {
+  origin_alias_albs = {
+    for region_label, origin in var.regional_origins_by_domain[var.cloudfront.domains[0]] :
+    region_label => {
+      alb_dns_name = origin.alb_dns_name
+      alb_zone_id  = origin.alb_zone_id
+    }
+    if origin.alb_dns_name != "" && !startswith(origin.alb_dns_name, "mock-")
+  }
+}
+
+resource "aws_route53_record" "origin_alias" {
+  for_each = local.origin_alias_albs
+
+  zone_id = var.zone_map[var.dns.zonename].zone_id
+  name    = "origin-${each.key}.${var.dns.zonename}"
+  type    = "A"
+
+  alias {
+    name                   = each.value.alb_dns_name
+    zone_id                = each.value.alb_zone_id
+    evaluate_target_health = false
+  }
+
+  provider = aws.global-management
+}
