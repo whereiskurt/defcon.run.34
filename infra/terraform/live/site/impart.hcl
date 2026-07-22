@@ -49,7 +49,11 @@ locals {
         dns_name           = "run-defconrun-n1xdxk.impartcloud.net"
         state              = "on"
         canary_path        = "/hello" # run.human health endpoint (no region prefix)
-        enforce_alb_header = true
+        # 2026-07-22: first enforce attempt 404'd all run traffic — the run
+        # gateway's X-Impart-Edge inject wasn't stamping (gpx's works). Emergency
+        # lever used (condition stripped via CLI). Re-flip ONLY after the run
+        # gateway inject is verified against the gpx gateway config.
+        enforce_alb_header = false
       }
     }
   }
