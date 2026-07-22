@@ -8,47 +8,30 @@ resource "aws_security_group" "sshhttps" {
   description = "Allow TLS inbound traffic"
   vpc_id      = aws_vpc.vpc.id
 
-  # The Impart Security entry is additive: CloudFront-direct and Impart-forwarded
-  # paths must BOTH work for the whole per-app toggle period.
-  ingress = concat(
-    [
-      {
-        description      = "HTTPS port to VPC"
-        from_port        = 443
-        to_port          = 443
-        protocol         = "tcp"
-        cidr_blocks      = []
-        ipv6_cidr_blocks = []
-        self             = true
-        prefix_list_ids  = [data.aws_ec2_managed_prefix_list.cloudfront.id]
-        security_groups  = []
-      },
-      {
-        description      = "SSH port to VPC"
-        from_port        = 22
-        to_port          = 22
-        protocol         = "tcp"
-        cidr_blocks      = ["0.0.0.0/0"]
-        ipv6_cidr_blocks = []
-        self             = true
-        prefix_list_ids  = []
-        security_groups  = []
-      }
-    ],
-    length(var.impart_ingress_cidrs) > 0 ? [
-      {
-        description      = "HTTPS from Impart Security gateways"
-        from_port        = 443
-        to_port          = 443
-        protocol         = "tcp"
-        cidr_blocks      = var.impart_ingress_cidrs
-        ipv6_cidr_blocks = []
-        self             = false
-        prefix_list_ids  = []
-        security_groups  = []
-      }
-    ] : []
-  )
+  ingress = [
+    {
+      description      = "HTTPS port to VPC"
+      from_port        = 443
+      to_port          = 443
+      protocol         = "tcp"
+      cidr_blocks      = []
+      ipv6_cidr_blocks = []
+      self             = true
+      prefix_list_ids  = [data.aws_ec2_managed_prefix_list.cloudfront.id]
+      security_groups  = []
+    },
+    {
+      description      = "SSH port to VPC"
+      from_port        = 22
+      to_port          = 22
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = []
+      self             = true
+      prefix_list_ids  = []
+      security_groups  = []
+    }
+  ]
 
   egress = [
     {
@@ -68,6 +51,58 @@ resource "aws_security_group" "sshhttps" {
     var.vpc.tags,
     {
       Name = "${var.region.label}.${var.dns.zonename}-securemgmt"
+    }
+  )
+}
+
+# Security Group: Impart Security gateway ingress (dedicated, attached to the ALB
+# alongside sshhttps/http_only). Dedicated because the sshhttps SG is at the
+# 60-rule inbound quota — the CloudFront origin-facing prefix list alone weighs
+# ~55 rules — so the 8 Impart /32s cannot fit there
+# (RulesPerSecurityGroupLimitExceeded). A separate SG gets its own quota and
+# makes the Impart ingress removable as a unit after full cutover.
+# Egress is intentionally allow-all: the SG-union on the ALB already permits
+# egress via sshhttps, but an explicit rule avoids the known
+# no-egress-SG footgun if attachments ever change.
+resource "aws_security_group" "impart_ingress" {
+  count = length(var.impart_ingress_cidrs) > 0 ? 1 : 0
+
+  name        = "${var.region.label}.${var.dns.zonename}-impart-ingress"
+  description = "HTTPS from Impart Security gateways to the public ALB"
+  vpc_id      = aws_vpc.vpc.id
+
+  ingress = [
+    {
+      description      = "HTTPS from Impart Security gateways"
+      from_port        = 443
+      to_port          = 443
+      protocol         = "tcp"
+      cidr_blocks      = var.impart_ingress_cidrs
+      ipv6_cidr_blocks = []
+      self             = false
+      prefix_list_ids  = []
+      security_groups  = []
+    }
+  ]
+
+  egress = [
+    {
+      description      = "All outbound"
+      from_port        = 0
+      to_port          = 0
+      protocol         = "-1"
+      cidr_blocks      = ["0.0.0.0/0"]
+      ipv6_cidr_blocks = ["::/0"]
+      self             = false
+      prefix_list_ids  = []
+      security_groups  = []
+    }
+  ]
+
+  tags = merge(
+    var.vpc.tags,
+    {
+      Name = "${var.region.label}.${var.dns.zonename}-impart-ingress"
     }
   )
 }

@@ -3,7 +3,7 @@ resource "aws_lb" "lb_public" {
   name                       = replace("alb-${var.region.label}-${var.dns.zonename}", ".", "-")
   internal                   = false
   load_balancer_type         = "application"
-  security_groups            = [aws_security_group.sshhttps.id, aws_security_group.http_only.id]
+  security_groups            = concat([aws_security_group.sshhttps.id, aws_security_group.http_only.id], aws_security_group.impart_ingress[*].id)
   subnets                    = aws_subnet.public_subnet.*.id
   enable_deletion_protection = var.alb.enable_deletion_protection
   drop_invalid_header_fields = true
