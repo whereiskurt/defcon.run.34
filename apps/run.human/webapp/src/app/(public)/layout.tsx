@@ -85,6 +85,10 @@ export default async function PublicLayout({
   const fullUrl = headersList.get("x-url") || headersList.get("referer") || "";
   const isAutoLoginFlow = fullUrl.includes("autoLogin=true");
   const isAutoSigninRoute = fullUrl.includes("/api/auth/auto-signin");
+  // The auth error page is the recovery stop for failed OIDC flows — it must
+  // never itself bounce back into auto-signin, or an auth error becomes an
+  // error -> auto-signin -> OIDC error -> error redirect loop.
+  const isAuthErrorRoute = fullUrl.includes("/auth/error");
 
   // Silent-SSO bootstrap: if the browser carries a valid auth.defcon.run session
   // (sess_auth) but this app has NOT yet minted its own run.human session, kick
@@ -98,7 +102,7 @@ export default async function PublicLayout({
   // `/` -> auto-signin -> OIDC -> `/` redirect loop). Honouring `session` makes
   // authenticated users stay on `/` (matching the intended "authenticated users
   // can stay on the welcome page" behaviour) and closes the loop.
-  if (!session && !isAutoLoginFlow && !isAutoSigninRoute) {
+  if (!session && !isAutoLoginFlow && !isAutoSigninRoute && !isAuthErrorRoute) {
     const hasAuth = await hasAuthSession();
     if (hasAuth) {
       console.log("[Silent SSO] Valid auth session found, redirecting to OIDC flow");
