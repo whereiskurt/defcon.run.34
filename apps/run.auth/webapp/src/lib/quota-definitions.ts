@@ -99,17 +99,21 @@ export const QUOTA_DEFINITIONS = {
     enabled: true,
   },
 
-  // Strava sync limit
+  // Strava sync limit — DAILY since 2026-07-22 (Kurt): the gpx strip serves
+  // from a server-side cache, so this only gates REAL Strava list fetches
+  // (explicit Refresh / first-ever load). 24/day/user is ~3% of the app's
+  // 600-req/15min Strava read budget even in a worst-case burst. Legacy rows
+  // created under "none" self-heal via needsReset in services/quota.ts.
   strava_sync: {
     id: "strava_sync",
     name: "Strava Syncs",
-    description: "Number of Strava activity syncs",
+    description: "Strava activity refreshes per day",
     tierLimits: {
       zero: 0,
-      upload: 16,
+      upload: 24,
       admin: 100,
     },
-    resetPolicy: "none" as const,
+    resetPolicy: "daily" as const,
     enabled: true,
   },
 
