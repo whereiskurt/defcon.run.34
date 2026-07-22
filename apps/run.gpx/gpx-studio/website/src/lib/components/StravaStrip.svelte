@@ -441,9 +441,11 @@
                     aria-label={$stravaStripExpanded ? 'Collapse' : 'Expand'}
                     onclick={toggleExpanded}
                 >
+                    <!-- Expanded → points DOWN ("collapse me downward"); collapsed →
+                         points UP ("expand me upward") — Kurt UAT round 4. -->
                     <ChevronDown
                         size={16}
-                        class="transition-transform {$stravaStripExpanded ? 'rotate-180' : ''}"
+                        class="transition-transform {$stravaStripExpanded ? '' : 'rotate-180'}"
                     />
                 </button>
             </div>
