@@ -43,7 +43,7 @@ locals {
         # ALB-side X-Impart-Edge enforcement. Only takes effect when state = "on"
         # (in off/canary most traffic reaches the ALB directly, without the
         # header, and would be 403'd). Flip on only after "on" has soaked.
-        enforce_alb_header = false
+        enforce_alb_header = true
       }
       run = {
         dns_name           = "run-defconrun-n1xdxk.impartcloud.net"
