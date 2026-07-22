@@ -47,7 +47,7 @@ locals {
       }
       run = {
         dns_name           = "run-defconrun-n1xdxk.impartcloud.net"
-        state              = "canary"
+        state              = "on"
         canary_path        = "/hello" # run.human health endpoint (no region prefix)
         enforce_alb_header = false
       }
