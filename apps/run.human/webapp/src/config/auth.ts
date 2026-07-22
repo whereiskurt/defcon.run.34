@@ -174,9 +174,13 @@ const providers: Provider[] = [
   },
 ];
 
-// Cookie options helper
+// Cookie options helper.
+// Deliberately host-only (no `domain:`): nothing reads run.human's cookies on
+// another *.defcon.run host (the cross-host silent-SSO signal is run.auth's
+// sess_auth, not ours), and parent-domain scoping piled every app's cookies
+// onto every request until power users tripped nginx's header limit.
+// Legacy `.defcon.run`-scoped copies are cleaned up in middleware.ts.
 const cookieOptions = (httpOnly: boolean, maxAge?: number) => ({
-  ...(config.auth.cookieDomain ? { domain: config.auth.cookieDomain } : {}),
   path: "/",
   httpOnly,
   sameSite: "lax" as const,

@@ -27,7 +27,11 @@ export const config = {
     basePath: "/api/auth",
     jwtSecret: process.env.AUTH_JWT_SECRET?.split(","),
     internalSecret: process.env.AUTH_INTERNAL_SECRET || "",
-    cookieDomain: isDev ? undefined : process.env.AUTH_COOKIE_DOMAIN,
+    // Historical parent-domain scope for our Auth.js cookies. New cookies are
+    // host-only (see config/auth.ts cookieOptions); this is kept ONLY so
+    // middleware can delete lingering legacy `.defcon.run` copies that would
+    // otherwise shadow the host-only cookies.
+    legacyCookieDomain: isDev ? undefined : process.env.AUTH_COOKIE_DOMAIN,
     secureCookies: !isDev,
   },
 
