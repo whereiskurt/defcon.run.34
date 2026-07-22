@@ -74,10 +74,17 @@ function calculateNextReset(policy: ResetPolicy): number | undefined {
 }
 
 /**
- * Check if quota needs reset based on nextResetAt
+ * Check if quota needs reset based on nextResetAt.
+ *
+ * Self-heal (2026-07-22): a row created while the definition said "none" has
+ * no nextResetAt. If the definition has since adopted a periodic policy (e.g.
+ * strava_sync none→daily), that row must reset NOW — otherwise it would never
+ * pick up the new policy, because only the reset path stamps nextResetAt.
  */
-function needsReset(quota: UserQuotaItem): boolean {
-  if (!quota.nextResetAt) return false;
+function needsReset(quota: UserQuotaItem, policy: ResetPolicy): boolean {
+  if (!quota.nextResetAt) {
+    return policy === "daily" || policy === "weekly" || policy === "monthly";
+  }
   return Date.now() >= quota.nextResetAt;
 }
 
@@ -101,7 +108,7 @@ export async function getOrInitQuota(
 
   if (result.data) {
     // Check if needs automatic reset
-    if (needsReset(result.data)) {
+    if (needsReset(result.data, definition.resetPolicy)) {
       await resetQuotaToTier(userId, quotaId, tier);
       const refreshed = await UserQuota.get({ userId, quotaId }).go();
       return refreshed.data!;
@@ -280,7 +287,13 @@ export async function restoreQuota(
   quotaId: QuotaId,
   amount: number = 1
 ): Promise<{ success: boolean; remaining: number }> {
-  const quota = await getOrInitQuota(userId, quotaId);
+  // Read the row DIRECTLY — never via getOrInitQuota. This call site has no
+  // tier, so getOrInitQuota's auto-reset would reset a due periodic quota to
+  // the "zero" tier's limit (0) on a refund. A refund landing on a reset-due
+  // row just tops up the stale value; the next tier-aware check/consume
+  // performs the real reset.
+  const existing = await UserQuota.get({ userId, quotaId }).go();
+  const quota = existing.data ?? (await getOrInitQuota(userId, quotaId));
 
   // Calculate new remaining (capped at user's initialAmount)
   const maxAmount = quota.initialAmount;
