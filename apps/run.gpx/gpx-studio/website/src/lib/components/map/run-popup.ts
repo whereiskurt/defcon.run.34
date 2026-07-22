@@ -59,14 +59,24 @@ export function dayChipHtml(conDay: string | null | undefined, color?: string): 
 
 /** Build the click-popup HTML: eyebrow + name + distance + DEF CON day chip.
  * Styled like the existing route popups (border-left color bar, eyebrow, name,
- * meta row — see StravaStrip.svelte's trackPopupHtml). */
+ * meta row — see StravaStrip.svelte's trackPopupHtml). When `removeFileId` is
+ * given (my-con-runs.ts — the runner's OWN runs only), a "Remove run" button
+ * is rendered; wire it with wireRunPopupRemove after the popup is added. */
 export function runPopupHtml(
     fileName: string,
     conDay: string | null | undefined,
     color: string,
-    totalDistance?: number
+    totalDistance?: number,
+    removeFileId?: string
 ): string {
     const distStr = formatDistance(totalDistance);
+    const removeBtn = removeFileId
+        ? `<button data-remove-run="${escapeHtml(removeFileId)}"
+                   style="display:block;width:100%;margin-top:10px;padding:5px 8px;border-radius:8px;
+                          font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;
+                          background:transparent;color:#f87171;border:1px solid rgba(248,113,113,.35)">
+               Remove run</button>`
+        : '';
     return `
         <div style="min-width:180px;max-width:260px;padding:10px 12px;border-left:4px solid ${color};
                     font-family:system-ui,sans-serif;color:#e4e4ef">
@@ -74,5 +84,41 @@ export function runPopupHtml(
             <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(prettyName(fileName))}</div>
             ${distStr ? `<div style="font-size:12px;opacity:.85;margin-top:6px">📏 ${distStr}</div>` : ''}
             <div style="margin-top:8px">${dayChipHtml(conDay, color)}</div>
+            ${removeBtn}
         </div>`;
+}
+
+/**
+ * Attach the two-step "Remove run" confirm to a just-opened popup element.
+ * First click arms the button ("Really remove?"); second click calls
+ * `onRemove` (which deletes the cloud file — a Strava import becomes
+ * re-selectable in the strip, since dedupe joins the live file index).
+ * `onRemove` resolves false on failure so the button can offer a retry.
+ */
+export function wireRunPopupRemove(
+    container: HTMLElement | undefined,
+    onRemove: (fileId: string) => Promise<boolean>
+): void {
+    const btn = container?.querySelector<HTMLButtonElement>('[data-remove-run]');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const fileId = btn.dataset.removeRun;
+        if (!fileId) return;
+        if (btn.dataset.armed !== '1') {
+            btn.dataset.armed = '1';
+            btn.textContent = 'Really remove? This deletes the run.';
+            btn.style.background = 'rgba(248,113,113,.15)';
+            return;
+        }
+        btn.disabled = true;
+        btn.textContent = 'Removing…';
+        void onRemove(fileId).then((ok) => {
+            if (!ok) {
+                btn.disabled = false;
+                btn.dataset.armed = '';
+                btn.style.background = 'transparent';
+                btn.textContent = 'Remove failed — try again';
+            }
+        });
+    });
 }

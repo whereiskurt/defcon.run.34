@@ -8,6 +8,9 @@ import {
   syncUserUntagged,
   getExistingStravaIds,
   getStravaFileIndex,
+  trimActivitiesForCache,
+  readStripCache,
+  refreshStripCache,
   type StravaActivity,
   type StravaUserToken,
 } from "./strava-sync";
@@ -23,6 +26,8 @@ const mocks = vi.hoisted(() => ({
       status?: string;
     }[],
   })),
+  cacheGet: vi.fn(async () => ({ data: null as Record<string, unknown> | null })),
+  cacheUpsert: vi.fn(async (_attrs: Record<string, unknown>) => ({})),
 }));
 
 // logEvent is fire-and-forget telemetry; silence it so fetch mocks stay clean.
@@ -40,6 +45,14 @@ vi.mock("@/entities/gpx-file", () => ({
     query: { byCreatedAt: () => ({ go: mocks.fileQuery }) },
     create: (attrs: Record<string, unknown>) => ({
       go: () => mocks.fileCreate(attrs),
+    }),
+  },
+}));
+vi.mock("@/entities/gpx-strava-cache", () => ({
+  GpxStravaCache: {
+    get: (_key: Record<string, unknown>) => ({ go: mocks.cacheGet }),
+    upsert: (attrs: Record<string, unknown>) => ({
+      go: () => mocks.cacheUpsert(attrs),
     }),
   },
 }));
@@ -498,5 +511,127 @@ describe("syncUserUntagged", () => {
     await syncUserUntagged(user, 1_700_000_000);
 
     expect(pageUrls).toHaveLength(1);
+  });
+});
+
+/**
+ * Strip-cache seams (2026-07-21 caching rework): the byte-budget trim never
+ * empties a non-empty list, a corrupt row reads as "no cache", and background
+ * refreshes (skipEmptyWrite) never clobber a good snapshot with a possibly
+ * rate-limited empty result.
+ */
+describe("trimActivitiesForCache", () => {
+  const act = (id: number): StravaActivity => ({
+    id,
+    name: "Run",
+    type: "Run",
+    sport_type: "Run",
+    distance: 5000,
+    total_elevation_gain: 10,
+    start_date_local: "2026-08-07T06:31:00Z",
+    moving_time: 1800,
+    map: { summary_polyline: "x".repeat(1000) },
+  });
+
+  it("returns the list untouched when under the byte budget", () => {
+    const acts = [act(1), act(2), act(3)];
+    expect(trimActivitiesForCache(acts)).toBe(acts);
+  });
+
+  it("drops the OLDEST (tail) activities when over budget, never emptying", () => {
+    const acts = Array.from({ length: 100 }, (_, i) => act(i));
+    const out = trimActivitiesForCache(acts, 20_000);
+    expect(out.length).toBeGreaterThan(0);
+    expect(out.length).toBeLessThan(100);
+    // Newest-first order preserved: kept prefix is ids 0..n-1.
+    expect(out[0].id).toBe(0);
+    expect(out[out.length - 1].id).toBe(out.length - 1);
+    expect(Buffer.byteLength(JSON.stringify(out))).toBeLessThanOrEqual(20_000);
+  });
+});
+
+describe("readStripCache", () => {
+  beforeEach(() => {
+    mocks.cacheGet.mockReset();
+  });
+
+  it("parses a stored snapshot", async () => {
+    mocks.cacheGet.mockResolvedValue({
+      data: {
+        userId: "u1",
+        activities: JSON.stringify([{ id: 7 }]),
+        weeks: 2,
+        fetchedAt: 1_754_000_000_000,
+      },
+    });
+    const out = await readStripCache("u1");
+    expect(out).toEqual({
+      activities: [{ id: 7 }],
+      weeks: 2,
+      fetchedAt: 1_754_000_000_000,
+    });
+  });
+
+  it("returns null when absent or corrupt", async () => {
+    mocks.cacheGet.mockResolvedValue({ data: null });
+    expect(await readStripCache("u1")).toBeNull();
+
+    mocks.cacheGet.mockResolvedValue({
+      data: { userId: "u1", activities: "{not json", weeks: 1, fetchedAt: 1 },
+    });
+    expect(await readStripCache("u1")).toBeNull();
+  });
+});
+
+describe("refreshStripCache", () => {
+  beforeEach(() => {
+    mocks.cacheUpsert.mockReset();
+  });
+
+  it("writes the fetched list through to the cache", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        stravaResponse([
+          { id: 1, map: { summary_polyline: "abc" } },
+          { id: 2, map: { summary_polyline: "def" } },
+          { id: 3, map: { summary_polyline: "ghi" } },
+          { id: 4, map: { summary_polyline: "jkl" } },
+        ])
+      )
+    );
+
+    const out = await refreshStripCache("u1", "tok", 1_754_000_000);
+
+    expect(out.activities).toHaveLength(4);
+    expect(mocks.cacheUpsert).toHaveBeenCalledTimes(1);
+    const attrs = mocks.cacheUpsert.mock.calls[0][0] as { userId: string; activities: string };
+    expect(attrs.userId).toBe("u1");
+    expect(JSON.parse(attrs.activities)).toHaveLength(4);
+  });
+
+  it("skipEmptyWrite: an empty (possibly rate-limited) result never overwrites", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => stravaResponse([]))
+    );
+
+    const out = await refreshStripCache("u1", "tok", 1_754_000_000, {
+      skipEmptyWrite: true,
+    });
+
+    expect(out.activities).toHaveLength(0);
+    expect(mocks.cacheUpsert).not.toHaveBeenCalled();
+  });
+
+  it("without skipEmptyWrite (the route path) an empty result IS written", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => stravaResponse([]))
+    );
+
+    await refreshStripCache("u1", "tok", 1_754_000_000);
+
+    expect(mocks.cacheUpsert).toHaveBeenCalledTimes(1);
   });
 });

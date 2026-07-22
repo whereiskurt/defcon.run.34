@@ -8,9 +8,10 @@ import {
 } from "@/lib/quota-client";
 import {
   fetchSingleUserStravaToken,
-  listStripActivitiesBackfill,
-  toStripActivities,
   getStravaFileIndex,
+  readStripCache,
+  refreshStripCache,
+  toStripActivities,
 } from "@/lib/strava-sync";
 import { logEvent } from "@/lib/log-event";
 
@@ -22,8 +23,15 @@ import { logEvent } from "@/lib/log-event";
  * strip can dim already-imported cards. The window starts at the last 7 days
  * and backfills whole weeks server-side until the ribbon has enough activities
  * (see listStripActivitiesBackfill — the client cannot influence the window).
- * Costs one strava_sync burst unit per refresh (same wall the bulk sync uses)
- * since it hits the Strava API.
+ *
+ * CACHED (2026-07-21 caching rework): the raw Strava list is served from the
+ * per-user GpxStravaCache snapshot — free, no strava_sync quota, no Strava
+ * traffic. Strava is only hit (and one strava_sync burst unit consumed) when
+ * there is no snapshot yet (first-ever load) or the client sends ?refresh=1
+ * (the explicit Refresh button). The snapshot is also rewritten by Sync-now
+ * and the twice-daily scheduled sync, so it is never stale by more than ~12h.
+ * Imported/tagged flags are ALWAYS joined live against the file index — they
+ * are never cached, so import/tag/remove state can't go stale.
  */
 export async function GET(request: Request) {
   const session = await auth();
@@ -46,6 +54,31 @@ export async function GET(request: Request) {
 
   if (await assertNotLockedLive(session.user.id)) {
     return NextResponse.json({ error: "Account locked out" }, { status: 403 });
+  }
+
+  const refresh = new URL(request.url).searchParams.get("refresh") === "1";
+
+  if (!refresh) {
+    const cache = await readStripCache(session.user.id);
+    if (cache) {
+      const fileIndex = await getStravaFileIndex(session.user.id);
+      const strip = toStripActivities(cache.activities, fileIndex);
+
+      logEvent("gpx.strava.list", {
+        headers: request.headers,
+        userId: session.user.id,
+        email: session.user.email ?? undefined,
+        meta: { count: strip.length, weeks: cache.weeks, cached: true },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        activities: strip,
+        weeks: cache.weeks,
+        cached: true,
+        fetchedAt: cache.fetchedAt,
+      });
+    }
   }
 
   const quotaTier: QuotaTier = services.includes("admin") ? "admin" : "upload";
@@ -74,8 +107,10 @@ export async function GET(request: Request) {
     }
 
     const now = Math.floor(Date.now() / 1000);
+    // Write-through (even an empty result — an explicit user fetch is an
+    // authoritative answer; Refresh always bypasses the cache anyway).
     const [{ activities, weeks }, fileIndex] = await Promise.all([
-      listStripActivitiesBackfill(token.accessToken, now),
+      refreshStripCache(session.user.id, token.accessToken, now),
       getStravaFileIndex(session.user.id),
     ]);
 
@@ -85,10 +120,16 @@ export async function GET(request: Request) {
       headers: request.headers,
       userId: session.user.id,
       email: session.user.email ?? undefined,
-      meta: { count: strip.length, weeks },
+      meta: { count: strip.length, weeks, cached: false },
     });
 
-    return NextResponse.json({ ok: true, activities: strip, weeks });
+    return NextResponse.json({
+      ok: true,
+      activities: strip,
+      weeks,
+      cached: false,
+      fetchedAt: Date.now(),
+    });
   } catch (error) {
     console.error("Strava activities list failed:", error);
     await restoreQuota(session.user.id, "strava_sync", 1);

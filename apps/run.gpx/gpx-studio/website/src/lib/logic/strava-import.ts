@@ -60,17 +60,37 @@ async function throwFromResponse(response: Response, fallback: string): Promise<
  * List the runner's recent Strava activities for the strip. The server starts
  * at the last 7 days and backfills whole weeks until the ribbon has enough
  * activities (server-controlled); `weeks` reports how far back it looked.
+ *
+ * Served from the per-user server-side cache by default — free (no
+ * strava_sync quota, no Strava traffic), refreshed for everyone by the
+ * twice-daily background sync. `refresh: true` (the strip's Refresh button)
+ * bypasses the cache and performs a real Strava fetch, which consumes one
+ * strava_sync unit; a first-ever load with no cache yet does the same.
+ * `fetchedAt` (epoch ms) says when the returned snapshot was pulled.
  */
-export async function fetchStravaActivities(): Promise<{
+export async function fetchStravaActivities(opts?: { refresh?: boolean }): Promise<{
     activities: StripActivity[];
     weeks: number;
+    cached: boolean;
+    fetchedAt: number | null;
 }> {
-    const response = await fetch(`${getApiBase()}/strava/activities`, {
+    const suffix = opts?.refresh ? '?refresh=1' : '';
+    const response = await fetch(`${getApiBase()}/strava/activities${suffix}`, {
         credentials: 'include',
     });
     if (!response.ok) await throwFromResponse(response, 'Could not load Strava activities');
-    const data = (await response.json()) as { activities: StripActivity[]; weeks?: number };
-    return { activities: data.activities ?? [], weeks: data.weeks ?? 1 };
+    const data = (await response.json()) as {
+        activities: StripActivity[];
+        weeks?: number;
+        cached?: boolean;
+        fetchedAt?: number;
+    };
+    return {
+        activities: data.activities ?? [],
+        weeks: data.weeks ?? 1,
+        cached: data.cached ?? false,
+        fetchedAt: data.fetchedAt ?? null,
+    };
 }
 
 /** Land one freshly-created cloud file on the map (Upload-door landing chain). */

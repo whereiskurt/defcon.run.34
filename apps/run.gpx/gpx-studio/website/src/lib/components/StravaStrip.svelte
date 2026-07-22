@@ -6,7 +6,12 @@
     // presents as a My DEF CON Runs layer entry, not a second editable file).
     import { tick, onDestroy } from 'svelte';
     import { isAuthenticated, hasGpxStudioAccess, hasStrava, isAdmin } from '$lib/stores/auth';
-    import { getConDayUsage, updateCloudFile, type ConDayUsage } from '$lib/cloud-sync';
+    import {
+        deleteFromCloud,
+        getConDayUsage,
+        updateCloudFile,
+        type ConDayUsage,
+    } from '$lib/cloud-sync';
     import {
         fetchStravaActivities,
         importStravaActivity,
@@ -21,7 +26,12 @@
         formatKm,
         isUnlimitedQuota,
     } from '$lib/logic/strava-strip-pure';
-    import { stravaStripExpanded, stravaStripHidden, stravaStripPulse } from '$lib/stores/strava-strip';
+    import {
+        stravaStripExpanded,
+        stravaStripHidden,
+        stravaStripPulse,
+        stravaRunRemoved,
+    } from '$lib/stores/strava-strip';
     import { refreshMyConRuns, requestConRunReveal } from '$lib/stores/my-con-runs';
     import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, LoaderCircle, Check, X, Zap } from '@lucide/svelte';
 
@@ -42,6 +52,8 @@
     let loading = $state(false);
     let loadedOnce = $state(false);
     let error = $state<string | null>(null);
+    // Epoch ms of the Strava snapshot the strip is showing (null before first load).
+    let fetchedAt = $state<number | null>(null);
 
     let rootEl = $state<HTMLDivElement>();
     let carouselEl = $state<HTMLDivElement>();
@@ -62,14 +74,18 @@
     const selectedUsage = $derived(usage.find((u) => u.date === selectedDay) ?? null);
     const capped = $derived(!!selectedUsage && selectedUsage.remaining <= 0);
 
-    async function loadStrip() {
+    async function loadStrip(opts?: { refresh?: boolean }) {
         if (!$hasStrava) return;
         loading = true;
         error = null;
         try {
-            const [res, u] = await Promise.all([fetchStravaActivities(), getConDayUsage()]);
+            const [res, u] = await Promise.all([
+                fetchStravaActivities({ refresh: opts?.refresh }),
+                getConDayUsage(),
+            ]);
             activities = res.activities;
             weeks = res.weeks;
+            fetchedAt = res.fetchedAt;
             usage = u;
         } catch (e) {
             error = e instanceof Error ? e.message : 'Could not load Strava activities';
@@ -79,12 +95,25 @@
         }
     }
 
-    // Fetching costs a unit of the lifetime strava_sync quota, so it must only
-    // ever happen from explicit user intent — never from an $effect reacting to
-    // canShow/expanded/hasStrava. The three triggers are: (1) the chevron below,
-    // on the transition to expanded; (2) the hub pulse handler further down; and
-    // (3) the "Show my recent activity" fallback button in the body for runners whose
-    // persisted state is already expanded.
+    /** "updated 2h ago" caption for the header, from the snapshot timestamp. */
+    function updatedAgo(ts: number): string {
+        const mins = Math.max(0, Math.round((Date.now() - ts) / 60_000));
+        if (mins < 60) return `updated ${mins}m ago`;
+        const hours = Math.round(mins / 60);
+        if (hours < 48) return `updated ${hours}h ago`;
+        return `updated ${Math.round(hours / 24)}d ago`;
+    }
+
+    // The list is served from the per-user server-side cache — free (no
+    // strava_sync quota, no Strava traffic) and refreshed for everyone by the
+    // twice-daily background sync. A REAL Strava fetch (one lifetime
+    // strava_sync unit) happens only on the first-ever load (no cache yet) and
+    // the explicit Refresh button (refresh: true). Because that first load can
+    // cost quota, fetches still only happen from explicit user intent — never
+    // from an $effect reacting to canShow/expanded/hasStrava. The triggers are:
+    // (1) the chevron below, on the transition to expanded; (2) the hub pulse
+    // handler further down; (3) the "Show my recent activity" fallback button;
+    // and (4) the Refresh button (the only refresh:true caller).
     function toggleExpanded() {
         const next = !$stravaStripExpanded;
         stravaStripExpanded.set(next);
@@ -155,6 +184,7 @@
         openActivityId = a.id;
         popoverMode = a.imported ? 'assign' : 'import';
         popoverError = null;
+        removeArmed = false;
         selectedDay = guessConDay(
             a.startDateLocal,
             usage.map((u) => u.date)
@@ -164,6 +194,7 @@
     function closePopover() {
         openActivityId = null;
         popoverError = null;
+        removeArmed = false;
     }
 
     async function confirmPopover() {
@@ -252,6 +283,66 @@
     let successTimeout: ReturnType<typeof setTimeout> | undefined;
     let pulseTimeout: ReturnType<typeof setTimeout> | undefined;
 
+    // A run was deleted via the map popup's "Remove run" (my-con-runs.ts).
+    // Un-mark the matching card so the activity is selectable again — no
+    // refetch needed (imported flags are joined live server-side, never
+    // cached). Captured + reset SYNCHRONOUSLY in the subscribe body (the
+    // myConRunsReveal discipline) so overlapping events can't drop one; the
+    // set(null) re-entry returns immediately on the null.
+    const unsubscribeRemoved = stravaRunRemoved.subscribe((removed) => {
+        if (!removed) return;
+        stravaRunRemoved.set(null);
+        const card = activities.find((a) => a.fileId === removed.fileId);
+        if (!card) return;
+        if (card.conDay) {
+            usage = usage.map((u) =>
+                u.date === card.conDay ? { ...u, remaining: u.remaining + 1 } : u
+            );
+        }
+        activities = activities.map((a) =>
+            a.fileId === removed.fileId
+                ? { ...a, imported: false, fileId: undefined, conDay: undefined }
+                : a
+        );
+    });
+
+    // "Remove this import" inside the assign popover — the only way an
+    // UNTAGGED import (not in the My DEF CON Runs layer, so no map popup) can
+    // be removed without a trip to My Maps. Same two-step confirm as the map
+    // popup's Remove run button.
+    let removing = $state(false);
+    let removeArmed = $state(false);
+
+    async function removeOpenImport() {
+        const a = openActivity;
+        if (!a?.fileId) return;
+        if (!removeArmed) {
+            removeArmed = true;
+            return;
+        }
+        removing = true;
+        popoverError = null;
+        try {
+            await deleteFromCloud(a.fileId);
+            activities = activities.map((act) =>
+                act.id === a.id
+                    ? { ...act, imported: false, fileId: undefined, conDay: undefined }
+                    : act
+            );
+            openActivityId = null;
+            successMessage = 'Removed — you can import it again anytime.';
+            clearTimeout(successTimeout);
+            successTimeout = setTimeout(() => {
+                successMessage = null;
+            }, 4000);
+        } catch (e) {
+            popoverError = e instanceof Error ? e.message : 'Could not remove the import';
+        } finally {
+            removing = false;
+            removeArmed = false;
+        }
+    }
+
     // One-shot attention pulse from the QuickStart hub's "From Strava" hand-off:
     // scroll the strip into view and flash a brief Strava-orange ring.
     let lastPulse = 0;
@@ -273,6 +364,7 @@
 
     onDestroy(() => {
         unsubscribePulse();
+        unsubscribeRemoved();
         clearTimeout(pulseTimeout);
         clearTimeout(successTimeout);
     });
@@ -308,6 +400,11 @@
                 <span class="rounded-full bg-accent px-2 py-0.5 text-xs text-muted-foreground"
                     >{activities.length}</span
                 >
+                {#if fetchedAt}
+                    <span class="hidden text-[11px] text-muted-foreground sm:inline"
+                        >{updatedAgo(fetchedAt)}</span
+                    >
+                {/if}
             {/if}
             <div class="ml-auto flex items-center gap-1">
                 {#if $hasStrava}
@@ -331,8 +428,9 @@
                         type="button"
                         class="rounded-md p-1 text-muted-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                         aria-label="Refresh"
+                        title="Refresh from Strava (uses one of your Strava refreshes)"
                         disabled={loading}
-                        onclick={() => void loadStrip()}
+                        onclick={() => void loadStrip({ refresh: true })}
                     >
                         <RefreshCw size={16} class={loading ? 'animate-spin' : ''} />
                     </button>
@@ -476,7 +574,25 @@
                                 <p class="mt-2 text-sm text-destructive">{popoverError}</p>
                             {/if}
 
-                            <div class="mt-3 flex justify-end gap-2">
+                            <div class="mt-3 flex items-center justify-end gap-2">
+                                {#if popoverMode === 'assign' && openActivity?.fileId}
+                                    <button
+                                        type="button"
+                                        class="mr-auto rounded-md px-2 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 {removeArmed
+                                            ? 'bg-destructive/15 text-destructive'
+                                            : 'text-destructive/80 hover:bg-destructive/10'}"
+                                        disabled={removing || confirming}
+                                        onclick={() => void removeOpenImport()}
+                                    >
+                                        {#if removing}
+                                            <LoaderCircle size={12} class="inline animate-spin" /> Removing…
+                                        {:else if removeArmed}
+                                            Really remove? This deletes the run.
+                                        {:else}
+                                            Remove this import
+                                        {/if}
+                                    </button>
+                                {/if}
                                 <button
                                     type="button"
                                     class="rounded-md border px-3 py-1.5 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
