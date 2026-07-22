@@ -9,13 +9,18 @@ locals {
   site_vars   = read_terragrunt_config(find_in_parent_folders("site.hcl"))
   impart_vars = read_terragrunt_config(find_in_parent_folders("impart.hcl"))
 
-  # CloudFront domain label -> ECS service name. Extend when onboarding more
-  # apps to Impart; lookup() without a default fails the plan loudly for a
-  # domain missing here rather than silently skipping enforcement.
-  impart_domain_to_service = {
-    gpx = "run-gpx"
-    run = "run-human"
-  }
+  # CloudFront domain label -> ECS service name, derived from each service's
+  # ALB host_headers (first entry, e.g. "gpx.{{SITE_DOMAIN}}" -> "gpx").
+  # Derivation means onboarding another app to Impart needs no edit here;
+  # lookup() without a default still fails the plan loudly for a domain that
+  # has no matching service.
+  impart_domain_to_service = merge([
+    for svc in local.site_vars.locals.ecs_services.services : {
+      for lb in try(svc.load_balancers, []) :
+      split(".", lb.listener.host_headers[0])[0] => svc.name
+      if lb.type == "alb" && try(length(lb.listener.host_headers), 0) > 0
+    }
+  ]...)
 
   # Enforce only when BOTH enforce_alb_header AND state == "on": in off/canary,
   # most traffic reaches the ALB directly from CloudFront without the
