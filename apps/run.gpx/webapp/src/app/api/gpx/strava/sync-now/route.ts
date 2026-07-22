@@ -4,7 +4,11 @@ import { assertNotLockedLive } from "@/lib/live-lockout";
 import { conLocalDate } from "@/lib/con-days";
 import { syncNowRemaining, isSyncNowCapped } from "@/lib/sync-now-limit";
 import { GpxSyncNow } from "@/entities/gpx-sync-now";
-import { fetchSingleUserStravaToken, syncUserUntagged } from "@/lib/strava-sync";
+import {
+  fetchSingleUserStravaToken,
+  refreshStripCache,
+  syncUserUntagged,
+} from "@/lib/strava-sync";
 import { logEvent } from "@/lib/log-event";
 
 /**
@@ -86,6 +90,17 @@ export async function POST(request: Request) {
 
     const now = Math.floor(Date.now() / 1000);
     const result = await syncUserUntagged(token, now - 7 * 24 * 3600);
+
+    // Rewrite the strip cache while we hold the token, so the strip's
+    // follow-up list fetch is both fresh AND free (no strava_sync quota).
+    // Best-effort: a cache failure must never fail the sync itself.
+    try {
+      await refreshStripCache(userId, token.accessToken, now, {
+        skipEmptyWrite: true,
+      });
+    } catch (e) {
+      console.warn(`[sync-now] strip cache refresh failed for ${userId}`, e);
+    }
 
     logEvent("gpx.strava.syncnow", {
       headers: request.headers,

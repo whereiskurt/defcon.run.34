@@ -1,6 +1,7 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 import { GpxFile } from "@/entities/gpx-file";
+import { GpxStravaCache } from "@/entities/gpx-strava-cache";
 import { s3Client, BUCKET, getUserPrefix } from "@/lib/s3-client";
 import { logEvent } from "@/lib/log-event";
 import {
@@ -274,6 +275,19 @@ export async function runStravaSync(
     } catch (e) {
       console.error(`[strava-sync] user ${user.userId} failed`, e);
     }
+    // Refresh this runner's strip cache while we hold a fresh token, so strip
+    // opens between scheduled ticks are free (no quota, no Strava traffic).
+    // Best-effort: a cache failure must never fail the sync run.
+    try {
+      await refreshStripCache(
+        user.userId,
+        user.accessToken,
+        Math.floor(Date.now() / 1000),
+        { skipEmptyWrite: true }
+      );
+    } catch (e) {
+      console.warn(`[strava-sync] strip cache refresh failed for ${user.userId}`, e);
+    }
   }
   return { users: tokens.length, imported };
 }
@@ -490,6 +504,88 @@ export async function listStripActivitiesBackfill(
     if (withGps >= minCount) break;
   }
   return { activities: all, weeks };
+}
+
+// ---------------------------------------------------------------------------
+// Strip cache (2026-07-21 caching rework)
+//
+// The strip list is served from a per-user DDB snapshot of the RAW Strava
+// activity list, so ordinary strip opens cost no Strava traffic and no
+// strava_sync quota. Only these paths hit Strava and (re)write the cache:
+// the first-ever load (no cache yet), the explicit Refresh button
+// (?refresh=1), Sync-now, and the twice-daily scheduled sync. Imported/tagged
+// flags are NEVER cached — every read re-joins getStravaFileIndex live.
+// ---------------------------------------------------------------------------
+
+export type StripCache = {
+  activities: StravaActivity[];
+  weeks: number;
+  fetchedAt: number;
+};
+
+/** Stay well under DynamoDB's 400KB item cap (row overhead + key inflation). */
+export const STRIP_CACHE_MAX_BYTES = 320_000;
+
+/**
+ * Pure: bound the cached payload. Activities arrive newest-first (recent week
+ * bands first, Strava newest-first within a band), so dropping from the END
+ * discards the oldest ones. Never returns an empty list for a non-empty input.
+ */
+export function trimActivitiesForCache(
+  activities: StravaActivity[],
+  maxBytes = STRIP_CACHE_MAX_BYTES
+): StravaActivity[] {
+  let kept = activities;
+  while (kept.length > 1 && Buffer.byteLength(JSON.stringify(kept)) > maxBytes) {
+    kept = kept.slice(0, Math.max(1, Math.floor(kept.length / 2)));
+  }
+  return kept;
+}
+
+/** Read the user's cached raw activity list; null when absent or unparsable. */
+export async function readStripCache(userId: string): Promise<StripCache | null> {
+  const res = await GpxStravaCache.get({ userId }).go();
+  if (!res.data) return null;
+  try {
+    const activities = JSON.parse(res.data.activities) as StravaActivity[];
+    if (!Array.isArray(activities)) return null;
+    return { activities, weeks: res.data.weeks, fetchedAt: res.data.fetchedAt };
+  } catch {
+    return null; // corrupt row — treat as no cache; next real fetch overwrites it
+  }
+}
+
+export async function writeStripCache(
+  userId: string,
+  activities: StravaActivity[],
+  weeks: number
+): Promise<void> {
+  await GpxStravaCache.upsert({
+    userId,
+    activities: JSON.stringify(trimActivitiesForCache(activities)),
+    weeks,
+    fetchedAt: Date.now(),
+  }).go();
+}
+
+/**
+ * Fetch a fresh backfill list from Strava and write-through the cache.
+ * `skipEmptyWrite` is set by the BACKGROUND callers (scheduled sync, Sync-now):
+ * stravaGet swallows a 429 as an empty page, so an empty result there may just
+ * be rate limiting — never let it clobber a good snapshot. The user-facing
+ * route path writes even an empty result (an explicit fetch that truly found
+ * nothing is an authoritative answer, and Refresh always bypasses the cache).
+ */
+export async function refreshStripCache(
+  userId: string,
+  token: string,
+  nowUnixSeconds: number,
+  opts?: { skipEmptyWrite?: boolean }
+): Promise<{ activities: StravaActivity[]; weeks: number }> {
+  const result = await listStripActivitiesBackfill(token, nowUnixSeconds);
+  if (result.activities.length === 0 && opts?.skipEmptyWrite) return result;
+  await writeStripCache(userId, result.activities, result.weeks);
+  return result;
 }
 
 /**

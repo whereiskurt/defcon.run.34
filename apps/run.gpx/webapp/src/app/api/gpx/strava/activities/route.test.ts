@@ -19,6 +19,13 @@ const mocks = vi.hoisted(() => ({
   getStravaFileIndex: vi.fn(
     async () => new Map<string, { fileId: string; conDay?: string }>()
   ),
+  readStripCache: vi.fn(
+    async (): Promise<{
+      activities: StravaActivity[];
+      weeks: number;
+      fetchedAt: number;
+    } | null> => null
+  ),
   logEvent: vi.fn(),
 }));
 
@@ -33,6 +40,13 @@ vi.mock("@/lib/strava-sync", async (importOriginal) => ({
   fetchSingleUserStravaToken: mocks.fetchSingleUserStravaToken,
   listStripActivitiesBackfill: mocks.listStripActivitiesBackfill,
   getStravaFileIndex: mocks.getStravaFileIndex,
+  readStripCache: mocks.readStripCache,
+  // The route's live-fetch path goes through refreshStripCache (fetch +
+  // write-through); delegate to the backfill mock and skip the cache write so
+  // the existing live-path assertions keep observing the Strava call shape.
+  refreshStripCache: vi.fn(async (_userId: string, token: string, now: number) =>
+    mocks.listStripActivitiesBackfill(token, now)
+  ),
 }));
 vi.mock("@/lib/log-event", () => ({ logEvent: mocks.logEvent }));
 
@@ -51,6 +65,7 @@ beforeEach(() => {
   mocks.auth.mockResolvedValue(sessionUser);
   mocks.assertNotLockedLive.mockResolvedValue(false);
   mocks.consumeQuota.mockResolvedValue({ success: true, remaining: 15 });
+  mocks.readStripCache.mockResolvedValue(null);
   mocks.fetchSingleUserStravaToken.mockResolvedValue({
     userId: "u1",
     athleteId: "a1",
@@ -132,5 +147,49 @@ describe("GET /api/gpx/strava/activities", () => {
     mocks.fetchSingleUserStravaToken.mockResolvedValue(null);
     expect((await GET(req())).status).toBe(409);
     expect(mocks.restoreQuota).toHaveBeenCalledWith("u1", "strava_sync", 1);
+  });
+
+  it("serves a cached snapshot for FREE — no quota, no Strava — with live-joined flags", async () => {
+    mocks.readStripCache.mockResolvedValue({
+      activities: [
+        { id: 1, name: "A", type: "Run", sport_type: "Run", distance: 1000, total_elevation_gain: 0, start_date_local: "2026-07-20T06:00:00Z", moving_time: 300, map: { summary_polyline: "p1" } },
+      ],
+      weeks: 3,
+      fetchedAt: 1_753_000_000_000,
+    });
+    // The join is LIVE even on the cached path: a fresh import shows up
+    // immediately without a Strava refetch.
+    mocks.getStravaFileIndex.mockResolvedValue(
+      new Map([["1", { fileId: "file-1", conDay: "2026-08-07" }]])
+    );
+
+    const res = await GET(req());
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.cached).toBe(true);
+    expect(body.fetchedAt).toBe(1_753_000_000_000);
+    expect(body.weeks).toBe(3);
+    expect(body.activities[0].imported).toBe(true);
+    expect(body.activities[0].conDay).toBe("2026-08-07");
+    expect(mocks.consumeQuota).not.toHaveBeenCalled();
+    expect(mocks.listStripActivitiesBackfill).not.toHaveBeenCalled();
+  });
+
+  it("?refresh=1 bypasses the cache and does a quota-gated live fetch", async () => {
+    mocks.readStripCache.mockResolvedValue({
+      activities: [],
+      weeks: 1,
+      fetchedAt: 1,
+    });
+
+    const res = await GET(new Request("http://x/api/gpx/strava/activities?refresh=1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.cached).toBe(false);
+    expect(mocks.readStripCache).not.toHaveBeenCalled();
+    expect(mocks.consumeQuota).toHaveBeenCalledWith("u1", "strava_sync", 1, "upload");
+    expect(mocks.listStripActivitiesBackfill).toHaveBeenCalled();
   });
 });

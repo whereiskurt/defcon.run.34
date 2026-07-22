@@ -2,8 +2,9 @@ import { writable } from 'svelte/store';
 import { parseGPX } from 'gpx';
 import mapboxgl from 'mapbox-gl';
 import { routeColor } from '$lib/dc34-palette';
-import { getApiBase } from '$lib/cloud-sync';
-import { conRunDayColors, conRunMetaByFileId, runPopupHtml } from './run-popup';
+import { deleteFromCloud, getApiBase } from '$lib/cloud-sync';
+import { notifyStravaRunRemoved } from '$lib/stores/strava-strip';
+import { conRunDayColors, conRunMetaByFileId, runPopupHtml, wireRunPopupRemove } from './run-popup';
 
 /**
  * "My DEF CON Runs" — the signed-in runner's own con-day-tagged files, rendered
@@ -262,8 +263,9 @@ export class MyConRunsLayer {
                 const onClick = (e: mapboxgl.MapMouseEvent) => {
                     this.popup
                         .setLngLat(e.lngLat)
-                        .setHTML(runPopupHtml(r.fileName, r.conDay, color, r.totalDistance))
+                        .setHTML(runPopupHtml(r.fileName, r.conDay, color, r.totalDistance, r.fileId))
                         .addTo(this.map);
+                    wireRunPopupRemove(this.popup.getElement(), (id) => this.removeRun(id));
                 };
                 const onEnter = () => (this.map.getCanvas().style.cursor = 'pointer');
                 const onLeave = () => (this.map.getCanvas().style.cursor = '');
@@ -355,8 +357,27 @@ export class MyConRunsLayer {
         const color = this.dayColor.get(meta.conDay) ?? routeColor(0);
         this.popup
             .setLngLat(lngLat)
-            .setHTML(runPopupHtml(meta.fileName, meta.conDay, color, meta.totalDistance))
+            .setHTML(runPopupHtml(meta.fileName, meta.conDay, color, meta.totalDistance, fileId))
             .addTo(this.map);
+        wireRunPopupRemove(this.popup.getElement(), (id) => this.removeRun(id));
+    }
+
+    /** "Remove run" (Kurt 2026-07-21): fully delete the cloud file (S3 + DDB
+     * cascade server-side), then reload the layer and tell the Strava strip so
+     * the source activity becomes selectable again — dedupe joins the live
+     * file index, so a removed run can always be re-imported. Returns false on
+     * failure so the popup button can offer a retry. */
+    private async removeRun(fileId: string): Promise<boolean> {
+        try {
+            await deleteFromCloud(fileId);
+        } catch (err) {
+            console.warn(`[my-con-runs] remove failed for ${fileId}:`, err);
+            return false;
+        }
+        this.popup.remove();
+        notifyStravaRunRemoved(fileId);
+        void this.reload().catch((err) => console.warn('[my-con-runs] reload failed', err));
+        return true;
     }
 
     /** Reveal one run right after an import/tag completes: make its day group

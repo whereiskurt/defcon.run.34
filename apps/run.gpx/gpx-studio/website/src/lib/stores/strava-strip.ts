@@ -43,6 +43,20 @@ stravaStripHidden.subscribe((v) => {
 /** One-shot attention pulse fired when the hub button opens the strip. */
 export const stravaStripPulse = writable<number>(0);
 
+/**
+ * One-shot notification that a Strava-imported run was DELETED (the popup's
+ * "Remove run" button in my-con-runs.ts, Kurt 2026-07-21). The strip consumes
+ * it synchronously (capture + reset in the subscribe body, same discipline as
+ * myConRunsReveal) and un-marks the matching card — the activity becomes
+ * selectable again without any refetch, because imported flags are joined
+ * live server-side, never cached.
+ */
+export const stravaRunRemoved = writable<{ fileId: string } | null>(null);
+
+export function notifyStravaRunRemoved(fileId: string): void {
+    stravaRunRemoved.set({ fileId });
+}
+
 export function openStravaStrip(): void {
     stravaStripHidden.set(false);
     stravaStripExpanded.set(true);
