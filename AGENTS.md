@@ -57,10 +57,14 @@ PORT=1337 npm run develop  # run.cms (from apps/run.cms/app)
 # run.gpx requires building gpx-studio frontend first:
 cd apps/run.gpx && ./build-frontend.sh
 
-# Release (all apps, all regions)
-./apps/release-all.sh --parallel
+# Release: builds + pushes images and opens the Release PR (NO deploy).
+# The deploy runs in GitHub Actions — see "Releases & Deploys" below.
+./apps/release-all.sh --apps run.human --pr
 
-# Infrastructure
+# Deploy (GitHub Actions only — never local terragrunt apply):
+gh workflow run deploy.yml -f region=us-east-1 -f pr_number=latest -f invalidate_cache=true
+
+# Infrastructure (plan/inspect only — do NOT apply to deploy)
 cd infra/terraform/live/site && terragrunt plan --all
 
 # Planning & work tracking (GSD — run as Claude Code slash commands)
@@ -91,6 +95,59 @@ Read these files for in-depth information:
 2. **Branch workflow** — Always work in a feature branch, never commit directly to main. Create a PR for review. **Wait for explicit user approval before merging.** Never auto-merge PRs unless explicitly told.
 
 3. **Simplicity first** — <100 lines, single-file until proven insufficient, boring patterns preferred.
+
+4. **Deploy ONLY via GitHub Actions** — Never run `terragrunt apply` locally to deploy, and never pass `--with-terragrunt` to a release. The ECS/CloudFront deploy ALWAYS goes through the `deploy.yml` ("🚀 Deploy: Release") workflow. Local tooling only builds and pushes images to ECR; CI does the apply. See **Releases & Deploys** below.
+
+## Releases & Deploys
+
+**The deploy always runs in GitHub Actions — not on your machine.** The split is:
+local tooling **builds + pushes images to ECR**; the `deploy.yml` workflow
+**merges the Release PR, applies ECS via Terragrunt, and invalidates CloudFront**.
+Never `terragrunt apply` by hand and never use `release-all.sh --with-terragrunt`.
+
+**Standard release flow (from a worktree):**
+
+```bash
+# 0. PREREQUISITE (worktree landmine — do this FIRST, see below)
+cp <main-checkout>/env.local.sh <worktree-root>/env.local.sh   # gitignored
+
+# 1. Build + push images and open the Release PR (version-bump PR). NO deploy.
+./apps/release-all.sh --apps run.human --pr        # both regions auto-probed;
+                                                    # regions w/o ECR repos skip
+
+# 2. Deploy via CI — this MERGES the Release PR, applies ECS, invalidates CF.
+gh workflow run deploy.yml \
+  -f region=us-east-1 \
+  -f pr_number=<ReleasePR#> \        # or "latest"; "skip" = deploy w/o merge
+  -f invalidate_cache=true
+
+# 3. Watch it, then verify the live version actually rolled.
+gh run watch <run-id>
+```
+
+**`env.local.sh` worktree landmine (causes a partial/failed release):**
+`build.sh` reads `TF_VAR_profile_prefix` from the repo-root `env.local.sh` to form
+the AWS profile (`dc34-application`). This file is **gitignored**, so a fresh
+worktree doesn't have it — the profile silently collapses to a bare `application`
+that doesn't exist, and the build dies at the **post-build S3 static-asset sync
+with exit 255** *after* images/build already succeeded. Copy `env.local.sh` from
+the main checkout (or any release-capable worktree) into the worktree root before
+releasing. Recovery if it bit you mid-run: `AWS_PROFILE=dc34-application` for
+direct calls isn't enough (the S3 step uses an `aws_cmd` helper that hard-sets the
+profile); fix `env.local.sh`, then re-run just
+`AWS_REGION=us-east-1 ./apps/build.sh webapp <app>` to finish the app-image push.
+
+**Immutable ECR:** repos are immutable — a build fails loudly if the tag already
+exists. That means the Release PR's VERSION bump must be the source of a *new* tag;
+never `--skip-bump` onto an already-released version.
+
+**Verify after deploy** — CI going green is not proof the new task is serving.
+ECS does a rolling replace (old task drains while new one health-checks), so check:
+```bash
+curl -s https://run.defcon.run/use1/ | grep -oE 'v0\.0\.[0-9]+'   # live app version
+# an authed /admin/* route returns 404 to UNAUTHENTICATED probes by design
+# (non-disclosure gate) — a 404 from curl is NOT evidence the route is missing.
+```
 
 ## Landing the Plane (Session Completion)
 
