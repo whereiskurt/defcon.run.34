@@ -22,6 +22,7 @@ outside the white QR card (white-pupil experiments previously broke jsQR).
 | 001 | clearance-frame-evolution | How does the QR frame level up L0→L5 as unique scans accrue? | B: HUD Ring | qr, flair, tiers |
 | 002 | badge-slots | Where do discrete earned badges (bib-buyer, milestones) live around the QR? | A: Pin Rail | qr, badges |
 | 003 | hud-glow-leader-rank | HUD ring + pin rail synthesis: how thick/blurry does the glow get, and how does relative RANK (percentile, decays as others overtake) + a LEADER №1 state read? | D: Reactor Tuned | qr, flair, glow, rank |
+| 004 | landing-hero-tiles | What DC33-style photo-tile layout should the run.defcon.run landing use? | B: Hero + Strip | landing, tiles, run.human |
 
 ## Model shift (from 003 intake)
 Tiers are RELATIVE, not absolute: flair is driven by your rank/percentile among all
