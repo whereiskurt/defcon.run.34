@@ -171,6 +171,13 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
           },
           {
+            # Same server secret the meshtk fleet uses to derive ghost keypairs
+            # and (meshtk#10) real TOTP seeds — /admin/ghosts reveals the seed
+            # the deployed bot validates (Phase 67).
+            name      = "MESHTK_GHOST_KEY_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/ghost-key-secret"
+          },
+          {
             name      = "RUN_SES_SMTP_FROM"
             valueFrom = "/{{SITE_LABEL}}/ses/from_address"
           },
