@@ -41,6 +41,21 @@ Flair starts at TOP 50%, not TOP 10%: faint reactor + soft scanline + badge glow
 from the first band, and a "NEXT // <band>: <what unlocks>" teaser line under the
 readout at every rank so runners always see there's more to come.
 
+## Hidden Hotspot Easter Egg (variant D)
+Invisible 88px hotspot on the upper-right corner of the QR frame. Two trigger
+mechanics implemented to compare: **HOLD** (650ms; a green ring fills after 150ms
+so casual taps see nothing) and **TRIPLE-TAP** (3 taps inside 900ms). On claim:
+radial burst + toast "⚑ COVERT CHANNEL FOUND // +10 SOCIAL · +25 CTF" + a gold
+⚑ EGG badge joins the rail. One claim ever; repeats show "ALREADY DRAINED".
+The sketch has a "reveal egg hotspot" debug checkbox — production ships with no
+visual cue. Spec intent: +10 to the social/connect score (counts toward rank)
+and +25 ctfScore, once per user.
+
+## Scanline (2x pass)
+18px, blur(4px) at full strength (10/14px at TOP 50/25%) — ~6% of card height.
+Combined with the ~6% center knockout this stays well inside EC-H's ~30% budget,
+but production must keep the overlay translucent and never widen it further.
+
 ## What to Look For
 - Is the glow finally thick/blurry enough? Which construction reads best at phone size?
 - Does gold-at-LEADER feel earned, or should LEADER stay magenta and just burn brighter?

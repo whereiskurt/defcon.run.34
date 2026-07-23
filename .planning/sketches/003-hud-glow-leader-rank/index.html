@@ -177,7 +177,7 @@
   .badge.locked::before { background: repeating-linear-gradient(45deg, var(--color-border) 0 4px, transparent 4px 8px); }
 
   /* ---------- D: Reactor tuned — thick scanline + rank-reactive badges ---------- */
-  .v-d .scanline { height: 9px; border-radius: 5px; filter: blur(1px); }
+  .v-d .scanline { height: 18px; border-radius: 9px; filter: blur(4px); }
   .bglow { transition: filter 0.4s ease; }
   [data-rank="1"] .v-d .bglow.earned { filter: drop-shadow(0 0 4px var(--flair-soft)); }
   [data-rank="2"] .v-d .bglow.earned { filter: drop-shadow(0 0 7px var(--flair-soft)); }
@@ -194,12 +194,49 @@
   }
   /* early gratification — TOP 50% already gets a taste of everything */
   [data-rank="1"] .v-d .reactor { opacity: 0.25; }
-  [data-rank="1"] .v-d .scanline { opacity: 0.4; height: 5px; animation: scan-sweep 4.6s linear infinite; }
-  [data-rank="2"] .v-d .scanline { opacity: 0.7; height: 7px; animation: scan-sweep 3.8s linear infinite; }
+  [data-rank="1"] .v-d .scanline { opacity: 0.4; height: 10px; animation: scan-sweep 4.6s linear infinite; }
+  [data-rank="2"] .v-d .scanline { opacity: 0.7; height: 14px; animation: scan-sweep 3.8s linear infinite; }
   [data-rank="1"] .v-d .halo { opacity: 0.35; }
   /* next-unlock teaser */
   .teaser { font-size: var(--text-xs); letter-spacing: 0.08em; color: var(--color-text-muted); }
   .teaser b { color: var(--color-accent); font-weight: 400; }
+
+  /* ---------- hidden hotspot easter egg (upper-right corner, variant D) ---------- */
+  .hotspot {
+    position: absolute; top: 0; right: 0; width: 88px; height: 88px; z-index: 6;
+    border-radius: 12px; -webkit-tap-highlight-color: transparent; user-select: none;
+  }
+  .hotspot.revealed { outline: 2px dashed var(--color-accent); outline-offset: -4px; }
+  .hotspot .press-ring {
+    position: absolute; inset: 18px; border-radius: 50%; border: 3px solid var(--color-accent);
+    opacity: 0; transform: scale(0.4); pointer-events: none;
+  }
+  .hotspot.holding .press-ring { animation: press-fill 0.65s linear forwards; }
+  @keyframes press-fill {
+    0% { opacity: 0.9; transform: scale(0.4); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  .egg-burst {
+    position: absolute; top: 44px; right: 44px; width: 10px; height: 10px; z-index: 7;
+    border-radius: 50%; pointer-events: none; opacity: 0;
+  }
+  .egg-burst.go { animation: burst 0.8s ease-out forwards; }
+  @keyframes burst {
+    0% { opacity: 1; box-shadow: 0 0 0 0 rgba(51,255,153,0.9), 0 0 0 0 rgba(196,21,122,0.7); }
+    100% { opacity: 0; box-shadow: 0 0 60px 90px rgba(51,255,153,0), 0 0 30px 140px rgba(196,21,122,0); }
+  }
+  .egg-toast {
+    position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%) translateY(20px);
+    z-index: 10001; font-family: var(--font-mono); font-size: var(--text-sm);
+    letter-spacing: 0.1em; line-height: 1.8; text-align: center;
+    background: var(--color-surface-2); border: 1px solid var(--color-accent);
+    border-radius: var(--radius-md); padding: 12px 22px;
+    box-shadow: var(--glow-green); opacity: 0; pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  .egg-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .egg-toast .big { color: var(--color-accent); font-weight: 800; }
+  .egg-toast .pts { color: var(--color-amber); }
 
   #sketch-tools {
     position: fixed; bottom: 12px; right: 12px; z-index: 9999;
@@ -228,7 +265,12 @@
   <label for="rank">SOCIAL RANK</label>
   <input id="rank" type="range" min="0" max="5" value="3" oninput="setRank(+this.value)">
   <span id="rank-readout"></span>
-  <span class="hint">relative percentile of 1,204 runners — decays if the pack out-scans you · top slot = LEADER</span>
+  <label style="display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--color-text-muted);">
+    <input type="checkbox" id="reveal-egg" style="accent-color:var(--color-accent);"
+           onchange="document.querySelector('.hotspot').classList.toggle('revealed', this.checked)">
+    reveal egg hotspot
+  </label>
+  <span class="hint">relative percentile of 1,204 runners — decays if the pack out-scans you · top slot = LEADER · D hides an egg: hold or triple-tap the upper-right corner</span>
 </div>
 
 <!-- genuine styled QR (v5, 37×37, payload https://q.defcon.run/r/9f86d081884c7d65) -->
@@ -337,6 +379,8 @@
       </svg>
       <div class="scanline"></div>
       <div class="qr-card qr-slot"></div>
+      <div class="hotspot" id="egg-hotspot"><div class="press-ring"></div></div>
+      <div class="egg-burst" id="egg-burst"></div>
     </div>
     <div class="rail" data-rail></div>
     <div class="readout">
@@ -347,6 +391,8 @@
     </div>
   </div>
 </div>
+
+<div class="egg-toast" id="egg-toast"></div>
 
 <div id="sketch-tools">
   <select onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'">
@@ -445,6 +491,62 @@
   });
 
   setRank(3);
+
+  // ---------- hidden hotspot easter egg (variant D) ----------
+  // Two trigger mechanics to compare: HOLD (650ms, with a filling ring cue
+  // once you've pressed ~150ms) vs TRIPLE-TAP (3 taps within 900ms).
+  const hotspot = document.getElementById('egg-hotspot');
+  const toast = document.getElementById('egg-toast');
+  let eggClaimed = false;
+  let holdTimer = null, cueTimer = null;
+  let taps = [];
+
+  function eggToast(html, ms) {
+    toast.innerHTML = html;
+    toast.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toast.classList.remove('show'), ms);
+  }
+
+  function claimEgg(how) {
+    if (eggClaimed) {
+      eggToast('COVERT CHANNEL ALREADY DRAINED', 1800);
+      return;
+    }
+    eggClaimed = true;
+    const burst = document.getElementById('egg-burst');
+    burst.classList.remove('go'); void burst.offsetWidth; burst.classList.add('go');
+    eggToast(
+      `<span class="big">⚑ COVERT CHANNEL FOUND</span> <span style="color:var(--color-text-muted)">// ${how}</span><br>` +
+      `<span class="pts">+10 SOCIAL · +25 CTF</span>`, 4200);
+    // gold EGG badge pops onto every rail
+    document.querySelectorAll('[data-rail]').forEach(rail => {
+      const d = document.createElement('div');
+      d.className = 'badge earned special pop';
+      d.innerHTML = '<span class="glyph">⚑</span><span class="cap">EGG</span>';
+      const w = document.createElement('div');
+      w.className = 'bglow earned';
+      w.appendChild(d);
+      rail.insertBefore(w, rail.firstChild);
+    });
+  }
+
+  hotspot.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    // tap counting (triple-tap mechanic)
+    const now = Date.now();
+    taps = taps.filter(t => now - t < 900); taps.push(now);
+    if (taps.length >= 3) { taps = []; cancelHold(); claimEgg('TRIPLE-TAP'); return; }
+    // hold mechanic: show the fill cue only after 150ms so casual taps see nothing
+    cueTimer = setTimeout(() => hotspot.classList.add('holding'), 150);
+    holdTimer = setTimeout(() => { cancelHold(); claimEgg('HOLD'); }, 650);
+  });
+  function cancelHold() {
+    clearTimeout(holdTimer); clearTimeout(cueTimer);
+    hotspot.classList.remove('holding');
+  }
+  hotspot.addEventListener('pointerup', cancelHold);
+  hotspot.addEventListener('pointerleave', cancelHold);
 </script>
 </body>
 </html>
