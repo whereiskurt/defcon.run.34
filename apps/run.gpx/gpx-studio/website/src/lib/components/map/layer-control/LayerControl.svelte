@@ -13,6 +13,7 @@
     import { RainbowArch } from '$lib/components/map/rainbow-arch';
     import { fireRainbowEgg } from '$lib/components/map/rainbow-egg';
     import { CoffeeCup } from '$lib/components/map/coffee-cup';
+    import { TheSpot } from '$lib/components/map/the-spot';
     import { fireCoffeeEgg } from '$lib/components/map/coffee-egg';
     import { ghostMode } from '$lib/stores/ghost';
     import { rainbowUnlocked, forcedArchIds } from '$lib/stores/rainbow';
@@ -50,6 +51,7 @@
     let rabbitLayer: RabbitLayer | undefined;
     let rainbowArch: RainbowArch | undefined;
     let coffeeCup: CoffeeCup | undefined;
+    let theSpot: TheSpot | undefined;
 
     const {
         currentBasemap,
@@ -276,6 +278,10 @@
         // safety as above; unlock + click both fire the covert coffee-egg.
         if (coffeeCup) coffeeCup.remove();
         coffeeCup = new CoffeeCup(_map);
+        // "The Spot" rally-point siren at LVCC West: always-on wayfinding beacon,
+        // click -> dc34-spot modal. No unlock/CTF wiring.
+        if (theSpot) theSpot.remove();
+        theSpot = new TheSpot(_map);
         coffeeUnlocked.subscribe((on) => {
             void coffeeCup?.setUnlocked(on);
             if (on) fireCoffeeEgg();
