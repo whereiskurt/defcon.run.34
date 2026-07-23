@@ -13,13 +13,20 @@ import { writable } from 'svelte/store';
 export const rainbowUnlocked = writable(false);
 
 /**
- * Whether the green "weed" arch → NuWu is force-shown this session, independent
- * of the master rainbow unlock. Default off. Searching `weed` in the map's
- * geocoder *toggles* it (see the externalGeocoder hook in components/map/map.ts),
- * so typing "weed" again hides it. Like every arch it's still pitch-revealed — you
- * tilt the map to see the arch bloom.
+ * Arch ids force-shown this session, independent of the master rainbow unlock.
+ * Default none. Searching an arch's keyword in the map's geocoder *toggles* it
+ * (see ARCH_SEARCH_WORDS in components/map/rainbow-geometry.ts and the
+ * externalGeocoder hook in components/map/map.ts) — search again to hide. Like
+ * every arch they're still pitch-revealed — tilt the map to see the arch bloom.
  */
-export const weedShown = writable(false);
+export const forcedArchIds = writable<string[]>([]);
+
+/** Toggle one arch id in/out of the forced-shown set. */
+export function toggleForcedArch(id: string) {
+    forcedArchIds.update((ids) =>
+        ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id]
+    );
+}
 
 // The rolling-window gesture detector lives in stores/ghost.ts; the toggle3D
 // hook imports `recordHit` from there directly so we keep one implementation.

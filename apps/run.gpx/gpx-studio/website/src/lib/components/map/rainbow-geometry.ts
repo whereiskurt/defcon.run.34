@@ -104,6 +104,18 @@ export const RAINBOW_ARCHES: RainbowArch[] = [
     }
 ];
 
+/**
+ * Geocoder-search keywords that *toggle* a single arch on/off, independent of
+ * the master unlock (see the externalGeocoder hook in map.ts). Word-boundary
+ * matched, case-insensitive — so e.g. searching "Las Vegas Blvd" flips the
+ * sign arch too; that's the fun.
+ */
+export const ARCH_SEARCH_WORDS: Record<string, string> = {
+    weed: 'lvcc-nuwu',
+    dd: 'lvcc-doubledown',
+    vegas: 'lvcc-lvsign'
+};
+
 export interface BuildOpts {
     segments?: number; // quads per band along the span (smoothness)
     colors?: string[]; // colour bands, outer→inner

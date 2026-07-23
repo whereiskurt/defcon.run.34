@@ -4,7 +4,8 @@ import { get, writable, type Writable } from 'svelte/store';
 import { settings } from '$lib/logic/settings';
 import { tick } from 'svelte';
 import { recordHit } from '$lib/stores/ghost';
-import { rainbowUnlocked, weedShown } from '$lib/stores/rainbow';
+import { rainbowUnlocked, toggleForcedArch } from '$lib/stores/rainbow';
+import { ARCH_SEARCH_WORDS } from './rainbow-geometry';
 import { coffeeUnlocked } from '$lib/stores/coffee';
 
 const { treeFileView, elevationProfile, bottomPanelSize, rightPanelSize, distanceUnits } = settings;
@@ -99,8 +100,11 @@ export class MapboxGLMap {
                     // and desktop, unlike a typed keyword. Searching still
                     // geocodes normally below.
                     if (/publicus|coffee/i.test(query)) coffeeUnlocked.set(true);
-                    // Searching `weed` *toggles* the green NuWu arch on/off.
-                    if (/\bweed\b/i.test(query)) weedShown.update((v) => !v);
+                    // Per-arch shortcuts: searching a keyword *toggles* that
+                    // arch on/off (weed→NuWu, dd→Double Down, vegas→LV sign).
+                    for (const [word, archId] of Object.entries(ARCH_SEARCH_WORDS)) {
+                        if (new RegExp(`\\b${word}\\b`, 'i').test(query)) toggleForcedArch(archId);
+                    }
                     return fetch(
                         `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=5&accept-language=${language}`
                     )
