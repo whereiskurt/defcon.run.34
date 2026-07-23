@@ -3,6 +3,7 @@ import { electroClient, ELECTRO_TABLE } from "./client";
 import * as crypto from "crypto";
 const { createHash, generateKeyPairSync } = crypto;
 import * as qr from "qrcode";
+import { ensureRunnerToken } from "./runner-token";
 
 // Seed for MQTT credential generation (should be set in environment)
 const creationSeed: string = process.env.RUN_USER_CREATION_SEED || "default-seed";
@@ -228,8 +229,10 @@ export async function upsertRunUser(userId: string) {
   const seed = crypto.randomBytes(16).toString("hex");
   const hash = createHash("sha256").update(`${rsapubSHA}${seed}`).digest("hex");
 
-  // Generate QR code data URL (includes region prefix for multi-region deployment)
-  const eqr = await qr.toDataURL(`https://run.${siteDomain}/${REGION_SHORT}/r?h=${hash}`, {
+  // Generate QR code data URL. Short region-agnostic form: the q.<domain>
+  // resolver's `r` code owns the region splice (see lib/short-token.ts and
+  // components/qr/buildQrPayload.ts — kept byte-identical by its guard test).
+  const eqr = await qr.toDataURL(`https://q.${siteDomain}/r/${hash.slice(0, 16)}`, {
     errorCorrectionLevel: "H",
     width: 300,
   });
@@ -268,6 +271,15 @@ export async function upsertRunUser(userId: string) {
   };
 
   const result = await RunUser.create(newUser).go();
+
+  // Mint the short-token → user mapping for the social QR (best-effort:
+  // the internal user endpoint lazily ensures it on read too).
+  try {
+    await ensureRunnerToken(userId, hash);
+  } catch (err) {
+    console.error("[run-user] ensureRunnerToken at signup failed", err);
+  }
+
   return result.data;
 }
 
