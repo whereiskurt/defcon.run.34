@@ -212,16 +212,16 @@ describe("servicesForUser", () => {
 });
 
 describe("runnerQrUrl", () => {
-  it("builds the run-user.ts QR template with env defaults", () => {
+  it("builds the short q. QR template with env defaults", () => {
     const prevDomain = process.env.SITE_DOMAIN;
-    const prevRegion = process.env.REGION_SHORT;
     delete process.env.SITE_DOMAIN;
-    delete process.env.REGION_SHORT;
     try {
-      expect(runnerQrUrl("abc")).toBe("https://run.defcon.run/use1/r?h=abc");
+      const HASH =
+        "c0ffee5417beefcafe1234567890abcdef1234567890abcdef1234567890abcd";
+      expect(runnerQrUrl(HASH)).toBe("https://q.defcon.run/r/c0ffee5417beefca");
+      expect(runnerQrUrl(undefined)).toBe("https://q.defcon.run/r/");
     } finally {
       if (prevDomain !== undefined) process.env.SITE_DOMAIN = prevDomain;
-      if (prevRegion !== undefined) process.env.REGION_SHORT = prevRegion;
     }
   });
 });

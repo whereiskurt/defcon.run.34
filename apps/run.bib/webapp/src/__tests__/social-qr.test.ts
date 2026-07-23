@@ -5,13 +5,15 @@ import { buildSocialQrUrl, getSocialQrHash, getRunnerContact } from "@/lib/socia
  * Social-QR lib unit tests (Plan 34-02, Slice C backend).
  *
  * The bib tear-off QR encodes the runner's real per-user social-QR value —
- * `https://run.<SITE_DOMAIN>/<REGION_SHORT>/r?h=<hash>` — where `hash` lives
+ * short form `https://q.<SITE_DOMAIN>/r/<token16>` (token16 = first 16 hex of
+ * the hash, byte-identical to run.human's buildQrPayload) — where `hash` lives
  * only on run.human's RunUser and is fetched via the internal user endpoint.
  *
  * These tests pin the two invariants a broken cross-app hop must never violate:
  *
- *   1. buildSocialQrUrl produces the exact `/r?h=` URL shape from run.bib env
- *      (defaults `defcon.run` / `use1`, overridable via SITE_DOMAIN/REGION_SHORT).
+ *   1. buildSocialQrUrl produces the exact short `q./r/<token16>` URL shape
+ *      from run.bib env (default `defcon.run`, overridable via SITE_DOMAIN;
+ *      region-free — the q. resolver owns the region splice).
  *   2. getSocialQrHash is null-safe: it returns the hash when present, null when
  *      absent, and null (never throws) when the fetch rejects — so a QR miss
  *      falls back to the runner-code QR and never 500s the orderform (T-34-07).
@@ -24,19 +26,22 @@ describe("buildSocialQrUrl", () => {
     vi.unstubAllEnvs();
   });
 
-  it("builds the /r?h= URL with defaults (defcon.run / use1)", () => {
+  const HASH =
+    "c0ffee5417beefcafe1234567890abcdef1234567890abcdef1234567890abcd";
+
+  it("builds the short q. URL with defaults (defcon.run), region-free", () => {
     vi.stubEnv("SITE_DOMAIN", "");
     vi.stubEnv("REGION_SHORT", "");
-    expect(buildSocialQrUrl("abc123")).toBe(
-      "https://run.defcon.run/use1/r?h=abc123"
+    expect(buildSocialQrUrl(HASH)).toBe(
+      "https://q.defcon.run/r/c0ffee5417beefca"
     );
+    expect(buildSocialQrUrl(HASH)).not.toContain("use1");
   });
 
-  it("respects SITE_DOMAIN and REGION_SHORT env overrides", () => {
+  it("respects SITE_DOMAIN override and truncates to 16 chars", () => {
     vi.stubEnv("SITE_DOMAIN", "example.org");
-    vi.stubEnv("REGION_SHORT", "cac1");
-    expect(buildSocialQrUrl("xyz789")).toBe(
-      "https://run.example.org/cac1/r?h=xyz789"
+    expect(buildSocialQrUrl(HASH)).toBe(
+      "https://q.example.org/r/c0ffee5417beefca"
     );
   });
 });

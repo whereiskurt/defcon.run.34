@@ -77,16 +77,18 @@ export async function getSocialQrHash(
 /**
  * Build the runner's social-QR target URL from run.bib's own env.
  *
- * Mirrors run.human's `https://run.<SITE_DOMAIN>/<REGION_SHORT>/r?h=<hash>` shape
- * (defaults `defcon.run` / `use1`). Read at call time so env overrides apply.
+ * Short region-agnostic form (DC34): `https://q.<SITE_DOMAIN>/r/<token16>`,
+ * where token16 = first 16 hex of the hash — byte-identical to run.human's
+ * buildQrPayload/eqr template. The q. resolver owns the region splice, and
+ * run.human's internal user endpoint (which supplied the hash) lazily ensures
+ * the token→user mapping row before any QR leaves the building.
  */
 export function buildSocialQrUrl(hash: string): string {
   const domain = process.env.SITE_DOMAIN || "defcon.run";
-  const regionShort = process.env.REGION_SHORT || "use1";
-  // IN-04: encode the hash query param (a hex SHA256 encodes to itself today,
-  // but this is defense-in-depth against any future non-URL-safe hash format),
+  // IN-04: encode the derived token (a hex prefix encodes to itself today,
+  // but this is defense-in-depth against any future non-URL-safe format),
   // matching how getSocialQrHash already encodeURIComponent's ownerSub.
-  return `https://run.${domain}/${regionShort}/r?h=${encodeURIComponent(hash)}`;
+  return `https://q.${domain}/r/${encodeURIComponent(hash.slice(0, 16))}`;
 }
 
 /**

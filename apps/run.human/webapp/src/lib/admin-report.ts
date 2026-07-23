@@ -82,13 +82,12 @@ export function maskEmail(email: string | null): string {
 
 /**
  * Runner QR URL from a RunUser.hash, matching the run-user.ts template
- * (`https://run.<siteDomain>/<REGION_SHORT>/r?h=<hash>`). Uses env with the
- * deployment defaults. PURE.
+ * (`https://q.<siteDomain>/r/<token16>`). Region-agnostic short form; the
+ * q. resolver owns the region splice. PURE.
  */
 export function runnerQrUrl(hash?: string): string {
   const siteDomain = process.env.SITE_DOMAIN || "defcon.run";
-  const region = process.env.REGION_SHORT || "use1";
-  return `https://run.${siteDomain}/${region}/r?h=${hash ?? ""}`;
+  return `https://q.${siteDomain}/r/${(hash ?? "").slice(0, 16)}`;
 }
 
 /** Escape one CSV cell (RFC-4180: quote when it contains ",\n or "). PURE. */
