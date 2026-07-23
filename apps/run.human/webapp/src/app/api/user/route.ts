@@ -3,6 +3,7 @@ import { assertNotLockedLive } from "@/lib/live-lockout";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
 import { getMeshRadiosByUser } from "@/entities/mesh-radio";
 import { getRunnerCode } from "@/entities/bib";
+import { isAdmin } from "@/lib/admin-gate";
 import { SocialEgg, SocialQuota } from "@/entities/social";
 import { computeBand, getBoardCached } from "@/lib/social-rank";
 import { DAILY_SCAN_CAP } from "@/lib/social-scan";
@@ -121,9 +122,17 @@ export async function GET(req: NextRequest) {
     quotas,
     // Social QR rank + badges (runner social QR feature). Best-effort: band
     // falls back to "entered"/"none" when the board is unavailable.
+    // Admin-group members always render full LEADER flair (Kurt 2026-07-23) —
+    // display-only: socialScore, the board, and awards stay honest.
     social: {
       score: user.socialScore ?? 0,
-      band: computeBand(user.socialScore ?? 0, boardCounts),
+      band: isAdmin(session)
+        ? {
+            ...computeBand(user.socialScore ?? 0, boardCounts),
+            tier: "leader" as const,
+            label: "LEADER",
+          }
+        : computeBand(user.socialScore ?? 0, boardCounts),
       badges: {
         bibHolder: runnerCode !== null,
         egg: eggRow.data !== null,
