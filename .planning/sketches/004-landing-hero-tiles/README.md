@@ -2,7 +2,7 @@
 sketch: 004
 name: landing-hero-tiles
 question: "What DC33-style photo-tile layout should the run.defcon.run/use1/ landing use?"
-winner: null
+winner: "B"
 tags: [landing, tiles, dashboard, run.human]
 ---
 
