@@ -5,6 +5,7 @@ import { useTheme } from 'next-themes';
 import { Card, CardBody, Chip, Pagination, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, useDisclosure } from '@heroui/react';
 import { ChevronDown, ChevronRight, Trash2, Plus, Clipboard, Check } from 'lucide-react';
 import CheckInModal from '@/components/CheckInModal';
+import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
 import { apiUrl } from '@/lib/api';
 import dynamic from 'next/dynamic';
 import type { CheckInItem } from '@/entities/checkin';
@@ -153,7 +154,10 @@ function CopyButton({ text }: { text: string }) {
 export default function CheckInHistory({ checkInCount, checkinPreference, children }: CheckInHistoryProps) {
   const { resolvedTheme } = useTheme();
   const tileUrl = resolvedTheme === 'dark' ? TILES_DARK : TILES_LIGHT;
-  const [isOpen, setIsOpen] = useState(true);
+  // Collapsed by default and remembered per browser — the open panel (350px
+  // map + list) used to force every visit to start with it, shoving the rest
+  // of the page down. Adding a check-in force-expands it (see below).
+  const [isOpen, setIsOpen] = usePersistedDisclosure('checkins', false);
   const [checkIns, setCheckIns] = useState<CheckInItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageCache, setPageCache] = useState<Map<number, PageCache>>(new Map());
@@ -167,6 +171,10 @@ export default function CheckInHistory({ checkInCount, checkinPreference, childr
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
   const mapRef = useRef<any>(null);
   const markerRefs = useRef<Map<string, any>>(new Map());
+  // True only when the selection came from a click (row/marker) — the
+  // auto-selection on load must NOT scrollIntoView, or the page jumps to
+  // this card on every visit.
+  const userSelectedRef = useRef(false);
 
   const effectiveCount = localCount ?? checkInCount;
   const totalPages = Math.ceil(effectiveCount / 5);
@@ -178,17 +186,20 @@ export default function CheckInHistory({ checkInCount, checkinPreference, childr
     require('leaflet-defaulticon-compatibility');
   }, []);
 
-  // Listen for new check-ins and refresh
+  // Listen for new check-ins and refresh — and expand the panel so the runner
+  // sees their new check-in land on the map (an explicit action they just
+  // took, unlike a page load).
   useEffect(() => {
     const handleNewCheckIn = () => {
       setLocalCount((prev) => (prev ?? checkInCount) + 1);
       setPageCache(new Map());
       setCurrentPage(1);
       setSelectedId(null);
+      setIsOpen(true);
     };
     window.addEventListener('checkin-created', handleNewCheckIn);
     return () => window.removeEventListener('checkin-created', handleNewCheckIn);
-  }, [checkInCount]);
+  }, [checkInCount, setIsOpen]);
 
   const fetchPage = useCallback(async (page: number) => {
     // Check cache first
@@ -282,11 +293,15 @@ export default function CheckInHistory({ checkInCount, checkinPreference, childr
       markerRef.openPopup();
     }
 
-    // Scroll list row into view
-    document.getElementById(`checkin-row-${selectedId}`)?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'nearest',
-    });
+    // Scroll list row into view — only for click-driven selection (see
+    // userSelectedRef above).
+    if (userSelectedRef.current) {
+      userSelectedRef.current = false;
+      document.getElementById(`checkin-row-${selectedId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      });
+    }
   }, [selectedId, checkIns]);
 
   const handlePageChange = (page: number) => {
@@ -300,6 +315,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference, childr
   };
 
   const handleMarkerClick = (checkInId: string) => {
+    userSelectedRef.current = true;
     setSelectedId(checkInId);
   };
 
@@ -478,7 +494,7 @@ export default function CheckInHistory({ checkInCount, checkinPreference, childr
                     <div
                       key={checkin.checkInId}
                       id={`checkin-row-${checkin.checkInId}`}
-                      onClick={() => setSelectedId(checkin.checkInId)}
+                      onClick={() => { userSelectedRef.current = true; setSelectedId(checkin.checkInId); }}
                       className={`flex items-center gap-2 w-full text-left px-3 py-2 rounded-lg transition-colors cursor-pointer ${
                         isSelected ? 'bg-primary/10' : 'hover:bg-default-100'
                       }`}

@@ -21,6 +21,7 @@ import {
 import { Trash2, Plus, Radio, Lock, Unlock, AlertCircle, ChevronDown, ChevronRight, ChevronUp, RefreshCw, Eye, EyeOff, UserCheck, UserX, Copy, Check, ExternalLink, Zap } from "lucide-react";
 import VerificationCodeInput from './VerificationCodeInput';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
 import { apiUrl } from '@/lib/api';
 
 const isDev = process.env.NODE_ENV !== 'production';
@@ -63,7 +64,7 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
   const [radios, setRadios] = useState<MeshtasticRadio[]>(initialRadios || []);
   const [loading, setLoading] = useState(!initialRadios);
   const [error, setError] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = usePersistedDisclosure('radios');
 
   // Add radio modal state
   const { isOpen: isAddOpen, onOpen: openAdd, onClose: closeAdd } = useDisclosure();

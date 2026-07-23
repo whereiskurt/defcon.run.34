@@ -4,6 +4,7 @@ import { Card, CardBody, Button } from '@heroui/react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiUrl } from '@/lib/api';
+import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
 import PinPicker, { type PinOption } from './PinPicker';
 
 /**
@@ -18,7 +19,7 @@ export default function CheckInPinCard() {
   const [saved, setSaved] = useState<{ icon: string; color: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = usePersistedDisclosure('checkin-pin');
 
   useEffect(() => {
     fetch(apiUrl('/api/checkins/pin-options'))
