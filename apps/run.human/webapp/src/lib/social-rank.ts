@@ -121,9 +121,12 @@ export async function applyScoreDelta(
 export async function loadBoardCounts(): Promise<BoardCounts | null> {
   try {
     const counts: BoardCounts = new Map();
-    let cursor: string | null = null;
+    let cursor: string | undefined;
     do {
-      const page = await SocialBoard.query
+      const page: {
+        data: Array<{ bucket: string; count?: number }>;
+        cursor?: string | null;
+      } = await SocialBoard.query
         .primary({ boardId: BOARD_ID })
         .go({ cursor, pages: 1 });
       for (const row of page.data) {
@@ -131,7 +134,7 @@ export async function loadBoardCounts(): Promise<BoardCounts | null> {
         if (score === null) continue;
         counts.set(score, Math.max(0, row.count ?? 0));
       }
-      cursor = page.cursor ?? null;
+      cursor = page.cursor ?? undefined;
     } while (cursor);
     return counts;
   } catch (err) {
