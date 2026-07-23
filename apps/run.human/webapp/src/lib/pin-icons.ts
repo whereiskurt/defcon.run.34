@@ -26,7 +26,7 @@ export type PinIconDef = {
 };
 
 export const DEFAULT_PIN_ICON = "bunny";
-export const DEFAULT_PIN_COLOR = "#e6007a"; // DC34 magenta — matches the Phase 3 pin
+export const DEFAULT_PIN_COLOR = "#e6007a"; // DC34 magenta - matches the Phase 3 pin
 
 const W = 'fill="white"';
 

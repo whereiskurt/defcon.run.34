@@ -113,13 +113,13 @@ export default function CtfStandings({ rows }: { rows: EnrichedRow[] }) {
                 ))}
                 <th
                   className={`${cls.th} cursor-help`}
-                  title="How each runner earned solves — QR = scanned a physical DEF CON code; covert = found the hidden !!! easter egg"
+                  title="How each runner earned solves - QR = scanned a physical DEF CON code; covert = found the hidden !!! easter egg"
                 >
                   Channels
                 </th>
                 <th
                   className={`${cls.th} text-right cursor-help`}
-                  title="Danger zone — Zero deletes every CTF solve for this runner and resets their score to 0 (irreversible)"
+                  title="Danger zone - Zero deletes every CTF solve for this runner and resets their score to 0 (irreversible)"
                 >
                   Actions
                 </th>

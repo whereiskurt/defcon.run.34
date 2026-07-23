@@ -429,12 +429,12 @@ export default function MeshtasticRadios({ radios: initialRadios, quotas, mqttUs
               </div>
             )}
 
-            {/* Auto-flash CTA — flashing a device registers it here automatically,
+            {/* Auto-flash CTA - flashing a device registers it here automatically,
                 so most users never need the manual Node ID entry below. */}
             <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-primary-50 border border-primary-200">
               <div>
                 <p className="text-sm font-medium text-primary-700">Have a device to flash?</p>
-                <p className="text-xs text-primary-600">Flash it and it registers here automatically — no manual entry needed.</p>
+                <p className="text-xs text-primary-600">Flash it and it registers here automatically - no manual entry needed.</p>
               </div>
               <Button
                 color="primary"

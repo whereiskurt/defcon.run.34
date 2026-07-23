@@ -74,7 +74,7 @@ export default async function QrEditPage({
           />
         </div>
         <p className="text-[11.5px] text-default-400">
-          Counters are updated by the rollup Lambda every ~30 min from resolver logs —
+          Counters are updated by the rollup Lambda every ~30 min from resolver logs -
           recent scans may not appear yet.
         </p>
       </section>

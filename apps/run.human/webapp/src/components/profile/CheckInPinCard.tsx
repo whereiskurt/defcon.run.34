@@ -88,7 +88,7 @@ export default function CheckInPinCard() {
               <Button size="sm" color="primary" isDisabled={!dirty} isLoading={saving} onPress={save}>
                 Save pin
               </Button>
-              {error && <span className="text-danger text-xs">Could not save — try again</span>}
+              {error && <span className="text-danger text-xs">Could not save - try again</span>}
             </div>
           </div>
         )}

@@ -252,8 +252,8 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                 }}
                 title={
                   namedOnly
-                    ? 'Showing only runners who set a name — click to include default rabbit_ names'
-                    : 'Showing everyone — click to hide default rabbit_ names'
+                    ? 'Showing only runners who set a name - click to include default rabbit_ names'
+                    : 'Showing everyone - click to hide default rabbit_ names'
                 }
               >
                 🏷️ Named{namedOnly ? ' ✓' : ''}

@@ -21,7 +21,7 @@ const tiles = [
     href: 'https://mqtt.defcon.run',
     kicker: 'or That',
     title: 'Network',
-    body: 'Bots and realtime visualization of the participants on the MQTT mesh — see the network come alive.',
+    body: 'Bots and realtime visualization of the participants on the MQTT mesh - see the network come alive.',
     cta: 'mqtt.defcon.run',
     art: <MeshArt />,
   },

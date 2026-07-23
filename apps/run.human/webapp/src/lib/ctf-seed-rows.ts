@@ -32,7 +32,7 @@ import { hashAnswer } from "@/lib/ctf-hash";
 export interface CtfSeedOtp {
   secret: string; // base32 shared secret
   digits: number;
-  period: number; // seconds per window (120 — meshtk convention, NOT RFC 30)
+  period: number; // seconds per window (120 - meshtk convention, NOT RFC 30)
   algorithm: string;
   skew: number; // ± windows accepted on verify
   // First-come single-use (Phase 65). Absent ⇒ SHARED (default). A seeded
@@ -55,7 +55,7 @@ export interface CtfSeedTimeTier {
  */
 export interface CtfSeedRow {
   challenge: string;
-  answer?: string; // NEVER set by the builder — hashes supersede plaintext
+  answer?: string; // NEVER set by the builder - hashes supersede plaintext
   answerHash?: string;
   answerType?: "static" | "otp" | "wordlist";
   // NOTE: no legacy `points` field — the judge's scorer (narrowCtf →

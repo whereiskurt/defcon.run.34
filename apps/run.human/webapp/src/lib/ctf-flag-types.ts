@@ -106,7 +106,7 @@ export function assertAnswerTypeTransition(
   if (isRepeatable(existing) === isRepeatable(next)) return;
   throw new QrValidationError(
     "Cannot change this challenge between static and repeatable once solves " +
-      "exist — the scoring history would split across CtfSolve and " +
+      "exist - the scoring history would split across CtfSolve and " +
       "CtfScoreEvent. Reset the challenge's solves first, or create a new " +
       "challenge for the new answer type."
   );

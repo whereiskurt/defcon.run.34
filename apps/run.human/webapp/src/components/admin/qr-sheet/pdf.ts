@@ -215,7 +215,7 @@ export async function buildSheetPdf(opts: {
         rowMax = 0;
       }
       if (cy - sizePt - labelH < margin) {
-        if (overflowed) break; // no room even on page 4 — dc33 also stopped
+        if (overflowed) break; // no room even on page 4 - dc33 also stopped
         page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
         drawHeader(page, url);
         cx = margin;
@@ -279,14 +279,14 @@ export async function buildSheetPdf(opts: {
         levelsThatFit.add(level);
         const big = await doc.embedPng(png);
         ecPage.drawImage(big, { x: bx, y: by, width: bigPt, height: bigPt });
-        ecPage.drawText(`${level} — ${pct}% redundancy`, {
+        ecPage.drawText(`${level} - ${pct}% redundancy`, {
           x: bx,
           y: by - 13,
           size: 9,
           color: GREY,
         });
       } catch {
-        ecPage.drawText(`${level} — ${pct}%: URL does not fit at this level`, {
+        ecPage.drawText(`${level} - ${pct}%: URL does not fit at this level`, {
           x: bx,
           y: by + bigPt / 2,
           size: 9,
@@ -396,7 +396,7 @@ export async function buildSheetPdf(opts: {
       { x: 40, y: ey + 30, size: 9, color: MID_GREY }
     );
     prog.drawText(
-      "Each QR appends more ?p=… characters to the base URL — find where density stops scanning.",
+      "Each QR appends more ?p=… characters to the base URL - find where density stops scanning.",
       { x: 40, y: ey + 15, size: 9, color: MID_GREY }
     );
     prog.drawText(

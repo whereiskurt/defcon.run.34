@@ -599,7 +599,7 @@ export function AdminConsole({
 
       <p className="text-[11.5px] text-default-400">
         Emails are masked + blurred; hover to peek the mask, drill in to reveal one. Full emails
-        never load in bulk — search matches them server-side. With a user open, <kbd>j</kbd> /{" "}
+        never load in bulk - search matches them server-side. With a user open, <kbd>j</kbd> /{" "}
         <kbd>k</kbd> step to the next / previous user. Quota usage is a proxy for activity;
         session-log reads come later.
       </p>

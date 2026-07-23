@@ -12,7 +12,7 @@ export const PAGE_HEIGHT = 11 * DPI; // 792
 const TOTAL_MARGIN_X = 40;
 const TOTAL_MARGIN_Y = 80;
 
-const MAX_AXIS = 12; // practical print floor — beyond this cells scan poorly
+const MAX_AXIS = 12; // practical print floor - beyond this cells scan poorly
 
 /** Avery label geometry (inches) — dc33 data, verbatim. */
 export const AVERY_TEMPLATES: Record<

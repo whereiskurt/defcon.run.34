@@ -227,7 +227,7 @@ export default function WhoAmIPage() {
   const saveName = async () => {
     const trimmed = nameInput.trim();
     if (trimmed === displayName) {
-      setIsEditingName(false); // no change — don't burn a name-change quota
+      setIsEditingName(false); // no change - don't burn a name-change quota
       return;
     }
     if (trimmed.length < 3 || trimmed.length > 20) {
@@ -371,7 +371,7 @@ export default function WhoAmIPage() {
         </CardBody>
       </Card>
 
-      {/* Your Social QR (collapsed by default) — sits directly under the header */}
+      {/* Your Social QR (collapsed by default) - sits directly under the header */}
       {(userData?.hash || userData?.eqr) && (
         <Card className="glass-card overflow-hidden">
           <CardBody className="px-5 py-3">

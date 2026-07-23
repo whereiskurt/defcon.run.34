@@ -188,7 +188,7 @@ export function DonateModal({
           submitting={submit.kind === "submitting"}
           error={
             submit.kind === "error"
-              ? `Could not start checkout (${submit.detail}) — try again.`
+              ? `Could not start checkout (${submit.detail}) - try again.`
               : null
           }
           onSubmit={runCheckout}
@@ -202,7 +202,7 @@ export function DonateModal({
             card: "Card",
             venmo: "Venmo",
             venmoNote:
-              "Venmo contributions are confirmed by an organizer — your contribution appears once approved.",
+              "Venmo contributions are confirmed by an organizer - your contribution appears once approved.",
             runnerLabel: "Runner",
             copyLabel: "Copy",
             copiedLabel: "Copied",

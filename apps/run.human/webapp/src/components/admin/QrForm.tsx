@@ -238,7 +238,7 @@ export default function QrForm({
       if (!/^https:\/\//i.test((r.dest ?? "").trim()))
         return `${where} destination must be an https:// URL.`;
       if (r.kind === "time" && (!r.from || !r.to))
-        return `${where} (time) needs a From and a To — use a preset or the pickers.`;
+        return `${where} (time) needs a From and a To - use a preset or the pickers.`;
       if (r.kind === "param" && !(r.match ?? "").trim())
         return `${where} (param) needs a match value (use * for any).`;
     }
@@ -270,7 +270,7 @@ export default function QrForm({
    */
   async function onPublishNow() {
     setError(null);
-    const dest = window.prompt("Publish now — destination URL (https://…):", "");
+    const dest = window.prompt("Publish now - destination URL (https://…):", "");
     if (!dest) return;
     const p = utcToPtParts(new Date().toISOString());
     const startsAt = ptWallClockToUtcIso(p.y, p.mo1, p.d, p.h, p.mi);
@@ -352,7 +352,7 @@ export default function QrForm({
       <div className={cls.cardPad}>
         <div className="flex justify-between items-center mb-2.5 gap-2 flex-wrap">
           <label className={`${cls.label} mb-0`}>
-            Schedule — dynamic scheduled code (timeline of switch-points)
+            Schedule - dynamic scheduled code (timeline of switch-points)
           </label>
           <button
             type="button"
@@ -367,7 +367,7 @@ export default function QrForm({
         <ScheduleEditor value={schedule} onChange={setSchedule} />
       </div>
 
-      {/* Rules — raw conditional rules. A schedule (above) compiles into these and
+      {/* Rules - raw conditional rules. A schedule (above) compiles into these and
           owns them, so the raw editor is disabled while a schedule exists. */}
       <div className={cls.cardPad}>
         <div className="flex justify-between items-center mb-2.5 gap-2 flex-wrap">
@@ -410,7 +410,7 @@ export default function QrForm({
 
         {hasSchedule ? null : rules.length === 0 ? (
           <p className="text-[13px] text-default-400">
-            No rules — every scan uses the default destination.
+            No rules - every scan uses the default destination.
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">
@@ -444,7 +444,7 @@ export default function QrForm({
                   </div>
                 ) : (
                   <>
-                    {/* Quick presets — populate both From and To. Forces its own
+                    {/* Quick presets - populate both From and To. Forces its own
                         line in the flex-wrap row via w-full. */}
                     <div className="w-full flex flex-wrap items-center gap-1.5">
                       <span className="text-[11px] text-default-400 mr-1">Quick set:</span>
@@ -588,7 +588,7 @@ export default function QrForm({
             value={unfurl}
             onChange={(e) => setUnfurl(e.target.value)}
           >
-            <option value="">None — plain redirect</option>
+            <option value="">None - plain redirect</option>
             <option value="cherries">🍒 Cherries (CTF jackpot card)</option>
           </select>
           <p className="mt-1 text-xs text-default-400">

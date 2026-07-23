@@ -376,7 +376,7 @@ export async function deleteAccomplishment(
 ) {
   const existing = await Accomplishment.get({ userId, accomplishmentId }).go();
   if (!existing.data) {
-    return; // idempotent no-op — nothing to delete, nothing to decrement
+    return; // idempotent no-op - nothing to delete, nothing to decrement
   }
   const row = existing.data;
 

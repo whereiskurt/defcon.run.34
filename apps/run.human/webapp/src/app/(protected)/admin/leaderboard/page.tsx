@@ -152,7 +152,7 @@ export default async function LeaderboardPage({
         <Tile
           label="Covert"
           value={summary.covert}
-          hint="Solves earned via the hidden covert channel — the !!! easter egg (/assets/theme)"
+          hint="Solves earned via the hidden covert channel - the !!! easter egg (/assets/theme)"
         />
       </section>
 
