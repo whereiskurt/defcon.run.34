@@ -1,0 +1,225 @@
+<!doctype html>
+<!--
+  gpx-card.src.html — source for webapp/public/gpx-card.png, the gpx.defcon.run
+  unfurl card (og:image referenced by apps/run.gpx/index.html and the webapp
+  layout metadata).
+
+  1200x630. A screenshot-of-the-product card: the gpx.studio 3D Vegas map the
+  site actually draws — dark satellite wash, neon route lines, the purple
+  ghosts, the rabbit skulls, the stair-step rainbow bridge — plus the route
+  detail panel ("LVCC Loop" / Download GPX) and the top menubar chrome.
+  Everything is inline SVG/CSS; only the Google fonts load off-box.
+
+  Render (same recipe as the b./f. cards — --force-device-scale-factor=1 is
+  REQUIRED or you get a 2400x1260 retina image):
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1200,630 --screenshot=../webapp/public/gpx-card.png \
+      "file://$PWD/gpx-card.src.html"
+    sips -g pixelWidth -g pixelHeight ../webapp/public/gpx-card.png  # 1200 x 630
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DEF CON 34 Maps — gpx.defcon.run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=MuseoModerno:wght@400;700&family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0d1310; --ink:#e8ece9; --muted:#a8b3ac; --faint:#8a958e;
+    --green:#22c55e; --neon:#4ade80; --border:#26302a; --panel:#10141a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1200px;height:630px;overflow:hidden}
+  body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;position:relative}
+
+  .map{position:absolute;inset:0}
+  /* left scrim so the headline reads over the street grid */
+  .scrim{position:absolute;inset:0;background:
+    linear-gradient(90deg,rgba(10,14,11,.92) 0%,rgba(10,14,11,.62) 40%,rgba(10,14,11,.18) 72%,rgba(10,14,11,.05) 100%)}
+  .noise{position:absolute;inset:0;opacity:.04;background-size:256px 256px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .glow{position:absolute;inset:0;background:
+    radial-gradient(52% 62% at 8% 10%,rgba(34,197,94,.14),transparent 62%),
+    radial-gradient(60% 70% at 96% 96%,rgba(34,197,94,.08),transparent 60%)}
+
+  /* gpx.studio menubar chrome */
+  .menubar{position:absolute;top:22px;left:50%;transform:translateX(-50%);z-index:6;
+    display:flex;align-items:center;gap:22px;background:#0b0b0e;border-radius:14px;
+    padding:12px 12px 12px 20px;box-shadow:0 10px 30px rgba(0,0,0,.55);white-space:nowrap}
+  .menubar .ghostdot{width:16px;height:16px;border-radius:50%;border:3px solid #7c5cd6}
+  .menubar .item{font-size:16px;font-weight:600;color:#e8e8ee}
+  .menubar .ghosts{font-size:15px;color:#cfcfe0}
+  .menubar .love{color:#4ade80;font-weight:700}
+  .menubar .cta{background:linear-gradient(180deg,#57e389,#2ebd63);color:#06210f;font-weight:800;
+    font-size:16px;border-radius:999px;padding:9px 18px;box-shadow:0 0 22px rgba(74,222,128,.45)}
+
+  .stage{position:relative;z-index:4;height:100%;display:flex;align-items:flex-end;
+    padding:0 44px 46px 52px;justify-content:space-between}
+
+  .left{display:flex;flex-direction:column;gap:14px;max-width:600px}
+  .wordmark{font-family:MuseoModerno,Inter,sans-serif;font-weight:700;font-size:34px;
+    letter-spacing:-.02em;line-height:1}
+  .wordmark .dot{color:var(--neon)}
+  .kick{font-size:13px;font-weight:800;letter-spacing:.30em;color:var(--neon)}
+  h1{font-size:64px;font-weight:800;line-height:.95;letter-spacing:-.03em;text-shadow:0 4px 24px rgba(0,0,0,.7)}
+  h1 em{font-style:normal;color:var(--neon)}
+  .sub{font-size:21px;line-height:1.35;color:var(--muted);max-width:520px;
+    text-shadow:0 2px 12px rgba(0,0,0,.8)}
+  .host{margin-top:2px;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+    font-size:17px;letter-spacing:.06em;color:var(--faint)}
+  .host b{color:var(--neon);font-weight:600}
+
+  /* route detail panel, per the live site's route popup */
+  .panel{position:relative;z-index:5;width:330px;background:rgba(13,16,20,.985);
+    border-left:4px solid var(--green);border-radius:10px;padding:22px 24px;
+    box-shadow:0 24px 48px rgba(0,0,0,.6);margin-bottom:6px}
+  .panel .eyebrow{font-size:12px;font-weight:700;letter-spacing:.22em;color:#9aa4ad}
+  .panel h2{font-size:27px;font-weight:800;margin-top:6px;letter-spacing:-.01em}
+  .panel .stats{display:flex;gap:16px;margin-top:10px;font-size:16px;color:#cfd6da}
+  .panel .desc{margin-top:12px;font-size:14.5px;line-height:1.45;color:#9fa8ab}
+  .panel .dl{margin-top:14px;font-size:17px;font-weight:800;color:var(--neon)}
+  .panel .id{margin-top:12px;font-family:"JetBrains Mono",ui-monospace,monospace;
+    font-size:11.5px;color:#5f6a64}
+</style>
+</head>
+<body>
+  <!-- the map: street grid, routes, rainbow, ghosts, rabbits -->
+  <svg class="map" viewBox="0 0 1200 630" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+        <feGaussianBlur stdDeviation="4"/>
+      </filter>
+      <!-- rainbow band path: stroke set per-<use>; MUST NOT carry its own
+           stroke (presentation attrs on the referenced node beat the use's) -->
+      <path id="rb" d="M150,470 C 260,120 640,60 900,140 C 1030,180 1120,250 1190,330" fill="none"/>
+      <g id="ghost">
+        <path d="M0,26 v-12 a13,13 0 0 1 26,0 v12 l-4.3,-4 -4.4,4 -4.3,-4 -4.3,4 -4.4,-4 z"
+              fill="#7c5cd6" stroke="#2a1e4d" stroke-width="1.4"/>
+        <circle cx="8.6" cy="12.4" r="2.5" fill="#1d1433"/>
+        <circle cx="17.4" cy="12.4" r="2.5" fill="#1d1433"/>
+      </g>
+    </defs>
+
+    <!-- satellite-dark ground with the green wash the site has -->
+    <rect width="1200" height="630" fill="#141c17"/>
+    <rect width="1200" height="630" fill="#1d2b22" opacity=".5"/>
+    <!-- big parcels / blocks -->
+    <g fill="#18221c">
+      <rect x="60" y="40" width="240" height="150" rx="4"/>
+      <rect x="380" y="80" width="300" height="180" rx="4"/>
+      <rect x="760" y="30" width="330" height="140" rx="4"/>
+      <rect x="120" y="300" width="260" height="200" rx="4"/>
+      <rect x="500" y="340" width="240" height="190" rx="4"/>
+      <rect x="820" y="280" width="300" height="230" rx="4"/>
+    </g>
+    <!-- street grid -->
+    <g stroke="#33413a" stroke-width="2" opacity=".85">
+      <line x1="0" y1="120" x2="1200" y2="86"/>
+      <line x1="0" y1="238" x2="1200" y2="196"/>
+      <line x1="0" y1="356" x2="1200" y2="308"/>
+      <line x1="0" y1="470" x2="1200" y2="430"/>
+      <line x1="0" y1="580" x2="1200" y2="548"/>
+      <line x1="140" y1="0" x2="200" y2="630"/>
+      <line x1="360" y1="0" x2="420" y2="630"/>
+      <line x1="590" y1="0" x2="640" y2="630"/>
+      <line x1="810" y1="0" x2="850" y2="630"/>
+      <line x1="1010" y1="0" x2="1040" y2="630"/>
+    </g>
+    <!-- the Strip: one wide diagonal boulevard -->
+    <path d="M300,660 C420,480 560,300 900,-40" stroke="#3d4c44" stroke-width="14" fill="none"/>
+    <path d="M300,660 C420,480 560,300 900,-40" stroke="#4d5e55" stroke-width="3" fill="none" stroke-dasharray="16 14"/>
+
+    <!-- red route (con-day long course) -->
+    <path d="M1210,470 L1060,480 L980,430 L860,440 L790,392 L700,398"
+          stroke="#e0483f" stroke-width="12" fill="none" opacity=".8" stroke-linejoin="round" filter="url(#soft)"/>
+
+    <!-- orange route -->
+    <path d="M120,620 L160,520 L232,470 L226,380 L300,330 L372,346"
+          stroke="#f59e0b" stroke-width="9" fill="none" opacity=".85" stroke-linejoin="round"/>
+
+    <!-- neon green LVCC loop, glowing -->
+    <g stroke-linejoin="round" fill="none">
+      <path d="M370,560 L520,586 L700,562 L760,470 L700,398 L560,388 L470,440 L370,560"
+            stroke="#4ade80" stroke-width="18" opacity=".28" filter="url(#soft)"/>
+      <path d="M370,560 L520,586 L700,562 L760,470 L700,398 L560,388 L470,440 L370,560"
+            stroke="#34d16b" stroke-width="8" opacity=".95"/>
+      <path d="M370,560 L520,586 L700,562 L760,470 L700,398 L560,388 L470,440 L370,560"
+            stroke="#b9f5cd" stroke-width="2.4"/>
+    </g>
+    <!-- start marker on the loop -->
+    <circle cx="700" cy="562" r="15" fill="#0b0b0e"/>
+    <text x="700" y="568" text-anchor="middle" font-family="Inter,sans-serif" font-size="17"
+          font-weight="800" fill="#fff">2</text>
+
+    <!-- stair-step rainbow bridge arcing over the map -->
+    <g fill="none" stroke-width="9" opacity=".82">
+      <use href="#rb" stroke="#e11d48" transform="translate(0,-25)"/>
+      <use href="#rb" stroke="#f97316" transform="translate(0,-16)"/>
+      <use href="#rb" stroke="#facc15" transform="translate(0,-7)"/>
+      <use href="#rb" stroke="#22c55e" transform="translate(0,2)"/>
+      <use href="#rb" stroke="#3b82f6" transform="translate(0,11)"/>
+      <use href="#rb" stroke="#8b5cf6" transform="translate(0,20)"/>
+    </g>
+
+    <!-- ghosts -->
+    <g>
+      <use href="#ghost" transform="translate(180,250) scale(1.5)"/>
+      <text x="200" y="300" text-anchor="middle" font-family="'JetBrains Mono',monospace"
+            font-size="13" fill="#b7a8e8" opacity=".9">GS00</text>
+      <use href="#ghost" transform="translate(560,180) scale(1.25)"/>
+      <text x="576" y="224" text-anchor="middle" font-family="'JetBrains Mono',monospace"
+            font-size="12" fill="#b7a8e8" opacity=".9">GL00</text>
+      <use href="#ghost" transform="translate(455,470) scale(1.4)"/>
+      <text x="473" y="518" text-anchor="middle" font-family="'JetBrains Mono',monospace"
+            font-size="13" fill="#b7a8e8" opacity=".9">DT00</text>
+      <use href="#ghost" transform="translate(980,220) scale(1.2)"/>
+    </g>
+
+    <!-- rabbits (skull + crossbones, per the live map) -->
+    <g font-family="system-ui,'Apple Color Emoji',sans-serif" text-anchor="middle">
+      <text x="640" y="330" font-size="34">&#9760;&#65039;</text>
+      <text x="640" y="352" font-family="'JetBrains Mono',monospace" font-size="13" fill="#dfe8e2">rabbit_7811</text>
+      <text x="875" y="520" font-size="30">&#9760;&#65039;</text>
+      <text x="875" y="541" font-family="'JetBrains Mono',monospace" font-size="12" fill="#dfe8e2">rabbit_7a48</text>
+    </g>
+
+    <!-- waypoint pins -->
+    <g fill="#e8a33d" stroke="#7a5416" stroke-width="1.4">
+      <path d="M330,395 c0,-11 16,-11 16,0 c0,8 -8,10 -8,18 c0,-8 -8,-10 -8,-18 z"/>
+      <path d="M520,300 c0,-11 16,-11 16,0 c0,8 -8,10 -8,18 c0,-8 -8,-10 -8,-18 z"/>
+    </g>
+  </svg>
+
+  <div class="scrim"></div><div class="noise"></div><div class="glow"></div>
+
+  <div class="menubar">
+    <span class="ghostdot"></span><span class="ghosts">ghosts &#8635; 50s</span>
+    <span class="item">File</span><span class="item">Edit</span><span class="item">View</span>
+    <span class="love">&#10084; gpx.studio</span>
+    <span class="cta">&#128694; Add run</span>
+  </div>
+
+  <div class="stage">
+    <div class="left">
+      <div class="wordmark">defcon<span class="dot">.</span>run</div>
+      <div class="kick">DEF CON 34 · LAS VEGAS</div>
+      <h1>RUN THE <em>ROUTES</em></h1>
+      <div class="sub">Official DEF CON 34 running routes on a 3D Vegas map.
+        Download the GPX, chase the rabbits, mind the ghosts.</div>
+      <div class="host">&rarr; <b>gpx.defcon.run</b></div>
+    </div>
+
+    <div class="panel">
+      <div class="eyebrow">DEF CON 34 MAPS</div>
+      <h2>LVCC Loop</h2>
+      <div class="stats"><span>&#128209; 3.57 km</span><span>&#9968; 6 m gain</span></div>
+      <div class="desc">Do you like refrigerators? Then maybe you'd like to run
+        in a really big one — the LVCC.</div>
+      <div class="dl">&#8595; Download GPX</div>
+      <div class="id">id: def-con-34-maps-lvccloop</div>
+    </div>
+  </div>
+</body>
+</html>
