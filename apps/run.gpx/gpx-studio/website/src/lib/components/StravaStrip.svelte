@@ -33,7 +33,7 @@
         stravaRunRemoved,
     } from '$lib/stores/strava-strip';
     import { refreshMyConRuns, requestConRunReveal } from '$lib/stores/my-con-runs';
-    import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, LoaderCircle, Check, X, Zap } from '@lucide/svelte';
+    import { ChevronDown, ChevronLeft, ChevronRight, RefreshCw, LoaderCircle, Check, X } from '@lucide/svelte';
 
     // The studio is served under the region basePath (e.g. /use1/studio/app) but
     // auth.defcon.run needs the region prefix too — derive it the same way
@@ -106,14 +106,15 @@
 
     // The list is served from the per-user server-side cache — free (no
     // strava_sync quota, no Strava traffic) and refreshed for everyone by the
-    // twice-daily background sync. A REAL Strava fetch (one lifetime
-    // strava_sync unit) happens only on the first-ever load (no cache yet) and
-    // the explicit Refresh button (refresh: true). Because that first load can
-    // cost quota, fetches still only happen from explicit user intent — never
-    // from an $effect reacting to canShow/expanded/hasStrava. The triggers are:
-    // (1) the chevron below, on the transition to expanded; (2) the hub pulse
-    // handler further down; (3) the "Show my recent activity" fallback button;
-    // and (4) the Refresh button (the only refresh:true caller).
+    // twice-daily background sync. A REAL Strava fetch (one strava_sync unit)
+    // happens only on the first-ever load (no cache yet). Because that first
+    // load can cost quota, fetches still only happen from explicit user
+    // intent — never from an $effect reacting to canShow/expanded/hasStrava.
+    // The triggers are: (1) the chevron below, on the transition to expanded;
+    // (2) the hub pulse handler further down; (3) the "Show my recent
+    // activity" fallback button; and (4) doSyncNow's follow-up (the header
+    // Sync button — the sync-now route rewrites the server cache first, so
+    // that read is fresh and free; refresh:true currently has no caller).
     function toggleExpanded() {
         const next = !$stravaStripExpanded;
         stravaStripExpanded.set(next);
@@ -426,45 +427,35 @@
                     >
                 {/if}
             {/if}
-            <div class="ml-auto flex items-center gap-1">
+            <div class="ml-auto flex items-center gap-2">
+                <!-- ONE sync button (Kurt UAT round 8): "Sync now" + "Refresh"
+                     merged. doSyncNow imports new Strava runs AND the sync-now
+                     route rewrites the server-side strip cache, so its follow-up
+                     loadStrip() is fresh without burning a strava_sync unit —
+                     a separate cache-bypass Refresh bought nothing extra. -->
                 {#if $hasStrava}
                     <button
                         type="button"
                         class="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-muted-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label="Sync now"
+                        aria-label="Sync"
+                        title="Pull new Strava runs and refresh this list"
                         disabled={syncingNow}
                         onclick={() => void doSyncNow()}
                     >
-                        {#if syncingNow}
-                            <LoaderCircle size={14} class="animate-spin" />
-                        {:else}
-                            <Zap size={14} />
-                        {/if}
-                        Sync now
-                    </button>
-                {/if}
-                {#if $stravaStripExpanded && $hasStrava}
-                    <button
-                        type="button"
-                        class="rounded-md p-1 text-muted-foreground transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                        aria-label="Refresh"
-                        title="Refresh from Strava (uses one of your Strava refreshes)"
-                        disabled={loading}
-                        onclick={() => void loadStrip({ refresh: true })}
-                    >
-                        <RefreshCw size={16} class={loading ? 'animate-spin' : ''} />
+                        <RefreshCw size={14} class={syncingNow ? 'animate-spin' : ''} />
+                        Sync
                     </button>
                 {/if}
                 <button
                     type="button"
-                    class="rounded-md p-1 text-muted-foreground transition hover:bg-accent"
+                    class="rounded-md p-2 text-muted-foreground transition hover:bg-accent"
                     aria-label={$stravaStripExpanded ? 'Collapse' : 'Expand'}
                     onclick={toggleExpanded}
                 >
                     <!-- Expanded → points DOWN ("collapse me downward"); collapsed →
                          points UP ("expand me upward") — Kurt UAT round 4. -->
                     <ChevronDown
-                        size={16}
+                        size={20}
                         class="transition-transform {$stravaStripExpanded ? '' : 'rotate-180'}"
                     />
                 </button>
