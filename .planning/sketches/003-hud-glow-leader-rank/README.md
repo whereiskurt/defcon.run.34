@@ -42,9 +42,10 @@ from the first band, and a "NEXT // <band>: <what unlocks>" teaser line under th
 readout at every rank so runners always see there's more to come.
 
 ## Hidden Hotspot Easter Egg (variant D)
-Invisible 88px hotspot on the upper-right corner of the QR frame. Two trigger
-mechanics implemented to compare: **HOLD** (650ms; a green ring fills after 150ms
-so casual taps see nothing) and **TRIPLE-TAP** (3 taps inside 900ms). On claim:
+Invisible 84px circular hotspot centered on the **DC jack logo** in the QR's
+center knockout ("jack in"). Two trigger mechanics implemented to compare:
+**HOLD** (1.5s; a green glow ring starts charging at 200ms and swells as it
+fills — casual taps see nothing) and **TRIPLE-TAP** (3 taps inside 900ms). On claim:
 radial burst + toast "⚑ COVERT CHANNEL FOUND // +10 SOCIAL · +25 CTF" + a gold
 ⚑ EGG badge joins the rail. One claim ever; repeats show "ALREADY DRAINED".
 The sketch has a "reveal egg hotspot" debug checkbox — production ships with no

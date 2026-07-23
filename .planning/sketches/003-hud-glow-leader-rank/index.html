@@ -203,21 +203,23 @@
 
   /* ---------- hidden hotspot easter egg (upper-right corner, variant D) ---------- */
   .hotspot {
-    position: absolute; top: 0; right: 0; width: 88px; height: 88px; z-index: 6;
-    border-radius: 12px; -webkit-tap-highlight-color: transparent; user-select: none;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 84px; height: 84px; z-index: 6;
+    border-radius: 50%; -webkit-tap-highlight-color: transparent; user-select: none;
   }
-  .hotspot.revealed { outline: 2px dashed var(--color-accent); outline-offset: -4px; }
+  .hotspot.revealed { outline: 2px dashed var(--color-accent); outline-offset: -2px; }
   .hotspot .press-ring {
-    position: absolute; inset: 18px; border-radius: 50%; border: 3px solid var(--color-accent);
+    position: absolute; inset: 6px; border-radius: 50%; border: 3px solid var(--color-accent);
     opacity: 0; transform: scale(0.4); pointer-events: none;
   }
-  .hotspot.holding .press-ring { animation: press-fill 0.65s linear forwards; }
+  .hotspot.holding .press-ring { animation: press-fill 1.3s ease-in forwards; }
   @keyframes press-fill {
-    0% { opacity: 0.9; transform: scale(0.4); }
-    100% { opacity: 1; transform: scale(1); }
+    0% { opacity: 0.6; transform: scale(0.4); box-shadow: 0 0 0 rgba(51,255,153,0); }
+    60% { opacity: 0.9; box-shadow: 0 0 14px rgba(51,255,153,0.5); }
+    100% { opacity: 1; transform: scale(1); box-shadow: 0 0 30px rgba(51,255,153,0.9), inset 0 0 18px rgba(51,255,153,0.4); }
   }
   .egg-burst {
-    position: absolute; top: 44px; right: 44px; width: 10px; height: 10px; z-index: 7;
+    position: absolute; top: 50%; left: 50%; margin: -5px 0 0 -5px; width: 10px; height: 10px; z-index: 7;
     border-radius: 50%; pointer-events: none; opacity: 0;
   }
   .egg-burst.go { animation: burst 0.8s ease-out forwards; }
@@ -270,7 +272,7 @@
            onchange="document.querySelector('.hotspot').classList.toggle('revealed', this.checked)">
     reveal egg hotspot
   </label>
-  <span class="hint">relative percentile of 1,204 runners — decays if the pack out-scans you · top slot = LEADER · D hides an egg: hold or triple-tap the upper-right corner</span>
+  <span class="hint">relative percentile of 1,204 runners — decays if the pack out-scans you · top slot = LEADER · D hides an egg: hold or triple-tap the DC jack in the center</span>
 </div>
 
 <!-- genuine styled QR (v5, 37×37, payload https://q.defcon.run/r/9f86d081884c7d65) -->
@@ -537,9 +539,9 @@
     const now = Date.now();
     taps = taps.filter(t => now - t < 900); taps.push(now);
     if (taps.length >= 3) { taps = []; cancelHold(); claimEgg('TRIPLE-TAP'); return; }
-    // hold mechanic: show the fill cue only after 150ms so casual taps see nothing
-    cueTimer = setTimeout(() => hotspot.classList.add('holding'), 150);
-    holdTimer = setTimeout(() => { cancelHold(); claimEgg('HOLD'); }, 650);
+    // hold mechanic: glow cue at 200ms, egg fires at 1.5s — deliberate long press
+    cueTimer = setTimeout(() => hotspot.classList.add('holding'), 200);
+    holdTimer = setTimeout(() => { cancelHold(); claimEgg('HOLD'); }, 1500);
   });
   function cancelHold() {
     clearTimeout(holdTimer); clearTimeout(cueTimer);
