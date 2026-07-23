@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { dynamodbClient, DYNAMODB_TABLE } from "@/entities/client";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
 import { getAdapterUserIdBySub } from "@/entities/auth-user";
+import { ensureRunnerToken } from "@/entities/runner-token";
 import {
   isDisplayNameLocked,
   normalizeSyncedName,
@@ -79,10 +80,23 @@ export async function GET(
       console.error("[run.human] /api/internal/user email lookup:", e);
     }
 
+    // Short social-QR token (first 16 of hash). Lazily ensure the
+    // RunnerToken mapping row exists before any QR leaves the building
+    // (bib PDFs build their QR from this). Best-effort: omit on failure.
+    let shortToken: string | null = null;
+    if (user.hash) {
+      try {
+        shortToken = await ensureRunnerToken(user.userId, user.hash);
+      } catch (e) {
+        console.error("[run.human] /api/internal/user ensureRunnerToken:", e);
+      }
+    }
+
     // Return safe subset needed by flash + bib.
     // `hash` is the SHA256 QR-lookup value already surfaced in public /r?h= URLs;
-    // it is NOT a secret. Never expose the random QR seed or the RSA key-pair
-    // hashes here — those are regeneration secrets that must stay run.human-internal.
+    // it is NOT a secret (and `shortToken` is a prefix of it). Never expose the
+    // random QR seed or the RSA key-pair hashes here — those are regeneration
+    // secrets that must stay run.human-internal.
     return NextResponse.json({
       userId: user.userId,
       displayName: user.displayName,
@@ -91,6 +105,7 @@ export async function GET(
       mqttUsertype: user.mqttUsertype,
       ringtone: user.ringtone,
       hash: user.hash,
+      shortToken,
       email,
     });
   } catch (error) {
