@@ -10,7 +10,7 @@
  * header says so. Callers must only feed this from the admin-gated
  * ghost_otp_reveal path.
  */
-import { PDFDocument, rgb, type PDFPage } from "pdf-lib";
+import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
 
 import { cellOrigin, DPI, PAGE_HEIGHT, PAGE_WIDTH, type SheetLayout } from "./templates";
 import type { RenderPng } from "./pdf";
@@ -40,9 +40,15 @@ function pxFor(sizePt: number): number {
   return Math.min(1200, Math.max(64, Math.round(sizePt * 4)));
 }
 
-/** Approximate centered-text x for pdf-lib's default Helvetica. */
-function centerX(cellX: number, cellW: number, text: string, size: number): number {
-  return cellX + cellW / 2 - (text.length * size * 0.5) / 2;
+/** Exact centered-text x via the embedded font's metrics. */
+function centerX(
+  cellX: number,
+  cellW: number,
+  text: string,
+  size: number,
+  font: PDFFont,
+): number {
+  return cellX + cellW / 2 - font.widthOfTextAtSize(text, size) / 2;
 }
 
 /** Dotted cut lines between cells (grid layouts only) — pdf.ts pattern. */
@@ -85,6 +91,8 @@ export async function buildGhostOtpSheetPdf(opts: {
   if (entries.length === 0) throw new Error("No OTP-bearing ghosts to print.");
 
   const doc = await PDFDocument.create();
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  const helv = await doc.embedFont(StandardFonts.Helvetica);
   const perPage = l.across * l.down;
 
   // QR square: fit beside the label band, keep the pdf.ts 0.9 breathing margin.
@@ -119,24 +127,27 @@ export async function buildGhostOtpSheetPdf(opts: {
       page.drawImage(image, { x: qx, y: qy, width: qrPt, height: qrPt });
 
       page.drawText(e.title, {
-        x: centerX(o.x, l.cellW, e.title, 9),
-        y: o.y + 20,
-        size: 9,
-        color: GREY,
+        x: centerX(o.x, l.cellW, e.title, 11, bold),
+        y: o.y + 19,
+        size: 11,
+        font: bold,
+        color: rgb(0.1, 0.1, 0.1),
       });
       if (e.subtitle) {
         page.drawText(e.subtitle, {
-          x: centerX(o.x, l.cellW, e.subtitle, 6),
-          y: o.y + 12,
+          x: centerX(o.x, l.cellW, e.subtitle, 6, helv),
+          y: o.y + 11,
           size: 6,
+          font: helv,
           color: MID_GREY,
         });
       }
       if (e.secret) {
         page.drawText(e.secret, {
-          x: centerX(o.x, l.cellW, e.secret, 5),
-          y: o.y + 5,
+          x: centerX(o.x, l.cellW, e.secret, 5, helv),
+          y: o.y + 4,
           size: 5,
+          font: helv,
           color: MID_GREY,
         });
       }
