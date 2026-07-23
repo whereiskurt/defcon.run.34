@@ -52,6 +52,10 @@ import { buildSeedRows } from "../src/lib/ctf-seed-rows";
 import { deriveOtpauthUrl } from "../src/lib/mesh-otp-derive";
 
 const CONFIRM = process.argv.includes("--confirm");
+// --enable: flip enabled=true on all 10 chain rows (5 static + 5 otp). Independent
+// of the re-key path — does NOT need the server secret (no derivation). Makes the
+// chains score; DRY-RUN by default like everything else.
+const ENABLE = process.argv.includes("--enable");
 const TABLE = process.env.RUN_ELECTRO_DBNAME || "run-human-electro";
 const REGION = process.env.RUN_DYNAMODB_REGION;
 const SERVER_SECRET = process.env.MESHTK_GHOST_KEY_SECRET;
@@ -76,7 +80,8 @@ if (!REGION) {
   console.error("Missing required env var: RUN_DYNAMODB_REGION");
   process.exit(2);
 }
-if (!SERVER_SECRET) {
+// The server secret is only needed for the re-key (derivation) path, not --enable.
+if (!ENABLE && !SERVER_SECRET) {
   console.error("Missing required env var: MESHTK_GHOST_KEY_SECRET");
   process.exit(2);
 }
@@ -123,10 +128,53 @@ function derivedFor(name: string, committedOtpauth: string) {
   return deriveOtpauthUrl(SERVER_SECRET!, fleetId, committedOtpauth);
 }
 
+/** The 10 chain rows: each persona's static flag + its chained `-otp` flag. */
+function chainRowNames(): string[] {
+  return Object.keys(PERSONA_FLEET).flatMap((name) => [name, `${name}-otp`]);
+}
+
+/** --enable: set enabled=true on all 10 chain rows (preserving everything else). */
+async function enableChains() {
+  let planned = 0;
+  let skipped = 0;
+  for (const name of chainRowNames()) {
+    const live = await getRow(name);
+    if (!live) {
+      console.log(`   ⚠️  "${name}" ABSENT in prod — skipped`);
+      skipped++;
+      continue;
+    }
+    const already = live.enabled === true;
+    console.log(`● ${name}  enabled ${live.enabled} → true${already ? "  (already on)" : ""}  solveCount=${live.solveCount}`);
+    if (already) continue;
+    planned++;
+    if (CONFIRM) {
+      await doc.update({
+        TableName: TABLE,
+        Key: keyOf(name),
+        UpdateExpression: "SET #en = :t, #u = :u",
+        ExpressionAttributeNames: { "#en": "enabled", "#u": "updatedAt" },
+        ExpressionAttributeValues: { ":t": true, ":u": NOW },
+      });
+      console.log(`   ✓ enabled`);
+    }
+  }
+  console.log(
+    CONFIRM
+      ? `\nEnabled ${planned} row(s)${skipped ? `; ${skipped} absent skipped` : ""} (already-on rows untouched).`
+      : `\nDRY-RUN: would enable ${planned} row(s)${skipped ? `, ${skipped} absent skipped` : ""}, wrote nothing. Re-run with --enable --confirm to write.`,
+  );
+}
+
 async function main() {
   console.log(
-    `Table: ${TABLE}  Region: ${REGION}  Endpoint: ${process.env.RUN_ELECTRO_ENDPOINT || "(aws)"}  Mode: ${CONFIRM ? "WRITE" : "DRY-RUN"}\n`,
+    `Table: ${TABLE}  Region: ${REGION}  Endpoint: ${process.env.RUN_ELECTRO_ENDPOINT || "(aws)"}  Mode: ${ENABLE ? "ENABLE" : "REKEY"}/${CONFIRM ? "WRITE" : "DRY-RUN"}\n`,
   );
+
+  if (ENABLE) {
+    await enableChains();
+    return;
+  }
 
   // Static rows from the pure builder carry the COMMITTED effect.otpauth per persona.
   const staticRows = buildSeedRows().filter(
