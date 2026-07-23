@@ -255,9 +255,16 @@
    to full map height and defeats the translate-centring. The profile pair
    (avatar + theme — a custom control, see ProfileMenu.svelte) is pulled to the
    top via flex `order`, so the column reads:
-   avatar → theme → zoom(+/−) → compass → search → geolocate → layers. */
+   avatar → theme → zoom(+/−) → compass → search → geolocate → layers.
+   Centring happens in the free space ABOVE the bottom-docked Strava strip:
+   --dc34-strip-h is the strip's live footprint (0 when hidden), published by
+   StravaStrip.svelte, so on phones the column lifts out of the strip's way
+   instead of landing on its header row. The 200px floor stops a very tall
+   strip (day-assign dialog open) from shoving the column up under the top
+   menubar — past the floor the column just slips behind the dialog, which
+   now out-stacks the controls (strip z-40, later in the DOM). */
 .mapboxgl-ctrl-top-right {
-    top: 50% !important;
+    top: max(200px, calc((100% - var(--dc34-strip-h, 0px)) / 2)) !important;
     bottom: auto !important;
     height: fit-content !important;
     transform: translateY(-50%);
