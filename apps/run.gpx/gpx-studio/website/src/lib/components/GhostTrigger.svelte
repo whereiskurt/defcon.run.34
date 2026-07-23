@@ -12,7 +12,8 @@
     import { onMount } from 'svelte';
     import { mode } from 'mode-watcher';
     import { ghostMode, recordHit } from '$lib/stores/ghost';
-    import { rainbowUnlocked } from '$lib/stores/rainbow';
+    import { rainbowUnlocked, toggleForcedArch } from '$lib/stores/rainbow';
+    import { ARCH_SEARCH_WORDS } from '$lib/components/map/rainbow-geometry';
 
     let keyBuf: number[] = [];
     let themeBuf: number[] = [];
@@ -27,6 +28,13 @@
                 typed = (typed + e.key.toLowerCase()).slice(-7);
                 if (typed === 'rainbow') {
                     rainbowUnlocked.set(true);
+                    typed = '';
+                }
+                // Type "dd" anywhere → toggle the Double Down noir arch (desktop
+                // twin of the geocoder `dd` search, which covers mobile). Buffer
+                // resets on fire so "ddd" doesn't immediately toggle it back off.
+                if (typed.endsWith('dd')) {
+                    toggleForcedArch(ARCH_SEARCH_WORDS['dd']);
                     typed = '';
                 }
             }

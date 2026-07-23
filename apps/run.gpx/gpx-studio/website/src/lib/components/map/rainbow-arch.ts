@@ -4,6 +4,7 @@ import { openEggModal } from './egg-modal';
 
 const SOURCE = 'dc34-rainbow';
 const LAYER = 'dc34-rainbow-arch';
+const BOOST_LAYER = 'dc34-rainbow-arch-boost'; // arches with a custom opacity ramp
 const TICK_MS = 60_000; // re-evaluate schedule windows once a minute
 
 /**
@@ -13,8 +14,10 @@ const TICK_MS = 60_000; // re-evaluate schedule windows once a minute
  * Each arch declares its own gate (see rainbow-geometry `isArchActiveNow`):
  * unlock-gated arches stay hidden until the egg is unlocked; a scheduled arch is
  * *publicly* visible inside its window, and every arch is revealed once unlocked.
- * All arches share one source + one fill-extrusion layer; which ones render is
- * driven by a Mapbox filter on `archId`, and overall opacity ramps with pitch.
+ * All arches share one geojson source; default-ramp arches render on one
+ * fill-extrusion layer and `opacity`-declaring arches on a boost layer with a
+ * punchier ramp. Which arches render is driven by Mapbox filters on `archId`,
+ * and opacity ramps with pitch.
  *
  * Because a scheduled arch can appear without an unlock, the layer is built
  * lazily the first time *anything* is active (unlock OR a window opening), and a
@@ -53,19 +56,25 @@ export class RainbowArch {
             });
         }
         if (!this.map.getLayer(LAYER)) {
-            this.map.addLayer({
-                id: LAYER,
-                type: 'fill-extrusion',
-                source: SOURCE,
-                layout: { visibility: 'none' },
-                paint: {
-                    'fill-extrusion-color': ['get', 'color'],
-                    'fill-extrusion-height': ['get', 'height'],
-                    'fill-extrusion-base': ['get', 'base'],
-                    'fill-extrusion-opacity': 0,
-                    'fill-extrusion-vertical-gradient': true
-                }
-            });
+            // Two identical layers over the one source: LAYER carries default-ramp
+            // arches, BOOST_LAYER the ones declaring `opacity` in the roster —
+            // fill-extrusion-opacity is layer-wide (not data-driven), so a
+            // punchier ramp needs its own layer.
+            for (const id of [LAYER, BOOST_LAYER]) {
+                this.map.addLayer({
+                    id,
+                    type: 'fill-extrusion',
+                    source: SOURCE,
+                    layout: { visibility: 'none' },
+                    paint: {
+                        'fill-extrusion-color': ['get', 'color'],
+                        'fill-extrusion-height': ['get', 'height'],
+                        'fill-extrusion-base': ['get', 'base'],
+                        'fill-extrusion-opacity': 0,
+                        'fill-extrusion-vertical-gradient': true
+                    }
+                });
+            }
             // Reveal ramps with pitch, live.
             this.pitchFn = () => this.applyOpacity();
             this.map.on('pitch', this.pitchFn);
@@ -76,13 +85,14 @@ export class RainbowArch {
                 const archId = f?.properties?.archId as string | undefined;
                 if (archId) void openEggModal(this.map, archId, e.lngLat);
             };
-            this.map.on('click', LAYER, this.clickFn);
-
             // Pointer affordance.
             this.enterFn = () => (this.map.getCanvas().style.cursor = 'pointer');
             this.leaveFn = () => (this.map.getCanvas().style.cursor = '');
-            this.map.on('mouseenter', LAYER, this.enterFn);
-            this.map.on('mouseleave', LAYER, this.leaveFn);
+            for (const id of [LAYER, BOOST_LAYER]) {
+                this.map.on('click', id, this.clickFn);
+                this.map.on('mouseenter', id, this.enterFn);
+                this.map.on('mouseleave', id, this.leaveFn);
+            }
         }
         this.built = true;
     }
@@ -99,10 +109,34 @@ export class RainbowArch {
         return ids;
     }
 
+    /** Split active ids between the default-ramp layer and the boost layer. */
+    private partitionActive(): { main: string[]; boost: string[] } {
+        const ids = this.activeArchIds();
+        const boosted = new Set(RAINBOW_ARCHES.filter((a) => a.opacity).map((a) => a.id));
+        return {
+            main: ids.filter((id) => !boosted.has(id)),
+            boost: ids.filter((id) => boosted.has(id))
+        };
+    }
+
     private applyOpacity() {
         if (!this.map.getLayer(LAYER)) return;
-        const o = this.activeArchIds().length > 0 ? pitchOpacity(this.map.getPitch()) : 0;
-        this.map.setPaintProperty(LAYER, 'fill-extrusion-opacity', o);
+        const { main, boost } = this.partitionActive();
+        const pitch = this.map.getPitch();
+        this.map.setPaintProperty(
+            LAYER,
+            'fill-extrusion-opacity',
+            main.length > 0 ? pitchOpacity(pitch) : 0
+        );
+        // Boosted arches share one ramp profile (first `opacity` in the roster wins).
+        const prof = RAINBOW_ARCHES.find((a) => a.opacity)?.opacity;
+        if (this.map.getLayer(BOOST_LAYER)) {
+            this.map.setPaintProperty(
+                BOOST_LAYER,
+                'fill-extrusion-opacity',
+                boost.length > 0 && prof ? pitchOpacity(pitch, 0, 60, prof.max, prof.floor) : 0
+            );
+        }
     }
 
     /**
@@ -116,8 +150,17 @@ export class RainbowArch {
         if (!this.built) await this.build();
         if (!this.map.getLayer(LAYER)) return;
 
-        this.map.setFilter(LAYER, ['in', ['get', 'archId'], ['literal', activeIds]]);
-        this.map.setLayoutProperty(LAYER, 'visibility', activeIds.length > 0 ? 'visible' : 'none');
+        const { main, boost } = this.partitionActive();
+        this.map.setFilter(LAYER, ['in', ['get', 'archId'], ['literal', main]]);
+        this.map.setLayoutProperty(LAYER, 'visibility', main.length > 0 ? 'visible' : 'none');
+        if (this.map.getLayer(BOOST_LAYER)) {
+            this.map.setFilter(BOOST_LAYER, ['in', ['get', 'archId'], ['literal', boost]]);
+            this.map.setLayoutProperty(
+                BOOST_LAYER,
+                'visibility',
+                boost.length > 0 ? 'visible' : 'none'
+            );
+        }
         this.applyOpacity();
     }
 
@@ -142,11 +185,13 @@ export class RainbowArch {
             this.map.off('pitch', this.pitchFn);
             this.pitchFn = null;
         }
-        if (this.clickFn) this.map.off('click', LAYER, this.clickFn);
-        if (this.enterFn) this.map.off('mouseenter', LAYER, this.enterFn);
-        if (this.leaveFn) this.map.off('mouseleave', LAYER, this.leaveFn);
+        for (const id of [LAYER, BOOST_LAYER]) {
+            if (this.clickFn) this.map.off('click', id, this.clickFn);
+            if (this.enterFn) this.map.off('mouseenter', id, this.enterFn);
+            if (this.leaveFn) this.map.off('mouseleave', id, this.leaveFn);
+            if (this.map.getLayer(id)) this.map.removeLayer(id);
+        }
         this.clickFn = this.enterFn = this.leaveFn = null;
-        if (this.map.getLayer(LAYER)) this.map.removeLayer(LAYER);
         if (this.map.getSource(SOURCE)) this.map.removeSource(SOURCE);
         this.built = false;
     }

@@ -33,6 +33,10 @@ export interface RainbowArch {
     colors?: string[]; // per-arch palette, outer→inner; defaults to PRIDE_COLORS
     requiresUnlock?: boolean; // default true — the doubly-hidden egg arches
     schedule?: ArchSchedule; // optional public window (see isArchActiveNow)
+    // Custom pitchOpacity ramp — a dark arch needs to punch harder than the
+    // default 0.55/0.12 to read against the map. Rendered on a separate boost
+    // layer (fill-extrusion-opacity is layer-wide, not data-driven).
+    opacity?: { max: number; floor: number };
 }
 
 /** Six-stripe pride flag, outer→inner. */
@@ -57,12 +61,12 @@ export const WEED_COLORS = [
 
 /** Six-band blackout "noir" gradient, near-black→grey (outer→inner). */
 export const NOIR_COLORS = [
-    '#0A0A0A', // near-black
-    '#1C1C1C',
-    '#333333',
-    '#4F4F4F',
-    '#6E6E6E',
-    '#9E9E9E' // ash grey
+    '#050505', // near-black
+    '#101010',
+    '#1D1D1D',
+    '#2C2C2C',
+    '#3E3E3E',
+    '#5A5A5A' // charcoal grey
 ];
 
 /**
@@ -91,7 +95,8 @@ export const RAINBOW_ARCHES: RainbowArch[] = [
         id: 'lvcc-doubledown',
         from: [-115.1512, 36.1316], // Las Vegas Convention Center
         to: [-115.1516, 36.1049], // Double Down Saloon
-        colors: NOIR_COLORS
+        colors: NOIR_COLORS,
+        opacity: { max: 0.7, floor: 0.18 } // near-black bands need the boost
     },
     {
         // Timed pride arch → "Welcome to Fabulous Las Vegas" sign. Publicly
