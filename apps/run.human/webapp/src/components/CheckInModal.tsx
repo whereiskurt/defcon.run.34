@@ -10,8 +10,10 @@ import {
   Progress,
   Select,
   SelectItem,
+  Input,
 } from '@heroui/react';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 import { apiUrl } from '@/lib/api';
 import PinPicker, { type PinOption } from '@/components/profile/PinPicker';
@@ -55,6 +57,23 @@ interface GpsSample {
   timestamp: number;
 }
 
+/** Services allowed to type coordinates instead of using browser GPS. */
+const MANUAL_COORD_SERVICES = ['admin', 'runadmin', 'gpxadmin'];
+
+/** Parse "lat, lng" (comma or whitespace separated) into coordinates, or null. */
+function parseLatLng(input: string): { lat: number; lng: number } | null {
+  const parts = input.trim().split(/[,\s]+/);
+  if (parts.length !== 2) return null;
+  const lat = Number(parts[0]);
+  const lng = Number(parts[1]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+  return { lat, lng };
+}
+
+/** Display accuracy (m) for a manually typed coordinate — tight, honest circle. */
+const MANUAL_ACCURACY_M = 5;
+
 interface CheckInModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -72,6 +91,9 @@ export default function CheckInModal({
 }: CheckInModalProps) {
   const { resolvedTheme } = useTheme();
   const tileUrl = resolvedTheme === 'dark' ? TILES_DARK : TILES_LIGHT;
+  const { data: session } = useSession();
+  const services: string[] = (session?.user as { services?: string[] } | undefined)?.services ?? [];
+  const canManualCoords = MANUAL_COORD_SERVICES.some((s) => services.includes(s));
   const [phase, setPhase] = useState<Phase>('collecting');
   const [samples, setSamples] = useState<GpsSample[]>([]);
   const [sampleCount, setSampleCount] = useState(0);
@@ -84,6 +106,12 @@ export default function CheckInModal({
   const [pinIcon, setPinIcon] = useState('');
   const [pinColor, setPinColor] = useState('');
   const [showPinPicker, setShowPinPicker] = useState(false);
+  // Admin-only manual coordinates: overrides the GPS fix for both the map
+  // preview and the submitted check-in. Non-admin sessions never see the
+  // input, and the parse is gated on canManualCoords everywhere.
+  const [manualCoords, setManualCoords] = useState('');
+  const [showManualCoords, setShowManualCoords] = useState(false);
+  const manual = canManualCoords ? parseLatLng(manualCoords) : null;
 
   const isOpenRef = useRef(false);
   const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -97,6 +125,8 @@ export default function CheckInModal({
     setIsPrivate(checkinPreference === 'private');
     setQuotaRemaining(null);
     setErrorMessage(null);
+    setManualCoords('');
+    setShowManualCoords(false);
     samplesRef.current = [];
   }, [checkinPreference]);
 
@@ -189,12 +219,18 @@ export default function CheckInModal({
   const handleSubmit = async () => {
     setPhase('submitting');
     try {
+      // Manual override (admins only): one synthetic sample at the typed
+      // coordinates. The server accepts any valid non-empty sample list; the
+      // distinct source labels these check-ins in the data.
+      const submitSamples = manual
+        ? [{ latitude: manual.lat, longitude: manual.lng, accuracy: MANUAL_ACCURACY_M, timestamp: Date.now() }]
+        : samplesRef.current;
       const res = await fetch(apiUrl('/api/checkins'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          samples: samplesRef.current,
-          source: 'Web GPS',
+          samples: submitSamples,
+          source: manual ? 'Admin Manual' : 'Web GPS',
           isPrivate,
           pinIcon: pinIcon || undefined,
           pinColor: pinColor || undefined,
@@ -270,16 +306,24 @@ export default function CheckInModal({
                 </div>
               )}
 
-              {(phase === 'ready' || phase === 'submitting') && samplesRef.current.length > 0 && (() => {
-                const avgLat = samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length;
-                const avgLng = samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length;
-                const acc = bestAccuracy ?? 30;
+              {(((phase === 'ready' || phase === 'submitting') && (samplesRef.current.length > 0 || manual)) ||
+                (phase === 'error' && manual)) && (() => {
+                // Manual coords (admin) override the GPS average for the
+                // preview; keying the map by position forces a re-center as
+                // the admin types.
+                const hasSamples = samplesRef.current.length > 0;
+                const avgLat = hasSamples ? samplesRef.current.reduce((s, p) => s + p.latitude, 0) / samplesRef.current.length : 0;
+                const avgLng = hasSamples ? samplesRef.current.reduce((s, p) => s + p.longitude, 0) / samplesRef.current.length : 0;
+                const lat = manual ? manual.lat : avgLat;
+                const lng = manual ? manual.lng : avgLng;
+                const acc = manual ? MANUAL_ACCURACY_M : bestAccuracy ?? 30;
                 const markerColor = isPrivate ? '#71717a' : '#006FEE';
                 return (
                   <div className="w-full rounded-lg overflow-hidden" style={{ height: 140 }}>
                     <MapContainer
-                      center={[avgLat, avgLng]}
-                      zoom={zoomForAccuracy(acc, avgLat)}
+                      key={`${lat.toFixed(5)},${lng.toFixed(5)}`}
+                      center={[lat, lng]}
+                      zoom={zoomForAccuracy(acc, lat)}
                       style={{ height: '100%', width: '100%' }}
                       zoomControl={false}
                       attributionControl={false}
@@ -288,12 +332,12 @@ export default function CheckInModal({
                     >
                       <TileLayer url={tileUrl} />
                       <Circle
-                        center={[avgLat, avgLng]}
+                        center={[lat, lng]}
                         radius={acc}
                         pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.15, weight: 1 }}
                       />
                       <CircleMarker
-                        center={[avgLat, avgLng]}
+                        center={[lat, lng]}
                         radius={6}
                         pathOptions={{ color: markerColor, fillColor: markerColor, fillOpacity: 0.9, weight: 2 }}
                       />
@@ -306,7 +350,7 @@ export default function CheckInModal({
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">
                     <p className="text-primary text-sm whitespace-nowrap">
-                      +/-{Math.round(bestAccuracy ?? 0)}m
+                      {manual ? 'manual' : `+/-${Math.round(bestAccuracy ?? 0)}m`}
                     </p>
                     <Select
                       aria-label="Visibility"
@@ -351,6 +395,38 @@ export default function CheckInModal({
                       )}
                     </div>
                   )}
+                  {canManualCoords && (
+                    <div className="flex flex-col gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowManualCoords((v) => !v)}
+                        className="text-xs text-default-400 self-start hover:text-default-600"
+                      >
+                        {showManualCoords ? '▾' : '▸'} Custom coordinates{' '}
+                        <span className="text-default-500">(admin)</span>
+                      </button>
+                      {showManualCoords && (
+                        <>
+                          <Input
+                            size="sm"
+                            aria-label="Custom coordinates"
+                            placeholder="36.17000, -115.14000"
+                            value={manualCoords}
+                            onValueChange={setManualCoords}
+                            classNames={{ input: 'font-mono text-xs' }}
+                          />
+                          {manualCoords.trim() !== '' && !manual && (
+                            <span className="text-danger text-xs">Enter as &quot;lat, lng&quot;</span>
+                          )}
+                          {manual && (
+                            <span className="text-xs text-default-400">
+                              Overriding GPS: {manual.lat.toFixed(5)}, {manual.lng.toFixed(5)}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -388,6 +464,23 @@ export default function CheckInModal({
               {phase === 'error' && (
                 <div className="flex flex-col gap-2">
                   <p className="text-danger text-sm">{errorMessage}</p>
+                  {canManualCoords && (
+                    <>
+                      <Input
+                        size="sm"
+                        aria-label="Custom coordinates"
+                        label="Custom coordinates (admin)"
+                        labelPlacement="outside"
+                        placeholder="36.17000, -115.14000"
+                        value={manualCoords}
+                        onValueChange={setManualCoords}
+                        classNames={{ input: 'font-mono text-xs', label: 'text-xs text-default-400' }}
+                      />
+                      {manualCoords.trim() !== '' && !manual && (
+                        <span className="text-danger text-xs">Enter as &quot;lat, lng&quot;</span>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </ModalBody>
@@ -419,9 +512,14 @@ export default function CheckInModal({
                   <Button variant="light" onPress={handleClose}>
                     Cancel
                   </Button>
-                  <Button color="primary" onPress={handleRetry}>
+                  <Button variant="flat" onPress={handleRetry}>
                     Retry
                   </Button>
+                  {manual && (
+                    <Button color="primary" onPress={handleSubmit}>
+                      Check In
+                    </Button>
+                  )}
                 </>
               )}
             </ModalFooter>
