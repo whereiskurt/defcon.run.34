@@ -123,8 +123,12 @@
     <div class="flex flex-col grow h-full min-w-0">
         <div class="grow relative">
             <Menu />
+            <!-- Left toolbar centres in the free space above the bottom-docked
+                 Strava strip (--dc34-strip-h, 0 when hidden), mirroring the
+                 right control column's treatment in app.css. -->
             <div
-                class="absolute top-0 bottom-0 left-0 z-20 flex flex-col justify-center pointer-events-none"
+                class="absolute top-0 left-0 z-20 flex flex-col justify-center pointer-events-none transition-[bottom] duration-200"
+                style="bottom: var(--dc34-strip-h, 0px)"
             >
                 <Toolbar />
             </div>
