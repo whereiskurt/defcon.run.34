@@ -526,121 +526,6 @@
                         No activities in the last {weeks > 1 ? `${weeks} weeks` : '7 days'}.
                     </p>
                 {:else}
-                    {#if openActivity}
-                        <div class="mb-2 rounded-lg border bg-accent/30 p-3">
-                            <div class="flex items-start justify-between gap-2">
-                                <div>
-                                    <p class="text-sm font-semibold">{openActivity.name}</p>
-                                    <p class="text-xs text-muted-foreground">
-                                        {formatKm(openActivity.distanceMeters)}
-                                    </p>
-                                </div>
-                                <button
-                                    type="button"
-                                    class="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent"
-                                    aria-label="Cancel"
-                                    onclick={closePopover}
-                                >
-                                    <X size={16} />
-                                </button>
-                            </div>
-
-                            <p class="mb-1.5 mt-3 text-xs font-medium text-muted-foreground">
-                                {popoverMode === 'assign' ? 'Which DEF CON day is this run for?' : 'Which day?'}
-                            </p>
-                            <div class="flex flex-wrap gap-1.5">
-                                {#each usage as day (day.date)}
-                                    <button
-                                        class="rounded-full border px-3 py-1 text-sm transition {selectedDay ===
-                                        day.date
-                                            ? 'border-[#fc4c02] bg-[#fc4c02] text-white'
-                                            : 'hover:bg-accent'} {day.remaining <= 0
-                                            ? 'cursor-not-allowed opacity-40'
-                                            : ''}"
-                                        disabled={day.remaining <= 0}
-                                        title={day.remaining <= 0 ? 'full' : undefined}
-                                        onclick={() => (selectedDay = day.date)}
-                                    >
-                                        {day.label.slice(0, 3)} {shortDate(day.date)}
-                                    </button>
-                                {/each}
-                            </div>
-
-                            {#if $isAdmin}
-                                <label
-                                    class="mb-1 mt-2 block text-xs font-medium text-muted-foreground"
-                                    for="strava-strip-admin-date"
-                                >
-                                    Which day? <span class="opacity-70">(admin — any date)</span>
-                                </label>
-                                <input
-                                    id="strava-strip-admin-date"
-                                    type="date"
-                                    class="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
-                                    bind:value={selectedDay}
-                                />
-                            {/if}
-
-                            {#if selectedUsage}
-                                <p class="mt-2 text-xs text-muted-foreground">
-                                    {#if isUnlimitedQuota(selectedUsage.remaining, selectedUsage.count)}
-                                        Unlimited · {selectedUsage.label}
-                                    {:else}
-                                        {selectedUsage.remaining} of {selectedUsage.count +
-                                            selectedUsage.remaining} left · {selectedUsage.label}
-                                    {/if}
-                                </p>
-                            {/if}
-
-                            {#if popoverError}
-                                <p class="mt-2 text-sm text-destructive">{popoverError}</p>
-                            {/if}
-
-                            <div class="mt-3 flex items-center justify-end gap-2">
-                                {#if popoverMode === 'assign' && openActivity?.fileId}
-                                    <button
-                                        type="button"
-                                        class="mr-auto rounded-md px-2 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 {removeArmed
-                                            ? 'bg-destructive/15 text-destructive'
-                                            : 'text-destructive/80 hover:bg-destructive/10'}"
-                                        disabled={removing || confirming}
-                                        onclick={() => void removeOpenImport()}
-                                    >
-                                        {#if removing}
-                                            <LoaderCircle size={12} class="inline animate-spin" /> Removing…
-                                        {:else if removeArmed}
-                                            Really remove? This deletes the run.
-                                        {:else}
-                                            Remove this import
-                                        {/if}
-                                    </button>
-                                {/if}
-                                <button
-                                    type="button"
-                                    class="rounded-md border px-3 py-1.5 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-                                    disabled={confirming}
-                                    onclick={closePopover}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="button"
-                                    class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-                                    style="background:#fc4c02"
-                                    disabled={confirming || !selectedDay || capped}
-                                    onclick={() => void confirmPopover()}
-                                >
-                                    {#if confirming}
-                                        <LoaderCircle size={14} class="animate-spin" />
-                                        {popoverMode === 'assign' ? 'Saving…' : 'Importing…'}
-                                    {:else}
-                                        {popoverMode === 'assign' ? 'Save day' : 'Import run'}
-                                    {/if}
-                                </button>
-                            </div>
-                        </div>
-                    {/if}
-
                     {#if successMessage}
                         <p
                             class="mb-2 flex items-center gap-1.5 text-sm font-medium text-green-600 dark:text-green-400"
@@ -722,4 +607,139 @@
             </div>
         {/if}
     </div>
+
+    {#if openActivity}
+        <!-- Day-assign modal (Kurt mobile UAT 2026-07-23): an overlay ABOVE the
+             map and toolbars — backdrop z-40 + centered panel z-50, the same
+             layers as the QuickStart hub — instead of the old in-strip
+             expander. Keeping it out of the strip keeps the strip at carousel
+             height, so the toolbar columns (which center themselves around
+             --dc34-strip-h) don't jump when a card is opened. -->
+        <button
+            type="button"
+            class="absolute inset-0 z-40 bg-black/40 backdrop-blur-[1px]"
+            aria-label="Close"
+            onclick={closePopover}
+        ></button>
+        <div
+            class="absolute left-1/2 top-1/2 z-50 max-h-[85%] w-[min(92vw,380px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border bg-background p-4 text-foreground shadow-2xl"
+        >
+            <div class="flex items-start justify-between gap-2">
+                <div>
+                    <p class="text-sm font-semibold">{openActivity.name}</p>
+                    <p class="text-xs text-muted-foreground">
+                        {formatKm(openActivity.distanceMeters)}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    class="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent"
+                    aria-label="Cancel"
+                    onclick={closePopover}
+                >
+                    <X size={16} />
+                </button>
+            </div>
+
+            <p class="mb-1.5 mt-3 text-xs font-medium text-muted-foreground">
+                {popoverMode === 'assign' ? 'Which DEF CON day is this run for?' : 'Which day?'}
+            </p>
+            <div class="flex flex-wrap gap-1.5">
+                {#each usage as day (day.date)}
+                    <button
+                        class="rounded-full border px-3 py-1 text-sm transition {selectedDay ===
+                        day.date
+                            ? 'border-[#fc4c02] bg-[#fc4c02] text-white'
+                            : 'hover:bg-accent'} {day.remaining <= 0
+                            ? 'cursor-not-allowed opacity-40'
+                            : ''}"
+                        disabled={day.remaining <= 0}
+                        title={day.remaining <= 0 ? 'full' : undefined}
+                        onclick={() => (selectedDay = day.date)}
+                    >
+                        {day.label.slice(0, 3)} {shortDate(day.date)}
+                    </button>
+                {/each}
+            </div>
+
+            {#if $isAdmin}
+                <label
+                    class="mb-1 mt-2 block text-xs font-medium text-muted-foreground"
+                    for="strava-strip-admin-date"
+                >
+                    Which day? <span class="opacity-70">(admin — any date)</span>
+                </label>
+                <input
+                    id="strava-strip-admin-date"
+                    type="date"
+                    class="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                    bind:value={selectedDay}
+                />
+            {/if}
+
+            {#if selectedUsage}
+                <p class="mt-2 text-xs text-muted-foreground">
+                    {#if isUnlimitedQuota(selectedUsage.remaining, selectedUsage.count)}
+                        Unlimited · {selectedUsage.label}
+                    {:else}
+                        {selectedUsage.remaining} of {selectedUsage.count +
+                            selectedUsage.remaining} left · {selectedUsage.label}
+                    {/if}
+                </p>
+            {/if}
+
+            {#if popoverError}
+                <p class="mt-2 text-sm text-destructive">{popoverError}</p>
+            {/if}
+
+            <div class="mt-3 flex items-center justify-end gap-2">
+                {#if popoverMode === 'assign' && openActivity?.fileId}
+                    <button
+                        type="button"
+                        class="mr-auto rounded-md px-2 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 {removeArmed
+                            ? 'bg-destructive/15 text-destructive'
+                            : 'text-destructive/80 hover:bg-destructive/10'}"
+                        disabled={removing || confirming}
+                        onclick={() => void removeOpenImport()}
+                    >
+                        {#if removing}
+                            <LoaderCircle size={12} class="inline animate-spin" /> Removing…
+                        {:else if removeArmed}
+                            Really remove? This deletes the run.
+                        {:else}
+                            Remove this import
+                        {/if}
+                    </button>
+                {/if}
+                <button
+                    type="button"
+                    class="rounded-md border px-3 py-1.5 text-sm transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={confirming}
+                    onclick={closePopover}
+                >
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    class="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                    style="background:#fc4c02"
+                    disabled={confirming || !selectedDay || capped}
+                    onclick={() => void confirmPopover()}
+                >
+                    {#if confirming}
+                        <LoaderCircle size={14} class="animate-spin" />
+                        {popoverMode === 'assign' ? 'Saving…' : 'Importing…'}
+                    {:else}
+                        {popoverMode === 'assign' ? 'Save day' : 'Import run'}
+                    {/if}
+                </button>
+            </div>
+        </div>
+    {/if}
 {/if}
+
+<svelte:window
+    onkeydown={(e) => {
+        if (e.key === 'Escape' && openActivityId !== null) closePopover();
+    }}
+/>
