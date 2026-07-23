@@ -21,7 +21,9 @@ const region = process.env.NEXT_PUBLIC_REGION_SHORT || "use1";
 // Button `as="a"` (raw DOM anchor — HeroUIProvider's useHref/basePath does
 // NOT apply, unlike Link/DropdownItem).
 const whoamiUrl = isDev ? "/whoami" : `/${region}/whoami`;
-const routesUrl = isDev ? "/routes" : `/${region}/routes`;
+// Routes live in the gpx.studio editor (gpx.defcon.run), not run.human — the
+// local /routes page no longer exists, so the old region-relative href 404'd.
+const routesUrl = "https://gpx.defcon.run/";
 
 function LoginContent() {
   const [mounted, setMounted] = useState(false);
@@ -102,6 +104,8 @@ function WelcomeContent({ userName }: { userName: string }) {
           className="w-full"
           href={routesUrl}
           as="a"
+          target="_blank"
+          rel="noopener noreferrer"
           endContent={<ChevronRight className="w-4 h-4" />}
         >
           Routes
