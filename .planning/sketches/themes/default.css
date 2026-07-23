@@ -1,0 +1,50 @@
+/* defcon.run sketch theme — hacker terminal / clearance vibe.
+   Matches run.human dark UI + the styled QR palette (ink #111118, magenta #c4157a). */
+:root {
+  /* Colors */
+  --color-bg: #0a0a0f;
+  --color-surface: #14141c;
+  --color-surface-2: #1b1b26;
+  --color-border: #2a2a38;
+  --color-text: #e8e8f0;
+  --color-text-muted: #8b8b9c;
+  --color-primary: #c4157a;
+  --color-primary-hover: #e02a92;
+  --color-accent: #33ff99;   /* terminal green — clearance/level readouts */
+  --color-amber: #ffb347;    /* mid-tier warmth */
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --qr-ink: #111118;
+  --qr-magenta: #c4157a;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  --text-xs: 0.72rem;
+  --text-sm: 0.85rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.3rem;
+  --text-2xl: 1.6rem;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Shapes */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Glows (tier flair) */
+  --glow-1: 0 0 6px rgba(196, 21, 122, 0.35);
+  --glow-2: 0 0 14px rgba(196, 21, 122, 0.55);
+  --glow-3: 0 0 26px rgba(196, 21, 122, 0.75), 0 0 60px rgba(196, 21, 122, 0.3);
+  --glow-green: 0 0 10px rgba(51, 255, 153, 0.5);
+}
