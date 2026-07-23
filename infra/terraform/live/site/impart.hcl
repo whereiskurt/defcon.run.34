@@ -20,6 +20,12 @@ locals {
   impart = {
     enabled = true
 
+    # Gate for the global/impart provider unit (inert scaffold from the
+    # 2026-07-22 spike). Flip to true ONLY after minting an Impart API token
+    # and storing it as impart_api_token in .secrets.sops.json — see
+    # docs/superpowers/specs/2026-07-22-impart-terraform-provider-findings.md.
+    provider_managed = false
+
     # Impart gateway egress IPs allowed to reach the ALB on 443
     # (alongside the CloudFront origin-facing prefix list — both stay open)
     alb_ingress_cidrs = [
@@ -46,9 +52,9 @@ locals {
         enforce_alb_header = true
       }
       run = {
-        dns_name           = "run-defconrun-n1xdxk.impartcloud.net"
-        state              = "on"
-        canary_path        = "/hello" # run.human health endpoint (no region prefix)
+        dns_name    = "run-defconrun-n1xdxk.impartcloud.net"
+        state       = "on"
+        canary_path = "/hello" # run.human health endpoint (no region prefix)
         # 2026-07-22: first enforce attempt 404'd run (gateway inject not
         # published); verified fixed via ALB shadow-rule marker test before
         # this second flip.
