@@ -172,10 +172,10 @@ export default function CtfOtpEnroll({ otpauth, nextFlag, flagName }: Props) {
         className="font-museo text-lg font-semibold"
         style={{ color: B.mint, lineHeight: 1.3 }}
       >
-        {flagName ? `✓ Correct — ${flagName} solved` : "✓ Correct"}
+        {flagName ? `✓ Correct - ${flagName} solved` : "✓ Correct"}
       </h3>
 
-      {/* QR on a fixed white quiet zone — high contrast regardless of theme. The
+      {/* QR on a fixed white quiet zone - high contrast regardless of theme. The
           quiet-zone card + <img> are UNCHANGED (D2); framing is a rounded border
           + a soft OUTER glow only. Modules and pupils are never touched. */}
       <div
@@ -247,7 +247,7 @@ export default function CtfOtpEnroll({ otpauth, nextFlag, flagName }: Props) {
             <span aria-hidden="true">Next</span>
           </div>
 
-          {/* Gradient countdown bar — REPLACES the plain "New code in Ns" text line.
+          {/* Gradient countdown bar - REPLACES the plain "New code in Ns" text line.
               Width is driven off the EXISTING `remaining`/`period` state (no new
               timer). The bar is an accessible progressbar so the countdown stays
               available to AT after the visible text line is gone. */}
@@ -284,7 +284,7 @@ export default function CtfOtpEnroll({ otpauth, nextFlag, flagName }: Props) {
           <span className="font-mono" style={{ color: B.ink }}>
             {parsed.algorithm}
           </span>{" "}
-          — scan the QR or use the setup link, and your authenticator will show the
+          - scan the QR or use the setup link, and your authenticator will show the
           code.
         </p>
       )}

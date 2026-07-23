@@ -166,7 +166,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
                 ecChoice
               )
             );
-            setWarning("Logo image failed to load — previewing without it.");
+            setWarning("Logo image failed to load - previewing without it.");
             return;
           } catch {
             /* fall through to the underlying error */
@@ -201,7 +201,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
             // drop the logo for the whole sheet and warn once
             delete effective.logo;
             if (!logoWarned) {
-              setWarning("Logo image failed to load — sheet generated without it.");
+              setWarning("Logo image failed to load - sheet generated without it.");
               logoWarned = true;
             }
             return renderQrPng(u, effective, px, ec);
@@ -288,7 +288,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
               <option value="">Avery templates…</option>
               {AVERY_INFO.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.id} — {a.desc} ({a.dims})
+                  {a.id} - {a.desc} ({a.dims})
                 </option>
               ))}
             </select>
@@ -397,7 +397,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
             </label>
           </div>
           <p className="text-[11.5px] text-default-400">
-            Uploads stay in your browser — the image is embedded straight into
+            Uploads stay in your browser - the image is embedded straight into
             the PDF, never sent to a server.
           </p>
         </div>
@@ -420,7 +420,7 @@ export default function QrSheetDesigner({ initialUrl }: { initialUrl: string }) 
                 disabled={ecDisabled(e.level)}
                 title={
                   ecDisabled(e.level)
-                    ? "Too little redundancy for a center logo — needs Q or H"
+                    ? "Too little redundancy for a center logo - needs Q or H"
                     : `${e.pct}% of the code can be damaged and still scan`
                 }
                 onClick={() => setEcChoice(e.level)}

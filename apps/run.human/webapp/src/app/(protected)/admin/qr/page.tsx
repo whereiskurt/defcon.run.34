@@ -222,7 +222,7 @@ export default async function QrAdminPage() {
         </div>
       </section>
 
-      {/* Vanity subdomains — Terraform-managed, read-only */}
+      {/* Vanity subdomains - Terraform-managed, read-only */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <h2 className={cls.h2}>Vanity subdomains ({vanity.length})</h2>
@@ -262,7 +262,7 @@ export default async function QrAdminPage() {
           </div>
         </div>
         <p className="text-[11.5px] text-default-400">
-          Terraform-managed — edit{" "}
+          Terraform-managed - edit{" "}
           <code>apps/run.human/webapp/src/data/redirects.json</code> and apply the{" "}
           <code>redirect-rules</code> unit. Not editable here.
         </p>
@@ -270,7 +270,7 @@ export default async function QrAdminPage() {
 
       <p className="text-[11.5px] text-default-400">
         Edits propagate to the live resolver within ~60s (warm cache). CTF rows feed
-        the Phase-5 judge — the resolver forwards <code>/ctf/…</code> without reading
+        the Phase-5 judge - the resolver forwards <code>/ctf/…</code> without reading
         them.
       </p>
     </div>

@@ -46,7 +46,7 @@ export function pickEcLevel(url: string, hasLogo: boolean): EcLevel {
   }
   throw new Error(
     hasLogo
-      ? "URL too long for a QR code with a logo — shorten the URL or remove the logo."
+      ? "URL too long for a QR code with a logo - shorten the URL or remove the logo."
       : "URL too long for a QR code."
   );
 }
@@ -68,7 +68,7 @@ export function effectiveEcLevel(
     qrLib.create(url, { errorCorrectionLevel: choice });
   } catch {
     throw new Error(
-      `URL too long for a QR code at level ${choice} — pick a lower redundancy level or shorten the URL.`
+      `URL too long for a QR code at level ${choice} - pick a lower redundancy level or shorten the URL.`
     );
   }
   return choice;

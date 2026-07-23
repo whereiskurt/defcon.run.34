@@ -165,7 +165,7 @@ export const Ctf = new Entity(
         properties: {
           secret: { type: "string" }, // base32-encoded shared secret
           digits: { type: "number" }, // code length (default 6)
-          period: { type: "number" }, // seconds per window (default 120 — meshtk)
+          period: { type: "number" }, // seconds per window (default 120 - meshtk)
           algorithm: { type: "string" }, // HMAC hash (SHA1 now; SHA256/512 later)
           skew: { type: "number" }, // ± windows accepted on verify
           // First-come single-use (Phase 65). Absent/false ⇒ SHARED: every player

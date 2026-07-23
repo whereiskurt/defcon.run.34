@@ -42,7 +42,7 @@ export const CtfSolve = new Entity(
     attributes: {
       challenge: { type: "string", required: true },
       user: { type: "string", required: true },
-      ordinal: { type: "number" }, // n — the gap-free solve order
+      ordinal: { type: "number" }, // n - the gap-free solve order
       points: { type: "number" },
       firstBlood: { type: "boolean" },
       tierCeiling: { type: "number" }, // audit: ceiling in effect at solve time

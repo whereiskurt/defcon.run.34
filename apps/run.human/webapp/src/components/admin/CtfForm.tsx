@@ -580,7 +580,7 @@ export default function CtfForm({
         </div>
       ) : null}
 
-      {/* ── Section 1 — Name ─────────────────────────────────────────────── */}
+      {/* ── Section 1 - Name ─────────────────────────────────────────────── */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Challenge name</label>
         <input
@@ -599,7 +599,7 @@ export default function CtfForm({
         </p>
       </div>
 
-      {/* ── Section 2 — Challenge type (presets) ─────────────────────────── */}
+      {/* ── Section 2 - Challenge type (presets) ─────────────────────────── */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Challenge type</label>
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Challenge type">
@@ -630,7 +630,7 @@ export default function CtfForm({
         </p>
       </div>
 
-      {/* ── Section 3 — Answer type ──────────────────────────────────────── */}
+      {/* ── Section 3 - Answer type ──────────────────────────────────────── */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Answer type</label>
         <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Answer type">
@@ -671,7 +671,7 @@ export default function CtfForm({
             <p className="text-[12.5px] text-default-500 mt-2">
               {isEdit && hasStoredAnswer
                 ? "An answer is already set (stored hashed). Leave blank to keep it; type a new answer only to replace it."
-                : "Hashed on save — the plaintext answer is never stored."}
+                : "Hashed on save - the plaintext answer is never stored."}
             </p>
 
             {/* Reward → OTP enrollment (Static only) */}
@@ -705,7 +705,7 @@ export default function CtfForm({
                       onChange={(e) => setRewardOtpauth(e.target.value)}
                       placeholder={
                         isEdit && initial?.hasEffect
-                          ? "•••••• (set — leave blank to keep)"
+                          ? "•••••• (set - leave blank to keep)"
                           : "otpauth://totp/..."
                       }
                     />
@@ -731,7 +731,7 @@ export default function CtfForm({
                   </div>
                   {revealPreview && rewardOtpauth.trim() !== "" ? (
                     <div className={`${cls.rewardCard} flex justify-center`}>
-                      {/* Exactly what the solver sees — reuses the 54-03 renderer. */}
+                      {/* Exactly what the solver sees - reuses the 54-03 renderer. */}
                       <CtfOtpEnroll
                         otpauth={rewardOtpauth.trim()}
                         nextFlag={rewardNextFlag.trim() || undefined}
@@ -752,7 +752,7 @@ export default function CtfForm({
               onChange={(e) => setOtpSecret(e.target.value)}
               placeholder={
                 isEdit && hasOtpSecret
-                  ? "•••••• (set — leave blank to keep)"
+                  ? "•••••• (set - leave blank to keep)"
                   : "otpauth://totp/..."
               }
             />
@@ -775,7 +775,7 @@ export default function CtfForm({
             <p className="text-[12.5px] text-default-500 mt-2">
               The runner submits the current 6-digit code from their authenticator. The
               shared secret is stored so the judge can verify it, and stays hidden after
-              you save — use <span className="font-semibold">Reveal secret</span> below to
+              you save - use <span className="font-semibold">Reveal secret</span> below to
               view or re-share the enrollment seed.
             </p>
             {/* First-come single-use (Phase 65). Off ⇒ shared: every player who
@@ -881,7 +881,7 @@ export default function CtfForm({
                           <span className="font-semibold">
                             Google Authenticator ignores the period and assumes 30s
                           </span>{" "}
-                          — for this flag&apos;s {otpSummary?.period ?? 120}s period use a
+                          - for this flag&apos;s {otpSummary?.period ?? 120}s period use a
                           period-aware app (Aegis, 2FAS, FreeOTP).
                         </p>
                       )}
@@ -906,10 +906,10 @@ export default function CtfForm({
             />
             <p className="text-[12.5px] text-default-500 mt-2">
               One code per line. Each code can be claimed once, first-come. Codes are
-              hashed on save — they are never stored in plaintext, so there is no
+              hashed on save - they are never stored in plaintext, so there is no
               &ldquo;Reveal secret&rdquo; here: keep your own copy of the pool.
             </p>
-            {/* Read-only pool status (edit only) — aggregate counts, never a code.
+            {/* Read-only pool status (edit only) - aggregate counts, never a code.
                 On create there is no pool yet, so show the empty-state hint. */}
             {initial?.codeCounts ? (
               <p className="text-[13px] text-default-500 mt-2.5">
@@ -924,14 +924,14 @@ export default function CtfForm({
               </p>
             ) : (
               <p className="text-[12.5px] text-default-400 mt-2.5 italic">
-                Paste codes above — they&apos;ll be hashed and added when you save.
+                Paste codes above - they&apos;ll be hashed and added when you save.
               </p>
             )}
           </div>
         )}
       </div>
 
-      {/* ── Section 4 — Scoring window & limits ──────────────────────────── */}
+      {/* ── Section 4 - Scoring window & limits ──────────────────────────── */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Scoring window &amp; limits</label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -968,7 +968,7 @@ export default function CtfForm({
               onChange={(e) => setGlobalMax(e.target.value)}
             />
             <p className="text-[12.5px] text-default-500 mt-1.5">
-              Hard global cutoff — flag stops scoring for everyone after this many
+              Hard global cutoff - flag stops scoring for everyone after this many
               solves. Blank / 0 = unlimited. (Different from Max solves, which is the
               scoring-curve denominator.)
             </p>
@@ -982,7 +982,7 @@ export default function CtfForm({
         </p>
 
         {/* Day/time/tz scoring window (CTFT-11). Off ⇒ no scoreWindow persisted
-            (always-open). A closed window is enforced SILENTLY in the judge — there
+            (always-open). A closed window is enforced SILENTLY in the judge - there
             is deliberately no player-facing "come back later" surface. */}
         <div className="mt-3.5 rounded-lg border border-divider bg-content2 p-3">
           <label className="flex gap-2 items-center text-sm">
@@ -997,12 +997,12 @@ export default function CtfForm({
           </label>
           <p className="text-[12.5px] text-default-500 mt-2">
             Only credit solves during this window. Outside it, a correct answer silently
-            doesn&apos;t score — players can&apos;t tell the window is closed.
+            doesn&apos;t score - players can&apos;t tell the window is closed.
           </p>
 
           {windowEnabled ? (
             <div className="mt-3 flex flex-col gap-3.5">
-              {/* Quick set — DEF CON run hours (accent, presets stay editable) */}
+              {/* Quick set - DEF CON run hours (accent, presets stay editable) */}
               <div>
                 <button
                   type="button"
@@ -1098,7 +1098,7 @@ export default function CtfForm({
         </div>
       </div>
 
-      {/* ── Section 5 — Unlock & chaining ────────────────────────────────── */}
+      {/* ── Section 5 - Unlock & chaining ────────────────────────────────── */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Unlock &amp; chaining</label>
         <label className={cls.label}>Hidden until flag</label>
@@ -1110,11 +1110,11 @@ export default function CtfForm({
         />
         <p className="text-[12.5px] text-default-500 mt-2">
           This flag stays hidden and non-scoring until the player has scored the named
-          flag. Renaming that flag breaks the chain — update both together.
+          flag. Renaming that flag breaks the chain - update both together.
         </p>
       </div>
 
-      {/* ── Section 6 — Advanced (always editable, collapsible) ──────────── */}
+      {/* ── Section 6 - Advanced (always editable, collapsible) ──────────── */}
       <div className={cls.card}>
         <button
           type="button"
@@ -1214,7 +1214,7 @@ export default function CtfForm({
 
         {tiers.length === 0 ? (
           <p className="text-[13px] text-default-400">
-            No tiers — scoring uses Point max across the whole window.
+            No tiers - scoring uses Point max across the whole window.
           </p>
         ) : (
           <div className="flex flex-col gap-2.5">
@@ -1272,7 +1272,7 @@ export default function CtfForm({
           </div>
         )}
         <p className="text-[12.5px] text-default-500 mt-2.5">
-          Most a solve is worth while this window is active — replaces Point max.
+          Most a solve is worth while this window is active - replaces Point max.
         </p>
       </div>
 
@@ -1296,7 +1296,7 @@ export default function CtfForm({
               onChange={(e) => setRateLimitWindow(e.target.value)}
             />
             <p className="text-[12.5px] text-default-500 mt-1.5">
-              N wrong guesses per X seconds — not a solve limit.
+              N wrong guesses per X seconds - not a solve limit.
             </p>
           </div>
         </div>
@@ -1364,7 +1364,7 @@ export default function CtfForm({
                   </div>
                 </div>
                 <div className={`${cls.rewardCard} flex justify-center`}>
-                  {/* Exactly what the solver sees — reuses the 54-03 renderer. */}
+                  {/* Exactly what the solver sees - reuses the 54-03 renderer. */}
                   <CtfOtpEnroll
                     otpauth={revealedEnroll.otpauth}
                     nextFlag={revealedEnroll.nextFlag}
@@ -1375,7 +1375,7 @@ export default function CtfForm({
                     <span className="font-semibold">
                       Google Authenticator ignores the period and assumes 30s
                     </span>{" "}
-                    — for this {revealedEnrollPeriod}s enrollment use a period-aware app
+                    - for this {revealedEnrollPeriod}s enrollment use a period-aware app
                     (Aegis, 2FAS, FreeOTP).
                   </p>
                 ) : null}
@@ -1406,7 +1406,7 @@ export default function CtfForm({
         ) : null}
       </div>
 
-      {/* ── Section 7 — Live scoring preview ─────────────────────────────── */}
+      {/* ── Section 7 - Live scoring preview ─────────────────────────────── */}
       <div className={cls.cardPad}>
         <label className={cls.label}>Live scoring preview</label>
         <p className="text-[12.5px] text-default-500 mb-3">
@@ -1416,7 +1416,7 @@ export default function CtfForm({
           <div className="mb-3 flex items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/10 px-3 py-2">
             <span className={cls.chip}>window-gated</span>
             <span className="text-[12px] text-secondary">
-              scores only inside the set window — the point value is unchanged
+              scores only inside the set window - the point value is unchanged
             </span>
           </div>
         ) : null}

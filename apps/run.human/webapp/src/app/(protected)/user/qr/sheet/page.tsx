@@ -42,7 +42,7 @@ export default async function UserQrSheetPage({
           QR sheet designer<span className="teal-dot">.</span>
         </h1>
         <p className={cls.sub}>
-          Style a QR code and download a printable US-Letter PDF — grids with
+          Style a QR code and download a printable US-Letter PDF - grids with
           fold lines, or Avery label stock. Everything renders in your browser.
         </p>
       </div>

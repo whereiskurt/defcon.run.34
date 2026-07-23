@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     self: { status: 400, message: "You cannot scan your own QR code!" },
     already_today: {
       status: 409,
-      message: "Already connected today — find new rabbits!",
+      message: "Already connected today - find new rabbits!",
     },
     cap: { status: 429, message: "Daily connection limit reached." },
   };

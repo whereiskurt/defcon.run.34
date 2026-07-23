@@ -116,7 +116,7 @@ export function contrastWarning(style: QrStyle): string | null {
   const gapModules = bg - relativeLuminance(style.moduleColor);
   const gapEyes = bg - relativeLuminance(style.eyeColor);
   if (gapModules < 0.45 || gapEyes < 0.45) {
-    return "Low contrast: scanners want dark modules and eyes on a light background — this combination may not scan reliably.";
+    return "Low contrast: scanners want dark modules and eyes on a light background - this combination may not scan reliably.";
   }
   return null;
 }

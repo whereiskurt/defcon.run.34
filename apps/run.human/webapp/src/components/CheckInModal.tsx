@@ -324,7 +324,7 @@ export default function CheckInModal({
                       <SelectItem key="private">Private</SelectItem>
                     </Select>
                   </div>
-                  {/* Pin personalization — only meaningful for public check-ins */}
+                  {/* Pin personalization - only meaningful for public check-ins */}
                   {!isPrivate && pinIcons.length > 0 && (
                     <div className="flex flex-col gap-2">
                       <button

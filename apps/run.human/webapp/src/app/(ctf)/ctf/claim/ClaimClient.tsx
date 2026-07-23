@@ -52,7 +52,7 @@ export default function ClaimClient({ mode, result, nonce, clearNonce }: Props) 
                 Flag captured!
               </h2>
               <p className="text-sm text-default-500 max-w-xs">
-                Sign in to claim your points — we&apos;ve saved this flag for you.
+                Sign in to claim your points - we&apos;ve saved this flag for you.
               </p>
               <Button
                 variant="solid"
@@ -92,7 +92,7 @@ function ResultBody({ result }: { result: JudgeResult }) {
     const reward = asOtpEnrollEffect(result.effect);
     return (
       <>
-        {/* Celebration header — tightened into one cluster so it reads as a single
+        {/* Celebration header - tightened into one cluster so it reads as a single
             unit above the (self-contained dark) reward reveal it frames. */}
         <div className="flex flex-col items-center gap-2">
           <Trophy className="w-10 h-10 text-primary" />
@@ -134,7 +134,7 @@ function ResultBody({ result }: { result: JudgeResult }) {
           Flag captured!
         </h2>
         <p className="text-sm text-default-500 max-w-xs">
-          This one&apos;s already been claimed by enough runners — points are
+          This one&apos;s already been claimed by enough runners - points are
           capped, but nice grab.
         </p>
       </>

@@ -190,7 +190,7 @@ function NeonSignBanner() {
             Sunrise at the Sign
           </span>
           <span className="text-[11px] text-white/60 truncate">
-            Beat the heat, catch the neon — routes on gpx.defcon.run
+            Beat the heat, catch the neon - routes on gpx.defcon.run
           </span>
         </div>
         <Button
@@ -212,7 +212,7 @@ function NeonSignBanner() {
 function WelcomeContent({ userName }: { userName: string }) {
   return (
     <div className="flex flex-col gap-2.5 py-4 animate-slide-up">
-      {/* Full-bleed hero — DC33 group photo, welcome + CTAs inside. */}
+      {/* Full-bleed hero - DC33 group photo, welcome + CTAs inside. */}
       <Card isFooterBlurred className="w-full h-[420px]">
         <Image
           removeWrapper
@@ -225,7 +225,7 @@ function WelcomeContent({ userName }: { userName: string }) {
             Welcome back, {userName}
           </h1>
           <p className="text-white/80 text-sm max-w-md drop-shadow-[0_1px_8px_rgba(0,0,0,0.8)]">
-            Hackers who run. Rally 0600 daily at LVCC West — routes, rabbits,
+            Hackers who run. Rally 0600 daily at LVCC West - routes, rabbits,
             and the mesh await.
           </p>
           <div className="flex gap-3 flex-wrap justify-center">
@@ -255,7 +255,7 @@ function WelcomeContent({ userName }: { userName: string }) {
         </div>
         <CardFooter className="absolute bg-black/20 bottom-0 z-10 border-t-1 border-white/15">
           <span className="text-[11px] text-white/70">
-            📸 DC33 — last year&apos;s crew at the finish
+            📸 DC33 - last year&apos;s crew at the finish
           </span>
         </CardFooter>
       </Card>
@@ -268,7 +268,7 @@ function WelcomeContent({ userName }: { userName: string }) {
           imgSrc={asset("/dashboard/NewMeetPoint.jpg")}
           imgAlt="Meeting point at LVCC West"
           footTitle="🚨 Rally Point 🚨"
-          footSub="Meet here at 0600 daily — LVCC West"
+          footSub="Meet here at 0600 daily - LVCC West"
           ctaLabel="Map"
           ctaHref={meetupMapUrl}
         />
