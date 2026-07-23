@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch 004 — Landing Hero Tiles (DC33-style)</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    /* run.human landing accents (mint primary from the live site) */
+    --mint: #5cd3a4;
+    --mint-hover: #74e0b6;
+    --tile-h: 300px;
+  }
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    padding-top: 52px; /* variant nav */
+    min-height: 100vh;
+  }
+
+  /* ── variant nav ─────────────────────────────────────── */
+  #variant-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+    background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+    padding: 10px 16px; display: flex; gap: 8px; align-items: center;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .variant-tab {
+    background: var(--color-surface-2); color: var(--color-text-muted);
+    border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+    padding: 6px 14px; cursor: pointer; font: inherit; transition: all .15s ease;
+  }
+  .variant-tab:hover { color: var(--color-text); border-color: var(--mint); }
+  .variant-tab.active { background: var(--mint); color: #06231a; font-weight: 700; border-color: var(--mint); }
+  .variant { display: none; }
+  .variant.active { display: block; }
+
+  /* ── site chrome mimic ───────────────────────────────── */
+  .viewport { margin: 0 auto; transition: max-width .25s ease; }
+  .sitenav {
+    display: flex; align-items: center; gap: 26px;
+    padding: 18px 28px; font-size: 15px; color: var(--color-text-muted);
+  }
+  .sitenav .brand { font-weight: 800; font-size: 19px; color: #fff; letter-spacing: -.02em; }
+  .sitenav .brand em { color: var(--mint); font-style: normal; }
+  .welcome {
+    text-align: center; font-size: 30px; font-weight: 800; margin: 26px 0 22px;
+  }
+
+  /* ── tile grammar (DC33 HeroUI card pastiche) ───────── */
+  .grid {
+    display: grid; grid-template-columns: repeat(12, 1fr);
+    gap: 10px; padding: 0 20px 40px; margin: 0 auto;
+  }
+  .tile {
+    position: relative; overflow: hidden; border-radius: var(--radius-lg);
+    height: var(--tile-h); background: var(--color-surface-2);
+    cursor: pointer; grid-column: span 12;
+  }
+  .tile img, .tile svg.fill {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; transition: transform .45s ease, filter .45s ease;
+    filter: saturate(.9);
+  }
+  .tile:hover img, .tile:hover svg.fill { transform: scale(1.045); filter: saturate(1.05); }
+  .tile .head {
+    position: absolute; z-index: 2; top: 12px; left: 12px; display: flex;
+    flex-direction: column; align-items: flex-start; gap: 4px;
+  }
+  .eyebrow {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .14em;
+    text-transform: uppercase; color: rgba(255,255,255,.72);
+    background: rgba(0,0,0,.6); padding: 3px 8px; border-radius: 3px;
+  }
+  .tile-title {
+    font-size: 19px; font-weight: 800; color: rgba(255,255,255,.94);
+    background: rgba(0,0,0,.35); padding: 3px 8px; border-radius: 3px;
+  }
+  .foot {
+    position: absolute; z-index: 2; left: 0; right: 0; bottom: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; gap: 10px;
+    background: rgba(10,10,15,.42); backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255,255,255,.14);
+  }
+  .foot .fl { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .foot .ft { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.92); white-space: nowrap; }
+  .foot .fs { font-size: 11.5px; color: rgba(255,255,255,.66); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cta {
+    flex-shrink: 0; font: 700 12px/1 var(--font-sans); color: #06231a;
+    background: var(--mint); border: none; border-radius: var(--radius-sm);
+    padding: 8px 14px; cursor: pointer; transition: all .15s ease;
+  }
+  .cta:hover { background: var(--mint-hover); transform: translateY(-1px); }
+  .cta.ghost { background: rgba(255,255,255,.14); color: #fff; }
+  .cta.ghost:hover { background: rgba(255,255,255,.26); }
+  .tile.dark img { filter: saturate(.7) brightness(.9); }
+
+  /* span helpers (desktop) */
+  @media (min-width: 720px) {
+    .s4 { grid-column: span 4; }
+    .s5 { grid-column: span 5; }
+    .s6 { grid-column: span 6; }
+    .s7 { grid-column: span 7; }
+    .s8 { grid-column: span 8; }
+    .s12 { grid-column: span 12; }
+    .tall { height: calc(var(--tile-h) * 2 + 10px); grid-row: span 2; }
+    .short { height: 170px; }
+  }
+
+  /* action buttons row (variant A keeps the existing buttons) */
+  .actions { display: flex; flex-direction: column; gap: 10px; max-width: 330px; margin: 0 auto 26px; }
+  .btn-primary, .btn-flat {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    height: 48px; border-radius: 14px; font-size: 16px; font-weight: 700;
+    border: none; cursor: pointer; transition: all .15s ease; width: 100%;
+  }
+  .btn-primary { background: var(--mint); color: #06231a; }
+  .btn-primary:hover { background: var(--mint-hover); }
+  .btn-flat { background: rgba(255,255,255,.08); color: var(--color-text); font-weight: 600; }
+  .btn-flat:hover { background: rgba(255,255,255,.16); }
+
+  /* hero (variant B) */
+  .hero { position: relative; overflow: hidden; border-radius: var(--radius-lg); height: 420px; margin: 0 20px 10px; }
+  .hero img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(.6) saturate(.85); }
+  .hero .inner {
+    position: relative; z-index: 2; height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 20px;
+  }
+  .hero h1 { font-size: 34px; font-weight: 800; text-shadow: 0 2px 18px rgba(0,0,0,.8); }
+  .hero .sub { color: rgba(255,255,255,.78); font-size: 15px; max-width: 460px; text-shadow: 0 1px 8px rgba(0,0,0,.8); }
+  .hero .row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .hero .row .btn-primary, .hero .row .btn-flat { width: 190px; }
+
+  /* neon vegas sign tile */
+  .neon-bg { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, #14202e 0%, #0a0e14 70%); }
+  .neon-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .neon-wrap svg { width: min(78%, 340px); height: auto; filter: drop-shadow(0 0 14px rgba(92,211,164,.45)); transition: transform .45s ease; }
+  .tile:hover .neon-wrap svg { transform: scale(1.05); }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--color-surface-2); border: 1px solid var(--mint); color: var(--color-text);
+    font-family: var(--font-mono); font-size: 12.5px; padding: 10px 18px; border-radius: 8px;
+    opacity: 0; pointer-events: none; transition: all .25s ease; z-index: 10000;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* sketch toolbar */
+  #sketch-tools {
+    position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+    font-family: var(--font-mono); font-size: 11.5px;
+    background: rgba(0,0,0,.75); color: #fff; padding: 8px 12px; border-radius: 8px;
+    opacity: .35; transition: opacity .2s; display: flex; gap: 8px; align-items: center;
+  }
+  #sketch-tools:hover { opacity: 1; }
+  #sketch-tools button {
+    background: #26262f; color: #ddd; border: 1px solid #3a3a46; border-radius: 4px;
+    font: inherit; padding: 3px 8px; cursor: pointer;
+  }
+  #sketch-tools button:hover { border-color: var(--mint); color: #fff; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <strong style="color:var(--color-text);margin-right:6px">004 · landing hero tiles</strong>
+  <button class="variant-tab active" onclick="showVariant('a', this)">A: DC33 Classic 900</button>
+  <button class="variant-tab" onclick="showVariant('b', this)">B: Full-Bleed Hero + Strip</button>
+  <button class="variant-tab" onclick="showVariant('c', this)">C: Bento Mix 1100</button>
+</div>
+
+<!-- ══════════════ VARIANT A — DC33 Classic ══════════════ -->
+<div id="variant-a" class="variant active">
+  <div class="viewport" data-vp>
+    <div class="sitenav"><span class="brand">defcon<em>.run</em></span><span>🗺 Maps</span><span>📻 Meshtastic</span><span>🏃 Bib / Donate $</span><span>🛡 Admin</span></div>
+    <div class="welcome">Welcome back, KPH</div>
+    <div class="actions">
+      <button class="btn-primary" onclick="toast('→ /use1/whoami')">Who Am I ›</button>
+      <button class="btn-flat" onclick="toast('→ gpx.defcon.run (new tab)')">Routes ›</button>
+    </div>
+    <div class="grid" style="max-width:900px">
+      <div class="tile s8" onclick="toast('→ OpenStreetMap rally point')">
+        <img src="assets/NewMeetPoint.jpg" alt="LVCC West Hall meetup">
+        <div class="head"><span class="eyebrow">Meetup Spot</span><span class="tile-title">Early Rabbit Gets the Bib</span></div>
+        <div class="foot"><div class="fl"><span class="ft">🚨 Rally Point 🚨</span><span class="fs">Meet here at 0600 daily — LVCC West</span></div><button class="cta">Open Street Map</button></div>
+      </div>
+      <div class="tile s4" onclick="toast('→ gpx.defcon.run')">
+        <img src="assets/VegasRunMap.png" alt="Vegas run map">
+        <div class="head"><span class="eyebrow">Routes</span><span class="tile-title">Plan Your Run</span></div>
+        <div class="foot"><div class="fl"><span class="ft">gpx.defcon.run</span><span class="fs">Official routes + editor</span></div><button class="cta">Open ↗</button></div>
+      </div>
+      <div class="tile s4 dark" onclick="toast('→ Double Down route')">
+        <img src="assets/DoubleDownSaloon.jpg" alt="Double Down Saloon">
+        <div class="head"><span class="eyebrow">Social Run</span><span class="tile-title">Double Down Saloon</span></div>
+        <div class="foot"><div class="fl"><span class="ft">Shut Up and Drink</span><span class="fs">The happiest place on Earth</span></div><button class="cta ghost">Route ↗</button></div>
+      </div>
+      <div class="tile s4" onclick="toast('→ ReBar route')">
+        <img src="assets/Rebar.jpg" alt="ReBar Arts District">
+        <div class="head"><span class="eyebrow">Social Run</span><span class="tile-title">ReBar</span></div>
+        <div class="foot"><div class="fl"><span class="ft">Arts District</span><span class="fs">Everything's for sale</span></div><button class="cta ghost">Route ↗</button></div>
+      </div>
+      <div class="tile s4" onclick="toast('→ LV Sign sunrise route')">
+        <div class="neon-bg"></div>
+        <div class="neon-wrap">
+          <svg viewBox="0 0 200 150">
+            <ellipse cx="100" cy="60" rx="78" ry="46" fill="none" stroke="#5cd3a4" stroke-width="3"/>
+            <circle cx="100" cy="16" r="7" fill="#ffd75e"/>
+            <circle cx="58" cy="26" r="4" fill="#ff6a9a"/><circle cx="142" cy="26" r="4" fill="#ff6a9a"/>
+            <text x="100" y="46" text-anchor="middle" font-family="cursive" font-size="12" fill="#fff">Welcome to Fabulous</text>
+            <text x="100" y="70" text-anchor="middle" font-family="Impact, sans-serif" font-size="20" fill="#5cd3a4">DEFCON.RUN</text>
+            <text x="100" y="88" text-anchor="middle" font-family="cursive" font-size="11" fill="#ffd75e">Las Vegas</text>
+            <rect x="92" y="106" width="6" height="34" fill="#3a4a5a"/><rect x="102" y="106" width="6" height="34" fill="#3a4a5a"/>
+          </svg>
+        </div>
+        <div class="head"><span class="eyebrow">Sunrise Run</span></div>
+        <div class="foot"><div class="fl"><span class="ft">The Sign</span><span class="fs">Thu–Sun at dawn 🌅</span></div><button class="cta ghost">Route ↗</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ VARIANT B — Hero + Strip ══════════════ -->
+<div id="variant-b" class="variant">
+  <div class="viewport" data-vp style="max-width:1050px">
+    <div class="sitenav"><span class="brand">defcon<em>.run</em></span><span>🗺 Maps</span><span>📻 Meshtastic</span><span>🏃 Bib / Donate $</span><span>🛡 Admin</span></div>
+    <div class="hero">
+      <img src="assets/defcongroup.jpg" alt="DC33 group run">
+      <div class="inner">
+        <h1>Welcome back, KPH</h1>
+        <div class="sub">Hackers who run. Rally 0600 daily at LVCC West — routes, rabbits, and the mesh await.</div>
+        <div class="row">
+          <button class="btn-primary" onclick="toast('→ /use1/whoami')">Who Am I ›</button>
+          <button class="btn-flat" onclick="toast('→ gpx.defcon.run (new tab)')" style="backdrop-filter:blur(6px)">Routes ›</button>
+        </div>
+      </div>
+      <div class="foot" style="justify-content:flex-start"><span class="fs">📸 DC33 — last year's crew at the finish</span></div>
+    </div>
+    <div class="grid" style="max-width:1050px">
+      <div class="tile s4" onclick="toast('→ OpenStreetMap rally point')">
+        <img src="assets/NewMeetPoint.jpg" alt="LVCC West meetup">
+        <div class="head"><span class="eyebrow">Meetup Spot</span><span class="tile-title">Rally 0600</span></div>
+        <div class="foot"><div class="fl"><span class="ft">LVCC West</span><span class="fs">Under the rabbit glass</span></div><button class="cta">Map</button></div>
+      </div>
+      <div class="tile s4" onclick="toast('→ gpx.defcon.run')">
+        <img src="assets/VegasRunMap.png" alt="Vegas run map">
+        <div class="head"><span class="eyebrow">Routes</span><span class="tile-title">Plan Your Run</span></div>
+        <div class="foot"><div class="fl"><span class="ft">gpx.defcon.run</span><span class="fs">Editor + eggs</span></div><button class="cta">Open ↗</button></div>
+      </div>
+      <div class="tile s4 dark" onclick="toast('→ Double Down route')">
+        <img src="assets/DoubleDownSaloon.jpg" alt="Double Down Saloon">
+        <div class="head"><span class="eyebrow">Social Run</span><span class="tile-title">Double Down</span></div>
+        <div class="foot"><div class="fl"><span class="ft">Shut Up and Drink</span><span class="fs">Noir bridge ends here</span></div><button class="cta ghost">Route ↗</button></div>
+      </div>
+      <div class="tile s12 short" onclick="toast('→ LV Sign sunrise route')">
+        <div class="neon-bg"></div>
+        <div class="neon-wrap">
+          <svg viewBox="0 0 200 110" style="width:min(50%,260px)">
+            <ellipse cx="100" cy="48" rx="76" ry="40" fill="none" stroke="#5cd3a4" stroke-width="3"/>
+            <circle cx="100" cy="10" r="6" fill="#ffd75e"/>
+            <text x="100" y="38" text-anchor="middle" font-family="cursive" font-size="11" fill="#fff">Welcome to Fabulous</text>
+            <text x="100" y="60" text-anchor="middle" font-family="Impact, sans-serif" font-size="18" fill="#5cd3a4">DEFCON.RUN</text>
+            <text x="100" y="76" text-anchor="middle" font-family="cursive" font-size="10" fill="#ffd75e">Las Vegas</text>
+          </svg>
+        </div>
+        <div class="foot"><div class="fl"><span class="ft">Sunrise at the Sign</span><span class="fs">Thu–Sun 0600 — beat the heat, catch the neon</span></div><button class="cta ghost">Route ↗</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ VARIANT C — Bento Mix ══════════════ -->
+<div id="variant-c" class="variant">
+  <div class="viewport" data-vp style="max-width:1100px">
+    <div class="sitenav"><span class="brand">defcon<em>.run</em></span><span>🗺 Maps</span><span>📻 Meshtastic</span><span>🏃 Bib / Donate $</span><span>🛡 Admin</span></div>
+    <div class="welcome">Welcome back, KPH</div>
+    <div class="grid" style="max-width:1100px">
+      <div class="tile s5 tall" onclick="toast('→ gpx.defcon.run')">
+        <img src="assets/analogmap.jpg" alt="Vegas analog map">
+        <div class="head"><span class="eyebrow">Routes</span><span class="tile-title">The Map Is the Territory</span></div>
+        <div class="foot"><div class="fl"><span class="ft">gpx.defcon.run</span><span class="fs">Official routes, editor, rabbits &amp; ghosts</span></div><button class="cta">Open ↗</button></div>
+      </div>
+      <div class="tile s7" onclick="toast('→ OpenStreetMap rally point')">
+        <img src="assets/NewMeetPoint.jpg" alt="LVCC West meetup">
+        <div class="head"><span class="eyebrow">Meetup Spot</span><span class="tile-title">Early Rabbit Gets the Bib</span></div>
+        <div class="foot"><div class="fl"><span class="ft">🚨 Rally 0600 daily</span><span class="fs">LVCC West, under the rabbit glass</span></div><button class="cta">Street Map</button></div>
+      </div>
+      <div class="tile s4 dark" onclick="toast('→ Double Down route')">
+        <img src="assets/DoubleDownSaloon.jpg" alt="Double Down Saloon">
+        <div class="head"><span class="eyebrow">Social Run</span><span class="tile-title">Double Down</span></div>
+        <div class="foot"><div class="fl"><span class="ft">Shut Up and Drink</span><span class="fs">4640 Paradise Rd</span></div><button class="cta ghost">Route ↗</button></div>
+      </div>
+      <div class="tile s3" onclick="toast('→ LV Sign sunrise route')" style="grid-column:span 3">
+        <div class="neon-bg"></div>
+        <div class="neon-wrap">
+          <svg viewBox="0 0 200 150" style="width:86%">
+            <ellipse cx="100" cy="60" rx="78" ry="46" fill="none" stroke="#5cd3a4" stroke-width="3"/>
+            <circle cx="100" cy="16" r="7" fill="#ffd75e"/>
+            <text x="100" y="46" text-anchor="middle" font-family="cursive" font-size="12" fill="#fff">Welcome to Fabulous</text>
+            <text x="100" y="70" text-anchor="middle" font-family="Impact, sans-serif" font-size="20" fill="#5cd3a4">DEFCON.RUN</text>
+            <text x="100" y="88" text-anchor="middle" font-family="cursive" font-size="11" fill="#ffd75e">Las Vegas</text>
+          </svg>
+        </div>
+        <div class="foot"><div class="fl"><span class="ft">The Sign</span><span class="fs">Dawn runs</span></div></div>
+      </div>
+      <div class="tile s12 short" onclick="toast('→ community / photos')">
+        <img src="assets/defcongroup.jpg" alt="DC33 group" style="object-position:center 30%">
+        <div class="head"><span class="eyebrow">DC33</span></div>
+        <div class="foot"><div class="fl"><span class="ft">Last year we ran together</span><span class="fs">Join the DC34 crew — every morning, every pace</span></div><button class="cta">Bib &amp; Donate</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="sketch-tools">
+  <span>vp:</span>
+  <button onclick="setVp('375px')">📱</button>
+  <button onclick="setVp('768px')">💻</button>
+  <button onclick="setVp('')">🖥</button>
+</div>
+
+<script>
+function showVariant(id, btn) {
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1400);
+}
+function setVp(w) {
+  document.querySelectorAll('[data-vp]').forEach(el => {
+    el.style.maxWidth = w || el.getAttribute('style')?.match(/max-width:(\d+px)/)?.[1] || '';
+    if (!w) el.style.maxWidth = '';
+    else el.style.maxWidth = w;
+  });
+}
+</script>
+</body>
+</html>
