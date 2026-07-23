@@ -44,6 +44,7 @@
     } from '@lucide/svelte';
     import RefreshCueOverlay from '$lib/components/map/RefreshCueOverlay.svelte';
     import { quickStartOpen } from '$lib/stores/quickstart';
+    import { stravaStripExpanded, stravaStripHidden } from '$lib/stores/strava-strip';
     import { isAuthenticated, hasGpxStudioAccess } from '$lib/stores/auth';
     import { map } from '$lib/components/map/map';
     import { editMetadata } from '$lib/components/file-list/metadata/utils.svelte';
@@ -557,10 +558,15 @@
 
 <!-- Mobile-only "Add run" FAB: floats at the map's bottom-right corner (its
      pre-#701 home) so the top menu bar stays a single row on narrow screens.
-     Anchors to the `.grow.relative` map area, above the elevation profile. -->
-{#if $isAuthenticated && $hasGpxStudioAccess}
+     Anchors to the `.grow.relative` map area, above the elevation profile.
+     It rides just above the bottom-docked Strava strip (--dc34-strip-h is the
+     strip's live footprint, 0 when hidden — published by StravaStrip.svelte)
+     and disappears entirely while the strip is expanded: the open strip IS
+     the add-a-run surface, and the FAB used to sit invisible behind it. -->
+{#if $isAuthenticated && $hasGpxStudioAccess && ($stravaStripHidden || !$stravaStripExpanded)}
     <button
-        class="add-run-fab add-run-glow md:hidden absolute bottom-6 right-4 z-30 flex items-center gap-1.5 rounded-full font-semibold px-4 py-2.5 shadow-lg pointer-events-auto"
+        class="add-run-fab add-run-glow md:hidden absolute right-4 z-30 flex items-center gap-1.5 rounded-full font-semibold px-4 py-2.5 shadow-lg pointer-events-auto transition-[bottom] duration-200"
+        style="bottom: max(1.5rem, calc(var(--dc34-strip-h, 0px) + 0.5rem))"
         onclick={() => quickStartOpen.set(true)}
         aria-label="Add run"
     >
