@@ -43,7 +43,7 @@ const PARAMS: Record<BandTier, FlairParams> = {
     ticksOn: 0,
     badgeGlow: 0,
     gold: false,
-    teaser: "scan one runner to enter the board — flair starts at TOP 50%",
+    teaser: "scan one runner to enter the board - flair starts at TOP 50%",
   },
   entered: {
     reactorOpacity: 0,

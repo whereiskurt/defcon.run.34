@@ -53,7 +53,7 @@ export default function QrCardModal({ isOpen, onClose, hash, name, bib, copy }: 
         });
       } catch (e) {
         console.error('QR card preview failed:', e);
-        if (!cancelled) setError('Preview failed — check your connection and reopen.');
+        if (!cancelled) setError('Preview failed - check your connection and reopen.');
       }
     })();
     return () => { cancelled = true; };
@@ -78,7 +78,7 @@ export default function QrCardModal({ isOpen, onClose, hash, name, bib, copy }: 
       onClose();
     } catch (e) {
       console.error('QR card download failed:', e);
-      setError('Download failed — try again or screenshot the QR above.');
+      setError('Download failed - try again or screenshot the QR above.');
     } finally {
       setBusy(null);
     }

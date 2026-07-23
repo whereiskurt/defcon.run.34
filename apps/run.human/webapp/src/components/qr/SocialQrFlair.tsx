@@ -173,7 +173,7 @@ export default function SocialQrFlair({ hash, eqrFallback, social, alt }: Props)
           background: linear-gradient(90deg, transparent, ${p.gold ? "rgba(255,210,87,0.85)" : "rgba(51,255,153,0.8)"}, transparent);
           opacity: ${p.scanOpacity}; ${p.scanHeight > 0 ? `animation: sqf-sweep ${p.gold ? 1.8 : 3.2}s linear infinite;` : ""} }
         @keyframes sqf-sweep { 0% { transform: translateY(0); opacity: 0; } 8% { opacity: ${p.scanOpacity}; } 92% { opacity: ${p.scanOpacity}; } 100% { transform: translateY(220px); opacity: 0; } }
-        .sqf-chip { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 3;
+        .sqf-chip { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 3; white-space: nowrap;
           font-family: ui-monospace, Menlo, monospace; font-size: 10px; letter-spacing: 0.2em; font-weight: 800; color: #1a1405;
           background: linear-gradient(180deg, #ffe9a8, #ffd257); border-radius: 999px; padding: 4px 14px;
           box-shadow: 0 0 16px rgba(255,210,87,0.8); }

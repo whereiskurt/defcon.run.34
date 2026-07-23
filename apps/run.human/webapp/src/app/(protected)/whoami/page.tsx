@@ -158,13 +158,13 @@ export default function WhoAmIPage() {
   const scanCopy = {
     title: copyOr('socialqr.scan.title', 'Scan a runner'),
     hint: copyOr('socialqr.scan.hint', "Point your camera at another runner's QR"),
-    miss: copyOr('socialqr.scan.miss', 'Not a runner QR — keep it in frame'),
+    miss: copyOr('socialqr.scan.miss', 'Not a runner QR - keep it in frame'),
     found: copyOr('socialqr.scan.found', '🐰 Runner found!'),
     claim: copyOr('socialqr.scan.claim', 'Claim connection'),
     again: copyOr('socialqr.scan.again', 'Scan another'),
     unavailable: copyOr(
       'socialqr.scan.unavailable',
-      "Camera unavailable — use your phone's camera app on the QR instead.",
+      "Camera unavailable - use your phone's camera app on the QR instead.",
     ),
     cancel: copyOr('socialqr.scan.cancel', 'Cancel'),
   };
@@ -391,6 +391,13 @@ export default function WhoAmIPage() {
             </button>
             {isQROpen && (
               <div className="flex flex-col items-center mt-3 space-y-3">
+                <Button
+                  color="secondary" variant="flat" fullWidth
+                  startContent={<Camera className="w-4 h-4" />}
+                  onPress={() => setIsScannerOpen(true)}
+                >
+                  {copyOr('socialqr.scan.button', 'Scan a runner')}
+                </Button>
                 {userData.social ? (
                   <SocialQrFlair
                     hash={userData.hash}
@@ -411,27 +418,18 @@ export default function WhoAmIPage() {
                 <p className="text-xs text-default-400 text-center">
                   {copyOr(
                     'socialqr.share.caption',
-                    'Scan another runner to connect — you both score. Your QR levels up as your rank climbs.'
+                    'Scan another runner to connect - you both score. Your QR levels up as your rank climbs.'
                   )}
                 </p>
-                <div className="flex flex-wrap justify-center gap-2">
+                {userData.hash && (
                   <Button
-                    size="sm" color="secondary" variant="flat"
-                    startContent={<Camera className="w-4 h-4" />}
-                    onPress={() => setIsScannerOpen(true)}
+                    size="sm" color="primary" variant="flat"
+                    startContent={<Download className="w-4 h-4" />}
+                    onPress={() => setIsCardModalOpen(true)}
                   >
-                    {copyOr('socialqr.scan.button', 'Scan a runner')}
+                    {copyOr('qrcard.button', 'Save QR card')}
                   </Button>
-                  {userData.hash && (
-                    <Button
-                      size="sm" color="primary" variant="flat"
-                      startContent={<Download className="w-4 h-4" />}
-                      onPress={() => setIsCardModalOpen(true)}
-                    >
-                      {copyOr('qrcard.button', 'Save QR card')}
-                    </Button>
-                  )}
-                </div>
+                )}
                 <QrScannerModal
                   isOpen={isScannerOpen}
                   onClose={() => setIsScannerOpen(false)}
