@@ -17,6 +17,7 @@ import {
   type QrInput,
   type CtfInput,
 } from "@/lib/qr-admin";
+import { revealGhostOtp } from "@/lib/mesh-ghosts";
 
 /**
  * POST /api/admin/qr — QR / CTF admin mutations (Phase-4 admin CRUD).
@@ -36,6 +37,7 @@ import {
  *   - ctf_delete     { challenge: string }  delete a challenge
  *   - ctf_otp_reveal    { challenge: string }  reveal an OTP flag's secret + enroll URL
  *   - ctf_effect_reveal { challenge: string }  reveal a challenge's stored effect payload
+ *   - ghost_otp_reveal  { ghostId: string }    reveal a meshtk ghost's DERIVED TOTP seed
  *
  * QrValidationError → 400; anything else → 500 (logged, generic message).
  */
@@ -51,11 +53,13 @@ interface AdminQrRequest {
     | "ctf_upsert"
     | "ctf_delete"
     | "ctf_otp_reveal"
-    | "ctf_effect_reveal";
+    | "ctf_effect_reveal"
+    | "ghost_otp_reveal";
   qr?: QrInput;
   ctf?: CtfInput;
   code?: string;
   challenge?: string;
+  ghostId?: string;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -97,6 +101,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         // No challenge / no OTP secret → 404 (non-disclosing, same as the gate).
         if (!revealed) return notFound();
         return ok("Revealed OTP secret.", revealed);
+      }
+      case "ghost_otp_reveal": {
+        // Derived meshtk ghost TOTP seed (Phase 67 /admin/ghosts roster) — the
+        // secret the DEPLOYED bot validates, never present in any page payload.
+        if (!body.ghostId) return bad("ghostId is required");
+        const revealed = revealGhostOtp(body.ghostId);
+        // Unknown ghost / no OtpUrl → 404 (non-disclosing, same as the gate).
+        if (!revealed) return notFound();
+        return ok("Revealed ghost OTP seed.", revealed);
       }
       case "ctf_effect_reveal": {
         if (!body.challenge) return bad("challenge is required");

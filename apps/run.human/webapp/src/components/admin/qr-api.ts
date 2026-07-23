@@ -19,6 +19,10 @@ export interface AdminQrResult {
     algorithm?: string;
     // ctf_effect_reveal payload (present only on that action).
     effect?: unknown;
+    // ghost_otp_reveal payload (present only on that action, Phase 67).
+    ghostId?: string;
+    configured?: boolean;
+    committedSecret?: string;
   };
 }
 
