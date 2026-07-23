@@ -68,6 +68,19 @@ const DEFAULT_EGGS: EggModal[] = [
     links: [mapLink(36.1836, -115.1398)],
   },
   {
+    id: "lvcc-doubledown",
+    eyebrow: "Rainbow Bridge",
+    title: "Double Down Saloon",
+    titleUrl: "https://doubledownsaloon.com/",
+    descriptionHtml:
+      "<p>The blacked-out bridge drops you at the <strong>Double Down Saloon</strong> — " +
+      "the self-proclaimed Happiest Place on Earth. 24-hour punk-rock dive, home of the " +
+      "Bacon Martini and Ass Juice. House rule: you puke, you clean.</p>",
+    address: "4640 Paradise Rd, Las Vegas",
+    accent: "#9E9E9E",
+    links: [mapLink(36.1049, -115.1516)],
+  },
+  {
     id: "lvcc-lvsign",
     eyebrow: "Rainbow Bridge",
     title: "Welcome to Fabulous Las Vegas",

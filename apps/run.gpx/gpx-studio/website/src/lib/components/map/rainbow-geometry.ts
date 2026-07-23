@@ -55,6 +55,16 @@ export const WEED_COLORS = [
     '#A6E5A6' // pale bud
 ];
 
+/** Six-band blackout "noir" gradient, near-black→grey (outer→inner). */
+export const NOIR_COLORS = [
+    '#0A0A0A', // near-black
+    '#1C1C1C',
+    '#333333',
+    '#4F4F4F',
+    '#6E6E6E',
+    '#9E9E9E' // ash grey
+];
+
 /**
  * The bridges. Add another rainbow by appending an entry — per-arch `colors`,
  * `requiresUnlock`, and `schedule` are all optional. Coordinates are approximate
@@ -74,6 +84,14 @@ export const RAINBOW_ARCHES: RainbowArch[] = [
         from: [-115.1512, 36.1316], // Las Vegas Convention Center
         to: [-115.1398, 36.1836], // NuWu Cannabis Marketplace
         colors: WEED_COLORS
+    },
+    {
+        // Blacked-out "noir" arch → the Double Down Saloon punk dive (Paradise Rd).
+        // Unlock-gated, revealed together with the other hidden arches.
+        id: 'lvcc-doubledown',
+        from: [-115.1512, 36.1316], // Las Vegas Convention Center
+        to: [-115.1516, 36.1049], // Double Down Saloon
+        colors: NOIR_COLORS
     },
     {
         // Timed pride arch → "Welcome to Fabulous Las Vegas" sign. Publicly
