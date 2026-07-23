@@ -36,6 +36,7 @@
     "husky": "^9.1.7",
     "intl-messageformat": "^10.7.18",
     "jimp": "^1.6.0",
+    "jsqr": "^1.4.0",
     "koa": "^3.1.1",
     "leaflet": "^1.9.4",
     "leaflet-defaulticon-compatibility": "^0.1.2",
