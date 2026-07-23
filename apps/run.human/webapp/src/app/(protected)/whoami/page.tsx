@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useLogout } from '@/hooks/useLogout';
 import { Card, CardBody, Divider, Button, Chip, Avatar, Skeleton, Input } from '@heroui/react';
-import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download } from 'lucide-react';
+import { LogOut, ChevronRight, ChevronDown, RefreshCw, Pencil, Check, X, Download, Camera } from 'lucide-react';
 import { SiStrava, SiDiscord, SiGithub } from 'react-icons/si';
 import MeshtasticRadios from '@/components/profile/MeshtasticRadios';
 import CheckInHistory from '@/components/profile/CheckInHistory';
@@ -14,6 +14,7 @@ import SocialQRRow from '@/components/profile/SocialQRRow';
 import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
 import SocialQrFlair, { type SocialInfo } from '@/components/qr/SocialQrFlair';
 import QrCardModal from '@/components/qr/QrCardModal';
+import QrScannerModal from '@/components/qr/QrScannerModal';
 import { useCopy } from '@/components/CopyProvider';
 import { apiUrl } from '@/lib/api';
 
@@ -116,6 +117,7 @@ export default function WhoAmIPage() {
   const [mounted, setMounted] = useState(false);
   const [isQROpen, setIsQROpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isQuotasOpen, setIsQuotasOpen] = useState(false);
   const [isDebugOpen, setIsDebugOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -152,6 +154,19 @@ export default function WhoAmIPage() {
     site: copyOr('qrcard.site', 'defcon.run'),
     optionWallpaper: copyOr('qrcard.option.wallpaper', 'Lock-screen wallpaper'),
     optionShare: copyOr('qrcard.option.share', 'Share card'),
+  };
+  const scanCopy = {
+    title: copyOr('socialqr.scan.title', 'Scan a runner'),
+    hint: copyOr('socialqr.scan.hint', "Point your camera at another runner's QR"),
+    miss: copyOr('socialqr.scan.miss', 'Not a runner QR — keep it in frame'),
+    found: copyOr('socialqr.scan.found', '🐰 Runner found!'),
+    claim: copyOr('socialqr.scan.claim', 'Claim connection'),
+    again: copyOr('socialqr.scan.again', 'Scan another'),
+    unavailable: copyOr(
+      'socialqr.scan.unavailable',
+      "Camera unavailable — use your phone's camera app on the QR instead.",
+    ),
+    cancel: copyOr('socialqr.scan.cancel', 'Cancel'),
   };
 
   useEffect(() => { setMounted(true); }, []);
@@ -399,8 +414,15 @@ export default function WhoAmIPage() {
                     'Scan another runner to connect — you both score. Your QR levels up as your rank climbs.'
                   )}
                 </p>
-                {userData.hash && (
-                  <>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Button
+                    size="sm" color="secondary" variant="flat"
+                    startContent={<Camera className="w-4 h-4" />}
+                    onPress={() => setIsScannerOpen(true)}
+                  >
+                    {copyOr('socialqr.scan.button', 'Scan a runner')}
+                  </Button>
+                  {userData.hash && (
                     <Button
                       size="sm" color="primary" variant="flat"
                       startContent={<Download className="w-4 h-4" />}
@@ -408,15 +430,22 @@ export default function WhoAmIPage() {
                     >
                       {copyOr('qrcard.button', 'Save QR card')}
                     </Button>
-                    <QrCardModal
-                      isOpen={isCardModalOpen}
-                      onClose={() => setIsCardModalOpen(false)}
-                      hash={userData.hash}
-                      name={displayName}
-                      bib={userData.runnerCode ? userData.runnerCode.toUpperCase() : null}
-                      copy={qrCardCopy}
-                    />
-                  </>
+                  )}
+                </div>
+                <QrScannerModal
+                  isOpen={isScannerOpen}
+                  onClose={() => setIsScannerOpen(false)}
+                  copy={scanCopy}
+                />
+                {userData.hash && (
+                  <QrCardModal
+                    isOpen={isCardModalOpen}
+                    onClose={() => setIsCardModalOpen(false)}
+                    hash={userData.hash}
+                    name={displayName}
+                    bib={userData.runnerCode ? userData.runnerCode.toUpperCase() : null}
+                    copy={qrCardCopy}
+                  />
                 )}
               </div>
             )}
