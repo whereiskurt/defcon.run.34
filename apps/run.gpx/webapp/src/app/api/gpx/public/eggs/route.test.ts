@@ -10,7 +10,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * before any network call, so the first test exercises the pure defaults path.
  */
 
-const EXPECTED_IDS = ["lvcc-rebar", "lvcc-nuwu", "lvcc-lvsign", "dc34-coffee"];
+// Order matches DEFAULT_EGGS in route.ts. (lvcc-doubledown had been added
+// there without updating this list — fixed alongside adding dc34-spot.)
+const EXPECTED_IDS = [
+  "lvcc-rebar",
+  "lvcc-nuwu",
+  "lvcc-doubledown",
+  "lvcc-lvsign",
+  "dc34-spot",
+  "dc34-coffee",
+];
 
 type EggModal = {
   id: string;

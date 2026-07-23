@@ -93,6 +93,18 @@ const DEFAULT_EGGS: EggModal[] = [
     links: [mapLink(36.0821, -115.1728)],
   },
   {
+    id: "dc34-spot",
+    eyebrow: "Rally Point",
+    title: "🚨 The Spot",
+    descriptionHtml:
+      "<p>This is <strong>The Spot</strong> — the DEF CON run rally point at " +
+      "<strong>LVCC West</strong>. Meet here at <strong>0600 daily</strong> during the " +
+      "con; the rabbits leave from here.</p>",
+    address: "LVCC West Hall, Las Vegas",
+    accent: "#E11D48",
+    links: [mapLink(36.135189, -115.158541)],
+  },
+  {
     id: "dc34-coffee",
     eyebrow: "Rabbit Fuel Stop",
     title: "☕ PublicUs",
