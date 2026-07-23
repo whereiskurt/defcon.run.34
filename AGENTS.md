@@ -78,6 +78,21 @@ npm test                 # Run all auth e2e tests
 npm run test:headed      # Run with browser visible
 ```
 
+## Local Development (Dev Container)
+
+A VS Code **Dev Container** (`.devcontainer/`) is a supported way to do local dev —
+editing, installing deps, and running the dev servers. It is **not** a deploy path:
+deploys still go through GitHub Actions (Essential Rule 4).
+
+- Builds from `.devcontainer/Dockerfile` (ARM64 / Apple-silicon) with docker-in-docker,
+  `aws-cli`, `gh`, and Terraform/Terragrunt/SOPS baked in.
+- `post-create.sh` npm-installs all four webapps and builds the gpx-studio frontend.
+- Forwards the four dev-server ports — 3001 run.human, 3002 run.auth, 3003 run.gpx,
+  1337 run.cms — so `PORT=<n> npm run dev` in each app is reachable on the host.
+- Bind-mounts your `~/.aws` and `~/.claude`; container env defaults to
+  `AWS_PROFILE=application`, `AWS_REGION=us-east-1`. Fine for local reads/dev; it does
+  **not** change the deploy rule — shipping is always the `deploy.yml` workflow.
+
 ## Detailed Documentation
 
 Read these files for in-depth information:
