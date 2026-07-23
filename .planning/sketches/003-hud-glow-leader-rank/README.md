@@ -2,7 +2,7 @@
 sketch: 003
 name: hud-glow-leader-rank
 question: "HUD ring + pin rail synthesis: how thick/blurry is the glow, and how do relative RANK + a LEADER state read?"
-winner: null
+winner: "D"
 tags: [qr, flair, glow, rank]
 ---
 
@@ -25,6 +25,13 @@ Note the trend line under the readout — TOP 10% deliberately shows the decay s
 - **A: Soft Aura** — wide blurred radial halo behind the card grows/brightens with rank; breathes at LEADER.
 - **B: Neon Tube** — the ring itself is the glow: two blurred thick strokes under a crisp core, bent-neon look.
 - **C: Reactor** — rotating conic energy ring layered on the neon tube; spins faster at higher rank.
+- **D: Reactor ★ Tuned (WINNER)** — C plus: 9px blurred glowing scanline; earned badges gain
+  drop-shadow glow that escalates with rank (rail border ignites at TOP 5%, badges breathe gold
+  at LEADER). Implementation note: badge hexes are clip-path'd, so the glow must live on a
+  wrapper element (drop-shadow on the parent) — box-shadow on the clipped element is invisible.
+  Scan-safety note: the sweeping scanline crosses the QR card (~3% of card height, well inside
+  EC-H's ~30% budget after the ~6% center knockout), keep it translucent and never widen past
+  ~15px at 300px card size.
 
 All variants: gold color shift + ♛ SOCIAL LEADER chip at rank 1, green scanline at TOP 10%+,
 pin rail below (002-A winner), genuine production QR untouched in the middle.

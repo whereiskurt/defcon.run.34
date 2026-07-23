@@ -176,6 +176,23 @@
   .badge.locked { opacity: 0.35; filter: grayscale(0.7); }
   .badge.locked::before { background: repeating-linear-gradient(45deg, var(--color-border) 0 4px, transparent 4px 8px); }
 
+  /* ---------- D: Reactor tuned — thick scanline + rank-reactive badges ---------- */
+  .v-d .scanline { height: 9px; border-radius: 5px; filter: blur(1px); }
+  .bglow { transition: filter 0.4s ease; }
+  [data-rank="1"] .v-d .bglow.earned { filter: drop-shadow(0 0 4px var(--flair-soft)); }
+  [data-rank="2"] .v-d .bglow.earned { filter: drop-shadow(0 0 7px var(--flair-soft)); }
+  [data-rank="3"] .v-d .bglow.earned { filter: drop-shadow(0 0 11px var(--flair)); }
+  [data-rank="4"] .v-d .bglow.earned { filter: drop-shadow(0 0 16px var(--flair)); }
+  [data-rank="5"] .v-d .bglow.earned { animation: badge-breathe 2.4s ease-in-out infinite; }
+  @keyframes badge-breathe {
+    0%, 100% { filter: drop-shadow(0 0 10px var(--flair)); }
+    50% { filter: drop-shadow(0 0 24px var(--flair)); }
+  }
+  [data-rank="4"] .v-d .rail, [data-rank="5"] .v-d .rail {
+    border-color: var(--flair); box-shadow: 0 0 18px var(--flair-soft);
+    transition: border-color 0.4s, box-shadow 0.4s;
+  }
+
   #sketch-tools {
     position: fixed; bottom: 12px; right: 12px; z-index: 9999;
     font-family: system-ui; font-size: 12px; background: rgba(0,0,0,0.75); color: #fff;
@@ -193,9 +210,10 @@
 
 <div id="variant-nav">
   <span style="font-family:var(--font-mono);font-size:12px;color:var(--color-text-muted);margin-right:8px;">SKETCH 003</span>
-  <button class="variant-tab active" onclick="showVariant('a', this)">A: Soft Aura</button>
+  <button class="variant-tab" onclick="showVariant('a', this)">A: Soft Aura</button>
   <button class="variant-tab" onclick="showVariant('b', this)">B: Neon Tube</button>
   <button class="variant-tab" onclick="showVariant('c', this)">C: Reactor</button>
+  <button class="variant-tab active" onclick="showVariant('d', this)">D: Reactor ★ Tuned</button>
 </div>
 
 <div id="rank-bar">
@@ -209,7 +227,7 @@
 <template id="qr-tpl"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 43 43" shape-rendering="geometricPrecision"><rect width="43" height="43" rx="3" fill="#ffffff"/><path d="M12 3h1v1h-1zM13 3h1v1h-1zM14 3h1v1h-1zM17 3h1v1h-1zM18 3h1v1h-1zM20 3h1v1h-1zM21 3h1v1h-1zM22 3h1v1h-1zM23 3h1v1h-1zM28 3h1v1h-1zM30 3h1v1h-1zM31 3h1v1h-1zM11 4h1v1h-1zM12 4h1v1h-1zM18 4h1v1h-1zM19 4h1v1h-1zM20 4h1v1h-1zM25 4h1v1h-1zM27 4h1v1h-1zM28 4h1v1h-1zM29 4h1v1h-1zM13 5h1v1h-1zM14 5h1v1h-1zM15 5h1v1h-1zM16 5h1v1h-1zM17 5h1v1h-1zM18 5h1v1h-1zM19 5h1v1h-1zM20 5h1v1h-1zM21 5h1v1h-1zM22 5h1v1h-1zM23 5h1v1h-1zM24 5h1v1h-1zM31 5h1v1h-1zM12 6h1v1h-1zM13 6h1v1h-1zM15 6h1v1h-1zM20 6h1v1h-1zM21 6h1v1h-1zM23 6h1v1h-1zM25 6h1v1h-1zM26 6h1v1h-1zM30 6h1v1h-1zM31 6h1v1h-1zM12 7h1v1h-1zM13 7h1v1h-1zM16 7h1v1h-1zM17 7h1v1h-1zM18 7h1v1h-1zM19 7h1v1h-1zM20 7h1v1h-1zM22 7h1v1h-1zM23 7h1v1h-1zM24 7h1v1h-1zM26 7h1v1h-1zM28 7h1v1h-1zM30 7h1v1h-1zM11 8h1v1h-1zM13 8h1v1h-1zM17 8h1v1h-1zM18 8h1v1h-1zM20 8h1v1h-1zM22 8h1v1h-1zM25 8h1v1h-1zM27 8h1v1h-1zM28 8h1v1h-1zM29 8h1v1h-1zM31 8h1v1h-1zM11 9h1v1h-1zM13 9h1v1h-1zM15 9h1v1h-1zM17 9h1v1h-1zM19 9h1v1h-1zM21 9h1v1h-1zM23 9h1v1h-1zM25 9h1v1h-1zM27 9h1v1h-1zM29 9h1v1h-1zM31 9h1v1h-1zM11 10h1v1h-1zM12 10h1v1h-1zM17 10h1v1h-1zM19 10h1v1h-1zM21 10h1v1h-1zM25 10h1v1h-1zM29 10h1v1h-1zM7 11h1v1h-1zM8 11h1v1h-1zM9 11h1v1h-1zM10 11h1v1h-1zM12 11h1v1h-1zM14 11h1v1h-1zM15 11h1v1h-1zM17 11h1v1h-1zM19 11h1v1h-1zM22 11h1v1h-1zM24 11h1v1h-1zM26 11h1v1h-1zM28 11h1v1h-1zM29 11h1v1h-1zM30 11h1v1h-1zM33 11h1v1h-1zM34 11h1v1h-1zM38 11h1v1h-1zM5 12h1v1h-1zM6 12h1v1h-1zM7 12h1v1h-1zM8 12h1v1h-1zM13 12h1v1h-1zM14 12h1v1h-1zM17 12h1v1h-1zM21 12h1v1h-1zM22 12h1v1h-1zM23 12h1v1h-1zM25 12h1v1h-1zM26 12h1v1h-1zM27 12h1v1h-1zM31 12h1v1h-1zM32 12h1v1h-1zM33 12h1v1h-1zM36 12h1v1h-1zM6 13h1v1h-1zM7 13h1v1h-1zM8 13h1v1h-1zM9 13h1v1h-1zM10 13h1v1h-1zM11 13h1v1h-1zM13 13h1v1h-1zM16 13h1v1h-1zM17 13h1v1h-1zM18 13h1v1h-1zM20 13h1v1h-1zM21 13h1v1h-1zM22 13h1v1h-1zM24 13h1v1h-1zM28 13h1v1h-1zM29 13h1v1h-1zM31 13h1v1h-1zM32 13h1v1h-1zM37 13h1v1h-1zM38 13h1v1h-1zM3 14h1v1h-1zM5 14h1v1h-1zM10 14h1v1h-1zM13 14h1v1h-1zM14 14h1v1h-1zM15 14h1v1h-1zM17 14h1v1h-1zM19 14h1v1h-1zM20 14h1v1h-1zM22 14h1v1h-1zM25 14h1v1h-1zM26 14h1v1h-1zM29 14h1v1h-1zM32 14h1v1h-1zM36 14h1v1h-1zM38 14h1v1h-1zM39 14h1v1h-1zM4 15h1v1h-1zM7 15h1v1h-1zM9 15h1v1h-1zM10 15h1v1h-1zM12 15h1v1h-1zM13 15h1v1h-1zM16 15h1v1h-1zM22 15h1v1h-1zM23 15h1v1h-1zM24 15h1v1h-1zM25 15h1v1h-1zM26 15h1v1h-1zM27 15h1v1h-1zM30 15h1v1h-1zM31 15h1v1h-1zM32 15h1v1h-1zM33 15h1v1h-1zM39 15h1v1h-1zM4 16h1v1h-1zM7 16h1v1h-1zM8 16h1v1h-1zM10 16h1v1h-1zM13 16h1v1h-1zM14 16h1v1h-1zM17 16h1v1h-1zM18 16h1v1h-1zM19 16h1v1h-1zM20 16h1v1h-1zM21 16h1v1h-1zM23 16h1v1h-1zM24 16h1v1h-1zM28 16h1v1h-1zM32 16h1v1h-1zM34 16h1v1h-1zM35 16h1v1h-1zM37 16h1v1h-1zM3 17h1v1h-1zM5 17h1v1h-1zM6 17h1v1h-1zM9 17h1v1h-1zM11 17h1v1h-1zM12 17h1v1h-1zM16 17h1v1h-1zM26 17h1v1h-1zM29 17h1v1h-1zM30 17h1v1h-1zM31 17h1v1h-1zM33 17h1v1h-1zM35 17h1v1h-1zM36 17h1v1h-1zM37 17h1v1h-1zM3 18h1v1h-1zM4 18h1v1h-1zM5 18h1v1h-1zM6 18h1v1h-1zM7 18h1v1h-1zM8 18h1v1h-1zM10 18h1v1h-1zM11 18h1v1h-1zM14 18h1v1h-1zM15 18h1v1h-1zM16 18h1v1h-1zM26 18h1v1h-1zM27 18h1v1h-1zM29 18h1v1h-1zM30 18h1v1h-1zM33 18h1v1h-1zM34 18h1v1h-1zM37 18h1v1h-1zM38 18h1v1h-1zM5 19h1v1h-1zM9 19h1v1h-1zM10 19h1v1h-1zM12 19h1v1h-1zM15 19h1v1h-1zM16 19h1v1h-1zM26 19h1v1h-1zM27 19h1v1h-1zM31 19h1v1h-1zM32 19h1v1h-1zM33 19h1v1h-1zM34 19h1v1h-1zM36 19h1v1h-1zM37 19h1v1h-1zM38 19h1v1h-1zM39 19h1v1h-1zM4 20h1v1h-1zM10 20h1v1h-1zM11 20h1v1h-1zM16 20h1v1h-1zM27 20h1v1h-1zM29 20h1v1h-1zM30 20h1v1h-1zM31 20h1v1h-1zM35 20h1v1h-1zM36 20h1v1h-1zM4 21h1v1h-1zM5 21h1v1h-1zM9 21h1v1h-1zM12 21h1v1h-1zM15 21h1v1h-1zM26 21h1v1h-1zM27 21h1v1h-1zM30 21h1v1h-1zM31 21h1v1h-1zM32 21h1v1h-1zM33 21h1v1h-1zM34 21h1v1h-1zM35 21h1v1h-1zM37 21h1v1h-1zM4 22h1v1h-1zM5 22h1v1h-1zM7 22h1v1h-1zM10 22h1v1h-1zM15 22h1v1h-1zM16 22h1v1h-1zM26 22h1v1h-1zM32 22h1v1h-1zM37 22h1v1h-1zM38 22h1v1h-1zM4 23h1v1h-1zM6 23h1v1h-1zM8 23h1v1h-1zM9 23h1v1h-1zM10 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM15 23h1v1h-1zM16 23h1v1h-1zM28 23h1v1h-1zM30 23h1v1h-1zM33 23h1v1h-1zM37 23h1v1h-1zM38 23h1v1h-1zM6 24h1v1h-1zM7 24h1v1h-1zM8 24h1v1h-1zM12 24h1v1h-1zM13 24h1v1h-1zM14 24h1v1h-1zM26 24h1v1h-1zM27 24h1v1h-1zM30 24h1v1h-1zM32 24h1v1h-1zM35 24h1v1h-1zM36 24h1v1h-1zM37 24h1v1h-1zM38 24h1v1h-1zM39 24h1v1h-1zM3 25h1v1h-1zM4 25h1v1h-1zM5 25h1v1h-1zM9 25h1v1h-1zM12 25h1v1h-1zM13 25h1v1h-1zM14 25h1v1h-1zM15 25h1v1h-1zM16 25h1v1h-1zM27 25h1v1h-1zM28 25h1v1h-1zM29 25h1v1h-1zM30 25h1v1h-1zM31 25h1v1h-1zM32 25h1v1h-1zM33 25h1v1h-1zM38 25h1v1h-1zM3 26h1v1h-1zM7 26h1v1h-1zM13 26h1v1h-1zM14 26h1v1h-1zM15 26h1v1h-1zM19 26h1v1h-1zM23 26h1v1h-1zM28 26h1v1h-1zM31 26h1v1h-1zM32 26h1v1h-1zM34 26h1v1h-1zM36 26h1v1h-1zM37 26h1v1h-1zM38 26h1v1h-1zM3 27h1v1h-1zM4 27h1v1h-1zM9 27h1v1h-1zM10 27h1v1h-1zM11 27h1v1h-1zM12 27h1v1h-1zM13 27h1v1h-1zM14 27h1v1h-1zM15 27h1v1h-1zM21 27h1v1h-1zM23 27h1v1h-1zM24 27h1v1h-1zM27 27h1v1h-1zM28 27h1v1h-1zM30 27h1v1h-1zM32 27h1v1h-1zM35 27h1v1h-1zM36 27h1v1h-1zM37 27h1v1h-1zM39 27h1v1h-1zM3 28h1v1h-1zM5 28h1v1h-1zM6 28h1v1h-1zM8 28h1v1h-1zM10 28h1v1h-1zM12 28h1v1h-1zM13 28h1v1h-1zM14 28h1v1h-1zM18 28h1v1h-1zM19 28h1v1h-1zM22 28h1v1h-1zM24 28h1v1h-1zM25 28h1v1h-1zM28 28h1v1h-1zM29 28h1v1h-1zM32 28h1v1h-1zM33 28h1v1h-1zM34 28h1v1h-1zM36 28h1v1h-1zM37 28h1v1h-1zM38 28h1v1h-1zM5 29h1v1h-1zM6 29h1v1h-1zM7 29h1v1h-1zM9 29h1v1h-1zM11 29h1v1h-1zM13 29h1v1h-1zM15 29h1v1h-1zM16 29h1v1h-1zM18 29h1v1h-1zM19 29h1v1h-1zM20 29h1v1h-1zM23 29h1v1h-1zM30 29h1v1h-1zM31 29h1v1h-1zM32 29h1v1h-1zM34 29h1v1h-1zM36 29h1v1h-1zM37 29h1v1h-1zM5 30h1v1h-1zM8 30h1v1h-1zM12 30h1v1h-1zM14 30h1v1h-1zM15 30h1v1h-1zM17 30h1v1h-1zM22 30h1v1h-1zM23 30h1v1h-1zM25 30h1v1h-1zM27 30h1v1h-1zM29 30h1v1h-1zM30 30h1v1h-1zM33 30h1v1h-1zM34 30h1v1h-1zM35 30h1v1h-1zM39 30h1v1h-1zM3 31h1v1h-1zM4 31h1v1h-1zM6 31h1v1h-1zM8 31h1v1h-1zM9 31h1v1h-1zM12 31h1v1h-1zM15 31h1v1h-1zM18 31h1v1h-1zM19 31h1v1h-1zM20 31h1v1h-1zM22 31h1v1h-1zM26 31h1v1h-1zM29 31h1v1h-1zM31 31h1v1h-1zM32 31h1v1h-1zM33 31h1v1h-1zM34 31h1v1h-1zM35 31h1v1h-1zM36 31h1v1h-1zM38 31h1v1h-1zM11 32h1v1h-1zM13 32h1v1h-1zM16 32h1v1h-1zM18 32h1v1h-1zM20 32h1v1h-1zM27 32h1v1h-1zM29 32h1v1h-1zM31 32h1v1h-1zM35 32h1v1h-1zM36 32h1v1h-1zM11 33h1v1h-1zM13 33h1v1h-1zM17 33h1v1h-1zM20 33h1v1h-1zM21 33h1v1h-1zM24 33h1v1h-1zM26 33h1v1h-1zM27 33h1v1h-1zM28 33h1v1h-1zM29 33h1v1h-1zM31 33h1v1h-1zM33 33h1v1h-1zM35 33h1v1h-1zM36 33h1v1h-1zM37 33h1v1h-1zM11 34h1v1h-1zM13 34h1v1h-1zM14 34h1v1h-1zM15 34h1v1h-1zM16 34h1v1h-1zM17 34h1v1h-1zM18 34h1v1h-1zM24 34h1v1h-1zM26 34h1v1h-1zM27 34h1v1h-1zM31 34h1v1h-1zM35 34h1v1h-1zM37 34h1v1h-1zM38 34h1v1h-1zM39 34h1v1h-1zM11 35h1v1h-1zM13 35h1v1h-1zM19 35h1v1h-1zM20 35h1v1h-1zM21 35h1v1h-1zM22 35h1v1h-1zM26 35h1v1h-1zM29 35h1v1h-1zM31 35h1v1h-1zM32 35h1v1h-1zM33 35h1v1h-1zM34 35h1v1h-1zM35 35h1v1h-1zM36 35h1v1h-1zM37 35h1v1h-1zM38 35h1v1h-1zM12 36h1v1h-1zM14 36h1v1h-1zM16 36h1v1h-1zM21 36h1v1h-1zM27 36h1v1h-1zM28 36h1v1h-1zM29 36h1v1h-1zM31 36h1v1h-1zM33 36h1v1h-1zM34 36h1v1h-1zM36 36h1v1h-1zM38 36h1v1h-1zM39 36h1v1h-1zM12 37h1v1h-1zM13 37h1v1h-1zM15 37h1v1h-1zM18 37h1v1h-1zM19 37h1v1h-1zM20 37h1v1h-1zM21 37h1v1h-1zM23 37h1v1h-1zM24 37h1v1h-1zM26 37h1v1h-1zM27 37h1v1h-1zM31 37h1v1h-1zM33 37h1v1h-1zM34 37h1v1h-1zM36 37h1v1h-1zM38 37h1v1h-1zM12 38h1v1h-1zM13 38h1v1h-1zM14 38h1v1h-1zM15 38h1v1h-1zM17 38h1v1h-1zM18 38h1v1h-1zM19 38h1v1h-1zM21 38h1v1h-1zM22 38h1v1h-1zM24 38h1v1h-1zM25 38h1v1h-1zM26 38h1v1h-1zM28 38h1v1h-1zM29 38h1v1h-1zM30 38h1v1h-1zM33 38h1v1h-1zM34 38h1v1h-1zM37 38h1v1h-1zM38 38h1v1h-1zM13 39h1v1h-1zM14 39h1v1h-1zM15 39h1v1h-1zM16 39h1v1h-1zM17 39h1v1h-1zM18 39h1v1h-1zM19 39h1v1h-1zM20 39h1v1h-1zM24 39h1v1h-1zM25 39h1v1h-1zM28 39h1v1h-1zM34 39h1v1h-1zM37 39h1v1h-1zM38 39h1v1h-1zM39 39h1v1h-1z" fill="#111118"/><rect x="3" y="3" width="7" height="7" rx="2.1" fill="#c4157a"/><rect x="4" y="4" width="5" height="5" rx="1.5" fill="#ffffff"/><rect x="5" y="5" width="3" height="3" rx="1" fill="#111118"/><text x="6.5" y="7.12" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-weight="800" font-size="1.65" fill="#c4157a">34</text><rect x="33" y="3" width="7" height="7" rx="2.1" fill="#c4157a"/><rect x="34" y="4" width="5" height="5" rx="1.5" fill="#ffffff"/><rect x="35" y="5" width="3" height="3" rx="1" fill="#111118"/><text x="36.5" y="7.12" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-weight="800" font-size="1.65" fill="#c4157a">34</text><rect x="3" y="33" width="7" height="7" rx="2.1" fill="#c4157a"/><rect x="4" y="34" width="5" height="5" rx="1.5" fill="#ffffff"/><rect x="5" y="35" width="3" height="3" rx="1" fill="#111118"/><text x="6.5" y="37.12" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-weight="800" font-size="1.65" fill="#c4157a">34</text><path d="M200,99.85c.09,55.23-44.64,100.06-99.85,100.15C44.92,200.09.08,155.39,0,100.15-.1,44.92,44.6.07,99.85,0c55.2-.09,100.07,44.61,100.15,99.85ZM100.76,128.94l-15.83-8.93-42.35,21.24c-1.31-4.35-4.96-7.45-9.26-7.45-5.39,0-9.77,4.9-9.77,10.91.01,6.01,4.39,10.88,9.78,10.87.56,0,1.09-.06,1.61-.13l.57,1.11c-1.49,1.89-2.36,4.34-2.36,6.99,0,5.89,4.38,10.65,9.77,10.65,5.4-.01,9.75-4.78,9.73-10.67,0-3.48-1.52-6.56-3.87-8.5l51.98-26.1ZM192.61,89.23c0-6.01-4.4-10.89-9.78-10.87-.86,0-1.68.12-2.46.36,1.87-1.99,3-4.79,3-7.89,0-6.02-4.39-10.87-9.78-10.87-5.39,0-9.76,4.89-9.74,10.9,0,3.06,1.13,5.8,2.94,7.77l-23.18,11.65c2.94-6.07,4.57-12.88,4.55-20.08-.03-25.46-20.71-46.09-46.2-46.05-25.46.04-46.1,20.73-46.04,46.2,0,4.64.69,9.09,1.96,13.31l-18.06-10.18c1.82-1.99,2.95-4.74,2.95-7.77,0-6.05-4.46-10.94-9.95-10.93-5.48,0-9.92,4.9-9.92,10.96,0,2.98,1.12,5.71,2.89,7.68-.68-.18-1.4-.25-2.12-.25-5.47.01-9.93,4.9-9.92,10.95.03,6.04,4.47,10.92,9.96,10.92,4.22,0,7.82-2.92,9.25-7.02l54.39,30.67,15.84,8.93,49.01,27.65c-1.01,1.87-1.61,4.17-1.61,6.65,0,6.23,3.76,11.26,8.37,11.26s8.35-5.05,8.33-11.29c0-3.89-1.48-7.36-3.74-9.36,1.36.84,2.99,1.34,4.69,1.34,5.06,0,9.13-4.3,9.13-9.59,0-5.32-4.1-9.6-9.14-9.6-3.97.01-7.35,2.65-8.6,6.38l-39.2-22.11-6.96-3.93c1.18-.29,2.36-.64,3.54-1.05l6.19,3.51,50.27-25.25c1.15,4.58,4.94,7.93,9.41,7.92,5.41,0,9.76-4.89,9.75-10.9ZM119.63,64.19c5.28,0,9.55-3.98,9.55-8.9-.02-4.9-4.29-8.86-9.58-8.86-5.29,0-9.56,3.98-9.56,8.89.01,4.92,4.3,8.89,9.59,8.87ZM87.68,64.24c5.28,0,9.55-3.99,9.55-8.9-.01-4.9-4.3-8.87-9.56-8.86-5.29,0-9.57,3.99-9.57,8.89,0,4.91,4.3,8.88,9.58,8.87ZM133.23,70.66c-2.61,0-4.73,1.2-4.74,2.67.03,1.15,1.31,2.11,3.07,2.5-1.87,13.84-14.04,24.55-28.79,24.57-14.74.02-26.95-10.64-28.89-24.49,1.81-.38,3.07-1.35,3.07-2.5,0-1.46-2.11-2.66-4.72-2.66-2.6,0-4.69,1.21-4.69,2.68,0,1.07,1.1,1.98,2.71,2.42,1.1,15.62,15.28,27.96,32.61,27.94,17.37-.03,31.52-12.44,32.56-28.09,1.51-.45,2.54-1.35,2.54-2.38,0-1.46-2.13-2.66-4.72-2.66Z" fill="#c4157a" transform="translate(18.1 18.1) scale(0.034)"/></svg></template>
 
 <!-- ============ VARIANT A: Soft Aura ============ -->
-<div id="variant-a" class="variant active">
+<div id="variant-a" class="variant">
   <div class="stage v-a">
     <div class="variant-title"><b>A: Soft Aura</b> — wide blurred halo behind the card; breathes at LEADER</div>
     <div class="qr-wrap">
@@ -266,6 +284,34 @@
 <div id="variant-c" class="variant">
   <div class="stage v-c">
     <div class="variant-title"><b>C: Reactor</b> — rotating conic energy ring + neon tube; spins faster the higher you rank</div>
+    <div class="qr-wrap">
+      <div class="halo"></div>
+      <div class="reactor"></div>
+      <div class="leader-chip">♛ SOCIAL LEADER</div>
+      <svg class="hud-ring" viewBox="0 0 412 412">
+        <rect class="track" x="14" y="14" width="384" height="384" rx="28"/>
+        <rect class="tube blur1 rank-prog" x="14" y="14" width="384" height="384" rx="28"
+              pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/>
+        <rect class="tube crisp rank-prog" x="14" y="14" width="384" height="384" rx="28"
+              pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/>
+        <g class="ticks"></g>
+      </svg>
+      <div class="scanline"></div>
+      <div class="qr-card qr-slot"></div>
+    </div>
+    <div class="rail" data-rail></div>
+    <div class="readout">
+      <div class="lvl ro-rank"></div>
+      <div class="sub ro-detail"></div>
+      <div class="trend ro-trend"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VARIANT D: Reactor ★ Tuned ============ -->
+<div id="variant-d" class="variant active">
+  <div class="stage v-c v-d">
+    <div class="variant-title"><b>D: Reactor ★ Tuned</b> — thicker glowing scanline; badges ignite with rank, breathe gold at LEADER</div>
     <div class="qr-wrap">
       <div class="halo"></div>
       <div class="reactor"></div>
@@ -369,7 +415,11 @@
       const d = document.createElement('div');
       d.className = 'badge ' + b.cls;
       d.innerHTML = `<span class="glyph">${b.glyph}</span><span class="cap">${b.cap}</span>`;
-      rail.appendChild(d);
+      // glow wrapper: drop-shadow on the parent so the clipped hex casts it
+      const w = document.createElement('div');
+      w.className = 'bglow' + (b.cls.includes('earned') ? ' earned' : '');
+      w.appendChild(d);
+      rail.appendChild(w);
     });
   });
 
