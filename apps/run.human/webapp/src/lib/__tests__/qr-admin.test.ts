@@ -43,6 +43,8 @@ describe("normalizeCode", () => {
     ["_flush", "_flush"],
     ["new", "new"],
     ["NEW", "NEW"],
+    ["r (runner social QR)", "r"],
+    ["R (runner social QR)", "R"],
   ])("rejects reserved %s", (_label, code) => {
     expect(() => normalizeCode(code)).toThrow(QrValidationError);
   });

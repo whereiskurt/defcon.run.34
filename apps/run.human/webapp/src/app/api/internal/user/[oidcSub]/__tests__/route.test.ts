@@ -21,6 +21,11 @@ vi.mock("@/entities/run-user", () => ({
 vi.mock("@/lib/ensure-identity", () => ({
   ensureRunHumanIdentity: (...a: unknown[]) => mockEnsure(...a),
 }));
+vi.mock("@/entities/runner-token", () => ({
+  ensureRunnerToken: vi.fn(async (_userId: string, hash: string) =>
+    hash.slice(0, 16)
+  ),
+}));
 vi.mock("@/lib/auth-email", () => ({
   getAuthEmailBySub: (...a: unknown[]) => mockGetAuthEmail(...a),
 }));

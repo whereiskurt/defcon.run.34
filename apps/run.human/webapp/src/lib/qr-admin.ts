@@ -42,7 +42,9 @@ const CODE_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
 // Reserved: ctf/_flush are resolver namespaces (a code there is unreachable);
 // new is the admin create-route sentinel (/admin/qr/new). Compared lowercase.
-const RESERVED_CODES = new Set(["ctf", "_flush", "new"]);
+// "r" is the runner social QR code — every printed bib depends on it, so it is
+// managed only by scripts/mint-r-qr.mts, never the admin surface.
+const RESERVED_CODES = new Set(["ctf", "_flush", "new", "r"]);
 
 /**
  * Normalize + validate a QR code. Trims and LOWERCASES for a clean, canonical

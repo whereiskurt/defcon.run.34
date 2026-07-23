@@ -3,6 +3,10 @@ import { assertNotLockedLive } from "@/lib/live-lockout";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
 import { getMeshRadiosByUser } from "@/entities/mesh-radio";
 import { getRunnerCode } from "@/entities/bib";
+import { SocialEgg, SocialQuota } from "@/entities/social";
+import { computeBand, getBoardCached } from "@/lib/social-rank";
+import { DAILY_SCAN_CAP } from "@/lib/social-scan";
+import { socialDay } from "@/lib/social-day";
 import { pinIconById, canUsePinIcon, isValidPinColor } from "@/lib/pin-icons";
 import {
   getUserQuotas,
@@ -48,11 +52,18 @@ export async function GET(req: NextRequest) {
   // they've claimed one over on the bib service — read-only, same shared table),
   // and the runner's radios from the authoritative MeshRadio entity (Phase 66
   // hard-switch — the embedded RunUser radios list is retired).
-  const [userQuotasResponse, definitions, runnerCode, meshRadios] = await Promise.all([
+  const [userQuotasResponse, definitions, runnerCode, meshRadios, boardCounts, eggRow, quotaToday] = await Promise.all([
     getUserQuotas(session.user.id),
     getQuotaDefinitions(),
     getRunnerCode(session.user.id).catch(() => null),
     getMeshRadiosByUser(session.user.id).catch(() => []),
+    getBoardCached().catch(() => null),
+    SocialEgg.get({ userId: session.user.id })
+      .go()
+      .catch(() => ({ data: null })),
+    SocialQuota.get({ userId: session.user.id, day: socialDay(Date.now()) })
+      .go()
+      .catch(() => ({ data: null })),
   ]);
 
   // Determine user's tier from the quota response (default to "upload")
@@ -108,6 +119,20 @@ export async function GET(req: NextRequest) {
     radios,
     // Include quotas
     quotas,
+    // Social QR rank + badges (runner social QR feature). Best-effort: band
+    // falls back to "entered"/"none" when the board is unavailable.
+    social: {
+      score: user.socialScore ?? 0,
+      band: computeBand(user.socialScore ?? 0, boardCounts),
+      badges: {
+        bibHolder: runnerCode !== null,
+        egg: eggRow.data !== null,
+      },
+      remainingToday: Math.max(
+        0,
+        DAILY_SCAN_CAP - (quotaToday.data?.count ?? 0)
+      ),
+    },
   };
 
   return NextResponse.json(
