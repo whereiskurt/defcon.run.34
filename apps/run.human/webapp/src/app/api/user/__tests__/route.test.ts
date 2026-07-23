@@ -10,6 +10,9 @@ vi.mock("@/entities/run-user", () => ({
   updateRunUserProfile: (...a: unknown[]) => mockUpdate(...a),
 }));
 vi.mock("@/entities/bib", () => ({ getRunnerCode: vi.fn() }));
+// admin-gate re-exports from @/config/auth (next-auth chain vitest can't
+// resolve in node env) — mock it; the GET path only calls isAdmin().
+vi.mock("@/lib/admin-gate", () => ({ isAdmin: vi.fn(() => false) }));
 vi.mock("@/lib/pin-icons", () => ({
   pinIconById: vi.fn(),
   canUsePinIcon: vi.fn(() => true),
