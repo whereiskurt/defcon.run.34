@@ -26,8 +26,9 @@ function ensureStyle() {
     s.id = STYLE_ID;
     s.textContent = `
 .dc34-coffee-beacon{display:flex;flex-direction:column;align-items:center;cursor:pointer;user-select:none;line-height:1;pointer-events:auto;}
-/* 3× emoji (Kurt). Sparkle/glow/bob sizes are em-relative so they scale with it. */
-.dc34-coffee-cup{position:relative;font-size:64px;animation:dc34cupbob 2.4s ease-in-out infinite;filter:drop-shadow(0 0 .2em rgba(255,193,94,.95)) drop-shadow(0 .06em .12em rgba(0,0,0,.5));}
+/* 1.5× emoji — halved from the original 3× (Kurt: cup was a bit too big).
+   Sparkle/glow/bob sizes are em-relative so they scale with it. */
+.dc34-coffee-cup{position:relative;font-size:32px;animation:dc34cupbob 2.4s ease-in-out infinite;filter:drop-shadow(0 0 .2em rgba(255,193,94,.95)) drop-shadow(0 .06em .12em rgba(0,0,0,.5));}
 /* radiating "aha" sparkle rays behind the cup */
 .dc34-coffee-cup::before{content:"";position:absolute;inset:-.34em;z-index:-1;border-radius:50%;
   background:repeating-conic-gradient(from 0deg, rgba(255,205,120,.65) 0 4deg, transparent 4deg 30deg);
@@ -35,9 +36,9 @@ function ensureStyle() {
           mask:radial-gradient(closest-side, transparent 50%, #000 60%, transparent 88%);
   animation:dc34cupspin 7s linear infinite, dc34cupglow 2.4s ease-in-out infinite;}
 /* semi-transparent two-line sign (Kurt) */
-.dc34-coffee-label{margin-top:6px;background:rgba(20,20,28,.6);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
-  color:#ffe;border:1px solid rgba(255,193,94,.85);border-radius:12px;padding:3px 12px;text-align:center;
-  font:600 12px/1.25 system-ui,sans-serif;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.4);}
+.dc34-coffee-label{margin-top:4px;background:rgba(20,20,28,.6);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+  color:#ffe;border:1px solid rgba(255,193,94,.85);border-radius:9px;padding:2px 8px;text-align:center;
+  font:600 10px/1.25 system-ui,sans-serif;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,.4);}
 @keyframes dc34cupbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-.08em)}}
 @keyframes dc34cupspin{to{transform:rotate(360deg)}}
 @keyframes dc34cupglow{0%,100%{opacity:.3}50%{opacity:.9}}
