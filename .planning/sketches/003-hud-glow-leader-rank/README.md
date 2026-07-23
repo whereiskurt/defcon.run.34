@@ -36,6 +36,11 @@ Note the trend line under the readout — TOP 10% deliberately shows the decay s
 All variants: gold color shift + ♛ SOCIAL LEADER chip at rank 1, green scanline at TOP 10%+,
 pin rail below (002-A winner), genuine production QR untouched in the middle.
 
+## Early Gratification (tuning pass on D)
+Flair starts at TOP 50%, not TOP 10%: faint reactor + soft scanline + badge glow
+from the first band, and a "NEXT // <band>: <what unlocks>" teaser line under the
+readout at every rank so runners always see there's more to come.
+
 ## What to Look For
 - Is the glow finally thick/blurry enough? Which construction reads best at phone size?
 - Does gold-at-LEADER feel earned, or should LEADER stay magenta and just burn brighter?

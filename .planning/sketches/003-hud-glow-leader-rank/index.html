@@ -192,6 +192,14 @@
     border-color: var(--flair); box-shadow: 0 0 18px var(--flair-soft);
     transition: border-color 0.4s, box-shadow 0.4s;
   }
+  /* early gratification — TOP 50% already gets a taste of everything */
+  [data-rank="1"] .v-d .reactor { opacity: 0.25; }
+  [data-rank="1"] .v-d .scanline { opacity: 0.4; height: 5px; animation: scan-sweep 4.6s linear infinite; }
+  [data-rank="2"] .v-d .scanline { opacity: 0.7; height: 7px; animation: scan-sweep 3.8s linear infinite; }
+  [data-rank="1"] .v-d .halo { opacity: 0.35; }
+  /* next-unlock teaser */
+  .teaser { font-size: var(--text-xs); letter-spacing: 0.08em; color: var(--color-text-muted); }
+  .teaser b { color: var(--color-accent); font-weight: 400; }
 
   #sketch-tools {
     position: fixed; bottom: 12px; right: 12px; z-index: 9999;
@@ -247,6 +255,7 @@
       <div class="lvl ro-rank"></div>
       <div class="sub ro-detail"></div>
       <div class="trend ro-trend"></div>
+      <div class="teaser ro-teaser"></div>
     </div>
   </div>
 </div>
@@ -276,6 +285,7 @@
       <div class="lvl ro-rank"></div>
       <div class="sub ro-detail"></div>
       <div class="trend ro-trend"></div>
+      <div class="teaser ro-teaser"></div>
     </div>
   </div>
 </div>
@@ -304,6 +314,7 @@
       <div class="lvl ro-rank"></div>
       <div class="sub ro-detail"></div>
       <div class="trend ro-trend"></div>
+      <div class="teaser ro-teaser"></div>
     </div>
   </div>
 </div>
@@ -332,6 +343,7 @@
       <div class="lvl ro-rank"></div>
       <div class="sub ro-detail"></div>
       <div class="trend ro-trend"></div>
+      <div class="teaser ro-teaser"></div>
     </div>
   </div>
 </div>
@@ -397,6 +409,15 @@
       e.textContent = r.trend.text;
       e.className = 'trend ro-trend ' + r.trend.dir;
     });
+    const TEASE = [
+      'scan one runner to enter the board — flair starts at <b>TOP 50%</b>',
+      '<b>NEXT // TOP 25%</b>: ring wakes up, scanline strengthens',
+      '<b>NEXT // TOP 10%</b>: full bloom + scanline surge',
+      '<b>NEXT // TOP 5%</b>: badge rail ignites',
+      '<b>NEXT // №1</b>: everything goes GOLD',
+      '',
+    ];
+    document.querySelectorAll('.ro-teaser').forEach(e => e.innerHTML = TEASE[n]);
     document.querySelectorAll('.rank-prog').forEach(e => e.style.strokeDashoffset = 100 - r.fill);
     document.querySelectorAll('.hud-tick').forEach((t, i) => t.classList.toggle('on', (i % 6) <= n));
   }
