@@ -5,7 +5,6 @@ import { openEggModal } from './egg-modal';
 const SOURCE = 'dc34-rainbow';
 const LAYER = 'dc34-rainbow-arch';
 const TICK_MS = 60_000; // re-evaluate schedule windows once a minute
-const NUWU_ID = 'lvcc-nuwu'; // the green "weed" arch, toggled by the `weed` search
 
 /**
  * The hidden "Rainbow Bridges" easter egg — pride- and weed-coloured
@@ -25,7 +24,7 @@ export class RainbowArch {
     map: mapboxgl.Map;
     private built = false;
     private unlocked = false;
-    private weedOn = false;
+    private forced: string[] = [];
     private pitchFn: (() => void) | null = null;
     private clickFn: ((e: mapboxgl.MapMouseEvent) => void) | null = null;
     private enterFn: (() => void) | null = null;
@@ -88,15 +87,15 @@ export class RainbowArch {
         this.built = true;
     }
 
-    /** Which arch ids should render right now (unlock + schedule + weed toggle). */
+    /** Which arch ids should render right now (unlock + schedule + search toggles). */
     private activeArchIds(): string[] {
         const now = new Date();
         const ids = RAINBOW_ARCHES.filter((a) =>
             isArchActiveNow(a, { unlocked: this.unlocked, now })
         ).map((a) => a.id);
-        // The `weed` search force-shows just the NuWu arch, independent of the
-        // master unlock; it's still pitch-revealed like every other arch.
-        if (this.weedOn && !ids.includes(NUWU_ID)) ids.push(NUWU_ID);
+        // Search-keyword toggles (ARCH_SEARCH_WORDS) force-show single arches,
+        // independent of the master unlock; still pitch-revealed like the rest.
+        for (const id of this.forced) if (!ids.includes(id)) ids.push(id);
         return ids;
     }
 
@@ -128,9 +127,9 @@ export class RainbowArch {
         await this.applyState();
     }
 
-    /** Flip with the weedShown store — show/hide just the NuWu arch. */
-    async setWeed(on: boolean) {
-        this.weedOn = on;
+    /** Follow the forcedArchIds store — force-show the searched-for arches. */
+    async setForced(ids: string[]) {
+        this.forced = ids;
         await this.applyState();
     }
 
