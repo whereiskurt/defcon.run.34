@@ -108,6 +108,15 @@ export const RunUser = new Entity(
         default: () => 0,
       },
 
+      // Social-scan rollup (runner social QR). Atomic-ADD counter: +1 per
+      // mutual-scan award (each side), +10 for the DC-jack egg. CtfScoreEvent
+      // rows (challenges social-scan / jack-egg) are the auditable ledger.
+      // Drives the relative rank bands rendered around the whoami QR.
+      socialScore: {
+        type: "number",
+        default: () => 0,
+      },
+
       // Leaderboard activity rollups (Phase 49, LDBR-02). Denormalized so the
       // leaderboard is a cheap scanAllRunUsers() sorted by activityScore, never
       // an accomplishment-wide scan. Written ONLY by updateRunUserActivityCounts
