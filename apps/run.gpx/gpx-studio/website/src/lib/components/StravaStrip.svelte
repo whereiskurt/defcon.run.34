@@ -130,6 +130,26 @@
         }
     });
 
+    // Publish the strip's footprint (height + the bottom-2 gap) as a CSS
+    // variable so the map's right control column can center itself in the
+    // free space ABOVE the strip instead of behind it (see
+    // .mapboxgl-ctrl-top-right in app.css) — on phones the full-height
+    // centering put the zoom/search/layers stack right on top of the strip
+    // header. Resets to 0 when the strip unmounts (hidden via X, signed out).
+    $effect(() => {
+        const el = rootEl;
+        if (!el) return;
+        const publish = () =>
+            document.documentElement.style.setProperty('--dc34-strip-h', `${el.offsetHeight + 8}px`);
+        publish();
+        const ro = new ResizeObserver(publish);
+        ro.observe(el);
+        return () => {
+            ro.disconnect();
+            document.documentElement.style.setProperty('--dc34-strip-h', '0px');
+        };
+    });
+
     function updateScrollState() {
         const el = carouselEl;
         if (!el) {
@@ -373,7 +393,7 @@
 {#if canShow && !$stravaStripHidden}
     <div
         bind:this={rootEl}
-        class="absolute bottom-2 left-2 right-2 z-30 rounded-xl border bg-background/90 backdrop-blur transition-shadow {pulsing
+        class="absolute bottom-2 left-2 right-2 z-40 rounded-xl border bg-background/90 backdrop-blur transition-shadow {pulsing
             ? 'ring-2 ring-[#fc4c02]'
             : ''}"
     >
