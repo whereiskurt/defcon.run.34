@@ -16,6 +16,7 @@ import SocialQrFlair, { type SocialInfo } from '@/components/qr/SocialQrFlair';
 import QrCardModal from '@/components/qr/QrCardModal';
 import QrScannerModal from '@/components/qr/QrScannerModal';
 import { useCopy } from '@/components/CopyProvider';
+import { usePersistedDisclosure } from '@/hooks/usePersistedDisclosure';
 import { apiUrl } from '@/lib/api';
 
 const homeUrl = '/';
@@ -115,11 +116,13 @@ function QuotaBar({ remaining, initial, label }: { remaining: number; initial: n
 
 export default function WhoAmIPage() {
   const [mounted, setMounted] = useState(false);
-  const [isQROpen, setIsQROpen] = useState(false);
+  // Panel open/closed states persist per browser so the page comes back the
+  // way the runner left it (Kurt UAT 2026-07-23).
+  const [isQROpen, setIsQROpen] = usePersistedDisclosure('social-qr');
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isQuotasOpen, setIsQuotasOpen] = useState(false);
-  const [isDebugOpen, setIsDebugOpen] = useState(false);
+  const [isQuotasOpen, setIsQuotasOpen] = usePersistedDisclosure('quotas');
+  const [isDebugOpen, setIsDebugOpen] = usePersistedDisclosure('debug');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
