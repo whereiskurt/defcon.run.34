@@ -93,6 +93,13 @@ both to the block size; vectors above prove it.)
   If `MESHTK_GHOST_KEY_SECRET` is unset the reveal returns
   `configured:false` and the panel says so; roster still renders.
 - **Admin link:** add Ghosts to the /admin console nav row.
+- **Printable QR sheet (added post-approval, Kurt request):** a "Print QR sheet"
+  button on the roster reveals every OTP ghost's derived otpauth (via the same
+  gated action) and composes a PDF client-side — one QR + name label per cell on
+  a large-cell 3×3 (default) or 3×5 grid, chunking to extra pages on overflow.
+  Reuses the qr-sheet layout math + injected-renderer seam
+  (`qr-sheet/ghost-sheet.ts`); QRs render plain black-on-white for scanner
+  compatibility. Sheet header marks it SENSITIVE (every QR is a live seed).
 - **Infra:** `services/run.human/service.hcl` secrets += `MESHTK_GHOST_KEY_SECRET`
   (same `valueFrom` as run.mqtt's ghosts container).
 

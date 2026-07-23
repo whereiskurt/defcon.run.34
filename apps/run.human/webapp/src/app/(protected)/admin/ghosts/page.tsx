@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import GhostOtpPanel from "@/components/admin/GhostOtpPanel";
+import GhostSheetButton from "@/components/admin/GhostSheetButton";
 import { cls } from "@/components/admin/qr-ui";
 import { ghostDossier } from "@/lib/ghost-dossiers";
 import {
@@ -204,9 +205,19 @@ export default async function AdminGhostsPage() {
           {ghosts.length} ghosts · {withOtp} with OTP · read-only view of
           meshtk.dc34.yaml{serverSecret ? "" : " · derivation secret NOT configured"}
         </span>
-        <Link href="/admin" className={`${cls.btn} ml-auto`}>
-          ← Admin
-        </Link>
+        <div className="ml-auto flex items-center gap-2">
+          <GhostSheetButton
+            otpGhosts={ghosts
+              .filter((g) => g.hasOtp)
+              .map((g) => ({
+                ghostId: g.id,
+                name: ghostDossier(g.slug)?.name ?? g.slug,
+              }))}
+          />
+          <Link href="/admin" className={cls.btn}>
+            ← Admin
+          </Link>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
