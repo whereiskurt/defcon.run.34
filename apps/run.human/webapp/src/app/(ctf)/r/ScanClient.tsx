@@ -77,7 +77,7 @@ export default function ScanClient({ mode, p, h }: Props) {
         setState({
           phase: "error",
           code: "network",
-          message: "Network hiccup — try scanning again.",
+          message: "Network hiccup - try scanning again.",
         });
       }
     })();
@@ -96,7 +96,7 @@ export default function ScanClient({ mode, p, h }: Props) {
               <p className="text-sm text-default-500 max-w-xs">
                 {copyOr(
                   "socialqr.signin.body",
-                  "Sign in to connect — you both score a point."
+                  "Sign in to connect - you both score a point."
                 )}
               </p>
               <Button
