@@ -157,7 +157,12 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
         video: { facingMode: { ideal: 'environment' } },
         audio: false,
       });
-      // The modal may have closed while the permission prompt was up.
+      // "Scan another" starts from the found state, where the <video> isn't
+      // mounted yet — give React a few frames to render it before giving up
+      // (no video after that means the modal closed mid-permission-prompt).
+      for (let i = 0; i < 5 && !videoRef.current; i++) {
+        await new Promise(requestAnimationFrame);
+      }
       if (!videoRef.current) {
         stream.getTracks().forEach((t) => t.stop());
         return;
