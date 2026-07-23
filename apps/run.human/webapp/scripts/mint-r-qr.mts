@@ -85,15 +85,48 @@ const R_SEED = {
 
 const existing = await Qr.get({ code: R_SEED.code }).go();
 if (existing.data) {
-  console.log(
-    `SKIP   r: already exists (destination="${existing.data.destination ?? "?"}", ` +
-      `appendParam=${existing.data.enrich?.appendParam ?? false}) — not clobbering`
+  // The `r` code is ALSO the r.defcon.run rickroll vanity (bare `/r`, no
+  // param). Coexistence: keep the base destination (bare-scan rickroll),
+  // add a WILDCARD PARAM RULE so `/r/<token16>` routes to the runner scan
+  // page, and enable appendParam (only appends when a param is present, so
+  // the bare rickroll URL stays clean). Param rules beat the base
+  // destination in the resolver's resolveDestination precedence.
+  const e = existing.data;
+  const rules = e.rules ?? [];
+  const hasWildcard = rules.some(
+    (r) =>
+      r.kind === "param" && r.match === "*" && r.dest === R_SEED.destination
   );
-  if (existing.data.enrich?.appendParam !== true) {
+  const hasAppend = e.enrich?.appendParam === true;
+  if (hasWildcard && hasAppend) {
     console.log(
-      `⚠️  WARNING: enrich.appendParam is not true — scans will DROP the runner token. Fix via a manual update.`
+      `SKIP   r: already merged (base="${e.destination}", wildcard→${R_SEED.destination}, appendParam=true)`
     );
-    process.exitCode = 2;
+  } else {
+    console.log(
+      `MERGE  r: preserving base destination "${e.destination}" (r.defcon.run vanity)\n` +
+        `       existing rules: ${JSON.stringify(rules)}\n` +
+        `       + wildcard param rule → ${R_SEED.destination} (needed: ${!hasWildcard})\n` +
+        `       + enrich.appendParam=true (needed: ${!hasAppend})`
+    );
+    if (APPLY) {
+      const newRules = hasWildcard
+        ? rules
+        : [
+            ...rules,
+            { kind: "param", match: "*", dest: R_SEED.destination },
+          ];
+      await Qr.patch({ code: R_SEED.code })
+        .set({
+          rules: newRules,
+          enrich: { ...(e.enrich ?? {}), appendParam: true },
+          notes: `${e.notes ? e.notes + " | " : ""}${R_SEED.notes}`,
+        })
+        .go();
+      console.log(
+        `       merged ✅  bare /r stays "${e.destination}"; /r/<token16> → runner scan`
+      );
+    }
   }
 } else {
   console.log(`CREATE r -> ${R_SEED.destination} (enrich.appendParam=true)`);
