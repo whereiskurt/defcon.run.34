@@ -12,6 +12,7 @@ import CheckInHistory from '@/components/profile/CheckInHistory';
 import CheckInPinCard from '@/components/profile/CheckInPinCard';
 import SocialQRRow from '@/components/profile/SocialQRRow';
 import StyledRunnerQr from '@/components/qr/StyledRunnerQr';
+import SocialQrFlair, { type SocialInfo } from '@/components/qr/SocialQrFlair';
 import QrCardModal from '@/components/qr/QrCardModal';
 import { useCopy } from '@/components/CopyProvider';
 import { apiUrl } from '@/lib/api';
@@ -52,6 +53,7 @@ interface UserData {
     checkinPreference?: string;
   };
   checkin_preference?: string;
+  social?: SocialInfo;
 }
 
 const quotaGroups = [
@@ -374,16 +376,28 @@ export default function WhoAmIPage() {
             </button>
             {isQROpen && (
               <div className="flex flex-col items-center mt-3 space-y-3">
-                <div className="bg-white p-3 rounded-lg">
-                  <StyledRunnerQr
+                {userData.social ? (
+                  <SocialQrFlair
                     hash={userData.hash}
                     eqrFallback={userData.eqr}
+                    social={userData.social}
                     alt="Your QR Code"
-                    className="max-w-[220px]"
                   />
-                </div>
+                ) : (
+                  <div className="bg-white p-3 rounded-lg">
+                    <StyledRunnerQr
+                      hash={userData.hash}
+                      eqrFallback={userData.eqr}
+                      alt="Your QR Code"
+                      className="max-w-[220px]"
+                    />
+                  </div>
+                )}
                 <p className="text-xs text-default-400 text-center">
-                  Share this QR code to connect with other runners
+                  {copyOr(
+                    'socialqr.share.caption',
+                    'Scan another runner to connect — you both score. Your QR levels up as your rank climbs.'
+                  )}
                 </p>
                 {userData.hash && (
                   <>
