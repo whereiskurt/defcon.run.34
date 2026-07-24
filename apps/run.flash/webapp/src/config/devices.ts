@@ -55,6 +55,7 @@ export function getArchLabel(device: DeviceHardware): string {
     "esp32-c3": "ESP32-C3",
     "esp32-c6": "ESP32-C6",
     nrf52840: "nRF52840",
+    rp2040: "RP2040",
   };
   return labels[device.architecture] || device.architecture.toUpperCase();
 }
