@@ -28,6 +28,12 @@ import { judgeSolve, type JudgeResult } from "@/lib/ctf-judge";
 /** Time-to-live for a parked flag: 30 days in epoch SECONDS (DynamoDB TTL). */
 const PENDING_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+/**
+ * TTL for a ghost claim-link nonce (minted by /api/internal/ctf/mint): short
+ * enough to blunt link sharing, long enough to walk to a phone and sign in.
+ */
+export const CLAIM_LINK_TTL_SECONDS = 15 * 60;
+
 const NON_SOLVE: JudgeResult = {
   solved: false,
   points: 0,
@@ -57,6 +63,8 @@ export interface PendingDeps {
   judge?: typeof judgeSolve;
   now?: number;
   newNonce?: () => string;
+  /** TTL override in seconds (default: 30 days). */
+  ttlSeconds?: number;
 }
 
 /** Electro-backed PendingStore on the CtfPending entity (keyed by nonce). */
@@ -93,7 +101,7 @@ export async function createPending(
   const store = deps.store ?? defaultPendingStore;
   const now = deps.now ?? Date.now();
   const nonce = deps.newNonce ? deps.newNonce() : crypto.randomUUID();
-  const ttl = Math.floor(now / 1000) + PENDING_TTL_SECONDS;
+  const ttl = Math.floor(now / 1000) + (deps.ttlSeconds ?? PENDING_TTL_SECONDS);
   await store.putPending({
     nonce,
     challenge: normalizeChallenge(challenge),
