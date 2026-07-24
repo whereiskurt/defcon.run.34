@@ -14,7 +14,7 @@
       "label": "Android 2.8.0 beta",
       "sublabel": "Newest — improved BLE bonding",
       "filename": "meshtastic-android-2.8.0-open.1.apk",
-      "url": "https://github.com/meshtastic/Meshtastic-Android/releases/download/2.8.0-open.1/androidApp-fdroid-universal-release.apk"
+      "url": "https://github.com/meshtastic/Meshtastic-Android/releases/download/v2.8.0-open.1/androidApp-fdroid-universal-release.apk"
     },
     {
       "id": "ios",
