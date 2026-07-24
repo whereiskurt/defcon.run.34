@@ -148,6 +148,8 @@ export function AdminConsole({
   const [ringtoneDraft, setRingtoneDraft] = useState("");
   const [ringtoneSaving, setRingtoneSaving] = useState(false);
   const [ringtoneMsg, setRingtoneMsg] = useState<string | null>(null);
+  const [recalcBusy, setRecalcBusy] = useState(false);
+  const [recalcMsg, setRecalcMsg] = useState<string | null>(null);
 
   // ── Server-side full-email search (privacy: bulk emails never reach us) ────
   const searchSeq = useRef(0);
@@ -250,6 +252,7 @@ export function AdminConsole({
     setDetailLoading(true);
     setRingtoneDraft("");
     setRingtoneMsg(null);
+    setRecalcMsg(null);
     fetch(`${apiBase}/api/admin/users/${r.userId}`, { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
       .then((d: UserDetail) => {
@@ -300,6 +303,34 @@ export function AdminConsole({
       setRingtoneMsg("save failed");
     } finally {
       setRingtoneSaving(false);
+    }
+  };
+
+  // Recalculate a runner's leaderboard score by asking run.gpx to reconcile
+  // that runner's Accomplishment rows against its own source of truth. Same
+  // fetch idiom as saveRingtone (status handling incl. 404 -> "not authorized",
+  // finally-reset).
+  const recalculateScore = async () => {
+    if (!selected) return;
+    setRecalcBusy(true);
+    setRecalcMsg(null);
+    try {
+      const res = await fetch(
+        `${apiBase}/api/admin/users/${selected.userId}/recalculate`,
+        { method: "POST" }
+      );
+      if (!res.ok) {
+        setRecalcMsg(
+          res.status === 404 ? "not authorized" : `failed (${res.status})`
+        );
+        return;
+      }
+      const data = (await res.json()) as { created: number; deleted: number };
+      setRecalcMsg(`recalculated: +${data.created} / -${data.deleted}`);
+    } catch {
+      setRecalcMsg("failed");
+    } finally {
+      setRecalcBusy(false);
     }
   };
   // Esc closes; j/k step to the next/prev user in the CURRENT filtered+sorted
@@ -724,6 +755,30 @@ export function AdminConsole({
                           detail?.mqttUsertype ?? selected.runnerType ?? "rabbit"
                         }).`}
                   </span>
+                </div>
+              </Section>
+
+              <Section title="Leaderboard">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={recalculateScore}
+                    disabled={recalcBusy}
+                    className="rounded-lg bg-primary px-3 py-1 text-[12px] font-medium text-black disabled:opacity-50"
+                  >
+                    {recalcBusy ? "Recalculating…" : "Recalculate score"}
+                  </button>
+                  {recalcMsg ? (
+                    <span
+                      className={`text-[11px] ${
+                        recalcMsg.startsWith("recalculated")
+                          ? "text-success"
+                          : "text-danger"
+                      }`}
+                    >
+                      {recalcMsg}
+                    </span>
+                  ) : null}
                 </div>
               </Section>
 

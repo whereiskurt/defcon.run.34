@@ -114,6 +114,30 @@ export async function getAdapterUserIdBySub(
   return adapterUserId ?? null;
 }
 
+/**
+ * Resolve a run.human Auth.js adapter userId to its OIDC subject — the reverse
+ * direction of `getAdapterUserIdBySub` (LDBR-08 Task 7, admin per-user
+ * Recalculate). Queries the base table directly (no GSI needed: the adapter
+ * userId IS the base pk) — `pk = USER#{adapterUserId}`, `sk` begins with
+ * `ACCOUNT#{OIDC_PROVIDER}#` — and reads `providerAccountId` (the sub) off the
+ * first matching ACCOUNT# record. Returns null if no such account exists.
+ * Server-only (dynamodbClient); never import into a client component.
+ */
+export async function getSubByAdapterUserId(
+  adapterUserId: string
+): Promise<string | null> {
+  const res = await dynamodbClient.query({
+    TableName: DYNAMODB_TABLE,
+    KeyConditionExpression: "pk = :pk AND begins_with(sk, :sk)",
+    ExpressionAttributeValues: {
+      ":pk": `USER#${adapterUserId}`,
+      ":sk": `ACCOUNT#${OIDC_PROVIDER}#`,
+    },
+  });
+  const sub = res.Items?.[0]?.providerAccountId as string | undefined;
+  return sub ?? null;
+}
+
 export async function scanAccountSubs(): Promise<Record<string, string>> {
   const map: Record<string, string> = {};
   let lastKey: Record<string, unknown> | undefined;
