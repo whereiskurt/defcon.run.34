@@ -635,6 +635,9 @@
             <p class="mb-1.5 mt-3 text-xs font-medium text-muted-foreground">
                 {popoverMode === 'assign' ? 'Which DEF CON day is this run for?' : 'Which day?'}
             </p>
+            <p class="mb-1.5 -mt-1 text-xs text-muted-foreground">
+                Counts as a DEF CON accomplishment on the leaderboard
+            </p>
             <div class="flex flex-wrap gap-1.5">
                 {#each usage as day (day.date)}
                     <button

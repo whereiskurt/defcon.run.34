@@ -48,26 +48,41 @@ function dayChipLabel(conDay: string): string {
 }
 
 /** A small pill showing the weekday+date in the day's color when tagged, or a
- * muted "No day assigned" pill when untagged. */
-export function dayChipHtml(conDay: string | null | undefined, color?: string): string {
+ * muted "No day assigned" pill when untagged. When `fileId` is given for the
+ * untagged case (signed-in own-file popups only — see gpx-layer.ts), the pill
+ * becomes a clickable "Add as accomplishment" button carrying
+ * `data-dc34-assign="<fileId>"`, which LayerControl.svelte's delegated click
+ * listener picks up to open the con-day assign dialog for that file. */
+export function dayChipHtml(
+    conDay: string | null | undefined,
+    color?: string,
+    fileId?: string
+): string {
     if (!conDay) {
+        if (fileId) {
+            return `<button type="button" data-dc34-assign="${escapeHtml(fileId)}" style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;font-family:inherit;background:rgba(0,212,170,.12);color:#00d4aa;border:1px solid rgba(0,212,170,.55);cursor:pointer">☆ Add as accomplishment</button>`;
+        }
         return `<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:600;background:rgba(148,148,168,.18);color:#9a9aa8;border:1px solid rgba(148,148,168,.3)">No day assigned</span>`;
     }
     const bg = color ?? routeColor(0);
-    return `<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;background:${bg};color:#0b0b12">${escapeHtml(dayChipLabel(conDay))}</span>`;
+    return `<span title="Counts as a DEF CON accomplishment on the leaderboard" style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;background:${bg};color:#0b0b12">${escapeHtml(dayChipLabel(conDay))}</span>`;
 }
 
 /** Build the click-popup HTML: eyebrow + name + distance + DEF CON day chip.
  * Styled like the existing route popups (border-left color bar, eyebrow, name,
  * meta row — see StravaStrip.svelte's trackPopupHtml). When `removeFileId` is
  * given (my-con-runs.ts — the runner's OWN runs only), a "Remove run" button
- * is rendered; wire it with wireRunPopupRemove after the popup is added. */
+ * is rendered; wire it with wireRunPopupRemove after the popup is added.
+ * `assignFileId` (gpx-layer.ts — the signed-in own-file editable track popup
+ * only) is forwarded to dayChipHtml so an untagged run gets a clickable "Add
+ * as accomplishment" pill instead of the plain "No day assigned" one. */
 export function runPopupHtml(
     fileName: string,
     conDay: string | null | undefined,
     color: string,
     totalDistance?: number,
-    removeFileId?: string
+    removeFileId?: string,
+    assignFileId?: string
 ): string {
     const distStr = formatDistance(totalDistance);
     const removeBtn = removeFileId
@@ -83,7 +98,7 @@ export function runPopupHtml(
             <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.55">My DEF CON Run</div>
             <div style="font-size:15px;font-weight:600;margin-top:2px">${escapeHtml(prettyName(fileName))}</div>
             ${distStr ? `<div style="font-size:12px;opacity:.85;margin-top:6px">📏 ${distStr}</div>` : ''}
-            <div style="margin-top:8px">${dayChipHtml(conDay, color)}</div>
+            <div style="margin-top:8px">${dayChipHtml(conDay, color, assignFileId)}</div>
             ${removeBtn}
         </div>`;
 }
