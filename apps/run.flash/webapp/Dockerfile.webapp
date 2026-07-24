@@ -83,6 +83,8 @@ RUN set -e; \
         done; \
         [ "$(find /firmware -name "firmware-*-${FW_VER}.*" | wc -l)" -gt 0 ] || \
           { echo "ERROR: slot $SLOT ($FW_VER) produced zero firmware files"; exit 1; }; \
+        [ "$(find /firmware -name "firmware-*-${FW_VER}.factory.bin" | wc -l)" -gt 0 ] || \
+          { echo "ERROR: slot $SLOT ($FW_VER) has no .factory.bin — pre-factory-image release (like 2.7.15) cannot serve ESP32 devices"; exit 1; }; \
       fi; \
       jq -n --arg slot "$SLOT" --arg version "$FW_VER" --arg label "$LABEL" \
         --argjson default "$IS_DEFAULT" --argjson experimental "$IS_EXP" \

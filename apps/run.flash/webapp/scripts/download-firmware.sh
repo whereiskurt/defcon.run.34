@@ -49,10 +49,12 @@ download_release_zips() {
   find "$tmp_dir" -name "*-update.bin" -delete 2>/dev/null || true
   find "$tmp_dir" \( -name "firmware-*.factory.bin" -o -name "firmware-*.uf2" \) -exec mv -f {} "$FIRMWARE_DIR/" \;
   /bin/rm -rf "$tmp_dir"
-  local count
+  local count factory_count
   count=$(find "$FIRMWARE_DIR" -name "firmware-*-${ver}.*" | wc -l | tr -d ' ')
-  echo "Slot files for ${ver}: ${count}"
+  factory_count=$(find "$FIRMWARE_DIR" -name "firmware-*-${ver}.factory.bin" | wc -l | tr -d ' ')
+  echo "Slot files for ${ver}: ${count} (${factory_count} factory.bin)"
   [ "$count" -gt 0 ] || { echo "ERROR: version ${ver} produced zero firmware files" >&2; exit 1; }
+  [ "$factory_count" -gt 0 ] || { echo "ERROR: version ${ver} has no .factory.bin — pre-factory-image release cannot serve ESP32 devices" >&2; exit 1; }
 }
 
 download_nightly() {
