@@ -99,7 +99,10 @@ const itemClasses = {
   title: 'p-0 text-current',
   subtitle: 'p-0',
   indicator: 'text-2xl',
-  content: 'text-lg',
+  // px moved into the rows (trigger/content) because the group is px-0 so
+  // full-bleed row fills can reach the group border.
+  trigger: 'px-3',
+  content: 'text-lg px-1',
 };
 
 /** Drill section header: bold label + hairline rule (UAT: clearer separators). */
@@ -362,7 +365,10 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
           variant="bordered"
           isCompact
           itemClasses={itemClasses}
-          className="gap-0"
+          // px-0 kills the bordered variant's px-4 channel so rows run flush to
+          // the group border; overflow-hidden clips full-bleed row fills to the
+          // group's rounded corners (UAT: own-row green spans the whole card).
+          className="gap-0 px-0 overflow-hidden"
           onSelectionChange={(keys) => {
             Array.from(keys).forEach((key) => fetchUserAccomplishments(String(key)));
           }}
@@ -385,7 +391,10 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
               <AccordionItem
                 key={row.userId}
                 className={
-                  isCurrentUser ? 'border border-green-500/50 rounded-lg overflow-hidden' : ''
+                  // Full-bleed own-row: top/bottom green rules only - the row
+                  // runs edge-to-edge to the group's grey border (no side
+                  // borders, no rounding, no inset channel).
+                  isCurrentUser ? 'border-y border-green-500/50' : ''
                 }
                 classNames={
                   // Own-row highlight tints the HEADER ROW ONLY - the expanded
