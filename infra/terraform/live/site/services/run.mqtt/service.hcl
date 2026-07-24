@@ -356,11 +356,10 @@ locals {
           {
             name      = "MESHTK_FLAG_CHALLENGES"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/flag-challenges"
-          },
-          {
-            name      = "MESHTK_ANTHROPIC_KEY"
-            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/anthropic-key"
           }
+          # MESHTK_ANTHROPIC_KEY (Anthropic-API backup) is intentionally NOT wired:
+          # meshtk defaults to Bedrock when it's unset. Add the `anthropic-key`
+          # SSM param (non-empty) + this valueFrom only when flipping to the backup.
         ]
 
         port_mappings = []
