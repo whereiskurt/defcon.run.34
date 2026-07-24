@@ -18,6 +18,8 @@ export type SocialInfo = {
   band: Band;
   badges: { bibHolder: boolean; egg: boolean };
   remainingToday: number;
+  /** Admin/runadmin only: unlocks attendance mode in the camera scanner. */
+  attendance?: boolean;
 };
 
 interface Props {

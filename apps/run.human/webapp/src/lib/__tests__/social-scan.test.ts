@@ -174,6 +174,41 @@ describe("judgeScan", () => {
     expect(fake.state.pairs.size).toBe(1); // deliberately burned
   });
 
+  it("capExempt (admin attendance) scans succeed past the daily cap", async () => {
+    fake.state.quotas.set(`scanner|2026-08-06`, DAILY_SCAN_CAP);
+    const result = await judgeScan(
+      { scannerId: "scanner", token: TOKEN, nowMs: NOW, capExempt: true },
+      fake.store
+    );
+    expect(result.ok).toBe(true);
+    // Both parties still awarded; ledger rows still written (honest audit trail).
+    expect(fake.state.awards).toHaveLength(2);
+    expect(fake.state.ledgers).toHaveLength(2);
+    // Usage still counted, just not enforced.
+    expect(fake.state.quotas.get(`scanner|2026-08-06`)).toBe(DAILY_SCAN_CAP + 1);
+  });
+
+  it("capExempt still respects pair-day dedup and self-scan", async () => {
+    const first = await judgeScan(
+      { scannerId: "scanner", token: TOKEN, nowMs: NOW, capExempt: true },
+      fake.store
+    );
+    expect(first.ok).toBe(true);
+    const dup = await judgeScan(
+      { scannerId: "scanner", token: TOKEN, nowMs: NOW, capExempt: true },
+      fake.store
+    );
+    expect(dup).toEqual({ ok: false, code: "already_today" });
+    fake.state.byToken.set(TOKEN, {
+      userId: "scanner", displayName: "Scanner", socialScore: 3,
+    });
+    const self = await judgeScan(
+      { scannerId: "scanner", token: TOKEN, nowMs: NOW, capExempt: true },
+      fake.store
+    );
+    expect(self).toEqual({ ok: false, code: "self" });
+  });
+
   it("rejects malformed tokens and hashes", async () => {
     expect(
       (await judgeScan({ scannerId: "s", token: "XYZ", nowMs: NOW }, fake.store))

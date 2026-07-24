@@ -75,7 +75,14 @@ export type EggResult =
   | { ok: false; code: "already" };
 
 export async function judgeScan(
-  input: { scannerId: string; token?: string; hash?: string; nowMs: number },
+  input: {
+    scannerId: string;
+    token?: string;
+    hash?: string;
+    nowMs: number;
+    /** Admin attendance mode: usage is still counted, the cap is not enforced. */
+    capExempt?: boolean;
+  },
   store: ScanStore
 ): Promise<ScanResult> {
   const { scannerId, nowMs } = input;
@@ -103,9 +110,12 @@ export async function judgeScan(
 
   // Cap check AFTER the pair claim: an over-cap scan burns the pair for the
   // day (prevents cap-probing the same target repeatedly). Only the scanner
-  // is charged quota.
+  // is charged quota. capExempt scanners (admin attendance mode) keep the
+  // usage counter honest but skip enforcement.
   const count = await store.bumpQuota(scannerId, day);
-  if (count > DAILY_SCAN_CAP) return { ok: false, code: "cap" };
+  if (!input.capExempt && count > DAILY_SCAN_CAP) {
+    return { ok: false, code: "cap" };
+  }
 
   const bucket = `${day}#${pk}`;
   try {

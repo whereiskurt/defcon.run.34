@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Modal, ModalContent, ModalHeader, ModalBody, Button,
+  Modal, ModalContent, ModalHeader, ModalBody, Button, Switch,
 } from '@heroui/react';
-import { ExternalLink, RotateCcw, X } from 'lucide-react';
-import { parseRunnerQr, awardPathFor } from './parseRunnerQr';
-import { getApiBasePath } from '@/lib/api';
+import { ExternalLink, RotateCcw, X, Volume2, ClipboardCheck } from 'lucide-react';
+import { parseRunnerQr, awardPathFor, type RunnerQr } from './parseRunnerQr';
+import { getApiBasePath, apiUrl } from '@/lib/api';
 
 export interface ScannerCopy {
   title: string;
@@ -23,9 +23,12 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   copy: ScannerCopy;
+  /** Admin/runadmin only: shows the attendance-mode toggle. */
+  attendanceAvailable?: boolean;
 }
 
 type Phase = 'requesting' | 'scanning' | 'found' | 'unavailable';
+type FlashKind = 'ok' | 'dup' | 'err';
 
 // Minimal shape of the (not-yet-in-lib.dom) native BarcodeDetector API.
 interface NativeBarcodeDetector {
@@ -41,11 +44,46 @@ interface BarcodeDetectorCtor {
 const DECODE_INTERVAL_MS = 125;
 const MAX_DECODE_EDGE = 640;
 const MISS_FLASH_MS = 1500;
+const FLASH_MS = 1200;
 
-export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
+const ATTENDANCE_KEY = 'socialqr.attendance';
+const SOUND_KEY = 'socialqr.attendance.sound';
+
+/** Short confirmation beep (WebAudio — no asset). Best-effort on iOS. */
+function playBeep(ctxRef: { current: AudioContext | null }, dup: boolean) {
+  try {
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return;
+    ctxRef.current ??= new Ctor();
+    const ctx = ctxRef.current;
+    if (ctx.state === 'suspended') void ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = dup ? 392 : 880; // low tone for "already paired"
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.16);
+  } catch {
+    // Sound is decoration — never let it break scanning.
+  }
+}
+
+export default function QrScannerModal({
+  isOpen, onClose, copy, attendanceAvailable = false,
+}: Props) {
   const [phase, setPhase] = useState<Phase>('requesting');
   const [awardUrl, setAwardUrl] = useState<string | null>(null);
   const [showMiss, setShowMiss] = useState(false);
+  const [attendanceOn, setAttendanceOn] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
+  const [tally, setTally] = useState({ ok: 0, dup: 0 });
+  const [flash, setFlash] = useState<{ kind: FlashKind; msg: string } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -53,7 +91,16 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
   const lastDecodeRef = useRef(0);
   const decodingRef = useRef(false);
   const missTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  // Attendance-mode dedup: tokens already POSTed this session (pending or
+  // settled). Network failures are removed so the runner can be re-scanned.
+  const seenRef = useRef<Set<string>>(new Set());
+  // Live mirrors for the decode callback (avoids stale-closure re-wiring).
+  const attendanceRef = useRef(false);
+  const soundRef = useRef(true);
   // Engine handles, resolved once per open: native BarcodeDetector when the
   // browser has one (Chrome/Android), else lazy-loaded jsQR (iPhone Safari —
   // the main real-world path at the con).
@@ -64,7 +111,47 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     if (videoRef.current) videoRef.current.srcObject = null;
+    wakeLockRef.current?.release().catch(() => {});
+    wakeLockRef.current = null;
   }, []);
+
+  const flashNow = useCallback((kind: FlashKind, msg: string) => {
+    setFlash({ kind, msg });
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
+    flashTimerRef.current = setTimeout(() => setFlash(null), FLASH_MS);
+  }, []);
+
+  /** Attendance mode: fire the pairing in the background and keep scanning. */
+  const autoPair = useCallback(async (qr: RunnerQr) => {
+    const key = `${qr.kind}:${qr.value}`;
+    if (seenRef.current.has(key)) return;
+    seenRef.current.add(key);
+    try {
+      const res = await fetch(apiUrl('/api/social-scan'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(qr.kind === 'token' ? { p: qr.value } : { h: qr.value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setTally((t) => ({ ...t, ok: t.ok + 1 }));
+        if (soundRef.current) playBeep(audioCtxRef, false);
+        flashNow('ok', `PAIRED · ${data.ownerName ?? 'runner'}`);
+      } else if (data.code === 'already_today') {
+        setTally((t) => ({ ...t, dup: t.dup + 1 }));
+        if (soundRef.current) playBeep(audioCtxRef, true);
+        flashNow('dup', 'Already paired today');
+      } else if (data.code === 'self') {
+        flashNow('dup', "That's your own QR");
+      } else {
+        flashNow('err', data.message ?? 'Pairing failed');
+      }
+    } catch {
+      // Network hiccup: allow a retry on the next sight of this QR.
+      seenRef.current.delete(key);
+      flashNow('err', 'Network hiccup - hold steady and retry');
+    }
+  }, [flashNow]);
 
   const onDecoded = useCallback((text: string) => {
     const qr = parseRunnerQr(text);
@@ -74,10 +161,15 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
       missTimerRef.current = setTimeout(() => setShowMiss(false), MISS_FLASH_MS);
       return;
     }
+    if (attendanceRef.current) {
+      // Camera stays on; award fires in the background.
+      void autoPair(qr);
+      return;
+    }
     stopStream();
     setAwardUrl(awardPathFor(qr, getApiBasePath()));
     setPhase('found');
-  }, [stopStream]);
+  }, [autoPair, stopStream]);
 
   const decodeLoop = useCallback(() => {
     const tick = async () => {
@@ -183,6 +275,20 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
   // camera light must NEVER stay on past the modal.
   useEffect(() => {
     if (!isOpen) return;
+    if (attendanceAvailable) {
+      try {
+        const att = localStorage.getItem(ATTENDANCE_KEY) === '1';
+        setAttendanceOn(att);
+        attendanceRef.current = att;
+        const snd = localStorage.getItem(SOUND_KEY) !== '0';
+        setSoundOn(snd);
+        soundRef.current = snd;
+      } catch {
+        // Private-mode localStorage failures: defaults stand.
+      }
+    }
+    setTally({ ok: 0, dup: 0 });
+    seenRef.current = new Set();
     startCamera();
     const onHide = () => {
       if (document.visibilityState === 'hidden') {
@@ -196,10 +302,48 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
       document.removeEventListener('visibilitychange', onHide);
       window.removeEventListener('pagehide', onHide);
       if (missTimerRef.current) clearTimeout(missTimerRef.current);
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current);
       stopStream();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
+
+  // Attendance sessions run long — keep the screen awake while scanning.
+  useEffect(() => {
+    if (!(isOpen && attendanceOn && phase === 'scanning')) return;
+    let cancelled = false;
+    (navigator as Navigator & {
+      wakeLock?: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> };
+    }).wakeLock?.request('screen')
+      .then((lock) => {
+        if (cancelled) void lock.release().catch(() => {});
+        else wakeLockRef.current = lock;
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      wakeLockRef.current?.release().catch(() => {});
+      wakeLockRef.current = null;
+    };
+  }, [isOpen, attendanceOn, phase]);
+
+  const toggleAttendance = (on: boolean) => {
+    setAttendanceOn(on);
+    attendanceRef.current = on;
+    try { localStorage.setItem(ATTENDANCE_KEY, on ? '1' : '0'); } catch {}
+    // The toggle press is a user gesture — warm up the AudioContext now so
+    // later background beeps aren't blocked by autoplay policy.
+    if (on && soundRef.current) playBeep(audioCtxRef, false);
+    // Flipping it on from the found card resumes scanning.
+    if (on && phase === 'found') startCamera();
+  };
+
+  const toggleSound = (on: boolean) => {
+    setSoundOn(on);
+    soundRef.current = on;
+    try { localStorage.setItem(SOUND_KEY, on ? '1' : '0'); } catch {}
+    if (on) playBeep(audioCtxRef, false);
+  };
 
   // window.open must run inside the tap gesture or popup blockers eat it —
   // this is why decode ends at a "found" card instead of auto-opening.
@@ -209,6 +353,14 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
   };
 
   const bracket = 'absolute w-8 h-8 border-primary';
+  const glow =
+    flash?.kind === 'ok'
+      ? 'ring-4 ring-success shadow-[0_0_28px_rgba(51,255,153,0.85)]'
+      : flash?.kind === 'dup'
+        ? 'ring-2 ring-warning'
+        : flash?.kind === 'err'
+          ? 'ring-2 ring-danger'
+          : '';
 
   return (
     <Modal
@@ -219,7 +371,14 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
       hideCloseButton={phase === 'scanning' || phase === 'requesting'}
     >
       <ModalContent>
-        <ModalHeader className="font-museo">{copy.title}</ModalHeader>
+        <ModalHeader className="font-museo flex items-center gap-2">
+          {copy.title}
+          {attendanceOn && attendanceAvailable && (
+            <span className="font-mono text-[10px] tracking-widest text-success border border-success rounded-full px-2 py-0.5">
+              ATTENDANCE
+            </span>
+          )}
+        </ModalHeader>
         <ModalBody className="pb-6">
           {phase === 'unavailable' ? (
             <div className="rounded-lg bg-content2 p-4 text-sm text-default-500">
@@ -245,7 +404,9 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-3">
-              <div className="relative w-full overflow-hidden rounded-lg bg-black aspect-[3/4]">
+              <div
+                className={`relative w-full overflow-hidden rounded-lg bg-black aspect-[3/4] transition-shadow duration-300 ${glow}`}
+              >
                 <video
                   ref={videoRef}
                   playsInline
@@ -262,6 +423,11 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
                     <span className={`${bracket} right-0 bottom-0 border-r-[3px] border-b-[3px] rounded-br-md`} />
                   </div>
                 </div>
+                {attendanceOn && attendanceAvailable && (tally.ok > 0 || tally.dup > 0) && (
+                  <div className="absolute top-2 right-2 rounded-full bg-black/70 px-3 py-1 font-mono text-xs text-success">
+                    {tally.ok} paired{tally.dup > 0 ? ` · ${tally.dup} dup` : ''}
+                  </div>
+                )}
                 {phase === 'requesting' && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <span className="animate-pulse font-mono text-xs text-white/70">
@@ -270,9 +436,44 @@ export default function QrScannerModal({ isOpen, onClose, copy }: Props) {
                   </div>
                 )}
               </div>
-              <p className={`text-center text-xs ${showMiss ? 'text-warning' : 'text-default-400'}`}>
-                {showMiss ? copy.miss : copy.hint}
+              <p
+                className={`text-center text-xs ${
+                  flash
+                    ? flash.kind === 'ok'
+                      ? 'text-success font-mono'
+                      : flash.kind === 'dup'
+                        ? 'text-warning'
+                        : 'text-danger'
+                    : showMiss
+                      ? 'text-warning'
+                      : 'text-default-400'
+                }`}
+              >
+                {flash ? flash.msg : showMiss ? copy.miss : copy.hint}
               </p>
+              {attendanceAvailable && (
+                <div className="flex w-full items-center justify-between rounded-lg bg-content2 px-3 py-2">
+                  <Switch
+                    size="sm"
+                    color="success"
+                    isSelected={attendanceOn}
+                    onValueChange={toggleAttendance}
+                    startContent={<ClipboardCheck className="w-3.5 h-3.5" />}
+                  >
+                    <span className="text-xs">Attendance mode</span>
+                  </Switch>
+                  <Switch
+                    size="sm"
+                    color="secondary"
+                    isSelected={soundOn}
+                    onValueChange={toggleSound}
+                    isDisabled={!attendanceOn}
+                    startContent={<Volume2 className="w-3.5 h-3.5" />}
+                  >
+                    <span className="text-xs">Sound</span>
+                  </Switch>
+                </div>
+              )}
               <Button
                 size="sm" variant="flat" fullWidth
                 startContent={<X className="w-4 h-4" />}

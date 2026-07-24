@@ -141,6 +141,9 @@ export async function GET(req: NextRequest) {
         0,
         DAILY_SCAN_CAP - (quotaToday.data?.count ?? 0)
       ),
+      // Attendance mode (admin/runadmin only): auto-pair camera scanning on
+      // whoami; pairs with capExempt in /api/social-scan.
+      attendance: isAdmin(session),
     },
   };
 

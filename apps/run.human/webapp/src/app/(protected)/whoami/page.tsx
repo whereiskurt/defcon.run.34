@@ -437,6 +437,7 @@ export default function WhoAmIPage() {
                   isOpen={isScannerOpen}
                   onClose={() => setIsScannerOpen(false)}
                   copy={scanCopy}
+                  attendanceAvailable={!!userData.social?.attendance}
                 />
                 {userData.hash && (
                   <QrCardModal
