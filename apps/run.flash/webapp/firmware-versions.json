@@ -1,7 +1,7 @@
 {
   "versions": [
     { "slot": "stable", "pin": "2.7.26.54e0d8d", "label": "2.7.26 — recommended", "default": true },
-    { "slot": "previous", "pin": "2.7.15.567b8ea", "label": "2.7.15 — previous stable" },
+    { "slot": "previous", "pin": "2.7.25.104df5f", "label": "2.7.25 — previous release" },
     { "slot": "nightly", "pin": "", "label": "2.8.0 nightly — experimental", "experimental": true }
   ]
 }

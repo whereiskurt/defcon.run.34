@@ -9,8 +9,8 @@
     },
     {
       "slot": "previous",
-      "version": "2.7.15.567b8ea",
-      "label": "2.7.15 — previous stable",
+      "version": "2.7.25.104df5f",
+      "label": "2.7.25 — previous release",
       "default": false,
       "experimental": false
     },
