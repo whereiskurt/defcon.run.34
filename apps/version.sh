@@ -25,8 +25,8 @@ if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   exit 1
 fi
 
-if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" ]]; then
-  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', 'app', 'mosquitto', or 'meshtk'"
+if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" && "$COMPONENT" != "guardrails" ]]; then
+  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', 'app', 'mosquitto', 'meshtk', or 'guardrails'"
   exit 1
 fi
 
@@ -52,12 +52,12 @@ if [[ "$APP" == "run.gpx" && "$COMPONENT" == "nginx" ]]; then
 fi
 
 # mqtt component/app validation
-if [[ "$APP" == "run.mqtt" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" && "$COMPONENT" != "nginx" ]]; then
-  echo "ERROR: run.mqtt only accepts components 'mosquitto', 'meshtk', or 'nginx'"
+if [[ "$APP" == "run.mqtt" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" && "$COMPONENT" != "nginx" && "$COMPONENT" != "guardrails" ]]; then
+  echo "ERROR: run.mqtt only accepts components 'mosquitto', 'meshtk', 'nginx', or 'guardrails'"
   exit 1
 fi
 
-if [[ "$APP" != "run.mqtt" && ("$COMPONENT" == "mosquitto" || "$COMPONENT" == "meshtk") ]]; then
+if [[ "$APP" != "run.mqtt" && ("$COMPONENT" == "mosquitto" || "$COMPONENT" == "meshtk" || "$COMPONENT" == "guardrails") ]]; then
   echo "ERROR: '$COMPONENT' component is only valid for run.mqtt"
   exit 1
 fi
