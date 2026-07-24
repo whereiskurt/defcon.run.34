@@ -87,4 +87,54 @@ describe("buildGpxAccomplishmentInput", () => {
     expect("elevation" in input).toBe(false);
     expect("polyline" in input).toBe(false);
   });
+
+  it("maps a strava body with stravaActivityId to a strava/activity CreateAccomplishmentInput", () => {
+    const stravaBody: GpxAccomplishmentBody = {
+      gpxFileId: "gpx-9",
+      name: "Strava Activity",
+      distance: 8000,
+      completedAt: 1_700_000_000_000,
+      source: "strava",
+      stravaActivityId: "987654321",
+    };
+    const input = buildGpxAccomplishmentInput(stravaBody, "uuid-1");
+    expect(input.source).toBe("strava");
+    expect(input.type).toBe("activity");
+    expect(input.points).toBe(POINTS.strava);
+    expect(input.stravaActivityId).toBe("987654321");
+    expect(input.gpxFileId).toBe("gpx-9");
+    expect(input.userId).toBe("uuid-1");
+  });
+
+  it("throws on strava source without stravaActivityId", () => {
+    const stravaBody: GpxAccomplishmentBody = {
+      gpxFileId: "gpx-9",
+      name: "Strava Activity",
+      completedAt: 1_700_000_000_000,
+      source: "strava",
+    };
+    expect(() =>
+      buildGpxAccomplishmentInput(stravaBody, "uuid-1")
+    ).toThrow(/stravaActivityId/);
+  });
+
+  it("treats unknown source (ctf) as gpx", () => {
+    const body: GpxAccomplishmentBody = {
+      ...good,
+      source: "ctf",
+    };
+    const input = buildGpxAccomplishmentInput(body, "uuid-1");
+    expect(input.source).toBe("gpx");
+    expect(input.points).toBe(POINTS.gpx);
+  });
+
+  it("accepts and ignores conDay field", () => {
+    const body: GpxAccomplishmentBody = {
+      ...good,
+      conDay: "day1",
+    };
+    const input = buildGpxAccomplishmentInput(body, "uuid-1");
+    expect(input.source).toBe("gpx");
+    expect("conDay" in input).toBe(false);
+  });
 });
