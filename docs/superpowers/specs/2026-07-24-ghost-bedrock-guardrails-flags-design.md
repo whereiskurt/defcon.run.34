@@ -77,7 +77,7 @@ Runtime flow in the unlocked-chat branch:
 inbound DM (radio already OTP-unlocked)
   │
   ▼
-ApplyGuardrail(INPUT)  ──blocked──▶ send canned in-character refusal, return
+guard(INPUT) ──▶ localhost guardrail sidecar ──blocked──▶ canned refusal, return
   │ pass
   ▼
 message matches a challenge trigger (case-insensitive substring)?
@@ -88,7 +88,7 @@ message matches a challenge trigger (case-insensitive substring)?
 LLM chat: MESHTK_ANTHROPIC_KEY set ? Anthropic-direct : Bedrock   (Claude Haiku 4.5)
   │
   ▼
-ApplyGuardrail(OUTPUT) ──blocked──▶ send canned in-character refusal, return
+guard(OUTPUT) ──▶ localhost guardrail sidecar ──blocked──▶ canned refusal, return
   │ pass
   ▼
 chunk to 60 chars, send over mesh
@@ -97,8 +97,9 @@ chunk to 60 chars, send over mesh
 Key properties:
 - The **flag code never enters the model context**, so prompt-extraction attacks
   on the bot cannot leak it, and the model cannot mistype/paraphrase it.
-- Guardrails are a **standalone stage** (not inline on `Converse`), so they cover
-  **both** the Bedrock and Anthropic-direct backends identically.
+- Guardrails are a **standalone stage** (an HTTP call to a co-located sidecar, not
+  inline on `Converse`), so they cover **both** the Bedrock and Anthropic-direct
+  backends identically — and stay cloud-agnostic / OSS.
 
 ---
 
@@ -161,17 +162,29 @@ Replace `callOpenAIGPT` with two Claude backends and a selector:
   route to `handleLLMChat` whenever the ghost has a non-empty persona
   `SystemPrompt`; the ChatGPT share-URL string is removed from the YAML.
 
-### 5.5 Guardrail stage (Bedrock Guardrails)
+### 5.5 Guardrail stage (OSS sidecar — Guardrails AI, server mode)
 
-- `guardText(ctx, text string, source guardrailSource) (allowed bool, replacement
-  string)` — calls `bedrockruntime.ApplyGuardrail` with the configured
-  `GuardrailIdentifier` + `GuardrailVersion` and `Source = INPUT|OUTPUT`. On
-  `Action == GUARDRAIL_INTERVENED`, return `allowed=false`.
+The guardrail engine is **Guardrails AI running in server mode as a sidecar
+container in the same ECS task** (see §6.4). meshtk (Go) talks to it over
+localhost HTTP — no AWS guardrail dependency, cloud-agnostic, "in the call
+stack." (LLM Guard is EOL; this replaces the earlier Bedrock Guardrails choice.)
+
+- `guardText(ctx, text string, source guardSource) (allowed bool, replacement
+  string)` — `POST http://127.0.0.1:<port>/guards/<input|output>/validate` (the
+  Guardrails AI validate endpoint) with the text. Non-passing validation →
+  `allowed=false`. A configurable timeout with **fail-open OR fail-closed** policy
+  (`MESHTK_GUARDRAIL_FAILMODE`, default fail-open so a sidecar hiccup never
+  bricks the ghosts at the con) — logged on every intervention/timeout.
+- Two named guards are defined in the sidecar config: an **input** guard and an
+  **output** guard (different validator sets — see §6.3).
+- Optional fast pre-filter: **Prompt Guard 2** (tiny injection classifier) can run
+  as the input guard's first validator to cheaply reject obvious jailbreaks before
+  the heavier validators.
 - Wiring: INPUT guard on **every** inbound unlocked message; OUTPUT guard on
   **LLM-generated** replies only (the deterministic reveal is exempt — see §6.3).
 - On block, send a short in-character canned refusal (per-ghost or a shared
   default, `<230` chars), not the offending text.
-- If `MESHTK_GUARDRAIL_ID` is unset, guardrails are **skipped** (dev/local
+- If `MESHTK_GUARDRAIL_URL` is unset, the guard stage is **skipped** (dev/local
   parity) and a warning is logged once.
 
 ### 5.6 Tests
@@ -183,6 +196,8 @@ Replace `callOpenAIGPT` with two Claude backends and a selector:
   fail-closed).
 - LLM backend selection test (key set vs unset picks the right path) — with the
   HTTP/Bedrock calls behind a small interface so they can be faked.
+- Guard-stage test: block → canned refusal; sidecar timeout/unset URL → fail-mode
+  behavior (open vs closed) is honored.
 
 ---
 
@@ -199,31 +214,47 @@ Replace `callOpenAIGPT` with two Claude backends and a selector:
   - `services/run.human/service.hcl` (so `/admin/ghosts` can display the trigger
     + derived code to the operator).
 
-### 6.2 Bedrock access
+### 6.2 Bedrock access (generation only)
 
-- Create `aws_bedrock_guardrail` (+ a published version) with content filters
-  tuned for the hacker-culture audience (see §6.3), plus `bedrock:InvokeModel`
-  and `bedrock:ApplyGuardrail` on the **run-mqtt-ghosts task role** for the Haiku
-  inference-profile + guardrail ARNs.
+- `bedrock:InvokeModel` (+ `bedrock:InvokeModelWithResponseStream` if streaming)
+  on the **run-mqtt-ghosts task role** for the Haiku inference-profile ARNs. No
+  guardrail IAM — guardrails are the OSS sidecar, not a Bedrock service.
 - **Manual, one-time:** enable Claude Haiku model access in the Bedrock console
   (account `427284555693`, `us-east-1`; `ca-central-1` via cross-region profile).
   Document in the plan as an out-of-band prerequisite.
 - Add SSM param + env `MESHTK_ANTHROPIC_KEY` **created but empty** → prod stays on
   Bedrock by default; setting it flips to the direct-API backup.
 
-### 6.3 Guardrail tuning (domain fit)
+### 6.3 Guardrail tuning (domain fit — validator selection)
 
 The ghosts are hacker personas — they are *supposed* to discuss 2600, phreaking,
-exploits, "hack the planet." Configuration:
+exploits, "hack the planet." Because Guardrails AI is validator-by-validator, we
+pick exactly what fits rather than fighting a fixed taxonomy:
 
-- **Keep:** prompt-attack/jailbreak filter, hate/harassment/sexual/violence
-  content filters, PII detection.
-- **Loosen/disable:** the generic "misconduct / illicit-activity" category (it
-  trips on legitimate hacker-culture talk).
-- **Denied topics (narrow):** real credentials, doxxing/PII of real people,
-  actionable instructions to attack real infrastructure.
+- **Input guard validators:** jailbreak/prompt-injection detection (Prompt Guard 2
+  and/or the DetectJailbreak validator), plus a light toxicity check.
+- **Output guard validators:** toxicity / hate-harassment / sexual-content /
+  violence; PII leakage (Presidio-backed) for real-person data.
+- **Deliberately omit** a blanket "illegal/illicit-activity" validator — it trips
+  on legitimate hacker-culture talk. Constrain narrowly instead (real
+  credentials, doxxing, actionable attacks on real infrastructure) via targeted
+  validators/denylists.
 - **Reveal exemption:** the deterministic flag reveal is **not** run through the
-  OUTPUT guard, because a PII/sensitive-info filter would redact the flag code.
+  OUTPUT guard, because a PII/secret validator would redact the flag code.
+- Validator config is baked into the sidecar image (a `config.py`/guard rails
+  spec), versioned in the repo, and tunable against real persona transcripts.
+
+### 6.4 Guardrail sidecar (new container in the run.mqtt task)
+
+- New sidecar container in `services/run.mqtt/service.hcl` running Guardrails AI
+  in server mode (its own small image, built + pushed to ECR like `meshtk`; CPU
+  only — no GPU). Exposes the validate API on a loopback port.
+- The ghosts container gets env `MESHTK_GUARDRAIL_URL=http://127.0.0.1:<port>`
+  and `MESHTK_GUARDRAIL_FAILMODE=open`.
+- ECS task `dependsOn` so the ghosts wait for the sidecar's health check; sidecar
+  sized for CPU-only inference of small validator models. Any model weights the
+  validators need are baked into the image (no run-time downloads).
+- No new IAM (localhost only); no inbound networking beyond the task.
 
 ---
 
@@ -280,10 +311,16 @@ persona prompt cleaned. ricky/dt (lyrics-only, no flag) are unaffected.
 - **Bedrock model ID / region:** exact Haiku inference-profile string confirmed at
   build; `ca-central-1` may require a cross-region inference profile or the
   ghosts there fall back via `MESHTK_ANTHROPIC_KEY`.
-- **Latency:** input-guard + LLM + output-guard ≈ up to 3 Bedrock round-trips.
-  Acceptable — mesh chat already paces at 500ms/chunk; not latency-critical.
+- **Latency:** input-guard (localhost sidecar) + LLM (Bedrock) + output-guard
+  (localhost sidecar). The guard hops are in-task loopback CPU inference on small
+  validator models; acceptable — mesh chat already paces at 500ms/chunk. Size the
+  sidecar so validator latency stays sub-second; `MESHTK_GUARDRAIL_FAILMODE=open`
+  ensures a slow/dead sidecar degrades to un-guarded rather than blocking chat.
+- **Sidecar image/footprint:** Guardrails AI + any small validator model weights
+  baked into a CPU image; adds an ECR repo + build. Keep the validator set lean so
+  the image and memory footprint stay Fargate-friendly.
 - **Guardrail over-blocking:** hacker-culture false positives; mitigated by §6.3
-  tuning. Validate against real persona transcripts before the con.
+  validator selection. Validate against real persona transcripts before the con.
 - **Deploy path:** all deploys via GitHub Actions (meshtk merge → `buildpub.yml`
   run.mqtt; run.human via release + `deploy.yml`). No local terragrunt apply.
   meshtk in CI is freshly cloned from `github.com/whereiskurt/meshtk` main +
@@ -291,12 +328,17 @@ persona prompt cleaned. ricky/dt (lyrics-only, no flag) are unaffected.
 
 ## 11. Rollout order
 
-1. meshtk PR: config model, LLM backends, trigger-reveal, guardrail stage, tests.
-2. defcon.run.34 PR: SOPS `flag-challenges` + `MESHTK_ANTHROPIC_KEY`(empty) +
-   Bedrock guardrail resource + IAM + env wiring (run.mqtt & run.human) + YAML
-   persona cleanup + `mesh-ghosts.ts` + rekey script `--flags` source update.
-3. Enable Haiku model access in Bedrock console (manual prereq).
-4. Deploy meshtk fleet (buildpub) + run.human (release/deploy).
-5. UAT: OTP unlock → chat (Bedrock persona) → raise trigger topic → receive
-   derived code → submit → CTF chain solves. Verify guardrail blocks a jailbreak
-   attempt on both INPUT and OUTPUT.
+1. meshtk PR: config model, LLM backends, trigger-reveal, guardrail HTTP stage
+   (`guardText` + fail-mode), tests.
+2. Guardrail sidecar image: Guardrails AI server config (input/output guards,
+   §6.3 validators) + Dockerfile; build + push to a new ECR repo.
+3. defcon.run.34 PR: SOPS `flag-challenges` + `MESHTK_ANTHROPIC_KEY`(empty) +
+   Bedrock `InvokeModel` IAM + guardrail sidecar container/`dependsOn`/env wiring
+   (run.mqtt) + `MESHTK_FLAG_CHALLENGES` on run.human + YAML persona cleanup +
+   `mesh-ghosts.ts` + rekey script `--flags` source update.
+4. Enable Haiku model access in Bedrock console (manual prereq).
+5. Deploy meshtk fleet + guardrail sidecar (buildpub) + run.human (release/deploy).
+6. UAT: OTP unlock → chat (Bedrock persona) → raise trigger topic → receive
+   derived code → submit → CTF chain solves. Verify the guardrail sidecar blocks a
+   jailbreak attempt on both INPUT and OUTPUT, and that fail-open lets chat
+   continue if the sidecar is stopped.
