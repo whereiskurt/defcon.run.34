@@ -6,3 +6,4 @@ public/firmware/*.factory.bin
 # TypeScript build cache
 *.tsbuildinfo
 public/apps/
+public/firmware/*.uf2
