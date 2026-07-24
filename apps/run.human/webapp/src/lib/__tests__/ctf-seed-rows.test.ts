@@ -25,19 +25,19 @@ const PERSONAS = [
     answer: "hackers4evr",
     secret: "GZRGQNKGKN4DINQ",
     otpauth:
-      "otpauth://totp/Emmanuel%20Goldstein?secret=GZRGQNKGKN4DINQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+      "otpauth://totp/Emmanuel%20Goldstein?secret=GZRGQNKGKN4DINQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
   },
   {
     name: "mudge",
     answer: "0g3l33t",
     secret: "NA2DG",
-    otpauth: "otpauth://totp/Mudge?secret=NA2DG&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    otpauth: "otpauth://totp/Mudge?secret=NA2DG&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
   },
   {
     name: "condor",
     answer: "fr33k3v1n",
     secret: "EZRWO",
-    otpauth: "otpauth://totp/Condor?secret=EZRWO&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    otpauth: "otpauth://totp/Condor?secret=EZRWO&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
   },
   {
     name: "grace-hopper",
@@ -45,13 +45,13 @@ const PERSONAS = [
     answer: "d3bugth3sYstem",
     secret: "I4TDMITCMU",
     otpauth:
-      "otpauth://totp/Grandma%20COBOL?secret=I4TDMITCMU&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+      "otpauth://totp/Grandma%20COBOL?secret=I4TDMITCMU&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
   },
   {
     name: "turing",
     answer: "3n1gim@",
     secret: "O5RQ",
-    otpauth: "otpauth://totp/Prof?secret=O5RQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    otpauth: "otpauth://totp/Prof?secret=O5RQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
   },
 ] as const;
 
@@ -118,7 +118,7 @@ describe("buildSeedRows() — DC33 persona OTP-chain starter set", () => {
     it("chained OTP flag: answerType otp, real secret, unlockAfter + 24h cadence, no static answer", () => {
       const o = byName(`${name}-otp`);
       expect(o.answerType).toBe("otp");
-      expect(o.otp).toEqual({ secret, digits: 6, period: 120, algorithm: "SHA1", skew: 1 });
+      expect(o.otp).toEqual({ secret, digits: 6, period: 30, algorithm: "SHA1", skew: 1 });
       // Default-off invariant (Phase 65, SC2): the seeded DC33 OTP chains stay
       // SHARED — no shipped/seeded flag becomes single-use by the new option.
       expect(o.otp?.singleUse).toBeUndefined();

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   base32Encode,
+  deriveFlagCode,
   deriveOtpauthUrl,
   deriveTotpSecret,
 } from "@/lib/mesh-otp-derive";
@@ -99,5 +100,26 @@ describe("deriveOtpauthUrl", () => {
     expect(() =>
       deriveOtpauthUrl("s", "ghost.x", "https://example.com/?secret=AAAA"),
     ).toThrow(/otpauth/);
+  });
+});
+
+describe("deriveFlagCode", () => {
+  // Shared with meshtk pkg/otp/derive_test.go (flagVectors). 5 bytes → 8 base32 chars.
+  const FLAG_VECTORS = [
+    { serverSecret: "test-server-secret", fleetId: "ghost.goldstein", committed: "hackers4evr", derived: "WVCSNLUF" },
+    { serverSecret: "test-server-secret", fleetId: "ghost.mudge", committed: "0g3l33t", derived: "FNUUESUC" },
+    { serverSecret: "another-secret", fleetId: "ghost.condor", committed: "fr33k3v1n", derived: "4JCPQVLU" },
+  ] as const;
+
+  it("matches the Go-side flag vectors bit-for-bit", () => {
+    for (const v of FLAG_VECTORS) {
+      expect(deriveFlagCode(v.serverSecret, v.fleetId, v.committed)).toBe(v.derived);
+    }
+  });
+
+  it("emits 8 uppercase base32 chars and never collides with the OTP secret", () => {
+    const f = deriveFlagCode("s", "ghost.a", "CODE");
+    expect(f).toMatch(/^[A-Z2-7]{8}$/);
+    expect(f).not.toBe(deriveTotpSecret("s", "ghost.a", "CODE"));
   });
 });

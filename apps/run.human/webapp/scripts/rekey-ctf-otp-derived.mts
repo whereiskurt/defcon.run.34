@@ -49,13 +49,19 @@ import { DynamoDB } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocument } from "@aws-sdk/lib-dynamodb";
 
 import { buildSeedRows } from "../src/lib/ctf-seed-rows";
-import { deriveOtpauthUrl } from "../src/lib/mesh-otp-derive";
+import { deriveOtpauthUrl, deriveFlagCode } from "../src/lib/mesh-otp-derive";
+import { loadMeshGhosts } from "../src/lib/mesh-ghosts";
+import { hashAnswer } from "../src/lib/ctf-hash";
 
 const CONFIRM = process.argv.includes("--confirm");
 // --enable: flip enabled=true on all 10 chain rows (5 static + 5 otp). Independent
 // of the re-key path — does NOT need the server secret (no derivation). Makes the
 // chains score; DRY-RUN by default like everything else.
 const ENABLE = process.argv.includes("--enable");
+// --flags: sync CTF static-flag answer hashes to the DERIVED covert flag codes
+// (meshtk#11). Matches by answer-hash across the whole table, so it catches every
+// row using any ghost's committed flag code regardless of challenge name.
+const FLAGS = process.argv.includes("--flags");
 const TABLE = process.env.RUN_ELECTRO_DBNAME || "run-human-electro";
 const REGION = process.env.RUN_DYNAMODB_REGION;
 const SERVER_SECRET = process.env.MESHTK_GHOST_KEY_SECRET;
@@ -133,6 +139,76 @@ function chainRowNames(): string[] {
   return Object.keys(PERSONA_FLEET).flatMap((name) => [name, `${name}-otp`]);
 }
 
+/** Full-table Ctf scan (raw rows). */
+async function scanCtf(): Promise<Row[]> {
+  const rows: Row[] = [];
+  let ExclusiveStartKey: Row | undefined;
+  do {
+    const r: { Items?: Row[]; LastEvaluatedKey?: Row } = await doc.scan({
+      TableName: TABLE,
+      FilterExpression: "#e = :e",
+      ExpressionAttributeNames: { "#e": "__edb_e__" },
+      ExpressionAttributeValues: { ":e": "Ctf" },
+      ExclusiveStartKey,
+    });
+    rows.push(...(r.Items ?? []));
+    ExclusiveStartKey = r.LastEvaluatedKey;
+  } while (ExclusiveStartKey);
+  return rows;
+}
+
+/**
+ * --flags: for every ghost with a committed flag code, compute committed→derived
+ * (DEFAULT_SALT, matching the prod judge). Then scan the Ctf table and update ANY
+ * static row whose stored answerHash equals a committed code's hash, setting it to
+ * the derived code's hash. Hash-matching (not name-matching) catches every row
+ * that uses a ghost flag code regardless of its challenge name.
+ */
+async function syncFlagCodes() {
+  // committedHash → { fleetId, committed, derived, derivedHash }
+  const byHash = new Map<
+    string,
+    { fleetId: string; committed: string; derived: string; derivedHash: string }
+  >();
+  for (const g of loadMeshGhosts()) {
+    if (!g.flagCode) continue;
+    const derived = deriveFlagCode(SERVER_SECRET!, g.id, g.flagCode);
+    byHash.set(hashAnswer(g.flagCode), {
+      fleetId: g.id,
+      committed: g.flagCode,
+      derived,
+      derivedHash: hashAnswer(derived),
+    });
+    console.log(`● ${g.id}  flag "${g.flagCode}" → derived "${derived}"`);
+  }
+
+  const rows = await scanCtf();
+  let planned = 0;
+  for (const row of rows) {
+    const hit = typeof row.answerHash === "string" ? byHash.get(row.answerHash) : undefined;
+    if (!hit) continue;
+    console.log(
+      `   ${row.challenge}: answerHash matches ${hit.fleetId} committed "${hit.committed}" → derived "${hit.derived}"`,
+    );
+    planned++;
+    if (CONFIRM) {
+      await doc.update({
+        TableName: TABLE,
+        Key: keyOf(row.challenge),
+        UpdateExpression: "SET #a = :a, #u = :u",
+        ExpressionAttributeNames: { "#a": "answerHash", "#u": "updatedAt" },
+        ExpressionAttributeValues: { ":a": hit.derivedHash, ":u": NOW },
+      });
+      console.log(`      ✓ answerHash updated`);
+    }
+  }
+  console.log(
+    CONFIRM
+      ? `\nFlag-code sync: updated ${planned} row(s) to derived answer hashes.`
+      : `\nDRY-RUN: ${planned} row(s) would update to derived answer hashes, wrote nothing. Re-run with --flags --confirm.`,
+  );
+}
+
 /** --enable: set enabled=true on all 10 chain rows (preserving everything else). */
 async function enableChains() {
   let planned = 0;
@@ -168,11 +244,16 @@ async function enableChains() {
 
 async function main() {
   console.log(
-    `Table: ${TABLE}  Region: ${REGION}  Endpoint: ${process.env.RUN_ELECTRO_ENDPOINT || "(aws)"}  Mode: ${ENABLE ? "ENABLE" : "REKEY"}/${CONFIRM ? "WRITE" : "DRY-RUN"}\n`,
+    `Table: ${TABLE}  Region: ${REGION}  Endpoint: ${process.env.RUN_ELECTRO_ENDPOINT || "(aws)"}  Mode: ${ENABLE ? "ENABLE" : FLAGS ? "FLAGS" : "REKEY"}/${CONFIRM ? "WRITE" : "DRY-RUN"}\n`,
   );
 
   if (ENABLE) {
     await enableChains();
+    return;
+  }
+
+  if (FLAGS) {
+    await syncFlagCodes();
     return;
   }
 
@@ -228,9 +309,13 @@ async function main() {
       skipped++;
     } else {
       const before = otpLive.otp?.secret as string | undefined;
-      const nextOtp = { ...(otpLive.otp ?? {}), secret: derivedSecret };
+      // period comes from the derived otpauth (sourced from the committed OtpUrl,
+      // now period=30) so the judge validates at the same window the bot does.
+      const derivedPeriod = Number(new URL(derivedOtpauth).searchParams.get("period")) || undefined;
+      const nextOtp = { ...(otpLive.otp ?? {}), secret: derivedSecret, ...(derivedPeriod ? { period: derivedPeriod } : {}) };
       console.log(`   otp "${otpName}".otp.secret`);
-      console.log(`      old: ${before ?? "(none)"}  →  new: ${derivedSecret}`);
+      console.log(`      secret old: ${before ?? "(none)"}  →  new: ${derivedSecret}`);
+      console.log(`      period old: ${otpLive.otp?.period ?? "(none)"}  →  new: ${derivedPeriod ?? "(unchanged)"}`);
       console.log(`      preserve: enabled=${otpLive.enabled} solveCount=${otpLive.solveCount} unlockAfter=${otpLive.unlockAfter} digits=${otpLive.otp?.digits} period=${otpLive.otp?.period} algo=${otpLive.otp?.algorithm} skew=${otpLive.otp?.skew}`);
       planned++;
       if (CONFIRM) {
