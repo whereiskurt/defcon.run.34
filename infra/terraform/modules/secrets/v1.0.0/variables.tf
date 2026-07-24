@@ -52,7 +52,13 @@ variable "secrets" {
 
 variable "secret_values" {
   description = "Secret values - map of secret_name -> key -> value. Marked sensitive."
-  type        = map(map(string))
-  sensitive   = true
-  default     = {}
+  # `any`, not map(map(string)): the decrypted SOPS blob also carries flat
+  # top-level string entries (impart_origin_verify, impart_edge_header) consumed
+  # directly by cloudfront/ecs-service — never provisioned as SSM params here.
+  # This module only reads secret_values for keys listed in var.secrets.definitions
+  # (all maps) via try(...[name][key], ""), so a permissive type is safe and lets
+  # mixed string/map top-level entries pass variable validation.
+  type      = any
+  sensitive = true
+  default   = {}
 }
