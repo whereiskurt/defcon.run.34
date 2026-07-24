@@ -400,7 +400,9 @@ describe("bandBounds rolling window (via runStravaSync)", () => {
 
 /**
  * Task 4 (leaderboard<->runs reconcile): runStravaSync fires reconcileBestEffort
- * per user, but ONLY when that user's batch sync actually imported something.
+ * once per processed linked user UNCONDITIONALLY — the twice-daily scheduled
+ * sync is the self-heal channel, so it must fire even when nothing new
+ * imports (and even when that user's sync throws).
  */
 describe("runStravaSync reconcile trigger", () => {
   beforeEach(() => {
@@ -454,7 +456,7 @@ describe("runStravaSync reconcile trigger", () => {
     expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
   });
 
-  it("does NOT fire reconcileBestEffort when that user's sync imports nothing", async () => {
+  it("fires reconcileBestEffort(user.userId) for a linked user even when nothing imports (self-heal)", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
@@ -471,7 +473,29 @@ describe("runStravaSync reconcile trigger", () => {
     const result = await runStravaSync();
 
     expect(result.imported).toBe(0);
-    expect(mocks.reconcileBestEffort).not.toHaveBeenCalled();
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
+  });
+
+  it("still fires reconcileBestEffort(user.userId) when that user's sync throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = String(url);
+        if (u.includes("/api/internal/strava-tokens")) {
+          return stravaResponse({
+            tokens: [{ userId: "u1", athleteId: "a1", accessToken: "tok" }],
+          });
+        }
+        throw new Error("network boom");
+      })
+    );
+
+    const result = await runStravaSync();
+
+    expect(result.imported).toBe(0);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
   });
 });
 

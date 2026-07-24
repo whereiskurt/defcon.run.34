@@ -274,14 +274,16 @@ export async function runStravaSync(
     try {
       const userImported = await syncUser(user, afterDays);
       imported += userImported;
-      // Task 4 (leaderboard<->runs reconcile): a batch-imported run can land
-      // pre-tagged only via a con-day retag later, but re-converging here
-      // keeps run.human's Accomplishment rows current with anything this
-      // user's sync touched. Fire-and-forget (T-50-06); skip when nothing
-      // changed for this user.
-      if (userImported > 0) reconcileBestEffort(user.userId);
     } catch (e) {
       console.error(`[strava-sync] user ${user.userId} failed`, e);
+    } finally {
+      // Task 4 (leaderboard<->runs reconcile): the twice-daily scheduled sync
+      // is the SELF-HEAL channel — fire once per processed linked user
+      // regardless of import count (unconditionally, even on zero imports or
+      // a thrown sync) so a runner whose earlier best-effort reconcile got
+      // dropped (T-50-06 fire-and-forget) still heals here. Placed in
+      // `finally` so a throwing `syncUser` doesn't skip it.
+      reconcileBestEffort(user.userId);
     }
     // Refresh this runner's strip cache while we hold a fresh token, so strip
     // opens between scheduled ticks are free (no quota, no Strava traffic).

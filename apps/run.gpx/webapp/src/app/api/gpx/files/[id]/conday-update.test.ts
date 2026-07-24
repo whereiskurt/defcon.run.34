@@ -84,6 +84,7 @@ describe("PUT /api/gpx/files/[id] conDay", () => {
     mocks.countConDayRuns.mockResolvedValue(10);
     expect((await PUT(put({ conDay: "2026-08-06" }), params)).status).toBe(200);
     expect(mocks.countConDayRuns).not.toHaveBeenCalled();
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
   });
 
   it("clears the tag with null", async () => {
