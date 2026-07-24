@@ -391,8 +391,10 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                   // Own-row highlight tints the HEADER ROW ONLY - the expanded
                   // drill content stays on the default surface so its muted
                   // greys/rails/thumbnails keep their contrast (UAT 2026-07-24).
+                  // Tint the full-width `heading` slot (not the inset trigger)
+                  // so the fill meets the item border with no dark gap.
                   isCurrentUser
-                    ? { trigger: 'bg-green-400/20 dark:bg-green-500/30' }
+                    ? { heading: 'bg-green-400/20 dark:bg-green-500/30' }
                     : undefined
                 }
                 textValue={`${displayName} accomplishments`}
