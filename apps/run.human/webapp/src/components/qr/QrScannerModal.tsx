@@ -48,9 +48,6 @@ const FLASH_MS = 1200;
 
 const ATTENDANCE_KEY = 'socialqr.attendance';
 const SOUND_KEY = 'socialqr.attendance.sound';
-// A QR sitting in frame keeps decoding at ~8fps — re-announce "already
-// scanned" at most this often per token so feedback pulses instead of strobing.
-const REFEEDBACK_MS = 2500;
 
 /**
  * Feedback sounds (WebAudio — no asset). Best-effort on iOS.
@@ -116,8 +113,11 @@ export default function QrScannerModal({
   // Attendance-mode dedup: tokens already POSTed this session (pending or
   // settled). Network failures are removed so the runner can be re-scanned.
   const seenRef = useRef<Set<string>>(new Set());
-  // Last time each already-seen token got its "and no" pulse (REFEEDBACK_MS).
-  const noFeedbackAtRef = useRef<Map<string, number>>(new Map());
+  // The last QR that produced feedback (success OR rejection). The camera
+  // keeps decoding the code you just scanned at ~8fps — that same code must
+  // NOT flip a green success into a red "already scanned". The red only fires
+  // when you SWITCH onto a different, already-seen code.
+  const lastKeyRef = useRef<string | null>(null);
   // Live mirrors for the decode callback (avoids stale-closure re-wiring).
   const attendanceRef = useRef(false);
   const soundRef = useRef(true);
@@ -146,17 +146,17 @@ export default function QrScannerModal({
   const autoPair = useCallback(async (qr: RunnerQr) => {
     const key = `${qr.kind}:${qr.value}`;
     if (seenRef.current.has(key)) {
-      // "I see it, and no" — pulse red + buzz, throttled so a QR sitting in
-      // frame gets a heartbeat of feedback instead of a strobe.
-      const last = noFeedbackAtRef.current.get(key) ?? 0;
-      const now = Date.now();
-      if (now - last > REFEEDBACK_MS) {
-        noFeedbackAtRef.current.set(key, now);
+      // "I see it, and no" — but ONLY when switching onto a different
+      // already-seen code. The code that just got its feedback (green or red)
+      // stays quiet while it lingers in frame.
+      if (lastKeyRef.current !== key) {
+        lastKeyRef.current = key;
         if (soundRef.current) playBeep(audioCtxRef, 'no');
         flashNow('dup', 'Already scanned');
       }
       return;
     }
+    lastKeyRef.current = key;
     seenRef.current.add(key);
     try {
       const res = await fetch(apiUrl('/api/social-scan'), {
@@ -323,7 +323,7 @@ export default function QrScannerModal({
     }
     setTally({ ok: 0, dup: 0 });
     seenRef.current = new Set();
-    noFeedbackAtRef.current = new Map();
+    lastKeyRef.current = null;
     startCamera();
     const onHide = () => {
       if (document.visibilityState === 'hidden') {
