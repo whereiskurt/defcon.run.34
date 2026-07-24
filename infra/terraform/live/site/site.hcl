@@ -365,7 +365,7 @@ locals {
       }
       mqtt = {
         description = "MQTT broker and meshtk secrets"
-        keys        = ["meshtk-proxy-password", "meshobserv-password", "ghosts-password", "max-connections", "s3-log-interval", "channel-psk", "ghost-start-delay", "ghost-key-secret"]
+        keys        = ["meshtk-proxy-password", "meshobserv-password", "ghosts-password", "max-connections", "s3-log-interval", "channel-psk", "ghost-start-delay", "ghost-key-secret", "flag-challenges", "anthropic-key"]
       }
     }
   }
