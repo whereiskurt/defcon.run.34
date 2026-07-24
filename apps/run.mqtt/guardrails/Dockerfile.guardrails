@@ -1,0 +1,36 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+ENV HF_HOME=/app/.cache/huggingface
+
+# curl for the container healthcheck.
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# CPU-only torch keeps the image lean (no CUDA).
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install hub validators at build so model weights are baked into the image layer
+# (no runtime downloads on a locked-down ECS task). Guardrails Hub requires a
+# token for install/remote-inferencing; provide it as a build secret in CI:
+#   --build-arg GUARDRAILS_TOKEN=...
+# Fallback (token unavailable): replace these three installs + the guardrails.hub
+# imports in app.py with a transformers-direct implementation behind the SAME
+# /guard contract — meta-llama/Llama-Prompt-Guard-2-86M (input injection),
+# unitary/toxic-bert (output toxicity), presidio-analyzer (PII). No wiring changes.
+ARG GUARDRAILS_TOKEN=""
+RUN if [ -n "$GUARDRAILS_TOKEN" ]; then \
+      guardrails configure --token "$GUARDRAILS_TOKEN" --disable-metrics --disable-remote-inferencing ; \
+    fi \
+ && guardrails hub install hub://guardrails/detect_jailbreak \
+ && guardrails hub install hub://guardrails/toxic_language \
+ && guardrails hub install hub://guardrails/detect_pii
+
+COPY app.py .
+
+EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 CMD curl -f http://localhost:8000/healthz || exit 1
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
