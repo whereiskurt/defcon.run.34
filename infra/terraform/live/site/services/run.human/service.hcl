@@ -269,17 +269,17 @@ locals {
         # All other regions are replicas
         replica_regions = [
           {
-        label = "use1"
-        full  = "us-east-1"
-      },
-      {
-        label = "cac1"
-        full  = "ca-central-1"
-      },
-      {
-        label = "apse1"
-        full  = "ap-southeast-1"
-      }
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
+          }
         ]
 
         # Table configuration
@@ -317,17 +317,17 @@ locals {
         # Single region only (no replication)
         replica_regions = [
           {
-        label = "use1"
-        full  = "us-east-1"
-      },
-      {
-        label = "cac1"
-        full  = "ca-central-1"
-      },
-      {
-        label = "apse1"
-        full  = "ap-southeast-1"
-      }
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
+          }
         ]
 
         billing_mode     = "PAY_PER_REQUEST"
@@ -411,7 +411,7 @@ locals {
       replication = {
         enabled = true
         replica_regions = [
-          
+
         ]
       }
     }
