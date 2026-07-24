@@ -34,10 +34,12 @@ export interface MeshGhost {
   nodeDbPath?: string;
   movement?: { type?: string; gpxFile?: string; travel?: string };
   chatbot: GhostChatResponse[];
-  /** Full persona prompt (contains the covert flag phrase — admin eyes only). */
+  /** Full persona prompt — persona only (the flag mechanic no longer lives here). */
   systemPrompt?: string;
-  /** Covert CTF code extracted from the prompt ("the secret code is 'X'"). */
+  /** Committed (decoy) covert CTF code from MESHTK_FLAG_CHALLENGES. */
   flagCode?: string;
+  /** Trigger phrase(s) the player raises to earn the reveal (from the challenge blob). */
+  triggers?: string[];
   /** Committed otpauth URL from the YAML (its secret is a decoy once meshtk#10 is live). */
   committedOtpauth?: string;
   hasOtp: boolean;
@@ -63,8 +65,7 @@ function toGhost(entry: any): MeshGhost | null {
     : [];
 
   const movementRaw = Array.isArray(entry.Movement) ? entry.Movement[0] : undefined;
-  const systemPrompt = str(entry.OpenAISystemPrompt);
-  const flagCode = systemPrompt?.match(/secret code is '([^']+)'/)?.[1];
+  const systemPrompt = str(entry.SystemPrompt);
   const committedOtpauth = str(entry.OtpUrl);
 
   return {
@@ -86,17 +87,32 @@ function toGhost(entry: any): MeshGhost | null {
       : undefined,
     chatbot,
     systemPrompt,
-    flagCode,
     committedOtpauth,
     hasOtp: committedOtpauth !== undefined,
   };
+}
+
+/** Parse the MESHTK_FLAG_CHALLENGES env blob (keyed by fleet Id). Read fresh each
+ *  call so tests and env swaps are honoured; malformed JSON degrades to empty. */
+function flagChallenges(): Record<
+  string,
+  { triggers?: string[]; committedCode?: string }
+> {
+  try {
+    return JSON.parse(process.env.MESHTK_FLAG_CHALLENGES || "{}");
+  } catch {
+    return {};
+  }
 }
 
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 let cache: MeshGhost[] | null = null;
 
-/** All ghost.* fleet entries from the committed snapshot (parsed once per process). */
+/** All ghost.* fleet entries from the committed snapshot. The YAML-derived base is
+ *  parsed once per process; the covert flag code + triggers are overlaid fresh from
+ *  the MESHTK_FLAG_CHALLENGES env blob on every call (so they track the environment,
+ *  and never live in the committed persona prompt). */
 export function loadMeshGhosts(): MeshGhost[] {
   if (!cache) {
     const doc = parse(MESHTK_FLEET_YAML) as { Fleet?: unknown[] };
@@ -104,7 +120,12 @@ export function loadMeshGhosts(): MeshGhost[] {
       .map(toGhost)
       .filter((g): g is MeshGhost => g !== null);
   }
-  return cache;
+  const ch = flagChallenges();
+  return cache.map((g) => ({
+    ...g,
+    flagCode: ch[g.id]?.committedCode,
+    triggers: ch[g.id]?.triggers,
+  }));
 }
 
 export function getMeshGhost(ghostId: string): MeshGhost | undefined {

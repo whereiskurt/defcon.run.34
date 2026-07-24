@@ -47,10 +47,28 @@ describe("loadMeshGhosts", () => {
     );
   });
 
-  it("extracts the covert flag code from persona prompts", () => {
-    expect(getMeshGhost("ghost.goldstein")?.flagCode).toBe("hackers4evr");
-    expect(getMeshGhost("ghost.mudge")?.flagCode).toBe("0g3l33t");
-    expect(getMeshGhost("ghost.condor")?.flagCode).toBe("fr33k3v1n");
+  it("sources committed flag codes + triggers from the MESHTK_FLAG_CHALLENGES blob", () => {
+    const OLD = process.env.MESHTK_FLAG_CHALLENGES;
+    process.env.MESHTK_FLAG_CHALLENGES = JSON.stringify({
+      "ghost.goldstein": {
+        triggers: ["hack the planet", "hacking the planet"],
+        revealTemplate: "x {{code}}",
+        committedCode: "hackers4evr",
+      },
+      "ghost.mudge": { triggers: ["dent"], revealTemplate: "{{code}}", committedCode: "0g3l33t" },
+      "ghost.condor": { triggers: ["way out"], revealTemplate: "{{code}}", committedCode: "fr33k3v1n" },
+    });
+    try {
+      expect(getMeshGhost("ghost.goldstein")?.flagCode).toBe("hackers4evr");
+      expect(getMeshGhost("ghost.goldstein")?.triggers).toContain("hack the planet");
+      expect(getMeshGhost("ghost.mudge")?.flagCode).toBe("0g3l33t");
+      expect(getMeshGhost("ghost.condor")?.flagCode).toBe("fr33k3v1n");
+      // the committed persona prompt must no longer contain the answer
+      expect(getMeshGhost("ghost.goldstein")?.systemPrompt).not.toContain("hackers4evr");
+    } finally {
+      if (OLD === undefined) delete process.env.MESHTK_FLAG_CHALLENGES;
+      else process.env.MESHTK_FLAG_CHALLENGES = OLD;
+    }
   });
 
   it("carries committed otpauth URLs for the OTP-bearing ghosts", () => {

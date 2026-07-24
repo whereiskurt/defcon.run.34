@@ -10,6 +10,7 @@ import {
   type GhostCtfLink,
   type MeshGhost,
 } from "@/lib/mesh-ghosts";
+import { deriveFlagCode } from "@/lib/mesh-otp-derive";
 import { listCtf } from "@/lib/qr-admin";
 import { gateAdminPage } from "../qr/gate";
 
@@ -64,7 +65,15 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 
-function GhostCard({ ghost, links }: { ghost: MeshGhost; links: GhostCtfLink[] }) {
+function GhostCard({
+  ghost,
+  links,
+  derivedFlagCode,
+}: {
+  ghost: MeshGhost;
+  links: GhostCtfLink[];
+  derivedFlagCode?: string;
+}) {
   const dossier = ghostDossier(ghost.slug);
   return (
     <article className={`${cls.cardPad} flex flex-col gap-3`}>
@@ -120,11 +129,23 @@ function GhostCard({ ghost, links }: { ghost: MeshGhost; links: GhostCtfLink[] }
             <dd className="font-mono text-default-600">{ghost.movement.gpxFile}</dd>
           </>
         )}
+        {ghost.triggers && ghost.triggers.length > 0 && (
+          <>
+            <dt className="font-mono uppercase text-default-400">trigger</dt>
+            <dd className="text-default-600">{ghost.triggers.join(" · ")}</dd>
+          </>
+        )}
         {ghost.flagCode && (
           <>
             <dt className="font-mono uppercase text-default-400">flag code</dt>
             <dd>
-              <code className="font-mono text-default-600">{ghost.flagCode}</code>
+              {derivedFlagCode ? (
+                <code className="font-mono text-success-600">{derivedFlagCode}</code>
+              ) : (
+                <code className="font-mono text-default-400" title="committed decoy — set the derivation secret to reveal the real code">
+                  {ghost.flagCode} (decoy)
+                </code>
+              )}
             </dd>
           </>
         )}
@@ -226,6 +247,11 @@ export default async function AdminGhostsPage() {
             key={g.id}
             ghost={g}
             links={ghostCtfLinks(g, ctfRows, serverSecret)}
+            derivedFlagCode={
+              serverSecret && g.flagCode
+                ? deriveFlagCode(serverSecret, g.id, g.flagCode)
+                : undefined
+            }
           />
         ))}
       </div>
