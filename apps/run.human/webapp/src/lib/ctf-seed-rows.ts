@@ -105,19 +105,19 @@ const DC33_PERSONAS: ReadonlyArray<{
     name: "goldstein",
     answer: "hackers4evr",
     otpauth:
-      "otpauth://totp/Emmanuel%20Goldstein?secret=GZRGQNKGKN4DINQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+      "otpauth://totp/Emmanuel%20Goldstein?secret=GZRGQNKGKN4DINQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
     secret: "GZRGQNKGKN4DINQ",
   },
   {
     name: "mudge",
     answer: "0g3l33t",
-    otpauth: "otpauth://totp/Mudge?secret=NA2DG&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    otpauth: "otpauth://totp/Mudge?secret=NA2DG&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
     secret: "NA2DG",
   },
   {
     name: "condor",
     answer: "fr33k3v1n",
-    otpauth: "otpauth://totp/Condor?secret=EZRWO&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    otpauth: "otpauth://totp/Condor?secret=EZRWO&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
     secret: "EZRWO",
   },
   {
@@ -126,13 +126,13 @@ const DC33_PERSONAS: ReadonlyArray<{
     // so the stored hash is over the normalized "d3bugth3system".
     answer: "d3bugth3sYstem",
     otpauth:
-      "otpauth://totp/Grandma%20COBOL?secret=I4TDMITCMU&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+      "otpauth://totp/Grandma%20COBOL?secret=I4TDMITCMU&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
     secret: "I4TDMITCMU",
   },
   {
     name: "turing",
     answer: "3n1gim@",
-    otpauth: "otpauth://totp/Prof?secret=O5RQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=120",
+    otpauth: "otpauth://totp/Prof?secret=O5RQ&issuer=Defcon.run&algorithm=SHA1&digits=6&period=30",
     secret: "O5RQ",
   },
 ];
@@ -162,7 +162,7 @@ export function buildSeedRows(): CtfSeedRow[] {
     {
       challenge: `${name}-otp`,
       answerType: "otp",
-      otp: { secret, digits: 6, period: 120, algorithm: "SHA1", skew: 1 },
+      otp: { secret, digits: 6, period: 30, algorithm: "SHA1", skew: 1 },
       unlockAfter: name,
       perPlayerIntervalHours: 24,
       ...FLAT_100,

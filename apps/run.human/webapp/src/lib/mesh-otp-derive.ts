@@ -55,6 +55,29 @@ export function deriveTotpSecret(
 }
 
 /**
+ * The real covert flag code a derivation-enabled bot reveals (meshtk#11), from
+ * the committed (decoy) flag code. MUST match Go's `DeriveFlagCode` bit-for-bit:
+ * HKDF-SHA256(serverSecret, salt=∅, info=`meshtk-flag-code:<fleetId>:<committed>`,
+ * 5 bytes) → 8-char unpadded uppercase base32. Distinct info label from the OTP
+ * seed so the two never collide.
+ */
+export function deriveFlagCode(
+  serverSecret: string,
+  fleetId: string,
+  committedFlag: string,
+): string {
+  const info = `meshtk-flag-code:${fleetId}:${committedFlag}`;
+  const key = hkdfSync(
+    "sha256",
+    Buffer.from(serverSecret),
+    Buffer.alloc(0),
+    Buffer.from(info),
+    5,
+  );
+  return base32Encode(new Uint8Array(key));
+}
+
+/**
  * Committed otpauth URL → { derived otpauth, derived secret, committed secret }.
  * Only the `secret=` query param changes — label/issuer/digits/period/algorithm
  * pass through so authenticator enrollments keep their display identity (same
