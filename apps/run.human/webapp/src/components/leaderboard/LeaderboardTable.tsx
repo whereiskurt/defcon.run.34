@@ -102,6 +102,18 @@ const itemClasses = {
   content: 'text-lg',
 };
 
+/** Drill section header: bold label + hairline rule (UAT: clearer separators). */
+function SectionHeading({ label }: { label: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-1">
+      <h5 className="text-xs font-semibold uppercase tracking-widest text-default-600">
+        {label}
+      </h5>
+      <div className="h-px flex-1 bg-default-300" aria-hidden="true" />
+    </div>
+  );
+}
+
 /** epoch-ms → `YYYY-MM-DD HH:MM` (DC33 formatDate, minus seconds). */
 function formatDate(timestamp: number): string {
   const d = new Date(timestamp);
@@ -373,9 +385,15 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
               <AccordionItem
                 key={row.userId}
                 className={
+                  isCurrentUser ? 'border border-green-500/50 rounded-lg overflow-hidden' : ''
+                }
+                classNames={
+                  // Own-row highlight tints the HEADER ROW ONLY - the expanded
+                  // drill content stays on the default surface so its muted
+                  // greys/rails/thumbnails keep their contrast (UAT 2026-07-24).
                   isCurrentUser
-                    ? 'bg-green-400/20 dark:bg-green-500/30 border border-green-500/50 rounded-lg'
-                    : ''
+                    ? { trigger: 'bg-green-400/20 dark:bg-green-500/30' }
+                    : undefined
                 }
                 textValue={`${displayName} accomplishments`}
                 title={
@@ -421,6 +439,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                     <>
                       {hasRuns && (
                         <div className="space-y-2">
+                          <SectionHeading label="Runs" />
                           {[...runs!]
                             .sort((a, b) => b.completedAt - a.completedAt)
                             .map((run, idx) => {
@@ -449,7 +468,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                               );
 
                               return (
-                                <div key={idx} className="border-l-2 border-l-default-300 pl-3 py-1">
+                                <div key={idx} className="border-l-2 border-l-default-400 pl-3 py-1">
                                   {hasPolyline ? (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                       {info}
@@ -473,11 +492,11 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
 
                       {hasSocial && (
                         <div className="space-y-1">
-                          <h5 className="text-xs uppercase text-default-400">Social</h5>
+                          <SectionHeading label="Social" />
                           {social.days.map((d) => (
                             <div
                               key={d.day}
-                              className="border-l-2 border-l-default-300 pl-3 py-1 flex items-center gap-2 flex-wrap"
+                              className="border-l-2 border-l-default-400 pl-3 py-1 flex items-center gap-2 flex-wrap"
                             >
                               <span className="text-sm">📇 Social scans ×{d.count}</span>
                               <Chip color="secondary" variant="flat" size="sm">
@@ -487,7 +506,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                             </div>
                           ))}
                           {social.egg && (
-                            <div className="border-l-2 border-l-default-300 pl-3 py-1 flex items-center gap-2 flex-wrap">
+                            <div className="border-l-2 border-l-default-400 pl-3 py-1 flex items-center gap-2 flex-wrap">
                               <span className="text-sm">🔌 DC Jack egg</span>
                               <Chip color="secondary" variant="flat" size="sm">
                                 +{social.egg.points} 🥕
@@ -504,18 +523,18 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
 
                       {hasCtf && (
                         <div className="space-y-1">
-                          <h5 className="text-xs uppercase text-default-400">CTF</h5>
+                          <SectionHeading label="CTF" />
                           {ctf.map((c, idx) => (
                             <div
                               key={`${c.challenge}-${idx}`}
-                              className="border-l-2 border-l-default-300 pl-3 py-1 flex items-center gap-2 flex-wrap"
+                              className="border-l-2 border-l-default-400 pl-3 py-1 flex items-center gap-2 flex-wrap"
                             >
                               <span className="text-sm">⚑ {c.name}</span>
                               <Chip color="warning" variant="flat" size="sm">
                                 +{c.points} 🥕
                               </Chip>
                               {c.channel === 'covert' && (
-                                <span className="text-[10px] uppercase text-default-400">
+                                <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border border-warning-500/60 text-warning-600 dark:text-warning-400">
                                   covert
                                 </span>
                               )}
