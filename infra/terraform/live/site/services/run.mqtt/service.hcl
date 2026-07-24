@@ -373,8 +373,12 @@ locals {
             condition      = "START"
           },
           {
+            # START, not HEALTHY: the guardrail sidecar is best-effort (meshtk
+            # fail-opens if it's unreachable), so a slow/crash-looping sidecar must
+            # never block the ghosts from starting. Brief un-guarded window while
+            # its models load on boot is the accepted trade for availability.
             container_name = "run-mqtt-guardrails"
-            condition      = "HEALTHY"
+            condition      = "START"
           }
         ]
       },
