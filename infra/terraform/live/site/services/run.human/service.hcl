@@ -185,6 +185,12 @@ locals {
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/ghost-key-secret"
           },
           {
+            # Same challenge blob the ghosts container reads — lets /admin/ghosts
+            # show the operator each ghost's trigger phrase + derived flag code.
+            name      = "MESHTK_FLAG_CHALLENGES"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/flag-challenges"
+          },
+          {
             name      = "RUN_SES_SMTP_FROM"
             valueFrom = "/{{SITE_LABEL}}/ses/from_address"
           },
@@ -270,17 +276,17 @@ locals {
         # All other regions are replicas
         replica_regions = [
           {
-        label = "use1"
-        full  = "us-east-1"
-      },
-      {
-        label = "cac1"
-        full  = "ca-central-1"
-      },
-      {
-        label = "apse1"
-        full  = "ap-southeast-1"
-      }
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
+          }
         ]
 
         # Table configuration
@@ -318,17 +324,17 @@ locals {
         # Single region only (no replication)
         replica_regions = [
           {
-        label = "use1"
-        full  = "us-east-1"
-      },
-      {
-        label = "cac1"
-        full  = "ca-central-1"
-      },
-      {
-        label = "apse1"
-        full  = "ap-southeast-1"
-      }
+            label = "use1"
+            full  = "us-east-1"
+          },
+          {
+            label = "cac1"
+            full  = "ca-central-1"
+          },
+          {
+            label = "apse1"
+            full  = "ap-southeast-1"
+          }
         ]
 
         billing_mode     = "PAY_PER_REQUEST"
@@ -412,7 +418,7 @@ locals {
       replication = {
         enabled = true
         replica_regions = [
-          
+
         ]
       }
     }

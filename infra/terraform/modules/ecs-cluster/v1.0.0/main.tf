@@ -119,7 +119,9 @@ resource "aws_iam_role_policy" "ecs_task_policy" {
           "kms:*",
           "secretsmanager:*",
           "ses:SendEmail",
-          "ses:SendRawEmail"
+          "ses:SendRawEmail",
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
         ]
         Resource = "*"
       }

@@ -1,0 +1,27 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+ENV HF_HOME=/app/.cache/huggingface
+ENV TRANSFORMERS_NO_ADVISORY_WARNINGS=1
+
+# curl for the container healthcheck.
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+
+# CPU-only torch keeps the image lean (no CUDA).
+RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Bake the open classifier weights into the image at build (no runtime downloads
+# on the locked-down ECS task; no gated models, so no HF/Guardrails token needed).
+RUN python -c "from transformers import pipeline; \
+pipeline('text-classification', model='protectai/deberta-v3-base-prompt-injection-v2'); \
+pipeline('text-classification', model='unitary/toxic-bert', top_k=None)"
+
+COPY app.py .
+
+EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=3s --retries=5 CMD curl -f http://localhost:8000/healthz || exit 1
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

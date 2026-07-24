@@ -38,8 +38,8 @@ if [[ -z "$COMPONENT" || -z "$APP" ]]; then
   exit 1
 fi
 
-if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" ]]; then
-  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', 'app', 'mosquitto', or 'meshtk'"
+if [[ "$COMPONENT" != "nginx" && "$COMPONENT" != "webapp" && "$COMPONENT" != "app" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" && "$COMPONENT" != "guardrails" ]]; then
+  echo "ERROR: Invalid component '$COMPONENT'. Must be 'nginx', 'webapp', 'app', 'mosquitto', 'meshtk', or 'guardrails'"
   exit 1
 fi
 
@@ -65,12 +65,12 @@ if [[ "$APP" == "run.gpx" && "$COMPONENT" == "nginx" ]]; then
 fi
 
 # mqtt component/app validation
-if [[ "$APP" == "run.mqtt" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" && "$COMPONENT" != "nginx" ]]; then
-  echo "ERROR: run.mqtt only accepts components 'mosquitto', 'meshtk', or 'nginx'"
+if [[ "$APP" == "run.mqtt" && "$COMPONENT" != "mosquitto" && "$COMPONENT" != "meshtk" && "$COMPONENT" != "nginx" && "$COMPONENT" != "guardrails" ]]; then
+  echo "ERROR: run.mqtt only accepts components 'mosquitto', 'meshtk', 'nginx', or 'guardrails'"
   exit 1
 fi
 
-if [[ "$APP" != "run.mqtt" && ("$COMPONENT" == "mosquitto" || "$COMPONENT" == "meshtk") ]]; then
+if [[ "$APP" != "run.mqtt" && ("$COMPONENT" == "mosquitto" || "$COMPONENT" == "meshtk" || "$COMPONENT" == "guardrails") ]]; then
   echo "ERROR: '$COMPONENT' component is only valid for run.mqtt"
   exit 1
 fi
@@ -365,6 +365,32 @@ elif [[ "$COMPONENT" == "meshtk" ]]; then
   docker buildx build --load \
     --platform linux/amd64 \
     -f "${APP_DIR}/meshtk/Dockerfile.meshtk" -t "$LOCAL_TAG" "${APP_DIR}/meshtk/"
+
+  docker tag "${LOCAL_TAG}" \
+    "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+  assert_ecr_tag_free "${REPO_NAME}" "${IMAGE_TAG}" "${AWS_REGION}"
+  docker push "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+  echo "Image successfully pushed to ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"
+
+elif [[ "$COMPONENT" == "guardrails" ]]; then
+  # Deploy mqtt-guardrails OSS moderation sidecar (FastAPI + transformers, CPU).
+  # NOTE: heavy image (~3.8GB: torch + 2 classifier models baked at build). No
+  # build-args/secrets needed. The ECR repo dc34-run-mqtt-guardrails must already
+  # exist (apply the region ecr module before the first push).
+  export REPO_NAME="${REPO_PREFIX}-guardrails"
+  export IMAGE_TAG=${IMAGE_TAG:-$(cat "${APP_DIR}/guardrails/VERSION" | tr -d '[:space:]')}
+  LOCAL_TAG="${REPO_NAME}:${IMAGE_TAG}-${REGION_SHORT}"
+
+  if [[ "${SKIP_ECR_LOGIN}" != "true" ]]; then
+    aws ecr get-login-password --region "$AWS_REGION" \
+      | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+  fi
+
+  docker buildx build --load \
+    --platform linux/amd64 \
+    -f "${APP_DIR}/guardrails/Dockerfile.guardrails" -t "$LOCAL_TAG" "${APP_DIR}/guardrails/"
 
   docker tag "${LOCAL_TAG}" \
     "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${REPO_NAME}:${IMAGE_TAG}"

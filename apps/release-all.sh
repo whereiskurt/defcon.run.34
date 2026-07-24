@@ -171,7 +171,7 @@ get_app_component() {
 # Get all components to build for an app
 get_components() {
   case "$1" in
-    run.mqtt) echo "mosquitto meshtk nginx" ;;
+    run.mqtt) echo "mosquitto meshtk nginx guardrails" ;;
     run.cms) echo "nginx app" ;;
     run.gpx) echo "webapp" ;;
     *) echo "nginx webapp" ;;
@@ -301,9 +301,11 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
       cp "${APP_DIR}/mosquitto/VERSION" "${TF_SERVICE_DIR}/VERSION.mosquitto"
       cp "${APP_DIR}/meshtk/VERSION" "${TF_SERVICE_DIR}/VERSION.meshtk"
       cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
+      cp "${APP_DIR}/guardrails/VERSION" "${TF_SERVICE_DIR}/VERSION.guardrails"
       echo "  ${TF_SERVICE}/VERSION.mosquitto: $(cat "${TF_SERVICE_DIR}/VERSION.mosquitto")"
       echo "  ${TF_SERVICE}/VERSION.meshtk: $(cat "${TF_SERVICE_DIR}/VERSION.meshtk")"
       echo "  ${TF_SERVICE}/VERSION.nginx: $(cat "${TF_SERVICE_DIR}/VERSION.nginx")"
+      echo "  ${TF_SERVICE}/VERSION.guardrails: $(cat "${TF_SERVICE_DIR}/VERSION.guardrails")"
     else
       if [[ "$SKIP_NGINX" == "false" && "$APP_HAS_NGINX" == "true" ]]; then
         cp "${APP_DIR}/nginx/VERSION" "${TF_SERVICE_DIR}/VERSION.nginx"
@@ -326,7 +328,7 @@ if [[ "$SKIP_BUMP" == "false" ]]; then
 
     if [[ "$APP" == "run.mqtt" ]]; then
       _APP_DIR="${SCRIPT_DIR}/run.mqtt"
-      for COMP in mosquitto meshtk nginx; do
+      for COMP in mosquitto meshtk nginx guardrails; do
         VERSION_FILES+=("${_APP_DIR}/${COMP}/VERSION")
         VERSION_FILES+=("${TF_SERVICE_DIR}/VERSION.${COMP}")
       done
