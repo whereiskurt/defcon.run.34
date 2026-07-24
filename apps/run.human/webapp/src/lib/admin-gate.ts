@@ -87,6 +87,14 @@ export function isAdmin(session: SessionLike): boolean {
 }
 
 /**
+ * True iff the session may run QR operator features (QR_ADMIN_GROUPS):
+ * attendance mode in the camera scanner + its daily-cap exemption.
+ */
+export function isQrAdmin(session: SessionLike): boolean {
+  return isMemberOf(session, QR_ADMIN_GROUPS);
+}
+
+/**
  * True iff the session may use the CTF operator override (CTF_ADMIN_GROUPS).
  * Pure + sync — the CTF front doors call it to decide whether to pass
  * `admin: true` into judgeSolve.

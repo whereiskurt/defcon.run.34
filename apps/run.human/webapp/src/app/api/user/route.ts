@@ -3,7 +3,7 @@ import { assertNotLockedLive } from "@/lib/live-lockout";
 import { getRunUser, updateRunUserProfile } from "@/entities/run-user";
 import { getMeshRadiosByUser } from "@/entities/mesh-radio";
 import { getRunnerCode } from "@/entities/bib";
-import { isAdmin } from "@/lib/admin-gate";
+import { isAdmin, isQrAdmin } from "@/lib/admin-gate";
 import { SocialEgg, SocialQuota } from "@/entities/social";
 import { computeBand, getBoardCached } from "@/lib/social-rank";
 import { DAILY_SCAN_CAP } from "@/lib/social-scan";
@@ -141,9 +141,10 @@ export async function GET(req: NextRequest) {
         0,
         DAILY_SCAN_CAP - (quotaToday.data?.count ?? 0)
       ),
-      // Attendance mode (admin/runadmin only): auto-pair camera scanning on
-      // whoami; pairs with capExempt in /api/social-scan.
-      attendance: isAdmin(session),
+      // Attendance mode (admin/runadmin/qradmin): auto-pair camera scanning
+      // on whoami; pairs with capExempt in /api/social-scan. NOTE: wider gate
+      // than the LEADER-flair override above, which stays admin|runadmin.
+      attendance: isQrAdmin(session),
     },
   };
 

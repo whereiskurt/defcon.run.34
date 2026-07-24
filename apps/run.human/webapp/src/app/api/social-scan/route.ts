@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@auth";
 import { assertNotLockedLive } from "@/lib/live-lockout";
-import { isAdmin } from "@/lib/admin-gate";
+import { isQrAdmin } from "@/lib/admin-gate";
 import { judgeScan, defaultScanStore } from "@/lib/social-scan";
 
 /**
@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
       token: typeof body.p === "string" ? body.p : undefined,
       hash: typeof body.h === "string" ? body.h : undefined,
       nowMs: Date.now(),
-      // Attendance mode: admin/runadmin scanners bypass the daily cap so a
-      // full run's worth of attendees can be paired (usage still counted).
-      capExempt: isAdmin(session),
+      // Attendance mode: admin/runadmin/qradmin scanners bypass the daily cap
+      // so a full run's worth of attendees can be paired (usage still counted).
+      capExempt: isQrAdmin(session),
     },
     defaultScanStore
   );

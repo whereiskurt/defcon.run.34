@@ -169,7 +169,7 @@ export default function WhoAmIPage() {
       'socialqr.scan.unavailable',
       "Camera unavailable - use your phone's camera app on the QR instead.",
     ),
-    cancel: copyOr('socialqr.scan.cancel', 'Cancel'),
+    cancel: copyOr('socialqr.scan.cancel', 'Done'),
   };
 
   useEffect(() => { setMounted(true); }, []);
