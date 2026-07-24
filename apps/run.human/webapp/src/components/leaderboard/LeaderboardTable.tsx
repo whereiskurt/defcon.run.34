@@ -391,10 +391,10 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
               <AccordionItem
                 key={row.userId}
                 className={
-                  // Full-bleed own-row: top/bottom green rules only - the row
-                  // runs edge-to-edge to the group's grey border (no side
-                  // borders, no rounding, no inset channel).
-                  isCurrentUser ? 'border-y border-green-500/50' : ''
+                  // Full-bleed own-row with a complete green perimeter: the
+                  // border hugs the group edge (rows are flush, group px-0) and
+                  // the group's rounded overflow clips the corners cleanly.
+                  isCurrentUser ? 'border border-green-500/50' : ''
                 }
                 classNames={
                   // Own-row highlight tints the HEADER ROW ONLY - the expanded
