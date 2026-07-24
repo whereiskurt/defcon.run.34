@@ -17,6 +17,7 @@ import { FlashStep, type FlashTransport } from "@/components/flash/flash-step";
 import { Nrf52FlashStep } from "@/components/flash/nrf52-flash-step";
 import { ConfigureStep } from "@/components/configure/configure-step";
 import { DoneStep } from "@/components/done/done-step";
+import { AppDownloadsCard } from "@/components/app-downloads-card";
 
 /** No-op transport disconnect for the nRF52 configure path — the device was
  *  flashed via UF2 drag-drop, so there is no esptool serial transport to
@@ -120,11 +121,14 @@ export function WizardContainer() {
           transition={{ duration: 0.2, ease: "easeInOut" }}
         >
           {currentStep === "pick-device" && (
-            <DeviceGrid
-              onSelect={selectDevice}
-              selectedDevice={selectedDevice}
-              onContinue={canAdvance("pick-device") ? advance : undefined}
-            />
+            <div className="space-y-4">
+              <DeviceGrid
+                onSelect={selectDevice}
+                selectedDevice={selectedDevice}
+                onContinue={canAdvance("pick-device") ? advance : undefined}
+              />
+              <AppDownloadsCard variant="compact" />
+            </div>
           )}
 
           {/* Connect is ESP32-only. nRF52 skips it (see visibleSteps / the

@@ -1,0 +1,27 @@
+{
+  "apps": [
+    {
+      "id": "android-reliable",
+      "kind": "apk",
+      "label": "Android 2.7.13",
+      "sublabel": "Most reliable — proven BLE pairing",
+      "filename": "meshtastic-android-2.7.13.apk",
+      "url": "https://github.com/meshtastic/Meshtastic-Android/releases/download/v2.7.13/app-fdroid-release.apk"
+    },
+    {
+      "id": "android-beta",
+      "kind": "apk",
+      "label": "Android 2.8.0 beta",
+      "sublabel": "Newest — improved BLE bonding",
+      "filename": "meshtastic-android-2.8.0-open.1.apk",
+      "url": "https://github.com/meshtastic/Meshtastic-Android/releases/download/2.8.0-open.1/androidApp-fdroid-universal-release.apk"
+    },
+    {
+      "id": "ios",
+      "kind": "store",
+      "label": "iOS",
+      "sublabel": "Meshtastic on the App Store",
+      "storeUrl": "https://apps.apple.com/us/app/meshtastic/id1586432531"
+    }
+  ]
+}

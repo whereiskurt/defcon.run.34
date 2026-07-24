@@ -15,6 +15,7 @@ import type { DeviceConfigPayload } from "@/types/config";
 import type { DeviceHardware } from "@/types/device";
 import type { RegistrationStatus } from "@/hooks/use-configure";
 import { getDeviceImagePath, getArchLabel } from "@/config/devices";
+import { AppDownloadsCard } from "@/components/app-downloads-card";
 import { useCopy } from "@/components/CopyProvider";
 
 const ARCH_COLORS: Record<string, "primary" | "secondary" | "warning" | "success"> = {
@@ -319,6 +320,9 @@ export function DoneStep({ device, firmwareVersion, configPayload, registrationS
           </li>
         </ol>
       </div>
+
+      {/* Phone-app downloads — the "now pair your phone" moment */}
+      <AppDownloadsCard />
 
       {/* Flash Another Device button — below panels with pulse */}
       <div className="flex justify-center pt-2">
