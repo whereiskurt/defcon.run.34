@@ -1,8 +1,9 @@
 locals {
   versions = {
-    mosquitto = trimspace(file("VERSION.mosquitto"))
-    meshtk    = trimspace(file("VERSION.meshtk"))
-    nginx     = trimspace(file("VERSION.nginx"))
+    mosquitto  = trimspace(file("VERSION.mosquitto"))
+    meshtk     = trimspace(file("VERSION.meshtk"))
+    nginx      = trimspace(file("VERSION.nginx"))
+    guardrails = trimspace(file("VERSION.guardrails"))
   }
 
   # ECR repositories for the MQTT service
@@ -33,6 +34,15 @@ locals {
         max_image_count = 10
         expire_days     = 30
       }
+    },
+    {
+      name                 = "run-mqtt-guardrails"
+      regions              = ["us-east-1", "ca-central-1"]
+      image_tag_mutability = "IMMUTABLE"
+      lifecycle_policy = {
+        max_image_count = 10
+        expire_days     = 30
+      }
     }
   ]
 
@@ -42,8 +52,8 @@ locals {
     name         = "run-mqtt"
     regions      = ["us-east-1", "ca-central-1"]
     cluster_name = "app"
-    task_cpu     = 512
-    task_memory  = 1024
+    task_cpu     = 1024
+    task_memory  = 3072
 
     containers = [
       # Container 1: run-mqtt-mosquitto (64 CPU / 128 MB, essential)
@@ -319,6 +329,14 @@ locals {
           {
             name  = "AWS_REGION"
             value = "{{REGION}}"
+          },
+          {
+            name  = "MESHTK_GUARDRAIL_URL"
+            value = "http://127.0.0.1:8000"
+          },
+          {
+            name  = "MESHTK_GUARDRAIL_FAILMODE"
+            value = "open"
           }
         ]
 
@@ -334,6 +352,14 @@ locals {
           {
             name      = "MESHTK_GHOST_KEY_SECRET"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/ghost-key-secret"
+          },
+          {
+            name      = "MESHTK_FLAG_CHALLENGES"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/flag-challenges"
+          },
+          {
+            name      = "MESHTK_ANTHROPIC_KEY"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/anthropic-key"
           }
         ]
 
@@ -345,8 +371,48 @@ locals {
           {
             container_name = "run-mqtt-meshtk"
             condition      = "START"
+          },
+          {
+            container_name = "run-mqtt-guardrails"
+            condition      = "HEALTHY"
           }
         ]
+      },
+
+      # Container 5: run-mqtt-guardrails (OSS Guardrails-AI sidecar, NOT essential)
+      # Two-sided input/output moderation for the ghost chatbots. CPU-only; the
+      # ghosts call it on 127.0.0.1:8000. Task continues if it fails; meshtk's
+      # MESHTK_GUARDRAIL_FAILMODE=open degrades to un-guarded rather than blocking.
+      {
+        name               = "run-mqtt-guardrails"
+        image              = "run-mqtt-guardrails:${local.versions.guardrails}"
+        cpu                = 512
+        memory             = 1792
+        memory_reservation = 1024
+        essential          = false
+
+        readonly_root_filesystem = false
+
+        environment = [
+          {
+            name  = "HF_HOME"
+            value = "/app/.cache/huggingface"
+          }
+        ]
+
+        port_mappings = []
+
+        health_check = {
+          command      = ["CMD-SHELL", "curl -f http://localhost:8000/healthz || exit 1"]
+          interval     = 15
+          timeout      = 3
+          retries      = 5
+          start_period = 90
+        }
+
+        log_stream_prefix = "guardrails"
+
+        depends_on = []
       }
     ]
   }
