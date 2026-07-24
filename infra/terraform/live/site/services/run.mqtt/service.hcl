@@ -337,6 +337,14 @@ locals {
           {
             name  = "MESHTK_GUARDRAIL_FAILMODE"
             value = "open"
+          },
+          {
+            # run.human base URL for the single-use flag-claim mint endpoint
+            # (POST /api/internal/ctf/mint). Public HTTPS is fine — the call is
+            # guarded by MESHTK_INTERNAL_SECRET. Unset/unreachable degrades to
+            # the static-code reveal (meshtk fail-safe).
+            name  = "MESHTK_RUN_INTERNAL_URL"
+            value = "https://run.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           }
         ]
 
@@ -344,6 +352,12 @@ locals {
           {
             name      = "MESHTK_MQTT_PASSWORD"
             valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/mqtt/ghosts-password"
+          },
+          {
+            # Same param run.human reads as AUTH_INTERNAL_SECRET — authorizes the
+            # ghosts' claim-link mint calls (x-internal-secret header).
+            name      = "MESHTK_INTERNAL_SECRET"
+            valueFrom = "/{{SITE_LABEL}}/secrets/{{REGION_LABEL}}/jwt/internal_secret"
           },
           {
             name      = "MESHTK_GHOST_START_DELAY"
