@@ -113,6 +113,8 @@ describe("GET /api/leaderboard", () => {
     expect(body.rows[0].userId).toBe("a");
     expect(body.rows[0].globalScore).toBe(150);
     expect(body.rows[0].ctfSolves).toBe(2);
+    // Task 5: short private browser-side cache on the JSON response.
+    expect(res.headers.get("Cache-Control")).toBe("private, max-age=30");
   });
 
   it("parses page/limit and returns the expected slice with global ranks", async () => {

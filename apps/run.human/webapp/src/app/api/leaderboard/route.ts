@@ -32,8 +32,10 @@ import { buildLeaderboard } from "@/lib/leaderboard-data";
  * frequency regardless of request volume.
  *
  * Node runtime — the ElectroDB/AWS-SDK scan pipeline needs Node crypto for
- * request signing. Force-dynamic — the gate + params are per-request. HTTP
- * `no-store`: freshness is owned by the in-memory 60s cache, not the CDN.
+ * request signing. Force-dynamic — the gate + params are per-request.
+ * `Cache-Control: private, max-age=30` (Task 5): a short private browser-side
+ * cache on top of the in-memory 60s scan cache — private because the payload
+ * is admin-only, never a shared/CDN cache.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,5 +77,7 @@ export async function GET(request: Request) {
   const users = await getCachedScan(scanAllRunUsers);
   const result = buildLeaderboard(users, { page, limit, filter, namedOnly });
 
-  return Response.json(result, { headers: { "Cache-Control": "no-store" } });
+  return Response.json(result, {
+    headers: { "Cache-Control": "private, max-age=30" },
+  });
 }
