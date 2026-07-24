@@ -3,6 +3,8 @@
     import LayerTree from './LayerTree.svelte';
     import PublicOverlays from './PublicOverlays.svelte';
     import MyConRuns from './MyConRuns.svelte';
+    import ConDaySaveDialog from '$lib/components/cloud/ConDaySaveDialog.svelte';
+    import { cloudFiles, type CloudFile } from '$lib/cloud-sync';
     import { OverpassLayer } from './overpass-layer';
     import { PublicOverlaysLayer, publicOverlayGroups, publicAggregate } from '../public-overlays';
     import { MyConRunsLayer, myConRunGroups } from '../my-con-runs';
@@ -28,7 +30,7 @@
     import { map } from '$lib/components/map/map';
     import { customBasemapUpdate, getLayers } from './utils';
     import type { ImportSpecification, StyleSpecification } from 'mapbox-gl';
-    import { untrack } from 'svelte';
+    import { onMount, untrack } from 'svelte';
     import { mode } from 'mode-watcher';
 
     // DEF CON: in dark UI mode, swap the outdoors basemap for a dark map so the
@@ -52,6 +54,14 @@
     let rainbowArch: RainbowArch | undefined;
     let coffeeCup: CoffeeCup | undefined;
     let theSpot: TheSpot | undefined;
+
+    // Task 8 (popup -> day-assign bridge): the file whose con-day assign
+    // dialog is open, opened from a run-track popup's "Add as accomplishment"
+    // button (run-popup.ts's dayChipHtml) via a delegated document click
+    // listener + `dc34-open-day-assign` window CustomEvent — see onMount
+    // below. Reuses ConDaySaveDialog exactly as CloudStorage.svelte does
+    // (a local `CloudFile | null` gating an `{#if}`-rendered dialog instance).
+    let assignDialogFile: CloudFile | undefined = $state();
 
     const {
         currentBasemap,
@@ -294,6 +304,48 @@
         });
     });
 
+    // Task 8: popup "Add as accomplishment" -> day-assign dialog bridge. Run
+    // popups are raw-HTML Mapbox popups (run-popup.ts), not Svelte components,
+    // so they can't call into this component directly — instead the button
+    // carries `data-dc34-assign="<fileId>"` and a SINGLE delegated document
+    // click listener (registered once here, cleaned up on destroy via the
+    // onMount return) forwards it as a `dc34-open-day-assign` window
+    // CustomEvent, which this same component also listens for and handles by
+    // opening ConDaySaveDialog for that file (assignDialogFile above).
+    onMount(() => {
+        const onDocumentClick = (e: MouseEvent) => {
+            const target = (e.target as HTMLElement | null)?.closest?.(
+                '[data-dc34-assign]'
+            ) as HTMLElement | null;
+            const fileId = target?.dataset.dc34Assign;
+            if (!fileId) return;
+            window.dispatchEvent(
+                new CustomEvent('dc34-open-day-assign', { detail: { fileId } })
+            );
+        };
+        const onOpenDayAssign = (e: Event) => {
+            const fileId = (e as CustomEvent<{ fileId: string }>).detail?.fileId;
+            if (!fileId) return;
+            // Reuse whatever's already cached in the `cloudFiles` store (warm
+            // from an earlier My Maps open) for a richer dialog (createdAt for
+            // guessConDay); fall back to a minimal stub for the con-day-cap
+            // check + save, same as CloudStorage.svelte's conDayDialogFile.
+            assignDialogFile = get(cloudFiles).find((f) => f.fileId === fileId) ?? {
+                fileId,
+                fileName: '',
+                fileSize: 0,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+            };
+        };
+        document.addEventListener('click', onDocumentClick);
+        window.addEventListener('dc34-open-day-assign', onOpenDayAssign);
+        return () => {
+            document.removeEventListener('click', onDocumentClick);
+            window.removeEventListener('dc34-open-day-assign', onOpenDayAssign);
+        };
+    });
+
     // Whether the "Overlays" tree has any actual layers. For DEF CON it's empty
     // (`{ overlays: {} }`), so we hide that whole band to tidy the panel.
     let hasOverlays = $derived(
@@ -445,3 +497,12 @@
         }
     }}
 />
+
+{#if assignDialogFile}
+    <ConDaySaveDialog
+        file={assignDialogFile}
+        open={true}
+        onClose={() => (assignDialogFile = undefined)}
+        onSaved={() => (assignDialogFile = undefined)}
+    />
+{/if}

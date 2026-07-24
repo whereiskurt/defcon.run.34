@@ -25,6 +25,9 @@ export interface GpxAccomplishmentBody {
   elevation?: unknown;
   polyline?: unknown;
   completedAt?: unknown;
+  source?: unknown;
+  stravaActivityId?: unknown;
+  conDay?: unknown;
 }
 
 function isFiniteNumber(v: unknown): v is number {
@@ -75,16 +78,32 @@ export function buildGpxAccomplishmentInput(
     );
   }
 
+  // Determine source: strava if explicitly requested with stravaActivityId, otherwise gpx (LDBR-12).
+  const source = body.source === "strava" ? "strava" : "gpx";
+
+  // When source is strava, require a non-empty stravaActivityId.
+  let stravaActivityId: string | undefined;
+  if (source === "strava") {
+    stravaActivityId =
+      typeof body.stravaActivityId === "string"
+        ? body.stravaActivityId.trim()
+        : "";
+    if (!stravaActivityId) {
+      throw new Error("buildGpxAccomplishmentInput: missing stravaActivityId");
+    }
+  }
+
   const input: CreateAccomplishmentInput = {
     userId,
-    source: "gpx",
+    source,
     type: "activity",
     name,
     completedAt: body.completedAt,
-    points: POINTS.gpx,
+    points: POINTS[source],
     gpxFileId,
   };
 
+  if (stravaActivityId) input.stravaActivityId = stravaActivityId;
   if (isFiniteNumber(body.distance)) input.distance = body.distance;
   if (isFiniteNumber(body.elevation)) input.elevation = body.elevation;
   const polyline = normalizePolyline(body.polyline);

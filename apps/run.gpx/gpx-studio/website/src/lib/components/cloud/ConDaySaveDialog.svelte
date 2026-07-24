@@ -98,6 +98,7 @@
                 <h2 class="text-base font-semibold">Save as defcon.run Activity</h2>
             </div>
             <p class="mt-0.5 text-xs text-muted-foreground">Which DEF CON day is this run for?</p>
+            <p class="text-xs text-muted-foreground">Counts as a DEF CON accomplishment on the leaderboard</p>
 
             {#if loading}
                 <div class="flex items-center gap-2 py-6 text-sm text-muted-foreground">Loading…</div>

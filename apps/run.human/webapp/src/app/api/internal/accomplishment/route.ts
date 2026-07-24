@@ -5,20 +5,21 @@ import { createAccomplishment } from "@/entities/accomplishment";
 import { buildGpxAccomplishmentInput } from "@/lib/gpx-accomplishment-input";
 
 /**
- * Internal API: create a GPX accomplishment (LDBR-06).
+ * Internal API: create an accomplishment from GPX or Strava (LDBR-06 / LDBR-55).
  *
  * Secret-gated, server-to-server only. run.gpx POSTs here after a GPX file is
- * activated (Plan 50-02). This route resolves the OIDC sub -> run.human adapter
- * userId and calls the already-built (Phase 49) `createAccomplishment` with a
- * SERVER-FIXED `source:"gpx"` (idempotent on gpxFileId — no extra dedup here).
+ * activated (Plan 50-02); strava sync also POSTs here. This route resolves the
+ * OIDC sub -> run.human adapter userId and calls the already-built (Phase 49)
+ * `createAccomplishment` with a SERVER-FIXED source ("gpx" or "strava" per the
+ * request, but never ctf/qr — idempotent on gpxFileId/stravaActivityId).
  *
- * Body: { oidcSub, gpxFileId, name, distance?, elevation?, polyline?, completedAt }
+ * Body: { oidcSub, gpxFileId, name, distance?, elevation?, polyline?, completedAt, source?, stravaActivityId?, conDay? }
  *
  * Trust boundaries (threat register):
  *  - T-50-01 (spoofing): reject any request whose `x-internal-secret` header !==
  *    config.auth.internalSecret with 403 BEFORE parsing the body or touching the
  *    data layer. The secret is the sole authorization.
- *  - T-50-03 (elevation of privilege): the body cannot inject a non-gpx source —
+ *  - T-50-03 (elevation of privilege): the body cannot inject a non-gpx/strava source —
  *    `source` is fixed inside buildGpxAccomplishmentInput (LDBR-12 CTF boundary).
  *  - T-50-04 (info disclosure): the benign-drop / error logs carry gpxFileId + a
  *    message only, NEVER the secret or the full body.

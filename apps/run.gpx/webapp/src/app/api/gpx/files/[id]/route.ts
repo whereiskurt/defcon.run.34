@@ -15,6 +15,7 @@ import { assertNotLockedLive } from "@/lib/live-lockout";
 import { isConDay, isValidDateString } from "@/lib/con-days";
 import { conDayLimit, conDayRemaining, isConDayCapped } from "@/lib/con-day-quota";
 import { countConDayRuns } from "@/lib/con-day-usage";
+import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 import type { QuotaTier } from "@/lib/quota-client";
 
 const MAX_VERSIONS = 50;
@@ -299,6 +300,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
       .set(filteredUpdates)
       .go({ response: "all_new" });
 
+    // Task 4 (leaderboard<->runs reconcile): a con-day (re)tag changes this
+    // runner's live con-day-tagged run set, so re-converge run.human's
+    // Accomplishment rows. Fire-and-forget (T-50-06); community files have no
+    // individual owner and are excluded above (conDay updates 400 on GLOBAL).
+    if (updates.conDay !== undefined && targetUserId !== "GLOBAL") {
+      reconcileBestEffort(session.user.id);
+    }
+
     const response: {
       file: typeof result.data;
       uploadUrl?: string;
@@ -407,6 +416,14 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       userId: targetUserId,
       fileId: id,
     }).go();
+
+    // Task 4 (leaderboard<->runs reconcile): a deleted run may have been
+    // con-day tagged, so re-converge run.human's Accomplishment rows.
+    // Fire-and-forget (T-50-06); GLOBAL community files have no individual
+    // owner and must not score.
+    if (targetUserId !== "GLOBAL") {
+      reconcileBestEffort(targetUserId);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

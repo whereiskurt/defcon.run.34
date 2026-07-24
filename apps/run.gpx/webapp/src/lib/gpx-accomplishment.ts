@@ -33,6 +33,14 @@ export interface AccomplishmentPayload {
    * keys flags off it. Omitted (not null) when absent so the contract stays lean.
    */
   conDay?: string;
+  /**
+   * Provenance of the run (leaderboard<->runs reconcile, Task 4). Omitted (not
+   * a default) when absent so run.human's own server-fix default ("gpx") still
+   * applies to the plain confirm-route path.
+   */
+  source?: "gpx" | "strava";
+  /** Strava activity id, present only when `source === "strava"`. */
+  stravaActivityId?: string;
 }
 
 const EARTH_RADIUS_M = 6371000;
@@ -122,6 +130,8 @@ export function buildAccomplishmentPayload(args: {
   completedAt: number;
   conDay?: string;
   max?: number;
+  source?: "gpx" | "strava";
+  stravaActivityId?: string;
 }): AccomplishmentPayload {
   return {
     oidcSub: args.oidcSub,
@@ -134,6 +144,12 @@ export function buildAccomplishmentPayload(args: {
     // Only include conDay when tagged — keeps the wire contract lean and lets
     // run.human distinguish "untagged" from any sentinel.
     ...(args.conDay ? { conDay: args.conDay } : {}),
+    // source/stravaActivityId (Task 4, leaderboard<->runs reconcile): threaded
+    // verbatim, same lean-contract style as conDay — omitted (not defaulted)
+    // when absent so the plain confirm-route caller keeps relying on
+    // run.human's own server-fix default of "gpx".
+    ...(args.source ? { source: args.source } : {}),
+    ...(args.stravaActivityId ? { stravaActivityId: args.stravaActivityId } : {}),
   };
 }
 
@@ -160,6 +176,15 @@ function humanBaseUrl(): string {
 }
 
 /**
+ * Public seam for any other run.gpx caller (e.g. gpx-reconcile.ts, Task 4)
+ * that needs to hit a different run.human internal path without duplicating
+ * `humanBaseUrl`'s env-derivation logic.
+ */
+export function humanInternalUrl(path: string): string {
+  return `${humanBaseUrl()}${path}`;
+}
+
+/**
  * Best-effort POST of an accomplishment to run.human's secret-gated internal
  * endpoint. Swallows EVERY error (network reject, non-2xx, anything) and always
  * resolves — a leaderboard miss must never break a GPX save (T-50-06). The
@@ -174,7 +199,7 @@ export async function notifyAccomplishment(
 ): Promise<void> {
   try {
     const doFetch = fetchImpl ?? fetch;
-    const url = `${humanBaseUrl()}/api/internal/accomplishment`;
+    const url = humanInternalUrl("/api/internal/accomplishment");
     await doFetch(url, {
       method: "POST",
       headers: {

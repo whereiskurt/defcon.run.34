@@ -28,10 +28,15 @@ const mocks = vi.hoisted(() => ({
   })),
   cacheGet: vi.fn(async () => ({ data: null as Record<string, unknown> | null })),
   cacheUpsert: vi.fn(async (_attrs: Record<string, unknown>) => ({})),
+  reconcileBestEffort: vi.fn(),
 }));
 
 // logEvent is fire-and-forget telemetry; silence it so fetch mocks stay clean.
 vi.mock("./log-event", () => ({ logEvent: vi.fn() }));
+// Task 4 (leaderboard<->runs reconcile): stub the fire-and-forget trigger so
+// runStravaSync tests assert ON it directly, rather than incidentally
+// exercising the real (unmocked-here) GpxFile.query.primary path.
+vi.mock("@/lib/gpx-reconcile", () => ({ reconcileBestEffort: mocks.reconcileBestEffort }));
 // Task 1 (syncUserUntagged) writes through GpxFile.create + S3 — first mock of
 // these in this file, so importActivity's real (unmocked) body can run against
 // real fetch stubs without touching AWS.
@@ -124,6 +129,7 @@ function stravaResponse(body: unknown): Response {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  mocks.reconcileBestEffort.mockClear();
 });
 
 describe("listActivitiesSince", () => {
@@ -389,6 +395,107 @@ describe("bandBounds rolling window (via runStravaSync)", () => {
     const match = urls[0].match(/after=(\d+)/);
     expect(match).not.toBeNull();
     expect(Math.abs(parseInt(match![1], 10) - expectedAfter)).toBeLessThan(5);
+  });
+});
+
+/**
+ * Task 4 (leaderboard<->runs reconcile): runStravaSync fires reconcileBestEffort
+ * once per processed linked user UNCONDITIONALLY — the twice-daily scheduled
+ * sync is the self-heal channel, so it must fire even when nothing new
+ * imports (and even when that user's sync throws).
+ */
+describe("runStravaSync reconcile trigger", () => {
+  beforeEach(() => {
+    vi.stubEnv("AUTH_INTERNAL_URL", "http://auth.local");
+    vi.stubEnv("AUTH_INTERNAL_SECRET", "shh");
+    vi.stubEnv("INTERNAL_SYNC_SECRET", undefined);
+    vi.stubEnv("STRAVA_SYNC_AFTER", "");
+    vi.stubEnv("STRAVA_SYNC_BEFORE", "");
+    mocks.fileQuery.mockReset().mockResolvedValue({ data: [] });
+    mocks.fileCreate.mockClear();
+  });
+
+  function stravaActivity(id: number): StravaActivity {
+    return {
+      id,
+      name: `run-${id}`,
+      type: "Run",
+      sport_type: "Run",
+      distance: 1000,
+      total_elevation_gain: 5,
+      start_date_local: "2026-07-20T06:00:00Z",
+      moving_time: 300,
+    };
+  }
+
+  it("fires reconcileBestEffort(user.userId) when that user's sync imports > 0", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = String(url);
+        if (u.includes("/api/internal/strava-tokens")) {
+          return stravaResponse({
+            tokens: [{ userId: "u1", athleteId: "a1", accessToken: "tok" }],
+          });
+        }
+        if (u.includes("/athlete/activities")) {
+          const page = new URL(u, "http://x").searchParams.get("page");
+          return page === "1" ? stravaResponse([stravaActivity(1)]) : stravaResponse([]);
+        }
+        if (u.includes("/streams")) {
+          return stravaResponse({ latlng: { data: [[1, 2], [3, 4]] } });
+        }
+        return stravaResponse({});
+      })
+    );
+
+    const result = await runStravaSync();
+
+    expect(result.imported).toBe(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
+  });
+
+  it("fires reconcileBestEffort(user.userId) for a linked user even when nothing imports (self-heal)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = String(url);
+        if (u.includes("/api/internal/strava-tokens")) {
+          return stravaResponse({
+            tokens: [{ userId: "u1", athleteId: "a1", accessToken: "tok" }],
+          });
+        }
+        return stravaResponse([]); // no activities at all
+      })
+    );
+
+    const result = await runStravaSync();
+
+    expect(result.imported).toBe(0);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
+  });
+
+  it("still fires reconcileBestEffort(user.userId) when that user's sync throws", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        const u = String(url);
+        if (u.includes("/api/internal/strava-tokens")) {
+          return stravaResponse({
+            tokens: [{ userId: "u1", athleteId: "a1", accessToken: "tok" }],
+          });
+        }
+        throw new Error("network boom");
+      })
+    );
+
+    const result = await runStravaSync();
+
+    expect(result.imported).toBe(0);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
   });
 });
 

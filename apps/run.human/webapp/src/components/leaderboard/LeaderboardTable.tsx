@@ -17,6 +17,7 @@ import {
 import { Activity, Search, X } from 'lucide-react';
 import PolylineRenderer from './PolylineRenderer';
 import { deriveCountChips, runnerClassEmoji } from '@/lib/leaderboard-ui';
+import type { CtfLine, SocialDayLine } from '@/lib/leaderboard-drill';
 
 /**
  * LeaderboardTable — the interactive heart of the (hidden) admin board (LDBR-10,
@@ -68,6 +69,21 @@ type Accomplishment = {
   };
 };
 
+/** `social` shape from the drill response — a runner's social-scan rollup + jack-egg. */
+type SocialSummary = {
+  days: SocialDayLine[];
+  egg: { points: number; at?: string } | null;
+};
+
+/** The full per-user drill payload (Task 5): runs + social + CTF. */
+type Drill = {
+  accomplishments: Accomplishment[];
+  social: SocialSummary;
+  ctf: CtfLine[];
+};
+
+const EMPTY_SOCIAL: SocialSummary = { days: [], egg: null };
+
 type LeaderboardTableProps = {
   /** The current admin's session.user.id — used to highlight their own row. */
   currentUserId: string;
@@ -115,7 +131,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const [accomplishments, setAccomplishments] = useState<Record<string, Accomplishment[]>>({});
+  const [drills, setDrills] = useState<Record<string, Drill>>({});
   const [loadingAccomplishments, setLoadingAccomplishments] = useState<Set<string>>(new Set());
 
   // ── Board fetch: on mount + whenever page/filter changes (basePath-prefixed) ──
@@ -154,17 +170,33 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
   // ── Lazy per-runner accomplishments fetch (cache once by userId) ─────────────
   const fetchUserAccomplishments = useCallback(
     async (userId: string) => {
-      if (accomplishments[userId]) return;
+      if (drills[userId]) return;
       setLoadingAccomplishments((prev) => new Set(prev).add(userId));
       try {
         const res = await fetch(`${apiBase}/api/leaderboard/${userId}/accomplishments`, {
           cache: 'no-store',
         });
         if (!res.ok) throw new Error(String(res.status));
-        const data: { accomplishments: Accomplishment[] } = await res.json();
-        setAccomplishments((prev) => ({ ...prev, [userId]: data.accomplishments ?? [] }));
+        // Back-compat: older/partial cached responses may omit `social`/`ctf` —
+        // treat missing sections as empty rather than throwing.
+        const data: {
+          accomplishments?: Accomplishment[];
+          social?: SocialSummary;
+          ctf?: CtfLine[];
+        } = await res.json();
+        setDrills((prev) => ({
+          ...prev,
+          [userId]: {
+            accomplishments: data.accomplishments ?? [],
+            social: data.social ?? EMPTY_SOCIAL,
+            ctf: data.ctf ?? [],
+          },
+        }));
       } catch {
-        setAccomplishments((prev) => ({ ...prev, [userId]: [] }));
+        setDrills((prev) => ({
+          ...prev,
+          [userId]: { accomplishments: [], social: EMPTY_SOCIAL, ctf: [] },
+        }));
       } finally {
         setLoadingAccomplishments((prev) => {
           const next = new Set(prev);
@@ -173,7 +205,7 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
         });
       }
     },
-    [apiBase, accomplishments]
+    [apiBase, drills]
   );
 
   const runSearch = () => {
@@ -329,7 +361,13 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
               runnerClassEmoji(row.mqttUsertype) ? ` ${runnerClassEmoji(row.mqttUsertype)}` : ''
             }`;
             const chips = deriveCountChips(row);
-            const runs = accomplishments[row.userId];
+            const drill = drills[row.userId];
+            const runs = drill?.accomplishments;
+            const social = drill?.social ?? EMPTY_SOCIAL;
+            const ctf = drill?.ctf ?? [];
+            const hasRuns = !!runs && runs.length > 0;
+            const hasSocial = social.days.length > 0 || !!social.egg;
+            const hasCtf = ctf.length > 0;
 
             return (
               <AccordionItem
@@ -379,58 +417,122 @@ export default function LeaderboardTable({ currentUserId, apiBase }: Leaderboard
                       <Spinner size="sm" />
                       <span className="text-sm text-default-500">Loading runs…</span>
                     </div>
-                  ) : runs && runs.length > 0 ? (
-                    <div className="space-y-2">
-                      {[...runs]
-                        .sort((a, b) => b.completedAt - a.completedAt)
-                        .map((run, idx) => {
-                          const polyline = run.metadata?.polyline;
-                          const hasPolyline = Array.isArray(polyline) && polyline.length > 1;
-                          const info = (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-semibold text-sm">{run.name}</h4>
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
-                                    SOURCE_STYLE[run.source] ?? 'bg-default-100 text-default-600'
-                                  }`}
-                                >
-                                  {run.source === 'strava' && <Activity className="h-3 w-3" />}
-                                  {run.source.toUpperCase()}
-                                </span>
-                              </div>
-                              <span className="text-sm text-default-500">
-                                {formatDate(run.completedAt)}
-                              </span>
-                              {run.description && (
-                                <p className="text-sm text-default-600">{run.description}</p>
-                              )}
-                            </div>
-                          );
-
-                          return (
-                            <div key={idx} className="border-l-2 border-l-default-300 pl-3 py-1">
-                              {hasPolyline ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {info}
-                                  <div className="flex justify-start items-center">
-                                    <PolylineRenderer
-                                      points={polyline!}
-                                      theme={theme}
-                                      width={200}
-                                      height={120}
-                                    />
+                  ) : drill ? (
+                    <>
+                      {hasRuns && (
+                        <div className="space-y-2">
+                          {[...runs!]
+                            .sort((a, b) => b.completedAt - a.completedAt)
+                            .map((run, idx) => {
+                              const polyline = run.metadata?.polyline;
+                              const hasPolyline = Array.isArray(polyline) && polyline.length > 1;
+                              const info = (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <h4 className="font-semibold text-sm">{run.name}</h4>
+                                    <span
+                                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
+                                        SOURCE_STYLE[run.source] ?? 'bg-default-100 text-default-600'
+                                      }`}
+                                    >
+                                      {run.source === 'strava' && <Activity className="h-3 w-3" />}
+                                      {run.source.toUpperCase()}
+                                    </span>
                                   </div>
+                                  <span className="text-sm text-default-500">
+                                    {formatDate(run.completedAt)}
+                                  </span>
+                                  {run.description && (
+                                    <p className="text-sm text-default-600">{run.description}</p>
+                                  )}
                                 </div>
-                              ) : (
-                                info
+                              );
+
+                              return (
+                                <div key={idx} className="border-l-2 border-l-default-300 pl-3 py-1">
+                                  {hasPolyline ? (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      {info}
+                                      <div className="flex justify-start items-center">
+                                        <PolylineRenderer
+                                          points={polyline!}
+                                          theme={theme}
+                                          width={200}
+                                          height={120}
+                                        />
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    info
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+
+                      {hasSocial && (
+                        <div className="space-y-1">
+                          <h5 className="text-xs uppercase text-default-400">Social</h5>
+                          {social.days.map((d) => (
+                            <div
+                              key={d.day}
+                              className="border-l-2 border-l-default-300 pl-3 py-1 flex items-center gap-2 flex-wrap"
+                            >
+                              <span className="text-sm">📇 Social scans ×{d.count}</span>
+                              <Chip color="secondary" variant="flat" size="sm">
+                                +{d.points} 🥕
+                              </Chip>
+                              <span className="text-sm text-default-500">{d.day}</span>
+                            </div>
+                          ))}
+                          {social.egg && (
+                            <div className="border-l-2 border-l-default-300 pl-3 py-1 flex items-center gap-2 flex-wrap">
+                              <span className="text-sm">🔌 DC Jack egg</span>
+                              <Chip color="secondary" variant="flat" size="sm">
+                                +{social.egg.points} 🥕
+                              </Chip>
+                              {social.egg.at && (
+                                <span className="text-sm text-default-500">
+                                  {formatDate(Date.parse(social.egg.at))}
+                                </span>
                               )}
                             </div>
-                          );
-                        })}
-                    </div>
-                  ) : runs ? (
-                    <p className="text-default-500 text-sm p-2">No runs yet.</p>
+                          )}
+                        </div>
+                      )}
+
+                      {hasCtf && (
+                        <div className="space-y-1">
+                          <h5 className="text-xs uppercase text-default-400">CTF</h5>
+                          {ctf.map((c, idx) => (
+                            <div
+                              key={`${c.challenge}-${idx}`}
+                              className="border-l-2 border-l-default-300 pl-3 py-1 flex items-center gap-2 flex-wrap"
+                            >
+                              <span className="text-sm">⚑ {c.name}</span>
+                              <Chip color="warning" variant="flat" size="sm">
+                                +{c.points} 🥕
+                              </Chip>
+                              {c.channel === 'covert' && (
+                                <span className="text-[10px] uppercase text-default-400">
+                                  covert
+                                </span>
+                              )}
+                              {c.at && (
+                                <span className="text-sm text-default-500">
+                                  {formatDate(Date.parse(c.at))}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {!hasRuns && !hasSocial && !hasCtf && (
+                        <p className="text-default-500 text-sm p-2">No runs yet.</p>
+                      )}
+                    </>
                   ) : (
                     <p className="text-default-500 text-sm p-2">Expand to load runs…</p>
                   )}

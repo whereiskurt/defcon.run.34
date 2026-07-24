@@ -27,7 +27,7 @@ export const POINTS = { checkin: 1, gpx: 1, strava: 1 } as const;
  */
 export type ScorableUser = {
   activityScore?: number;
-  activityCounts?: { checkin?: number; gpx?: number };
+  activityCounts?: { checkin?: number; gpx?: number; strava?: number };
   latestActivityAt?: number;
   createdAt?: number;
   /** Read-only CTF rollup, owned by the CTF judge worktree (LDBR-12). */
@@ -46,12 +46,18 @@ export function globalScore(u: ScorableUser): number {
 }
 
 /**
- * Total accomplishment count: activity check-in + gpx counts plus the
- * read-only CTF solve count. Used as the first tie-break in the comparator.
+ * Total accomplishment count: activity check-in + gpx + strava counts plus
+ * the read-only CTF solve count. Used as the first tie-break in the
+ * comparator.
  */
 export function totalCount(u: ScorableUser): number {
   const counts = u.activityCounts ?? {};
-  return (counts.checkin ?? 0) + (counts.gpx ?? 0) + (u.ctfSolves ?? 0);
+  return (
+    (counts.checkin ?? 0) +
+    (counts.gpx ?? 0) +
+    (counts.strava ?? 0) +
+    (u.ctfSolves ?? 0)
+  );
 }
 
 /**

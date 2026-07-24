@@ -8,8 +8,9 @@
  *
  *   - runnerClassEmoji: mqttUsertype → the runner-class emoji rendered after a
  *     display name.
- *   - deriveCountChips: a leaderboard row's activity/CTF counts → the small
- *     typed chip array the accordion title renders (activity green, ctf orange).
+ *   - deriveCountChips: a leaderboard row's activity/social/CTF counts → the
+ *     small typed chip array the accordion title renders (activity green,
+ *     social secondary, ctf orange).
  */
 
 import type { RunUserItem } from "@/entities/run-user";
@@ -42,35 +43,43 @@ export function runnerClassEmoji(mqttUsertype?: RunnerClass): string {
 }
 
 /** HeroUI semantic color for each derived count chip. */
-export type CountChipColor = "success" | "warning";
+export type CountChipColor = "success" | "secondary" | "warning";
 
-/** One derived count chip: activity (green) or CTF (orange). */
+/** One derived count chip: activity (green), social (secondary), or CTF (orange). */
 export type CountChip = {
-  key: "activity" | "ctf";
+  key: "activity" | "social" | "ctf";
   count: number;
   color: CountChipColor;
 };
 
 /** The subset of a leaderboard row `deriveCountChips` reads. */
 type CountChipSource = {
-  activityCounts?: { checkin?: number; gpx?: number };
+  activityCounts?: { checkin?: number; gpx?: number; strava?: number };
   ctfSolves?: number;
+  socialScore?: number;
 };
 
 /**
- * Derive the two title chips for a leaderboard row.
+ * Derive the three title chips for a leaderboard row.
  *
- * activity = (checkin ?? 0) + (gpx ?? 0) → green/success chip.
- * ctf = ctfSolves ?? 0 → orange/warning chip. `ctfSolves` may be 0/absent until
- * the CTF judge ships, so both chips render 0 gracefully (never undefined/NaN —
- * SC #4). Always returns exactly [activity, ctf] in that order so the caller can
+ * activity = (checkin ?? 0) + (gpx ?? 0) + (strava ?? 0) → green/success chip
+ * (strava joined the activity rollup — leaderboard runs-sync Task 1).
+ * social = socialScore ?? 0 → secondary chip (runner-social-QR score).
+ * ctf = ctfSolves ?? 0 → orange/warning chip. All three may be 0/absent, so
+ * every chip renders 0 gracefully (never undefined/NaN — SC #4). Always
+ * returns exactly [activity, social, ctf] in that order so the caller can
  * render a stable chip row.
  */
 export function deriveCountChips(row: CountChipSource): CountChip[] {
-  const activity = (row.activityCounts?.checkin ?? 0) + (row.activityCounts?.gpx ?? 0);
+  const activity =
+    (row.activityCounts?.checkin ?? 0) +
+    (row.activityCounts?.gpx ?? 0) +
+    (row.activityCounts?.strava ?? 0);
+  const social = row.socialScore ?? 0;
   const ctf = row.ctfSolves ?? 0;
   return [
     { key: "activity", count: activity, color: "success" },
+    { key: "social", count: social, color: "secondary" },
     { key: "ctf", count: ctf, color: "warning" },
   ];
 }

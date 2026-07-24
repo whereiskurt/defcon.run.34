@@ -533,7 +533,16 @@ export class GPXLayer {
             className: 'dc34-route-popup',
         })
             .setLngLat(lngLat)
-            .setHTML(runPopupHtml(fileName, conDay, color, totalDistance))
+            .setHTML(
+                runPopupHtml(
+                    fileName,
+                    conDay,
+                    color,
+                    totalDistance,
+                    undefined,
+                    cloudInfo.cloudFileId
+                )
+            )
             .addTo(_map);
     }
 

@@ -143,6 +143,13 @@ locals {
             value = "https://gpx.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },
           {
+            # Internal run.gpx URL via service discovery (container-to-container) —
+            # used server-side by the admin recalculate route to call run.gpx's
+            # internal reconcile endpoint.
+            name  = "RUN_GPX_INTERNAL_URL"
+            value = "http://run-gpx.app-{{REGION_LABEL}}-{{SITE_LABEL}}.local:3000/{{REGION_LABEL}}"
+          },
+          {
             name  = "CMS_PUBLIC_URL"
             value = "https://cms.{{SITE_DOMAIN}}/{{REGION_LABEL}}"
           },

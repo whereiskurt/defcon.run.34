@@ -6,7 +6,7 @@ import { updateRunUserActivityCounts } from "./run-user";
  * Accomplishment ElectroDB Entity (Phase 49, LDBR-01)
  *
  * The leaderboard's source of truth for the runs THIS board scores: check-ins +
- * GPX (Strava reserved). A DC33 port of `db/accomplishment.ts` adapted to the
+ * GPX + Strava. A DC33 port of `db/accomplishment.ts` adapted to the
  * DC34 shared `run-human-electro` table and identity model:
  *   - service "run" (matches RunUser/CheckIn, shared table)
  *   - keyed by `userId` (the Auth.js adapter uuid = session.user.id =
@@ -267,11 +267,9 @@ function externalIdFor(
  * `RunUser.activityScore` / `activityCounts.<source>` via
  * updateRunUserActivityCounts (the sole rollup writer, increment:true).
  *
- * NOTE: the rollup mutator owns `checkin`/`gpx` only. `strava` is reserved in
- * this milestone (no Strava write path is wired yet) and has no activityCounts
- * slot, so a strava accomplishment persists its row but does not yet contribute
- * to activityScore. This keeps the create-bumps-once invariant type-safe; wiring
- * Strava into the rollup is a later-phase concern.
+ * All three sources (checkin/gpx/strava) bump `RunUser.activityScore` /
+ * `activityCounts.<source>` via updateRunUserActivityCounts (the sole rollup
+ * writer, increment:true).
  *
  * SERVER-ONLY — do not import into a client component.
  */
@@ -335,15 +333,15 @@ export async function createAccomplishment(input: CreateAccomplishmentInput) {
     metadata,
   }).go();
 
-  // Bump the rollup exactly once, only for a genuinely new row.
-  if (source === "checkin" || source === "gpx") {
-    await updateRunUserActivityCounts(userId, {
-      source,
-      pointsDelta: points,
-      completedAt,
-      increment: true,
-    });
-  }
+  // Bump the rollup exactly once, only for a genuinely new row. All three
+  // sources (checkin/gpx/strava) join the rollup — the enum already restricts
+  // `source` to those, so no guard is needed here.
+  await updateRunUserActivityCounts(userId, {
+    source,
+    pointsDelta: points,
+    completedAt,
+    increment: true,
+  });
 
   return result.data;
 }
@@ -365,8 +363,8 @@ export async function getAccomplishmentsByUser(userId: string) {
  * no-op with NO decrement — so deleting a missing/foreign row can never drift
  * the rollup negative. Otherwise it deletes the row and decrements the rollup
  * exactly once (updateRunUserActivityCounts, increment:false — floored at 0 by
- * the mutator). Strava rows are skipped on the rollup side for the same reason
- * as create (no activityCounts slot yet).
+ * the mutator). All three sources (checkin/gpx/strava) are wired on the rollup
+ * side, same as create — the enum already restricts `row.source` to those.
  *
  * SERVER-ONLY — do not import into a client component.
  */
@@ -382,12 +380,10 @@ export async function deleteAccomplishment(
 
   await Accomplishment.delete({ userId, accomplishmentId }).go();
 
-  if (row.source === "checkin" || row.source === "gpx") {
-    await updateRunUserActivityCounts(userId, {
-      source: row.source,
-      pointsDelta: row.metadata?.points ?? 0,
-      completedAt: row.completedAt,
-      increment: false,
-    });
-  }
+  await updateRunUserActivityCounts(userId, {
+    source: row.source,
+    pointsDelta: row.metadata?.points ?? 0,
+    completedAt: row.completedAt,
+    increment: false,
+  });
 }

@@ -14,6 +14,7 @@ import {
   syncUserToConDay,
 } from "@/lib/strava-sync";
 import { logEvent } from "@/lib/log-event";
+import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 
 /**
  * POST /api/gpx/strava/sync (Phase 61) — the per-user "Sync my Strava" button.
@@ -153,6 +154,11 @@ export async function POST(request: Request) {
       email: session.user.email ?? undefined,
       meta: { imported: result.imported, skipped: result.skipped, conDay },
     });
+
+    // Task 4 (leaderboard<->runs reconcile): re-converge run.human after a
+    // successful sync. Fire-and-forget (T-50-06); fired before the response
+    // so it can't be skipped by an early return (same idiom as sync-now).
+    reconcileBestEffort(session.user.id);
 
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

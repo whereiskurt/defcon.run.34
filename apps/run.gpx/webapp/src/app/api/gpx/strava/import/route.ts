@@ -16,6 +16,7 @@ import {
   getExistingStravaIds,
 } from "@/lib/strava-sync";
 import { logEvent } from "@/lib/log-event";
+import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 
 /**
  * POST /api/gpx/strava/import — tap-to-import one Strava activity (strip spec
@@ -166,6 +167,12 @@ export async function POST(request: Request) {
         email: session.user.email ?? undefined,
         meta: { fileId: file.fileId, activityId, conDay },
       });
+
+      // Task 4 (leaderboard<->runs reconcile): a fresh con-day import changes
+      // this runner's live run set — re-converge run.human. Fire-and-forget
+      // (T-50-06); fired before the response so it can't be skipped by an
+      // early return.
+      reconcileBestEffort(session.user.id);
 
       return NextResponse.json({
         ok: true,

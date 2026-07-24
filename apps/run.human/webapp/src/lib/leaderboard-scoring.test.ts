@@ -62,6 +62,12 @@ describe("totalCount", () => {
     ).toBe(6);
   });
 
+  it("sums checkin + gpx + strava counts + ctfSolves", () => {
+    expect(
+      totalCount({ activityCounts: { checkin: 1, gpx: 2, strava: 3 } })
+    ).toBe(6);
+  });
+
   it("reads an empty row as 0", () => {
     expect(totalCount({})).toBe(0);
   });

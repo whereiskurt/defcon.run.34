@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   fileGet: vi.fn(),
   fileUpdateSet: vi.fn(() => ({ go: vi.fn(async () => ({})) })),
   fileUpdateRemove: vi.fn(() => ({ go: vi.fn(async () => ({})) })),
+  reconcileBestEffort: vi.fn(),
 }));
 
 vi.mock("@/config/auth", () => ({ auth: mocks.auth }));
@@ -18,6 +19,7 @@ vi.mock("@/lib/quota-client", () => ({
   restoreQuota: mocks.restoreQuota,
 }));
 vi.mock("@/lib/con-day-usage", () => ({ countConDayRuns: mocks.countConDayRuns }));
+vi.mock("@/lib/gpx-reconcile", () => ({ reconcileBestEffort: mocks.reconcileBestEffort }));
 vi.mock("@/entities/gpx-file", () => ({
   GpxFile: {
     get: (k: unknown) => ({ go: () => mocks.fileGet(k) }),
@@ -58,6 +60,15 @@ describe("PUT /api/gpx/files/[id] conDay", () => {
     expect(mocks.fileUpdateSet).toHaveBeenCalledWith(
       expect.objectContaining({ conDay: "2026-08-07" })
     );
+    // Task 4 (leaderboard<->runs reconcile trigger).
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
+  });
+
+  it("does NOT fire reconcileBestEffort when the update has no conDay field", async () => {
+    const res = await PUT(put({ fileName: "renamed.gpx" }), params);
+    expect(res.status).toBe(200);
+    expect(mocks.reconcileBestEffort).not.toHaveBeenCalled();
   });
 
   it("accepts a future con day (no selectable gate)", async () => {
@@ -73,11 +84,13 @@ describe("PUT /api/gpx/files/[id] conDay", () => {
     mocks.countConDayRuns.mockResolvedValue(10);
     expect((await PUT(put({ conDay: "2026-08-06" }), params)).status).toBe(200);
     expect(mocks.countConDayRuns).not.toHaveBeenCalled();
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
   });
 
   it("clears the tag with null", async () => {
     expect((await PUT(put({ conDay: null }), params)).status).toBe(200);
     expect(mocks.fileUpdateRemove).toHaveBeenCalledWith(["conDay"]);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
   });
 
   it("400s a non-con-day for non-admins", async () => {

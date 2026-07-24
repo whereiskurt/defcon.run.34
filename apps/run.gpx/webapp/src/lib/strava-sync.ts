@@ -11,6 +11,7 @@ import {
 } from "@/lib/quota-client";
 import { conDayRemaining } from "@/lib/con-day-quota";
 import { countConDayRuns } from "@/lib/con-day-usage";
+import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 
 /**
  * Strava date-banded ingestion worker (v1.7 Phase 31b).
@@ -271,9 +272,18 @@ export async function runStravaSync(
   let imported = 0;
   for (const user of tokens) {
     try {
-      imported += await syncUser(user, afterDays);
+      const userImported = await syncUser(user, afterDays);
+      imported += userImported;
     } catch (e) {
       console.error(`[strava-sync] user ${user.userId} failed`, e);
+    } finally {
+      // Task 4 (leaderboard<->runs reconcile): the twice-daily scheduled sync
+      // is the SELF-HEAL channel — fire once per processed linked user
+      // regardless of import count (unconditionally, even on zero imports or
+      // a thrown sync) so a runner whose earlier best-effort reconcile got
+      // dropped (T-50-06 fire-and-forget) still heals here. Placed in
+      // `finally` so a throwing `syncUser` doesn't skip it.
+      reconcileBestEffort(user.userId);
     }
     // Refresh this runner's strip cache while we hold a fresh token, so strip
     // opens between scheduled ticks are free (no quota, no Strava traffic).
