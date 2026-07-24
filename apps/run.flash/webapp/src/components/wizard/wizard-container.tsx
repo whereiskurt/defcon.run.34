@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useWizard, STEPS, type WizardStep } from "@/hooks/use-wizard";
 import { useSerial } from "@/hooks/use-serial";
@@ -8,6 +8,7 @@ import { useDfu } from "@/hooks/use-dfu";
 import { useFlash } from "@/hooks/use-flash";
 import { useConfigure } from "@/hooks/use-configure";
 import { validateChipMatch } from "@/lib/esptool";
+import { DEFAULT_FIRMWARE_VERSION } from "@/config/firmware";
 import { getDeviceFamily } from "@/types/device";
 import { WizardStepper } from "@/components/wizard/wizard-stepper";
 import { DeviceGrid } from "@/components/device-picker/device-grid";
@@ -16,6 +17,7 @@ import { FlashStep, type FlashTransport } from "@/components/flash/flash-step";
 import { Nrf52FlashStep } from "@/components/flash/nrf52-flash-step";
 import { ConfigureStep } from "@/components/configure/configure-step";
 import { DoneStep } from "@/components/done/done-step";
+import { AppDownloadsCard } from "@/components/app-downloads-card";
 
 /** No-op transport disconnect for the nRF52 configure path — the device was
  *  flashed via UF2 drag-drop, so there is no esptool serial transport to
@@ -42,6 +44,12 @@ export function WizardContainer() {
   const dfu = useDfu();
   const flashState = useFlash();
   const configureState = useConfigure();
+
+  // Selected firmware version — sticky across "Flash Another Device" so a
+  // booth operator's choice survives multi-board provisioning runs.
+  const [firmwareVersion, setFirmwareVersion] = useState(
+    DEFAULT_FIRMWARE_VERSION
+  );
 
   // Derive the device family once here (CONTEXT Decision 2 — never re-derived
   // in leaf components). Null before a device is picked; getDeviceFamily
@@ -113,11 +121,14 @@ export function WizardContainer() {
           transition={{ duration: 0.2, ease: "easeInOut" }}
         >
           {currentStep === "pick-device" && (
-            <DeviceGrid
-              onSelect={selectDevice}
-              selectedDevice={selectedDevice}
-              onContinue={canAdvance("pick-device") ? advance : undefined}
-            />
+            <div className="space-y-4">
+              <DeviceGrid
+                onSelect={selectDevice}
+                selectedDevice={selectedDevice}
+                onContinue={canAdvance("pick-device") ? advance : undefined}
+              />
+              <AppDownloadsCard variant="compact" />
+            </div>
           )}
 
           {/* Connect is ESP32-only. nRF52 skips it (see visibleSteps / the
@@ -137,13 +148,20 @@ export function WizardContainer() {
             //   bootloader exposes a mass-storage volume, not DFU/serial).
             // - ESP32: esptool pipeline, gated on `serial.chipInfo`.
             family === "nrf52" ? (
-              <Nrf52FlashStep device={selectedDevice} onContinue={advance} />
+              <Nrf52FlashStep
+                device={selectedDevice}
+                firmwareVersion={firmwareVersion}
+                onFirmwareVersionChange={setFirmwareVersion}
+                onContinue={advance}
+              />
             ) : (
               serial.chipInfo && (
                 <FlashStep
                   device={selectedDevice}
                   chipInfo={serial.chipInfo}
                   flashState={flashState}
+                  firmwareVersion={firmwareVersion}
+                  onFirmwareVersionChange={setFirmwareVersion}
                   transport={flashTransport}
                   consoleLogs={serial.consoleLogs}
                   appendLog={serial.appendLog}
@@ -186,6 +204,7 @@ export function WizardContainer() {
           {currentStep === "done" && (
             <DoneStep
               device={selectedDevice}
+              firmwareVersion={firmwareVersion}
               configPayload={configureState.configPayload}
               registrationStatus={configureState.registrationStatus}
               onRetryRegistration={configureState.retryRegistration}

@@ -784,7 +784,7 @@
     "platformioTarget": "seeed-xiao-s3",
     "architecture": "esp32-s3",
     "activelySupported": true,
-    "supportLevel": 3,
+    "supportLevel": 1,
     "displayName": "Seeed Xiao ESP32-S3",
     "tags": [
       "Seeed"
@@ -1212,7 +1212,7 @@
       "Heltec"
     ],
     "requiresDfu": true,
-    "hasMui": false,
+    "hasMui": true,
     "partitionScheme": "16MB",
     "images": [
       "heltec_v4.svg"
@@ -1237,11 +1237,27 @@
     ]
   },
   {
+    "hwModel": 112,
+    "hwModelSlug": "M5STACK_CARDPUTER_ADV",
+    "platformioTarget": "m5stack-cardputer-adv",
+    "architecture": "esp32-s3",
+    "activelySupported": true,
+    "supportLevel": 1,
+    "displayName": "Cardputer Mesh Kit",
+    "tags": [
+      "M5Stack"
+    ],
+    "images": [
+      "m5stack_cardputer.svg"
+    ],
+    "partitionScheme": "8MB"
+  },
+  {
     "hwModel": 113,
     "hwModelSlug": "HELTEC_WIRELESS_TRACKER_V2",
     "platformioTarget": "heltec-wireless-tracker-v2",
-    "architecture": "esp32s3",
-    "activelySupported": false,
+    "architecture": "esp32-s3",
+    "activelySupported": true,
     "supportLevel": 1,
     "displayName": "Heltec Wireless Tracker V2",
     "tags": [
@@ -1306,7 +1322,7 @@
     "hwModelSlug": "THINKNODE_M4",
     "platformioTarget": "thinknode_m4",
     "architecture": "nrf52840",
-    "activelySupported": false,
+    "activelySupported": true,
     "supportLevel": 1,
     "displayName": "ThinkNode M4",
     "tags": [
@@ -1322,7 +1338,7 @@
     "hwModelSlug": "THINKNODE_M6",
     "platformioTarget": "thinknode_m6",
     "architecture": "nrf52840",
-    "activelySupported": false,
+    "activelySupported": true,
     "supportLevel": 1,
     "displayName": "ThinkNode M6",
     "tags": [
@@ -1348,6 +1364,129 @@
     "partitionScheme": "8MB",
     "images": [
       "tbeam-1w.svg"
+    ]
+  },
+  {
+    "hwModel": 123,
+    "hwModelSlug": "T5_S3_EPAPER_PRO",
+    "platformioTarget": "t5-epaper-s3",
+    "architecture": "esp32-s3",
+    "activelySupported": false,
+    "supportLevel": 1,
+    "displayName": "LilyGo T5 E-paper S3 Pro",
+    "tags": [
+      "LilyGo"
+    ],
+    "hasMui": false,
+    "partitionScheme": "8MB",
+    "images": [
+      "t5s3_epaper.svg"
+    ]
+  },
+  {
+    "hwModel": 125,
+    "hwModelSlug": "MINI_EPAPER_S3",
+    "platformioTarget": "mini-epaper-s3",
+    "architecture": "esp32-s3",
+    "activelySupported": false,
+    "supportLevel": 1,
+    "displayName": "LilyGo Mini E-paper S3",
+    "tags": [
+      "LilyGo"
+    ],
+    "hasMui": false,
+    "images": [
+      "mini-epaper-s3.svg"
+    ]
+  },
+  {
+    "hwModel": 127,
+    "hwModelSlug": "HELTEC_MESH_NODE_T096",
+    "platformioTarget": "heltec-mesh-node-t096",
+    "architecture": "nrf52840",
+    "activelySupported": true,
+    "supportLevel": 1,
+    "displayName": "Heltec Mesh Node T096",
+    "tags": [
+      "Heltec"
+    ],
+    "images": [
+      "heltec-t096.svg"
+    ]
+  },
+  {
+    "hwModel": 129,
+    "hwModelSlug": "THINKNODE_M7",
+    "platformioTarget": "thinknode_m7",
+    "architecture": "esp32-s3",
+    "activelySupported": true,
+    "supportLevel": 1,
+    "displayName": "ThinkNode M7",
+    "tags": [
+      "Elecrow"
+    ],
+    "requiresDfu": false,
+    "images": [
+      "thinknode_m7.svg"
+    ]
+  },
+  {
+    "hwModel": 134,
+    "hwModelSlug": "STATION_G3",
+    "platformioTarget": "station-g3",
+    "architecture": "esp32-s3",
+    "activelySupported": false,
+    "supportLevel": 1,
+    "displayName": "Station G3",
+    "tags": [
+      "B&Q"
+    ],
+    "images": [
+      "station-g3.svg"
+    ],
+    "requiresDfu": true,
+    "partitionScheme": "16MB"
+  },
+  {
+    "hwModel": 83,
+    "hwModelSlug": "TLORA_C6",
+    "platformioTarget": "tlora-c6",
+    "architecture": "esp32-c6",
+    "activelySupported": false,
+    "supportLevel": 1,
+    "displayName": "LilyGo T-Lora C6",
+    "tags": [
+      "LilyGo"
+    ],
+    "images": [
+      "tlora-c6.svg"
+    ]
+  },
+  {
+    "hwModel": 133,
+    "hwModelSlug": "HELTEC_MESH_NODE_T1",
+    "platformioTarget": "heltec-mesh-node-t1",
+    "architecture": "nrf52840",
+    "activelySupported": true,
+    "supportLevel": 1,
+    "displayName": "Heltec Mesh Node T1",
+    "tags": [
+      "Heltec"
+    ],
+    "images": [
+      "heltec-meshnode-t1.svg"
+    ]
+  },
+  {
+    "hwModel": 128,
+    "hwModelSlug": "MESH_TRACKER_X1",
+    "platformioTarget": "seeed_mesh_tracker_X1",
+    "architecture": "nrf52840",
+    "activelySupported": false,
+    "supportLevel": 1,
+    "displayName": "Seeed MeshTracker X1",
+    "tags": [
+      "Seeed"
     ]
   }
 ]

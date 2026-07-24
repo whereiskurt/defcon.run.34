@@ -5,8 +5,8 @@ const isDev = process.env.NODE_ENV !== "production";
 
 if (!isDev && !process.env.NEXT_PUBLIC_FIRMWARE_VERSION) {
   throw new Error(
-    "NEXT_PUBLIC_FIRMWARE_VERSION is empty. Production builds must inject the resolved Meshtastic stable version. " +
-      "Set it via the Dockerfile.webapp builder ARG (FIRMWARE_VERSION -> ENV NEXT_PUBLIC_FIRMWARE_VERSION), or for local production builds run scripts/download-firmware.sh to populate .env.local."
+    "NEXT_PUBLIC_FIRMWARE_VERSION is empty. Production builds must inject the default firmware version. " +
+      "It comes from the default slot of firmware-versions.json (Dockerfile Stage 1 -> VERSION.txt -> ENV), or for local production builds run scripts/download-firmware.sh to populate .env.local."
   );
 }
 

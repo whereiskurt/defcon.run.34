@@ -1,50 +1,120 @@
-# Stage 1: Resolve current stable, vendor factory images, regenerate ESP32 device list
+# Stage 1: Vendor firmware versions + phone-app APKs, regenerate device list
 FROM node:current-alpine AS firmware
 RUN apk add --no-cache curl unzip jq
 WORKDIR /firmware
 
-# Optional rollback / hotfix pin. When empty, the version is resolved from
-# api.meshtastic.org/github/firmware/list (releases.stable[0].id). No hardcoded
-# fallback — API unreachable + no build-arg = build fails.
-ARG FIRMWARE_VERSION=""
+# Version pins + APK sources are checked-in config, not build args — see
+# firmware-versions.json (slots: stable/previous/nightly) and
+# app-downloads.sources.json. Rollback = edit the file, not the pipeline.
+COPY firmware-versions.json app-downloads.sources.json /build-config/
 
-# --retry rides out transient upstream failures (e.g. api.meshtastic.org 502s,
-# which have failed whole releases before). --retry-all-errors makes `-f` 5xx
-# responses retryable; curl backs off exponentially between attempts.
-RUN FW_VER="${FIRMWARE_VERSION}"; \
-    if [ -z "$FW_VER" ]; then \
-      FW_VER=$(curl -fsSL --retry 5 --retry-all-errors --retry-connrefused \
-        https://api.meshtastic.org/github/firmware/list \
-        | jq -r '.releases.stable[0].id' \
-        | sed 's/^v//'); \
-    fi; \
-    if [ -z "$FW_VER" ] || [ "$FW_VER" = "null" ]; then \
-      echo "ERROR: Could not resolve Meshtastic stable version from api.meshtastic.org and no --build-arg FIRMWARE_VERSION provided" && exit 1; \
-    fi; \
-    echo "Resolved Meshtastic stable: ${FW_VER}" && \
-    RELEASE_TAG="v${FW_VER}" && \
-    BASE_URL="https://github.com/meshtastic/firmware/releases/download/${RELEASE_TAG}" && \
-    for ARCH in esp32 esp32s3 esp32c3 esp32c6 nrf52840; do \
-      ZIP="firmware-${ARCH}-${FW_VER}.zip"; \
-      echo "Downloading ${ZIP}..." && \
-      curl -fL --retry 3 --retry-all-errors --retry-connrefused \
-        -o "/tmp/${ZIP}" "${BASE_URL}/${ZIP}" || { echo "Warning: ${ZIP} not found"; continue; }; \
-      unzip -q -o "/tmp/${ZIP}" "firmware-*.factory.bin" -d /firmware/ 2>/dev/null || true; \
-      unzip -q -o "/tmp/${ZIP}" "firmware-*.uf2" -d /firmware/ 2>/dev/null || true; \
-      rm -f "/tmp/${ZIP}"; \
-    done && \
-    find /firmware -name "*-update.bin" -delete && \
-    echo "Extracted $(find /firmware -name 'firmware-*.factory.bin' -o -name 'firmware-*.uf2' | wc -l) firmware binaries" && \
-    echo "${FW_VER}" > /firmware/VERSION.txt
-
-# Regenerate ESP32-only device hardware list (DEVC-06). Overwrites the tracked
-# public/data/hardware-list.json snapshot when copied into Stage 2.
+# Device hardware list FIRST — the nightly fetcher derives per-target
+# filenames from it. Overwrites the tracked public/data/hardware-list.json
+# snapshot when copied into Stage 2 (DEVC-06).
 RUN mkdir -p /hardware && \
     curl -fsSL --retry 5 --retry-all-errors --retry-connrefused \
       https://api.meshtastic.org/resource/deviceHardware \
-      | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6" or .architecture == "nrf52840")]' \
+      | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6" or .architecture == "nrf52840" or .architecture == "rp2040")]' \
       > /hardware/hardware-list.json && \
     jq -e 'length > 0' /hardware/hardware-list.json
+
+# Multi-version firmware fetch driven by firmware-versions.json.
+# - Pinned slots (pin != ""): GitHub release arch zips (the pre-existing path).
+# - Empty pin, slot=nightly: resolve meshtastic.github.io firmware-nightly
+#   (develop build), fetch per-target factory.bin/.uf2 (folder is flat,
+#   unzipped); missing targets warn-and-continue (experimental tier).
+# - Empty pin otherwise: resolve releases.stable[0] (legacy behavior).
+# Writes /manifest/firmware-manifest.json + /firmware/VERSION.txt (default slot).
+# --retry rides out transient upstream failures (api.meshtastic.org 502s have
+# failed whole releases before); --retry-all-errors makes `-f` 5xx retryable.
+RUN set -e; \
+    mkdir -p /manifest; \
+    CFG=/build-config/firmware-versions.json; \
+    NIGHTLY_BASE="https://raw.githubusercontent.com/meshtastic/meshtastic.github.io/master/firmware-nightly"; \
+    COUNT=$(jq '.versions | length' "$CFG"); \
+    : > /tmp/manifest-entries.jsonl; \
+    DEFAULT_VER=""; \
+    i=0; \
+    while [ "$i" -lt "$COUNT" ]; do \
+      SLOT=$(jq -r ".versions[$i].slot" "$CFG"); \
+      PIN=$(jq -r ".versions[$i].pin" "$CFG"); \
+      LABEL=$(jq -r ".versions[$i].label" "$CFG"); \
+      IS_DEFAULT=$(jq -r ".versions[$i].default // false" "$CFG"); \
+      IS_EXP=$(jq -r ".versions[$i].experimental // false" "$CFG"); \
+      if [ -n "$PIN" ]; then \
+        FW_VER="$PIN"; \
+      elif [ "$SLOT" = "nightly" ]; then \
+        FW_VER=$(curl -fsSL --retry 5 --retry-all-errors --retry-connrefused \
+          "$NIGHTLY_BASE/index.json" | jq -r '.version'); \
+      else \
+        FW_VER=$(curl -fsSL --retry 5 --retry-all-errors --retry-connrefused \
+          https://api.meshtastic.org/github/firmware/list \
+          | jq -r '.releases.stable[0].id' | sed 's/^v//'); \
+      fi; \
+      if [ -z "$FW_VER" ] || [ "$FW_VER" = "null" ]; then \
+        echo "ERROR: could not resolve version for slot $SLOT" && exit 1; \
+      fi; \
+      echo "=== Slot $SLOT -> $FW_VER ==="; \
+      if [ "$SLOT" = "nightly" ] && [ -z "$PIN" ]; then \
+        MISS=0; GOT=0; \
+        for T in $(jq -r '.[] | select(.architecture | startswith("esp32")) | .platformioTarget' /hardware/hardware-list.json | sort -u); do \
+          if curl -fsSL --retry 2 -o "/firmware/firmware-${T}-${FW_VER}.factory.bin" \
+            "$NIGHTLY_BASE/firmware-${T}-${FW_VER}.factory.bin"; then GOT=$((GOT+1)); \
+          else rm -f "/firmware/firmware-${T}-${FW_VER}.factory.bin"; MISS=$((MISS+1)); fi; \
+        done; \
+        for T in $(jq -r '.[] | select(.architecture == "nrf52840" or .architecture == "rp2040") | .platformioTarget' /hardware/hardware-list.json | sort -u); do \
+          if curl -fsSL --retry 2 -o "/firmware/firmware-${T}-${FW_VER}.uf2" \
+            "$NIGHTLY_BASE/firmware-${T}-${FW_VER}.uf2"; then GOT=$((GOT+1)); \
+          else rm -f "/firmware/firmware-${T}-${FW_VER}.uf2"; MISS=$((MISS+1)); fi; \
+        done; \
+        echo "Nightly $FW_VER: $GOT targets fetched, $MISS missing (warn-only)"; \
+        [ "$GOT" -gt 0 ] || { echo "ERROR: nightly fetched zero targets"; exit 1; }; \
+      else \
+        RELEASE_TAG="v${FW_VER}"; \
+        BASE_URL="https://github.com/meshtastic/firmware/releases/download/${RELEASE_TAG}"; \
+        for ARCH in esp32 esp32s3 esp32c3 esp32c6 nrf52840 rp2040; do \
+          ZIP="firmware-${ARCH}-${FW_VER}.zip"; \
+          echo "Downloading ${ZIP}..."; \
+          curl -fL --retry 3 --retry-all-errors --retry-connrefused \
+            -o "/tmp/${ZIP}" "${BASE_URL}/${ZIP}" || { echo "Warning: ${ZIP} not found"; continue; }; \
+          unzip -q -o "/tmp/${ZIP}" "firmware-*.factory.bin" -d /firmware/ 2>/dev/null || true; \
+          unzip -q -o "/tmp/${ZIP}" "firmware-*.uf2" -d /firmware/ 2>/dev/null || true; \
+          rm -f "/tmp/${ZIP}"; \
+        done; \
+        [ "$(find /firmware -name "firmware-*-${FW_VER}.*" | wc -l)" -gt 0 ] || \
+          { echo "ERROR: slot $SLOT ($FW_VER) produced zero firmware files"; exit 1; }; \
+      fi; \
+      jq -n --arg slot "$SLOT" --arg version "$FW_VER" --arg label "$LABEL" \
+        --argjson default "$IS_DEFAULT" --argjson experimental "$IS_EXP" \
+        '{slot:$slot, version:$version, label:$label, default:$default, experimental:$experimental}' \
+        >> /tmp/manifest-entries.jsonl; \
+      if [ "$IS_DEFAULT" = "true" ]; then DEFAULT_VER="$FW_VER"; fi; \
+      i=$((i+1)); \
+    done; \
+    find /firmware -name "*-update.bin" -delete; \
+    jq -s '{versions: .}' /tmp/manifest-entries.jsonl > /manifest/firmware-manifest.json; \
+    jq -e '[.versions[] | select(.default)] | length == 1' /manifest/firmware-manifest.json; \
+    [ -n "$DEFAULT_VER" ] || { echo "ERROR: no default slot"; exit 1; }; \
+    echo "$DEFAULT_VER" > /firmware/VERSION.txt; \
+    echo "Baked $(find /firmware -name 'firmware-*' | wc -l) firmware files across $COUNT versions"
+
+# Mirror phone-app APKs (offline guarantee — GitHub URLs never reach runtime).
+# Hard-fail on any download error: these links are load-bearing at con.
+RUN set -e; \
+    mkdir -p /apps; \
+    SRC=/build-config/app-downloads.sources.json; \
+    COUNT=$(jq '[.apps[] | select(.kind == "apk")] | length' "$SRC"); \
+    i=0; \
+    while [ "$i" -lt "$COUNT" ]; do \
+      URL=$(jq -r "[.apps[] | select(.kind == \"apk\")][$i].url" "$SRC"); \
+      FN=$(jq -r "[.apps[] | select(.kind == \"apk\")][$i].filename" "$SRC"); \
+      echo "Downloading $FN ..."; \
+      curl -fL --retry 3 --retry-all-errors --retry-connrefused -o "/apps/$FN" "$URL"; \
+      [ "$(wc -c < "/apps/$FN")" -gt 10000000 ] || { echo "ERROR: $FN suspiciously small"; exit 1; }; \
+      i=$((i+1)); \
+    done; \
+    jq '{apps: [.apps[] | del(.url)]}' "$SRC" > /manifest/apps-manifest.json; \
+    jq -e '.apps | length > 0' /manifest/apps-manifest.json
 
 # Stage 2: Build Next.js app
 FROM node:current-alpine AS builder
@@ -69,10 +139,15 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 
-# Copy firmware binaries into public/firmware/ for build.sh S3 extraction
+# Firmware binaries + APKs into public/ for build.sh S3 extraction; runtime
+# manifests overwrite the tracked public/data/ snapshots BEFORE npm run build
+# so the statically-imported JSON matches the baked artifacts.
 COPY --from=firmware /firmware/ ./public/firmware/
 COPY --from=firmware /firmware/VERSION.txt /tmp/FIRMWARE_VERSION
 COPY --from=firmware /hardware/hardware-list.json ./public/data/hardware-list.json
+COPY --from=firmware /manifest/firmware-manifest.json ./public/data/firmware-manifest.json
+COPY --from=firmware /manifest/apps-manifest.json ./public/data/apps-manifest.json
+COPY --from=firmware /apps/ ./public/apps/
 
 ARG NEXT_PUBLIC_ASSET_PREFIX=""
 ARG WEBAPP_PREFIX="use1/assets"

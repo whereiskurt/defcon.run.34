@@ -34,7 +34,8 @@ export interface UseFlashReturn {
   flash: (
     transport: ESPLoader | DfuDevice,
     device: DeviceHardware,
-    appendLog: (text: string) => void
+    appendLog: (text: string) => void,
+    version?: string
   ) => Promise<void>;
   /** Reset flash state to idle (for retry) */
   reset: () => void;
@@ -68,14 +69,15 @@ export function useFlash(): UseFlashReturn {
     async (
       transport: ESPLoader | DfuDevice,
       device: DeviceHardware,
-      appendLog: (text: string) => void
+      appendLog: (text: string) => void,
+      version?: string
     ) => {
       const family = getDeviceFamily(device);
       activeFamilyRef.current = family;
       if (family === "esp32") {
-        return esp32.flash(transport as ESPLoader, device, appendLog);
+        return esp32.flash(transport as ESPLoader, device, appendLog, version);
       }
-      return nrf52.flash(transport as DfuDevice, device, appendLog);
+      return nrf52.flash(transport as DfuDevice, device, appendLog, version);
     },
     [esp32, nrf52]
   );

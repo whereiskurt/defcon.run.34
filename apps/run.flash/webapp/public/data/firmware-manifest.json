@@ -1,0 +1,25 @@
+{
+  "versions": [
+    {
+      "slot": "stable",
+      "version": "2.7.26.54e0d8d",
+      "label": "2.7.26 — recommended",
+      "default": true,
+      "experimental": false
+    },
+    {
+      "slot": "previous",
+      "version": "2.7.15.567b8ea",
+      "label": "2.7.15 — previous stable",
+      "default": false,
+      "experimental": false
+    },
+    {
+      "slot": "nightly",
+      "version": "2.8.0.ef1aedd",
+      "label": "2.8.0 nightly — experimental",
+      "default": false,
+      "experimental": true
+    }
+  ]
+}

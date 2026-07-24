@@ -1,7 +1,26 @@
 import type { DeviceHardware } from "@/types/device";
+import firmwareManifest from "@/../public/data/firmware-manifest.json";
 
 // Injected at build time from Dockerfile.webapp builder ARG (production) or scripts/download-firmware.sh -> .env.local (local dev).
 export const FIRMWARE_VERSION = process.env.NEXT_PUBLIC_FIRMWARE_VERSION ?? "";
+
+/** One selectable firmware version from public/data/firmware-manifest.json
+ *  (tracked snapshot, overwritten by Dockerfile Stage 1 at build time). */
+export interface FirmwareVersionEntry {
+  slot: string;
+  version: string;
+  label: string;
+  default: boolean;
+  experimental: boolean;
+}
+
+export const FIRMWARE_VERSIONS: FirmwareVersionEntry[] =
+  firmwareManifest.versions as FirmwareVersionEntry[];
+
+/** The preselected version — falls back to the build-time env single-version
+ *  value so a malformed manifest can never blank the flasher. */
+export const DEFAULT_FIRMWARE_VERSION: string =
+  FIRMWARE_VERSIONS.find((v) => v.default)?.version ?? FIRMWARE_VERSION;
 
 /** Base path for firmware binaries.
  * In production, firmware is served from S3 via CloudFront using the asset prefix.
@@ -17,7 +36,7 @@ export const FIRMWARE_BASE_PATH = process.env.NEXT_PUBLIC_ASSET_PREFIX
  */
 export function getFactoryFilename(
   device: DeviceHardware,
-  version: string = FIRMWARE_VERSION
+  version: string = DEFAULT_FIRMWARE_VERSION
 ): string {
   return `firmware-${device.platformioTarget}-${version}.factory.bin`;
 }
@@ -49,7 +68,7 @@ function uint8ToBinaryString(data: Uint8Array): string {
  */
 export async function loadFirmware(
   device: DeviceHardware,
-  version: string = FIRMWARE_VERSION
+  version: string = DEFAULT_FIRMWARE_VERSION
 ): Promise<{ data: string; size: number; filename: string }> {
   const filename = getFactoryFilename(device, version);
   const url = `${FIRMWARE_BASE_PATH}/${filename}`;
@@ -75,7 +94,7 @@ export async function loadFirmware(
  */
 export function getUf2Filename(
   device: DeviceHardware,
-  version: string = FIRMWARE_VERSION
+  version: string = DEFAULT_FIRMWARE_VERSION
 ): string {
   return `firmware-${device.platformioTarget}-${version}.uf2`;
 }
@@ -94,7 +113,7 @@ export function getUf2Filename(
  */
 export async function loadUf2(
   device: DeviceHardware,
-  version: string = FIRMWARE_VERSION
+  version: string = DEFAULT_FIRMWARE_VERSION
 ): Promise<{ data: Uint8Array; size: number; filename: string }> {
   const filename = getUf2Filename(device, version);
   const url = `${FIRMWARE_BASE_PATH}/${filename}`;

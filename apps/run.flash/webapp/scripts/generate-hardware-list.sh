@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Regenerate the ESP32-only Meshtastic hardware list for local dev.
-# Mirrors the Dockerfile hardware-list stage 18-03 will introduce — same
-# endpoint, same filter, same output path — so dev/prod stay in lockstep.
+# Regenerate the Meshtastic hardware list for local dev.
+# Mirrors the Dockerfile hardware-list stage — same endpoint, same filter,
+# same output path — so dev/prod stay in lockstep.
 #
 # Usage:
 #   ./scripts/generate-hardware-list.sh
@@ -9,8 +9,9 @@
 # Behavior:
 #   - Fetches https://api.meshtastic.org/resource/deviceHardware.
 #   - Retains only entries whose architecture is in
-#     {esp32, esp32-s3, esp32-c3, esp32-c6}. Everything else (nRF52, Linux,
-#     STM32, RP2xxx, etc.) is dropped — flasher targets ESP32 families only.
+#     {esp32, esp32-s3, esp32-c3, esp32-c6, nrf52840, rp2040}. Everything
+#     else (Linux/portduino, STM32, etc.) is dropped — those aren't
+#     browser-flashable.
 #   - Overwrites apps/run.flash/webapp/public/data/hardware-list.json
 #     atomically (write to .tmp, validate, mv into place).
 #
@@ -28,7 +29,7 @@ mkdir -p "$(dirname "$OUTPUT")"
 
 echo "Fetching $DEVICE_HW_API"
 curl -fsSL "$DEVICE_HW_API" \
-  | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6")]' \
+  | jq '[.[] | select(.architecture == "esp32" or .architecture == "esp32-s3" or .architecture == "esp32-c3" or .architecture == "esp32-c6" or .architecture == "nrf52840" or .architecture == "rp2040")]' \
   > "$OUTPUT.tmp"
 
 if ! jq -e 'length > 0' "$OUTPUT.tmp" > /dev/null; then
