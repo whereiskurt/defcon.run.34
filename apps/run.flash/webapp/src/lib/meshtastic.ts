@@ -13,6 +13,7 @@ import { buildRingtoneAdminMessageBytes } from "@/lib/ringtone-admin";
 import { isValidRtttl } from "@/lib/rtttl";
 import { buildShortName, clampLongName } from "@/lib/identity";
 import { formatMqttAddress, verifyMqttConfig } from "@/lib/verify-config";
+import { awaitAckTolerant } from "@/lib/ack-tolerant";
 
 /** Info captured during configure handshake for auto-registration */
 export type DeviceRegistrationInfo = {
@@ -231,11 +232,15 @@ export async function connectMeshtasticDeviceNrf52(): Promise<{
 /**
  * Push complete device configuration.
  *
- * Each admin call is awaited directly -- the @meshtastic/core library handles
- * the internal sequencing (setConfig auto-calls beginEditSettings, packets are
- * queued and sent in order, ACKs are awaited). Wrapping these in artificial
- * timeouts would race past the library's internal await chains, scrambling
- * the packet order and causing config to not be applied.
+ * Each admin write goes through awaitAckTolerant(): the packet is written to
+ * the transport synchronously at call time (ordering preserved), and we wait
+ * up to ADMIN_ACK_TIMEOUT_MS for the ACK. On ≤2.7 firmware every ACK arrives
+ * fast and this behaves exactly like a plain await; on 2.8 develop the ACKs
+ * are eaten by an upstream loopbackOk regression while the writes still
+ * apply, so we proceed and rely on the post-commit read-back verification.
+ * The settings transaction is opened EXPLICITLY up front — otherwise the
+ * library's setConfig would internally `await beginEditSettings()` and stall
+ * the whole push on ack-less firmware.
  *
  * Order: Radio (region FIRST) -> MQTT -> Channels -> Identity -> Commit
  * Region must be set first on a freshly flashed device -- the firmware
@@ -250,9 +255,21 @@ export async function pushDeviceConfig(
   config: DeviceConfigPayload,
   onStageComplete: (stage: string, summary: string) => void
 ): Promise<void> {
+  // 0. Open the settings transaction explicitly. The library flags the
+  // pending transaction synchronously, so later setConfig calls skip their
+  // internal `await beginEditSettings()` — which would never resolve on
+  // ack-less 2.8 develop firmware. beginEditSettings is typed private in
+  // @meshtastic/core 2.6.7 (setConfig is meant to auto-call it) but is a
+  // plain runtime method; the cast only bypasses the typing, not behavior.
+  await awaitAckTolerant(
+    (
+      device as unknown as { beginEditSettings(): Promise<unknown> }
+    ).beginEditSettings(),
+    "beginEditSettings"
+  );
+
   // 1. Radio Config FIRST -- freshly flashed devices need region set before
   // the firmware fully initializes. Without a region, other config may be ignored.
-  // NOTE: setConfig() auto-calls beginEditSettings() if not already pending.
   console.log("[meshtastic] Pushing radio config (region first)...");
   const regionCode = mapRegionCode(config.radio.region);
   const modemPreset = mapModemPreset(config.radio.modemPreset);
@@ -270,7 +287,7 @@ export async function pushDeviceConfig(
       }),
     },
   });
-  await device.setConfig(loraConfig);
+  await awaitAckTolerant(device.setConfig(loraConfig), "setConfig(lora)");
   console.log("[meshtastic] Radio config applied");
 
   // 1b. Position Config (device Config) — enable GPS + smart broadcast so the
@@ -294,7 +311,7 @@ export async function pushDeviceConfig(
       }),
     },
   });
-  await device.setConfig(positionConfig);
+  await awaitAckTolerant(device.setConfig(positionConfig), "setConfig(position)");
   console.log("[meshtastic] Position config applied");
   onStageComplete(
     "radio",
@@ -338,7 +355,7 @@ export async function pushDeviceConfig(
       }),
     },
   });
-  await device.setModuleConfig(mqttConfig);
+  await awaitAckTolerant(device.setModuleConfig(mqttConfig), "setModuleConfig(mqtt)");
   console.log("[meshtastic] MQTT config applied");
   onStageComplete("mqtt", mqttAddress);
 
@@ -370,7 +387,7 @@ export async function pushDeviceConfig(
         }),
       }),
     });
-    await device.setChannel(channel);
+    await awaitAckTolerant(device.setChannel(channel), `setChannel(${i})`);
     console.log(`[meshtastic] Channel ${i} (${ch.name}) applied`);
   }
   onStageComplete("channels", `${config.channels.length} channels`);
@@ -386,7 +403,7 @@ export async function pushDeviceConfig(
     longName: clampLongName(config.identity.longName),
     shortName: buildShortName(config.identity.shortName),
   });
-  await device.setOwner(owner);
+  await awaitAckTolerant(device.setOwner(owner), "setOwner");
   console.log("[meshtastic] Identity applied");
   onStageComplete("identity", config.identity.longName);
 
@@ -404,10 +421,9 @@ export async function pushDeviceConfig(
   if (isValidRtttl(config.ringtone)) {
     console.log("[meshtastic] Pushing ringtone...");
     const ringtoneBytes = buildRingtoneAdminMessageBytes(config.ringtone);
-    await device.sendPacket(
-      ringtoneBytes,
-      Protobuf.Portnums.PortNum.ADMIN_APP,
-      "self"
+    await awaitAckTolerant(
+      device.sendPacket(ringtoneBytes, Protobuf.Portnums.PortNum.ADMIN_APP, "self"),
+      "sendPacket(ringtone)"
     );
     console.log("[meshtastic] Ringtone applied");
     onStageComplete("ringtone", "custom tune");
@@ -420,7 +436,7 @@ export async function pushDeviceConfig(
 
   // 5. Commit all changes atomically
   console.log("[meshtastic] Committing settings...");
-  await device.commitEditSettings();
+  await awaitAckTolerant(device.commitEditSettings(), "commitEditSettings");
   console.log("[meshtastic] Settings committed");
 
   // 5b. Let the commit settle before reading anything back. Config can stage
@@ -453,12 +469,23 @@ export async function pushDeviceConfig(
   // (the phone app's client proxy presents whatever the RADIO stores, so this
   // is invisible until the broker denies it). Same fail-open contract as
   // region: hard-fail only on a positively read mismatch.
-  const mqtt = await verifyMqttConfig(device, {
-    username: config.mqtt.username,
-    address: mqttAddress,
-    root: config.mqtt.root,
-    enabled: true,
-  });
+  const mqtt = await verifyMqttConfig(
+    {
+      events: device.events,
+      getModuleConfig: (t) => device.getModuleConfig(t),
+      // 2.8-develop fallback: the admin GET response is dropped upstream, but
+      // re-requesting the wantConfig dump still streams module config.
+      requestConfigDump: () => {
+        device.configure().catch(() => {});
+      },
+    },
+    {
+      username: config.mqtt.username,
+      address: mqttAddress,
+      root: config.mqtt.root,
+      enabled: true,
+    }
+  );
   if (mqtt.status === "mismatch") {
     console.error("[meshtastic] MQTT config MISMATCH:", mqtt.mismatches);
     throw new Error(
@@ -503,6 +530,7 @@ async function verifyRegion(
       if (resolved) return;
       resolved = true;
       clearTimeout(timeout);
+      clearTimeout(dumpFallback);
       unsub();
       resolve(result);
     };
@@ -513,6 +541,19 @@ async function verifyRegion(
       );
       finish({ status: "inconclusive" });
     }, TIMEOUT_MS);
+
+    // 2.8 develop never answers the admin GET (loopbackOk regression drops
+    // the response); re-requesting the wantConfig dump still streams the lora
+    // config to the same subscriber. On ≤2.7 the GET answers first and this
+    // timer is cleared without firing.
+    const dumpFallback = setTimeout(() => {
+      if (!resolved) {
+        console.log(
+          "[meshtastic] Region GET silent — falling back to config-dump re-request"
+        );
+        device.configure().catch(() => {});
+      }
+    }, 2500);
 
     const unsub = device.events.onConfigPacket.subscribe(
       (cfg: Protobuf.Config.Config) => {
@@ -533,11 +574,12 @@ async function verifyRegion(
     device
       .getConfig(Protobuf.Admin.AdminMessage_ConfigType.LORA_CONFIG)
       .catch((err: unknown) => {
+        // Not terminal: the dump fallback can still feed the subscriber; the
+        // 10s overall timeout bounds the wait either way.
         console.warn(
-          "[meshtastic] getConfig(LORA_CONFIG) failed — leaving unverified (not blocking):",
+          "[meshtastic] getConfig(LORA_CONFIG) request errored (tolerated):",
           err
         );
-        finish({ status: "inconclusive" });
       });
   });
 }

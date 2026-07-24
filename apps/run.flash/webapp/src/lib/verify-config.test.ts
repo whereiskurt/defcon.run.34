@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   compareMqttConfig,
   verifyMqttConfig,
   formatMqttAddress,
+  DUMP_FALLBACK_MS,
   type MqttVerifyExpectation,
   type MqttReadbackDevice,
 } from "./verify-config";
@@ -140,5 +141,44 @@ describe("verifyMqttConfig", () => {
     const device = fakeDevice({ requestFails: true });
     const result = await verifyMqttConfig(device, expected, 1000);
     expect(result).toEqual({ status: "inconclusive" });
+  });
+
+  it("falls back to the config-dump re-request when the admin GET stays silent (2.8 develop)", async () => {
+    vi.useFakeTimers();
+    try {
+      let handler: ((pkt: never) => void) | null = null;
+      let dumpRequested = false;
+      const device: MqttReadbackDevice = {
+        events: {
+          onModuleConfigPacket: {
+            subscribe(cb: (pkt: never) => void) {
+              handler = cb;
+              return () => {};
+            },
+          },
+        },
+        // 2.8 behavior: the GET never resolves and never emits an event.
+        getModuleConfig: () => new Promise<number>(() => {}),
+        requestConfigDump: () => {
+          dumpRequested = true;
+          // The wantConfig dump streams module config shortly after.
+          setTimeout(() => {
+            handler?.({
+              payloadVariant: { case: "mqtt", value: matchingActual },
+            } as never);
+          }, 400);
+        },
+      };
+
+      const resultPromise = verifyMqttConfig(device, expected, 10000);
+      await vi.advanceTimersByTimeAsync(DUMP_FALLBACK_MS - 100);
+      expect(dumpRequested).toBe(false);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(dumpRequested).toBe(true);
+      await vi.advanceTimersByTimeAsync(500);
+      await expect(resultPromise).resolves.toEqual({ status: "verified" });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

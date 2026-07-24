@@ -42,7 +42,16 @@ export interface MqttReadbackDevice {
     };
   };
   getModuleConfig(moduleConfigType: number): Promise<number>;
+  /** Optional fallback trigger: re-request the full config dump (wantConfig).
+   *  Firmware 2.8 develop drops local admin GET responses (upstream MeshModule
+   *  loopbackOk regression), but the wantConfig dump path still delivers
+   *  module-config events — so when the admin GET stays silent, firing this
+   *  re-dump lets the same subscriber capture the value. */
+  requestConfigDump?: () => void;
 }
+
+/** How long to give the admin GET before firing the config-dump fallback (ms). */
+export const DUMP_FALLBACK_MS = 2500;
 
 /**
  * Build the MQTT address string the device stores: "host:port".
@@ -120,11 +129,21 @@ export function verifyMqttConfig(
       if (resolved) return;
       resolved = true;
       clearTimeout(timeout);
+      clearTimeout(dumpFallback);
       unsub();
       resolve(result);
     };
 
     const timeout = setTimeout(() => finish({ status: "inconclusive" }), timeoutMs);
+
+    // Firmware 2.8 develop never answers the admin GET (response is dropped
+    // by the loopbackOk gate before the phone-forward). The wantConfig dump
+    // still streams module config, so fall back to a re-dump if the GET has
+    // stayed silent. On ≤2.7 the GET answers well inside the window and this
+    // timer is cleared without firing.
+    const dumpFallback = setTimeout(() => {
+      if (!resolved) device.requestConfigDump?.();
+    }, DUMP_FALLBACK_MS);
 
     const unsub = device.events.onModuleConfigPacket.subscribe((pkt) => {
       if (pkt.payloadVariant.case !== "mqtt") return;
@@ -137,8 +156,12 @@ export function verifyMqttConfig(
       );
     });
 
+    // The GET rejecting is only terminal when no dump fallback exists — with a
+    // fallback the subscriber may still be fed by the re-dump.
     device
       .getModuleConfig(Protobuf.Admin.AdminMessage_ModuleConfigType.MQTT_CONFIG)
-      .catch(() => finish({ status: "inconclusive" }));
+      .catch(() => {
+        if (!device.requestConfigDump) finish({ status: "inconclusive" });
+      });
   });
 }
