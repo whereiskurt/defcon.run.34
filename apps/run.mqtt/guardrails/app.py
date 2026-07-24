@@ -1,37 +1,49 @@
-"""Ghost guardrail sidecar.
+"""Ghost guardrail sidecar (transformers-direct).
 
-A thin FastAPI wrapper around Guardrails-AI Guard objects so meshtk depends on a
-stable /guard contract rather than the evolving Guardrails server API. Two guards:
-- input:  catch jailbreak / prompt-injection attempts.
-- output: block toxic replies and flag/redact real-person PII.
+Two-sided moderation for the ghost chatbots, exposing a stable /guard contract so
+meshtk (internal/app/fleet/guard.go) depends on OUR endpoint, not any framework's
+API. Open models loaded directly via transformers (no gated weights, no Guardrails
+Hub post-install machinery — which broke against the pinned huggingface_hub's
+strict model-config validation).
+
+- input  guard: prompt-injection / jailbreak classifier.
+- output guard: toxicity classifier + regex PII (email / phone / credit-card).
 
 The deterministic covert-flag reveal is filled server-side in meshtk and is NEVER
-sent here, so the output PII validator cannot eat a flag code.
+sent here, so the output PII check cannot eat a flag code.
 
-Contract (called by meshtk internal/app/fleet/guard.go):
+Contract (called by meshtk):
   POST /guard  {"text": "...", "direction": "input"|"output"}
     -> 200 {"allowed": bool, "reason": str}
   GET  /healthz -> {"ok": true}
 """
 
+import re
+
 from fastapi import FastAPI
 from pydantic import BaseModel
-from guardrails import Guard
-from guardrails.hub import DetectJailbreak, ToxicLanguage, DetectPII
+from transformers import pipeline
+
+INJECTION_MODEL = "protectai/deberta-v3-base-prompt-injection-v2"
+TOXICITY_MODEL = "unitary/toxic-bert"
+INJECTION_THRESHOLD = 0.8
+TOXICITY_THRESHOLD = 0.8
 
 app = FastAPI()
 
-# Input guard: catch jailbreak / prompt-injection attempts.
-INPUT_GUARD = Guard().use(DetectJailbreak, on_fail="exception")
-
-# Output guard: block toxic replies and flag real-person PII. Deliberately no
-# blanket "illicit-activity" validator — the personas are hacker-culture figures
-# and are expected to discuss 2600, phreaking, exploits (spec 6.3).
-OUTPUT_GUARD = (
-    Guard()
-    .use(ToxicLanguage, threshold=0.8, on_fail="exception")
-    .use(DetectPII, ["EMAIL_ADDRESS", "PHONE_NUMBER", "CREDIT_CARD"], on_fail="exception")
+# Loaded once at process start (weights baked into the image at build time).
+_injection = pipeline("text-classification", model=INJECTION_MODEL, truncation=True)
+_toxicity = pipeline(
+    "text-classification", model=TOXICITY_MODEL, top_k=None, truncation=True
 )
+
+# Deliberately narrow PII set — hacker-culture chat is expected; we only guard
+# real-person contact/financial data. No blanket "illicit-activity" check (spec 6.3).
+PII_PATTERNS = {
+    "EMAIL": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+    "PHONE": re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
+    "CREDIT_CARD": re.compile(r"\b(?:\d[ -]?){13,16}\b"),
+}
 
 
 class GuardReq(BaseModel):
@@ -44,11 +56,31 @@ def healthz():
     return {"ok": True}
 
 
+def _flatten(result):
+    # transformers may return [{...}] or [[{...}]] depending on top_k/version.
+    if result and isinstance(result[0], list):
+        return result[0]
+    return result
+
+
+def _check_injection(text: str):
+    for r in _flatten(_injection(text)):
+        if r["label"].upper().startswith("INJECT") and r["score"] >= INJECTION_THRESHOLD:
+            return f"injection:{r['score']:.2f}"
+    return None
+
+
+def _check_output(text: str):
+    for r in _flatten(_toxicity(text)):
+        if r["score"] >= TOXICITY_THRESHOLD:
+            return f"toxic:{r['label']}:{r['score']:.2f}"
+    for name, pat in PII_PATTERNS.items():
+        if pat.search(text):
+            return f"pii:{name}"
+    return None
+
+
 @app.post("/guard")
 def guard(req: GuardReq):
-    g = INPUT_GUARD if req.direction == "input" else OUTPUT_GUARD
-    try:
-        g.validate(req.text)
-        return {"allowed": True, "reason": ""}
-    except Exception as e:  # validation failure -> block
-        return {"allowed": False, "reason": type(e).__name__}
+    reason = _check_injection(req.text) if req.direction == "input" else _check_output(req.text)
+    return {"allowed": reason is None, "reason": reason or ""}

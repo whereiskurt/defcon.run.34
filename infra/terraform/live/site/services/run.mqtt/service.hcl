@@ -53,7 +53,7 @@ locals {
     regions      = ["us-east-1", "ca-central-1"]
     cluster_name = "app"
     task_cpu     = 1024
-    task_memory  = 3072
+    task_memory  = 2048
 
     containers = [
       # Container 1: run-mqtt-mosquitto (64 CPU / 128 MB, essential)
@@ -387,8 +387,8 @@ locals {
         name               = "run-mqtt-guardrails"
         image              = "run-mqtt-guardrails:${local.versions.guardrails}"
         cpu                = 512
-        memory             = 1792
-        memory_reservation = 1024
+        memory             = 1024
+        memory_reservation = 512
         essential          = false
 
         readonly_root_filesystem = false

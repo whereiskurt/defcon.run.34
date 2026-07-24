@@ -2,6 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 ENV HF_HOME=/app/.cache/huggingface
+ENV TRANSFORMERS_NO_ADVISORY_WARNINGS=1
 
 # curl for the container healthcheck.
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
@@ -13,21 +14,11 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install hub validators at build so model weights are baked into the image layer
-# (no runtime downloads on a locked-down ECS task). Guardrails Hub requires a
-# token for install/remote-inferencing; provide it as a build secret in CI:
-#   --build-arg GUARDRAILS_TOKEN=...
-# Fallback (token unavailable): replace these three installs + the guardrails.hub
-# imports in app.py with a transformers-direct implementation behind the SAME
-# /guard contract — meta-llama/Llama-Prompt-Guard-2-86M (input injection),
-# unitary/toxic-bert (output toxicity), presidio-analyzer (PII). No wiring changes.
-ARG GUARDRAILS_TOKEN=""
-RUN if [ -n "$GUARDRAILS_TOKEN" ]; then \
-      guardrails configure --token "$GUARDRAILS_TOKEN" --disable-metrics --disable-remote-inferencing ; \
-    fi \
- && guardrails hub install hub://guardrails/detect_jailbreak \
- && guardrails hub install hub://guardrails/toxic_language \
- && guardrails hub install hub://guardrails/detect_pii
+# Bake the open classifier weights into the image at build (no runtime downloads
+# on the locked-down ECS task; no gated models, so no HF/Guardrails token needed).
+RUN python -c "from transformers import pipeline; \
+pipeline('text-classification', model='protectai/deberta-v3-base-prompt-injection-v2'); \
+pipeline('text-classification', model='unitary/toxic-bert', top_k=None)"
 
 COPY app.py .
 
