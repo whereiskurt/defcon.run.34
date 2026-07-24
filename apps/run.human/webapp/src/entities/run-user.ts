@@ -135,8 +135,9 @@ export const RunUser = new Entity(
         properties: {
           checkin: { type: "number", default: () => 0 },
           gpx: { type: "number", default: () => 0 },
+          strava: { type: "number", default: () => 0 },
         },
-        default: () => ({ checkin: 0, gpx: 0 }),
+        default: () => ({ checkin: 0, gpx: 0, strava: 0 }),
       },
       latestActivityAt: {
         type: "number",
@@ -362,10 +363,10 @@ export async function updateRunUserProfile(
  * below, not here, because it depends on the persisted current value.
  */
 export function activityDelta(
-  source: "checkin" | "gpx",
+  source: "checkin" | "gpx" | "strava",
   pointsDelta: number,
   increment: boolean
-): { scoreDelta: number; countKey: "checkin" | "gpx"; countDelta: number } {
+): { scoreDelta: number; countKey: "checkin" | "gpx" | "strava"; countDelta: number } {
   const sign = increment ? 1 : -1;
   return {
     scoreDelta: sign * pointsDelta,
@@ -400,7 +401,7 @@ export async function updateRunUserActivityCounts(
     completedAt,
     increment = true,
   }: {
-    source: "checkin" | "gpx";
+    source: "checkin" | "gpx" | "strava";
     pointsDelta: number;
     completedAt: number;
     increment?: boolean;
@@ -422,6 +423,7 @@ export async function updateRunUserActivityCounts(
   const nextCounts = {
     checkin: currentCounts.checkin ?? 0,
     gpx: currentCounts.gpx ?? 0,
+    strava: currentCounts.strava ?? 0,
     [countKey]: nextCount,
   };
 
@@ -456,7 +458,7 @@ export type RunUserItem = {
   ctfSolves?: number;
   // Leaderboard activity rollups (Phase 49, LDBR-02) — default-zero / optional.
   activityScore?: number;
-  activityCounts?: { checkin?: number; gpx?: number };
+  activityCounts?: { checkin?: number; gpx?: number; strava?: number };
   latestActivityAt?: number;
   preferences?: {
     theme?: string;

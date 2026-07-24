@@ -42,4 +42,20 @@ describe("activityDelta", () => {
     expect(activityDelta("checkin", 5, true).countDelta).toBe(1);
     expect(activityDelta("gpx", 5, false).countDelta).toBe(-1);
   });
+
+  it("increments a strava activity by +1 (joins the rollup like checkin/gpx)", () => {
+    expect(activityDelta("strava", 1, true)).toEqual({
+      scoreDelta: 1,
+      countKey: "strava",
+      countDelta: 1,
+    });
+  });
+
+  it("decrements a strava activity by -1 (floored at 0 by the mutator, not here)", () => {
+    expect(activityDelta("strava", 1, false)).toEqual({
+      scoreDelta: -1,
+      countKey: "strava",
+      countDelta: -1,
+    });
+  });
 });

@@ -34,13 +34,15 @@ export type LeaderboardUser = {
   /** Reuse the RunUserItem class enum so scan rows assign without a cast. */
   mqttUsertype?: RunUserItem["mqttUsertype"];
   activityScore?: number;
-  activityCounts?: { checkin?: number; gpx?: number };
+  activityCounts?: { checkin?: number; gpx?: number; strava?: number };
   latestActivityAt?: number;
   createdAt?: number;
   /** Read-only CTF rollup, owned by the CTF judge worktree (LDBR-12). */
   ctfScore?: number;
   /** Read-only CTF solve count, owned by the CTF judge worktree (LDBR-12). */
   ctfSolves?: number;
+  /** Runner-social-QR rollup (whoami), read-only additive input here. */
+  socialScore?: number;
 };
 
 /**
@@ -53,8 +55,9 @@ export type LeaderboardRow = {
   displayName?: string;
   mqttUsertype?: RunUserItem["mqttUsertype"];
   globalScore: number;
-  activityCounts: { checkin: number; gpx: number };
+  activityCounts: { checkin: number; gpx: number; strava: number };
   ctfSolves: number;
+  socialScore: number;
 };
 
 export type LeaderboardResult = {
@@ -111,8 +114,10 @@ export function buildLeaderboard(
       activityCounts: {
         checkin: u.activityCounts?.checkin ?? 0,
         gpx: u.activityCounts?.gpx ?? 0,
+        strava: u.activityCounts?.strava ?? 0,
       },
       ctfSolves: u.ctfSolves ?? 0,
+      socialScore: u.socialScore ?? 0,
     }));
 
   // 3. Filter AFTER ranking so globalRank stays global (T-51-02). "namedOnly"

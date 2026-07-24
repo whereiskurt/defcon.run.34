@@ -133,6 +133,28 @@ describe("buildLeaderboard — pagination", () => {
   });
 });
 
+describe("buildLeaderboard — strava joins the activity rollup + socialScore projection", () => {
+  it("projects activityCounts.strava and socialScore through onto the row", () => {
+    const users = [
+      row({
+        userId: "u1",
+        activityCounts: { checkin: 1, gpx: 2, strava: 3 },
+        socialScore: 4,
+      }),
+    ];
+    const { rows } = buildLeaderboard(users);
+    expect(rows[0].activityCounts).toEqual({ checkin: 1, gpx: 2, strava: 3 });
+    expect(rows[0].socialScore).toBe(4);
+  });
+
+  it("defaults socialScore to 0 (never undefined/NaN) when absent", () => {
+    const users = [row({ userId: "u1" })];
+    const { rows } = buildLeaderboard(users);
+    expect(rows[0].socialScore).toBe(0);
+    expect(Number.isNaN(rows[0].socialScore)).toBe(false);
+  });
+});
+
 describe("buildLeaderboard — ctfSolves chip", () => {
   it("surfaces ctfSolves when set and 0 (never undefined/NaN) when absent", () => {
     const users = [
@@ -155,18 +177,18 @@ describe("buildLeaderboard — row DTO leanness (no PII, T-51-01)", () => {
     const { rows } = buildLeaderboard(users);
     const r = rows[0];
     expect(Object.keys(r).sort()).toEqual(
-      ["activityCounts", "ctfSolves", "displayName", "globalRank", "globalScore", "mqttUsertype", "userId"].sort()
+      ["activityCounts", "ctfSolves", "displayName", "globalRank", "globalScore", "mqttUsertype", "socialScore", "userId"].sort()
     );
-    expect(r.activityCounts).toEqual({ checkin: 3, gpx: 2 });
+    expect(r.activityCounts).toEqual({ checkin: 3, gpx: 2, strava: 0 });
     expect(r).not.toHaveProperty("email");
     expect(r).not.toHaveProperty("emailFull");
     expect(r).not.toHaveProperty("hash");
   });
 
-  it("normalizes activityCounts to zero-filled checkin/gpx", () => {
+  it("normalizes activityCounts to zero-filled checkin/gpx/strava", () => {
     const users = [row({ userId: "u1", displayName: "R", activityCounts: undefined })];
     const { rows } = buildLeaderboard(users);
-    expect(rows[0].activityCounts).toEqual({ checkin: 0, gpx: 0 });
+    expect(rows[0].activityCounts).toEqual({ checkin: 0, gpx: 0, strava: 0 });
   });
 
   it("does not mutate the input array", () => {
