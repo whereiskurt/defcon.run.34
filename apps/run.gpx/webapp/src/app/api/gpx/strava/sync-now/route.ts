@@ -10,6 +10,7 @@ import {
   syncUserUntagged,
 } from "@/lib/strava-sync";
 import { logEvent } from "@/lib/log-event";
+import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 
 /**
  * POST /api/gpx/strava/sync-now (Task 2, scheduled-Strava-sync milestone).
@@ -108,6 +109,11 @@ export async function POST(request: Request) {
       email: session.user.email ?? undefined,
       meta: { imported: result.imported, skipped: result.skipped },
     });
+
+    // Task 4 (leaderboard<->runs reconcile): re-converge run.human after a
+    // successful sync. Fire-and-forget (T-50-06); fired before the response
+    // so it can't be skipped by an early return.
+    reconcileBestEffort(userId);
 
     return NextResponse.json({
       ok: true,

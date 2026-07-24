@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   getExistingStravaIds: vi.fn(async () => new Set<string>()),
   countConDayRuns: vi.fn(async () => 0),
   logEvent: vi.fn(),
+  reconcileBestEffort: vi.fn(),
 }));
 
 vi.mock("@/config/auth", () => ({ auth: mocks.auth }));
@@ -28,6 +29,7 @@ vi.mock("@/lib/strava-sync", async (importOriginal) => ({
   getExistingStravaIds: mocks.getExistingStravaIds,
 }));
 vi.mock("@/lib/log-event", () => ({ logEvent: mocks.logEvent }));
+vi.mock("@/lib/gpx-reconcile", () => ({ reconcileBestEffort: mocks.reconcileBestEffort }));
 
 import { POST } from "./route";
 
@@ -73,6 +75,9 @@ describe("POST /api/gpx/strava/import", () => {
       "2026-08-07"
     );
     expect(mocks.consumeQuota).toHaveBeenCalledWith("u1", "gpx_upload", 1, "upload");
+    // Task 4 (leaderboard<->runs reconcile trigger).
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
   });
 
   it("accepts ANY con day (no selectable/no-future gate)", async () => {
@@ -103,6 +108,7 @@ describe("POST /api/gpx/strava/import", () => {
     expect(res.status).toBe(422);
     expect(body.message).toMatch(/no GPS track/i);
     expect(mocks.restoreQuota).not.toHaveBeenCalledWith("u1", "gpx_upload", 1);
+    expect(mocks.reconcileBestEffort).not.toHaveBeenCalled();
   });
 
   it("404s WITHOUT refunding when Strava doesn't return the activity", async () => {

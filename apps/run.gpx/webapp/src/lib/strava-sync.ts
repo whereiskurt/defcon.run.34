@@ -11,6 +11,7 @@ import {
 } from "@/lib/quota-client";
 import { conDayRemaining } from "@/lib/con-day-quota";
 import { countConDayRuns } from "@/lib/con-day-usage";
+import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 
 /**
  * Strava date-banded ingestion worker (v1.7 Phase 31b).
@@ -271,7 +272,14 @@ export async function runStravaSync(
   let imported = 0;
   for (const user of tokens) {
     try {
-      imported += await syncUser(user, afterDays);
+      const userImported = await syncUser(user, afterDays);
+      imported += userImported;
+      // Task 4 (leaderboard<->runs reconcile): a batch-imported run can land
+      // pre-tagged only via a con-day retag later, but re-converging here
+      // keeps run.human's Accomplishment rows current with anything this
+      // user's sync touched. Fire-and-forget (T-50-06); skip when nothing
+      // changed for this user.
+      if (userImported > 0) reconcileBestEffort(user.userId);
     } catch (e) {
       console.error(`[strava-sync] user ${user.userId} failed`, e);
     }

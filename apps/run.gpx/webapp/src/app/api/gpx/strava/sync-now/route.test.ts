@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
     fetchSingleUserStravaToken: vi.fn(),
     syncUserUntagged: vi.fn(async () => ({ imported: 0, skipped: 0 })),
     logEvent: vi.fn(),
+    reconcileBestEffort: vi.fn(),
     syncNowGetGo,
     syncNowAddGo,
     syncNowGet,
@@ -29,6 +30,7 @@ vi.mock("@/lib/strava-sync", async (importOriginal) => ({
   syncUserUntagged: mocks.syncUserUntagged,
 }));
 vi.mock("@/lib/log-event", () => ({ logEvent: mocks.logEvent }));
+vi.mock("@/lib/gpx-reconcile", () => ({ reconcileBestEffort: mocks.reconcileBestEffort }));
 vi.mock("@/entities/gpx-sync-now", () => ({
   GpxSyncNow: { get: mocks.syncNowGet, upsert: mocks.syncNowUpsert },
 }));
@@ -131,6 +133,9 @@ describe("POST /api/gpx/strava/sync-now", () => {
       "gpx.strava.syncnow",
       expect.objectContaining({ meta: { imported: 3, skipped: 1 } })
     );
+    // Task 4 (leaderboard<->runs reconcile trigger).
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledTimes(1);
+    expect(mocks.reconcileBestEffort).toHaveBeenCalledWith("u1");
   });
 
   it("409s and does NOT restore the burned slot when the token is missing", async () => {
@@ -141,6 +146,7 @@ describe("POST /api/gpx/strava/sync-now", () => {
 
     expect(res.status).toBe(409);
     expect(mocks.syncNowUpsert).toHaveBeenCalledTimes(1); // slot burned, not restored
+    expect(mocks.reconcileBestEffort).not.toHaveBeenCalled();
   });
 
   it("500s and does NOT restore the burned slot when the sync throws", async () => {
@@ -151,6 +157,7 @@ describe("POST /api/gpx/strava/sync-now", () => {
 
     expect(res.status).toBe(500);
     expect(mocks.syncNowUpsert).toHaveBeenCalledTimes(1); // slot burned, not restored
+    expect(mocks.reconcileBestEffort).not.toHaveBeenCalled();
   });
 
   it("admins bypass the counter entirely (remainingToday: 99)", async () => {

@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/config/auth";
 import { GpxFile } from "@/entities/gpx-file";
-import { DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client, BUCKET } from "@/lib/s3-client";
 import { validateGpxFile } from "@/lib/gpx-validator";
 import { assertNotLockedLive } from "@/lib/live-lockout";
-import {
-  parseTrack,
-  buildAccomplishmentPayload,
-  notifyAccomplishment,
-} from "@/lib/gpx-accomplishment";
+import { reconcileBestEffort } from "@/lib/gpx-reconcile";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -143,40 +139,14 @@ export async function POST(request: Request, { params }: RouteParams) {
       .set({ status: "active" })
       .go({ response: "all_new" });
 
-    // LDBR-05: turn an individually-owned GPX activation into a leaderboard
-    // accomplishment on run.human. Best-effort / fire-and-forget — ANY failure
-    // here (S3 fetch, parse, POST) is swallowed so the confirm success response
-    // and the user's save always succeed (T-50-06). GLOBAL community files have
-    // no individual owner and must NOT score (T-50-07).
+    // LDBR-05 / Task 4 (leaderboard<->runs reconcile): turn an individually-owned
+    // GPX activation into a full-recalc reconcile against run.human's
+    // Accomplishment rows. Fire-and-forget — ANY failure is swallowed inside
+    // reconcileBestEffort so the confirm success response and the user's save
+    // always succeed (T-50-06). GLOBAL community files have no individual owner
+    // and must NOT score (T-50-07).
     if (targetUserId !== "GLOBAL") {
-      try {
-        // Full body (no Range header) — the 1KB validator above is separate.
-        const obj = await s3Client.send(
-          new GetObjectCommand({ Bucket: BUCKET, Key: file.data.key })
-        );
-        const gpxText = (await obj.Body?.transformToString()) ?? "";
-        const { points, distance, elevation } = parseTrack(gpxText);
-        // run.gpx is pure JWT: GpxFile.userId IS the raw OIDC sub run.human wants.
-        const payload = buildAccomplishmentPayload({
-          oidcSub: file.data.userId,
-          gpxFileId: id,
-          name: file.data.fileName,
-          points,
-          distance,
-          elevation,
-          completedAt: Date.now(),
-          // Con-day tag (Phase 58) travels to run.human so flags can key off the
-          // day the run was logged for. Undefined for legacy/untagged files.
-          conDay: file.data.conDay,
-        });
-        await notifyAccomplishment(payload);
-      } catch (err) {
-        // gpxFileId only — never the secret or payload (T-50-08).
-        console.log(
-          `[confirm] accomplishment notify skipped for ${id}:`,
-          err instanceof Error ? err.message : err
-        );
-      }
+      reconcileBestEffort(file.data.userId);
     }
 
     return NextResponse.json({
