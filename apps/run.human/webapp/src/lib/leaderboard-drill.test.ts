@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupSocial, buildCtfLines, maskCtfLines } from "./leaderboard-drill";
+import { groupSocial, buildCtfLines, maskCtfLines, injectCheckinLocations } from "./leaderboard-drill";
 
 /**
  * Task 5 — pure lib for the leaderboard drill: social-scan day rollups +
@@ -106,5 +106,48 @@ describe("maskCtfLines", () => {
   it("never masks a qr line", () => {
     const masked = maskCtfLines([qrLine], { isOwner: false, isAdmin: false });
     expect(masked[0].name).toBe("Rainbow Bridge");
+  });
+});
+
+describe("injectCheckinLocations", () => {
+  const pubRow = { source: "checkin", metadata: { checkInId: "ci-1", points: 1 } };
+  const checkins = [
+    { checkInId: "ci-1", latitude: 36.135, longitude: -115.158, isPrivate: false },
+    { checkInId: "ci-2", latitude: 36.1, longitude: -115.1, isPrivate: true },
+  ];
+
+  it("injects a single-point polyline for a public check-in", () => {
+    const out = injectCheckinLocations([pubRow], checkins);
+    expect(out[0].metadata?.polyline).toEqual([{ lat: 36.135, lng: -115.158 }]);
+    // non-mutating
+    expect(pubRow.metadata).not.toHaveProperty("polyline");
+  });
+
+  it("never injects for a private check-in", () => {
+    const row = { source: "checkin", metadata: { checkInId: "ci-2", points: 1 } };
+    expect(injectCheckinLocations([row], checkins)[0].metadata?.polyline).toBeUndefined();
+  });
+
+  it("leaves rows with a missing/unknown check-in or bad coords untouched", () => {
+    const unknown = { source: "checkin", metadata: { checkInId: "nope", points: 1 } };
+    const noId = { source: "checkin", metadata: { points: 1 } };
+    const badCoords = injectCheckinLocations(
+      [pubRow],
+      [{ checkInId: "ci-1", latitude: Number.NaN, longitude: -115, isPrivate: false }]
+    );
+    expect(injectCheckinLocations([unknown], checkins)[0].metadata?.polyline).toBeUndefined();
+    expect(injectCheckinLocations([noId], checkins)[0].metadata?.polyline).toBeUndefined();
+    expect(badCoords[0].metadata?.polyline).toBeUndefined();
+  });
+
+  it("never touches non-checkin rows or rows that already carry a polyline", () => {
+    const gpx = { source: "gpx", metadata: { gpxFileId: "f1", polyline: [{ lat: 1, lng: 2 }, { lat: 3, lng: 4 }] } };
+    const preloaded = {
+      source: "checkin",
+      metadata: { checkInId: "ci-1", polyline: [{ lat: 9, lng: 9 }] },
+    };
+    const out = injectCheckinLocations([gpx, preloaded], checkins);
+    expect(out[0]).toBe(gpx);
+    expect(out[1].metadata?.polyline).toEqual([{ lat: 9, lng: 9 }]);
   });
 });

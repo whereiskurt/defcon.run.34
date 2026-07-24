@@ -5,9 +5,15 @@ import {
   type AccomplishmentItem,
 } from "@/entities/accomplishment";
 import { CtfSolve, CtfScoreEvent } from "@/entities/ctf";
+import { getCheckInsByUser } from "@/entities/checkin";
 import { listCtf } from "@/lib/qr-admin";
 import { getCachedDrill } from "@/lib/leaderboard-drill-cache";
-import { groupSocial, buildCtfLines, maskCtfLines } from "@/lib/leaderboard-drill";
+import {
+  groupSocial,
+  buildCtfLines,
+  maskCtfLines,
+  injectCheckinLocations,
+} from "@/lib/leaderboard-drill";
 
 /**
  * GET /api/leaderboard/[userId]/accomplishments — the (hidden) leaderboard's
@@ -76,27 +82,35 @@ function applyPrivacyFilter(
  * the requesting viewer, not the (per-user, viewer-agnostic) cached data.
  */
 async function loadDrill(userId: string) {
-  const [accomplishments, solvesResult, eventsResult, ctfRows] =
+  const [accomplishments, solvesResult, eventsResult, ctfRows, checkins] =
     await Promise.all([
       getAccomplishmentsByUser(userId),
       CtfSolve.query.byUser({ user: userId }).go({ pages: "all" }),
       CtfScoreEvent.query.byUser({ user: userId }).go({ pages: "all" }),
       listCtf(),
+      // Location join for PUBLIC check-ins (pin-map thumbnails). 200 covers
+      // any realistic per-runner check-in count; a miss just means no map.
+      getCheckInsByUser(userId, 200),
     ]);
 
   const visible = applyPrivacyFilter(accomplishments);
 
   // Keep `metadata` whole so `metadata.polyline` survives for the Phase-52
-  // PolylineRenderer (SC #4).
-  const rows = visible.map((a) => ({
-    type: a.type,
-    source: a.source,
-    name: a.name,
-    description: a.description,
-    completedAt: a.completedAt,
-    year: a.year,
-    metadata: a.metadata,
-  }));
+  // PolylineRenderer (SC #4). Public check-ins gain a single-point polyline
+  // (their averaged coordinates) via the join below; private ones never do —
+  // viewer-independent, so the cached value stays shareable.
+  const rows = injectCheckinLocations(
+    visible.map((a) => ({
+      type: a.type,
+      source: a.source,
+      name: a.name,
+      description: a.description,
+      completedAt: a.completedAt,
+      year: a.year,
+      metadata: a.metadata,
+    })),
+    checkins.data
+  );
 
   // The Ctf entity has no separate display-name attribute — `challenge` IS
   // the human-facing name (see CtfForm.tsx "Challenge name" field, which
